@@ -1,3 +1,7 @@
+import { createElement } from "react";
+import { configureTestProviders } from "@vrooli/api-base/testing";
+import { ThemeProvider } from "./theme/ThemeProvider";
+configureTestProviders((children) => createElement(ThemeProvider, null, children));
 /**
  * Vitest setup file
  *
@@ -60,3 +64,20 @@ afterEach(() => {
 // its own beforeEach and restore it on teardown — opt-in override
 // rather than process-wide unwiring.
 vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+
+// jsdom has no viewport query implementation. Shell tests use a desktop
+// baseline; individual breakpoint/theme tests may replace this browser API.
+Object.defineProperty(window, "matchMedia", {
+  configurable: true,
+  writable: true,
+  value: (media: string) => ({
+    media,
+    matches: media.includes("min-width"),
+    onchange: null,
+    addListener() {},
+    removeListener() {},
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent: () => false,
+  }),
+});

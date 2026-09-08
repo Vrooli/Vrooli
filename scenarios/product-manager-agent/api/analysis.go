@@ -17,7 +17,7 @@ func (app *App) analyzeMarket(productName string) (*MarketAnalysis, error) {
 	5. Potential challenges
 	Format as JSON.`, productName)
 
-	result, err := runOllamaJSONGenerate(prompt)
+	result, err := ollamaJSONGenerateRunner(prompt)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (app *App) analyzeCompetitor(competitorName string) (*CompetitorAnalysis, e
 	6. Market share estimate
 	Format as JSON.`, competitorName)
 
-	result, err := runOllamaJSONGenerate(prompt)
+	result, err := ollamaJSONGenerateRunner(prompt)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (app *App) analyzeFeedback(feedbackItems []FeedbackItem) (*FeedbackAnalysis
 	5. Pain points
 	Format as JSON.`, feedbackText)
 
-	result, err := runOllamaJSONGenerate(sentimentPrompt)
+	result, err := ollamaJSONGenerateRunner(sentimentPrompt)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func (app *App) analyzeDecision(decision *Decision) (*DecisionAnalysis, error) {
 	6. Recommendation score (0-100)
 	Format as JSON with an array of options.`, decision.Title, optionsText)
 
-	result, err := runOllamaJSONGenerate(prompt)
+	result, err := ollamaJSONGenerateRunner(prompt)
 	if err != nil {
 		return nil, err
 	}

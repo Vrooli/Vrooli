@@ -53,11 +53,15 @@
   "bindings": [
     {
       "id": "browser-automation-studio/workflows/execute",
-      "effect": "write"
+      "effect": "write",
+      "optional": true,
+      "note": "Portal reports unavailable when Browser Automation Studio is not reachable."
     },
     {
       "id": "device-control/flow/replay",
-      "effect": "write"
+      "effect": "write",
+      "optional": true,
+      "note": "Portal reports unavailable when Device Control is not reachable or the desktop grant is absent."
     }
   ],
   "outputs": {
@@ -105,9 +109,7 @@
       "id": "missing-input",
       "inputs": {},
       "expect": {
-        "status": [
-          "failed"
-        ]
+        "admission_error": "invalid_argument"
       },
       "requires": [
         "portal"

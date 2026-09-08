@@ -28,12 +28,33 @@ func (p *desktopOwnerRPC) runFlow(ctx context.Context, r *connect.Request[deskto
 		return nil, ownerError(sessions.ErrDesktopAdmission)
 	}
 	source := request.Flow
-	flow := execution.Flow{ID: source.Id, Name: source.Name, Transport: source.Transport, RequireUnlocked: source.RequireUnlocked, AuthProfileID: source.AuthProfileId, AllowUnredactedCapture: source.AllowUnredactedCapture}
+	flow := execution.Flow{ID: source.Id, Name: source.Name, Transport: source.Transport, RequireUnlocked: source.RequireUnlocked, AuthProfileID: source.AuthProfileId, AllowUnredactedCapture: source.AllowUnredactedCapture, MaxDurationMS: source.MaxDurationMs, RetryBudget: int(source.RetryBudget), ApplicationID: request.ApplicationId, ApplicationRevision: request.ApplicationRevision}
 	for _, step := range source.Steps {
 		if step == nil {
 			return nil, ownerError(sessions.ErrDesktopAdmission)
 		}
-		flow.Steps = append(flow.Steps, execution.Step{ID: step.Id, Kind: step.Kind, Target: step.Target, TimeoutMS: step.TimeoutMs, RequiredCapabilities: step.RequiredCapabilities, Arguments: step.Arguments.AsMap()})
+		converted := execution.Step{ID: step.Id, Kind: step.Kind, Target: step.Target, TimeoutMS: step.TimeoutMs, RequiredCapabilities: step.RequiredCapabilities, Arguments: step.Arguments.AsMap(), ObservationRequired: step.ObservationRequired, RetryBudget: int(step.RetryBudget), IdempotencyKey: step.IdempotencyKey}
+		for _, condition := range step.Preconditions {
+			if condition == nil {
+				return nil, ownerError(sessions.ErrDesktopAdmission)
+			}
+			var expected any
+			if condition.Expected != nil {
+				expected = condition.Expected.AsInterface()
+			}
+			converted.Preconditions = append(converted.Preconditions, execution.Condition{Kind: condition.Kind, Target: condition.Target, Expected: expected})
+		}
+		for _, condition := range step.Postconditions {
+			if condition == nil {
+				return nil, ownerError(sessions.ErrDesktopAdmission)
+			}
+			var expected any
+			if condition.Expected != nil {
+				expected = condition.Expected.AsInterface()
+			}
+			converted.Postconditions = append(converted.Postconditions, execution.Condition{Kind: condition.Kind, Target: condition.Target, Expected: expected})
+		}
+		flow.Steps = append(flow.Steps, converted)
 	}
 	if internalflows.ValidateDesktopFlow(flow) != nil {
 		return nil, ownerError(sessions.ErrDesktopAdmission)

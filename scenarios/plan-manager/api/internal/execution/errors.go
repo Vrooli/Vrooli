@@ -29,12 +29,13 @@ func (e ErrActiveExecutionConflict) Error() string {
 }
 
 // ErrValidationRequired is returned when a caller attempts to mark a phase done
-// without a recent passing validation result or an explicit override reason.
+// without the support required by its completion policy. The historical type
+// name remains stable for API error mapping.
 type ErrValidationRequired struct {
 	PhaseID string
 	Reason  string
 }
 
 func (e ErrValidationRequired) Error() string {
-	return fmt.Sprintf("phase %q requires validation before done: %s", e.PhaseID, e.Reason)
+	return fmt.Sprintf("phase %q cannot complete: %s", e.PhaseID, e.Reason)
 }

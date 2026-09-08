@@ -7,15 +7,6 @@ import (
 	planmodel "plan-manager/internal/planmodel"
 )
 
-func hasMandatoryViolation(violations []StructureViolation, key SectionKey) bool {
-	for _, v := range violations {
-		if v.SectionKey == key {
-			return true
-		}
-	}
-	return false
-}
-
 // firstUnfilledMandatory returns the key of the first mandatory section that
 // still needs author input, or "" when every mandatory section is filled.
 func firstUnfilledMandatory(sections []Section) SectionKey {

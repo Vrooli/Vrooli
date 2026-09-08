@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "selectors": {
     "app.title": {
       "testId": "app-title",
@@ -80,6 +81,18 @@
       "testId": "page-dashboard",
       "selector": "[data-testid=\"page-dashboard\"]"
     },
+    "pages.coverage": {
+      "testId": "page-coverage",
+      "selector": "[data-testid=\"page-coverage\"]"
+    },
+    "pages.condition": {
+      "testId": "page-condition",
+      "selector": "[data-testid=\"page-condition\"]"
+    },
+    "pages.focus": {
+      "testId": "page-focus",
+      "selector": "[data-testid=\"page-focus\"]"
+    },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
@@ -91,6 +104,66 @@
     "errorBoundary.retryButton": {
       "testId": "error-boundary-retry",
       "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "library.forms.textarea.root": {
+      "testId": "forms.textarea",
+      "selector": "[data-testid=\"forms.textarea\"]"
+    },
+    "library.forms.textarea.probe": {
+      "testId": "forms.textarea.probe",
+      "selector": "[data-testid=\"forms.textarea.probe\"]"
+    },
+    "library.forms.textarea.t": {
+      "testId": "forms.textarea.t",
+      "selector": "[data-testid=\"forms.textarea.t\"]"
+    },
+    "library.statusbadge.root": {
+      "testId": "statusbadge",
+      "selector": "[data-testid=\"statusbadge\"]"
+    },
+    "library.navigation.sidebar.root": {
+      "testId": "navigation.sidebar",
+      "selector": "[data-testid=\"navigation.sidebar\"]"
+    },
+    "library.navigation.sidebar.backdrop": {
+      "testId": "navigation.sidebar.backdrop",
+      "selector": "[data-testid=\"navigation.sidebar.backdrop\"]"
+    },
+    "library.navigation.sidebar.close": {
+      "testId": "navigation.sidebar.close",
+      "selector": "[data-testid=\"navigation.sidebar.close\"]"
+    },
+    "library.navigation.sidebar.resizeHandle": {
+      "testId": "navigation.sidebar.resize-handle",
+      "selector": "[data-testid=\"navigation.sidebar.resize-handle\"]"
+    },
+    "library.forms.select.root": {
+      "testId": "forms.select",
+      "selector": "[data-testid=\"forms.select\"]"
+    },
+    "library.feedback.empty-state.root": {
+      "testId": "feedback.empty-state",
+      "selector": "[data-testid=\"feedback.empty-state\"]"
+    },
+    "library.data-display.data-table.root": {
+      "testId": "data-display.data-table",
+      "selector": "[data-testid=\"data-display.data-table\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.navigation.bottom-navigation.root": {
+      "testId": "navigation.bottom-navigation",
+      "selector": "[data-testid=\"navigation.bottom-navigation\"]"
     }
   },
   "dynamicSelectors": {
@@ -104,6 +177,11 @@
           "type": "enum",
           "values": [
             "dashboard",
+            "substrate",
+            "coverage",
+            "condition",
+            "focus",
+            "designLanguage",
             "settings"
           ]
         }
@@ -119,6 +197,11 @@
           "type": "enum",
           "values": [
             "dashboard",
+            "substrate",
+            "coverage",
+            "condition",
+            "focus",
+            "designLanguage",
             "settings"
           ]
         }
@@ -156,5 +239,10 @@
         }
       ]
     }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "9b7f2725ef7095f53dbddbabfa7949498302a1b3fb8e54e858b5a0c66cad115c",
+    "ui/src/consts/selectors.ts": "2241b7b6247d275c37eeb516c3bdaf825887c399954295d00d4348b72b01993b",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

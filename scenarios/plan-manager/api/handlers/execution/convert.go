@@ -36,7 +36,20 @@ func executionToProto(e internalexecution.Execution) *executionv1.Execution {
 		AbandonedReason:    e.AbandonedReason,
 		AbandonedAt:        e.AbandonedAt,
 		AbandonedBy:        e.AbandonedBy,
+		PhaseAssessments:   assessmentsToProto(e.PhaseAssessments),
 	}
+}
+
+func assessmentFromProto(a *sharedv1.OutcomeAssessment) internalexecution.OutcomeAssessment {
+	return internalexecution.OutcomeAssessment{Summary: a.GetSummary(), Evidence: a.GetEvidence(), Limitations: a.GetLimitations(), UnmetOutcomes: a.GetUnmetOutcomes()}
+}
+
+func assessmentsToProto(items map[string]internalexecution.OutcomeAssessment) map[string]*sharedv1.OutcomeAssessment {
+	out := make(map[string]*sharedv1.OutcomeAssessment, len(items))
+	for id, a := range items {
+		out[id] = &sharedv1.OutcomeAssessment{Summary: a.Summary, Evidence: a.Evidence, Limitations: a.Limitations, UnmetOutcomes: a.UnmetOutcomes, ScopeGeneration: int32(a.ScopeGeneration)}
+	}
+	return out
 }
 
 func boundaryExtensionsToProto(items []internalexecution.BoundaryExtension) []*executionv1.BoundaryExtension {
@@ -67,18 +80,19 @@ func scopeAmendmentsToProto(items []internalexecution.ScopeAmendment) []*executi
 
 func phaseContextToProto(c internalexecution.PhaseContext) *executionv1.PhaseContext {
 	out := &executionv1.PhaseContext{
-		RequiredReading: c.RequiredReading,
-		Reminders:       c.Reminders,
-		Staleness:       stalenessToProto(c.Staleness),
-		ResumePhaseId:   c.ResumePhaseID,
-		Completeness:    completenessToProto(c.Completeness),
-		RelevantContext: planproto.RelevantContextItemsToProto(c.RelevantContext),
-		InputsFreshened: c.InputsFreshened,
-		FreshenStatus:   c.FreshenStatus,
-		FreshenDetail:   c.FreshenDetail,
-		ChangeBoundary:  planproto.ChangeBoundaryToProto(c.ChangeBoundary),
-		BaselineSet:     baselineSetToProto(c.BaselineSet),
-		ScopeGeneration: int32(c.ScopeGeneration),
+		RequiredReading:  c.RequiredReading,
+		Reminders:        c.Reminders,
+		Staleness:        stalenessToProto(c.Staleness),
+		ResumePhaseId:    c.ResumePhaseID,
+		Completeness:     completenessToProto(c.Completeness),
+		RelevantContext:  planproto.RelevantContextItemsToProto(c.RelevantContext),
+		InputsFreshened:  c.InputsFreshened,
+		FreshenStatus:    c.FreshenStatus,
+		FreshenDetail:    c.FreshenDetail,
+		ChangeBoundary:   planproto.ChangeBoundaryToProto(c.ChangeBoundary),
+		BaselineSet:      baselineSetToProto(c.BaselineSet),
+		ScopeGeneration:  int32(c.ScopeGeneration),
+		CompletionPolicy: &sharedv1.CompletionPolicy{Mode: c.CompletionPolicy.Mode, Reason: c.CompletionPolicy.Reason},
 	}
 	if c.HasCurrent {
 		out.CurrentPhase = phaseToProto(c.CurrentPhase)
@@ -181,17 +195,19 @@ func nudgesToProto(nudges []internalexecution.CompletionNudge) []*executionv1.Co
 
 func handoffToProto(h internalexecution.Handoff) *sharedv1.Handoff {
 	out := &sharedv1.Handoff{
-		Id:              h.ID,
-		ExecutionId:     h.ExecutionID,
-		PlanId:          h.PlanID,
-		Completeness:    completenessToProto(h.Completeness),
-		ResumePhaseId:   h.ResumePhaseID,
-		LogSummary:      planproto.LogSummaryToProto(h.LogSummary),
-		LogEntries:      planproto.LogEntriesToProto(h.LogEntries),
-		Staleness:       stalenessToProto(h.Staleness),
-		ProseHandoffRef: h.ProseHandoffRef,
-		AssembledAt:     h.AssembledAt,
-		ChangeBoundary:  planproto.ChangeBoundaryToProto(h.ChangeBoundary),
+		Id:               h.ID,
+		ExecutionId:      h.ExecutionID,
+		PlanId:           h.PlanID,
+		Completeness:     completenessToProto(h.Completeness),
+		ResumePhaseId:    h.ResumePhaseID,
+		LogSummary:       planproto.LogSummaryToProto(h.LogSummary),
+		LogEntries:       planproto.LogEntriesToProto(h.LogEntries),
+		Staleness:        stalenessToProto(h.Staleness),
+		ProseHandoffRef:  h.ProseHandoffRef,
+		AssembledAt:      h.AssembledAt,
+		PhaseAssessments: assessmentsToProto(h.PhaseAssessments),
+		CompletionPolicy: &sharedv1.CompletionPolicy{Mode: h.CompletionPolicy.Mode, Reason: h.CompletionPolicy.Reason},
+		ChangeBoundary:   planproto.ChangeBoundaryToProto(h.ChangeBoundary),
 	}
 	if h.HasValidation {
 		out.LastValidation = validationResultToProto(h.LastValidation)

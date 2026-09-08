@@ -46,6 +46,7 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 	// current cluster shape and pre-cluster/legacy flat headings.
 	applyClusterSubSections(sections)
 	p.Purpose = sections["purpose"]
+	p.CompletionPolicy = ParseCompletionPolicy(sections["completion policy"])
 	p.Definitions = parseDefinitionsTable(sections["definitions"])
 	p.Scope = sections["scope"]
 	p.Constraints = sections["constraints"]
@@ -1420,7 +1421,7 @@ var canonicalConsumedHeadings = map[string]bool{
 	"technical approach / design rationale": true, "constraints": true,
 	"prohibited approaches": true, "global execution setup": true, "execution feedback": true, "references": true,
 	"change boundary": true, "acceptance boundary": true,
-	"regression anchor": true, "validation strategy": true, "validation model": true,
+	"regression anchor": true, "validation strategy": true, "validation model": true, "completion policy": true,
 	"definition of done": true, "definition-of-done": true, "risks / hazards": true,
 	"risks/hazards": true, "import provenance": true, "preserved legacy sections": true,
 	"plan graph": true, "phases": true, "required reading": true,

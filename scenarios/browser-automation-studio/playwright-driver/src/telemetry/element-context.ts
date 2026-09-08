@@ -14,7 +14,7 @@
  * Handlers that target elements should call captureElementContext() before executing
  * the action, then include the result in their HandlerResult.
  *
- * @see docs/plans/enrich-execution-with-element-context.md
+ * Related design work is historical; current plans are owned by Plan Manager.
  */
 
 import type { Page, Locator } from 'rebrowser-playwright';

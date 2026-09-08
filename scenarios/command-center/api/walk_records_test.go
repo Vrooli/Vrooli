@@ -43,13 +43,26 @@ func (f *walkLedgerFake) ListEntries(_ context.Context, r *connect.Request[j.Lis
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	out := &j.ListEntriesResponse{}
-	for i := len(f.entries) - 1; i >= 0; i-- {
+	limit := int(r.Msg.GetLimit())
+	if limit <= 0 {
+		limit = 1
+	}
+	for i := len(f.entries) - 1; i >= 0 && len(out.Entries) < limit; i-- {
 		if f.entries[i].Kind == r.Msg.Kind {
 			out.Entries = append(out.Entries, f.entries[i])
-			break
 		}
 	}
 	return connect.NewResponse(out), nil
+}
+
+// appendForeign mimics `source-ledger journal note --kind <owner kind>`: a writer holding
+// the scope appends prose carrying an owner kind, without an owner request key.
+func (f *walkLedgerFake) appendForeign(kind, body string) *j.Entry {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	e := &j.Entry{Id: fmt.Sprint(len(f.entries) + 1), Body: body, Kind: kind, CreatedAt: timestamppb.Now()}
+	f.entries = append(f.entries, e)
+	return e
 }
 
 func (f *walkLedgerFake) AppendEntry(_ context.Context, r *connect.Request[j.AppendEntryRequest]) (*connect.Response[j.AppendEntryResponse], error) {
@@ -76,12 +89,31 @@ func (f *walkLedgerFake) AppendEntry(_ context.Context, r *connect.Request[j.App
 	return connect.NewResponse(&j.AppendEntryResponse{Entry: e}), nil
 }
 
-func walkTestService(t *testing.T) walkConnectService {
+func walkTestLedger(t *testing.T) (walkConnectService, *walkLedgerFake) {
 	f := &walkLedgerFake{keys: map[string]*j.Entry{}}
 	_, h := jc.NewJournalServiceHandler(f)
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
-	return walkConnectService{ledger: jc.NewJournalServiceClient(srv.Client(), srv.URL)}
+	return walkConnectService{ledger: jc.NewJournalServiceClient(srv.Client(), srv.URL)}, f
+}
+
+func walkTestService(t *testing.T) walkConnectService {
+	s, _ := walkTestLedger(t)
+	return s
+}
+
+func walkPublishRequest(key, briefing string) *walkv1.PublishRequest {
+	phases := []map[string]string{}
+	for _, p := range walkPhases {
+		phases = append(phases, map[string]string{"phase": p})
+	}
+	raw, _ := json.Marshal(map[string]any{"program": "command-center.vision-walk-prep", "status": "partial", "signals": map[string]any{
+		"generated_at": time.Now().UTC().Format(time.RFC3339Nano), "phases": phases, "checkpoint": map[string]string{"status": "none"},
+	}})
+	return &walkv1.PublishRequest{
+		Channel: "test", RequestKey: key, ProgramId: "prog_test", EnvelopeJson: string(raw),
+		Briefing: briefing, FleetHealthJson: `{"status":"unavailable","reason":"test"}`,
+	}
 }
 
 func TestWalkCheckpointTransitionsReplayAndChannels(t *testing.T) { // [REQ:CC-P0-016]
@@ -186,5 +218,76 @@ func TestWalkPublishPreservesUnavailableEvidence(t *testing.T) { // [REQ:CC-P0-0
 	req.RequestKey = "failed"
 	if _, err := s.Publish(context.Background(), connect.NewRequest(req)); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("failed program accepted: %v", err)
+	}
+}
+
+// A journal kind is a label any scope holder can write. Prose carrying an owner kind must
+// never be read back as walk state, and it must not wedge the next publication. [REQ:CC-P0-016]
+func TestWalkStateSkipsForeignEntriesCarryingOwnerKind(t *testing.T) {
+	s, ledger := walkTestLedger(t)
+	ctx := context.Background()
+
+	published, err := s.Publish(ctx, connect.NewRequest(walkPublishRequest("first", "Own briefing, thirteen phases")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign := ledger.appendForeign("vision-walk-briefing-test", "Topic: vision-walk-record/2026-09-06/heartbeat-0900\n\nA member's prose note.")
+
+	state, err := s.State(ctx, connect.NewRequest(&walkv1.StateRequest{Channel: "test"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Msg.Briefing.GetEntryId() != published.Msg.EntryId {
+		t.Fatalf("prose shadowed the briefing: got %q want %q", state.Msg.Briefing.GetEntryId(), published.Msg.EntryId)
+	}
+
+	// The predecessor the reader was handed still publishes, chaining past the foreign entry.
+	next, err := s.Publish(ctx, connect.NewRequest(func() *walkv1.PublishRequest {
+		r := walkPublishRequest("second", "Second own briefing")
+		r.ExpectedPreviousId = state.Msg.Briefing.GetEntryId()
+		return r
+	}()))
+	if err != nil {
+		t.Fatalf("foreign entry wedged publication: %v", err)
+	}
+	if next.Msg.EntryId == foreign.Id {
+		t.Fatal("publication reused the foreign entry id")
+	}
+
+	// A stale predecessor is still a conflict; the foreign id is never a valid one.
+	stale := walkPublishRequest("third", "Third own briefing")
+	stale.ExpectedPreviousId = published.Msg.EntryId
+	if _, err := s.Publish(ctx, connect.NewRequest(stale)); connect.CodeOf(err) != connect.CodeAborted {
+		t.Fatalf("stale predecessor accepted: %v", err)
+	}
+	byForeign := walkPublishRequest("fourth", "Fourth own briefing")
+	byForeign.ExpectedPreviousId = foreign.Id
+	if _, err := s.Publish(ctx, connect.NewRequest(byForeign)); connect.CodeOf(err) != connect.CodeAborted {
+		t.Fatalf("foreign predecessor accepted: %v", err)
+	}
+}
+
+// The same label problem reaches continuity: a foreign entry must not read as the prior
+// checkpoint, nor block the transition after it. [REQ:CC-P0-016]
+func TestWalkCheckpointSkipsForeignEntriesCarryingOwnerKind(t *testing.T) {
+	s, ledger := walkTestLedger(t)
+	ctx := context.Background()
+
+	active, err := s.Checkpoint(ctx, connect.NewRequest(&walkv1.CheckpointRequest{
+		Channel: "test", RequestKey: "open", WalkId: "w", State: "active", ResumePhase: "5.5", Content: "Phases 1-5 done",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ledger.appendForeign("walk-checkpoint-test", "A member's prose about the walk.")
+
+	state, err := s.State(ctx, connect.NewRequest(&walkv1.StateRequest{Channel: "test"}))
+	if err != nil || state.Msg.Checkpoint.GetEntryId() != active.Msg.EntryId {
+		t.Fatalf("prose shadowed the checkpoint: %v %v", state, err)
+	}
+	if _, err := s.Checkpoint(ctx, connect.NewRequest(&walkv1.CheckpointRequest{
+		Channel: "test", RequestKey: "close", WalkId: "w", State: "completed", ExpectedPreviousId: active.Msg.EntryId,
+	})); err != nil {
+		t.Fatalf("foreign entry wedged continuity: %v", err)
 	}
 }

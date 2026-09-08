@@ -24,6 +24,11 @@ func (integrationActionRunner) Run(context.Context, string, ...string) (capreg.C
 	return capreg.CommandResult{Stdout: []byte(`{"success":true,"verdict":"ready"}`)}, nil
 }
 
+// requiredIntegrations names the producers this scenario cannot serve without: the
+// control plane it discovers through, the portfolio it reports, the team instrument it
+// checks, and the ledger that holds walk briefings and checkpoints.
+var requiredIntegrations = []string{"vrooli-core", "swarm-manager", "prompt-manager", "source-ledger"}
+
 type unavailableIntegrationClient struct{}
 
 func (unavailableIntegrationClient) Name() string { return "unavailable" }
@@ -36,15 +41,24 @@ func TestIntegrationSnapshotSeparatesLifecycleAndFeatures(t *testing.T) {
 	setUnavailableUpstreams(t)
 	s := NewServer(testRegistry())
 	snap := s.integrationSnapshot(context.Background(), false)
-	if len(snap.States) != 6 {
-		t.Fatalf("states = %d, want 6", len(snap.States))
-	}
+	seen := map[string]bool{}
 	for _, state := range snap.States {
+		if seen[state.ID] {
+			t.Fatalf("integration %q resolved twice", state.ID)
+		}
+		seen[state.ID] = true
 		if state.ID == "prompt-manager" && state.Status != "unavailable" {
 			t.Fatalf("prompt state = %+v", state)
 		}
 		if state.CheckedAt == "" {
 			t.Fatalf("state %q has no checked time", state.ID)
+		}
+	}
+	// Coverage, not population: a new declared producer must not fail this, but a
+	// producer the dashboards and the walk ledger read must never go unresolved.
+	for _, required := range requiredIntegrations {
+		if !seen[required] {
+			t.Fatalf("declared producer %q is missing from the snapshot", required)
 		}
 	}
 }
@@ -128,12 +142,16 @@ func TestIntegrationsConnectServiceUsesGeneratedContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(resp.Msg.GetIntegrations()) != 6 {
-		t.Fatalf("integrations = %d, want 6", len(resp.Msg.GetIntegrations()))
-	}
+	listed := map[string]bool{}
 	for _, integration := range resp.Msg.GetIntegrations() {
+		listed[integration.GetId()] = true
 		if integration.GetOrigin() == "" {
 			t.Fatalf("integration %q has no shared-contract origin", integration.GetId())
+		}
+	}
+	for _, required := range requiredIntegrations {
+		if !listed[required] {
+			t.Fatalf("declared producer %q is missing from the generated contract", required)
 		}
 	}
 }
@@ -258,7 +276,7 @@ func TestIntegrationActionRejectsHealthyScenarioRecovery(t *testing.T) {
 
 func TestIntegrationCheckerTreatsReachableRESTHealthAsAvailable(t *testing.T) {
 	checker := integrationChecker{
-		client: staticUpstreamClient{name: "deployment-manager", body: json.RawMessage(`{"status":"healthy"}`)},
+		client:   staticUpstreamClient{name: "deployment-manager", body: json.RawMessage(`{"status":"healthy"}`)},
 		features: []string{"deployment_readiness"},
 	}
 	result := checker.CheckResult(context.Background())

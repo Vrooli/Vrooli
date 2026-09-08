@@ -46,7 +46,7 @@ import { EcosystemOmnibox } from "../search/EcosystemOmnibox";
 import { VoiceComposerButton } from "./VoiceComposerButton";
 import { MessageSpeechButton } from "./MessageSpeechButton";
 import { portalLearningSensor } from "../../lib/learningSensors";
-import { BriefInspector } from "../brief/BriefInspector";
+import { BriefInspector, BriefMessage } from "../brief/BriefInspector";
 
 const defaultModel = "openai/gpt-4.1-mini";
 const fallbackGroupId = "__ungrouped__";
@@ -682,26 +682,7 @@ function ChatWorkspaceBody() {
                       </div>
                     </header>
                     <div className="space-y-2 text-sm">{renderMarkdownLite(message.content)}</div>
-                    {message.searchAttachments.length > 0 ? (
-                      <details className="mt-3 rounded-control border border-app-border bg-app-background p-2 text-sm">
-                        <summary className="cursor-pointer font-medium">
-                          {t(strings.chat.message.searchAttachments)}
-                        </summary>
-                        <div className="mt-2 space-y-2">
-                          {message.searchAttachments.flatMap((attachment) =>
-                            attachment.hits.map((hit, index) => (
-                              <div key={`${attachment.id}-${hit.path}-${index}`} className="rounded-control p-2">
-                                <p className="font-medium">{hit.title || hit.path}</p>
-                                {hit.snippet ? (
-                                  <p className="text-app-muted-foreground">{hit.snippet}</p>
-                                ) : null}
-                                <p className="text-xs text-app-muted-foreground">{hit.providerId}</p>
-                              </div>
-                            )),
-                          )}
-                        </div>
-                      </details>
-                    ) : null}
+                    {message.briefId ? <BriefMessage briefId={message.briefId} /> : null}
                   </article>
                 );
               })}

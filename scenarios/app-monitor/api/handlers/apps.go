@@ -17,6 +17,12 @@ import (
 // AppHandler handles application-related endpoints
 type AppHandler struct {
 	appService *services.AppService
+	// Optional request seams keep handler tests deterministic without replacing
+	// the business service in production wiring.
+	getAppsSummary func(context.Context) ([]repository.App, error)
+	getApps        func(context.Context) ([]repository.App, error)
+	stopApp        func(context.Context, string) error
+	getApp         func(context.Context, string) (*repository.App, error)
 }
 
 // NewAppHandler creates a new app handler
@@ -28,19 +34,31 @@ func NewAppHandler(appService *services.AppService) *AppHandler {
 
 // GetAppsSummary returns a fast-loading set of applications using cached CLI metadata
 func (h *AppHandler) GetAppsSummary(c *gin.Context) {
-	HandleServiceCallRaw(c, h.appService.GetAppsSummary, "Failed to fetch apps summary")
+	fn := h.appService.GetAppsSummary
+	if h.getAppsSummary != nil {
+		fn = h.getAppsSummary
+	}
+	HandleServiceCallRaw(c, fn, "Failed to fetch apps summary")
 }
 
 // GetApps returns all applications
 func (h *AppHandler) GetApps(c *gin.Context) {
-	HandleServiceCallRaw(c, h.appService.GetApps, "Failed to fetch apps")
+	fn := h.appService.GetApps
+	if h.getApps != nil {
+		fn = h.getApps
+	}
+	HandleServiceCallRaw(c, fn, "Failed to fetch apps")
 }
 
 // GetApp returns a single application by ID
 func (h *AppHandler) GetApp(c *gin.Context) {
 	id := c.Param("id")
+	get := h.appService.GetApp
+	if h.getApp != nil {
+		get = h.getApp
+	}
 	HandleServiceCall(c, func(ctx context.Context) (*repository.App, error) {
-		return h.appService.GetApp(ctx, id)
+		return get(ctx, id)
 	}, "App not found")
 }
 
@@ -55,8 +73,12 @@ func (h *AppHandler) StartApp(c *gin.Context) {
 // StopApp stops an application
 func (h *AppHandler) StopApp(c *gin.Context) {
 	id := c.Param("id")
+	stop := h.appService.StopApp
+	if h.stopApp != nil {
+		stop = h.stopApp
+	}
 	HandleServiceAction(c, func(ctx context.Context) error {
-		return h.appService.StopApp(ctx, id)
+		return stop(ctx, id)
 	}, "App stopped successfully", "Failed to stop app")
 }
 

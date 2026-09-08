@@ -21,12 +21,11 @@ NOT in interfaces. The generated Go + TypeScript types are the
 canonical types every test, handler, and UI component reads from.
 
 The `health` proto in `packages/proto/schemas/device-control/v1/shared/`
-is the worked example. The Go fixture (`api/internal/testutil/fixtures/health.go`)
-re-exports the generated `Response` and provides functional-options
-builders; the UI factory (`ui/src/test-utils/factories.ts`) builds
-the same generated type via `create(ResponseSchema, ...)`. Drift
-between the two is impossible because both consume one source of
-truth.
+is the worked example. Go handler tests decode the actual response into
+the generated type. The UI factory (`ui/src/test-utils/factories.ts`)
+builds that type via `create(ResponseSchema, ...)`. Both use the proto
+contract; a Go response factory is only needed when a test consumes
+fabricated response inputs.
 
 For proto-typed API calls, the service block in the proto is also the
 transport contract. Generated Connect-Go handlers and Connect-Web/Go
@@ -85,9 +84,9 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | Wall-clock time |
-| **Interface** | `internal/clock/clock.go::Clock` (`Now() time.Time`) |
-| **Production wiring** | `main.go` constructs `clock.System{}` and passes it via `server.Deps`. |
-| **Test fake** | `internal/testutil/mocks::FakeClock` (`Now`, `Advance`, `SetNow`). |
+| **Interface** | `internal/clock/clock.go::Clock` (embeds canonical `api-core/schedule.Clock`); `internal/middleware/logging.go::Clock` is the middleware's narrow `Now()` consumer seam. |
+| **Production wiring** | `main.go` constructs `clock.System()` and passes it via `server.Deps`. |
+| **Test fake** | `github.com/vrooli/api-core/scheduletest::FakeClock` (`Now`, `Advance`, `Set`). |
 | **Why it exists** | Middleware computes request-duration log lines from two `Now()` calls. With `time.Now()` direct, duration assertions are flaky on loaded CI and undefined on fast hardware. With `FakeClock.Advance(150 * time.Millisecond)` inside the inner handler, the duration string is bit-for-bit deterministic. See `internal/middleware/logging_test.go::TestLoggingMiddleware_LogsDuration`. |
 
 ### Pinger (database reachability)

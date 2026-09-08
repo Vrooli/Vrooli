@@ -7,9 +7,9 @@ metadata:
   schemaVersion: 1
   modes: ["practice"]
   status: "active"
-  revision: 6
+  revision: 8
   createdAt: "2026-04-09T19:00:00Z"
-  updatedAt: "2026-09-04T00:00:00Z"
+  updatedAt: "2026-09-07T00:00:00Z"
   requires:
     scenarios: ["command-center", "prompt-manager", "program-runtime", "source-ledger", "vrooli-memory", "swarm-manager"]
     commands: ["command-center", "prompt-manager skill read", "program-runtime library run", "source-ledger journal", "vrooli-memory learning", "swarm-manager"]
@@ -24,9 +24,9 @@ Command Center owns this skill and the prep capability. Prompt Manager resolves 
 
 ### Begin from evidence
 
-Run `command-center walk state --json`. The briefing body contains `briefing`, `envelope`, `program_id`, and `fleet_health`; legacy prose requires a fresh preparation. Inspect the entry timestamp and the briefing's program generation time. A briefing older than 36 hours, malformed, or absent requires `prompt-manager skill read command-center-vision-walk-prep` and a fresh preparation. Report an unavailable preparation and continue only with clearly labeled unknowns and conversational phases.
+Run `command-center walk state --json`. The briefing body contains `briefing`, `envelope`, `program_id`, and `fleet_health`; a body missing any of them is malformed and requires a fresh preparation. Inspect the entry timestamp and the briefing's program generation time. A briefing older than 36 hours, malformed, or absent requires `prompt-manager skill read command-center-vision-walk-prep` and a fresh preparation. Report an unavailable preparation and continue only with clearly labeled unknowns and conversational phases.
 
-Read the checkpoint returned by `command-center walk state --json` independently of the briefing. A newer checkpoint overrides the briefing's snapshot. If this read fails, state that continuity is unknown; do not infer that the walk is new. If no ledger checkpoint exists, inspect the prep envelope's legacy checkpoint before declaring a fresh walk.
+Read the checkpoint returned by `command-center walk state --json` independently of the briefing. A newer checkpoint overrides the briefing's snapshot. If this read fails, state that continuity is unknown; do not infer that the walk is new. A checkpoint status of `none` means no walk is in progress; start a new one.
 
 For an active checkpoint, summarize completed phases and ask whether to resume. On resume, skip completed phases and re-read any decision whose evidence may have changed. An operator request to start fresh appends an `abandoned` checkpoint event; it never deletes history. Completed or abandoned events prevent resurrection of an older active checkpoint.
 
@@ -46,6 +46,7 @@ Use this order unless the operator skips, redirects, or chooses explicit diverge
 | 5.3 — Marketing decisions | Review publishing/campaign/brand choices and coverage gaps. Preserve audience, channel, claim and source context. A capability proposal belongs in phase 3. |
 | 5.5 — Meta-optimization decisions | Review skill/program/scenario promotion, experiment evidence and team/toolchain friction. Do not claim measured benefit from activity counts or a passing fixture. |
 | 5.7 — Infrastructure decisions | Review reliability findings, sensor trust, repair efficacy, and portability debt. Infrastructure observations do not authorize host remediation or target changes. |
+| 5.9 — Quality decisions | Review bug drain state, regression findings, and scenario quality gaps. A defect report is evidence, not an approved fix. Scenario QA declares no instrument, so this phase reads its team ledger only and its coverage is unmeasured. |
 | 6 — Outside-Vrooli signals | Explore chores, tools, bookmarks and frustrations without judging the user's choices. Preserve original URLs and wording; ask which repeated work would be valuable to support. |
 | 7 — Big-picture ideation | Use `idea-workshop` when deeper exploration helps. Connect ideas to interfaces, functional role, compound value and bundle fit in `docs/concepts/ECOSYSTEM.md`. Reserve creative time even on a busy decision day. |
 | 8 — Actions | Reconcile decisions already taken, capture chosen next work, and route observations to the narrowest existing owner. Confirm exact scope when intent is ambiguous; do not ask again for authority already granted. |
@@ -69,7 +70,7 @@ Content records status and artifact references; completed/partial phases and out
 
 For completion or an explicitly requested fresh start, use the same owner operation with `--state completed` or `--state abandoned`, the same walk id and the current predecessor. A finished walk cannot be reopened; a new walk receives a new id. No receipt means continuity is unconfirmed; preserve the content in the conversation. Only `--channel test` may be used for rehearsals, which never alter operator records.
 
-For a legacy checkpoint, preserve its text and references verbatim as active content through the owner operation; choose its stated resume phase. Never edit a runtime handoff or directly append new checkpoint events through the generic journal command.
+Never append checkpoint events directly through the generic journal command; the owner operation validates the transition and returns the receipt. The `walk-checkpoint` and `vision-walk-briefing` kinds carry owner records only; walk feedback and any other note use `--kind team-knowledge`.
 
 ### Learning and evidence
 

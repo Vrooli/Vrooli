@@ -1802,6 +1802,37 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 	return fmt.Errorf("actuation must contain pointer or key event")
 }
 
+// AppLifecycle exposes the bounded subset of Android lifecycle commands that
+// this adapter can execute without a shell. The control plane validates the
+// package identity and confirmation policy before reaching this method.
+func (a *Adapter) AppLifecycle(ctx context.Context, request strategy.AppLifecycleRequest) (strategy.AppLifecycleResult, error) {
+	operation := strings.ToLower(strings.TrimSpace(request.Operation))
+	if request.Package == "" || len(request.Package) > 256 || len(request.Arguments) != 0 || request.Executable != "" {
+		return strategy.AppLifecycleResult{}, fmt.Errorf("android lifecycle requires one bounded package identity")
+	}
+	supported := map[string]bool{"launch": true, "focus": true, "close": true, "minimize": true, "restore": true, "stop": true, "uninstall": true, "clear-data": true, "grant-permission": true, "revoke-permission": true, "package-state": true}
+	if !supported[operation] {
+		return strategy.AppLifecycleResult{}, &strategy.UnsupportedCapabilityError{Capability: strategy.CapAppLifecycle, Operation: operation}
+	}
+	if operation == "package-state" {
+		return strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusAvailable, Reason: "package state is observed through the next device-state probe"}, nil
+	}
+	event := strategy.Actuation{Action: operation, Package: request.Package, Permission: request.Permission, Value: request.Value}
+	switch operation {
+	case "focus", "restore":
+		event.Action = "launch"
+	case "close":
+		event.Action = "stop"
+	case "minimize":
+		event.Action = ""
+		event.Key = &strategy.KeyEvent{Kind: "press", Key: "HOME"}
+	}
+	if err := a.Actuate(ctx, event); err != nil {
+		return strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusUnavailable, Reason: err.Error()}, err
+	}
+	return strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusAvailable}, nil
+}
+
 func maxInt(value, fallback int) int {
 	if value > 0 {
 		return value

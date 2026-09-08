@@ -269,6 +269,11 @@
       "viewFinalizedPlan": "Open the plan"
     },
     "execution": {
+      "outcomeSummary": "ملخص النتيجة",
+      "outcomeEvidence": "مراجع الأدلة (مرجع في كل سطر)",
+      "outcomeLimitations": "القيود ومعالجة الملاحظات (واحدة في كل سطر)",
+      "unmetOutcomes": "النتائج غير المحققة (واحدة في كل سطر)",
+      "outcomeHelp": "ادعم النتيجة المقصودة بالملاحظات أو المراجعة. نتائج الاختبارات الشاملة استرشادية؛ وتبقى النتائج غير المحققة غير مكتملة.",
       "title": "Execution",
       "description": "The guided runner: just-in-time context for the current phase, phase transitions, and in-flow decisions and findings.",
       "startHeading": "Start a run",

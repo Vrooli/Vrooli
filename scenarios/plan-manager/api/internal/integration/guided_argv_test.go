@@ -186,6 +186,7 @@ func TestGuidedArgvAreValidManifestCommands(t *testing.T) {
 		require.NoError(t, err)
 		_, _, tstep, terr := executionSvc.TransitionPhase(ctx, exec.ID, ph.ID, internalexecution.PhaseTransitionInputs{
 			ToStatus: internalplans.PhaseStatusDone, ValidationOverrideReason: "argv guard fixture",
+			Assessment: internalexecution.OutcomeAssessment{Summary: "Guided commands reviewed", Evidence: []string{"test:manifest-argv"}},
 		})
 		require.NoError(t, terr)
 		idx.validateExecStep(t, "exec transition", tstep)

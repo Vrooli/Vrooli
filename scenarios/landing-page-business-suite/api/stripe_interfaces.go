@@ -79,7 +79,7 @@ func (s *StripeService) webhookService() *commerce.StripeWebhookService {
 				SessionID: record.SessionID, Status: record.Status, PriceID: record.PriceID,
 				SessionType: record.SessionType.String, AmountCents: record.AmountCents,
 				ScheduleID: record.ScheduleID, CustomerID: record.CustomerID,
-				CustomerEmail: record.CustomerEmail, SubscriptionID: record.SubscriptionID,
+				CustomerEmail: record.CustomerEmail, BusinessAccountID: record.BusinessAccountID, SubscriptionID: record.SubscriptionID,
 			}, nil
 		},
 		ExtractAmount: func(obj map[string]interface{}, record *commerce.CheckoutSessionRecord) int64 {

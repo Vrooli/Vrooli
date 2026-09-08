@@ -6,16 +6,56 @@ import "deployment-manager/codesigning"
 // Manifest mirrors the v0.1 desktop bundle schema enough for
 // lightweight validation without pulling in external schema validators.
 type Manifest struct {
-	SchemaVersion string                     `json:"schema_version"`
-	Target        string                     `json:"target"`
-	App           ManifestApp                `json:"app"`
-	IPC           ManifestIPC                `json:"ipc"`
-	Telemetry     ManifestTelemetry          `json:"telemetry"`
-	Ports         *ManifestPorts             `json:"ports,omitempty"`
-	Swaps         []ManifestSwap             `json:"swaps,omitempty"`
-	Secrets       []ManifestSecret           `json:"secrets,omitempty"`
-	Services      []ServiceEntry             `json:"services"`
-	CodeSigning   *codesigning.SigningConfig `json:"code_signing,omitempty"`
+	SchemaVersion  string                     `json:"schema_version"`
+	Target         string                     `json:"target"`
+	App            ManifestApp                `json:"app"`
+	IPC            ManifestIPC                `json:"ipc"`
+	Telemetry      ManifestTelemetry          `json:"telemetry"`
+	Authentication *AuthenticationProfile     `json:"authentication,omitempty"`
+	Ports          *ManifestPorts             `json:"ports,omitempty"`
+	Swaps          []ManifestSwap             `json:"swaps,omitempty"`
+	Secrets        []ManifestSecret           `json:"secrets,omitempty"`
+	Services       []ServiceEntry             `json:"services"`
+	CodeSigning    *codesigning.SigningConfig `json:"code_signing,omitempty"`
+}
+
+// AuthenticationProfile declares the explicit desktop identity mode without
+// carrying credentials or provider-managed secrets.
+type AuthenticationProfile struct {
+	Version               int                                  `json:"version"`
+	Mode                  string                               `json:"mode"`
+	ModeProfiles          map[string]AuthenticationModeProfile `json:"mode_profiles,omitempty"`
+	Provider              string                               `json:"provider,omitempty"`
+	Resource              string                               `json:"resource,omitempty"`
+	Audience              string                               `json:"audience,omitempty"`
+	ProviderEndpoint      string                               `json:"provider_endpoint,omitempty"`
+	ProviderServiceID     string                               `json:"provider_service_id,omitempty"`
+	HumanSignIn           string                               `json:"human_sign_in"`
+	Offline               bool                                 `json:"offline"`
+	PublicRoutes          []string                             `json:"public_routes,omitempty"`
+	ProtectedRoutes       []string                             `json:"protected_routes,omitempty"`
+	LeasePath             string                               `json:"lease_path,omitempty"`
+	RecoveryURL           string                               `json:"recovery_url,omitempty"`
+	RequiresAuthenticator bool                                 `json:"requires_authenticator"`
+}
+
+// AuthenticationModeProfile declares the non-secret configuration for an
+// alternate mode an operator may select after installation. Credentials and
+// leases remain owned by their declared providers and are never exported in a
+// bundle manifest.
+type AuthenticationModeProfile struct {
+	Provider              string   `json:"provider,omitempty"`
+	Resource              string   `json:"resource,omitempty"`
+	Audience              string   `json:"audience,omitempty"`
+	ProviderEndpoint      string   `json:"provider_endpoint,omitempty"`
+	ProviderServiceID     string   `json:"provider_service_id,omitempty"`
+	HumanSignIn           string   `json:"human_sign_in"`
+	Offline               bool     `json:"offline"`
+	PublicRoutes          []string `json:"public_routes,omitempty"`
+	ProtectedRoutes       []string `json:"protected_routes,omitempty"`
+	LeasePath             string   `json:"lease_path,omitempty"`
+	RecoveryURL           string   `json:"recovery_url,omitempty"`
+	RequiresAuthenticator bool     `json:"requires_authenticator"`
 }
 
 // ManifestApp holds application metadata.

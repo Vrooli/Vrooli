@@ -178,20 +178,19 @@ var defaultSkeleton = []sectionSpec{
 		Summary:        "Record the preconditions taken as given.",
 		Instructions:   []string{"List environment, access, or prior-work assumptions, one per line.", "Only include assumptions that, if false, change the plan."},
 		RequiredInputs: []string{"assumptions (optional)"},
-		Examples:       []string{"The regression baseline is captured before any code change."},
+		Examples:       []string{"If certification is selected, capture the regression baseline before any code change."},
 		CommonMistakes: []string{"Listing requirements instead of assumptions."},
 		Placeholder:    "<assumptions, one per line>",
 	},
 	{
-		Key:       SectionRegressionAnchor,
-		Label:     "Regression anchor",
-		Title:     "Regression Anchor",
-		Mandatory: true,
-		StepKind:  "regression_anchor",
-		Summary:   "Record the typed INTENT of the before-state (which scenario, allowlist, and diff command). The actual baseline snapshot is captured fresh at execution start — not here.",
+		Key:      SectionRegressionAnchor,
+		Label:    "Regression anchor",
+		Title:    "Regression Anchor",
+		StepKind: "regression_anchor",
+		Summary:  "Optionally record prior-state intent for useful diagnostic context; explicit certification requires its declared baseline evidence.",
 		Instructions: []string{
 			"Derive the typed anchor intent (strategy, scenario, baseline name, allowlist, diff command), then confirm or adjust it — the <scenario> placeholder must name the real target scenario.",
-			"Do not capture a baseline snapshot at authoring time; intent never goes stale and the executor snapshots the real 'before' when execution starts.",
+			"Reuse available prior observations. Ordinary execution does not automatically capture a baseline; missing history remains unknown.",
 			"Do not claim validation passed here; this is only the before anchor.",
 		},
 		RequiredInputs: []string{"typed anchor intent (strategy / scenario / baseline name / allowlist / diff command)"},
@@ -217,11 +216,19 @@ var defaultSkeleton = []sectionSpec{
 		Mandatory:      true,
 		StepKind:       "validation_strategy",
 		Summary:        "Describe how the plan proves it works: baseline approach, what evidence counts, and the final validation commands.",
-		Instructions:   []string{"State the baseline/regression approach and the suites/commands that prove success.", "Distinguish per-phase validation from the final end-of-plan validation.", "Reference the exact commands a reviewer runs at the end, under a literal `**Final validation commands:**` line with one backticked command per bullet — that marker is what promotes them into the plan's final validation commands."},
+		Instructions:   []string{"Describe evidence for delivered outcomes: focused checks, observations, or code review.", "Treat broad validation as advisory and baseline context as optional unless certification is explicitly selected.", "Bound attribution work; never replace or stash shared-worktree files to reconstruct history."},
 		RequiredInputs: []string{"validation strategy"},
-		Examples:       []string{"Run focused Go/CLI/UI suites per phase; finish with a clean baseline diff against the captured anchor.\n\n**Final validation commands:**\n\n- `vrooli scenario test plan-manager`"},
+		Examples:       []string{"Observe the changed behavior, review its implementation, and retain unrelated or uncertain validator findings for triage."},
 		CommonMistakes: []string{"Saying 'tests pass' without naming them.", "Confusing the method (validation) with the outcome (definition of done)."},
 		Placeholder:    "<validation strategy>",
+	},
+	{
+		Key: SectionCompletionPolicy, Label: "Completion Policy", StepKind: "completion_policy",
+		Summary:        "Ordinary shared-worktree work is advisory; select certification explicitly with a reason.",
+		Instructions:   []string{"Use Mode: advisory (default), or Mode: certification with Reason: <requirement>.", "Do not infer certification from the final phase or a broad test command."},
+		Examples:       []string{"Mode: advisory", "Mode: certification\nReason: release approval requires full inventory evidence"},
+		Placeholder:    "Mode: advisory",
+		RequiredInputs: []string{"completion mode (optional); reason required for certification"},
 	},
 	{
 		Key:            SectionDefinitionOfDone,
@@ -229,9 +236,9 @@ var defaultSkeleton = []sectionSpec{
 		Mandatory:      true,
 		StepKind:       "definition_of_done",
 		Summary:        "Define objective plan-level success gates. Phase acceptances are NOT restated here.",
-		Instructions:   []string{"Use pass/fail criteria that another agent can verify.", "List plan-level gates only (full suites, baseline diff, live verification, docs); phase-level acceptance lives on each phase.", "Include validation expectations and adoption readiness.", "Avoid vague language like 'works' or 'complete'."},
+		Instructions:   []string{"Describe the delivered outcome and evidence another agent can inspect.", "Keep phase acceptance on each phase; ordinary completion does not require green broad suites or a baseline diff.", "Record limitations and finding dispositions; unmet material outcomes remain unfinished."},
 		RequiredInputs: []string{"definition_of_done"},
-		Examples:       []string{"Authoring API/CLI tests pass; the receipt action returned by plan-manager exec continue succeeds or records an authorized degradation; scenario requirements validate green."},
+		Examples:       []string{"The authoring API and CLI expose the intended workflow; focused observations and review support the outcome, with unrelated validator findings and uncertain attribution disclosed."},
 		CommonMistakes: []string{"Restating phase steps.", "Using subjective acceptance criteria."},
 		Placeholder:    "<objective done criteria>",
 	},
@@ -290,6 +297,21 @@ func newSkeleton() []Section {
 	out := make([]Section, 0, len(defaultSkeleton))
 	for _, spec := range defaultSkeleton {
 		out = append(out, Section{Key: spec.Key, Label: spec.Label, Mandatory: spec.Mandatory})
+	}
+	return out
+}
+
+// hydrateSections keeps catalog metadata current while preserving draft content
+// and historical sections. Persisted mandatory flags are not policy authority.
+func hydrateSections(stored []Section) []Section {
+	out := newSkeleton()
+	for _, section := range stored {
+		if i := indexOf(out, section.Key); i >= 0 {
+			section.Label, section.Mandatory = out[i].Label, out[i].Mandatory
+			out[i] = section
+		} else {
+			out = append(out, section)
+		}
 	}
 	return out
 }

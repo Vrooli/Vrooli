@@ -9,9 +9,9 @@ metadata:
   tags: ["documentation", "knowledge", "self-improvement"]
   icon: "gauge"
   status: "active"
-  revision: 1
+  revision: 2
   createdAt: "2026-09-05T00:00:00Z"
-  updatedAt: "2026-09-05T00:00:00Z"
+  updatedAt: "2026-09-06T00:00:00Z"
   requires:
     scenarios: ["knowledge-observatory", "program-runtime", "search-hub", "vrooli-memory", "agent-manager"]
     commands: ["program-runtime library run", "program-runtime bindings condition", "search-hub evals", "vrooli-memory journal note"]
@@ -53,12 +53,21 @@ Program-share, file count, and lint pass rate cannot substitute for task outcome
 
 ### 3. Sensors
 
+Maintenance telemetry includes bounded inventory counts, unresolved-owner
+dispositions, blame standing (exact-content versus downgraded), route refusals,
+and verification receipts. These are diagnostic signals only; file counts and
+proposal confidence cannot substitute for comparable operator outcomes.
+
 Use the setpoint program and `knowledge-observatory.learning-read` with fixed
 from/to, operation, and context_key. Compare the same cohort and selectors in
 before/after windows; keep test observations excluded and denominators visible.
 Read `program-runtime bindings condition --scenario knowledge-observatory` and
 run `agent-manager.friction-digest` with scenario=knowledge-observatory and
 window_days=7. External failure evidence outranks self-reported success.
+
+Maintenance judgment lives in `knowledge-observatory-maintenance`. Track lost
+qualifications, unresolved dispositions, new broken consumers, and discovery misses
+as failure fingerprints. Compare reader-task outcomes and effort, not files removed.
 
 ### 4. Golden corpora
 

@@ -405,7 +405,7 @@ func (c SelectionConfig) Resolve(requested string) string {
 
 ## Recommendations
 
-See detailed completion plan in `docs/plans/playwright-driver-completion.md`:
+See detailed completion plan in `docs/plans/README.md#historical-source-files`:
 
 1. **Phase 1 (Week 1)**: Migrate to TypeScript with modular architecture
 2. **Phase 2 (Week 2)**: Implement missing critical features (frame-switch, focus, cookies, etc.)
@@ -427,4 +427,4 @@ See detailed completion plan in `docs/plans/playwright-driver-completion.md`:
 - **Executor**: `api/automation/executor/simple_executor.go`
 - **Recorder**: `api/automation/recorder/db_recorder.go`
 - **Architecture Docs**: `api/automation/README.md`, `api/automation/engine/README.md`
-- **Completion Plan**: `docs/plans/playwright-driver-completion.md`
+- **Completion Plan**: `docs/plans/README.md#historical-source-files`

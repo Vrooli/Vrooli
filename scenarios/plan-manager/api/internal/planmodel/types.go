@@ -443,22 +443,58 @@ type ValidationScope struct {
 	CompareBehavior bool
 }
 
+// CompletionPolicy separates ordinary outcome acceptance from explicit certification.
+type CompletionPolicy struct {
+	Mode   string `json:"mode,omitempty"`
+	Reason string `json:"reason,omitempty"`
+}
+
+func (p CompletionPolicy) RequiresCertification() bool { return p.Mode == "certification" }
+
+func (p CompletionPolicy) InvalidReason() string {
+	if p.Mode != "" && p.Mode != "advisory" && p.Mode != "certification" {
+		return "completion policy mode must be advisory or certification"
+	}
+	if p.RequiresCertification() && strings.TrimSpace(p.Reason) == "" {
+		return "certification requires an explicit reason"
+	}
+	return ""
+}
+
+func ParseCompletionPolicy(block string) CompletionPolicy {
+	var policy CompletionPolicy
+	for _, line := range strings.Split(block, "\n") {
+		key, value, ok := strings.Cut(strings.TrimSpace(line), ":")
+		if !ok {
+			continue
+		}
+		switch strings.ToLower(key) {
+		case "mode":
+			policy.Mode = strings.TrimSpace(value)
+		case "reason":
+			policy.Reason = strings.TrimSpace(value)
+		}
+	}
+	return policy
+}
+
 // Plan is the top-level structured record.
 type Plan struct {
-	ID            string
-	Slug          string
-	Title         string
-	Status        PlanStatus
-	ContentHash   string
-	CreatedAt     string
-	UpdatedAt     string
-	WorkspaceID   string
-	WorkspaceRoot string
-	Purpose       string
-	Scope         string
-	Constraints   string
-	NonGoals      string
-	References    []Reference
+	CompletionPolicy CompletionPolicy
+	ID               string
+	Slug             string
+	Title            string
+	Status           PlanStatus
+	ContentHash      string
+	CreatedAt        string
+	UpdatedAt        string
+	WorkspaceID      string
+	WorkspaceRoot    string
+	Purpose          string
+	Scope            string
+	Constraints      string
+	NonGoals         string
+	References       []Reference
 	// ChangeBoundary is the plan's first-class blast-radius contract
 	// (acceptance_allow / acceptance_deny). It is the source of truth for posture,
 	// regression-anchor intent, validation scope, and execution reminders.
@@ -541,6 +577,7 @@ var PlanFieldClasses = map[string]FieldClass{
 	"Assumptions":             FieldClassAuthored,
 	"TechnicalApproach":       FieldClassAuthored,
 	"ValidationStrategy":      FieldClassAuthored,
+	"CompletionPolicy":        FieldClassAuthored,
 	"FinalValidationCommands": FieldClassAuthored,
 	"RisksHazards":            FieldClassAuthored,
 	"ProhibitedApproaches":    FieldClassAuthored,

@@ -167,7 +167,7 @@ func (s *Service) WithFlowResolver(fr FlowResolver) *Service {
 //
 // A capture that yields no trace (e.g. no browser available) is a clean SKIP,
 // mirroring the Lighthouse silent-skip.
-func (s *Service) Orchestrate(ctx context.Context, scenario, workflow string, tier readiness.Tier) (Result, error) {
+func (s *Service) Orchestrate(ctx context.Context, scenario, workflow string, tier readiness.Tier) (out Result, err error) {
 	if s == nil {
 		return Result{}, errors.New("capture: service not wired")
 	}
@@ -193,12 +193,21 @@ func (s *Service) Orchestrate(ctx context.Context, scenario, workflow string, ti
 		interactionFlowJSON = string(raw)
 	}
 
-	uiURL, restore, result, done := s.resolveCaptureURL(ctx, scenario, tier)
+	// Register cleanup before attempting a restart: verification and cancellation
+	// can fail after the profile artifact has already replaced the normal UI.
+	if tier == readiness.Tier1 {
+		defer func() {
+			restoreCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Minute)
+			defer cancel()
+			if restoreErr := s.build.RestoreDefault(restoreCtx, scenario); restoreErr != nil {
+				out.Outcome = OutcomeFailed
+				out.Reason = strings.TrimSpace(out.Reason + " Default build restoration failed: " + restoreErr.Error())
+			}
+		}()
+	}
+	uiURL, result, done := s.resolveCaptureURL(ctx, scenario, tier)
 	if done {
 		return result, nil
-	}
-	if restore != nil {
-		defer restore()
 	}
 	if uiURL == "" {
 		return Result{Scenario: scenario, Outcome: OutcomeSkipped, Tier: tier, Reason: "scenario served no UI URL"}, nil
@@ -289,21 +298,21 @@ func isNoBrowserReason(reason string) bool {
 }
 
 // resolveCaptureURL resolves the URL to capture for the given tier. For Tier 1
-// it does a profile-mode restart (returning a restore closure to run on defer);
+// it does a profile-mode restart (Orchestrate owns deferred restoration);
 // for Tier 0 it resolves the already-served URL with no restart. When it returns
 // done=true the supplied result is terminal (e.g. a failed restart).
-func (s *Service) resolveCaptureURL(ctx context.Context, scenario string, tier readiness.Tier) (uiURL string, restore func(), result Result, done bool) {
+func (s *Service) resolveCaptureURL(ctx context.Context, scenario string, tier readiness.Tier) (uiURL string, result Result, done bool) {
 	if tier == readiness.Tier1 {
 		url, err := s.build.StartProfile(ctx, scenario)
 		if err != nil {
-			return "", nil, Result{Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, Reason: err.Error()}, true
+			return "", Result{Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, Reason: err.Error()}, true
 		}
-		return url, func() { _ = s.build.RestoreDefault(ctx, scenario) }, Result{}, false
+		return url, Result{}, false
 	}
 	// Tier 0: capture the running build directly — no profile restart needed.
 	url, err := s.build.ResolveURL(ctx, scenario)
 	if err != nil {
-		return "", nil, Result{Scenario: scenario, Outcome: OutcomeSkipped, Tier: tier, Reason: "could not resolve UI URL: " + err.Error()}, true
+		return "", Result{Scenario: scenario, Outcome: OutcomeSkipped, Tier: tier, Reason: "could not resolve UI URL: " + err.Error()}, true
 	}
-	return url, nil, Result{}, false
+	return url, Result{}, false
 }

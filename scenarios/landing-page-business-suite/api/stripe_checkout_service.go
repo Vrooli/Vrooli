@@ -66,3 +66,13 @@ func (s *StripeService) CreateCheckoutSession(priceID, successURL, cancelURL, cu
 func (s *StripeService) CreateCheckoutSessionWithAttribution(priceID, successURL, cancelURL, customerEmail string, attribution commerce.Attribution) (*lpbsv1.CheckoutSession, error) {
 	return s.checkoutService().CreateWithAttribution(context.Background(), priceID, successURL, cancelURL, customerEmail, attribution)
 }
+
+// CreateCheckoutSessionForBusinessAccount binds a checkout to the explicitly
+// authorized LPBS commercial account selected by the caller.
+func (s *StripeService) CreateCheckoutSessionForBusinessAccount(priceID, successURL, cancelURL, customerEmail, businessAccountID string) (*lpbsv1.CheckoutSession, error) {
+	return s.checkoutService().CreateForBusinessAccount(context.Background(), priceID, successURL, cancelURL, customerEmail, businessAccountID)
+}
+
+func (s *StripeService) CreateCheckoutSessionForBusinessAccountWithAttribution(priceID, successURL, cancelURL, customerEmail, businessAccountID string, attribution commerce.Attribution) (*lpbsv1.CheckoutSession, error) {
+	return s.checkoutService().CreateForBusinessAccountWithAttribution(context.Background(), priceID, successURL, cancelURL, customerEmail, businessAccountID, attribution)
+}

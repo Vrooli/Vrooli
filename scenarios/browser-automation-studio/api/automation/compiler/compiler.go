@@ -12,9 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/uiselectors"
+
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/internal/paths"
 	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
@@ -1040,6 +1041,16 @@ func resolveNavigateURL(step *ExecutionStep, scenarioRoot string) error {
 	if scenarioName == "" {
 		return fmt.Errorf("navigate node with destinationType 'scenario' missing scenario name")
 	}
+	// Authored BAS assets use @scenario/self for a route back to the scenario
+	// whose project root was supplied for this compilation. Resolve that alias
+	// through the already-admitted physical root instead of sending the token to
+	// lifecycle discovery as if it were a real scenario slug.
+	if scenarioName == "@scenario/self" && strings.TrimSpace(scenarioRoot) != "" {
+		scenarioName = filepath.Base(filepath.Clean(scenarioRoot))
+		if scenarioName == "." || scenarioName == string(filepath.Separator) || scenarioName == "" {
+			return fmt.Errorf("navigate node @scenario/self has an invalid scenario root %q", scenarioRoot)
+		}
+	}
 
 	// Resolve URL via scenarioport package with a timeout to prevent hanging
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -1067,79 +1078,62 @@ func resolveNavigateURL(step *ExecutionStep, scenarioRoot string) error {
 // scoped by the provided manifestRoot (typically a scenario root or bas/ folder).
 // It returns the parsed manifest and the path it was read from so callers can
 // surface which manifest actually served a resolution.
-func loadSelectorManifest(manifestRoot string) (map[string]interface{}, string, error) {
-	// Project files may be resynchronized while BAS stays running. Load the
-	// small manifest per compilation so a new canonical selector is usable in
-	// the next workflow without a server restart.
-	return readSelectorManifest(manifestRoot)
+// Reload the target manifest for each compilation so edits need no BAS restart.
+func loadSelectorManifest(root string) (map[string]interface{}, string, error) {
+	manifest, path, err := uiselectors.Load(root)
+	if err != nil {
+		return nil, path, err
+	}
+	return normalizeSelectorManifest(manifest), path, nil
 }
 
-func readSelectorManifest(manifestRoot string) (map[string]interface{}, string, error) {
-	logrus.WithField("manifest_root", manifestRoot).Debug("loadSelectorManifest: called")
-	scenarioDir := paths.ResolveScenarioDir(nil)
-	logrus.WithField("scenario_dir", scenarioDir).Debug("loadSelectorManifest: resolved scenario dir")
+// normalizeSelectorManifest keeps the execution boundary compatible with
+// older scenario manifests that stored selector namespaces at the JSON root.
+// The canonical contract is {"selectors":{"namespace.key":{...}}}; legacy
+// manifests are flattened here so every BAS caller sees the same namespace.
+func normalizeSelectorManifest(manifest map[string]interface{}) map[string]interface{} {
+	if manifest == nil {
+		return map[string]interface{}{"selectors": map[string]interface{}{}}
+	}
+	if _, ok := manifest["selectors"].(map[string]interface{}); ok {
+		return manifest
+	}
 
-	searchRoots := make([]string, 0, 4)
-	addRoot := func(root string) {
-		root = strings.TrimSpace(root)
-		if root == "" {
+	selectors := make(map[string]interface{})
+	var flatten func(prefix string, value interface{})
+	flatten = func(prefix string, value interface{}) {
+		object, ok := value.(map[string]interface{})
+		if !ok {
 			return
 		}
-		for _, existing := range searchRoots {
-			if existing == root {
-				return
+		if _, hasSelector := object["selector"]; hasSelector {
+			selectors[prefix] = object
+			return
+		}
+		for key, child := range object {
+			if key == "testId" || key == "selector" || key == "description" {
+				continue
 			}
-		}
-		searchRoots = append(searchRoots, root)
-	}
-
-	addRoot(manifestRoot)
-	if strings.TrimSpace(manifestRoot) != "" && filepath.Base(manifestRoot) == "bas" {
-		addRoot(filepath.Dir(manifestRoot))
-	}
-	addRoot(scenarioDir)
-
-	manifestPaths := make([]string, 0, len(searchRoots)*2+4)
-	for _, root := range searchRoots {
-		manifestPaths = append(manifestPaths,
-			filepath.Join(root, "ui", "src", "consts", "selectors.manifest.json"),
-			filepath.Join(root, "ui", "src", "constants", "selectors.manifest.json"),
-		)
-	}
-	manifestPaths = append(manifestPaths,
-		"ui/src/consts/selectors.manifest.json",
-		"ui/src/constants/selectors.manifest.json",
-		"../ui/src/consts/selectors.manifest.json",
-		"../ui/src/constants/selectors.manifest.json",
-	)
-
-	var data []byte
-	var err error
-	manifestPath := ""
-	for _, path := range manifestPaths {
-		data, err = os.ReadFile(path)
-		if err == nil {
-			manifestPath = path
-			break
+			childPrefix := key
+			if prefix != "" {
+				childPrefix = prefix + "." + key
+			}
+			flatten(childPrefix, child)
 		}
 	}
-
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to read selector manifest (tried: %v): %w", manifestPaths, err)
+	for key, value := range manifest {
+		if key == "schemaVersion" || key == "generatedAt" || key == "dynamicSelectors" || key == "_note" {
+			continue
+		}
+		flatten(key, value)
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"manifest_path": manifestPath,
-		"manifest_root": manifestRoot,
-	}).Info("loadSelectorManifest: manifest found")
-
-	// Parse JSON
-	var manifest map[string]interface{}
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, "", fmt.Errorf("failed to parse selector manifest %s: %w", manifestPath, err)
+	normalized := make(map[string]interface{}, len(manifest)+1)
+	for key, value := range manifest {
+		normalized[key] = value
 	}
-
-	return manifest, manifestPath, nil
+	normalized["selectors"] = selectors
+	return normalized
 }
 
 // resolveSelectors resolves @selector/ references in selector-bearing typed action
@@ -1239,7 +1233,7 @@ func resolveMessageSelectors(message protoreflect.Message, manifest map[string]i
 		}
 		original := value.String()
 		cleaned := strings.Split(original, " /*dup-")[0]
-		resolved, err := resolveSelectorTokens(cleaned, manifest, manifestRoot, manifestPath)
+		resolved, err := resolveSelectorTokens(cleaned, manifest, manifestRoot, manifestPath, field.Name() == "expression")
 		if err != nil {
 			resolveErr = fmt.Errorf("field %s: %w", field.FullName(), err)
 			return false
@@ -1259,164 +1253,10 @@ func isSelectorField(field protoreflect.FieldDescriptor) bool {
 	return name == "selector" || strings.HasSuffix(name, "_selector") || name == "expression"
 }
 
-// resolveSelectorReference resolves a single @selector/ reference to an actual CSS selector
-func resolveSelectorReference(selectorRef string, manifest map[string]interface{}) string {
-	// Check if this is a @selector/ reference
-	if !strings.HasPrefix(selectorRef, "@selector/") {
-		return "" // Not a reference, leave as-is
-	}
-
-	// Extract the path (e.g., "dashboard.newProjectButton" from "@selector/dashboard.newProjectButton")
-	path := strings.TrimPrefix(selectorRef, "@selector/")
-
-	// Strip /*dup-N*/ suffix if present (used to make selectors unique in workflows)
-	// Example: "dialogs.project.root /*dup-1*/" -> "dialogs.project.root"
-	if idx := strings.Index(path, " /*dup-"); idx != -1 {
-		path = path[:idx]
-	}
-
-	// Split a dynamic selector invocation from an optional CSS suffix. Dynamic
-	// registry entries are deliberately parameterized (for example
-	// projects.cardById(id="${@params/projectId}")), so treating the whole call
-	// as a manifest key makes valid reusable BAS subflows uncompilable.
-	basePath := path
-	suffix := ""
-	arguments := map[string]string(nil)
-	callIdx := strings.Index(basePath, "(")
-	cssIdx := strings.IndexAny(basePath, ":[")
-	if callIdx != -1 && (cssIdx == -1 || callIdx < cssIdx) {
-		idx := callIdx
-		closeIdx := strings.LastIndex(basePath, ")")
-		if closeIdx <= idx {
-			return ""
-		}
-		parsed, ok := parseSelectorArguments(basePath[idx+1 : closeIdx])
-		if !ok {
-			return ""
-		}
-		arguments = parsed
-		suffix = basePath[closeIdx+1:]
-		basePath = basePath[:idx]
-	} else if cssIdx != -1 {
-		idx := cssIdx
-		suffix = basePath[idx:]
-		basePath = basePath[:idx]
-	}
-
-	// Look up in manifest
-	if manifest == nil {
-		return ""
-	}
-	if selectors, ok := manifest["selectors"].(map[string]interface{}); ok {
-		if entry, ok := selectors[basePath].(map[string]interface{}); ok {
-			if selector, ok := entry["selector"].(string); ok {
-				return selector + suffix
-			}
-		}
-	}
-
-	// Zero-argument dynamic selectors are stable selector aliases. They belong in
-	// the same runtime namespace as literal selectors; only parameterized
-	// definitions need call-time interpolation that BAS does not yet support.
-	if dynamicSelectors, ok := manifest["dynamicSelectors"].(map[string]interface{}); ok {
-		if entry, ok := dynamicSelectors[basePath].(map[string]interface{}); ok {
-			params, hasParams := entry["params"].([]interface{})
-			if hasParams && len(params) > 0 && arguments == nil {
-				return ""
-			}
-			if selector, ok := entry["selectorPattern"].(string); ok {
-				for _, rawParam := range params {
-					param, ok := rawParam.(map[string]interface{})
-					if !ok {
-						return ""
-					}
-					name, ok := param["name"].(string)
-					if !ok {
-						return ""
-					}
-					value, ok := arguments[name]
-					if !ok {
-						return ""
-					}
-					selector = strings.ReplaceAll(selector, "${"+name+"}", value)
-				}
-				return selector + suffix
-			}
-		}
-	}
-
-	return ""
-}
-
-// parseSelectorArguments accepts the intentionally small named-argument
-// grammar used by selector registry references: name=value pairs separated by
-// commas, with values optionally quoted. Quoted values may contain commas and
-// preserve workflow placeholders such as ${@params/projectId} verbatim for the
-// normal execution-parameter interpolation phase.
-func parseSelectorArguments(input string) (map[string]string, bool) {
-	args := make(map[string]string)
-	for len(strings.TrimSpace(input)) > 0 {
-		input = strings.TrimSpace(input)
-		eq := strings.IndexByte(input, '=')
-		if eq <= 0 {
-			return nil, false
-		}
-		name := strings.TrimSpace(input[:eq])
-		if name == "" {
-			return nil, false
-		}
-		input = strings.TrimSpace(input[eq+1:])
-		value := ""
-		if len(input) > 0 && (input[0] == '\'' || input[0] == '"') {
-			quote := input[0]
-			end := 1
-			for end < len(input) && input[end] != quote {
-				if input[end] == '\\' {
-					end++
-				}
-				end++
-			}
-			if end >= len(input) {
-				return nil, false
-			}
-			quoted := input[:end+1]
-			if quote == '"' {
-				unquoted, err := strconv.Unquote(quoted)
-				if err != nil {
-					return nil, false
-				}
-				value = unquoted
-			} else {
-				value = quoted[1 : len(quoted)-1]
-			}
-			input = strings.TrimSpace(input[end+1:])
-		} else {
-			end := strings.IndexByte(input, ',')
-			if end == -1 {
-				value, input = strings.TrimSpace(input), ""
-			} else {
-				value, input = strings.TrimSpace(input[:end]), input[end:]
-			}
-		}
-		if value == "" || args[name] != "" {
-			return nil, false
-		}
-		args[name] = value
-		if input == "" {
-			break
-		}
-		if input[0] != ',' {
-			return nil, false
-		}
-		input = input[1:]
-	}
-	return args, true
-}
-
 // resolveSelectorTokens replaces any @selector/ references embedded in a selector string.
 // An unresolved reference is a hard error: forwarding the literal token would only
 // surface later as an opaque runtime selector failure inside the browser driver.
-func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}, manifestRoot, manifestPath string) (string, error) {
+func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}, manifestRoot, manifestPath string, expression ...bool) (string, error) {
 	resolved := selectorRef
 	searchStart := 0
 	for {
@@ -1442,7 +1282,7 @@ func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}, 
 				continue
 			}
 			switch ch {
-			case '\'', '"':
+			case '\'', '"', '`':
 				if parenDepth == 0 {
 					goto tokenComplete
 				}
@@ -1466,7 +1306,7 @@ func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}, 
 		}
 	tokenComplete:
 		token := resolved[idx:end]
-		replacement := resolveSelectorReference(token, manifest)
+		replacement := uiselectors.ResolveReference(token, manifest)
 		if replacement == "" {
 			selectorCount := 0
 			if selectors, ok := manifest["selectors"].(map[string]interface{}); ok {
@@ -1483,6 +1323,12 @@ func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}, 
 					"check that the selector key exists in the target scenario's ui/src/consts/selectors.manifest.json "+
 					"and that execution parameter project_root is an absolute path to that scenario",
 				token, manifestPath, selectorCount, manifestRoot)
+		}
+		if len(expression) > 0 && expression[0] {
+			if idx == 0 || end >= len(resolved) || (resolved[idx-1] != '\'' && resolved[idx-1] != '"' && resolved[idx-1] != '`') || resolved[end] != resolved[idx-1] {
+				return "", fmt.Errorf("selector references in expressions must occupy a complete quoted string")
+			}
+			replacement = uiselectors.EscapeExpressionSelector(replacement, resolved[idx-1])
 		}
 		resolved = resolved[:idx] + replacement + resolved[end:]
 		// Adjust search position to account for replacement length difference

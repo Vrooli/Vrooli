@@ -3,7 +3,6 @@ package search
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"sort"
@@ -27,7 +26,6 @@ const (
 	defaultAttachBudget  = 5 * time.Second
 	defaultSuggestLimit  = 5
 	defaultAttachLimit   = 6
-	maxContextHits       = 5
 )
 
 type HubClient interface {
@@ -141,42 +139,6 @@ func (s *Service) AttachForMessage(ctx context.Context, chatID, messageID string
 		Reason:    result.Reason,
 		LatencyMS: result.LatencyMS,
 	})
-}
-
-func (s *Service) RecentContextBlock(ctx context.Context, chatID string) string {
-	if s == nil || s.chat == nil {
-		return ""
-	}
-	attachments, err := s.chat.ListSearchAttachments(ctx, chatID, 3)
-	if err != nil || len(attachments) == 0 {
-		return ""
-	}
-	var b strings.Builder
-	b.WriteString("Recent Vrooli ecosystem search context. Treat as supplemental context with provenance; do not claim it is exhaustive.\n")
-	count := 0
-	for _, attachment := range attachments {
-		for _, hit := range attachment.Hits {
-			if count >= maxContextHits {
-				return b.String()
-			}
-			count++
-			b.WriteString(fmt.Sprintf("- [%s/%s] %s", hit.ProviderID, hit.Type, oneLine(hit.Title)))
-			if hit.Path != "" {
-				b.WriteString(" (")
-				b.WriteString(oneLine(hit.Path))
-				b.WriteString(")")
-			}
-			if hit.Snippet != "" {
-				b.WriteString(": ")
-				b.WriteString(oneLine(hit.Snippet))
-			}
-			b.WriteString("\n")
-		}
-	}
-	if count == 0 {
-		return ""
-	}
-	return b.String()
 }
 
 func (s *Service) query(ctx context.Context, input QueryInput) (QueryResult, error) {
@@ -319,12 +281,4 @@ func findMessage(messages []internalchat.Message, id string) (internalchat.Messa
 		}
 	}
 	return internalchat.Message{}, false
-}
-
-func oneLine(value string) string {
-	value = strings.Join(strings.Fields(value), " ")
-	if len(value) > 220 {
-		return value[:220] + "..."
-	}
-	return value
 }

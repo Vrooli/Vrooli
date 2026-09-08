@@ -269,6 +269,11 @@
       "viewFinalizedPlan": "Open the plan"
     },
     "execution": {
+      "outcomeSummary": "成果の要約",
+      "outcomeEvidence": "根拠の参照（1行に1件）",
+      "outcomeLimitations": "制約と指摘への対応（1行に1件）",
+      "unmetOutcomes": "未達成の成果（1行に1件）",
+      "outcomeHelp": "観察やレビューで意図した成果を裏付けてください。広範なテスト結果は参考情報です。未達成の成果は未完了のままです。",
       "title": "Execution",
       "description": "The guided runner: just-in-time context for the current phase, phase transitions, and in-flow decisions and findings.",
       "startHeading": "Start a run",

@@ -235,9 +235,17 @@ func runResultProto(result internal.RunResult) *flowsv1.RunResult {
 		Incomplete:       result.Incomplete,
 		DisconnectReason: result.DisconnectReason,
 		DisconnectStep:   result.DisconnectStep,
+		Binding: &flowsv1.RunBinding{
+			DeviceId:            result.Binding.DeviceID,
+			Transport:           result.Binding.Transport,
+			LeaseId:             result.Binding.LeaseID,
+			LeaseEpoch:          result.Binding.LeaseEpoch,
+			ApplicationId:       result.Binding.ApplicationID,
+			ApplicationRevision: result.Binding.ApplicationRevision,
+		},
 	}
 	for _, ch := range result.Chapters {
-		out.Chapters = append(out.Chapters, &flowsv1.Chapter{Id: ch.ID, Title: ch.Title, Disposition: ch.Disposition, Message: ch.Message})
+		out.Chapters = append(out.Chapters, &flowsv1.Chapter{Id: ch.ID, Title: ch.Title, Disposition: ch.Disposition, Message: ch.Message, EvidenceIds: ch.EvidenceIDs, FailureClass: ch.FailureClass, Attempts: int32(ch.Attempts)})
 	}
 	for _, res := range result.Resolutions {
 		out.Resolutions = append(out.Resolutions, &flowsv1.Resolution{Target: res.Target, Rung: res.Rung, Confidence: res.Confidence})
@@ -252,15 +260,33 @@ func flowFromProto(f *sharedv1.Flow) internal.Flow {
 	if f == nil {
 		return internal.Flow{}
 	}
-	out := internal.Flow{ID: f.Id, Name: f.Name, Transport: f.Transport, RequireUnlocked: f.RequireUnlocked, AuthProfileID: f.AuthProfileId, AllowUnredactedCapture: f.AllowUnredactedCapture}
+	out := internal.Flow{ID: f.Id, Name: f.Name, Transport: f.Transport, RequireUnlocked: f.RequireUnlocked, AuthProfileID: f.AuthProfileId, AllowUnredactedCapture: f.AllowUnredactedCapture, MaxDurationMS: f.MaxDurationMs, RetryBudget: int(f.RetryBudget), ApplicationID: f.ApplicationId, ApplicationRevision: f.ApplicationRevision}
 	for _, s := range f.Steps {
 		args := map[string]any{}
 		if s.Arguments != nil {
 			args = s.Arguments.AsMap()
 		}
-		out.Steps = append(out.Steps, internal.Step{ID: s.Id, Kind: s.Kind, RequiredCapabilities: s.RequiredCapabilities, Target: s.Target, TimeoutMS: s.TimeoutMs, Arguments: args})
+		step := internal.Step{ID: s.Id, Kind: s.Kind, RequiredCapabilities: s.RequiredCapabilities, Target: s.Target, TimeoutMS: s.TimeoutMs, Arguments: args, ObservationRequired: s.ObservationRequired, RetryBudget: int(s.RetryBudget), IdempotencyKey: s.IdempotencyKey}
+		for _, condition := range s.Preconditions {
+			step.Preconditions = append(step.Preconditions, conditionFromProto(condition))
+		}
+		for _, condition := range s.Postconditions {
+			step.Postconditions = append(step.Postconditions, conditionFromProto(condition))
+		}
+		out.Steps = append(out.Steps, step)
 	}
 	return out
+}
+
+func conditionFromProto(condition *sharedv1.Condition) internal.Condition {
+	if condition == nil {
+		return internal.Condition{}
+	}
+	var expected any
+	if condition.Expected != nil {
+		expected = condition.Expected.AsInterface()
+	}
+	return internal.Condition{Kind: condition.Kind, Target: condition.Target, Expected: expected}
 }
 
 type evidenceConnect struct{ h *handler }
@@ -274,12 +300,27 @@ func (c *evidenceConnect) ListAudit(ctx context.Context, _ *connect.Request[evid
 }
 
 func savedProto(f internalflows.SavedFlow) *flowsv1.SavedFlow {
-	flow := &sharedv1.Flow{Id: f.Flow.ID, Name: f.Flow.Name, Transport: f.Flow.Transport, RequireUnlocked: f.Flow.RequireUnlocked, AuthProfileId: f.Flow.AuthProfileID, AllowUnredactedCapture: f.Flow.AllowUnredactedCapture}
+	flow := &sharedv1.Flow{Id: f.Flow.ID, Name: f.Flow.Name, Transport: f.Flow.Transport, RequireUnlocked: f.Flow.RequireUnlocked, AuthProfileId: f.Flow.AuthProfileID, AllowUnredactedCapture: f.Flow.AllowUnredactedCapture, MaxDurationMs: f.Flow.MaxDurationMS, RetryBudget: int32(f.Flow.RetryBudget), ApplicationId: f.Flow.ApplicationID, ApplicationRevision: f.Flow.ApplicationRevision}
 	for _, step := range f.Flow.Steps {
 		args, _ := structpb.NewStruct(step.Arguments)
-		flow.Steps = append(flow.Steps, &sharedv1.Step{Id: step.ID, Kind: step.Kind, Target: step.Target, TimeoutMs: step.TimeoutMS, RequiredCapabilities: step.RequiredCapabilities, Arguments: args})
+		encoded := &sharedv1.Step{Id: step.ID, Kind: step.Kind, Target: step.Target, TimeoutMs: step.TimeoutMS, RequiredCapabilities: step.RequiredCapabilities, Arguments: args, ObservationRequired: step.ObservationRequired, RetryBudget: int32(step.RetryBudget), IdempotencyKey: step.IdempotencyKey}
+		for _, condition := range step.Preconditions {
+			encoded.Preconditions = append(encoded.Preconditions, conditionToProto(condition))
+		}
+		for _, condition := range step.Postconditions {
+			encoded.Postconditions = append(encoded.Postconditions, conditionToProto(condition))
+		}
+		flow.Steps = append(flow.Steps, encoded)
 	}
 	return &flowsv1.SavedFlow{Id: f.ID, Version: f.Version, DeviceId: f.DeviceID, ContextKey: f.ContextKey, SourceRunId: f.SourceRunID, Flow: flow, CreatedAt: f.CreatedAt}
+}
+
+func conditionToProto(condition internal.Condition) *sharedv1.Condition {
+	encoded := &sharedv1.Condition{Kind: condition.Kind, Target: condition.Target}
+	if condition.Expected != nil {
+		encoded.Expected, _ = structpb.NewValue(condition.Expected)
+	}
+	return encoded
 }
 
 func (c *flowConnect) ListSavedFlows(ctx context.Context, req *connect.Request[flowsv1.ListSavedFlowsRequest]) (*connect.Response[flowsv1.ListSavedFlowsResponse], error) {

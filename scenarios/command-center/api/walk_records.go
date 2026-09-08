@@ -16,9 +16,14 @@ import (
 	journalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
 )
 
-var walkPhases = []string{"1", "2", "3", "4", "5", "5.3", "5.5", "5.7", "6", "7", "8", "9"}
+var walkPhases = []string{"1", "2", "3", "4", "5", "5.3", "5.5", "5.7", "5.9", "6", "7", "8", "9"}
 
 const walkScope = "team:director-swarm"
+
+// How far back a read looks for an own record before reporting none. Foreign entries
+// carrying an owner kind are rare; an own record beyond this window reads as absent,
+// which asks for a fresh preparation rather than serving unowned content.
+const walkScanLimit = 50
 
 func walkKind(channel, kind string) (string, error) {
 	switch channel {
@@ -37,16 +42,48 @@ func (s walkConnectService) journal() journalconnect.JournalServiceClient {
 	return journalconnect.NewJournalServiceClient(&http.Client{Timeout: 90 * time.Second, Transport: provenance.ForwardingTransport{}}, resolveScenarioBaseURL("source-ledger", "SOURCE_LEDGER_BASE_URL", "SOURCE_LEDGER_API_PORT")())
 }
 
-func (s walkConnectService) latest(ctx context.Context, kind string) (*walkv1.StoredRecord, error) {
-	r, err := s.journal().ListEntries(ctx, connect.NewRequest(&journalv1.ListEntriesRequest{Scope: walkScope, Kind: kind, NewestFirst: true, Limit: 1}))
+// A journal kind is a label, not proof of authorship: any writer holding the scope can
+// append prose carrying it. Own records are recognised by their body shape so a foreign
+// entry is never read back as walk state.
+func ownWalkRecord(kind, body string) bool {
+	if strings.HasPrefix(kind, "vision-walk-briefing") {
+		var r struct {
+			SchemaVersion int    `json:"schema_version"`
+			ProgramID     string `json:"program_id"`
+			Briefing      string `json:"briefing"`
+		}
+		return json.Unmarshal([]byte(body), &r) == nil && r.SchemaVersion == 1 &&
+			strings.HasPrefix(r.ProgramID, "prog_") && strings.TrimSpace(r.Briefing) != ""
+	}
+	var c struct {
+		WalkID string `json:"walk_id"`
+		State  string `json:"state"`
+	}
+	if json.Unmarshal([]byte(body), &c) != nil || strings.TrimSpace(c.WalkID) == "" {
+		return false
+	}
+	return c.State == "active" || c.State == "completed" || c.State == "abandoned"
+}
+
+// latest returns the newest own record of kind together with the id of the newest entry
+// of that kind whatever wrote it. Source Ledger enforces a conditional append against the
+// latter, so chaining steps over the foreign entries that reading skips.
+func (s walkConnectService) latest(ctx context.Context, kind string) (*walkv1.StoredRecord, string, error) {
+	r, err := s.journal().ListEntries(ctx, connect.NewRequest(&journalv1.ListEntriesRequest{Scope: walkScope, Kind: kind, NewestFirst: true, Limit: walkScanLimit}))
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	if len(r.Msg.Entries) == 0 {
-		return nil, nil
+	var record *walkv1.StoredRecord
+	chain := ""
+	for i, e := range r.Msg.Entries {
+		if i == 0 {
+			chain = e.Id
+		}
+		if record == nil && ownWalkRecord(kind, e.Body) {
+			record = &walkv1.StoredRecord{EntryId: e.Id, Body: e.Body, CreatedAt: e.CreatedAt.AsTime().Format(time.RFC3339Nano)}
+		}
 	}
-	e := r.Msg.Entries[0]
-	return &walkv1.StoredRecord{EntryId: e.Id, Body: e.Body, CreatedAt: e.CreatedAt.AsTime().Format(time.RFC3339Nano)}, nil
+	return record, chain, nil
 }
 
 func (s walkConnectService) State(ctx context.Context, r *connect.Request[walkv1.StateRequest]) (*connect.Response[walkv1.StateResponse], error) {
@@ -55,11 +92,11 @@ func (s walkConnectService) State(ctx context.Context, r *connect.Request[walkv1
 		return nil, err
 	}
 	ck, _ := walkKind(r.Msg.Channel, "walk-checkpoint")
-	b, err := s.latest(ctx, bk)
+	b, _, err := s.latest(ctx, bk)
 	if err != nil {
 		return nil, err
 	}
-	c, err := s.latest(ctx, ck)
+	c, _, err := s.latest(ctx, ck)
 	if err != nil {
 		return nil, err
 	}
@@ -97,8 +134,10 @@ func (s walkConnectService) replay(ctx context.Context, kind, key, body, channel
 	return receipt(e.Msg.Entry, true, channel), nil
 }
 
-func (s walkConnectService) appendWalk(ctx context.Context, kind, key, previous, body, channel string) (*connect.Response[walkv1.Receipt], error) {
-	r, err := s.journal().AppendEntry(ctx, connect.NewRequest(&journalv1.AppendEntryRequest{Scope: walkScope, Kind: kind, Body: body, RequestKey: "command-center/" + kind + "/" + key, ExpectedLatestId: &previous}))
+// chain is the newest entry of kind whatever wrote it, not the caller's expected
+// predecessor: the caller's is checked against the newest own record before this point.
+func (s walkConnectService) appendWalk(ctx context.Context, kind, key, chain, body, channel string) (*connect.Response[walkv1.Receipt], error) {
+	r, err := s.journal().AppendEntry(ctx, connect.NewRequest(&journalv1.AppendEntryRequest{Scope: walkScope, Kind: kind, Body: body, RequestKey: "command-center/" + kind + "/" + key, ExpectedLatestId: &chain}))
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +182,7 @@ func (s walkConnectService) Publish(ctx context.Context, r *connect.Request[walk
 		return nil, badWalk("canonical prep envelope with ok, partial, or unavailable status required")
 	}
 	if len(e.Signals.Phases) != len(walkPhases) {
-		return nil, badWalk("all twelve phases required")
+		return nil, badWalk("all thirteen phases required")
 	}
 	for i, p := range e.Signals.Phases {
 		if p.Phase != walkPhases[i] {
@@ -154,7 +193,7 @@ func (s walkConnectService) Publish(ctx context.Context, r *connect.Request[walk
 	if json.Unmarshal(e.Signals.Checkpoint, &cp) != nil || cp["status"] == nil {
 		return nil, badWalk("checkpoint evidence required")
 	}
-	allowedCheckpoint := map[string]bool{"none": true, "active": true, "completed": true, "abandoned": true, "legacy": true, "unavailable": true, "invalid": true}
+	allowedCheckpoint := map[string]bool{"none": true, "active": true, "completed": true, "abandoned": true, "unavailable": true, "invalid": true}
 	cpStatus, _ := cp["status"].(string)
 	if !allowedCheckpoint[cpStatus] {
 		return nil, badWalk("unknown checkpoint evidence state")
@@ -202,7 +241,14 @@ func (s walkConnectService) Publish(ctx context.Context, r *connect.Request[walk
 	if err != nil || time.Since(at) > 36*time.Hour || time.Until(at) > 5*time.Minute {
 		return nil, badWalk("prep generation time is invalid or stale")
 	}
-	return s.appendWalk(ctx, kind, m.RequestKey, m.ExpectedPreviousId, body, m.Channel)
+	prior, chain, err := s.latest(ctx, kind)
+	if err != nil {
+		return nil, err
+	}
+	if prior.GetEntryId() != m.ExpectedPreviousId {
+		return nil, conflictWalk("briefing predecessor changed")
+	}
+	return s.appendWalk(ctx, kind, m.RequestKey, chain, body, m.Channel)
 }
 
 func (s walkConnectService) Checkpoint(ctx context.Context, r *connect.Request[walkv1.CheckpointRequest]) (*connect.Response[walkv1.Receipt], error) {
@@ -237,7 +283,7 @@ func (s walkConnectService) Checkpoint(ctx context.Context, r *connect.Request[w
 	if replay, err := s.replay(ctx, kind, m.RequestKey, body, m.Channel); replay != nil || err != nil {
 		return replay, err
 	}
-	last, err := s.latest(ctx, kind)
+	last, chain, err := s.latest(ctx, kind)
 	if err != nil {
 		return nil, err
 	}
@@ -265,5 +311,5 @@ func (s walkConnectService) Checkpoint(ctx context.Context, r *connect.Request[w
 			return nil, conflictWalk("prior state is invalid")
 		}
 	}
-	return s.appendWalk(ctx, kind, m.RequestKey, m.ExpectedPreviousId, body, m.Channel)
+	return s.appendWalk(ctx, kind, m.RequestKey, chain, body, m.Channel)
 }

@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+"github.com/vrooli/api-core/uimanifest"
 	"path/filepath"
 
 	bascompat "github.com/vrooli/browser-automation-studio/compat"
@@ -150,14 +151,9 @@ func findAdhocProjectRoot(flowFile string) string {
 		return ""
 	}
 	for {
-		for _, relative := range []string{
-			filepath.Join("ui", "src", "consts", "selectors.manifest.json"),
-			filepath.Join("ui", "src", "constants", "selectors.manifest.json"),
-		} {
-			if info, err := os.Stat(filepath.Join(current, relative)); err == nil && !info.IsDir() {
-				return current
-			}
-		}
+  if layout,err:=uimanifest.LoadAt(current);err==nil {
+   if info,err:=os.Stat(filepath.Join(current,layout.SelectorManifestPath()));err==nil&&!info.IsDir(){return current}
+  }
 		parent := filepath.Dir(current)
 		if parent == current {
 			return ""

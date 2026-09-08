@@ -281,9 +281,6 @@ func PlanVolume(record devicedomain.Record, state strategy.DeviceState, intent V
 			return VolumePlan{}, &VolumeError{Class: "unsupported_operation", Message: "no volume action transport is available"}
 		}
 	}
-	if plan.StateTransport == "" && plan.StateAvailable {
-		plan.StateTransport = plan.StateTransport
-	}
 	if plan.ActionTransport == "" {
 		return VolumePlan{}, &VolumeError{Class: "unsupported_operation", Message: "no compatible volume transport is available"}
 	}

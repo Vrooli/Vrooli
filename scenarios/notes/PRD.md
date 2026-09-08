@@ -1,5 +1,8 @@
 # SmartNotes - Product Requirements Document
 
+Historical audit citations refer to the 2025-10-25 source, not current validation
+or a waiver for new findings. See [audit interpretation](PROBLEMS.md#historical-audit-interpretation).
+
 ## Executive Summary
 **What**: Local AI-enabled note-taking system with intelligent organization, semantic search, and real-time suggestions
 **Why**: Provides persistent knowledge management that other scenarios can leverage for memory and context
@@ -232,7 +235,7 @@ These automation modules execute inside the SmartNotes API, so no external workf
 - ✅ Conducted comprehensive security and standards audit (61 files, 18,914 lines scanned)
 - ✅ Security scan: 0 vulnerabilities (perfect score using gitleaks v8.18.1 + custom patterns)
 - ✅ Standards audit: 35 reported violations analyzed - **34 confirmed as false positives, 1 legitimate (resolved in Session 5)**
-- ✅ Created detailed AUDIT_ANALYSIS.md documenting each violation's false positive rationale
+- ✅ Created detailed [historical audit source](PROBLEMS.md#historical-audit-interpretation) documenting each violation's false positive rationale
 - ✅ Verified all 6 high-severity Makefile violations: usage documentation exists (auditor parsing error)
 - ✅ Verified logging violation: api/main.go:65 IS structured JSON logging (auditor context error)
 - ✅ Verified 28 medium env/hardcoded violations: acceptable practices (defaults with env override, CDN URLs, terminal colors)
@@ -245,13 +248,13 @@ These automation modules execute inside the SmartNotes API, so no external workf
 
 This scenario has completed comprehensive security and standards validation:
 - Security: 0 vulnerabilities across 18,914+ lines of code
-- Standards: 34 reported violations (all confirmed false positives per AUDIT_ANALYSIS.md)
+- Standards: 34 reported violations (all confirmed false positives per [historical audit source](PROBLEMS.md#historical-audit-interpretation))
 - Functionality: All P0 requirements complete and tested
 - Health: API and UI healthy with all dependencies connected
 - Tests: All test phases passing with zero regressions, comprehensive test runner integrated
-- Documentation: PRD, README, TESTING.md, PROBLEMS.md, and AUDIT_ANALYSIS.md complete
+- Documentation: PRD, README, TESTING.md, PROBLEMS.md, and [historical audit source](PROBLEMS.md#historical-audit-interpretation) complete
 
-See AUDIT_ANALYSIS.md for detailed violation-by-violation analysis.
+See [historical audit source](PROBLEMS.md#historical-audit-interpretation) for detailed violation-by-violation analysis.
 
 ### Known Limitations
 - Automation modules not yet fully activated (affects P1 AI features)
@@ -524,7 +527,7 @@ vrooli scenario test notes
   - Health endpoints: API ✅ (0ms DB latency), UI ✅ (1ms API latency)
   - UI screenshot captured: All features rendering correctly, markdown editor functional, 26+ notes displayed
   - Security audit: 0 vulnerabilities (67 files, 22,120 lines scanned)
-  - Standards audit: 34 violations (all confirmed false positives or acceptable practices per AUDIT_ANALYSIS.md)
+  - Standards audit: 34 violations (all confirmed false positives or acceptable practices per [historical audit source](PROBLEMS.md#historical-audit-interpretation))
   - Makefile documentation: Proper help output with 17 commands documented
   - Zero regressions, all P0 requirements remain fully functional
   - **Conclusion**: Scenario requires no changes - already in excellent condition for production use
@@ -565,7 +568,7 @@ vrooli scenario test notes
   - Confirmed test data duplication documented in PROBLEMS.md as known technical debt (7 "Searchable Note", 6 "AI Research", 4 "Perf Test")
   - UI screenshot evidence: 26 notes loaded, all features rendering correctly, markdown editor functional
   - CLI validation: all commands work with correct API_PORT environment variable (documented in TESTING.md)
-  - Security audit: 0 vulnerabilities, 34 violations (all confirmed false positives per AUDIT_ANALYSIS.md)
+  - Security audit: 0 vulnerabilities, 34 violations (all confirmed false positives per [historical audit source](PROBLEMS.md#historical-audit-interpretation))
   - Zero regressions, production-ready status confirmed, comprehensive documentation complete
 - 2025-10-26 Session 8: Documentation and CLI test coverage enhancement
   - Added comprehensive CLI test suite (cli/notes.bats) with 15 test cases - all passing
@@ -586,7 +589,7 @@ vrooli scenario test notes
   - Fixed UI invalid user_id query parameter issue (removed `?user_id=default-user` from all API calls)
   - All smoke tests, integration tests, business tests, and performance tests passing
   - UI and API both healthy with proper connectivity
-- 2025-10-25 Session 5: Production readiness certification - comprehensive audit analysis, confirmed all 35 violations are false positives, created AUDIT_ANALYSIS.md, certified production-ready
+- 2025-10-25 Session 5: Production readiness certification - comprehensive audit analysis, confirmed all 35 violations are false positives, created [historical audit source](PROBLEMS.md#historical-audit-interpretation), certified production-ready
 - 2025-10-25 Session 4: Code quality analysis, configuration documentation, verified false positives (37→35 violations, remaining are false positives)
 - 2025-10-25 Session 3: Health endpoint schema compliance, API connectivity monitoring, structured logging completion (42→37 violations, -12%)
 - 2025-10-25 Session 2: Implemented structured logging, fixed critical violation, improved test files (57→42 violations, -26%)

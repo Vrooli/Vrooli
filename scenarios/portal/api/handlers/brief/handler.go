@@ -37,7 +37,7 @@ func (h *Handler) Get(ctx context.Context, req *connect.Request[briefv1.GetBrief
 	return connect.NewResponse(&briefv1.GetBriefResponse{Brief: brief.ToProto(record)}), nil
 }
 func (h *Handler) List(ctx context.Context, req *connect.Request[briefv1.ListBriefsRequest]) (*connect.Response[briefv1.ListBriefsResponse], error) {
-	records, err := h.service.List(ctx, brief.ListInput{Consumer: brief.ConsumerFromProto(req.Msg.GetConsumer()), ChatID: req.Msg.GetChatId(), SessionRef: req.Msg.GetSessionRef(), Limit: int(req.Msg.GetLimit())})
+	records, err := h.service.List(ctx, brief.ListInput{Consumer: brief.ConsumerFilterFromProto(req.Msg.GetConsumer()), ChatID: req.Msg.GetChatId(), SessionRef: req.Msg.GetSessionRef(), Limit: int(req.Msg.GetLimit())})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -59,7 +59,7 @@ func (h *Handler) RecordUse(ctx context.Context, req *connect.Request[briefv1.Re
 }
 
 func (h *Handler) Stats(ctx context.Context, req *connect.Request[briefv1.BriefStatsRequest]) (*connect.Response[briefv1.BriefStatsResponse], error) {
-	rows, err := h.service.Stats(ctx, brief.StatsInput{WindowDays: int(req.Msg.GetWindowDays()), Consumer: brief.ConsumerFromProto(req.Msg.GetConsumer())})
+	rows, err := h.service.Stats(ctx, brief.StatsInput{WindowDays: int(req.Msg.GetWindowDays()), Consumer: brief.ConsumerFilterFromProto(req.Msg.GetConsumer())})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

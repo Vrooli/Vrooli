@@ -99,5 +99,14 @@
     "title": "問題が発生しました",
     "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
     "retry": "再試行"
+  },
+  "navigation": {
+    "app-shell": {
+      "close-navigation": "ナビゲーションを閉じる",
+      "mobile-navigation": "モバイルナビゲーション",
+      "open-navigation": "ナビゲーションを開く",
+      "primary-navigation": "メインナビゲーション",
+      "skip-to-content": "コンテンツへスキップ"
+    }
   }
 }

@@ -1,3 +1,4 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -8,7 +9,8 @@ import "./design-tokens.css";
 import "./styles.css";
 import { onProfilerRender } from "./lib/profiler";
 
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 const queryClient = new QueryClient();
 
@@ -62,10 +64,12 @@ if (!rootElement) {
 }
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <React.Profiler id="deployment-manager" onRender={onProfilerRender}>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    </React.Profiler>
+    <SpatialNavProvider controller={spatialNav}>
+      <React.Profiler id="deployment-manager" onRender={onProfilerRender}>
+        <QueryClientProvider client={queryClient}>
+          <App />
+        </QueryClientProvider>
+      </React.Profiler>
+    </SpatialNavProvider>
   </React.StrictMode>
 );

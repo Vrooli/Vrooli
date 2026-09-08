@@ -7,3 +7,8 @@ coverage/
 .env
 .env.local
 *.tsbuildinfo
+
+# Generated validation output
+/playwright-report/
+/test-results/
+/test-coverage.txt

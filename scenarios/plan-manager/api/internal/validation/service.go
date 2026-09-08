@@ -315,10 +315,17 @@ func (s *service) StartValidationTicket(ctx context.Context, request ValidationT
 		return ValidationOperation{}, false, err
 	}
 	boundary := effectiveBoundary(validationPlan, phaseID)
-	if phaseID == "" && strings.TrimSpace(validationPlan.BaselineSet.Name) != "" {
+	certification := phaseID == "" && validationPlan.CompletionPolicy.RequiresCertification()
+	behavioralComparison := certification || phaseRequestsBehavioralComparison(validationPlan, phaseID)
+	if certification && strings.TrimSpace(validationPlan.BaselineSet.Name) != "" {
 		boundary = fullBaselineSetBoundary(boundary, validationPlan.BaselineSet.ScenarioTargets)
 	}
-	if strings.TrimSpace(validationPlan.BaselineSet.Name) != "" && phaseID != "" {
+	// An incomplete baseline is diagnostic context for ordinary validation. It
+	// must not turn a focused phase into a scope error merely because the phase
+	// reaches a scenario that was not present when the optional inventory was
+	// captured. Inventory containment is required only when the caller has
+	// explicitly requested behavioral comparison (or certification).
+	if behavioralComparison && strings.TrimSpace(validationPlan.BaselineSet.Name) != "" && phaseID != "" {
 		if outside := scenariosOutsideBaselineInventory(boundary, refs, validationPlan.BaselineSet.ScenarioTargets); len(outside) > 0 {
 			return ValidationOperation{}, false, fmt.Errorf("validation scope requests scenario(s) outside captured baseline inventory: %s", strings.Join(outside, ", "))
 		}
@@ -329,9 +336,9 @@ func (s *service) StartValidationTicket(ctx context.Context, request ValidationT
 	if len(selectedMembers) == 0 {
 		selectedMembers = append([]string(nil), requiredMembers...)
 	}
-	if phaseID == "" {
-		// The final DoD is intentionally selector-free and always covers all
-		// captured members. A caller cannot narrow it through ticket input.
+	if certification {
+		// Explicit certification covers all captured members; ordinary final
+		// observations are not promoted into certification by phase position.
 		requiredMembers = uniqueSortedStrings(validationPlan.BaselineSet.ScenarioTargets)
 		selectedMembers = append([]string(nil), requiredMembers...)
 		for i := range checks {
@@ -350,7 +357,7 @@ func (s *service) StartValidationTicket(ctx context.Context, request ValidationT
 			}
 		}
 	}
-	if len(selectedMembers) > 0 && len(validationPlan.BaselineSet.ScenarioTargets) > 0 && !containsAll(validationPlan.BaselineSet.ScenarioTargets, selectedMembers) {
+	if behavioralComparison && len(selectedMembers) > 0 && len(validationPlan.BaselineSet.ScenarioTargets) > 0 && !containsAll(validationPlan.BaselineSet.ScenarioTargets, selectedMembers) {
 		return ValidationOperation{}, false, fmt.Errorf("selected validation members are outside captured baseline inventory")
 	}
 	for _, run := range request.TestRuns {
@@ -383,7 +390,7 @@ func (s *service) StartValidationTicket(ctx context.Context, request ValidationT
 		ScopeGeneration:            request.ScopeGeneration,
 		RequiredMembers:            requiredMembers,
 		SelectedMembers:            selectedMembers,
-		FullInventory:              phaseID == "",
+		FullInventory:              certification,
 		TestRuns:                   append([]TestRunEvidence(nil), request.TestRuns...),
 		QueueReason:                "awaiting scheduler claim",
 		Result: &Result{
@@ -396,6 +403,18 @@ func (s *service) StartValidationTicket(ctx context.Context, request ValidationT
 	op.SyncArgv = []string{"plan-manager", "validate", "sync", op.ID}
 	op.QueueReason = "Test Genie owns the receipt and every provider child operation"
 	return s.startReceiptValidation(ctx, request, validationPlan, boundary, refs, op)
+}
+
+func phaseRequestsBehavioralComparison(p planmodel.Plan, phaseID string) bool {
+	if strings.TrimSpace(phaseID) == "" {
+		return false
+	}
+	for _, phase := range p.Phases {
+		if phase.ID == phaseID {
+			return phase.ValidationScope.CompareBehavior
+		}
+	}
+	return false
 }
 
 func collectionMembers(checks []ValidationCheck) []string {
@@ -509,15 +528,13 @@ func (s *service) GetValidationOperation(ctx context.Context, operationID string
 	if s.receipts != nil {
 		if receipt, receiptErr := s.receipts.GetValidation(ctx, op.ID); receiptErr == nil {
 			op = projectReceipt(op, receipt, s.now())
-			_ = s.operations.SaveOperation(context.WithoutCancel(ctx), op)
 		}
 	}
 	return op, nil
 }
 
-// SyncValidation reads durable Git Control Tower state once and commits only
-// terminal producer truth. Starting, waiting, recovery and parking remain GCT
-// responsibilities exposed by the ticket's argv values.
+// SyncValidation reads the canonical Test Genie receipt once and persists its
+// projection. Producer scheduling, waits, retries, and cancellation stay upstream.
 func (s *service) SyncValidation(ctx context.Context, operationID string) (ValidationOperation, error) {
 	if s.operations == nil {
 		return ValidationOperation{}, errors.New("durable validation operation store is unavailable")
@@ -530,7 +547,8 @@ func (s *service) SyncValidation(ctx context.Context, operationID string) (Valid
 		return ValidationOperation{}, ErrOperationNotFound{ID: operationID}
 	}
 	if op.Terminal() {
-		return op, nil
+		err := s.persistReceiptProjection(ctx, &op)
+		return op, err
 	}
 	if s.receipts != nil {
 		receipt, receiptErr := s.receipts.GetValidation(ctx, op.ID)
@@ -538,191 +556,43 @@ func (s *service) SyncValidation(ctx context.Context, operationID string) (Valid
 			return ValidationOperation{}, receiptErr
 		}
 		op = projectReceipt(op, receipt, s.now())
-		if op.Terminal() && op.Result != nil && s.results != nil {
-			if err := s.results.SaveResult(ctx, *op.Result); err != nil {
-				return ValidationOperation{}, err
-			}
-			op.ResultRef = op.Result.ID
-		}
-		if err := s.operations.SaveOperation(ctx, op); err != nil {
+		if err := s.persistReceiptProjection(ctx, &op); err != nil {
 			return ValidationOperation{}, err
 		}
 		return op, nil
 	}
-	op.LastSyncedAt = s.now()
-	for i := range op.Children {
-		child := &op.Children[i]
-		if child.Status == ChildTerminal {
-			continue
-		}
-		if child.Check.Kind == ValidationCheckTestGenieRun {
-			if s.testRuns == nil {
-				op.QueueReason = "Test Genie evidence synchronization is unavailable"
-				continue
-			}
-			run, readErr := s.testRuns.GetRun(ctx, child.Check.Scenario, child.Check.RunID)
-			if readErr != nil {
-				op.QueueReason = "test-genie run has not reached readable durable state: " + readErr.Error()
-				continue
-			}
-			if !testRunTerminal(run.Status) {
-				op.QueueReason = "test-genie run remains " + run.Status
-				continue
-			}
-			child.Status, child.TerminalAt, child.ExternalID, child.Detail = ChildTerminal, s.now(), run.RunID, run.Detail
-			// A Test Genie run attached to a baseline validation is evidence, not a
-			// green-suite gate. Its paired collection diff classifies whether a
-			// failure is new, pre-existing, or clean. Rejecting a terminal failed
-			// run here would make a valid before/after comparison impossible.
-			if testRunEvidenceAvailable(run.Status) {
-				child.Verdict = VerdictPass
-			} else {
-				child.Verdict = VerdictFail
-			}
-			for j := range op.TestRuns {
-				if op.TestRuns[j].Scenario == run.Scenario && op.TestRuns[j].RunID == run.RunID {
-					op.TestRuns[j] = run
-				}
-			}
-			continue
-		}
-		if child.Check.Kind != ValidationCheckCollectionDiff {
-			child.Status, child.TerminalAt, child.Verdict = ChildTerminal, s.now(), VerdictUnknown
-			child.Detail = "no typed producer synchronization is available for this validation check"
-			continue
-		}
-		if s.collections == nil {
-			op.QueueReason = "Git Control Tower validation synchronization is unavailable"
-			continue
-		}
-		result, readErr := s.collections.GetCollectionDiff(ctx, child.Check.Baseline, child.Check.Branch, child.ID)
-		if readErr != nil {
-			op.QueueReason = "producer diff has not reached readable durable state: " + readErr.Error()
-			continue
-		}
-		switch result.Classification {
-		case "clean":
-			child.Status, child.TerminalAt, child.ExternalID, child.Detail = ChildTerminal, s.now(), result.OperationID, result.Detail
-			child.Verdict = VerdictPass
-		case "regression":
-			child.Status, child.TerminalAt, child.ExternalID, child.Detail = ChildTerminal, s.now(), result.OperationID, result.Detail
-			child.Verdict = VerdictFail
-		case "not-comparable":
-			// A not-comparable diff is a TERMINAL producer outcome — a required
-			// member went failed/skipped/stale or collection coverage was
-			// incomplete, so the aggregate is not usable as a gate. It is
-			// inconclusive (VerdictUnknown), NOT a regression, but it must
-			// terminalize the ticket: leaving it non-terminal wedges the ticket
-			// forever, and because unkeyed `validate start` coalesces to any active
-			// (non-terminal) ticket, every subsequent start returns the wedged one.
-			// Terminalizing lets the next `validate start` mint a fresh ticket
-			// naturally (knw-1784053356805823492).
-			child.Status, child.TerminalAt, child.ExternalID = ChildTerminal, s.now(), result.OperationID
-			child.Verdict = VerdictUnknown
-			child.Detail = joinDetails("collection diff not comparable: a required member is missing or incomparable (failed/skipped/stale); fix the member and re-run validation", result.Detail)
-		default:
-			// Still computing (e.g. not-ready) — remain non-terminal and wait for
-			// the producer to reach a terminal classification.
-			op.QueueReason = "producer diff remains " + result.Classification
-			continue
-		}
-	}
-	allTerminal := len(op.Children) > 0
-	for _, child := range op.Children {
-		if child.Status != ChildTerminal {
-			allTerminal = false
-			break
-		}
-	}
-	if allTerminal {
-		result := Result{ID: op.ID + ":result", PlanID: op.PlanID, PhaseID: op.PhaseID, Verdict: verdictFromChildren(op.Children), RanAt: s.now(), ExecutionID: op.ExecutionID, OperationID: op.ID, ScopeGeneration: op.ScopeGeneration, FullInventory: op.FullInventory, RequiredMembers: append([]string(nil), op.RequiredMembers...), SelectedMembers: append([]string(nil), op.SelectedMembers...)}
-		if op.Result != nil {
-			result.Staleness, result.CommandsRun = op.Result.Staleness, append([]string(nil), op.Result.CommandsRun...)
-		}
-		for _, child := range op.Children {
-			result.Detail = joinDetails(result.Detail, child.Detail)
-		}
-		if s.results != nil {
-			if err := s.results.SaveResult(ctx, result); err != nil {
-				return ValidationOperation{}, err
-			}
-			op.ResultRef = result.ID
-		}
-		op.Result, op.Status, op.TerminalAt, op.QueueReason = &result, OperationTerminal, s.now(), ""
-	}
-	if err := s.operations.SaveOperation(ctx, op); err != nil {
-		return ValidationOperation{}, err
-	}
-	return op, nil
+	return ValidationOperation{}, errors.New("canonical receipt unavailable; retain historical operation as evidence and use the plan completion policy")
 }
 
-func testRunTerminal(status string) bool {
-	switch strings.ToLower(strings.TrimSpace(status)) {
-	case "passed", "failed", "cancelled", "canceled", "stopped", "complete", "completed":
-		return true
+// Persist terminal evidence before its operation. Inspection alone must never
+// make sync skip this write, including receipts reused in a terminal state.
+func (s *service) persistReceiptProjection(ctx context.Context, op *ValidationOperation) error {
+	if op.Terminal() && op.Result != nil && s.results != nil {
+		if err := s.results.SaveResult(ctx, *op.Result); err != nil {
+			return err
+		}
+		op.ResultRef = op.Result.ID
 	}
-	return false
+	return s.operations.SaveOperation(ctx, *op)
 }
 
-func testRunPassed(status string) bool {
-	return strings.EqualFold(strings.TrimSpace(status), "passed") || strings.EqualFold(strings.TrimSpace(status), "complete") || strings.EqualFold(strings.TrimSpace(status), "completed")
-}
-
-func testRunEvidenceAvailable(status string) bool {
-	return testRunPassed(status) || strings.EqualFold(strings.TrimSpace(status), "failed")
-}
-
-// RecoverPending reattaches every queued/running record after process restart.
+// RecoverPending refreshes canonical observations without claiming or restarting
+// producer work. Historical operations without receipts remain readable as-is.
 func (s *service) RecoverPending(ctx context.Context) error {
-	if s.operations == nil {
+	if s.operations == nil || s.receipts == nil {
 		return nil
 	}
 	operations, err := s.operations.ListNonTerminalOperations(ctx)
 	if err != nil {
 		return err
 	}
+	var failures []error
 	for _, op := range operations {
-		changed := false
-		for i := range op.Children {
-			if op.Children[i].Status == ChildRunning {
-				op.Children[i].Status = ChildQueued
-				op.Children[i].StartedAt = ""
-				op.Children[i].Error = &OperationError{Code: "claim_recovered", Detail: "recovered unfinished child claim after restart"}
-				changed = true
-			}
-		}
-		if changed {
-			op.Status, op.QueueReason = OperationQueued, "recovered unfinished child claim after restart"
-			if err := s.operations.SaveOperation(context.WithoutCancel(ctx), op); err != nil {
-				return err
-			}
-		}
-		// Producer-owned tickets are resumed by their printed GCT/Test Genie
-		// commands, then reconciled with SyncValidation. Never restart work here.
-	}
-	return nil
-}
-
-func verdictFromChildren(children []ValidationChild) Verdict {
-	passed := 0
-	unknown := false
-	for _, child := range children {
-		if !child.Oracle {
-			continue
-		}
-		switch child.Verdict {
-		case VerdictFail:
-			return VerdictFail
-		case VerdictPass:
-			passed++
-		default:
-			unknown = true
+		if _, err := s.SyncValidation(ctx, op.ID); err != nil {
+			failures = append(failures, err)
 		}
 	}
-	if unknown || passed == 0 {
-		return VerdictUnknown
-	}
-	return VerdictPass
+	return errors.Join(failures...)
 }
 
 func (s *service) RunValidation(ctx context.Context, planID, phaseID string) (Result, error) {
@@ -883,9 +753,11 @@ func derivedPhaseBoundary(ph planmodel.Phase) planmodel.ChangeBoundary {
 	return planmodel.ChangeBoundary{AcceptanceAllow: allow}.Normalized()
 }
 
-// fullBaselineSetBoundary is used only for plan-level/final validation. A phase
-// may narrow its own scope, but an empty phase ID is the final certification and
-// must exercise every scenario captured in the immutable collection inventory.
+// fullBaselineSetBoundary is used only for plan-level/final certification.
+// A phase may narrow its own scope, but an empty phase ID is the final
+// certification and must exercise every scenario captured in the immutable
+// collection inventory. Ordinary completion does not enter this path merely
+// because a plan has reached its final phase.
 func fullBaselineSetBoundary(boundary planmodel.ChangeBoundary, scenarios []string) planmodel.ChangeBoundary {
 	for _, scenario := range uniqueSortedStrings(scenarios) {
 		boundary.AcceptanceAllow = append(boundary.AcceptanceAllow, "scenarios/"+scenario+"/**")

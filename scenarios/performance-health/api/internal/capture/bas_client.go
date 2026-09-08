@@ -1,8 +1,8 @@
 package capture
 
 import (
-	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -151,7 +151,27 @@ func (c *BASConnectClient) traceHasComponentMarks(path string) bool {
 	if err != nil {
 		return false
 	}
-	return bytes.Contains(raw, []byte(componentMark))
+	// CDP commonly escapes the atom as \u269b. Inspect decoded event names,
+	// not raw bytes or React scheduler track labels inside event arguments.
+	type event struct {
+		Name string `json:"name"`
+	}
+	var trace struct {
+		Name   string  `json:"name"`
+		Events []event `json:"traceEvents"`
+	}
+	var events []event
+	if json.Unmarshal(raw, &trace) == nil {
+		events = append(trace.Events, event{Name: trace.Name})
+	} else if json.Unmarshal(raw, &events) != nil {
+		return false
+	}
+	for _, entry := range events {
+		if strings.HasPrefix(strings.TrimSpace(entry.Name), componentMark+" ") {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *BASConnectClient) resolve(ctx context.Context) (string, error) {

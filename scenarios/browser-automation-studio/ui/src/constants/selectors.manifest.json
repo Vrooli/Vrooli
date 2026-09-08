@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "selectors": {
     "app.shell.ready": {
       "testId": "app-ready",
@@ -80,6 +81,54 @@
       "testId": "dashboard-start-tutorial-button",
       "selector": "[data-testid=\"dashboard-start-tutorial-button\"]"
     },
+    "dashboard.startRecordingButton": {
+      "testId": "dashboard-start-recording-button",
+      "selector": "[data-testid=\"dashboard-start-recording-button\"]"
+    },
+    "dashboard.featureCards": {
+      "testId": "dashboard-feature-cards",
+      "selector": "[data-testid=\"dashboard-feature-cards\"]"
+    },
+    "recording.sidebar.timelineTab": {
+      "testId": "sidebar-timeline-tab",
+      "selector": "[data-testid=\"sidebar-timeline-tab\"]"
+    },
+    "recording.sidebar.autoTab": {
+      "testId": "sidebar-auto-tab",
+      "selector": "[data-testid=\"sidebar-auto-tab\"]"
+    },
+    "recording.sidebar.artifactsTab": {
+      "testId": "sidebar-artifacts-tab",
+      "selector": "[data-testid=\"sidebar-artifacts-tab\"]"
+    },
+    "recording.sidebar.historyTab": {
+      "testId": "sidebar-history-tab",
+      "selector": "[data-testid=\"sidebar-history-tab\"]"
+    },
+    "recording.sidebar.addStepButton": {
+      "testId": "timeline-add-step-button",
+      "selector": "[data-testid=\"timeline-add-step-button\"]"
+    },
+    "recording.sidebar.createWorkflowButton": {
+      "testId": "timeline-create-workflow-button",
+      "selector": "[data-testid=\"timeline-create-workflow-button\"]"
+    },
+    "recording.browser.urlInput": {
+      "testId": "browser-url-input",
+      "selector": "[data-testid=\"browser-url-input\"]"
+    },
+    "recording.browser.replayStyleButton": {
+      "testId": "browser-replay-style-button",
+      "selector": "[data-testid=\"browser-replay-style-button\"]"
+    },
+    "recording.workflowCreation.nameInput": {
+      "testId": "workflow-creation-name-input",
+      "selector": "[data-testid=\"workflow-creation-name-input\"]"
+    },
+    "recording.workflowCreation.submitButton": {
+      "testId": "workflow-creation-submit-button",
+      "selector": "[data-testid=\"workflow-creation-submit-button\"]"
+    },
     "dialogs.base.closeButton": {
       "testId": "dialog-close-button",
       "selector": "[data-testid=\"dialog-close-button\"]"
@@ -131,6 +180,78 @@
     "dialogs.project.submitButton": {
       "testId": "project-modal-submit",
       "selector": "[data-testid=\"project-modal-submit\"]"
+    },
+    "dialogs.projectImport.root": {
+      "testId": "project-import-modal",
+      "selector": "[data-testid=\"project-import-modal\"]"
+    },
+    "dialogs.projectImport.folderPathInput": {
+      "testId": "project-import-folder-path-input",
+      "selector": "[data-testid=\"project-import-folder-path-input\"]"
+    },
+    "dialogs.projectImport.folderPathError": {
+      "testId": "project-import-folder-path-error",
+      "selector": "[data-testid=\"project-import-folder-path-error\"]"
+    },
+    "dialogs.projectImport.nameInput": {
+      "testId": "project-import-name-input",
+      "selector": "[data-testid=\"project-import-name-input\"]"
+    },
+    "dialogs.projectImport.descriptionInput": {
+      "testId": "project-import-description-input",
+      "selector": "[data-testid=\"project-import-description-input\"]"
+    },
+    "dialogs.projectImport.validateButton": {
+      "testId": "project-import-validate-button",
+      "selector": "[data-testid=\"project-import-validate-button\"]"
+    },
+    "dialogs.projectImport.cancelButton": {
+      "testId": "project-import-cancel-button",
+      "selector": "[data-testid=\"project-import-cancel-button\"]"
+    },
+    "dialogs.projectImport.importButton": {
+      "testId": "project-import-button",
+      "selector": "[data-testid=\"project-import-button\"]"
+    },
+    "dialogs.projectImport.preview.section": {
+      "testId": "project-import-preview-section",
+      "selector": "[data-testid=\"project-import-preview-section\"]"
+    },
+    "dialogs.projectImport.preview.alreadyIndexedWarning": {
+      "testId": "project-import-already-indexed-warning",
+      "selector": "[data-testid=\"project-import-already-indexed-warning\"]"
+    },
+    "dialogs.projectImport.folderBrowser.panel": {
+      "testId": "folder-browser-panel",
+      "selector": "[data-testid=\"folder-browser-panel\"]"
+    },
+    "dialogs.projectImport.folderBrowser.upButton": {
+      "testId": "folder-browser-up-button",
+      "selector": "[data-testid=\"folder-browser-up-button\"]"
+    },
+    "dialogs.projectImport.folderBrowser.currentPath": {
+      "testId": "folder-browser-current-path",
+      "selector": "[data-testid=\"folder-browser-current-path\"]"
+    },
+    "dialogs.projectImport.folderBrowser.showRegisteredToggle": {
+      "testId": "folder-browser-show-registered-toggle",
+      "selector": "[data-testid=\"folder-browser-show-registered-toggle\"]"
+    },
+    "dialogs.projectImport.folderBrowser.entryList": {
+      "testId": "folder-browser-entry-list",
+      "selector": "[data-testid=\"folder-browser-entry-list\"]"
+    },
+    "dialogs.projectImport.folderBrowser.entry": {
+      "testId": "folder-browser-entry",
+      "selector": "[data-testid=\"folder-browser-entry\"]"
+    },
+    "dialogs.projectImport.folderBrowser.selectButton": {
+      "testId": "folder-browser-select-button",
+      "selector": "[data-testid=\"folder-browser-select-button\"]"
+    },
+    "dialogs.projectImport.folderBrowser.openButton": {
+      "testId": "folder-browser-open-button",
+      "selector": "[data-testid=\"folder-browser-open-button\"]"
     },
     "forms.error": {
       "testId": "form-error",
@@ -504,6 +625,14 @@
       "testId": "project-file-tree-create-workflow",
       "selector": "[data-testid=\"project-file-tree-create-workflow\"]"
     },
+    "projects.fileTree.runButton": {
+      "testId": "file-tree-run",
+      "selector": "[data-testid=\"file-tree-run\"]"
+    },
+    "projects.fileTree.testButton": {
+      "testId": "file-tree-test",
+      "selector": "[data-testid=\"file-tree-test\"]"
+    },
     "projects.presets.recommendedPreset": {
       "testId": "project-preset-recommended",
       "selector": "[data-testid=\"project-preset-recommended\"]"
@@ -527,6 +656,26 @@
     "projects.tabs.executions": {
       "testId": "project-tab-executions",
       "selector": "[data-testid=\"project-tab-executions\"]"
+    },
+    "projects.workflowPreview.pane": {
+      "testId": "workflow-preview-pane",
+      "selector": "[data-testid=\"workflow-preview-pane\"]"
+    },
+    "projects.workflowPreview.runButton": {
+      "testId": "workflow-preview-run-button",
+      "selector": "[data-testid=\"workflow-preview-run-button\"]"
+    },
+    "projects.workflowPreview.openEditorButton": {
+      "testId": "workflow-preview-open-editor-button",
+      "selector": "[data-testid=\"workflow-preview-open-editor-button\"]"
+    },
+    "projects.workflowPreview.scheduleSection": {
+      "testId": "workflow-preview-schedule-section",
+      "selector": "[data-testid=\"workflow-preview-schedule-section\"]"
+    },
+    "projects.workflowPreview.exportButton": {
+      "testId": "workflow-preview-export-button",
+      "selector": "[data-testid=\"workflow-preview-export-button\"]"
     },
     "replay.player": {
       "testId": "replay-player",
@@ -756,6 +905,10 @@
       "testId": "workflow-card-view-toggle",
       "selector": "[data-testid=\"workflow-card-view-toggle\"]"
     },
+    "workflows.creation.dialog": {
+      "testId": "workflow-creation-dialog",
+      "selector": "[data-testid=\"workflow-creation-dialog\"]"
+    },
     "workflows.creation.aiAssisted": {
       "testId": "workflow-creation-ai-assisted",
       "selector": "[data-testid=\"workflow-creation-ai-assisted\"]"
@@ -764,10 +917,6 @@
       "testId": "workflow-creation-visual-builder",
       "selector": "[data-testid=\"workflow-creation-visual-builder\"]"
     },
-    "workflows.creation.dialog": {
-      "testId": "workflow-creation-dialog",
-      "selector": "[data-testid=\"workflow-creation-dialog\"]"
-    },
     "workflows.newButton": {
       "testId": "new-workflow-button",
       "selector": "[data-testid=\"new-workflow-button\"]"
@@ -775,6 +924,42 @@
     "workflows.newButtonFab": {
       "testId": "new-workflow-button-fab",
       "selector": "[data-testid=\"new-workflow-button-fab\"]"
+    },
+    "exports.detailsModal.root": {
+      "testId": "export-details-modal",
+      "selector": "[data-testid=\"export-details-modal\"]"
+    },
+    "exports.detailsModal.thumbnail": {
+      "testId": "export-details-thumbnail",
+      "selector": "[data-testid=\"export-details-thumbnail\"]"
+    },
+    "exports.detailsModal.downloadButton": {
+      "testId": "export-details-download-button",
+      "selector": "[data-testid=\"export-details-download-button\"]"
+    },
+    "exports.detailsModal.editButton": {
+      "testId": "export-details-edit-button",
+      "selector": "[data-testid=\"export-details-edit-button\"]"
+    },
+    "exports.detailsModal.deleteButton": {
+      "testId": "export-details-delete-button",
+      "selector": "[data-testid=\"export-details-delete-button\"]"
+    },
+    "exports.detailsModal.copyLinkButton": {
+      "testId": "export-details-copy-link-button",
+      "selector": "[data-testid=\"export-details-copy-link-button\"]"
+    },
+    "exports.detailsModal.closeButton": {
+      "testId": "export-details-close-button",
+      "selector": "[data-testid=\"export-details-close-button\"]"
+    },
+    "exports.detailsModal.generateCaptionButton": {
+      "testId": "export-details-generate-caption-button",
+      "selector": "[data-testid=\"export-details-generate-caption-button\"]"
+    },
+    "exports.detailsModal.copyCaptionButton": {
+      "testId": "export-details-copy-caption-button",
+      "selector": "[data-testid=\"export-details-copy-caption-button\"]"
     },
     "landingManager.admin.login.email": {
       "testId": "admin-login-email",
@@ -835,6 +1020,26 @@
     "landingManager.admin.analytics.variantDetail": {
       "testId": "analytics-variant-detail",
       "selector": "[data-testid=\"analytics-variant-detail\"]"
+    },
+    "library.experiencesurface.root": {
+      "testId": "experiencesurface",
+      "selector": "[data-testid=\"experiencesurface\"]"
+    },
+    "library.react-component-library:MonetizationAccount.monetizationAccountSurface": {
+      "testId": "monetization.account-surface",
+      "selector": "[data-testid=\"monetization.account-surface\"]"
+    },
+    "library.react-component-library:MonetizationAccount.root": {
+      "testId": "react-component-library:MonetizationAccount",
+      "selector": "[data-testid=\"react-component-library:MonetizationAccount\"]"
+    },
+    "library.authclient.root": {
+      "testId": "authclient",
+      "selector": "[data-testid=\"authclient\"]"
+    },
+    "library.entitlementstore.root": {
+      "testId": "entitlementstore",
+      "selector": "[data-testid=\"entitlementstore\"]"
     }
   },
   "dynamicSelectors": {
@@ -1026,5 +1231,9 @@
         }
       ]
     }
+  },
+  "sources": {
+    "ui/src/constants/selectors.ts": "0c3c4bcc5acdd7c784e87d51800237f7dd2c572717d914e1b2cf7a07199e74ec",
+    "ui/src/consts/selectors.library.ts": "b61c4c116bffb9a5b26d8a0a886578cd4afe65500aaf9d5739745cafabdcdbf7"
   }
 }

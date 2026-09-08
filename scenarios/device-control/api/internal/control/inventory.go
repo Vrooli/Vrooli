@@ -195,14 +195,16 @@ func (s *Service) Devices(ctx context.Context) []Device {
 	if s.attached != nil {
 		attached, err := s.attached.List(inventoryCtx)
 		if err != nil {
+			s.bridgeInventoryErr = fmt.Sprintf("list Bridge attached devices: %v", err)
 			// A failed bridge lookup must not manufacture a pseudo-device beside
 			// locally enumerated physical devices. Consumers expect one row per
-			// real device; retain the diagnostic placeholder only when there is
-			// no physical inventory to provide context for the bridge failure.
+			// real device. Keep the failure in the diagnostics projection so a
+			// healthy local device cannot hide a broken federation edge.
 			if len(out) == 0 {
 				out = append(out, Device{ID: "bridge", Name: "Bridge attached-device registry", Kind: "bridge", Status: strategy.StatusUnavailable, Health: "unreachable", HealthReason: "bridge host node is unavailable", Capabilities: make([]strategy.Capability, 0), ObservedAt: time.Now().UTC()})
 			}
 		} else {
+			s.bridgeInventoryErr = ""
 			byID := make(map[string]int, len(out))
 			bySerial := make(map[string]int, len(out))
 			for i, device := range out {
@@ -347,6 +349,12 @@ func (s *Service) DiagnosticDevices(ctx context.Context) []Device {
 	out := make([]Device, 0, len(records))
 	for _, record := range records {
 		out = append(out, deviceFromRecord(record))
+	}
+	s.mu.Lock()
+	bridgeErr := s.bridgeInventoryErr
+	s.mu.Unlock()
+	if bridgeErr != "" {
+		out = append(out, Device{ID: "bridge-inventory", Name: "Bridge attached-device registry", Kind: "bridge", Status: strategy.StatusUnavailable, Health: strategy.HealthUnreachable, HealthReason: bridgeErr, Capabilities: make([]strategy.Capability, 0), ObservedAt: time.Now().UTC()})
 	}
 	return out
 }

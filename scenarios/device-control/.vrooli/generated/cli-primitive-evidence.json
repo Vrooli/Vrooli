@@ -193,6 +193,11 @@
       "binding": "."
     },
     {
+      "path": "device app",
+      "group": "device",
+      "command": "app"
+    },
+    {
       "path": "device connect",
       "group": "device",
       "command": "connect",

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"image"
 	"image/png"
 	"net/http/httptest"
@@ -15,25 +16,29 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/blobstore"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
-	"github.com/vrooli/api-core/owneridentity"
+	coreidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/targetmodel"
 	wire "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/contextcapture"
 	rpc "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/contextcapture/contextcapture_v1connect"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	domain "portal/internal/contextcapture"
 )
 
 type identities struct{ now time.Time }
 
-func (v identities) Validate(_ context.Context, token string) (owneridentity.Identity, error) {
+func (v identities) Verify(_ context.Context, token string) (coreidentity.Principal, error) {
 	if token != "alice" && token != "bob" {
-		return owneridentity.Identity{}, owneridentity.ErrUnauthenticated
+		return coreidentity.Principal{}, errors.New("unauthenticated")
 	}
-	return owneridentity.Identity{Subject: token, ExpiresAt: v.now.Add(time.Hour)}, nil
+	return coreidentity.Principal{Kind: coreidentity.ActorHuman, Verified: true, Subject: token, ExpiresAt: v.now.Add(time.Hour)}, nil
 }
+
+var _ authn.TokenVerifier = identities{}
 
 func authorized[T any](value *T, token string) *connect.Request[T] {
 	r := connect.NewRequest(value)
@@ -66,9 +71,9 @@ func TestContextHTTPRequiresOwnerAndPreservesImage(t *testing.T) {
 	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 	_, err = client.CancelImport(ctx, authorized(&wire.ReconcileImportRequest{RequestId: cancelID}, "alice"))
 	require.NoError(t, err)
-	cancelled := *input
+	cancelled := proto.Clone(input).(*wire.ImportRequest)
 	cancelled.RequestId = cancelID
-	_, err = client.Import(ctx, authorized(&cancelled, "alice"))
+	_, err = client.Import(ctx, authorized(cancelled, "alice"))
 	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 	statusRequest := &wire.ReconcileImportRequest{RequestId: input.RequestId}
 	status, err := client.ReconcileImport(ctx, authorized(statusRequest, "alice"))

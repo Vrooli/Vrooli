@@ -366,6 +366,9 @@ func TestPersistedValidationReceiptAllowsBoundPhaseCompletion(t *testing.T) {
 	require.NoError(t, err)
 	phaseID := plan.Phases[0].ID
 	// The normal stack deliberately has no live GCT synchronizer. Supply a
+	plan.CompletionPolicy = planmodel.CompletionPolicy{Mode: "certification", Reason: "Verify bound required receipt across SQLite reload"}
+	plan, err = plansSvc.Update(ctx, plan)
+	require.NoError(t, err)
 	// completed typed snapshot so this test reaches the validation gate.
 	clk := scheduletest.New(time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC))
 	executionSvc := internalexecution.NewService(internalexecution.Deps{
@@ -479,6 +482,7 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 		})
 		require.NoError(t, err)
 		_, _, _, transErr := executionSvc.TransitionPhase(ctx, exec.ID, ph.ID, internalexecution.PhaseTransitionInputs{
+			Assessment:               internalexecution.OutcomeAssessment{Summary: "Cross-domain outcome observed", Evidence: []string{"test:author-execute-handoff"}},
 			ToStatus:                 internalplans.PhaseStatusDone,
 			ValidationOverrideReason: "integration fixture focuses on author-to-handoff flow; validation is covered separately",
 		})
@@ -655,12 +659,11 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 
 	exec, _, execStep, err = executionSvc.TransitionPhase(ctx, exec.ID, pctx.CurrentPhase.ID, internalexecution.PhaseTransitionInputs{ToStatus: internalplans.PhaseStatusActive})
 	require.NoError(t, err)
-	require.Equal(t, "execution-next", execStep.NextActions[0].ID)
+	require.Equal(t, "assess-outcome", execStep.NextActions[0].ID)
 
 	exec, pctx, execStep, err = executionSvc.ContinueExecution(ctx, exec.ID, "", "")
 	require.NoError(t, err)
-	require.Equal(t, "start-validation-ticket", execStep.NextActions[0].ID, "continue must not recommend done without fresh synchronized producer evidence")
-	require.NotEmpty(t, execStep.NextActions[0].BlockedBy)
+	require.Equal(t, "assess-outcome", execStep.NextActions[0].ID, "ordinary work needs supported judgment, not a mandatory broad receipt")
 
 	_, _, _, err = logSvc.AddNote(ctx, internalplanlog.AddInputs{
 		PlanOrExecution: exec.ID,
@@ -671,11 +674,12 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 	require.NoError(t, err)
 
 	exec, _, execStep, err = executionSvc.TransitionPhase(ctx, exec.ID, pctx.CurrentPhase.ID, internalexecution.PhaseTransitionInputs{
+		Assessment:               internalexecution.OutcomeAssessment{Summary: "Small-agent workflow observed", Evidence: []string{"test:continue-loop"}},
 		ToStatus:                 internalplans.PhaseStatusDone,
 		ValidationOverrideReason: "small-agent integration fixture validates degraded guidance separately",
 	})
 	require.NoError(t, err)
-	require.Equal(t, "start-final-dod-ticket", execStep.NextActions[0].ID)
+	require.Equal(t, "complete-execution", execStep.NextActions[0].ID)
 
 	handoff, _, execStep, err := executionSvc.Complete(ctx, exec.ID, internalexecution.CompletionInputs{Tokens: 321, Iterations: 2})
 	require.NoError(t, err)

@@ -19,12 +19,24 @@ func TestCredentialSchemaGuardRejectsCleartextProviderSecrets(t *testing.T) {
 		filepath.Clean("../../secrets-manager/api/internal/secrets/schema.sql"):         true,
 		filepath.Clean("../../secrets-manager/api/internal/secrets/desktop_schema.sql"): true,
 	}
-	err := filepath.Walk("../../", func(path string, info os.FileInfo, err error) error {
+	skipDirs := map[string]bool{
+		".git":                   true,
+		".cache":                 true,
+		".vrooli-artifact-stage": true,
+		"coverage":               true,
+		"dist":                   true,
+		"node_modules":           true,
+		"vendor":                 true,
+		".next":                  true,
+		"target":                 true,
+		"tmp":                    true,
+	}
+	err := filepath.WalkDir("../../", func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
-			if info.Name() == ".git" || info.Name() == "vendor" {
+		if entry.IsDir() {
+			if skipDirs[entry.Name()] {
 				return filepath.SkipDir
 			}
 			return nil

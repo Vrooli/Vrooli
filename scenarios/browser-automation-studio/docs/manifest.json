@@ -679,6 +679,16 @@
             "implemented"
           ],
           "completion": "required"
+        },
+        {
+          "path": "plans/README.md",
+          "docType": "historical-plan-index",
+          "title": "Historical plan sources",
+          "description": "Plan Manager and preserved historical source locations",
+          "maturity": "active",
+          "requiredBy": [],
+          "completion": "optional",
+          "internal": true
         }
       ]
     },
@@ -687,96 +697,7 @@
       "title": "Plans & Proposals",
       "icon": "file-text",
       "visibility": "developers-only",
-      "documents": [
-        {
-          "path": "plans/vision-agent-implementation-plan.md",
-          "title": "Vision Agent Implementation",
-          "description": "AI vision agent implementation plan",
-          "docType": "doc-plans-vision-agent-implementation-plan-md",
-          "maturity": "retired",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
-        },
-        {
-          "path": "plans/ai-api-keys-and-credits-plan.md",
-          "title": "AI API Keys & Credits",
-          "description": "API key and credit system plan",
-          "docType": "doc-plans-ai-api-keys-and-credits-plan-md",
-          "maturity": "retired",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
-        },
-        {
-          "path": "plans/browser-automation-engine.md",
-          "title": "Browser Automation Engine",
-          "description": "Automation engine architecture plan",
-          "docType": "doc-plans-browser-automation-engine-md",
-          "maturity": "retired",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
-        },
-        {
-          "path": "plans/playwright-driver-completion.md",
-          "title": "Playwright Driver Completion",
-          "description": "Driver completion roadmap",
-          "docType": "doc-plans-playwright-driver-completion-md",
-          "maturity": "retired",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
-        },
-        {
-          "path": "plans/RECORD_MODE_IMPLEMENTATION_PLAN.md",
-          "title": "Record Mode Implementation",
-          "description": "Recording mode implementation plan",
-          "docType": "doc-plans-RECORD-MODE-IMPLEMENTATION-PLAN-md",
-          "maturity": "retired",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
-        },
-        {
-          "path": "plans/replay-export-implementation-plan.md",
-          "title": "Replay Export Implementation",
-          "description": "Replay export feature plan",
-          "docType": "doc-plans-replay-export-implementation-plan-md",
-          "maturity": "retired",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
-        },
-        {
-          "path": "plans/ux-metrics-architecture-plan.md",
-          "title": "UX Metrics Architecture",
-          "description": "UX metrics collection plan",
-          "docType": "doc-plans-ux-metrics-architecture-plan-md",
-          "maturity": "retired",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
-        },
-        {
-          "path": "plans/multi-tab-recording-implementation.md",
-          "title": "Multi-Tab Recording",
-          "description": "Multi-tab recording implementation plan",
-          "docType": "doc-plans-multi-tab-recording-implementation-md",
-          "maturity": "retired",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
-        }
-      ]
+      "documents": []
     },
     {
       "id": "readiness",

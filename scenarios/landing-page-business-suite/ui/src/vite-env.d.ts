@@ -89,7 +89,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/v1/billing_pb' {
     SUPPORTER_CONTRIBUTION = 3,
   }
   export interface CheckoutSession { sessionId: string; url: string; sessionKind: SessionKind; status: number; publishableKey: string; customerEmail: string; stripePriceId: string; amountCents: bigint; currency: string; successUrl: string; cancelUrl: string; }
-  export interface CreateCheckoutSessionRequest extends Message<'landing_page_business_suite.v1.CreateCheckoutSessionRequest'> { priceId: string; customerEmail: string; successUrl: string; cancelUrl: string; sessionKind: SessionKind; }
+  export interface CreateCheckoutSessionRequest extends Message<'landing_page_business_suite.v1.CreateCheckoutSessionRequest'> { priceId: string; customerEmail: string; successUrl: string; cancelUrl: string; sessionKind: SessionKind; businessAccountId: string; }
   export interface CreateCheckoutSessionResponse extends Message<'landing_page_business_suite.v1.CreateCheckoutSessionResponse'> { session?: CheckoutSession; }
   export interface GetBillingPortalRequest extends Message<'landing_page_business_suite.v1.GetBillingPortalRequest'> { returnUrl: string; }
   export interface BillingPortalResponse extends Message<'landing_page_business_suite.v1.BillingPortalResponse'> { url: string; }

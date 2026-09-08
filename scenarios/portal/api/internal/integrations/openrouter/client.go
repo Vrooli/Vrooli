@@ -149,11 +149,9 @@ func (c *Client) do(ctx context.Context, body io.Reader) (*http.Response, error)
 	httpReq.Header.Set("HTTP-Referer", "https://vrooli.com")
 	httpReq.Header.Set("X-Title", "Vrooli Portal")
 
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("openrouter request failed: %w", err)
-	}
-	return resp, nil
+	// The caller owns the successful response body and closes it after
+	// consuming the stream or error response.
+	return c.httpClient.Do(httpReq)
 }
 
 func parseSSE(r io.Reader, emit func(StreamEvent) error) error {

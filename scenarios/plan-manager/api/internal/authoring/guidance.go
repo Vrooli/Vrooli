@@ -173,8 +173,9 @@ func referencesRecoveryActions(sess Session) []NextAction {
 // regressionAnchorRecoveryActions are the concrete actions surfaced for the
 // anchor section. Deriving the typed intent mechanically is recommended; the
 // alternative is to confirm/adjust the derived intent block by hand. There is no
-// "capture a baseline snapshot" action here — that moved to execution start,
-// where the "before" is actually true.
+// "capture a baseline snapshot" action here — certification capture is owned by
+// execution start, where the "before" is actually true. Ordinary completion
+// does not require that historical snapshot.
 // sessionBoundary parses the session's acceptance-boundary section into a typed
 // ChangeBoundary so anchor derivation and examples reflect the authored boundary.
 func sessionBoundary(sess Session) planmodel.ChangeBoundary {
@@ -231,8 +232,8 @@ func regressionAnchorRecoveryActions(sess Session) []NextAction {
 // match the plans-domain anchor parser (Strategy / Baseline name / HEAD sha +
 // backticked commands), so it parses into typed fields. Affected scenarios and
 // the tiered baseline/diff commands are DERIVED from the change boundary — no
-// hand-authored `<scenario>` placeholder. It records INTENT only (the HEAD sha is
-// captured fresh at execution start).
+// hand-authored `<scenario>` placeholder. It records INTENT only (the HEAD sha
+// is captured fresh at execution start when explicit certification requests it).
 func RegressionAnchorIntentTemplate(title, slug string, boundary planmodel.ChangeBoundary) string {
 	name := anchorBaselineName(title, slug)
 	lines := []string{

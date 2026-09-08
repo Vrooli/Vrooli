@@ -1240,6 +1240,35 @@ func TestRepositorySaveGetRoundTrip(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestCompletionPolicyPersistenceAndExplicitDowngrade(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	p := samplePlan()
+	p.CompletionPolicy = planmodel.CompletionPolicy{Mode: "certification", Reason: "Required release evidence"}
+	p, err := svc.Create(ctx, p)
+	require.NoError(t, err)
+	want := p.CompletionPolicy
+	p.CompletionPolicy = planmodel.CompletionPolicy{}
+	p, err = svc.Update(ctx, p)
+	require.NoError(t, err)
+	require.Equal(t, want, p.CompletionPolicy, "old client omission must not downgrade certification")
+	loaded, err := svc.Get(ctx, p.ID, plans.WorkspaceScope{})
+	require.NoError(t, err)
+	require.Equal(t, want, loaded.CompletionPolicy)
+	parsed, err := planmodel.ParsePlanMarkdown(plans.RenderMarkdown(loaded))
+	require.NoError(t, err)
+	require.Equal(t, want, parsed.CompletionPolicy)
+	p.CompletionPolicy = planmodel.CompletionPolicy{Mode: "advisory"}
+	p, err = svc.Update(ctx, p)
+	require.NoError(t, err)
+	require.False(t, p.CompletionPolicy.RequiresCertification())
+	for _, policy := range []planmodel.CompletionPolicy{{Mode: "typo"}, {Mode: "certification"}} {
+		p.CompletionPolicy = policy
+		_, err = svc.Update(ctx, p)
+		require.Error(t, err)
+	}
+}
+
 func TestServiceCreateComputesIdentityFields(t *testing.T) {
 	svc, _ := newService(t)
 	ctx := context.Background()

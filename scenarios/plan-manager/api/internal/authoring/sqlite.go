@@ -129,7 +129,7 @@ func scanSession(sc rowScanner) (Session, error) {
 	if err := json.Unmarshal([]byte(document), &doc); err != nil {
 		return Session{}, fmt.Errorf("unmarshal session document %q: %w", s.ID, err)
 	}
-	s.Sections = doc.Sections
+	s.Sections = hydrateSections(doc.Sections)
 	s.CurrentSectionKey = doc.CurrentSectionKey
 	s.PhaseDrafts = doc.PhaseDrafts
 	s.CurrentPhaseID = doc.CurrentPhaseID

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -99,7 +100,7 @@ func VerifyMagicLink(deps UserAuthDependencies) http.HandlerFunc {
 func RefreshTokens(deps UserAuthDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var request TokenRefreshRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil && err != io.EOF {
 			deps.WriteError(w, http.StatusBadRequest, "Malformed request body", "validation")
 			return
 		}

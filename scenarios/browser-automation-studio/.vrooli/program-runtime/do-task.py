@@ -1,11 +1,11 @@
-# One bounded task route. Caller captures the final outcome through learning.record.
+# One bounded task route. Runtime owns outcome capture and nested-call deduplication.
 try:
     inputs
 except NameError:
     inputs = {}
 envelope = {"program":"browser-automation-studio.do-task","version":"2","status":"failed",
  "phase":"validate","inputs":{},"signals":{"result":None,"candidates":[],
- "capture_required":True,"reused_workflow":False},"errors":[],"evidence":[]}
+ "reused_workflow":False,"outcome":"unknown"},"errors":[],"evidence":[]}
 def fail(status, klass, detail, where):
     envelope["status"]=status
     envelope["errors"].append({"class":klass,"detail":str(detail)[:160],"where":where})
@@ -52,7 +52,7 @@ def step_validate():
     return "collect"
 
 def step_collect():
-    # The usage skill owns targeted recall and advice assessment once.
+    # Runtime prepares scoped advice before entering this domain program.
     envelope["phase"]="collect"
     return "act"
 
@@ -81,6 +81,13 @@ def step_act():
                 task=inputs["task"],scenario=inputs.get("scenario",""),k=5).head(1)
             child=result[0] if result else {}
             envelope["signals"]["candidates"]=(child.get("signals") or {}).get("candidates",[])[:5]
+            options=list(dict.fromkeys(str(c["id"]) for c in envelope["signals"]["candidates"]
+                                       if c.get("runnable_by_id") and c.get("id")))
+            if options:
+                choice=lib.vrooli_memory.choose_option(options=options,default_id=options[0]).head(1)[0]
+                if choice.get("status")=="ok":
+                    envelope["signals"]["recommended_workflow"]=choice["signals"]["selected_id"]
+                    envelope["signals"]["learning"]=choice["signals"]["learning"]
             # Search relevance is never permission to execute a guessed workflow.
             return fail("partial","selection_required","Select a matching workflow UUID and version, or supply a candidate/session","act")
         if not result:
@@ -92,6 +99,15 @@ def step_act():
         envelope["status"]=child.get("status","failed")
         if envelope["status"]=="ok" and envelope["errors"]:
             envelope["status"]="partial"
+        outcome=(child.get("signals") or {}).get("outcome")
+        envelope["signals"]["learning"]=(child.get("signals") or {}).get("learning", {})
+        if inputs.get("workflow_id") or inputs.get("flow"):
+            envelope["signals"]["learning"].setdefault("measurements", {})["reused_workflow"]=bool(inputs.get("workflow_id"))
+        if outcome=="verified_success" and envelope["status"]=="ok" and envelope["evidence"]:
+            envelope["signals"]["outcome"]="verified_success"
+        elif outcome in ("failed","unavailable"):
+            envelope["signals"]["outcome"]=outcome
+        # passed/reached/completed alone do not prove the user's assertions.
     except Exception as exc:
         status,klass=classify_transport(exc)
         return fail(status,klass,klass,"act")

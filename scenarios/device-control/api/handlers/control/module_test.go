@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/shared"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type failingRemoteDiscovery struct{}
@@ -68,13 +69,41 @@ func TestFlowProtoCarriesExplicitTransport(t *testing.T) {
 	require.Equal(t, "wireless", got.Transport)
 }
 
+func TestFlowProtoCarriesReliabilityContract(t *testing.T) {
+	expected, err := structpb.NewValue(30.0)
+	require.NoError(t, err)
+	got := flowFromProto(&sharedv1.Flow{
+		MaxDurationMs:       5000,
+		RetryBudget:         2,
+		ApplicationId:       "editor",
+		ApplicationRevision: "editor-v1",
+		Steps: []*sharedv1.Step{{
+			Id: "set", Kind: "property-set", ObservationRequired: true, RetryBudget: 1, IdempotencyKey: "set-once",
+			Preconditions: []*sharedv1.Condition{{Kind: "property-equals", Target: "volume", Expected: expected}},
+		}},
+	})
+	require.Equal(t, int64(5000), got.MaxDurationMS)
+	require.Equal(t, 2, got.RetryBudget)
+	require.Equal(t, "editor", got.ApplicationID)
+	require.Equal(t, "editor-v1", got.ApplicationRevision)
+	require.True(t, got.Steps[0].ObservationRequired)
+	require.Equal(t, 1, got.Steps[0].RetryBudget)
+	require.Equal(t, "set-once", got.Steps[0].IdempotencyKey)
+	require.Equal(t, 30.0, got.Steps[0].Preconditions[0].Expected)
+}
+
 func TestRunResultProtoCarriesDisconnectMetadata(t *testing.T) {
-	got := runResultProto(internal.RunResult{RunID: "run-1", Disposition: "device_disconnected", Incomplete: true, DisconnectReason: "ADB endpoint disappeared", DisconnectStep: "actuate"})
+	got := runResultProto(internal.RunResult{RunID: "run-1", Disposition: "device_disconnected", Incomplete: true, DisconnectReason: "ADB endpoint disappeared", DisconnectStep: "actuate", Binding: internal.RunBinding{DeviceID: "phone-1", Transport: "usb", LeaseID: "lease-1", LeaseEpoch: 4, ApplicationID: "app", ApplicationRevision: "rev"}, Chapters: []internal.Chapter{{ID: "actuate", Attempts: 2, FailureClass: "transport", EvidenceIDs: []string{"e1"}}}})
 	require.Equal(t, "run-1", got.RunId)
 	require.Equal(t, "device_disconnected", got.Disposition)
 	require.True(t, got.Incomplete)
 	require.Equal(t, "ADB endpoint disappeared", got.DisconnectReason)
 	require.Equal(t, "actuate", got.DisconnectStep)
+	require.Equal(t, "phone-1", got.Binding.DeviceId)
+	require.Equal(t, uint64(4), got.Binding.LeaseEpoch)
+	require.Equal(t, int32(2), got.Chapters[0].Attempts)
+	require.Equal(t, "transport", got.Chapters[0].FailureClass)
+	require.Equal(t, []string{"e1"}, got.Chapters[0].EvidenceIds)
 }
 
 func TestUnknownDeviceIsBadRequestAndPreservesMessage(t *testing.T) {

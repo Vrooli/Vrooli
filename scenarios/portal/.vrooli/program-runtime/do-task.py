@@ -1,4 +1,6 @@
 """portal.do-task v1 — cross-owner browser export then desktop verification."""
+import json
+
 try:
     inputs
 except NameError:
@@ -78,7 +80,7 @@ def step_act():
 
 def step_report():
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope, separators=(",", ":")))
     return None
 
 STEPS = {"validate": step_validate, "act": step_act, "report": step_report}

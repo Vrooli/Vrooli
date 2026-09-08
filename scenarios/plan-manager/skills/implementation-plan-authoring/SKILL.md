@@ -9,9 +9,9 @@ metadata:
   tags: ["planning","handoff","implementation","documentation","execution"]
   icon: "file-text"
   status: "active"
-  revision: 9
+  revision: 10
   createdAt: "2026-02-09T00:00:00Z"
-  updatedAt: "2026-09-04T00:00:00Z"
+  updatedAt: "2026-09-06T00:00:00Z"
   requires:
     scenarios: ["plan-manager", "prompt-manager", "vrooli"]
     commands: ["plan-manager", "prompt-manager discover", "prompt-manager skill read", "vrooli scenario"]
@@ -64,6 +64,15 @@ you took and which were stale.
 ---
 
 ### 0. Preserve the planning source, not just the task title
+
+Author for concurrent agents in one shared worktree. Use the completion policy
+in `scenarios/plan-manager/docs/concepts/PLAN-MODEL.md`. Ordinary plans use advisory
+broad validation and optional baseline context. Describe evidence for the actual
+outcome and a bounded investigation posture. Select certification only for an
+explicit requirement with a stated reason. Do not add blanket green-suite,
+no-regression, isolation, or worktree-quiescence requirements to ordinary plans.
+Missing baseline evidence remains unknown; historical reconstruction must not
+replace or stash current shared-worktree contents.
 
 A plan is a durable compression of the investigation and discussion that led
 to it. Compress repetition and incidental conversation; do **not** compress

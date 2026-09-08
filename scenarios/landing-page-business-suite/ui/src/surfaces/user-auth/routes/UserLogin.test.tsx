@@ -52,6 +52,13 @@ describe('UserLogin', () => {
     expect(sessionStorage.getItem('auth_callback_params')).toBe(JSON.stringify({ redirect_uri: 'vrooli://callback', app: 'Desktop', state: 'nonce' }));
   });
 
+  it('shows the requested desktop capabilities before the LPBS account is connected', () => {
+    renderLogin('/auth/login?desktop_link=true&app=Desktop&resource=demo&scopes=demo%3Aread%2Cdemo%3Awrite');
+
+    expect(screen.getByTestId('desktop-link-consent')).toHaveTextContent('Your signed-in LPBS account will be connected to the selected local identity');
+    expect(screen.getByTestId('desktop-link-consent')).toHaveTextContent('demo:read, demo:write');
+  });
+
   it('lets a customer restart after a successful request', async () => {
     requestMagicLink.mockResolvedValue({ message: 'Request sent' });
     renderLogin();

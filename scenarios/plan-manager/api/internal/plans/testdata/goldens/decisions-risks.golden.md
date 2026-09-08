@@ -62,6 +62,10 @@ Render regrouping could break a hidden markdown consumer.
 
 ## Verification
 
+### Completion Policy
+
+Mode: advisory
+
 ### Regression Anchor
 
 - Strategy: scenario_baseline

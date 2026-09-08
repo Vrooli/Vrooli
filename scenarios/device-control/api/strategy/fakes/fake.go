@@ -14,11 +14,13 @@ import (
 // Strategy is a deterministic adapter fake used by conformance and flow
 // tests. It records the exact calls while returning a valid PNG frame.
 type Strategy struct {
-	Declaration strategy.Declaration
-	ObserveErr  error
-	ActuateErr  error
-	mu          sync.Mutex
-	Actuations  []strategy.Actuation
+	Declaration  strategy.Declaration
+	ObserveErr   error
+	ActuateErr   error
+	LifecycleErr error
+	mu           sync.Mutex
+	Actuations   []strategy.Actuation
+	Lifecycles   []strategy.AppLifecycleRequest
 }
 
 func New(id string, status string, capabilities ...string) *Strategy {
@@ -50,4 +52,20 @@ func (s *Strategy) Calls() []strategy.Actuation {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]strategy.Actuation(nil), s.Actuations...)
+}
+
+func (s *Strategy) AppLifecycle(_ context.Context, request strategy.AppLifecycleRequest) (strategy.AppLifecycleResult, error) {
+	s.mu.Lock()
+	s.Lifecycles = append(s.Lifecycles, request)
+	s.mu.Unlock()
+	if s.LifecycleErr != nil {
+		return strategy.AppLifecycleResult{Operation: request.Operation, Package: request.Package, Status: strategy.StatusUnavailable, Reason: s.LifecycleErr.Error()}, s.LifecycleErr
+	}
+	return strategy.AppLifecycleResult{Operation: request.Operation, Package: request.Package, Status: strategy.StatusAvailable}, nil
+}
+
+func (s *Strategy) LifecycleCalls() []strategy.AppLifecycleRequest {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]strategy.AppLifecycleRequest(nil), s.Lifecycles...)
 }

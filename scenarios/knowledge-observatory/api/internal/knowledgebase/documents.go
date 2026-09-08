@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"io/fs"
 	"os"
@@ -57,6 +58,18 @@ func prose(p string) bool {
 	return false
 }
 
+// References can originate in code and configuration as well as prose.
+func referenceSource(p string) bool {
+	if prose(p) {
+		return true
+	}
+	switch strings.ToLower(path.Ext(p)) {
+	case ".go", ".ts", ".tsx", ".js", ".jsx", ".py", ".sh", ".yaml", ".yml", ".toml":
+		return true
+	}
+	return false
+}
+
 func read(root *os.Root, p string) ([]byte, error) {
 	f, err := root.Open(p)
 	if err != nil {
@@ -94,6 +107,12 @@ func (s *Service) Inspect(ctx context.Context, req *kov1.InspectDocumentRequest)
 	}
 	defer root.Close()
 	body, err := read(root, p)
+	if req.AllowMissing && errors.Is(err, fs.ErrNotExist) {
+		// Lstat distinguishes an absent path from a dangling symlink.
+		if _, statErr := root.Lstat(p); errors.Is(statErr, fs.ErrNotExist) {
+			return &kov1.InspectDocumentResponse{Path: p, Missing: true}, nil
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -123,13 +142,24 @@ var (
 	typedPath    = regexp.MustCompile(`\bpath:([^\s\x60<>]+)`)
 )
 
+var maintenanceReferencePatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?m)^\s{0,3}\[[^]\n]+\]:\s*<?([^\s>]+)>?`),
+	regexp.MustCompile(`(?i)(?:href|src)\s*=\s*["']([^"']+)["']`),
+	regexp.MustCompile(`\[(?:DOC|CODE):\s*([^]\s]+)\]`),
+	regexp.MustCompile(`(?m)//\s*DOC:\s*([^\s]+)`),
+}
+
 func references(root *os.Root, from, body string) ([]*kov1.DocumentReference, bool) {
 	refs := []*kov1.DocumentReference{}
 	seen := map[string]bool{}
 	matches := markdownLink.FindAllStringSubmatch(body, 257)
 	matches = append(matches, typedPath.FindAllStringSubmatch(body, 257)...)
+	// Definitions and examples may be illustrative; inspect the original source.
+	for _, pattern := range maintenanceReferencePatterns {
+		matches = append(matches, pattern.FindAllStringSubmatch(body, 257)...)
+	}
 	for _, m := range matches {
-		target := strings.TrimRight(m[1], ".,;")
+		target := html.UnescapeString(strings.TrimRight(m[1], ".,;"))
 		if seen[target] {
 			continue
 		}
@@ -148,6 +178,13 @@ func references(root *os.Root, from, body string) ([]*kov1.DocumentReference, bo
 			raw := strings.Split(strings.Split(target, "#")[0], "?")[0]
 			if strings.HasPrefix(m[0], "path:") || strings.HasPrefix(raw, "/") {
 				dest = path.Clean(strings.TrimPrefix(raw, "/"))
+			} else if strings.Contains(m[0], "DOC:") || strings.Contains(m[0], "CODE:") {
+				parts := strings.Split(from, "/")
+				base := "."
+				if len(parts) > 2 && parts[0] == "scenarios" {
+					base = path.Join(parts[0], parts[1])
+				}
+				dest = path.Join(base, raw)
 			} else {
 				dest = path.Join(path.Dir(from), raw)
 			}
@@ -190,7 +227,7 @@ func (s *Service) Review(ctx context.Context, req *kov1.ReviewDocumentsRequest) 
 	if !info.IsDir() {
 		return nil, ErrInvalid
 	}
-	out := &kov1.ReviewDocumentsResponse{BasePath: base, Gaps: []string{"Semantic agreement and authority require editorial review; reference scan covers inline Markdown links and path: references only."}}
+	out := &kov1.ReviewDocumentsResponse{BasePath: base, Gaps: []string{"Semantic agreement and authority require editorial review; reference scan covers inline Markdown links, link definitions, HTML href/src, DOC/CODE markers and path: references in supported text files; dynamic references, arbitrary manifest paths and heading validity require owner checks."}}
 	selected := map[string]*kov1.InspectDocumentResponse{}
 	for _, p := range req.Paths {
 		doc, err := s.Inspect(ctx, &kov1.InspectDocumentRequest{Path: p, Limit: 2000})
@@ -237,7 +274,7 @@ func (s *Service) Review(ctx context.Context, req *kov1.ReviewDocumentsRequest) 
 			}
 			return nil
 		}
-		if !prose(p) {
+		if !referenceSource(p) {
 			return nil
 		}
 		if int(out.FilesChecked) >= capFiles {

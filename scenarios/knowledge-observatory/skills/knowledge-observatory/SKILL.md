@@ -9,9 +9,9 @@ metadata:
   tags: ["documentation", "knowledge", "portability", "learning"]
   icon: "book-open"
   status: "active"
-  revision: 1
+  revision: 2
   createdAt: "2026-09-05T00:00:00Z"
-  updatedAt: "2026-09-05T00:00:00Z"
+  updatedAt: "2026-09-06T00:00:00Z"
   requires:
     scenarios: ["knowledge-observatory", "program-runtime", "vrooli-memory"]
     commands: ["knowledge-observatory knowledge-base", "program-runtime library run", "vrooli-memory learning", "vrooli-memory recall"]
@@ -50,6 +50,26 @@ changed. Programs do not repeat recall or write ordinary task records.
 | Need to verify an edit | Run `knowledge-observatory.verify-change` with intended post-edit hashes and reviewed query/expected-source cases. **[S3]** |
 | The tool or workflow repeatedly fails | Use `knowledge-observatory-improve`; preserve the failure fingerprint and owner evidence. **[S1]** |
 
+| A broad candidate set needs triage | Run the bounded inventory, inspect each selected revision, obtain Git blame as a separate authorship dimension, and send only proposal records to the owner. **[S3]** |
+
+### Program contracts
+
+Use the declared owner programs for bounded knowledge collection and change
+verification:
+
+| Program | Purpose | Required inputs |
+|---|---|---|
+| `knowledge-observatory.candidate-inventory` | Inventory bounded documentation candidates | `roots`, `max_files` |
+| `knowledge-observatory.candidate-proposals` | Produce owner-reviewed candidate dispositions | `candidate_ids`, `intent` |
+| `knowledge-observatory.collect-context` | Collect source-grounded context across documents | `query`, `roots` |
+| `knowledge-observatory.learning-read` | Read comparable knowledge-task outcomes | `operation`, `context_key` |
+| `knowledge-observatory.prepare-change` | Prepare a revision-guarded documentation change | `paths`, `intent`, `scan_root` |
+| `knowledge-observatory.setpoint-read` | Read the knowledge-observatory improvement board | optional window inputs |
+| `knowledge-observatory.verify-change` | Verify hashes, preserved evidence, and retrieval cases | `preparation_id`, intended revisions |
+
+Invoke one with `program-runtime library run <name> --input key=value`; source
+owners retain edit authority and accepted knowledge remains evidence-bound.
+
 Run programs through `program-runtime library run <name> --input key=value`.
 Program `ok` means its declared checks completed. It never proves that the user’s
 question has been answered or that all relevant knowledge was preserved.
@@ -72,6 +92,11 @@ question has been answered or that all relevant knowledge was preserved.
 
 ### Document maintenance
 
+For cleanup, consolidation, reorganization, moves, and retirement, load
+`prompt-manager skill read knowledge-observatory-maintenance`. It owns the
+disposition and preservation workflow; this usage skill owns the single learning loop.
+
+
 Classify each proposed change as correct, consolidate, promote, relocate, retain,
 or retire. Provide the source/target, reason, incoming references, and preservation
 requirement. Exact byte equality is duplicate evidence, not deletion authority.
@@ -83,6 +108,11 @@ knowledge into existing canonical documents; preserve necessary historical
 rationale/evidence under its plan owner. Do not bulk-delete by filename, create a
 second evidence archive in docs, or implement Plan Manager closeout in KO.
 Unknown ownership or preservation leaves that candidate unresolved.
+
+The inventory, proposal, and router surfaces are observation and admission
+boundaries. They do not delete, move, or close artifacts. Route accepted proposals
+to the owner with the source hash and idempotency receipt; recheck the hash before
+any owner-side write.
 
 Review scans declare a directory and file limit. Truncated scans cannot establish
 reference closure. Verification uses intended post-change hashes, representative
@@ -125,6 +155,9 @@ Do not record raw document bodies, private host paths, credentials, or duplicate
 journal task-records. Memory failure does not change the operation's outcome;
 retry capture with the same attempt ID and identical body. Advice verdicts are
 observational, not proof of causation.
+The learning-read program delegates to `lib.vrooli_memory.compare_outcomes`.
+It retains the six knowledge-task metric rows and one-cohort validity gate;
+missing measurements remain unknown.
 
 Memory setup: if the owner reports that `knowledge-observatory-usage` is not
 provisioned, create it once with `vrooli-memory scopes create

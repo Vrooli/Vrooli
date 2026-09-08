@@ -1,6 +1,6 @@
 package viewer
 
-// DOC: ../../docs/plans/knowledge-observatory-documentation-hub-expansion.md#phase-3-document-viewer-week-4
+// Plan Manager: knowledge-observatory-documentation-search-greenfield (historical phase context)
 import (
 	"errors"
 	"os"

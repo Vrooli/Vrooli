@@ -7,6 +7,7 @@ import (
 	"image"
 	"image/png"
 	"strings"
+	"sync"
 	"testing"
 
 	"device-control/strategy"
@@ -15,6 +16,7 @@ import (
 )
 
 type scriptedRunner struct {
+	mu        sync.Mutex
 	responses map[string][]byte
 	errors    map[string]error
 	calls     []string
@@ -35,6 +37,8 @@ type processRunner struct {
 func (r *processRunner) Start(string, ...string) (Process, error) { return r.process, nil }
 
 func (r *scriptedRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	call := strings.Join(append([]string{name}, args...), " ")
 	r.calls = append(r.calls, call)
 	if err := r.errors[call]; err != nil {

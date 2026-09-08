@@ -115,7 +115,10 @@
       },
       "expect": {
         "admission_error": "invalid_argument"
-      }
+      },
+      "requires": [
+        "knowledge-observatory"
+      ]
     },
     {
       "id": "text-context",
@@ -138,5 +141,11 @@
     }
   ],
   "rung": "S3",
-  "owner_skill": "knowledge-observatory"
+  "owner_skill": "knowledge-observatory",
+  "verbs": [
+    "agent.collect",
+    "capture",
+    "tasks.get",
+    "validate"
+  ]
 }

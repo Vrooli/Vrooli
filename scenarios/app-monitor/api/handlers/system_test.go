@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -74,6 +76,9 @@ func TestGetResources(t *testing.T) {
 	t.Run("FirstCall", func(t *testing.T) {
 		metricsService := services.NewMetricsService()
 		handler := NewSystemHandler(metricsService)
+		handler.resourceStatuses = func(context.Context) (*cliv1.ResourceStatusesResponse, error) {
+			return &cliv1.ResourceStatusesResponse{Success: true, Resources: []*cliv1.ResourceStatus{{Resource: &cliv1.Resource{Name: "postgres"}, Running: true}}}, nil
+		}
 
 		router := gin.New()
 		router.GET("/api/v1/resources", handler.GetResources)
@@ -82,9 +87,11 @@ func TestGetResources(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// May succeed or fail depending on whether vrooli CLI is available
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Logf("Got status: %d (expected 200 or 500)", w.Code)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected deterministic success, got %d: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "postgres") {
+			t.Fatalf("success omitted resource payload: %s", w.Body.String())
 		}
 
 		// Response should be JSON
@@ -97,6 +104,9 @@ func TestGetResources(t *testing.T) {
 	t.Run("CachedCall", func(t *testing.T) {
 		metricsService := services.NewMetricsService()
 		handler := NewSystemHandler(metricsService)
+		handler.resourceStatuses = func(context.Context) (*cliv1.ResourceStatusesResponse, error) {
+			return &cliv1.ResourceStatusesResponse{Success: true, Resources: []*cliv1.ResourceStatus{{Resource: &cliv1.Resource{Name: "postgres"}, Running: true}}}, nil
+		}
 
 		router := gin.New()
 		router.GET("/api/v1/resources", handler.GetResources)
@@ -111,11 +121,11 @@ func TestGetResources(t *testing.T) {
 		w2 := httptest.NewRecorder()
 		router.ServeHTTP(w2, req2)
 
-		// If both succeeded, responses should be similar
-		if w1.Code == http.StatusOK && w2.Code == http.StatusOK {
-			if w1.Body.String() != w2.Body.String() {
-				t.Log("Note: Cached responses may differ slightly")
-			}
+		if w1.Code != http.StatusOK || w2.Code != http.StatusOK {
+			t.Fatalf("cached success calls failed: %d, %d", w1.Code, w2.Code)
+		}
+		if w1.Body.String() != w2.Body.String() {
+			t.Fatalf("cached response changed: %s vs %s", w1.Body, w2.Body)
 		}
 	})
 }
@@ -146,6 +156,9 @@ func TestGetResourceStatus(t *testing.T) {
 	t.Run("ValidID", func(t *testing.T) {
 		metricsService := services.NewMetricsService()
 		handler := NewSystemHandler(metricsService)
+		handler.resourceStatus = func(context.Context, string) (*cliv1.ResourceStatusResponse, error) {
+			return &cliv1.ResourceStatusResponse{Success: true, Resource: &cliv1.ResourceStatus{Resource: &cliv1.Resource{Name: "postgres"}}}, nil
+		}
 
 		router := gin.New()
 		router.GET("/api/v1/resources/:id/status", handler.GetResourceStatus)
@@ -154,9 +167,8 @@ func TestGetResourceStatus(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// May succeed or fail depending on CLI availability
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Logf("Got status: %d", w.Code)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected deterministic resource status success, got %d: %s", w.Code, w.Body.String())
 		}
 	})
 }
@@ -183,6 +195,9 @@ func TestGetResourceDetails(t *testing.T) {
 	t.Run("ValidID", func(t *testing.T) {
 		metricsService := services.NewMetricsService()
 		handler := NewSystemHandler(metricsService)
+		handler.resourceStatus = func(context.Context, string) (*cliv1.ResourceStatusResponse, error) {
+			return nil, errors.New("resource dependency unavailable")
+		}
 
 		router := gin.New()
 		router.GET("/api/v1/resources/:id/details", handler.GetResourceDetails)
@@ -191,9 +206,8 @@ func TestGetResourceDetails(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// May succeed or fail depending on CLI availability
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Logf("Got status: %d", w.Code)
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected controlled dependency failure, got %d", w.Code)
 		}
 	})
 }

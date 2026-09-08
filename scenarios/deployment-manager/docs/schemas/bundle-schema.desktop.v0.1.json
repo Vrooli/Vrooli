@@ -23,6 +23,7 @@
     "app": { "$ref": "#/definitions/app" },
     "ipc": { "$ref": "#/definitions/ipc" },
     "telemetry": { "$ref": "#/definitions/telemetry" },
+    "authentication": { "$ref": "#/definitions/authentication" },
     "ports": { "$ref": "#/definitions/ports" },
     "swaps": {
       "type": "array",
@@ -44,6 +45,50 @@
     "code_signing": { "$ref": "#/definitions/code_signing" }
   },
   "definitions": {
+    "authentication": {
+      "type": "object",
+      "required": ["version", "mode", "human_sign_in", "offline", "requires_authenticator"],
+      "additionalProperties": false,
+      "properties": {
+        "version": { "type": "integer", "const": 1 },
+        "mode": { "type": "string", "enum": ["personal_local", "local_multi_user", "remote_vrooli", "shared_provider"] },
+        "mode_profiles": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/authentication_mode_profile" }
+        },
+        "provider": { "type": "string", "enum": ["scenario-authenticator", "cloudflare-access", "landing-page-business-suite"] },
+        "resource": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "audience": { "type": "string" },
+        "provider_endpoint": { "type": "string", "format": "uri" },
+        "provider_service_id": { "type": "string", "minLength": 1 },
+        "human_sign_in": { "type": "string", "enum": ["optional", "required", "disabled"] },
+        "offline": { "type": "boolean" },
+        "public_routes": { "type": "array", "items": { "type": "string", "pattern": "^/" }, "uniqueItems": true },
+        "protected_routes": { "type": "array", "items": { "type": "string", "pattern": "^/" }, "uniqueItems": true },
+        "lease_path": { "type": "string", "minLength": 1 },
+        "recovery_url": { "type": "string", "format": "uri" },
+        "requires_authenticator": { "type": "boolean" }
+      }
+    },
+    "authentication_mode_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["human_sign_in", "offline", "requires_authenticator"],
+      "properties": {
+        "provider": { "type": "string" },
+        "resource": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "audience": { "type": "string" },
+        "provider_endpoint": { "type": "string", "format": "uri" },
+        "provider_service_id": { "type": "string", "minLength": 1 },
+        "human_sign_in": { "type": "string", "enum": ["optional", "required", "disabled"] },
+        "offline": { "type": "boolean" },
+        "public_routes": { "type": "array", "items": { "type": "string", "pattern": "^/" }, "uniqueItems": true },
+        "protected_routes": { "type": "array", "items": { "type": "string", "pattern": "^/" }, "uniqueItems": true },
+        "lease_path": { "type": "string", "minLength": 1 },
+        "recovery_url": { "type": "string", "format": "uri" },
+        "requires_authenticator": { "type": "boolean" }
+      }
+    },
     "app": {
       "type": "object",
       "required": ["name", "version"],

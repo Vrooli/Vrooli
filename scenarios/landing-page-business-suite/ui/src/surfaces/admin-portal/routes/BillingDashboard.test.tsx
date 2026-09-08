@@ -7,9 +7,10 @@ import * as adminHome from '../hooks/useAdminHome';
 
 const navigate = vi.fn();
 const getAdminRevenueSummary = vi.hoisted(() => vi.fn());
+const getTrafficBreakdown = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
 vi.mock('../hooks/useAdminHome');
-vi.mock('../../../shared/api', () => ({ getAdminRevenueSummary }));
+vi.mock('../../../shared/api', () => ({ getAdminRevenueSummary, getTrafficBreakdown }));
 vi.mock('../components/AdminLayout', () => ({ AdminLayout: ({ children }: { children: React.ReactNode }) => <main>{children}</main> }));
 vi.mock('../components/PageHeader', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 
@@ -21,7 +22,12 @@ function homeState(overrides: Record<string, unknown> = {}) {
 }
 
 describe('BillingDashboard', () => {
-beforeEach(() => { vi.clearAllMocks(); getAdminRevenueSummary.mockImplementation(() => new Promise(() => undefined)); vi.stubGlobal('open', vi.fn()); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  getAdminRevenueSummary.mockImplementation(() => new Promise(() => undefined));
+  getTrafficBreakdown.mockResolvedValue({ rows: [], total_sessions: 0, exhaustive: true, currency: 'usd' });
+  vi.stubGlobal('open', vi.fn());
+});
 
   it('presents payment setup guidance and routes every revenue-management quick flow', () => {
     const state = homeState();
@@ -92,5 +98,33 @@ beforeEach(() => { vi.clearAllMocks(); getAdminRevenueSummary.mockImplementation
     await waitFor(() => expect(screen.getByText(/temporarily unavailable/)).toBeInTheDocument());
     expect(screen.queryByText(/no active subscriptions yet/)).not.toBeInTheDocument();
     expect(screen.queryByText('USD 0.00')).not.toBeInTheDocument();
+  });
+
+  it('renders campaign revenue attribution when enriched rows are available', async () => {
+    getTrafficBreakdown.mockResolvedValue({
+      rows: [{ key: 'launch', label: 'Launch campaign', sessions: 12, conversions: 3, revenue_minor: 4500, share: 1 }],
+      total_sessions: 12,
+      exhaustive: true,
+      currency: 'usd',
+    });
+    vi.mocked(adminHome.useAdminHome).mockReturnValue(homeState());
+    render(<BillingDashboard />);
+    await waitFor(() => expect(screen.getByText('Launch campaign')).toBeInTheDocument());
+    expect(screen.getByText('USD 45.00')).toBeInTheDocument();
+  });
+
+  it('reports campaign attribution outages separately from an empty result', async () => {
+    getTrafficBreakdown.mockRejectedValue(new Error('metrics unavailable'));
+    vi.mocked(adminHome.useAdminHome).mockReturnValue(homeState());
+    render(<BillingDashboard />);
+    await waitFor(() => expect(screen.getByText('Campaign revenue observations are temporarily unavailable.')).toBeInTheDocument());
+    expect(screen.queryByText(/No enriched campaign revenue exists/)).not.toBeInTheDocument();
+  });
+
+  it('normalizes non-Error revenue failures into the safe fallback message', async () => {
+    getAdminRevenueSummary.mockRejectedValue('offline');
+    vi.mocked(adminHome.useAdminHome).mockReturnValue(homeState());
+    render(<BillingDashboard />);
+    await waitFor(() => expect(screen.getByText('Revenue observations are temporarily unavailable.')).toBeInTheDocument());
   });
 });

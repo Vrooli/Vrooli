@@ -122,3 +122,52 @@ func TestCanceledReviewAndOversizedSource(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// [REQ:KO-KB-005] Retirement evidence must distinguish missing from unreadable.
+func TestExplicitMissingEvidence(t *testing.T) {
+	s, write := fixture(t)
+	doc, err := s.Inspect(context.Background(), &kov1.InspectDocumentRequest{Path: "docs/gone.md", AllowMissing: true})
+	if err != nil || !doc.Missing || doc.Sha256 != "" {
+		t.Fatalf("missing observation: %v %v", doc, err)
+	}
+	if _, err = s.Inspect(context.Background(), &kov1.InspectDocumentRequest{Path: "docs/gone.md"}); err == nil {
+		t.Fatal("default read must still fail")
+	}
+	write("docs/present.md", "preserved")
+	doc, err = s.Inspect(context.Background(), &kov1.InspectDocumentRequest{Path: "docs/present.md", AllowMissing: true})
+	if err != nil || doc.Missing || doc.Sha256 == "" {
+		t.Fatal("present file mistaken for retired")
+	}
+	if _, err = s.Inspect(context.Background(), &kov1.InspectDocumentRequest{Path: "../gone.md", AllowMissing: true}); err == nil {
+		t.Fatal("unsafe path mistaken for absence")
+	}
+	if err = os.Symlink("gone.md", filepath.Join(s.RepoRoot, "docs", "dangling.md")); err == nil {
+		if _, err = s.Inspect(context.Background(), &kov1.InspectDocumentRequest{Path: "docs/dangling.md", AllowMissing: true}); err == nil {
+			t.Fatal("dangling symlink mistaken for absence")
+		}
+	}
+}
+
+// [REQ:KO-KB-005] Moves must consider references in source code and supplements.
+func TestMaintenanceReferenceCandidates(t *testing.T) {
+	s, write := fixture(t)
+	write("scenarios/example/docs/guide.md", "# Guide")
+	write("scenarios/example/api/main.go", "// DOC: docs/guide.md\n")
+	write("scenarios/example/docs/index.md", "[DOC: docs/guide.md]\n[guide]: guide.md\n")
+	write("scenarios/example/docs/plan.html", `<a href="guide.md">guide</a>`)
+	out, err := s.Review(context.Background(), &kov1.ReviewDocumentsRequest{Paths: []string{"scenarios/example/docs/guide.md"}, BasePath: "scenarios/example", MaxFiles: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	incoming := map[string]bool{}
+	for _, o := range out.Observations {
+		if o.Kind == "incoming_reference" {
+			incoming[o.RelatedPath] = true
+		}
+	}
+	for _, p := range []string{"scenarios/example/api/main.go", "scenarios/example/docs/index.md", "scenarios/example/docs/plan.html"} {
+		if !incoming[p] {
+			t.Errorf("missing incoming reference from %s", p)
+		}
+	}
+}

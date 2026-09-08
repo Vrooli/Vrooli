@@ -20,6 +20,10 @@ func invoke[Q any, R any](call func(context.Context, *connect.Request[Q]) (*conn
 	return func(ctx cliapp.RunContext) error {
 		values := map[string]any{}
 		for _, field := range fields {
+			if field == "allow-missing" || field == "skip-external-links" {
+				values[strings.ReplaceAll(field, "-", "_")] = ctx.BoolFlag(field)
+				continue
+			}
 			value := ctx.Flag(field)
 			if value == "" {
 				continue
@@ -34,8 +38,6 @@ func invoke[Q any, R any](call func(context.Context, *connect.Request[Q]) (*conn
 				values[key] = n
 			case "paths", "checks":
 				values[key] = strings.Split(value, ",")
-			case "skip-external-links":
-				values[key] = value == "true"
 			default:
 				values[key] = value
 			}
@@ -64,7 +66,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	health := koconnect.NewKnowledgeObservatoryServiceClient(httpClient, base)
 	return cliapp.LoadFromManifest(manifest, "knowledge-base", map[string]func(cliapp.RunContext) error{
 		"KnowledgeBaseService.SearchDocuments":  invoke(client.SearchDocuments, func() *kov1.SearchDocumentsRequest { return &kov1.SearchDocumentsRequest{} }, []string{"query", "scope", "target", "mode", "limit"}),
-		"KnowledgeBaseService.InspectDocument":  invoke(client.InspectDocument, func() *kov1.InspectDocumentRequest { return &kov1.InspectDocumentRequest{} }, []string{"path", "offset", "limit", "expected-sha256"}),
+		"KnowledgeBaseService.InspectDocument":  invoke(client.InspectDocument, func() *kov1.InspectDocumentRequest { return &kov1.InspectDocumentRequest{} }, []string{"path", "offset", "limit", "expected-sha256", "allow-missing"}),
 		"KnowledgeBaseService.ReviewDocuments":  invoke(client.ReviewDocuments, func() *kov1.ReviewDocumentsRequest { return &kov1.ReviewDocumentsRequest{} }, []string{"paths", "base-path", "max-files"}),
 		"KnowledgeBaseService.KnowledgeStatus":  invoke(client.KnowledgeStatus, func() *kov1.KnowledgeStatusRequest { return &kov1.KnowledgeStatusRequest{} }, nil),
 		"KnowledgeObservatoryService.DocHealth": invoke(health.DocHealth, func() *kov1.DocHealthRequest { return &kov1.DocHealthRequest{} }, []string{"scope", "path", "scenario-name", "checks", "skip-external-links"}),

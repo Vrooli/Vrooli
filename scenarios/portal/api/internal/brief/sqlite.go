@@ -105,19 +105,26 @@ func (r *sqliteRepository) List(ctx context.Context, input ListInput) ([]Record,
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Record
+	var ids []string
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	out := make([]Record, 0, len(ids))
+	for _, id := range ids {
 		record, err := r.Get(ctx, id)
 		if err != nil {
 			return nil, err
 		}
 		out = append(out, record)
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 func (r *sqliteRepository) readItems(ctx context.Context, record *Record) error {

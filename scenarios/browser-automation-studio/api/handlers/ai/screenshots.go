@@ -20,7 +20,7 @@ const (
 	previewDefaultViewportHeight      = 1080
 	defaultPreviewWaitMilliseconds    = 1200
 	defaultPreviewTimeoutMilliseconds = 20000
-	defaultPreviewWaitUntil           = "networkidle"
+	defaultPreviewWaitUntil           = "load"
 )
 
 // PreviewConsoleLog mirrors one browser console entry captured during a
@@ -54,6 +54,9 @@ type PreviewScreenshotArgs struct {
 	ViewportWidth     int
 	ViewportHeight    int
 	DeviceScaleFactor float64
+	WaitFor           string
+	WaitUntil         string
+	SettleMs          int
 }
 
 type ScreenshotHandler struct {
@@ -118,6 +121,10 @@ func (h *ScreenshotHandler) RunPreviewScreenshot(ctx context.Context, args Previ
 	if h.runner == nil {
 		return nil, ErrAutomationRunnerNotReady
 	}
+	if args.SettleMs < 0 || args.SettleMs > 15000 {
+		return nil, fmt.Errorf("settle_ms must be between 0 and 15000")
+	}
+	waitUntil := normalizeWaitUntil(args.WaitUntil)
 
 	viewportWidth := previewDefaultViewportWidth
 	viewportHeight := previewDefaultViewportHeight
@@ -131,7 +138,7 @@ func (h *ScreenshotHandler) RunPreviewScreenshot(ctx context.Context, args Previ
 	ctx, cancel := context.WithTimeout(ctx, constants.AIRequestTimeout)
 	defer cancel()
 
-	instructions, err := h.buildPreviewScreenshotInstructions(args.URL)
+	instructions, err := h.buildPreviewScreenshotInstructions(args.URL, waitUntil, args.WaitFor, args.SettleMs)
 	if err != nil {
 		return nil, fmt.Errorf("build preview instructions: %w", err)
 	}
@@ -166,6 +173,12 @@ func (h *ScreenshotHandler) RunPreviewScreenshot(ctx context.Context, args Previ
 			message = strings.TrimSpace(nav.Failure.Message)
 		}
 		return nil, fmt.Errorf("navigate: %s", message)
+	}
+	if err := waitOutcomeError(outcomeByNodeID, "preview.wait-selector", args.WaitFor); err != nil {
+		return nil, err
+	}
+	if err := waitOutcomeError(outcomeByNodeID, "preview.settle", "settle_ms"); err != nil {
+		return nil, err
 	}
 
 	shot, ok := outcomeByNodeID["preview.screenshot"]
@@ -226,7 +239,7 @@ var ErrAutomationRunnerNotReady = errors.New("automation runner not configured")
 
 // buildPreviewScreenshotInstructions creates the compiled instructions for taking a preview screenshot.
 // Returns an error if any action type fails to build (indicates a programming error).
-func (h *ScreenshotHandler) buildPreviewScreenshotInstructions(url string) ([]autocontracts.CompiledInstruction, error) {
+func (h *ScreenshotHandler) buildPreviewScreenshotInstructions(url, waitUntil, waitFor string, settleMs int) ([]autocontracts.CompiledInstruction, error) {
 	steps := []struct {
 		nodeID   string
 		stepType string
@@ -237,20 +250,34 @@ func (h *ScreenshotHandler) buildPreviewScreenshotInstructions(url string) ([]au
 			stepType: "navigate",
 			params: map[string]any{
 				"url":       url,
-				"waitUntil": defaultPreviewWaitUntil,
-				"timeoutMs": defaultPreviewTimeoutMilliseconds,
-			},
-		},
-		{
-			nodeID:   "preview.screenshot",
-			stepType: "screenshot",
-			params: map[string]any{
-				"fullPage":  true,
-				"waitForMs": defaultPreviewWaitMilliseconds,
+				"waitUntil": waitUntil,
 				"timeoutMs": defaultPreviewTimeoutMilliseconds,
 			},
 		},
 	}
+	if selector := strings.TrimSpace(waitFor); selector != "" {
+		steps = append(steps, struct {
+			nodeID   string
+			stepType string
+			params   map[string]any
+		}{"preview.wait-selector", "wait", map[string]any{"selector": selector, "timeoutMs": defaultPreviewTimeoutMilliseconds}})
+	}
+	if settleMs > 0 {
+		steps = append(steps, struct {
+			nodeID   string
+			stepType string
+			params   map[string]any
+		}{"preview.settle", "wait", map[string]any{"timeoutMs": settleMs}})
+	}
+	steps = append(steps, struct {
+		nodeID   string
+		stepType string
+		params   map[string]any
+	}{"preview.screenshot", "screenshot", map[string]any{
+		"fullPage":  true,
+		"waitForMs": defaultPreviewWaitMilliseconds,
+		"timeoutMs": defaultPreviewTimeoutMilliseconds,
+	}})
 
 	instructions := make([]autocontracts.CompiledInstruction, 0, len(steps))
 	for i, step := range steps {
@@ -266,4 +293,30 @@ func (h *ScreenshotHandler) buildPreviewScreenshotInstructions(url string) ([]au
 	}
 
 	return instructions, nil
+}
+
+func normalizeWaitUntil(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "domcontentloaded":
+		return "domcontentloaded"
+	case "networkidle":
+		return "networkidle"
+	default:
+		return defaultPreviewWaitUntil
+	}
+}
+
+func waitOutcomeError(outcomes map[string]autocontracts.StepOutcome, nodeID, label string) error {
+	outcome, ok := outcomes[nodeID]
+	if !ok || outcome.Success {
+		return nil
+	}
+	message := "wait failed"
+	if outcome.Failure != nil && strings.TrimSpace(outcome.Failure.Message) != "" {
+		message = strings.TrimSpace(outcome.Failure.Message)
+	}
+	if label == "settle_ms" {
+		return fmt.Errorf("settle_ms failed: %s", message)
+	}
+	return fmt.Errorf("wait_for selector %q failed: %s", label, message)
 }

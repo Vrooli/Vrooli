@@ -45,7 +45,12 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import { renderWithProviders as renderWithBaseProviders, type ProviderRenderOptions } from "@vrooli/api-base/testing";
+import { i18n } from "../i18n";
+
+export function renderWithProviders(ui: Parameters<typeof renderWithBaseProviders>[0], options: ProviderRenderOptions = {}) {
+  return renderWithBaseProviders(ui, { ...options, i18n: options.i18n ?? i18n });
+}
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";
@@ -61,19 +66,6 @@ export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 export { makeHealthResponse } from "./factories";
 export type { HealthResponse } from "./factories";
 
-// Mock builders for external SDKs. Each test file still calls
-// `vi.mock(<module>, ...)` inline (Vitest hoisting requires it); the
-// builders live in one place so a future API addition is a one-edit
-// change rather than a fan-out across consumers.
-export {
-  makeGamepadInputManagerCtor,
-  makeMockGamepadInputManager,
-  makeMockSpatialNavController,
-} from "./mocks/spatial";
-export type {
-  MockGamepadInputManager,
-  MockSpatialNavController,
-} from "./mocks/spatial";
 
 // Internal-seam mock builders for cross-domain HTTP wrappers (the
 // generic `api/health` health/error path). Domain-specific mocks

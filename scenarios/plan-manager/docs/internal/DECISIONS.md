@@ -18,6 +18,13 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 
 ## Decision Log
 
+The 2026-09-06 shared-worktree completion policy in
+[`PLAN-MODEL.md`](../concepts/PLAN-MODEL.md#completion-policy) supersedes the
+historical universal passing-validation/override and mandatory-before-state
+decisions below. Ordinary work uses supported outcome assessments; explicit
+certification retains required evidence. Historical entries remain provenance,
+not current execution instructions.
+
 These were converged in the founding idea-workshop (2026-06-25) before any code.
 They are the load-bearing choices; do not relitigate without a stated trigger.
 

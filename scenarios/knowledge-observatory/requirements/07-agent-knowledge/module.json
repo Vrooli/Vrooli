@@ -66,6 +66,28 @@
         }
       ],
       "criticality": "P0"
+    },
+    {
+      "id": "KO-KB-005",
+      "title": "Knowledge-preserving maintenance dispositions and verification",
+      "description": "Prepare source dispositions and preservation obligations; verify source absence, pinned excerpts, retrieval exclusions and reference deltas without converting caller editorial assertions into task success.",
+      "prd_ref": "OT-P0-011",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": ".vrooli/program-runtime/tests/test_knowledge_workflows.py",
+          "phase": "programs",
+          "status": "pending"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/knowledgebase/documents_test.go",
+          "phase": "unit",
+          "status": "pending"
+        }
+      ]
     }
   ]
 }

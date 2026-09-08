@@ -28,6 +28,9 @@
       }
     }
   },
+  "environment": {
+    "AUTH_MAGIC_LINK_BASE_URL": "http://localhost:${UI_PORT}/auth/verify"
+  },
   "generation": {
     "template": {
       "id": "landing-page-react-vite",

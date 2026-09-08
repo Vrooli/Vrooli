@@ -93,7 +93,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "plan-manager"
+      ]
     },
     {
       "id": "live",
@@ -104,7 +107,10 @@
           "partial"
         ]
       },
-      "note": "Partial only for failed owner reads; missing cohort and telemetry are explicit unknown rows."
+      "note": "Partial only for failed owner reads; missing cohort and telemetry are explicit unknown rows.",
+      "requires": [
+        "plan-manager"
+      ]
     }
   ],
   "rung": "S3",

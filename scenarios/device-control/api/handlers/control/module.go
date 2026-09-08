@@ -37,6 +37,7 @@ func Module(s *internal.Service) module.Module {
 		r.HandleFunc("/api/v1/devices/{id}/pair/complete", h.completePairDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/pair", h.pairDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/actuate", h.actuateDevice).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/devices/{id}/apps", h.appLifecycle).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/volume", h.volumeDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/merge", h.mergeDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/split", h.splitDevice).Methods(http.MethodPost)
@@ -238,6 +239,26 @@ func (h *handler) actuateDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, http.StatusOK, map[string]any{"audit": record, "interactive": true, "evidence_backed": false})
+}
+
+func (h *handler) appLifecycle(w http.ResponseWriter, r *http.Request) {
+	var in internal.AppLifecycleOperation
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "app lifecycle request is invalid")
+		return
+	}
+	response, err := h.service.ExecuteAppLifecycle(r.Context(), mux.Vars(r)["id"], in)
+	if err != nil {
+		code, status := "app_lifecycle_failed", http.StatusConflict
+		if strings.Contains(err.Error(), "requires explicit confirmation") {
+			code, status = "confirmation_required", http.StatusPreconditionRequired
+		} else if errors.As(err, new(*strategy.UnsupportedCapabilityError)) || errors.As(err, new(*strategy.AvailabilityError)) {
+			code = "capability_unavailable"
+		}
+		write(w, status, map[string]any{"status": "failed", "code": code, "message": err.Error(), "response": response})
+		return
+	}
+	write(w, http.StatusOK, response)
 }
 
 func (h *handler) volumeDevice(w http.ResponseWriter, r *http.Request) {
@@ -712,12 +733,13 @@ func (h *handler) startAgent(w http.ResponseWriter, r *http.Request) {
 		Actor          string `json:"actor"`
 		SkillAvailable bool   `json:"skill_available"`
 		DryRun         bool   `json:"dry_run"`
+		Confirmed      bool   `json:"confirmed"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	a, err := h.service.StartAgentWithOptions(r.Context(), in.Goal, in.DeviceID, in.Actor, in.SkillAvailable, in.DryRun)
+	a, err := h.service.StartAgentWithPolicy(r.Context(), in.Goal, in.DeviceID, in.Actor, in.SkillAvailable, in.DryRun, internalflows.DefaultAgentPolicy(), in.Confirmed)
 	if err != nil {
 		writeError(w, http.StatusPreconditionFailed, "agent_unavailable", err.Error())
 		return
@@ -761,6 +783,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "devices_pair_complete", Path: "/api/v1/devices/{id}/pair/complete", Method: "POST", Summary: "Complete an owner-present Android TV Remote pairing handshake", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "devices_pair", Path: "/api/v1/devices/{id}/pair", Method: "POST", Summary: "Pair a Google TV Android TV Remote transport", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "devices_actuate", Path: "/api/v1/devices/{id}/actuate", Method: "POST", Summary: "Send one lease-owned direct device command", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
+	{ID: "devices_app_lifecycle", Path: "/api/v1/devices/{id}/apps", Method: "POST", Summary: "Run one confirmed, lease-owned app lifecycle operation", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "devices_merge", Path: "/api/v1/devices/{id}/merge", Method: "POST", Summary: "Merge identities under an owner-asserted claim", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "devices_split", Path: "/api/v1/devices/{id}/split", Method: "POST", Summary: "Split a previously merged identity", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "devices_events", Path: "/api/v1/devices/{id}/events", Method: "GET", Summary: "Stream device state changes over SSE", Category: "devices", RESTException: module.ThirdPartyJSONREST("GET")},

@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "selectors": {
     "app.title": {
       "testId": "app-title",
@@ -47,6 +48,10 @@
     "notifications.summary": {
       "testId": "notifications-summary",
       "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "notes.surface": {
+      "testId": "notes-surface",
+      "selector": "[data-testid=\"notes-surface\"]"
     },
     "notes.card": {
       "testId": "notes-card",
@@ -116,22 +121,6 @@
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
     },
-    "layout.topBar": {
-      "testId": "layout-top-bar",
-      "selector": "[data-testid=\"layout-top-bar\"]"
-    },
-    "layout.sidebar": {
-      "testId": "layout-sidebar",
-      "selector": "[data-testid=\"layout-sidebar\"]"
-    },
-    "layout.bottomNav": {
-      "testId": "layout-bottom-nav",
-      "selector": "[data-testid=\"layout-bottom-nav\"]"
-    },
-    "layout.main": {
-      "testId": "layout-main",
-      "selector": "[data-testid=\"layout-main\"]"
-    },
     "theme.switcher": {
       "testId": "theme-switcher",
       "selector": "[data-testid=\"theme-switcher\"]"
@@ -159,29 +148,73 @@
     "errorBoundary.retryButton": {
       "testId": "error-boundary-retry",
       "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "library.forms.textarea.root": {
+      "testId": "forms.textarea",
+      "selector": "[data-testid=\"forms.textarea\"]"
+    },
+    "library.forms.textarea.probe": {
+      "testId": "forms.textarea.probe",
+      "selector": "[data-testid=\"forms.textarea.probe\"]"
+    },
+    "library.forms.textarea.t": {
+      "testId": "forms.textarea.t",
+      "selector": "[data-testid=\"forms.textarea.t\"]"
+    },
+    "library.statusbadge.root": {
+      "testId": "statusbadge",
+      "selector": "[data-testid=\"statusbadge\"]"
+    },
+    "library.navigation.sidebar.root": {
+      "testId": "navigation.sidebar",
+      "selector": "[data-testid=\"navigation.sidebar\"]"
+    },
+    "library.navigation.sidebar.backdrop": {
+      "testId": "navigation.sidebar.backdrop",
+      "selector": "[data-testid=\"navigation.sidebar.backdrop\"]"
+    },
+    "library.navigation.sidebar.close": {
+      "testId": "navigation.sidebar.close",
+      "selector": "[data-testid=\"navigation.sidebar.close\"]"
+    },
+    "library.navigation.sidebar.resizeHandle": {
+      "testId": "navigation.sidebar.resize-handle",
+      "selector": "[data-testid=\"navigation.sidebar.resize-handle\"]"
+    },
+    "library.forms.select.root": {
+      "testId": "forms.select",
+      "selector": "[data-testid=\"forms.select\"]"
+    },
+    "library.feedback.empty-state.root": {
+      "testId": "feedback.empty-state",
+      "selector": "[data-testid=\"feedback.empty-state\"]"
+    },
+    "library.data-display.data-table.root": {
+      "testId": "data-display.data-table",
+      "selector": "[data-testid=\"data-display.data-table\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.navigation.bottom-navigation.root": {
+      "testId": "navigation.bottom-navigation",
+      "selector": "[data-testid=\"navigation.bottom-navigation\"]"
     }
   },
   "dynamicSelectors": {
-    "layout.sidebarLink": {
+    "layout.navLink": {
       "description": "Sidebar navigation link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
-      "testIdPattern": "layout-sidebar-link-${key}",
-      "params": [
-        {
-          "name": "key",
-          "type": "enum",
-          "values": [
-            "dashboard",
-            "notes",
-            "settings"
-          ]
-        }
-      ]
-    },
-    "layout.bottomNavLink": {
-      "description": "Bottom-nav link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
-      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
       "params": [
         {
           "name": "key",
@@ -226,5 +259,10 @@
         }
       ]
     }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "f90909e3a0fe71ce5d66a741f3b0acbcfd0feb6dd0a8f5dddce5dffb6d0b01c5",
+    "ui/src/consts/selectors.ts": "e923bd309066b5a6865666e94c0c083a9a347940fd984bc184d44ca6a5ffb94d",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

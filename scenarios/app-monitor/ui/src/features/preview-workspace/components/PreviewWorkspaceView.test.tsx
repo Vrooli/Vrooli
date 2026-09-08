@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+
+// provider-free-exception: these tests assert route transitions with explicit
+// MemoryRouter entries and route components, so a second provider would mask them.
 import { useAppsStore } from '@/state/appsStore';
 import { usePreviewWorkspaceStore } from '../state/previewWorkspaceStore';
 import { usePreviewPaneRuntimeStore } from '../state/previewPaneRuntimeStore';

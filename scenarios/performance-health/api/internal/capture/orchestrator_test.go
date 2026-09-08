@@ -2,6 +2,7 @@ package capture
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"performance-health/internal/readiness"
@@ -17,19 +18,27 @@ func (f fakeBAS) CapturePerf(context.Context, string, string) (Artifacts, error)
 }
 
 type fakeBuild struct {
-	uiURL       string
-	err         error
-	resolveURL  string
-	resolveErr  error
-	startCalls  int
-	resolveHits int
+	uiURL        string
+	err          error
+	resolveURL   string
+	resolveErr   error
+	startCalls   int
+	resolveHits  int
+	restoreCalls int
+	restoreErr   error
 }
 
 func (f *fakeBuild) StartProfile(context.Context, string) (string, error) {
 	f.startCalls++
 	return f.uiURL, f.err
 }
-func (f *fakeBuild) RestoreDefault(context.Context, string) error { return nil }
+func (f *fakeBuild) RestoreDefault(ctx context.Context, _ string) error {
+	f.restoreCalls++
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return f.restoreErr
+}
 func (f *fakeBuild) ResolveURL(context.Context, string) (string, error) {
 	f.resolveHits++
 	if f.resolveURL == "" && f.resolveErr == nil {
@@ -107,6 +116,24 @@ func TestOrchestrateTier1RestartFailure(t *testing.T) {
 }
 
 var errBundleNotInstrumented = errStub("served bundle not instrumented")
+
+func TestFailedProfileCaptureRestoresDefault(t *testing.T) {
+	build := &fakeBuild{err: errBundleNotInstrumented}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	res, _ := NewService(fakeBAS{}, build).Orchestrate(ctx, "demo", "", readiness.Tier1)
+	if build.restoreCalls != 1 || res.Outcome != OutcomeFailed {
+		t.Fatalf("failed capture must restore once: calls=%d result=%#v", build.restoreCalls, res)
+	}
+}
+
+func TestRestoreFailureIsReported(t *testing.T) {
+	build := &fakeBuild{uiURL: "http://ui", restoreErr: errStub("restore failed")}
+	res, _ := NewService(fakeBAS{artifacts: Artifacts{TraceArtifact: "trace", HasComponentMarks: true}}, build).Orchestrate(context.Background(), "demo", "", readiness.Tier1)
+	if build.restoreCalls != 1 || res.Outcome != OutcomeFailed || !strings.Contains(res.Reason, "restore failed") {
+		t.Fatalf("restore error must be visible: %#v", res)
+	}
+}
 
 type errStub string
 

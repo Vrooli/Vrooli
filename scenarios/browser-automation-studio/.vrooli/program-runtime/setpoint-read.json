@@ -100,6 +100,8 @@
   },
   "budget": {
     "wall_ms": 60000,
+    "async": true,
+    "async_reason": "The desktop/browser setpoint read waits on external owner conditions and may reach the synchronous invoke ceiling; callers wait once for its terminal result.",
     "inference_calls": 0,
     "delegated_runs": 0,
     "materialize_limit": 10
@@ -127,9 +129,19 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
     }
   ],
   "rung": "S3",
-  "owner_skill": "browser-automation-studio-improve"
+  "owner_skill": "browser-automation-studio-improve",
+  "verbs": [
+    "agent.collect",
+    "ai.classify",
+    "lib",
+    "tasks.get",
+    "validate"
+  ]
 }

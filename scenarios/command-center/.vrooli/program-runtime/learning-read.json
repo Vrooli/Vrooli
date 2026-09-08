@@ -89,7 +89,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "command-center"
+      ]
     },
     {
       "id": "live",
@@ -107,5 +110,11 @@
     }
   ],
   "rung": "S3",
-  "owner_skill": "command-center-improve"
+  "owner_skill": "command-center-improve",
+  "verbs": [
+    "agent.collect",
+    "recall",
+    "tasks.get",
+    "validate"
+  ]
 }

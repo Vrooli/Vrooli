@@ -72,27 +72,32 @@ func (r *sqliteRepository) WithTx(ctx context.Context, fn func(Repository) error
 // (summary + captured entries) is read from the log domain at Complete time and
 // stored here so the handoff is a durable point-in-time record.
 type handoffDocument struct {
-	LogSummary      planmodel.LogSummary     `json:"log_summary"`
-	LogEntries      []planmodel.LogEntry     `json:"log_entries"`
-	LastValidation  ValidationResult         `json:"last_validation"`
-	HasValidation   bool                     `json:"has_validation"`
-	Staleness       string                   `json:"staleness"`
-	ProseHandoffRef string                   `json:"prose_handoff_ref"`
-	ChangeBoundary  planmodel.ChangeBoundary `json:"change_boundary"`
+	PhaseAssessments map[string]OutcomeAssessment `json:"phase_assessments,omitempty"`
+	CompletionPolicy planmodel.CompletionPolicy   `json:"completion_policy,omitempty"`
+	LogSummary       planmodel.LogSummary         `json:"log_summary"`
+	LogEntries       []planmodel.LogEntry         `json:"log_entries"`
+	LastValidation   ValidationResult             `json:"last_validation"`
+	HasValidation    bool                         `json:"has_validation"`
+	Staleness        string                       `json:"staleness"`
+	ProseHandoffRef  string                       `json:"prose_handoff_ref"`
+	ChangeBoundary   planmodel.ChangeBoundary     `json:"change_boundary"`
 }
 
 // executionScopeDocument intentionally owns only execution-local policy. It
 // round-trips alongside the execution row so schema evolution is additive for
 // existing SQLite databases.
 type executionScopeDocument struct {
-	PhaseValidationGenerations map[string]int          `json:"phase_validation_generations"`
-	ScopeAmendments            []ScopeAmendment        `json:"scope_amendments"`
-	BoundaryExtensions         []BoundaryExtension     `json:"boundary_extensions,omitempty"`
-	DegradedReason             string                  `json:"degraded_reason"`
-	LifecycleState             ExecutionLifecycleState `json:"lifecycle_state,omitempty"`
-	AbandonedReason            string                  `json:"abandoned_reason,omitempty"`
-	AbandonedAt                string                  `json:"abandoned_at,omitempty"`
-	AbandonedBy                string                  `json:"abandoned_by,omitempty"`
+	PhaseAssessments           map[string]OutcomeAssessment `json:"phase_assessments,omitempty"`
+	PhaseValidationGenerations map[string]int               `json:"phase_validation_generations"`
+	CompletionPolicy           planmodel.CompletionPolicy   `json:"completion_policy,omitempty"`
+	CompletionPolicyCaptured   bool                         `json:"completion_policy_captured,omitempty"`
+	ScopeAmendments            []ScopeAmendment             `json:"scope_amendments"`
+	BoundaryExtensions         []BoundaryExtension          `json:"boundary_extensions,omitempty"`
+	DegradedReason             string                       `json:"degraded_reason"`
+	LifecycleState             ExecutionLifecycleState      `json:"lifecycle_state,omitempty"`
+	AbandonedReason            string                       `json:"abandoned_reason,omitempty"`
+	AbandonedAt                string                       `json:"abandoned_at,omitempty"`
+	AbandonedBy                string                       `json:"abandoned_by,omitempty"`
 }
 
 const (
@@ -196,7 +201,7 @@ func (r *sqliteRepository) SaveExecution(ctx context.Context, e Execution) error
 	); err != nil {
 		return fmt.Errorf("upsert execution %q: %w", e.ID, err)
 	}
-	if e.BaselineSet.Name != "" || e.BaselineSet.LegacyAdoptionRequired {
+	if e.BaselineSet.Name != "" || e.BaselineSet.LegacyAdoptionRequired || e.BaselineSet.Status == BaselineSetStatusDegraded {
 		raw, err := json.Marshal(e.BaselineSet)
 		if err != nil {
 			return fmt.Errorf("marshal execution baseline set %q: %w", e.ID, err)
@@ -213,7 +218,10 @@ func (r *sqliteRepository) SaveExecution(ctx context.Context, e Execution) error
 		}
 	}
 	scopeRaw, err := json.Marshal(executionScopeDocument{
+		PhaseAssessments:           e.PhaseAssessments,
 		PhaseValidationGenerations: e.PhaseValidationGenerations,
+		CompletionPolicy:           e.CompletionPolicy,
+		CompletionPolicyCaptured:   e.CompletionPolicyCaptured,
 		ScopeAmendments:            e.ScopeAmendments,
 		BoundaryExtensions:         e.BoundaryExtensions,
 		DegradedReason:             e.DegradedReason,
@@ -340,6 +348,9 @@ func (r *sqliteRepository) loadScopeState(ctx context.Context, e *Execution) err
 		return fmt.Errorf("unmarshal execution scope state %q: %w", e.ID, err)
 	}
 	e.PhaseValidationGenerations = state.PhaseValidationGenerations
+	e.PhaseAssessments = state.PhaseAssessments
+	e.CompletionPolicy = state.CompletionPolicy
+	e.CompletionPolicyCaptured = state.CompletionPolicyCaptured
 	e.ScopeAmendments = state.ScopeAmendments
 	e.BoundaryExtensions = state.BoundaryExtensions
 	e.DegradedReason = state.DegradedReason
@@ -352,13 +363,15 @@ func (r *sqliteRepository) loadScopeState(ctx context.Context, e *Execution) err
 
 func (r *sqliteRepository) SaveHandoff(ctx context.Context, h Handoff) error {
 	doc := handoffDocument{
-		LogSummary:      h.LogSummary,
-		LogEntries:      h.LogEntries,
-		LastValidation:  h.LastValidation,
-		HasValidation:   h.HasValidation,
-		Staleness:       string(h.Staleness),
-		ProseHandoffRef: h.ProseHandoffRef,
-		ChangeBoundary:  h.ChangeBoundary,
+		PhaseAssessments: h.PhaseAssessments,
+		CompletionPolicy: h.CompletionPolicy,
+		LogSummary:       h.LogSummary,
+		LogEntries:       h.LogEntries,
+		LastValidation:   h.LastValidation,
+		HasValidation:    h.HasValidation,
+		Staleness:        string(h.Staleness),
+		ProseHandoffRef:  h.ProseHandoffRef,
+		ChangeBoundary:   h.ChangeBoundary,
 	}
 	raw, err := json.Marshal(doc)
 	if err != nil {
@@ -402,6 +415,8 @@ func (r *sqliteRepository) GetHandoff(ctx context.Context, executionID string) (
 	h.HasValidation = doc.HasValidation
 	h.Staleness = stalenessFromString(doc.Staleness)
 	h.ProseHandoffRef = doc.ProseHandoffRef
+	h.PhaseAssessments = doc.PhaseAssessments
+	h.CompletionPolicy = doc.CompletionPolicy
 	h.ChangeBoundary = doc.ChangeBoundary
 	return h, true, nil
 }

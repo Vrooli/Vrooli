@@ -13,6 +13,7 @@ import (
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	"landing-page-business-suite-api/internal/businessaccount"
 	"landing-page-business-suite-api/internal/commerce"
 )
 
@@ -29,12 +30,19 @@ type AttributedPayments interface {
 	CreateCheckoutSessionWithAttribution(string, string, string, string, commerce.Attribution) (*lpbsv1.CheckoutSession, error)
 }
 
+type AccountScopedPayments interface {
+	CreateCheckoutSessionForBusinessAccount(string, string, string, string, string) (*lpbsv1.CheckoutSession, error)
+	CreateCheckoutSessionForBusinessAccountWithAttribution(string, string, string, string, string, commerce.Attribution) (*lpbsv1.CheckoutSession, error)
+}
+
 type ConnectDependencies struct {
-	Payments            Payments
-	ValidateEmail       func(string) (string, error)
-	NormalizeRedirect   func(string) (string, error)
-	ValidateOptionalURL func(string) (string, error)
-	UserEmail           func(context.Context) string
+	Payments               Payments
+	ValidateEmail          func(string) (string, error)
+	NormalizeRedirect      func(string) (string, error)
+	ValidateOptionalURL    func(string) (string, error)
+	UserEmail              func(context.Context) string
+	UserID                 func(context.Context) string
+	ResolveBusinessAccount func(context.Context, string, string, string) (businessaccount.Account, error)
 }
 
 type ConnectHandler struct{ deps ConnectDependencies }
@@ -49,7 +57,7 @@ func internal(operation string, err error) error {
 	return connect.NewError(connect.CodeInternal, fmt.Errorf("%s: %w", operation, err))
 }
 
-func (h *ConnectHandler) CreateCheckoutSession(_ context.Context, request *connect.Request[lpbsv1.CreateCheckoutSessionRequest]) (*connect.Response[lpbsv1.CreateCheckoutSessionResponse], error) {
+func (h *ConnectHandler) CreateCheckoutSession(ctx context.Context, request *connect.Request[lpbsv1.CreateCheckoutSessionRequest]) (*connect.Response[lpbsv1.CreateCheckoutSessionResponse], error) {
 	input := request.Msg
 	priceID := strings.TrimSpace(input.GetPriceId())
 	if priceID == "" {
@@ -66,6 +74,24 @@ func (h *ConnectHandler) CreateCheckoutSession(_ context.Context, request *conne
 			return nil, invalidArgument("invalid customer_email: %v", err)
 		}
 	}
+	businessAccountID := strings.TrimSpace(input.GetBusinessAccountId())
+	if businessAccountID != "" {
+		if h.deps.UserID == nil || h.deps.UserEmail == nil || h.deps.ResolveBusinessAccount == nil {
+			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authenticated business account required"))
+		}
+		userID := strings.TrimSpace(h.deps.UserID(ctx))
+		if userID == "" {
+			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authenticated business account required"))
+		}
+		account, resolveErr := h.deps.ResolveBusinessAccount(ctx, userID, strings.TrimSpace(h.deps.UserEmail(ctx)), businessAccountID)
+		if resolveErr != nil || strings.TrimSpace(account.ID) == "" || strings.TrimSpace(account.BillingEmail) == "" {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("business account selection rejected"))
+		}
+		businessAccountID = account.ID
+		// The selected account's billing identity is authoritative. The request
+		// email cannot redirect a purchase to another commercial subject.
+		email = account.BillingEmail
+	}
 	successURL, err := h.deps.NormalizeRedirect(input.GetSuccessUrl())
 	if err != nil {
 		return nil, invalidArgument("invalid success_url: %v", err)
@@ -75,7 +101,13 @@ func (h *ConnectHandler) CreateCheckoutSession(_ context.Context, request *conne
 		return nil, invalidArgument("invalid cancel_url: %v", err)
 	}
 	var session *lpbsv1.CheckoutSession
-	if attributed, ok := h.deps.Payments.(AttributedPayments); ok {
+	if businessAccountID != "" {
+		attributed, ok := h.deps.Payments.(AccountScopedPayments)
+		if !ok {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("account-scoped checkout unavailable"))
+		}
+		session, err = attributed.CreateCheckoutSessionForBusinessAccountWithAttribution(priceID, successURL, cancelURL, email, businessAccountID, commerce.Attribution{VisitorID: input.GetVisitorId(), UTMSource: input.GetUtmSource(), UTMMedium: input.GetUtmMedium(), UTMCampaign: input.GetUtmCampaign(), ReferrerKind: input.GetReferrerKind(), CountryCode: input.GetCountryCode()})
+	} else if attributed, ok := h.deps.Payments.(AttributedPayments); ok {
 		session, err = attributed.CreateCheckoutSessionWithAttribution(priceID, successURL, cancelURL, email, commerce.Attribution{VisitorID: input.GetVisitorId(), UTMSource: input.GetUtmSource(), UTMMedium: input.GetUtmMedium(), UTMCampaign: input.GetUtmCampaign(), ReferrerKind: input.GetReferrerKind(), CountryCode: input.GetCountryCode()})
 	} else {
 		session, err = h.deps.Payments.CreateCheckoutSession(priceID, successURL, cancelURL, email)

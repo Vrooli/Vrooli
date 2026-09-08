@@ -583,6 +583,9 @@ cat <<'JSON'
 JSON
 exit 0
   fi
+
+  echo "app-monitor is running"
+  exit 0
 fi
 
 echo "unexpected args: $@" >&2
@@ -594,6 +597,7 @@ exit 1
 	}
 
 	t.Setenv("PATH", fmt.Sprintf("%s:%s", tempDir, os.Getenv("PATH")))
+	t.Setenv("VROOLI_BIN", scriptPath)
 
 	mockRepo := &mockAppRepository{
 		apps: []repository.App{
@@ -702,6 +706,7 @@ exit 1
 	}
 
 	t.Setenv("PATH", fmt.Sprintf("%s:%s", tempDir, os.Getenv("PATH")))
+	t.Setenv("VROOLI_BIN", scriptPath)
 
 	mockRepo := &mockAppRepository{
 		apps: []repository.App{

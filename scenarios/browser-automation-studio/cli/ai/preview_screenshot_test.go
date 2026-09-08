@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/cli-core/cliapp"
+	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai"
 )
 
 func TestPreviewScreenshotFlagsFromContext_UsesProductionFlagParser(t *testing.T) {
@@ -77,5 +78,17 @@ func TestBuildPreviewScreenshotRequest_MapsDeviceScaleFactor(t *testing.T) {
 	}
 	if _, err := buildPreviewScreenshotRequest(previewScreenshotFlags{url: "https://example.test", deviceScale: 4.5, hasDeviceScale: true}); err == nil {
 		t.Fatal("expected invalid scale factor error")
+	}
+}
+
+func TestBuildPreviewScreenshotRequest_MapsReadiness(t *testing.T) {
+	request, err := buildPreviewScreenshotRequest(previewScreenshotFlags{
+		url: "https://example.test", waitFor: "#ready", waitUntil: "networkidle", settleMs: 500,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.GetWaitFor() != "#ready" || request.GetWaitUntil() != aiv1.WaitUntil_WAIT_UNTIL_NETWORKIDLE || request.GetSettleMs() != 500 {
+		t.Fatalf("readiness = %q/%v/%d", request.GetWaitFor(), request.GetWaitUntil(), request.GetSettleMs())
 	}
 }

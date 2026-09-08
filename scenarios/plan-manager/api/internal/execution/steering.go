@@ -88,11 +88,14 @@ func stepForAbandoned(e Execution) GuidedStep {
 
 func stepForContext(executionID, planID string, ctx PhaseContext, complete bool) (step GuidedStep) {
 	defer func() { step.Instructions = append(step.Instructions, artifacts.Instruction(ctx.ArtifactHandle)) }()
+	if ctx.AssessmentRequiredPhase != "" {
+		return GuidedStep{StepKind: "outcome_assessment_required", Title: "Review Outcome Evidence", Summary: ctx.AssessmentRequiredReason, NextActions: []NextAction{assessmentAction(executionID, ctx.AssessmentRequiredPhase)}}
+	}
 	if complete || ctx.Completeness == CompletenessFull || (!ctx.HasCurrent && strings.TrimSpace(ctx.ResumePhaseID) == "") {
 		return GuidedStep{
-			StepKind:     "execution_complete",
-			Title:        "Execution Complete",
-			Summary:      "No actionable phase remains.",
+			StepKind:     "phase_work_finished",
+			Title:        "Phase Work Finished",
+			Summary:      "Apply the completion policy and assemble the handoff.",
 			Instructions: []string{"Assemble or inspect the canonical handoff."},
 			NextActions: []NextAction{
 				{
@@ -105,17 +108,17 @@ func stepForContext(executionID, planID string, ctx PhaseContext, complete bool)
 			},
 		}
 	}
-	if ctx.BaselineSet.LegacyAdoptionRequired {
+	if ctx.CompletionPolicy.RequiresCertification() && ctx.BaselineSet.LegacyAdoptionRequired {
 		return legacyBaselineAdoptionStep(executionID)
 	}
-	if ctx.BaselineSet.Name != "" && ctx.BaselineSet.Status != BaselineSetStatusDegraded && !ctx.BaselineSet.Complete() {
+	if ctx.CompletionPolicy.RequiresCertification() && ctx.BaselineSet.Name != "" && ctx.BaselineSet.Status != BaselineSetStatusDegraded && !ctx.BaselineSet.Complete() {
 		return baselineRequiredStep(executionID, ctx.BaselineSet)
 	}
 	phaseID := ctx.ResumePhaseID
 	if ctx.HasCurrent && ctx.CurrentPhase.ID != "" {
 		phaseID = ctx.CurrentPhase.ID
 	}
-	instructions := []string{"Run or read the structured setup items before editing.", "Capture feedback in the log ledger as it happens: decisions, candidate findings, confirmed bugs, reusable records, and notes.", "Run validation before marking the phase done."}
+	instructions := []string{"Read the structured setup before editing.", "Record outcome evidence and retain finding dispositions. Capture feedback in the log ledger when useful; capture is not an ordinary completion gate.", "Shared-worktree broad validation is advisory unless certification is explicit; never replace or stash current files to investigate attribution."}
 	if reminders := boundaryReminders(ctx.ChangeBoundary); len(reminders) > 0 {
 		instructions = append(reminders, instructions...)
 	}
@@ -269,6 +272,9 @@ func phasePrimaryAction(executionID, planID, phaseID string, ctx PhaseContext) N
 			Argv:   []string{"exec", "transition", executionID, phaseID, "--status", "active"},
 		}
 	}
+	if !ctx.CompletionPolicy.RequiresCertification() {
+		return assessmentAction(executionID, phaseID)
+	}
 	if validationIsRecentPass(ctx.LastValidation, ctx.HasValidation, ctx.Staleness) && ctx.FeedbackCheckpoint.Satisfied {
 		return NextAction{
 			ID:     "transition-done",
@@ -311,6 +317,13 @@ func validationTicketArgv(executionID, planID, phaseID string, generation int, m
 		argv = append(argv, "--members", strings.Join(members, ","))
 	}
 	return argv
+}
+
+func assessmentAction(executionID, phaseID string) NextAction {
+	return NextAction{ID: "assess-outcome", Kind: NextActionRecommended, Label: "Record outcome assessment",
+		Reason:             "Use concrete observations, review, or focused checks. Retain advisory findings and uncertainty; do not chase broad suite failures or roll back the shared worktree.",
+		Argv:               []string{"exec", "transition", executionID, phaseID, "--status", "done", "--assessment-json", "<OutcomeAssessment JSON>"},
+		ContentPlaceholder: "summary, evidence references, limitations, and any unmet_outcomes"}
 }
 
 func stepForTransition(e Execution) GuidedStep {

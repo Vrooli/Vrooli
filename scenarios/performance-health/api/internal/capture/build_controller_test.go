@@ -95,6 +95,23 @@ func TestDefaultVerifyBundleAbsentMarker(t *testing.T) {
 	}
 }
 
+func TestDefaultVerifyBundleScansModulePreloads(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`<script src="./assets/app.js"></script><link href="./assets/vendor.js" rel="modulepreload">`))
+	})
+	mux.HandleFunc("/assets/app.js", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`import './vendor.js'`)) })
+	mux.HandleFunc("/assets/vendor.js", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`function injectProfilingHooks(){}`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	ok, err := defaultVerifyBundle(context.Background(), srv.Client(), srv.URL)
+	if err != nil || !ok {
+		t.Fatalf("split profiling runtime should verify: ok=%v err=%v", ok, err)
+	}
+}
+
 // TestBundleMarkerRejectsAppLevelProfilerName: a plain production bundle that
 // merely mentions the app's own onProfilerRender export must NOT verify as
 // instrumented. When a scenario reaches its profiler util through a dynamic
@@ -103,6 +120,12 @@ func TestDefaultVerifyBundleAbsentMarker(t *testing.T) {
 // build, and the capture then produced a trace with no ⚛ marks that read as
 // "no component activity" rather than "not a perf build".
 func TestBundleMarkerRejectsAppLevelProfilerName(t *testing.T) {
+	if !containsBundleMarker(`rendererPackageName:"react-dom"; fiber.actualDuration=0; fiber.treeBaseDuration=0;`) {
+		t.Fatal("React 19 profiling renderer rejected")
+	}
+	if containsBundleMarker(`rendererPackageName:"react-dom";`) || containsBundleMarker(`actualDuration=0; treeBaseDuration=0;`) {
+		t.Fatal("incomplete profiling evidence accepted")
+	}
 	defaultBundle := `const {onProfilerRender:n}=await import("./profiler-D7qAmvGi.js");`
 	if containsBundleMarker(defaultBundle) {
 		t.Errorf("a default production bundle verified as instrumented: %s", defaultBundle)

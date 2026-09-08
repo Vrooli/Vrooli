@@ -60,11 +60,24 @@ This distinction matters for bundled desktop scenarios:
 - a private local bundle does not require an LPBS sign-in merely to use local
   capability;
 - a user who wants paid features may explicitly link the local installation to
-  an LPBS business account through a short-lived, scoped browser/device flow;
+  a selected LPBS business account through a short-lived, scoped browser/device
+  flow; multiple-account users must choose the account before issuance;
 - email equality, copied browser tokens, and a local app's supervisor token
   are not account-linking mechanisms;
 - a valid identity token does not grant a commercial entitlement, and an
   entitlement lease does not grant local API or filesystem authority.
+
+### Account-scoped commerce
+
+Account-bound checkout requests may include `business_account_id`. LPBS
+requires an authenticated membership check, replaces any request-supplied
+email with the selected account's billing identity, and carries the account
+identifier through provider metadata and the durable checkout/subscription
+projection. Desktop lease issuance reads only the selected account's
+subscription and account-scoped credit wallet; it never falls back to a
+same-email subscription or wallet from another business account. Legacy public
+checkout without an account identifier remains email-compatible during the
+migration period and is not an account-scoped purchase.
 
 The project-level contract is [Identity and Authentication](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
 
@@ -89,7 +102,18 @@ LPBS website session into a local app.
 The lease subject identifies the verified principal and the LPBS business
 account context needed for commercial decisions. A lease does not grant
 filesystem, supervisor, scenario, or object-level authority. Conversely, a
-valid authenticator token does not grant a plan feature or download right.
+valid authenticator token does not grant a plan feature or download right. A
+desktop consumer must also bind the signed lease to its business account,
+installation, resource, audience, link ID, and exact scope set before using
+it. Offline use ends at the signed lease expiry; server-side unlink is
+observed on the next status refresh, and local unlink must delete the stored
+lease immediately.
+
+The desktop client uses `auth.connectDesktop` to complete the explicit flow:
+LPBS browser consent issues the one-use scoped code, the client redeems it with
+a verified local-provider proof, and only the resulting signed lease crosses
+the durable desktop credential boundary. Website access and refresh tokens are
+not restored from desktop storage.
 
 ## Administration boundary
 

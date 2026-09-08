@@ -107,7 +107,10 @@
       "inputs": {},
       "expect": {
         "admission_error": "invalid_argument"
-      }
+      },
+      "requires": [
+        "device-control"
+      ]
     },
     {
       "id": "invalid-device",
@@ -116,7 +119,32 @@
       },
       "expect": {
         "admission_error": "invalid_argument"
-      }
+      },
+      "requires": [
+        "device-control"
+      ]
+    },
+    {
+      "id": "live-valid",
+      "inputs": {
+        "device_id": "fixture",
+        "context_key": "fixture",
+        "actor": "fixture",
+        "flow": {}
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable",
+          "refused",
+          "failed"
+        ]
+      },
+      "requires": [
+        "device-control"
+      ],
+      "note": "Valid bounded exercise fixture added after admission-only fixtures left the contract unexercised."
     }
   ],
   "rung": "S3",
@@ -140,5 +168,12 @@
         "evidence"
       ]
     }
-  }
+  },
+  "verbs": [
+    "agent.collect",
+    "agent.run",
+    "tasks.get",
+    "tasks.run",
+    "validate"
+  ]
 }

@@ -286,7 +286,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-009",
       "criticality": "P0",
-      "description": "The owned walk skill and program preserve all twelve phases, expose source freshness and bounded evidence gaps, preserve checkpoint identity and content, and never mutate upstream state during preparation. Stable skill discovery resolves one source; the heartbeat consumes one contract.",
+      "description": "The owned walk skill and program preserve all thirteen phases, expose source freshness and bounded evidence gaps, preserve checkpoint identity and content, and never mutate upstream state during preparation. Stable skill discovery resolves one source; the heartbeat consumes one contract.",
       "validation": [
         {
           "type": "test",

@@ -223,3 +223,5 @@ For task-oriented documentation retrieval and maintenance, load the scenario-own
 `knowledge-observatory-improve`. The [getting started guide](docs/guides/getting-started.md#agent-knowledge-workflows)
 explains the governed CLI, five bounded programs, authority/applicability metadata,
 and caller-owned Memory learning loop.
+
+For document cleanup, consolidation, and reorganization, see the [maintenance workflow](docs/guides/document-maintenance.md).

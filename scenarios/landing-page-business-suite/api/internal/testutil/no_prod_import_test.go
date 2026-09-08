@@ -3,7 +3,6 @@ package testutil
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -13,12 +12,12 @@ import (
 // testcontainers and hides an architectural boundary violation.
 func TestProductionCodeDoesNotImportTestutil(t *testing.T) {
 	t.Parallel()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("locate test source")
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("locate API test workspace: %v", err)
 	}
-	apiRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
-	err := filepath.WalkDir(apiRoot, func(path string, entry os.DirEntry, err error) error {
+	apiRoot := filepath.Clean(filepath.Join(workingDir, "..", ".."))
+	err = filepath.WalkDir(apiRoot, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

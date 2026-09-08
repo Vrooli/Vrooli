@@ -56,6 +56,14 @@ func TestSectionCatalogSeedsSkeletonAndGuidance(t *testing.T) {
 	}
 }
 
+func TestOldDraftUsesCurrentCatalogWithoutLosingContent(t *testing.T) {
+	sections := hydrateSections([]Section{{Key: SectionRegressionAnchor, Mandatory: true}, {Key: SectionPurpose, Content: "Keep this purpose", Filled: true}})
+	require.Empty(t, structureViolations([]Section{sections[indexOf(sections, SectionRegressionAnchor)]}))
+	require.False(t, sections[indexOf(sections, SectionRegressionAnchor)].Mandatory)
+	require.GreaterOrEqual(t, indexOf(sections, SectionCompletionPolicy), 0)
+	require.Equal(t, "Keep this purpose", contentOf(sections, SectionPurpose))
+}
+
 func fillMandatorySections(sess *Session) {
 	for i := range sess.Sections {
 		if sess.Sections[i].Mandatory {

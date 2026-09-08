@@ -103,7 +103,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
     },
     {
       "id": "smoke",

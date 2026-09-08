@@ -63,7 +63,7 @@ func (c *Client) Applications(ctx context.Context, busID string) ([]Application,
 		body, err = c.wire.call(ctx, ref.Owner, ref.Path, "org.a11y.atspi.Accessible.GetRole")
 		var role uint32
 		// ATSPI_ROLE_APPLICATION. The registry's desktop root is not an app.
-		if err != nil || dbus.Store(body, &role) != nil || role != 75 {
+		if err != nil || dbus.Store(body, &role) != nil || role != atspiRoleApplication {
 			continue
 		}
 		if c.identity(ctx, ref) != nil {

@@ -76,6 +76,9 @@ page, manifest metadata, and bounded references. `expected-sha256` rejects a
 changed source before returning content. Paths are repository-relative with `/`
 separators; traversal, drive/UNC paths and symlink escape are rejected.
 
+For cleanup, consolidation, moves, and retirement, use the
+[maintenance workflow](document-maintenance.md) and `knowledge-observatory-maintenance`.
+
 The scenario programs are:
 
 | Program | Inputs and evidence |
@@ -92,8 +95,10 @@ program contract for exact input shapes and ceilings. API bounds are eight selec
 sources, 1 MiB per readable UTF-8 source, 12,000 characters per inspection page,
 128 references per source, 1,000 scanned files, 10,000 walked entries and 100 review
 observations. Programs narrow these further to fit a 64 KiB response. Every scan
-reports truncation; reference extraction currently covers inline Markdown links
-and typed path references, not every Markdown/HTML reference syntax.
+reports truncation; reference candidate extraction covers inline Markdown links, link definitions,
+HTML href/src, DOC/CODE markers and typed path references, with additional
+source-code/configuration consumers. Dynamic references and arbitrary manifest
+paths still require owner checks.
 
 These programs do not edit, relocate, delete, or archive documents. A caller may
 apply reviewed changes through the source owner's authorized workflow after

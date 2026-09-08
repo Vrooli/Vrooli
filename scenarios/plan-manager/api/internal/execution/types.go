@@ -61,6 +61,12 @@ type Execution struct {
 	InputsFreshenedAt  string
 	FreshenStatus      string
 	FreshenDetail      string
+	// CompletionPolicy is captured when the execution starts. An active run
+	// must not change meaning because another agent edits the authored plan
+	// while the shared worktree is moving. CompletionPolicyCaptured is false
+	// for legacy rows, which intentionally retain the live-plan fallback.
+	CompletionPolicy         planmodel.CompletionPolicy
+	CompletionPolicyCaptured bool
 	// BaselineSet is the execution-owned checkpoint for a new-plan baseline
 	// collection. It snapshots the resolved policy at capture time so resume and
 	// phase validation never derive a different before-state from edited plan
@@ -71,6 +77,7 @@ type Execution struct {
 	// execution and the current generation, so a prior ticket cannot certify
 	// newly discovered work.
 	PhaseValidationGenerations map[string]int
+	PhaseAssessments           map[string]OutcomeAssessment
 	ScopeAmendments            []ScopeAmendment
 	// BoundaryExtensions is the append-only audit trail of mid-execution
 	// widenings of the plan's acceptance_allow. It exists so a scope expansion is
@@ -266,9 +273,18 @@ const (
 // ValidationOverrideReason is required only for done transitions that do not
 // have a recent passing validation result.
 type PhaseTransitionInputs struct {
+	Assessment               OutcomeAssessment
 	ToStatus                 planmodel.PhaseStatus
 	ValidationOverrideReason string
 	FeedbackOverrideReason   string
+}
+
+type OutcomeAssessment struct {
+	Summary         string
+	Evidence        []string
+	Limitations     []string
+	UnmetOutcomes   []string
+	ScopeGeneration int
 }
 
 // Handoff is the canonical, structured handoff assembled from state captured
@@ -280,18 +296,20 @@ type PhaseTransitionInputs struct {
 // typed entries in the log domain. The handoff snapshots a compact LogSummary
 // plus the entries captured during the run, read through the LogLedger seam.
 type Handoff struct {
-	ID              string
-	ExecutionID     string
-	PlanID          string
-	Completeness    Completeness
-	ResumePhaseID   string
-	LogSummary      planmodel.LogSummary
-	LogEntries      []planmodel.LogEntry
-	LastValidation  ValidationResult
-	HasValidation   bool
-	Staleness       planmodel.StalenessTier
-	ProseHandoffRef string
-	AssembledAt     string
+	PhaseAssessments map[string]OutcomeAssessment
+	CompletionPolicy planmodel.CompletionPolicy
+	ID               string
+	ExecutionID      string
+	PlanID           string
+	Completeness     Completeness
+	ResumePhaseID    string
+	LogSummary       planmodel.LogSummary
+	LogEntries       []planmodel.LogEntry
+	LastValidation   ValidationResult
+	HasValidation    bool
+	Staleness        planmodel.StalenessTier
+	ProseHandoffRef  string
+	AssembledAt      string
 	// ChangeBoundary snapshots the plan's blast-radius contract so the next agent
 	// sees what was allowed/denied and where validation coverage is informational.
 	ChangeBoundary planmodel.ChangeBoundary
@@ -333,6 +351,10 @@ type ValidationResult struct {
 // PhaseContext is the just-in-time context assembled for a phase — everything an
 // agent would otherwise carry in its head. COMPUTED at request time.
 type PhaseContext struct {
+	AssessmentPhaseIDs       []string
+	AssessmentRequiredPhase  string
+	AssessmentRequiredReason string
+	CompletionPolicy         planmodel.CompletionPolicy
 	// ArtifactHandle is local guidance metadata, not a second evidence store.
 	ArtifactHandle  string
 	CurrentPhase    planmodel.Phase

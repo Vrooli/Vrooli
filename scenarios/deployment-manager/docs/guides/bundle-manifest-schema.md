@@ -56,7 +56,7 @@ The schema version determines validation rules and supported features. Always sp
 | `target` | string | **Yes** | Must be `"desktop"` for tier 2 |
 | `app` | object | **Yes** | Application metadata |
 | `ipc` | object | **Yes** | Inter-process communication configuration |
-| `authentication` | object | **Yes** | Human identity, provider, and offline-mode contract |
+| `authentication` | object | No (required for new authenticated bundles) | Human identity, provider, and offline-mode contract |
 | `telemetry` | object | **Yes** | Telemetry collection settings |
 | `ports` | object | No | Port allocation rules |
 | `swaps` | array | No | Dependency swaps applied |
@@ -132,26 +132,43 @@ tokens, provider management credentials, or LPBS website sessions.
 ```json
 {
   "authentication": {
+    "version": 1,
     "mode": "personal_local",
-    "required": false,
-    "provider": "os_user",
+    "human_sign_in": "disabled",
     "offline": true,
-    "multi_user": "optional",
     "resource": "git-control-tower",
-    "audience": "scenario:git-control-tower"
+    "audience": "scenario:git-control-tower",
+    "public_routes": ["/healthz"],
+    "protected_routes": ["/api"],
+    "requires_authenticator": false
   }
 }
 ```
 
 | Field | Values | Meaning |
 |---|---|---|
+| `version` | `1` | Authentication profile schema version |
 | `mode` | `personal_local`, `local_multi_user`, `remote_vrooli`, `shared_provider` | Selected deployment authentication mode |
-| `required` | boolean | Whether a human sign-in is required before protected use |
-| `provider` | declared provider name | Identity authority for the selected mode |
+| `mode_profiles` | map of mode to non-secret profile | Explicit alternate modes available through the protected runtime settings surface; omitted means the bundle is fixed to `mode` |
+| `provider` | declared provider name | Identity authority; required by networked modes |
+| `resource` | scenario/resource slug | Resource identity used for provider and capability planning |
+| `audience` | string | Target resource audience; it is not a credential |
+| `provider_endpoint` | HTTP(S) URL | Explicit remote/shared provider endpoint; credentials in URLs are rejected |
+| `provider_service_id` | bundled service ID | Authenticator service required for local startup |
+| `human_sign_in` | `disabled`, `optional`, `required` | Human sign-in policy |
 | `offline` | boolean | Whether the declared product path works without network access |
-| `multi_user` | `disabled`, `optional`, `required` | Whether multiple local users are supported |
-| `resource` | string | Resource identity used for audience and capability planning |
-| `audience` | string | Target resource audience; compatibility audiences must be documented separately |
+| `public_routes`, `protected_routes` | arrays of safe paths | Route classes exposed by the profile |
+| `lease_path` | relative path | Shared-provider lease metadata; stale or absent leases fail closed |
+| `recovery_url` | URI | Declared recovery location, if applicable |
+| `requires_authenticator` | boolean | Whether the bundle must include its declared authenticator service |
+
+Mode invariants are enforced by deployment-manager and the runtime. Personal
+local is provider-free, offline-capable, and sign-in-free by default. Local
+multi-user requires the bundled `scenario-authenticator`. Remote mode requires
+the declared scenario-authenticator endpoint. Shared-provider mode requires a
+declared provider endpoint and a current broker-issued lease. No mode may fall
+back to an undeclared provider or use the supervisor bearer token as a human
+identity.
 
 The manifest is a deployment contract. A runtime must fail with a clear
 configuration state when a required provider is unavailable; it must not

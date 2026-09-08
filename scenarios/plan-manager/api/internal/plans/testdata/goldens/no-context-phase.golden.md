@@ -39,6 +39,10 @@ In scope: markdown projection. Out of scope: persistence.
 
 ## Verification
 
+### Completion Policy
+
+Mode: advisory
+
 ### Regression Anchor
 
 - Strategy: scenario_baseline

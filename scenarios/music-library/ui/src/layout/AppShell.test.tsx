@@ -26,10 +26,7 @@ describe("AppShell structure (cimode)", () => {
   it("renders the title, sidebar, bottom nav, and main outlet", () => {
     renderShell();
     expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.topBar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.sidebar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.bottomNav)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
+    expect(screen.getByRole("main")).toBeInTheDocument();
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });
 
@@ -46,8 +43,8 @@ describe("AppShell structure (cimode)", () => {
       "notes", // EXAMPLE-DOMAIN:notes
       "settings",
     ] as const) {
-      expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
-      expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
+      expect(screen.getByTestId(`${selectors.layout.navLink({ key })}-tab`)).toBeInTheDocument();
     }
   });
 });

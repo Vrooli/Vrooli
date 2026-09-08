@@ -7,10 +7,12 @@ import * as api from '../../../shared/api';
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
-  return { ...actual, verifyMagicLink: vi.fn() };
+  return { ...actual, verifyMagicLink: vi.fn(), issueDesktopLink: vi.fn(), listBusinessAccounts: vi.fn() };
 });
 
 const verifyMagicLink = vi.mocked(api.verifyMagicLink);
+const issueDesktopLink = vi.mocked(api.issueDesktopLink);
+const listBusinessAccounts = vi.mocked(api.listBusinessAccounts);
 const validResponse: api.VerifyMagicLinkResponse = {
   access_token: 'access-token',
   refresh_token: 'refresh-token',
@@ -38,6 +40,7 @@ describe('VerifyMagicLink', () => {
 
   it('does not redirect authentication tokens to an untrusted callback URL', async () => {
     verifyMagicLink.mockResolvedValue(validResponse);
+    listBusinessAccounts.mockResolvedValue([{ id: 'account-1', display_name: 'Personal account', role: 'owner' }]);
     sessionStorage.setItem('auth_callback_params', JSON.stringify({ redirect_uri: 'https://attacker.example/callback', app: 'Untrusted', state: 'nonce' }));
     renderVerify();
 
@@ -83,6 +86,77 @@ describe('VerifyMagicLink', () => {
     expect(redirectTo).toHaveBeenCalledWith(expect.not.stringContaining('access-token'));
     expect(redirectTo).toHaveBeenCalledWith(expect.not.stringContaining('refresh-token'));
     expect(sessionStorage.getItem('auth_callback_params')).toBeNull();
+  });
+
+  it('uses the browser session to issue a scoped desktop-link code without returning website tokens', async () => {
+    const redirectTo = vi.fn();
+    verifyMagicLink.mockResolvedValue(validResponse);
+    listBusinessAccounts.mockResolvedValue([{ id: 'account-1', display_name: 'Personal account', role: 'owner' }]);
+    issueDesktopLink.mockResolvedValue({
+      code: 'desktop-link-code',
+      expires_at: '2026-12-31T00:02:00Z',
+      installation_id: 'install-1',
+      resource: 'demo',
+      audience: 'scenario:demo',
+      scopes: ['demo:read'],
+    });
+    sessionStorage.setItem('auth_callback_params', JSON.stringify({
+      redirect_uri: 'http://127.0.0.1:43123/callback',
+      app: 'Desktop',
+      state: 'nonce',
+      code_challenge: 'challenge',
+      code_challenge_method: 'S256',
+      desktop_link: true,
+      installation_id: 'install-1',
+      resource: 'demo',
+      audience: 'scenario:demo',
+      scopes: ['demo:read'],
+    }));
+
+    renderVerify('valid-token', redirectTo);
+
+    expect(await screen.findByText('Signed in!')).toBeInTheDocument();
+    expect(verifyMagicLink).toHaveBeenCalledWith('valid-token');
+    expect(issueDesktopLink).toHaveBeenCalledWith(expect.objectContaining({
+      business_account_id: 'account-1',
+      installation_id: 'install-1',
+      resource: 'demo',
+      audience: 'scenario:demo',
+      scopes: ['demo:read'],
+      code_challenge: 'challenge',
+    }));
+    expect(redirectTo).toHaveBeenCalledWith('http://127.0.0.1:43123/callback?code=desktop-link-code&state=nonce');
+    expect(redirectTo).toHaveBeenCalledWith(expect.not.stringContaining('access-token'));
+    expect(redirectTo).toHaveBeenCalledWith(expect.not.stringContaining('refresh-token'));
+  });
+
+  it('requires an explicit account when the signed-in user has multiple accounts', async () => {
+    const redirectTo = vi.fn();
+    verifyMagicLink.mockResolvedValue(validResponse);
+    listBusinessAccounts.mockResolvedValue([
+      { id: 'account-1', display_name: 'Personal account', role: 'owner' },
+      { id: 'account-2', display_name: 'Acme', role: 'owner' },
+    ]);
+    issueDesktopLink.mockResolvedValue({
+      code: 'desktop-link-code',
+      expires_at: '2026-12-31T00:02:00Z',
+      installation_id: 'install-1',
+      resource: 'demo',
+      audience: 'scenario:demo',
+      scopes: ['demo:read'],
+    });
+    sessionStorage.setItem('auth_callback_params', JSON.stringify({
+      redirect_uri: 'http://127.0.0.1:43123/callback', app: 'Desktop', state: 'nonce',
+      code_challenge: 'challenge', code_challenge_method: 'S256', desktop_link: true,
+      installation_id: 'install-1', resource: 'demo', audience: 'scenario:demo', scopes: ['demo:read'],
+    }));
+
+    renderVerify('valid-token', redirectTo);
+
+    expect(await screen.findByTestId('desktop-account-selection')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /acme/i }));
+    await waitFor(() => expect(issueDesktopLink).toHaveBeenCalledWith(expect.objectContaining({ business_account_id: 'account-2' })));
+    expect(redirectTo).toHaveBeenCalledWith(expect.stringContaining('code=desktop-link-code'));
   });
 
   it('offers a retry path for network failures and completes after recovery', async () => {

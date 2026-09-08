@@ -149,6 +149,33 @@ type InputActuator interface {
 	Actuate(context.Context, Actuation) error
 }
 
+// AppLifecycleRequest is the typed lifecycle boundary. Package is the only
+// identity accepted by the built-in mobile lifecycle adapters; Executable is
+// reserved for adapters that provide their own allowlist and must never be
+// interpreted as a shell command.
+type AppLifecycleRequest struct {
+	Operation  string   `json:"operation"`
+	Package    string   `json:"package,omitempty"`
+	Executable string   `json:"executable,omitempty"`
+	Arguments  []string `json:"arguments,omitempty"`
+	Permission string   `json:"permission,omitempty"`
+	Value      string   `json:"value,omitempty"`
+}
+
+type AppLifecycleResult struct {
+	Operation string `json:"operation"`
+	Package   string `json:"package,omitempty"`
+	Status    string `json:"status"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+// AppLifecycle is optional. A strategy must implement the interface before a
+// lifecycle operation is admitted; a capability declaration alone is not an
+// executable permission.
+type AppLifecycle interface {
+	AppLifecycle(context.Context, AppLifecycleRequest) (AppLifecycleResult, error)
+}
+
 // Device is a discovered target. Its identity is separate from the strategy
 // implementation so reconnects do not reattribute audit history.
 type Device struct {
@@ -615,7 +642,7 @@ func StepKinds(d Declaration) []string {
 		steps = append(steps, "semantic-target", "semantic-assert")
 	}
 	if d.Capabilities[CapAppLifecycle].Status == StatusAvailable {
-		steps = append(steps, "install", "launch", "stop", "uninstall", "clear-data", "package-state")
+		steps = append(steps, "install", "launch", "focus", "close", "minimize", "restore", "stop", "uninstall", "clear-data", "package-state")
 	}
 	if d.Capabilities[CapPermissions].Status == StatusAvailable {
 		steps = append(steps, "grant-permission", "revoke-permission")

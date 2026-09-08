@@ -38,6 +38,20 @@ type TestApp struct {
 	Cleanup func()
 }
 
+// setOllamaJSONGenerateFixture replaces the process boundary with a deterministic
+// response for one test. It restores the production runner when the test ends.
+func setOllamaJSONGenerateFixture(t *testing.T, response string, responseErr error) {
+	t.Helper()
+	original := ollamaJSONGenerateRunner
+	ollamaJSONGenerateRunner = func(string) (map[string]interface{}, error) {
+		if responseErr != nil {
+			return nil, responseErr
+		}
+		return map[string]interface{}{"response": response}, nil
+	}
+	t.Cleanup(func() { ollamaJSONGenerateRunner = original })
+}
+
 // setupTestApp creates a test application with mock dependencies
 func setupTestApp(t *testing.T) *TestApp {
 	t.Helper()

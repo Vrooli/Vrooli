@@ -119,16 +119,25 @@ Replace the offending dependency with a pure-Go alternative.
 
 ### `pnpm install` fails or installs the wrong tree
 
-The UI deliberately installs **outside** the workspace:
+Run normal setup from the scenario directory:
 
 ```bash
-cd ui
-pnpm install --ignore-workspace
+make setup
 ```
 
-`make setup` does this automatically. If you ran a plain `pnpm install`
-from `ui/` and got the workspace tree, delete `ui/node_modules` and
-re-run with `--ignore-workspace`.
+For dependency additions or changes, use
+`scenario-dependency-analyzer deps install` through
+[package governance](../../../../docs/package-governance.md). Do not run a raw package manager.
+
+The UI is a standalone pnpm project, isolated from the repo-root
+`packages/*` workspace. The template's `ui/pnpm-workspace.yaml` is a
+workspace boundary: it stops pnpm from discovering the parent workspace
+and keeps the UI's lockfile and overrides in scope. Keep this file in place.
+
+If setup reports "Scope: N workspace projects" and includes the repo-root
+workspace, check `ui/pnpm-workspace.yaml`. Restore a missing boundary file
+from the scenario's template, then rerun `make setup` from the scenario
+directory. Workspace isolation does not replace dependency governance.
 
 ### UI build is slow (5–10 minutes)
 
@@ -177,7 +186,7 @@ Wipe the test data dir and retry. The default lives under
 
 Coverage dropped below the floor. The fix is to add tests to the
 file the report names — never to lower the threshold. Floors live in
-[`../internal/TESTING.md`](../internal/TESTING.md#coverage-thresholds).
+[Shared harness recipes](/scenarios/template-manager/docs/internal/TESTING-RECIPES.md#coverage-thresholds).
 
 ## Storage
 

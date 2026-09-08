@@ -61,7 +61,9 @@ That artifact is a staging candidate, not a commercial release. The primary
 support rows are `windows-x64`, `macos-arm64`, `linux-x64-x11`,
 `linux-x64-gnome-wayland`, and `linux-x64-kde-wayland`; a row stays unclaimed
 until its native lifecycle, permissions, and package receipts are recorded.
-See the [support inventory](../internal/plans/artifacts/portal-everywhere-20260905/support-matrix.md).
+The dated support inventory is preserved at
+`<runtime-home>/plan-artifacts/portal-everywhere-20260905/support-matrix.md`;
+see the [preservation record](../../../../docs/internal/PROGRESS.md#documentation-cleanup--2026-09-07).
 
 ## Release Checklist
 

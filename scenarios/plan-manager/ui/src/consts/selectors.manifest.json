@@ -1,0 +1,775 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "pages.plans": {
+      "testId": "page-plans",
+      "selector": "[data-testid=\"page-plans\"]"
+    },
+    "pages.planDetail": {
+      "testId": "page-plan-detail",
+      "selector": "[data-testid=\"page-plan-detail\"]"
+    },
+    "pages.authoring": {
+      "testId": "page-authoring",
+      "selector": "[data-testid=\"page-authoring\"]"
+    },
+    "pages.execution": {
+      "testId": "page-execution",
+      "selector": "[data-testid=\"page-execution\"]"
+    },
+    "pages.families": {
+      "testId": "page-families",
+      "selector": "[data-testid=\"page-families\"]"
+    },
+    "pages.validation": {
+      "testId": "page-validation",
+      "selector": "[data-testid=\"page-validation\"]"
+    },
+    "pages.triage": {
+      "testId": "page-triage",
+      "selector": "[data-testid=\"page-triage\"]"
+    },
+    "pages.velocity": {
+      "testId": "page-velocity",
+      "selector": "[data-testid=\"page-velocity\"]"
+    },
+    "asyncSuffix.loading": {
+      "testId": "loading",
+      "selector": "[data-testid=\"loading\"]"
+    },
+    "asyncSuffix.error": {
+      "testId": "error",
+      "selector": "[data-testid=\"error\"]"
+    },
+    "asyncSuffix.empty": {
+      "testId": "empty",
+      "selector": "[data-testid=\"empty\"]"
+    },
+    "plans.list": {
+      "testId": "plans-list",
+      "selector": "[data-testid=\"plans-list\"]"
+    },
+    "plans.createForm": {
+      "testId": "plans-create-form",
+      "selector": "[data-testid=\"plans-create-form\"]"
+    },
+    "plans.templateSelect": {
+      "testId": "plans-template-select",
+      "selector": "[data-testid=\"plans-template-select\"]"
+    },
+    "plans.titleInput": {
+      "testId": "plans-title-input",
+      "selector": "[data-testid=\"plans-title-input\"]"
+    },
+    "plans.createButton": {
+      "testId": "plans-create-button",
+      "selector": "[data-testid=\"plans-create-button\"]"
+    },
+    "plans.detailMarkdownToggle": {
+      "testId": "plan-detail-markdown-toggle",
+      "selector": "[data-testid=\"plan-detail-markdown-toggle\"]"
+    },
+    "plans.detailMarkdown": {
+      "testId": "plan-detail-markdown",
+      "selector": "[data-testid=\"plan-detail-markdown\"]"
+    },
+    "plans.detailGraph": {
+      "testId": "plan-detail-graph",
+      "selector": "[data-testid=\"plan-detail-graph\"]"
+    },
+    "plans.detailPhases": {
+      "testId": "plan-detail-phases",
+      "selector": "[data-testid=\"plan-detail-phases\"]"
+    },
+    "plans.relevantContext": {
+      "testId": "plan-relevant-context",
+      "selector": "[data-testid=\"plan-relevant-context\"]"
+    },
+    "plans.archiveButton": {
+      "testId": "plan-detail-archive-button",
+      "selector": "[data-testid=\"plan-detail-archive-button\"]"
+    },
+    "authoring.startForm": {
+      "testId": "authoring-start-form",
+      "selector": "[data-testid=\"authoring-start-form\"]"
+    },
+    "authoring.titleInput": {
+      "testId": "authoring-title-input",
+      "selector": "[data-testid=\"authoring-title-input\"]"
+    },
+    "authoring.templateInput": {
+      "testId": "authoring-template-input",
+      "selector": "[data-testid=\"authoring-template-input\"]"
+    },
+    "authoring.startButton": {
+      "testId": "authoring-start-button",
+      "selector": "[data-testid=\"authoring-start-button\"]"
+    },
+    "authoring.sections": {
+      "testId": "authoring-sections",
+      "selector": "[data-testid=\"authoring-sections\"]"
+    },
+    "authoring.contentInput": {
+      "testId": "authoring-content-input",
+      "selector": "[data-testid=\"authoring-content-input\"]"
+    },
+    "authoring.submitButton": {
+      "testId": "authoring-submit-button",
+      "selector": "[data-testid=\"authoring-submit-button\"]"
+    },
+    "authoring.nextButton": {
+      "testId": "authoring-next-button",
+      "selector": "[data-testid=\"authoring-next-button\"]"
+    },
+    "authoring.validateButton": {
+      "testId": "authoring-validate-button",
+      "selector": "[data-testid=\"authoring-validate-button\"]"
+    },
+    "authoring.violations": {
+      "testId": "authoring-violations",
+      "selector": "[data-testid=\"authoring-violations\"]"
+    },
+    "authoring.autofillButton": {
+      "testId": "authoring-autofill-button",
+      "selector": "[data-testid=\"authoring-autofill-button\"]"
+    },
+    "authoring.autofillResults": {
+      "testId": "authoring-autofill-results",
+      "selector": "[data-testid=\"authoring-autofill-results\"]"
+    },
+    "authoring.guidance": {
+      "testId": "authoring-guidance",
+      "selector": "[data-testid=\"authoring-guidance\"]"
+    },
+    "authoring.phases": {
+      "testId": "authoring-phases",
+      "selector": "[data-testid=\"authoring-phases\"]"
+    },
+    "authoring.phaseTitleInput": {
+      "testId": "authoring-phase-title-input",
+      "selector": "[data-testid=\"authoring-phase-title-input\"]"
+    },
+    "authoring.phaseIntentInput": {
+      "testId": "authoring-phase-intent-input",
+      "selector": "[data-testid=\"authoring-phase-intent-input\"]"
+    },
+    "authoring.phaseAddButton": {
+      "testId": "authoring-phase-add-button",
+      "selector": "[data-testid=\"authoring-phase-add-button\"]"
+    },
+    "authoring.phaseNextButton": {
+      "testId": "authoring-phase-next-button",
+      "selector": "[data-testid=\"authoring-phase-next-button\"]"
+    },
+    "authoring.phaseFieldSelect": {
+      "testId": "authoring-phase-field-select",
+      "selector": "[data-testid=\"authoring-phase-field-select\"]"
+    },
+    "authoring.phaseFieldInput": {
+      "testId": "authoring-phase-field-input",
+      "selector": "[data-testid=\"authoring-phase-field-input\"]"
+    },
+    "authoring.phaseSubmitButton": {
+      "testId": "authoring-phase-submit-button",
+      "selector": "[data-testid=\"authoring-phase-submit-button\"]"
+    },
+    "authoring.contextItems": {
+      "testId": "authoring-context-items",
+      "selector": "[data-testid=\"authoring-context-items\"]"
+    },
+    "authoring.contextKindSelect": {
+      "testId": "authoring-context-kind-select",
+      "selector": "[data-testid=\"authoring-context-kind-select\"]"
+    },
+    "authoring.contextPhaseToggle": {
+      "testId": "authoring-context-phase-toggle",
+      "selector": "[data-testid=\"authoring-context-phase-toggle\"]"
+    },
+    "authoring.contextLabelInput": {
+      "testId": "authoring-context-label-input",
+      "selector": "[data-testid=\"authoring-context-label-input\"]"
+    },
+    "authoring.contextReasonInput": {
+      "testId": "authoring-context-reason-input",
+      "selector": "[data-testid=\"authoring-context-reason-input\"]"
+    },
+    "authoring.contextInstructionInput": {
+      "testId": "authoring-context-instruction-input",
+      "selector": "[data-testid=\"authoring-context-instruction-input\"]"
+    },
+    "authoring.contextCommandInput": {
+      "testId": "authoring-context-command-input",
+      "selector": "[data-testid=\"authoring-context-command-input\"]"
+    },
+    "authoring.contextTargetInput": {
+      "testId": "authoring-context-target-input",
+      "selector": "[data-testid=\"authoring-context-target-input\"]"
+    },
+    "authoring.contextSubmitButton": {
+      "testId": "authoring-context-submit-button",
+      "selector": "[data-testid=\"authoring-context-submit-button\"]"
+    },
+    "authoring.contextRemoveButton": {
+      "testId": "authoring-context-remove-button",
+      "selector": "[data-testid=\"authoring-context-remove-button\"]"
+    },
+    "authoring.contextConceptsInput": {
+      "testId": "authoring-context-concepts-input",
+      "selector": "[data-testid=\"authoring-context-concepts-input\"]"
+    },
+    "authoring.contextComplexityInput": {
+      "testId": "authoring-context-complexity-input",
+      "selector": "[data-testid=\"authoring-context-complexity-input\"]"
+    },
+    "authoring.skillPackButton": {
+      "testId": "authoring-skill-pack-button",
+      "selector": "[data-testid=\"authoring-skill-pack-button\"]"
+    },
+    "authoring.finalizeButton": {
+      "testId": "authoring-finalize-button",
+      "selector": "[data-testid=\"authoring-finalize-button\"]"
+    },
+    "authoring.finalizedBanner": {
+      "testId": "authoring-finalized-banner",
+      "selector": "[data-testid=\"authoring-finalized-banner\"]"
+    },
+    "execution.startForm": {
+      "testId": "execution-start-form",
+      "selector": "[data-testid=\"execution-start-form\"]"
+    },
+    "execution.planSelect": {
+      "testId": "execution-plan-select",
+      "selector": "[data-testid=\"execution-plan-select\"]"
+    },
+    "execution.runIdInput": {
+      "testId": "execution-run-id-input",
+      "selector": "[data-testid=\"execution-run-id-input\"]"
+    },
+    "execution.startButton": {
+      "testId": "execution-start-button",
+      "selector": "[data-testid=\"execution-start-button\"]"
+    },
+    "execution.resumeForm": {
+      "testId": "execution-resume-form",
+      "selector": "[data-testid=\"execution-resume-form\"]"
+    },
+    "execution.resumeExecutionIdInput": {
+      "testId": "execution-resume-execution-id-input",
+      "selector": "[data-testid=\"execution-resume-execution-id-input\"]"
+    },
+    "execution.resumeButton": {
+      "testId": "execution-resume-button",
+      "selector": "[data-testid=\"execution-resume-button\"]"
+    },
+    "execution.guidedStep": {
+      "testId": "execution-guided-step",
+      "selector": "[data-testid=\"execution-guided-step\"]"
+    },
+    "execution.context": {
+      "testId": "execution-context",
+      "selector": "[data-testid=\"execution-context\"]"
+    },
+    "execution.contextButton": {
+      "testId": "execution-context-button",
+      "selector": "[data-testid=\"execution-context-button\"]"
+    },
+    "execution.setupContext": {
+      "testId": "execution-setup-context",
+      "selector": "[data-testid=\"execution-setup-context\"]"
+    },
+    "execution.freshenStatus": {
+      "testId": "execution-freshen-status",
+      "selector": "[data-testid=\"execution-freshen-status\"]"
+    },
+    "execution.transitionSelect": {
+      "testId": "execution-transition-select",
+      "selector": "[data-testid=\"execution-transition-select\"]"
+    },
+    "execution.transitionButton": {
+      "testId": "execution-transition-button",
+      "selector": "[data-testid=\"execution-transition-button\"]"
+    },
+    "execution.decisionSummary": {
+      "testId": "execution-decision-summary",
+      "selector": "[data-testid=\"execution-decision-summary\"]"
+    },
+    "execution.decisionDetail": {
+      "testId": "execution-decision-detail",
+      "selector": "[data-testid=\"execution-decision-detail\"]"
+    },
+    "execution.recordDecisionButton": {
+      "testId": "execution-record-decision-button",
+      "selector": "[data-testid=\"execution-record-decision-button\"]"
+    },
+    "execution.findingTitle": {
+      "testId": "execution-finding-title",
+      "selector": "[data-testid=\"execution-finding-title\"]"
+    },
+    "execution.findingDetail": {
+      "testId": "execution-finding-detail",
+      "selector": "[data-testid=\"execution-finding-detail\"]"
+    },
+    "execution.recordFindingButton": {
+      "testId": "execution-record-finding-button",
+      "selector": "[data-testid=\"execution-record-finding-button\"]"
+    },
+    "execution.feedbackCheckpoint": {
+      "testId": "execution-feedback-checkpoint",
+      "selector": "[data-testid=\"execution-feedback-checkpoint\"]"
+    },
+    "execution.noFeedbackButton": {
+      "testId": "execution-no-feedback-button",
+      "selector": "[data-testid=\"execution-no-feedback-button\"]"
+    },
+    "execution.bugTitle": {
+      "testId": "execution-bug-title",
+      "selector": "[data-testid=\"execution-bug-title\"]"
+    },
+    "execution.bugDetail": {
+      "testId": "execution-bug-detail",
+      "selector": "[data-testid=\"execution-bug-detail\"]"
+    },
+    "execution.recordBugButton": {
+      "testId": "execution-record-bug-button",
+      "selector": "[data-testid=\"execution-record-bug-button\"]"
+    },
+    "execution.recordTitle": {
+      "testId": "execution-record-title",
+      "selector": "[data-testid=\"execution-record-title\"]"
+    },
+    "execution.recordDetail": {
+      "testId": "execution-record-detail",
+      "selector": "[data-testid=\"execution-record-detail\"]"
+    },
+    "execution.recordRecordButton": {
+      "testId": "execution-record-record-button",
+      "selector": "[data-testid=\"execution-record-record-button\"]"
+    },
+    "execution.noteTitle": {
+      "testId": "execution-note-title",
+      "selector": "[data-testid=\"execution-note-title\"]"
+    },
+    "execution.noteDetail": {
+      "testId": "execution-note-detail",
+      "selector": "[data-testid=\"execution-note-detail\"]"
+    },
+    "execution.recordNoteButton": {
+      "testId": "execution-record-note-button",
+      "selector": "[data-testid=\"execution-record-note-button\"]"
+    },
+    "execution.logSummary": {
+      "testId": "execution-log-summary",
+      "selector": "[data-testid=\"execution-log-summary\"]"
+    },
+    "execution.completeButton": {
+      "testId": "execution-complete-button",
+      "selector": "[data-testid=\"execution-complete-button\"]"
+    },
+    "execution.handoff": {
+      "testId": "execution-handoff",
+      "selector": "[data-testid=\"execution-handoff\"]"
+    },
+    "families.createForm": {
+      "testId": "families-create-form",
+      "selector": "[data-testid=\"families-create-form\"]"
+    },
+    "families.select": {
+      "testId": "families-select",
+      "selector": "[data-testid=\"families-select\"]"
+    },
+    "families.detail": {
+      "testId": "families-detail",
+      "selector": "[data-testid=\"families-detail\"]"
+    },
+    "families.launchState": {
+      "testId": "families-launch-state",
+      "selector": "[data-testid=\"families-launch-state\"]"
+    },
+    "families.membersTable": {
+      "testId": "families-members-table",
+      "selector": "[data-testid=\"families-members-table\"]"
+    },
+    "families.claimsTable": {
+      "testId": "families-claims-table",
+      "selector": "[data-testid=\"families-claims-table\"]"
+    },
+    "families.review": {
+      "testId": "families-review",
+      "selector": "[data-testid=\"families-review\"]"
+    },
+    "families.frontier": {
+      "testId": "families-frontier",
+      "selector": "[data-testid=\"families-frontier\"]"
+    },
+    "validation.planSelect": {
+      "testId": "validation-plan-select",
+      "selector": "[data-testid=\"validation-plan-select\"]"
+    },
+    "validation.phaseSelect": {
+      "testId": "validation-phase-select",
+      "selector": "[data-testid=\"validation-phase-select\"]"
+    },
+    "validation.resolveButton": {
+      "testId": "validation-resolve-button",
+      "selector": "[data-testid=\"validation-resolve-button\"]"
+    },
+    "validation.references": {
+      "testId": "validation-references",
+      "selector": "[data-testid=\"validation-references\"]"
+    },
+    "validation.stalenessButton": {
+      "testId": "validation-staleness-button",
+      "selector": "[data-testid=\"validation-staleness-button\"]"
+    },
+    "validation.staleness": {
+      "testId": "validation-staleness",
+      "selector": "[data-testid=\"validation-staleness\"]"
+    },
+    "validation.baselineButton": {
+      "testId": "validation-baseline-button",
+      "selector": "[data-testid=\"validation-baseline-button\"]"
+    },
+    "validation.baseline": {
+      "testId": "validation-baseline",
+      "selector": "[data-testid=\"validation-baseline\"]"
+    },
+    "validation.runButton": {
+      "testId": "validation-run-button",
+      "selector": "[data-testid=\"validation-run-button\"]"
+    },
+    "validation.result": {
+      "testId": "validation-result",
+      "selector": "[data-testid=\"validation-result\"]"
+    },
+    "validation.commandFindings": {
+      "testId": "validation-command-findings",
+      "selector": "[data-testid=\"validation-command-findings\"]"
+    },
+    "validation.dodButton": {
+      "testId": "validation-dod-button",
+      "selector": "[data-testid=\"validation-dod-button\"]"
+    },
+    "validation.dod": {
+      "testId": "validation-dod",
+      "selector": "[data-testid=\"validation-dod\"]"
+    },
+    "triage.list": {
+      "testId": "triage-list",
+      "selector": "[data-testid=\"triage-list\"]"
+    },
+    "velocity.planSelect": {
+      "testId": "velocity-plan-select",
+      "selector": "[data-testid=\"velocity-plan-select\"]"
+    },
+    "velocity.chart": {
+      "testId": "velocity-chart",
+      "selector": "[data-testid=\"velocity-chart\"]"
+    },
+    "velocity.table": {
+      "testId": "velocity-table",
+      "selector": "[data-testid=\"velocity-table\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "library.mermaid-diagram.root": {
+      "testId": "mermaid-diagram",
+      "selector": "[data-testid=\"mermaid-diagram\"]"
+    },
+    "library.markdown-renderer.root": {
+      "testId": "markdown-renderer",
+      "selector": "[data-testid=\"markdown-renderer\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "plans",
+            "authoring",
+            "execution",
+            "families",
+            "validation",
+            "triage",
+            "velocity",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "plans",
+            "authoring",
+            "execution",
+            "families",
+            "validation",
+            "triage",
+            "velocity",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "plans.row": {
+      "description": "Plan list row by plan id",
+      "selectorPattern": "[data-testid=\"plans-row-${id}\"]",
+      "testIdPattern": "plans-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "plans.phase": {
+      "description": "Plan-detail phase card by phase id",
+      "selectorPattern": "[data-testid=\"plan-phase-${id}\"]",
+      "testIdPattern": "plan-phase-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "authoring.section": {
+      "description": "Authoring section row by section key",
+      "selectorPattern": "[data-testid=\"authoring-section-${key}\"]",
+      "testIdPattern": "authoring-section-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "string"
+        }
+      ]
+    },
+    "execution.logEntry": {
+      "description": "Execution log entry by durable ledger id",
+      "selectorPattern": "[data-testid=\"execution-log-entry-${id}\"]",
+      "testIdPattern": "execution-log-entry-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "execution.retrySync": {
+      "description": "Retry downstream sync for a durable ledger entry",
+      "selectorPattern": "[data-testid=\"execution-retry-sync-${id}\"]",
+      "testIdPattern": "execution-retry-sync-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "families.edge": {
+      "description": "Family graph edge by stable display ordinal",
+      "selectorPattern": "[data-testid=\"families-edge-${index}\"]",
+      "testIdPattern": "families-edge-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "triage.row": {
+      "description": "Triage finding row by finding id",
+      "selectorPattern": "[data-testid=\"triage-row-${id}\"]",
+      "testIdPattern": "triage-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "triage.promote": {
+      "description": "Triage promote button by finding id",
+      "selectorPattern": "[data-testid=\"triage-promote-${id}\"]",
+      "testIdPattern": "triage-promote-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "triage.dismiss": {
+      "description": "Triage dismiss button by finding id",
+      "selectorPattern": "[data-testid=\"triage-dismiss-${id}\"]",
+      "testIdPattern": "triage-dismiss-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "fd40cfa9d2318ed0b82a2860d334c933359872ed97eecf76ce06460a9b524b93",
+    "ui/src/consts/selectors.ts": "18244bf77bd7e6736a019a8f2e8e37f3c3df23b978d9918db55c9e0d5ae235f8",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

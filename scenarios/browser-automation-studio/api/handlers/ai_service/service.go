@@ -20,6 +20,17 @@ type service struct {
 	deps Deps
 }
 
+func waitUntilString(value aiv1.WaitUntil) string {
+	switch value {
+	case aiv1.WaitUntil_WAIT_UNTIL_DOMCONTENTLOADED:
+		return "domcontentloaded"
+	case aiv1.WaitUntil_WAIT_UNTIL_NETWORKIDLE:
+		return "networkidle"
+	default:
+		return "load"
+	}
+}
+
 // =============================================================================
 // TakePreviewScreenshot
 // =============================================================================
@@ -34,6 +45,9 @@ func (s *service) TakePreviewScreenshot(
 	}
 
 	args := aihandlers.PreviewScreenshotArgs{URL: msg.GetUrl()}
+	args.WaitFor = msg.GetWaitFor()
+	args.WaitUntil = waitUntilString(msg.GetWaitUntil())
+	args.SettleMs = int(msg.GetSettleMs())
 	if vp := msg.GetViewport(); vp != nil {
 		args.ViewportWidth = int(vp.GetWidth())
 		args.ViewportHeight = int(vp.GetHeight())
@@ -214,7 +228,19 @@ func (s *service) GetDOMTree(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errMissingURL)
 	}
 
-	raw, err := s.deps.DOM.GetDOMTreeJSON(ctx, req.Msg.GetUrl())
+	computed := req.Msg.GetComputed()
+	if !computed && req.Msg.GetMaxNodes() == 0 {
+		computed = true
+	}
+	raw, err := s.deps.DOM.GetDOMTreeJSONWithCaptureOptions(
+		ctx,
+		req.Msg.GetUrl(),
+		waitUntilString(req.Msg.GetWaitUntil()),
+		req.Msg.GetWaitFor(),
+		int(req.Msg.GetSettleMs()),
+		computed,
+		int(req.Msg.GetMaxNodes()),
+	)
 	if err != nil {
 		return nil, mapHandlerError(err)
 	}

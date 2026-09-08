@@ -218,12 +218,18 @@ its opaque `window_id`.
 
 `device-control desktop resolve --socket <owner.sock> --request <request.json>`
 accepts `session` and `selector` containing `observation_revision`, `window_id`,
-`name` and optional `editable_only`. Names match exactly. The result explicitly
-reports absent, unique or ambiguous and returns matching `element_ids`. Only a
-unique result identifies a single field; ambiguous candidates require further
-selection. A stale observation or changed tree returns an error. Obtain a fresh
-observation before resolving again. References confer no authority and remain
-bound to the original lease. Stop the lease when work ends.
+`name` and optional `editable_only`, `role`, `match_mode`, and `refresh_epoch`.
+Names match exactly by default; `normalized` and constrained `fuzzy` modes are
+explicit opt-ins. Known hidden, disabled, or off-screen elements are rejected
+unless the matching `allow_hidden`, `allow_disabled`, or `allow_offscreen`
+policy flag is explicitly set. The result explicitly reports absent, unique or
+ambiguous and returns matching `element_ids`. Only a unique result identifies a
+single field; ambiguous candidates require further selection. A stale
+observation or changed tree returns an error. Obtain a fresh observation before
+resolving again. References confer no authority and remain bound to the
+original lease. Stop the lease when work ends. Semantic invoke actions may set
+`action_name` (for example `select` or `expand`); the helper accepts it only
+when that action was present in the observed native action set.
 
 
 ### Admitted desktop flows

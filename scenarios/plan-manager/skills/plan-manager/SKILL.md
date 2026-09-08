@@ -8,9 +8,9 @@ metadata:
   modes: ["tools"]
   tags: ["plans", "execution", "learning"]
   status: "active"
-  revision: 1
+  revision: 2
   createdAt: "2026-09-05T00:00:00Z"
-  updatedAt: "2026-09-05T00:00:00Z"
+  updatedAt: "2026-09-06T00:00:00Z"
   learning:
     scope: "plan-manager-usage"
     capture: "every attempt"
@@ -49,7 +49,7 @@ Read the rows in order; take the first applicable next step.
 | The predicted change boundary or implementation is wrong | Read `implementation-plan-execution`; apply its divergence decision before changing scope. **[S0]** |
 | Current action calls for validation | Run `plan-manager validate start` with the owner-documented subject and policy. Retain the returned operation/receipt identity. **[S1]** |
 | Validation work is pending | Use the receipt owner's documented wait once; cancellation of a wait does not abort work. **[S1]** |
-| Need to consume completed validation | Run `plan-manager validate sync` for the existing operation. An unavailable or insufficient receipt is not a pass. **[S1]** |
+| Need to consume completed validation | Run `plan-manager validate sync` for the existing operation. An unavailable or insufficient receipt is not a pass; under advisory completion it may remain a nonblocking unknown limitation. **[S1]** |
 | Need to split, review, or schedule related plans | Read `plan-family-orchestration`. **[S0]** |
 | A reviewed frontier needs child execution/supervision | Read `agent-manager-plan-family-supervision`. Supply the typed family and child identities. **[S0]** |
 | Need to determine completion | Run `plan-manager exec complete <execution>`; honor its evidence verdict. **[S1]** |
@@ -59,6 +59,10 @@ to the selected operation; it must not imply the whole plan is complete.
 Source freshness follows relevant content and declared inputs. Commit movement
 alone does not require recapture. Missing behavioral prior is handled by the
 explicit validation policy; it is not an instruction to start certification.
+Ordinary shared-worktree validation is advisory. Completion requires a supported
+outcome assessment, not a green aggregate Test Genie verdict. Retain findings and
+limitations without turning unrelated repair or uncertain attribution into a gate.
+Use `scenarios/plan-manager/docs/concepts/PLAN-MODEL.md` for completion policy.
 
 ### Bounded investigations and trigger supervision
 

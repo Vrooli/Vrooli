@@ -86,6 +86,11 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 	if strings.EqualFold(strings.TrimSpace(stepType), "workflowcall") {
 		return contracts.StepOutcome{}, session, fmt.Errorf("unsupported step type 'workflowCall'; use 'subflow' instead")
 	}
+	resolvedAction, selectorErr := resolveRuntimeSelectors(step.Action, execState)
+	if selectorErr != nil {
+		return contracts.StepOutcome{}, session, selectorErr
+	}
+	step.Action = resolvedAction
 	step = e.interpolatePlanStep(step, execState)
 	if isSubflowPlanStep(step) {
 		logrus.WithFields(logrus.Fields{

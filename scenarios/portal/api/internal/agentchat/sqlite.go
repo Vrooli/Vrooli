@@ -57,6 +57,21 @@ func (r *sqliteRepository) Reserve(ctx context.Context, chatID, messageID string
 	return b, nil
 }
 
+func (r *sqliteRepository) SetBriefID(ctx context.Context, id, briefID string) error {
+	result, err := r.db.ExecContext(ctx, `UPDATE agent_chat_runs SET brief_id=? WHERE id=?`, strings.TrimSpace(briefID), strings.TrimSpace(id))
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 func (r *sqliteRepository) Bind(ctx context.Context, id string, session agentmanager.Session) error {
 	if strings.TrimSpace(session.RunID) == "" || strings.TrimSpace(session.TaskID) == "" {
 		return ErrBindingConflict
@@ -77,7 +92,7 @@ func (r *sqliteRepository) Bind(ctx context.Context, id string, session agentman
 
 func (r *sqliteRepository) Get(ctx context.Context, chatID, messageID string) (Binding, error) {
 	var b Binding
-	err := r.db.QueryRowContext(ctx, `SELECT id,chat_id,message_id,task_id,COALESCE(run_id,'') FROM agent_chat_runs WHERE chat_id=? AND message_id=? AND `+admissionOwnerClause, chatID, messageID, chat.RequestOwner(ctx)).Scan(&b.ID, &b.ChatID, &b.MessageID, &b.TaskID, &b.RunID)
+	err := r.db.QueryRowContext(ctx, `SELECT id,chat_id,message_id,task_id,COALESCE(run_id,''),COALESCE(brief_id,'') FROM agent_chat_runs WHERE chat_id=? AND message_id=? AND `+admissionOwnerClause, chatID, messageID, chat.RequestOwner(ctx)).Scan(&b.ID, &b.ChatID, &b.MessageID, &b.TaskID, &b.RunID, &b.BriefID)
 	return b, err
 }
 
@@ -98,7 +113,7 @@ func (r *sqliteRepository) List(ctx context.Context, token string, size int) (Ad
 		}
 		after = parsed
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT rowid,id,chat_id,message_id,task_id,COALESCE(run_id,'') FROM agent_chat_runs WHERE rowid > ? AND `+admissionOwnerClause+` ORDER BY rowid LIMIT ?`, after, chat.RequestOwner(ctx), size+1)
+	rows, err := r.db.QueryContext(ctx, `SELECT rowid,id,chat_id,message_id,task_id,COALESCE(run_id,''),COALESCE(brief_id,'') FROM agent_chat_runs WHERE rowid > ? AND `+admissionOwnerClause+` ORDER BY rowid LIMIT ?`, after, chat.RequestOwner(ctx), size+1)
 	if err != nil {
 		return AdmissionPage{}, err
 	}
@@ -108,7 +123,7 @@ func (r *sqliteRepository) List(ctx context.Context, token string, size int) (Ad
 	for rows.Next() {
 		var sequence int64
 		var binding Binding
-		if err := rows.Scan(&sequence, &binding.ID, &binding.ChatID, &binding.MessageID, &binding.TaskID, &binding.RunID); err != nil {
+		if err := rows.Scan(&sequence, &binding.ID, &binding.ChatID, &binding.MessageID, &binding.TaskID, &binding.RunID, &binding.BriefID); err != nil {
 			return AdmissionPage{}, err
 		}
 		if len(page.Bindings) == size {

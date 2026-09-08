@@ -467,15 +467,16 @@ func classifyStripeError(err error) (int, string, string, bool) {
 // --- Shared types and helpers used by multiple service files ---
 
 type checkoutSessionRecord struct {
-	SessionID      string
-	Status         string
-	PriceID        sql.NullString
-	SessionType    sql.NullString
-	AmountCents    sql.NullInt64
-	ScheduleID     sql.NullString
-	CustomerID     sql.NullString
-	CustomerEmail  sql.NullString
-	SubscriptionID sql.NullString
+	SessionID         string
+	Status            string
+	PriceID           sql.NullString
+	SessionType       sql.NullString
+	AmountCents       sql.NullInt64
+	ScheduleID        sql.NullString
+	CustomerID        sql.NullString
+	CustomerEmail     sql.NullString
+	BusinessAccountID sql.NullString
+	SubscriptionID    sql.NullString
 }
 
 func (s *StripeService) loadCheckoutSession(sessionID string) (*checkoutSessionRecord, error) {
@@ -498,6 +499,10 @@ func (s *StripeService) loadCheckoutSession(sessionID string) (*checkoutSessionR
 	if err != nil {
 		return nil, err
 	}
+	// Older test fixtures and pre-migration databases may not have the
+	// account column. The account-scoped production schema does; the best
+	// effort fallback preserves compatibility for unscoped legacy checkouts.
+	_ = s.db.QueryRow(`SELECT business_account_id FROM checkout_sessions WHERE session_id = $1`, sessionID).Scan(&record.BusinessAccountID)
 	return record, nil
 }
 

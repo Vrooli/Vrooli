@@ -140,21 +140,18 @@ preview render and the persisted render agree (see
    (`log decision-add`, `log finding-add`, `log bug-add`, `log record-add`,
    `log note-add`) — these are typed ledger entries, not execution/phase fields.
    Findings file as candidate; bugs/records are forwarded downstream internally.
-3. Before a phase can be marked `done`, the runner requires a **phase feedback
-   checkpoint**. The checkpoint is satisfied by phase-scoped durable feedback
-   (decision/finding/bug/record) or by an explicit no-feedback note:
-   `plan-manager log note-add <execution> --phase <phase> --title "Phase
-   feedback reviewed: none" ...`. This keeps small agents from silently skipping
-   feedback capture while avoiding fake findings.
-4. The runner creates a producer ticket, displays its exact upstream start/wait
-   commands, and later synchronizes typed terminal evidence. It never runs or
-   waits for Git Control Tower/Test Genie itself. Phase status can advance only
-   after the current execution and scope generation have synchronized PASS.
-5. Resume point and full/partial completion are computed from the phase-status set.
+3. Ordinary `done` transitions record supported outcome assessments. Feedback
+   capture is useful but not a second completion gate. Explicit certification
+   retains the phase feedback checkpoint and required validation evidence.
+4. Requested validation creates a canonical Test Genie receipt. Plan Manager
+   retains observations without owning producer scheduling, waits, or retries.
+   Broad failures and drift do not independently block ordinary work.
+5. Phase work progress is computed from phase statuses. Execution completion
+   additionally applies the resolved policy; all phases done is not a handoff.
 
 ### Completion / handoff
 
-1. `plan complete` runs a **thin** guided completion process emitting typed,
+1. `exec complete` runs a **thin** guided completion process emitting typed,
    Plan-Manager-local nudges — `record_finding`, `file_bug`, `capture_record`,
    `confirm_phase_status` — whose messages point at `plan-manager log ...`
    commands, never an external scenario CLI. It does not do heavy lifting.
@@ -164,9 +161,9 @@ preview render and the persisted render agree (see
    `LogLedger` seam.
 3. Findings are filed as **candidate / unvalidated** for operator triage /
    `log promote`; idempotency keys and attribution-keyed dedup avoid double-filing.
-4. Before normal completion, the runner requires a selector-free final ticket,
-   producer-native wait, and synchronized clean full-inventory result. A partial
-   handoff remains explicitly incomplete and resumable.
+4. Ordinary completion requires applicable phase outcome assessments and stores
+   them with the resolved policy. Only explicit certification requires a clean
+   full-inventory receipt. A partial handoff remains incomplete and resumable.
 5. The agent's prose final message is **not** captured here — that is the
    orchestration layer's job (see [`INTEGRATIONS.md`](INTEGRATIONS.md)).
 
@@ -213,7 +210,7 @@ draft ──finalize──▶ active ──all phases done──▶ complete
 **Phase status:**
 
 ```
-todo ──start──▶ active ──acceptance + validation pass──▶ done
+todo ──start──▶ active ──completion policy satisfied──▶ done
                   │
                   └──blocked (dependency/validation fails) ──▶ active (retry)
 ```

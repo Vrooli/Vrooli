@@ -80,6 +80,8 @@ func fullyPopulatedSession(t *testing.T) Session {
 // plain prose.
 func sectionContentFor(key SectionKey) string {
 	switch key {
+	case SectionCompletionPolicy:
+		return "Mode: certification\nReason: projection contract fixture"
 	case SectionAssumptions:
 		return "Execution runs on a captured baseline.\nThe baseline is captured first -> re-capture before executing"
 	case SectionDecisions:

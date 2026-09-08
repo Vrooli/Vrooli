@@ -50,14 +50,26 @@ func NewCheckoutService(options CheckoutServiceOptions) *CheckoutService {
 }
 
 func (s *CheckoutService) Create(ctx context.Context, priceID, successURL, cancelURL, customerEmail string) (*lpbsv1.CheckoutSession, error) {
-	return s.create(ctx, priceID, successURL, cancelURL, customerEmail, Attribution{})
+	return s.create(ctx, priceID, successURL, cancelURL, customerEmail, "", Attribution{})
 }
 
 func (s *CheckoutService) CreateWithAttribution(ctx context.Context, priceID, successURL, cancelURL, customerEmail string, attribution Attribution) (*lpbsv1.CheckoutSession, error) {
-	return s.create(ctx, priceID, successURL, cancelURL, customerEmail, attribution)
+	return s.create(ctx, priceID, successURL, cancelURL, customerEmail, "", attribution)
 }
 
-func (s *CheckoutService) create(ctx context.Context, priceID, successURL, cancelURL, customerEmail string, attribution Attribution) (*lpbsv1.CheckoutSession, error) {
+// CreateForBusinessAccount binds the provider checkout to one LPBS business
+// account. Membership validation belongs to the authenticated API boundary;
+// this service only propagates the already-authorized commercial subject into
+// provider metadata and the durable local checkout projection.
+func (s *CheckoutService) CreateForBusinessAccount(ctx context.Context, priceID, successURL, cancelURL, customerEmail, businessAccountID string) (*lpbsv1.CheckoutSession, error) {
+	return s.create(ctx, priceID, successURL, cancelURL, customerEmail, businessAccountID, Attribution{})
+}
+
+func (s *CheckoutService) CreateForBusinessAccountWithAttribution(ctx context.Context, priceID, successURL, cancelURL, customerEmail, businessAccountID string, attribution Attribution) (*lpbsv1.CheckoutSession, error) {
+	return s.create(ctx, priceID, successURL, cancelURL, customerEmail, businessAccountID, attribution)
+}
+
+func (s *CheckoutService) create(ctx context.Context, priceID, successURL, cancelURL, customerEmail, businessAccountID string, attribution Attribution) (*lpbsv1.CheckoutSession, error) {
 	if s.plans == nil || s.store == nil || s.requester == nil {
 		return nil, fmt.Errorf("checkout dependencies unavailable")
 	}
@@ -78,6 +90,13 @@ func (s *CheckoutService) create(ctx context.Context, priceID, successURL, cance
 	}
 	mode, kind, sessionType := checkoutShape(plan)
 	values := url.Values{"mode": {mode}, "success_url": {successURL}, "cancel_url": {cancelURL}, "line_items[0][price]": {resolvedPriceID}, "line_items[0][quantity]": {"1"}, "metadata[bundle_key]": {plan.BundleKey}, "metadata[plan_tier]": {plan.PlanTier}}
+	businessAccountID = strings.TrimSpace(businessAccountID)
+	if businessAccountID != "" {
+		values.Set("metadata[business_account_id]", businessAccountID)
+		if mode == "subscription" {
+			values.Set("subscription_data[metadata][business_account_id]", businessAccountID)
+		}
+	}
 	if customerEmail != "" {
 		values.Set("customer_email", customerEmail)
 		values.Set("metadata[user_identity]", customerEmail)
@@ -99,7 +118,7 @@ func (s *CheckoutService) create(ctx context.Context, priceID, successURL, cance
 	if amount == 0 {
 		amount = plan.AmountCents
 	}
-	if err := s.record(response, priceID, sessionType, amount, plan, appliedCoupon, attribution); err != nil {
+	if err := s.record(response, priceID, sessionType, amount, plan, appliedCoupon, businessAccountID, attribution); err != nil {
 		return nil, err
 	}
 	publicKey := ""
@@ -198,8 +217,11 @@ func (s *CheckoutService) ResolvePriceID(ctx context.Context, key string) (strin
 	return response.Data[0].ID, nil
 }
 
-func (s *CheckoutService) record(response stripeCheckoutResponse, priceID, sessionType string, amount int64, plan *PlanOption, couponID string, attribution Attribution) error {
+func (s *CheckoutService) record(response stripeCheckoutResponse, priceID, sessionType string, amount int64, plan *PlanOption, couponID, businessAccountID string, attribution Attribution) error {
 	metadata := map[string]interface{}{"bundle_key": plan.BundleKey, "plan_tier": plan.PlanTier, "kind": plan.Kind.String()}
+	if strings.TrimSpace(businessAccountID) != "" {
+		metadata["business_account_id"] = strings.TrimSpace(businessAccountID)
+	}
 	if attribution.VisitorID != "" {
 		metadata["visitor_id"] = attribution.VisitorID
 	}
@@ -222,6 +244,10 @@ func (s *CheckoutService) record(response stripeCheckoutResponse, priceID, sessi
 		metadata["intro_coupon_applied"] = couponID
 	}
 	encoded, _ := json.Marshal(metadata)
+	if strings.TrimSpace(businessAccountID) != "" {
+		_, err := s.store.Exec(`INSERT INTO checkout_sessions (session_id, customer_email, business_account_id, customer_id, price_id, subscription_id, status, session_type, amount_cents, metadata, visitor_id, utm_source, utm_medium, utm_campaign, referrer_kind, country_code, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,NOW(),NOW()) ON CONFLICT (session_id) DO UPDATE SET customer_email = EXCLUDED.customer_email, business_account_id = EXCLUDED.business_account_id, customer_id = EXCLUDED.customer_id, price_id = EXCLUDED.price_id, subscription_id = EXCLUDED.subscription_id, status = EXCLUDED.status, session_type = EXCLUDED.session_type, amount_cents = EXCLUDED.amount_cents, metadata = EXCLUDED.metadata, visitor_id = EXCLUDED.visitor_id, utm_source = EXCLUDED.utm_source, utm_medium = EXCLUDED.utm_medium, utm_campaign = EXCLUDED.utm_campaign, referrer_kind = EXCLUDED.referrer_kind, country_code = EXCLUDED.country_code, updated_at = NOW()`, response.ID, response.CustomerEmail, businessAccountID, response.Customer, priceID, response.Subscription, response.Status, sessionType, amount, string(encoded), attribution.VisitorID, attribution.UTMSource, attribution.UTMMedium, attribution.UTMCampaign, attribution.ReferrerKind, attribution.CountryCode)
+		return err
+	}
 	_, err := s.store.Exec(`INSERT INTO checkout_sessions (session_id, customer_email, customer_id, price_id, subscription_id, status, session_type, amount_cents, metadata, visitor_id, utm_source, utm_medium, utm_campaign, referrer_kind, country_code, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW(),NOW()) ON CONFLICT (session_id) DO UPDATE SET customer_email = EXCLUDED.customer_email, customer_id = EXCLUDED.customer_id, price_id = EXCLUDED.price_id, subscription_id = EXCLUDED.subscription_id, status = EXCLUDED.status, session_type = EXCLUDED.session_type, amount_cents = EXCLUDED.amount_cents, metadata = EXCLUDED.metadata, visitor_id = EXCLUDED.visitor_id, utm_source = EXCLUDED.utm_source, utm_medium = EXCLUDED.utm_medium, utm_campaign = EXCLUDED.utm_campaign, referrer_kind = EXCLUDED.referrer_kind, country_code = EXCLUDED.country_code, updated_at = NOW()`, response.ID, response.CustomerEmail, response.Customer, priceID, response.Subscription, response.Status, sessionType, amount, string(encoded), attribution.VisitorID, attribution.UTMSource, attribution.UTMMedium, attribution.UTMCampaign, attribution.ReferrerKind, attribution.CountryCode)
 	return err
 }

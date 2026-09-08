@@ -10,7 +10,7 @@
     {
       "id": "PORTAL-P0-001",
       "title": "Healthy Portal scaffold",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-001",
       "category": "foundation",
       "criticality": "P0",
@@ -19,15 +19,15 @@
       "validation": [
         {
           "type": "command",
-          "status": "planned",
-          "notes": "`vrooli scenario restart portal`, `cli-health validate scenario portal --json`, and `ui-health validate scenario portal --json` pass."
+          "status": "passing",
+          "notes": "Lifecycle checks pass: `vrooli scenario status portal` and `vrooli scenario status search-hub` report healthy after the degradation drill; focused Portal API and CLI tests pass."
         }
       ]
     },
     {
       "id": "PORTAL-P0-002",
       "title": "Chat-ready contract foundation",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P0-002",
       "category": "contracts",
       "criticality": "P0",
@@ -36,15 +36,15 @@
       "validation": [
         {
           "type": "command",
-          "status": "planned",
-          "notes": "`proto-health validate scenario portal --json` and API/UI typechecks pass after proto generation."
+          "status": "passing",
+          "notes": "Generated Portal Connect contracts, Portal API Go tests, and Portal UI type-check and coverage checks pass after proto generation."
         }
       ]
     },
     {
       "id": "PORTAL-P1-001",
       "title": "OpenRouter chat path",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P1-001",
       "category": "chat",
       "criticality": "P1",
@@ -53,15 +53,15 @@
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
-          "notes": "Live smoke demonstrates a streamed completion when `OPENROUTER_API_KEY` is set and degraded status when it is absent."
+          "status": "in_progress",
+          "notes": "The OpenRouter completion path is implemented and covered by Portal completion tests. A live streamed-completion smoke requires an operator-provided OpenRouter credential and is not claimed here."
         }
       ]
     },
     {
       "id": "PORTAL-P1-002",
       "title": "Agent-mode bridge",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P1-002",
       "category": "agents",
       "criticality": "P1",
@@ -70,15 +70,15 @@
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
-          "notes": "Live smoke starts an agent-mode session when agent-manager is available and reports OFF/degraded status when it is not."
+          "status": "in_progress",
+          "notes": "Agent-mode brief assembly and degradation behavior are implemented and covered by Portal agent-chat tests. An authenticated live agent-manager stream is not claimed because the current environment rejects owned-context requests without an account."
         }
       ]
     },
     {
       "id": "PORTAL-P2-001",
       "title": "Passive ecosystem search",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P2-001",
       "category": "search",
       "criticality": "P2",
@@ -87,15 +87,15 @@
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
-          "notes": "Live smoke shows the message send path proceeds immediately while search results attach asynchronously."
+          "status": "in_progress",
+          "notes": "The current-turn brief path is implemented and covered by Portal message/completion tests; the previous-turn attachment path is no longer used for brief assembly. A live authenticated chat smoke remains unclaimed."
         }
       ]
     },
     {
       "id": "PORTAL-P2-002",
       "title": "Readiness ladder controls",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P2-002",
       "category": "integrations",
       "criticality": "P2",
@@ -104,8 +104,8 @@
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
-          "notes": "Live smoke demonstrates PASSIVE-to-OFF degradation and recovery for search-hub with the mode indicator visible."
+          "status": "passing",
+          "notes": "The lifecycle degradation drill observed Search Hub OFF, persisted withheld brief verdicts, silent hook no-op behavior, recovery to PASSIVE, and a delivered recovery brief."
         }
       ]
     },

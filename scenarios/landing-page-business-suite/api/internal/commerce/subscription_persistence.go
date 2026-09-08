@@ -70,7 +70,8 @@ func (s *SubscriptionPersistenceService) Persist(userHint string, sub *StripeSub
 	}
 	if err := s.repository.UpsertSubscription(&SubscriptionRecord{
 		SubscriptionID: sub.ID, CustomerID: sub.Customer, CustomerEmail: sub.CustomerEmail,
-		Status: SubscriptionStateLabel(state), PlanTier: nullableString(planTier), PriceID: nullableString(priceID), BundleKey: nullableString(bundleKey),
+		BusinessAccountID: strings.TrimSpace(metadataString(sub.Metadata, "business_account_id")),
+		Status:            SubscriptionStateLabel(state), PlanTier: nullableString(planTier), PriceID: nullableString(priceID), BundleKey: nullableString(bundleKey),
 		BillingCycleStart: ExtractBillingCycleDay(sub.BillingCycleAnchor), CanceledAt: canceledAt,
 	}); err != nil {
 		return nil, err

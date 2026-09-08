@@ -1,9 +1,11 @@
 package knowledge
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -39,8 +41,83 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 			{Name: "collection-prune-stale", NeedsAPI: false, Description: "Prune stale chunk versions (dry-run by default)", Run: func(args []string) error { return collectionPruneStale(deps, args) }},
 			{Name: "collection-dedupe", NeedsAPI: false, Description: "Delete duplicate content chunks (dry-run by default)", Run: func(args []string) error { return collectionDedupe(deps, args) }},
 			{Name: "graph", NeedsAPI: true, Description: "Generate a knowledge graph", Run: func(args []string) error { return graph(deps, args) }},
+			{Name: "inventory", NeedsAPI: true, Description: "Scan bounded documentation candidates without editing", Run: func(args []string) error { return inventory(deps, args) }},
+			{Name: "proposals", NeedsAPI: true, Description: "Generate review-only disposition proposals from candidate JSON", Run: func(args []string) error { return proposals(deps, args) }},
+			{Name: "route", NeedsAPI: true, Description: "Dry-run or route an owner-authorized proposal with revision guard", Run: func(args []string) error { return route(deps, args) }},
 		},
 	}
+}
+
+func route(deps support.Dependencies, args []string) error {
+	fs := flag.NewFlagSet("route", flag.ContinueOnError)
+	input := fs.String("input", "", "Proposal JSON file")
+	sha := fs.String("expected-sha256", "", "Expected source hash")
+	key := fs.String("idempotency-key", "", "Stable request key")
+	authorization := fs.String("authorization", "", "Owner authorization marker")
+	dryRun := fs.Bool("dry-run", true, "Preview routing without accepting")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if *input == "" || *key == "" {
+		return fmt.Errorf("usage: route --input=proposal.json --idempotency-key=KEY [--expected-sha256=HASH] [--authorization=owner] [--dry-run]")
+	}
+	data, err := os.ReadFile(*input)
+	if err != nil {
+		return err
+	}
+	var proposal DispositionProposal
+	if err := json.Unmarshal(data, &proposal); err != nil {
+		return err
+	}
+	body, err := deps.ScenarioApp().Request("POST", "/knowledge/maintenance/route", nil, RouteRequest{Proposal: proposal, ExpectedSourceSha256: *sha, IdempotencyKey: *key, Authorization: *authorization, DryRun: *dryRun})
+	if err != nil {
+		return err
+	}
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+func proposals(deps support.Dependencies, args []string) error {
+	fs := flag.NewFlagSet("proposals", flag.ContinueOnError)
+	input := fs.String("input", "", "JSON file containing an inventory response")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*input) == "" {
+		return fmt.Errorf("usage: proposals --input=inventory.json")
+	}
+	data, err := os.ReadFile(*input)
+	if err != nil {
+		return err
+	}
+	var inventory InventoryResponse
+	if err := json.Unmarshal(data, &inventory); err != nil {
+		return err
+	}
+	body, err := deps.ScenarioApp().Request("POST", "/knowledge/maintenance/proposals", nil, ProposalRequest{Candidates: inventory.Candidates})
+	if err != nil {
+		return err
+	}
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+func inventory(deps support.Dependencies, args []string) error {
+	fs := flag.NewFlagSet("inventory", flag.ContinueOnError)
+	roots := fs.String("roots", "docs,scenarios", "Comma-separated repository-relative roots")
+	includes := fs.String("includes", "", "Optional comma-separated file globs")
+	excludes := fs.String("excludes", "", "Optional comma-separated file globs")
+	maxFiles := fs.Int("max-files", 100, "Maximum candidate records")
+	maxBytes := fs.Int64("max-bytes", 2<<20, "Maximum bytes read per candidate")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	body, err := deps.ScenarioApp().Request("POST", "/knowledge/maintenance/inventory", nil, InventoryRequest{Roots: support.SplitCSV(*roots), Includes: support.SplitCSV(*includes), Excludes: support.SplitCSV(*excludes), MaxFiles: *maxFiles, MaxBytes: *maxBytes})
+	if err != nil {
+		return err
+	}
+	cliutil.PrintJSON(body)
+	return nil
 }
 
 func graph(deps support.Dependencies, args []string) error {

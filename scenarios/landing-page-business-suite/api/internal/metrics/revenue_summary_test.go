@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func revenueQueryMatcher(expected, actual string) error {
@@ -24,13 +24,6 @@ func revenueQueryMatcher(expected, actual string) error {
 	}
 	return sqlmock.QueryMatcherRegexp.Match(expected, actual)
 }
-
-type fixedMetricsClock struct{ now time.Time }
-
-func (c fixedMetricsClock) Now() time.Time                        { return c.now }
-func (fixedMetricsClock) NewTimer(time.Duration) schedule.Timer   { return nil }
-func (fixedMetricsClock) NewTicker(time.Duration) schedule.Ticker { return nil }
-func (fixedMetricsClock) Sleep(time.Duration)                     {}
 
 func expectRevenueSummaryQueries(mock sqlmock.Sqlmock, mrr, today, window float64, active, trials, currencies, churned, creditBalance, creditBurned, usage int64, currency string) {
 	mock.ExpectQuery("revenue-subscriptions").WillReturnRows(
@@ -65,7 +58,7 @@ func TestRevenueSummaryAppliesDocumentedRollupSemantics(t *testing.T) {
 
 	expectRevenueSummaryQueries(mock, 2400.50, 1299.0, 9999.0, 2, 1, 2, 1, 500, 200, 8, "usd")
 	observedAt := time.Date(2026, 9, 3, 20, 0, 0, 0, time.UTC)
-	summary, err := NewServiceWithClock(db, fixedMetricsClock{now: observedAt}).GetRevenueSummary()
+	summary, err := NewServiceWithClock(db, scheduletest.New(observedAt)).GetRevenueSummary()
 	if err != nil {
 		t.Fatalf("GetRevenueSummary() error = %v", err)
 	}
@@ -100,7 +93,7 @@ func TestRevenueSummaryReturnsObservedZeroesForEmptyTenant(t *testing.T) {
 	defer db.Close()
 
 	expectRevenueSummaryQueries(mock, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "usd")
-	summary, err := NewServiceWithClock(db, fixedMetricsClock{now: time.Date(2026, 9, 3, 20, 0, 0, 0, time.UTC)}).GetRevenueSummary()
+	summary, err := NewServiceWithClock(db, scheduletest.New(time.Date(2026, 9, 3, 20, 0, 0, 0, time.UTC))).GetRevenueSummary()
 	if err != nil {
 		t.Fatalf("GetRevenueSummary() error = %v", err)
 	}

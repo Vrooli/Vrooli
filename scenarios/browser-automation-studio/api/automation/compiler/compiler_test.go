@@ -128,6 +128,34 @@ func TestCompileWorkflowWithScenarioRootResolvesGeneratedScenarioPort(t *testing
 	}
 }
 
+func TestCompileWorkflowWithScenarioRootResolvesSelfScenarioPort(t *testing.T) {
+	cli := scenarioport.NewMockScenarioCLI()
+	cli.Ports["device-control"] = map[string]int{"API_PORT": 16465}
+	restore := scenarioport.SetScenarioCLIForTests(cli)
+	defer restore()
+
+	route := "/flows"
+	workflow := makeTestWorkflow(uuid.New(), "self-flow", []*basworkflows.WorkflowNodeV2{{
+		Id: "navigate",
+		Action: &basactions.ActionDefinition{
+			Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+			Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{
+				DestinationType: ptr(basactions.NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO),
+				Scenario:        ptr("@scenario/self"),
+				ScenarioPath:    &route,
+			}},
+		},
+	}}, nil)
+
+	plan, err := CompileWorkflowWithOptions(workflow, &CompileOptions{ScenarioRoot: "/tmp/workspace/scenarios/device-control"})
+	if err != nil {
+		t.Fatalf("CompileWorkflowWithOptions: %v", err)
+	}
+	if got, want := plan.Steps[0].Action.GetNavigate().GetUrl(), "http://localhost:16465/flows"; got != want {
+		t.Fatalf("resolved self URL = %#v, want %q", got, want)
+	}
+}
+
 func TestCompileWorkflowDefersTargetOwnedScenarioURLResolution(t *testing.T) {
 	route := "/"
 	workflow := makeTestWorkflow(uuid.New(), "android-flow", []*basworkflows.WorkflowNodeV2{{

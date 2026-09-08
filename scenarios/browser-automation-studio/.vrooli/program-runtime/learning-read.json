@@ -18,7 +18,7 @@
     }
   },
   "assumptions": [
-    "Memory owns outcome-linked attempt measurements; absent or incomplete observations cannot establish improvement."
+    "lib.vrooli_memory.compare_outcomes owns cohort collection and validity; the consumer projects the seven BAS rows with cohort_limit=1."
   ],
   "invariants": [
     "One bounded envelope on every path",
@@ -28,7 +28,8 @@
   "bindings": [
     {
       "id": "vrooli-memory/learning/measure",
-      "effect": "read"
+      "effect": "read",
+      "via": "lib"
     }
   ],
   "outputs": {
@@ -50,7 +51,8 @@
       ]
     },
     "signals": {
-      "rows": "Rows for one exact comparison cohort; multiple cohorts require operation/context selectors and remain unreliable until narrowed."
+      "rows": "Rows with full cohort identities; multiple cohorts require operation/context selectors and remain unreliable until narrowed.",
+      "reliability": "Shared Memory reliability, scan counters, and cohort truncation; status and resolved inputs are preserved."
     },
     "errors": {
       "classes": [
@@ -86,26 +88,31 @@
         "other": true
       },
       "expect": {
-        "status": [
-          "failed"
-        ]
-      }
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
     },
     {
       "id": "live",
       "inputs": {},
       "expect": {
         "status": [
-          "ok"
+          "ok",
+          "partial"
         ]
       },
       "requires": [
         "vrooli-memory",
         "program-runtime"
       ],
-      "note": "Empty or unexercised samples are unreliable rows, not program execution failures."
+      "note": "Empty or unexercised samples preserve the shared partial status and unreliable rows."
     }
   ],
   "rung": "S3",
-  "owner_skill": "browser-automation-studio-improve"
+  "owner_skill": "browser-automation-studio-improve",
+  "verbs": [
+    "lib"
+  ]
 }

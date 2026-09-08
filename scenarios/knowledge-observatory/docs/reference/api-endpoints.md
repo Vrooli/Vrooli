@@ -46,6 +46,21 @@ Returns infrastructure health (API + dependency checks).
 [CODE: api/search.go]
 [CODE: api/internal/services/search/service.go]
 
+## Maintenance observation and routing
+
+`POST /api/v1/knowledge/maintenance/inventory` returns bounded candidate records
+with source hashes, owner hypotheses, artifact classifications, portability
+signals, and inspect/propose handles. It is read-only and reports truncation.
+
+`POST /api/v1/knowledge/maintenance/proposals` converts candidate records into
+review-only dispositions. Every proposal remains `proposed`, cites its source
+hash, names preservation obligations, and requires owner authorization.
+
+`POST /api/v1/knowledge/maintenance/route` returns a dry-run or owner-admission
+receipt. It refuses missing idempotency keys, stale source hashes, unresolved
+actions, and unauthorized non-dry-run requests. It does not mutate Knowledge
+Observatory or project artifacts.
+
 ## Health Metrics
 `GET /api/v1/knowledge/health`
 

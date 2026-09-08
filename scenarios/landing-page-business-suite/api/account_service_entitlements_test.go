@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -230,6 +231,52 @@ func TestAccountServiceEntitlementsIncludesFeatures(t *testing.T) {
 	}
 	if entitlements.Subscription == nil || entitlements.Subscription.GetStripePriceId() != "price_entitlements_plan" {
 		t.Fatalf("expected subscription payload to carry price id, got %+v", entitlements.Subscription)
+	}
+}
+
+func TestAccountServiceEntitlementsStayBoundToBusinessAccount(t *testing.T) {
+	db := setupTestDB(t)
+	email := "shared-person@example.com"
+	accountA := "business-account-a"
+	accountB := "business-account-b"
+
+	if _, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_email, business_account_id, status, plan_tier, created_at, updated_at)
+		VALUES ($1, $2, $3, 'active', 'pro', NOW(), NOW())
+	`, "sub-account-a", email, accountA); err != nil {
+		t.Fatalf("failed to seed account subscription: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO credit_wallets (customer_email, balance_credits, bonus_credits, updated_at)
+		VALUES ($1, 9000000, 900000, NOW())
+	`, email); err != nil {
+		t.Fatalf("failed to seed legacy person wallet: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO business_account_credit_wallets (business_account_id, customer_email, balance_credits, bonus_credits, updated_at)
+		VALUES ($1, $2, 1200000, 120000, NOW())
+	`, accountA, email); err != nil {
+		t.Fatalf("failed to seed account wallet: %v", err)
+	}
+
+	accountService := newAccountServiceWithTestPlanStore(t, db)
+	accountAEntitlements, err := accountService.GetEntitlementsForBusinessAccountContext(context.Background(), email, accountA)
+	if err != nil {
+		t.Fatalf("account A entitlements failed: %v", err)
+	}
+	if accountAEntitlements.Status != "active" || accountAEntitlements.Credits.BalanceCredits != 1200000 {
+		t.Fatalf("account A inherited the wrong commercial state: %+v", accountAEntitlements)
+	}
+
+	accountBEntitlements, err := accountService.GetEntitlementsForBusinessAccountContext(context.Background(), email, accountB)
+	if err != nil {
+		t.Fatalf("account B entitlements failed: %v", err)
+	}
+	if accountBEntitlements.Status != "inactive" {
+		t.Fatalf("account B inherited account A subscription: %+v", accountBEntitlements)
+	}
+	if accountBEntitlements.Credits.BalanceCredits != 0 {
+		t.Fatalf("account B inherited person/account credits: %+v", accountBEntitlements.Credits)
 	}
 }
 

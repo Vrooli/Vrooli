@@ -2,7 +2,6 @@ package control
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -23,6 +22,13 @@ func (s *Service) StartAgent(ctx context.Context, goal, deviceID, actor string, 
 }
 
 func (s *Service) StartAgentWithOptions(ctx context.Context, goal, deviceID, actor string, skillAvailable, dryRun bool) (AgentRun, error) {
+	return s.StartAgentWithPolicy(ctx, goal, deviceID, actor, skillAvailable, dryRun, internalflows.DefaultAgentPolicy(), false)
+}
+
+// StartAgentWithPolicy is the policy-aware entry point. Confirmation is an
+// operator decision supplied outside the model response; it cannot be granted
+// by a planner output.
+func (s *Service) StartAgentWithPolicy(ctx context.Context, goal, deviceID, actor string, skillAvailable, dryRun bool, policy internalflows.AgentPolicy, confirmed bool) (AgentRun, error) {
 	if !skillAvailable {
 		return AgentRun{}, fmt.Errorf("agent mode refused: prompt-manager device-control skill is unavailable")
 	}
@@ -46,12 +52,19 @@ func (s *Service) StartAgentWithOptions(ctx context.Context, goal, deviceID, act
 	appendChapter := func(id, disposition, message string) {
 		result.Chapters = append(result.Chapters, Chapter{ID: id, Title: "Agent " + id, Disposition: disposition, Message: message})
 	}
-	agentCtx, cancel := context.WithTimeout(ctx, maxAgentDuration)
+	duration := maxAgentDuration
+	if policy.MaxDurationMS > 0 && time.Duration(policy.MaxDurationMS)*time.Millisecond < duration {
+		duration = time.Duration(policy.MaxDurationMS) * time.Millisecond
+	}
+	agentCtx, cancel := context.WithTimeout(ctx, duration)
 	defer cancel()
 	s.mu.Lock()
 	planner := s.agentPlanner
 	s.mu.Unlock()
 	plannedSteps := []Step{}
+	planHashes := []string{}
+	promptHash := ""
+	policyHash, _ := internalflows.HashAgentPayload(policy)
 	state, stateErr := s.ReadDeviceState(agentCtx, deviceID)
 	if stateErr != nil && declaration.Capabilities[strategy.CapScreenshot].Status != strategy.StatusAvailable {
 		appendChapter("world-model-1", "failed", "typed device state unavailable: "+stateErr.Error())
@@ -61,15 +74,21 @@ func (s *Service) StartAgentWithOptions(ctx context.Context, goal, deviceID, act
 			appendChapter("world-model-state-1", "passed", "typed state unavailable; frame modality remains available")
 		}
 		completed := false
-		for iteration := 1; iteration <= maxAgentIterations && result.Disposition == "passed"; iteration++ {
+		iterationBudget := maxAgentIterations
+		if policy.MaxIterations > 0 && policy.MaxIterations < iterationBudget {
+			iterationBudget = policy.MaxIterations
+		}
+		for iteration := 1; iteration <= iterationBudget && result.Disposition == "passed"; iteration++ {
 			if err := agentCtx.Err(); err != nil {
 				result.Disposition = agentDispositionForContext(err)
 				appendChapter(fmt.Sprintf("budget-%d", iteration), "failed", err.Error())
 				break
 			}
-			worldModel := internalflows.AgentWorld{Goal: goal, Capabilities: declaration.Capabilities, StepKinds: strategy.StepKinds(declaration), State: state, FrameOptional: declaration.Capabilities[strategy.CapScreenshot].Status == strategy.StatusAvailable}
-			world, _ := json.Marshal(worldModel)
-			appendChapter(fmt.Sprintf("world-model-%d", iteration), "passed", string(world))
+			worldModel := internalflows.AgentWorld{Goal: goal, Capabilities: declaration.Capabilities, StepKinds: strategy.StepKinds(declaration), State: state, FrameOptional: declaration.Capabilities[strategy.CapScreenshot].Status == strategy.StatusAvailable, App: internalflows.AgentAppContext{ApplicationID: declaration.DeviceID, Revision: declaration.StrategyID}, Policy: policy}
+			if promptHash == "" {
+				promptHash, _ = internalflows.HashAgentPayload(worldModel)
+			}
+			appendChapter(fmt.Sprintf("world-model-%d", iteration), "passed", fmt.Sprintf("bounded world model captured; prompt_hash=%s policy_hash=%s", promptHash, policyHash))
 
 			var plan internalflows.AgentPlan
 			var planningErr error
@@ -85,14 +104,26 @@ func (s *Service) StartAgentWithOptions(ctx context.Context, goal, deviceID, act
 				result.Disposition = "failed"
 				break
 			}
+			if validationErr := internalflows.ValidateAgentPlan(plan, worldModel.StepKinds); validationErr != nil {
+				appendChapter(fmt.Sprintf("planning-%d", iteration), "failed", validationErr.Error()+"; no actuation executed")
+				result.Disposition = "failed"
+				break
+			}
+			if planHash, hashErr := internalflows.HashAgentPayload(plan); hashErr == nil {
+				planHashes = append(planHashes, planHash)
+			}
 			if plan.GoalMet {
 				appendChapter(fmt.Sprintf("goal-%d", iteration), "passed", "planner reported the goal satisfied")
 				completed = true
 				break
 			}
-			if plan.StepKind == "" {
-				appendChapter(fmt.Sprintf("planning-%d", iteration), "failed", "goal cannot be satisfied by the device's declared capabilities")
-				result.Disposition = "failed"
+			if policyErr := internalflows.AgentPolicyViolation(policy, plan, confirmed); policyErr != nil {
+				disposition := "failed"
+				if strings.Contains(policyErr.Error(), "confirmation required") {
+					disposition = "confirmation_required"
+				}
+				appendChapter(fmt.Sprintf("confirmation-%d", iteration), disposition, policyErr.Error()+"; no actuation executed")
+				result.Disposition = disposition
 				break
 			}
 			if !allowed[plan.StepKind] {
@@ -147,8 +178,8 @@ func (s *Service) StartAgentWithOptions(ctx context.Context, goal, deviceID, act
 				} else {
 					state, iterationErr = s.ReadDeviceState(agentCtx, deviceID)
 					if iterationErr == nil {
-						after, _ := json.Marshal(state)
-						appendChapter(fmt.Sprintf("iteration-%d", iteration), "passed", fmt.Sprintf("proposed=%s verdict=accepted actuation=completed causation_id=%s observed_state=%s", plan.StepKind, audit.CausationID, string(after)))
+						afterHash, _ := internalflows.HashAgentPayload(state)
+						appendChapter(fmt.Sprintf("iteration-%d", iteration), "passed", fmt.Sprintf("proposed=%s verdict=accepted actuation=completed causation_id=%s observed_state_hash=%s", plan.StepKind, audit.CausationID, afterHash))
 					}
 				}
 				if iterationErr != nil {
@@ -168,7 +199,7 @@ func (s *Service) StartAgentWithOptions(ctx context.Context, goal, deviceID, act
 			}
 		}
 		if result.Disposition == "passed" && !completed {
-			appendChapter("budget", "failed", fmt.Sprintf("agent step budget exhausted after %d iterations", maxAgentIterations))
+			appendChapter("budget", "failed", fmt.Sprintf("agent step budget exhausted after %d iterations", iterationBudget))
 			result.Disposition = "failed"
 		}
 	}
@@ -179,7 +210,10 @@ func (s *Service) StartAgentWithOptions(ctx context.Context, goal, deviceID, act
 	if result.Disposition != "passed" {
 		agentState = "failed"
 	}
-	agent := AgentRun{ID: uuid.NewString(), Goal: goal, DeviceID: deviceID, Actor: actor, State: agentState, Skill: "prompt-manager/device-control", Result: result, CreatedAt: time.Now().UTC(), DryRun: dryRun, PlannedSteps: plannedSteps}
+	if result.Disposition == "confirmation_required" {
+		agentState = "awaiting_confirmation"
+	}
+	agent := AgentRun{ID: uuid.NewString(), Goal: goal, DeviceID: deviceID, Actor: actor, State: agentState, Skill: "prompt-manager/device-control", Result: result, CreatedAt: time.Now().UTC(), DryRun: dryRun, PlanningRole: internalflows.AgentPlanRole, PromptHash: promptHash, PolicyHash: policyHash, PlanHashes: append([]string(nil), planHashes...), PlannedSteps: plannedSteps}
 	s.mu.Lock()
 	s.agents[agent.ID] = agent
 	s.mu.Unlock()

@@ -3,8 +3,8 @@ package monetization
 import (
 	"context"
 	"database/sql"
+	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -12,11 +12,11 @@ import (
 )
 
 func TestLiveMonetizationManifestConforms(t *testing.T) {
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test location")
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("resolve monetization test workspace: %v", err)
 	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..", ".."))
+	root := filepath.Clean(filepath.Join(workingDir, "../../../../../"))
 	for _, scenario := range []string{"landing-page-business-suite"} {
 		findings := scan(filepath.Join(root, "scenarios", scenario))
 		for _, finding := range findings {

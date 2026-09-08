@@ -198,6 +198,11 @@ export const strings = {
       title: "pages.dashboard.title",
     },
     execution: {
+      outcomeSummary: "pages.execution.outcomeSummary",
+      outcomeEvidence: "pages.execution.outcomeEvidence",
+      outcomeLimitations: "pages.execution.outcomeLimitations",
+      unmetOutcomes: "pages.execution.unmetOutcomes",
+      outcomeHelp: "pages.execution.outcomeHelp",
       baselineSetCoverage: "pages.execution.baselineSetCoverage",
       baselineSetHeading: "pages.execution.baselineSetHeading",
       baselineSetMembers: "pages.execution.baselineSetMembers",

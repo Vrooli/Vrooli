@@ -22,6 +22,7 @@ import (
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/automation/state"
 	"github.com/vrooli/browser-automation-studio/config"
+	credentialuse "github.com/vrooli/browser-automation-studio/internal/credentialuse"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
@@ -362,6 +363,10 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			}
 			session = s
 		}
+		instruction.Action, err = resolveRuntimeSelectors(instruction.Action, execState)
+		if err != nil {
+			return session, fmt.Errorf("resolve selector: %w", err)
+		}
 		instruction = e.interpolateInstruction(instruction, execState)
 		instrStepType = InstructionStepType(instruction) // Refresh after interpolation
 		instruction, err = rewriteAppTargetScenarioNavigation(instruction, spec.AppTarget)
@@ -533,6 +538,13 @@ func (e *SimpleExecutor) validateRequest(req Request) error {
 	// Validate WorkflowResolver is provided if plan contains external subflow references
 	if err := e.validateSubflowResolver(req); err != nil {
 		return err
+	}
+	if policy := req.CredentialPolicy; policy != nil {
+		for _, instruction := range req.Plan.Instructions {
+			if err := credentialuse.ValidateAction(policy, instruction.Action, policy.GetOrigin(), policy.GetDocumentId()); err != nil {
+				return fmt.Errorf("credential browser action %q rejected: %w", instruction.NodeID, err)
+			}
+		}
 	}
 
 	return nil

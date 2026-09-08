@@ -6,16 +6,21 @@ package middleware
 import (
 	"log"
 	"net/http"
-
-	"github.com/vrooli/api-core/schedule"
+	"time"
 )
+
+// Clock is the smallest time dependency this middleware needs. The richer
+// api-core/schedule.Clock remains assignable to it at the composition root.
+type Clock interface {
+	Now() time.Time
+}
 
 // NewLoggingMiddleware returns a middleware that logs each request's
 // method, URI, and elapsed duration. Time is read from the injected
 // Clock so tests using scheduletest.FakeClock can assert exact durations
 // without depending on the wall schedule. Logger defaults to log.Default()
 // when nil; tests inject a buffer-backed *log.Logger to capture output.
-func NewLoggingMiddleware(clk schedule.Clock, logger *log.Logger) func(http.Handler) http.Handler {
+func NewLoggingMiddleware(clk Clock, logger *log.Logger) func(http.Handler) http.Handler {
 	if logger == nil {
 		logger = log.Default()
 	}

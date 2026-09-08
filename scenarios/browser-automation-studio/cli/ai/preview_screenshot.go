@@ -24,6 +24,9 @@ type previewScreenshotFlags struct {
 	device         string
 	deviceScale    float64
 	hasDeviceScale bool
+	waitFor        string
+	waitUntil      string
+	settleMs       int
 }
 
 func previewScreenshotCommand(core *cliapp.ScenarioApp) cliapp.Command {
@@ -37,6 +40,9 @@ func previewScreenshotCommand(core *cliapp.ScenarioApp) cliapp.Command {
 			{Name: "height", Description: "Viewport height in CSS pixels"},
 			{Name: "device", Description: "Viewport preset: mobile (390x844), tablet (768x1024), desktop (1440x900)"},
 			{Name: "device-scale-factor", Description: "Browser device scale factor (0.5-4.0)"},
+			{Name: "wait-for", Description: "CSS selector that must exist before capture"},
+			{Name: "wait-until", Description: "Navigation readiness: load|domcontentloaded|networkidle"},
+			{Name: "settle-ms", Description: "Fixed delay after readiness (0-15000 ms)"},
 		}},
 		RunCtx: func(rc cliapp.RunContext) error {
 			flags, err := previewScreenshotFlagsFromContext(rc)
@@ -69,7 +75,17 @@ func previewScreenshotCommand(core *cliapp.ScenarioApp) cliapp.Command {
 }
 
 func previewScreenshotFlagsFromContext(rc cliapp.RunContext) (previewScreenshotFlags, error) {
-	f := previewScreenshotFlags{url: strings.TrimSpace(rc.Flag("url")), device: strings.ToLower(strings.TrimSpace(rc.Flag("device")))}
+	f := previewScreenshotFlags{url: strings.TrimSpace(rc.Flag("url")), device: strings.ToLower(strings.TrimSpace(rc.Flag("device"))), waitFor: strings.TrimSpace(rc.Flag("wait-for")), waitUntil: strings.ToLower(strings.TrimSpace(rc.Flag("wait-until")))}
+	if f.waitUntil != "" && f.waitUntil != "load" && f.waitUntil != "domcontentloaded" && f.waitUntil != "networkidle" {
+		return f, fmt.Errorf("--wait-until must be load, domcontentloaded, or networkidle")
+	}
+	if value := rc.Flag("settle-ms"); value != "" {
+		settle, err := strconv.Atoi(value)
+		if err != nil || settle < 0 || settle > 15000 {
+			return f, fmt.Errorf("--settle-ms must be between 0 and 15000")
+		}
+		f.settleMs = settle
+	}
 	if value := rc.Flag("width"); value != "" {
 		width, err := strconv.Atoi(value)
 		if err != nil {
@@ -117,6 +133,16 @@ func buildPreviewScreenshotRequest(flags previewScreenshotFlags) (*aiv1.TakePrev
 		return nil, fmt.Errorf("--device-scale-factor must be between 0.5 and 4.0")
 	}
 	request := &aiv1.TakePreviewScreenshotRequest{Url: flags.url}
+	request.WaitFor = flags.waitFor
+	request.SettleMs = int32(flags.settleMs)
+	switch flags.waitUntil {
+	case "domcontentloaded":
+		request.WaitUntil = aiv1.WaitUntil_WAIT_UNTIL_DOMCONTENTLOADED
+	case "networkidle":
+		request.WaitUntil = aiv1.WaitUntil_WAIT_UNTIL_NETWORKIDLE
+	default:
+		request.WaitUntil = aiv1.WaitUntil_WAIT_UNTIL_LOAD
+	}
 	if width != 0 || flags.hasDeviceScale {
 		request.Viewport = &aiv1.Viewport{Width: int32(width), Height: int32(height)}
 		if flags.hasDeviceScale {

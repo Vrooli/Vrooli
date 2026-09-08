@@ -679,17 +679,24 @@ func TestValidationTicketUsesCanonicalReceiptWithoutProducerCommandWall(t *testi
 	require.Equal(t, "receipt-1", op.ID)
 	require.Empty(t, op.Children, "Plan Manager must not own producer child commands")
 	require.Equal(t, []string{"test-genie", "validation", "wait", "--wait-id", "plan-manager-receipt-1", "receipt-1", "--json"}, op.ProducerWaitArgv)
-	require.Equal(t, validationv1.ValidationStrength_VALIDATION_STRENGTH_CERTIFICATION, receipts.intent.GetRequiredStrength())
-	require.Equal(t, validationv1.ValidationPurpose_VALIDATION_PURPOSE_CERTIFICATION, receipts.intent.GetPurpose())
+	require.Equal(t, validationv1.ValidationStrength_VALIDATION_STRENGTH_TARGETED, receipts.intent.GetRequiredStrength())
+	require.Equal(t, validationv1.ValidationPurpose_VALIDATION_PURPOSE_PHASE, receipts.intent.GetPurpose())
+	require.False(t, receipts.intent.GetEvidencePolicy().GetRequireBehavioralBefore())
 	require.Len(t, receipts.intent.GetTargets(), 1)
 	require.NotEmpty(t, receipts.intent.GetContentInputs())
 
 	receipts.receipt = &validationv1.ValidationReceipt{ReceiptId: "receipt-1", LineageId: "lineage-1", State: validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED, AchievedStrength: validationv1.ValidationStrength_VALIDATION_STRENGTH_CERTIFICATION, ReasonCode: validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_NONE, Detail: "certified"}
+	observed, err := svc.GetValidationOperation(context.Background(), op.ID)
+	require.NoError(t, err)
+	require.True(t, observed.Terminal())
 	op, err = svc.SyncValidation(context.Background(), op.ID)
 	require.NoError(t, err)
 	require.True(t, op.Terminal())
 	require.Equal(t, validation.VerdictPass, op.Result.Verdict)
 	require.Equal(t, 3, op.Result.ScopeGeneration)
+	_, persisted, err := store.GetResult(context.Background(), op.Result.ID)
+	require.NoError(t, err)
+	require.True(t, persisted, "read-before-sync must not orphan terminal evidence")
 }
 
 func TestPhaseReceiptUsesDeclaredChecksWithoutImplicitComprehensiveComparison(t *testing.T) {
@@ -706,8 +713,72 @@ func TestPhaseReceiptUsesDeclaredChecksWithoutImplicitComprehensiveComparison(t 
 	require.Empty(t, receipts.intent.GetBehavioralPrior())
 	_, _, err = svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{PlanID: "p1", IdempotencyKey: "final"})
 	require.NoError(t, err)
+	require.False(t, receipts.intent.GetEvidencePolicy().GetRequireBehavioralBefore(), "ordinary final validation does not imply comparison")
+}
+
+func TestAdvisoryPhaseValidationAllowsScenarioOutsideIncompleteBaseline(t *testing.T) {
+	plan := durableValidationPlan()
+	plan.CompletionPolicy = planmodel.CompletionPolicy{Mode: "advisory"}
+	plan.Phases = []internalplans.Phase{{
+		ID:    "phase-bar",
+		Title: "Focused bar validation",
+		ValidationScope: planmodel.ValidationScope{
+			Mode:     planmodel.ValidationScopeNarrow,
+			Boundary: internalplans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/bar/**"}},
+		},
+	}}
+	store := newFakeDurableStore()
+	receipts := &fakeReceiptClient{}
+	svc := validation.NewService(validation.Deps{
+		Plans:       fakePlans{plan: plan},
+		Operations:  store,
+		Results:     store,
+		Receipts:    receipts,
+		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "impl", ScenarioTargets: []string{"foo"}, Complete: false}, ok: true},
+	})
+
+	op, _, err := svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{
+		PlanID: "p1", PhaseID: "phase-bar", ExecutionID: "exec-1", IdempotencyKey: "advisory-bar",
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, op.ID)
+	require.Equal(t, validationv1.ValidationPurpose_VALIDATION_PURPOSE_PHASE, receipts.intent.GetPurpose())
+	require.False(t, receipts.intent.GetEvidencePolicy().GetRequireBehavioralBefore())
+	require.Len(t, receipts.intent.GetTargets(), 1)
+	require.Equal(t, "bar", receipts.intent.GetTargets()[0].GetId())
+}
+
+func TestBehavioralComparisonStillRejectsScenarioOutsideIncompleteBaseline(t *testing.T) {
+	plan := durableValidationPlan()
+	plan.Phases = []internalplans.Phase{{
+		ID: "phase-bar",
+		ValidationScope: planmodel.ValidationScope{
+			Mode:            planmodel.ValidationScopeNarrow,
+			Boundary:        internalplans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/bar/**"}},
+			CompareBehavior: true,
+		},
+	}}
+	svc := validation.NewService(validation.Deps{
+		Plans:       fakePlans{plan: plan},
+		Operations:  newFakeDurableStore(),
+		Receipts:    &fakeReceiptClient{},
+		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "impl", ScenarioTargets: []string{"foo"}, Complete: false}, ok: true},
+	})
+
+	_, _, err := svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{PlanID: "p1", PhaseID: "phase-bar", IdempotencyKey: "compare-bar"})
+	require.ErrorContains(t, err, "outside captured baseline inventory")
+}
+
+func TestExplicitCertificationRetainsRequiredEvidence(t *testing.T) { // [REQ:PM-VALID-005]
+	plan := durableValidationPlan()
+	plan.CompletionPolicy = planmodel.CompletionPolicy{Mode: "certification", Reason: "release approval"}
+	receipts := &fakeReceiptClient{}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}, Operations: newFakeDurableStore(), Receipts: receipts})
+	_, _, err := svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{PlanID: "p1"})
+	require.NoError(t, err)
+	require.Equal(t, validationv1.ValidationPurpose_VALIDATION_PURPOSE_CERTIFICATION, receipts.intent.GetPurpose())
 	require.True(t, receipts.intent.GetEvidencePolicy().GetRequireBehavioralBefore())
-	require.Empty(t, receipts.intent.GetPhases(), "phase selections must never narrow certification")
+	require.Empty(t, receipts.intent.GetPhases())
 }
 
 func TestValidationTicketSeparatesNewAttemptsFromExplicitRetries(t *testing.T) { // [REQ:PM-VALID-005]
@@ -749,6 +820,7 @@ func TestExecutionBoundValidationProjectsAdoptedInventoryIntoReceipt(t *testing.
 	store := newFakeDurableStore()
 	receipts := &fakeReceiptClient{}
 	plan := durableValidationPlan()
+	plan.CompletionPolicy = planmodel.CompletionPolicy{Mode: "certification", Reason: "Adopted inventory certification"}
 	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "authored-before", ScenarioTargets: []string{"foo", "bar"}}
 	svc := validation.NewService(validation.Deps{
 		Plans: fakePlans{plan: plan}, Operations: store, Results: store, Receipts: receipts,

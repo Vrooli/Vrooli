@@ -9,11 +9,10 @@ import (
 	"time"
 
 	"device-control/internal/capabilities"
+	internalclock "device-control/internal/clock"
 	internalflows "device-control/internal/flows"
 	"device-control/internal/modules"
 	"device-control/internal/server"
-
-	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -95,7 +94,7 @@ func main() {
 	defer stopDesktop()
 
 	srv := server.New(
-		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		server.Deps{Clock: internalclock.System(), Logger: log.Default()},
 		healthH.Module(db, "device-control-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		controlH.Module(controlService),

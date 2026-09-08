@@ -17,7 +17,7 @@ envelope = {
     "inputs": {"flow_nodes": len((flow or {}).get("nodes", [])) if isinstance(flow, dict) else None,
                "name": name, "folder": folder},
     "signals": {"valid": None, "validation_errors": None, "validation_warnings": None, "node_count": None,
-                "execution_id": None, "execution_status": None, "outcome": None, "persistable": False,
+                "execution_id": None, "execution_status": None, "outcome": "unknown", "persistable": False,
                 "workflow_id": None, "version": None},
     "errors": [], "evidence": [],
 }
@@ -135,9 +135,25 @@ def step_act():  # ACT · one ad hoc execution with wait
     if not r.get("executionId"):
         return fail("failed", "invalid_response", "Execution evidence identity missing", "act")
     if r.get("status") != "EXECUTION_STATUS_COMPLETED":
-        envelope["signals"]["outcome"] = "failed"
+        if r.get("status") == "EXECUTION_STATUS_FAILED":
+            envelope["signals"]["outcome"] = "failed"
         return fail("failed", classify_failure(r.get("error")), r.get("error") or f"status {r.get('status')}", "act")
-    envelope["signals"]["outcome"] = "passed"
+    # Validation requires an assertion, but only execution telemetry proves it ran.
+    assertions_verified = False
+    try:
+        timeline = browser_automation_studio.executions.timeline(execution_id=r["executionId"], rows="entries")
+        entries = timeline.head(200)
+        assertions = [e for e in entries if (e.get("action") or {}).get("type") == "ACTION_TYPE_ASSERT"]
+        assertions_verified = bool(assertions) and timeline.count() == len(entries) and all(
+            (e.get("aggregates") or {}).get("status") == "STEP_STATUS_COMPLETED"
+            for e in entries) and all(
+            (e.get("aggregates") or {}).get("status") == "STEP_STATUS_COMPLETED"
+            and ((e.get("context") or {}).get("assertion") or {}).get("success") is True
+            for e in assertions) and not any((e.get("context") or {}).get("error")
+                or (e.get("aggregates") or {}).get("status") == "STEP_STATUS_FAILED" for e in entries)
+    except Exception as exc:
+        status, klass = classify_transport(exc)
+        envelope["errors"].append({"class":klass,"detail":"Assertion evidence unavailable","where":"act:verify"})
     envelope["signals"]["persistable"] = True
     try:
         if workflow_id:
@@ -156,7 +172,9 @@ def step_act():  # ACT · one ad hoc execution with wait
         envelope["signals"]["workflow_id"] = saved["id"]
         envelope["signals"]["version"] = saved["version"]
         envelope["evidence"].append("workflow:" + saved["id"] + ":" + str(saved["version"]))
-        envelope["status"] = "ok"
+        envelope["status"] = "partial" if envelope["errors"] else "ok"
+        if assertions_verified and not envelope["errors"]:
+            envelope["signals"]["outcome"] = "verified_success"
     except Exception as exc:
         status, klass = classify_transport(exc)
         return fail(status, klass, exc, "act:persist")

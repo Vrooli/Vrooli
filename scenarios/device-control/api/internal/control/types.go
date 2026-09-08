@@ -2,6 +2,7 @@ package control
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	auditdomain "device-control/internal/audit"
@@ -41,18 +42,29 @@ type Device struct {
 func deviceFromRecord(record devicedomain.Record) Device {
 	capabilities := make([]strategy.Capability, len(record.Capabilities))
 	copy(capabilities, record.Capabilities)
-	kind := ""
+	kind := record.Kind
+	// Retained identities can outlive the transport observation that created
+	// them. Re-derive the stable kind from an unambiguous strategy/serial pair
+	// so a disconnected emulator or desktop does not regress to a physical
+	// device in the API after restart.
+	if record.StrategyID == "android-adb" && strings.HasPrefix(strings.ToLower(strings.TrimSpace(record.Serial)), "emulator-") {
+		kind = "emulator"
+	}
+	if record.StrategyID == "host-desktop" {
+		kind = "desktop"
+	}
+	onboardingKind := ""
 	if record.StrategyID == "android-adb" {
-		kind = "android"
+		onboardingKind = "android"
 	} else if record.StrategyID == "android-tv-remote" || record.StrategyID == "google-cast" {
-		kind = "google-tv"
+		onboardingKind = "google-tv"
 	}
 	health, healthReason := devicedomain.AggregateHealth(record, time.Now().UTC(), 15*time.Minute)
 	status := record.Status
 	if status == "" || status == "available" {
 		status = health
 	}
-	return Device{ID: record.ID, IdentityKey: record.IdentityKey, Claims: append([]identitydomain.IdentityClaim(nil), record.Claims...), IdentityReason: record.IdentityReason, Name: record.Name, Kind: record.Kind, OnboardingKind: kind, Serial: record.Serial, Endpoint: record.Endpoint, Model: record.Model, OSVersion: record.OSVersion, StrategyID: record.StrategyID, Status: status, Health: health, HealthReason: healthReason, HostNodeID: record.HostNodeID, Transport: record.Transport, Capabilities: capabilities, Properties: append([]strategy.PropertyDescriptor(nil), record.Properties...), Transports: append([]strategy.DeviceTransport(nil), record.Transports...), ObservedAt: record.ObservedAt, FirstSeenAt: record.FirstSeenAt, LastSeenAt: record.LastSeenAt}
+	return Device{ID: record.ID, IdentityKey: record.IdentityKey, Claims: append([]identitydomain.IdentityClaim(nil), record.Claims...), IdentityReason: record.IdentityReason, Name: record.Name, Kind: kind, OnboardingKind: onboardingKind, Serial: record.Serial, Endpoint: record.Endpoint, Model: record.Model, OSVersion: record.OSVersion, StrategyID: record.StrategyID, Status: status, Health: health, HealthReason: healthReason, HostNodeID: record.HostNodeID, Transport: record.Transport, Capabilities: capabilities, Properties: append([]strategy.PropertyDescriptor(nil), record.Properties...), Transports: append([]strategy.DeviceTransport(nil), record.Transports...), ObservedAt: record.ObservedAt, FirstSeenAt: record.FirstSeenAt, LastSeenAt: record.LastSeenAt}
 }
 
 type (
@@ -76,12 +88,18 @@ type (
 	GapReport  = executiondomain.GapReport
 	Chapter    = executiondomain.Chapter
 	Resolution = executiondomain.Resolution
+	Condition  = executiondomain.Condition
+	RunBinding = executiondomain.RunBinding
 	RunResult  = executiondomain.RunResult
 	AgentRun   struct {
 		ID, Goal, DeviceID, Actor, State, Skill string
 		Result                                  RunResult `json:"result"`
 		CreatedAt                               time.Time `json:"created_at"`
 		DryRun                                  bool      `json:"dry_run,omitempty"`
+		PlanningRole                            string    `json:"planning_role,omitempty"`
+		PromptHash                              string    `json:"prompt_hash,omitempty"`
+		PolicyHash                              string    `json:"policy_hash,omitempty"`
+		PlanHashes                              []string  `json:"plan_hashes,omitempty"`
 		PromotedFlowID                          string    `json:"promoted_flow_id,omitempty"`
 		PlannedSteps                            []Step    `json:"-"`
 	}

@@ -19,7 +19,7 @@
             },
             {
               "name": "capture",
-              "description": "Comma-separated artifact types: screenshot,console-logs,network,video,dom,performance,accessibility",
+              "description": "Comma-separated artifact types: screenshot,console-logs,network,video,dom,dom-tree,performance,accessibility",
               "bind": {
                 "field": "captures"
               }
@@ -63,6 +63,20 @@
               "name": "inline-accessibility",
               "bool": true,
               "description": "Return the normalized accessibility-tree snapshot JSON inline (drives the AX capture; independent of --capture)"
+            },
+            {
+              "name": "inline-computed-style",
+              "bool": true,
+              "description": "Include resolved CSS properties in the inline accessibility snapshot"
+            },
+            {
+              "name": "inline-dom-tree",
+              "bool": true,
+              "description": "Return a computed DOM-tree JSON artifact from the same page load"
+            },
+            {
+              "name": "direction",
+              "description": "Document direction: ltr or rtl"
             },
             {
               "name": "dry-run",
@@ -2529,6 +2543,18 @@
             {
               "name": "device-scale-factor",
               "description": "Browser device scale factor (0.5-4.0)"
+            },
+            {
+              "name": "wait-for",
+              "description": "CSS selector that must exist before capture"
+            },
+            {
+              "name": "wait-until",
+              "description": "Navigation readiness: load|domcontentloaded|networkidle"
+            },
+            {
+              "name": "settle-ms",
+              "description": "Fixed delay after readiness (0-15000 ms)"
             }
           ],
           "binding": {
@@ -2664,6 +2690,33 @@
               "name": "url",
               "required": true,
               "description": "Target URL"
+            },
+            {
+              "name": "wait-for",
+              "description": "CSS selector that must exist before the DOM snapshot",
+              "bind": { "field": "wait_for" }
+            },
+            {
+              "name": "wait-until",
+              "description": "Navigation readiness: load|domcontentloaded|networkidle",
+              "bind": { "field": "wait_until" }
+            },
+            {
+              "name": "settle-ms",
+              "description": "Fixed delay after readiness (0-15000 ms)",
+              "bind": { "field": "settle_ms" }
+            },
+            {
+              "name": "computed",
+              "description": "Include computed styles and geometry (default true)",
+              "default": "true",
+              "bind": { "field": "computed" }
+            },
+            {
+              "name": "max-nodes",
+              "description": "Maximum DOM element nodes to return (1-4000)",
+              "default": "4000",
+              "bind": { "field": "max_nodes" }
             }
           ],
           "binding": {

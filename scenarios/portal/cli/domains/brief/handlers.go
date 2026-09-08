@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	briefv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/brief"
 	briefconnect "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/brief/brief_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/shared"
 )
 
 type handlers struct {
@@ -69,7 +70,8 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) list(ctx cliapp.RunContext) error {
-	resp, err := h.client.List(context.Background(), connect.NewRequest(&briefv1.ListBriefsRequest{Consumer: parseConsumer(ctx.Flag("consumer")), ChatId: ctx.Flag("chat-id"), SessionRef: ctx.Flag("session-ref"), Limit: parseInt32(ctx.Flag("limit"))}))
+	consumer := listConsumer(ctx.Flag("consumer"))
+	resp, err := h.client.List(context.Background(), connect.NewRequest(&briefv1.ListBriefsRequest{Consumer: consumer, ChatId: ctx.Flag("chat-id"), SessionRef: ctx.Flag("session-ref"), Limit: parseInt32(ctx.Flag("limit"))}))
 	if err != nil {
 		return cliapp.WrapAPIError("list context briefs", err, nil)
 	}
@@ -83,6 +85,13 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		fmt.Fprintf(ctx.Stdout(), "%s %s %s %s\n", brief.GetId(), brief.GetConsumer().String(), brief.GetVerdict().String(), brief.GetReason())
 	}
 	return nil
+}
+
+func listConsumer(value string) briefv1.BriefConsumer {
+	if strings.TrimSpace(value) == "" {
+		return briefv1.BriefConsumer_BRIEF_CONSUMER_UNSPECIFIED
+	}
+	return parseConsumer(value)
 }
 
 func (h *handlers) recordUse(ctx cliapp.RunContext) error {
@@ -178,35 +187,118 @@ func parseInt32(value string) int32 {
 }
 
 type hookEvent struct {
-	Prompt string `json:"prompt"`
+	Prompt            string `json:"prompt"`
+	SessionID         string `json:"session_id"`
+	SessionIDCamel    string `json:"sessionId"`
+	ConversationID    string `json:"conversation_id"`
+	ConversationCamel string `json:"conversationId"`
 }
 
-func (h *handlers) hook(ctx cliapp.RunContext) error {
+func (h *handlers) hook(ctx cliapp.RunContext) (err error) {
 	// Hook stdout is a host protocol. Every malformed or unavailable path is a
 	// successful no-op so the host never renders a hook error to the operator.
+	runtime := strings.TrimSpace(ctx.Flag("runtime"))
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			writeHookLog(runtime, "panic")
+			err = nil
+		}
+	}()
 	var event hookEvent
 	if err := json.NewDecoder(os.Stdin).Decode(&event); err != nil || strings.TrimSpace(event.Prompt) == "" {
+		writeHookLog(runtime, "noop:malformed-or-empty-input")
 		return nil
 	}
+	sessionRef := firstNonEmpty(event.SessionID, event.SessionIDCamel, event.ConversationID, event.ConversationCamel)
 	requestCtx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
 	response, err := h.client.Build(requestCtx, connect.NewRequest(&briefv1.BuildBriefRequest{
-		Prompt:   event.Prompt,
-		Consumer: briefv1.BriefConsumer_BRIEF_CONSUMER_EXTERNAL_HARNESS,
-		BudgetMs: 3800,
+		Prompt:     event.Prompt,
+		Consumer:   briefv1.BriefConsumer_BRIEF_CONSUMER_EXTERNAL_HARNESS,
+		Harness:    harnessForRuntime(runtime),
+		SessionRef: sessionRef,
+		BudgetMs:   3800,
 	}))
 	if err != nil || response == nil || response.Msg == nil || response.Msg.GetBrief() == nil {
+		writeHookLog(runtime, "noop:portal-unavailable-or-timeout")
 		return nil
 	}
 	brief := response.Msg.GetBrief()
 	if brief.GetVerdict() != briefv1.BriefVerdict_BRIEF_VERDICT_DELIVER || strings.TrimSpace(brief.GetRendered()) == "" {
+		writeHookLog(runtime, "noop:"+brief.GetVerdict().String())
 		return nil
 	}
 	payload := map[string]any{"hookSpecificOutput": map[string]string{
 		"hookEventName":     "UserPromptSubmit",
 		"additionalContext": brief.GetRendered(),
 	}}
-	return json.NewEncoder(ctx.Stdout()).Encode(payload)
+	if err := json.NewEncoder(ctx.Stdout()).Encode(payload); err != nil {
+		writeHookLog(runtime, "noop:stdout-write-failed")
+	}
+	return nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func harnessForRuntime(runtime string) sharedv1.AgentHarness {
+	switch strings.ToLower(strings.TrimSpace(runtime)) {
+	case "claude-code":
+		return sharedv1.AgentHarness_AGENT_HARNESS_CLAUDE_CODE
+	case "codex":
+		return sharedv1.AgentHarness_AGENT_HARNESS_CODEX
+	case "grok":
+		return sharedv1.AgentHarness_AGENT_HARNESS_GROK
+	case "antigravity":
+		return sharedv1.AgentHarness_AGENT_HARNESS_ANTIGRAVITY
+	case "opencode":
+		return sharedv1.AgentHarness_AGENT_HARNESS_OPENCODE
+	default:
+		return sharedv1.AgentHarness_AGENT_HARNESS_UNSPECIFIED
+	}
+}
+
+func writeHookLog(runtime, status string) {
+	path, err := hookLogPath(runtime)
+	if err != nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return
+	}
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	_, _ = fmt.Fprintf(file, "%s %s\n", time.Now().UTC().Format(time.RFC3339Nano), status)
+}
+
+func hookLogPath(runtime string) (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	switch strings.ToLower(strings.TrimSpace(runtime)) {
+	case "claude-code":
+		return filepath.Join(home, ".claude", ".vrooli-hooks", "brief.log"), nil
+	case "codex":
+		return filepath.Join(home, ".codex", ".vrooli-hooks", "brief.log"), nil
+	case "grok":
+		return filepath.Join(home, ".grok", ".vrooli-hooks", "brief.log"), nil
+	case "antigravity":
+		return filepath.Join(home, ".antigravity", ".vrooli-hooks", "brief.log"), nil
+	case "opencode":
+		return filepath.Join(home, ".config", "opencode", ".vrooli-hooks", "brief.log"), nil
+	default:
+		return "", fmt.Errorf("unknown runtime %q", runtime)
+	}
 }
 
 func (h *handlers) hooks(ctx cliapp.RunContext) error {
@@ -222,7 +314,12 @@ func (h *handlers) hooks(ctx cliapp.RunContext) error {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(ctx.Stdout(), "%s UserPromptSubmit supported=%t can_inject_context=%t verified_by=%s reason=%s\n", name, capability.Supported, capability.CanInjectContext, capability.VerifiedBy, capability.Reason)
+			installed, installErr := hookInstalled(name)
+			if installErr != nil {
+				fmt.Fprintf(ctx.Stdout(), "%s UserPromptSubmit supported=%t can_inject_context=%t verified_by=%s installed=unknown reason=%s (%v)\n", name, capability.Supported, capability.CanInjectContext, capability.VerifiedBy, capability.Reason, installErr)
+				continue
+			}
+			fmt.Fprintf(ctx.Stdout(), "%s UserPromptSubmit supported=%t can_inject_context=%t verified_by=%s installed=%t reason=%s\n", name, capability.Supported, capability.CanInjectContext, capability.VerifiedBy, installed, capability.Reason)
 		}
 		return nil
 	}
@@ -236,8 +333,7 @@ func (h *handlers) hooks(ctx cliapp.RunContext) error {
 	switch action {
 	case "install":
 		if !capability.Supported || !capability.CanInjectContext || capability.VerifiedBy != "canary" {
-			fmt.Fprintf(ctx.Stdout(), "refused: runtime %s UserPromptSubmit is not canary-verified (supported=%t can_inject_context=%t verified_by=%q reason=%s)\n", runtime, capability.Supported, capability.CanInjectContext, capability.VerifiedBy, capability.Reason)
-			return nil
+			return fmt.Errorf("refused: runtime %s UserPromptSubmit is not canary-verified (supported=%t can_inject_context=%t verified_by=%q reason=%s)", runtime, capability.Supported, capability.CanInjectContext, capability.VerifiedBy, capability.Reason)
 		}
 		return reconcileHook(ctx, runtime)
 	case "remove":
@@ -261,14 +357,15 @@ func repoRoot() (string, error) {
 		return "", err
 	}
 	for {
-		if _, statErr := os.Stat(filepath.Join(dir, ".vrooli")); statErr == nil {
-			return dir, nil
+		if _, vrooliErr := os.Stat(filepath.Join(dir, ".vrooli")); vrooliErr == nil {
+			if _, resourcesErr := os.Stat(filepath.Join(dir, "resources", "claude-code", "resource.json")); resourcesErr == nil {
+				return dir, nil
+			}
 		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
+		if dir == filepath.Dir(dir) {
 			return "", fmt.Errorf("could not locate Vrooli repository root")
 		}
-		dir = parent
+		dir = filepath.Dir(dir)
 	}
 }
 
@@ -294,8 +391,32 @@ func removeHook(ctx cliapp.RunContext, runtime string) error {
 }
 
 func hookScope(runtime string) string {
-	if runtime == "grok" {
+	switch runtime {
+	case "codex", "grok", "antigravity", "opencode":
 		return "user"
+	default:
+		return "global"
 	}
-	return "global"
+}
+
+func hookInstalled(runtime string) (bool, error) {
+	command := exec.Command("resource-"+runtime, "hooks", "list", "--scope", hookScope(runtime))
+	output, err := command.Output()
+	if err != nil {
+		return false, err
+	}
+	var response struct {
+		Hooks []struct {
+			ID string `json:"id"`
+		} `json:"hooks"`
+	}
+	if err := json.Unmarshal(output, &response); err != nil {
+		return false, err
+	}
+	for _, hook := range response.Hooks {
+		if hook.ID == "portal-context-brief" {
+			return true, nil
+		}
+	}
+	return false, nil
 }

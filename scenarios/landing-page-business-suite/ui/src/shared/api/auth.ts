@@ -136,6 +136,33 @@ export interface UserAuthMeResponse {
   user: UserAuthUser;
 }
 
+export interface DesktopLinkIssueRequest {
+	business_account_id?: string;
+	installation_id: string;
+  resource: string;
+  audience: string;
+  scopes: string[];
+  code_challenge: string;
+  code_challenge_method: 'S256';
+  redirect_uri: string;
+}
+
+export interface DesktopLinkIssueResponse {
+  code: string;
+  expires_at: string;
+  installation_id: string;
+  resource: string;
+  audience: string;
+  scopes: string[];
+}
+
+export interface BusinessAccount {
+	id: string;
+	display_name: string;
+	role: string;
+	created_at?: string;
+}
+
 // ===== User Auth Functions =====
 
 /**
@@ -177,6 +204,17 @@ export async function refreshUserTokens(refreshToken: string): Promise<UserAuthT
     }
     return validated;
   });
+}
+
+/** Issue a one-use, scoped desktop-link code for the authenticated browser. */
+export async function issueDesktopLink(request: DesktopLinkIssueRequest): Promise<DesktopLinkIssueResponse> {
+	return apiPost<DesktopLinkIssueResponse>('/desktop/links', request);
+}
+
+/** List LPBS accounts the authenticated browser may select for a link. */
+export async function listBusinessAccounts(): Promise<BusinessAccount[]> {
+	const response = await apiGet<{ accounts?: BusinessAccount[] }>('/business-accounts');
+	return Array.isArray(response.accounts) ? response.accounts : [];
 }
 
 /**

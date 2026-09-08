@@ -9,7 +9,8 @@ import { create } from "@bufbuild/protobuf";
 
 import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
-import { setLocale } from "../../i18n";
+import { i18n, setLocale } from "../../i18n";
+import { strings } from "../../consts/strings";
 import {
   GuidedStepSchema,
   HandoffSchema,
@@ -257,9 +258,13 @@ describe("ExecutionRunner", () => {
   it("transitions the current phase", async () => {
     const user = await startAndLand();
     transitionPhase.mockResolvedValue({ execution, step });
+    await user.type(screen.getByLabelText(i18n.t(strings.pages.execution.outcomeSummary)), "Interaction reviewed");
+    await user.type(screen.getByLabelText(i18n.t(strings.pages.execution.outcomeEvidence)), "review:handler");
     await user.click(screen.getByTestId(selectors.execution.transitionButton));
     await waitFor(() => {
-      expect(transitionPhase).toHaveBeenCalledWith("exec-1", "p1", PhaseStatus.DONE);
+      expect(transitionPhase).toHaveBeenCalledWith("exec-1", "p1", PhaseStatus.DONE, "", "", {
+        summary: "Interaction reviewed", evidence: ["review:handler"], limitations: [], unmetOutcomes: [], scopeGeneration: 0,
+      });
     });
   });
 

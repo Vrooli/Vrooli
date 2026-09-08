@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
@@ -15,11 +14,11 @@ import (
 // example executable: a schema change that the example does not understand
 // must fail this test before the two surfaces drift.
 func TestPaidFeaturesExampleMatchesSchema(t *testing.T) {
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("resolve monetization test workspace: %v", err)
 	}
-	repoRoot := filepath.Join(filepath.Dir(sourceFile), "../../../../../")
+	repoRoot := filepath.Clean(filepath.Join(workingDir, "../../../../../"))
 	schemaBytes, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "schemas", "monetization.schema.json"))
 	if err != nil {
 		t.Fatalf("read monetization schema: %v", err)

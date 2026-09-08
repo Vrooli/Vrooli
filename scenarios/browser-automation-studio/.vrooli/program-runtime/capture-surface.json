@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "browser-automation-studio.capture-surface",
+  "version": "1",
+  "purpose": "Capture one URL once and return durable screenshot and computed accessibility snapshot references tied to one BAS execution identity.",
+  "inputs": {
+    "url": {"type": "string", "required": true, "description": "Absolute http(s) URL to capture."},
+    "viewport": {"type": "string", "default": "desktop", "description": "mobile, tablet, desktop, or WIDTHxHEIGHT."},
+    "theme": {"type": "string", "default": "light", "enum": ["light", "dark", "system"]},
+    "direction": {"type": "string", "default": "ltr", "enum": ["ltr", "rtl"]},
+    "wait_for": {"type": "string", "description": "Optional selector or the special readiness token networkidle."},
+    "wait_until": {"type": "string", "default": "load", "enum": ["load", "domcontentloaded", "networkidle"]},
+    "settle_ms": {"type": "integer", "default": 500, "description": "Fixed readiness delay when no selector is supplied."},
+    "device_scale_factor": {"type": "number", "default": 1}
+  },
+  "assumptions": [
+    "browser-automation-studio is running and its browser driver is ready",
+    "One capture call performs one navigation and never retries",
+    "The capture service owns durable artifact storage and returns storage-controlled references"
+  ],
+  "invariants": [
+    "Exactly one capture execution is started per submission",
+    "Screenshot and computed snapshot artifacts share the returned execution identity",
+    "The envelope prints exactly once on every path",
+    "No filesystem path is used as a cross-scenario artifact identity"
+  ],
+  "bindings": [
+    {"id": "browser-automation-studio/capture/capture", "effect": "write"}
+  ],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
+    "phase": {"enum": ["validate", "act", "report"]},
+    "signals": {
+      "artifact_id": "BAS execution identity",
+      "screenshot_ref": "durable screenshot artifact reference",
+      "snapshot_ref": "durable computed snapshot artifact reference",
+      "url": "captured URL",
+      "viewport": "resolved viewport input",
+      "theme": "resolved theme",
+      "direction": "resolved direction",
+      "captured_at": "capture completion time when supplied by BAS",
+      "readiness": "bounded BAS readiness diagnostics"
+    },
+    "errors": {"classes": ["scenario_unreachable", "no_grant", "not_run_eligible", "inference_spend_exceeded", "delegated_run_spend_exceeded", "ambiguous_response", "invalid_input", "deadline_exceeded", "binding_error", "kernel_runtime", "screenshot_failed", "snapshot_failed", "driver_refused"]},
+    "evidence": "artifact references and execution identity"
+  },
+  "budget": {"wall_ms": 120000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 16},
+  "fixtures": [
+    {"id": "missing-url", "inputs": {}, "expect": {"admission_error": "invalid_argument"}, "requires": ["browser-automation-studio"]},
+    {"id": "rcl-home", "host_local": true, "inputs": {"url": "http://localhost:23906/", "viewport": "desktop", "theme": "light", "direction": "ltr"}, "expect": {"status": ["ok"]}, "requires": ["browser-automation-studio", "react-component-library"]}
+  ],
+  "rung": "S3",
+  "owner_skill": "browser-automation-studio",
+  "verbs": ["capture", "validate"]
+}

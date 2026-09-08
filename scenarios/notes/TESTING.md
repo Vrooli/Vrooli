@@ -1,5 +1,8 @@
 # SmartNotes Testing Guide
 
+Historical audit citations refer to the 2025-10-25 source, not current validation
+or a waiver for new findings. See [audit interpretation](PROBLEMS.md#historical-audit-interpretation).
+
 **Last Updated**: 2025-10-26
 **Test Coverage**: Comprehensive (Structure, Dependencies, Unit, Integration, Business, Performance, CLI)
 **Current Status**: ✅ All tests passing
@@ -787,7 +790,7 @@ pkill -f "scenarios/notes"
 - `/scenarios/notes/PRD.md` - Requirements and progress
 - `/scenarios/notes/README.md` - User guide
 - `/scenarios/notes/PROBLEMS.md` - Known issues
-- `/scenarios/notes/AUDIT_ANALYSIS.md` - Security audit
+- [historical audit source](PROBLEMS.md#historical-audit-interpretation) - Security audit
 - `/docs/testing/architecture/PHASED_TESTING.md` - Testing standards
 
 ### External Resources

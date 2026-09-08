@@ -216,6 +216,16 @@ func TestExecRequestMapping(t *testing.T) {
 			},
 		},
 		{
+			name: "transition forwards outcome assessment", cmd: "transition",
+			argv: []string{"exec-1", "phase-3", "--status", "done", "--assessment-json", `{"summary":"Outcome reviewed","evidence":["review:handler"],"limitations":["prior unknown"]}`},
+			assert: func(t *testing.T, req proto.Message) {
+				a := req.(*executionv1.TransitionPhaseRequest).GetAssessment()
+				require.Equal(t, "Outcome reviewed", a.GetSummary())
+				require.Equal(t, []string{"review:handler"}, a.GetEvidence())
+				require.Equal(t, []string{"prior unknown"}, a.GetLimitations())
+			},
+		},
+		{
 			name: "transition maps status and overrides", cmd: "transition",
 			argv: []string{"exec-1", "phase-3", "--status", "done", "--validation-override-reason", "offline validation accepted", "--feedback-override-reason", "feedback reviewed manually"},
 			assert: func(t *testing.T, req proto.Message) {

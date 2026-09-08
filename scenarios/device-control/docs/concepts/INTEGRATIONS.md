@@ -19,7 +19,7 @@ Use this document to answer:
 |---|---|---|---|---|---|
 | SQLite | embedded storage | yes | API, persistence-backed domains | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
-| `vrooli-bridge` | scenario | yes | `devices`, `sessions` | Node/attached-device registry, scopes, allowlisted dispatch, durable runs, audit | Device inventory reports every device `unreachable` with "bridge unavailable" as the reason. No device is assumed present. |
+| `vrooli-bridge` | scenario | yes | `devices`, `sessions` | Node/attached-device registry, scopes, allowlisted dispatch, durable runs, audit | Device inventory merges trusted attached identities when the Bridge owner session is available. A Bridge lookup failure remains visible through device diagnostics; no device is assumed present. |
 | `ai-gateway` | scenario | for `ai.*` steps and agent planning | `flows`, `agent` | Provider-neutral inference by intent, role, and constraints | AI steps and agent planning report `unavailable` naming the missing gateway capability. No direct provider fallback exists. |
 | `agent-manager` | scenario | deferred | none in the delivered bounded loop | External agent orchestration may wrap the CLI; the current bounded agent run owns its loop, lease, chapters, abort, and promotion locally. | No runtime call is made, so its absence does not affect device-control agent runs. |
 | `prompt-manager` | scenario | for agent mode | `agent` | The operator skill that teaches this scenario's CLI | Agent mode refuses to start rather than improvising without the skill. |

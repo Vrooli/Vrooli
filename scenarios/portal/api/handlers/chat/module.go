@@ -5,7 +5,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
-	"portal/handlers/chatauth"
+	"portal/internal/chatauth"
 
 	chatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/chat/chat_v1connect"
 

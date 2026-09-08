@@ -140,6 +140,9 @@ func renderQualitySummary(p Plan) (string, []string) {
 }
 
 func (s *service) Create(ctx context.Context, p Plan) (Plan, error) {
+	if reason := p.CompletionPolicy.InvalidReason(); reason != "" {
+		return Plan{}, ErrInvalidPlan{Reason: reason}
+	}
 	p.Title = strings.TrimSpace(p.Title)
 	if p.Title == "" {
 		return Plan{}, ErrInvalidPlan{Reason: "title is required"}
@@ -202,6 +205,14 @@ func (s *service) Update(ctx context.Context, p Plan) (Plan, error) {
 	// and graph fields come from the stored plan; explicit lifecycle rules below
 	// may then derive their next values.
 	planmodel.PreserveNonAuthoredPlanFields(&p, &existing)
+	// Older clients omit this field. Downgrading certification requires an
+	// explicit advisory mode, never an accidental default during an update.
+	if p.CompletionPolicy.Mode == "" && existing.CompletionPolicy.RequiresCertification() {
+		p.CompletionPolicy = existing.CompletionPolicy
+	}
+	if reason := p.CompletionPolicy.InvalidReason(); reason != "" {
+		return Plan{}, ErrInvalidPlan{Reason: reason}
+	}
 	p.UpdatedAt = s.now()
 	if strings.TrimSpace(p.Title) == "" {
 		p.Title = existing.Title
@@ -1409,29 +1420,30 @@ func clonePhases(phases []Phase) []Phase {
 // identical prose + phases hash identically regardless of their assigned ids.
 func contentHash(p Plan) string {
 	payload := struct {
-		Title                   string                `json:"title"`
-		Purpose                 string                `json:"purpose"`
-		ProblemStatement        string                `json:"problem_statement"`
-		TargetOutcome           string                `json:"target_outcome"`
-		Scope                   string                `json:"scope"`
-		NonGoals                string                `json:"non_goals"`
-		Assumptions             string                `json:"assumptions"`
-		Constraints             string                `json:"constraints"`
-		ProhibitedApproaches    string                `json:"prohibited_approaches"`
-		TechnicalApproach       string                `json:"technical_approach"`
-		ValidationStrategy      string                `json:"validation_strategy"`
-		FinalValidationCommands []string              `json:"final_validation_commands"`
-		RisksHazards            string                `json:"risks_hazards"`
-		Decisions               []PlanDecision        `json:"decisions"`
-		AssumptionRisks         []PlanAssumption      `json:"assumption_risks"`
-		Definitions             []PlanDefinition      `json:"definitions"`
-		ChangeBoundary          ChangeBoundary        `json:"change_boundary"`
-		RegressionAnchor        RegressionAnchor      `json:"regression_anchor"`
-		BaselineSet             BaselineSetIntent     `json:"baseline_set"`
-		DefinitionOfDone        string                `json:"definition_of_done"`
-		References              []Reference           `json:"references"`
-		Phases                  []Phase               `json:"phases"`
-		RelevantContext         []RelevantContextItem `json:"relevant_context"`
+		Title                   string                     `json:"title"`
+		Purpose                 string                     `json:"purpose"`
+		ProblemStatement        string                     `json:"problem_statement"`
+		TargetOutcome           string                     `json:"target_outcome"`
+		Scope                   string                     `json:"scope"`
+		NonGoals                string                     `json:"non_goals"`
+		Assumptions             string                     `json:"assumptions"`
+		Constraints             string                     `json:"constraints"`
+		ProhibitedApproaches    string                     `json:"prohibited_approaches"`
+		TechnicalApproach       string                     `json:"technical_approach"`
+		ValidationStrategy      string                     `json:"validation_strategy"`
+		CompletionPolicy        planmodel.CompletionPolicy `json:"completion_policy"`
+		FinalValidationCommands []string                   `json:"final_validation_commands"`
+		RisksHazards            string                     `json:"risks_hazards"`
+		Decisions               []PlanDecision             `json:"decisions"`
+		AssumptionRisks         []PlanAssumption           `json:"assumption_risks"`
+		Definitions             []PlanDefinition           `json:"definitions"`
+		ChangeBoundary          ChangeBoundary             `json:"change_boundary"`
+		RegressionAnchor        RegressionAnchor           `json:"regression_anchor"`
+		BaselineSet             BaselineSetIntent          `json:"baseline_set"`
+		DefinitionOfDone        string                     `json:"definition_of_done"`
+		References              []Reference                `json:"references"`
+		Phases                  []Phase                    `json:"phases"`
+		RelevantContext         []RelevantContextItem      `json:"relevant_context"`
 	}{
 		Title:                   p.Title,
 		Purpose:                 p.Purpose,
@@ -1444,6 +1456,7 @@ func contentHash(p Plan) string {
 		ProhibitedApproaches:    p.ProhibitedApproaches,
 		TechnicalApproach:       p.TechnicalApproach,
 		ValidationStrategy:      p.ValidationStrategy,
+		CompletionPolicy:        p.CompletionPolicy,
 		FinalValidationCommands: p.FinalValidationCommands,
 		RisksHazards:            p.RisksHazards,
 		Decisions:               p.Decisions,

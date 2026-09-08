@@ -2,10 +2,11 @@ package contextcapture
 
 import (
 	"context"
-	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,9 +15,9 @@ import (
 	rpc "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/contextcapture/contextcapture_v1connect"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/blobstore"
 	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/storage"
 	domain "portal/internal/contextcapture"
@@ -25,7 +26,7 @@ import (
 
 // Runtime binds durable context bytes to the same production metadata lifecycle.
 // Routed test requests must never fall through to this production blob owner.
-func Runtime(db *database.RoutedDB, clk schedule.Clock, report func()) (module.Module, func(context.Context) error, Service, error) {
+func Runtime(db *database.RoutedDB, clk schedule.Clock, report func(), maintenance ...func(context.Context) error) (module.Module, func(context.Context) error, Service, error) {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{})
 	if err != nil {
 		return module.Module{}, nil, nil, err
@@ -37,11 +38,14 @@ func Runtime(db *database.RoutedDB, clk schedule.Clock, report func()) (module.M
 	if err = os.Chmod(root, 0o700); err != nil {
 		return module.Module{}, nil, nil, err
 	}
-	service := domain.NewService(domain.NewSQLiteRepository(db.Primary()), blobstore.NewFilesystemBlobStore(root), clk.Now)
-	identity := owneridentity.NewClient(owneridentity.Config{Now: clk.Now})
+	service := domain.NewService(domain.NewSQLiteRepository(db), blobstore.NewFilesystemBlobStore(root), clk.Now)
+	identity := authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{Now: clk.Now})
+	if audience := strings.TrimSpace(os.Getenv("VROOLI_AUTH_SCENARIO_AUDIENCE")); audience != "" {
+		identity = authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{Now: clk.Now, Audience: audience})
+	}
 
 	var testMu sync.Mutex
-	var testPool *sql.DB
+	var testPoolKey string
 	var testHandler http.Handler
 	var testService *domain.Service
 	selectService := func(ctx context.Context) (*domain.Service, error) {
@@ -54,12 +58,13 @@ func Runtime(db *database.RoutedDB, clk schedule.Clock, report func()) (module.M
 		}
 		testMu.Lock()
 		defer testMu.Unlock()
-		if testPool != pool {
+		poolKey := fmt.Sprintf("%p", pool)
+		if testPoolKey != poolKey {
 			if err = database.EnsureSchemas(ctx, pool, database.SchemaProviderFunc(domain.Schema)); err != nil {
 				return nil, err
 			}
 			testService = domain.NewService(domain.NewSQLiteRepository(pool), blobstore.NewMemoryBlobStore(), clk.Now)
-			testPool = pool
+			testPoolKey = poolKey
 			testHandler = nil
 		}
 		return testService, nil
@@ -82,7 +87,7 @@ func Runtime(db *database.RoutedDB, clk schedule.Clock, report func()) (module.M
 					return
 				}
 				testMu.Lock()
-				if testPool != pool {
+				if testPoolKey != fmt.Sprintf("%p", pool) {
 					testMu.Unlock()
 					http.Error(w, "context test storage unavailable", http.StatusServiceUnavailable)
 					return
@@ -103,19 +108,26 @@ func Runtime(db *database.RoutedDB, clk schedule.Clock, report func()) (module.M
 		mount(private)
 	}
 	cleanup := reaperFunc(func(ctx context.Context, limit int) error {
+		var cleanupErr error
 		pool, err := db.PoolForContext(database.WithTestMode(ctx))
 		testMu.Lock()
-		if err != nil || pool != testPool {
-			testPool = nil
+		if err != nil || testPoolKey != fmt.Sprintf("%p", pool) {
+			testPoolKey = ""
 			testHandler = nil
 			testService = nil
 		}
 		activeTest := testService
 		testMu.Unlock()
 		if activeTest != nil {
-			_ = activeTest.Reap(ctx, limit)
+			cleanupErr = errors.Join(cleanupErr, activeTest.Reap(ctx, limit))
 		}
-		return service.Reap(ctx, limit)
+		cleanupErr = errors.Join(cleanupErr, service.Reap(ctx, limit))
+		for _, pass := range maintenance {
+			if pass != nil {
+				cleanupErr = errors.Join(cleanupErr, pass(ctx))
+			}
+		}
+		return cleanupErr
 	})
 	stop := startCleanup(cleanup, clk, report)
 	return mod, stop, routed, nil
@@ -193,7 +205,7 @@ type reaper interface {
 	Reap(context.Context, int) error
 }
 
-func startCleanup(service reaper, clk schedule.Clock, report func()) func(context.Context) error {
+func startCleanup(service reaper, clk schedule.Clock, report func(), maintenance ...func(context.Context) error) func(context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {
@@ -203,6 +215,11 @@ func startCleanup(service reaper, clk schedule.Clock, report func()) func(contex
 		for {
 			sweep, finish := context.WithTimeout(ctx, 5*time.Second)
 			err := service.Reap(sweep, 64)
+			for _, pass := range maintenance {
+				if pass != nil {
+					err = errors.Join(err, pass(sweep))
+				}
+			}
 			finish()
 			if err != nil && ctx.Err() == nil && report != nil {
 				report()

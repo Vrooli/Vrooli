@@ -1,6 +1,7 @@
 package bundles
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -68,5 +69,56 @@ func TestBundleValidationCoversSecretAndServiceRules(t *testing.T) {
 	if err := validateService(ServiceEntry{ID: "storage", Type: "embedded-storage"}); err == nil {
 		// The service still needs health/readiness even when no binary is required.
 		t.Fatal("embedded storage without health/readiness should fail")
+	}
+}
+
+func TestBundleValidationAcceptsAllDeclaredAuthenticationModeProfiles(t *testing.T) {
+	profile := &AuthenticationProfile{
+		Version: 1, Mode: "personal_local", HumanSignIn: "disabled", Offline: true,
+		ModeProfiles: map[string]AuthenticationModeProfile{
+			"local_multi_user": {
+				Provider: "scenario-authenticator", Resource: "demo", Audience: "scenario:demo",
+				ProviderServiceID: "scenario-authenticator", HumanSignIn: "required", RequiresAuthenticator: true,
+			},
+			"remote_vrooli": {
+				Provider: "scenario-authenticator", Resource: "demo", Audience: "scenario:demo",
+				ProviderEndpoint: "https://auth.example.test", HumanSignIn: "required",
+			},
+			"shared_provider": {
+				Provider: "landing-page-business-suite", Resource: "demo", Audience: "scenario:demo",
+				ProviderEndpoint: "https://provider.example.test", LeasePath: "runtime/lease.json", HumanSignIn: "required",
+			},
+		},
+	}
+	services := []ServiceEntry{{ID: "api"}, {ID: "scenario-authenticator"}}
+	if err := validateAuthentication(profile, services); err != nil {
+		t.Fatalf("all declared authentication modes should validate: %v", err)
+	}
+	manifest := Manifest{
+		SchemaVersion:  "v0.1",
+		Target:         "desktop",
+		App:            ManifestApp{Name: "demo", Version: "1.0.0"},
+		IPC:            ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 48000, AuthTokenPath: "runtime/token"},
+		Telemetry:      ManifestTelemetry{File: "runtime/telemetry.jsonl"},
+		Authentication: profile,
+		Services: []ServiceEntry{
+			{ID: "api", Type: "api-binary", Binaries: map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}}, Health: HealthCheck{Type: "http"}, Readiness: ReadinessCheck{Type: "health_success"}},
+			{ID: "scenario-authenticator", Type: "api-binary", Binaries: map[string]ServiceBinary{"linux-x64": {Path: "bin/auth"}}, Health: HealthCheck{Type: "http"}, Readiness: ReadinessCheck{Type: "health_success"}},
+		},
+	}
+	data, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("marshal authentication mode manifest: %v", err)
+	}
+	if err := ValidateManifestBytes(data); err != nil {
+		t.Fatalf("serialized authentication mode manifest should validate: %v", err)
+	}
+
+	profile.ModeProfiles["local_multi_user"] = AuthenticationModeProfile{
+		Provider: "scenario-authenticator", Resource: "demo", HumanSignIn: "required",
+		ProviderServiceID: "missing-authenticator", RequiresAuthenticator: true,
+	}
+	if err := validateAuthentication(profile, services); err == nil {
+		t.Fatal("missing alternate authenticator service was accepted")
 	}
 }

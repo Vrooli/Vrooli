@@ -139,20 +139,33 @@ commands only for the specific action returned by the API-owned `GuidedStep`.
 | `plan-manager author continue <session>` | `AuthoringService.ContinueAuthoring` | Returns one recommended next authoring action across section, phase, validation-review, and finalize states. |
 | `plan-manager exec continue <plan-or-execution>` | `ExecutionService.ContinueExecution` | Resumes or starts execution and returns one recommended next runner action without advancing the phase pointer. |
 
-`plan-manager exec transition <execution> <phase> --status done` is guarded by
-the execution service: it requires the last stored phase validation to be
-`pass` + `fresh`, or an explicit `--validation-override-reason` for degraded or
-offline completion. Prefer `exec continue` so the API recommends validation
-before the done transition.
+Ordinary completion records supported judgment, not a green suite:
+
+```bash
+plan-manager exec transition <execution> <phase> --status done --assessment-json '{"summary":"Delivered interaction reviewed","evidence":["review:changed-handler"],"limitations":["Prior state unknown"],"unmetOutcomes":[]}'
+```
+
+Use concrete evidence references for the actual work. `exec continue` recommends
+an assessment for ordinary active phases and for done phases missing an applicable
+assessment. `exec complete` persists the assessments in the handoff. Failed broad
+receipts remain failed; they do not independently block ordinary completion.
+
+Select certification explicitly with `plans update <plan>
+--completion-policy-json '{"mode":"certification","reason":"Required release evidence"}'`
+or the authoring `completion_policy` section. Certification retains required
+baseline, validation, and feedback gates; `--validation-override-reason` does not
+bypass required certification evidence. Select `{"mode":"advisory"}` explicitly
+to change an existing certification policy; an omitted field preserves it.
 
 For a historical plan that cannot honestly claim a fresh before-state, mark the
 plan explicitly before execution with `plan-manager plans update <plan>
---baseline-mode legacy`. The runner then requires `exec baseline-adopt` to choose
-an honest recapture or degraded partial-handoff path. New/current plans instead
+--baseline-mode legacy`. For explicit certification, the runner requires
+`exec baseline-adopt` to choose an honest recapture or degraded partial-handoff
+path. Ordinary work can leave prior state unknown. New/current plans can
 derive their collection from a `change_boundary` anchor; use `--baseline-mode
 current --anchor-strategy change_boundary` when repairing one.
 
-When a current plan's Git Control Tower preflight reports a source scope repair,
+When an explicitly requested capture's Git Control Tower preflight reports a source scope repair,
 `exec continue` deliberately has no capture command. Use
 `plan-manager exec baseline-scope-repair <execution> --paths '<narrow-glob>'
 --reason '<why>'`; replacements must remain inside the authored change boundary
@@ -435,8 +448,10 @@ Use JSON to select focused suite phases, for example
 `testPhases` selects Test Genie checks; an empty list uses its strength preset.
 Ordinary phase validation does not implicitly run comprehensive behavioral
 comparison merely because the plan has a baseline. Set `compareBehavior:true`
-when that phase requires it. Final certification retains the plan's baseline
+when that phase requires it. Explicit certification retains the plan's baseline
 and source-evidence policy and cannot inherit a narrowed phase-check selection.
+Ordinary completion uses the advisory policy in `../concepts/PLAN-MODEL.md`;
+reaching the last phase does not require certification or a green scenario suite.
 
 `plans update` preserves a plan's `import_provenance` and
 `preserved_legacy_sections` when the caller omits them, so a routine

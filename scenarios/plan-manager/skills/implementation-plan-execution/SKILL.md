@@ -9,9 +9,9 @@ metadata:
   tags: ["practice","execution","planning","implementation","scope","friction"]
   icon: "play"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-08-07T00:00:00Z"
-  updatedAt: "2026-09-04T00:00:00Z"
+  updatedAt: "2026-09-06T00:00:00Z"
   requires:
     scenarios: ["plan-manager", "prompt-manager", "swarm-manager"]
     commands: ["plan-manager", "prompt-manager skill read", "swarm-manager"]
@@ -98,7 +98,7 @@ down. Higher tiers need more confidence, not more permission.
 
 | Tier | Divergence | Rule |
 |---|---|---|
-| **T0** | Environment and operational friction: a stopped scenario, a stale binary, a missing baseline, a broken fixture, an approved dependency that is not installed | Fix it and continue. Never report T0 as a blocker. Restarting a scenario is not a scope decision. Self-repair authority is defined in `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`. |
+| **T0** | A stopped scenario, stale binary, required fixture, or approved dependency needed for the intended work | Repair the prerequisite through its owner. Missing historical evidence and advisory validator findings are not mandatory environment repairs. |
 | **T1** | An edit outside `acceptance_allow` that a phase already in the plan needs in order to be implemented cleanly — a shared type, a proto, the API shape a handler depends on | Make the edit properly. Run `plan-manager exec boundary-extend <execution> --paths <glob> --reason <why>` first so validation scope follows, then record the divergence in Plan Manager's execution log. **A workaround that stays inside a stale boundary is the failure, not the fix.** |
 | **T2** | A defect in a dependency, tool, or adjacent scenario that blocks the phase | Fix it when you understand the cause **and** the plan's stakes justify the detour (§5). Otherwise work around it, `log bug-add`, and continue. Say which you chose. |
 | **T3** | Changing what the plan set out to do: adding, removing, or reordering phases; changing the target outcome; changing the chosen design | Do not do this silently. Finish everything else first, then record a candidate revision or a finding and report it. |
@@ -130,11 +130,32 @@ Three specific things that are **not** blockers:
   return. Do not poll in a loop — it wastes tokens and changes nothing. Do not
   re-run the command while a run is in flight. Do not decide from elapsed time
   that a run has stalled.
-- **A failing test you have not read.** Read the failure first. A failure you can
-  explain is work, not a wall.
+- **A failing test you have not read.** Assess its relevance, credibility, and
+  consequence before deciding whether it belongs to this plan.
 - **Missing evidence.** Read the current validation policy. Generate a required
-  fixture through its owner. An absent behavioral prior is not a request for
-  comprehensive certification; preserve that absence in the receipt.
+  product fixture through its owner when the intended work needs one. Missing
+  historical baseline evidence is not a fixture to reconstruct; preserve it as
+  an explicit limitation or unknown in the receipt.
+
+### Shared-worktree completion
+
+Apply the completion policy in `scenarios/plan-manager/docs/concepts/PLAN-MODEL.md`.
+Agents edit one shared worktree. Ordinary completion does not require isolation,
+a quiet tree, a green scenario suite, or proof that every finding predates the plan.
+Record evidence for the delivered outcome: focused checks, observed behavior,
+or code review with concrete references. Preserve limitations and finding dispositions.
+
+| Observation | Action |
+|---|---|
+| Credible, material failure of the intended outcome | Repair and verify the outcome. |
+| Plausibly related finding with uncertain cause | Perform one bounded investigation; retry only when new information justifies it. |
+| Unrelated, low-impact, or suspected validator defect | Retain the finding for triage and continue. |
+| Missing prior state or concurrent drift | Record uncertainty; do not reconstruct history or require a full rerun. |
+| Explicit certification requirement | Obtain its required evidence or report the unmet requirement. |
+
+Never reset, checkout, restore, or stash shared-worktree contents for attribution.
+Inspect history read-only. A missing baseline is not permission to replace current
+files. Filing or investigating advisory findings must not become another final gate.
 
 Before writing "blocked" in any report, name the specific decision you lack the
 authority to make. If you cannot name one, you are not blocked.
@@ -179,8 +200,8 @@ status.
 ### 7. Output Expectations
 
 **Must produce:**
-- Every phase either `done` with passing validation, or an explicit statement of
-  what was not finished and why.
+- Every phase either `done` with recorded outcome evidence and finding dispositions
+  accepted under its policy, or an explicit statement of what remains unfinished.
 - An execution-log entry for every T1 and T2 divergence, naming what you
   changed outside the plan and what it served.
 - A boundary extension for every edit made outside `acceptance_allow`, so no
@@ -193,8 +214,9 @@ status.
 - A `blocked` outcome that names no missing authority.
 - Silent divergence — a plan executed differently than written, with nothing in
   the log ledger saying so.
-- A phase marked `done` on evidence gathered before a boundary extension. A
-  widened boundary invalidates the prior validation generation; re-run it.
+- An assertion that old evidence covers newly changed behavior without review.
+  After a boundary extension, assess the added work and obtain only the evidence
+  needed by the declared policy; do not discard unrelated observations.
 
 ---
 
@@ -203,7 +225,7 @@ status.
 | Symptom | Likely cause | First move |
 |---|---|---|
 | `boundary-extend` refuses the path | The glob is covered by `acceptance_deny`, or would swallow a denied subtree | This is T3. Stop and report; do not route around the prohibition. |
-| Phase validation says the scope generation is stale | The boundary or validation scope changed after the last run | Re-run phase validation. This is the intended cost of a widening, not an error. |
+| Evidence predates a scope change | The boundary or validation scope expanded | Review applicability and record evidence for the added outcome; certification requires its declared coverage. |
 | A prior plan looks like it already does this | Its status is probably being misread (§2) | Check last activity and phase states, then reuse or supersede it explicitly. |
 | The plan names a file or command that does not exist | The plan is stale, not the repo | Serve the intent against what the repo actually contains, and `log finding-add` the stale reference. |
 | The plan's stakes are unrecorded | Authored before the field existed | Ask the operator once. Default to the ordinary-stakes T2 posture until answered. |

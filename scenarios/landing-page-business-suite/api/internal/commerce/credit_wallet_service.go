@@ -25,6 +25,14 @@ type SourceCreditWallet interface {
 	AddCreditsFromSource(customerEmail string, amount int64, txnType, source, externalEventID string, metadata map[string]interface{}) error
 }
 
+// BusinessAccountCreditWallet is the account-scoped extension used by
+// explicitly selected LPBS commercial checkouts. It intentionally does not
+// alter the legacy person-email wallet contract.
+type BusinessAccountCreditWallet interface {
+	AddCreditsForBusinessAccount(businessAccountID, customerEmail string, amount int64, txnType, source, externalEventID string, metadata map[string]interface{}) error
+	BalanceForBusinessAccount(businessAccountID, customerEmail string) (int64, error)
+}
+
 // CreditWalletService owns credit-wallet balances and their immutable ledger.
 // A Stripe event ID is the replay key for provider-driven mutations; a caller
 // supplied idempotency key is the replay key for credit consumption.
@@ -35,6 +43,8 @@ type CreditWalletService struct {
 func NewCreditWalletService(db StripeStore) *CreditWalletService {
 	return &CreditWalletService{db: db}
 }
+
+var _ BusinessAccountCreditWallet = (*CreditWalletService)(nil)
 
 var _ CreditWallet = (*CreditWalletService)(nil)
 
@@ -126,6 +136,56 @@ func (s *CreditWalletService) AddCreditsFromSource(customerEmail string, amount 
 		return fmt.Errorf("update source credit wallet: %w", err)
 	}
 	return tx.Commit()
+}
+
+func (s *CreditWalletService) AddCreditsForBusinessAccount(businessAccountID, customerEmail string, amount int64, txnType, source, externalEventID string, metadata map[string]interface{}) error {
+	if strings.TrimSpace(businessAccountID) == "" || strings.TrimSpace(customerEmail) == "" || amount <= 0 {
+		return nil
+	}
+	metadataJSON, _ := json.Marshal(metadata)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin account credit transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	result, err := tx.Exec(`
+		INSERT INTO business_account_credit_transactions (business_account_id, customer_email, amount_credits, transaction_type, source, external_event_id, metadata, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+		ON CONFLICT (source, external_event_id) DO NOTHING
+	`, strings.TrimSpace(businessAccountID), normalizeEmail(customerEmail), amount, txnType, source, externalEventID, string(metadataJSON))
+	if err != nil {
+		return fmt.Errorf("insert account credit transaction: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check account credit transaction: %w", err)
+	}
+	if rowsAffected == 0 {
+		return nil
+	}
+	if _, err := tx.Exec(`
+		INSERT INTO business_account_credit_wallets (business_account_id, customer_email, balance_credits, updated_at)
+		VALUES ($1, $2, $3, NOW())
+		ON CONFLICT (business_account_id) DO UPDATE SET balance_credits = business_account_credit_wallets.balance_credits + $3, customer_email = EXCLUDED.customer_email, updated_at = NOW()
+	`, strings.TrimSpace(businessAccountID), normalizeEmail(customerEmail), amount); err != nil {
+		return fmt.Errorf("update account credit wallet: %w", err)
+	}
+	return tx.Commit()
+}
+
+func (s *CreditWalletService) BalanceForBusinessAccount(businessAccountID, customerEmail string) (int64, error) {
+	if strings.TrimSpace(businessAccountID) == "" || strings.TrimSpace(customerEmail) == "" {
+		return 0, nil
+	}
+	var balance int64
+	err := s.db.QueryRow(`SELECT COALESCE(balance_credits, 0) FROM business_account_credit_wallets WHERE business_account_id = $1 AND customer_email = $2`, strings.TrimSpace(businessAccountID), normalizeEmail(customerEmail)).Scan(&balance)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("get account credit balance: %w", err)
+	}
+	return balance, nil
 }
 
 // ConsumeCredits deducts a wallet balance for an ordinary request.

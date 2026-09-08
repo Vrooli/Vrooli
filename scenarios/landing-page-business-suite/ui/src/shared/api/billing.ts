@@ -314,11 +314,13 @@ export function createCheckoutSession(payload: {
   customer_email?: string;
   success_url?: string;
   cancel_url?: string;
+  business_account_id?: string;
 }) {
   const body: Record<string, string | undefined> = {
     price_id: payload.price_id,
     success_url: payload.success_url,
     cancel_url: payload.cancel_url,
+    business_account_id: payload.business_account_id,
   };
 
   if (payload.customer_email) {
@@ -327,6 +329,7 @@ export function createCheckoutSession(payload: {
 
   return paymentsClient.createCheckoutSession({
     priceId: body.price_id ?? '', customerEmail: body.customer_email ?? '', successUrl: body.success_url ?? '', cancelUrl: body.cancel_url ?? '', sessionKind: SessionKind.SUBSCRIPTION,
+    businessAccountId: body.business_account_id ?? '',
   }).then((resp: CreateCheckoutSessionResponse) => {
     const validated = parseOrNull(CheckoutSessionSchema, normalizeCheckoutSession(resp.session), 'CheckoutSession');
     if (!validated) {
@@ -336,9 +339,9 @@ export function createCheckoutSession(payload: {
   });
 }
 
-export function createCreditsCheckoutSession(payload: { price_id: string; customer_email: string; success_url?: string; cancel_url?: string }) {
+export function createCreditsCheckoutSession(payload: { price_id: string; customer_email: string; success_url?: string; cancel_url?: string; business_account_id?: string }) {
   return paymentsClient.createCheckoutSession({
-    priceId: payload.price_id, customerEmail: payload.customer_email, successUrl: payload.success_url ?? '', cancelUrl: payload.cancel_url ?? '', sessionKind: SessionKind.CREDITS_TOPUP,
+    priceId: payload.price_id, customerEmail: payload.customer_email, successUrl: payload.success_url ?? '', cancelUrl: payload.cancel_url ?? '', sessionKind: SessionKind.CREDITS_TOPUP, businessAccountId: payload.business_account_id ?? '',
   }).then((resp: CreateCheckoutSessionResponse) => {
     const validated = parseOrNull(CheckoutSessionSchema, normalizeCheckoutSession(resp.session), 'CheckoutSession');
     if (!validated) {

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -126,7 +127,11 @@ func (s *service) Capture(
 
 	releaseEvidence := retention.BeginEvidenceActivity(filepath.Clean(outDir))
 	defer releaseEvidence()
-	adhocReq, domNodeID, err := buildAdhocRequest(resolvedURL, msg, width, height, s.deps.InlineDom.Expression)
+	inlineExpression := s.deps.InlineDom.Expression
+	if msg.GetInlineDomTree() {
+		inlineExpression = defaultInlineDomTreeExpression
+	}
+	adhocReq, domNodeID, err := buildAdhocRequest(resolvedURL, msg, width, height, inlineExpression)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -247,11 +252,36 @@ func (s *service) Capture(
 	// dom_html (documented on the proto field) rather than failing a capture
 	// whose other artifacts are already on disk.
 	domHTML := ""
+	domTreeJSON := ""
 	if domNodeID != "" {
-		domHTML, err = s.deps.InlineDom.readInlineDom(executionOutDir, domNodeID)
+		inlineDom := s.deps.InlineDom
+		if msg.GetInlineDomTree() {
+			inlineDom.MaxBytes = 16 << 20
+		}
+		domHTML, err = inlineDom.readInlineDom(executionOutDir, domNodeID)
 		if err != nil && s.deps.Logger != nil {
 			s.deps.Logger.WithError(err).Warn("capture: inline DOM read failed")
 		}
+	}
+	if msg.GetInlineDomTree() {
+		domTreeJSON = domHTML
+		domHTML = ""
+		if domTreeJSON != "" {
+			domTreePath := filepath.Join(executionOutDir, "dom-tree.json")
+			if writeErr := os.WriteFile(domTreePath, []byte(domTreeJSON), 0o644); writeErr != nil {
+				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write DOM-tree artifact: %w", writeErr))
+			}
+			for _, artifact := range artifacts {
+				if artifact != nil && artifact.GetType() == capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE {
+					artifact.Path = domTreePath
+					artifact.SizeBytes = int64(len(domTreeJSON))
+					artifact.Metadata = map[string]string{"filename": "dom-tree.json", "content_type": "application/json"}
+				}
+			}
+		}
+	}
+	if err := writeCaptureArtifactSummary(executionOutDir, artifacts); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write capture artifact summary: %w", err))
 	}
 
 	// Inline accessibility is best-effort: a missing/failed AX capture
@@ -293,6 +323,7 @@ func (s *service) Capture(
 		DryRun:            false,
 		DomHtml:           domHTML,
 		AccessibilityJson: accessibilityJSON,
+		DomTreeJson:       domTreeJSON,
 		Readiness:         captureReadinessDiagnosticsWithTiming(msg.GetWaitFor(), selectedReadiness, readinessOutcome, duration, fallbackReason, declaredResolution, timing),
 	}), nil
 }
@@ -571,6 +602,23 @@ func buildAdhocRequest(
 		edges = append(edges, &workflowsv1.WorkflowEdgeV2{Id: uuid.NewString(), Source: navigateNode.Id, Target: waitNode.Id})
 		predecessorID = waitNode.Id
 	}
+	if direction := strings.ToLower(strings.TrimSpace(msg.GetDirection())); direction != "" {
+		if direction != "ltr" && direction != "rtl" {
+			return nil, "", fmt.Errorf("direction must be ltr or rtl")
+		}
+		directionNode := &workflowsv1.WorkflowNodeV2{
+			Id: uuid.NewString(),
+			Action: &actionsv1.ActionDefinition{
+				Type: actionsv1.ActionType_ACTION_TYPE_EVALUATE,
+				Params: &actionsv1.ActionDefinition_Evaluate{
+					Evaluate: &actionsv1.EvaluateParams{Expression: "document.documentElement.dir = " + strconv.Quote(direction) + "; document.body.dir = " + strconv.Quote(direction) + "; true"},
+				},
+			},
+		}
+		nodes = append(nodes, directionNode)
+		edges = append(edges, &workflowsv1.WorkflowEdgeV2{Id: uuid.NewString(), Source: predecessorID, Target: directionNode.Id})
+		predecessorID = directionNode.Id
+	}
 
 	// Splice an interaction flow after the navigate node, inside the same
 	// perf-trace window. The compiler orders nodes topologically (roots =
@@ -588,7 +636,7 @@ func buildAdhocRequest(
 	}
 
 	domNodeID := ""
-	if msg.GetInlineDom() {
+	if msg.GetInlineDom() || msg.GetInlineDomTree() {
 		domNode := &workflowsv1.WorkflowNodeV2{
 			Id: uuid.NewString(),
 			Action: &actionsv1.ActionDefinition{

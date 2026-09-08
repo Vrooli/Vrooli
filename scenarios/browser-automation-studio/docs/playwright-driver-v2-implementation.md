@@ -396,7 +396,7 @@ METRICS_PORT=9090
 
 - **Go Contracts**: `api/automation/contracts/*.go`
 - **Original Driver**: `resources/playwright/driver/server.js` (legacy, 13/28 features)
-- **Plans**: `docs/plans/playwright-driver-completion.md`
+- **Plans**: `docs/plans/README.md#historical-source-files`
 - **Status**: `IMPLEMENTATION_STATUS.md`
 
 ---

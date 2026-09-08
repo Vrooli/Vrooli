@@ -16,6 +16,7 @@ func sessionToPlan(sess Session) (planmodel.Plan, error) {
 		return planmodel.Plan{}, err
 	}
 	p := planmodel.Plan{
+		CompletionPolicy:     planmodel.ParseCompletionPolicy(contentOf(sess.Sections, SectionCompletionPolicy)),
 		Title:                sess.Title,
 		Slug:                 sess.Slug,
 		Purpose:              contentOf(sess.Sections, SectionPurpose),

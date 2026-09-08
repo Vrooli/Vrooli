@@ -95,7 +95,10 @@
       },
       "expect": {
         "admission_error": "invalid_argument"
-      }
+      },
+      "requires": [
+        "knowledge-observatory"
+      ]
     },
     {
       "id": "live-board",
@@ -112,5 +115,14 @@
     }
   ],
   "rung": "S3",
-  "owner_skill": "knowledge-observatory-improve"
+  "owner_skill": "knowledge-observatory-improve",
+  "verbs": [
+    "agent.collect",
+    "agent.run",
+    "capture",
+    "lib",
+    "tasks.get",
+    "tasks.run",
+    "validate"
+  ]
 }

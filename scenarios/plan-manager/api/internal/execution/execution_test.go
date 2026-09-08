@@ -332,6 +332,13 @@ func threePhasePlan() internalplans.Plan {
 	}
 }
 
+// Strict validation fixtures opt in; ordinary runner fixtures remain advisory.
+func certificationPlan() internalplans.Plan {
+	p := threePhasePlan()
+	p.CompletionPolicy = planmodel.CompletionPolicy{Mode: "certification", Reason: "Exercise required validation and baseline protocol"}
+	return p
+}
+
 func validExecutionPhase(id string, order int, title string, requiredReading, reminders []string) internalplans.Phase {
 	reminders = append([]string(nil), reminders...)
 	reminders = append(reminders, "NO_CODE_REFS: execution unit fixture has no phase refs.")
@@ -371,6 +378,7 @@ func contextIDs(items []internalplans.RelevantContextItem) []string {
 
 func doneOverride() execution.PhaseTransitionInputs {
 	return execution.PhaseTransitionInputs{
+		Assessment:               execution.OutcomeAssessment{Summary: "Fixture outcome observed", Evidence: []string{"observation:execution-fixture"}},
 		ToStatus:                 internalplans.PhaseStatusDone,
 		ValidationOverrideReason: "test fixture bypasses validation to exercise runner pointer behavior",
 		FeedbackOverrideReason:   "test fixture bypasses feedback checkpoint to exercise runner pointer behavior",
@@ -487,7 +495,7 @@ func TestStartRejectsPlanThatNeedsRepair(t *testing.T) {
 }
 
 func TestExplicitLegacyPlanRequiresBaselineAdoption(t *testing.T) {
-	plan := threePhasePlan()
+	plan := certificationPlan()
 	plan.BaselineSet = internalplans.BaselineSetIntent{Compatibility: "legacy_anchor"}
 	h := newHarness(t, plan, nil)
 
@@ -503,13 +511,15 @@ func TestExplicitLegacyPlanRequiresBaselineAdoption(t *testing.T) {
 		Reason: "the producer is unavailable and no trustworthy before-state can be recreated",
 	})
 	require.NoError(t, err)
-	_, _, step, err = h.svc.GetStatus(context.Background(), e.ID)
+	persisted, pctx, step, err := h.svc.GetStatus(context.Background(), e.ID)
 	require.NoError(t, err)
 	require.Equal(t, "phase_context", step.StepKind, "degraded adoption must clear the persisted legacy gate")
+	require.Equal(t, execution.BaselineSetStatusDegraded, persisted.BaselineSet.Status, "degraded adoption must survive a later SQLite read")
+	require.Equal(t, execution.BaselineSetStatusDegraded, pctx.BaselineSet.Status, "phase context must retain the degraded disposition")
 }
 
 func TestRecaptureBaselineCanSupersedeExistingTicketWithNewName(t *testing.T) {
-	plan := threePhasePlan()
+	plan := certificationPlan()
 	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "invalid-before", ScenarioTargets: []string{"plan-manager"}}
 	h := newHarness(t, plan, nil)
 	run, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
@@ -528,7 +538,7 @@ func TestRecaptureBaselineCanSupersedeExistingTicketWithNewName(t *testing.T) {
 }
 
 func TestRecapturedBaselineUsesIntentSpecificReceiptIdempotency(t *testing.T) {
-	plan := threePhasePlan()
+	plan := certificationPlan()
 	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "before-v1", ScenarioTargets: []string{"plan-manager"}}
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(execution.Schema)))
@@ -589,7 +599,7 @@ func TestGetStatusInjectsPhaseScopedContext(t *testing.T) {
 }
 
 func TestContinueExecutionRecommendsValidationForActiveUnvalidatedPhase(t *testing.T) {
-	plan := threePhasePlan()
+	plan := certificationPlan()
 	plan.Phases[0].Status = internalplans.PhaseStatusActive
 	h := newHarness(t, plan, nil)
 
@@ -610,7 +620,7 @@ func TestContinueExecutionRecommendsValidationForActiveUnvalidatedPhase(t *testi
 }
 
 func TestContinueExecutionRecommendsFeedbackCheckpointAfterFreshPassingValidation(t *testing.T) {
-	plan := threePhasePlan()
+	plan := certificationPlan()
 	plan.Phases[0].Status = internalplans.PhaseStatusActive
 	validator := fakeValidator{
 		hasResult: true,
@@ -630,7 +640,7 @@ func TestContinueExecutionRecommendsFeedbackCheckpointAfterFreshPassingValidatio
 }
 
 func TestContinueExecutionRecommendsDoneAfterFeedbackCheckpointSatisfied(t *testing.T) {
-	plan := threePhasePlan()
+	plan := certificationPlan()
 	plan.Phases[0].Status = internalplans.PhaseStatusActive
 	validator := fakeValidator{
 		hasResult: true,
@@ -660,7 +670,7 @@ func TestContinueExecutionRecommendsDoneAfterFeedbackCheckpointSatisfied(t *test
 }
 
 func TestContinueExecutionRecommendsDoneAfterCapturedPhaseFeedback(t *testing.T) {
-	plan := threePhasePlan()
+	plan := certificationPlan()
 	plan.Phases[0].Status = internalplans.PhaseStatusActive
 	validator := fakeValidator{
 		hasResult: true,
@@ -799,7 +809,7 @@ func TestGetStatusDegradesToUnknownWhenValidatorNil(t *testing.T) {
 }
 
 func TestContinueExecutionDegradesValidatorErrorToUnknownGuidance(t *testing.T) {
-	plan := threePhasePlan()
+	plan := certificationPlan()
 	plan.Phases[0].Status = internalplans.PhaseStatusActive
 	h := newHarness(t, plan, fakeValidator{err: errors.New("validation store unavailable")})
 
@@ -830,7 +840,7 @@ func TestTransitionPhaseDoneRequiresFeedbackCheckpointAfterFreshPassingValidatio
 			Staleness: internalplans.StalenessFresh,
 		},
 	}
-	h := newHarness(t, threePhasePlan(), validator)
+	h := newHarness(t, certificationPlan(), validator)
 	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 
@@ -857,7 +867,7 @@ func TestTransitionPhaseDoneAllowsFreshPassingValidationAndFeedbackCheckpoint(t 
 			Title:   execution.NoFeedbackCheckpointTitle,
 		}},
 	}
-	h := newHarnessWithLog(t, threePhasePlan(), validator, lg)
+	h := newHarnessWithLog(t, certificationPlan(), validator, lg)
 	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 
@@ -989,6 +999,10 @@ func TestCompleteAssemblesHandoffAndCapturesVelocity(t *testing.T) {
 	// Advance the clock so wall-time is non-zero.
 	h.clock.Advance(90 * time.Second)
 
+	for _, phase := range plan.Phases {
+		_, _, _, assessmentErr := h.svc.TransitionPhase(context.Background(), e.ID, phase.ID, doneOverride())
+		require.NoError(t, assessmentErr)
+	}
 	handoff, nudges, _, err := h.svc.Complete(context.Background(), e.ID, execution.CompletionInputs{Tokens: 1200, Iterations: 4})
 	require.NoError(t, err)
 	require.Equal(t, execution.CompletenessFull, handoff.Completeness)
@@ -1036,6 +1050,10 @@ func TestCompleteIsIdempotent(t *testing.T) {
 	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "run-c")
 	require.NoError(t, err)
 
+	for _, phase := range plan.Phases {
+		_, _, _, assessmentErr := h.svc.TransitionPhase(context.Background(), e.ID, phase.ID, doneOverride())
+		require.NoError(t, assessmentErr)
+	}
 	first, _, _, err := h.svc.Complete(context.Background(), e.ID, execution.CompletionInputs{})
 	require.NoError(t, err)
 	require.Equal(t, execution.CompletenessFull, first.Completeness)
@@ -1063,6 +1081,10 @@ func TestCompleteKeepsLocalVelocityWhenSinkFails(t *testing.T) {
 	require.NoError(t, err)
 	h.clock.Advance(30 * time.Second)
 
+	for _, phase := range plan.Phases {
+		_, _, _, assessmentErr := h.svc.TransitionPhase(context.Background(), e.ID, phase.ID, doneOverride())
+		require.NoError(t, assessmentErr)
+	}
 	handoff, _, _, err := h.svc.Complete(context.Background(), e.ID, execution.CompletionInputs{Tokens: 10, Iterations: 1})
 	require.NoError(t, err, "remote velocity sink failure must not fail local completion")
 	require.Equal(t, execution.CompletenessFull, handoff.Completeness)
@@ -1096,6 +1118,10 @@ func TestGetHandoffReturnsPersistedAfterComplete(t *testing.T) {
 	h := newHarness(t, plan, nil)
 	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
+	for _, phase := range plan.Phases {
+		_, _, _, assessmentErr := h.svc.TransitionPhase(context.Background(), e.ID, phase.ID, doneOverride())
+		require.NoError(t, assessmentErr)
+	}
 	written, _, _, err := h.svc.Complete(context.Background(), e.ID, execution.CompletionInputs{})
 	require.NoError(t, err)
 
@@ -1168,7 +1194,7 @@ func TestFreshenCapturedNotReRunOnResume(t *testing.T) {
 }
 
 func TestFreshenPersistsBaselineSetCheckpointAcrossStatusReads(t *testing.T) {
-	plan := threePhasePlan()
+	plan := certificationPlan()
 	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"git-control-tower", "plan-manager"}, RepoPaths: []string{"scenarios/plan-manager/**"}}
 	fr := &fakeFreshener{result: execution.FreshenResult{
 		BaselineCaptured: true,
@@ -1201,7 +1227,7 @@ func TestFreshenPersistsBaselineSetCheckpointAcrossStatusReads(t *testing.T) {
 }
 
 func TestSourceEvidenceRepairDoesNotIssueCaptureCommand(t *testing.T) {
-	plan := threePhasePlan()
+	plan := certificationPlan()
 	plan.ChangeBoundary.AcceptanceAllow = append(plan.ChangeBoundary.AcceptanceAllow, "packages/proto/**")
 	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"plan-manager"}, RepoPaths: []string{"packages/proto/gen/**"}}
 	preflight := &fakePreflight{result: execution.SourceEvidencePreflight{EligibleFiles: 12, EligibleBytes: 4096, RepairRequired: true, TopContributors: []execution.SourceEvidenceContributor{{Path: "packages/proto", Files: 12, Bytes: 4096}}, Issues: []execution.SourceEvidenceIssue{{Code: "generated_output_too_broad", Severity: "repair-required", Detail: "all generated output is too broad"}}, Recommendations: []execution.SourceEvidenceRecommendation{{Selection: "packages/proto/gen/go/plan-manager/**", Reason: "affected namespace"}}}}
@@ -1224,7 +1250,7 @@ func TestSourceEvidenceRepairDoesNotIssueCaptureCommand(t *testing.T) {
 }
 
 func TestExecutionStartBoundsAdvisorySourcePreflightAndStillIssuesCapture(t *testing.T) {
-	plan := threePhasePlan()
+	plan := certificationPlan()
 	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"plan-manager"}, RepoPaths: []string{"scenarios/plan-manager/**"}}
 	preflight := &blockingPreflight{}
 	h := newHarnessWithBoundedPreflight(t, plan, preflight, 25*time.Millisecond)
@@ -1242,7 +1268,7 @@ func TestExecutionStartBoundsAdvisorySourcePreflightAndStillIssuesCapture(t *tes
 }
 
 func TestExecutionStartAdmitsOneBehavioralBeforeReceiptAndSyncsTerminalEvidence(t *testing.T) { // [REQ:PM-VALID-001]
-	plan := threePhasePlan()
+	plan := certificationPlan()
 	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"plan-manager"}, RepoPaths: []string{"packages/proto/**"}}
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(execution.Schema)))
@@ -1274,7 +1300,7 @@ func TestExecutionStartAdmitsOneBehavioralBeforeReceiptAndSyncsTerminalEvidence(
 }
 
 func TestScopeAmendmentRequiresAndRendersTheAmendedProducerSelection(t *testing.T) {
-	plan := threePhasePlan()
+	plan := certificationPlan()
 	plan.Phases[0].ChangeBoundary = internalplans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/foo/**"}}
 	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo", "bar", "baz"}}
 	validator := &mutableValidator{}
@@ -1318,7 +1344,7 @@ func TestScopeAmendmentRequiresAndRendersTheAmendedProducerSelection(t *testing.
 // TestFreshenDegradationIsNonBlocking proves a freshener error is recorded as a
 // degraded status, surfaced in the phase context, and never blocks the start.
 func TestFreshenDegradationIsNonBlocking(t *testing.T) {
-	plan := threePhasePlan()
+	plan := certificationPlan()
 	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"plan-manager"}}
 	fr := &fakeFreshener{err: errors.New("git-control-tower unavailable")}
 	h := newHarnessWithFreshener(t, plan, fr)
@@ -1559,7 +1585,7 @@ func TestExtendBoundaryNoOpAfterRealExtensionReportsNothingAdded(t *testing.T) {
 // reaches the agent at the seams where runs actually take tens of minutes. An
 // agent that reads a slow run as a stalled one abandons the phase.
 func TestWaitDisciplineSurfacedOnLongRunningSteps(t *testing.T) {
-	h := newHarness(t, threePhasePlan(), nil)
+	h := newHarness(t, certificationPlan(), nil)
 	ctx := context.Background()
 	e, _, _, err := h.svc.Start(ctx, "plan-1", "run-wait")
 	require.NoError(t, err)

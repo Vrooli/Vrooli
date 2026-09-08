@@ -199,16 +199,18 @@ func (s *service) startAtPhase(ctx context.Context, plan planmodel.Plan, phaseID
 	}
 	now := s.now()
 	e := Execution{
-		ID:                 uuid.NewString(),
-		PlanID:             plan.ID,
-		RunID:              runID,
-		VerificationStatus: verificationStatus,
-		HarnessSessionID:   harnessSessionID,
-		HarnessKind:        harnessKind,
-		CurrentPhaseID:     currentPhaseID,
-		StartedAt:          now,
-		UpdatedAt:          now,
-		LifecycleState:     ExecutionLifecycleActive,
+		ID:                       uuid.NewString(),
+		PlanID:                   plan.ID,
+		RunID:                    runID,
+		VerificationStatus:       verificationStatus,
+		HarnessSessionID:         harnessSessionID,
+		HarnessKind:              harnessKind,
+		CurrentPhaseID:           currentPhaseID,
+		StartedAt:                now,
+		UpdatedAt:                now,
+		LifecycleState:           ExecutionLifecycleActive,
+		CompletionPolicy:         plan.CompletionPolicy,
+		CompletionPolicyCaptured: true,
 	}
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
@@ -217,7 +219,7 @@ func (s *service) startAtPhase(ctx context.Context, plan planmodel.Plan, phaseID
 	s.ensureBaselineTicket(ctx, &e, plan)
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, mode)
 	s.applyFreshenContext(&pctx, e)
-	if e.BaselineSet.Status == BaselineSetStatusScopeRepairRequired || e.BaselineSet.PreflightUnavailable {
+	if pctx.AssessmentRequiredPhase != "" || e.BaselineSet.Status == BaselineSetStatusScopeRepairRequired || e.BaselineSet.PreflightUnavailable {
 		return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
 	}
 	return e, pctx, stepForStarted(e), nil
@@ -231,6 +233,7 @@ func (s *service) resumeExecution(ctx context.Context, e Execution, phaseID stri
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
+	plan = planForExecution(plan, e)
 	if err := requireExecutionGradePlan(plan, hasExplicitBaselineRecovery(e)); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
@@ -238,6 +241,7 @@ func (s *service) resumeExecution(ctx context.Context, e Execution, phaseID stri
 }
 
 func (s *service) resumeExecutionWithPlan(ctx context.Context, e Execution, plan planmodel.Plan, phaseID string) (Execution, PhaseContext, GuidedStep, error) {
+	plan = planForExecution(plan, e)
 	currentPhaseID, err := resolveExecutionPhaseID(plan, phaseID)
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
@@ -264,6 +268,7 @@ func (s *service) GetStatus(ctx context.Context, executionID string) (Execution,
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
+	plan = planForExecution(plan, e)
 	s.refreshBaselineReceipt(ctx, &e)
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
 	s.applyFreshenContext(&pctx, e)
@@ -279,6 +284,7 @@ func (s *service) GetContext(ctx context.Context, executionID, phaseID string) (
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
+	plan = planForExecution(plan, e)
 	targetPhaseID := strings.TrimSpace(phaseID)
 	if targetPhaseID == "" {
 		targetPhaseID = e.CurrentPhaseID
@@ -305,6 +311,7 @@ func (s *service) Resume(ctx context.Context, planOrExecution, phaseID, runID st
 	if e, ok, err := s.latestActiveExecutionForPlan(ctx, plan.ID); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	} else if ok {
+		plan = planForExecution(plan, e)
 		if err := requireExecutionGradePlan(plan, hasExplicitBaselineRecovery(e)); err != nil {
 			return Execution{}, PhaseContext{}, GuidedStep{}, err
 		}
@@ -403,6 +410,7 @@ func (s *service) GetNext(ctx context.Context, executionID string) (PhaseContext
 	if err != nil {
 		return PhaseContext{}, false, GuidedStep{}, err
 	}
+	plan = planForExecution(plan, e)
 	// Advance means "move past the current pointer" when a later non-done phase
 	// exists. The resume point remains the earliest non-done phase and is exposed
 	// by GetStatus/buildContext; using it here would repeat the current phase.
@@ -431,6 +439,7 @@ func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID stri
 	if err != nil {
 		return Execution{}, planmodel.Plan{}, GuidedStep{}, err
 	}
+	plan = planForExecution(plan, e)
 	target, ok := findPhase(plan.Phases, phaseID)
 	if !ok {
 		return Execution{}, planmodel.Plan{}, GuidedStep{}, planmodel.ErrPhaseNotFound{PlanID: plan.ID, PhaseID: phaseID}
@@ -439,17 +448,34 @@ func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID stri
 	if to == "" {
 		return Execution{}, planmodel.Plan{}, GuidedStep{}, ErrInvalidExecution{Reason: "target phase status is required"}
 	}
-	if to == planmodel.PhaseStatusActive || to == planmodel.PhaseStatusDone {
+	if plan.CompletionPolicy.RequiresCertification() && (to == planmodel.PhaseStatusActive || to == planmodel.PhaseStatusDone) {
 		if err := requireBaselineReady(e.BaselineSet); err != nil {
 			return Execution{}, planmodel.Plan{}, GuidedStep{}, err
 		}
 	}
 	if to == planmodel.PhaseStatusDone {
-		if err := s.requireValidationForDone(ctx, e, plan, target.ID, inputs.ValidationOverrideReason); err != nil {
-			return Execution{}, planmodel.Plan{}, GuidedStep{}, err
-		}
-		if err := s.requireFeedbackForDone(ctx, e.ID, target.ID, inputs.FeedbackOverrideReason); err != nil {
-			return Execution{}, planmodel.Plan{}, GuidedStep{}, err
+		if !plan.CompletionPolicy.RequiresCertification() {
+			assessment := inputs.Assessment
+			assessment.ScopeGeneration = e.PhaseValidationGenerations[target.ID]
+			if reason := assessmentFailure(assessment); reason != "" {
+				return Execution{}, planmodel.Plan{}, GuidedStep{}, ErrValidationRequired{PhaseID: target.ID, Reason: reason}
+			}
+			if e.PhaseAssessments == nil {
+				e.PhaseAssessments = map[string]OutcomeAssessment{}
+			}
+			e.PhaseAssessments[target.ID] = assessment
+			// Persist supporting judgment before publishing done. A failed plan
+			// write can be retried; a done phase must not precede its evidence.
+			if err := s.repo.SaveExecution(ctx, e); err != nil {
+				return Execution{}, planmodel.Plan{}, GuidedStep{}, err
+			}
+		} else {
+			if err := s.requireValidationForDone(ctx, e, plan, target.ID, inputs.ValidationOverrideReason); err != nil {
+				return Execution{}, planmodel.Plan{}, GuidedStep{}, err
+			}
+			if err := s.requireFeedbackForDone(ctx, e.ID, target.ID, inputs.FeedbackOverrideReason); err != nil {
+				return Execution{}, planmodel.Plan{}, GuidedStep{}, err
+			}
 		}
 	}
 	// Delegate the phase-status change to the plans domain — it stays the single
@@ -459,6 +485,7 @@ func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID stri
 	if err != nil {
 		return Execution{}, planmodel.Plan{}, GuidedStep{}, err
 	}
+	updated = planForExecution(updated, e)
 	// Move the runner's pointer to the next actionable phase and mark the
 	// execution complete when every phase is terminal.
 	e.CurrentPhaseID = resumePhaseID(updated.Phases)
@@ -466,6 +493,11 @@ func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID stri
 	e.UpdatedAt = s.now()
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, planmodel.Plan{}, GuidedStep{}, err
+	}
+	if !updated.CompletionPolicy.RequiresCertification() {
+		pctx := s.buildContext(ctx, updated, e.CurrentPhaseID, e.ID, contextModePhaseEntry)
+		s.applyFreshenContext(&pctx, e)
+		return e, updated, stepForContext(e.ID, updated.ID, pctx, e.Complete), nil
 	}
 	return e, updated, stepForTransition(e), nil
 }
@@ -479,6 +511,7 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 	if err != nil {
 		return Handoff{}, nil, GuidedStep{}, err
 	}
+	plan = planForExecution(plan, e)
 	// Idempotent completion: an execution that already produced a full handoff
 	// returns it again instead of re-running the completion gates. Without this a
 	// second `exec complete` (e.g. after a transient client error, or an operator
@@ -498,10 +531,17 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 	if computeCompleteness(plan.Phases) != CompletenessFull {
 		return Handoff{}, nil, GuidedStep{}, ErrInvalidExecution{Reason: "normal completion requires every phase done; use partial-handoff for an honest incomplete handoff"}
 	}
-	if e.DegradedReason != "" {
+	if plan.CompletionPolicy.RequiresCertification() && e.DegradedReason != "" {
 		return Handoff{}, nil, GuidedStep{}, ErrInvalidExecution{Reason: "normal completion is disabled: " + e.DegradedReason}
 	}
-	if e.BaselineSet.Name != "" {
+	if !plan.CompletionPolicy.RequiresCertification() {
+		for _, phase := range plan.Phases {
+			assessment := e.PhaseAssessments[phase.ID]
+			if reason := assessmentForScopeFailure(assessment, e.PhaseValidationGenerations[phase.ID]); reason != "" {
+				return Handoff{}, nil, GuidedStep{}, ErrValidationRequired{PhaseID: phase.ID, Reason: reason}
+			}
+		}
+	} else {
 		if err := requireBaselineReady(e.BaselineSet); err != nil {
 			return Handoff{}, nil, GuidedStep{}, err
 		}
@@ -521,19 +561,21 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 
 	now := s.now()
 	handoff := Handoff{
-		ID:              uuid.NewString(),
-		ExecutionID:     e.ID,
-		PlanID:          plan.ID,
-		Completeness:    completeness,
-		ResumePhaseID:   resume,
-		LogSummary:      logSummary,
-		LogEntries:      logEntries,
-		LastValidation:  lastVal,
-		HasValidation:   hasVal,
-		Staleness:       staleness,
-		ProseHandoffRef: "", // pass-through; the orchestration layer fills this by reference
-		AssembledAt:     now,
-		ChangeBoundary:  plan.ChangeBoundary,
+		PhaseAssessments: e.PhaseAssessments,
+		CompletionPolicy: plan.CompletionPolicy,
+		ID:               uuid.NewString(),
+		ExecutionID:      e.ID,
+		PlanID:           plan.ID,
+		Completeness:     completeness,
+		ResumePhaseID:    resume,
+		LogSummary:       logSummary,
+		LogEntries:       logEntries,
+		LastValidation:   lastVal,
+		HasValidation:    hasVal,
+		Staleness:        staleness,
+		ProseHandoffRef:  "", // pass-through; the orchestration layer fills this by reference
+		AssembledAt:      now,
+		ChangeBoundary:   plan.ChangeBoundary,
 	}
 	// Capture the velocity point LOCAL ONLY — persisted regardless, then offered
 	// to the (stubbed) MoM emit seam after the durable write commits.
@@ -591,11 +633,13 @@ func (s *service) PartialHandoff(ctx context.Context, executionID string, inputs
 	if err != nil {
 		return Handoff{}, nil, GuidedStep{}, err
 	}
+	plan = planForExecution(plan, e)
 	logSummary, logEntries := s.logLedger(ctx, e.ID)
 	lastVal, hasVal, staleness := s.lastValidation(ctx, plan, e.CurrentPhaseID)
 	now := s.now()
 	handoff := Handoff{
 		ID: uuid.NewString(), ExecutionID: e.ID, PlanID: plan.ID, Completeness: CompletenessPartial,
+		PhaseAssessments: e.PhaseAssessments, CompletionPolicy: plan.CompletionPolicy,
 		ResumePhaseID: resumePhaseID(plan.Phases), LogSummary: logSummary, LogEntries: logEntries, LastValidation: lastVal,
 		HasValidation: hasVal, Staleness: staleness, AssembledAt: now, ChangeBoundary: plan.ChangeBoundary,
 	}
@@ -690,6 +734,18 @@ func requireExecutionGradePlan(plan planmodel.Plan, allowRecoveredLegacy bool) e
 	return ErrInvalidExecution{Reason: "plan is not execution-grade; repair before starting execution: " + summarizeQualityFailures(report)}
 }
 
+// planForExecution overlays the immutable execution-start policy onto the
+// current plan projection. Plans remain editable in the shared worktree, but
+// an active execution must keep a stable interpretation of ordinary versus
+// certification completion. Legacy executions without the marker retain the
+// historical live-plan fallback.
+func planForExecution(plan planmodel.Plan, e Execution) planmodel.Plan {
+	if e.CompletionPolicyCaptured {
+		plan.CompletionPolicy = e.CompletionPolicy
+	}
+	return plan
+}
+
 func hasExplicitBaselineRecovery(e Execution) bool {
 	return e.BaselineSet.Name != "" || e.BaselineSet.LegacyAdoptionRequired || e.DegradedReason != ""
 }
@@ -732,18 +788,21 @@ func summarizeQualityFailures(report planmodel.QualityReport) string {
 	return strings.Join(parts, "; ")
 }
 
-// freshenInputs runs the one-time execution-start freshen step: it captures the
-// regression-anchor's baseline snapshot fresh and recomputes reference staleness,
-// delegated to the validation domain through the InputFreshener seam. It runs at
-// most once successfully per execution (recorded on the Execution record) and is
-// re-attempted on a later start/resume only while it has not yet succeeded — so a
-// transient git-control-tower outage is retryable but a captured baseline is not
-// re-captured. It NEVER blocks phase work: a nil seam or an error is recorded as a
-// degraded freshen status and surfaced, not returned.
+// freshenInputs runs the optional certification execution-start freshen step:
+// it captures the regression-anchor's baseline snapshot fresh and recomputes
+// reference staleness, delegated to validation through the InputFreshener seam.
+// It runs at most once successfully per execution (recorded on the Execution
+// record) and is re-attempted on a later start/resume only while it has not yet
+// succeeded. Ordinary execution does not admit this work, and a nil seam or an
+// error is recorded as degraded evidence rather than returned as an ordinary
+// completion blocker.
 // ensureBaselineTicket admits the execution-start behavioral-before receipt.
 // Admission returns quickly; Test Genie owns GCT dispatch, waiting, recovery,
 // and terminalization after this point.
 func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan planmodel.Plan) {
+	if !plan.CompletionPolicy.RequiresCertification() {
+		return // Optional diagnostic capture is requested explicitly, never on resume.
+	}
 	if e.BaselineSet.Status == BaselineSetStatusDegraded {
 		return
 	}
@@ -891,6 +950,7 @@ func (s *service) RepairSourceScope(ctx context.Context, executionID string, req
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
+	plan = planForExecution(plan, e)
 	if e.BaselineSet.Status != BaselineSetStatusScopeRepairRequired {
 		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "source-scope repair requires a repair-required baseline checkpoint"}
 	}
@@ -955,6 +1015,7 @@ func (s *service) SyncBaseline(ctx context.Context, executionID string) (Executi
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
+	plan = planForExecution(plan, e)
 	if e.BaselineSet.Name == "" {
 		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "execution has no baseline collection ticket; repair or adopt the legacy execution before normal completion"}
 	}
@@ -1041,6 +1102,7 @@ func (s *service) AmendScope(ctx context.Context, executionID string, req ScopeA
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
+	plan = planForExecution(plan, e)
 	phaseID := strings.TrimSpace(req.PhaseID)
 	if _, ok := findPhase(plan.Phases, phaseID); !ok {
 		return Execution{}, PhaseContext{}, GuidedStep{}, planmodel.ErrPhaseNotFound{PlanID: plan.ID, PhaseID: phaseID}
@@ -1124,6 +1186,7 @@ func (s *service) ExtendBoundary(ctx context.Context, executionID string, req Bo
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, nil, err
 	}
+	plan = planForExecution(plan, e)
 	if e.EffectiveLifecycleState() != ExecutionLifecycleActive {
 		return Execution{}, PhaseContext{}, GuidedStep{}, nil, ErrInvalidExecution{Reason: "boundary extension requires an active execution"}
 	}
@@ -1138,6 +1201,7 @@ func (s *service) ExtendBoundary(ctx context.Context, executionID string, req Bo
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, nil, err
 	}
+	updated = planForExecution(updated, e)
 	if len(added) == 0 {
 		// Every glob was already inside the boundary. This is a no-op, not an
 		// error: the agent was right to check, and the edit needs no widening.
@@ -1185,6 +1249,7 @@ func (s *service) AdoptBaseline(ctx context.Context, executionID string, req Bas
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
+	plan = planForExecution(plan, e)
 	// A terminal partial receipt is already known to be non-comparable. Allow
 	// the explicit degraded path to replace that failed ticket; otherwise the
 	// recovery action advertised by the guided runner is impossible to perform.
@@ -1300,6 +1365,14 @@ func requireBaselineReady(state BaselineSetState) error {
 // applyFreshenContext surfaces the recorded freshen status into the phase context
 // so the agent sees whether the "before" anchor was captured fresh (or why not).
 func (s *service) applyFreshenContext(pctx *PhaseContext, e Execution) {
+	if !pctx.CompletionPolicy.RequiresCertification() {
+		for _, id := range pctx.AssessmentPhaseIDs {
+			if reason := assessmentForScopeFailure(e.PhaseAssessments[id], e.PhaseValidationGenerations[id]); reason != "" {
+				pctx.AssessmentRequiredPhase, pctx.AssessmentRequiredReason = id, reason
+				break
+			}
+		}
+	}
 	pctx.InputsFreshened = e.InputsFreshenedAt != ""
 	pctx.FreshenStatus = e.FreshenStatus
 	pctx.FreshenDetail = e.FreshenDetail
@@ -1343,15 +1416,21 @@ const (
 // buildContext assembles the just-in-time PhaseContext for the named phase.
 func (s *service) buildContext(ctx context.Context, plan planmodel.Plan, phaseID, executionID string, mode contextMode) PhaseContext {
 	pctx := PhaseContext{
-		ArtifactHandle: plan.Slug,
-		ResumePhaseID:  resumePhaseID(plan.Phases),
-		Completeness:   computeCompleteness(plan.Phases),
-		LogSummary:     s.logSummary(ctx, executionID),
+		CompletionPolicy: plan.CompletionPolicy,
+		ArtifactHandle:   plan.Slug,
+		ResumePhaseID:    resumePhaseID(plan.Phases),
+		Completeness:     computeCompleteness(plan.Phases),
+		LogSummary:       s.logSummary(ctx, executionID),
 	}
 	if pctx.ArtifactHandle == "" {
 		pctx.ArtifactHandle = plan.ID
 	}
 	pctx.ChangeBoundary = plan.ChangeBoundary
+	for _, phase := range plan.Phases {
+		if phase.Status == planmodel.PhaseStatusDone {
+			pctx.AssessmentPhaseIDs = append(pctx.AssessmentPhaseIDs, phase.ID)
+		}
+	}
 	if cur, ok := findPhase(plan.Phases, phaseID); ok {
 		pctx.CurrentPhase = cur
 		pctx.HasCurrent = true
@@ -1595,7 +1674,7 @@ func (s *service) requireValidationForDone(ctx context.Context, e Execution, pla
 	if reason == "" {
 		return nil
 	}
-	if strings.TrimSpace(overrideReason) != "" {
+	if !plan.CompletionPolicy.RequiresCertification() && strings.TrimSpace(overrideReason) != "" {
 		return nil
 	}
 	return ErrValidationRequired{PhaseID: phaseID, Reason: reason}
@@ -1750,10 +1829,12 @@ func (s *service) assembleLiveHandoff(ctx context.Context, executionID string) (
 	if err != nil {
 		return Handoff{}, err
 	}
+	plan = planForExecution(plan, e)
 	logSummary, logEntries := s.logLedger(ctx, e.ID)
 	lastVal, hasVal, staleness := s.lastValidation(ctx, plan, e.CurrentPhaseID)
 	return Handoff{
-		ExecutionID:    e.ID,
+		ExecutionID:      e.ID,
+		PhaseAssessments: e.PhaseAssessments, CompletionPolicy: plan.CompletionPolicy,
 		PlanID:         plan.ID,
 		Completeness:   computeCompleteness(plan.Phases),
 		ResumePhaseID:  resumePhaseID(plan.Phases),

@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"testing"
 )
@@ -14,12 +13,12 @@ import (
 // structural. The source scan is intentionally used here: adding a finding
 // call is a contract change and must be accompanied by a descriptor entry.
 func TestFindingCodesMatchDescriptor(t *testing.T) {
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("resolve monetization test workspace: %v", err)
 	}
-	repoRoot := filepath.Join(filepath.Dir(sourceFile), "../../../../../")
-	source, err := os.ReadFile(filepath.Join(filepath.Dir(sourceFile), "conformance.go"))
+	repoRoot := filepath.Clean(filepath.Join(workingDir, "../../../../../"))
+	source, err := os.ReadFile(filepath.Join(workingDir, "conformance.go"))
 	if err != nil {
 		t.Fatalf("read conformance provider: %v", err)
 	}
@@ -36,19 +35,15 @@ func TestFindingCodesMatchDescriptor(t *testing.T) {
 }
 
 func TestFindingDescriptorMutationIsDetected(t *testing.T) {
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("resolve monetization test workspace: %v", err)
 	}
-	source, err := os.ReadFile(filepath.Join(filepath.Dir(sourceFile), "conformance.go"))
+	source, err := os.ReadFile(filepath.Join(workingDir, "conformance.go"))
 	if err != nil {
 		t.Fatalf("read conformance provider: %v", err)
 	}
-	_, descriptorPath, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve descriptor path")
-	}
-	repoRoot := filepath.Join(filepath.Dir(descriptorPath), "../../../../../")
+	repoRoot := filepath.Clean(filepath.Join(workingDir, "../../../../../"))
 	data, err := os.ReadFile(filepath.Join(repoRoot, "scenarios", "landing-page-business-suite", ".vrooli", "test-genie.json"))
 	if err != nil {
 		t.Fatalf("read phase descriptor: %v", err)

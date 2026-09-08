@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "selectors": {
     "admin.login.email": {
       "testId": "admin-login-email",
@@ -267,6 +268,22 @@
     "publicLanding.navDownload": {
       "testId": "landing-nav-download",
       "selector": "[data-testid=\"landing-nav-download\"]"
+    },
+    "library.statusbadge.root": {
+      "testId": "statusbadge",
+      "selector": "[data-testid=\"statusbadge\"]"
+    },
+    "library.feedback.empty-state.root": {
+      "testId": "feedback.empty-state",
+      "selector": "[data-testid=\"feedback.empty-state\"]"
+    },
+    "library.feedback.empty-state.emptyIcon": {
+      "testId": "feedback.empty-state.empty-icon",
+      "selector": "[data-testid=\"feedback.empty-state.empty-icon\"]"
+    },
+    "library.monetization.entitlement-error-card.root": {
+      "testId": "monetization.entitlement-error-card",
+      "selector": "[data-testid=\"monetization.entitlement-error-card\"]"
     }
   },
   "dynamicSelectors": {
@@ -424,5 +441,9 @@
         }
       ]
     }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "3622c671c37315ce57864eae40354eea1f64e7622fa14f7ee89fb6c00c0d804c",
+    "ui/src/consts/selectors.ts": "438daab60a009a47ba75ad8977821afaed1aee5cb2f098e7e7263b7bfd868b2a"
   }
 }

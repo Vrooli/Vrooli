@@ -39,6 +39,23 @@ func TestArtifactsFromResponseDetectsComponentMarks(t *testing.T) {
 	}
 }
 
+func TestComponentMarksDecodeJSONWithoutCountingSchedulerTracks(t *testing.T) {
+	for _, tc := range []struct {
+		raw  string
+		want bool
+	}{
+		{`{"traceEvents":[{"name":"\u269b App (mount)"}]}`, true},
+		{`[{"name":"\u269b App (update)"}]`, true},
+		{`{"traceEvents":[{"name":"TimeStamp","args":{"data":{"trackGroup":"Scheduler \u269b"}}}]}`, false},
+		{`broken JSON with ⚛ App`, false},
+	} {
+		c := &BASConnectClient{ReadTrace: func(string) ([]byte, error) { return []byte(tc.raw), nil }}
+		if got := c.traceHasComponentMarks("trace"); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.raw, got, tc.want)
+		}
+	}
+}
+
 // [REQ:PH-CAPTURE-002] A trace without ⚛ marks resolves to HasComponentMarks=false
 // (Tier 0); capture never fails for lack of instrumentation.
 func TestArtifactsFromResponseTier0Trace(t *testing.T) {

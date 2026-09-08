@@ -166,11 +166,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "🎯 Overview",
-              "🎯 Operational Targets",
-              "🧱 Tech Direction Snapshot",
-              "🤝 Dependencies & Launch Plan",
-              "🎨 UX & Branding"
+              "\ud83c\udfaf Overview",
+              "\ud83c\udfaf Operational Targets",
+              "\ud83e\uddf1 Tech Direction Snapshot",
+              "\ud83e\udd1d Dependencies & Launch Plan",
+              "\ud83c\udfa8 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -245,10 +245,10 @@
           "validation": {
             "requiredHeadings": [
               "Prerequisites",
-              "1 — Setup",
-              "2 — Start",
-              "3 — Open",
-              "5 — Run the tests"
+              "1 \u2014 Setup",
+              "2 \u2014 Start",
+              "3 \u2014 Open",
+              "5 \u2014 Run the tests"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -609,7 +609,7 @@
             "operator-surface",
             "ux-design"
           ],
-          "description": "The operator surface — design principles, information architecture, and shared primitives — plus the canonical ui/ source layout and the slot taxonomy consumed by the adoption resolver",
+          "description": "The operator surface \u2014 design principles, information architecture, and shared primitives \u2014 plus the canonical ui/ source layout and the slot taxonomy consumed by the adoption resolver",
           "audience": [
             "developers",
             "agents"
@@ -958,11 +958,11 @@
             "requiredHeadings": [
               "Before you start",
               "The contract",
-              "Step 1 — Implement the floor",
-              "Step 2 — Declare only what you can back",
-              "Step 3 — Implement the prober",
-              "Step 4 — Register the strategy",
-              "Step 5 — Run the conformance suite",
+              "Step 1 \u2014 Implement the floor",
+              "Step 2 \u2014 Declare only what you can back",
+              "Step 3 \u2014 Implement the prober",
+              "Step 4 \u2014 Register the strategy",
+              "Step 5 \u2014 Run the conformance suite",
               "What you get for free",
               "What you must never do",
               "Checklist",
@@ -1049,7 +1049,7 @@
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Scenario commands — `notes` (CRUD reference)",
+              "Scenario commands \u2014 `notes` (CRUD reference)",
               "Output contracts",
               "Adding a new command",
               "Cross-references"
@@ -1110,13 +1110,10 @@
             "ui-slots-reference",
             "scenario-ui-manifest"
           ],
-          "description": "Slot table, path-pattern tokens, and adoption-resolver resolution order for the scenario UI manifest",
+          "description": "Entry point to the shared ui manifest reference contract and local differences",
           "audience": [
             "developers",
             "agents"
-          ],
-          "canonicalFor": [
-            "ui-manifest-reference"
           ],
           "maturity": "draft",
           "requiredBy": [
@@ -1125,12 +1122,8 @@
           "completion": "optional",
           "validation": {
             "requiredHeadings": [
-              "Contract",
-              "Slots (v1)",
-              "Path-Pattern Tokens",
-              "Resolution Order (Adoption Resolver)",
-              "Overlays",
-              "Cross-References"
+              "Shared contract",
+              "Scenario details"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1182,7 +1175,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry — every interface and its production / test fake",
+          "description": "Boundary registry \u2014 every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1270,15 +1263,14 @@
             "test-strategy",
             "qa"
           ],
-          "description": "Layered test patterns, fixtures, and coverage expectations",
+          "description": "Scenario-specific test strategy, existing examples, and shared harness guidance",
           "audience": [
             "developers",
             "agents"
           ],
           "canonicalFor": [
             "testing-strategy",
-            "test-patterns",
-            "coverage-policy"
+            "local-test-examples"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -1292,15 +1284,8 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "TL;DR — the canonical examples",
-              "API testing",
-              "UI testing",
-              "CLI testing",
-              "How to add a new proto",
-              "E2E binary smoke gate",
-              "Coverage thresholds",
-              "Common patterns and anti-patterns",
-              "Cross-references"
+              "Shared guidance",
+              "Scenario-specific testing"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1501,7 +1486,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log — append a row whenever work lands",
+          "description": "Lifecycle log \u2014 append a row whenever work lands",
           "audience": [
             "developers",
             "agents"

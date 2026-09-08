@@ -26,7 +26,7 @@ envelope = {
     "status": "failed", "phase": "validate",
     "inputs": {"workflow_id": workflow_id, "parameters": bool(parameters), "version": version},
     "signals": {"workflow_name": None, "execution_id": None, "execution_status": None,
-                "outcome": None, "failed_step": None, "failed_action": None, "failed_error_code": None,
+                "outcome": "unknown", "failed_step": None, "failed_action": None, "failed_error_code": None,
                 "timeline_entries": None, "screenshot_count": None},
     "errors": [], "evidence": [],
 }
@@ -170,15 +170,30 @@ def step_classify():  # CLASSIFY · read the execution record and its timeline; 
             envelope["errors"].append({"class": klass, "detail": f"executions.screenshots: {str(exc)[:160]}", "where": "classify"})
     st = envelope["signals"]["execution_status"] or ""
     if st == "EXECUTION_STATUS_COMPLETED":
-        envelope["signals"]["outcome"] = "passed"
+        if execution_id:
+            try:
+                timeline = browser_automation_studio.executions.timeline(execution_id=execution_id, rows="entries")
+                entries = timeline.head(200)
+                envelope["signals"]["timeline_entries"] = timeline.count()
+                assertions = [e for e in entries if (e.get("action") or {}).get("type") == "ACTION_TYPE_ASSERT"]
+                if assertions and timeline.count() == len(entries) and all(
+                    (e.get("aggregates") or {}).get("status") == "STEP_STATUS_COMPLETED"
+                    for e in entries) and not any(entry_failed(e) for e in entries) and all(
+                    (e.get("aggregates") or {}).get("status") == "STEP_STATUS_COMPLETED"
+                    and ((e.get("context") or {}).get("assertion") or {}).get("success") is True
+                    for e in assertions) and not envelope["errors"]:
+                    envelope["signals"]["outcome"] = "verified_success"
+            except Exception as exc:
+                status, klass = classify_transport(exc)
+                envelope["errors"].append({"class":klass,"detail":"Assertion evidence unavailable","where":"classify"})
         envelope["status"] = "ok" if not envelope["errors"] else "partial"
         return "report"
     if st in ("EXECUTION_STATUS_RUNNING", "EXECUTION_STATUS_PENDING"):
-        envelope["signals"]["outcome"] = "still_running"
         return fail("partial", "timeout", f"execution {execution_id} is {st} after wait", "classify")
     if st == "EXECUTION_STATUS_CANCELLED":
-        envelope["signals"]["outcome"] = "cancelled"
         return fail("failed", "step_failed", "execution cancelled", "classify")
+    if st != "EXECUTION_STATUS_FAILED":
+        return fail("partial", "invalid_response", f"Unrecognized execution status {st!r}", "classify")
     envelope["signals"]["outcome"] = "failed"
     if not execution_id:
         return fail("failed", "step_failed", f"execution status {st or 'unknown'} and no execution id", "classify")

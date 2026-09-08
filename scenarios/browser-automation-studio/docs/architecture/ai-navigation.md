@@ -470,6 +470,6 @@ The UI shows [CODE: ui/src/domains/recording/ai-navigation/HumanInterventionOver
 
 - [DOC: docs/architecture/driver-interface.md] - Driver interface and navigator architecture
 - [DOC: docs/architecture/recording.md] - Manual recording architecture (contrast with AI navigation)
-- [DOC: docs/plans/vision-agent-implementation-plan.md] - Original implementation plan
+- [DOC: docs/plans/README.md#historical-source-files] - Original implementation plan
 - [DOC: docs/architecture/execution.md] - Workflow execution architecture
 - [DOC: docs/research/ai-browser-automation-research.md] - Research on AI browser automation approaches

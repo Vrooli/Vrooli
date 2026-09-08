@@ -245,7 +245,15 @@
         "knowledge-observatory.learning-read"
       ]
     },
-    "feature": [],
+    "feature": [
+      {
+        "source": "skills/knowledge-observatory-maintenance/SKILL.md",
+        "programs": [
+          "knowledge-observatory.prepare-change",
+          "knowledge-observatory.verify-change"
+        ]
+      }
+    ],
     "learning": {
       "scope": "knowledge-observatory-usage"
     },

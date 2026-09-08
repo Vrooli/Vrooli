@@ -3,13 +3,16 @@ package handlers
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func TestFindRepoRootUsesRepoContract(t *testing.T) {
-	root := repoRootForHandlersTest(t)
-	t.Setenv("VROOLI_ROOT", root)
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		t.Fatalf("ResolveRepoRoot() error = %v", err)
+	}
 
 	got, err := findRepoRoot()
 	if err != nil {
@@ -64,9 +67,9 @@ func newAppMonitorContractFixtureRepo(t *testing.T) string {
 
 func repoRootForHandlersTest(t *testing.T) string {
 	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		t.Fatalf("ResolveRepoRoot() error = %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", ".."))
+	return root
 }

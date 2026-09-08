@@ -125,7 +125,7 @@ readings with coverage, trust, empirical result, source observation time and TTL
 Authored sample values are excluded. This read does not start a walk.
 
 `program-runtime library run command-center.vision-walk-prep --input limit=3 --json`
-collects twelve phase-aligned evidence sections and independently reads the latest
+collects thirteen phase-aligned evidence sections and independently reads the latest
 checkpoint. The declared runner provides a 64 KiB output tier; the program returns
 one complete JSON envelope below 60,000 bytes. Inspect `program.stdout` as JSON,
 then its status, errors and `signals`. Partial evidence remains explicit. Prep

@@ -133,6 +133,13 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 		plan.Decisions = decisions
 	}
 	applyStringFlag(ctx, "validation-strategy", func(v string) { plan.ValidationStrategy = v })
+	if raw := strings.TrimSpace(ctx.Flag("completion-policy-json")); raw != "" {
+		policy := &sharedv1.CompletionPolicy{}
+		if err := protojson.Unmarshal([]byte(raw), policy); err != nil {
+			return fmt.Errorf("invalid completion policy: %w", err)
+		}
+		plan.CompletionPolicy = policy
+	}
 	applyStringFlag(ctx, "risks", func(v string) { plan.RisksHazards = v })
 	applyStringFlag(ctx, "prohibited-approaches", func(v string) { plan.ProhibitedApproaches = v })
 	applyStringFlag(ctx, "dod", func(v string) { plan.DefinitionOfDone = v })

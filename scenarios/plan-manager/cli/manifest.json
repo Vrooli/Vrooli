@@ -186,6 +186,10 @@
               "description": "Validation strategy"
             },
             {
+              "name": "completion-policy-json",
+              "description": "CompletionPolicy JSON: advisory (default), or certification with an explicit reason"
+            },
+            {
               "name": "final-validation-command",
               "description": "Final validation command; repeat or comma-separate for multiple commands"
             },
@@ -2965,6 +2969,10 @@
             {
               "name": "validation-override-reason",
               "description": "Explicit reason for marking done without a fresh passing validation result"
+            },
+            {
+              "name": "assessment-json",
+              "description": "OutcomeAssessment JSON: summary, evidence references, limitations, and unmet_outcomes; required for advisory done transitions"
             },
             {
               "name": "feedback-override-reason",

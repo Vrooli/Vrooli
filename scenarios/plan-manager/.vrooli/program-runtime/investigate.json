@@ -4,14 +4,45 @@
   "version": "1",
   "purpose": "Compose one plan-owned trigger observation and domain brief into a bounded Agent Manager investigation.",
   "inputs": {
-    "caller_key": {"type": "string", "required": true, "description": "Stable trigger occurrence key."},
-    "execution_id": {"type": "string", "required": true, "description": "Exact Plan Manager execution identity."},
-    "phase_id": {"type": "string", "required": true, "description": "Exact phase identity."},
-    "phase_generation": {"type": "string", "required": true, "description": "Phase generation used for trigger correlation."},
-    "question": {"type": "string", "required": true, "description": "Versioned domain question; it cannot authorize mutation."},
-    "run_ids": {"type": "array", "required": true, "description": "Explicit evidence run IDs, at most eight."},
-    "brief_ref": {"type": "string", "description": "Plan-owned domain brief reference."},
-    "wait_seconds": {"type": "integer", "default": 30, "description": "One bounded collection wait, capped at 300 seconds."}
+    "caller_key": {
+      "type": "string",
+      "required": true,
+      "description": "Stable trigger occurrence key."
+    },
+    "execution_id": {
+      "type": "string",
+      "required": true,
+      "description": "Exact Plan Manager execution identity."
+    },
+    "phase_id": {
+      "type": "string",
+      "required": true,
+      "description": "Exact phase identity."
+    },
+    "phase_generation": {
+      "type": "string",
+      "required": true,
+      "description": "Phase generation used for trigger correlation."
+    },
+    "question": {
+      "type": "string",
+      "required": true,
+      "description": "Versioned domain question; it cannot authorize mutation."
+    },
+    "run_ids": {
+      "type": "array",
+      "required": true,
+      "description": "Explicit evidence run IDs, at most eight."
+    },
+    "brief_ref": {
+      "type": "string",
+      "description": "Plan-owned domain brief reference."
+    },
+    "wait_seconds": {
+      "type": "integer",
+      "default": 30,
+      "description": "One bounded collection wait, capped at 300 seconds."
+    }
   },
   "assumptions": [
     "Plan Manager owns trigger eligibility and supplies the current execution, phase generation, and brief reference.",
@@ -25,12 +56,38 @@
     "The envelope is printed exactly once on every path."
   ],
   "bindings": [],
-  "verbs": ["lib"],
+  "verbs": [
+    "lib"
+  ],
   "outputs": {
-    "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
-    "phase": {"enum": ["validate", "delegate", "report"]},
-    "signals": {"summary": "Nested investigation identity, standing, and diagnostic-only disposition."},
-    "errors": {"classes": ["invalid_input", "scenario_unreachable", "no_output", "binding_error", "deadline_exceeded"]},
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "delegate",
+        "report"
+      ]
+    },
+    "signals": {
+      "summary": "Nested investigation identity, standing, and diagnostic-only disposition."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "scenario_unreachable",
+        "no_output",
+        "binding_error",
+        "deadline_exceeded"
+      ]
+    },
     "evidence": "Trigger, execution, phase, brief, and nested investigation identities."
   },
   "fixtures": [
@@ -42,12 +99,28 @@
         "phase_id": "phase-1",
         "phase_generation": "1",
         "question": "",
-        "run_ids": ["run-1"]
+        "run_ids": [
+          "run-1"
+        ]
       },
-      "expect": {"status": ["failed"]}
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "plan-manager"
+      ]
     }
   ],
-  "budget": {"wall_ms": 600000, "inference_calls": 0, "delegated_runs": 1, "materialize_limit": 1, "async": true, "async_reason": "nested diagnosis may exceed the synchronous submission bound"},
+  "budget": {
+    "wall_ms": 600000,
+    "inference_calls": 0,
+    "delegated_runs": 1,
+    "materialize_limit": 1,
+    "async": true,
+    "async_reason": "nested diagnosis may exceed the synchronous submission bound"
+  },
   "rung": "S3",
   "owner_skill": "plan-manager"
 }

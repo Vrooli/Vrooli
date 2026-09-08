@@ -33,7 +33,6 @@ func TestAssessPlanQualityRequiresExecutionGradePlanFields(t *testing.T) {
 		"plan_missing_validation_strategy",
 		"plan_missing_definition_of_done",
 		"plan_missing_change_boundary",
-		"plan_missing_regression_anchor",
 		"plan_missing_references",
 		"plan_missing_global_context",
 		"plan_missing_skill_context",
@@ -53,6 +52,7 @@ func TestAssessPlanQualityAcceptsExplicitNoContextAndNoCodeReasons(t *testing.T)
 
 func TestAssessPlanQualityRequiresCurrentCollectionBaseline(t *testing.T) {
 	plan := executionGradePlan()
+	plan.CompletionPolicy = CompletionPolicy{Mode: "certification", Reason: "Test required comparable evidence"}
 	plan.BaselineSet = BaselineSetIntent{}
 
 	report := AssessPlanQuality(plan, "")

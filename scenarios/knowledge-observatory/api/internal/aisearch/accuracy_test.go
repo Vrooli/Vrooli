@@ -63,7 +63,7 @@ func TestSearchSSOTWellFormed(t *testing.T) {
 	if len(provider.Tests.Cases) < 26 {
 		t.Fatalf("docs corpus cases = %d, want at least 26 reviewed cases", len(provider.Tests.Cases))
 	}
-	for _, id := range []string{"agent-knowledge-usage", "knowledge-artifact-authority", "knowledge-os-applicability"} {
+	for _, id := range []string{"agent-knowledge-usage", "knowledge-artifact-authority", "knowledge-os-applicability", "knowledge-document-maintenance"} {
 		found := false
 		for _, c := range provider.Tests.Cases {
 			if c.ID == id {

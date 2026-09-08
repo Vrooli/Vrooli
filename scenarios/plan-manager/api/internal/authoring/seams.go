@@ -43,11 +43,10 @@ type DraftPlanRenderer interface {
 }
 
 // AnchorIntentDeriver derives the typed regression-anchor INTENT for a
-// plan-in-progress — the "before" the executor will snapshot. It is pure and
-// deterministic (title/slug → typed intent fields), needs no git-control-tower,
-// and never goes stale: the actual baseline snapshot is captured fresh at
-// execution start (see the execution InputFreshener seam), however many days
-// later. Production wires the default deriver; tests inject a fake.
+// plan-in-progress. It is pure and deterministic (title/slug → intent fields)
+// and needs no Git Control Tower. Intent does not assert a captured before-state:
+// ordinary execution may leave historical evidence unknown. Production wires
+// the default deriver; tests inject a fake.
 type AnchorIntentDeriver interface {
 	// DeriveAnchorIntent returns the boundary-native regression-anchor intent
 	// block for the given plan title/slug and change boundary. Affected scenarios

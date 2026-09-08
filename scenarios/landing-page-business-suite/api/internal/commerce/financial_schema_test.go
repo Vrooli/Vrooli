@@ -7,7 +7,7 @@ import (
 
 func TestFinancialSchemaOwnsCommerceRuntimeTables(t *testing.T) {
 	sql := strings.ToLower(FinancialSchema())
-	for _, table := range []string{"bundle_products", "checkout_sessions", "subscriptions", "credit_transactions", "payment_anomaly_log"} {
+	for _, table := range []string{"bundle_products", "checkout_sessions", "subscriptions", "credit_transactions", "business_account_credit_wallets", "business_account_credit_transactions", "payment_anomaly_log"} {
 		if !strings.Contains(sql, "create table if not exists "+table) {
 			t.Errorf("missing %s", table)
 		}

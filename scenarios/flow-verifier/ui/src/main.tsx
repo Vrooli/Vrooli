@@ -1,3 +1,6 @@
+import { i18n } from "./i18n";
+import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,7 +15,8 @@ import "./styles.css";
 installChunkReloadGuard();
 
 initIframeBridgeChild();
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 const rootEl = document.getElementById("root");
 if (!rootEl) {
@@ -51,20 +55,27 @@ async function bootstrap() {
   ]);
 
   ReactDOM.createRoot(appRoot).render(
+    // vrooli:library-strings-provider start
+    <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
     <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <ErrorBoundary>
-            <BrowserRouter basename={normalizeRouterBasename(import.meta.env.BASE_URL)}>
-              <React.Profiler id="App" onRender={onProfilerRender}>
-                <App />
-              </React.Profiler>
-            </BrowserRouter>
-          </ErrorBoundary>
-        </ThemeProvider>
-      </QueryClientProvider>
+      <SpatialNavProvider controller={spatialNav}>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <ErrorBoundary>
+              <BrowserRouter basename={normalizeRouterBasename(import.meta.env.BASE_URL)}>
+                <React.Profiler id="App" onRender={onProfilerRender}>
+                  <App />
+                </React.Profiler>
+              </BrowserRouter>
+            </ErrorBoundary>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </SpatialNavProvider>
     </React.StrictMode>
-  );
+  
+    </LibraryStringsProvider>
+    // vrooli:library-strings-provider end
+);
 }
 
 void bootstrap();

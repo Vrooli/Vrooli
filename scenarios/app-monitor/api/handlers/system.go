@@ -39,8 +39,10 @@ type resourceCache struct {
 
 // SystemHandler handles system-related endpoints
 type SystemHandler struct {
-	metricsService *services.MetricsService
-	resourceCache  *resourceCache
+	metricsService   *services.MetricsService
+	resourceCache    *resourceCache
+	resourceStatuses func(context.Context) (*cliv1.ResourceStatusesResponse, error)
+	resourceStatus   func(context.Context, string) (*cliv1.ResourceStatusResponse, error)
 }
 
 type ResourceStatusSummary struct {
@@ -318,7 +320,11 @@ func rawDriverPayload(rs *cliv1.ResourceStatus) map[string]interface{} {
 }
 
 func (h *SystemHandler) fetchResourceStatus(ctx context.Context, name string) (map[string]interface{}, error) {
-	resp, err := cliClient.ResourceStatus(ctx, name)
+	fetch := h.resourceStatus
+	if fetch == nil {
+		fetch = cliClient.ResourceStatus
+	}
+	resp, err := fetch(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +336,11 @@ func (h *SystemHandler) fetchResourceStatus(ctx context.Context, name string) (m
 }
 
 func (h *SystemHandler) fetchResourceDetail(ctx context.Context, name string) (map[string]interface{}, map[string]interface{}, error) {
-	resp, err := cliClient.ResourceStatus(ctx, name)
+	fetch := h.resourceStatus
+	if fetch == nil {
+		fetch = cliClient.ResourceStatus
+	}
+	resp, err := fetch(ctx, name)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -380,10 +390,13 @@ func stringValue(value interface{}) string {
 
 // NewSystemHandler creates a new system handler
 func NewSystemHandler(metricsService *services.MetricsService) *SystemHandler {
-	return &SystemHandler{
+	h := &SystemHandler{
 		metricsService: metricsService,
 		resourceCache:  &resourceCache{},
 	}
+	h.resourceStatuses = cliClient.ResourceStatuses
+	h.resourceStatus = cliClient.ResourceStatus
+	return h
 }
 
 // GetSystemMetrics placeholder - metrics are now handled by system-monitor iframe
@@ -504,7 +517,11 @@ func (h *SystemHandler) GetResources(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	resp, err := cliClient.ResourceStatuses(ctx)
+	fetch := h.resourceStatuses
+	if fetch == nil {
+		fetch = cliClient.ResourceStatuses
+	}
+	resp, err := fetch(ctx)
 	if err != nil {
 		// Return cached data if available on error
 		h.resourceCache.mu.RLock()

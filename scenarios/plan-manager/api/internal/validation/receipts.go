@@ -24,7 +24,8 @@ type ReceiptClient interface {
 }
 
 func (s *service) startReceiptValidation(ctx context.Context, request ValidationTicketRequest, plan planmodel.Plan, boundary planmodel.ChangeBoundary, refs []planmodel.Reference, projection ValidationOperation) (ValidationOperation, bool, error) {
-	compareBehavior := request.PhaseID == ""
+	certification := request.PhaseID == "" && plan.CompletionPolicy.RequiresCertification()
+	compareBehavior := certification
 	var phases []string
 	for _, phase := range plan.Phases {
 		if phase.ID == request.PhaseID {
@@ -56,7 +57,7 @@ func (s *service) startReceiptValidation(ctx context.Context, request Validation
 		RequiredStrength:  validationv1.ValidationStrength_VALIDATION_STRENGTH_TARGETED,
 		ReusePolicy:       &validationv1.ReusePolicy{Mode: validationv1.ReuseMode_REUSE_MODE_ATTACH_OR_TERMINAL, MaximumAge: durationpb.New(24 * time.Hour)},
 		ConcurrencyPolicy: &validationv1.ConcurrencyPolicy{Mode: validationv1.ConcurrencyMode_CONCURRENCY_MODE_SHARED_COMPATIBLE, MaximumParallelism: maxValidationConcurrency},
-		DeadlinePolicy:    &validationv1.DeadlinePolicy{QueueBudget: durationpb.New(defaultQueueBudget), ExecutionBudget: durationpb.New(defaultExecutionBudget), MaximumAttempts: 2},
+		DeadlinePolicy:    &validationv1.DeadlinePolicy{QueueBudget: durationpb.New(defaultQueueBudget), ExecutionBudget: durationpb.New(defaultExecutionBudget), MaximumAttempts: 1},
 		EvidencePolicy:    &validationv1.EvidencePolicy{RequireBehavioralBefore: compareBehavior && strings.TrimSpace(plan.BaselineSet.Name) != "", RequireSourceSnapshot: compareBehavior && len(boundary.RepoPaths()) > 0, RequiredEvidenceKinds: []string{"test-genie-run"}},
 		Phases:            phases,
 		CallerAttributes: map[string]string{
@@ -72,7 +73,7 @@ func (s *service) startReceiptValidation(ctx context.Context, request Validation
 	if intent.GetEvidencePolicy().GetRequireSourceSnapshot() {
 		intent.EvidencePolicy.RequiredEvidenceKinds = append(intent.EvidencePolicy.RequiredEvidenceKinds, "gct-source-snapshot")
 	}
-	if request.PhaseID == "" {
+	if certification {
 		intent.Purpose = validationv1.ValidationPurpose_VALIDATION_PURPOSE_CERTIFICATION
 		intent.RequiredStrength = validationv1.ValidationStrength_VALIDATION_STRENGTH_CERTIFICATION
 	}
@@ -173,11 +174,10 @@ func projectReceipt(operation ValidationOperation, receipt *validationv1.Validat
 			check = ValidationCheck{
 				Kind:        ValidationCheckCustom,
 				SemanticKey: "test-genie-receipt-child:" + child.GetChildId(),
-				Command:     "test-genie validation receipt child " + child.GetChildId(),
-				Oracle:      true,
+				Oracle:      child.GetKind() != validationv1.ChildOperationKind_CHILD_OPERATION_KIND_SOURCE_SNAPSHOT,
 			}
 		}
-		operation.Children = append(operation.Children, ValidationChild{ID: child.GetChildId(), Check: check, ExternalID: child.GetOperationId(), Status: status, Verdict: verdict, Detail: child.GetDetail(), Oracle: true})
+		operation.Children = append(operation.Children, ValidationChild{ID: child.GetChildId(), Check: check, ExternalID: child.GetOperationId(), Status: status, Verdict: verdict, Detail: child.GetDetail(), Oracle: check.Oracle})
 	}
 	if receiptTerminal(receipt.GetState()) {
 		operation.Status, operation.TerminalAt, operation.QueueReason = OperationTerminal, now, ""
@@ -187,7 +187,17 @@ func projectReceipt(operation ValidationOperation, receipt *validationv1.Validat
 		} else if receipt.GetState() == validationv1.ReceiptState_RECEIPT_STATE_FAILED || receipt.GetState() == validationv1.ReceiptState_RECEIPT_STATE_CANCELLED {
 			verdict = VerdictFail
 		}
-		operation.Result = &Result{ID: operation.ID + ":result", PlanID: operation.PlanID, PhaseID: operation.PhaseID, Verdict: verdict, Staleness: planmodel.StalenessFresh, Detail: receipt.GetDetail(), RanAt: now, ExecutionID: operation.ExecutionID, OperationID: operation.ID, ScopeGeneration: operation.ScopeGeneration, FullInventory: operation.FullInventory, RequiredMembers: append([]string(nil), operation.RequiredMembers...), SelectedMembers: append([]string(nil), operation.SelectedMembers...)}
+		staleness := planmodel.StalenessFresh
+		switch receipt.GetReasonCode() {
+		case validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_IDENTITY_CHANGED:
+			verdict, staleness = VerdictUnknown, planmodel.StalenessDefinitelyStale
+		case validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_PROVIDER_UNAVAILABLE,
+			validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_CAPACITY_UNAVAILABLE,
+			validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_UNRESOLVED_INPUT,
+			validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_REQUIRED_EVIDENCE_MISSING:
+			verdict, staleness = VerdictUnknown, planmodel.StalenessUnknown
+		}
+		operation.Result = &Result{ID: operation.ID + ":result", PlanID: operation.PlanID, PhaseID: operation.PhaseID, Verdict: verdict, Staleness: staleness, Detail: receipt.GetDetail(), RanAt: now, ExecutionID: operation.ExecutionID, OperationID: operation.ID, ScopeGeneration: operation.ScopeGeneration, FullInventory: operation.FullInventory, RequiredMembers: append([]string(nil), operation.RequiredMembers...), SelectedMembers: append([]string(nil), operation.SelectedMembers...)}
 	} else if receipt.GetState() == validationv1.ReceiptState_RECEIPT_STATE_RUNNING || receipt.GetState() == validationv1.ReceiptState_RECEIPT_STATE_ATTACHED {
 		operation.Status = OperationRunning
 	} else {

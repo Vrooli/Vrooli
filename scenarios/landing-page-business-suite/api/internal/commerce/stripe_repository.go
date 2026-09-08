@@ -34,6 +34,7 @@ type SubscriptionRecord struct {
 	SubscriptionID         string
 	CustomerID             string
 	CustomerEmail          string
+	BusinessAccountID      string
 	Status                 string
 	Source                 sql.NullString
 	ExternalSubscriptionID sql.NullString
@@ -48,18 +49,19 @@ type SubscriptionRecord struct {
 
 // CheckoutSessionRecord represents a checkout session stored in the database.
 type CheckoutSessionRecord struct {
-	SessionID      string
-	CustomerEmail  sql.NullString
-	CustomerID     sql.NullString
-	PriceID        sql.NullString
-	SubscriptionID sql.NullString
-	Status         string
-	SessionType    string
-	AmountCents    sql.NullInt64
-	ScheduleID     sql.NullString
-	Metadata       map[string]interface{}
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	SessionID         string
+	CustomerEmail     sql.NullString
+	BusinessAccountID sql.NullString
+	CustomerID        sql.NullString
+	PriceID           sql.NullString
+	SubscriptionID    sql.NullString
+	Status            string
+	SessionType       string
+	AmountCents       sql.NullInt64
+	ScheduleID        sql.NullString
+	Metadata          map[string]interface{}
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 // CreditWalletRecord represents a credit wallet in the database.
@@ -123,6 +125,25 @@ func (r *StripeRepository) GetSubscriptionByUser(userIdentity string) (*Subscrip
 
 // UpsertSubscription inserts or updates a subscription record.
 func (r *StripeRepository) UpsertSubscription(rec *SubscriptionRecord) error {
+	if rec.BusinessAccountID != "" {
+		_, err := r.db.Exec(`
+			INSERT INTO subscriptions (subscription_id, customer_id, customer_email, business_account_id, status, plan_tier, price_id, bundle_key, billing_cycle_start, canceled_at, created_at, updated_at)
+			VALUES ($1::varchar,$2::varchar,$3::varchar,$4::varchar,$5::varchar,$6::varchar,$7::varchar,$8::varchar,$9::int,$10::timestamp,COALESCE((SELECT created_at FROM subscriptions WHERE subscription_id = $1::varchar), NOW()), NOW())
+			ON CONFLICT (subscription_id) DO UPDATE SET
+				customer_id = EXCLUDED.customer_id,
+				customer_email = EXCLUDED.customer_email,
+				business_account_id = EXCLUDED.business_account_id,
+				status = EXCLUDED.status,
+				plan_tier = COALESCE(NULLIF(EXCLUDED.plan_tier,''), subscriptions.plan_tier),
+				price_id = COALESCE(NULLIF(EXCLUDED.price_id,''), subscriptions.price_id),
+				bundle_key = COALESCE(NULLIF(EXCLUDED.bundle_key,''), subscriptions.bundle_key),
+				billing_cycle_start = EXCLUDED.billing_cycle_start,
+				canceled_at = EXCLUDED.canceled_at,
+				updated_at = NOW()
+		`, rec.SubscriptionID, rec.CustomerID, rec.CustomerEmail, rec.BusinessAccountID, rec.Status,
+			nullString(rec.PlanTier), nullString(rec.PriceID), nullString(rec.BundleKey), rec.BillingCycleStart, rec.CanceledAt)
+		return err
+	}
 	_, err := r.db.Exec(`
 		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, price_id, bundle_key, billing_cycle_start, canceled_at, created_at, updated_at)
 		VALUES ($1::varchar,$2::varchar,$3::varchar,$4::varchar,$5::varchar,$6::varchar,$7::varchar,$8::int,$9::timestamp,COALESCE((SELECT created_at FROM subscriptions WHERE subscription_id = $1::varchar), NOW()), NOW())

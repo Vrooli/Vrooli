@@ -1,5 +1,6 @@
 import contextlib
 import io
+import json
 from pathlib import Path
 from types import SimpleNamespace as NS
 import unittest
@@ -71,3 +72,12 @@ class ProgramTest(unittest.TestCase):
         result = self.run_program(self.valid(), browser, desktop)
         self.assertEqual("ok", result["status"])
         self.assertEqual(["browser:b-3", "desktop:d-meta"], result["evidence"])
+
+    def test_report_is_a_json_envelope(self):
+        browser = NS(workflows=NS(execute=lambda **kw: Handle([], {"status": "completed", "executionId": "b-json"})))
+        desktop = NS(flow=NS(replay=lambda **kw: Handle([], {"disposition": "passed", "runId": "d-json"})))
+        stdout = io.StringIO()
+        scope = {"inputs": self.valid(), "browser_automation_studio": browser, "device_control": desktop}
+        with contextlib.redirect_stdout(stdout):
+            exec(compile((ROOT / "do-task.py").read_text(), "do-task.py", "exec"), scope)
+        self.assertEqual(scope["envelope"], json.loads(stdout.getvalue()))

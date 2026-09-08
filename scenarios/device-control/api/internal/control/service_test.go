@@ -228,6 +228,55 @@ func TestDirectActuationRequiresLeaseAndWritesOneNonEvidenceAudit(t *testing.T) 
 	require.Equal(t, "direct-actuation", audits[0].Verb)
 }
 
+func TestAppLifecycleRequiresConfirmationAndUsesTypedStrategyBoundary(t *testing.T) {
+	fake := fakes.New("lifecycle", strategy.StatusAvailable, strategy.CapAppLifecycle)
+	svc := New(strategyregistry.New(fake))
+	svc.devices.Upsert(devicedomain.Record{ID: "lifecycle", StrategyID: "lifecycle", Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapAppLifecycle, Status: strategy.StatusAvailable}}})
+	lease, err := svc.Acquire("lifecycle", "operator", time.Minute)
+	require.NoError(t, err)
+
+	_, err = svc.ExecuteAppLifecycle(context.Background(), "lifecycle", AppLifecycleOperation{Actor: "operator", LeaseToken: lease.LeaseToken, AppLifecycleRequest: strategy.AppLifecycleRequest{Operation: "launch", Package: "com.example.editor"}})
+	require.ErrorContains(t, err, "requires explicit confirmation")
+	require.Empty(t, fake.LifecycleCalls())
+
+	response, err := svc.ExecuteAppLifecycle(context.Background(), "lifecycle", AppLifecycleOperation{Actor: "operator", LeaseToken: lease.LeaseToken, Confirmed: true, AppLifecycleRequest: strategy.AppLifecycleRequest{Operation: "launch", Package: "com.example.editor"}})
+	require.NoError(t, err)
+	require.NotEmpty(t, response.CommandID)
+	require.Equal(t, "success", response.Audit.Outcome)
+	require.Len(t, fake.LifecycleCalls(), 1)
+	require.Equal(t, "launch", fake.LifecycleCalls()[0].Operation)
+}
+
+func TestAppLifecycleRejectsUnallowlistedIdentityAndUndeclaredAdapter(t *testing.T) {
+	fake := fakes.New("lifecycle", strategy.StatusAvailable, strategy.CapAppLifecycle)
+	svc := New(strategyregistry.New(fake))
+	svc.devices.Upsert(devicedomain.Record{ID: "lifecycle", StrategyID: "lifecycle", Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapAppLifecycle, Status: strategy.StatusAvailable}}})
+	lease, err := svc.Acquire("lifecycle", "operator", time.Minute)
+	require.NoError(t, err)
+	_, err = svc.ExecuteAppLifecycle(context.Background(), "lifecycle", AppLifecycleOperation{LeaseToken: lease.LeaseToken, Confirmed: true, AppLifecycleRequest: strategy.AppLifecycleRequest{Operation: "launch", Package: "not-a-package"}})
+	require.ErrorContains(t, err, "fully-qualified application identity")
+
+	unsupported := fakes.New("no-lifecycle", strategy.StatusAvailable, strategy.CapInput)
+	noLifecycle := New(strategyregistry.New(unsupported))
+	noLifecycle.devices.Upsert(devicedomain.Record{ID: "no-lifecycle", StrategyID: "no-lifecycle", Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapInput, Status: strategy.StatusAvailable}}})
+	noLease, err := noLifecycle.Acquire("no-lifecycle", "operator", time.Minute)
+	require.NoError(t, err)
+	_, err = noLifecycle.ExecuteAppLifecycle(context.Background(), "no-lifecycle", AppLifecycleOperation{LeaseToken: noLease.LeaseToken, Confirmed: true, AppLifecycleRequest: strategy.AppLifecycleRequest{Operation: "launch", Package: "com.example.editor"}})
+	require.Error(t, err)
+}
+
+func TestFlowLifecycleUsesTypedAdapterInsteadOfGenericInput(t *testing.T) {
+	fake := fakes.New("flow-lifecycle", strategy.StatusAvailable, strategy.CapAppLifecycle)
+	svc := New(strategyregistry.New(fake))
+	svc.devices.Upsert(devicedomain.Record{ID: "flow-lifecycle", StrategyID: "flow-lifecycle", Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapAppLifecycle, Status: strategy.StatusAvailable}}})
+	result, err := svc.Run(context.Background(), Flow{Steps: []Step{{ID: "launch", Kind: "launch", Target: "com.example.editor", RequiredCapabilities: []string{strategy.CapAppLifecycle}}}}, "flow-lifecycle", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Len(t, fake.LifecycleCalls(), 1)
+	require.Equal(t, "launch", fake.LifecycleCalls()[0].Operation)
+	require.Empty(t, fake.Calls())
+}
+
 func TestConcurrentControllersOnlyCurrentLeaseHolderActs(t *testing.T) { // AUTH-03
 	svc, _ := testService(t)
 	first, err := svc.Acquire("fake", "actor-a", time.Minute)
@@ -588,6 +637,26 @@ func TestAgentRejectsUndeclaredPlannerStepBeforeActuation(t *testing.T) { // [RE
 	require.Empty(t, strategyUnderTest.commands)
 }
 
+type lifecycleAgentStrategy struct{ *fakes.Strategy }
+
+func (s *lifecycleAgentStrategy) ReadState(context.Context) (strategy.DeviceState, error) {
+	return strategy.DeviceState{}, nil
+}
+
+func TestAgentRequiresOutOfBandConfirmationForRiskyPlannerStep(t *testing.T) {
+	strategyUnderTest := &lifecycleAgentStrategy{Strategy: fakes.New("confirmation-guard", strategy.StatusAvailable, strategy.CapAppLifecycle)}
+	svc := New(strategyregistry.New(strategyUnderTest))
+	svc.devices.Upsert(devicedomain.Record{ID: "confirmation-guard", StrategyID: "confirmation-guard", Transport: "confirmation-guard", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapAppLifecycle, Status: strategy.StatusAvailable}}})
+	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: []internalflows.AgentPlan{{StepKind: "share", Action: "send"}}})
+
+	run, err := svc.StartAgentWithPolicy(context.Background(), "share this", "confirmation-guard", "operator", true, false, internalflows.DefaultAgentPolicy(), false)
+	require.NoError(t, err)
+	require.Equal(t, "awaiting_confirmation", run.State)
+	require.Equal(t, "confirmation_required", run.Result.Disposition)
+	require.Contains(t, run.Result.Chapters[len(run.Result.Chapters)-1].Message, "no actuation executed")
+	require.Empty(t, run.PlannedSteps)
+}
+
 type pollingStateStrategy struct{}
 
 func (pollingStateStrategy) ID() string { return "polling-state" }
@@ -645,6 +714,15 @@ func TestDeviceCapabilitiesUseEmptyArrayWhenUnavailable(t *testing.T) {
 	device := deviceFromRecord(devicedomain.Record{ID: "offline", Status: strategy.StatusUnavailable})
 	require.NotNil(t, device.Capabilities)
 	require.Empty(t, device.Capabilities)
+}
+
+func TestRetainedTransportIdentityReclassifiesUnambiguousKinds(t *testing.T) {
+	emulator := deviceFromRecord(devicedomain.Record{ID: "emulator", Kind: "physical", StrategyID: "android-adb", Serial: "emulator-5554"})
+	require.Equal(t, "emulator", emulator.Kind)
+	require.Equal(t, "android", emulator.OnboardingKind)
+
+	desktop := deviceFromRecord(devicedomain.Record{ID: "desktop", Kind: "physical", StrategyID: "host-desktop", Serial: "swarminator:2308"})
+	require.Equal(t, "desktop", desktop.Kind)
 }
 
 func TestAndroidCapabilitySelfTestUnavailableResultEmitsPhysicalTargetVerdict(t *testing.T) {
@@ -800,6 +878,19 @@ func TestBridgeFailureDoesNotAddPseudoDeviceBesidePhysicalInventory(t *testing.T
 	devices := svc.Devices(context.Background())
 	require.Len(t, devices, 1)
 	require.Equal(t, "android-stable", devices[0].ID)
+}
+
+func TestBridgeFailureAppearsInDiagnosticsBesidePhysicalInventory(t *testing.T) {
+	adapter := &enumeratingFake{
+		Strategy: fakes.New("fake-android", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot),
+		devices:  []strategy.Device{{ID: "android-stable", Serial: "serial-1", Model: "Pixel", OSVersion: "13", StrategyID: "fake-android", Transport: "usb", Health: strategy.StatusAvailable}},
+	}
+	svc := NewWithAttached(strategyregistry.New(adapter), failingAttachedReader{})
+	diagnostics := svc.DiagnosticDevices(context.Background())
+	require.Len(t, diagnostics, 1)
+	require.Equal(t, "bridge-inventory", diagnostics[0].ID)
+	require.Equal(t, "bridge", diagnostics[0].Kind)
+	require.Contains(t, diagnostics[0].HealthReason, "list Bridge attached devices")
 }
 
 func TestCachedDevicesReturnsStoredInventoryWithoutReprobing(t *testing.T) {
@@ -1247,6 +1338,104 @@ func TestSensorReadPublishesOnlyObservedTransitions(t *testing.T) {
 	}
 }
 
+func TestFlowContractBindsRunAndEnforcesConditionsAndIdempotency(t *testing.T) {
+	property := fakes.NewPropertyOnly("contract-property", strategy.PropertyDescriptor{Name: "volume", ValueType: "number", Writable: true, StateClass: strategy.StateBearing}, 20.0)
+	svc := New(strategyregistry.New(property))
+	svc.devices.Upsert(devicedomain.Record{ID: "contract-device", StrategyID: property.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	flow := Flow{
+		Transport:           "rest",
+		ApplicationID:       "editor",
+		ApplicationRevision: "editor-v1",
+		MaxDurationMS:       5000,
+		Steps: []Step{
+			{ID: "set-volume", Kind: "property-set", Arguments: map[string]any{"name": "volume", "value": 30.0}, IdempotencyKey: "volume-change", Postconditions: []Condition{{Kind: "property-equals", Target: "volume", Expected: 30.0}}},
+			{ID: "duplicate-volume", Kind: "property-set", Arguments: map[string]any{"name": "volume", "value": 40.0}, IdempotencyKey: "volume-change"},
+		},
+	}
+	result, err := svc.Run(context.Background(), flow, "contract-device", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Equal(t, "contract-device", result.Binding.DeviceID)
+	require.Equal(t, "rest", result.Binding.Transport)
+	require.Equal(t, "editor", result.Binding.ApplicationID)
+	require.Equal(t, "editor-v1", result.Binding.ApplicationRevision)
+	require.NotEmpty(t, result.Binding.LeaseID)
+	require.Len(t, property.Changes, 1)
+	require.Equal(t, 30.0, property.Values["volume"])
+	require.Contains(t, result.Chapters[1].Message, "deduplicated")
+}
+
+func TestFlowIdempotencyReceiptSurvivesServiceReconstruction(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:idempotency-restart-"+t.Name()+"?mode=memory&cache=shared")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	property := fakes.NewPropertyOnly("durable-retry-property", strategy.PropertyDescriptor{Name: "volume", ValueType: "number", Writable: true}, 20.0)
+	registry := strategyregistry.New(property)
+	svc, err := NewWithDB(registry, db)
+	require.NoError(t, err)
+	svc.devices.Upsert(devicedomain.Record{ID: "durable-retry-device", StrategyID: property.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	flow := Flow{Transport: "rest", Steps: []Step{{ID: "set-volume", Kind: "property-set", IdempotencyKey: "durable-volume-change", Arguments: map[string]any{"name": "volume", "value": 30.0}}}}
+	first, err := svc.Run(context.Background(), flow, "durable-retry-device", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "passed", first.Disposition)
+
+	restarted, err := NewWithDB(strategyregistry.New(property), db)
+	require.NoError(t, err)
+	restarted.devices.Upsert(devicedomain.Record{ID: "durable-retry-device", StrategyID: property.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	flow.Steps[0].Arguments["value"] = 40.0
+	second, err := restarted.Run(context.Background(), flow, "durable-retry-device", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "passed", second.Disposition)
+	require.Contains(t, second.Chapters[0].Message, "prior command receipt")
+	require.Empty(t, property.Changes[1:])
+	require.Equal(t, 30.0, property.Values["volume"])
+}
+
+func TestFlowContractRejectsFailedPreconditionBeforeActuation(t *testing.T) {
+	property := fakes.NewPropertyOnly("precondition-property", strategy.PropertyDescriptor{Name: "volume", ValueType: "number", Writable: true, StateClass: strategy.StateBearing}, 20.0)
+	svc := New(strategyregistry.New(property))
+	svc.devices.Upsert(devicedomain.Record{ID: "precondition-device", StrategyID: property.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	result, err := svc.Run(context.Background(), Flow{Transport: "rest", Steps: []Step{{ID: "set-volume", Kind: "property-set", Arguments: map[string]any{"name": "volume", "value": 30.0}, Preconditions: []Condition{{Kind: "property-equals", Target: "volume", Expected: 10.0}}}}}, "precondition-device", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "failed", result.Disposition)
+	require.Empty(t, property.Changes)
+	require.Contains(t, result.Chapters[0].Message, "precondition")
+}
+
+func TestFlowContractRequiresObservationWhenRequested(t *testing.T) {
+	property := fakes.NewPropertyOnly("observation-property", strategy.PropertyDescriptor{Name: "volume", ValueType: "number", Writable: true}, 20.0)
+	svc := New(strategyregistry.New(property))
+	svc.devices.Upsert(devicedomain.Record{ID: "observation-device", StrategyID: property.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	result, err := svc.Run(context.Background(), Flow{Transport: "rest", Steps: []Step{{ID: "set-volume", Kind: "property-set", ObservationRequired: true, Arguments: map[string]any{"name": "volume", "value": 30.0}}}}, "observation-device", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "failed", result.Disposition)
+	require.Empty(t, property.Changes)
+	require.Contains(t, result.Chapters[0].Message, "prior observation")
+}
+
+type transientPropertyStrategy struct {
+	*fakes.PropertyOnly
+	failures int
+}
+
+func (s *transientPropertyStrategy) GetProperty(ctx context.Context, name string) (any, error) {
+	if s.failures > 0 {
+		s.failures--
+		return nil, errors.New("transient property read failure")
+	}
+	return s.PropertyOnly.GetProperty(ctx, name)
+}
+
+func TestFlowContractRetriesOnlyRepeatableObservationSteps(t *testing.T) {
+	property := &transientPropertyStrategy{PropertyOnly: fakes.NewPropertyOnly("retry-property", strategy.PropertyDescriptor{Name: "volume", ValueType: "number"}, 20.0), failures: 1}
+	svc := New(strategyregistry.New(property))
+	svc.devices.Upsert(devicedomain.Record{ID: "retry-device", StrategyID: property.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	result, err := svc.Run(context.Background(), Flow{Transport: "rest", Steps: []Step{{ID: "verify-volume", Kind: "property-assert", RetryBudget: 1, Arguments: map[string]any{"name": "volume", "equals": 20.0}}}}, "retry-device", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Equal(t, 0, property.failures)
+}
+
 func TestRunRejectsUnredactedCaptureWithoutActor(t *testing.T) {
 	svc, _ := testService(t)
 	_, err := svc.Run(context.Background(), Flow{AllowUnredactedCapture: true, Steps: []Step{{ID: "capture", Kind: "observe"}}}, "fake", "")
@@ -1304,6 +1493,8 @@ func TestDeviceDisconnectReleasesLeaseAndRetainsPriorEvidence(t *testing.T) { //
 	require.True(t, result.Incomplete)
 	require.Equal(t, "actuate", result.DisconnectStep)
 	require.Len(t, result.Evidence, 1)
+	require.Equal(t, "transport", result.Chapters[1].FailureClass)
+	require.Equal(t, 1, result.Chapters[1].Attempts)
 	require.Empty(t, svc.ListLiveSessions())
 }
 

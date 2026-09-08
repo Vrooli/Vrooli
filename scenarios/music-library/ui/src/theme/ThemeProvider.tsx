@@ -31,6 +31,8 @@ const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
 
 const applyTheme = (resolved: "light" | "dark", choice: ThemeChoice) => {
   if (typeof document === "undefined") return;
+  // Generated design tokens consume the resolved value, including system mode.
+  document.documentElement.setAttribute("data-resolved-theme", resolved);
   // `system` clears the attribute so the CSS @media fallback in tokens.css
   // owns resolution. Explicit choices write the attribute.
   if (choice === "system") {

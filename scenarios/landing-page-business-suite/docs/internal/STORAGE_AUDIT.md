@@ -2,7 +2,7 @@
 
 ## Last Updated
 
-2026-07-27
+2026-09-07
 
 ## Current Posture
 
@@ -27,12 +27,26 @@ Connect paths produce the same aggregate.
 
 ## Validation
 
-`storage-manager validate scenario landing-page-business-suite --json` reports
-L3 (clean) for schema substrate, isolation safety, and persistence hygiene.
+The new `desktoplink` domain follows the same substrate: its declarative schema
+is embedded beside the repository that interprets it, and `SQLRepository` is the
+only production persistence seam. The domain stores link metadata and audit
+events, never LPBS website credentials or raw authorization codes.
+
+The current `storage-manager validate scenario landing-page-business-suite`
+run is not clean: it reports 26 findings, including pre-existing open-row,
+direct-writer, direct-SQL-in-handler, private-key-path, and accountability
+findings elsewhere in the scenario. Those findings are outside the desktop-link
+change boundary and remain tracked for the scenario's broader storage cleanup.
+
+The `businessaccount` domain now follows the same per-domain substrate. Its
+declarative account and membership tables live beside the repository that
+interprets them; transport handlers use only the repository contract. Account
+membership is the authorization boundary for desktop-link account selection,
+and the default personal account is created idempotently for existing users.
 
 ## Follow-up
 
-Revisit the migration strategy before the first production deployment with
-customer data. If preserving deployed data requires schema evolution, use the
-approved brownfield migration substrate rather than adding ad-hoc migration
-logic here.
+The desktop-link tables are greenfield declarative tables in this change. Before
+the first production deployment with customer data, use the approved brownfield
+migration substrate if schema evolution is required; do not add ad-hoc migration
+logic to the scenario.

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"image"
 	"image/png"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -136,4 +137,75 @@ func TestEvidenceIsJSONSafe(t *testing.T) {
 	value := Result{Status: "resolved", Rung: VisionRung, Evidence: []EvidenceEvent{{Name: "resolved", Rung: VisionRung, Confidence: ptr(0.9)}}}
 	_, err := json.Marshal(value)
 	require.NoError(t, err)
+}
+
+func TestValidateAgentPlanRejectsUntrustedOrMalformedShapes(t *testing.T) {
+	declared := []string{"media-pause", "key", "property-set"}
+	tests := []struct {
+		name string
+		plan AgentPlan
+		want string
+	}{
+		{name: "goal and step", plan: AgentPlan{GoalMet: true, StepKind: "key"}, want: "goal_met cannot include"},
+		{name: "undeclared", plan: AgentPlan{StepKind: "host-shell"}, want: "undeclared"},
+		{name: "media action required", plan: AgentPlan{StepKind: "media-pause"}, want: "requires an action"},
+		{name: "key value required", plan: AgentPlan{StepKind: "key"}, want: "requires a value"},
+		{name: "oversized value", plan: AgentPlan{StepKind: "key", Value: strings.Repeat("x", maxAgentValueBytes)}, want: "exceeds"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.ErrorContains(t, ValidateAgentPlan(tt.plan, declared), tt.want)
+		})
+	}
+	require.NoError(t, ValidateAgentPlan(AgentPlan{StepKind: "media-pause", Action: "pause"}, declared))
+	require.NoError(t, ValidateAgentPlan(AgentPlan{GoalMet: true}, declared))
+}
+
+func TestGatewayPlannerUsesBoundedTypedContract(t *testing.T) {
+	fake := &fakeGateway{response: &inferencev1.RunResponse{ValueJson: `{"goal_met":false,"step_kind":"media-pause","action":"pause"}`}}
+	planner := NewGatewayPlanner(fake)
+	plan, err := planner.Plan(context.Background(), AgentWorld{Goal: "pause playback", StepKinds: []string{"media-pause"}})
+	require.NoError(t, err)
+	require.Equal(t, "media-pause", plan.StepKind)
+	require.EqualValues(t, defaultPlanTokenCap, fake.request.GetMaxOutputTokens())
+	require.NotContains(t, fake.request.GetSchemaJson(), "additionalProperties")
+	require.NotContains(t, fake.request.GetSchemaJson(), "maxLength")
+}
+
+func TestGatewayPlannerRejectsUnknownAndContradictoryModelFields(t *testing.T) {
+	for _, response := range []string{
+		`{"goal_met":true,"step_kind":"media-pause"}`,
+		`{"goal_met":true,"unexpected":"instruction"}`,
+		`{"goal_met":false,"step_kind":"host-shell"}`,
+	} {
+		fake := &fakeGateway{response: &inferencev1.RunResponse{ValueJson: response}}
+		_, err := NewGatewayPlanner(fake).Plan(context.Background(), AgentWorld{Goal: "bounded task", StepKinds: []string{"media-pause"}})
+		require.Error(t, err, response)
+	}
+}
+
+func TestGatewayPlannerRejectsOversizedModelOutput(t *testing.T) {
+	fake := &fakeGateway{response: &inferencev1.RunResponse{ValueJson: strings.Repeat("x", maxAgentValueBytes+1)}}
+	_, err := NewGatewayPlanner(fake).Plan(context.Background(), AgentWorld{Goal: "bounded task", StepKinds: []string{"media-pause"}})
+	require.ErrorContains(t, err, "agent plan exceeds")
+}
+
+func TestAgentPolicyRequiresExternalConfirmationAndDoesNotTrustRiskLabels(t *testing.T) {
+	for _, test := range []struct {
+		stepKind string
+		risk     string
+	}{
+		{stepKind: "credential", risk: "credential"},
+		{stepKind: "clipboard-read", risk: "credential"},
+		{stepKind: "grant-permission", risk: "permission"},
+		{stepKind: "share", risk: "external"},
+	} {
+		require.Equal(t, test.risk, AgentStepRisk(test.stepKind, ""))
+	}
+
+	policy := DefaultAgentPolicy()
+	require.ErrorContains(t, AgentPolicyViolation(policy, AgentPlan{StepKind: "share", Action: "safe"}, false), "confirmation required")
+	require.NoError(t, AgentPolicyViolation(policy, AgentPlan{StepKind: "share", Action: "safe"}, true))
+	policy.AllowPermissionChanges = false
+	require.ErrorContains(t, AgentPolicyViolation(policy, AgentPlan{StepKind: "grant-permission", Action: "not-a-risk"}, true), "permission")
 }

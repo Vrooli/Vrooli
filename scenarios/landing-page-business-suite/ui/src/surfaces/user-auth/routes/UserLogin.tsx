@@ -1,9 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Mail, Loader2, ArrowRight, CheckCircle } from 'lucide-react';
+import { Mail, ArrowRight, CheckCircle } from 'lucide-react';
 import { AuthPageLayout } from '../../../shared/ui/AuthPageLayout';
 import { requestMagicLink, isApiError } from '../../../shared/api';
 import { useToast } from '../../../shared/ui/useToast';
+import { Button } from '@vrooli/react-component-library/Button/2';
+import { Input } from '@vrooli/react-component-library/Input/1';
 
 // Session storage key for auth callback params
 const AUTH_CALLBACK_PARAMS_KEY = 'auth_callback_params';
@@ -14,6 +16,12 @@ interface AuthCallbackParams {
   state: string;
   code_challenge?: string;
   code_challenge_method?: string;
+  desktop_link?: boolean;
+  installation_id?: string;
+  resource?: string;
+  audience?: string;
+  scopes?: string[];
+  business_account_id?: string;
 }
 
 export function isValidEmail(email: string): boolean {
@@ -33,6 +41,9 @@ export function UserLogin() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [appName, setAppName] = useState<string>('');
+  const desktopLink = searchParams.get('desktop_link') === 'true';
+  const desktopResource = searchParams.get('resource') || 'this application';
+  const desktopScopes = searchParams.get('scopes')?.split(',').map((scope) => scope.trim()).filter(Boolean) ?? [];
 
   // Extract and store callback params from URL
   useEffect(() => {
@@ -41,6 +52,12 @@ export function UserLogin() {
     const state = searchParams.get('state') || '';
     const codeChallenge = searchParams.get('code_challenge') || undefined;
     const codeChallengeMethod = searchParams.get('code_challenge_method') || undefined;
+    const desktopLink = searchParams.get('desktop_link') === 'true';
+    const installationId = searchParams.get('installation_id') || undefined;
+    const resource = searchParams.get('resource') || undefined;
+    const audience = searchParams.get('audience') || undefined;
+    const scopes = searchParams.get('scopes')?.split(',').map((scope) => scope.trim()).filter(Boolean);
+    const businessAccountId = searchParams.get('business_account_id') || undefined;
 
     setAppName(app);
 
@@ -52,6 +69,12 @@ export function UserLogin() {
         state,
         ...(codeChallenge ? { code_challenge: codeChallenge } : {}),
         ...(codeChallengeMethod ? { code_challenge_method: codeChallengeMethod } : {}),
+        ...(desktopLink ? { desktop_link: true } : {}),
+        ...(installationId ? { installation_id: installationId } : {}),
+        ...(resource ? { resource } : {}),
+        ...(audience ? { audience } : {}),
+        ...(scopes && scopes.length > 0 ? { scopes } : {}),
+        ...(businessAccountId ? { business_account_id: businessAccountId } : {}),
       };
       sessionStorage.setItem(AUTH_CALLBACK_PARAMS_KEY, JSON.stringify(params));
     }
@@ -128,8 +151,15 @@ export function UserLogin() {
   return (
     <AuthPageLayout
       title="Sign In"
-      subtitle={appName ? `Sign in to access ${appName}` : 'Sign in with your email'}
+      subtitle={desktopLink ? `Connect ${appName || 'this desktop'} to your LPBS account` : (appName ? `Sign in to access ${appName}` : 'Sign in with your email')}
     >
+      {desktopLink && (
+        <div className="mb-6 rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 text-sm text-slate-300" data-testid="desktop-link-consent">
+          <p className="font-medium text-white">Review desktop access</p>
+          <p className="mt-1">Your signed-in LPBS account will be connected to the selected local identity for <span className="text-white">{desktopResource}</span>.</p>
+          <p className="mt-2">Requested capabilities: <span className="text-white">{desktopScopes.length > 0 ? desktopScopes.join(', ') : 'none declared'}</span></p>
+        </div>
+      )}
       <form onSubmit={(event) => { void handleSubmit(event); }} className="space-y-6">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
@@ -139,7 +169,7 @@ export function UserLogin() {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Mail className="h-5 w-5 text-slate-500" />
             </div>
-            <input
+            <Input
               id="email"
               type="email"
               value={email}
@@ -168,9 +198,11 @@ export function UserLogin() {
           )}
         </div>
 
-        <button
+        <Button
           type="submit"
-          disabled={isLoading || !email.trim()}
+          disabled={!email.trim()}
+          pending={isLoading}
+          pendingLabel="Sending link..."
           data-testid="submit-button"
           className="
             w-full flex items-center justify-center gap-2
@@ -181,18 +213,13 @@ export function UserLogin() {
             transition-colors
           "
         >
-          {isLoading ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Sending link...
-            </>
-          ) : (
+          {!isLoading ? (
             <>
               Continue with Email
               <ArrowRight className="w-5 h-5" />
             </>
-          )}
-        </button>
+          ) : null}
+        </Button>
 
         <p className="text-xs text-center text-slate-500">
           We'll send you a magic link to sign in. No password needed.

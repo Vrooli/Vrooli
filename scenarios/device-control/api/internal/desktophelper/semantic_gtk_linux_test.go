@@ -186,6 +186,8 @@ func TestSignedHelperInsertsUnicodeIntoGTK(t *testing.T) {
 	require.NotNil(t, element)
 	require.NotEmpty(t, element.ParentId)
 	require.NotEmpty(t, element.WindowId)
+	require.NotEmpty(t, element.Fingerprint)
+	require.NotZero(t, snapshot.Semantic.RefreshEpoch)
 	var window *desktopv1.SemanticElement
 	for _, candidate := range snapshot.Semantic.Elements {
 		if candidate.ElementId == element.WindowId {
@@ -195,14 +197,38 @@ func TestSignedHelperInsertsUnicodeIntoGTK(t *testing.T) {
 	require.NotNil(t, window)
 	require.Equal(t, "Go AT-SPI Unicode fixture", window.Name)
 	require.True(t, element.Editable)
-	selector := &desktopv1.SemanticSelector{ObservationRevision: snapshot.Semantic.Revision, WindowId: element.WindowId, Name: element.Name, EditableOnly: true}
+	require.True(t, element.StateKnown)
+	if element.BoundsKnown {
+		require.Positive(t, element.Width)
+		require.Positive(t, element.Height)
+	}
+	selector := &desktopv1.SemanticSelector{ObservationRevision: snapshot.Semantic.Revision, WindowId: element.WindowId, Name: element.Name, EditableOnly: true, RefreshEpoch: snapshot.Semantic.RefreshEpoch}
 	_, err = wire.Resolve(ctx, connect.NewRequest(&desktopv1.ResolveRequest{Lease: wireLease, Selector: selector}))
 	require.Error(t, err)
 	resolved, err := wire.Resolve(ctx, semanticRequest(&desktopv1.ResolveRequest{Lease: wireLease, Selector: selector}, token))
 	require.NoError(t, err)
 	require.Equal(t, desktopv1.ResolveResponse_DISPOSITION_UNIQUE, resolved.Msg.Disposition)
 	require.Equal(t, []string{element.ElementId}, resolved.Msg.ElementIds)
+	selector.Name = "GO-UNICODE-ENTRY"
+	selector.MatchMode = desktopv1.SemanticMatchMode_SEMANTIC_MATCH_MODE_NORMALIZED
+	normalized, err := wire.Resolve(ctx, semanticRequest(&desktopv1.ResolveRequest{Lease: wireLease, Selector: selector}, token))
+	require.NoError(t, err)
+	require.Equal(t, desktopv1.ResolveResponse_DISPOSITION_UNIQUE, normalized.Msg.Disposition)
+	require.Equal(t, []string{element.ElementId}, normalized.Msg.ElementIds)
+	selector.Name = "go-unicode-entr"
+	selector.MatchMode = desktopv1.SemanticMatchMode_SEMANTIC_MATCH_MODE_FUZZY
+	selector.Role = element.Role
+	fuzzy, err := wire.Resolve(ctx, semanticRequest(&desktopv1.ResolveRequest{Lease: wireLease, Selector: selector}, token))
+	require.NoError(t, err)
+	require.Equal(t, desktopv1.ResolveResponse_DISPOSITION_UNIQUE, fuzzy.Msg.Disposition)
+	require.Equal(t, []string{element.ElementId}, fuzzy.Msg.ElementIds)
+	selector.Role++
+	wrongRole, err := wire.Resolve(ctx, semanticRequest(&desktopv1.ResolveRequest{Lease: wireLease, Selector: selector}, token))
+	require.NoError(t, err)
+	require.Equal(t, desktopv1.ResolveResponse_DISPOSITION_ABSENT, wrongRole.Msg.Disposition)
+	selector.Role = element.Role
 	selector.Name = "nonexistent fixture field"
+	selector.MatchMode = desktopv1.SemanticMatchMode_SEMANTIC_MATCH_MODE_EXACT
 	absent, err := wire.Resolve(ctx, semanticRequest(&desktopv1.ResolveRequest{Lease: wireLease, Selector: selector}, token))
 	require.NoError(t, err)
 	require.Equal(t, desktopv1.ResolveResponse_DISPOSITION_ABSENT, absent.Msg.Disposition)

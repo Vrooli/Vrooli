@@ -362,17 +362,30 @@ func TestExtractDOMTree_Success(t *testing.T) {
 		_, err := handler.ExtractDOMTree(context.Background(), "https://example.com")
 
 		require.NoError(t, err)
-		require.Len(t, capturedInstructions, 3)
+		require.Len(t, capturedInstructions, 2)
 
 		// Verify instruction sequence (use helpers for typed Action field)
 		assert.Equal(t, "navigate", autoexecutor.InstructionStepType(capturedInstructions[0]))
 		assert.Equal(t, "dom.navigate", capturedInstructions[0].NodeID)
 
-		assert.Equal(t, "wait", autoexecutor.InstructionStepType(capturedInstructions[1]))
-		assert.Equal(t, "dom.wait", capturedInstructions[1].NodeID)
+		assert.Equal(t, "evaluate", autoexecutor.InstructionStepType(capturedInstructions[1]))
+		assert.Equal(t, "dom.extract", capturedInstructions[1].NodeID)
+	})
 
-		assert.Equal(t, "evaluate", autoexecutor.InstructionStepType(capturedInstructions[2]))
-		assert.Equal(t, "dom.extract", capturedInstructions[2].NodeID)
+	t.Run("readiness options run before extraction", func(t *testing.T) {
+		var capturedInstructions []autocontracts.CompiledInstruction
+		mockRunner := &mockAutomationRunner{runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+			capturedInstructions = instructions
+			return []autocontracts.StepOutcome{{NodeID: "dom.extract", Success: true, ExtractedData: map[string]any{"result": map[string]any{}}}}, nil, nil
+		}}
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+		_, err := handler.ExtractDOMTreeWithOptions(context.Background(), "https://example.com", "load", "#ready", 500)
+		require.NoError(t, err)
+		require.Len(t, capturedInstructions, 4)
+		assert.Equal(t, "dom.navigate", capturedInstructions[0].NodeID)
+		assert.Equal(t, "dom.wait-selector", capturedInstructions[1].NodeID)
+		assert.Equal(t, "dom.settle", capturedInstructions[2].NodeID)
+		assert.Equal(t, "dom.extract", capturedInstructions[3].NodeID)
 	})
 }
 
@@ -480,7 +493,7 @@ func TestFailureMessage(t *testing.T) {
 
 func TestDOMExtractionExpression(t *testing.T) {
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] expression contains MAX_DEPTH limit", func(t *testing.T) {
-		assert.Contains(t, domExtractionExpression, "MAX_DEPTH = 6")
+		assert.Contains(t, domExtractionExpression, "MAX_DEPTH = 20")
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] expression contains MAX_CHILDREN_PER_NODE limit", func(t *testing.T) {
@@ -488,7 +501,13 @@ func TestDOMExtractionExpression(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] expression contains MAX_TOTAL_NODES limit", func(t *testing.T) {
-		assert.Contains(t, domExtractionExpression, "MAX_TOTAL_NODES = 800")
+		assert.Contains(t, domExtractionExpression, "MAX_TOTAL_NODES = 4000")
+	})
+
+	t.Run("capture options bound node budget and computed metadata", func(t *testing.T) {
+		expression := domExtractionExpressionForOptions(false, 123)
+		assert.Contains(t, expression, "MAX_TOTAL_NODES = 123")
+		assert.Contains(t, expression, "INCLUDE_COMPUTED = false")
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] expression contains TEXT_LIMIT", func(t *testing.T) {

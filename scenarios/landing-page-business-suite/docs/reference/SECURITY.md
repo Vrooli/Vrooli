@@ -51,6 +51,53 @@ addresses, copied website tokens, and request-body identity fields are never
 enough to establish an account link. See the project-level [Identity and
 Authentication contract](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
 
+### Desktop account-link endpoints
+
+The desktop link protocol is separate from the compatibility
+`/api/v1/auth/authorize` flow, which returns LPBS website tokens for existing
+clients. The desktop protocol is:
+
+1. The desktop client opens the LPBS browser login with the requested
+   installation, resource, audience, scopes, S256 challenge, and loopback
+   redirect. The login page displays the requested capability set before the
+   user continues.
+2. After the magic link establishes the browser's HttpOnly same-origin session,
+   the browser lists the user's LPBS business accounts. If more than one is
+   available, the user must select one; LPBS verifies membership server-side.
+   The browser then `POST`s `/api/v1/desktop/links` with the selected account,
+   installation, resource audience, requested scopes, S256 PKCE challenge, and
+   loopback redirect. LPBS returns only a short-lived, one-use code and stores
+   its hash.
+3. The local desktop side `POST`s `/api/v1/desktop/links/redeem` with the code,
+   verifier, installation, and resource. Its bearer credential must verify to a
+   human `scenario-authenticator` principal; LPBS derives the local subject
+   from that verified token rather than trusting the request body.
+4. LPBS persists the scoped relationship and returns a signed entitlement
+   lease whose subject, business-account projection, installation, audience,
+   and scopes are explicit. The desktop stores that lease through the native
+   credential authority and verifies it locally until `not_after`. Lease
+   consumers must bind verification to the expected business account,
+   installation, resource, audience, link ID, and exact granted scope set; a
+   valid signature alone is not permission to replay the lease in another
+   desktop context.
+
+Both `/api/v1/desktop/links` (LPBS actor) and
+`/api/v1/desktop/links/local` (local actor) support revocation. A failed
+provider proof, wrong installation/resource, wrong PKCE verifier, expired
+code, reused code, or revoked link fails closed. Neither endpoint accepts an
+LPBS website access token as a local identity proof.
+
+Revocation prevents new lease issuance and makes the durable link unavailable
+through the LPBS status/redeem surfaces. An already-issued offline lease is
+bounded by its signed `not_after` time; desktop clients must discard it when
+the local link is revoked or when an online status refresh reports revocation.
+
+The scenario-to-desktop template exposes this flow as `auth.connectDesktop`.
+The caller must provide a proof obtained from the declared local identity
+provider through the template's `onResolveLocalIdentityProof` seam. The
+supervisor bearer, LPBS access token, and request-body principal are rejected
+as substitutes for that proof.
+
 ### Identity administration after migration
 
 LPBS must keep product administration and identity administration separate.

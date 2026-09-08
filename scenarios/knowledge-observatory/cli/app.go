@@ -34,7 +34,7 @@ func NewApp() (*App, error) {
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:             appName,
 		Version:          appVersion,
-		Description:      "Knowledge Observatory CLI - search, ingest, and graph knowledge",
+		Description:      "Knowledge Observatory CLI - search, inspect, maintain, and graph knowledge",
 		DefaultAPIBase:   defaultAPIBase,
 		ExtraAPIEnvVars:  []string{"API_BASE_URL", "VITE_API_BASE_URL"},
 		BuildFingerprint: buildFingerprint,

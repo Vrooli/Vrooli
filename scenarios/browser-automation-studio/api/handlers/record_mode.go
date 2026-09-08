@@ -8,7 +8,11 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
+
+	"github.com/vrooli/api-core/uiselectors"
+	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -487,6 +491,14 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// Bind recorded locators to this project's contract when recording its own UI.
+	if project, lookupErr := h.repo.GetProject(ctx, projectID); lookupErr == nil && project != nil {
+		if manifest, _, manifestErr := uiselectors.Load(project.FolderPath); manifestErr == nil {
+			if origin, _, originErr := scenarioport.ResolveURLAtPath(ctx, filepath.Base(project.FolderPath), project.FolderPath, "/"); originErr == nil {
+				symbolizeRecordingSelectors(v2, manifest, origin)
+			}
+		}
+	}
 	// Create the workflow via catalog service
 	createResp, err := h.catalogService.CreateWorkflow(ctx, &basapi.CreateWorkflowRequest{
 		ProjectId:      projectID.String(),

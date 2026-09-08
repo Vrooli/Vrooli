@@ -61,13 +61,13 @@
   },
   "assumptions": [
     "Caller selects an authorized exact workflow version or supplies an authorized candidate/session",
-    "Caller captures the result once through vrooli-memory learning record after completion"
+    "Runtime captures the outcome automatically and suppresses nested duplicate attempts"
   ],
   "invariants": [
     "One execution route, no speculative candidate execution or retry",
     "Search only returns candidates; selection is explicit",
     "No raw screenshots or workflow bodies in the envelope",
-    "No task-record append: caller captures outcome-linked learning once"
+    "Runtime owns one automatic outcome capture for the selected task"
   ],
   "bindings": [
     {
@@ -156,7 +156,7 @@
     "signals": {
       "result": "Selected child result signals",
       "candidates": "At most five selection candidates",
-      "capture_required": "Caller writes one completed attempt",
+      "outcome": "unknown unless the child explicitly reports failed/unavailable or verified_success with an ok status and evidence; completed navigation is not verification",
       "reused_workflow": "Whether the selected route used an existing workflow"
     },
     "errors": {
@@ -205,10 +205,11 @@
       "id": "missing-task",
       "inputs": {},
       "expect": {
-        "status": [
-          "failed"
-        ]
-      }
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
     },
     {
       "id": "missing-version",
@@ -220,7 +221,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
     },
     {
       "id": "ambiguous-route",
@@ -234,9 +238,38 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
     }
   ],
   "rung": "S3",
-  "owner_skill": "browser-automation-studio"
+  "owner_skill": "browser-automation-studio",
+  "learning_task": {
+    "scope": "bas-usage",
+    "operation": "do-task",
+    "context_fields": [
+      "scenario"
+    ],
+    "outcome": {
+      "status_path": "signals.outcome",
+      "mapping": {
+        "verified_success": "verified_success",
+        "failed": "failed",
+        "unavailable": "unavailable",
+        "unknown": "unknown"
+      },
+      "evidence_paths": [
+        "evidence"
+      ]
+    }
+  },
+  "verbs": [
+    "agent.collect",
+    "capture",
+    "lib",
+    "tasks.get",
+    "validate"
+  ]
 }

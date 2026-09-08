@@ -34,6 +34,9 @@ func TestRuntimeSchemaIsDeclarativeAndCoversRuntimeTables(t *testing.T) {
 		"download_apps", "download_assets", "download_artifacts", "credit_wallets",
 		"credit_transactions", "payment_settings", "usage_records", "credit_reservations",
 		"api_keys", "users", "auth_tokens", "user_sessions", "payment_anomaly_log",
+		"business_accounts", "business_account_members", "desktop_link_authorizations",
+		"desktop_account_links", "desktop_link_audit", "business_account_credit_wallets",
+		"business_account_credit_transactions",
 	} {
 		if !strings.Contains(sql, "create table if not exists "+table) {
 			t.Errorf("missing declarative definition for %s", table)

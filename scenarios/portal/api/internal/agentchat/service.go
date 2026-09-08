@@ -110,6 +110,12 @@ func (s *Service) Stream(ctx context.Context, input StreamInput, emit func(agent
 	if err != nil {
 		return StreamResult{}, err
 	}
+	if briefID != "" {
+		if err := s.runs.SetBriefID(ctx, binding.ID, briefID); err != nil {
+			return StreamResult{}, err
+		}
+		binding.BriefID = briefID
+	}
 	attachmentIDs, err := s.uploadImages(ctx, input.ChatID, fromID)
 	if err != nil {
 		return StreamResult{}, err

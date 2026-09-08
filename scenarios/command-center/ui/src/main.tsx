@@ -1,3 +1,4 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
@@ -38,7 +39,8 @@ if (window.top !== window.self) {
   initIframeBridgeChild({ appId: "command-center" });
 }
 
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -51,9 +53,11 @@ ReactDOM.createRoot(rootElement).render(
   <LibraryStringsProvider translate={(key, fallback) => fallback ?? key}>
     <BaseStyles />
     <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
+      <SpatialNavProvider controller={spatialNav}>
+        <QueryClientProvider client={queryClient}>
+          <App />
+        </QueryClientProvider>
+      </SpatialNavProvider>
     </React.StrictMode>
   </LibraryStringsProvider>
   // vrooli:library-strings-provider end

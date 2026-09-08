@@ -128,7 +128,31 @@
       "inputs": {},
       "expect": {
         "admission_error": "invalid_argument"
-      }
+      },
+      "requires": [
+        "device-control"
+      ]
+    },
+    {
+      "id": "live-valid",
+      "inputs": {
+        "device": "fixture",
+        "context_key": "fixture",
+        "actor": "fixture"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable",
+          "refused",
+          "failed"
+        ]
+      },
+      "requires": [
+        "device-control"
+      ],
+      "note": "Valid bounded exercise fixture added after admission-only fixtures left the contract unexercised."
     }
   ],
   "rung": "S3",

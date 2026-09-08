@@ -41,6 +41,7 @@ type semanticAccessFixture struct {
 	text      string
 	mutations int
 	invokes   int
+	named     string
 }
 
 func (f *semanticAccessFixture) ProcessRoot(context.Context, string, uint32) (atspi.Ref, error) {
@@ -52,6 +53,22 @@ func (f *semanticAccessFixture) Children(context.Context, atspi.Ref) ([]atspi.Re
 }
 func (f *semanticAccessFixture) Name(context.Context, atspi.Ref) (string, error)   { return "entry", nil }
 func (f *semanticAccessFixture) Editable(context.Context, atspi.Ref) (bool, error) { return true, nil }
+func (f *semanticAccessFixture) Description(context.Context, atspi.Ref) (string, error) {
+	return "", nil
+}
+
+func (f *semanticAccessFixture) State(context.Context, atspi.Ref) ([]string, error) {
+	return []string{"enabled", "showing", "visible"}, nil
+}
+
+func (f *semanticAccessFixture) Bounds(context.Context, atspi.Ref) (int32, int32, uint32, uint32, bool, error) {
+	return 0, 0, 100, 30, true, nil
+}
+
+func (f *semanticAccessFixture) Actions(context.Context, atspi.Ref) ([]string, bool, error) {
+	return []string{"invoke", "expand"}, true, nil
+}
+func (f *semanticAccessFixture) Focus(context.Context, atspi.Ref) error { return nil }
 func (f *semanticAccessFixture) ReadText(context.Context, atspi.Ref) (string, error) {
 	return f.text, nil
 }
@@ -68,6 +85,11 @@ func (f *semanticAccessFixture) InsertTextChecked(_ context.Context, _ atspi.Ref
 
 func (f *semanticAccessFixture) Invoke(context.Context, atspi.Ref) error {
 	f.invokes++
+	return nil
+}
+func (f *semanticAccessFixture) InvokeNamed(_ context.Context, _ atspi.Ref, action string) error {
+	f.invokes++
+	f.named = action
 	return nil
 }
 
@@ -98,6 +120,8 @@ func TestSemanticElementCacheIsLeaseScopedAndSingleUse(t *testing.T) {
 	require.NoError(t, backend.ReleaseHeld(context.Background()))
 	require.Empty(t, backend.entries)
 	require.NotEmpty(t, snapshot.Semantic.Revision)
+	require.NotZero(t, snapshot.Semantic.RefreshEpoch)
+	require.NotEmpty(t, snapshot.Semantic.Elements[0].Fingerprint)
 }
 
 func TestSemanticInvokeUsesObservedElementAndInvalidatesLease(t *testing.T) {
@@ -114,6 +138,21 @@ func TestSemanticInvokeUsesObservedElementAndInvalidatesLease(t *testing.T) {
 	require.NoError(t, backend.Apply(context.Background(), command))
 	require.Equal(t, 1, access.invokes)
 	require.Error(t, backend.Apply(context.Background(), command))
+}
+
+func TestSemanticInvokeUsesExplicitNativeActionName(t *testing.T) {
+	access := &semanticAccessFixture{text: "button"}
+	backend := &semanticBackend{pixels: semanticPixelFixture{}, access: access, busID: "bus"}
+	snapshot, err := backend.ObserveProcess(context.Background(), 42, "lease-1")
+	require.NoError(t, err)
+	element := snapshot.Semantic.Elements[0]
+	action := &desktopv1.Action{Action: &desktopv1.Action_Invoke{Invoke: &desktopv1.InvokeAction{ElementId: element.ID, ObservationRevision: snapshot.Semantic.Revision, ActionName: "expand"}}}
+	payload, err := protojson.Marshal(action)
+	require.NoError(t, err)
+	command := sessions.DesktopCommand{Lease: sessions.DesktopLease{Ref: targetmodel.SessionRef{SessionID: "lease-1"}}, GeometryRevision: snapshot.GeometryRevision, Payload: payload}
+	require.NoError(t, backend.Validate(context.Background(), command))
+	require.NoError(t, backend.Apply(context.Background(), command))
+	require.Equal(t, "expand", access.named)
 }
 
 type applicationAccessFixture struct {
@@ -253,6 +292,90 @@ func TestResolutionDistinguishesAbsentUniqueAndAmbiguousWithinWindow(t *testing.
 	require.Empty(t, b.observed)
 }
 
+func TestResolutionRequiresExplicitMatchModeAndSupportsBoundedVariants(t *testing.T) {
+	ctx := context.Background()
+	b := &semanticBackend{pixels: semanticPixelFixture{}, access: &windowAccessFixture{}, busID: "bus"}
+	snapshot, err := b.ObserveProcess(ctx, 42, "lease")
+	require.NoError(t, err)
+	window := snapshot.Semantic.Elements[1].ID
+
+	exact := sessions.DesktopSelector{Revision: snapshot.Semantic.Revision, WindowID: window, Name: "ENTRY", EditableOnly: true}
+	exact.RefreshEpoch = snapshot.Semantic.RefreshEpoch + 1
+	_, err = b.Resolve(ctx, exact, "lease")
+	require.Error(t, err, "selectors bound to a stale refresh epoch must refuse")
+	exact.RefreshEpoch = snapshot.Semantic.RefreshEpoch
+	got, err := b.Resolve(ctx, exact, "lease")
+	require.NoError(t, err)
+	require.Equal(t, "absent", got.Disposition, "exact remains the safe default")
+
+	exact.MatchMode = sessions.SemanticMatchNormalized
+	got, err = b.Resolve(ctx, exact, "lease")
+	require.NoError(t, err)
+	require.Equal(t, "unique", got.Disposition)
+
+	exact.Name = "entr"
+	exact.MatchMode = sessions.SemanticMatchFuzzy
+	exact.Role = 61
+	got, err = b.Resolve(ctx, exact, "lease")
+	require.NoError(t, err)
+	require.Equal(t, "unique", got.Disposition)
+
+	exact.Role = 23
+	got, err = b.Resolve(ctx, exact, "lease")
+	require.NoError(t, err)
+	require.Equal(t, "absent", got.Disposition, "role is a hard fuzzy constraint")
+}
+
+type gatedSemanticAccessFixture struct {
+	windowAccessFixture
+	mode string
+}
+
+func (f *gatedSemanticAccessFixture) State(ctx context.Context, ref atspi.Ref) ([]string, error) {
+	if strings.Contains(string(ref.Path), "field1") {
+		switch f.mode {
+		case "hidden":
+			return []string{"enabled"}, nil
+		case "disabled":
+			return []string{"showing", "visible"}, nil
+		}
+	}
+	return f.windowAccessFixture.State(ctx, ref)
+}
+
+func (f *gatedSemanticAccessFixture) Bounds(ctx context.Context, ref atspi.Ref) (int32, int32, uint32, uint32, bool, error) {
+	if f.mode == "offscreen" && strings.Contains(string(ref.Path), "field1") {
+		return 0, 0, 0, 30, true, nil
+	}
+	return f.windowAccessFixture.Bounds(ctx, ref)
+}
+
+func TestResolutionRejectsUnavailableSemanticStatesUnlessExplicitlyAllowed(t *testing.T) {
+	for _, mode := range []string{"hidden", "disabled", "offscreen"} {
+		t.Run(mode, func(t *testing.T) {
+			access := &gatedSemanticAccessFixture{mode: mode}
+			backend := &semanticBackend{pixels: semanticPixelFixture{}, access: access, busID: "bus"}
+			snapshot, err := backend.ObserveProcess(context.Background(), 42, "lease")
+			require.NoError(t, err)
+			selector := sessions.DesktopSelector{Revision: snapshot.Semantic.Revision, WindowID: snapshot.Semantic.Elements[1].ID, Name: "entry", EditableOnly: true}
+			got, err := backend.Resolve(context.Background(), selector, "lease")
+			require.NoError(t, err)
+			require.Equal(t, "absent", got.Disposition)
+			switch mode {
+			case "hidden":
+				selector.AllowHidden = true
+			case "disabled":
+				selector.AllowDisabled = true
+			case "offscreen":
+				selector.AllowOffscreen = true
+			}
+			got, err = backend.Resolve(context.Background(), selector, "lease")
+			require.NoError(t, err)
+			require.Equal(t, "unique", got.Disposition)
+		})
+	}
+}
+
 type changingWindowFixture struct {
 	windowAccessFixture
 	change string
@@ -267,24 +390,28 @@ func (f *changingWindowFixture) Children(ctx context.Context, r atspi.Ref) ([]at
 	}
 	return children, err
 }
+
 func (f *changingWindowFixture) Name(ctx context.Context, r atspi.Ref) (string, error) {
 	if f.change == "name" {
 		return "renamed", nil
 	}
 	return f.windowAccessFixture.Name(ctx, r)
 }
+
 func (f *changingWindowFixture) Role(ctx context.Context, r atspi.Ref) (uint32, error) {
 	if f.change == "role" {
 		return 0, nil
 	}
 	return f.windowAccessFixture.Role(ctx, r)
 }
+
 func (f *changingWindowFixture) Editable(ctx context.Context, r atspi.Ref) (bool, error) {
 	if f.change == "editable" {
 		return false, nil
 	}
 	return f.windowAccessFixture.Editable(ctx, r)
 }
+
 func TestResolutionRefusesChangedNativeTree(t *testing.T) {
 	for _, change := range []string{"children", "name", "role", "editable"} {
 		t.Run(change, func(t *testing.T) {

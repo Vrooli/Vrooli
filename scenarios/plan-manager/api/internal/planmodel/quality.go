@@ -101,6 +101,12 @@ func AssessPlanQuality(p Plan, phaseID string) QualityReport {
 
 func assessPlanStructureQuality(p Plan) []QualityFinding {
 	var findings []QualityFinding
+	if p.CompletionPolicy.Mode != "" && p.CompletionPolicy.Mode != "advisory" && p.CompletionPolicy.Mode != "certification" {
+		findings = append(findings, qualityFailure("plan.completion_policy", "plan_invalid_completion_policy", "completion policy must be advisory or certification"))
+	}
+	if p.CompletionPolicy.RequiresCertification() && strings.TrimSpace(p.CompletionPolicy.Reason) == "" {
+		findings = append(findings, qualityFailure("plan.completion_policy", "plan_missing_certification_reason", "certification requires an explicit reason"))
+	}
 	requiredText := []struct {
 		location string
 		code     string
@@ -123,11 +129,11 @@ func assessPlanStructureQuality(p Plan) []QualityFinding {
 	if p.ChangeBoundary.IsZero() || (len(p.ChangeBoundary.AcceptanceAllow) == 0 && strings.TrimSpace(p.ChangeBoundary.OperatorOnlyReason) == "") {
 		findings = append(findings, qualityFailure("plan.change_boundary", "plan_missing_change_boundary", "plan has no change boundary acceptance_allow paths or operator-only reason"))
 	}
-	if !anchorExecutionGrade(p.RegressionAnchor) {
+	if p.CompletionPolicy.RequiresCertification() && !anchorExecutionGrade(p.RegressionAnchor) {
 		findings = append(findings, qualityFailure("plan.regression_anchor", "plan_missing_regression_anchor", "plan has no execution-grade regression anchor intent"))
 	}
 	baselineNotApplicable := strings.TrimSpace(p.ChangeBoundary.OperatorOnlyReason) != "" && len(p.ChangeBoundary.AffectedScenarios()) == 0
-	if !IsLegacyBaselinePlan(p) && !baselineNotApplicable {
+	if p.CompletionPolicy.RequiresCertification() && !IsLegacyBaselinePlan(p) && !baselineNotApplicable {
 		if !p.BaselineSet.IsCurrent() {
 			findings = append(findings, qualityFailure("plan.baseline_set", "plan_missing_baseline_set", "new plans require a producer-owned baseline collection intent; explicitly mark historical plans legacy before adoption"))
 		} else if !CurrentBaselineSetValid(p) {

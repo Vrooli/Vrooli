@@ -636,9 +636,9 @@
           "description": "Build one gated context brief",
           "flags": [
             {"name": "prompt", "description": "Prompt text"},
-            {"name": "prompt-file", "description": "Read prompt text from a file, or - for stdin"},
+            {"name": "prompt-file", "description": "Read prompt text from a file, or - for stdin", "local_only": true, "bind_waiver": "The CLI handler reads this local file and sends only the resulting prompt text in the typed request."},
             {"name": "consumer", "description": "portal-llm, portal-agent, or external-harness", "default": "external-harness"},
-            {"name": "render", "description": "agent, system-prompt, or none", "default": "none"},
+            {"name": "render", "description": "agent, system-prompt, or none", "default": "none", "local_only": true, "bind_waiver": "Rendering selects the CLI presentation after the typed response returns; it is not part of the service request."},
             {"name": "budget-ms", "description": "Hard search budget in milliseconds"}
           ],
           "binding": {"kind": "connect-rpc", "service": "BriefService", "method": "Build"},
@@ -678,7 +678,7 @@
           "name": "stats",
           "description": "Report brief delivery, withholding, and item usage rates",
           "flags": [
-            {"name": "window", "description": "Window in days", "default": "7"},
+            {"name": "window", "description": "Window in days", "default": "7", "bind": {"field": "window_days"}},
             {"name": "consumer", "description": "Optional consumer filter"}
           ],
           "binding": {"kind": "connect-rpc", "service": "BriefService", "method": "Stats"},
@@ -706,6 +706,7 @@
         {
           "name": "hook",
           "description": "Render a prompt-time context hook response",
+          "needs_api": false,
           "flags": [{"name": "runtime", "required": true, "description": "Agent runtime name"}],
           "binding": {"kind": "local", "handler": "hook"},
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
@@ -713,10 +714,11 @@
         {
           "name": "hooks",
           "description": "Install, remove, or inspect the context brief hook",
+          "needs_api": false,
           "positionals": [{"name": "action", "required": true, "description": "install, remove, or status"}],
           "flags": [{"name": "runtime", "description": "Agent runtime name"}],
           "binding": {"kind": "local", "handler": "hooks"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["filesystem:user", "network:internal"]}
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["filesystem:write", "network:internal"]}
         }
       ]
     },

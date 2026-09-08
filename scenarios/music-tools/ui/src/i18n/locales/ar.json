@@ -103,5 +103,14 @@
     "title": "حدث خطأ ما",
     "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
     "retry": "إعادة المحاولة"
+  },
+  "navigation": {
+    "app-shell": {
+      "close-navigation": "إغلاق التنقل",
+      "mobile-navigation": "التنقل على الهاتف",
+      "open-navigation": "فتح التنقل",
+      "primary-navigation": "التنقل الرئيسي",
+      "skip-to-content": "انتقل إلى المحتوى"
+    }
   }
 }

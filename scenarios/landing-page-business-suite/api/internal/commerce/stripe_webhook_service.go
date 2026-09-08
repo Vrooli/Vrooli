@@ -389,9 +389,11 @@ func (s *StripeWebhookService) handleCheckoutCompleted(obj map[string]interface{
 		`, "complete", subscriptionID, customerID, customerEmail, time.Now(), sessionID); err != nil {
 			return err
 		}
-		return s.handleCreditTopup(customerEmail, amountCents, plan, stripeEventID, map[string]interface{}{
-			"session_id": sessionID,
-		})
+		metadata := map[string]interface{}{"session_id": sessionID}
+		if sessionRec.BusinessAccountID.Valid && strings.TrimSpace(sessionRec.BusinessAccountID.String) != "" {
+			metadata["business_account_id"] = strings.TrimSpace(sessionRec.BusinessAccountID.String)
+		}
+		return s.handleCreditTopup(customerEmail, amountCents, plan, stripeEventID, metadata)
 	case plan != nil && plan.Kind == shared.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
 		if _, err := s.db.Exec(`
 			UPDATE checkout_sessions
@@ -435,12 +437,26 @@ func (s *StripeWebhookService) handleSubscriptionCompletion(tx *sql.Tx, subscrip
 	}
 
 	now := time.Now()
-	_, err := tx.Exec(`
+	businessAccountID := ""
+	if session != nil && session.BusinessAccountID.Valid {
+		businessAccountID = strings.TrimSpace(session.BusinessAccountID.String)
+	}
+	var err error
+	if businessAccountID != "" {
+		_, err = tx.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, business_account_id, status, plan_tier, price_id, bundle_key, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		ON CONFLICT (subscription_id) DO UPDATE
+		SET status = $5, customer_email = $3, customer_id = $2, business_account_id = $4, plan_tier = $6, price_id = $7, bundle_key = $8, updated_at = $10
+	`, subscriptionID, customerID, customerEmail, businessAccountID, "active", plan.PlanTier, plan.StripePriceId, plan.BundleKey, now, now)
+	} else {
+		_, err = tx.Exec(`
 		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, price_id, bundle_key, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (subscription_id) DO UPDATE
 		SET status = $4, customer_email = $3, customer_id = $2, plan_tier = $5, price_id = $6, bundle_key = $7, updated_at = $9
 	`, subscriptionID, customerID, customerEmail, "active", plan.PlanTier, plan.StripePriceId, plan.BundleKey, now, now)
+	}
 	if err != nil {
 		return err
 	}

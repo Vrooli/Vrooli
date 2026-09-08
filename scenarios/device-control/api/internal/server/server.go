@@ -13,10 +13,9 @@ import (
 	"log"
 	"net/http"
 
+	"device-control/internal/clock"
 	"device-control/internal/middleware"
 	"device-control/internal/module"
-
-	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -31,7 +30,7 @@ import (
 // pingers) live inside each module's constructor — Deps is intentionally
 // limited to what the middleware stack reads.
 type Deps struct {
-	Clock  schedule.Clock
+	Clock  clock.Clock
 	Logger *log.Logger
 }
 

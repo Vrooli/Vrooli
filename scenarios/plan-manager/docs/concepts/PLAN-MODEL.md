@@ -29,7 +29,7 @@ machine-owned.
 | 13 markdown sections authored by judgment | Sections + phases as typed fields; mechanical ones auto-filled |
 | Status = checkboxes the agent edits | Status = computed runtime transition; markdown is a *view* |
 | Staleness = unknown; agent re-reads code | Staleness = computed from referenced-code change |
-| "Did this regress?" = narrated | Verified against the regression anchor as an oracle |
+| "Did this regress?" = narrated | Available prior observations inform bounded attribution; uncertainty remains explicit |
 | Handoff = end-of-run prose dump | Canonical handoff assembled from in-flow captured state |
 
 The structured record is the source of truth. A human-readable markdown view is
@@ -100,14 +100,15 @@ provenance** (kept verbatim because it could not be mapped).
 | `decisions[]` | authored (optional) | Pinned plan-time contract decisions (`title` + `statement`), rendered `D1..Dn` under **Approach & Decisions** — do not relitigate during execution. Distinct from execution-time `log decision-add` entries. Empty renders nothing. |
 | `definitions[]` | authored (optional) | Plan-local coined or narrowed terms (`term` + `meaning`), rendered as a Definitions table. Reference `docs/concepts/GLOSSARY.md` for shared ecosystem terms instead of restating them. |
 
-**Validation Model** — how regressions and done-ness are proven.
+**Validation Model** — outcome acceptance and independently retained observations.
 
 | Field | Origin | Meaning |
 |---|---|---|
-| `regression_anchor` | autofilled | The "before" anchor strategy + commands (see Validation). |
+| `regression_anchor` | autofilled | Optional diagnostic prior-state intent (see Validation). |
+| `completion_policy` | authored (optional) | `advisory` by default; `certification` requires a reason and required evidence. |
 | `validation_strategy` | authored | How the plan proves it works: baseline approach, phase validation expectations, what evidence counts. Mandatory for implementation plans. |
 | `final_validation_commands[]` | authored | The exact commands a reviewer runs at the end (scenario test, baseline diff, focused suites). |
-| `definition_of_done` | authored + verified | Objective pass/fail criteria; the regression check is mandatory. |
+| `definition_of_done` | authored + assessed | Intended outcomes and proportionate supporting evidence; broad regression checks are not mandatory for ordinary work. |
 
 Validation also includes an execution-grade **plan quality** pass. This is
 separate from the authoring structure gate: legacy imports remain non-destructive,
@@ -140,71 +141,73 @@ commas, semicolons, equals signs, shell text, and Unicode verbatim;
 `--context-json` is the lossless typed context form. The deprecated compact
 `--context` grammar is strict and rejects unknown or malformed fragments.
 
+### Completion policy
+
+Vrooli uses one shared worktree with concurrent agents. Ordinary plan completion
+is a supported judgment about delivered outcomes, not certification of a quiet
+repository. Test Genie owns observations; Plan Manager owns acceptance.
+
+The default policy is advisory. Record outcome evidence (focused checks, observed
+behavior, or code review with concrete references), limitations, and finding
+dispositions. A broad suite failure, missing prior state, or concurrent drift
+does not independently prevent completion. A credible material failure of the
+promised outcome remains unfinished. Select certification explicitly when the
+work requires it, with a recorded reason and required evidence.
+
+| Observation | Ordinary-plan disposition |
+|---|---|
+| Credible material failure of the intended outcome | Repair and verify the outcome. |
+| Plausibly related finding with uncertain cause | Perform bounded investigation; retry only with an expectation of new information. |
+| Unrelated, low-impact, or suspected validator defect | Retain for triage and continue. |
+| Missing baseline or uncertain attribution | Disclose the limitation; historical reconstruction is unnecessary. |
+| Relevant drift during validation | Preserve observations; assess applicability without claiming an exact executed snapshot. |
+
+Never reset, checkout, restore, or stash shared-worktree contents to establish
+attribution. Read history without replacing current files. Newly observed does
+not mean newly introduced. Finding capture must not become a second final gate.
+
+Guidance, phase acceptance, and completion must use the same resolved policy.
+A final phase does not imply certification. Exact-input cache reuse remains
+conservative regardless of whether an ordinary plan accepts limited evidence.
+
+Ordinary phase transitions record an `OutcomeAssessment`: `summary`, concrete
+`evidence` references, `limitations`, and any `unmet_outcomes`. A missing summary
+or evidence reference, or a declared unmet outcome, prevents `done`. The server
+stamps the phase scope generation. Scope expansion requires reviewing the
+assessment, not rerunning every check. Completion stores these assessments and
+the policy in the durable handoff; it does not rewrite validation verdicts.
+
+Unspecified policy on existing plans resolves to advisory. Older clients that
+omit policy while updating an explicitly certified plan preserve certification;
+changing it requires an explicit `advisory` mode. Historical completed handoffs
+remain unchanged. Phase status alone is not a completed execution: ordinary
+legacy executions can record assessments for already-done phases before closing.
+
 ### Baseline sets
 
-Every new execution-grade implementation plan carries a `baseline_set` intent
-derived from its Change Boundary: a stable collection name, explicit behavioral
-scenario targets, selected repository paths, and execution-start capture policy.
-Plan Manager derives and preserves it for guided authoring and direct plan
-writes alike; an omitted or stale current intent blocks execution rather than
-falling back to per-scenario manifests. Plan Manager owns this intent and its
-phase policy; Git Control Tower owns the underlying collection, Test Genie
-anchors, and source-evidence mechanics.
+A baseline set retains diagnostic context: collection identity, scenario and
+path inventory, capture timing, observations, and producer references. Reuse
+available observations first, including failed checks. New capture is optional
+for ordinary work and must justify its cost. Missing or incomplete context does
+not prevent implementation or ordinary completion.
 
-Historical plans are the only exception. Import marks a non-collection plan as
-`legacy_anchor`; execution then requires the explicit `exec baseline-adopt`
-recapture-or-degraded decision before normal phase work. A zero-value baseline
-intent is never treated as legacy, so new plans cannot silently bypass capture.
-True operator-only plans with no affected scenario are also non-behavioral: they
-must declare `OPERATOR_ONLY` and are not routed through a GCT collection.
+An ordinary focused phase may validate a newly affected scenario even when an
+optional baseline inventory does not contain it. Inventory containment becomes
+a gate only for an explicit behavioral comparison or certification request.
 
-At execution start, Plan Manager persists an immutable baseline-set checkpoint
-on the execution: resolved scenario/path inventory, capture timestamp, required
-coverage counts, and complete/partial/degraded state. Resume reads that
-checkpoint rather than recapturing or deriving a new before-state. Required
-behavioral coverage must be complete before it is treated as a usable oracle.
-Selected source paths are captured as **informational source evidence** only;
-their changes never substitute for a Test Genie regression verdict.
+Git Control Tower owns baseline capture and comparison. Test Genie owns their
+validation receipts. Preserve immutable historical records; today's capture
+cannot manufacture a historical before-state. Resume existing operations by
+identity rather than restarting them after an observation failure.
 
-Baseline capture is not a whole-worktree cleanliness check. Git Control Tower
-stores a durable before behavior result, while Test Genie fingerprints the
-declared scenario inputs and validation configuration only to decide whether a
-later current result may be reused. A mismatch causes a current rerun; it never
-invalidates the saved before result. If relevant inputs change during a single
-current attempt, that attempt is retried or remains pending with a retry reason.
-Unrelated concurrent edits are ignored. Plan Manager must describe these states
-as cache reuse, cache miss/rerun, or retry—not as an untrustworthy baseline.
+Source snapshots are informational evidence. They do not substitute for
+behavioral assertions or prove isolation of a mutable test run. Relevant drift
+can prevent exact-input reuse without erasing previous observations.
 
-Immediately before admitting its producer-owned behavioral-before receipt, Plan Manager
-asks Git Control Tower for the authoritative source estimate. An individual
-scenario glob is accepted when that measured estimate is safe; broad
-`scenarios/**` or `packages/proto/gen/**` selections can instead put the
-checkpoint into `scope_repair_required`. That state records GCT's counts,
-issue codes, and boundary-preserving recommendations and deliberately renders
-no capture command. A preflight transport failure is degraded rather than a
-fabricated safe result. Repair must be re-estimated before normal collection
-capture resumes; behavioral members are unchanged throughout.
-
-The checkpoint also keeps the collection branch, each member's baseline/run and
-capture status, and metadata-only path-snapshot references. This is recovery and
-operator provenance: source bytes remain private in GCT. Test Genie owns validation's
-bounded current “after” snapshot and typed phase-filtered
-path delta, and records it as a non-oracle child alongside the behavioral
-collection diff. Final Definition-of-Done requires the persisted collection to
-be complete and runs a durable typed full-inventory collection diff; it never
-replays the rendered collection command through a shell.
-
-For a phase with a narrow validation scope, Plan Manager intersects that scope
-with the execution checkpoint's captured target inventory (falling back to
-authored intent only before an execution exists) and dispatches one typed GCT
-collection-diff operation for the selected members. The operation is durable
-and idempotent, and the
-behavioral aggregate remains `unknown`/not-comparable whenever required
-coverage is incomplete; source evidence is presented separately.
-
-Legacy regression anchors remain readable and execute under their existing
-single-scenario semantics. Rendered new plans show a compact baseline-set
-summary rather than a wall of generated child commands.
+Explicit certification retains its required collection coverage and evidence
+strength. Apply source-size preflight before requested captures. An unavailable
+or oversized optional capture remains a limitation, not a scope-repair gate for
+ordinary implementation. Historical anchors remain readable as provenance.
 
 **Phases** — ordered, first-class units of work (see [Phase](#phase)).
 
@@ -245,7 +248,7 @@ runner walks and the unit context is scoped to.
 | `references[]` | authored + resolved | Phase-scoped connected-code, requirement, or document references. A phase with no connected references must carry an explicit no-code reason during authoring. |
 | `required_reading[]` | migration input | Legacy phase reading preserved when importing older plans; execution-facing setup uses `relevant_context[]`. |
 | `baseline_scope` | computed | The set of connected-code locations this phase touches → the exact baseline/validation command set. |
-| `status` | computed | `todo` → `active` → `done` / `blocked`. A typed transition or inferred from acceptance + validation passing. |
+| `status` | computed | `todo` → `active` → `done` / `blocked`, through a typed transition applying the completion policy. |
 | `last_validation` | computed | Most recent validation result + staleness factor for this phase. |
 
 `acceptance` and `validation` are **distinct and must not be identical**:
@@ -483,7 +486,7 @@ API, CLI, UI, and Markdown without asking a small agent to infer intent.
 skills/read command/budget status, and upserts those skills as global
 `RelevantContextItem`s. There is no candidate queue, discovery batch, accept/reject
 pass, or finalization blocker. Missing skill context is a warning/advisory; the
-hard execution-grade gates remain boundary, regression anchor, references (or
+hard execution-grade gates remain boundary, intended outcomes, references (or
 `NO_CODE_REFS`), and phases.
 
 Search-hub is intentionally direct. When docs, records, code locations, or prior
@@ -519,11 +522,9 @@ phase-entry setup before work continues. `continue` is the preferred small-agent
 loop: it resumes or starts without advancing and returns a single recommended
 next action from the API-owned `GuidedStep`.
 
-Marking a phase `done` is validation-gated. The execution runner requires the
-last stored phase validation result to be `pass` with `fresh` staleness before it
-will persist `done`; degraded/offline work must pass an explicit
-`validation_override.reason` through the transition request. The override is an
-auditable exception, not hidden prose.
+Marking a phase `done` applies the completion policy above. Ordinary work requires
+a supported outcome assessment; explicit certification requires its passing,
+applicable validation evidence. A validation override cannot bypass certification.
 
 `references[]` stays separate. References are the strong validation/staleness
 locator set; relevant context is the setup checklist for execution.
@@ -596,11 +597,10 @@ the existing operation. Transport failures retain the receipt; they do not
 require another capture. Removed run/wait/DoD coordination commands are not part
 of the current workflow.
 
-- **Regression anchor** — authoring records boundary-derived evidence intent.
-  Execution admits the required behavioral-before capture as a Test Genie
-  receipt; Git Control Tower owns the collection and source evidence beneath
-  it. Legacy anchor strategies remain read-only migration inputs with explicit
-  degradation. Missing historical before-state cannot become a passing prior.
+- **Regression anchor** — authoring records optional diagnostic context; an
+  execution captures it fresh only when explicit certification requests it.
+  Requested captures use Test Genie receipts with GCT-owned evidence. Missing
+  historical before-state remains unknown and does not gate ordinary work.
 - **Validation scope** — phase `testPhases` selects focused checks;
   `compareBehavior` opts into comparison with the behavioral prior. Final
   certification covers the complete plan inventory. Source identity uses
@@ -610,10 +610,10 @@ of the current workflow.
   - `fresh` — no relevant change.
   - `lightly_stale` — small diffs in referenced code.
   - `definitely_stale` — referenced locations moved or were deleted.
-- **Definition of Done** — requires a synchronized final certification receipt
-  with the complete inventory and required evidence strength. A phase subset
-  cannot certify completion. GCT comparison remains a receipt child when the
-  plan's evidence policy requires it.
+- **Definition of Done** — applies the completion policy above to recorded
+  outcome evidence and finding dispositions. Explicit certification requires
+  its declared inventory and evidence strength. Ordinary completion does not
+  require a green aggregate, baseline comparison, or exact-version evidence.
 
 ## Handoff (Structured Layer Only)
 

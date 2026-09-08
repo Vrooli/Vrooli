@@ -126,13 +126,13 @@ func TestRenderBaselineSetIsDeclarativeAndRoundTrips(t *testing.T) {
 	}
 
 	markdown := plans.RenderMarkdown(p)
-	if !strings.Contains(markdown, "### Regression checks") || !strings.Contains(markdown, "A baseline records current behavior") {
+	if !strings.Contains(markdown, "### Regression checks") || !strings.Contains(markdown, "A behavioral baseline can record current behavior") {
 		t.Fatalf("baseline set render missing concise regression guidance:\n%s", markdown)
 	}
 	if strings.Contains(markdown, "baseline snapshot status --scenario git-control-tower") {
 		t.Fatalf("baseline set render must not reintroduce per-scenario command wall:\n%s", markdown)
 	}
-	if strings.Contains(markdown, "git-control-tower baseline collection capture") || !strings.Contains(markdown, "Plan Manager admits one Test Genie behavioral-before receipt") {
+	if strings.Contains(markdown, "git-control-tower baseline collection capture") || !strings.Contains(markdown, "For certification, Plan Manager admits one Test Genie behavioral-before receipt") {
 		t.Fatalf("baseline set render must describe receipt ownership without a provider command wall:\n%s", markdown)
 	}
 	if !strings.Contains(markdown, "Before finishing a phase") || !strings.Contains(markdown, "Before completing the plan") {
@@ -371,7 +371,7 @@ func TestRenderDefaultValidationStrategyForBaselineOnlyPlan(t *testing.T) {
 	p.ValidationStrategy = ""
 	p.FinalValidationCommands = []string{"git-control-tower baseline diff --scenario plan-manager --name base --wait"}
 	md := plans.RenderMarkdown(p)
-	if !strings.Contains(md, "Baseline diff shows no unexplained regressions; expected related surfaces improve.") {
+	if !strings.Contains(md, "Review delivered outcomes with concrete evidence; retain advisory findings and limitations.") {
 		t.Fatalf("default validation strategy missing:\n%s", md)
 	}
 }

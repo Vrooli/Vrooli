@@ -1,6 +1,25 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "authentication": {
+    "version": 1,
+    "profile": "scenario_authenticator",
+    "default_mode": "personal_local",
+    "supported_modes": ["personal_local", "local_multi_user", "remote_vrooli", "shared_provider"],
+    "human_sign_in": "optional",
+    "provider": "scenario-authenticator",
+    "resource": "portal",
+    "audience": "scenario-authenticator:portal",
+    "offline": true,
+    "public_routes": ["/"],
+    "protected_routes": ["/api"],
+    "capabilities": [
+      {"id": "portal:read", "effect": "read", "agent_eligible": true},
+      {"id": "portal:write", "effect": "write", "agent_eligible": false},
+      {"id": "portal:destructive", "effect": "destructive", "agent_eligible": false}
+    ],
+    "requires_authenticator": false
+  },
   "storage": {
     "entries": {
       "data": {
@@ -12,6 +31,20 @@
         "budget": {
           "max_bytes": "5GiB",
           "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Shared storage retention enforcement writes the latest compact receipt under Portal's state namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The receipt is bounded regenerable operational state and is replaced on each enforcement run."
         }
       }
     },
@@ -116,7 +149,8 @@
         "enabled": true,
         "required": false,
         "description": "Provides federated ecosystem search for omnibox suggestions and passive message attachments.",
-        "startup_policy": "try_start"
+        "startup_policy": "try_start",
+        "degraded_behavior": "Portal keeps chat available and marks omnibox suggestions and passive attachments unavailable until search-hub recovers."
       },
       "agent-manager": {
         "type": "scenario",
@@ -133,29 +167,72 @@
           }
         },
         "startup_policy": "try_start"
+        ,"degraded_behavior": "Portal keeps ordinary chat available and reports agent execution unavailable until Agent Manager recovers."
       },
     "prompt-manager": {
         "type": "scenario",
         "enabled": true,
-        "required": false,
-        "description": "Provides skills and prompt content for system-prompt injection.",
-      "startup_policy": "try_start"
+      "required": false,
+      "description": "Provides skills and prompt content for system-prompt injection.",
+      "startup_policy": "try_start",
+      "degraded_behavior": "Portal continues without injected skills and reports the provider as unavailable."
     },
     "audio-tools": {
       "type": "scenario",
       "enabled": true,
       "required": false,
       "description": "Provides optional owned speech input and playback through Audio Tools.",
-      "startup_policy": "try_start"
+      "startup_policy": "try_start",
+      "degraded_behavior": "Text chat and workspace controls remain available; voice input and playback report unavailable."
     },
     "compute-manager": {
       "type": "scenario",
       "enabled": true,
       "required": false,
       "description": "Provides optional screenless compute-node inventory and readiness.",
-      "startup_policy": "try_start"
+      "startup_policy": "try_start",
+      "degraded_behavior": "Portal omits compute-node surfaces and reports readiness unavailable while Compute Manager is stopped."
+    },
+    "device-control": {
+      "type": "scenario",
+      "enabled": true,
+      "required": false,
+      "description": "Provides optional owner-authorized desktop control and surface/session operations.",
+      "startup_policy": "try_start",
+      "degraded_behavior": "Portal starts without desktop control and reports the required grant or provider-unavailable reason before side effects."
+    },
+    "scenario-authenticator": {
+      "type": "scenario",
+      "enabled": true,
+      "required": false,
+      "description": "Provides optional operator account and session surfaces.",
+      "startup_policy": "try_start",
+      "degraded_behavior": "Portal retains local owner flows and reports account surfaces unavailable until Scenario Authenticator recovers."
+    },
+    "vrooli-bridge": {
+      "type": "scenario",
+      "enabled": true,
+      "required": false,
+      "description": "Provides optional remote-device and attached-node surfaces.",
+      "startup_policy": "try_start",
+      "degraded_behavior": "Portal keeps local surfaces available and reports remote attached-device surfaces unavailable until Vrooli Bridge recovers."
+    },
+    "web-console": {
+      "type": "scenario",
+      "enabled": true,
+      "required": false,
+      "description": "Provides optional remote target and operator surfaces.",
+      "startup_policy": "try_start",
+      "degraded_behavior": "Portal keeps local chat available and reports remote terminal targets unavailable until Web Console recovers."
     }
     }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/portal/SKILL.md"
+    },
+    "feature": [],
+    "waivers": {}
   },
   "components": {
     "api": {

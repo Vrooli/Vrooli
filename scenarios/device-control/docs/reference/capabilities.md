@@ -144,6 +144,21 @@ and gap reports.
 | `media` | Media transport | Play, pause, stop, next, previous, or set absolute volume. |
 | `pairing` | Interactive pairing | Complete a secret-bearing transport pairing exchange without serializing the secret. |
 
+## App lifecycle control
+
+The REST and CLI app surface accepts one package-identified operation at a time:
+`launch`, `focus`, `close`, `minimize`, `restore`, `stop`, `uninstall`,
+`clear-data`, `grant-permission`, `revoke-permission`, or `package-state`. The request must hold a live device
+lease. Mutating operations also require an explicit `confirmed`/`--confirmed`
+flag. Package names are validated as fully-qualified identities; executable
+paths and arguments are refused until a strategy-owned allowlist exists.
+
+The control plane requires both an available `app-lifecycle` declaration and
+the typed `strategy.AppLifecycle` implementation. A declaration without an
+executable adapter returns a typed unavailable/unsupported result. Every
+attempt receives a command ID and an audit record; lifecycle attempts do not
+claim evidence-backed completion without a separate verification step.
+
 ## Step kinds and what they require
 
 The mandatory floor is identity plus declaration. Every device step below is

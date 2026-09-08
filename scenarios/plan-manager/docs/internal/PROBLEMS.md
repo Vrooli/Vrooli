@@ -2,6 +2,25 @@
 
 ## Work ladder
 
+- Completion-policy work, 2026-09-06: W0 contradicted the operator's approved
+  advisory validation, optional baseline, and bounded attribution policy.
+  OT-P0-005 previously required missing/stale evidence to block completion.
+  Contract and guidance were corrected before runtime changes. Ordinary
+  completion now records supported outcome assessments; explicit certification
+  retains required evidence. API and CLI package tests, focused UI tests, and
+  UI type checking pass. The broad unit receipt remains failed and is not
+  presented as full scenario certification.
+  This work does not certify the unrelated investigation contract below.
+
+- Final hardening, 2026-09-06: W2/W3 follow-up found that ordinary focused
+  validation still rejected a newly affected scenario when an optional
+  baseline inventory was incomplete. The containment check now applies only to
+  explicit behavioral comparison or certification; advisory phases preserve
+  the limitation and continue. Stale requirement-test references and copied
+  failing statuses were repaired, and the public CLI completed a disposable
+  advisory execution with a full durable handoff. Broad scenario evidence and
+  certification remain intentionally open.
+
 - Rung: W0 contract extension for proposed plan-triggered investigations (rechecked 2026-09-06); full scenario gate remains unverifiable.
 - Evidence: The operator requested configurable plan investigation triggers that delegate to Agent Manager. `OT-P0-003` promises execution context and `OT-P0-006` promises a reviewed family frontier; neither defines trigger eligibility, investigation linkage, or result consumption. The PRD boundary says Plan Manager "does NOT read agent transcripts or spawn agents". Preserve that ownership boundary by defining delegation to Agent Manager explicitly. The deterministic `swarm-manager goals list --json` search returned no goal naming `trustworthy-agent-investigations-and-plan-triggers`, so W0 cannot be certified from a named goal.
 - Proposed boundary: Plan Manager owns execution/phase identity, domain evidence, trigger eligibility, and current-revision checks. Agent Manager owns investigation execution, run evidence, diagnosis, and durable delivery. Program Runtime composes finite operations. Prompt text may specialize the investigative question; it must not substitute for typed identity, evidence freshness, budgets, or authority.

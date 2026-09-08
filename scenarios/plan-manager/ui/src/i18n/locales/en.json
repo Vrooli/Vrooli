@@ -162,6 +162,11 @@
       "title": "Dashboard"
     },
     "execution": {
+      "outcomeSummary": "Outcome summary",
+      "outcomeEvidence": "Evidence references (one per line)",
+      "outcomeLimitations": "Limitations and finding dispositions (one per line)",
+      "unmetOutcomes": "Unmet outcomes (one per line)",
+      "outcomeHelp": "Support the intended outcome with observations or review. Broad test results are advisory; unmet outcomes remain unfinished.",
       "baselineSetCoverage": "Behavioral coverage",
       "baselineSetHeading": "Baseline set",
       "baselineSetMembers": "Baseline members",

@@ -175,7 +175,8 @@ func (a validatorAdapter) LastValidation(ctx context.Context, planID, phaseID st
 // (ComputeStaleness) — both owned by validation (which owns git-control-tower) —
 // so execution never imports git-control-tower directly. Degradation is honest:
 // an incomplete anchor or an absent git-control-tower yields BaselineCaptured=false
-// with a Detail, never a fabricated capture.
+// with a Detail, never a fabricated capture. Ordinary advisory execution does
+// not call this path merely to complete a plan.
 type baselineSynchronizerAdapter struct{ svc internalvalidation.Service }
 
 func (a baselineSynchronizerAdapter) SyncBaseline(ctx context.Context, planID, baselineName string) (internalexecution.FreshenResult, error) {

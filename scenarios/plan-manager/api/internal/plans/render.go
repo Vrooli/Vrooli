@@ -7,7 +7,7 @@ import (
 	"plan-manager/internal/planmodel"
 )
 
-const defaultValidationStrategy = "Baseline diff shows no unexplained regressions; expected related surfaces improve."
+const defaultValidationStrategy = "Review delivered outcomes with concrete evidence; retain advisory findings and limitations."
 
 type RenderOptions struct {
 	Compact            bool
@@ -127,10 +127,19 @@ func escapeTableCell(v string) string {
 // the regression anchor, the validation strategy, and the definition of done.
 func renderVerificationCluster(b *strings.Builder, p Plan) {
 	hasStrategy := strings.TrimSpace(p.ValidationStrategy) != "" || len(p.FinalValidationCommands) > 0
-	if !anchorPresent(p.RegressionAnchor) && !hasStrategy && strings.TrimSpace(p.DefinitionOfDone) == "" {
+	if !anchorPresent(p.RegressionAnchor) && !hasStrategy && strings.TrimSpace(p.DefinitionOfDone) == "" && p.CompletionPolicy == (planmodel.CompletionPolicy{}) {
 		return
 	}
 	b.WriteString("## Verification\n\n")
+	mode := p.CompletionPolicy.Mode
+	if mode == "" {
+		mode = "advisory"
+	}
+	fmt.Fprintf(b, "### Completion Policy\n\nMode: %s\n", mode)
+	if p.CompletionPolicy.Reason != "" {
+		fmt.Fprintf(b, "Reason: %s\n", p.CompletionPolicy.Reason)
+	}
+	b.WriteString("\n")
 	if !baselineSetPresent(p.BaselineSet) && anchorPresent(p.RegressionAnchor) {
 		b.WriteString("### Regression Anchor\n\n")
 		b.WriteString(renderAnchor(p.RegressionAnchor, p.ChangeBoundary))
@@ -988,7 +997,7 @@ func baselineSetPresent(intent BaselineSetIntent) bool {
 // runner; this projection explains the lifecycle without reproducing them.
 func renderBaselineSet(intent BaselineSetIntent) string {
 	var b strings.Builder
-	b.WriteString("A baseline records current behavior before this plan changes it, so validation can identify regressions.\n")
+	b.WriteString("A behavioral baseline can record current behavior before this plan changes it, so validation can identify regressions. It is optional for ordinary completion and required only when this plan explicitly selects certification.\n")
 	if intent.Name != "" && len(intent.ScenarioTargets) > 0 {
 		fmt.Fprintf(&b, "\n- Name: `%s`\n", intent.Name)
 		fmt.Fprintf(&b, "- Capture policy: `%s`\n", intent.CapturePolicy)
@@ -996,12 +1005,12 @@ func renderBaselineSet(intent BaselineSetIntent) string {
 		if len(intent.RepoPaths) > 0 {
 			fmt.Fprintf(&b, "- Source changes for review (informational): %s\n", markdownCodeList(intent.RepoPaths))
 		}
-		b.WriteString("\n**Before editing**, start the execution. Plan Manager admits one Test Genie behavioral-before receipt; Test Genie owns its Git Control Tower children, durable wait, and terminal evidence.\n")
+		b.WriteString("\n**Before editing**, start the execution. For certification, Plan Manager admits one Test Genie behavioral-before receipt; Test Genie owns its Git Control Tower children, durable wait, and terminal evidence. For ordinary completion, capture is optional diagnostic context.\n")
 	} else {
-		b.WriteString("\n**Before editing**, follow the baseline action from `plan-manager exec continue …`.\n")
+		b.WriteString("\n**Before editing**, follow the baseline action from `plan-manager exec continue …` only if certification is selected; ordinary completion does not require a historical before-state.\n")
 	}
-	b.WriteString("\n**Before finishing a phase**, follow the validation action from `plan-manager exec continue …`. It checks the scenarios affected by that phase; resolve regressions before marking the phase complete.\n")
-	b.WriteString("\n**Before completing the plan**, follow the runner's final validation action. It checks the full baseline collection; resolve regressions before `plan-manager exec complete`.\n")
+	b.WriteString("\n**Before finishing a phase**, ordinary runs record a focused outcome assessment with evidence and limitations. If certification is selected, follow the validation action from `plan-manager exec continue …` and resolve credible material regressions before marking the phase complete.\n")
+	b.WriteString("\n**Before completing the plan**, ordinary runs use the recorded outcome assessments; a broad suite failure, missing prior state, or concurrent drift is disclosed rather than treated as an automatic blocker. Certification follows the runner's final validation action and its stricter evidence contract.\n")
 	return b.String()
 }
 

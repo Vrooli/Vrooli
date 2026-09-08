@@ -8,6 +8,7 @@ import (
 
 	agentbrief "github.com/vrooli/agentbrief-go"
 	"github.com/vrooli/api-core/scheduletest"
+	briefv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/brief"
 	_ "modernc.org/sqlite"
 )
 
@@ -120,5 +121,32 @@ func TestStatsReportsDeliveryWithholdingAndUsageByConsumer(t *testing.T) {
 	}
 	if row.UsageRate != 1 || row.WithheldRate != 0.5 || row.WithheldByVerdict[agentbrief.VerdictWithheldLowConfidence] != 1 {
 		t.Fatalf("stats rates = %+v", row)
+	}
+}
+
+func TestConsumerFilterLeavesUnspecifiedUnfiltered(t *testing.T) {
+	if got := ConsumerFilterFromProto(briefv1.BriefConsumer_BRIEF_CONSUMER_UNSPECIFIED); got != "" {
+		t.Fatalf("unspecified filter = %q, want empty filter", got)
+	}
+	if got := ConsumerFilterFromProto(briefv1.BriefConsumer_BRIEF_CONSUMER_EXTERNAL_HARNESS); got != agentbrief.ConsumerExternalHarness {
+		t.Fatalf("external filter = %q", got)
+	}
+}
+
+func TestListLoadsRecordsAfterReleasingIDCursor(t *testing.T) {
+	db, clock := newBriefDB(t)
+	db.SetMaxOpenConns(1)
+	repo := NewSQLiteRepository(db, clock)
+	for _, id := range []string{"first", "second"} {
+		if err := repo.Save(context.Background(), Record{ID: id, Consumer: agentbrief.ConsumerPortalLLM, Verdict: agentbrief.VerdictWithheldLowConfidence, CreatedAt: clock.Now()}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	records, err := repo.List(context.Background(), ListInput{Consumer: agentbrief.ConsumerPortalLLM})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 2 {
+		t.Fatalf("listed records = %d, want 2", len(records))
 	}
 }

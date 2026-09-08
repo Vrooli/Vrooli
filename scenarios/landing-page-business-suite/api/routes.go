@@ -13,12 +13,14 @@ import (
 	adminhttp "landing-page-business-suite-api/handlers/administration"
 	assethttp "landing-page-business-suite-api/handlers/assets"
 	bundlehttp "landing-page-business-suite-api/handlers/bundles"
+	businessaccounthttp "landing-page-business-suite-api/handlers/businessaccount"
 	billinghttp "landing-page-business-suite-api/handlers/commerce"
 	landinghttp "landing-page-business-suite-api/handlers/config"
 	contenthttp "landing-page-business-suite-api/handlers/content"
 	couponhttp "landing-page-business-suite-api/handlers/coupons"
 	downloadhttp "landing-page-business-suite-api/handlers/delivery"
 	deploymenthttp "landing-page-business-suite-api/handlers/deployment"
+	desktoplinkhttp "landing-page-business-suite-api/handlers/desktoplink"
 	docshandler "landing-page-business-suite-api/handlers/docs"
 	varianthttp "landing-page-business-suite-api/handlers/experimentation"
 	feedbackhttp "landing-page-business-suite-api/handlers/feedback"
@@ -32,8 +34,10 @@ import (
 	"landing-page-business-suite-api/internal/monetization"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/identity"
 	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 )
 
@@ -46,6 +50,30 @@ func (s *Server) setupRoutes() {
 	registerLandingRoutes(s)
 	registerBackdropRoutes(s)
 	registerAuthRoutes(s)
+	desktoplinkhttp.RegisterRoutes(s.router, desktoplinkhttp.Dependencies{
+		Service:    s.desktopLinkService,
+		LPBSUserID: getUserID,
+		ResolveBusinessAccountID: func(ctx context.Context, userID, requestedID string) (string, error) {
+			account, err := s.businessAccounts.ResolveForUser(ctx, userID, getUserEmail(ctx), requestedID)
+			if err != nil {
+				return "", err
+			}
+			return account.ID, nil
+		},
+		VerifyLocalIdentity: func(ctx context.Context, token string) (identity.Principal, error) {
+			if s.desktopLinkVerifier == nil {
+				return identity.Principal{}, authn.ErrNoProvider
+			}
+			return s.desktopLinkVerifier.Verify(ctx, token)
+		},
+		IssueLease: s.issueDesktopEntitlementLease,
+		WriteAudit: logx.Info,
+	}, s.requireUserAuth)
+	businessaccounthttp.RegisterRoutes(s.router, businessaccounthttp.Dependencies{
+		Repository: s.businessAccounts,
+		UserID:     getUserID,
+		UserEmail:  getUserEmail,
+	}, s.requireUserAuth)
 	registerFixtureRoutes(s)
 	registerAccountRoutes(s)
 	registerReceiptRoutes(s)
@@ -273,7 +301,7 @@ func registerEntitlementRoute(s *Server) {
 func registerBillingRoutes(s *Server) {
 	// Generated Connect payment procedures preserve the public checkout,
 	// authenticated portal, and admin cancellation boundaries.
-	billinghttp.RegisterConnectRoutes(s.router, billingConnectDependencies(s.stripeService), s.requireUserAuth, s.requireAdmin)
+	billinghttp.RegisterConnectRoutes(s.router, billingConnectDependencies(s.stripeService, s.businessAccounts), s.requireUserAuth, s.requireAdmin)
 
 	// Stripe webhook remains Stripe's signed HTTP callback, not a browser RPC.
 	s.router.HandleFunc("/api/v1/webhooks/stripe", billinghttp.Webhook(billingWebhookDependencies(s.stripeService))).Methods("POST")

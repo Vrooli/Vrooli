@@ -5,8 +5,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
-	"portal/handlers/chatauth"
 	contextcapturehandler "portal/handlers/contextcapture"
+	"portal/internal/chatauth"
 
 	messageconnect "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/message/message_v1connect"
 

@@ -89,7 +89,7 @@ func structureViolations(sections []Section) []StructureViolation {
 		// References and the change boundary are mandatory, but each owns its gate
 		// (allowing NO_CODE_REFS / OPERATOR_ONLY) — skip the generic empty-mandatory
 		// message to avoid double-reporting.
-		if sec.Key == SectionReferences || sec.Key == SectionAcceptanceBoundary {
+		if sec.Key == SectionReferences || sec.Key == SectionAcceptanceBoundary || sec.Key == SectionRegressionAnchor {
 			continue
 		}
 		if sec.Mandatory && strings.TrimSpace(sec.Content) == "" {
@@ -98,13 +98,6 @@ func structureViolations(sections []Section) []StructureViolation {
 				Message:    "mandatory section " + string(sec.Key) + " must not be empty",
 			})
 		}
-	}
-	if strings.TrimSpace(contentOf(sections, SectionRegressionAnchor)) == "" &&
-		!hasMandatoryViolation(out, SectionRegressionAnchor) {
-		out = append(out, StructureViolation{
-			SectionKey: SectionRegressionAnchor,
-			Message:    "regression anchor must be captured before finalizing",
-		})
 	}
 	return out
 }
@@ -208,6 +201,8 @@ func sectionForQualityLocation(location string) SectionKey {
 		return SectionTechnicalApproach
 	case strings.HasPrefix(location, "plan.validation_strategy"):
 		return SectionValidationStrategy
+	case strings.HasPrefix(location, "plan.completion_policy"):
+		return SectionCompletionPolicy
 	case strings.HasPrefix(location, "plan.definition_of_done"):
 		return SectionDefinitionOfDone
 	case strings.HasPrefix(location, "plan.change_boundary"):
@@ -336,16 +331,10 @@ func violationsForSection(sec Section) []StructureViolation {
 	if sec.Key == SectionDefinitions {
 		return definitionsGateViolations(sec.Content)
 	}
-	if sec.Mandatory && empty {
+	if sec.Mandatory && empty && sec.Key != SectionRegressionAnchor {
 		out = append(out, StructureViolation{
 			SectionKey: sec.Key,
 			Message:    "mandatory section " + string(sec.Key) + " must not be empty",
-		})
-	}
-	if sec.Key == SectionRegressionAnchor && empty && !sec.Mandatory {
-		out = append(out, StructureViolation{
-			SectionKey: SectionRegressionAnchor,
-			Message:    "regression anchor must be captured before finalizing",
 		})
 	}
 	return out

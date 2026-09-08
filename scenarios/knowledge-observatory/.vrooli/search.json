@@ -8,7 +8,7 @@
       "provider_group": "knowledge-observatory",
       "bucket": "BUCKET_KNOW",
       "type": "doc",
-      "description": "Project documentation across every scenario and the repo root — READMEs, guides, concept docs, runbooks, plans — searchable semantically by what each doc explains (for example \"how does the lifecycle system work\", \"sandbox architecture\"). Route here to find an explanation, guide, or reference that has already been written.",
+      "description": "Project documentation across every scenario and the repo root \u2014 READMEs, guides, concept docs, runbooks, plans \u2014 searchable semantically by what each doc explains (for example \"how does the lifecycle system work\", \"sandbox architecture\"). Route here to find an explanation, guide, or reference that has already been written.",
       "routing_profile": {
         "answer_spaces": [
           "documentation",
@@ -124,7 +124,7 @@
           "negative": 1
         },
         "suite_id": "knowledge-observatory.docs.starter",
-        "name": "Knowledge-observatory docs — primary golden corpus",
+        "name": "Knowledge-observatory docs \u2014 primary golden corpus",
         "description": "Hand-labeled documentation search corpus migrated from the old standalone testdata/search_queries.json into the provider search.json SSOT. Cases assert stable document paths (the provider id_field is relative_path) within recall_at; scoped cases preserve their scenario:path query scope through the shared GradeSuite harness.",
         "cases": [
           {
@@ -496,6 +496,20 @@
             ],
             "expect_within_top_k": 5,
             "note": "Applicability is OS/machine independence; cross-compilation is not native runtime verification."
+          },
+          {
+            "id": "knowledge-document-maintenance",
+            "query": "How do I consolidate or move documentation while preserving important knowledge and distinguishing existing broken links from new regressions?",
+            "scope": "scenario:knowledge-observatory",
+            "tags": [
+              "maintenance",
+              "reviewed"
+            ],
+            "expect_ids": [
+              "scenarios/knowledge-observatory/docs/guides/document-maintenance.md"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Reviewed maintenance workflow covers dispositions, preservation obligations, absent paths and baseline comparison; retrieval alone is not semantic preservation."
           }
         ],
         "coverage": {

@@ -131,7 +131,10 @@
         "signals": {
           "requested": 0
         }
-      }
+      },
+      "requires": [
+        "ai-gateway"
+      ]
     },
     {
       "id": "duplicate-labels",
@@ -149,7 +152,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "ai-gateway"
+      ]
     }
   ],
   "rung": "S3",

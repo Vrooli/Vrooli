@@ -89,6 +89,7 @@ export function CheckoutPage() {
   const [params] = useSearchParams();
   const priceParam = params.get('price_id') || '';
   const planParam = params.get('plan')?.trim().toLowerCase() || '';
+  const businessAccountId = params.get('business_account_id')?.trim() || undefined;
   const freeRequested = planParam === 'free';
 
   const [pricing, setPricing] = useState<PricingOverview | null>(null);
@@ -165,6 +166,7 @@ export function CheckoutPage() {
           price_id: selectedPlan.stripe_price_id,
           success_url: urls.success,
           cancel_url: urls.cancel,
+          business_account_id: businessAccountId,
         });
 
         if (!cancelled && session.url) {
@@ -196,7 +198,7 @@ export function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [attemptKey, freeRequested, selectedPlan]);
+  }, [attemptKey, businessAccountId, freeRequested, selectedPlan]);
 
   if (loading) {
     return (

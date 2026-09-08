@@ -1,3 +1,4 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
 import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import { i18n } from "./i18n";
@@ -16,7 +17,8 @@ import "./styles.css";
 // navigation. This guard reloads once (rate-limited) instead.
 // INTEROP-CRITICAL: preserve the host's keyboard/gamepad focus contract.
 installChunkReloadGuard();
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 function registerServiceWorker() {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) {
@@ -78,12 +80,14 @@ ReactDOM.createRoot(root).render(
     <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
       <BaseStyles />
 <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <React.Profiler id="App" onRender={onProfilerRender}>
-        <App />
-      </React.Profiler>
-    </QueryClientProvider>
-  </React.StrictMode>
+  <SpatialNavProvider controller={spatialNav}>
+      <QueryClientProvider client={queryClient}>
+        <React.Profiler id="App" onRender={onProfilerRender}>
+          <App />
+        </React.Profiler>
+      </QueryClientProvider>
+  </SpatialNavProvider>
+</React.StrictMode>
     </LibraryStringsProvider>,
     // vrooli:library-strings-provider end
   );

@@ -178,10 +178,25 @@ func TestStreamBuildsAgentBriefFromTheSelectedUserMessage(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, "agent-brief-1", result.BriefID)
+	binding, err := agentchat.NewSQLiteRepository(d).Get(ctx, chat.ID, user.ID)
+	require.NoError(t, err)
+	require.Equal(t, "agent-brief-1", binding.BriefID)
 	require.Equal(t, "Inspect the selected implementation path", briefs.input.Prompt)
 	require.Equal(t, string(internalchat.AgentHarnessClaudeCode), briefs.input.Harness)
 	require.Contains(t, fakeAgent.startInput.Prompt, "agent data")
 	require.Contains(t, fakeAgent.startInput.Prompt, "Inspect the selected implementation path")
+}
+
+func TestEnsureBriefIDColumnUpgradesExistingAdmissions(t *testing.T) {
+	d := db.NewSQLite(t)
+	defer d.Close()
+	_, err := d.Exec(`CREATE TABLE agent_chat_runs (id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, message_id TEXT NOT NULL, task_id TEXT NOT NULL DEFAULT '', run_id TEXT UNIQUE)`)
+	require.NoError(t, err)
+	require.NoError(t, agentchat.EnsureBriefIDColumn(context.Background(), d))
+	var count int
+	require.NoError(t, d.QueryRow("SELECT COUNT(*) FROM pragma_table_info('agent_chat_runs') WHERE name='brief_id'").Scan(&count))
+	require.Equal(t, 1, count)
+	require.NoError(t, agentchat.EnsureBriefIDColumn(context.Background(), d))
 }
 
 func TestStreamRecordsAgentBriefReferenceOnlyForExactPath(t *testing.T) {

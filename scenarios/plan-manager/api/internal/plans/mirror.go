@@ -31,7 +31,8 @@ const (
 	//
 	// v5: Execution Feedback replaces compact command alternatives with a
 	// concrete decision-add example and a short variant list.
-	RendererVersion     = "plan-manager-renderer-v6"
+	// v7 exposes completion policy; old mirrors must not claim this policy is rendered.
+	RendererVersion     = "plan-manager-renderer-v7"
 	mirrorIndexFilename = "_index.json"
 	// mirrorIndexVersion is the schema version this build writes. It is stamped
 	// after decoding so an older on-disk version is upgraded in place rather

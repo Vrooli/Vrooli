@@ -267,6 +267,10 @@ export function ExecutionRunner() {
     nudges: [],
   });
   const [toStatus, setToStatus] = useState<PhaseStatus>(PhaseStatus.DONE);
+  const [outcomeSummary, setOutcomeSummary] = useState("");
+  const [outcomeEvidence, setOutcomeEvidence] = useState("");
+  const [outcomeLimitations, setOutcomeLimitations] = useState("");
+  const [unmetOutcomes, setUnmetOutcomes] = useState("");
   const [decisionSummary, setDecisionSummary] = useState("");
   const [decisionDetail, setDecisionDetail] = useState("");
   const [findingTitle, setFindingTitle] = useState("");
@@ -298,6 +302,7 @@ export function ExecutionRunner() {
   const context = state.context;
   const baselineSet = context;
   const currentPhaseId = context?.currentPhase?.id ?? execution?.currentPhaseId ?? "";
+  const advisoryDone = toStatus === PhaseStatus.DONE && context?.completionPolicy?.mode !== "certification";
 
   const run = (fn: () => Promise<void>) => {
     setBusy(true);
@@ -405,8 +410,18 @@ export function ExecutionRunner() {
   const handleTransition = () => {
     if (!execution || currentPhaseId.length === 0) return;
     run(async () => {
-      const res = await transitionPhase(execution.id, currentPhaseId, toStatus);
+      const lines = (value: string) => value.split("\n").map((line) => line.trim()).filter(Boolean);
+      const res = advisoryDone
+        ? await transitionPhase(execution.id, currentPhaseId, toStatus, "", "", {
+          summary: outcomeSummary.trim(), evidence: lines(outcomeEvidence),
+          limitations: lines(outcomeLimitations), unmetOutcomes: lines(unmetOutcomes), scopeGeneration: 0,
+        })
+        : await transitionPhase(execution.id, currentPhaseId, toStatus);
       setState((prev) => ({ ...prev, execution: res.execution ?? prev.execution, step: res.step }));
+      setOutcomeSummary("");
+      setOutcomeEvidence("");
+      setOutcomeLimitations("");
+      setUnmetOutcomes("");
       await refreshStatus(execution.id);
     });
   };
@@ -871,6 +886,15 @@ export function ExecutionRunner() {
 
           <Card className="bg-app-surface-muted">
             <h4 className="text-sm font-semibold">{t(strings.pages.execution.transitionHeading)}</h4>
+            {advisoryDone && (
+              <div className="mt-2 grid gap-2">
+                <p className="text-sm text-app-muted-foreground">{t(strings.pages.execution.outcomeHelp)}</p>
+                <label>{t(strings.pages.execution.outcomeSummary)}<Textarea value={outcomeSummary} onChange={(e) => setOutcomeSummary(e.target.value)} /></label>
+                <label>{t(strings.pages.execution.outcomeEvidence)}<Textarea value={outcomeEvidence} onChange={(e) => setOutcomeEvidence(e.target.value)} /></label>
+                <label>{t(strings.pages.execution.outcomeLimitations)}<Textarea value={outcomeLimitations} onChange={(e) => setOutcomeLimitations(e.target.value)} /></label>
+                <label>{t(strings.pages.execution.unmetOutcomes)}<Textarea value={unmetOutcomes} onChange={(e) => setUnmetOutcomes(e.target.value)} /></label>
+              </div>
+            )}
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <label className="flex flex-col gap-1 text-sm">
                 <span className="text-xs text-app-muted-foreground">
@@ -893,7 +917,7 @@ export function ExecutionRunner() {
                 type="button"
                 size="sm"
                 data-testid={selectors.execution.transitionButton}
-                disabled={busy || currentPhaseId.length === 0}
+                disabled={busy || currentPhaseId.length === 0 || (advisoryDone && (!outcomeSummary.trim() || !outcomeEvidence.trim() || !!unmetOutcomes.trim()))}
                 onClick={handleTransition}
               >
                 {t(strings.pages.execution.transition)}

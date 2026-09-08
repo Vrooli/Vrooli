@@ -217,10 +217,10 @@ type BaselineScope struct {
 	Provenance string
 }
 
-// BaselineCapture reports the outcome of capturing the regression-anchor's
-// baseline snapshot at execution start. It is honest: Captured=false with a
-// Detail when git-control-tower is unavailable or the anchor intent is still a
-// placeholder — never a fabricated capture.
+// BaselineCapture reports the outcome of an explicit certification request to
+// capture the regression-anchor's baseline snapshot at execution start. It is
+// honest: Captured=false with a Detail when git-control-tower is unavailable or
+// the anchor intent is still a placeholder — never a fabricated capture.
 type BaselineCapture struct {
 	Captured         bool
 	Scenario         string

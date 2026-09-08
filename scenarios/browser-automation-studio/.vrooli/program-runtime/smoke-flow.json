@@ -80,7 +80,7 @@
       "workflow_name": "name of the executed workflow",
       "execution_id": "execution UUID created by the run",
       "execution_status": "EXECUTION_STATUS_* value after wait",
-      "outcome": "passed | failed | still_running | cancelled",
+      "outcome": "verified_success only for completed execution with a complete bounded timeline of successful assertions; otherwise unknown or explicit failure",
       "failed_step": "1-based index of the first failed timeline entry, or null",
       "failed_action": "ACTION_TYPE_* of the failed entry, or null",
       "failed_error_code": "context.errorCode of the failed entry, or null",
@@ -121,10 +121,11 @@
       "id": "no-workflow",
       "inputs": {},
       "expect": {
-        "status": [
-          "failed"
-        ]
-      }
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
     },
     {
       "id": "unknown-workflow",
@@ -151,9 +152,35 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
     }
   ],
   "rung": "S3",
-  "owner_skill": "browser-automation-studio"
+  "owner_skill": "browser-automation-studio",
+  "learning_task": {
+    "scope": "bas-usage",
+    "operation": "smoke-flow",
+    "context_fields": [],
+    "outcome": {
+      "status_path": "signals.outcome",
+      "mapping": {
+        "verified_success": "verified_success",
+        "failed": "failed",
+        "unavailable": "unavailable",
+        "unknown": "unknown"
+      },
+      "evidence_paths": [
+        "evidence"
+      ]
+    }
+  },
+  "verbs": [
+    "agent.collect",
+    "ai.classify",
+    "tasks.get",
+    "validate"
+  ]
 }

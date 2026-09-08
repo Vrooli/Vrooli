@@ -1,28 +1,17 @@
-
 // vrooli:library-selectors start
 export const librarySelectors = {
-                "experiencesurface": {
-    "root": "experiencesurface",
+  "experiencesurface": {
+    "root": "experiencesurface"
   },
-
-
-
-
-
-
-
-        "react-component-library:MonetizationAccount": {
-    "root": "react-component-library:MonetizationAccount",
-    "monetizationAccountSurface": "react-component-library:MonetizationAccount.monetization.account-surface",
+  "react-component-library:MonetizationAccount": {
+    "monetizationAccountSurface": "monetization.account-surface",
+    "root": "react-component-library:MonetizationAccount"
   },
-
-
-
   "authclient": {
-    "root": "authclient",
+    "root": "authclient"
   },
   "entitlementstore": {
-    "root": "entitlementstore",
-  },
+    "root": "entitlementstore"
+  }
 } as const;
 // vrooli:library-selectors end

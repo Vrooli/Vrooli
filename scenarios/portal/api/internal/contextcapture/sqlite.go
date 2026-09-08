@@ -32,9 +32,16 @@ CREATE INDEX IF NOT EXISTS idx_context_capsules_expiry ON context_capsules(expir
 `
 }
 
-type sqliteRepository struct{ db *sql.DB }
+type sqlDB interface {
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
 
-func NewSQLiteRepository(db *sql.DB) Repository { return &sqliteRepository{db: db} }
+type sqliteRepository struct{ db sqlDB }
+
+func NewSQLiteRepository(db sqlDB) Repository { return &sqliteRepository{db: db} }
 
 func (r *sqliteRepository) Reserve(ctx context.Context, doc Document, size int64) error {
 	id, err := uuid.Parse(doc.ID)

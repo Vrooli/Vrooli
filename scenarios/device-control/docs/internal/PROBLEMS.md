@@ -452,3 +452,10 @@ Device requirement-evidence follow-up: `knw-1788561878575592107` records the 21
 older complete claims without requirements-sync snapshots. The new AGENT-REUSE
 requirement remains in_progress until its provider evidence can be earned.
 Do not lower acceptance gates or erase existing evidence to make these checks pass.
+
+## Work ladder
+
+- Rung: W3
+- Evidence: `vrooli scenario requirements validate device-control --json` reports the contract and requirement registry at L3; targeted implementation and live workflow evidence cover only the currently available Linux path, while the plan still has unverified platform rows and certification cases.
+- Blocker: Device Control implementation and acceptance evidence remain incomplete for the plan's cross-platform and final-regression outcomes. The current Plan Manager phase pointer is still Phase 4 after a killed control-plane validation.
+- Measured: 2026-09-08

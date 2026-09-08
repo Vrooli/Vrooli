@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/targetmodel"
 	wire "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/contextcapture"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -17,7 +18,7 @@ import (
 
 type Handler struct {
 	service  Service
-	identity owneridentity.Validator
+	identity authn.TokenVerifier
 	now      func() time.Time
 }
 
@@ -31,7 +32,7 @@ type Service interface {
 	CancelImport(context.Context, string, string) error
 }
 
-func NewHandler(service Service, identity owneridentity.Validator, now func() time.Time) *Handler {
+func NewHandler(service Service, identity authn.TokenVerifier, now func() time.Time) *Handler {
 	if now == nil {
 		now = time.Now
 	}
@@ -43,11 +44,11 @@ func (h *Handler) owner(ctx context.Context, header http.Header) (string, error)
 	if !ok || token == "" || len(token) > 16384 || h.identity == nil {
 		return "", connect.NewError(connect.CodeUnauthenticated, errors.New("operator identity required"))
 	}
-	identity, err := h.identity.Validate(ctx, token)
-	if err != nil || identity.Subject == "" || !h.now().Before(identity.ExpiresAt) {
+	principal, err := h.identity.Verify(ctx, token)
+	if err != nil || !principal.Verified || principal.Kind != identity.ActorHuman || principal.Subject == "" || !h.now().Before(principal.ExpiresAt) {
 		return "", connect.NewError(connect.CodeUnauthenticated, errors.New("operator identity unavailable"))
 	}
-	return identity.Subject, nil
+	return principal.Subject, nil
 }
 
 func failure(err error) error {

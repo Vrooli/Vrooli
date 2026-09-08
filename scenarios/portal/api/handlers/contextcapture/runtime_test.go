@@ -47,3 +47,20 @@ func TestCleanupRunsAtStartupRetriesAndStops(t *testing.T) {
 	defer cancel()
 	require.NoError(t, stop(ctx))
 }
+
+func TestCleanupRunsAdditionalMaintenancePass(t *testing.T) {
+	clk := scheduletest.New(time.Now())
+	called := make(chan struct{}, 1)
+	stop := startCleanup(reaperFunc(func(context.Context, int) error { return nil }), clk, nil, func(context.Context) error {
+		called <- struct{}{}
+		return nil
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	require.NoError(t, stop(ctx))
+	select {
+	case <-called:
+	case <-time.After(time.Second):
+		t.Fatal("additional maintenance pass was not run")
+	}
+}

@@ -64,6 +64,11 @@
             {
               "name": "expected-sha256",
               "description": "expected sha256"
+            },
+            {
+              "name": "allow-missing",
+              "description": "Return a typed missing observation for retirement verification",
+              "bool": true
             }
           ],
           "binding": {
@@ -164,6 +169,39 @@
               "network:internal"
             ]
           }
+        }
+      ]
+    },
+    {
+      "name": "knowledge",
+      "description": "Bounded knowledge maintenance observations",
+      "commands": [
+        {
+          "name": "inventory",
+          "description": "Scan documentation candidates with hashes, owner hints, portability signals, and inspect/propose handles; never edits files.",
+          "flags": [
+            {"name": "roots", "description": "Comma-separated repository-relative roots"},
+            {"name": "includes", "description": "Optional comma-separated file globs"},
+            {"name": "excludes", "description": "Optional comma-separated file globs"},
+            {"name": "max-files", "description": "Maximum candidate records"},
+            {"name": "max-bytes", "description": "Maximum bytes read per candidate"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "proposals",
+          "description": "Generate bounded review-only disposition proposals from inventory JSON; proposals require owner authorization.",
+          "flags": [{"name": "input", "description": "Inventory JSON file"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "route",
+          "description": "Dry-run or route an owner-authorized proposal with source-hash and idempotency guards; no Knowledge Observatory mutation.",
+          "flags": [{"name": "input", "description": "Proposal JSON file"}, {"name": "expected-sha256", "description": "Expected source hash"}, {"name": "idempotency-key", "description": "Stable request key"}, {"name": "authorization", "description": "Owner authorization marker"}, {"name": "dry-run", "description": "Preview only", "bool": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
         }
       ]
     }

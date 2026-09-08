@@ -6,17 +6,16 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestSeamRegistry(t *testing.T) {
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("could not locate seam registry test")
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("locate API test workspace: %v", err)
 	}
-	apiRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
+	apiRoot := filepath.Clean(filepath.Join(workingDir, "..", ".."))
 	scenarioRoot := filepath.Dir(apiRoot)
 	registryPath := filepath.Join(scenarioRoot, "docs", "internal", "SEAMS.md")
 	registry, err := os.ReadFile(registryPath)

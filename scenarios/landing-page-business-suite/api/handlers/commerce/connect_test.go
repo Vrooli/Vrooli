@@ -11,11 +11,22 @@ import (
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	"landing-page-business-suite-api/internal/businessaccount"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 type fakePayments struct {
-	checkout func(string, string, string, string) (*lpbsv1.CheckoutSession, error)
-	portal   func(context.Context, string, string) (*lpbsv1.BillingPortalResponse, error)
+	checkout        func(string, string, string, string) (*lpbsv1.CheckoutSession, error)
+	accountCheckout func(string, string, string, string, string, commerce.Attribution) (*lpbsv1.CheckoutSession, error)
+	portal          func(context.Context, string, string) (*lpbsv1.BillingPortalResponse, error)
+}
+
+func (f fakePayments) CreateCheckoutSessionForBusinessAccount(price, success, cancel, email, account string) (*lpbsv1.CheckoutSession, error) {
+	return f.accountCheckout(price, success, cancel, email, account, commerce.Attribution{})
+}
+
+func (f fakePayments) CreateCheckoutSessionForBusinessAccountWithAttribution(price, success, cancel, email, account string, attribution commerce.Attribution) (*lpbsv1.CheckoutSession, error) {
+	return f.accountCheckout(price, success, cancel, email, account, attribution)
 }
 
 func (f fakePayments) CreateCheckoutSession(price, success, cancel, email string) (*lpbsv1.CheckoutSession, error) {
@@ -41,6 +52,32 @@ func testConnectDependencies(payments Payments) ConnectDependencies {
 		NormalizeRedirect:   func(raw string) (string, error) { return raw, nil },
 		ValidateOptionalURL: func(raw string) (string, error) { return raw, nil },
 		UserEmail:           func(context.Context) string { return "user@example.test" },
+		UserID:              func(context.Context) string { return "user-1" },
+	}
+}
+
+func TestCreateCheckoutBindsExplicitBusinessAccount(t *testing.T) {
+	var gotAccount, gotEmail string
+	payments := fakePayments{accountCheckout: func(_, _, _, email, account string, _ commerce.Attribution) (*lpbsv1.CheckoutSession, error) {
+		gotAccount, gotEmail = account, email
+		return &lpbsv1.CheckoutSession{SessionId: "cs_account"}, nil
+	}}
+	deps := testConnectDependencies(payments)
+	deps.ResolveBusinessAccount = func(_ context.Context, userID, email, requested string) (businessaccount.Account, error) {
+		if userID != "user-1" || email != "user@example.test" || requested != "acct-1" {
+			t.Fatalf("resolver inputs user=%q email=%q requested=%q", userID, email, requested)
+		}
+		return businessaccount.Account{ID: "acct-1", BillingEmail: "billing@example.test"}, nil
+	}
+	handler := NewConnectHandler(deps)
+	response, err := handler.CreateCheckoutSession(context.Background(), connect.NewRequest(&lpbsv1.CreateCheckoutSessionRequest{
+		PriceId: "price_pro", CustomerEmail: "attacker@example.test", BusinessAccountId: "acct-1",
+	}))
+	if err != nil {
+		t.Fatalf("account checkout error: %v", err)
+	}
+	if response.Msg.GetSession().GetSessionId() != "cs_account" || gotAccount != "acct-1" || gotEmail != "billing@example.test" {
+		t.Fatalf("response=%#v account=%q email=%q", response.Msg, gotAccount, gotEmail)
 	}
 }
 

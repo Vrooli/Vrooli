@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD)
 
 > **Version**: 2.0.0
-> **Last Updated**: 2026-09-05
+> **Last Updated**: 2026-09-06
 > **Status**: Active
 > **Template**: Canonical PRD v2.0.0
 
@@ -38,6 +38,8 @@ Knowledge Observatory also provides real-time introspection and management of Vr
 - [ ] OT-P0-008 | Learning from usage | The system shall expose usage and improve skills with one caller-owned learning attempt per operation and comparable memory measurements without treating search hits as verified task success.
 - [ ] OT-P0-009 | Documentation authority and portability | The system shall preserve declared authority, supersession, OS applicability, and stable repository-relative identity across retrieval modes and federation without inferring policy from plan supplements.
 - [ ] OT-P0-010 | Documentation contract validation | The system shall validate canonical documentation placement and surface actionable reference and manifest findings for scenario owners.
+
+- [ ] OT-P0-011 | Knowledge-preserving documentation maintenance | When documents are corrected, consolidated, moved, or retired, the system shall prepare explicit dispositions and preservation criteria, verify declared post-change and reference expectations against bounded baseline evidence, and distinguish editorial review from mechanical checks.
 
 ### 🟠 P1 – Should have post-launch
 

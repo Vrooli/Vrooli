@@ -10,6 +10,7 @@ import {
   type Handoff,
   type VelocityPoint,
   type PhaseStatus,
+  type OutcomeAssessment,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
 import { transport } from "./client";
@@ -81,6 +82,7 @@ export async function transitionPhase(
   toStatus: PhaseStatus,
   validationOverrideReason = "",
   feedbackOverrideReason = "",
+  assessment?: Omit<OutcomeAssessment, "$typeName">,
 ): Promise<{ execution: Execution | undefined; step: GuidedStep | undefined }> {
   const resp = await executionClient.transitionPhase({
     executionId,
@@ -88,6 +90,7 @@ export async function transitionPhase(
     toStatus,
     validationOverride: { reason: validationOverrideReason },
     feedbackOverride: { reason: feedbackOverrideReason },
+    ...(assessment ? { assessment } : {}),
   });
   return { execution: resp.execution, step: resp.step };
 }

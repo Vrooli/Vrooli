@@ -1,0 +1,397 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "integrations.modeIndicator": {
+      "testId": "integrations-mode-indicator",
+      "selector": "[data-testid=\"integrations-mode-indicator\"]"
+    },
+    "integrations.modeValue": {
+      "testId": "integrations-mode-value",
+      "selector": "[data-testid=\"integrations-mode-value\"]"
+    },
+    "integrations.settingsPanel": {
+      "testId": "integrations-settings-panel",
+      "selector": "[data-testid=\"integrations-settings-panel\"]"
+    },
+    "integrations.overrideSelect": {
+      "testId": "integrations-override-select",
+      "selector": "[data-testid=\"integrations-override-select\"]"
+    },
+    "integrations.statusTable": {
+      "testId": "integrations-status-table",
+      "selector": "[data-testid=\"integrations-status-table\"]"
+    },
+    "integrations.deploymentProfilePanel": {
+      "testId": "integrations-deployment-profile-panel",
+      "selector": "[data-testid=\"integrations-deployment-profile-panel\"]"
+    },
+    "integrations.deploymentProfileSelect": {
+      "testId": "integrations-deployment-profile-select",
+      "selector": "[data-testid=\"integrations-deployment-profile-select\"]"
+    },
+    "integrations.deploymentEndpointInput": {
+      "testId": "integrations-deployment-endpoint-input",
+      "selector": "[data-testid=\"integrations-deployment-endpoint-input\"]"
+    },
+    "integrations.deploymentProfileSave": {
+      "testId": "integrations-deployment-profile-save",
+      "selector": "[data-testid=\"integrations-deployment-profile-save\"]"
+    },
+    "integrations.deploymentProfileStatus": {
+      "testId": "integrations-deployment-profile-status",
+      "selector": "[data-testid=\"integrations-deployment-profile-status\"]"
+    },
+    "search.omnibox": {
+      "testId": "search-omnibox",
+      "selector": "[data-testid=\"search-omnibox\"]"
+    },
+    "search.input": {
+      "testId": "search-omnibox-input",
+      "selector": "[data-testid=\"search-omnibox-input\"]"
+    },
+    "search.status": {
+      "testId": "search-omnibox-status",
+      "selector": "[data-testid=\"search-omnibox-status\"]"
+    },
+    "search.results": {
+      "testId": "search-omnibox-results",
+      "selector": "[data-testid=\"search-omnibox-results\"]"
+    },
+    "chat.workspace": {
+      "testId": "chat-workspace",
+      "selector": "[data-testid=\"chat-workspace\"]"
+    },
+    "chat.sidebar": {
+      "testId": "chat-sidebar",
+      "selector": "[data-testid=\"chat-sidebar\"]"
+    },
+    "chat.newChatButton": {
+      "testId": "chat-new-chat-button",
+      "selector": "[data-testid=\"chat-new-chat-button\"]"
+    },
+    "chat.newAgentChatButton": {
+      "testId": "chat-new-agent-chat-button",
+      "selector": "[data-testid=\"chat-new-agent-chat-button\"]"
+    },
+    "chat.newGroupButton": {
+      "testId": "chat-new-group-button",
+      "selector": "[data-testid=\"chat-new-group-button\"]"
+    },
+    "chat.messageList": {
+      "testId": "chat-message-list",
+      "selector": "[data-testid=\"chat-message-list\"]"
+    },
+    "chat.emptyState": {
+      "testId": "chat-empty-state",
+      "selector": "[data-testid=\"chat-empty-state\"]"
+    },
+    "chat.composer": {
+      "testId": "chat-composer",
+      "selector": "[data-testid=\"chat-composer\"]"
+    },
+    "chat.composerInput": {
+      "testId": "chat-composer-input",
+      "selector": "[data-testid=\"chat-composer-input\"]"
+    },
+    "chat.sendButton": {
+      "testId": "chat-send-button",
+      "selector": "[data-testid=\"chat-send-button\"]"
+    },
+    "chat.stopButton": {
+      "testId": "chat-stop-button",
+      "selector": "[data-testid=\"chat-stop-button\"]"
+    },
+    "chat.modelSelect": {
+      "testId": "chat-model-select",
+      "selector": "[data-testid=\"chat-model-select\"]"
+    },
+    "chat.modeSelect": {
+      "testId": "chat-mode-select",
+      "selector": "[data-testid=\"chat-mode-select\"]"
+    },
+    "chat.harnessSelect": {
+      "testId": "chat-harness-select",
+      "selector": "[data-testid=\"chat-harness-select\"]"
+    },
+    "chat.webSearchToggle": {
+      "testId": "chat-web-search-toggle",
+      "selector": "[data-testid=\"chat-web-search-toggle\"]"
+    },
+    "chat.skillInput": {
+      "testId": "chat-skill-input",
+      "selector": "[data-testid=\"chat-skill-input\"]"
+    },
+    "chat.branchPrevious": {
+      "testId": "chat-branch-previous",
+      "selector": "[data-testid=\"chat-branch-previous\"]"
+    },
+    "chat.branchNext": {
+      "testId": "chat-branch-next",
+      "selector": "[data-testid=\"chat-branch-next\"]"
+    },
+    "chat.editButton": {
+      "testId": "chat-edit-button",
+      "selector": "[data-testid=\"chat-edit-button\"]"
+    },
+    "chat.regenerateButton": {
+      "testId": "chat-regenerate-button",
+      "selector": "[data-testid=\"chat-regenerate-button\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "library.react-component-library:useVoiceInput.root": {
+      "testId": "react-component-library:useVoiceInput",
+      "selector": "[data-testid=\"react-component-library:useVoiceInput\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "integrations.statusRow": {
+      "description": "Integration readiness table row by integration id",
+      "selectorPattern": "[data-testid=\"integrations-status-row-${id}\"]",
+      "testIdPattern": "integrations-status-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "integrations.deploymentProfileOption": {
+      "description": "Deployment profile option by profile id",
+      "selectorPattern": "[data-testid=\"integrations-deployment-profile-option-${id}\"]",
+      "testIdPattern": "integrations-deployment-profile-option-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "enum",
+          "values": [
+            "client",
+            "local-control",
+            "automation"
+          ]
+        }
+      ]
+    },
+    "search.result": {
+      "description": "Search omnibox result row by visible index",
+      "selectorPattern": "[data-testid=\"search-omnibox-result-${index}\"]",
+      "testIdPattern": "search-omnibox-result-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "chat.group": {
+      "description": "Chat sidebar group row by group id",
+      "selectorPattern": "[data-testid=\"chat-group-${id}\"]",
+      "testIdPattern": "chat-group-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "chat.chat": {
+      "description": "Chat sidebar conversation row by chat id",
+      "selectorPattern": "[data-testid=\"chat-item-${id}\"]",
+      "testIdPattern": "chat-item-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "chat.message": {
+      "description": "Chat message row by message id",
+      "selectorPattern": "[data-testid=\"chat-message-${id}\"]",
+      "testIdPattern": "chat-message-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "d2adde769ad6b1474eb3e3532eb1de9ee0597da0ea6335e1aafbe3dcf61c6b94",
+    "ui/src/consts/selectors.ts": "a7aefb1b1154f7af57bfaca2b6a3a8801688eed87d8ce21a63228e3ca838adc0",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

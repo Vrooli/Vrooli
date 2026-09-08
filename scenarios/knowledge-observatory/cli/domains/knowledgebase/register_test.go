@@ -1,7 +1,11 @@
 package knowledgebase
 
 import (
+	"connectrpc.com/connect"
+	"context"
 	"encoding/json"
+	kov1 "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1"
+	"io"
 	"os"
 	"testing"
 
@@ -45,6 +49,32 @@ func TestManifestLoadsOnlyGovernedReadOperations(t *testing.T) {
 	for _, command := range group.Commands {
 		if command.Binding.Kind != "connect-rpc" {
 			t.Fatal("ungoverned command", command.Name)
+		}
+	}
+}
+
+// [REQ:KO-KB-005] CLI booleans must reach the typed request.
+func TestMaintenanceBooleanFlagsReachOwner(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "allow-missing", Bool: true}}}, BoolFlags: map[string]bool{"allow-missing": enabled}, Stdout: io.Discard})
+		call := func(_ context.Context, r *connect.Request[kov1.InspectDocumentRequest]) (*connect.Response[kov1.InspectDocumentResponse], error) {
+			if r.Msg.AllowMissing != enabled {
+				t.Fatal("allow-missing lost")
+			}
+			return connect.NewResponse(&kov1.InspectDocumentResponse{}), nil
+		}
+		if err := invoke(call, func() *kov1.InspectDocumentRequest { return &kov1.InspectDocumentRequest{} }, []string{"allow-missing"})(ctx); err != nil {
+			t.Fatal(err)
+		}
+		healthCtx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "skip-external-links", Bool: true}}}, BoolFlags: map[string]bool{"skip-external-links": enabled}, Stdout: io.Discard})
+		health := func(_ context.Context, r *connect.Request[kov1.DocHealthRequest]) (*connect.Response[kov1.DocHealthResponse], error) {
+			if r.Msg.GetSkipExternalLinks() != enabled {
+				t.Fatal("skip-external-links lost")
+			}
+			return connect.NewResponse(&kov1.DocHealthResponse{}), nil
+		}
+		if err := invoke(health, func() *kov1.DocHealthRequest { return &kov1.DocHealthRequest{} }, []string{"skip-external-links"})(healthCtx); err != nil {
+			t.Fatal(err)
 		}
 	}
 }

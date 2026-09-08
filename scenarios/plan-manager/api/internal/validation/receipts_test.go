@@ -22,6 +22,26 @@ func TestProjectReceiptPersistsTypedProviderChildIdentity(t *testing.T) {
 	}
 }
 
+func TestProjectReceiptDistinguishesDriftFromAssertionFailure(t *testing.T) {
+	for _, tc := range []struct {
+		reason validationv1.ValidationReasonCode
+		want   Verdict
+	}{
+		{validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_IDENTITY_CHANGED, VerdictUnknown},
+		{validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_PROVIDER_UNAVAILABLE, VerdictUnknown},
+		{validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_REQUIRED_EVIDENCE_FAILED, VerdictFail},
+	} {
+		r := &validationv1.ValidationReceipt{ReceiptId: "receipt", State: validationv1.ReceiptState_RECEIPT_STATE_FAILED, ReasonCode: tc.reason}
+		got := projectReceipt(ValidationOperation{}, r, "2026-09-06T00:00:00Z")
+		if got.Result.Verdict != tc.want {
+			t.Fatalf("reason %v: got %v want %v", tc.reason, got.Result.Verdict, tc.want)
+		}
+		if r.State != validationv1.ReceiptState_RECEIPT_STATE_FAILED {
+			t.Fatal("producer receipt was rewritten")
+		}
+	}
+}
+
 func TestProjectReceiptPreservesExistingChildIdentity(t *testing.T) {
 	receipt := &validationv1.ValidationReceipt{
 		ReceiptId: "receipt-1",

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"plan-manager/internal/planmodel"
 	"time"
 
 	"github.com/vrooli/api-core/schedule"
@@ -84,23 +85,24 @@ type planDocument struct {
 	RelevantContext  []RelevantContextItem `json:"relevant_context"`
 	// Professional plan structure (see docs/concepts/PLAN-MODEL.md). New fields
 	// persist transparently because the whole document is one JSON blob.
-	ProblemStatement        string             `json:"problem_statement,omitempty"`
-	TargetOutcome           string             `json:"target_outcome,omitempty"`
-	Assumptions             string             `json:"assumptions,omitempty"`
-	TechnicalApproach       string             `json:"technical_approach,omitempty"`
-	ValidationStrategy      string             `json:"validation_strategy,omitempty"`
-	FinalValidationCommands []string           `json:"final_validation_commands,omitempty"`
-	RisksHazards            string             `json:"risks_hazards,omitempty"`
-	ProhibitedApproaches    string             `json:"prohibited_approaches,omitempty"`
-	Decisions               []PlanDecision     `json:"decisions,omitempty"`
-	AssumptionRisks         []PlanAssumption   `json:"assumption_risks,omitempty"`
-	Definitions             []PlanDefinition   `json:"definitions,omitempty"`
-	WorkPosture             WorkPosture        `json:"work_posture,omitempty"`
-	WorkPostureSource       WorkPostureSource  `json:"work_posture_source,omitempty"`
-	WorkPostureDetail       string             `json:"work_posture_detail,omitempty"`
-	ImportProvenance        *ImportProvenance  `json:"import_provenance,omitempty"`
-	PreservedLegacySections []LegacySection    `json:"preserved_legacy_sections,omitempty"`
-	Mirror                  RenderedPlanMirror `json:"mirror,omitempty"`
+	ProblemStatement        string                     `json:"problem_statement,omitempty"`
+	TargetOutcome           string                     `json:"target_outcome,omitempty"`
+	Assumptions             string                     `json:"assumptions,omitempty"`
+	TechnicalApproach       string                     `json:"technical_approach,omitempty"`
+	ValidationStrategy      string                     `json:"validation_strategy,omitempty"`
+	CompletionPolicy        planmodel.CompletionPolicy `json:"completion_policy,omitempty"`
+	FinalValidationCommands []string                   `json:"final_validation_commands,omitempty"`
+	RisksHazards            string                     `json:"risks_hazards,omitempty"`
+	ProhibitedApproaches    string                     `json:"prohibited_approaches,omitempty"`
+	Decisions               []PlanDecision             `json:"decisions,omitempty"`
+	AssumptionRisks         []PlanAssumption           `json:"assumption_risks,omitempty"`
+	Definitions             []PlanDefinition           `json:"definitions,omitempty"`
+	WorkPosture             WorkPosture                `json:"work_posture,omitempty"`
+	WorkPostureSource       WorkPostureSource          `json:"work_posture_source,omitempty"`
+	WorkPostureDetail       string                     `json:"work_posture_detail,omitempty"`
+	ImportProvenance        *ImportProvenance          `json:"import_provenance,omitempty"`
+	PreservedLegacySections []LegacySection            `json:"preserved_legacy_sections,omitempty"`
+	Mirror                  RenderedPlanMirror         `json:"mirror,omitempty"`
 }
 
 const (
@@ -182,6 +184,7 @@ func (r *sqliteRepository) Save(ctx context.Context, p Plan) error {
 		Assumptions:             p.Assumptions,
 		TechnicalApproach:       p.TechnicalApproach,
 		ValidationStrategy:      p.ValidationStrategy,
+		CompletionPolicy:        p.CompletionPolicy,
 		FinalValidationCommands: p.FinalValidationCommands,
 		RisksHazards:            p.RisksHazards,
 		ProhibitedApproaches:    p.ProhibitedApproaches,
@@ -406,6 +409,7 @@ func scanPlan(s rowScanner) (Plan, error) {
 	p.Assumptions = doc.Assumptions
 	p.TechnicalApproach = doc.TechnicalApproach
 	p.ValidationStrategy = doc.ValidationStrategy
+	p.CompletionPolicy = doc.CompletionPolicy
 	p.FinalValidationCommands = doc.FinalValidationCommands
 	p.RisksHazards = doc.RisksHazards
 	p.ProhibitedApproaches = doc.ProhibitedApproaches

@@ -3,6 +3,9 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+
+// provider-free-exception: each case controls a nested MemoryRouter history
+// and rerenders it; the shared helper cannot preserve those test-specific URLs.
 import type { App } from '@/types';
 import { usePreviewWorkspaceStore } from '../state/previewWorkspaceStore';
 import { usePreviewPaneRuntimeStore } from '../state/previewPaneRuntimeStore';

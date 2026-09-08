@@ -9,9 +9,9 @@ metadata:
   tags: ["plan-manager","improve","setpoint","execution","validation","family"]
   icon: "gauge"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-09-04T00:00:00Z"
-  updatedAt: "2026-09-04T00:00:00Z"
+  updatedAt: "2026-09-06T00:00:00Z"
   requires:
     scenarios: ["plan-manager", "test-genie", "git-control-tower", "agent-manager"]
     commands: ["plan-manager", "program-runtime", "vrooli-memory", "agent-manager"]
@@ -85,7 +85,9 @@ Use the first applicable row; make one attributable repair and re-measure.
 Apply improvement-do-and-dont D1, D2, D3 and the skeptic test. Do not drop failed
 attempts, loosen assertions, declare missing prior evidence a passing baseline,
 change the operator's validation policy, count fixtures as operator use, or use
-commit movement as content drift. A faster failed plan is not improvement.
+commit movement as content drift. Preserve producer observations when acceptance
+policy changes. Ordinary plan completion and fleet maturity are separate claims:
+advisory findings need not block the former and must remain visible in the latter.
 
 ### 7. Evidence
 

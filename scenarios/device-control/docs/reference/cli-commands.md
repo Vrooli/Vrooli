@@ -173,6 +173,15 @@ thermal, and display data. Fields that cannot be probed retain the exact adb
 command under `unavailable`. `flow export` returns the replayable flow,
 resolution rung metadata, and explicit exclusions for failed steps.
 
+Flows may also declare a bounded `max_duration_ms`, per-step
+`preconditions`/`postconditions`, `observation_required`, and a bounded
+`retry_budget`. Read-only and observational steps may retry within that budget;
+native effects remain one-shot unless the owning strategy supplies a stronger
+idempotency contract. Repeated `idempotency_key` values in one flow are recorded
+as duplicate commands without dispatching the effect again. Every result
+includes its device, transport, lease, and optional application binding so a
+replay consumer can reject a scope mismatch.
+
 Every scenario command should render through one of three human
 contracts. Proto-backed commands should use `cliapp.RenderProtoList`
 or `cliapp.RenderProtoMutation`: human consumers see the report, while

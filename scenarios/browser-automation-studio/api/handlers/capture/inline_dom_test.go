@@ -63,6 +63,28 @@ func TestCapture_InlineDom_ReturnsRenderedHTML(t *testing.T) {
 	require.Equal(t, flow.GetNodes()[1].GetId(), flow.GetEdges()[0].GetTarget())
 }
 
+func TestCapture_InlineDomTree_PublishesComputedSnapshotArtifact(t *testing.T) {
+	const tree = `{"tagName":"BODY","computed":{"display":"block"},"rect":{"width":10}}`
+	exec := &fakeExecutor{
+		ExportFunc: func(f *fakeExecutor, outputDir string) error {
+			writeTimelineForDomNode(t, f, outputDir, tree)
+			return nil
+		},
+	}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url: "https://example.com", Captures: []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE}, InlineDomTree: true,
+	}))
+	require.NoError(t, err)
+	require.Equal(t, tree, resp.Msg.DomTreeJson)
+	require.Len(t, resp.Msg.Artifacts, 1)
+	require.Equal(t, capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE, resp.Msg.Artifacts[0].Type)
+	require.Equal(t, int64(len(tree)), resp.Msg.Artifacts[0].SizeBytes)
+	require.NotContains(t, resp.Msg.Artifacts[0].GetMetadata(), "unavailable")
+	require.FileExists(t, resp.Msg.Artifacts[0].Path)
+}
+
 func TestCapture_InlineDom_Disabled_NoEvaluateNode(t *testing.T) {
 	exec := &fakeExecutor{}
 	client, _ := newTestServer(t, Deps{Executor: exec})

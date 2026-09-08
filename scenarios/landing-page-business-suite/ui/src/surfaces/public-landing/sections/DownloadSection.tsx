@@ -4,6 +4,7 @@ import { useMetrics } from '../../../shared/hooks/useMetricsHook';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
 import { createBillingPortalSession, requestDownload, getAssetUrl } from '../../../shared/api'
 import { useEntitlements } from '../../../shared/hooks/useEntitlements';
+import { EntitlementErrorCard } from '@vrooli/react-component-library/EntitlementErrorCard/1';
 import {
   detectPlatform,
   getDownloadAssetKey,
@@ -457,6 +458,11 @@ export function DownloadSection({ content, downloads, supportEmail }: DownloadSe
                   Billing portal
                 </Button>
               </div>
+              {entitlementsError && (
+                <div className="mt-3">
+                  <EntitlementErrorCard errorType="authority_unavailable" />
+                </div>
+              )}
               {portalMessage && <p className="mt-2 text-xs text-amber-300">{portalMessage}</p>}
             </div>
           )}

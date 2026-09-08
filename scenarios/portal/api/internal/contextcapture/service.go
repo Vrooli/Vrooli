@@ -83,7 +83,7 @@ func (s *Service) Import(ctx context.Context, owner string, input Import, retent
 		return Publish, nil
 	})
 	if err != nil {
-		cleanup, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 		defer cancel()
 		// Cleanup failure preserves the reservation so the expiry worker can retry.
 		return Document{}, errors.Join(err, s.Delete(cleanup, owner, doc.ID))

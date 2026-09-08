@@ -110,6 +110,15 @@ func TestCaptureReadinessDiagnosticsCarriesNavigationAndWaitTiming(t *testing.T)
 	require.EqualValues(t, 70, diagnostics.GetReadinessWaitDurationMs())
 }
 
+func TestBuildAdhocRequest_AppliesDirectionAfterReadiness(t *testing.T) {
+	direction := "rtl"
+	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{Direction: direction}, 1440, 900, "document.documentElement.outerHTML")
+	require.NoError(t, err)
+	require.Len(t, req.FlowDefinition.Nodes, 2)
+	require.Equal(t, actionsv1.ActionType_ACTION_TYPE_EVALUATE, req.FlowDefinition.Nodes[1].GetAction().GetType())
+	require.Contains(t, req.FlowDefinition.Nodes[1].GetAction().GetEvaluate().GetExpression(), "document.documentElement.dir")
+}
+
 func TestCapture_ReadinessWaitsFollowNavigation(t *testing.T) {
 	tests := []struct {
 		name   string

@@ -35,6 +35,19 @@ func ConsumerFromProto(value briefv1.BriefConsumer) agentbrief.Consumer {
 		return agentbrief.ConsumerExternalHarness
 	}
 }
+
+func ConsumerFilterFromProto(value briefv1.BriefConsumer) agentbrief.Consumer {
+	switch value {
+	case briefv1.BriefConsumer_BRIEF_CONSUMER_PORTAL_LLM:
+		return agentbrief.ConsumerPortalLLM
+	case briefv1.BriefConsumer_BRIEF_CONSUMER_PORTAL_AGENT:
+		return agentbrief.ConsumerPortalAgent
+	case briefv1.BriefConsumer_BRIEF_CONSUMER_EXTERNAL_HARNESS:
+		return agentbrief.ConsumerExternalHarness
+	default:
+		return ""
+	}
+}
 func consumerProto(value agentbrief.Consumer) briefv1.BriefConsumer {
 	switch value {
 	case agentbrief.ConsumerPortalLLM:

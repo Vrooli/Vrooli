@@ -120,7 +120,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
     },
     {
       "id": "no-model",
@@ -133,9 +136,40 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
+    },
+    {
+      "id": "live-valid",
+      "inputs": {
+        "session": "00000000-0000-0000-0000-000000000000",
+        "prompt": "fixture",
+        "max_steps": 10,
+        "model": "fixture-model"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable",
+          "refused",
+          "failed"
+        ]
+      },
+      "requires": [
+        "browser-automation-studio"
+      ],
+      "note": "Valid bounded exercise fixture added after admission-only fixtures left the contract unexercised."
     }
   ],
   "rung": "S3",
-  "owner_skill": "browser-automation-studio"
+  "owner_skill": "browser-automation-studio",
+  "verbs": [
+    "agent.start",
+    "ai.classify",
+    "tasks.get",
+    "validate"
+  ]
 }

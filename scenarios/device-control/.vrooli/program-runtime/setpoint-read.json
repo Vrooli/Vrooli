@@ -96,7 +96,10 @@
       },
       "expect": {
         "admission_error": "invalid_argument"
-      }
+      },
+      "requires": [
+        "device-control"
+      ]
     },
     {
       "id": "live",

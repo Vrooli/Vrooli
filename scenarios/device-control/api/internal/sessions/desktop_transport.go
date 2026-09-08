@@ -189,7 +189,7 @@ func validDesktopAction(action *desktopv1.Action) bool {
 	case *desktopv1.Action_AssertText:
 		return a.AssertText != nil && len(a.AssertText.ExpectedText) <= 16*1024 && a.AssertText.ElementId != "" && len(a.AssertText.ElementId) <= 128 && a.AssertText.ObservationRevision != "" && len(a.AssertText.ObservationRevision) <= 128
 	case *desktopv1.Action_Invoke:
-		return a.Invoke != nil && a.Invoke.ElementId != "" && len(a.Invoke.ElementId) <= 128 && a.Invoke.ObservationRevision != "" && len(a.Invoke.ObservationRevision) <= 128
+		return a.Invoke != nil && a.Invoke.ElementId != "" && len(a.Invoke.ElementId) <= 128 && a.Invoke.ObservationRevision != "" && len(a.Invoke.ObservationRevision) <= 128 && len(a.Invoke.ActionName) <= 256
 	default:
 		return false
 	}
@@ -255,9 +255,9 @@ func (s *desktopRPC) Observe(ctx context.Context, r *connect.Request[desktopv1.O
 		if !s.controller.now().Before(source.ExpiresAt) {
 			return nil, desktopRPCError(ErrDesktopAdmission)
 		}
-		semantic = &desktopv1.SemanticObservation{Revision: source.Revision, ExpiresAt: timestamppb.New(source.ExpiresAt), ProcessId: source.ProcessID}
+		semantic = &desktopv1.SemanticObservation{Revision: source.Revision, ExpiresAt: timestamppb.New(source.ExpiresAt), ProcessId: source.ProcessID, RefreshEpoch: source.RefreshEpoch}
 		for _, element := range source.Elements {
-			semantic.Elements = append(semantic.Elements, &desktopv1.SemanticElement{ElementId: element.ID, Name: element.Name, Editable: element.Editable, ParentId: element.ParentID, WindowId: element.WindowID, Role: element.Role})
+			semantic.Elements = append(semantic.Elements, &desktopv1.SemanticElement{ElementId: element.ID, Name: element.Name, Editable: element.Editable, ParentId: element.ParentID, WindowId: element.WindowID, Role: element.Role, Label: element.Label, States: append([]string(nil), element.States...), X: element.X, Y: element.Y, Width: element.Width, Height: element.Height, SupportedActions: append([]string(nil), element.SupportedActions...), BoundsKnown: element.BoundsKnown, StateKnown: element.StateKnown, Fingerprint: element.Fingerprint})
 		}
 	}
 	return connect.NewResponse(&desktopv1.ObserveResponse{Semantic: semantic, Png: encoded.Bytes(), DisplayId: snapshot.DisplayID, GeometryRevision: snapshot.GeometryRevision, CapturedAt: timestamppb.New(snapshot.CapturedAt), Width: uint32(snapshot.Image.Bounds().Dx()), Height: uint32(snapshot.Image.Bounds().Dy())}), nil
@@ -288,7 +288,11 @@ func (s *desktopRPC) Resolve(ctx context.Context, r *connect.Request[desktopv1.R
 	if selector == nil {
 		return nil, desktopRPCError(ErrDesktopAdmission)
 	}
-	result, err := s.controller.Resolve(ctx, lease, DesktopSelector{Revision: selector.ObservationRevision, WindowID: selector.WindowId, Name: selector.Name, EditableOnly: selector.EditableOnly})
+	matchMode := SemanticMatchMode(selector.MatchMode)
+	if matchMode > SemanticMatchFuzzy {
+		return nil, desktopRPCError(ErrDesktopAdmission)
+	}
+	result, err := s.controller.Resolve(ctx, lease, DesktopSelector{Revision: selector.ObservationRevision, WindowID: selector.WindowId, Name: selector.Name, EditableOnly: selector.EditableOnly, MatchMode: matchMode, Role: selector.Role, RefreshEpoch: selector.RefreshEpoch, AllowHidden: selector.AllowHidden, AllowDisabled: selector.AllowDisabled, AllowOffscreen: selector.AllowOffscreen})
 	if err != nil {
 		return nil, desktopRPCError(err)
 	}

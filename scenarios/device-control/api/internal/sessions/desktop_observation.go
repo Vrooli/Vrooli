@@ -21,14 +21,23 @@ type DesktopObservation struct {
 type DesktopSemanticElement struct {
 	ID, Name           string
 	ParentID, WindowID string
+	Label              string
 	Role               uint32
 	Editable           bool
+	States             []string
+	SupportedActions   []string
+	X, Y               int32
+	Width, Height      uint32
+	BoundsKnown        bool
+	StateKnown         bool
+	Fingerprint        string
 }
 type DesktopSemanticObservation struct {
-	Revision  string
-	ExpiresAt time.Time
-	ProcessID uint32
-	Elements  []DesktopSemanticElement
+	Revision     string
+	ExpiresAt    time.Time
+	ProcessID    uint32
+	RefreshEpoch uint64
+	Elements     []DesktopSemanticElement
 }
 type DesktopProcessObserver interface {
 	ObserveProcess(context.Context, uint32, string) (DesktopObservation, error)
@@ -119,8 +128,21 @@ func (c *DesktopController) observe(ctx context.Context, lease DesktopLease, pro
 			seen := map[string]bool{}
 			parents := map[string]string{}
 			for _, element := range semantic.Elements {
-				if element.ID == "" || len(element.ID) > 128 || len(element.Name) > 4096 || seen[element.ID] {
+				if element.ID == "" || len(element.ID) > 128 || len(element.Name) > 4096 || len(element.Label) > 4096 || len(element.Fingerprint) > 128 || seen[element.ID] || len(element.States) > 64 || len(element.SupportedActions) > 64 {
 					return ErrDesktopAdmission
+				}
+				if element.BoundsKnown && (element.Width == 0 || element.Height == 0 || element.Width > 65535 || element.Height > 65535) {
+					return ErrDesktopAdmission
+				}
+				for _, state := range element.States {
+					if state == "" || len(state) > 128 {
+						return ErrDesktopAdmission
+					}
+				}
+				for _, action := range element.SupportedActions {
+					if action == "" || len(action) > 256 {
+						return ErrDesktopAdmission
+					}
 				}
 				if element.ParentID != "" && !seen[element.ParentID] {
 					return ErrDesktopAdmission
@@ -191,11 +213,27 @@ func (c *DesktopController) Applications(ctx context.Context, lease DesktopLease
 	return catalog, nil
 }
 
-// DesktopSelector matches exact names within one observed window. A missing or
-// stale observation is an error, distinct from a valid observation with no match.
+// SemanticMatchMode is intentionally explicit: broadening a selector is an
+// authorization-relevant choice and must never happen as an implicit fallback.
+type SemanticMatchMode uint8
+
+const (
+	SemanticMatchExact SemanticMatchMode = iota
+	SemanticMatchNormalized
+	SemanticMatchFuzzy
+)
+
+// DesktopSelector matches names within one observed window. A missing or stale
+// observation is an error, distinct from a valid observation with no match.
 type DesktopSelector struct {
 	Revision, WindowID, Name string
 	EditableOnly             bool
+	MatchMode                SemanticMatchMode
+	Role                     uint32
+	RefreshEpoch             uint64
+	AllowHidden              bool
+	AllowDisabled            bool
+	AllowOffscreen           bool
 }
 type DesktopResolution struct {
 	Disposition                string

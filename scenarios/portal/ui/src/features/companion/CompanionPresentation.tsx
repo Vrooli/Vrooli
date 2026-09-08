@@ -3,6 +3,7 @@ import { ContextRetentionActions, ContextRetentionNotice } from "./ContextRetent
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { useDialogKeyboard } from "../../hooks/useDialogKeyboard";
 
 export type PresentationMode = "expanded" | "palette" | "pill" | "hidden";
 type Shortcut = { accelerator: string; status: "disabled" | "registered" | "unavailable" };
@@ -195,23 +196,8 @@ export function CompanionPresentation({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!quitBusy && quitRequest !== null && tasks.size === 0) void decideQuit("quit");
   }, [quitRequest, tasks, decideQuit, quitBusy]);
-  useEffect(() => {
-    if (quitRequest === null) return;
-    const previous = document.activeElement;
-    cancelQuitButton.current?.focus();
-    const dialog = quitDialog.current;
-    const keyboard = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.preventDefault(); void decideQuit("cancel"); }
-      if (event.key === "Tab" && dialog) {
-        const buttons = dialog.querySelectorAll<HTMLButtonElement>("button:not(:disabled)");
-        const first = buttons[0], last = buttons[buttons.length - 1];
-        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-      }
-    };
-    dialog?.addEventListener("keydown", keyboard);
-    return () => { dialog?.removeEventListener("keydown", keyboard); if (previous instanceof HTMLElement && previous.isConnected) previous.focus(); };
-  }, [quitRequest, decideQuit]);
+  const cancelQuit = useCallback(() => { void decideQuit("cancel"); }, [decideQuit]);
+  useDialogKeyboard(quitDialog, cancelQuitButton, quitRequest !== null, cancelQuit);
   const stopTasks = async () => {
     if (stopping) return;
     setStopping(true);

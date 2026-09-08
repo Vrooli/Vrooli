@@ -102,6 +102,17 @@ func (s *Service) GetSubscription(userIdentity string) (*shared.SubscriptionStat
 // GetSubscriptionContext reads subscription state using the caller's context.
 func (s *Service) GetSubscriptionContext(ctx context.Context, userIdentity string) (*shared.SubscriptionStatus, error) {
 	user := s.normalizeEmail(userIdentity)
+	return s.getSubscriptionContext(ctx, user, "")
+}
+
+// GetSubscriptionForBusinessAccountContext resolves only the selected LPBS
+// account. The email is retained as a provider lookup hint, never as the
+// commercial isolation key.
+func (s *Service) GetSubscriptionForBusinessAccountContext(ctx context.Context, userIdentity, businessAccountID string) (*shared.SubscriptionStatus, error) {
+	return s.getSubscriptionContext(ctx, s.normalizeEmail(userIdentity), strings.TrimSpace(businessAccountID))
+}
+
+func (s *Service) getSubscriptionContext(ctx context.Context, user, businessAccountID string) (*shared.SubscriptionStatus, error) {
 	if user == "" {
 		return &shared.SubscriptionStatus{
 			State:        shared.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE,
@@ -110,11 +121,15 @@ func (s *Service) GetSubscriptionContext(ctx context.Context, userIdentity strin
 		}, nil
 	}
 
-	if cached, ok := s.getCachedSubscription(user); ok {
+	cacheKey := user
+	if businessAccountID != "" {
+		cacheKey = businessAccountID + "\x00" + user
+	}
+	if cached, ok := s.getCachedSubscription(cacheKey); ok {
 		return cached, nil
 	}
 
-	record, err := s.loadSubscriptionRecord(ctx, user)
+	record, err := s.loadSubscriptionRecordForBusinessAccount(ctx, user, businessAccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -123,18 +138,30 @@ func (s *Service) GetSubscriptionContext(ctx context.Context, userIdentity strin
 	}
 	s.reconcileSubscriptionPlan(ctx, record)
 	result := subscriptionStatusFromRecord(user, record)
-	s.cacheSubscription(user, result)
+	s.cacheSubscription(cacheKey, result)
 	return result, nil
 }
 
 func (s *Service) loadSubscriptionRecord(ctx context.Context, user string) (*subscriptionRecord, error) {
-	row := s.db.QueryRowContext(ctx, `
+	return s.loadSubscriptionRecordForBusinessAccount(ctx, user, "")
+}
+
+func (s *Service) loadSubscriptionRecordForBusinessAccount(ctx context.Context, user, businessAccountID string) (*subscriptionRecord, error) {
+	query := `
 		SELECT subscription_id, status, source, external_subscription_id, plan_tier, price_id, bundle_key, canceled_at, updated_at
 		FROM subscriptions
-		WHERE (customer_email = $1 OR customer_id = $1)
-		ORDER BY updated_at DESC
-		LIMIT 1
-	`, user)
+		WHERE (customer_email = $1 OR customer_id = $1)`
+	args := []any{user}
+	if strings.TrimSpace(businessAccountID) != "" {
+		query = `
+		SELECT subscription_id, status, source, external_subscription_id, plan_tier, price_id, bundle_key, canceled_at, updated_at
+		FROM subscriptions
+		WHERE business_account_id = $1 AND (customer_email = $2 OR customer_id = $2)`
+		args = []any{strings.TrimSpace(businessAccountID), user}
+	}
+	query += ` ORDER BY updated_at DESC LIMIT 1`
+	row := s.db.QueryRowContext(ctx, `
+		`+query, args...)
 
 	record := &subscriptionRecord{}
 	var source, externalSubscriptionID, planTier, priceID, bundleKey sql.NullString
@@ -263,29 +290,52 @@ func (s *Service) GetCreditsContext(ctx context.Context, userIdentity string) (*
 		}
 	}
 
+	return s.decorateCredits(balance, updatedAt), nil
+}
+
+// GetCreditsForBusinessAccountContext reads the separate account-scoped
+// wallet created by an account-bound checkout. It never falls back to the
+// legacy person-email wallet, because that would reintroduce cross-account
+// credit leakage.
+func (s *Service) GetCreditsForBusinessAccountContext(ctx context.Context, userIdentity, businessAccountID string) (*CreditsEnvelope, error) {
+	userIdentity = s.normalizeEmail(userIdentity)
+	businessAccountID = strings.TrimSpace(businessAccountID)
+	if userIdentity == "" || businessAccountID == "" {
+		return s.GetCreditsContext(ctx, userIdentity)
+	}
+	var balance shared.CreditsBalance
+	var updatedAt time.Time
+	err := s.db.QueryRowContext(ctx, `
+		SELECT customer_email, balance_credits, bonus_credits, updated_at
+		FROM business_account_credit_wallets
+		WHERE business_account_id = $1 AND customer_email = $2
+		LIMIT 1
+	`, businessAccountID, userIdentity).Scan(&balance.CustomerEmail, &balance.BalanceCredits, new(int64), &updatedAt)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	if err == sql.ErrNoRows {
+		balance.CustomerEmail = userIdentity
+	}
+	return s.decorateCredits(balance, updatedAt), nil
+}
+
+func (s *Service) decorateCredits(balance shared.CreditsBalance, updatedAt time.Time) *CreditsEnvelope {
 	label := "credits"
 	multiplier := 1.0
-
-	pOverview, err := s.planService.GetPricingOverview()
-	if err == nil {
+	if pOverview, err := s.planService.GetPricingOverview(); err == nil {
 		label = pOverview.Bundle.DisplayCreditsLabel
 		multiplier = pOverview.Bundle.DisplayCreditsMultiplier
 		balance.BundleKey = pOverview.Bundle.BundleKey
 	} else {
 		balance.BundleKey = s.bundleKey
 	}
-
 	if updatedAt.IsZero() {
 		balance.UpdatedAt = timestamppb.Now()
 	} else {
 		balance.UpdatedAt = timestamppb.New(updatedAt)
 	}
-
-	return &CreditsEnvelope{
-		Balance:                  &balance,
-		DisplayCreditsLabel:      label,
-		DisplayCreditsMultiplier: multiplier,
-	}, nil
+	return &CreditsEnvelope{Balance: &balance, DisplayCreditsLabel: label, DisplayCreditsMultiplier: multiplier}
 }
 
 // getBillingCycleStart retrieves billing cycle start for a user.
@@ -294,19 +344,30 @@ func (s *Service) BillingCycleStart(userIdentity string) int {
 }
 
 func (s *Service) billingCycleStartContext(ctx context.Context, userIdentity string) int {
+	return s.billingCycleStartForBusinessAccountContext(ctx, userIdentity, "")
+}
+
+func (s *Service) billingCycleStartForBusinessAccountContext(ctx context.Context, userIdentity, businessAccountID string) int {
 	userIdentity = s.normalizeEmail(userIdentity)
 	if userIdentity == "" {
 		return 0
 	}
 
 	var billingCycleStart int
-	err := s.db.QueryRowContext(ctx, `
+	query := `
 		SELECT COALESCE(billing_cycle_start, 0)
 		FROM subscriptions
-		WHERE (customer_email = $1 OR customer_id = $1)
-		ORDER BY updated_at DESC
-		LIMIT 1
-	`, userIdentity).Scan(&billingCycleStart)
+		WHERE (customer_email = $1 OR customer_id = $1)`
+	args := []any{userIdentity}
+	if strings.TrimSpace(businessAccountID) != "" {
+		query = `
+		SELECT COALESCE(billing_cycle_start, 0)
+		FROM subscriptions
+		WHERE business_account_id = $1 AND (customer_email = $2 OR customer_id = $2)`
+		args = []any{strings.TrimSpace(businessAccountID), userIdentity}
+	}
+	query += ` ORDER BY updated_at DESC LIMIT 1`
+	err := s.db.QueryRowContext(ctx, query, args...).Scan(&billingCycleStart)
 	if err != nil {
 		return 0
 	}
@@ -334,12 +395,22 @@ func (s *Service) GetEntitlementStatus(ctx context.Context, userIdentity string)
 // caller's context for all account persistence.
 func (s *Service) GetEntitlementsContext(ctx context.Context, userIdentity string) (*EntitlementPayload, error) {
 	userIdentity = s.normalizeEmail(userIdentity)
-	subscription, err := s.GetSubscriptionContext(ctx, userIdentity)
+	return s.getEntitlementsContext(ctx, userIdentity, "")
+}
+
+// GetEntitlementsForBusinessAccountContext keeps desktop entitlement issuance
+// bound to the selected LPBS account all the way through the commerce read.
+func (s *Service) GetEntitlementsForBusinessAccountContext(ctx context.Context, userIdentity, businessAccountID string) (*EntitlementPayload, error) {
+	return s.getEntitlementsContext(ctx, s.normalizeEmail(userIdentity), strings.TrimSpace(businessAccountID))
+}
+
+func (s *Service) getEntitlementsContext(ctx context.Context, userIdentity, businessAccountID string) (*EntitlementPayload, error) {
+	subscription, err := s.GetSubscriptionForBusinessAccountContext(ctx, userIdentity, businessAccountID)
 	if err != nil {
 		return nil, err
 	}
 
-	credits, err := s.GetCreditsContext(ctx, userIdentity)
+	credits, err := s.GetCreditsForBusinessAccountContext(ctx, userIdentity, businessAccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +422,7 @@ func (s *Service) GetEntitlementsContext(ctx context.Context, userIdentity strin
 		PlanRank:          PlanRankForTier(subscription.GetPlanTier()),
 		PriceID:           subscription.GetStripePriceId(),
 		NotAfter:          time.Now().UTC().Add(s.leaseTTL),
-		BillingCycleStart: s.billingCycleStartContext(ctx, userIdentity),
+		BillingCycleStart: s.billingCycleStartForBusinessAccountContext(ctx, userIdentity, businessAccountID),
 		Credits:           flattenCredits(credits),
 		Subscription:      subscription,
 	}
@@ -368,7 +439,7 @@ func (s *Service) GetEntitlementsContext(ctx context.Context, userIdentity strin
 		}
 	}
 
-	if subscriptionRecordSource, externalID := s.subscriptionSourceAndExternalID(userIdentity, subscription); subscriptionRecordSource != "stripe" && externalID != "" {
+	if subscriptionRecordSource, externalID := s.subscriptionSourceAndExternalIDForBusinessAccount(userIdentity, businessAccountID, subscription); subscriptionRecordSource != "stripe" && externalID != "" {
 		if resolver, ok := s.planService.(interface {
 			GetPlanByExternalProductID(string) (*shared.PlanOption, error)
 		}); ok {
@@ -400,10 +471,14 @@ func (s *Service) GetEntitlementsContext(ctx context.Context, userIdentity strin
 }
 
 func (s *Service) subscriptionSourceAndExternalID(userIdentity string, subscription *shared.SubscriptionStatus) (string, string) {
+	return s.subscriptionSourceAndExternalIDForBusinessAccount(userIdentity, "", subscription)
+}
+
+func (s *Service) subscriptionSourceAndExternalIDForBusinessAccount(userIdentity, businessAccountID string, subscription *shared.SubscriptionStatus) (string, string) {
 	// SubscriptionStatus intentionally remains source-neutral and compact for
 	// existing API consumers. The source-specific identifier is resolved from
 	// the authoritative row only when the lease is assembled.
-	record, err := s.loadSubscriptionRecord(context.Background(), userIdentity)
+	record, err := s.loadSubscriptionRecordForBusinessAccount(context.Background(), userIdentity, businessAccountID)
 	if err != nil || record == nil {
 		return "stripe", ""
 	}

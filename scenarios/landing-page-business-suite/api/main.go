@@ -21,6 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/consumeridentity"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
@@ -32,9 +33,11 @@ import (
 	aihandler "landing-page-business-suite-api/handlers/intelligence"
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/analytics"
+	"landing-page-business-suite-api/internal/businessaccount"
 	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/content"
 	"landing-page-business-suite-api/internal/delivery"
+	desktoplink "landing-page-business-suite-api/internal/desktoplink"
 	"landing-page-business-suite-api/internal/envx"
 	"landing-page-business-suite-api/internal/experimentation"
 	"landing-page-business-suite-api/internal/intelligence"
@@ -89,6 +92,9 @@ type Server struct {
 	userAuthService       *administration.UserAuthService
 	authorizationCodes    *authhandler.AuthorizationCodeStore
 	userManagementService *administration.UserManagementService
+	businessAccounts      businessaccount.Repository
+	desktopLinkService    *desktoplink.Service
+	desktopLinkVerifier   authn.TokenVerifier
 	magicLinkLimiter      *RateLimiter
 	// AI MeteredInferenceProvider service
 	meteredInferenceService *intelligence.MeteredInferenceService
@@ -115,7 +121,9 @@ func runtimeSchema() string {
 		runtimeschema.System(),
 		administration.Schema(),
 		analytics.Schema(),
+		businessaccount.Schema(),
 		commerce.FinancialSchema(),
+		desktoplink.Schema(),
 		delivery.Schema(),
 		content.Schema(),
 		commerce.OperationsSchema(),
@@ -330,6 +338,24 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to publish consumer key set: %w", err)
 	}
 	userManagementService := administration.NewUserManagementService(routedDB)
+	businessAccounts := businessaccount.NewSQLRepository(routedDB)
+	desktopLinkService := desktoplink.NewService(desktoplink.NewSQLRepository(routedDB))
+	desktopLinkIssuer := resolveConfig("LPBS_DESKTOP_LINK_AUTH_ISSUER")
+	if desktopLinkIssuer == "" {
+		desktopLinkIssuer = "scenario-authenticator"
+	}
+	desktopLinkAudience := resolveConfig("LPBS_DESKTOP_LINK_AUTH_AUDIENCE")
+	if desktopLinkAudience == "" {
+		// The declared local proof is the authenticator's Unix-socket machine
+		// exchange token, which uses the default realm audience.
+		desktopLinkAudience = "scenario-authenticator:default"
+	}
+	desktopLinkVerifier := authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{
+		Issuer:   desktopLinkIssuer,
+		Audience: desktopLinkAudience,
+		JWKSURL:  resolveConfig("LPBS_DESKTOP_LINK_AUTH_JWKS_URL"),
+		Client:   &http.Client{Timeout: 5 * time.Second},
+	})
 	// Rate limiter: 5 requests per 15 minutes per email for magic link
 	magicLinkLimiter := NewRateLimiter(5, 15*time.Minute)
 
@@ -389,6 +415,9 @@ func NewServer() (*Server, error) {
 		userAuthService:       userAuthService,
 		authorizationCodes:    authhandler.NewAuthorizationCodeStore(),
 		userManagementService: userManagementService,
+		businessAccounts:      businessAccounts,
+		desktopLinkService:    desktopLinkService,
+		desktopLinkVerifier:   desktopLinkVerifier,
 		magicLinkLimiter:      magicLinkLimiter,
 		// AI MeteredInferenceProvider service
 		meteredInferenceService: meteredInferenceService,

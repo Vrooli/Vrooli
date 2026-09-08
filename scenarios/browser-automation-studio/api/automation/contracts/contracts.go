@@ -248,7 +248,7 @@ const (
 // automation/events/unified_convert.go. New UI-facing code should work with
 // TimelineEntry directly.
 //
-// See: docs/plans/bas-unified-timeline-workflow-types.md
+// Related design work is historical; current plans are owned by Plan Manager.
 type StepOutcome struct {
 	SchemaVersion      string             `json:"schema_version"`
 	PayloadVersion     string             `json:"payload_version"`

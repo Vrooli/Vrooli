@@ -1,8 +1,8 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "knowledge-observatory.prepare-change",
-  "version": "1",
-  "purpose": "Prepare a bounded document-family review with source revision preconditions, duplicate and reference evidence, and promotion candidates.",
+  "version": "2",
+  "purpose": "Prepare documentation maintenance: cleanup, consolidation, reorganization and artifact promotion with source dispositions, preservation obligations, revision preconditions and a scoped reference baseline.",
   "inputs": {
     "paths": {
       "type": "array",
@@ -19,6 +19,10 @@
     "max_files": {
       "type": "integer",
       "default": 300
+    },
+    "dispositions": {
+      "type": "array",
+      "required": false
     }
   },
   "assumptions": [
@@ -37,6 +41,10 @@
     },
     {
       "id": "knowledge-observatory/knowledge-base/search",
+      "effect": "read"
+    },
+    {
+      "id": "knowledge-observatory/knowledge-base/health",
       "effect": "read"
     }
   ],
@@ -60,7 +68,10 @@
     "signals": {
       "preconditions": "Exact source byte hashes; recheck before caller writes.",
       "observations": "At most 100 backlink, duplicate, missing-reference, or portability cues.",
-      "decisions_required": "Editorial decisions; never an automatic deletion instruction."
+      "decisions_required": "Editorial decisions; never an automatic deletion instruction.",
+      "editorial_review_complete": "Caller-supplied editorial review status; never proof of task completion.",
+      "dispositions": "Selected source/action/targets/reason/preserve/decision/evidence_refs with observed source hashes; missing decisions remain unresolved.",
+      "reference_baseline": "Complete bounded owner findings and exact selectors for before/after comparison."
     },
     "errors": {
       "classes": [
@@ -86,7 +97,7 @@
     "wall_ms": 90000,
     "inference_calls": 0,
     "delegated_runs": 0,
-    "materialize_limit": 12,
+    "materialize_limit": 100,
     "output_bytes": 65536
   },
   "fixtures": [
@@ -97,22 +108,28 @@
       },
       "expect": {
         "admission_error": "invalid_argument"
-      }
+      },
+      "requires": [
+        "knowledge-observatory"
+      ]
     },
     {
       "id": "selected-reference",
       "inputs": {
         "paths": [
-          "docs/reference/storage-retention.md"
+          "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/guide.md"
         ],
-        "base_path": "docs/reference",
-        "intent": "Generated artifact placement contract",
-        "max_files": 1000
+        "base_path": "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata",
+        "intent": "documentation maintenance consolidation preserve task knowledge",
+        "max_files": 100
       },
       "expect": {
         "status": [
           "ok"
-        ]
+        ],
+        "signals": {
+          "editorial_review_complete": false
+        }
       },
       "requires": [
         "knowledge-observatory"
@@ -120,5 +137,11 @@
     }
   ],
   "rung": "S3",
-  "owner_skill": "knowledge-observatory"
+  "owner_skill": "knowledge-observatory-maintenance",
+  "verbs": [
+    "agent.collect",
+    "capture",
+    "tasks.get",
+    "validate"
+  ]
 }

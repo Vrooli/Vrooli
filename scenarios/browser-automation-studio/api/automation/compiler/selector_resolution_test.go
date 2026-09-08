@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/api-core/uiselectors"
+
 	"github.com/google/uuid"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -96,6 +98,27 @@ func TestCompileResolvesSelectorReferenceFromBasSubdirRoot(t *testing.T) {
 	}
 }
 
+func TestCompileResolvesLegacyNestedSelectorManifest(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "ui", "src", "consts", "selectors.manifest.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	content := []byte(`{"navigation":{"settings":{"selector":"[aria-label=\"Settings\"]"}}}`)
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	workflow := makeTestWorkflow(uuid.New(), "selector-flow", makeSelectorClickWorkflow("@selector/navigation.settings").Nodes, makeSelectorClickWorkflow("@selector/navigation.settings").Edges)
+	plan, err := CompileWorkflowWithOptions(workflow, &CompileOptions{SelectorManifestRoot: root})
+	if err != nil {
+		t.Fatalf("CompileWorkflowWithOptions() error = %v", err)
+	}
+	if got, want := plan.Steps[1].Action.GetClick().GetSelector(), `[aria-label="Settings"]`; got != want {
+		t.Fatalf("resolved selector = %#v, want %q", got, want)
+	}
+}
+
 func TestCompileResolvesZeroArgumentDynamicSelectorReference(t *testing.T) {
 	root := t.TempDir()
 	manifest := map[string]any{
@@ -160,8 +183,9 @@ func TestCompileResolvesParameterizedDynamicSelectorReference(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileWorkflowWithOptions() error = %v", err)
 	}
-	if got, want := plan.Steps[1].Action.GetClick().GetSelector(), "[data-project-id=\"${@params/projectId}\"]"; got != want {
-		t.Fatalf("resolved selector = %#v, want %q", got, want)
+	got, err := uiselectors.ResolveDeferred(plan.Steps[1].Action.GetClick().GetSelector(), func(string) (string, error) { return "project-1", nil })
+	if err != nil || got != `[data-project-id="project-1"]` {
+		t.Fatalf("resolved selector %q: %v", got, err)
 	}
 }
 
@@ -225,5 +249,19 @@ func TestCompileFailsOnUnresolvedSelectorReference(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "click-target") {
 		t.Fatalf("error %q does not name the failing node", err.Error())
+	}
+}
+
+func TestSelectorExpressionPreservesCSSBackslashes(t *testing.T) {
+	manifest := map[string]interface{}{"selectors": map[string]interface{}{"app.save": map[string]interface{}{"selector": `[data-testid="app\2e save"]`}}}
+	got, err := resolveSelectorTokens(`document.querySelector('@selector/app.save')`, manifest, "root", "manifest", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != `document.querySelector('[data-testid="app\\2e save"]')` {
+		t.Fatalf("escaped expression: %s", got)
+	}
+	if _, err := resolveSelectorTokens(`document.querySelector(@selector/app.save)`, manifest, "root", "manifest", true); err == nil {
+		t.Fatal("unquoted reference accepted")
 	}
 }

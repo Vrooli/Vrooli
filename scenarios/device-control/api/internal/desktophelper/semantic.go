@@ -2,9 +2,13 @@ package desktophelper
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"slices"
+	"strings"
 	"sync"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"device-control/internal/native/atspi"
@@ -23,17 +27,24 @@ type semanticAccess interface {
 	ProcessRoot(context.Context, string, uint32) (atspi.Ref, error)
 	Children(context.Context, atspi.Ref) ([]atspi.Ref, error)
 	Name(context.Context, atspi.Ref) (string, error)
+	Description(context.Context, atspi.Ref) (string, error)
 	Role(context.Context, atspi.Ref) (uint32, error)
+	State(context.Context, atspi.Ref) ([]string, error)
+	Bounds(context.Context, atspi.Ref) (int32, int32, uint32, uint32, bool, error)
+	Actions(context.Context, atspi.Ref) ([]string, bool, error)
 	Editable(context.Context, atspi.Ref) (bool, error)
 	ReadText(context.Context, atspi.Ref) (string, error)
 	InsertTextChecked(context.Context, atspi.Ref, string, int32, string, func(context.Context) error) error
+	Focus(context.Context, atspi.Ref) error
 	Invoke(context.Context, atspi.Ref) error
+	InvokeNamed(context.Context, atspi.Ref, string) error
 }
 type semanticEntry struct {
-	children []atspi.Ref
-	ref      atspi.Ref
-	text     string
-	editable bool
+	children         []atspi.Ref
+	ref              atspi.Ref
+	text             string
+	editable         bool
+	supportedActions []string
 }
 type semanticBackend struct {
 	observed                              []sessions.DesktopSemanticElement
@@ -47,6 +58,7 @@ type semanticBackend struct {
 	applications                          map[string]atspi.Ref
 	applicationRevision, applicationLease string
 	applicationExpires                    time.Time
+	refreshEpoch                          uint64
 }
 
 func (b *semanticBackend) clearApplications() {
@@ -137,7 +149,11 @@ func (b *semanticBackend) observeRoot(ctx context.Context, root atspi.Ref, lease
 	queue := []node{{ref: root}}
 	seen := map[atspi.Ref]bool{}
 	entries := map[string]semanticEntry{}
-	observation := &sessions.DesktopSemanticObservation{Revision: uuid.NewString(), ProcessID: root.PID}
+	b.refreshEpoch++
+	if b.refreshEpoch == 0 {
+		b.refreshEpoch = 1
+	}
+	observation := &sessions.DesktopSemanticObservation{Revision: uuid.NewString(), ProcessID: root.PID, RefreshEpoch: b.refreshEpoch}
 	textBytes := 0
 	for len(queue) > 0 {
 		if len(seen) >= 128 {
@@ -153,6 +169,10 @@ func (b *semanticBackend) observeRoot(ctx context.Context, root atspi.Ref, lease
 		name, err := b.access.Name(ctx, ref)
 		if err != nil {
 			return sessions.DesktopObservation{}, err
+		}
+		label, err := b.access.Description(ctx, ref)
+		if err != nil {
+			label = ""
 		}
 		editable, err := b.access.Editable(ctx, ref)
 		if err != nil {
@@ -174,12 +194,29 @@ func (b *semanticBackend) observeRoot(ctx context.Context, root atspi.Ref, lease
 		if err != nil {
 			return sessions.DesktopObservation{}, err
 		}
+		states, err := b.access.State(ctx, ref)
+		stateKnown := err == nil
+		if err != nil {
+			states = nil
+		}
+		x, y, width, height, boundsKnown, err := b.access.Bounds(ctx, ref)
+		if err != nil {
+			x, y, width, height, boundsKnown = 0, 0, 0, 0, false
+		}
+		actions, _, err := b.access.Actions(ctx, ref)
+		if err != nil {
+			actions = nil
+		}
+		entry.supportedActions = slices.Clone(actions)
 		window := item.window
 		if role == 23 || role == 16 || role == 69 {
 			window = id
 		}
 		entries[id] = entry
-		observation.Elements = append(observation.Elements, sessions.DesktopSemanticElement{ID: id, Name: name, Editable: editable, ParentID: item.parent, WindowID: window, Role: role})
+		if label == "" {
+			label = name
+		}
+		observation.Elements = append(observation.Elements, sessions.DesktopSemanticElement{ID: id, Name: name, Label: label, Editable: editable, ParentID: item.parent, WindowID: window, Role: role, States: states, X: x, Y: y, Width: width, Height: height, SupportedActions: actions, BoundsKnown: boundsKnown, StateKnown: stateKnown, Fingerprint: semanticFingerprint(ref)})
 		children, err := b.access.Children(ctx, ref)
 		if err != nil {
 			return sessions.DesktopObservation{}, err
@@ -226,20 +263,32 @@ func (b *semanticBackend) text(command sessions.DesktopCommand) (*desktopv1.Text
 	return text, entry, nil
 }
 
-func (b *semanticBackend) invoke(command sessions.DesktopCommand) (semanticEntry, error) {
+func (b *semanticBackend) invoke(command sessions.DesktopCommand) (semanticEntry, string, error) {
 	var action desktopv1.Action
 	if protojson.Unmarshal(command.Payload, &action) != nil {
-		return semanticEntry{}, atspi.ErrRefused
+		return semanticEntry{}, "", atspi.ErrRefused
 	}
 	invoke := action.GetInvoke()
 	if invoke == nil {
-		return semanticEntry{}, nil
+		return semanticEntry{}, "", nil
 	}
 	entry, ok := b.entries[invoke.ElementId]
 	if !ok || invoke.ObservationRevision != b.revision || command.Lease.Ref.SessionID != b.leaseID || command.GeometryRevision != b.geometry || !time.Now().Before(b.expires) {
-		return semanticEntry{}, atspi.ErrRefused
+		return semanticEntry{}, "", atspi.ErrRefused
 	}
-	return entry, nil
+	if invoke.ActionName != "" && !semanticActionSupported(entry.supportedActions, invoke.ActionName) {
+		return semanticEntry{}, "", atspi.ErrRefused
+	}
+	return entry, invoke.ActionName, nil
+}
+
+func semanticActionSupported(actions []string, wanted string) bool {
+	for _, action := range actions {
+		if strings.EqualFold(action, wanted) {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *semanticBackend) Validate(ctx context.Context, command sessions.DesktopCommand) error {
@@ -249,7 +298,7 @@ func (b *semanticBackend) Validate(ctx context.Context, command sessions.Desktop
 	if err != nil {
 		return err
 	}
-	invokeEntry, invokeErr := b.invoke(command)
+	invokeEntry, _, invokeErr := b.invoke(command)
 	if invokeErr != nil {
 		return invokeErr
 	}
@@ -287,7 +336,7 @@ func (b *semanticBackend) Apply(ctx context.Context, command sessions.DesktopCom
 	if err != nil {
 		return err
 	}
-	invokeEntry, invokeErr := b.invoke(command)
+	invokeEntry, actionName, invokeErr := b.invoke(command)
 	if invokeErr != nil {
 		return invokeErr
 	}
@@ -295,13 +344,22 @@ func (b *semanticBackend) Apply(ctx context.Context, command sessions.DesktopCom
 		if err := b.pixels.CheckSession(ctx); err != nil {
 			return err
 		}
+		if err := b.access.Focus(ctx, invokeEntry.ref); err != nil {
+			return err
+		}
 		b.clear()
+		if actionName != "" {
+			return b.access.InvokeNamed(ctx, invokeEntry.ref, actionName)
+		}
 		return b.access.Invoke(ctx, invokeEntry.ref)
 	}
 	if text == nil {
 		return b.pixels.Apply(ctx, command)
 	}
 	if err := b.pixels.CheckSession(ctx); err != nil {
+		return err
+	}
+	if err := b.access.Focus(ctx, entry.ref); err != nil {
 		return err
 	}
 	editable, err := b.access.Editable(ctx, entry.ref)
@@ -333,7 +391,7 @@ func (b *semanticBackend) CheckSession(ctx context.Context) error { return b.pix
 func (b *semanticBackend) Resolve(ctx context.Context, selector sessions.DesktopSelector, leaseID string) (sessions.DesktopResolution, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if leaseID == "" || leaseID != b.leaseID || selector.Revision != b.revision || !time.Now().Before(b.expires) || selector.Name == "" {
+	if leaseID == "" || leaseID != b.leaseID || selector.Revision != b.revision || (selector.RefreshEpoch != 0 && selector.RefreshEpoch != b.refreshEpoch) || !time.Now().Before(b.expires) || selector.Name == "" {
 		return sessions.DesktopResolution{}, atspi.ErrRefused
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
@@ -363,6 +421,9 @@ func (b *semanticBackend) Resolve(ctx context.Context, selector sessions.Desktop
 		if err != nil || name != element.Name {
 			return sessions.DesktopResolution{}, atspi.ErrRefused
 		}
+		if element.Fingerprint != "" && semanticFingerprint(entry.ref) != element.Fingerprint {
+			return sessions.DesktopResolution{}, atspi.ErrRefused
+		}
 		children, err := b.access.Children(ctx, entry.ref)
 		if err != nil || !slices.Equal(children, entry.children) {
 			return sessions.DesktopResolution{}, atspi.ErrRefused
@@ -375,7 +436,13 @@ func (b *semanticBackend) Resolve(ctx context.Context, selector sessions.Desktop
 		if err != nil || editable != element.Editable {
 			return sessions.DesktopResolution{}, atspi.ErrRefused
 		}
-		if element.Name == selector.Name && (!selector.EditableOnly || element.Editable) {
+		if element.Role != selector.Role && selector.Role != 0 {
+			continue
+		}
+		if !semanticElementAllowed(element, selector) {
+			continue
+		}
+		if semanticNameMatches(element.Name, selector.Name, selector.MatchMode) && (!selector.EditableOnly || element.Editable) {
 			result.ElementIDs = append(result.ElementIDs, element.ID)
 		}
 	}
@@ -391,6 +458,130 @@ func (b *semanticBackend) Resolve(ctx context.Context, selector sessions.Desktop
 		result.Disposition = "ambiguous"
 	}
 	return result, nil
+}
+
+func semanticElementAllowed(element sessions.DesktopSemanticElement, selector sessions.DesktopSelector) bool {
+	if !selector.AllowHidden && element.StateKnown && len(element.States) > 0 && !hasSemanticState(element.States, "visible", "showing") {
+		return false
+	}
+	if !selector.AllowDisabled && element.StateKnown && len(element.States) > 0 && !hasSemanticState(element.States, "enabled", "sensitive") {
+		return false
+	}
+	if !selector.AllowOffscreen && element.BoundsKnown && (element.Width == 0 || element.Height == 0) {
+		return false
+	}
+	return true
+}
+
+func hasSemanticState(states []string, wanted ...string) bool {
+	for _, state := range states {
+		for _, candidate := range wanted {
+			if strings.EqualFold(state, candidate) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func semanticFingerprint(ref atspi.Ref) string {
+	digest := sha256.Sum256([]byte(ref.Owner + "\x00" + string(ref.Path)))
+	return hex.EncodeToString(digest[:])
+}
+
+// semanticNameMatches provides bounded, explicit matching for accessibility
+// names. Fuzzy matching is deliberately conservative: it is limited to one
+// observed window (the caller supplies that scope), optional role/editability
+// constraints, and a small rune edit-distance budget.
+func semanticNameMatches(candidate, wanted string, mode sessions.SemanticMatchMode) bool {
+	switch mode {
+	case sessions.SemanticMatchExact:
+		return candidate == wanted
+	case sessions.SemanticMatchNormalized:
+		return normalizeSemanticName(candidate) == normalizeSemanticName(wanted)
+	case sessions.SemanticMatchFuzzy:
+		candidate = normalizeSemanticName(candidate)
+		wanted = normalizeSemanticName(wanted)
+		if candidate == "" || wanted == "" {
+			return false
+		}
+		if candidate == wanted {
+			return true
+		}
+		maxDistance := 1
+		if len([]rune(wanted)) > 8 {
+			maxDistance = 2
+		}
+		if len([]rune(wanted)) > 16 {
+			maxDistance = 3
+		}
+		return semanticEditDistance(candidate, wanted, maxDistance) <= maxDistance
+	default:
+		return false
+	}
+}
+
+func normalizeSemanticName(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	var out strings.Builder
+	space := false
+	for _, r := range value {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			if space && out.Len() > 0 {
+				out.WriteByte(' ')
+			}
+			out.WriteRune(r)
+			space = false
+			continue
+		}
+		space = out.Len() > 0
+	}
+	return strings.TrimSpace(out.String())
+}
+
+func semanticEditDistance(left, right string, limit int) int {
+	a, b := []rune(left), []rune(right)
+	if absInt(len(a)-len(b)) > limit {
+		return limit + 1
+	}
+	previous := make([]int, len(b)+1)
+	current := make([]int, len(b)+1)
+	for j := range previous {
+		previous[j] = j
+	}
+	for i, leftRune := range a {
+		current[0] = i + 1
+		rowMin := current[0]
+		for j, rightRune := range b {
+			cost := 0
+			if leftRune != rightRune {
+				cost = 1
+			}
+			current[j+1] = minInt(current[j]+1, minInt(previous[j+1]+1, previous[j]+cost))
+			if current[j+1] < rowMin {
+				rowMin = current[j+1]
+			}
+		}
+		if rowMin > limit {
+			return limit + 1
+		}
+		previous, current = current, previous
+	}
+	return previous[len(b)]
+}
+
+func absInt(value int) int {
+	if value < 0 {
+		return -value
+	}
+	return value
+}
+
+func minInt(left, right int) int {
+	if left < right {
+		return left
+	}
+	return right
 }
 
 // Activation capture belongs to the native session backend and does not require

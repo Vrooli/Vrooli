@@ -25,25 +25,32 @@
           "type": "test",
           "ref": "api/internal/validation/validation_test.go::TestValidationTicketUsesCanonicalReceiptWithoutProducerCommandWall",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Proves compiled scope becomes one canonical receipt intent without caller-owned producer commands."
         },
         {
           "type": "test",
           "ref": "api/internal/validation/validation_test.go::TestDeriveBaselineScopeUsesExplicitNarrowPhaseScope",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Proves phase evidence stays proportional while final full-plan evidence remains explicit."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestAdvisoryPhaseValidationAllowsScenarioOutsideIncompleteBaseline",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Proves an ordinary focused phase may validate a newly affected scenario without an incomplete diagnostic inventory becoming a gate."
         }
       ]
     },
     {
       "id": "PM-VALID-002",
-      "title": "Consume canonical receipts for phase and final completion decisions",
+      "title": "Separate ordinary outcome acceptance from explicit certification",
       "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "validation",
-      "description": "When Plan Manager evaluates a phase or Definition of Done, it shall consume the canonical receipt state, admitted and observed content identities, evidence references, compatibility decision, and degradation reason. It shall not execute validation locally, shall not treat commit movement as staleness, and shall not accept degraded evidence unless the plan or family policy explicitly authorizes that evidence class.",
+      "description": "When Plan Manager evaluates ordinary shared-worktree completion, it shall require supported outcome assessments and retain limitations without requiring a baseline, green broad suite, or proven attribution. Declared unmet outcomes shall prevent completion. Producer verdicts and exact-input reuse decisions shall remain unchanged. Explicit certification shall retain its required evidence and shall not be inferred from phase position. Guidance, transitions, and completion shall apply the same policy.",
       "tags": [
         "validation",
         "definition-of-done"
@@ -51,17 +58,17 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/execution/validation_gate_internal_test.go::TestValidationGateFailureNamesActualCondition",
+          "ref": "api/internal/execution/acceptance_test.go::TestAdvisoryCompletionRetainsFailedEvidenceAndAssessment",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Completion guidance names the actual receipt condition and never converts missing or failed evidence into a pass."
+          "status": "passing",
+          "notes": "Supported ordinary acceptance retains failed observations, limitations, and assessments across durable completion replay."
         },
         {
           "type": "test",
-          "ref": "api/internal/execution/execution_test.go::TestTransitionPhaseDoneAllowsExplicitValidationAndFeedbackOverrides",
+          "ref": "api/internal/execution/acceptance_test.go::TestAdvisoryAcceptanceRequiresSupportedOutcome",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Any explicit completion override remains an attributable policy decision rather than an implicit degraded pass."
+          "status": "passing",
+          "notes": "Missing support or declared unmet outcomes cannot be bypassed with a validation override."
         }
       ]
     },
@@ -82,35 +89,35 @@
           "type": "test",
           "ref": "api/internal/validation/validation_test.go::TestRunValidationIncludesCommandReferenceFindings",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Command and search relevant-context items are validated through CLI Health."
         },
         {
           "type": "test",
           "ref": "api/internal/validation/validation_test.go::TestRunValidationChecksRelevantContextReferences",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Doc/code/requirement relevant-context targets resolve through the reference resolver and missing targets fail validation."
         },
         {
           "type": "test",
           "ref": "api/internal/validation/validation_test.go::TestRunValidationUnknownWhenRelevantContextReferenceResolverUnavailable",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Unavailable reference resolution reports UNKNOWN instead of fabricating a pass."
         },
         {
           "type": "test",
           "ref": "api/internal/readiness/readiness_test.go::TestEvaluateDeterministicModeReportsPlanQualityFailures",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "The shared readiness evaluator reports deterministic quality failures independently of caller."
         },
         {
           "type": "test",
           "ref": "api/internal/readiness/readiness_test.go::TestEvaluatePreflightModeRunsExternalChecks",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Readiness validates command setup and doc/code/requirement context targets through injected seams."
         }
       ]
@@ -131,23 +138,23 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/validation/validation_test.go::TestDurableValidationInspectionDoesNotOwnProducerAttachment",
+          "ref": "api/internal/validation/validation_test.go::TestValidationTicketRequiresCanonicalReceiptService",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Proves Plan Manager inspection does not attach to or drive the receipt producer lifecycle."
+          "status": "passing",
+          "notes": "Proves ticket creation fails closed when the canonical receipt service is unavailable."
         },
         {
           "type": "test",
-          "ref": "api/internal/validation/validation_test.go::TestDurableValidationTicketHasNoPlanManagerWaitBudget",
+          "ref": "api/internal/validation/validation_test.go::TestValidationTicketHasNoPlanManagerProducerBudgetOrCommands",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Proves the consumer ticket contains no caller-owned wait or retry budget."
+          "status": "passing",
+          "notes": "Proves the durable ticket has no Plan Manager producer budget or command lifecycle."
         },
         {
           "type": "test",
           "ref": "cli/domains/validation/validation_manifest_test.go::TestDisplacedValidationLifecycleCommandsCannotReturn",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Ratchets deleted run, wait, resume, and DoD producer commands out of the public CLI."
         }
       ]
@@ -169,22 +176,22 @@
           "type": "test",
           "ref": "api/internal/validation/validation_test.go::TestValidationTicketUsesCanonicalReceiptWithoutProducerCommandWall",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Proves Plan Manager emits one receipt intent and no GCT or Test Genie producer command wall."
         },
         {
           "type": "test",
-          "ref": "api/internal/validation/validation_test.go::TestBaselineSetFinalValidationUsesTypedFullCollectionDiff",
+          "ref": "api/internal/validation/validation_test.go::TestExplicitCertificationRetainsRequiredEvidence",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Proves final certification retains the typed GCT collection comparison as receipt evidence."
+          "status": "passing",
+          "notes": "Proves explicit certification retains behavioral-prior evidence requirements."
         },
         {
           "type": "test",
-          "ref": "api/internal/validation/validation_test.go::TestBaselineSetPhaseValidationUsesOnlyExplicitNarrowScope",
+          "ref": "api/internal/validation/validation_test.go::TestPhaseReceiptUsesDeclaredChecksWithoutImplicitComprehensiveComparison",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Proves phase validation does not widen to a full behavioral comparison unless policy explicitly requests it."
+          "status": "passing",
+          "notes": "Proves ordinary phase validation uses declared checks without implicitly widening to certification."
         }
       ]
     }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -31,6 +32,7 @@ import (
 	messageH "portal/handlers/message"
 	searchH "portal/handlers/search"
 	surfacesH "portal/handlers/surfaces"
+	internalagentchat "portal/internal/agentchat"
 	internalbrief "portal/internal/brief"
 	internalchat "portal/internal/chat"
 )
@@ -41,6 +43,11 @@ func main() {
 	if preflight.Run(preflight.Config{ScenarioName: "portal"}) {
 		return
 	}
+	fatal := func(message string, err error) {
+		slog.Error(message, "error", err)
+		os.Exit(1)
+	}
+	runtimeLogger := log.New(os.Stderr, "", log.LstdFlags)
 
 	db, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
@@ -49,19 +56,28 @@ func main() {
 		MaxIdleConns: 1,
 	})
 	if err != nil {
-		log.Fatalf("Database connection failed: %v", err)
+		fatal("database connection failed", err)
 	}
 
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
-		log.Fatalf("schema initialization failed: %v", err)
+		fatal("schema initialization failed", err)
+	}
+	if err := internalagentchat.EnsureBriefIDColumn(context.Background(), db.Primary()); err != nil {
+		fatal("agent brief attribution migration failed", err)
 	}
 
 	clk := schedule.System()
-	contextModule, stopContext, contextService, err := contextH.Runtime(db, clk, func() { log.Print("context expiry cleanup incomplete; retained for retry") })
-	if err != nil {
-		log.Fatalf("context storage initialization failed: %v", err)
-	}
 	integrationRegistry := integrationsH.NewRegistry(db, clk)
+	briefService := internalbrief.NewService(internalbrief.Config{
+		Repository: internalbrief.NewSQLiteRepository(db, clk),
+		Hub:        agentbrief.NewSearchHubClient(nil),
+		Registry:   integrationRegistry,
+		Clock:      clk,
+	})
+	contextModule, stopContext, contextService, err := contextH.Runtime(db, clk, func() { slog.Warn("context expiry cleanup incomplete; retained for retry") }, briefService.Retain)
+	if err != nil {
+		fatal("context storage initialization failed", err)
+	}
 	chatRepo := internalchat.NewSQLiteRepository(db, clk)
 	chatService := internalchat.NewService(chatRepo)
 	searchService := internalsearch.NewService(internalsearch.Config{
@@ -69,14 +85,8 @@ func main() {
 		Registry: integrationRegistry,
 		Clock:    clk,
 	})
-	briefService := internalbrief.NewService(internalbrief.Config{
-		Repository: internalbrief.NewSQLiteRepository(db, clk),
-		Hub:        agentbrief.NewSearchHubClient(nil),
-		Registry:   integrationRegistry,
-		Clock:      clk,
-	})
 	srv := server.New(
-		server.Deps{Clock: clk, Logger: log.Default()},
+		server.Deps{Clock: clk, Logger: runtimeLogger},
 		chatH.Module(db, clk),
 		briefH.Module(briefService),
 		contextModule,
@@ -107,6 +117,6 @@ func main() {
 		WriteTimeout: 40 * time.Second,
 		Cleanup:      func(ctx context.Context) error { return errors.Join(stopContext(ctx), db.Close()) },
 	}); err != nil {
-		log.Fatalf("Server error: %v", err)
+		fatal("server error", err)
 	}
 }

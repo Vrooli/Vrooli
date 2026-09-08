@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+// ollamaJSONGenerateRunner is the process boundary for analysis requests.
+// Production uses runOllamaJSONGenerate; tests replace it with deterministic
+// responses so handlers can assert both success payloads and dependency errors.
+var ollamaJSONGenerateRunner = runOllamaJSONGenerate
+
 // runOllamaJSONGenerate calls `resource-ollama gateway generate` with the given
 // prompt and returns the raw text response. All daemon traffic goes through
 // the CLI so the host-wide semaphore can bound fleet-wide parallelism — never

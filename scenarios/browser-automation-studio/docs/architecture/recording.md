@@ -1071,6 +1071,6 @@ Workflow available for execution
 - [DOC: docs/architecture/execution.md] - Workflow execution architecture
 - [DOC: docs/architecture/ai-navigation.md] - AI navigation architecture
 - [DOC: docs/SYSTEM_ARCHITECTURE.md] - Complete system overview
-- [DOC: docs/plans/RECORD_MODE_IMPLEMENTATION_PLAN.md] - Original implementation plan
-- [DOC: docs/plans/multi-tab-recording-implementation.md] - Multi-tab support
+- [DOC: docs/plans/README.md#historical-source-files] - Original implementation plan
+- [DOC: docs/plans/README.md#historical-source-files] - Multi-tab support
 - [DOC: docs/internal/SEAMS.md#recording-bounded-context] - Recording integration seams

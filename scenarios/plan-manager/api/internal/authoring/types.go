@@ -48,6 +48,7 @@ const (
 	SectionRelevantContext      SectionKey = "relevant_context"
 	SectionRisksHazards         SectionKey = "risks_hazards"
 	SectionValidationStrategy   SectionKey = "validation_strategy"
+	SectionCompletionPolicy     SectionKey = "completion_policy"
 	SectionDefinitionOfDone     SectionKey = "definition_of_done"
 	SectionPhases               SectionKey = "phases"
 )

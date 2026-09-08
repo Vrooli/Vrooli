@@ -82,7 +82,7 @@ func lintSelectorValue(selector, pointer, nodeID, nodeType string, registry map[
 			continue
 		}
 		if _, ok := registry[value]; !ok {
-			location := selectorSource
+			location := detectSelectorManifest()
 			if location == "" {
 				location = "ui/src/consts/" + manifestFilename
 			}

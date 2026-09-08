@@ -68,7 +68,10 @@
           "partial"
         ]
       },
-      "note": "Partial only when external reads fail; unmeasured permanent rows do not lower status."
+      "note": "Partial only when external reads fail; unmeasured permanent rows do not lower status.",
+      "requires": [
+        "command-center"
+      ]
     }
   ],
   "rung": "S3",

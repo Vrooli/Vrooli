@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"regexp"
@@ -43,7 +44,7 @@ var bundleMarkers = []string{
 }
 
 // bundleMarkerDescription names the markers for operator-facing errors.
-var bundleMarkerDescription = strings.Join(bundleMarkers, " or ")
+var bundleMarkerDescription = strings.Join(bundleMarkers, " or ") + " or React 19 renderer duration fields"
 
 // containsBundleMarker reports whether source carries any profiling-build marker.
 func containsBundleMarker(source string) bool {
@@ -52,7 +53,9 @@ func containsBundleMarker(source string) bool {
 			return true
 		}
 	}
-	return false
+	// React 19.2 removed the injected profiling hooks. Its profiling renderer
+	// retains both duration fields; the ordinary production renderer has neither.
+	return strings.Contains(source, "rendererPackageName") && strings.Contains(source, "treeBaseDuration") && strings.Contains(source, "actualDuration")
 }
 
 // CLIBuildController is the production BuildController: it restarts a scenario in
@@ -159,7 +162,12 @@ func defaultRestart(ctx context.Context, scenario string, profileMode bool) erro
 	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "restart", scenario)
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
-	env := os.Environ()
+	env := make([]string, 0, len(os.Environ())+1)
+	for _, entry := range os.Environ() {
+		if !strings.HasPrefix(entry, profileBuildEnvVar+"=") {
+			env = append(env, entry)
+		}
+	}
 	if profileMode {
 		env = append(env, profileBuildEnvVar+"="+profileBuildValue)
 	}
@@ -169,6 +177,9 @@ func defaultRestart(ctx context.Context, scenario string, profileMode bool) erro
 
 // scriptSrcRe extracts <script src="..."> module entries from the served HTML.
 var scriptSrcRe = regexp.MustCompile(`<script[^>]+src=["']([^"']+)["']`)
+var linkTagRe = regexp.MustCompile(`<link\b[^>]*>`)
+var modulePreloadRe = regexp.MustCompile(`\brel=["']modulepreload["']`)
+var linkHrefRe = regexp.MustCompile(`\bhref=["']([^"']+)["']`)
 
 // defaultVerifyBundle fetches the served HTML, locates the JS module bundles,
 // and reports whether any of them carries a profiling-build marker.
@@ -181,17 +192,31 @@ func defaultVerifyBundle(ctx context.Context, client *http.Client, uiURL string)
 	if containsBundleMarker(html) {
 		return true, nil
 	}
-	base := strings.TrimRight(uiURL, "/")
-	for _, m := range scriptSrcRe.FindAllStringSubmatch(html, -1) {
-		src := strings.TrimSpace(m[1])
-		if src == "" {
+	base, err := url.Parse(uiURL)
+	if err != nil {
+		return false, err
+	}
+	references := scriptSrcRe.FindAllStringSubmatch(html, -1)
+	for _, tag := range linkTagRe.FindAllString(html, -1) {
+		if modulePreloadRe.MatchString(tag) {
+			if match := linkHrefRe.FindStringSubmatch(tag); len(match) > 1 {
+				references = append(references, match)
+			}
+		}
+	}
+	seen := make(map[string]bool)
+	for _, match := range references {
+		ref, err := url.Parse(strings.TrimSpace(match[1]))
+		if err != nil {
 			continue
 		}
-		jsURL := src
-		if !strings.HasPrefix(src, "http") {
-			jsURL = base + "/" + strings.TrimPrefix(strings.TrimPrefix(src, "./"), "/")
+		asset := base.ResolveReference(ref)
+		// Inspect only the target's own bounded set of served assets.
+		if asset.Host != base.Host || asset.Scheme != base.Scheme || seen[asset.String()] || len(seen) >= 64 {
+			continue
 		}
-		js, err := fetch(ctx, client, jsURL)
+		seen[asset.String()] = true
+		js, err := fetch(ctx, client, asset.String())
 		if err != nil {
 			continue
 		}

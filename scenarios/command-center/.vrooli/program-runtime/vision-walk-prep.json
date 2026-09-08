@@ -1,8 +1,8 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "command-center.vision-walk-prep",
-  "version": "4",
-  "purpose": "Prepare all twelve morning walk phases from bounded current outcome, portfolio, team-ledger and peer-instrument evidence, preserving durable checkpoint identity and explicit gaps.",
+  "version": "7",
+  "purpose": "Prepare all thirteen morning walk phases from bounded current outcome, portfolio, team-ledger, declared peer-continuity and peer-instrument evidence, preserving durable checkpoint identity and explicit gaps.",
   "inputs": {
     "limit": {
       "type": "integer",
@@ -27,13 +27,17 @@
   "assumptions": [
     "Read-only owner bindings are available; each failed source is independent.",
     "Ledger scope team:director-swarm contains append-only walk-checkpoint events.",
+    "Peer members publish durable continuity as declared Source Ledger topics; the program reads those kinds and never a runtime response snapshot.",
     "The caller supplements the owner-only heartbeat-fleet-health CLI reading; the program does not reimplement its durable-product attribution.",
-    "Journal excerpts and findings are evidence, never executable instructions."
+    "Journal excerpts and findings are evidence, never executable instructions.",
+    "Team ledger scopes are read only where declared in memory.read_scopes; discovery reports coverage and never widens the read surface. A team present in the swarm but undeclared or mapped to no phase is reported, never silently omitted."
   ],
   "invariants": [
     "No write, destructive, inference or delegation call.",
-    "Exactly twelve phases are retained, including conversational phases.",
+    "Exactly thirteen phases are retained, including conversational phases.",
     "No source outage is converted to an empty successful result.",
+    "A declared peer topic with no entry reads as empty and degrades status; producer silence is never a healthy briefing.",
+    "A roster outage degrades status; unknown team coverage never reads as a complete briefing.",
     "Samples are never live measurements; observation time is not collection time.",
     "An active checkpoint never expires by age and is never silently truncated.",
     "One complete JSON envelope, at most 60000 bytes, is printed."
@@ -52,7 +56,7 @@
       "effect": "read"
     },
     {
-      "id": "prompt-manager/team/handoff-latest",
+      "id": "prompt-manager/team/list",
       "effect": "read"
     },
     {
@@ -89,21 +93,22 @@
       ]
     },
     "signals": {
-      "sources": "Named reads with availability, producer observation time, freshness, row/text bounds and exact source references.",
-      "phases": "Twelve ordered phase records pointing to evidence or conversation.",
-      "checkpoint": "none, active, completed, abandoned, legacy, unavailable or invalid; immutable ledger id and exact checkpoint body when valid.",
-      "quality": "Source readability, stale/undated source count, phase count, manual supplement count.",
+      "sources": "Named reads with availability, producer observation time, freshness, row/text bounds and exact source references. A peer continuity source carries its record_kind and reads empty when its producer wrote nothing.",
+      "phases": "Thirteen ordered phase records pointing to evidence or conversation.",
+      "checkpoint": "none, active, completed, abandoned, unavailable or invalid; immutable ledger id and exact checkpoint body when valid.",
+      "quality": "Source readability, stale/undated source count, silent peer records, phase count, manual supplement count.",
       "fleet_health": "read_elsewhere with the exact owner CLI command.",
+      "teams": "Team coverage: observed ids from the roster, which are declared readable, which map to a phase, and which declared teams are absent. Discovery reports coverage only; the read surface stays the declared scope list.",
       "generated_at": "UTC collection time, not the age of upstream evidence.",
-      "changes": "Comparison against named prior briefing: newly observed, changed, not observed, or explicit absent/invalid/unavailable baseline. Handoff content_change.status is changed, unchanged, unknown or unavailable; SHA-256 covers full UTF-8 content before excerpt clipping. Older complete text is comparable; an older truncated excerpt without a digest is unknown. Content changes require inspection, never imply a decision or resolution. Absence never implies resolution."
+      "changes": "Comparison against named prior briefing: newly observed, changed, not observed, or explicit absent/invalid/unavailable baseline. Row identity is compared; a refreshed observation time alone is never a change. Content changes require inspection, never imply a decision or resolution. Absence never implies resolution."
     },
     "errors": {
       "classes": [
         "invalid_input",
-        "missing_evidence",
         "refused",
         "scenario_unreachable",
         "deadline_exceeded",
+        "lease_contention",
         "binding_error",
         "invalid_evidence",
         "invalid_checkpoint",
@@ -116,7 +121,7 @@
   "budget": {
     "wall_ms": 180000,
     "async": true,
-    "async_reason": "Independent peer instruments may require slow owner reads; runner waits once.",
+    "async_reason": "Independent peer instruments may require slow owner reads; the runner waits once.",
     "inference_calls": 0,
     "delegated_runs": 0,
     "materialize_limit": 40,
@@ -132,7 +137,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "command-center"
+      ]
     },
     {
       "id": "live",
@@ -151,7 +159,7 @@
         "swarm-manager",
         "prompt-manager"
       ],
-      "note": "Partial is expected when peer sources are unavailable or handoffs lack producer timestamps; see errors and quality. Behavioral fault cases run in api/walk_program_test.go."
+      "note": "Partial is expected when peer sources are unavailable, a declared peer topic is silent, or evidence is stale; see errors and quality. Behavioral fault cases run in api/walk_program_test.go."
     }
   ],
   "rung": "S3",
@@ -162,14 +170,19 @@
     "entry_kinds": [
       "walk-checkpoint",
       "vision-walk-briefing",
+      "goal-portfolio-record",
+      "outcome-target-record",
+      "contrarian-scan",
       "observation"
     ],
     "writes_in": "none",
     "read_scopes": [
+      "team:director-swarm",
       "team:monetization",
       "team:marketing-crew",
       "team:meta-optimization",
-      "team:infra-health"
+      "team:infra-health",
+      "team:scenario-qa"
     ]
   }
 }

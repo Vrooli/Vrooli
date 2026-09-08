@@ -62,6 +62,11 @@ var captureTypeMetadata = map[capturev1.CaptureType]captureTypeMeta{
 		ext:       ".json",
 		available: true,
 	},
+	capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE: {
+		shortName: "dom-tree",
+		ext:       ".json",
+		available: true,
+	},
 }
 
 // metaFor returns the metadata for a CaptureType, falling back to a

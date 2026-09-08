@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
+	"app-monitor-api/internal/envx"
 	"app-monitor-api/logger"
 	"app-monitor-api/repository"
 
@@ -39,12 +39,14 @@ func NewAppServiceWithOptions(repo repository.AppRepository, httpClient HTTPClie
 	if timeProvider == nil {
 		timeProvider = time.Now
 	}
+	envReader := envx.System()
 
 	repoRoot, _ := findRepoRoot()
 	return &AppService{
 		repo:              repo,
 		httpClient:        httpClient,
 		timeNow:           timeProvider,
+		env:               envReader,
 		cache:             &orchestratorCache{},
 		completenessCache: &completenessCache{data: make(map[string]*CompletenessResponse)},
 		viewStats:         make(map[string]*viewStatsEntry),
@@ -53,7 +55,7 @@ func NewAppServiceWithOptions(repo repository.AppRepository, httpClient HTTPClie
 		repoRoot:          repoRoot,
 		scenarioURL:       discovery.ResolveScenarioURLDefault,
 		enrichmentCache:   make(map[string]*enrichmentCacheEntry),
-		uiServerPort:      os.Getenv("UI_PORT"),
+		uiServerPort:      envReader.Getenv("UI_PORT"),
 	}
 }
 

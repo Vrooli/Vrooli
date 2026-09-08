@@ -6,16 +6,9 @@ Complete documentation for the knowledge-observatory CLI (`knowledge-observatory
 
 ## Installation
 
-```bash
-cd scenarios/knowledge-observatory/cli
-go build -o knowledge-observatory .
-```
-
-Or install via the shared installer (recommended):
-
-```bash
-./install.sh
-```
+The Vrooli control plane builds and installs the declared CLI surface during
+scenario lifecycle setup. Start the scenario with `vrooli scenario start knowledge-observatory`.
+Use `knowledge-observatory --help` for the current command inventory.
 
 ## Global Options
 
@@ -31,15 +24,15 @@ Or install via the shared installer (recommended):
 | Command | Description |
 |---------|-------------|
 | `status` | Check API health |
-| `search` | Semantic search over knowledge |
-| `ingest` | Ingest a single record |
-| `ingest-job` | Enqueue an async document ingest job |
-| `job-status` | Fetch ingest job status |
-| `ingest-health` | Inspect ingest queue/runner health |
+| `search` | Documentation hybrid search |
+| `knowledge-base` | Governed source inspection and maintenance evidence |
+| `knowledge inventory` | Bounded candidate inventory; read-only |
+| `knowledge proposals` | Review-only disposition proposals |
+| `knowledge route` | Dry-run or owner-authorized routing receipt |
+| `reindex` | Documentation index reconciliation |
 | `collection-diagnostics` | Inspect embedding/chunk diagnostics for a collection |
 | `collection-prune-stale` | Prune stale chunk versions (dry-run by default) |
 | `collection-dedupe` | Remove duplicate content chunks (dry-run by default) |
-| `document-delete` | Delete chunks for a document (dry-run by default) |
 | `health` | Knowledge health metrics |
 | `metrics` | Alias for `health` |
 | `graph` | Generate a knowledge graph |
@@ -58,78 +51,38 @@ knowledge-observatory status [--json]
 
 ## search
 
-```bash
-knowledge-observatory search "agent workflows" --limit 10 --threshold 0.35
+```text
+knowledge-observatory search query "agent workflows" --limit 5 --json
+knowledge-observatory search status
 ```
 
-**Options:**
-| Flag | Description |
-|------|-------------|
-| `--collection` | Collection name |
-| `--namespaces` | Comma-separated namespaces |
-| `--visibility` | Comma-separated visibility values |
-| `--tags` | Comma-separated tags |
-| `--ingested-after` | RFC3339 timestamp filter |
-| `--ingested-before` | RFC3339 timestamp filter |
-| `--limit` | Max results |
-| `--threshold` | Score threshold |
+For governed agent workflows, prefer `knowledge-base search`. Repository documents
+are discovered by indexing; there is no `ingest`, `ingest-job`, `job-status`,
+`ingest-health`, or `document-delete` CLI command.
 
-## ingest
+## knowledge-base
 
-```bash
-knowledge-observatory ingest --namespace docs --content "Knowledge Observatory entry" --visibility shared
+| Command | Purpose |
+|---|---|
+| `search` | Scoped retrieval with source identity and live authority declarations |
+| `inspect` | Revision-pinned source pages; `--allow-missing` returns a typed missing observation for absent paths |
+| `review` | Selected-document duplicate/reference/portability evidence |
+| `health` | Documentation checks; use `--scope path-exact` to retain an exact family scope |
+| `status` | Index availability and reconciliation status |
+
+Each command supports `--json`. See the [usage guide](../guides/getting-started.md)
+and [maintenance workflow](../guides/document-maintenance.md) for program composition,
+input examples, evidence interpretation, and knowledge preservation.
+
+## reindex
+
+```text
+knowledge-observatory reindex status
+knowledge-observatory reindex run --dry-run
 ```
 
-Content can also be passed as positional arguments or via stdin.
-
-**Options:**
-| Flag | Description |
-|------|-------------|
-| `--namespace` | Namespace (required) |
-| `--collection` | Collection name |
-| `--visibility` | Visibility (shared, private, restricted) |
-| `--record-id` | Explicit record ID |
-| `--external-id` | External identifier |
-| `--tags` | Comma-separated tags |
-| `--metadata` | Metadata JSON object |
-| `--source` | Source identifier |
-| `--source-type` | Source type |
-| `--content` | Content string |
-
-## ingest-job
-
-```bash
-knowledge-observatory ingest-job --namespace docs --content "$(cat README.md)" --chunk-size 1200 --chunk-overlap 150
-```
-
-**Options:**
-| Flag | Description |
-|------|-------------|
-| `--namespace` | Namespace (required) |
-| `--collection` | Collection name |
-| `--visibility` | Visibility (shared, private, restricted) |
-| `--document-id` | Explicit document ID |
-| `--external-id` | External identifier |
-| `--tags` | Comma-separated tags |
-| `--metadata` | Metadata JSON object |
-| `--source` | Source identifier |
-| `--source-type` | Source type |
-| `--chunk-size` | Chunk size override |
-| `--chunk-overlap` | Chunk overlap override |
-| `--content` | Content string |
-
-## job-status
-
-```bash
-knowledge-observatory job-status "<job_id>"
-```
-
-## ingest-health
-
-```bash
-knowledge-observatory ingest-health
-knowledge-observatory ingest-health --watch --interval 10s
-```
+Use the owner command help before requesting index mutations. Collection maintenance
+operates on index chunks, not source-document consolidation or retirement.
 
 ## collection-diagnostics
 
@@ -174,23 +127,6 @@ knowledge-observatory collection-dedupe --collection knowledge --apply --max-del
 | `--dry-run` | Preview only (default true) |
 | `--apply` | Execute deletion |
 | `--max-deletes` | Max duplicate points to delete |
-
-## document-delete
-
-```bash
-knowledge-observatory document-delete --namespace docs --document-id doc-123
-knowledge-observatory document-delete --namespace docs --external-id ext-123 --apply
-```
-
-**Options:**
-| Flag | Description |
-|------|-------------|
-| `--namespace` | Namespace (required) |
-| `--collection` | Collection override |
-| `--document-id` | Document identifier |
-| `--external-id` | External identifier (resolved server-side) |
-| `--dry-run` | Preview only (default true) |
-| `--apply` | Execute deletion |
 
 ## health / metrics
 

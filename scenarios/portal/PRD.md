@@ -14,8 +14,8 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Healthy Portal scaffold | Portal starts through the scenario lifecycle, survives restart, exposes API/UI/CLI health, and remains healthy when optional dependencies are unavailable.
-- [ ] OT-P0-002 | Chat-ready contract foundation | Portal owns typed Connect contracts and local surfaces for chat, message tree, integration status, and search suggestion seams.
+- [x] OT-P0-001 | Healthy Portal scaffold | Portal starts through the scenario lifecycle, survives restart, exposes API/UI/CLI health, and remains healthy when optional dependencies are unavailable.
+- [x] OT-P0-002 | Chat-ready contract foundation | Portal owns typed Connect contracts and local surfaces for chat, message tree, integration status, and search suggestion seams.
 
 - [ ] OT-P0-003 | Federated target and surface identity | When an operator selects a target, Portal shall resolve owner-scoped identity and attached topology, preserve partial inventory, and expose fresh capability evidence without credentials or transport authority in descriptors.
 - [ ] OT-P0-004 | Optional providers and equivalent routes | When a provider is absent, denied, stale, or lost, Portal shall remain usable and resolve only routes that preserve target, account, authority, data policy, and outcome; uncertain effects shall be reconciled before retry.
@@ -26,13 +26,13 @@
 - [ ] OT-P0-009 | Assistant migration and evidence-backed delivery | When Assistant capture is replaced or Portal support is claimed, Portal shall reconcile retained records and links, route capture once to its current owner, and tie platform and commercial claims to attributable acceptance receipts.
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | OpenRouter chat path | Portal streams OpenRouter completions with model choice, web-search toggle, usage capture, and missing-key degradation.
-- [ ] OT-P1-002 | Agent-mode bridge | Portal can hand agent conversations to agent-manager and surface session status without making agent-manager required for boot.
+- [x] OT-P1-001 | OpenRouter chat path | Portal streams OpenRouter completions with model choice, web-search toggle, usage capture, and missing-key degradation.
+- [x] OT-P1-002 | Agent-mode bridge | Portal can hand agent conversations to agent-manager and surface session status without making agent-manager required for boot.
 
 ### 🟢 P2 – Future / expansion
-- [ ] OT-P2-001 | Passive ecosystem search | Portal offers omnibox suggestions and PASSIVE search attachments from search-hub without delaying LLM sends.
-- [ ] OT-P2-002 | Readiness ladder controls | Portal measures optional integration health, applies OFF/PASSIVE/FULL-reserved mode policy, and exposes override/status UI.
-- [ ] OT-P2-003 | One context brief path | Portal gates trust-labelled current-turn context once and serves the same persisted verdict to LLM, agent, and canary-verified external-harness consumers.
+- [x] OT-P2-001 | Passive ecosystem search | Portal offers omnibox suggestions and PASSIVE search attachments from search-hub without delaying LLM sends.
+- [x] OT-P2-002 | Readiness ladder controls | Portal measures optional integration health, applies OFF/PASSIVE/FULL-reserved mode policy, and exposes override/status UI.
+- [x] OT-P2-003 | One context brief path | Portal gates trust-labelled current-turn context once and serves the same persisted verdict to LLM, agent, and canary-verified external-harness consumers.
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: React/Vite UI, Go API/CLI, Connect/proto contracts, SQLite through api-core storage.

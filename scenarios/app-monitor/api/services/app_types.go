@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"app-monitor-api/internal/envx"
 	"app-monitor-api/repository"
 )
 
@@ -201,6 +202,7 @@ type AppService struct {
 	repo              repository.AppRepository
 	httpClient        HTTPClient
 	timeNow           TimeProvider
+	env               envx.Reader
 	cache             *orchestratorCache
 	completenessCache *completenessCache
 	viewStatsMu       sync.RWMutex

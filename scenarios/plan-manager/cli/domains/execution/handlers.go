@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 	"fmt"
+	"google.golang.org/protobuf/encoding/protojson"
 	"strconv"
 	"strings"
 
@@ -220,7 +221,15 @@ func (h *handlers) next(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) transition(ctx cliapp.RunContext) error {
+	var assessment *sharedv1.OutcomeAssessment
+	if raw := strings.TrimSpace(ctx.Flag("assessment-json")); raw != "" {
+		assessment = &sharedv1.OutcomeAssessment{}
+		if err := protojson.Unmarshal([]byte(raw), assessment); err != nil {
+			return fmt.Errorf("invalid outcome assessment: %w", err)
+		}
+	}
 	resp, err := h.client.TransitionPhase(context.Background(), connect.NewRequest(&executionv1.TransitionPhaseRequest{
+		Assessment:  assessment,
 		ExecutionId: ctx.Positional("execution"),
 		PhaseId:     ctx.Positional("phase"),
 		ToStatus:    statusconv.PhaseStatusFlag(ctx.Flag("status")),
@@ -275,6 +284,7 @@ func (h *handlers) complete(ctx cliapp.RunContext) error {
 		Summary: []string{
 			fmt.Sprintf("Completed execution %s (completeness %s).", ho.GetExecutionId(), completenessLabel(ho.GetCompleteness())),
 			fmt.Sprintf("Resume point: %s.", orNone(ho.GetResumePhaseId())),
+			fmt.Sprintf("Completion policy: %s; retained phase assessments: %d.", completionPolicyLabel(ho.GetCompletionPolicy()), len(ho.GetPhaseAssessments())),
 		},
 		ResultsHeading: "Completion nudges",
 		Results:        append(results, formatStep(resp.Msg.GetStep())...),
@@ -358,6 +368,7 @@ func (h *handlers) velocity(ctx cliapp.RunContext) error {
 
 func contextSummary(e *executionv1.Execution, c *executionv1.PhaseContext) []string {
 	out := []string{
+		fmt.Sprintf("Completion policy: %s; retained phase assessments: %d.", completionPolicyLabel(c.GetCompletionPolicy()), len(e.GetPhaseAssessments())),
 		fmt.Sprintf("Execution %s on plan %s (completeness %s).", e.GetId(), e.GetPlanId(), completenessLabel(c.GetCompleteness())),
 		fmt.Sprintf("Resume point: %s; staleness: %s.", orNone(c.GetResumePhaseId()), stalenessLabel(c.GetStaleness())),
 	}
@@ -365,6 +376,13 @@ func contextSummary(e *executionv1.Execution, c *executionv1.PhaseContext) []str
 		out = append(out, fmt.Sprintf("Current phase: %s (%s).", cur.GetTitle(), statusconv.PhaseStatusLabel(cur.GetStatus())))
 	}
 	return out
+}
+
+func completionPolicyLabel(p *sharedv1.CompletionPolicy) string {
+	if p.GetMode() == "certification" {
+		return "certification (" + p.GetReason() + ")"
+	}
+	return "advisory outcome assessment"
 }
 
 func contextLines(c *executionv1.PhaseContext) []string {

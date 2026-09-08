@@ -60,6 +60,11 @@
     {
       "id": "browser-automation-studio/workflows/update",
       "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/executions/timeline",
+      "effect": "read",
+      "optional": true
     }
   ],
   "outputs": {
@@ -88,7 +93,7 @@
       "node_count": "result.stats.nodeCount",
       "execution_id": "ad hoc execution UUID",
       "execution_status": "EXECUTION_STATUS_* after wait",
-      "outcome": "passed | failed",
+      "outcome": "verified_success only for completed execution with a complete bounded timeline of successful assertions; otherwise unknown or explicit failure",
       "persistable": "true only when validation passed and the ad hoc run completed",
       "workflow_id": "Persisted workflow UUID, or null",
       "version": "Saved immutable revision, or null"
@@ -121,7 +126,7 @@
     "wall_ms": 300000,
     "inference_calls": 0,
     "delegated_runs": 0,
-    "materialize_limit": 0,
+    "materialize_limit": 200,
     "async": true,
     "async_reason": "wall_ms exceeds the 120 s synchronous bound: submit with --async and wait once."
   },
@@ -133,7 +138,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
     },
     {
       "id": "missing-repair-version",
@@ -149,9 +157,35 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
     }
   ],
   "rung": "S3",
-  "owner_skill": "browser-automation-studio"
+  "owner_skill": "browser-automation-studio",
+  "learning_task": {
+    "scope": "bas-usage",
+    "operation": "author-flow",
+    "context_fields": [],
+    "outcome": {
+      "status_path": "signals.outcome",
+      "mapping": {
+        "verified_success": "verified_success",
+        "failed": "failed",
+        "unavailable": "unavailable",
+        "unknown": "unknown"
+      },
+      "evidence_paths": [
+        "evidence"
+      ]
+    }
+  },
+  "verbs": [
+    "agent.collect",
+    "ai.classify",
+    "tasks.get",
+    "validate"
+  ]
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { GamepadInputManager } from "@vrooli/iframe-bridge/spatial";
+import { useGamepad } from "@vrooli/iframe-bridge/react";
 import { emitShortcutIntent } from "@vrooli/iframe-bridge";
 import { fetchBoard } from "../lib/api";
 import { BoardContext, parseSamples, type BoardControllerValue, type BoardIntent, type SamplesMode } from "../lib/boardContext";
@@ -28,6 +28,7 @@ const KEY_INTENTS: Record<string, BoardIntent> = {
 };
 
 export function BoardController({ children }: { children: ReactNode }) {
+  const gamepadRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -238,11 +239,16 @@ export function BoardController({ children }: { children: ReactNode }) {
     };
   }, [dispatch, goTo, rooms]);
 
+  useGamepad(gamepadRef, action => {
+    // Board-level controls handle the focused board surface. Actual buttons
+    // retain normal selection; bumpers keep room switching available throughout.
+    if (document.activeElement !== gamepadRef.current && action !== "page-next" && action !== "page-prev") return false;
+    dispatch(action);
+    return true;
+  });
   useEffect(() => {
-    const manager = new GamepadInputManager({ onAction: dispatch });
-    manager.start();
-    return () => manager.dispose();
-  }, [dispatch]);
+    if (document.activeElement === document.body) gamepadRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     const onTouchStart = (event: TouchEvent) => {
@@ -289,7 +295,7 @@ export function BoardController({ children }: { children: ReactNode }) {
 
   return (
     <BoardContext.Provider value={value}>
-      <div data-board-root data-samples-mode={samples} data-paused={paused || undefined} onPointerDown={() => dispatch("reveal-controls")}>
+      <div ref={gamepadRef} tabIndex={0} aria-label="Board controls" data-board-root data-samples-mode={samples} data-paused={paused || undefined} onPointerDown={() => dispatch("reveal-controls")}>
         {children}
       </div>
     </BoardContext.Provider>

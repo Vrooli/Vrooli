@@ -454,6 +454,9 @@ func (s *Server) setupRoutes() {
 
 	// Knowledge health metrics endpoint [REQ:KO-QM-004]
 	s.router.HandleFunc("/api/v1/knowledge/health", s.handleHealthEndpoint).Methods("GET")
+	s.router.HandleFunc("/api/v1/knowledge/maintenance/inventory", s.handleCandidateInventory).Methods("POST")
+	s.router.HandleFunc("/api/v1/knowledge/maintenance/proposals", s.handleCandidateProposals).Methods("POST")
+	s.router.HandleFunc("/api/v1/knowledge/maintenance/route", s.handleCandidateRoute).Methods("POST")
 
 	// Knowledge graph endpoint
 	s.router.HandleFunc("/api/v1/knowledge/graph", s.handleGraph).Methods("GET", "POST")

@@ -67,6 +67,7 @@ type Service struct {
 	inventoryTimeout    time.Duration
 	sessionQueryTimeout time.Duration
 	pendingPairings     map[string]pendingPairing
+	bridgeInventoryErr  string
 }
 
 type externalRecording struct {
@@ -371,6 +372,12 @@ CREATE TABLE IF NOT EXISTS device_control_identity_aliases (
  canonical_id TEXT NOT NULL, alias_id TEXT NOT NULL,
  created_at TEXT NOT NULL,
  PRIMARY KEY (canonical_id, alias_id)
+);
+CREATE TABLE IF NOT EXISTS device_control_command_receipts (
+ device_id TEXT NOT NULL, transport TEXT NOT NULL, idempotency_key TEXT NOT NULL,
+ step_kind TEXT NOT NULL, run_id TEXT NOT NULL, outcome TEXT NOT NULL,
+ created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+ PRIMARY KEY (device_id, transport, idempotency_key)
 );`); err != nil {
 		return nil, fmt.Errorf("initialize device-control state: %w", err)
 	}
