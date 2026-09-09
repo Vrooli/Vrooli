@@ -7,7 +7,9 @@ embed package.
 
 ## Prerequisites
 
-- The scenario is generated from the `react-vite` template.
+- The consumer exposes the required host/transport adapters. The examples below
+  use the current Go/React Vrooli stack; the product contract does not require
+  every future consumer to use this template or run a local model on its device.
 - `audio-tools` is declared in `.vrooli/service.json` with a meaningful
   `description` and `degraded_behavior`.
 - The scenario API has a discovery endpoint for the audio-tools URL and uses
@@ -99,25 +101,36 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 Do not implement a private PCM provider, reconnect loop, turn journal, or
 microphone button in the adopting scenario.
 
-## 4. Handle degraded behavior
+## 5. Handle degraded behavior
 
 Render the typed unavailable reason from the consumer API. The UI must keep the
 turn journal recoverable when the transport or microphone source fails, and it
 must surface whether recovery is reconnecting, re-acquiring the microphone, or
 falling back to retained-audio HTTP transcription.
+Preserve the selected processing destination and prior spend policy during
+recovery. Do not transmit locally retained speech remotely or use credits merely
+because a local route failed. Render the actual route, streaming/batch capability
+and authorization state; a provider enable flag is not a consent or billing gate.
 
-## 5. Validate the adoption
+## 6. Validate the adoption
 
 Run the scenario's UI/API suites and the dependency phase:
 
 ```bash
-vrooli scenario test <name>
-test-genie execute <name> --phases dependencies
+vrooli scenario test <name> --phases unit,dependencies
 ```
 
 The dependency phase must reach `integration_conformance` L3: the declared
 dependency resolves, the shared capability registry describes it, the registry
 has a health checker and operator action, and degraded behavior is declared.
+
+Dependency conformance does not qualify voice. Add paced consumer-path traces
+for preparation, partial revisions, stable commits, stop/final-tail, denial,
+reconnect and retained recovery. Exercise local, simulated BYOK and LPBS-routed
+subscription/credits plus separate fake inference; retain native/live evidence
+separately. Each claimed consumer (including Audio Tools, Web Console and Swarm
+Manager) needs its own product-path receipt. See
+[TESTING.md](../internal/TESTING.md) for the full matrix and pending SLO decisions.
 
 ## Updating
 

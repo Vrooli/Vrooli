@@ -7,6 +7,6 @@
     "title": "Voices",
     "routes": ["/voices"],
     "purpose": "Present the available speech-synthesis voices and their actual provider availability.",
-    "prd_refs": ["OT-P1-001"]
+    "prd_refs": ["OT-P1-004"]
   }
 }

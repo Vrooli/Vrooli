@@ -2,6 +2,19 @@
 
 > Plan: `~/.vrooli/plans/audio-tools-greenfield-scenario-web-console-adoption.md`
 
+That plan is historical provenance. Current target architecture is PRD
+`portable-voice-v1` and [ARCHITECTURE.md](../concepts/ARCHITECTURE.md#replaceability-and-compatibility-contract).
+An interface in this registry does not prove its production implementation works:
+LPBS clients/reporting and full receipt joins remain implementation/qualification
+gaps. Keep production/fake pairs accurate as work lands, and reuse the existing
+provider, PCM, journal, clock, transport and storage seams before adding one.
+
+For the owned-route pilot, inject inference independently from LPBS-owned routed
+account/entitlement/wallet state. Propagate explicit test identity through the
+real adapter; no test-name switch, private wallet fake in the UI, or dropped
+usage-history row can qualify settlement. Test negative controls and register
+new seams at their shared owner, not as duplicated consumer implementations.
+
 ## Layering (2026-05-17 post-extraction audit)
 
 - `internal/ai/{stt,tts,summarize}chain` are the canonical provider

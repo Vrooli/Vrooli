@@ -1,100 +1,102 @@
 # Integrations — Audio Tools
 
-> Plan: `~/.vrooli/plans/audio-tools-greenfield-scenario-web-console-adoption.md`
-
-## Resource dependencies (`.vrooli/service.json`)
-
-| Resource | Required | Used by | Degraded behavior |
-|---|---|---|---|
-| `whisper` | false | Local STT (`internal/voice.Service.Transcribe`) | Local STT tier reports unavailable; chain falls to BYOK/Vrooli or errors. |
-| `sherpa-onnx` | false | Native Kokoro-compatible TTS, streaming STT, speaker profiles, and source separation | The affected native capability reports unavailable; each chain follows its explicit fallback policy or errors. |
-| `ollama` | false | Local summarize (`internal/tts.Summarizer`) | Local summarize tier reports unavailable; chain falls to BYOK or errors. |
-| `postgres` | false | Optional usage backend (SQLite is default) | Usage rows store in SQLite. |
-
-Every resource is `required: false`. audio-tools starts cleanly with zero local resources — BYOK-only operation is supported.
-
-## Scenario dependencies (`.vrooli/service.json`)
-
-| Scenario | Required | Used by | Notes |
-|---|---|---|---|
-| `landing-page-business-suite` | false | Vrooli tier in all three provider chains | Disabled by `AUDIO_AI_ENABLE_VROOLI=false` until `execute/lpbs-audio-gateway-endpoints` ships. |
-
-## Outbound third-party services (BYOK)
-
-| Adapter | Capability | Endpoint | Credential header |
-|---|---|---|---|
-| `openai-whisper` | STT | `https://api.openai.com/v1/audio/transcriptions` | `Authorization: Bearer <X-Audio-BYOK-Key>` |
-| `deepgram` | STT | `https://api.deepgram.com/v1/listen` | `Authorization: Token <X-Audio-BYOK-Key>` |
-| `openai-tts` | TTS | `https://api.openai.com/v1/audio/speech` | `Authorization: Bearer <X-Audio-BYOK-Key>` |
-| `elevenlabs` | TTS | `https://api.elevenlabs.io/v1/text-to-speech/<voice-id>` | `xi-api-key: <X-Audio-BYOK-Key>` |
-| `openrouter` | Summarize | `https://openrouter.ai/api/v1/chat/completions` | `Authorization: Bearer <X-Audio-BYOK-Key>` |
-
-Per-request credentials travel in metadata headers `X-Audio-BYOK-{Provider,Key}`, `X-Audio-LPBS-Token`, `X-Audio-User-Identity`. Adapters never log unredacted keys. Recorded fixtures via go-vcr are the default test path; an `--integration` build tag runs against real sandbox keys.
-
-## Consumer scenarios (inbound)
-
-| Consumer | Mechanism | Status |
-|---|---|---|
-| `web-console` | Connect-RPC via `scenarios/web-console/api/integrations/audiotools/` adapter; UI via the shared browser capture package and web-console's transport adapter | Shared browser integration migration. |
-| `swarm-manager` | Future (covered by its own execute item) | Not started. |
-| `agent-manager` | Future | Not started. |
-| `phone-agent` | Future (twilio-voice transport in audio-tools) | Not started. |
-
-## Discovery + lifecycle
-
-Consumers discover the audio-tools URL via `api-core/discovery.ResolveScenarioURLDefault`. Captured URLs are short-lived: on any transport failure, the integration adapter calls `Client.HandleTransportFailure()` which invalidates the cached URL so the next call re-resolves. See `interoperability-steer §12`.
-
-This document is the canonical dependency contract for resources,
-other scenarios, and third-party services used by the scenario.
-
 ## Purpose Of This Document
 
-Use this document to answer:
-
-- What does the scenario depend on?
-- Which dependencies are required versus optional?
-- Which domain uses each dependency?
-- What is the failure or degradation behavior?
-- Where is the dependency declared or configured?
+This is the dependency inventory for the current source and its degradation
+boundaries. Desired portable routing lives in
+[ARCHITECTURE.md](ARCHITECTURE.md#development-target-portable-streaming-voice);
+commercial acceptance lives in [MONETIZATION.md](../business/MONETIZATION.md).
+A declared dependency or adapter is not evidence of live availability.
 
 ## Dependency Inventory
 
-| Dependency | Type | Required? | Used By | Contract | Failure Behavior |
-|---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, notes reference | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
-| Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
+| Dependency | Role | Source of truth |
+| --- | --- | --- |
+| Embedded SQLite and optional usage storage | Domain persistence | [DATA.md](DATA.md), API bootstrap and repositories |
+| Vrooli control plane | Lifecycle, resource discovery, and host operations | [Service manifest](../../.vrooli/service.json) |
+| Local resources and external providers | Capability-specific inference | Provider bootstrap, registries, and resource adapters below |
+| Landing Page Business Suite (LPBS) | Intended owned-service integration; shared subscription/wallet fixture owner | LPBS clients and pilot evidence contract |
+| Shared browser capture and consumer adapters | Capture, streaming, and host integration | [Shared package](../../../../packages/audio-capture-browser), consuming scenario adapters |
 
 ## Vrooli Resources
 
-The generated template does not declare external Vrooli resources. Add
-resources to `.vrooli/service.json` only when a real scenario domain
-requires them.
+The service manifest declares these resources optional. This permits degraded
+startup; it does not mean every capability works with zero resources and no key.
 
-| Resource | Status | Reason | Revisit Trigger |
-|---|---|---|---|
-| None yet. | not-applicable | SQLite is embedded by default. | Add when PRD/requirements demand shared resource behavior. |
+| Resource | Declared use | Unavailable behavior |
+| --- | --- | --- |
+| `whisper` | Local batch STT | Report unavailable or use a supported route allowed by policy. |
+| `kyutai-stt` | Local streaming STT | Do not advertise a ready streaming engine from declaration alone. |
+| `sherpa-onnx` | Native TTS, streaming STT, speaker operations, and separation | Qualify each operation and host separately; adapter presence is not platform support. |
+| `kokoro` | Local TTS tier | Inspect the resolved adapter; a manifest entry does not establish a separate active engine. |
+| `ollama` | Local summarization | Return unavailable when no permitted alternate provider exists. |
+| `openrouter` | Cloud summarization via configured model role and credentials | Surface missing credentials, model configuration, or provider availability. |
+| `postgres` | Optional usage history backend | Inspect selected storage configuration; SQLite remains the default. |
+
+For engine mappings, inspect
+[`BuildChains`](../../api/internal/bootstrap/providers.go) and
+[engine metadata](../../api/internal/sttengine/manifest.json).
+Manifest, adapter, readiness, and real qualification are distinct facts.
 
 ## Scenario Dependencies
 
-| Scenario | Status | Reason | Contract |
-|---|---|---|---|
-| None yet. | not-applicable | Generated scenario is standalone. | Add when this scenario calls or composes another scenario. |
+LPBS is declared optional. Local and BYOK providers can serve supported requests
+without it. The inspected bootstrap wires local/BYOK providers but supplies no
+Vrooli provider to the three chains. LPBS STT, TTS, and summarization clients
+currently return an unimplemented error; their shared availability implementation
+returns false. Enabling `AUDIO_AI_ENABLE_VROOLI` alone cannot deliver hosted inference.
+
+Sources: [provider bootstrap](../../api/internal/bootstrap/providers.go),
+[LPBS clients](../../api/integrations/lpbs/clients), and
+[environment defaults](../../api/internal/bootstrap/env.go).
+Keep gateway/entitlement/metering ownership with the shared service owners; do not
+create a consumer-private billing path to fill the missing implementation.
 
 ## Third-Party Services
 
-| Service | Status | Reason | Contract |
-|---|---|---|---|
-| None yet. | not-applicable | Generated scenario has no third-party dependency. | Add when PRD/requirements require external APIs, webhooks, auth, payments, or data feeds. |
+The BYOK registry includes STT (OpenAI Whisper, Deepgram), TTS (OpenAI,
+ElevenLabs), and summarization (OpenRouter) adapters. Inspect
+[the BYOK source](../../api/internal/byok) for current protocol and credential
+behavior rather than maintaining another endpoint/header table here.
+
+Streaming support is provider-specific. Batch transcription is not native
+streaming, even when its final text is returned over a streaming transport.
+Never record secret values in diagnostics or evidence. See
+[configuration](../reference/configuration.md) for operator-facing settings.
+
+## Consumer Integration
+
+Web Console and Swarm Manager have Audio Tools integration source. Neither
+adapter presence nor an Audio Tools-only test qualifies the consumer's complete
+voice path. Retain per-consumer capture, rendered-partial, final-tail, provider,
+and recovery evidence.
+
+- [Web Console adapter](../../../web-console/api/integrations/audiotools/)
+- [Swarm Manager adapter](../../../swarm-manager/api/integrations/audiotools/)
+- [Shared capture package](../../../../packages/audio-capture-browser/)
+- [Qualification limitations](../internal/PROBLEMS.md)
+
+Additional consumers must use the shared contract and their own host adapters;
+do not infer their adoption from a proposed dependency list.
 
 ## Failure Modes
 
-| Dependency | Failure Signal | Expected Behavior | Tests |
-|---|---|---|---|
-| SQLite | `PingContext` error | `/health` returns unhealthy dependency status. | health handler tests |
+| Failure | Required interpretation | Evidence owner |
+| --- | --- | --- |
+| Resource absent or engine not qualified | Capability unavailable or explicitly degraded, not healthy from process liveness. | Engine/provider diagnostics |
+| BYOK key rejected or protocol disconnected | Preserve the selected route and actionable reason; evaluate its permitted recovery. | Provider boundary tests |
+| LPBS unavailable or hosted client unimplemented | Hosted inference unavailable, not automatic successful subscription fallback. | Integration clients and routing tests |
+| Simulated wallet/provider succeeds | Fixture/control-flow evidence only. | LPBS fixtures and fake-provider assertions |
+| Consumer stream fails after Audio Tools smoke passes | Consumer qualification remains open. | Paced consumer and device runs |
+
+The [pilot test contract](../internal/TESTING.md#development-pilot-evidence-contract)
+owns the local/BYOK/subscription/credits matrix, fixture isolation, negative
+controls, and real-versus-simulated evidence rules.
 
 ## Cross-References
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — system boundaries
-- [`DATA.md`](DATA.md) — storage ownership
-- [`../reference/configuration.md`](../reference/configuration.md) — environment and service manifest
-- [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md) — deployment readiness
+- [ARCHITECTURE.md](ARCHITECTURE.md) — system boundaries
+- [DATA.md](DATA.md) — storage ownership
+- [Configuration](../reference/configuration.md) — environment and manifest settings
+- [Monetization](../business/MONETIZATION.md) — commercial target and missing decisions
+- [Deployment](../operations/DEPLOYMENT.md) — deployment readiness

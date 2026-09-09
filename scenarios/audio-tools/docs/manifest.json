@@ -1,8 +1,8 @@
 {
   "version": "2.0.0",
   "title": "Audio Tools Documentation",
-  "description": "Documentation contract for the scenario generated from the react-vite template",
-  "defaultDocument": "START-HERE.md",
+  "description": "Audio Tools product, operating, and development documentation",
+  "defaultDocument": "../README.md",
   "contract": {
     "kind": "scenario-docs",
     "template": "react-vite",
@@ -61,9 +61,9 @@
           "completion": "required",
           "validation": {
             "requiredHeadings": [
-              "What You Get",
+              "Capability and development status",
               "Documentation Map",
-              "Customize Safely"
+              "Working Rules"
             ],
             "forbiddenPlaceholders": [
               "[TODO]",
@@ -156,7 +156,7 @@
             "product-requirements",
             "operational-targets"
           ],
-          "maturity": "stub",
+          "maturity": "active",
           "requiredBy": [
             "oriented"
           ],
@@ -554,7 +554,7 @@
           "validation": {
             "requiredHeadings": [
               "Two Axes, One Pipeline",
-              "Current Architecture (as of 2026-05-16)",
+              "Current Architecture (as of 2026-08-18)",
               "Target Architecture",
               "Strategy \u00d7 Provider Compatibility",
               "Decision Boundary: StrategySelector",
@@ -928,7 +928,7 @@
             "pricing-hypothesis",
             "sku-fit"
           ],
-          "maturity": "stub",
+          "maturity": "draft",
           "requiredBy": [
             "monetizable"
           ],
@@ -975,7 +975,7 @@
             "launch-strategy",
             "market-validation"
           ],
-          "maturity": "stub",
+          "maturity": "draft",
           "requiredBy": [
             "monetizable"
           ],
@@ -1029,7 +1029,7 @@
             "delivery-tiers",
             "release-readiness"
           ],
-          "maturity": "stub",
+          "maturity": "draft",
           "requiredBy": [
             "deployable"
           ],
@@ -1072,7 +1072,7 @@
             "operator-procedures",
             "incident-response"
           ],
-          "maturity": "stub",
+          "maturity": "draft",
           "requiredBy": [
             "deployable"
           ],
@@ -1116,7 +1116,7 @@
             "health-signals",
             "alerts"
           ],
-          "maturity": "stub",
+          "maturity": "draft",
           "requiredBy": [
             "deployable",
             "monetizable"
@@ -1505,14 +1505,15 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "TL;DR \u2014 the canonical examples",
-              "API testing",
-              "UI testing",
-              "CLI testing",
-              "How to add a new proto",
-              "E2E binary smoke gate",
+              "API tests",
+              "CLI tests",
+              "UI tests",
               "Coverage thresholds",
-              "Common patterns and anti-patterns",
+              "Streaming checks",
+              "Development pilot evidence contract",
+              "Pilot decision sheet and safe first slice",
+              "Published targets and pending decisions",
+              "Full mandate and completion contract",
               "Cross-references"
             ],
             "forbiddenPlaceholders": [
@@ -1578,7 +1579,7 @@
             "threat-model",
             "secrets"
           ],
-          "maturity": "stub",
+          "maturity": "draft",
           "requiredBy": [
             "deployable"
           ],
@@ -1621,7 +1622,7 @@
             "budgets",
             "measurements"
           ],
-          "maturity": "stub",
+          "maturity": "active",
           "requiredBy": [
             "validated",
             "deployable"

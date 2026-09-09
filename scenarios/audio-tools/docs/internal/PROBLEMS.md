@@ -1,4 +1,4 @@
-+# Problems — Audio Tools
+# Problems — Audio Tools
 
 Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid
@@ -6,6 +6,80 @@ re-discovering the same constraint.
 
 This file ships empty in newly generated scenarios. Append entries as
 they appear.
+
+### 2026-09-09 — Portable voice contract aligned; execution and qualification remain open
+
+The operator requested that Audio Tools documentation express the complete
+portable voice intention. Business Health regenerated PRD `portable-voice-v1`
+after a diff preview. It now has 15 targets; the requirements registry retains
+all ten original ATD identities and test references and adds 14 planned claims.
+Local/BYOK/owned routing, interactive partial/final latency, recognition quality,
+subscription/credits, host qualification, privacy and evidence integrity are no
+longer merely prose extensions outside the charter.
+
+The owner validator reported unearned completion for ATD-P0-004, ATD-P0-006,
+ATD-P1-001 and ATD-P1-002 because no requirements-sync snapshot exists. Their
+statuses were returned to `in_progress`, retaining historical observations.
+This is correction of an unsupported claim, not proof of a new code regression.
+New validation entries are planned test designs, not executed manual attestations.
+
+W0 scope alignment is documented; numeric SLOs, cold/admission bounds, supported
+session/concurrency limits, realized corpus/native profiles, billing delivery
+semantics and execution/spend allowance still require the decisions in TESTING.md.
+W1 obligations are now explicit. The all-published-targets regression caught
+the v1 board omitting the newly published scope. A bounded v2 metadata update
+now lists all 15 targets, preserves the original row IDs and still leaves every
+outcome unknown. W2 remains open: owner-backed receipt joins are not implemented.
+Legacy duration/freshness artifacts need
+per-branch early-EOF, input-duration and final-tail controls before qualification.
+
+W3 product work remains, including actual owned inference and shared settlement,
+route/privacy policy enforcement and paced/native consumer qualification. The
+local-only proposal remains a historical non-launchable subset with zero budgets
+and prose effects/evidence sources. The full mandate must be authored using real
+typed owner resolvers and approved shared-owner boundaries after Swarm launch,
+continuation and budget qualification. Tech Tree Designer remains deferred.
+
+Documentation also replaces template security/deployment/market placeholders,
+repairs obsolete OT meanings in DOMAINS/FLOWS, and distinguishes non-blocking local
+usage history from durable shared billing. No runtime source, paid provider call,
+goal launch, production setting, commitment of funds or device certificate is
+included in this documentation change. Prior dated findings remain below.
+
+Validation for this revision: Test Genie run `20260909-120526-95ee9517` passed
+the scoped `business`, `programs` and `skill-set` phases (15 seconds). All 15
+local board regressions pass after the target-visibility test first rejected
+the incomplete v1 inventory. Both canonical skills pass quick validation.
+Business validation retains a stale/missing sync-snapshot warning; no statuses
+were promoted and no full suite was requested. The docs-root structure check
+passes with its README-layout warning (the declared entrypoint is ../README.md).
+
+Experience validation is not clean: it reports the evicted VoiceInputButton
+3.0.0 specimen reference, pinned chrome outside a landscape viewport, and a
+40px menu target below the 44px floor. Audio imports component major 4, while
+the retained local experience spec still carries older state/dismissal claims.
+Reconcile the actual component version and recovery intent with its owner;
+do not repoint or remove claims merely to clear the validator. Those findings
+were filed to scenario-qa (`knw-1788955668422940874` for the component contract;
+`knw-1788955668705488603` for the UI floors). Structure Health and Experience Manager CLI rebuilds
+also fail dependency checks and report stale binary/source fingerprints;
+their assessments have that explicit provenance limitation (report
+`knw-1788955668141098902`). A final local manifest consistency check found zero
+missing files, required headings or required links across 40 registered docs;
+all ten original requirement identities and 21 test/automation references were
+verified preserved. This check is not runtime experience reconciliation. No raw dependency
+repair, UI change or artifact eviction was performed here.
+
+### 2026-09-08 — Evidence-board fixture follows the shared program interface
+
+The current setpoint program uses `program.inputs()` and `program.classify()`.
+Its old fixture injected only `inputs`, causing all 15 tests to fail before
+measurement. The fixture now injects the declared interface and loads the shared
+Program Runtime classifier instead of duplicating transport classification.
+All 15 assertions pass. Malformed inputs remain explicit domain negative
+controls; the fixture does not certify the kernel input gate, live bindings,
+session lifecycle or voice-product acceptance. The local pilot proposal now
+includes proposed goal guidance, without adopting budgets or launching work.
 
 ### 2026-08-18 — Swarm voice route fix is deployed; product qualification remains open
 
@@ -410,12 +484,15 @@ without prompt leakage or visible reasoning.
 
 **Refs:** plan §G3; `api/internal/testutil/`.
 
-## Work ladder
+### 2026-08-16 — Historical contract-discovery limitation
 
-- Rung: W0
-- Evidence: The audio-tools PRD names long-form dictation trust, provider-parity stable engines, and explicit speaker-policy safety as P0 targets; the required named-goal comparison could not be completed because `swarm-manager goals list --json` reported that swarm-manager was stopped, and its lifecycle start remained in a dependency-start operation before the local API became available.
-- Blocker: W0 contract comparison is unverifiable until the swarm-manager goal search and every returned goal can be read; no W1–W3 gate is claimed from this pass.
-- Measured: 2026-08-16
+The audio-tools PRD named long-form dictation trust, provider-parity stable
+engines, and explicit speaker-policy safety as P0 targets. The attempted goal
+comparison could not finish: `swarm-manager goals list --json` reported the
+scenario stopped, and startup remained in a dependency-start operation. No
+W1–W3 gate was claimed. This records that investigation's unavailable evidence,
+not a current requirement to create a Swarm goal or read every unrelated goal.
+See [Work ladder](#work-ladder) for the current interpretation.
 
 
 ### 2026-05-17 — Pre-existing standards drift not in cleanup scope
@@ -1088,6 +1165,218 @@ invalid artifact, so the promotion aggregator retains the failure history and
 cannot credit that run. Future runs use the corrected source identity
 `e407507ad7aa401280994117847642c57893ef11f7bd6694e5a69bc380d15190`.
 
+### 2026-09-08 — Voice readiness investigation: startup latency, commercial routing, and evidence quality
+
+**Scope:** Investigation and recommendations requested by the user. No runtime
+configuration, provider selection, credentials, or production implementation
+was changed. Source inspection used the current shared worktree; live probes
+used the running API at port 19630. Its health response reported build time
+`2026-09-06T02:14:57.167314901Z` and source identity
+`699800654ab1a55f5a195d02bbb064557f8b75f573a92d7946d4e3626038fe1e`.
+These observations do not establish exact identity between all current source
+files and the running build.
+
+**Prior art:** Search Hub recall found the earlier speech-stack validation,
+streaming, and recovery work. The program-library search provider was degraded.
+The August 31 completion report under
+`~/.vrooli/plan-artifacts/speech-stack-ground-truth/verification/COMPLETION.md`
+already distinguishes working local/browser paths from missing live BYOK and
+platform proof. Its latency report measured approximately 5.4–6.2 seconds of
+CPU Whisper inference for a two-second clip. The August 18 entries above
+record successful 60-minute Audio Tools device cells as well as earlier
+failures; those successes must not be erased by citing only the older failed
+attempts in `docs/reference/eval-harness.md`.
+
+**Hypotheses and observations:**
+
+| Hypothesis | Probe | Result and limit |
+|---|---|---|
+| Local streaming is absent or always buffers until stop | Transcribe the bundled dictation WAV through the running Connect streaming endpoint | Rejected as a universal explanation: Kyutai returned two partials and a final. This is unpaced file input, not browser or microphone latency evidence. |
+| Startup discovery adds substantial delay | Time ListEngines twice, then compare timed streaming invocations | ListEngines took 10,421 ms, then 3 ms immediately afterward. One warmed stream reached its first partial at 936 ms and completed at 1,148 ms; a later stream reached its first partial at 13,929 ms and completed at 14,149 ms. Cache-sensitive startup is a strong cause candidate. A browser trace is still needed to attribute the user's entire delay. |
+| Existing green tests do not prove the commercial streaming path or user-perceived speed | Inspect production wiring, fixture ownership, evidence calculations, and focused tests | Confirmed by the gaps below. Passing focused tests coexist with missing production hosted routing and insufficient performance assertions. |
+
+**Findings, in priority order:**
+
+1. **Engine discovery performs expensive work on session startup.**
+   `api/internal/sttengine/live.go` probes control-plane resource status and
+   acceleration sequentially, with a 10-second budget per probe and a
+   30-second cache. Both `handlers/stt/stream_ws.go` and the Connect/segmenter
+   path can await that resolver. Independent parallel diagnostic probes took
+   5.4–5.9 seconds for acceleration and 10.8–12.9 seconds for status on this
+   host. These are observations under current load, not model inference times.
+   Move slow inventory refresh out of stream admission, coalesce refreshes,
+   and use bounded provider liveness plus explicit snapshot freshness during
+   admission. Preserve platform and resource policy checks.
+
+2. **Hosted audio routing is unfinished.**
+   `api/internal/bootstrap/providers.go` sets `EnableVrooli` but supplies no
+   Vrooli provider to the STT/TTS/summarize chains.
+   `api/integrations/lpbs/clients/stt_client.go` returns an unimplemented error;
+   its embedded availability implementation always returns false.
+   `api/internal/ai/sttchain/provider_vrooli.go` declares batch-only traits.
+   `api/integrations/lpbs/remote_reporter.go` is also a stub. Its success-shaped
+   return does not prove delivery or billing. Complete an authority-owned
+   streaming session with reserve/settle/cancel semantics before claiming
+   subscription or credit-funded voice readiness. LPBS must own cost-bearing
+   enforcement and idempotent settlement.
+
+3. **Subscription fixtures exist, but are not an audio commercial E2E lane.**
+   LPBS `api/fixture_handlers.go` implements seed/token/balance/zero endpoints;
+   `cli/domains/devfixtures/register.go` exposes the commands. Fixtures write
+   real subscription and wallet tables through request-context database routing.
+   They are not an automatic fake response selected merely because a test runs.
+   The seed currently includes `ai_credits` and a workflow-execution limit.
+   Reuse this authority with leased test storage and propagate test context
+   through every hop. Add a provider-shaped streaming fake behind real audio
+   adapters, with real fixture identity and wallet checks. The existing
+   `internal/testutil/vendorws` and Deepgram adapter tests are useful substrate.
+   `soak.Options` and `conformance.Cell` do not encode account/billing scenarios
+   or expected credit effects.
+
+4. **Some validation claims are stronger than their measurements.**
+   `requirements/evidence/expensive-validation.json` claims an hour of
+   continuous dictation but records 6,400 bytes at 16 kHz PCM16: 0.2 seconds
+   of audio, two chunks, and two events. In
+   `cli/domains/validation/handlers.go`, clean early STT EOF returns success;
+   the sibling TTS worker can consume the remaining hour, after which the
+   overall runner writes success without a minimum STT duration/coverage gate.
+   Current `validation check-freshness` correctly fails on stale/missing
+   qualification, but freshness alone would not fix this evidence defect.
+   Replace this qualification claim with measured audio duration, delivered
+   intervals, transcript quality, and a terminal outcome for the full run.
+
+   The newer browser instrument also needs measurement corrections:
+   `internal/soak/driver.go::realtimeAssertion` compares the last first-partial
+   latency with the first times 1.2; consistently slow runs can pass, and one
+   sample passes trivially. Its `per_frame_cost_constant` assertion measures
+   captured-sample spread across turns, not processing cost. In
+   `packages/audio-capture-browser/src/streamDiagnostic.ts`, committed lag is
+   time since the latest capture callback, not the audio position actually
+   committed. Measure captured-versus-committed sample positions and rendered
+   text events. Start an additional clock at the user's click so permission,
+   capability probing, and connection delays remain visible.
+
+   LPBS `api/monetization_journey.go` returns literal success observations for
+   several operations, including offline access and outbox exactly-once drain;
+   those branches do not execute the behavior they claim. Such observations
+   must not earn behavioral credit in the proposed audio billing matrix.
+
+5. **Portability and adoption need explicit qualification boundaries.**
+   The selectable engine manifest currently contains Whisper and Kyutai.
+   Bootstrap constructs sherpa-streaming, but it is absent from that manifest.
+   Kyutai's Vrooli resource has a qualified Linux amd64 target and explicitly
+   unsupported macOS/Windows/arm64 targets. Sherpa's resource still declares
+   release-publication gates. Upstream sherpa supports multiple operating
+   systems, but upstream support does not prove Vrooli artifact delivery or
+   microphone behavior. Qualify exact model/artifact/OS/architecture/browser
+   combinations and retain unsupported/not-measured outcomes.
+
+   Shared browser capture, AudioWorklet with compatibility fallback, the
+   segmenter, engine capabilities, and thin host adapters already exist.
+   Retain these boundaries. `useVoiceCore.ts` remains 2,104 lines and combines
+   capture lifecycle, VAD, wake words, recovery, transcription, and UI state.
+   Extract cohesive controllers with behavior tests. Preserve the existing
+   shared-import guards. Extend the product-path host adapter contract beyond
+   the soak driver's current audio-tools/swarm-manager choices to Web Console
+   and other adopting apps. Consolidate historical corrections into an explicit
+   current status: the present docs still mix obsolete deferrals with repairs.
+
+**Recommended validation design:** Extend the existing experiment and browser
+soak infrastructure. Use one Test Genie-owned workflow to return durable,
+bounded results for these lanes; do not create another independent pass ledger.
+
+| Lane | What it proves | Required observations |
+|---|---|---|
+| Fast deterministic | Transport, recovery, routing, billing rules | Real adapters with scripted provider events; local/BYOK cause zero hosted charges; subscription and credit-only accounts; insufficient balance; reserve/settle/cancel; duplicate reconnect; partial delivery followed by failure |
+| Short paced product path | User-visible streaming and speed | Real mic button and composer in each host; click-to-capture, speech-to-first-render, update gaps, committed-audio backlog, stop-to-final; warm, expired-discovery-cache, and cold-model cases |
+| Model/corpus evaluation | Accuracy and compute cost | Independent varied speech references, silence/noise/accents/names/numbers, short and long speech, WER and real-time factor; exact provider/model identity |
+| Duration/fault/device qualification | Sustained delivery and platform behavior | Existing duration ladder, bounded retained audio, disconnect/sleep/device-loss faults, OS device lane, artifact fingerprints; target hardware evidence for platform claims |
+
+Add absolute latency limits and percentile sample requirements beside stability
+checks. Set initial product targets explicitly, then validate feasibility per
+supported provider/device: for example, warm capture acknowledgement within
+200 ms, first readable text within 1 second of speech, and stop-to-final within
+1 second. These are proposed targets, not measured guarantees. Keep cold model
+readiness and permission prompts separately classified. Simulations can prove
+policy and protocol behavior; they cannot certify vendor latency, acoustic
+quality, OS permissions, or target-native artifacts.
+
+**Validation performed:** Current-source focused Go tests passed for Audio
+Tools `internal/byok`, `internal/sttengine`, `internal/conformance`,
+`internal/ai/sttchain`, and `integrations/lpbs/clients`. LPBS `TestFixture*`
+passed, including lease-database isolation. Selected monetization package
+billing/journey/outbox tests passed. Live local streaming succeeded; timing
+limits are recorded above. No new browser, long-duration, paid-provider, or
+cross-platform certification run was performed. No fixes are claimed.
+
+**Next repair order:** Correct the evidence assertions and add a bounded
+consumer latency regression; remove discovery delays from admission; complete
+the hosted session and fixture billing lane; then qualify providers and target
+artifacts while extracting the large lifecycle/controller responsibilities.
+
+**Owner:** audio-tools with LPBS, browser-automation-studio, shared browser
+capture, and control-plane resource discovery owners.
+
+### 2026-09-08 — Scenario skills and measurement board established; outcome qualification remains open
+
+**Scope:** Documentation-first pilot setup, not a voice-runtime repair or launch
+certificate. Added canonical usage/improve roles, the service skill declaration,
+and `audio-tools.setpoint-read` with its contract and regression tests. Reused
+engine/health/experiment owner APIs. No audio inference or paid call was initiated.
+
+**Measured:** Governed read `prog_62431410-3e86-4187-a422-ea2646809295`
+read two available engines, one native-streaming engine, four available
+capabilities, and the explicitly selected August 10 experiment report. Its replay
+metrics remained diagnostic; all nine required/pending outcome rows remained
+unknown. Method: `audio-tools-evidence-board-v1`. This is not a fresh quality run.
+
+**Validation:** Run `20260908-193304-952b2cd1` passed the `programs` and
+`skill-set` phases individually at L2. Program execution is enabled by the
+provider descriptor; both declared fixtures were exercised. Local board tests
+cover input admission, missing targets, failed reads/children, stale and mismatched
+reports, missing denominators, nonfinite values, bounds, private payload omission,
+and failing cell verdicts. Three in-memory fault injections were detected by
+behavioral assertions: unknown→accepted, missing WER→zero, and failed child→ok.
+The PRD-to-board target check is structural traceability, not voice evidence.
+Both skill frontmatters and the program JSON Schema validated. A focused check
+resolved 105 file references and the touched docs' required headings.
+
+**Skill validation:** Usage is a scoped CLI/program selection interface; improve
+is judgment inside the existing mandate, not a second scheduler. The operation
+paths resolve in the CLI manifest; role reads resolve through Prompt Manager.
+Manual divergence probes tested (1) a green inventory with unknown outcome rows,
+(2) local repair while billing is undecided, and (3) a read-only caller observing
+a shared-owner defect. The tempting alternate executions—declaring acceptance,
+blocking all local work, or mutating the owner—violate explicit decision rules.
+No divergent compliant disposition was found in these cases. This is an author
+review, not independent-agent behavioral qualification.
+
+**Prose retirement map:** README's absent-skill warning now points to the real
+roles. Repeated inventory aggregation lives in the governed program. TESTING.md
+owns the corpus/device/acceptance review package; MONETIZATION.md alone owns the
+proposed billing policy. PERFORMANCE.md no longer claims no observations exist
+or treats a template build-time allowance as a voice budget. The documentation
+manifest opens the product README and checks its actual headings. No existing
+failure history or approved requirement was removed.
+
+**Validation limitations:** The first run `20260908-192759-10f87576`
+returned aggregate PASS with the advisory programs phase failed on
+`programs.never_exercised`. A prior governed execution cleared that finding;
+later runs passed both phases. Reported the confusing aggregate presentation as
+Scenario QA `knw-1788895738048372481`; do not interpret aggregate PASS alone.
+Structure Health's CLI rebuild failed on module consistency and fell back to a
+stale binary, so its reported docs pass is not current-source validation. Report:
+`knw-1788896021764196204`. No raw dependency repair was attempted.
+
+**Remaining work:** Adopt the reviewed proposal through the product owner before
+changing the published PRD/requirements; nominate physical devices and authorized
+recordings; build and pin the proposed `voice-pilot-en-v1` corpus; resolve the
+shared billing policy decisions; implement authoritative current-receipt joins
+for the unknown outcome rows. The board is a working diagnostic instrument, not
+a completed autonomous product-acceptance gate. Runtime streaming, soak,
+cross-device, BYOK and hosted monetization qualification remain untested by this
+setup pass. These limitations do not block authorized local diagnosis and repair.
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)
@@ -1097,12 +1386,23 @@ cannot credit that run. Future runs use the corrected source identity
 
 ## Work ladder
 
-- Rung: W0 (goal/problem contract comparison)
-- Evidence: The deterministic named-mention search `swarm-manager goals list --json | jq ... test("audio-tools")` returned no matching swarm-manager goal. The user-supplied reliability objective and plan remain the active contract; the PRD's P0 targets cover long-form no-loss trust, provider-parity trust floors, and explicit speaker-policy safety. No unrelated goal was substituted.
-- Historical constraint: the formal W0 comparison was unverifiable without a named swarm-manager goal, and physical-microphone confirmation was never the intended automated claim. The current qualification lane uses a named Swarm Manager workflow and PipeWire device evidence to prove the operating-system capture path; it does not claim any particular microphone's analog front end.
-- Measured: 2026-08-18.
+Interpret these dated observations under the current `scenario-work-ladder`
+skill and [development contract](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
+A missing named Swarm goal is not itself a contract defect: explicit user intent,
+an authorized plan, and product requirements can supply the target. An unavailable
+search and a successful search with no match are different evidence states.
+Neither permits a claim that unread requirements or failed gates have passed.
 
-- Rung: W3 (implementation/evidence)
-- Evidence: The named-goal W0 search returns only archived `hosted-cloud-tier-foundation` and `portal-front-door`; neither contradicts this speech-stack work. The current implementation and focused gates pass, while the server-owned audio-tools suite remains terminally failed on broad repository conformance/infrastructure checks rather than a speech-specific regression.
-- Blocker: None for targeted implementation; full-suite completion remains an environment/repository validation prerequisite.
-- Measured: 2026-08-31.
+- **2026-08-18, W0 observation:** the named-mention search returned no matching
+  Swarm goal. The user-supplied reliability objective and plan supplied the active
+  contract, aligned with the PRD's P0 trust and speaker-policy targets. The earlier
+  conclusion that a named goal was mandatory is superseded. PipeWire qualification
+  concerns the operating-system capture path, not a physical microphone's analog
+  front end.
+- **2026-08-31, W3 observation:** the search found only archived
+  `hosted-cloud-tier-foundation` and `portal-front-door`; neither contradicted the
+  speech-stack work. That pass reported passing focused gates and a terminally
+  failed broad suite on repository conformance/infrastructure checks. These are
+  historical results, not current certification. Choose subsequent validation by
+  actual impact under the [test protocol](../../../../docs/TESTING.md), and retain
+  the failed suite when reporting evidence.

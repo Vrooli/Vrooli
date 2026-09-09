@@ -61,7 +61,7 @@ describe("AppShell", () => {
 
   it("renders the primary nav (sidebar)", () => {
     renderShell();
-    expect(screen.getByRole("complementary", { name: strings.shell.primaryNav })).toBeInTheDocument();
+    expect(screen.getByTestId("audio-tools-app-shell-sidebar")).toBeInTheDocument();
   });
 
   it("renders the top bar header", () => {

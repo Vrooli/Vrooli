@@ -27,6 +27,15 @@ make test
 
 Do not start API/UI binaries directly. The lifecycle owns process
 naming, ports, health checks, and logs.
+Use scoped Test Genie phases under [TESTING.md](../internal/TESTING.md) for
+ordinary iteration; a full suite is reserved for the declared certification scope.
+
+For a slow or failed voice turn, inspect the selected route and safe turn
+diagnostic first. Separate discovery, permission, capture, admission, first
+displayed partial and final drain. Do not repair a session by switching it to a
+paid route, clearing retained audio or increasing a timeout without evidence.
+If lifecycle status conflicts with a healthy endpoint, verify the served build
+through managed lifecycle before attributing behavior to current source.
 
 ## Common Incidents
 
@@ -39,13 +48,16 @@ naming, ports, health checks, and logs.
 
 ## Backup / Restore
 
-The generated template uses local SQLite state. Product scenarios must
-define backup and restore procedures before production deployment.
+Audio Tools stores real credentials, configuration, corpus and experiment state.
+Keep encrypted credentials and their key material recoverable under the secret
+owner's policy; a database-only copy is not a complete restore. Define and test
+coherent backup/restore before production deployment. Do not copy private audio
+into general work records or use production wallets for recovery tests.
 
 | Data | Backup Procedure | Restore Procedure | Status |
 |---|---|---|---|
 | SQLite database | deferred | deferred | Define before deployment. |
-| Blob files | deferred | deferred | Define if binary/blob domains remain. |
+| Corpus/experiment blobs, browser/server recovery data and secret material | owner-specific procedure required | prove compatibility and access/retention controls | Required for applicable production data; no tested restore is asserted here. |
 
 ## Maintenance Tasks
 

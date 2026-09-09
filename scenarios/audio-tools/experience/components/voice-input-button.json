@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
   "component": {
@@ -8,7 +8,11 @@
     "purpose": "Expose an accessible microphone control whose visual level, timeout, and always-on states communicate capture state.",
     "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/3.0.0/story.json"
   },
-  "priorities": [{ "statement": "The control always communicates whether voice input can start, is preparing, is recording, or has failed." }],
+  "priorities": [
+    { "statement": "The control always communicates whether voice input can start, is preparing, is recording, or has failed." },
+    { "statement": "The surrounding host surface distinguishes listening from transcription and final drain; a recording animation is not delivery evidence." },
+    { "statement": "The host shows processing destination, incremental versus batch capability and actionable recovery without silently entering a paid or remote route." }
+  ],
   "states": [
     { "id": "idle", "example": "idle", "description": "Ready to start voice input." },
     { "id": "recording-low", "example": "recording", "description": "Recording with a low audio level." },

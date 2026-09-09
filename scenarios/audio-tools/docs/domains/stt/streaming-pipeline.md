@@ -22,13 +22,14 @@ For the unary `Transcribe` path, see
 
 ## Latency expectation
 
-The current Linux Whisper medium CPU configuration is intentionally declared
-as CPU-only because no pinned Linux CUDA server is available at the selected
-release. The same-corpus measurement is approximately 5.3 seconds for a
-two-second clip; this is above the 2.5-second interactive target and is an
-honest expectation, not a hidden performance claim. A future accelerator or
-smaller-model change must repeat the quality smoke and latency measurement
-before changing the declaration.
+The August 18 investigation recorded approximately 5.3 seconds for a two-second
+clip on its selected Linux Whisper medium CPU configuration. Its referenced
+2.5-second interactive target is historical context, not the newly adopted
+portable-voice-v1 acceptance band. That observation does not establish current
+accelerator availability or browser-visible latency. The candidate cohort SLOs
+now live in [TESTING.md](../../internal/TESTING.md), and clocks/denominators in
+[PERFORMANCE.md](../../internal/PERFORMANCE.md). A model or accelerator change
+needs renewed quality and latency evidence before promotion.
 
 ## Two Axes, One Pipeline
 
@@ -67,30 +68,15 @@ WebSocket and Connect bidi surfaces translate their wire formats into the
 shared `sttchain` event stream; they do not select providers or implement
 their own retention policy.
 
-```
-┌─────────────────────────┐         ┌──────────────────────────────┐
-│  /api/v1/voice/stream   │         │  STT.TranscribeStream        │
-│  (WebSocket — browser)  │         │  (Connect bidi — non-browser)│
-│  handlers/stt/          │         │  handlers/stt/               │
-│    stream_ws.go         │         │    transcribe_stream.go      │
-└──────────┬──────────────┘         └──────────────┬───────────────┘
-           │                                       │
-           │ delegates to                          │ accumulates all
-           ▼                                       │ chunks, then calls
-┌──────────────────────────────┐                   ▼
-│  Segmenter + sttchain         │      ┌──────────────────────────────┐
-│  ─────────────────────────   │      │  Batch strategies             │
-│  Shared pipeline owns:       │      │  VADSegment / OverlapAgree / │
-│    • strategy selection      │      │  BufferedFallback             │
-│    • provider identity       │      │  call native whisper.cpp      │
-│    • bounded retention       │      └──────────────────────────────┘
-│    • speaker/policy gates    │
-│    • durable event ordering  │      ┌──────────────────────────────┐
-└──────────────────────────────┘      │  Native streaming strategies │
-                                      │  Kyutai or sherpa-streaming  │
-                                      │  emit partials, segments,    │
-                                      │  processed acks, and done.    │
-                                      └──────────────────────────────┘
+```text
+browser WebSocket framing       Connect bidi framing
+              \                     /
+               shared STT session/segmenter boundary
+                 -> ingress PCM and policy
+                 -> compatible provider + strategy
+                    -> native incremental OR bounded batch strategy
+                 -> egress policy and canonical interval accounting
+                 -> partial snapshots, stable commits, acknowledgements, terminal outcome
 ```
 
 The shipped implementation provides:
@@ -118,9 +104,13 @@ one-shot or buffered transcription. Buffered recovery remains an explicit,
 bounded error-recovery path for an already-started stream; one-shot mode must
 be selected explicitly when a caller wants batch transcription.
 
-The remaining work is qualification, not missing architecture: clean
-15/60-minute real-time device evidence, same-corpus comparison reports, and
-signed target-native resource publication are still required before promotion.
+Existing session and strategy machinery is substantial, but the full product
+still needs implementation as well as qualification: explicit route/consent
+policy, actual owned delivery and settlement, complete measurement joins and
+paced/native consumer evidence. Inspect engine manifest and bootstrap separately;
+the presence of a sherpa adapter does not establish selectable published support.
+The required duration, corpus, model artifact and device gates remain open where
+no compatible current receipt exists.
 
 ## Target Architecture
 
@@ -480,8 +470,10 @@ Audio Tools run is never presented as Swarm Manager evidence.
 - Slightly more interface plumbing than a single hardcoded
   `voice.Service`. The payoff is that the Vrooli rule "don't add
   abstractions beyond what the task requires" is satisfied by the
-  PRD: §P0-005 already commits to 5 BYOK starter adapters spanning
-  all three techniques, so the matrix is real on day one.
+  actual batch and native-streaming adapters already require different
+  techniques. PRD OT-P0-004, OT-P0-008 and OT-P1-003 now own portable routing
+  and replaceability; the former five-starter-adapter commitment is not the
+  current PRD target.
 - Strategies have to declare their CPU/latency profile so the selector
   can implement `auto` mode coherently. This is one extra metadata
   table, not a real cost.
@@ -506,3 +498,11 @@ browser speech is the final client-side fallback. BYOK credentials are managed
 through `audio-tools settings providers` and are never returned by health or
 capability endpoints. A missing credential is reported as an actionable,
 optional provider absence rather than as a failure of unrelated capabilities.
+
+The preceding tier-selection description is existing implementation context,
+not the full consent contract. Native browser speech may use an external
+service and cannot be advertised as local/offline merely because it is exposed
+by a browser API. Under OT-P0-004, any fallback must satisfy prior processing
+destination and spend policy and show the actual route and capability. A stored
+credential or selected browser fallback is not proof that those controls are
+qualified.

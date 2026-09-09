@@ -1,137 +1,143 @@
 # Monetization — Audio Tools
 
-This document records how the scenario could create revenue or support
-a monetizable Vrooli capability. Keep it honest: `not-applicable` is
-better than inventing a commercial story.
-
 ## Purpose Of This Document
 
-Use this document to answer:
-
-- Is this scenario a direct product, internal capability, SKU component,
-  add-on, or service accelerator?
-- Who would pay for it, and why?
-- What packaging or pricing hypothesis exists?
-- What validation signal would justify more investment?
-
-> **Status: active — the three-tier chain is already built here.**
->
-> This document said `deferred`; the code does not. `docs/concepts/INTEGRATIONS.md`
-> documents a shipped **local → BYOK → Vrooli** chain across all three
-> capabilities, with every local resource marked `required: false` so the
-> scenario runs cleanly with zero local models. That is the monetization model
-> in `path:docs/monetization/evidence/FINANCIAL_MODEL.md` already implemented —
-> the doc was drifted, not the product.
+Define Audio Tools' commercial role and the evidence needed before its owned
+subscription/credits route can be sold as working capability. This document does
+not establish pricing, approve paid tests, or report hosted-service readiness.
 
 ## Role In Vrooli
 
-- **Direct product: yes, candidate.** Local, privacy-aware dictation and TTS is
-  standalone-appealing — it does not require the rest of the fleet.
-- **Internal capability: yes.** Consumed by web-console today, with
-  swarm-manager, agent-manager, and phone-agent named as future consumers.
-- **SKU/bundle candidate: yes.** Not yet in
-  `path:docs/monetization/catalogs/scenario-sku-map.json`; that file is governed
-  (`catalog-strategist` proposes, human curates), so propose rather than edit.
-- **Revenue line: gateway-driven variable cost**, same shape as every Tier 1/2
-  line in the financial model.
+Audio Tools is a shared capability whose hosted voice features can add value to
+Vrooli subscriptions and credits in consuming apps. Local compute and BYOK remain
+explicit alternatives. Their availability does not authorize billing those modes.
 
-## The Three-Way Chain (already implemented)
-
-| Capability | Rung 1 — local | Rung 2 — BYOK | Rung 3 — Vrooli |
-|---|---|---|---|
-| STT | `whisper` batch and optional `sherpa-onnx` streaming resource | `openai-whisper`, `deepgram` | LPBS-gated |
-| TTS | `sherpa-onnx` native adapter with the Kokoro voice catalogue | `openai-tts`, `elevenlabs` | LPBS-gated |
-| Summarize | `ollama` resource | `openrouter` | LPBS-gated |
-
-Credentials travel per-request in `X-Audio-BYOK-{Provider,Key}`; the Vrooli tier
-authenticates with `X-Audio-LPBS-Token`. Adapters never log unredacted keys.
-
-**Every local resource is `required: false`.** A user with no local models and
-no key of their own still gets a working product through rung 3 — which is
-precisely the subscriber the financial model describes.
-
-### Open gaps
-
-- **Rung 3 is gated off.** `AUDIO_AI_ENABLE_VROOLI=false` until
-  `execute/lpbs-audio-gateway-endpoints` ships. The revenue rung is built and
-  switched off, so nothing here is billable yet.
-- **This chain bypasses ai-gateway.** It reaches the subscription directly
-  through landing-page-business-suite, while `scenarios/ai-gateway` is the
-  fleet's designated inference router and carries the route-evidence metering
-  (`OT-P1-007`). Two independent paths to one subscription will produce two
-  metering stories and two billing bugs. Convergence is a prerequisite for
-  trustworthy unit economics — tracked in ai-gateway's monetization doc as well.
-- **Audio does not meter in tokens.** STT bills per minute of audio and TTS per
-  character or per generated second. A token-only credit allowance will
-  mis-price audio in either direction. The allowance model needs a second unit
-  before audio can be included in a Tier 1 bundle.
+Keep entitlement, wallet, inference metering, and settlement rules with their
+shared owners. Consumer UIs present the selected route and its consequences;
+they must not implement private pricing or settlement ledgers.
 
 ## Customer / Buyer
 
-- **Primary user:** someone who dictates regularly and wants it private, local,
-  and reliable across interruptions — the trust properties in `OT-P0-001`.
-- **Buyer (subscription):** the same user at the moment they have no capable
-  local hardware and no provider account, or who wants transcription on a phone
-  where local models are not viable. Mobile is a strong rung-3 case precisely
-  because rung 1 is weakest there.
-- **Pain:** cloud dictation means sending voice to a third party; local
-  dictation means managing models and hardware; neither travels across devices.
-- **Existing alternatives:** OS built-in dictation (free, shallow, cloud-backed),
-  Otter/Rev/Descript (hosted subscription, no local option), raw Whisper (free,
-  requires setup). The differentiator is that **the same product runs fully
-  local, fully BYOK, or fully hosted** with no change in behaviour.
-
-## Customer / Buyer
-
-- Primary user: define during PRD generation.
-- Buyer: define during monetization review.
-- Pain: define from demand evidence.
-- Existing alternatives: capture through market validation.
+The intended user needs dependable dictation across devices, with an explicit
+choice of local processing, their own provider account, or an owned hosted service.
+The hosted buyer may lack suitable local hardware or prefer managed capacity.
+These are product hypotheses; willingness-to-pay evidence is not established here.
 
 ## Packaging
 
-| Packaging Option | Status | Notes |
-|---|---|---|
-| Standalone app | deferred | Revisit after first real domain is implemented. |
-| Bundle component | deferred | Map in project-level monetization catalog if promoted. |
-| Add-on | deferred | Use only when scenario clearly extends another SKU. |
-| Service/consulting assist | deferred | Consider if this scenario accelerates done-for-you delivery. |
+| Option | Decision state |
+| --- | --- |
+| Subscription allowance / purchased credits for hosted features | Intended commercial route; pricing, metering, and qualification remain prerequisites. |
+| Shared capability included in consuming applications | Intended reuse model; each consumer needs product-path evidence. |
+| Standalone application or separate add-on SKU | Candidate, not an approved catalog entry or launch commitment. |
+
+Use the [project monetization canon](../../../../docs/monetization/README.md)
+and its governed catalog for packaging decisions. This file is not a second catalog.
 
 ## Pricing Hypothesis
 
-- **Model:** free and fully functional on rung 1 or rung 2; revenue only on
-  rung 3, as part of a subscription allowance rather than a per-scenario price.
-- **Comparable products:** hosted transcription services price per minute;
-  consumer dictation apps price per month. Both anchors are useful, and they
-  disagree — which is why the metering unit matters more here than the number.
-- **Willingness-to-pay evidence: none captured.**
-- **Cost drivers:** wholesale STT minutes, TTS characters, and summarize tokens.
-  **Unlike LLM-only scenarios, cost is dominated by audio duration rather than
-  token count.** Long-form dictation (`OT-P0-001`) is explicitly a supported
-  workload, so the heavy-user tail is longer here than in text scenarios and
-  needs metering before a bundle includes it.
+Charge for the owned hosted service through shared subscription/credits policy,
+not a new per-consumer mechanism. Do not infer an automatic switch into a paid
+route merely because local inference or BYOK fails.
+
+The commercial owner must define billable units and settlement for each operation:
+audio input duration, generated speech units, and summarization usage need not share
+one meter. Cost accounting, retail credits, and provider invoices are different
+quantities. Specify reservation, partial service, cancellation, retries, and
+concurrent usage before asserting the expected charge.
+
+The proposal below makes settlement decisions reviewable. The existing
+[pilot decision sheet](../internal/TESTING.md#pilot-decision-sheet-and-safe-first-slice)
+links to this policy instead of maintaining another version. No numeric price,
+credit conversion, or paid-test allowance is granted here.
+
+## Proposed voice billing policy v1
+
+Status: proposed for product and shared-monetization-owner review, not deployed
+behavior. This policy covers owned hosted STT first. TTS and summarization require
+their own reviewed meters before sale; copying the STT duration meter is invalid.
+
+| Decision | Proposed rule | Required proof before adoption / launch |
+| --- | --- | --- |
+| Route consent | Local and BYOK produce zero Vrooli voice-credit debit. BYOK can still incur the user's provider bill. Owned service requires an explicit selected route or previously approved user fallback policy. | Local/BYOK failures, revoked keys and insufficient balance cannot silently switch to owned service; UI states actual processing destination |
+| Price identity | Resolve a versioned shared catalog meter and quote before admission. Preserve that version for the session. Reject an unavailable quote rather than assuming free service. | Catalog version, meter, account, operation and session attribution reconcile; no retail conversion is hardcoded in consumers |
+| STT service unit | Meter unique audio duration acknowledged as processed under the hosted contract, using sample counts and sample rate. Silence is still processed input. Do not bill wall-clock connection time, duplicate/replayed intervals or local retained-but-unsent audio. | Known-duration, silence, resampling and duplicate/reconnect fixtures produce the same unique interval count |
+| Admission | Shared owner atomically authorizes entitlement and reserves a bounded next service window before processing it. Subscription allowance is used before eligible purchased credits; overage requires the user's credit-spend policy. | Two concurrent sessions cannot reserve the same remaining balance; inactive entitlement and zero balance return explicit refusal |
+| Exhaustion / outage | Stop admitting new billable windows when authorization is exhausted or unavailable. Finalize already authorized work and expose unsent audio as retained/recoverable according to the capture contract. | Mid-stream exhaustion, authorization outage and delayed settlement do not create free unbounded processing or silently discard captured input |
+| Partial service / cancel | Settle only delivered, uniquely processed intervals up to acknowledged cancellation; release unused reservations. No minimum-session fee is proposed. Billable delivery acknowledgement and the cancellation boundary must be durable. | Cancel before delivery yields zero debit; cancel after partial delivery charges that subset only; retained output can be recovered without another debit |
+| Retry / crash | Use stable operation, session and interval identities and an idempotent shared settlement key. Provider retries and browser replays do not create another customer charge. Reconciliation releases or settles stranded reservations from durable evidence. | Duplicate delivery, response loss after debit, process restart, replay and concurrent retry each preserve one ledger effect |
+| Service failure | With no durable delivery acknowledgement, release the affected reservation. For partial acknowledged delivery, settle only the proven subset. Provider cost and customer charge remain separate accounts. | An upstream invoice or HTTP success alone cannot trigger customer settlement |
+| Reconciliation and privacy | LPBS/shared metering owns ledger truth. Audio Tools owns interval/delivery evidence and passes metadata-only attribution. Expose usage/charge status without storing transcripts or credentials in billing logs. | Session evidence and ledger receipts reconcile; missing receipt is pending/unknown rather than assumed paid or free |
+
+Before adoption, the shared owners must resolve delivery acknowledgement across
+client disconnect/recovery, reservation-window size, retention/reconciliation
+deadline, rounding/credit conversion, allowance renewal boundaries, and refund
+operations. These affect money and cannot be inferred from available fixture
+endpoints. If an existing shared policy differs, choose and record one policy;
+do not install a competing Audio Tools implementation.
+
+### Simulation contract
+
+Use LPBS-owned routed fixture identity for account, subscription and wallet state.
+Use an independent provider fake for successful partials, delayed finals and
+failure. Propagate the same test identity and session/meter correlation through
+the real shared monetization adapter. Fixture activation must be explicit and
+isolated from production credentials and balances. A process named `test` is not
+authorization to seed or use a production account.
+
+For each policy row, assert both the user-visible outcome and the shared ledger
+delta, reservation remainder, uniqueness of settlement, and delivery evidence.
+Include active/expired subscription, allowance-only, credits-only, exhausted
+allowance with permitted/forbidden overage, simultaneous admission, canceled
+delivery, retry after debit, and unavailable authorization. Record the policy
+revision and fake/live boundary in receipts. An entitlement-only test does not
+qualify settlement; a settlement simulation does not qualify hosted inference.
+
+Initial test spending is zero paid calls and zero purchases. A later live grant
+must name providers, accounts, data scope, aggregate cost cap across retries and
+child runs, and stop conditions. Seeded balances are not a live spending grant.
 
 ## Validation Plan
 
-- **Demand signal needed:** rung-3 fall-through — the share of users running
-  neither local models nor BYOK. Mobile users are the expected concentration.
-- Channel: define in [`GO-TO-MARKET.md`](GO-TO-MARKET.md).
-- Success threshold: define from project-level monetization taxonomy.
-- Revisit trigger: first real domain reaches validated scenario tests
-  and has a clear user/customer.
+Reuse the [pilot evidence matrix](../internal/TESTING.md#development-pilot-evidence-contract)
+instead of another commercial test ledger. LPBS-owned routed fixtures establish
+subscription/wallet test state; a separate inference fake establishes provider
+behavior. Neither establishes live hosted delivery or production settlement.
+
+Before making a paid-capability claim, retain applicable evidence for the selected
+route, entitlement, inference delivery, usage attribution, and reviewed settlement
+policy. Demonstrate insufficient balance, cancellation, duplicate/retried delivery,
+and concurrent usage. Qualify the consumer-facing voice path as well as the service
+boundary. Live provider calls need an explicit spending grant.
 
 ## Current Status
 
-`draft` — the three-tier chain is implemented and documented in
-`docs/concepts/INTEGRATIONS.md`. Rung 3 is switched off pending
-`execute/lpbs-audio-gateway-endpoints`. Two open questions gate inclusion in a
-paid bundle: a per-minute/per-character metering unit, and convergence with
-ai-gateway rather than a direct LPBS path.
+Source inspected on 2026-09-08: the three provider chains have local/BYOK wiring,
+but hosted delivery is not merely a completed feature behind a disabled flag.
+`BuildChains` supplies no Vrooli provider; the LPBS STT, TTS, and summarization
+clients return “gateway endpoint not implemented,” and shared availability is false.
+A user without local capability or usable BYOK therefore cannot rely on an owned
+hosted fallback today.
+
+The [integration inventory](../concepts/INTEGRATIONS.md#scenario-dependencies)
+owns those source references. The [problem register](../internal/PROBLEMS.md)
+retains investigation evidence. Resolve shared AI Gateway/LPBS routing and metering
+ownership during implementation; do not infer a finished integration from names,
+a feature flag, or a test fixture.
+
+The `portable-voice-v1` PRD includes this commercial scope in OT-P0-007, explicit
+route consent in OT-P0-004, and isolated simulation in OT-P0-010. Requirements
+ATD-P0-012, ATD-P0-013 and ATD-P0-017 make the missing delivery, settlement and
+fixture obligations visible as planned work. Publishing those obligations does
+not adopt the proposed meter, prices, cancellation boundary or spend allowance.
+Hosted inference integration is not, by itself, authorization to build the
+multi-tenant GPU platform excluded by the current PRD.
 
 ## Cross-References
 
-- [`../START-HERE.md`](../START-HERE.md) — orientation workflow
-- [`../../PRD.md`](../../PRD.md) — product requirements
-- [`GO-TO-MARKET.md`](GO-TO-MARKET.md) — channel and launch plan
-- [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md) — telemetry needed for business validation
-- [`../../../../docs/monetization/README.md`](../../../../docs/monetization/README.md) — project-level monetization strategy
+- [PRD](../../PRD.md) — current operational targets
+- [Architecture](../concepts/ARCHITECTURE.md#development-target-portable-streaming-voice) — intended portable voice boundaries
+- [Integrations](../concepts/INTEGRATIONS.md) — current dependency and provider wiring
+- [Testing](../internal/TESTING.md) — fixture and qualification contract
+- [Go-to-market](GO-TO-MARKET.md) — channel hypotheses
+- [Project monetization](../../../../docs/monetization/README.md) — commercial authority

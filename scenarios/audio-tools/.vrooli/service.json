@@ -1,6 +1,18 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "skills": {
+    "usage": {
+      "source": "skills/audio-tools/SKILL.md",
+      "programs": ["audio-tools.setpoint-read"]
+    },
+    "improve": {
+      "source": "skills/audio-tools-improve/SKILL.md",
+      "programs": ["audio-tools.setpoint-read"]
+    },
+    "feature": [],
+    "waivers": {}
+  },
   "storage": {
     "entries": {
       "data": {

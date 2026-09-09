@@ -5,6 +5,15 @@ audio-tools' configuration surface. It explains how BYOK credentials,
 voice-id overrides, and provider routing flags are stored, edited,
 and pushed into the live provider chains.
 
+PRD `portable-voice-v1` distinguishes global tier configuration from user route
+and spend consent (OT-P0-004), compatible capabilities (OT-P0-008), and protected
+credentials (OT-P0-009). Enable flags alone do not implement an owned gateway,
+authorize a remote fallback or establish account isolation. The settings below
+describe existing storage and adapters; the full route-policy qualification is
+still planned. Read [INTEGRATIONS.md](../../concepts/INTEGRATIONS.md) before
+advertising hosted delivery and [SECURITY.md](../../internal/SECURITY.md) before
+multi-user deployment.
+
 Read this first when:
 
 - adding a new persisted operator-tunable lever,
@@ -182,12 +191,11 @@ the key requires re-upserting every credential.
 | Encryptor `Open` failure (corrupted ciphertext) | Returns `(false, err)` from `byokstore.Store.Get` → chain sees the key as missing and skips the BYOK tier |
 | `last_used_at` update fails | Silently swallowed — chain dispatch proceeds with the plaintext key |
 
-Note that the chain layer treats "BYOK key not found" and "BYOK key
-decrypt failed" identically: both result in the BYOK tier being
-skipped for that request. This is intentional — a partial-state
-failure should not surface as a user-visible error during a TTS call;
-the operator sees it in the next `ListBYOKCredentials` response where
-the row is gone or shows a fresh `created_at`.
+The existing chain may skip BYOK when key retrieval fails. Do not treat that as
+authorization for a different processing destination or paid tier. The target
+requires a visible route/recovery reason under prior policy. A credential-list
+row or timestamp cannot prove successful decryption or explain a failed request;
+qualify missing, corrupted and revoked-key paths explicitly.
 
 ## Capacity Notes
 

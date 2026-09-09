@@ -108,14 +108,14 @@ describe("App", () => {
   it("renders the app title in the top bar", async () => {
     renderApp();
     await waitFor(() => {
-      expect(screen.getByText(strings.app.title)).toBeInTheDocument();
+      expect(screen.getByTestId("audio-tools-app-shell-brand")).toHaveTextContent(strings.app.title);
     });
   });
 
   it("renders the primary nav (sidebar)", async () => {
     renderApp();
     await waitFor(() => {
-      expect(screen.getByRole("complementary")).toBeInTheDocument();
+      expect(screen.getByTestId("audio-tools-app-shell-sidebar")).toBeInTheDocument();
     });
   });
 

@@ -6,21 +6,32 @@
 
 ### Transcribe (STT chain)
 
-```
-client (consumer scenario)
-  └─ Connect-RPC: STTService.Transcribe
-       └─ handlers/stt.connectHandler.Transcribe
-            └─ extract creds from X-Audio-BYOK-{Provider,Key} + X-Audio-LPBS-Token
-                 └─ sttchain.Chain.Execute
-                      ├─ enableBYOK && BYOKKey ?
-                      │    └─ byok.Adapter[BYOKProvider].Transcribe -> Result (return)
-                      ├─ enableVrooli && LPBSToken ?
-                      │    └─ lpbs.STTClient.Transcribe -> Result OR ErrInsufficientCredits (short-circuit)
-                      └─ enableLocal ?
-                           └─ voice.Service.Transcribe -> Result
+The existing API/CLI/consumer transports enter Audio Tools' shared STT chain
+and session/segmenter machinery. Speech tier order is configurable (currently
+local-first); a tier flag does not instantiate a provider. See
+[INTEGRATIONS.md](INTEGRATIONS.md) for actual wiring: local/BYOK adapters exist,
+but the Vrooli provider is not supplied by the inspected bootstrap.
+
+Target flow for PRD OT-P0-004 through OT-P0-010:
+
+```text
+consumer voice action and prior route/data/spend policy
+  -> bounded capability selection and explicit preparation state
+  -> microphone/capture + session admission
+  -> local or BYOK adapter
+     OR shared owned-service authorization/reservation -> inference adapter
+  -> revisable partials + stable committed intervals
+  -> stop/cancel/fault -> final drain or explicit retained/recoverable outcome
+  -> owned route only: shared delivery/settlement reconciliation
+  -> owner-backed outcome receipt and metadata-only diagnostics
 ```
 
-Termination: first success returns. `ErrInsufficientCredits` from Vrooli short-circuits — chain does NOT fall through to Local. `ErrUnknownBYOKProvider` / `ErrMissingBYOKProvider` terminates without fallback.
+Route selection, permission, capture and provider readiness are separate events;
+capture may buffer only within its declared limits. Batch-only adapters expose
+that limitation rather than fabricating incremental text. A provider failure
+may enter another route only under previously authorized policy. Do not infer
+subscription consent from a lower-tier fallback or a post-response notification.
+Owned-service arrows above are target behavior, not a completed gateway.
 
 ### Synthesize (TTS chain)
 
@@ -31,7 +42,7 @@ voice canonical id → voice_overrides["tier:provider-id"] (if any) → adapter 
 
 ### Summarize (Summarize chain)
 
-Same chain shape; Local path goes through `tts.Summarizer` (Ollama backend); BYOK path goes through `openrouter` adapter.
+Same policy-permitted tiering concept, with capability-specific ordering. Local summarization uses `internal/summarize` (Ollama); BYOK uses its OpenRouter adapter. Hosted summarization remains unimplemented in the inspected LPBS client.
 
 ### Browser-voice WS session
 
@@ -56,7 +67,7 @@ transport VAD reports speech_start during in-flight TTS
        └─ EmitEvent(BargeInCancel)  ── observers see the cancel
 ```
 
-P95 target: ≤ 100 ms from VAD event to observer notification (OT-P0-008).
+Historical design candidate: p95 ≤ 100 ms from VAD event to observer notification. This is not an adopted portable-voice-v1 SLO or OT-P0-008's meaning; review a separate TTS/barge-in acceptance band under OT-P1-004.
 
 ### Web-console adoption call
 
@@ -68,14 +79,18 @@ web-console handler / orchestration
                  └─ resolver.Invalidate() → next call re-resolves URL
 ```
 
-### Usage reporting (Vrooli tier; flag-off today)
+### Usage reporting and owned settlement
 
-```
-Chain.Execute completes via Vrooli tier
-  └─ integrations/lpbs.Reporter.Submit(UsageReport{OperationID,UserIdentity,Amount,...})
-       └─ Reporter goroutine deliver(): 3 attempts at 500ms / 1s / 2s exponential backoff
-            └─ POST to LPBS usage endpoint (idempotent by OperationID)
-```
+Current handler usage recording feeds bounded asynchronous local history.
+It can drop rows under pressure and is not the authoritative customer ledger.
+The LPBS remote reporter is a placeholder; its existence does not establish a
+durable remote write. See [Usage reporting](../domains/usage/reporting.md).
+
+The owned-service target requires shared authorization before billable work,
+stable operation/session/interval identity, durable delivery evidence, idempotent
+settlement and recovery of stranded reservations after cancellation or restart.
+The policy and simulation cases live in [MONETIZATION.md](../business/MONETIZATION.md).
+A missing receipt is pending/unknown, not a zero charge or proof of free service.
 
 This document is the canonical workflow and state-transition map for
 the scenario. Use it when behavior depends on ordered states, retries,

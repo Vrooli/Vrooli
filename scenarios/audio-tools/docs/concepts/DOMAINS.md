@@ -1,5 +1,11 @@
 # Domains — Audio Tools
 
+The target links below use PRD `portable-voice-v1` (2026-09-09), not the retired
+pre-dictation numbering. They express obligations, not current completion. Shared
+consumer adoption, hosted delivery and platform support require the evidence in
+[TESTING.md](../internal/TESTING.md); see [INTEGRATIONS.md](INTEGRATIONS.md) for
+actual provider wiring. The old embed package is not an adoption surface.
+
 This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
@@ -21,23 +27,23 @@ belong in [`DATA.md`](DATA.md).
 
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
 |---|---|---|---|---|---|---|
-| stt | Speech-to-text (batch + streaming) with three-tier provider routing. | Streaming / chain-routed | Stream config, wakeword phrases, enrolled speaker embeddings, transcription usage rows. | API, CLI, UI, WS, Embed | OT-P0-001, OT-P0-007, OT-P0-008, OT-P1-014 | `api/internal/stt/`, `api/internal/ai/sttchain/`, `api/handlers/stt/`, `cli/domains/stt/`, `ui/src/audio-integration/hooks/voice/VoiceStreamProvider.tailDrop.test.ts`, `ui/src/audio-integration/turnJournal.test.ts`, `ui/src/features/diagnostics/`, `embed/`, `bas/cases/01-foundation/01-dictation/deterministic-incomplete-coverage.json`, `bas/cases/01-foundation/01-dictation/deterministic-provider-busy.json`, `bas/cases/01-foundation/01-dictation/deterministic-microphone-smoke.json`, `packages/proto/schemas/audio-tools/v1/stt/` |
-| tts | Text-to-speech synthesis (batch + streaming) with on-disk cache. | Synthesis / chain-routed | Voice catalog snapshot, TTS config, content-addressable audio cache, playback events. | API, CLI, UI, Embed | OT-P0-002, OT-P0-006 | `api/internal/tts/`, `api/internal/ai/ttschain/`, `api/handlers/tts/`, `cli/domains/tts/`, `ui/src/features/diagnostics/`, `embed/`, `packages/proto/schemas/audio-tools/v1/tts/` |
-| summarize | Text summarization with normalization preprocessing. | Inference / chain-routed | Per-call usage rows. | API, CLI, UI | OT-P0-003, OT-P0-006 | `api/internal/summarize/`, `api/internal/ai/summarizechain/`, `api/handlers/summarize/`, `cli/domains/summarize/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/summarize/` |
-| audio | Audio file processing (transcode/trim/merge/split/fade/volume/normalize/metadata). | Pipeline / shellout | None (operates on multipart payloads). | API, CLI, UI | OT-P0-004 | `api/internal/audio/`, `api/handlers/audio/`, `cli/domains/audio/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/audio/` |
-| session | Voice-session pub/sub fan-out for live STT + TTS streams. | Pub/sub / streaming | Ephemeral in-memory session state. | API, WS | OT-P0-007, OT-P0-008 | `api/internal/session/`, `api/handlers/stt/stream_ws.go`, `api/handlers/session/`, `packages/proto/schemas/audio-tools/v1/session/` |
-| settings | Operator configuration: provider defaults, per-capability precedence, BYOK creds (AES-GCM at rest). | CRUD / config | Provider config, BYOK secrets, voice overrides. | API, CLI, UI | OT-P0-009 | `api/internal/settings/`, `api/internal/store/`, `api/internal/byokstore/`, `api/handlers/settings/`, `cli/domains/settings/`, `ui/src/features/configuration/`, `packages/proto/schemas/audio-tools/v1/settings/` |
-| usage | Per-operation usage + cost ledger and rollup queries for the dashboard. | Reporting / ledger | Usage rows (provider, op, ms, credits). | API, CLI, UI | OT-P0-011 | `api/internal/store/usage.go`, `api/internal/usagereport/`, `api/handlers/usage/`, `cli/domains/usage/`, `ui/src/features/usage/`, `packages/proto/schemas/audio-tools/v1/usage/` |
-| corpus | Speech-eval clip store: operator-recorded audio + corrected ground-truth transcripts for the eval harness. | CRUD / blob+metadata | Clip metadata (`corpus` SQLite domain) + audio bytes (blob store, git-ignored). | API, CLI, UI | (eval harness) | `api/internal/corpus/`, `api/handlers/corpus/`, `cli/domains/corpus/`, `ui/src/features/dictation-studio/`, `packages/proto/schemas/audio-tools/v1/corpus/` |
-| eval | STT strategy comparison harness: replays the corpus through batch/vad/overlap and reports WER, compute cost, safety, length curves, and backend-owned duration-scaling classifications. | Measurement / replay | None (reads the corpus domain; stateless). | API, CLI, UI report renderer | (eval harness) | `api/internal/eval/`, `api/handlers/eval/`, `packages/proto/schemas/audio-tools/v1/eval/`, shared report rendering under `cli/domains/experiment/` and `ui/src/features/dictation-studio/` |
-| experiment | Persisted async STT experiment lifecycle: reproducible recipes, server-owned execution, stored reports, deterministic long-form, augmentation, speaker-dimension inputs, and comparisons. | Long-running operation / lab | Experiment metadata, lifecycle state, reproducible recipe realization, per-run metric cells, augmentation/speaker condition notes, and report blob references. | API, CLI, UI | STT experiment lab | `api/internal/experiment/`, `api/handlers/experiment/`, `cli/domains/experiment/`, `ui/src/features/dictation-studio/`, `ui/src/services/experiment.test.ts`, `packages/proto/schemas/audio-tools/v1/experiment/` |
-| health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/overview/`, `packages/proto/schemas/audio-tools/v1/health/` |
+| stt | Speech-to-text (batch + streaming) with three-tier provider routing. | Streaming / chain-routed | Stream config, wakeword phrases, enrolled speaker embeddings, transcription usage rows. | API, CLI, UI, WS | OT-P0-001 through OT-P0-006; OT-P0-008 | `api/internal/stt/`, `api/internal/ai/sttchain/`, `api/handlers/stt/`, `cli/domains/stt/`, `ui/src/audio-integration/hooks/voice/VoiceStreamProvider.tailDrop.test.ts`, `ui/src/audio-integration/turnJournal.test.ts`, `ui/src/features/diagnostics/`, `bas/cases/01-foundation/01-dictation/deterministic-incomplete-coverage.json`, `bas/cases/01-foundation/01-dictation/deterministic-provider-busy.json`, `bas/cases/01-foundation/01-dictation/deterministic-microphone-smoke.json`, `packages/proto/schemas/audio-tools/v1/stt/` |
+| tts | Text-to-speech synthesis (batch + streaming) with on-disk cache. | Synthesis / chain-routed | Voice catalog snapshot, TTS config, content-addressable audio cache, playback events. | API, CLI, UI | OT-P1-004; OT-P0-009 | `api/internal/tts/`, `api/internal/ai/ttschain/`, `api/handlers/tts/`, `cli/domains/tts/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/tts/` |
+| summarize | Text summarization with normalization preprocessing. | Inference / chain-routed | Per-call usage rows. | API, CLI, UI | OT-P1-004; OT-P0-009 | `api/internal/summarize/`, `api/internal/ai/summarizechain/`, `api/handlers/summarize/`, `cli/domains/summarize/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/summarize/` |
+| audio | Audio file processing (transcode/trim/merge/split/fade/volume/normalize/metadata). | Pipeline / shellout | None (operates on multipart payloads). | API, CLI, UI | Supports canonical audio handling and OT-P0-009; no separate transformation expansion target | `api/internal/audio/`, `api/handlers/audio/`, `cli/domains/audio/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/audio/` |
+| session | Voice-session pub/sub fan-out for live STT + TTS streams. | Pub/sub / streaming | Ephemeral in-memory session state. | API, WS | OT-P0-001; OT-P0-005; OT-P0-009 | `api/internal/session/`, `api/handlers/stt/stream_ws.go`, `api/handlers/session/`, `packages/proto/schemas/audio-tools/v1/session/` |
+| settings | Operator configuration: provider defaults, per-capability precedence, BYOK creds (AES-GCM at rest). | CRUD / config | Provider config, BYOK secrets, voice overrides. | API, CLI, UI | OT-P0-004; OT-P0-008; OT-P0-009 | `api/internal/settings/`, `api/internal/store/`, `api/internal/byokstore/`, `api/handlers/settings/`, `cli/domains/settings/`, `ui/src/features/configuration/`, `packages/proto/schemas/audio-tools/v1/settings/` |
+| usage | Per-operation usage history and dashboard rollups; not the customer billing ledger. | Reporting / diagnostic history | Usage rows (provider, op, ms, credits). | API, CLI, UI | OT-P0-007 (integration obligation); OT-P0-010 | `api/internal/store/usage.go`, `api/internal/usagereport/`, `api/handlers/usage/`, `cli/domains/usage/`, `ui/src/features/usage/`, `packages/proto/schemas/audio-tools/v1/usage/` |
+| corpus | Speech-eval clip store: operator-recorded audio + corrected ground-truth transcripts for the eval harness. | CRUD / blob+metadata | Clip metadata (`corpus` SQLite domain) + audio bytes (blob store, git-ignored). | API, CLI, UI | OT-P0-006; OT-P0-009 | `api/internal/corpus/`, `api/handlers/corpus/`, `cli/domains/corpus/`, `ui/src/features/dictation-studio/`, `packages/proto/schemas/audio-tools/v1/corpus/` |
+| eval | STT strategy comparison harness: replays the corpus through batch/vad/overlap and reports WER, compute cost, safety, length curves, and backend-owned duration-scaling classifications. | Measurement / replay | None (reads the corpus domain; stateless). | API, CLI, UI report renderer | OT-P0-006; OT-P0-010; OT-P1-001 | `api/internal/eval/`, `api/handlers/eval/`, `packages/proto/schemas/audio-tools/v1/eval/`, shared report rendering under `cli/domains/experiment/` and `ui/src/features/dictation-studio/` |
+| experiment | Persisted async STT experiment lifecycle: reproducible recipes, server-owned execution, stored reports, deterministic long-form, augmentation, speaker-dimension inputs, and comparisons. | Long-running operation / lab | Experiment metadata, lifecycle state, reproducible recipe realization, per-run metric cells, augmentation/speaker condition notes, and report blob references. | API, CLI, UI | OT-P0-010; OT-P1-001 | `api/internal/experiment/`, `api/handlers/experiment/`, `cli/domains/experiment/`, `ui/src/features/dictation-studio/`, `ui/src/services/experiment.test.ts`, `packages/proto/schemas/audio-tools/v1/experiment/` |
+| health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Supports OT-P0-005 and OT-P0-008; liveness is not qualification | `api/handlers/health/`, `ui/src/features/overview/`, `packages/proto/schemas/audio-tools/v1/health/` |
 
 ## Domain Details
 
 ### stt
 
-- Purpose: convert spoken audio to text via BYOK → Vrooli/LPBS → Local chain; support batch unary + bidi streaming with segmenter-strategy decoupling (VAD, overlap-agree, passthrough).
+- Purpose: convert spoken audio to text through configured policy-permitted tiers (speech currently prefers Local → BYOK → Vrooli; hosted delivery is not wired); support batch unary + bidi streaming with segmenter-strategy decoupling (VAD, overlap-agree, passthrough).
 - Primary archetype: streaming / chain-routed.
 - Secondary traits: WS browser transport, wakeword admin, speaker enrollment + verification.
 - Owns: segmenter, strategy selector, streaming strategies, STT chain providers, STT admin (stream config / wakeword / speaker) handlers.
@@ -45,8 +51,8 @@ belong in [`DATA.md`](DATA.md).
 - API: `api/handlers/stt/` (Connect-RPC + WS `/api/v1/voice/stream`).
 - CLI: `cli/domains/stt/` (verb `audio-tools stt …`; renamed from `voice` on 2026-05-17 — see [`../internal/DECISIONS.md`](../internal/DECISIONS.md)).
 - UI: `ui/src/features/diagnostics/` (try-it row), `ui/src/features/configuration/` (admin forms).
-- Storage: `stt_stream_config`, `wakeword_phrases`, `speaker_embeddings` tables; see [`DATA.md`](DATA.md).
-- Requirements: OT-P0-001 (local), OT-P0-007 (session fan-out), OT-P0-008 (barge-in), OT-P1-014 (streaming).
+- Storage: `stt_stream_config`, `wakeword_templates`, `speaker_profiles` tables; see [`DATA.md`](DATA.md).
+- Requirements: OT-P0-001 through OT-P0-006; OT-P0-008.
 - Tests: chain unit, selector table-driven, segmenter parity (HTTP/2 httptest), strategy tests; per-table store tests; pipeline test coverage.
 - Related docs: [`../internal/SEAMS.md`](../internal/SEAMS.md) (Segmenter, StrategySelector, StreamingStrategy seams).
 
@@ -60,7 +66,7 @@ belong in [`DATA.md`](DATA.md).
 - CLI: `cli/domains/tts/`.
 - UI: `ui/src/features/diagnostics/` (synthesize try-it), `ui/src/features/voices/` (browse), `ui/src/features/configuration/`.
 - Storage: `tts_config_doc`, `tts_cache/`, `playback_events`.
-- Requirements: OT-P0-002, OT-P0-006.
+- Requirements: OT-P1-004; OT-P0-009.
 - Tests: cache, chunker, config, service, summarization-service (shared upstream), summarizer, normalizer, voice catalog — all per-file tests.
 
 ### summarize
@@ -73,7 +79,7 @@ belong in [`DATA.md`](DATA.md).
 - CLI: `cli/domains/summarize/`.
 - UI: `ui/src/features/diagnostics/`.
 - Storage: usage rows only.
-- Requirements: OT-P0-003, OT-P0-006.
+- Requirements: OT-P1-004; OT-P0-009.
 - Tests: summarization service, summarizer, summarize config, normalizer — see `internal/summarize/`.
 
 ### audio
@@ -86,7 +92,7 @@ belong in [`DATA.md`](DATA.md).
 - CLI: `cli/domains/audio/`.
 - UI: `ui/src/features/diagnostics/`.
 - Storage: none.
-- Requirements: OT-P0-004.
+- Requirements: Supports canonical audio handling and OT-P0-009; no separate transformation expansion target.
 - Tests: per-op tests with a `Runner` seam substituting `exec.Cmd`.
 
 ### session
@@ -97,7 +103,7 @@ belong in [`DATA.md`](DATA.md).
 - API: `api/handlers/session/` (Connect-RPC + WS `/api/v1/voice/stream`).
 - UI: consumed by diagnostics and any embed component subscribing.
 - Storage: ephemeral in-memory only.
-- Requirements: OT-P0-007, OT-P0-008.
+- Requirements: OT-P0-001; OT-P0-005; OT-P0-009.
 
 ### settings
 
@@ -107,20 +113,20 @@ belong in [`DATA.md`](DATA.md).
 - API: `api/handlers/settings/`.
 - CLI: `cli/domains/settings/`.
 - UI: `ui/src/features/configuration/`.
-- Storage: `provider_config_doc`, `byok_secrets`, `voice_overrides`.
-- Requirements: OT-P0-009.
+- Storage: `provider_config`, `byok_credentials`, `voice_overrides`.
+- Requirements: OT-P0-004; OT-P0-008; OT-P0-009.
 - Tests: per-table store tests; `byokstore.Encryptor` round-trip + tamper tests; handler tests.
 
 ### usage
 
-- Purpose: record every chain-routed op (provider, ms, credits) and serve rollup queries for the dashboard.
-- Primary archetype: reporting / ledger.
+- Purpose: retain non-blocking operation history where handlers enqueue it and serve dashboard rollups. Dropped or absent history is not proof of no usage; shared billing owns settlement.
+- Primary archetype: reporting / diagnostic history.
 - Owns: `usagereport.Recorder` interface + async recorder, `internal/store/usage.go`, usage handlers, dashboard.
 - API: `api/handlers/usage/`.
 - CLI: `cli/domains/usage/`.
 - UI: `ui/src/features/usage/`.
-- Storage: `usage` table.
-- Requirements: OT-P0-011.
+- Storage: `usage_rows`; shared customer settlement remains outside this domain.
+- Requirements: OT-P0-007 (integration obligation); OT-P0-010.
 
 ### corpus
 
@@ -157,7 +163,7 @@ belong in [`DATA.md`](DATA.md).
 - CLI: built-in `status` command via cli-core.
 - UI: `ui/src/features/overview/`.
 - Storage: none.
-- Requirements: starter scaffold health only.
+- Requirements: Supports OT-P0-005 and OT-P0-008; liveness is not qualification.
 
 ## Naming Pitfalls
 
@@ -186,8 +192,8 @@ belong in [`DATA.md`](DATA.md).
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| adoption | Out-of-process integration health for scenarios consuming the shared browser capture package. | OT-P1-013 ramp. |
-| twilio-transport | Twilio media-stream WS bridge. | OT-P2-001 / `execute/audio-tools-twilio-media-stream-transport`. |
+| adoption | Out-of-process integration health for scenarios consuming the shared browser capture package. | OT-P0-004 and OT-P0-008; qualify each claimed consumer. |
+| twilio-transport | Twilio media-stream WS bridge. | Historical backlog reference `execute/audio-tools-twilio-media-stream-transport`; not part of the current PRD device target or an approved expansion. |
 
 ## Non-Domains
 

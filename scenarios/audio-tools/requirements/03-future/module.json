@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "description": "Additional native-device qualification; supported baseline claims are governed by OT-P0-008.",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -15,7 +15,7 @@
       "title": "Expanded device qualification",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:ATD-P2-001] tag) once the behavior exists.",
+          "notes": "Planned native-device qualification under docs/internal/TESTING.md device profiles. No physical-device receipt is asserted by this entry. Log actual operator evidence before promotion; retain profile and engine identity.",
           "status": "planned",
           "type": "manual"
         }

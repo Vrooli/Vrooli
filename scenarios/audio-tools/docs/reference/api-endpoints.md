@@ -29,7 +29,7 @@ types. Clients must use generated clients instead of hand-written JSON shapes.
 emits partial, segment, error, and terminal done events. A done event that
 falls back to unary transcription explicitly identifies buffered mode.
 
-## Adding an endpoint
+## Adding a new endpoint
 
 1. Extend the owning proto domain and regenerate generated clients.
 2. Add a thin handler method in the owning `api/handlers/<domain>` package.
@@ -40,5 +40,6 @@ falls back to unary transcription explicitly identifies buffered mode.
 ## Cross-references
 
 - [`cli-commands.md`](cli-commands.md)
+- [Endpoint manifest](../../.vrooli/endpoints.json) — generated metadata; update through endpoint tooling, not by hand.
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md)
 - [`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md)

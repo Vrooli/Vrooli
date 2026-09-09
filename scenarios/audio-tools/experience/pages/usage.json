@@ -7,6 +7,11 @@
     "title": "Usage",
     "routes": ["/usage"],
     "purpose": "Show attributable audio operations, provider identity, latency, status, and credits without implying that a disabled hosted gateway is live.",
-    "prd_refs": ["OT-P1-001"]
-  }
+    "prd_refs": ["OT-P0-007", "OT-P0-009", "OT-P0-010", "OT-P1-004"]
+  },
+  "priorities": [
+    { "statement": "Distinguish usage history, reserved allowance, pending reconciliation and confirmed shared-ledger charge; missing evidence is not a zero charge." },
+    { "statement": "Explain that local and BYOK do not debit Vrooli voice credits while BYOK may incur the user's provider bill." },
+    { "statement": "Link operation and session metadata to the actual route and settlement receipt without exposing speech, transcripts or credentials." }
+  ]
 }

@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "Falsifiable no-loss and provider-parity requirements for continuous dictation.",
+    "description": "Continuous dictation trust and portable voice obligations. New portable-voice-v1 claims are planned; historical validation observations are preserved, not promoted.",
     "last_validated_at": "2026-08-03T00:13:23-04:00",
     "module": "continuous-dictation-trust",
     "priority": "P0",
@@ -9,7 +9,7 @@
   "requirements": [
     {
       "criticality": "P0",
-      "description": "Every captured audio interval is processed, retained for replay, or ends in an explicit recoverable failure across interruption, reconnect, slow-consumer, restart, and provider-contention paths.",
+      "description": "When audio is captured, Audio Tools shall account for every interval as processed, retained for replay, or explicitly recoverable failure across interruption, reconnect, slow consumer, restart, and contention.",
       "id": "ATD-P0-001",
       "prd_ref": "OT-P0-001",
       "status": "in_progress",
@@ -72,7 +72,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Whisper and Kyutai can be selected only after each passes the same no-loss, durability, recovery, policy, quality, and product-path trust floor.",
+      "description": "When an engine is offered as stable, Audio Tools shall require the same no-loss, durability, recovery, policy, quality, and product-path trust floor; Whisper and Kyutai remain initial independent qualification candidates.",
       "id": "ATD-P0-002",
       "prd_ref": "OT-P0-002",
       "status": "in_progress",
@@ -111,7 +111,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Requested extraction and verification always report an explicit applied or degraded result, and required filter policy fails closed by default.",
+      "description": "When extraction or verification is requested, Audio Tools shall expose applied or degraded policy outcomes and shall fail closed when required speaker policy cannot be applied.",
       "id": "ATD-P0-003",
       "prd_ref": "OT-P0-003",
       "status": "in_progress",
@@ -136,7 +136,7 @@
       "description": "A session has stable identities, monotonic chunk ranges, received and processed acknowledgements, idempotent committed segment IDs, and an explicit terminal reason.",
       "id": "ATD-P0-004",
       "prd_ref": "OT-P0-001",
-      "status": "complete",
+      "status": "in_progress",
       "title": "Replay-safe streaming protocol",
       "validation": [
         {
@@ -198,7 +198,7 @@
       "description": "Audio Tools, Web Console, and Swarm Manager use one bounded capture and journal core that resumes missing ranges and reports reduced durability explicitly.",
       "id": "ATD-P0-006",
       "prd_ref": "OT-P0-001",
-      "status": "complete",
+      "status": "in_progress",
       "title": "Canonical browser capture recovery",
       "validation": [
         {
@@ -239,6 +239,186 @@
           "notes": "Required before completion: cross-provider live recognition spans must drive extraction and verification with explicit applied or degraded outcomes.",
           "status": "planned",
           "type": "manual"
+        }
+      ]
+    },
+    {
+      "id": "ATD-P0-008",
+      "prd_ref": "OT-P0-004",
+      "title": "Explicit route selection and consent",
+      "description": "When a consumer selects local, BYOK, or owned voice, Audio Tools shall return the requested and actual route, streaming capability, selection reason, and permitted recovery; a route change shall require prior data-transfer and spend policy.",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: TESTING.md route controls: local unavailable, invalid/revoked BYOK, remote outage and forbidden paid fallback, through the production routing boundary and at least two consuming apps. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P0-009",
+      "prd_ref": "OT-P0-005",
+      "title": "Paced partial rendering and final drain",
+      "description": "When an interactive stream receives speech, the consumer shall render revisable partials before stop, preserve ordered immutable committed segments, and finish the final tail within the approved route/profile latency bands; a batch-only route shall show a final-only capability.",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: TESTING.md interactive browser lane and PERFORMANCE.md clocks: paced real speech, revised partial, stop during speech, final-only negative control, at least 30 attempts per route/profile and cold/warm cohort; measure displayed text, not CLI emission. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P0-010",
+      "prd_ref": "OT-P0-005",
+      "title": "Bounded readiness with honest state",
+      "description": "When the voice button is activated, Audio Tools shall expose preparation and microphone/session readiness separately, bound discovery and admission waits, and retain cold/warm, permission, queue, timeout and failed-attempt measurements against the approved bands.",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: Paced button-to-ready tests with cold cache, warm cache, missing model, blocked permission, single-model contention and stale discovery. Numeric cold-start/admission limits are pending the TESTING.md decision sheet. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P0-011",
+      "prd_ref": "OT-P0-006",
+      "title": "Versioned recognition quality cohorts",
+      "description": "When a route is promoted, Audio Tools shall evaluate a held-out licensed or consented corpus against the approved language, noise, and subgroup floors, report WER components without clamping, and reject missing cohorts or altered references as comparable acceptance.",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: TESTING.md corpus manifest, consent/hash/reference normalization and clean/noisy cohorts; real-provider recognition, subgroup metrics, ending-phrase coverage and missing-group negative control. Synthetic provider transcripts are not quality evidence. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P0-012",
+      "prd_ref": "OT-P0-007",
+      "title": "Shared entitlement and real owned delivery",
+      "description": "When owned STT is requested, the shared service boundary shall authorize the account and versioned meter before inference and shall return explicit refusal on invalid entitlement, insufficient allowance/credits, missing quote or unavailable delivery.",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: MONETIZATION.md simulation contract: LPBS routed active/expired subscription, credits-only, allowance-only, forbidden overage and separate inference fake; later separately authorized real gateway delivery. Entitlement success alone cannot pass. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P0-013",
+      "prd_ref": "OT-P0-007",
+      "title": "Replay-safe reservation and settlement",
+      "description": "When delivery is retried, canceled, exhausted or interrupted, the shared billing owner shall reconcile unique delivered intervals and unused reservations exactly once under the approved policy, including simultaneous sessions; local and BYOK shall have zero Vrooli voice debit.",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: MONETIZATION.md policy cases: ledger delta, unused reservation, delivery acknowledgement, duplicate/replay, concurrent admission, response loss after debit and process restart. Await shared-owner decisions on meter, delivery/cancel boundary, rounding and deadlines; do not invent prices. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P0-014",
+      "prd_ref": "OT-P0-008",
+      "title": "Capability-based host selection",
+      "description": "When a host lacks a model, runtime, accelerator, permission or supported artifact, Audio Tools shall report the missing capability and use only a compatible policy-permitted alternative while retaining the same session and recovery semantics.",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: TESTING.md D1-D6 simulated controls with resource absence, CPU-only versus accelerator, constrained memory, incompatible architecture and browser background/device change. Resource owner performs lifecycle; model families are not hardcoded consumer assumptions. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P0-015",
+      "prd_ref": "OT-P0-008",
+      "title": "Scoped consumer and native-device qualification",
+      "description": "When a supported route or device is advertised, Audio Tools shall retain a current receipt for its named OS/browser, hardware, engine/model and consumer path; injected media and emulation shall not establish native capture or local-engine support.",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: TESTING.md profile nomination and product paths in Audio Tools, Web Console and Swarm Manager for each claimed adoption; native microphone/browser and local artifact checks are separate. Untested cells remain unavailable. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P0-016",
+      "prd_ref": "OT-P0-009",
+      "title": "Private recoverable retention and diagnostics",
+      "description": "While PCM, transcripts, speaker profiles or BYOK credentials are stored or transmitted, Audio Tools shall enforce scoped access and declared retention/deletion, preserve bounded recovery when possible, expose reduced durability or quota failure, and exclude content and secrets from general diagnostics.",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: SECURITY.md and DATA.md threat/retention contracts: quota/eviction, reload, denied cross-account access, key/error redaction, deletion and explicit remote-route consent. Do not replace lost retained data with a successful terminal result. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P0-017",
+      "prd_ref": "OT-P0-010",
+      "title": "Production-path simulation isolation",
+      "description": "When local, BYOK, subscription or credit fixtures run, validation shall use explicit routed test identity through production routing and shared billing seams, pair LPBS-owned state with an independent inference fake, and refuse production credentials or balances.",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: TESTING.md deterministic route matrix and MONETIZATION.md simulation cases, including missing/invalid lease, wrong account, zero balance and unavailable inference. A test process name or UI toggle must not activate fixtures. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P0-018",
+      "prd_ref": "OT-P0-010",
+      "title": "Complete trustworthy acceptance receipts",
+      "description": "When full voice completion is evaluated, the evidence consumer shall enumerate every required target and cohort and reject missing, stale or mismatched target/method/build/corpus/device/policy receipts and unsuccessful children; collection success alone shall remain unknown.",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: TESTING.md measurement and completion boundaries: success wrapper with unknown required row, stale receipt, failed child, omitted attempts and policy/corpus revision mismatch. setpoint-read v1 is diagnostic only and cannot currently validate this claim. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P0-019",
+      "prd_ref": "OT-P0-010",
+      "title": "Real-duration and fault evidence integrity",
+      "description": "When a realtime reliability claim is evaluated, qualification shall verify each required branch's elapsed duration, submitted and processed audio counts, faults, final tail and terminal reason, and shall reject early EOF or accelerated replay as realtime evidence.",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: TESTING.md long-form lane: three real 60-minute runs per approved local engine/profile, duration/sample-count oracles, interruption/reconnect/slow-consumer/restart/contention, truncated input and failed-child controls. A concurrent long-running TTS child cannot supply missing STT duration. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
         }
       ]
     }

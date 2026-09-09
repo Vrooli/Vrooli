@@ -1,91 +1,67 @@
 # Audio Tools
 
-Shared audio capabilities: STT, TTS, summarization, audio processing, provider routing (BYOK/LPBS/Local)
+Shared speech-to-text, text-to-speech, summarization, audio processing, and
+provider routing for Vrooli applications. The Go API, Go CLI, React UI, and
+shared browser capture package expose different surfaces of the same capability.
 
-This scenario provides
-the standard full-stack Vrooli scenario shape:
+For existing-scenario work, read the [product targets](PRD.md),
+[architecture](docs/concepts/ARCHITECTURE.md), and
+[known limitations](docs/internal/PROBLEMS.md). Use
+[START-HERE](docs/START-HERE.md) for initialization work, not as evidence that
+existing product domains are placeholders.
 
-- Go API (`api/`)
-- React + TypeScript + Vite UI (`ui/`)
-- CLI wrapper (`cli/`)
-- Lifecycle + health wiring (`.vrooli/service.json`)
-- Requirements registry + progress log (`requirements/`, `docs/internal/PROGRESS.md`)
+## Capability and development status
 
-> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
-> owns the first-session initialization protocol — charter, requirements,
-> domain map, design language, placeholder replacement, and first real
-> vertical slice. Run `make orient` for a machine-readable gate status.
+Local and BYOK adapters, streaming transports, Dictation Studio, experiments,
+and shared consumer integration exist. Their presence does not qualify every
+provider, device, or recovery path. The
+[integration inventory](docs/concepts/INTEGRATIONS.md) identifies current wiring;
+the [testing contract](docs/internal/TESTING.md) defines the evidence needed.
 
-## What's In This Scenario
+The owned subscription/credits route is an implementation target, not a working
+fallback for users without local models or keys. See
+[monetization](docs/business/MONETIZATION.md) for its gaps and owner boundaries.
 
-- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
-  coordinated through generated proto contracts.
-- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
-  metadata, testing config, and CLI install wiring.
-- Domain-first API shape with per-domain service, repository, schema,
-  handler module, mocks, and tests.
-- SQLite by default. Add external resources to `.vrooli/service.json`
-  only when this scenario actually needs them.
-- UI/CLI guardrails for i18n, accessibility, API base resolution,
-  declarative command args, generated Connect clients, and report-shaped
-  output.
-- Baseline PWA branding metadata: web app manifest, standalone-mode
-  mobile tags, and generic placeholder icons ready for scenario-specific
-  replacement.
-- Root-level `DESIGN.md` plus generated UI token assets from the
-  selected design kit.
-- A documentation contract in `docs/manifest.json`, with stubs for
-  domains, flows, data, integrations, monetization, deployment,
-  runbooks, observability, security, performance, and durable
-  decisions.
+Audio Tools pilots [contract-driven scenario development](../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
+Read the [portable voice target](docs/concepts/ARCHITECTURE.md#development-target-portable-streaming-voice)
+and [pilot decision sheet](docs/internal/TESTING.md#pilot-decision-sheet-and-safe-first-slice).
+The `portable-voice-v1` PRD now covers the full intended voice capability. Its
+scope is documented; numeric SLOs, release cohorts, billing policy details, and
+execution allowances still need the decisions listed in the testing contract.
+The historical local-only proposal is a subset, not authority or full completion.
+Use `prompt-manager skill read audio-tools` for operation selection and
+`prompt-manager skill read audio-tools-improve` for authorized development.
+The declared `audio-tools.setpoint-read` program reads engine/health inventory and
+an optional selected experiment. Its `ok` result means collection succeeded, not
+that streaming, device, quality, or billing targets passed. See the
+[measurement contract](.vrooli/program-runtime/setpoint-read.json).
+Version 2 lists all 15 PRD targets and keeps every outcome unknown. It still
+lacks owner-backed acceptance joins; target visibility is not target achievement.
 
-## Placeholders vs. Durable Scaffolding
-
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
-
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- The `AppShell` and the centered single-panel home page in `ui/src/`.
-- The bare-minimum settings surface (currently just locale switching).
-
-Treat these as **durable seams** to preserve, even as you rewrite the
-visual layout:
-
-- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
-- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
-- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
-- The feature-folder pattern under `ui/src/features/<name>/`.
-- The proto → API → CLI → UI vertical-slice shape.
-
-**Connect-RPC is the default transport.** Every domain endpoint goes
-through a proto service and generated Connect handlers/clients. If
-you find yourself writing `Path: "/api/v1/..."` as a literal string in
-an `EndpointDescriptor`, stop — use a proto service method instead.
-Codegen rejects literal Paths that lack an explicit `RESTException`
-tag; the four allowed REST reasons (multipart upload, webhook
-receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
-
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
+For the full development goal, start with the
+[mandate and completion contract](docs/internal/TESTING.md#full-mandate-and-completion-contract).
+One approved engagement can perform successive in-scope repairs; it does not need
+a new backlog item for each experiment. This documentation is not a launched
+engagement, a spending grant, or proof that Swarm execution is qualified.
 
 ## Running The Scenario
 
 ```bash
-# Build API + UI, install pnpm deps, install scenario CLI
-make setup   # wraps `vrooli scenario setup`
-
 # Start API + UI in the background
 make start   # wraps `vrooli scenario start`
 ```
 
 See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
 
-Run tests with `make test` (which runs `vrooli scenario test`) or invoke
-`test-genie execute audio-tools --preset comprehensive` directly for
-finer-grained presets.
+Select validation scope under [the testing policy](../../docs/TESTING.md):
+
+```bash
+vrooli scenario test audio-tools --phases unit
+```
+
+Use the runner's returned wait command once. A broad suite is not the default
+for a focused change. Dependency installation follows
+[package governance](../../docs/package-governance.md), not raw package-manager commands.
 
 ## Documentation Map
 
@@ -107,23 +83,12 @@ finer-grained presets.
 
 ## Working Rules
 
-1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
-2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
-3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
+1. **Identify the active contract and authority.** A development mandate permits successive in-scope repairs; a review request does not.
+2. **Use `make orient` for initialization status.** It does not establish product readiness or reset completed product work.
+3. **Preserve approved targets.** Route PRD/requirement changes through their owners; do not rewrite targets to match current code.
 4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
-5. **Update `docs/concepts/DOMAINS.md`** before adding product code.
+5. **Update the owning design documents** when an authorized change affects their contracts.
 6. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
-7. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-8. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
-9. **Keep boundaries**: only edit within this scenario's directory.
-
-## pnpm Everywhere
-
-This scenario assumes pnpm. If you run another package manager, convert
-lockfiles yourself before committing. Scripts use `pnpm` directly (no
-`npm` fallbacks) to reduce drift.
-
-## Need Inspiration?
-
-Open `scenarios/browser-automation-studio/` to see the same template
-shape taken to completion.
+7. **Record work in its existing engagement or progress log.** Follow shared Memory's learning contract; do not create a second per-repair ledger.
+8. **Read declared dependencies** in `.vrooli/service.json`; optional resources do not guarantee an available provider.
+9. **Repair at the owning boundary.** Shared capture, resource, proto, or billing changes require the active grant; do not copy them into this scenario to evade scope.

@@ -73,6 +73,72 @@ between surfaces is impossible.
 
 ## System Boundaries
 
+### Development target: portable streaming voice
+
+Audio Tools is the first pilot of
+[contract-driven scenario development](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
+This section states the target architecture, not qualification of the current runtime.
+The dated observations in `docs/internal/PROBLEMS.md` remain the implementation evidence.
+
+Keep these boundaries explicit while developing the STT vertical slice:
+
+| Boundary | Target obligation |
+| --- | --- |
+| Shared capture and consumer integration | Capture lifecycle, portable host adapters, partial revisions, ordered final commits, and recoverable transport without app-private protocol copies. |
+| Audio Tools routing | Resolve local, BYOK, and owned subscription/credits paths from explicit capability and policy; expose the selected path and unavailable reasons. |
+| Engine/resource adapters | Describe actual streaming, platform, model, acceleration, and readiness capabilities. Replace engines without rewriting consumer integrations. |
+| Monetization owner | Entitlement, wallet, session/usage linkage, and replay-safe settlement semantics. Keep billing policy out of consumer UI code. |
+| Validation owners | Reproducible capture, route, quality, latency, duration, and device evidence with distinct real and simulated claims. |
+
+Local compute and BYOK remain explicit modes. Hosted subscription value comes from
+the owned service and benefits; this target does not authorize charging all local
+or BYOK usage. Apply the existing shared monetization contracts rather than a
+voice-specific ledger. STT is the first vertical slice, not a simultaneous rewrite
+of every audio feature.
+
+Runtime discovery must not impose unbounded readiness work on each voice session.
+Measure cold and warm startup separately before selecting a cache/probe strategy.
+Preserve freshness and unavailable reasons when optimizing discovery.
+
+Numeric latency/quality floors, the supported-device commitment, real-provider
+spend, and settlement/cancellation semantics require review before acceptance or
+paid execution. They do not block authorized local measurement and repair.
+The method and evidence matrix live in [Testing](../internal/TESTING.md#development-pilot-evidence-contract).
+
+The published scope is PRD `portable-voice-v1`: route OT-P0-004, streaming
+OT-P0-005, quality OT-P0-006, owned service OT-P0-007, device qualification
+OT-P0-008, privacy OT-P0-009 and evidence OT-P0-010. Maintainability is
+OT-P1-003. The v2 diagnostic board lists those targets but does not prove them.
+The historical local-only proposal is not the full mandate.
+
+### Replaceability and compatibility contract
+
+Keep four independently changing decisions separate: processing route
+(local/BYOK/owned), provider/model capability, streaming strategy, and capture
+host. An installed model, a running process and a qualified interactive path
+are different states. A resource registry entry is discovery metadata, not a
+permission to promote a provider or a permanent choice of technology.
+
+Adapters declare supported formats, native versus synthesized/batch streaming,
+partial/final semantics, cancellation, concurrency, platform/artifact constraints,
+acceleration needs and model identity. Select compatible combinations once per
+session using explicit policy; expose why other combinations are unavailable.
+Do not encode engine-name conditionals in consuming apps. Version incompatible
+protocol changes and test mixed-version rejection or migration deliberately.
+
+The shared browser package owns capture, journal and text-event semantics.
+Audio Tools owns admission, interval accounting and provider orchestration.
+Resources and the control plane own model installation and host lifecycle.
+LPBS/shared delivery owns entitlement and settlement; a bounded asynchronous
+usage-history recorder is not a durable customer billing ledger.
+
+Refactor in tested slices: expose/inject the failing boundary, add its desired
+behavior and negative controls, move duplicate logic into that owner, and prove
+the shared package plus affected consumer paths. Keep native-streaming and batch
+adapters in the same conformance suite without pretending their cadence is equal.
+Do not replace the whole voice stack merely to shorten a large hook. Register
+production/fake pairs in [SEAMS.md](../internal/SEAMS.md) as they actually land.
+
 The scenario owns:
 
 - source code under `api/`, `ui/`, and `cli/`,
@@ -159,10 +225,12 @@ under `audio-tools provider {list,start,stop,restart,pull-model,logs}`.
 
 ### Silent-fallback observability (`x-audio-tools-fallback` header)
 
-When the STT, TTS, or Summarize chain serves a response from a tier
-OTHER than the user's first-priority (first-eligible) tier — for
-example, BYOK fails with `provider_unavailable` and Vrooli picks up
-the request — the API emits two signals:
+The existing chain fallback mechanism emits two signals when STT, TTS, or
+Summarize serves a different eligible tier. This describes observability, not
+consent enforcement. Hosted Vrooli delivery is not wired in the inspected
+bootstrap; a hypothetical BYOK-to-owned fallback is not a working route.
+The target requires prior policy authorization before any data-transfer or
+paid fallback. A post-response toast cannot supply that authorization.
 
 1. A structured log line `event=tier_fallback capability=<stt|tts|summarize>
    from_tier=<byok|vrooli|local> to_tier=<…> reason="<error class>"`
@@ -254,65 +322,32 @@ temporal behavior, update [`FLOWS.md`](FLOWS.md).
 
 ## Architecture Maturity
 
-Generated scenarios start with a mature template shape and starter
-reference domains. Replace this table as the scenario becomes real.
+Source presence and declared document maturity do not establish product readiness.
+Use the following map to find the owning implementation and its evidence:
 
-| Area | Maturity | Evidence | Remaining Drift |
-|---|---|---|---|
-| API | Reference-ready | Domain-owned notes stack, module registry, per-domain schema, documented seams. | Starter domains must be replaced with scenario-specific capabilities. |
-| UI | Reference-ready | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Real scenarios may need routing/state patterns once multiple screens exist. |
-| CLI | Reference-ready | Domain command groups wrap API calls and render reports. | New domains must add commands intentionally; CLI should remain thin. |
-| Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints. | Scenario-specific stubs must be filled or marked not-applicable. |
+| Area | Present structure | Qualification boundary |
+|---|---|---|
+| API | Domain handlers, provider chains, session/capture/recovery code, and injectable seams. | Local/BYOK routes need engine-specific evidence; the hosted clients remain unimplemented. See [Integrations](INTEGRATIONS.md). |
+| UI | Shared audio integration and feature-owned capture/stream/recovery behavior. | Paced browser and consumer traces must prove visible partials and final drain. |
+| CLI | Domain commands declared in `cli/manifest.json`. | Command tests and stream smoke results do not alone certify browser or device behavior. |
+| Docs | `docs/manifest.json` registers document owners and structural checks. | Pilot targets remain partly undecided; a valid manifest is not exercised acceptance. |
 
-Use `docs/manifest.json` as the documentation contract. The declared
-`maturity` values are expected to be maintained by agents and later
-grounded by Knowledge Observatory validation.
+Use [Testing](../internal/TESTING.md) for the pilot's evidence contract and
+[Problems](../internal/PROBLEMS.md) for dated limitations. Neither the starter
+architecture nor an old passing test substitutes for evidence on the current build.
 
 ## Testing Infrastructure
 
-The api surface tracks the unit-testing-architecture ladder defined in
-the react-vite template:
+Domain tests are co-located with their code; shared fixtures and boundary doubles
+live under `api/internal/testutil/` and the domain-owned fixture packages.
+Persistence tests should use the real test substrate. Inject clocks, environment,
+logging, and HTTP clients through the registered seams.
 
-| Level | Description | Status in audio-tools |
-|---|---|---|
-| L1 | Co-located tests (no `tests/` sibling tree) | ✅ |
-| L2 | Centralized testutil tree (`assertx`, `db`, `fixtures`, `httpx`, `mocks`, `modeltest`, `repokit`) | ✅ |
-| L3 | Domain code consumes seams (no ambient `time.Now()` / `os.Getenv` / `http.DefaultClient` / `log.Printf` outside `bootstrap/`) | ✅ — every domain migrated to `clock.Clock` / `envx.Reader` / `logx.Logger` / `httpc.Doer` seams (or a package-level seam variable where constructor-threading would have ballooned the diff). L3 acceptance grep returns zero. |
-| L4 | Real-substrate repository tests against sqlite, no `map[string]Repository` stubs in tests | ✅ |
-| L5 | Drift-gated seam registry (`// seam:` tags reconciled with `docs/internal/SEAMS.md`) | ✅ |
-
-The L5 evidence commands are:
-
-```
-cd scenarios/audio-tools/api
-
-# L3 — domain code consumes seams (zero ambient leaks)
-rg 'time\.Now\(\)|os\.Getenv|http\.DefaultClient|log\.Printf|slog\.Default' \
-   internal/ -g '!*_test.go' -g '!testutil/**' -g '!clock/**' \
-   -g '!httpc/**' -g '!envx/**' -g '!logx/**' -g '!bootstrap/**' \
-   | grep -v '^[^:]*://'
-
-# L3 (handler axis) — also expected to be empty post 2026-05-17 follow-up plan
-rg -n 'log\.Default\(\)' . -g '!*_test.go' -g '!internal/bootstrap/**' -g '!internal/logx/**' -g '!main.go'
-rg -n 'time\.Now\(\)' handlers/ -g '!*_test.go'
-
-# L4 — coverage floors per package (now under -race)
-go test -run TestCoverageFloors -count=1 .
-
-# L5 — seam registry / docs cross-reference
-go test ./internal/testutil/ -run TestSeamRegistry -count=1
-go test ./internal/testutil/ -run TestNoProductionImports -count=1
-
-# Hygiene — no inline test fakes (uppercase or lowercase), no time.Sleep in tests
-grep -rn '^type \(fake\|mock\|stub\|Fake\|Mock\|Stub\)\w\+ struct' --include='*_test.go' .
-grep -rn 'time\.Sleep(' --include='*_test.go' . | grep -v testutil/mocks/clock_test.go
-```
-
-That test fails when an interface gains a `// seam:` tag without a
-matching entry in `docs/internal/SEAMS.md`, or when a tagged interface
-is renamed without updating the doc. The list of qualified seam names
-it searches for lives in the `Interface seam index` section of
-`SEAMS.md`.
+The seam registry tests reconcile `// seam:` tags with the `Interface seam index`
+in [SEAMS.md](../internal/SEAMS.md); production-import checks protect the test-only
+boundary. Run the relevant checks under [Testing](../internal/TESTING.md) and
+retain the actual build and result. This section describes test architecture,
+not an undated all-green maturity assessment.
 
 ## Streaming Pipelines (STT)
 
@@ -394,8 +429,10 @@ embedding (energy VAD) and verifies against the profile centroid + each clip
 `pipeline.SessionSpeakerState` accumulates per-segment scores (EMA) and withholds
 any rejection during a warm-up window (until `min_decision_seconds` of voiced
 audio accrue), so the verdict stops swinging mid-utterance and a short first
-utterance is never falsely dropped. It only applies to segments that carry audio
-(the Whisper VAD path), so Passthrough engines bypass it. The verification
+utterance is never falsely dropped. Policy applicability depends on canonical
+audio bound to recognition spans, not the engine name. Required policy must fail
+closed if that evidence is unavailable; passthrough is not an authorized policy
+bypass (OT-P0-003). Cross-engine proof remains in the requirements registry. The verification
 adapter lives in the handler layer (not `pipeline`) to avoid the
 `egress → sttchain → pipeline` import cycle. Seams: `egress.Stage`,
 `egress.SpeakerIsolation`, `sttengine.Registry` (see

@@ -1,10 +1,10 @@
 # Start Here — Audio Tools
 
-This is the first document to read after generating the scenario from
-the `react-vite` template. Treat it as the scenario initialization
-protocol: complete the gates in order, check them off as you go, and
-do not start product implementation until the charter and requirements
-gates are complete.
+This document is the initialization protocol retained from the `react-vite`
+template. For maintenance of the existing product, begin at the
+[README](../README.md#capability-and-development-status), then read the active
+contract and relevant evidence. Revisit only the initialization gates affected
+by the work. Unchecked template boxes do not prove that a product domain is absent.
 
 Run `make orient` from this scenario directory whenever you want a
 machine-readable progress check for these gates. It delegates to
@@ -13,17 +13,14 @@ machine-readable progress check for these gates. It delegates to
 all required gates pass, run `template-manager orient audio-tools
 --finalize` to remove only that temporary orientation metadata.
 
-The generated scaffold is intentionally not the product. Treat every
-generated UI surface as placeholder unless it is explicitly listed as
-durable infrastructure below. In particular:
+During initial generation, the following surfaces were illustrative. Inspect
+current source and experience contracts before replacing any existing surface:
 
 - The generated reference domain is illustrative only. Build and prove
   the real audio domain instead of retaining example-domain assumptions.
-- The `AppShell` layout, the centered single-panel home page, the title
-  / description / eyebrow text, and the bare-minimum settings surface
-  are placeholders. They exist so the template boots green; they are
-  **not** a reasonable end-state for your scenario. Replace the shell
-  (or rewrite it heavily) when you build the real UX.
+- The generated shell, introductory copy, and minimal settings demonstrated
+  layout. They do not prescribe the product's UX, nor authorize deleting its
+  current capture, recovery, or diagnostics behavior.
 - Durable seams you should keep: i18n wiring (`SUPPORTED_LOCALES`,
   `useTranslation`, the locale switcher behavior), accessibility
   primitives (`role`, `aria-*`, `data-testid` selectors), the
@@ -32,16 +29,12 @@ durable infrastructure below. In particular:
   these into whatever shell/pages you design — do not delete the
   behaviors just because you delete the visual placeholder.
 
-Binding contract vs. illustrative example: every reference doc this
-scenario ships with — `DESIGN.md`, `PRD.md`, and the placeholder shell —
-mixes two kinds of guidance. Tokens, motion,
-status-color semantics, accessibility floors, i18n, and the
-domain/proto/API/CLI/UI shape are **binding contracts**: respect them.
-Specific lists of components, settings, page surfaces, or copy
-examples are **illustrative**: they exist to show shape, not to
-enumerate what your scenario must (or must not) include. Implement
-every feature your scenario actually needs, even if a specific
-example doc does not list it.
+Binding contract vs. illustrative example: approved PRD targets, requirements,
+and experience contracts govern product obligations. Do not classify a required
+feature as illustrative because it resembles a template example. Design tokens,
+motion, status semantics, accessibility, i18n, and domain boundaries also remain
+binding. Explicitly illustrative layouts and copy show possible shapes; adapt
+those examples within the active target and implementation grant.
 
 ## Initialization Protocol
 
@@ -59,9 +52,13 @@ passes the template test lifecycle.
 
 ### Gate 1 — Charter
 
-Do not hand-write the final `PRD.md` when AI generation is available.
-Drive the `business-health` wizard as the canonical PRD authoring path so the file
-matches the Vrooli PRD standard and can drive requirement generation.
+Drive the deterministic `business-health` wizard for a new charter; it does not
+generate product judgment with AI. For this existing scenario, preserve the
+published baseline and read `prompt-manager skill read prd-authoring` before
+regenerating the charter. The 2026-09-09 `portable-voice-v1` revision includes
+the broader voice scope; see the [target mapping](internal/TESTING.md#published-targets-and-pending-decisions).
+Preview changes before publication. Initialization is not authority to replace
+existing requirements or their evidence.
 
 - [ ] Write a brief context file for the scenario:
 
@@ -120,8 +117,9 @@ vrooli scenario requirements validate audio-tools --json
 - [ ] Read the published `PRD.md` and confirm it captures the intended
       permanent capability, users, operational targets, dependencies,
       risks, and UX direction.
-- [ ] Treat `PRD.md` as read-only after this gate except for automated
-      checkbox updates.
+- [ ] Preserve approved PRD targets. Target amendments require their owner's
+      authorization and publication path; routine checkbox synchronization does
+      not authorize changing acceptance criteria.
 
 **Exit criteria:** `PRD.md` exists, validates, and contains stable
 P0/P1/P2 operational targets that can drive requirements and tests.
@@ -132,12 +130,11 @@ Generate requirements from the PRD operational targets. Requirements
 are the implementation-facing measurement layer; tests should later tag
 `[REQ:ID]` so sync tooling can update status.
 
-The generated scenario includes a tiny starter module at
-`requirements/01-foundation/module.json` only so first-run validation has
-a valid registry to inspect. Do not treat it as product scope. Replace
-it with PRD-specific modules during this gate, or regenerate the whole
-registry from the PRD and remove the starter import from
-`requirements/index.json`.
+The initial template supplied `requirements/01-foundation/module.json` to make
+first-run validation possible. Inspect the current registry before migration:
+preserve real obligation IDs and evidence links. Replace a remaining starter-only
+module through the requirement owner; do not regenerate a mature registry merely
+because this initialization guide describes the original scaffold.
 
 - [ ] Optionally write requirement-generation context:
 
@@ -435,9 +432,10 @@ read `docs/internal/TESTING.md` before adding non-trivial tests.
 
 ## Replacing The Example Domain
 
-Build your first real domain side-by-side with `notes`, then remove
-`notes`. Use plural package/folder names such as `tasks`, `profiles`,
-or `orders`; use PascalCase for components and Go exported names.
+If the generated `notes` example still exists, replace it only after its real
+domain successor and references are accounted for. Existing Audio Tools domains
+are not starter examples. Use plural package/folder names and PascalCase for
+components and Go exported names.
 
 For a normal proto-backed CRUD domain:
 

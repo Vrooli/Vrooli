@@ -135,7 +135,7 @@ buffered single-frame wrapper when nothing accepts. Today:
 | Tier | `StreamingCapability()` | File |
 |---|---|---|
 | BYOK | Aggregated across registered adapters | `api/internal/ai/ttschain/provider_byok.go:55` |
-| Vrooli | `false` (LPBS audio-gateway streaming is out of scope, PRD OT-P2-002) | `api/internal/ai/ttschain/provider_vrooli.go:60` |
+| Vrooli | `false` in the inspected adapter; hosted TTS delivery is not qualified. PRD OT-P1-004 now covers operation-specific shared voice routing; there is no current OT-P2-002. | `api/internal/ai/ttschain/provider_vrooli.go` |
 | Local (sherpa-onnx/Kokoro) | `false` (incremental synthesis lands in Phase D) | `api/internal/ai/ttschain/provider_local.go:64` |
 
 So every streaming call lands in the buffered fallback today unless a

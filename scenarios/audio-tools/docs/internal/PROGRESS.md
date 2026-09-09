@@ -18,7 +18,9 @@ older completion claim; archival does not close any outstanding work. The
 [project preservation record](../../../../docs/internal/PROGRESS.md#documentation-cleanup--2026-09-07)
 records ownership and recovery.
 
-## Recent milestones
+## Progress Log
+
+### Recent milestones
 
 | Date | Author | Status | Notes |
 |---|---|---|---|
@@ -27,6 +29,17 @@ records ownership and recovery.
 | 2026-08-18 | codex | fix/swarm-search-registration | Repaired Swarm Manager's committed search descriptor by removing the obsolete `declared_at` field and adding required dense tuning for the initiative provider; the test now validates both intended providers and selects the records provider by id. The complete Swarm API package passes, and a governed restart is healthy with both providers updated in search-hub. |
 
 ## New entries
+
+### 2026-09-09 — Portable voice documentation and contract revision
+
+Regenerated the PRD through Business Health, preserving the original requirement
+identities and evidence. Aligned requirements, architecture/domain mappings,
+performance/testing and full-mandate completion, privacy/data/deployment,
+commercial policy, experience priorities and canonical usage/improvement skills.
+Four unsupported completion statuses returned to in-progress. No runtime voice
+behavior was changed or qualified. The read-only board's v2 target inventory now
+matches all 15 PRD targets, with every outcome still unknown. The hosted path, sensor joins,
+native cohorts and pending acceptance decisions remain implementation/review work.
 
 Append a dated milestone with its outcome, remaining constraint, and durable
 owner reference. Store detailed command output with the producing owner.

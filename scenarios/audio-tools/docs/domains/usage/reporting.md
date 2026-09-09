@@ -16,6 +16,13 @@ Usage reporting is intentionally non-blocking: the request path
 enqueues and returns. A drained queue and a successful summary query
 are unrelated guarantees.
 
+This pipeline is diagnostic usage history, not the authoritative customer
+billing ledger. Its drop-newest queue is unsuitable for durable billable
+delivery or reservation reconciliation. PRD OT-P0-007 requires shared-owner
+entitlement, metering and idempotent settlement; see
+[MONETIZATION.md](../../business/MONETIZATION.md). A `credits_charged` field or a
+successful asynchronous send is not proof that the owned route works.
+
 ## Purpose
 
 `internal/usagereport` (`api/internal/usagereport/recorder.go:6`)
@@ -50,17 +57,19 @@ Producers populate a `store.UsageRow`
 | `Operation` | `transcribe` \| `synthesize` \| `summarize` \| `transcode` \| etc. |
 | `ProviderTier`, `ProviderID`, `ModelID` | Trace fields from the chain `Result`. Blank on the error path. |
 | `LatencyMs` | Wall-clock latency the handler measured around `Chain.Execute`. |
-| `CreditsCharged` | Currently always 0 for non-Vrooli tiers; Vrooli credit accounting is wired through this field. |
+| `CreditsCharged` | Usage-history projection, not settlement authority. Local/BYOK have no Vrooli voice debit; owned billing needs a shared ledger receipt. Zero without receipt can mean missing accounting, not free delivered service. |
 | `PromptTokens`, `OutputTokens` | Populated by summarize / chat-style operations. |
 | `AudioDurationSeconds` | Populated by STT / audio operations. |
 | `Error` | Error string; blank on success. |
 | `FallbackReason` | Why the chain demoted to a lower tier (e.g., `"byok_timeout"`). Optional. |
 | `UserIdentity` | From the BYOK envelope; opaque string the operator uses to scope rows. |
 
-Today the summarize handler is the only handler wiring usage
-(`api/handlers/summarize/handler.go:67`). TTS, STT, and audio
-handlers are expected to follow the same shape; the recorder is
-already wired through `Deps`.
+Source inspected 2026-09-09 enqueues usage from STT batch and WebSocket,
+TTS batch, and summarize handlers. Inspect `handlers/stt/{connect_handler.go,
+stream_ws.go}`, `handlers/tts/connect_handler.go`, and
+`handlers/summarize/connect_handler.go` for exact paths. This is not evidence
+that every streaming branch or audio transformation has complete usage coverage.
+Qualify per-operation success, failure and cancellation before claiming coverage.
 
 ## Outputs
 

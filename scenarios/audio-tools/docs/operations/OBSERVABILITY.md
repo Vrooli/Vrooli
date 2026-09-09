@@ -33,13 +33,22 @@ Use this document to answer:
 
 | Metric | Status | Notes |
 |---|---|---|
-| Product activation | deferred | Define after PRD users and workflows are real. |
+| Product activation | target, not joined | Voice attempt, route selected, first successful turn and recovery outcome per consented consumer cohort; no private speech in telemetry. |
 | Requirement coverage | active | Tracked through requirements and test-genie coverage artifacts. |
-| Performance budgets | deferred | Define in `../internal/PERFORMANCE.md`. |
+| Voice performance | instrument qualification open | Click/capture/session ready, first voiced sample, visible partial, committed interval position and final tail; clocks in PERFORMANCE.md, candidate bands in TESTING.md. |
+| Owned service usage | implementation/qualification open | Correlate account, operation, session, meter/policy revision, durable delivery and shared ledger receipt; customer debit is not upstream cost. |
+| Acceptance coverage | target inventory present; receipt joins missing | setpoint-read v2 lists all 15 PRD targets as unknown. Enumeration and collection success cannot imply acceptance. |
+
+For each run retain build/source, engine/model, route, consumer, OS/browser,
+device/acceleration, corpus/method/policy revision, cold/warm state and fake/live
+lane. Preserve failed attempts, missing counts and timeouts. The acceptance owner
+must refuse incompatible or stale joins rather than select the newest green run.
 
 ## Alerts / Health
 
-The generated scenario has lifecycle health checks for API and UI. Add
+The scenario has lifecycle health checks for API and UI. They do not establish
+microphone/session readiness, deployed-source freshness, stream cadence, final
+coverage or billing correctness. Add
 deployment-specific alerts only when deployment target and operator
 expectations are known.
 
@@ -49,6 +58,8 @@ expectations are known.
 |---|---|---|
 | Product usage telemetry | Cannot validate monetization or adoption. | Add before public launch or monetization review. |
 | Cost telemetry | Cannot evaluate hosted/SaaS unit economics. | Add before managed deployment. |
+| Current owner-backed outcome joins | Cannot accept the full development goal from the setpoint board. | Implement and negative-test before full-mandate completion. |
+| Per-branch duration, early EOF and final-tail oracles | A fresh soak artifact can overstate STT qualification. | Repair before crediting long-duration runs. |
 
 ## Cross-References
 
