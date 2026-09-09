@@ -56,6 +56,29 @@ proto contracts.
 
 The structured shape of what flows here is defined once in [`PLAN-MODEL.md`](PLAN-MODEL.md).
 
+### Target: artifact-first review
+
+This is the target integration with general TTD bundles, not a claim that the
+current proto-only planner supplies it. Follow the
+[documentation-first location rules](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#documentation-first-authoring-and-application).
+
+A plan references exact bundle revisions, selected changes, base identities,
+target links, and validation evidence. The plan retains rationale, sequencing,
+risks, effect grants, and a concise decision summary; artifact contents stay with
+their owner. Review must expose weakened outcomes, new paid effects, and altered
+platform commitments without making the operator inspect every diff.
+
+Approval binds the selected immutable revision. Editing a draft after review must
+produce a new revision, not mutate approved content. Execution asks the application
+owner to apply the approved selection, retains its receipt, and handles conflict or
+partial state before dependent implementation. Never treat a linked draft's existence
+as proof of approval or application. Existing active-plan mutation rules remain in
+force; a development checkpoint is not a canonical-plan rewrite.
+
+Qualification: a short plan resolves all reviewed artifacts after workspace expiry;
+revision drift requires review; partial application remains explicit; fallback
+authoring preserves proposed bytes without an unauthorized canonical write.
+
 ### Durable validation lifecycle
 
 Validation is a server-owned operation, not the lifetime of one Connect/HTTP

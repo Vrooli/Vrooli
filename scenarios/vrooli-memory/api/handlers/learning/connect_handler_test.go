@@ -14,17 +14,20 @@ import (
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/learning"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	learningdata "vrooli-memory/internal/learning"
 	"vrooli-memory/internal/ledgerclient"
 )
 
 type journalFake struct {
 	srpc.JournalServiceClient
-	stored *source.Entry
-	writes int
-	reads  int
-	scope  string
-	err    error
-	page   *source.ListEntriesResponse
+	stored   *source.Entry
+	writes   int
+	reads    int
+	scope    string
+	err      error
+	page     *source.ListEntriesResponse
+	resolved *source.Entry
+	lookup   *source.GetEntryRequest
 }
 
 func (f *journalFake) AppendEntry(_ context.Context, r *connect.Request[source.AppendEntryRequest]) (*connect.Response[source.AppendEntryResponse], error) {
@@ -38,7 +41,32 @@ func (f *journalFake) AppendEntry(_ context.Context, r *connect.Request[source.A
 }
 func (f *journalFake) GetEntry(_ context.Context, r *connect.Request[source.GetEntryRequest]) (*connect.Response[source.GetEntryResponse], error) {
 	f.scope = r.Msg.Scope
+	f.lookup = r.Msg
+	if f.resolved != nil {
+		return connect.NewResponse(&source.GetEntryResponse{Entry: f.resolved}), f.err
+	}
 	return connect.NewResponse(&source.GetEntryResponse{Entry: &source.Entry{Id: r.Msg.Id, CreatedAt: timestamppb.New(time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC))}}), f.err
+}
+
+func TestObservationResolvesStableAttemptIdentityNotLedgerUUID(t *testing.T) {
+	a := request().Msg.Attempt
+	body, err := learningdata.Encode(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := &journalFake{resolved: &source.Entry{Id: "ledger-uuid-distinct-from-attempt", Kind: "task-record", Body: body}}
+	o := &pb.Observation{ObservationId: "feedback-1", AttemptId: a.AttemptId, Disposition: "supported", EvidenceRefs: []string{"test:receipt"}, Provenance: "test", ObservedAt: a.FinishedAt}
+	result, err := handler(f, true).RecordObservation(context.Background(), connect.NewRequest(&pb.RecordObservationRequest{Scope: "owner-usage", Observation: o}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Msg.EntryId == "" || f.writes != 1 || f.lookup.Id != "" || f.lookup.Scope != "owner-usage" {
+		t.Fatal(result, f.lookup)
+	}
+	p := f.lookup.ImportProvenance
+	if p == nil || p.Runtime != "vrooli-memory.learning/v1" || p.SourceLocator != a.AttemptId || p.ContentHash != "immutable-attempt" {
+		t.Fatal(p)
+	}
 }
 func (f *journalFake) ListEntries(_ context.Context, r *connect.Request[source.ListEntriesRequest]) (*connect.Response[source.ListEntriesResponse], error) {
 	f.scope = r.Msg.Scope

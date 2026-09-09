@@ -37,7 +37,7 @@ func (h *connectHandler) ListScopes(ctx context.Context, in *connect.Request[mem
 
 func proxy[MI, SI, MO, SO any](ctx context.Context, in *connect.Request[MI], src *SI, out *MO, invoke func(context.Context, *connect.Request[SI]) (*connect.Response[SO], error), op string) (*connect.Response[MO], error) {
 	req := connect.NewRequest(src)
-	if err := ledgerclient.TranslateWithScope(any(in.Msg).(proto.Message), any(req.Msg).(proto.Message), "agent-memory"); err != nil {
+	if err := ledgerclient.TranslateWithScope(any(in.Msg).(proto.Message), any(req.Msg).(proto.Message), ledgerclient.ScopeOf(any(in.Msg).(proto.Message))); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	ledgerclient.ForwardHeaders(in.Header(), req.Header())

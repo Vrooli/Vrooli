@@ -4,10 +4,7 @@ This workflow gathers evidence. A caller owns selection, repair authority, and
 independent validation; neither a candidate nor an agent report grants credit.
 """
 import json
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 
 envelope = {"program":"program-runtime.improvement-evidence", "version":"1", "status":"failed", "phase":"validate", "inputs":{}, "signals":{"children":[], "reserved":False, "mutation_authorized":False}, "errors":[], "evidence":[]}
 

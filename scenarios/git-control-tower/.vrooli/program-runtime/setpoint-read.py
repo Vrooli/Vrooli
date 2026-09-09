@@ -1,9 +1,6 @@
 """Read-only, honest improvement observations."""
 import json
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 env = {"program": "git-control-tower.setpoint-read", "version": "1", "status": "failed", "phase": "validate", "signals": {"rows": []}, "errors": [], "evidence": []}
 observations = inputs.get("observations") if isinstance(inputs, dict) else None
 if not isinstance(observations, list):

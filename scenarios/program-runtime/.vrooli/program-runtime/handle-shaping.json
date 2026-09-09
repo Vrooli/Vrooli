@@ -2,6 +2,9 @@
   "$schema": "../../schemas/program-contract.schema.json",
   "name": "program-runtime.handle-shaping",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Filter, join, sort, select, and aggregate two local Handles in the kernel and return only the top rows and one sum; the handle-shaping construction pattern.",
   "inputs": {
     "top_n": {
@@ -50,7 +53,9 @@
         "deadline_exceeded",
         "binding_error",
         "kernel_runtime",
-        "handle_error"
+        "handle_error",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "the local handle sizes"

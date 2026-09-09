@@ -2,6 +2,9 @@
   "$schema": "../../schemas/program-contract.schema.json",
   "name": "program-runtime.usage-triage",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Separate bounded program-run candidates that helped an agent from those that fought or abandoned the work, using one batched classifier call.",
   "inputs": {
     "window_days": {
@@ -114,7 +117,9 @@
         "inference_failed",
         "deadline_exceeded",
         "binding_error",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Bounded binding names, attribution basis, classifier provider/model, and aggregate usage."

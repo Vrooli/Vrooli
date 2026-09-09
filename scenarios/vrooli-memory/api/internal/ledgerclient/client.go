@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -22,6 +23,7 @@ import (
 	sourcejournalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
 	sourcerecallconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall/recall_v1connect"
 	sourcerulesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/rules/rules_v1connect"
+	sourcescopes "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/scopes"
 	sourcescopesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/scopes/scopesv1connect"
 )
 
@@ -163,8 +165,23 @@ func RPCError(operation string, err error) error {
 
 type CompactionResult struct{ CompactedCount, EligibleFrontierBefore, EligibleFrontierAfter, Target int }
 
-func (c *Client) RunBounded(ctx context.Context, maxClusters int) (CompactionResult, error) {
-	resp, err := c.Forest.RunCompactionPass(ctx, connect.NewRequest(&sourceforest.RunCompactionPassRequest{Scope: DefaultScope, MaxClusters: int32(maxClusters)}))
+func (c *Client) ListScopes(ctx context.Context) ([]string, error) {
+	resp, err := c.Scopes.ListScopes(ctx, connect.NewRequest(&sourcescopes.ListScopesRequest{}))
+	if err != nil {
+		return nil, NormalizeError("list scopes", err)
+	}
+	scopes := make([]string, 0, len(resp.Msg.GetScopes()))
+	for _, scope := range resp.Msg.GetScopes() {
+		if scope != nil && strings.TrimSpace(scope.GetId()) != "" {
+			scopes = append(scopes, NormalizeScope(scope.GetId()))
+		}
+	}
+	sort.Strings(scopes)
+	return scopes, nil
+}
+
+func (c *Client) RunBounded(ctx context.Context, scope string, maxClusters int) (CompactionResult, error) {
+	resp, err := c.Forest.RunCompactionPass(ctx, connect.NewRequest(&sourceforest.RunCompactionPassRequest{Scope: NormalizeScope(scope), MaxClusters: int32(maxClusters)}))
 	if err != nil {
 		return CompactionResult{}, NormalizeError("compaction", err)
 	}

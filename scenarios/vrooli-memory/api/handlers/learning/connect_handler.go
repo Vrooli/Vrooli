@@ -88,7 +88,9 @@ func (h *Handler) RecordObservation(ctx context.Context, in *connect.Request[pb.
 	if err := learning.ValidateObservation(o); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	get := connect.NewRequest(&source.GetEntryRequest{Scope: in.Msg.Scope, Id: o.AttemptId})
+	get := connect.NewRequest(&source.GetEntryRequest{Scope: in.Msg.Scope, ImportProvenance: &source.ImportProvenance{
+		Runtime: "vrooli-memory.learning/v1", SourceLocator: o.AttemptId, ContentHash: "immutable-attempt",
+	}})
 	ledgerclient.ForwardHeaders(in.Header(), get.Header())
 	entry, err := h.client.Journal.GetEntry(ctx, get)
 	if err != nil {

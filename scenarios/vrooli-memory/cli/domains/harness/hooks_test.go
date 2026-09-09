@@ -68,7 +68,7 @@ func TestReconcileHooksPreservesClaudeEntriesAndIsReversible(t *testing.T) {
 				"matcher": "*",
 				"hooks": []any{map[string]any{
 					"_id": memoryHookID, "managedBy": "vrooli",
-					"type": "command", "command": "vrooli-memory hook --runtime claude-code",
+					"type": "command", "command": "vrooli-memory harness hook --runtime claude-code",
 				}},
 			})
 		}

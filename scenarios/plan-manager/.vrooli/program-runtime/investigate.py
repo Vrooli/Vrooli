@@ -2,10 +2,7 @@
 
 import json
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 
 envelope = {
     "program": "plan-manager.investigate", "version": "1", "status": "failed", "phase": "validate",

@@ -1,0 +1,144 @@
+{
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "assumptions": [
+    "Vrooli Memory and Source Ledger are reachable for live operations.",
+    "Caller supplies scope and evidence; no scope provisioning occurs here."
+  ],
+  "invariants": [
+    "The envelope is printed exactly once on every path.",
+    "No inference, direct storage, polling, or in-program retry.",
+    "Output is bounded to 65536 bytes."
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "Seven standard {row,reading,target,in_band,unavailable,reason} rows. No cross-cohort aggregation.",
+      "reliability": "Source reliable/reason, scan and sample truncation, counts, and interpretation; unknown on transport failure."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Bounded Memory entry IDs from reads or acknowledged writes."
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 10,
+    "output_bytes": 65536
+  },
+  "name": "vrooli-memory.compare-outcomes",
+  "purpose": "Read seven standard learning comparison rows for explicit scope/window/context selectors, preserving separate cohorts, source reliability, and unknown optional measurements.",
+  "inputs": {
+    "scope": {
+      "type": "string",
+      "required": true,
+      "description": "Explicit provisioned Memory scope; no ambient default."
+    },
+    "from": {
+      "type": "string",
+      "required": false,
+      "description": "RFC3339 start inclusive; empty freezes seven days before the resolved end.",
+      "default": ""
+    },
+    "to": {
+      "type": "string",
+      "required": false,
+      "description": "RFC3339 end exclusive; empty freezes current time into request and returned inputs.",
+      "default": ""
+    },
+    "operation": {
+      "type": "string",
+      "required": false,
+      "description": "Exact operation filter; empty includes all.",
+      "default": ""
+    },
+    "context_key": {
+      "type": "string",
+      "required": false,
+      "description": "Exact context filter; empty includes all.",
+      "default": ""
+    },
+    "cohort_limit": {
+      "type": "integer",
+      "required": false,
+      "description": "Maximum 1..10 cohorts; larger source set remains explicitly unreliable.",
+      "default": 5
+    }
+  },
+  "bindings": [
+    {
+      "id": "vrooli-memory/learning/measure",
+      "effect": "read"
+    }
+  ],
+  "memory": {
+    "scope": "caller-scope",
+    "scope_input": "scope",
+    "reads_in": "collect",
+    "writes_in": "none",
+    "entry_kinds": []
+  },
+  "fixtures": [
+    {
+      "id": "missing-scope",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "vrooli-memory"
+      ]
+    },
+    {
+      "id": "invalid-scope",
+      "inputs": {
+        "scope": ""
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "note": "Local validation rejection; never mutates live Memory.",
+      "requires": [
+        "vrooli-memory"
+      ]
+    }
+  ],
+  "verbs": [
+    "agent.collect",
+    "lib",
+    "recall",
+    "tasks.get",
+    "validate"
+  ]
+}

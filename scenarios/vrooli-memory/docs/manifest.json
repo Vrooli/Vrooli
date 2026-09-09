@@ -651,16 +651,16 @@
             "agents",
             "operators"
           ],
-  "canonicalFor": [
-    "replacement-scope",
-    "migration-plan"
-  ],
-  "maturity": "active",
-  "requiredBy": [
-    "implemented",
-    "validated"
-  ],
-  "completion": "required"
+          "canonicalFor": [
+            "replacement-scope",
+            "migration-plan"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -1093,13 +1093,10 @@
             "ui-slots-reference",
             "scenario-ui-manifest"
           ],
-          "description": "Slot table, path-pattern tokens, and adoption-resolver resolution order for the scenario UI manifest",
+          "description": "Entry point to the shared ui manifest reference contract and local differences",
           "audience": [
             "developers",
             "agents"
-          ],
-          "canonicalFor": [
-            "ui-manifest-reference"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -1108,12 +1105,8 @@
           "completion": "optional",
           "validation": {
             "requiredHeadings": [
-              "Contract",
-              "Slots (v1)",
-              "Path-Pattern Tokens",
-              "Resolution Order (Adoption Resolver)",
-              "Overlays",
-              "Cross-References"
+              "Shared contract",
+              "Scenario details"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1190,14 +1183,10 @@
             "error-semantics",
             "recovery"
           ],
-          "description": "Connect-RPC error translation, REST multipart exceptions, and UI i18n mapping",
+          "description": "Entry point to the shared error handling contract and local differences",
           "audience": [
             "developers",
             "agents"
-          ],
-          "canonicalFor": [
-            "error-semantics",
-            "recovery-paths"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -1210,9 +1199,8 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "Proto-Typed Operations",
-              "Sentinel Mapping",
-              "Multipart REST Exceptions"
+              "Shared contract",
+              "Scenario details"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1228,15 +1216,14 @@
             "test-strategy",
             "qa"
           ],
-          "description": "Layered test patterns, fixtures, and coverage expectations",
+          "description": "Scenario-specific test strategy, existing examples, and shared harness guidance",
           "audience": [
             "developers",
             "agents"
           ],
           "canonicalFor": [
             "testing-strategy",
-            "test-patterns",
-            "coverage-policy"
+            "local-test-examples"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -1250,15 +1237,8 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "TL;DR \u2014 the canonical examples",
-              "API testing",
-              "UI testing",
-              "CLI testing",
-              "How to add a new proto",
-              "E2E binary smoke gate",
-              "Coverage thresholds",
-              "Common patterns and anti-patterns",
-              "Cross-references"
+              "Shared guidance",
+              "Scenario-specific testing"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"

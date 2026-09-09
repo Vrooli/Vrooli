@@ -23,13 +23,14 @@ import (
 // Resolution is the resolved install plan for a request: where it runs, which
 // manager, the manifest it mutates, and the exact argv.
 type Resolution struct {
-	RepositoryRoot string
-	SurfaceRoot    string
-	PackageManager string
-	ManifestPath   string
-	PackageName    string
-	Argv           []string
-	Profile        InstallProfile
+	RepositoryRoot  string
+	SurfaceRoot     string
+	PackageManager  string
+	ManifestPath    string
+	PackageName     string
+	TemplateVersion string
+	Argv            []string
+	Profile         InstallProfile
 }
 
 // InstallProfile records the security properties of a governed mutation. It
@@ -63,6 +64,9 @@ func ValidateProtectedBuildException(exception ProtectedBuildException) error {
 // always uses Argv with exec.CommandContext; callers must never feed this
 // string to a shell.
 func (r Resolution) Command() string {
+	if r.TemplateVersion != "" {
+		return "declare " + r.PackageName + "@" + r.TemplateVersion + " and regenerate the template lockfile in a temporary scenario surface"
+	}
 	parts := make([]string, 0, len(r.Argv))
 	for _, arg := range r.Argv {
 		parts = append(parts, displayArg(arg))
@@ -84,6 +88,10 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 	if err := validateResolution(r); err != nil {
 		return "", err
 	}
+	if r.TemplateVersion != "" {
+		return installTemplate(ctx, r, ExecInstaller{})
+	}
+
 	if r.PackageManager == "pnpm" {
 		if err := ensureReleaseAge(r.SurfaceRoot); err != nil {
 			return "", err
@@ -131,7 +139,7 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 var allowedSurfaces = map[string]struct{}{"ui": {}, "api": {}, "cli": {}, "agent": {}, "playwright-driver": {}, "resource": {}}
 
 // Resolve maps a request to a Resolution. repoRoot is the Vrooli repo root;
-// surface is ui/api/cli/agent/playwright-driver, resource, tools/<package>, or platforms/<package>.
+// surface is ui/api/cli/agent/playwright-driver, resource, tools/<package>, platforms/<package>, or template/<id>.
 // It validates the surface exists and that the ecosystem
 // matches the surface's detected package manager, and builds the install argv.
 func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string) (Resolution, error) {
@@ -161,14 +169,22 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 	if manager == "pnpm" && isSharedPackageRoot(repoRoot, surfaceRoot) && !fileExists(filepath.Join(surfaceRoot, "pnpm-workspace.yaml")) {
 		argv = append(argv, "--ignore-workspace")
 	}
+	templateVersion := ""
+	if strings.HasPrefix(surface, "template/") {
+		if ecosystem != "npm" || version == "" {
+			return Resolution{}, fmt.Errorf("template declarations require an explicit npm version")
+		}
+		templateVersion = version
+	}
 	return Resolution{
-		RepositoryRoot: repoRoot,
-		SurfaceRoot:    surfaceRoot,
-		PackageManager: manager,
-		ManifestPath:   manifest,
-		PackageName:    packageName,
-		Argv:           argv,
-		Profile:        SafeProfileFor(manager, argv),
+		TemplateVersion: templateVersion,
+		RepositoryRoot:  repoRoot,
+		SurfaceRoot:     surfaceRoot,
+		PackageManager:  manager,
+		ManifestPath:    manifest,
+		PackageName:     packageName,
+		Argv:            argv,
+		Profile:         SafeProfileFor(manager, argv),
 	}, nil
 }
 
@@ -256,6 +272,14 @@ func ResolveNpmOverride(repoRoot, scenario, surface string) (Resolution, error) 
 // CLI remains backward-compatible while governed dependency changes can reach
 // shared packages without pretending they are scenarios.
 func resolveSurfaceRoot(repoRoot, scenario, surface string) string {
+	if strings.HasPrefix(surface, "template/") {
+		root := filepath.Join(repoRoot, "templates", "scenarios", strings.TrimPrefix(surface, "template/"), "ui")
+		if info, err := os.Stat(root); err == nil && info.IsDir() {
+			return root
+		}
+		return ""
+	}
+
 	scenarioRoot := filepath.Join(repoRoot, "scenarios", scenario, surface)
 	if surface != "resource" {
 		if info, err := os.Stat(scenarioRoot); err == nil && info.IsDir() {
@@ -329,10 +353,10 @@ func normalizedSurface(surface string) (string, error) {
 		return surface, nil
 	}
 	parts := strings.Split(surface, "/")
-	if len(parts) == 2 && (parts[0] == "tools" || parts[0] == "platforms") && parts[1] != "" && parts[1] != "." && parts[1] != ".." && !strings.ContainsAny(parts[1], `/\\`) {
+	if len(parts) == 2 && (parts[0] == "tools" || parts[0] == "platforms" || parts[0] == "template") && parts[1] != "" && parts[1] != "." && parts[1] != ".." && !strings.ContainsAny(parts[1], `/\\`) {
 		return surface, nil
 	}
-	return "", fmt.Errorf("surface %q is not ui/api/cli/agent/playwright-driver/resource, tools/<package>, or platforms/<package>", surface)
+	return "", fmt.Errorf("surface %q is not ui/api/cli/agent/playwright-driver/resource, tools/<package>, platforms/<package>, or template/<id>", surface)
 }
 
 // planForEcosystem builds the package manager, manifest path, and install argv

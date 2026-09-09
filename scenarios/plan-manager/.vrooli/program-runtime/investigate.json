@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "plan-manager.investigate",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Compose one plan-owned trigger observation and domain brief into a bounded Agent Manager investigation.",
   "inputs": {
     "caller_key": {
@@ -85,7 +88,9 @@
         "scenario_unreachable",
         "no_output",
         "binding_error",
-        "deadline_exceeded"
+        "deadline_exceeded",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Trigger, execution, phase, brief, and nested investigation identities."

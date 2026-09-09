@@ -1,10 +1,7 @@
 NAME='plan-manager.execution-board'
 KEYS=['execution_id', 'family_id']
 import json
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 envelope = {"program": NAME, "version":"1", "status":"ok", "phase":"validate", "inputs":{}, "signals":{}, "errors":[], "evidence":[]}
 work = {}
 def fail(status, klass, detail, where):
@@ -13,35 +10,6 @@ def fail(status, klass, detail, where):
     return "report"
 def short(value):
     return str(value or "")[:160]
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
-
-
-
-
 
 
 def step_validate():
@@ -119,7 +87,7 @@ while state:
     except Exception as exc:
         if state=="report": raise
         try:
-            status,klass=classify_transport(exc)
+            status,klass=program.classify(exc)
         except (NameError,AttributeError):
             status,klass="failed","kernel_runtime"
         state=fail(status,klass,exc,state)

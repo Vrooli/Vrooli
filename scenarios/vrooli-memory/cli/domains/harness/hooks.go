@@ -166,7 +166,7 @@ func hookCommandArgs(runtime, action string) ([]string, error) {
 		return nil, fmt.Errorf("unsupported hook action %q", action)
 	}
 	event := "PreToolUse"
-	hook := map[string]any{"type": "command", "command": "vrooli-memory hook --runtime " + runtime}
+	hook := map[string]any{"type": "command", "command": "vrooli-memory harness hook --runtime " + runtime}
 	if action == "remove" {
 		return []string{"hooks", "remove", "--event", event, "--id", memoryHookID, "--scope", "global"}, nil
 	}

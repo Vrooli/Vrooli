@@ -93,6 +93,15 @@ _SAFE_BUILTINS["open"] = _guarded_open
 
 
 from contracts import resolve_inputs
+from program_helper import (
+    HELPER_VERSION,
+    AmbiguousResponse,
+    BindingError,
+    InvalidInput,
+    ProgramHelper,
+    ScenarioUnreachable,
+    bridge_error,
+)
 from tasks import Tasks, ACTIVE_TASK
 
 
@@ -453,6 +462,7 @@ _RUNTIME_VERB_NAMES = (
     "reachable",
     "lib",
     "tasks",
+    "program",
 )
 
 
@@ -687,6 +697,9 @@ class Namespace:
             return Tasks(self, _INVOCATION_CONTEXT, Handle, _Budgets.invoke).run(
                 operation=identity, inputs=kwargs, expected_digest=spec.get("digest", ""))
         environment = _program_globals(self, self._project, "program_runtime_library")
+        declared_helper = str((spec.get("declaration", {}).get("helpers") or {}).get("program", "")).strip()
+        if declared_helper and declared_helper != HELPER_VERSION:
+            raise ValueError(f"declared program requires program helper version {declared_helper!r}; this kernel provides {HELPER_VERSION!r}")
         if spec.get("contract", False):
             environment["inputs"] = resolve_inputs(spec.get("declaration", {}), kwargs)
         elif kwargs:
@@ -1162,20 +1175,20 @@ class BridgeBinding:
 
     def __call__(self, *args: Any, **kwargs: Any) -> Handle:
         if args:
-            raise TypeError(f"{self.binding_id} accepts named proto fields, not positional arguments")
+            raise InvalidInput(f"{self.binding_id} accepts named proto fields, not positional arguments", binding_id=self.binding_id)
         confirmed = bool(kwargs.pop("_confirm", False))
         rows_override = kwargs.pop("rows", None)
         if rows_override is not None:
             rows_override = str(rows_override)
             if rows_override not in self.row_field_candidates:
                 candidates = ", ".join(self.row_field_candidates) or "<none>"
-                raise ValueError(f"binding {self.binding_id} rows must be one of: {candidates}")
+                raise AmbiguousResponse(f"binding {self.binding_id} rows must be one of: {candidates}", binding_id=self.binding_id)
         if not self.bridge_url:
-            raise RuntimeError("program-runtime binding bridge is unavailable")
+            raise ScenarioUnreachable("program-runtime binding bridge is unavailable", binding_id=self.binding_id)
         if self.reachability_url:
             self._check_live_reachability()
         elif not self.reachable:
-            raise RuntimeError(f"binding {self.binding_id} is unreachable: {self.reachability_reason}")
+            raise ScenarioUnreachable(f"binding {self.binding_id} is unreachable: {self.reachability_reason}", binding_id=self.binding_id)
         return self._invoke(kwargs, confirmed, rows_override)
 
     def _check_live_reachability(self) -> None:
@@ -1191,11 +1204,11 @@ class BridgeBinding:
             scenario = self.binding_id.split("/", 1)[0]
             status = snapshot.get(scenario, {}) if isinstance(snapshot, dict) else {}
             if not status.get("reachable", False):
-                raise RuntimeError(f"binding {self.binding_id} is unreachable: {status.get('reason', 'scenario API is unavailable')}")
-        except RuntimeError:
+                raise ScenarioUnreachable(f"binding {self.binding_id} is unreachable: {status.get('reason', 'scenario API is unavailable')}", binding_id=self.binding_id)
+        except BindingError:
             raise
         except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
-            raise RuntimeError(f"binding {self.binding_id} is unreachable: live reachability unavailable: {exc}") from exc
+            raise ScenarioUnreachable(f"binding {self.binding_id} is unreachable: live reachability unavailable: {exc}", binding_id=self.binding_id) from exc
 
     def _invoke(self, kwargs: dict[str, Any], confirmed: bool, rows_override: str | None = None) -> Handle:
         context = _INVOCATION_CONTEXT.get()
@@ -1205,25 +1218,28 @@ class BridgeBinding:
             with urllib.request.urlopen(http_request, timeout=_Budgets.invoke) as response:
                 payload = json.loads(response.read().decode())
         except urllib.error.HTTPError as exc:
-            detail = exc.read().decode(errors="replace")
+            # The bridge writes a structured body: error, class, status,
+            # http_status. The typed exception carries the closed class so a
+            # program branches on `exc.klass`, never on the message text.
+            detail: Any = exc.read().decode(errors="replace")
             try:
-                detail = json.loads(detail).get("error", detail)
+                detail = json.loads(detail)
             except json.JSONDecodeError:
                 pass
-            raise RuntimeError(str(detail)) from exc
+            raise bridge_error(self.binding_id, exc.code, detail) from exc
         except (urllib.error.URLError, TimeoutError) as exc:
-            raise RuntimeError(f"binding bridge unavailable: {exc}") from exc
+            raise ScenarioUnreachable(f"binding bridge unavailable: {exc}", binding_id=self.binding_id) from exc
         self.invocations.append({"binding_id": self.binding_id, "effect": self.effect})
         if not isinstance(payload, dict):
-            raise RuntimeError(f"binding {self.binding_id} returned a non-object response")
+            raise BindingError(f"binding {self.binding_id} returned a non-object response", binding_id=self.binding_id)
         if self.row_field_candidates and not rows_override:
             candidates = ", ".join(self.row_field_candidates)
-            raise RuntimeError(f"binding {self.binding_id} has no determinable primary response field; candidate repeated fields: {candidates}")
+            raise AmbiguousResponse(f"binding {self.binding_id} has no determinable primary response field; candidate repeated fields: {candidates}", binding_id=self.binding_id)
         selected_rows_field = rows_override or self.rows_field
         if selected_rows_field:
             rows = payload.get(selected_rows_field, [])
             if not isinstance(rows, list):
-                raise RuntimeError(f"binding {self.binding_id} response field {selected_rows_field!r} is not a list")
+                raise BindingError(f"binding {self.binding_id} response field {selected_rows_field!r} is not a list", binding_id=self.binding_id)
         else:
             rows = [payload]
         metadata = {name: payload[name] for name in self.meta_fields if name in payload}
@@ -1261,6 +1277,10 @@ def _program_globals(root: Namespace, project: _ProjectNamespace, name: str) -> 
         "reachable": root.reachable,
         "lib": root.lib,
         "tasks": Tasks(root, _INVOCATION_CONTEXT, Handle, _Budgets.invoke),
+        # The scaffolding every program used to copy: envelope, fail, guarded,
+        # classify, run, report. One instance per environment; bound below
+        # once the globals exist so `program.inputs()` reads the injected value.
+        "program": ProgramHelper(),
     }
     # The surface must cover exactly the declared verbs. A verb added to
     # the tuple without a binding here — or bound here without being
@@ -1286,6 +1306,7 @@ def _program_globals(root: Namespace, project: _ProjectNamespace, name: str) -> 
             if _is_scenario_map(value)
             else _NamespaceGroup(scenario, value, root._invocations)
         )
+    builtin_surface["program"]._bind(environment)
     return environment
 
 
@@ -1347,6 +1368,9 @@ class SessionKernel:
                 context[key] = value
         context_token = _INVOCATION_CONTEXT.set(context)
         task_token = ACTIVE_TASK.set(None)
+        helper = dict.get(self.globals, "program")
+        if isinstance(helper, ProgramHelper):
+            helper._reset()
         try:
             with contextlib.redirect_stdout(output):
                 tree = ast.parse(source, "<program>", "exec")

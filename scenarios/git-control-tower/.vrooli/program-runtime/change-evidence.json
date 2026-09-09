@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "git-control-tower.change-evidence",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Validate one immutable ChangeSubject and bounded evidence accounting without invoking Git or a writer.",
   "inputs": {
     "subject": {
@@ -50,7 +53,9 @@
       "classes": [
         "invalid_input",
         "ambiguous_subject",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Caller-supplied subject and coverage"

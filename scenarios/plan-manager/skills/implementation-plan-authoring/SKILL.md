@@ -9,9 +9,9 @@ metadata:
   tags: ["planning","handoff","implementation","documentation","execution"]
   icon: "file-text"
   status: "active"
-  revision: 10
+  revision: 11
   createdAt: "2026-02-09T00:00:00Z"
-  updatedAt: "2026-09-06T00:00:00Z"
+  updatedAt: "2026-09-08T00:00:00Z"
   requires:
     scenarios: ["plan-manager", "prompt-manager", "vrooli"]
     commands: ["plan-manager", "prompt-manager discover", "prompt-manager skill read", "vrooli scenario"]
@@ -64,6 +64,31 @@ you took and which were stale.
 ---
 
 ### 0. Preserve the planning source, not just the task title
+
+For changes to target documentation, architecture, requirements, experiences,
+skills, or programs, read `path:docs/agent-system/SCENARIO_DEVELOPMENT.md`
+§"Documentation-first authoring and application". Author the concrete proposed
+artifacts; use the plan for rationale, dependencies, authority, and rollout.
+
+Discover Tech Tree Designer's actual draft capabilities before choosing it.
+Service availability or proto materialization alone does not establish support
+for arbitrary artifacts. Link supported draft identities and exact revisions
+through Plan Manager's existing context/reference fields; do not invent schema fields.
+When unsupported, use the returned artifact directory for proposed content.
+Edit canonical docs or skills directly only when the operator explicitly permits it.
+Candidate mode retains the caller's stricter write boundary. When Plan Manager
+writes are forbidden, use the caller-supplied artifact destination or return the
+proposed content through its response contract. If neither can retain required
+artifacts, report the missing destination; do not start a session to obtain one.
+
+Before review, identify the changed target artifacts, their source bases, protected
+acceptance changes, draft validation, and unresolved application conflicts. Keep
+desired behavior distinct from implemented behavior. Executable prototypes require
+their own effects grant; a documentation-first task does not authorize them.
+
+For a scenario-development mandate, preserve the approved destination and delegated
+discretion. Do not predict every improvement as another backlog item or plan phase.
+Specific implementation plans remain useful where their prescribed route matters.
 
 Author for concurrent agents in one shared worktree. Use the completion policy
 in `scenarios/plan-manager/docs/concepts/PLAN-MODEL.md`. Ordinary plans use advisory

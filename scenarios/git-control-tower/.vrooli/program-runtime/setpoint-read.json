@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "git-control-tower.setpoint-read",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Report measured Git Control Tower improvement rows without inventing a baseline or lowering a target.",
   "inputs": {
     "observations": {
@@ -40,7 +43,9 @@
       "classes": [
         "invalid_input",
         "unreliable_observation",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Caller-supplied measured observations"

@@ -9,16 +9,13 @@ one ai-gateway.classify-batch workflow over the collected outputs. No polling, n
 bridge that is down is reported with its class, never re-tried here.
 Submit with --async; exceeds the synchronous bound.
 A start the owner rejects (NOT_FOUND_WORKFLOWREVISION, schema_mismatch) is the domain class
-workflow_rejected, refined from binding_error at the call site; classify_transport stays verbatim.
+workflow_rejected, refined from binding_error at the call site; program.classify stays verbatim.
 """
 
 import json
 
 # ---- inputs: the caller binds a dict named `inputs` before this source; contract defaults otherwise
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 requests = inputs["requests"] if "requests" in inputs else [{
     "owner": "development-toolchain-validator",
     "workflow_key": "development-toolchain-validator/skill-experiment-audit",
@@ -46,33 +43,6 @@ def fail(status, klass, detail, where):
     envelope["status"] = status
     envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
     return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
 
 
 def refine_start(exc, status, klass):
@@ -104,13 +74,13 @@ def step_delegate():  # DELEGATE · start every run, then collect each exactly o
             work["handles"].append(agent.start(**req))
             envelope["signals"]["started"] += 1
         except Exception as exc:
-            status, klass = refine_start(exc, *classify_transport(exc))
+            status, klass = refine_start(exc, *program.classify(exc))
             return fail(status, klass, exc, "delegate:start")
     for i, h in enumerate(work["handles"]):
         try:
             rows = agent.collect(h, wait_seconds=wait_seconds).head(1)
         except Exception as exc:
-            status, klass = classify_transport(exc)
+            status, klass = program.classify(exc)
             envelope["errors"].append({"class": klass, "detail": str(exc)[:240], "where": f"delegate:collect[{i}]"})
             work["outputs"].append(None)
             continue
@@ -133,7 +103,7 @@ def step_classify():  # CLASSIFY: retain original run indices through collection
             instruction="Label the outcome of this delegated run from its collected output.")
         result = child.head(1)[0]
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         return fail(status, klass, exc, "classify")
     signals = result["signals"]
     for item in signals["results"]:
@@ -164,12 +134,4 @@ def step_report():  # REPORT · bounded, always
 
 STATES = {"validate": step_validate, "delegate": step_delegate, "classify": step_classify, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:  # the one catch that guarantees an envelope on every path
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

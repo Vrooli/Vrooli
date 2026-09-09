@@ -162,5 +162,27 @@
         "port": "ui"
       }
     }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/offer-desk/SKILL.md",
+      "programs": [
+        "offer-desk.board-read",
+        "offer-desk.release-path",
+        "offer-desk.attention-triage"
+      ]
+    },
+    "improve": {
+      "source": "skills/offer-desk-improve/SKILL.md",
+      "programs": [
+        "offer-desk.setpoint-read",
+        "offer-desk.learning-read"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "offer-desk-usage"
+    },
+    "waivers": {}
   }
 }

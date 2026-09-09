@@ -27,3 +27,15 @@ CREATE TABLE IF NOT EXISTS maintenance_outcomes (
   completed_at TEXT NOT NULL DEFAULT '',
   PRIMARY KEY(run_id,runtime)
 );
+
+CREATE TABLE IF NOT EXISTS maintenance_compactions (
+  run_id TEXT NOT NULL REFERENCES maintenance_runs(id) ON DELETE CASCADE,
+  scope TEXT NOT NULL,
+  status TEXT NOT NULL,
+  error TEXT NOT NULL DEFAULT '',
+  compacted_count INTEGER NOT NULL DEFAULT 0,
+  frontier_before INTEGER NOT NULL DEFAULT 0,
+  frontier_after INTEGER NOT NULL DEFAULT 0,
+  frontier_target INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY(run_id,scope)
+);

@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "portal.do-task",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Run one browser export and desktop verification through their owning governed programs.",
   "inputs": {
     "workflow_id": {
@@ -93,7 +96,9 @@
         "desktop_failed",
         "scenario_unreachable",
         "no_grant",
-        "deadline_exceeded"
+        "deadline_exceeded",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Browser and desktop owner receipt references only"

@@ -154,7 +154,7 @@ count is measurement, not permission to edit another scenario.
 ### Authoring a program that will recur
 
 1. `library search "<intent>"` first; a promoted hit ends the authoring.
-2. Compose a matching scenario-owned workflow with `lib.<scenario>.<name>(...)`; inspect its status, failures, and artifact metadata before using results. Keep caller judgment in inputs. When no workflow fits, copy the shape of `scenarios/program-runtime/.vrooli/program-runtime/setpoint-read.py`: envelope first, `fail()` helper, `classify_transport()`, labeled phase functions, one `print(json.dumps(envelope, allow_nan=False))` on every path.
+2. Compose a matching scenario-owned workflow with `lib.<scenario>.<name>(...)`; inspect its status, failures, and artifact metadata before using results. Keep caller judgment in inputs. When no workflow fits, copy the shape of `scenarios/program-runtime/.vrooli/program-runtime/setpoint-read.py`: `envelope = program.envelope(name, version)` first, labeled phase functions that branch on `program.classify(exc)`, `program.run(STATES, "validate")` last, and `program.report()` in the report phase. Do not define `classify_transport`, `fail`, `guarded` or a driver loop locally; the kernel binds them as `program.*` (table in program-contracts.md) and the `programs` phase reports a local copy as `programs.duplicated_helper`.
 3. Probe every binding's row keys and argument names in a scratch session before the contract names them (`describe("<id>")`, `print(h.head(1)[0].keys())`); `bindings describe <id> --json` for the CLI view.
 4. Write the contract beside the source; validate it against `scenarios/program-runtime/schemas/program-contract.schema.json`.
 5. `programs submit --explain` in a fresh session until `diagnostics` is null.

@@ -168,6 +168,9 @@ func TestBuildSkeletonServicesProjectsDeclaredComponents(t *testing.T) {
 	if api.Binaries["linux-x64"].Path != "bin/api/linux-x64/api" || api.Binaries["win-x64"].Path != "bin/api/win-x64/api.exe" {
 		t.Fatalf("platform binary paths = %#v", api.Binaries)
 	}
+	if got := api.Binaries["linux-x64"].Cwd; got != "" {
+		t.Fatalf("desktop API cwd = %q, want bundle root", got)
+	}
 	if !reflect.DeepEqual(api.Binaries["linux-x64"].Args, []string{"serve"}) {
 		t.Fatalf("binary args = %#v", api.Binaries["linux-x64"].Args)
 	}
@@ -179,5 +182,11 @@ func TestBuildSkeletonServicesProjectsDeclaredComponents(t *testing.T) {
 	}
 	if !reflect.DeepEqual(services[1].Dependencies, []string{"api"}) {
 		t.Fatalf("ui dependencies = %#v", services[1].Dependencies)
+	}
+	if got := services[1].Binaries["linux-x64"].Path; got != "ui/dist/index.html" {
+		t.Fatalf("ui entry point = %q, want ui/dist/index.html", got)
+	}
+	if args := services[1].Binaries["linux-x64"].Args; len(args) != 0 {
+		t.Fatalf("ui entry point args = %#v, want none", args)
 	}
 }

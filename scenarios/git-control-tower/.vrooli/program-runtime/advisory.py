@@ -1,10 +1,7 @@
 """Deterministic grounding guard for advisory output."""
 import json
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 
 env = {"program": "git-control-tower.advisory", "version": "1", "status": "failed", "phase": "validate", "inputs": {}, "signals": {}, "errors": [], "evidence": []}
 modes = {"summary", "commit-draft", "pr-draft", "review", "release-draft", "provenance"}

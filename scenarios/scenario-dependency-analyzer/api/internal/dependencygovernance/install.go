@@ -90,6 +90,9 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 		}
 		resp.Installed = true
 		verb := "Installed"
+		if resolution.TemplateVersion != "" {
+			verb = "Updated template declaration and lockfile"
+		}
 		if isNpmOverride {
 			verb = "Applied governed npm override"
 		}

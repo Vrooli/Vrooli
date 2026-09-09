@@ -57,11 +57,7 @@ func IsProtectedNameMisuseDiagnostic(diagnostic *programsv1.Diagnostic) bool {
 	return diagnostic.GetSeverity() == "error" && (strings.HasPrefix(diagnostic.GetMessage(), "import ") || strings.HasPrefix(diagnostic.GetMessage(), "protected runtime name "))
 }
 
-var protectedRuntimeNames = map[string]struct{}{
-	"discover": {}, "recall": {}, "guide": {}, "validate": {}, "capture": {}, "ai": {},
-	"agent": {}, "gather": {}, "describe": {}, "reachable": {}, "lib": {}, "vrooli": {},
-	"__vrooli__": {}, "tasks": {},
-}
+var protectedRuntimeNames = ProtectedRuntimeNames()
 
 // ResolveSource reports the names a program reads that resolve to nothing, and
 // the assignments that shadow a governed binding.

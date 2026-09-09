@@ -278,6 +278,9 @@ func validateScenario(repoRoot, scenario string, registry *bindings.Registry, in
 		if !hasEnvelopePrint(string(source)) {
 			findings = append(findings, "programs.envelope_missing")
 		}
+		if hasDuplicatedHelper(string(source)) {
+			findings = append(findings, "programs.duplicated_helper")
+		}
 		if registry != nil {
 			declared := make(map[string]struct{}, len(contract.Bindings))
 			for _, binding := range contract.Bindings {
@@ -320,7 +323,7 @@ func knownBindingNames(registry *bindings.Registry) []string {
 	// Declared execution injects inputs before running the source. Validation
 	// analyzes the source alone, so include that declared-program local here;
 	// ordinary submission preflight must still reject an unbound inputs name.
-	names := []string{"inputs", "discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "vrooli", "__vrooli__", "tasks", "Handle"}
+	names := append([]string{"inputs"}, programsinternal.RuntimeSurfaceNames()...)
 	if registry == nil {
 		return names
 	}
@@ -336,7 +339,18 @@ func knownBindingNames(registry *bindings.Registry) []string {
 }
 
 func hasEnvelopePrint(source string) bool {
+	if strings.Contains(source, "program.report(") {
+		return true
+	}
 	return strings.Contains(source, "print(") && strings.Contains(source, "status")
+}
+
+// hasDuplicatedHelper reports a local copy of the transport table the kernel
+// now binds as `program.classify`. The copies were mandated verbatim until the
+// helper existed; sixty-one programs carried one and eleven had drifted. A copy
+// is now the drift the helper retired, so it is a finding rather than a style.
+func hasDuplicatedHelper(source string) bool {
+	return strings.Contains(source, "def classify_transport(")
 }
 
 func hasFixtures(data []byte) bool {

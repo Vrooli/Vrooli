@@ -28,6 +28,12 @@ This is a local supervisor boundary, not adversarial isolation. Programs are
 trusted local agent workloads for this scenario; a future untrusted or
 multi-tenant deployment must add a stronger workspace/container/VM boundary.
 
+`host/program_helper.py` owns the `program` helper bound into every program
+(envelope, fail, guarded, classify, run, report) and the typed `BindingError`
+hierarchy the bridge raises; its `PUBLIC_MEMBERS` tuple and engine's
+`_RUNTIME_VERB_NAMES` are pinned against the Go surface list by
+`internal/programs/surface_test.go`.
+
 Run scenario suites through `vrooli scenario test program-runtime unit`. Inspect
 the run evidence for the workspaces actually executed. The Go subprocess tests
 exercise the production host; `kernel/tests` also contains Python contract tests.

@@ -37,7 +37,8 @@ import { useGlobalKeydown, useIsMobile, useUrlState, parseUrlState, useScenarioR
 import type { UrlState, ReviewTab } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
 import { fetchAuthorityStatus, fetchMutationPreview, issueMutationIntent, RemoteOperationError } from "./lib/api";
-import type { AuthorityStatus, CommitResponse, RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig, PrecommitRunResult, CommitRequest } from "./lib/api";
+import type { AuthorityStatus, CommitResponse, RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig, PrecommitRunResult, CommitRequest, StageResponse } from "./lib/api";
+import { createStageBatcher, type StageBatcher } from "./lib/stage-batcher";
 import { getFileTypeInfo } from "./lib/fileTypes";
 import { GCT_CHROME_COLOR } from "./lib/chrome";
 import { buildRunIndex } from "./lib/runAttribution";
@@ -561,12 +562,28 @@ export default function App() {
   const saveGroupingRulesMutation = useSaveGroupingRules(repoId);
 
   const workspaceChanges = usePendingWorkspaceChanges(repoId);
-  const isStaging = workspaceChanges.count > 0;
+  const [queuedStagePaths, setQueuedStagePaths] = useState<string[]>([]);
+  const stageMutate = stageMutation.mutate;
+  const stageBatcher = useMemo<StageBatcher<StageResponse>>(
+    () => createStageBatcher<StageResponse>(
+      (paths, onSuccess, onSettled) => {
+        stageMutate({ paths }, { onSuccess, onSettled });
+      },
+      setQueuedStagePaths,
+      { scopeKey: repoId ?? "default" },
+    ),
+    [repoId, stageMutate],
+  );
+  useEffect(() => () => stageBatcher.dispose(), [stageBatcher]);
+  const isStaging = workspaceChanges.count > 0 || queuedStagePaths.length > 0;
+  const pendingPaths = useMemo(
+    () => new Set([...workspaceChanges.paths, ...queuedStagePaths]),
+    [queuedStagePaths, workspaceChanges.paths],
+  );
   const pushSafetyRevision = useMemo(
     () => JSON.stringify([statusQuery.data?.branch, statusQuery.data?.files, statusQuery.data?.file_stats, historyQuery.data?.lines?.[0]]),
     [statusQuery.data?.branch, statusQuery.data?.files, statusQuery.data?.file_stats, historyQuery.data?.lines],
   );
-  const pendingPaths = workspaceChanges.paths;
   const isDeleting = deletePathMutation.isPending;
   const isDiscarding = discardMutation.isPending;
   const isIgnoring = ignoreMutation.isPending;
@@ -931,44 +948,39 @@ export default function App() {
         selectedUnstaged.some((selectedPath) => selectedPath === path);
       const pathsToStage = shouldStageSelection ? selectedUnstaged : [path];
 
-      stageMutation.mutate(
-        { paths: pathsToStage },
-        {
-          onSuccess: (data) => {
-            // If we were viewing this file's unstaged diff, switch to staged
-            if (selectedFile === path && !selectedIsStaged) {
-              setSelectedIsStaged(true);
-              setSelectedIsUntracked(false);
-            }
-            // On mobile, return to Changes tab so user isn't stranded on empty diff
-            if (isMobile) {
-              setMobileActivePanel("changes");
-            }
-            pathsToStage.forEach((stagedPath) => {
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(stagedPath, false, false, undefined, "diff", false, repoId)
-              });
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(stagedPath, false, true, undefined, "diff", false, repoId)
-              });
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(stagedPath, true, false, undefined, "diff", false, repoId)
-              });
-            });
-            // Show warning notice if there were warnings (e.g., ignored files)
-            if (data.warnings && data.warnings.length > 0) {
-              notify({
-                tone: "warning",
-                title: "Some files were skipped",
-                message: data.warnings.join("\n"),
-                dedupeKey: "gct.stage.warnings"
-              });
-            }
-          }
+      stageBatcher.enqueue(pathsToStage, (data) => {
+        // If we were viewing this file's unstaged diff, switch to staged
+        if (selectedFile === path && !selectedIsStaged) {
+          setSelectedIsStaged(true);
+          setSelectedIsUntracked(false);
         }
-      );
+        // On mobile, return to Changes tab so user isn't stranded on empty diff
+        if (isMobile) {
+          setMobileActivePanel("changes");
+        }
+        pathsToStage.forEach((stagedPath) => {
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.diff(stagedPath, false, false, undefined, "diff", false, repoId)
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.diff(stagedPath, false, true, undefined, "diff", false, repoId)
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.diff(stagedPath, true, false, undefined, "diff", false, repoId)
+          });
+        });
+        // Show warning notice if there were warnings (e.g., ignored files)
+        if (data.warnings && data.warnings.length > 0) {
+          notify({
+            tone: "warning",
+            title: "Some files were skipped",
+            message: data.warnings.join("\n"),
+            dedupeKey: "gct.stage.warnings"
+          });
+        }
+      });
     },
-    [notify, stageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel]
+    [notify, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel, stageBatcher]
   );
 
   const handleUnstageFile = useCallback(
@@ -1021,43 +1033,33 @@ export default function App() {
     ];
     if (allUnstaged.length === 0) return;
 
-    stageMutation.mutate(
-      { paths: allUnstaged },
-      {
-        onSuccess: (data) => {
-          if (data.warnings && data.warnings.length > 0) {
-            notify({
-              tone: "warning",
-              title: "Some files were skipped",
-              message: data.warnings.join("\n"),
-              dedupeKey: "gct.stage.warnings"
-            });
-          }
-        }
+    stageBatcher.enqueue(allUnstaged, (data) => {
+      if (data.warnings && data.warnings.length > 0) {
+        notify({
+          tone: "warning",
+          title: "Some files were skipped",
+          message: data.warnings.join("\n"),
+          dedupeKey: "gct.stage.warnings"
+        });
       }
-    );
-  }, [notify, stageMutation, statusQuery.data]);
+    });
+  }, [notify, stageBatcher, statusQuery.data]);
 
   const handleStagePaths = useCallback(
     (paths: string[]) => {
       if (paths.length === 0) return;
-      stageMutation.mutate(
-        { paths },
-        {
-          onSuccess: (data) => {
-            if (data.warnings && data.warnings.length > 0) {
-              notify({
-                tone: "warning",
-                title: "Some files were skipped",
-                message: data.warnings.join("\n"),
-                dedupeKey: "gct.stage.warnings"
-              });
-            }
-          }
+      stageBatcher.enqueue(paths, (data) => {
+        if (data.warnings && data.warnings.length > 0) {
+          notify({
+            tone: "warning",
+            title: "Some files were skipped",
+            message: data.warnings.join("\n"),
+            dedupeKey: "gct.stage.warnings"
+          });
         }
-      );
+      });
     },
-    [notify, stageMutation]
+    [notify, stageBatcher]
   );
 
   const handleRequestStageFilesWithSameName = useCallback((path: string) => {
@@ -2949,7 +2951,7 @@ export default function App() {
         <StageSameNameConfirmationModal
           isOpen={pendingStageSameNameFiles !== null}
           files={pendingStageSameNameFiles ?? []}
-          isLoading={stageMutation.isPending}
+          isLoading={isStaging}
           onConfirm={handleConfirmStageFilesWithSameName}
           onCancel={() => setPendingStageSameNameFiles(null)}
         />
@@ -3108,7 +3110,7 @@ export default function App() {
       <StageSameNameConfirmationModal
         isOpen={pendingStageSameNameFiles !== null}
         files={pendingStageSameNameFiles ?? []}
-        isLoading={stageMutation.isPending}
+        isLoading={isStaging}
         onConfirm={handleConfirmStageFilesWithSameName}
         onCancel={() => setPendingStageSameNameFiles(null)}
       />

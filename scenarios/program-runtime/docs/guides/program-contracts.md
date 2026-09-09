@@ -187,17 +187,16 @@ the result of `act` (an execution's outcome is only known after it ran), so
 ```python
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify,
           "report": step_report}
-state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:  # the one catch that guarantees an envelope on every path
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, "validate")
 ```
+
+`program.run` is the driver loop every program used to copy: it calls the
+phase named by the current state, and its one catch turns any exception
+outside `report` into a `failed` envelope with class `kernel_runtime` and
+`where` set to the phase that raised, then routes to `report`. An exception
+inside `report` is re-raised, because a report that cannot print has no
+envelope to fall back to. The loop returns nothing, so a program may end on
+that line without the kernel echoing the envelope a second time.
 
 Each step returns the name of the next state or `None`. Any step may return
 `"report"` early with a status set. There is no retry loop inside a program;
@@ -208,8 +207,8 @@ The driver's catch is what makes "one envelope on every path" true: `group_by`,
 that lets that escape would otherwise print nothing. Guard those calls where
 you can; the driver is the last line.
 
-Inside a phase, catch only what the bridge raises. `classify_transport` must
-re-raise `NameError` and `AttributeError`: a kernel-bound name that is missing
+Inside a phase, catch only what the bridge raises. `program.classify`
+re-raises `NameError` and `AttributeError`: a kernel-bound name that is missing
 (`gather`, `ai`, a scenario namespace) is a `kernel_runtime` failure, and a
 program that labels it `binding_error` runs convincingly under plain Python and
 lies about why it failed.
@@ -267,83 +266,111 @@ Program stdout is bounded (4 KB by default, `output_limit_bytes`), and an
 overflow is truncated with a trailing `…` rather than refused. Size the
 envelope to the bound: a handful of rows, short strings, deduplicated evidence.
 
-A `fail(status, klass, detail, where)` helper is the one place a bad path is
-recorded. It appends the error, sets the status, and returns `"report"`.
+`program.fail(status, klass, detail, where)` is the one place a bad path is
+recorded. It sets the status, appends the error, and returns `"report"`.
 
-Transport classes are shared by every program. Until the bridge raises typed
-exceptions, `classify_transport` maps the runtime's messages with this table
-and nothing else; a program that adds its own substrings drifts from its
-siblings.
+## The `program` helper
+
+The kernel binds `program` next to `ai`, `gather` and `lib`. It is the
+scaffolding every program used to carry as a verbatim copy, owned once:
+
+| Member | Does |
+|---|---|
+| `program.inputs()` | The inputs injected by `library run`, a caller's `inputs = {...}` preamble, or a nested `lib` call; `{}` when none were supplied |
+| `program.envelope(name, version)` | Builds the envelope below with `inputs` filled and remembers it for `fail`, `run` and `report` |
+| `program.attach(envelope)` | Adopts an envelope the program built itself |
+| `program.fail(status, klass, detail, where)` | Records one bad path and returns `"report"` |
+| `program.guarded(call)` | Wraps one read so a `gather` over several returns the exception instead of raising |
+| `program.classify(exc)` | Maps a caught exception to `(status, class)`; re-raises `NameError` and `AttributeError` |
+| `program.run(states, start)` | The driver loop with the one catch that guarantees an envelope |
+| `program.report()` | Prints the envelope exactly once as JSON; refuses a second call |
+| `program.VERSION` | The helper version; the contract's `helpers.program` must name it |
+
+Preflight validates `program.<member>` by name, so a misspelled member is
+refused with the nearest match before the program runs. `program` is a
+protected runtime name: a module-level `program = ...` is a preflight error.
+
+### Typed bridge exceptions
+
+Every bridge failure is a typed exception, never a bare string. The bridge
+writes `{"error", "class", "status", "binding_id", "http_status"}` and the
+kernel raises the class:
+
+| Exception | `(status, class)` | Raised when |
+|---|---|---|
+| `program.ScenarioUnreachable` | `unavailable`, `scenario_unreachable` | The scenario or the bridge could not be reached, or it answered 502, 503 or 504 |
+| `program.Refused` | `refused`, one of `no_grant`, `not_run_eligible`, `inference_spend_exceeded`, `delegated_run_spend_exceeded` | Governance stopped the call |
+| `program.InvalidInput` (also a `TypeError`) | `failed`, `invalid_input` | Positional arguments, a list-valued or misnamed kwarg, a client-side-only flag |
+| `program.AmbiguousResponse` (also a `ValueError`) | `failed`, `ambiguous_response` | No determinable primary row field; pass `rows=` |
+| `program.DeadlineExceeded` (also a `TimeoutError`) | `failed`, `deadline_exceeded` | A budget or transport deadline ended the call |
+| `program.RemoteError` | `failed`, `remote_error` | The scenario ran and answered with an error status; `exc.http_status` carries it |
+| `program.NoGovernedBinding` | `failed`, `no_governed_binding` | The name resolves to no governed binding; permanent until someone adds it |
+| `program.BindingError` | `failed`, `binding_error` | Anything else; the base class of all of the above |
+
+Catch `program.BindingError` in a phase and branch on
+`program.classify(exc)`, or on `exc.klass` and `exc.http_status` directly. A
+program that adds its own substring table is the drift the helper retired:
+the `programs` validation phase reports a local `def classify_transport(` as
+`programs.duplicated_helper`.
+
+Transport classes are shared by every program. The table below is what the
+bridge and `program.classify` apply; a program does not copy it.
 
 | Runtime message contains | Status | Class |
 |---|---|---|
-| `is unreachable`, `bridge unavailable`, `scenario_not_running`, `no running runtime ports`, `connection refused` | `unavailable` | `scenario_unreachable` |
-| `requires an explicit grant` | `refused` | `no_grant` |
+| `is unreachable`, `bridge unavailable`, `scenario_not_running`, `no running runtime ports`, `connection refused`, `remote status 502/503/504` | `unavailable` | `scenario_unreachable` |
+| `requires an explicit grant`, `requires explicit confirmation` | `refused` | `no_grant` |
 | `not run eligible`, `run_eligible` | `refused` | `not_run_eligible` |
-| `inference spend`, `delegated run spend` | `refused` | `inference_spend_exceeded`, `delegated_run_spend_exceeded` |
+| `inference_spend_exceeded`, `delegated_run_spend_exceeded` | `refused` | `inference_spend_exceeded`, `delegated_run_spend_exceeded` |
 | `no determinable primary response field`, `rows must be one of` | `failed` | `ambiguous_response` |
-| `accepts named proto fields`, `invalid arguments for`, `no proto field matches` | `failed` | `invalid_input` |
-| `deadline` | `failed` | `deadline_exceeded` |
+| `accepts named proto fields`, `invalid arguments for`, `no proto field matches`, `decode binding arguments`, `client-side only` | `failed` | `invalid_input` |
+| `is not governed`, `does not resolve to a governed binding`, `binding does not exist` | `failed` | `no_governed_binding` |
+| `remote status <4xx or 500>` | `failed` | `remote_error` |
+| `deadline`, `timed out`, `budget exhausted` | `failed` | `deadline_exceeded` |
 | anything else | `failed` | `binding_error` |
-
-Copy this function into every program exactly. It is the only permitted form
-until `lib` can share it; a review that finds a different table is a finding.
-
-```python
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
-```
 
 Every contract's `outputs.errors.classes` therefore declares, at minimum:
 `scenario_unreachable`, `no_grant`, `not_run_eligible`, `inference_spend_exceeded`,
 `delegated_run_spend_exceeded`, `ambiguous_response`, `invalid_input`,
-`deadline_exceeded`, `binding_error`, and `kernel_runtime` (the driver's catch),
-plus the program's own domain classes.
+`no_governed_binding`, `remote_error`, `deadline_exceeded`, `binding_error`, and
+`kernel_runtime` (the driver's catch), plus the program's own domain classes.
+The contract also declares `"helpers": {"program": "1"}`, the helper version
+the source was written against; the kernel refuses a declared program whose
+helper version it does not provide.
+
+### Setpoint-read rows
 
 A setpoint-read program's `signals.rows` has one shape fleet-wide so
-`improve-cycle` can route any scenario's board:
+consumers can interpret any scenario's board:
 `{row, reading, target, in_band, unavailable, reason}`. `target` and `in_band`
 are `null` when the row has no band yet; the keys are always present.
 
-`reason` is a closed vocabulary, and it decides what the reader does next:
+`reason` is a closed vocabulary describing evidence availability, not execution
+authority or scheduling. `goal-loop` and `scenario-improvement-campaign` apply
+the caller's grant under
+[Contract-Driven Scenario Development](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
 
-| `reason` | Meaning | What `goal-loop` does |
+| `reason` | Meaning | Evidence treatment |
 |---|---|---|
-| `no_governed_binding` | The sensor exists as a CLI command but has no program binding. Permanent until someone adds it. | Route as ladder W1 on the first read; never wait. |
-| `kernel_invoke_budget` | The binding exists but its call outruns the kernel invoke budget (100 s). Permanent in-program. | Read it by hand from the CLI once per cycle; file W1 if the row matters. |
-| `scenario_unreachable` | The owning scenario did not answer this time. Transient. | Wait one cycle; after three consecutive cycles, W3 (the scenario does not run). |
-| `read_elsewhere:<program>` | Another program owns this row. Not pending. | Run that program; never count the row as unavailable. |
-| `pending_telemetry` | No sensor exists yet. Permanent until a measure ships. | File a measures-adoption item; never band the row. |
-| `unreliable:<why>` | The sensor answered but its own validity gate failed (sample too small, classified share below minimum). | Report the reason; do not band. |
+| `no_governed_binding` | The sensor exists as a CLI command but has no program binding. Permanent until someone adds it. | Keep the row unknown; a supported owner read may supply separate evidence. |
+| `kernel_invoke_budget` | The sensor call exceeds this program's invoke budget. | Use a separately authorized owner path with a suitable budget or retain the gap. |
+| `scenario_unreachable` | The owning scenario did not answer this time. | Retain the failed read; it does not prove the service is stopped or authorize a restart. |
+| `read_elsewhere:<program>` | Another program supplies the row outside this board's budget or effects. | Resolve its contract and inspect its result when authorized; the reference itself is not a reading. |
+| `pending_telemetry` | No sensor exists yet. Permanent until a measure ships. | Preserve the missing measurement; do not band the row. |
+| `unreliable:<why>` | The sensor answered but its own validity gate failed. | Preserve the evidence and validity reason; keep `in_band: null`. |
 
 A row with a permanent reason (`no_governed_binding`, `kernel_invoke_budget`,
 `read_elsewhere`, `pending_telemetry`) does not lower the program's status: a
 board whose only unavailable rows are permanent is `ok`. Only a transient
 `scenario_unreachable` row or a failed read makes the board `partial`. The
 contract lists only the statuses the program can reach.
+
+Here `ok` means the board successfully reports its evidence and declared gaps,
+not that the product meets its target. A delegated row remains unresolved until
+its evidence is consumed. A missing target uses `target: null` and `in_band: null`;
+it does not turn an otherwise valid sensor read into `pending_telemetry`.
+`pending-baseline` is authoring prose, not another wire `reason` value. The
+consumer retains the undecided target separately and cannot claim completion.
 
 Every `reading` is either a value the sensor returned or `null`. A program never
 prints a number for a row it declined to evaluate; the improve skill's "today"

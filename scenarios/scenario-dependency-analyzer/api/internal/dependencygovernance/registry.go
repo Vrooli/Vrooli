@@ -632,6 +632,12 @@ func (r *Registry) ValidateObserved(scenario string, observed []*governancev1.Ob
 
 	findings := make([]*governancev1.ApprovedDependencyFinding, 0)
 	for _, dep := range observed {
+		// A relative replacement resolves the required source from this
+		// repository. It is not a third-party package installation and must not
+		// be forced into the approved external-dependency registry.
+		if dep != nil && dep.GetSignalCategory() == "local_replace" {
+			continue
+		}
 		annotateDependencySignalCategory(dep)
 		record := byKey[recordKey(dep.GetEcosystem(), dep.GetPackageName())]
 		if record == nil {
@@ -1861,10 +1867,22 @@ func scanGoMod(path string) ([]*governancev1.ObservedDependency, error) {
 		return nil, err
 	}
 	var out []*governancev1.ObservedDependency
+	localReplaces := localGoModReplaces(string(data))
 	inRequire := false
+	inReplace := false
 	for _, raw := range strings.Split(string(data), "\n") {
 		line := strings.TrimSpace(raw)
 		if line == "" || strings.HasPrefix(line, "//") {
+			continue
+		}
+		if line == "replace (" {
+			inReplace = true
+			continue
+		}
+		if inReplace {
+			if line == ")" {
+				inReplace = false
+			}
 			continue
 		}
 		if inRequire {
@@ -1873,6 +1891,9 @@ func scanGoMod(path string) ([]*governancev1.ObservedDependency, error) {
 				continue
 			}
 			if dep := parseGoRequire(line, path); dep != nil {
+				if localReplaces[dep.GetPackageName()] {
+					dep.SignalCategory = "local_replace"
+				}
 				out = append(out, dep)
 			}
 			continue
@@ -1883,11 +1904,57 @@ func scanGoMod(path string) ([]*governancev1.ObservedDependency, error) {
 		}
 		if strings.HasPrefix(line, "require ") {
 			if dep := parseGoRequire(strings.TrimPrefix(line, "require "), path); dep != nil {
+				if localReplaces[dep.GetPackageName()] {
+					dep.SignalCategory = "local_replace"
+				}
 				out = append(out, dep)
 			}
 		}
 	}
 	return out, nil
+}
+
+// localGoModReplaces returns module paths whose replace target is a filesystem
+// path. Relative replacements are repository-owned source edges, not external
+// packages that require a governance record. Version-to-version replacements
+// remain ordinary third-party dependencies and are intentionally omitted.
+func localGoModReplaces(data string) map[string]bool {
+	local := make(map[string]bool)
+	inReplace := false
+	for _, raw := range strings.Split(data, "\n") {
+		line := strings.TrimSpace(strings.SplitN(raw, "//", 2)[0])
+		if line == "replace (" {
+			inReplace = true
+			continue
+		}
+		if inReplace && line == ")" {
+			inReplace = false
+			continue
+		}
+		if inReplace {
+			markLocalReplace(line, local)
+			continue
+		}
+		if strings.HasPrefix(line, "replace ") {
+			markLocalReplace(strings.TrimPrefix(line, "replace "), local)
+		}
+	}
+	return local
+}
+
+func markLocalReplace(line string, local map[string]bool) {
+	parts := strings.SplitN(strings.TrimSpace(line), "=>", 2)
+	if len(parts) != 2 {
+		return
+	}
+	old := strings.Fields(strings.TrimSpace(parts[0]))
+	newPath := strings.Fields(strings.TrimSpace(parts[1]))
+	if len(old) == 0 || len(newPath) == 0 {
+		return
+	}
+	if strings.HasPrefix(newPath[0], ".") || filepath.IsAbs(newPath[0]) {
+		local[old[0]] = true
+	}
 }
 
 func parseGoRequire(line, path string) *governancev1.ObservedDependency {

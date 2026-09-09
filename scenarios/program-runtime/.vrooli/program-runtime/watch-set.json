@@ -2,6 +2,9 @@
   "$schema": "../../schemas/program-contract.schema.json",
   "name": "program-runtime.watch-set",
   "version": "2",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Start up to eight delegated Agent Manager runs from a request list, collect each once, classify the collected outputs with one governed batch call, and summarize by label.",
   "inputs": {
     "requests": {
@@ -88,7 +91,9 @@
         "invalid_response",
         "invalid_result",
         "missing_result",
-        "inference_failed"
+        "inference_failed",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "execution ids of collected runs"

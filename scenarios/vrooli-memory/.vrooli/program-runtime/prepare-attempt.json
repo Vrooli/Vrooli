@@ -1,0 +1,190 @@
+{
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "assumptions": [
+    "Vrooli Memory and Source Ledger are reachable for live operations.",
+    "Caller supplies scope and evidence; no scope provisioning occurs here."
+  ],
+  "invariants": [
+    "The envelope is printed exactly once on every path.",
+    "No inference, direct storage, polling, or in-program retry.",
+    "Output is bounded to 65536 bytes."
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "attempt": "Snake-case Attempt seed, no outcome or finished_at; matched candidates leave recall_status unset until caller decisions.",
+      "recall_status": "Retrieval matched, no_match, or unavailable; matched retrieval is not an advice use.",
+      "advice_candidates": "Up to advice_limit entry_id/text/text_truncated candidates.",
+      "decision_required": "True when candidates require caller applied/rejected decisions.",
+      "discarded_hits": "Count of summary, duplicate, or unusable raw recall hits."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Bounded Memory entry IDs from reads or acknowledged writes."
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 10,
+    "output_bytes": 65536
+  },
+  "name": "vrooli-memory.prepare-attempt",
+  "purpose": "Prepare a stable learning attempt with bounded scoped advice candidates, explicit no-match or unavailable recall, and no invented advice decisions.",
+  "inputs": {
+    "scope": {
+      "type": "string",
+      "required": true,
+      "description": "Explicit provisioned Memory scope; no ambient default."
+    },
+    "task_id": {
+      "type": "string",
+      "required": true,
+      "description": "Caller-supplied task_id; see README.md."
+    },
+    "operation": {
+      "type": "string",
+      "required": true,
+      "description": "Caller-supplied operation; see README.md."
+    },
+    "context_key": {
+      "type": "string",
+      "required": true,
+      "description": "Caller-supplied context_key; see README.md."
+    },
+    "started_at": {
+      "type": "string",
+      "required": true,
+      "description": "Caller-supplied started_at; see README.md."
+    },
+    "task_started_at": {
+      "type": "string",
+      "required": true,
+      "description": "Caller-supplied task_started_at; see README.md."
+    },
+    "trigger": {
+      "type": "string",
+      "required": true,
+      "description": "Caller-supplied trigger; see README.md."
+    },
+    "approach": {
+      "type": "string",
+      "required": true,
+      "description": "Caller-supplied approach; see README.md."
+    },
+    "attempt_number": {
+      "type": "integer",
+      "required": true,
+      "description": "Positive task attempt ordinal; stable across capture retries."
+    },
+    "provenance": {
+      "type": "string",
+      "required": true,
+      "description": "Caller-declared provenance, not authenticated attribution.",
+      "enum": [
+        "operator",
+        "test"
+      ]
+    },
+    "query": {
+      "type": "string",
+      "required": false,
+      "description": "Scoped recall query; empty derives from operation/context/trigger.",
+      "default": ""
+    },
+    "advice_limit": {
+      "type": "integer",
+      "required": false,
+      "description": "Maximum 1..10 raw recall hits; summaries and duplicate hits are discarded.",
+      "default": 5
+    }
+  },
+  "bindings": [
+    {
+      "id": "vrooli-memory/recall/recall",
+      "effect": "read"
+    }
+  ],
+  "memory": {
+    "scope": "caller-scope",
+    "scope_input": "scope",
+    "reads_in": "collect",
+    "writes_in": "none",
+    "entry_kinds": []
+  },
+  "fixtures": [
+    {
+      "id": "missing-scope",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "vrooli-memory"
+      ]
+    },
+    {
+      "id": "invalid-scope",
+      "inputs": {
+        "scope": "",
+        "task_id": "fixture",
+        "operation": "inspect",
+        "context_key": "test",
+        "started_at": "2026-01-01T00:00:00Z",
+        "task_started_at": "2026-01-01T00:00:00Z",
+        "trigger": "fixture",
+        "approach": "inspect",
+        "attempt_number": 1,
+        "provenance": "test"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "note": "Local validation rejection; never mutates live Memory.",
+      "requires": [
+        "vrooli-memory"
+      ]
+    }
+  ],
+  "verbs": [
+    "agent.collect",
+    "lib",
+    "recall",
+    "tasks.get",
+    "validate"
+  ]
+}

@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "program-runtime.improvement-evidence",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Compose revision-aware attention candidates and explicit Agent Manager run evidence for an authorized program or scenario repair; return child validity and artifact identities without inference or mutation.",
   "inputs": {
     "campaign_id": {
@@ -71,7 +74,9 @@
       "classes": [
         "invalid_input",
         "kernel_runtime",
-        "output_limit"
+        "output_limit",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Child program names and bounded artifact identity. Child errors retain their owner vocabulary."

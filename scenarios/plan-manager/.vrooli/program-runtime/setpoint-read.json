@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "plan-manager.setpoint-read",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Join external binding condition with comparable operator usage evidence and report missing coordination telemetry explicitly.",
   "inputs": {
     "from": {
@@ -72,7 +75,9 @@
         "identity_mismatch",
         "invalid_response",
         "capability_gap",
-        "flow_failed"
+        "flow_failed",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Typed Memory and binding-condition sensor references"

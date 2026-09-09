@@ -9,9 +9,9 @@ metadata:
   tags: ["practice","execution","planning","implementation","scope","friction"]
   icon: "play"
   status: "active"
-  revision: 3
+  revision: 4
   createdAt: "2026-08-07T00:00:00Z"
-  updatedAt: "2026-09-06T00:00:00Z"
+  updatedAt: "2026-09-08T00:00:00Z"
   requires:
     scenarios: ["plan-manager", "prompt-manager", "swarm-manager"]
     commands: ["plan-manager", "prompt-manager skill read", "swarm-manager"]
@@ -89,6 +89,19 @@ parts you took and which were stale.
 ---
 
 ### 3. The divergence ladder
+
+When a plan references reviewed target artifacts, read
+`path:docs/agent-system/SCENARIO_DEVELOPMENT.md` §"Documentation-first authoring and application".
+Inspect the exact revision and its approval before application. Use the owning
+apply or publication operation; preserve source conflicts and partial receipts.
+Do not recreate reviewed artifacts from plan prose or treat a live proto materializer
+as a general draft apply operation. Canonical artifacts already updated under
+explicit authority need verification, not another blind application.
+
+A plan within a development engagement retains its own mutation rules. Record
+adaptive implementation choices in the owner log; do not rewrite the active plan
+each cycle. A mandate may authorize successive repairs, but cannot silently change
+this plan's target, explicit prohibitions, or fixed delegated-slice scope.
 
 Friction is expected. The question is never "is this in the plan?" — it is **"do
 I understand this well enough to fix it correctly?"**

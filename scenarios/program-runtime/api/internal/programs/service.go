@@ -712,6 +712,10 @@ func failureShape(detail string) (string, programsv1.FailureCause) {
 		{"does not resolve", "unresolved_name", programsv1.FailureCause_FAILURE_CAUSE_UNRESOLVED_NAME},
 		{"unknown field", "unknown_field", programsv1.FailureCause_FAILURE_CAUSE_UNKNOWN_FIELD},
 		{"accepts named proto fields", "unknown_field", programsv1.FailureCause_FAILURE_CAUSE_UNKNOWN_FIELD},
+		// A list-valued or misnamed kwarg fails protojson decoding at the bridge.
+		// It reached the corpus as `kernel_runtime` and pointed the reader at the
+		// program instead of at the argument.
+		{"decode binding arguments", "unknown_field", programsv1.FailureCause_FAILURE_CAUSE_UNKNOWN_FIELD},
 		{"no determinable primary response", "ambiguous_response", programsv1.FailureCause_FAILURE_CAUSE_AMBIGUOUS_RESPONSE},
 		{"unreachable", "unreachable_scenario", programsv1.FailureCause_FAILURE_CAUSE_UNREACHABLE_SCENARIO},
 		{"not run eligible", "refused_not_run_eligible", programsv1.FailureCause_FAILURE_CAUSE_REFUSED_NOT_RUN_ELIGIBLE},
@@ -724,6 +728,9 @@ func failureShape(detail string) (string, programsv1.FailureCause) {
 		{"not_found_workflowrevision", "workflow_rejected", programsv1.FailureCause_FAILURE_CAUSE_UNCLASSIFIED},
 		{"workflow input", "workflow_rejected", programsv1.FailureCause_FAILURE_CAUSE_UNCLASSIFIED},
 		{"workflow rejected", "workflow_rejected", programsv1.FailureCause_FAILURE_CAUSE_UNCLASSIFIED},
+		// The target scenario answered with an error status: it ran, and its
+		// answer is the outcome. Distinct from transport, which never reached it.
+		{"remote status", "remote_error", programsv1.FailureCause_FAILURE_CAUSE_UNCLASSIFIED},
 		{"syntaxerror", "kernel_syntax", programsv1.FailureCause_FAILURE_CAUSE_KERNEL_SYNTAX},
 		{"bridge unavailable", "bridge_transport", programsv1.FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT},
 		{"transport", "bridge_transport", programsv1.FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT},
@@ -741,6 +748,8 @@ func failureShape(detail string) (string, programsv1.FailureCause) {
 		// should see the budget, not a guess at what it was doing.
 		{"deadline_exceeded", "deadline_exceeded", programsv1.FailureCause_FAILURE_CAUSE_DEADLINE_EXCEEDED},
 		{"timed out", "deadline_exceeded", programsv1.FailureCause_FAILURE_CAUSE_DEADLINE_EXCEEDED},
+		{"deadline exceeded", "deadline_exceeded", programsv1.FailureCause_FAILURE_CAUSE_DEADLINE_EXCEEDED},
+		{"deadlineexceeded", "deadline_exceeded", programsv1.FailureCause_FAILURE_CAUSE_DEADLINE_EXCEEDED},
 	}
 	for _, item := range classifications {
 		if strings.Contains(lower, item.needle) {

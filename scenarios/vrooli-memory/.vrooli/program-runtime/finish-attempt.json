@@ -1,0 +1,139 @@
+{
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "assumptions": [
+    "Vrooli Memory and Source Ledger are reachable for live operations.",
+    "Caller supplies scope and evidence; no scope provisioning occurs here."
+  ],
+  "invariants": [
+    "The envelope is printed exactly once on every path.",
+    "No inference, direct storage, polling, or in-program retry.",
+    "Output is bounded to 65536 bytes."
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "report"
+      ]
+    },
+    "signals": {
+      "task_outcome": "Unchanged caller task outcome, independent of capture.",
+      "capture_status": "complete or capture_failed; pending exists only before report.",
+      "entry_id": "Acknowledged attempt receipt entry ID, or null.",
+      "existing": "Whether Memory acknowledged an existing identical attempt.",
+      "observations": "Acknowledged observation receipts: entry_id, existing, observation_id.",
+      "retry_inputs": "Exact scope/attempt/observations supplied to writes; reuse unchanged, persist in caller outbox if needed."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "capture_failed",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Bounded Memory entry IDs from reads or acknowledged writes."
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 10,
+    "output_bytes": 65536
+  },
+  "name": "vrooli-memory.finish-attempt",
+  "purpose": "Record a typed immutable attempt and bounded observations, returning acknowledged receipts and exact retry inputs while keeping task outcome separate from capture failure.",
+  "inputs": {
+    "scope": {
+      "type": "string",
+      "required": true,
+      "description": "Explicit provisioned Memory scope; no ambient default."
+    },
+    "attempt": {
+      "type": "object",
+      "required": true,
+      "description": "Snake-case Memory Attempt; deterministic attempt_id filled only if omitted."
+    },
+    "observations": {
+      "type": "array",
+      "required": false,
+      "description": "At most 10 snake-case Observations; IDs filled if omitted, timestamps/provenance explicit.",
+      "default": []
+    }
+  },
+  "bindings": [
+    {
+      "id": "vrooli-memory/learning/record",
+      "effect": "write"
+    },
+    {
+      "id": "vrooli-memory/learning/observe",
+      "effect": "write"
+    }
+  ],
+  "memory": {
+    "scope": "caller-scope",
+    "scope_input": "scope",
+    "reads_in": "none",
+    "writes_in": "report",
+    "entry_kinds": [
+      "task-record",
+      "attempt-observation"
+    ],
+    "writes_when": "Only after every input validates; at most one record and ten observes, stopping on first failure."
+  },
+  "fixtures": [
+    {
+      "id": "missing-scope",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "vrooli-memory"
+      ]
+    },
+    {
+      "id": "invalid-scope",
+      "inputs": {
+        "scope": "",
+        "attempt": {}
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "note": "Local validation rejection; never mutates live Memory.",
+      "requires": [
+        "vrooli-memory"
+      ]
+    }
+  ],
+  "verbs": [
+    "capture",
+    "lib",
+    "recall",
+    "tasks.get",
+    "validate"
+  ]
+}

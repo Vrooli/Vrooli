@@ -35,7 +35,7 @@ func runInstall(core *cliapp.ScenarioApp, args []string) error {
 	var scenario, surface, version string
 	var apply, jsonOutput bool
 	fs.StringVar(&scenario, "scenario", "", "Target scenario")
-	fs.StringVar(&surface, "surface", "", "Target surface: ui, api, cli, agent, playwright-driver, resource, tools/<package>, or platforms/<package>")
+	fs.StringVar(&surface, "surface", "", "Target surface: ui, api, cli, agent, playwright-driver, resource, tools/<package>, platforms/<package>, or template/<id>")
 	fs.StringVar(&version, "version", "", "Optional explicit version/range")
 	fs.BoolVar(&apply, "apply", false, "Perform the install (default is a dry run)")
 	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
@@ -44,7 +44,7 @@ func runInstall(core *cliapp.ScenarioApp, args []string) error {
 	}
 	positionals := fs.Args()
 	if len(positionals) != 1 {
-		return fmt.Errorf("usage: %s deps install <ecosystem>/<package>[@version] --scenario <name> --surface <ui|api|cli|agent|playwright-driver|resource|tools/<package>|platforms/<package>> [--apply] [--json]", support.AppName)
+		return fmt.Errorf("usage: %s deps install <ecosystem>/<package>[@version] --scenario <name> --surface <ui|api|cli|agent|playwright-driver|resource|tools/<package>|platforms/<package>|template/<id>> [--apply] [--json]", support.AppName)
 	}
 	ecosystem, packageName, version, err := parseInstallDependencySpec(positionals[0], version)
 	if err != nil {

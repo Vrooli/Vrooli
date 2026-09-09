@@ -321,7 +321,7 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 			if err := manager.EnsureInferenceAvailable(r.Context(), request.SessionID); err != nil {
 				var exceeded *sessions.SpendExceededError
 				if errors.As(err, &exceeded) {
-					writeBridgeError(w, http.StatusTooManyRequests, err.Error())
+					writeBridgeFailure(w, http.StatusTooManyRequests, request.BindingID, err)
 					return
 				}
 				writeBridgeError(w, http.StatusInternalServerError, err.Error())
@@ -342,7 +342,7 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 			if refusals != nil {
 				_ = refusals.RecordRefusal(r.Context(), request.SessionID, request.Provenance, request.BindingID, err.Error(), time.Now().UTC())
 			}
-			writeBridgeError(w, http.StatusBadRequest, err.Error())
+			writeBridgeFailure(w, http.StatusBadRequest, request.BindingID, err)
 			return
 		}
 		if request.Rows != "" {
@@ -363,7 +363,7 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 		}
 		result, err := registry.Execute(r.Context(), request.BindingID, request.Args, grants, request.Confirmed, bindings.InvocationMetadata{SessionID: request.SessionID, ProgramID: request.ProgramID, Provenance: request.Provenance}, &http.Client{Timeout: budgets.BridgeCall})
 		if err != nil {
-			writeBridgeError(w, http.StatusBadRequest, err.Error())
+			writeBridgeFailure(w, http.StatusBadRequest, request.BindingID, err)
 			return
 		}
 		if registry.IsInferenceBinding(request.BindingID) {
@@ -372,7 +372,7 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 				if err := manager.RecordInferenceUsage(r.Context(), request.SessionID, cost, input+output); err != nil {
 					var exceeded *sessions.SpendExceededError
 					if errors.As(err, &exceeded) {
-						writeBridgeError(w, http.StatusTooManyRequests, err.Error())
+						writeBridgeFailure(w, http.StatusTooManyRequests, request.BindingID, err)
 						return
 					}
 					writeBridgeError(w, http.StatusInternalServerError, err.Error())
@@ -808,9 +808,24 @@ func mapKeys(values map[string]struct{}) []string {
 }
 
 func writeBridgeError(w http.ResponseWriter, status int, message string) {
+	writeBridgeFailure(w, status, "", errors.New(message))
+}
+
+// writeBridgeFailure writes the structured bridge error body the kernel turns
+// into a typed exception: the message, the closed class and status from
+// bindings.ClassifyFailure, the binding, and the target's own HTTP status when
+// it answered. The `error` key is kept so an older kernel still reads the text.
+func writeBridgeFailure(w http.ResponseWriter, status int, bindingID string, err error) {
+	failure := bindings.ClassifyFailure(err)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"error":       err.Error(),
+		"class":       failure.Class,
+		"status":      failure.Status,
+		"binding_id":  bindingID,
+		"http_status": failure.HTTPStatus,
+	})
 }
 
 func (s *service) ListBindings(ctx context.Context, req *connect.Request[bindingsv1.ListBindingsRequest]) (*connect.Response[bindingsv1.ListBindingsResponse], error) {

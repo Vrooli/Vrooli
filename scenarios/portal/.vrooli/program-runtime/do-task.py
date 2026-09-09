@@ -1,10 +1,7 @@
 """portal.do-task v1 — cross-owner browser export then desktop verification."""
 import json
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 
 envelope = {"program": "portal.do-task", "version": "1", "status": "failed", "phase": "validate", "inputs": {}, "signals": {}, "errors": [], "evidence": []}
 

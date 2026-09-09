@@ -118,6 +118,73 @@ must not be silently invented or retired here.
 **Refs:** `packages/monetization-go/meter-inventory.json`,
 `.vrooli/schemas/service.schema.json`, and `DECISIONS.md` D4.
 
+### 2026-09-08 — persisted decision history has no read path
+
+Five tables hold countable history that nothing outside the API can read, which
+is also the five `measures.undeclared-substrate` findings holding this scenario
+at measures L1:
+
+| Table | Holds | Read path |
+|---|---|---|
+| `catalog_audit` | `node_id, actor, prior_status, next_status, reason, created_at` | none |
+| `facts` | `value, observed_at, stale_after_days` | none (`gates-fact` writes only) |
+| `triggers` | `fact_name, operator, threshold, expression` | none (`gates-trigger` writes only) |
+| `migration_findings` | import reconciliation residue | none |
+| `evaluations` | per-node verdicts | only the latest run summary, via `board-show` meta |
+
+Consequence: the questions "what did we decide about this node, when, by whom
+and why", "which facts are stale", and "which triggers are unmet" cannot be
+answered by any command, though the data exists and is correct. This is why
+`offer-desk.setpoint-read` reports `promotion-latency` as `pending_telemetry`:
+the latency is derivable from `proposals.created_at` and `catalog_audit`, but
+neither is readable.
+
+Wanted, in dependency order: a `catalog-audit` read (with its governed binding),
+then `gates-facts` and `gates-triggers` reads, then measures declared over all
+five tables. Once `catalog_audit` is readable, `offer-desk.board-read` should
+derive changes from the audit log instead of a caller-supplied baseline
+snapshot, which removes caller state entirely.
+
+**Owner:** offer-desk. Not a defect in the writes; a missing read surface.
+
+**Refs:** `api/internal/catalog/schema.sql`; `measures-health validate scenario
+offer-desk`; `.vrooli/program-runtime/setpoint-read.json` row
+`promotion-latency`.
+
+### 2026-09-08 — the requirement matrix is complete and unproven
+
+`business-health matrix show offer-desk` reports 36 requirements and 16
+operational targets with `complete=33, planned=3` — and **32 unproven claims**,
+degraded with "no evidence artifacts yet (no suite runs, no snapshot)".
+`scenarios/offer-desk/evals/` does not exist, so no suite and no approved floor
+governs this scenario.
+
+Consequence: `offer-desk-improve` §4 records that no corpus result may be
+claimed. A cycle can report `setpoint-read: ok` while the contract behind it is
+entirely unearned. Adding capability on top of this makes the reporting prettier
+without making it truer.
+
+Wanted: an `evals/` suite with an approved floor, then a requirements-sync
+snapshot so the 33 completions are earned rather than asserted.
+
+**Owner:** offer-desk, with target approval for any floor.
+
+**Refs:** `business-health matrix show offer-desk --format markdown`;
+`offer-desk-improve` §4 Golden corpora.
+
+### 2026-09-08 — catalog-verify exceeds a usable budget
+
+`offer-desk offers catalog-verify --source-path <path>` did not return inside 90
+seconds while every other read binding answered in well under a second. Filed as
+`knw-1788899099098954026`. `offer-desk.setpoint-read` therefore declines to call
+it and reports `catalog-conformance` with reason `kernel_invoke_budget`, so the
+conformance obligation is preserved but unmeasured. Cause not diagnosed.
+
+**Owner:** offer-desk.
+
+**Refs:** bug `knw-1788899099098954026`;
+`.vrooli/program-runtime/setpoint-read.py` row `catalog-conformance`.
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)

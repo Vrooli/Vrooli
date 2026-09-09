@@ -146,3 +146,7 @@
 - Evidence: Indexed goals `search-hub-corpus-buildout` and `search-hub-federation-adoption` direct search capabilities for this scenario, while the P0 PRD targets do not name those search capabilities. The W0 contract therefore remains false for the scenario's broader goal set; this portability plan only consumes SDA's platform-verdict implementation and does not rewrite its product contract.
 - Constraint: Do not substitute the portability plan or dependency-governance evidence for the unresolved search-goal contract mismatch. No lower scenario gate was run under W0.
 - Measured: 2026-08-26.
+
+## 2026-09-07 — Shared selector consolidation
+
+W3 implementation review under the existing selector contract; no W0–W2 maturity promotion is claimed. The install gateway now supports template/<id> UI surfaces. It regenerates the template lock in a temporary scenario-shaped directory and preserves file dependencies relative to generated scenarios. Both template installs succeeded; focused gateway/governance tests pass. Unit run 20260907-213240-942054bc returned PASS with advisory findings. An existing missing protovalidate CLI dependency was repaired through the gateway so lifecycle rebuilding could proceed. Shared evidence and limitations: `packages/ui-selectors/README.md`.

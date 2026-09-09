@@ -232,7 +232,7 @@ func main() {
 	taskStore := tasks.NewStore(db.Primary())
 	programService = programs.NewService(programs.Options{ContractIndex: contractIndex, OnTerminal: taskStore.Recover, Store: db.Primary(), Runner: runner, Preflight: func(source string) []*programsv1.Diagnostic {
 		current := bindingRegistry.List("", "")
-		known := []string{"discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "tasks", "vrooli", "__vrooli__", "Handle"}
+		known := programs.RuntimeSurfaceNames()
 		for _, binding := range current {
 			name := strings.ReplaceAll(binding.GetScenario(), "-", "_")
 			if name != "" && name != "vrooli" {
@@ -246,7 +246,7 @@ func main() {
 		return programs.ResolveSource(source, known, filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py"))
 	}, PreflightSession: func(ctx context.Context, sessionID, source string) []*programsv1.Diagnostic {
 		current := bindingRegistry.List("", "")
-		known := []string{"discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "tasks", "vrooli", "__vrooli__", "Handle"}
+		known := programs.RuntimeSurfaceNames()
 		for _, binding := range current {
 			name := strings.ReplaceAll(binding.GetScenario(), "-", "_")
 			if name != "" && name != "vrooli" {

@@ -1,9 +1,6 @@
 """One bounded read of a selected program and its owning usage skill."""
 import json
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 envelope = {"program": "program-runtime.prepare-operation", "version": "1", "status": "failed",
             "phase": "report", "signals": {}, "errors": [], "evidence": []}
 try:
@@ -12,17 +9,17 @@ try:
         raise ValueError("Supply an exact program name")
     handle = program_runtime.library.get(name=name)
     rows = handle.head(1)
-    program = rows[0] if rows else handle.meta().get("program", {})
-    if "program" in program:
-        program = program["program"]
-    if program.get("name") != name:
+    entry = rows[0] if rows else handle.meta().get("program", {})
+    if "program" in entry:
+        entry = entry["program"]
+    if entry.get("name") != name:
         raise ValueError("No matching program returned")
-    envelope["signals"]["program"] = {k: program.get(k) for k in (
+    envelope["signals"]["program"] = {k: entry.get(k) for k in (
         "name", "description", "contentDigest", "ownerSkill", "declaredInputs", "validationError", "calledBindingIds")}
-    envelope["evidence"] = ["program:" + name + "@" + str(program.get("contentDigest", ""))]
+    envelope["evidence"] = ["program:" + name + "@" + str(entry.get("contentDigest", ""))]
     envelope["signals"]["run_command"] = "program-runtime library run " + name + " --input '<key=value,...>'"
     envelope["status"] = "ok"
-    owner = program.get("ownerSkill")
+    owner = entry.get("ownerSkill")
     if owner:
         skill = prompt_manager.skill.read(identifiers=[owner], allow_missing=True, output="combined", rows="missing").meta()
         content = skill.get("combined", "")
@@ -36,9 +33,9 @@ try:
     else:
         envelope["status"] = "partial"
         envelope["errors"].append({"class": "skill_incomplete", "where": "skill", "detail": "Program has no owning usage skill"})
-    if program.get("validationError"):
+    if entry.get("validationError"):
         envelope["status"] = "partial"
-        envelope["errors"].append({"class": "invalid_contract", "where": "program", "detail": program["validationError"]})
+        envelope["errors"].append({"class": "invalid_contract", "where": "program", "detail": entry["validationError"]})
 except Exception as exc:
     envelope["status"] = "partial" if envelope["signals"] else "unavailable"
     envelope["errors"].append({"class": "read_unavailable", "where": "collect", "detail": str(exc)[:240]})

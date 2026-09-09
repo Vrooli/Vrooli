@@ -30,6 +30,53 @@ Use vrooli-memory when a skill needs to remember what happened across sessions i
 
 ### 2. The decision tree
 
+For a registered learning operation, call its scenario program directly.
+Its `learning_task` declaration enables shared preparation and capture automatically.
+Do not add manual recall or a second learning record around that call.
+To select an operation dynamically, run `vrooli-memory.run-task` with `operation`
+and structured `inputs`. Only registered operations are eligible.
+
+| Need | Shared program |
+|---|---|
+| Execute an existing learning operation | `vrooli-memory.run-task` |
+| Inspect outcome and pending delivery | `vrooli-memory.inspect-task` with `attempt_id` and private `resume_token` |
+| Requeue frozen capture without domain replay | `vrooli-memory.resume-task` with the same recovery capability |
+| Prepare bounded advice for a custom workflow | `vrooli-memory.prepare-attempt` |
+| Recommend within current allowed options using already-prepared advice | `vrooli-memory.choose-option`; caller still owns authorization and verification |
+| Record an attempt and linked observations | `vrooli-memory.finish-attempt` |
+| Read comparable outcome measurements | `vrooli-memory.compare-outcomes` |
+
+Read the contract with `program-runtime library get <name> --json`.
+Invoke it with `program-runtime library run <name> --input key=value`.
+Program authors compose these through `lib.vrooli_memory.<name_with_underscores>`.
+The shared workflow contracts live in `path:scenarios/vrooli-memory/.vrooli/program-runtime/README.md`.
+
+### Program contracts
+
+Use these owner-routed programs when the memory task matches a declared shape:
+
+| Program | Purpose | Required inputs |
+|---|---|---|
+| `vrooli-memory.choose-option` | Recommend among prepared options with explicit decisions | `attempt_id`, `options` |
+| `vrooli-memory.compare-outcomes` | Read comparable outcome measurements | `operation`, `context_key` |
+| `vrooli-memory.finish-attempt` | Record an attempt and linked observations | `attempt`, `observations` |
+| `vrooli-memory.inspect-task` | Inspect outcome and pending delivery | `attempt_id`, `resume_token` |
+| `vrooli-memory.prepare-attempt` | Prepare bounded advice for a custom workflow | `task_id`, `operation`, `context_key` |
+| `vrooli-memory.resume-task` | Requeue frozen capture without domain replay | `attempt_id`, `resume_token` |
+| `vrooli-memory.run-task` | Execute a registered learning operation | `operation`, `inputs` |
+| `vrooli-memory.scope-bootstrap` | Create and declare a learning scope once | `scope`, `scenario` |
+
+Invoke one with `program-runtime library run <name> --input key=value`; keep
+attempt identity and capture status distinct.
+
+Task outcome and delivery are separate. Retain the returned attempt receipt.
+Recover capture without repeating the domain operation. An uncertain action needs
+owner evidence before another attempt; a runtime completion is not outcome proof.
+Unselected advice is not applied advice. Domain programs report explicit decisions
+and retain unknown verdicts until evidence supports them.
+
+The following tree applies to manual operations without automatic learning.
+
 ```
 I need memory for a skill or a program
 │
@@ -178,7 +225,12 @@ Human-first output is the default. Use `--json` only inside a program or when th
 
 ### 8. Output expectations
 
-A skill that uses this one names its scope and its entry kinds and nothing else about memory mechanics. A program that uses it declares `memory` in its contract (scope, `reads_in: collect`, `writes_in: report`, entry kinds). Every attempt leaves exactly one entry.
+A skill that uses this one names its scope and operation entry point.
+An automatically learned program declares `learning_task` in its existing contract;
+Program Runtime composes Memory preparation and completion and owns pending delivery.
+Nested calls share the parent attempt. Do not also declare manual task capture.
+A custom capture program declares `memory` (scope, collect/report phases, entry kinds).
+Record each attempt once; retain pending or failed delivery explicitly.
 
 ### 9. Troubleshooting & Edge Cases
 

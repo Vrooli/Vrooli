@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "plan-manager.execution-board",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Join execution guidance with reviewed current family admission and active work.",
   "inputs": {
     "execution_id": {
@@ -84,7 +87,9 @@
         "deadline_exceeded",
         "binding_error",
         "kernel_runtime",
-        "revision_changed"
+        "revision_changed",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "At most two owner identities"

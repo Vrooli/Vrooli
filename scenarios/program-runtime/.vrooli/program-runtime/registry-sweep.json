@@ -2,6 +2,9 @@
   "$schema": "../../schemas/program-contract.schema.json",
   "name": "program-runtime.registry-sweep",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Read the dry-run plan of a safe read-binding sweep and report row counts grouped by the plan's key field, without invoking any binding the sweep would exercise.",
   "inputs": {
     "scenario": {
@@ -56,7 +59,9 @@
         "invalid_input",
         "deadline_exceeded",
         "binding_error",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "the sweep command name"

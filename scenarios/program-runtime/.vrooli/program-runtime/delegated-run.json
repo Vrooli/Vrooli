@@ -2,6 +2,9 @@
   "$schema": "../../schemas/program-contract.schema.json",
   "name": "program-runtime.delegated-run",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Start the same governed Agent Manager workflow twice without blocking, then collect each run once and report the evidence row's keys; the delegation construction pattern.",
   "inputs": {
     "request": {
@@ -62,7 +65,9 @@
         "binding_error",
         "kernel_runtime",
         "workflow_rejected",
-        "no_output"
+        "no_output",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "execution ids of collected runs"

@@ -53,7 +53,7 @@ func (h *connectHandler) AssignFacet(ctx context.Context, in *connect.Request[me
 
 func (h *connectHandler) assignFacet(ctx context.Context, in *connect.Request[memoryv1.AssignFacetRequest]) (*connect.Response[memoryv1.AssignFacetResponse], error) {
 	req := connect.NewRequest(&sourcev1.AssignFacetRequest{})
-	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, ledgerclient.ScopeOf(in.Msg)); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	ledgerclient.ForwardHeaders(in.Header(), req.Header())
@@ -70,7 +70,7 @@ func (h *connectHandler) assignFacet(ctx context.Context, in *connect.Request[me
 
 func (h *connectHandler) SetPin(ctx context.Context, in *connect.Request[memoryv1.SetPinRequest]) (*connect.Response[memoryv1.SetPinResponse], error) {
 	req := connect.NewRequest(&sourcev1.SetPinRequest{})
-	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, ledgerclient.ScopeOf(in.Msg)); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	ledgerclient.ForwardHeaders(in.Header(), req.Header())
@@ -87,7 +87,7 @@ func (h *connectHandler) SetPin(ctx context.Context, in *connect.Request[memoryv
 
 func (h *connectHandler) ListPinProposals(ctx context.Context, in *connect.Request[memoryv1.ListPinProposalsRequest]) (*connect.Response[memoryv1.ListPinProposalsResponse], error) {
 	req := connect.NewRequest(&sourcev1.ListPinProposalsRequest{})
-	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, ledgerclient.ScopeOf(in.Msg)); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	resp, err := h.client.ListPinProposals(ctx, req)
@@ -103,7 +103,7 @@ func (h *connectHandler) ListPinProposals(ctx context.Context, in *connect.Reque
 
 func (h *connectHandler) ListPinCandidates(ctx context.Context, in *connect.Request[memoryv1.ListPinCandidatesRequest]) (*connect.Response[memoryv1.ListPinCandidatesResponse], error) {
 	req := connect.NewRequest(&sourcev1.ListPinCandidatesRequest{})
-	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, ledgerclient.ScopeOf(in.Msg)); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	resp, err := h.client.ListPinCandidates(ctx, req)
@@ -119,7 +119,7 @@ func (h *connectHandler) ListPinCandidates(ctx context.Context, in *connect.Requ
 
 func (h *connectHandler) ResolvePinProposal(ctx context.Context, in *connect.Request[memoryv1.ResolvePinProposalRequest]) (*connect.Response[memoryv1.ResolvePinProposalResponse], error) {
 	req := connect.NewRequest(&sourcev1.ResolvePinProposalRequest{})
-	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, ledgerclient.ScopeOf(in.Msg)); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	resp, err := h.client.ResolvePinProposal(ctx, req)
@@ -135,7 +135,7 @@ func (h *connectHandler) ResolvePinProposal(ctx context.Context, in *connect.Req
 
 func (h *connectHandler) MarkSuperseded(ctx context.Context, in *connect.Request[memoryv1.MarkSupersededRequest]) (*connect.Response[memoryv1.MarkSupersededResponse], error) {
 	req := connect.NewRequest(&sourcev1.MarkSupersededRequest{})
-	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, ledgerclient.ScopeOf(in.Msg)); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	resp, err := h.client.MarkSuperseded(ctx, req)
@@ -151,7 +151,7 @@ func (h *connectHandler) MarkSuperseded(ctx context.Context, in *connect.Request
 
 func (h *connectHandler) ResolveThread(ctx context.Context, in *connect.Request[memoryv1.ResolveThreadRequest]) (*connect.Response[memoryv1.ResolveThreadResponse], error) {
 	req := connect.NewRequest(&sourcev1.ResolveThreadRequest{})
-	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, ledgerclient.ScopeOf(in.Msg)); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	resp, err := h.client.ResolveThread(ctx, req)

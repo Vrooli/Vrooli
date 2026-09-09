@@ -21,21 +21,70 @@
     "learning_task": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["scope", "operation", "context_fields", "outcome"],
+      "required": [
+        "scope",
+        "operation",
+        "context_fields",
+        "outcome"
+      ],
       "properties": {
-        "scope": {"type": "string", "minLength": 1, "maxLength": 128},
-        "operation": {"type": "string", "minLength": 1, "maxLength": 128},
-        "context_fields": {"type": "array", "maxItems": 16, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "context_fields": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "outcome": {
-          "type": "object", "additionalProperties": false,
-          "required": ["status_path", "mapping", "evidence_paths"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status_path",
+            "mapping",
+            "evidence_paths"
+          ],
           "properties": {
-            "status_path": {"const": "signals.outcome"},
-            "mapping": {"type": "object", "additionalProperties": false, "properties": {
-              "verified_success": {"const": "verified_success"}, "failed": {"const": "failed"},
-              "unavailable": {"const": "unavailable"}, "unknown": {"const": "unknown"}
-            }},
-            "evidence_paths": {"type": "array", "maxItems": 10, "items": {"type": "string", "minLength": 1}}
+            "status_path": {
+              "const": "signals.outcome"
+            },
+            "mapping": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "verified_success": {
+                  "const": "verified_success"
+                },
+                "failed": {
+                  "const": "failed"
+                },
+                "unavailable": {
+                  "const": "unavailable"
+                },
+                "unknown": {
+                  "const": "unknown"
+                }
+              }
+            },
+            "evidence_paths": {
+              "type": "array",
+              "maxItems": 10,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
           }
         }
       }
@@ -259,7 +308,7 @@
         },
         "signals": {
           "type": "object",
-          "description": "Name \u2192 one-line description of each signal the envelope carries.",
+          "description": "Name → one-line description of each signal the envelope carries.",
           "additionalProperties": {
             "type": "string"
           }
@@ -488,6 +537,19 @@
       "type": "string",
       "minLength": 1,
       "description": "Local output JSON Schema path, included in the program content digest."
+    },
+    "helpers": {
+      "type": "object",
+      "description": "Kernel helper versions this program was written against. `program` names the version of the bound `program` helper (envelope, fail, guarded, classify, run, report, typed exceptions); the kernel refuses to run a declared program whose helper version it does not provide.",
+      "properties": {
+        "program": {
+          "type": "string",
+          "enum": [
+            "1"
+          ]
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

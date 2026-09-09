@@ -454,6 +454,18 @@ func projectedComponentEnv(input map[string]string, ports map[string]scenariomod
 
 func declaredComponentBinaries(name string, component scenariomodel.Component, components map[string]scenariomodel.Component) map[string]types.BundleSkeletonServiceBinary {
 	result := make(map[string]types.BundleSkeletonServiceBinary, len(desktopPlatforms))
+	if component.Role == "ui" {
+		entryPath := strings.TrimSpace(component.Build.Output)
+		if entryPath == "" {
+			entryPath = filepath.ToSlash(filepath.Join(component.Build.Dir, "dist", "index.html"))
+		}
+		for _, platform := range desktopPlatforms {
+			result[platform] = types.BundleSkeletonServiceBinary{
+				Path: entryPath,
+			}
+		}
+		return result
+	}
 	for _, platform := range desktopPlatforms {
 		argv := expandDesktopArgv(component.Run.Argv, platform, components)
 		path := desktopComponentBinaryPath(name, component.Role, platform)
@@ -465,7 +477,6 @@ func declaredComponentBinaries(name string, component scenariomodel.Component, c
 		result[platform] = types.BundleSkeletonServiceBinary{
 			Path: path,
 			Args: args,
-			Cwd:  component.Run.CWD,
 		}
 	}
 	return result

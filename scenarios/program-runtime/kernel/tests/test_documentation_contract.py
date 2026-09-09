@@ -3,6 +3,7 @@ import textwrap
 from pathlib import Path
 
 from host.engine import Handle
+from host.program_helper import ProgramHelper
 
 
 ROOT = Path(__file__).parents[4]
@@ -53,6 +54,9 @@ def test_every_documented_program_compiles_and_executes():
         "ai_gateway": surface,
         "program_runtime": surface,
     }
+    helper = ProgramHelper()
+    helper._bind(globals_for_docs)
+    globals_for_docs["program"] = helper
     for label, source in documented_programs():
         try:
             code = compile(source, label, "exec")

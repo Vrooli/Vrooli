@@ -60,8 +60,8 @@ func (h *handlers) compactCall(ctx cliapp.OperationContext) (*forestv1.RunCompac
 	return r.Msg, nil
 }
 
-func (h *handlers) compactReport(_ cliapp.OperationContext, m *forestv1.RunCompactionPassResponse) cliapp.MutationReport {
-	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Created %d summary node(s).", m.GetCompactedCount())}, NextCommand: []string{"`forest compact` — rerun after new episode memories arrive"}}
+func (h *handlers) compactReport(ctx cliapp.OperationContext, m *forestv1.RunCompactionPassResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Compacted scope %s: created %d summary node(s).", ctx.Flag("scope"), m.GetCompactedCount())}, NextCommand: []string{"`forest compact` — rerun after new episode memories arrive"}}
 }
 
 func (h *handlers) rebuildCall(ctx cliapp.OperationContext) (*forestv1.RebuildForestResponse, error) {

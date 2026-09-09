@@ -1,10 +1,7 @@
 """Deterministic, read-only ChangeSubject/evidence envelope."""
 import json
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 
 env = {"program": "git-control-tower.change-evidence", "version": "1", "status": "failed", "phase": "validate", "inputs": {}, "signals": {}, "errors": [], "evidence": []}
 try:

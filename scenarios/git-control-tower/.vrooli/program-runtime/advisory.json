@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "git-control-tower.advisory",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Produce bounded draft and review envelopes from grounded claims without publication or repository mutation.",
   "inputs": {
     "mode": {
@@ -57,7 +60,9 @@
         "invalid_input",
         "ungrounded_claim",
         "unsupported_mode",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Claim evidence references and subject digest"

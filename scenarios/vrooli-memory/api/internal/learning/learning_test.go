@@ -63,6 +63,27 @@ func TestEmptyAndUnassessedAreNotZeroSuccess(t *testing.T) {
 	}
 }
 
+func TestExposedAdviceIsNeitherAppliedNorRejected(t *testing.T) {
+	a := attempt("exposure", "task", 1, "unknown")
+	a.RecallStatus = "matched"
+	a.Advice = []*pb.AdviceUse{{EntryId: "prior", Decision: "unassessed", Verdict: "unknown"}}
+	c := measure([]*source.Entry{entry(t, a)}).Cohorts[0]
+	if c.AppliedAdvice != 0 || c.RejectedAdvice != 0 || c.UnassessedAdvice != 1 {
+		t.Fatalf("exposure fabricated a decision: %+v", c)
+	}
+	for _, mutate := range []func(*pb.AdviceUse){
+		func(u *pb.AdviceUse) { u.DecisionChange = "changed route" },
+		func(u *pb.AdviceUse) { u.Verdict = "supported" },
+		func(u *pb.AdviceUse) { u.EvidenceRefs = []string{"run:1"} },
+	} {
+		b := proto.Clone(a).(*pb.Attempt)
+		mutate(b.Advice[0])
+		if Validate(b) == nil {
+			t.Fatal("unassessed exposure must not assert a decision or support")
+		}
+	}
+}
+
 func TestContextSeparationTestExclusionAndReplayDeduplication(t *testing.T) {
 	a := attempt("a", "task", 1, "verified_success")
 	b := proto.Clone(a).(*pb.Attempt)

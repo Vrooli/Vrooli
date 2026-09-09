@@ -50,6 +50,12 @@ type (
 	Compaction struct {
 		Status, Error                                    string
 		Compacted, FrontierBefore, FrontierAfter, Target int
+		Scopes                                           []CompactionScope
+	}
+	CompactionScope struct {
+		Scope                                            string
+		Status, Error                                    string
+		Compacted, FrontierBefore, FrontierAfter, Target int
 	}
 	CompactionResult = ledgerclient.CompactionResult
 	Run              struct {
@@ -68,7 +74,8 @@ type (
 	// Compactor is the forest seam. The maintenance loop never reaches into
 	// the forest repository directly.
 	Compactor interface {
-		RunBounded(context.Context, int) (CompactionResult, error)
+		ListScopes(context.Context) ([]string, error)
+		RunBounded(context.Context, string, int) (CompactionResult, error)
 	}
 	Importer interface {
 		Runtimes() []string
@@ -231,18 +238,51 @@ func (s *Service) compact(ctx context.Context, runID string) (Compaction, error)
 		out := Compaction{Status: "not_configured"}
 		return out, s.store.PutCompaction(ctx, runID, out)
 	}
-	runCtx, cancel := context.WithTimeout(ctx, CompactTimeout)
-	defer cancel()
-	result, err := s.compactor.RunBounded(runCtx, s.compactLimit)
-	out := Compaction{
-		Status:         "completed",
-		Compacted:      result.CompactedCount,
-		FrontierBefore: result.EligibleFrontierBefore,
-		FrontierAfter:  result.EligibleFrontierAfter,
-		Target:         result.Target,
-	}
+	scopes, err := s.compactor.ListScopes(ctx)
 	if err != nil {
-		out.Status, out.Error = "failed", err.Error()
+		out := Compaction{Status: "failed", Error: err.Error()}
+		return out, s.store.PutCompaction(ctx, runID, out)
+	}
+	// Every registered scope, not a named subset: the registry is the list.
+	// Restricting this to `team:` silently dropped `agent-memory`, the largest
+	// corpus and the only scope with a canopy before team scopes gained one.
+	// The pass stays cheap because compaction is a no-op at target — a scope
+	// whose frontier is already at or below `frontier_target` performs zero
+	// merges and calls no provider, so scopes that need nothing cost nothing.
+	ordered := append([]string(nil), scopes...)
+	sort.Strings(ordered)
+	out := Compaction{Status: "completed", Scopes: make([]CompactionScope, 0, len(ordered))}
+	for _, scope := range ordered {
+		runCtx, cancel := context.WithTimeout(ctx, CompactTimeout)
+		result, runErr := s.compactor.RunBounded(runCtx, scope, s.compactLimit)
+		cancel()
+		item := CompactionScope{
+			Scope:          scope,
+			Status:         "completed",
+			Compacted:      result.CompactedCount,
+			FrontierBefore: result.EligibleFrontierBefore,
+			FrontierAfter:  result.EligibleFrontierAfter,
+			Target:         result.Target,
+		}
+		if runErr != nil {
+			item.Status, item.Error = "failed", runErr.Error()
+			out.Status = "failed"
+			if out.Error != "" {
+				out.Error += "; "
+			}
+			out.Error += scope + ": " + item.Error
+		}
+		out.Compacted += item.Compacted
+		if item.FrontierBefore > out.FrontierBefore {
+			out.FrontierBefore = item.FrontierBefore
+		}
+		if item.FrontierAfter > out.FrontierAfter {
+			out.FrontierAfter = item.FrontierAfter
+		}
+		if item.Target > out.Target {
+			out.Target = item.Target
+		}
+		out.Scopes = append(out.Scopes, item)
 	}
 	return out, s.store.PutCompaction(ctx, runID, out)
 }

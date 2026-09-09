@@ -1,3 +1,4 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
@@ -11,7 +12,8 @@ import "./styles/global.css";
 
 // INTEROP-CRITICAL: embedded keyboard and gamepad navigation is initialized
 // before the application renders.
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 // Code-split routes use lazy(); after a rebuild the old hashed chunks are
 // gone, so a tab opened before the deploy would crash on its next
@@ -45,10 +47,12 @@ if (
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <ErrorBoundary>
-      <React.Profiler id="App" onRender={onProfilerRender}>
-        <App />
-      </React.Profiler>
-    </ErrorBoundary>
+    <SpatialNavProvider controller={spatialNav}>
+      <ErrorBoundary>
+        <React.Profiler id="App" onRender={onProfilerRender}>
+          <App />
+        </React.Profiler>
+      </ErrorBoundary>
+    </SpatialNavProvider>
   </React.StrictMode>
 );

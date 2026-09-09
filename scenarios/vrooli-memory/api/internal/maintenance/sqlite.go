@@ -30,9 +30,24 @@ func (s *SQLiteStore) PutOutcome(ctx context.Context, runID string, o Outcome) e
 }
 
 func (s *SQLiteStore) PutCompaction(ctx context.Context, runID string, c Compaction) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE maintenance_runs SET compaction_status=?,compaction_error=?,compacted_count=?,frontier_before=?,frontier_after=?,frontier_target=? WHERE id=?`,
-		c.Status, c.Error, c.Compacted, c.FrontierBefore, c.FrontierAfter, c.Target, runID)
-	return err
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM maintenance_compactions WHERE run_id=?`, runID); err != nil {
+		return err
+	}
+	for _, item := range c.Scopes {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO maintenance_compactions(run_id,scope,status,error,compacted_count,frontier_before,frontier_after,frontier_target) VALUES(?,?,?,?,?,?,?,?)`, runID, item.Scope, item.Status, item.Error, item.Compacted, item.FrontierBefore, item.FrontierAfter, item.Target); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE maintenance_runs SET compaction_status=?,compaction_error=?,compacted_count=?,frontier_before=?,frontier_after=?,frontier_target=? WHERE id=?`,
+		c.Status, c.Error, c.Compacted, c.FrontierBefore, c.FrontierAfter, c.Target, runID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *SQLiteStore) Complete(ctx context.Context, runID string, at time.Time) error {
@@ -67,7 +82,22 @@ func (s *SQLiteStore) Latest(ctx context.Context) (Run, error) {
 		}
 		run.Outcomes = append(run.Outcomes, o)
 	}
-	return run, rows.Err()
+	if err := rows.Err(); err != nil {
+		return run, err
+	}
+	compactions, err := s.db.QueryContext(ctx, `SELECT scope,status,error,compacted_count,frontier_before,frontier_after,frontier_target FROM maintenance_compactions WHERE run_id=? ORDER BY scope`, run.ID)
+	if err != nil {
+		return run, err
+	}
+	defer compactions.Close()
+	for compactions.Next() {
+		var item CompactionScope
+		if err := compactions.Scan(&item.Scope, &item.Status, &item.Error, &item.Compacted, &item.FrontierBefore, &item.FrontierAfter, &item.Target); err != nil {
+			return run, err
+		}
+		run.Compaction.Scopes = append(run.Compaction.Scopes, item)
+	}
+	return run, compactions.Err()
 }
 
 func formatTime(t time.Time) string {

@@ -14,10 +14,7 @@ never lowers the status; only a failed read makes the board `partial`.
 import json
 
 # ---- inputs: the caller binds a dict named `inputs` before this source; contract defaults otherwise
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 governance_window_seconds = int(inputs.get("governance_window_seconds", 604800))
 agent_failure_band = float(inputs.get("agent_failure_band", 0.15))
 
@@ -38,33 +35,6 @@ def fail(status, klass, detail, where):
     envelope["status"] = status
     envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
     return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
 
 
 def guarded(call):
@@ -130,7 +100,7 @@ def step_collect():  # COLLECT · governed reads only, concurrent, each guarded
         if isinstance(result, Exception):
             if isinstance(result, (NameError, AttributeError)):
                 raise result
-            status, klass = classify_transport(result)
+            status, klass = program.classify(result)
             dead[name] = (status, klass)
             envelope["errors"].append({"class": klass, "detail": f"{name}: {str(result)[:160]}", "where": "collect"})
             continue
@@ -312,12 +282,4 @@ def step_report():  # REPORT · bounded, always
 
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:  # the one catch that guarantees an envelope on every path
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

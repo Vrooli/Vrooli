@@ -2,6 +2,9 @@
   "$schema": "../../schemas/program-contract.schema.json",
   "name": "program-runtime.improve-cycle",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Read the setpoint envelope and recent shape telemetry, then route the first actionable nomination or coverage miss—or the first out-of-band setpoint row—to one improve-skill instruction deterministically.",
   "inputs": {
     "board": {
@@ -85,7 +88,9 @@
         "binding_error",
         "kernel_runtime",
         "board_missing",
-        "no_route"
+        "no_route",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "the routed row's reading and target, as text"

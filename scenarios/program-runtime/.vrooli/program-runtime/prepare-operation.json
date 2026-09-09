@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "program-runtime.prepare-operation",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Read the selected reusable program's inputs, identity, validation status and complete owning usage skill together, with a suggested invocation.",
   "inputs": {
     "name": {
@@ -52,7 +55,9 @@
       "classes": [
         "read_unavailable",
         "skill_incomplete",
-        "invalid_contract"
+        "invalid_contract",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Program content identity"

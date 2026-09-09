@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "vrooli-memory.scope-bootstrap",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Create a scenario's usage memory scope with its facet vocabulary and starter classification rules, idempotently, and report what already existed.",
   "inputs": {
     "scope": {
@@ -117,7 +120,9 @@
         "kernel_runtime",
         "rule_dry_run_empty",
         "facets_not_settable",
-        "unknown_facet"
+        "unknown_facet",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "scope id and rule ids"
@@ -167,10 +172,11 @@
       "id": "missing-scope",
       "inputs": {},
       "expect": {
-        "status": [
-          "failed"
-        ]
-      }
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "vrooli-memory"
+      ]
     },
     {
       "id": "rule-unknown-facet",

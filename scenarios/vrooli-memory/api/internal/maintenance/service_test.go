@@ -104,6 +104,7 @@ func (s *memoryStore) Latest(_ context.Context) (Run, error) {
 		return Run{}, errors.New("no runs")
 	}
 	run := s.runs[len(s.runs)-1]
+	run.Compaction = s.compactions[run.ID]
 	for _, o := range s.outcomes[run.ID] {
 		run.Outcomes = append(run.Outcomes, o)
 	}
@@ -170,12 +171,19 @@ func TestIntervalFromEnv(t *testing.T) {
 }
 
 type fakeCompactor struct {
+	scopes []string
 	calls  []int
+	known  []string
 	result CompactionResult
 	err    error
 }
 
-func (f *fakeCompactor) RunBounded(_ context.Context, limit int) (CompactionResult, error) {
+func (f *fakeCompactor) ListScopes(_ context.Context) ([]string, error) {
+	return append([]string(nil), f.known...), nil
+}
+
+func (f *fakeCompactor) RunBounded(_ context.Context, scope string, limit int) (CompactionResult, error) {
+	f.scopes = append(f.scopes, scope)
 	f.calls = append(f.calls, limit)
 	return f.result, f.err
 }
@@ -183,21 +191,23 @@ func (f *fakeCompactor) RunBounded(_ context.Context, limit int) (CompactionResu
 func TestRunOnceCompactsAfterProjectionSoAmbientMemoryIsNeverBlocked(t *testing.T) {
 	order := []string{}
 	store := newMemoryStore()
-	compactor := &fakeCompactor{result: CompactionResult{CompactedCount: 3, EligibleFrontierBefore: 100, EligibleFrontierAfter: 97}}
+	compactor := &fakeCompactor{known: []string{"agent-memory", "team:alpha", "team:beta"}, result: CompactionResult{CompactedCount: 3, EligibleFrontierBefore: 100, EligibleFrontierAfter: 97}}
 	service := NewService(store,
 		&fakeImporter{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
 		&fakeProjector{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
 		scheduletest.New(time.Time{}), 0).WithCompaction(compactor, 25)
 	_, err := service.RunOnce(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, []int{25}, compactor.calls, "compaction runs once per pass, at the configured limit")
+	require.Equal(t, []string{"agent-memory", "team:alpha", "team:beta"}, compactor.scopes,
+		"scheduled compaction covers every registered scope in order, not a named subset")
+	require.Equal(t, []int{25, 25, 25}, compactor.calls, "the configured limit applies independently to each scope")
 	require.Equal(t, []string{"import:a", "project:a"}, order,
 		"projection completes before the backlog-scaled compaction pass starts")
 
 	run, err := service.Latest(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, "completed", store.compactions[run.ID].Status)
-	require.Equal(t, 3, store.compactions[run.ID].Compacted)
+	require.Equal(t, 9, store.compactions[run.ID].Compacted, "three registered scopes at three merges each")
 	require.Equal(t, 100, store.compactions[run.ID].FrontierBefore)
 	require.Equal(t, 97, store.compactions[run.ID].FrontierAfter)
 }
@@ -205,7 +215,7 @@ func TestRunOnceCompactsAfterProjectionSoAmbientMemoryIsNeverBlocked(t *testing.
 func TestCompactionFailureDoesNotStopProjection(t *testing.T) {
 	order := []string{}
 	store := newMemoryStore()
-	compactor := &fakeCompactor{err: errors.New("provider unavailable")}
+	compactor := &fakeCompactor{known: []string{"team:alpha"}, err: errors.New("provider unavailable")}
 	service := NewService(store,
 		&fakeImporter{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
 		&fakeProjector{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
@@ -222,7 +232,7 @@ func TestCompactionFailureDoesNotStopProjection(t *testing.T) {
 
 func TestCompactionNotConfiguredWhenLimitIsZero(t *testing.T) {
 	store := newMemoryStore()
-	compactor := &fakeCompactor{}
+	compactor := &fakeCompactor{known: []string{"team:alpha"}}
 	service := NewService(store,
 		&fakeImporter{runtimes: []string{"a"}, err: map[string]error{}},
 		&fakeProjector{runtimes: []string{"a"}, err: map[string]error{}},
@@ -233,6 +243,27 @@ func TestCompactionNotConfiguredWhenLimitIsZero(t *testing.T) {
 	run, err := service.Latest(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, "not_configured", store.compactions[run.ID].Status)
+}
+
+func TestScheduledCompactionRecordsEachScope(t *testing.T) {
+	store := newMemoryStore()
+	compactor := &fakeCompactor{
+		known:  []string{"team:beta", "agent-memory", "team:alpha"},
+		result: CompactionResult{CompactedCount: 2, EligibleFrontierBefore: 20, EligibleFrontierAfter: 18, Target: 16},
+	}
+	service := NewService(store,
+		&fakeImporter{err: map[string]error{}},
+		&fakeProjector{err: map[string]error{}},
+		scheduletest.New(time.Time{}), 0).WithCompaction(compactor, 2)
+	_, err := service.RunOnce(context.Background())
+	require.NoError(t, err)
+	run, err := service.Latest(context.Background())
+	require.NoError(t, err)
+	require.Len(t, run.Compaction.Scopes, 3)
+	require.Equal(t, "agent-memory", run.Compaction.Scopes[0].Scope)
+	require.Equal(t, "team:alpha", run.Compaction.Scopes[1].Scope)
+	require.Equal(t, "team:beta", run.Compaction.Scopes[2].Scope)
+	require.Equal(t, 6, run.Compaction.Compacted)
 }
 
 func TestCompactLimitFromEnv(t *testing.T) {

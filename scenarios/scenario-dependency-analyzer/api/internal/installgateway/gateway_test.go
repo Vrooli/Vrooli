@@ -2,6 +2,8 @@ package installgateway
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -378,4 +380,75 @@ func TestFrozenReproductionArgsAreScriptSafe(t *testing.T) {
 			t.Errorf("%s profile = %+v", manager, profile)
 		}
 	}
+}
+
+func TestTemplateInstallUsesGovernedTemplateSurface(t *testing.T) {
+	root := t.TempDir()
+	ui := filepath.Join(root, "templates", "scenarios", "react-vite", "ui")
+	if err := os.MkdirAll(ui, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	surface, err := normalizedSurface("template/react-vite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveSurfaceRoot(root, "template-manager", surface); got != ui {
+		t.Fatalf("root=%s", got)
+	}
+	if _, err := normalizedSurface("template/../escape"); err == nil {
+		t.Fatal("unsafe template path accepted")
+	}
+}
+
+func TestGovernedTemplateDeclarationRetainsGeneratedScenarioPath(t *testing.T) {
+	root := t.TempDir()
+	ui := filepath.Join(root, "templates", "scenarios", "react-vite", "ui")
+	if err := os.MkdirAll(ui, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ui, "package.json"), []byte(`{"name":"{{SCENARIO_ID}}-ui","dependencies":{"react":"18.3.1"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ui, "pnpm-lock.yaml"), []byte("lockfileVersion: '9.0'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r, err := Resolve(root, "template-manager", "template/react-vite", "npm", "@vrooli/ui-selectors", "file:../../../packages/ui-selectors")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = installTemplate(context.Background(), r, templateLockInstaller{}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(r.ManifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"@vrooli/ui-selectors": "file:../../../packages/ui-selectors"`) || !strings.Contains(string(data), `"react": "18.3.1"`) {
+		t.Fatalf("unexpected declaration: %s", data)
+	}
+	if _, err := os.Stat(filepath.Join(ui, "node_modules")); !os.IsNotExist(err) {
+		t.Fatal("template declaration ran an installer")
+	}
+}
+
+type templateLockInstaller struct{}
+
+func (templateLockInstaller) Install(_ context.Context, r Resolution) (string, error) {
+	if r.TemplateVersion != "" || !strings.Contains(strings.Join(r.Argv, " "), "--lockfile-only") {
+		return "", fmt.Errorf("unsafe template install plan")
+	}
+	raw, err := os.ReadFile(r.ManifestPath)
+	if err != nil {
+		return "", err
+	}
+	var m map[string]any
+	if err = json.Unmarshal(raw, &m); err != nil {
+		return "", err
+	}
+	m["dependencies"].(map[string]any)[r.PackageName] = "file:../../../packages/ui-selectors"
+	raw, err = json.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+	return "", os.WriteFile(r.ManifestPath, raw, 0o644)
 }

@@ -133,10 +133,14 @@ func Validate(a *pb.Attempt) error {
 			return fmt.Errorf("advice entry IDs must be present and unique")
 		}
 		seen[u.EntryId] = true
-		if !oneOf(u.Decision, "applied", "rejected") || !oneOf(u.Verdict, "supported", "contradicted", "unknown") {
+		if !oneOf(u.Decision, "applied", "rejected", "unassessed") || !oneOf(u.Verdict, "supported", "contradicted", "unknown") {
 			return fmt.Errorf("invalid advice decision or verdict")
 		}
-		if strings.TrimSpace(u.DecisionChange) == "" || len(u.DecisionChange) > 1024 {
+		if u.Decision == "unassessed" {
+			if u.DecisionChange != "" || u.Verdict != "unknown" || len(u.EvidenceRefs) != 0 {
+				return fmt.Errorf("unassessed advice records exposure only")
+			}
+		} else if strings.TrimSpace(u.DecisionChange) == "" || len(u.DecisionChange) > 1024 {
 			return fmt.Errorf("advice requires bounded decision_change")
 		}
 		if err := refs(u.EvidenceRefs); err != nil {
@@ -309,7 +313,7 @@ func Measure(entries []*source.Entry, scope string, from, to time.Time, operatio
 		for _, u := range a.Advice {
 			if u.Decision == "applied" {
 				c.AppliedAdvice++
-			} else {
+			} else if u.Decision == "rejected" {
 				c.RejectedAdvice++
 			}
 			switch u.Verdict {

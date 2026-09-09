@@ -5,8 +5,8 @@
 Measurement record. Read-only investigation; no repository files were changed to
 produce it. This document is the **authoritative evidence source** for the
 implementation plan that follows from it. A rendered HTML version of the same
-material sits beside this file at
-`scenarios/scenario-dependency-analyzer/docs/perf/2026-08-23-sda-freshness-cost.html`
+material is preserved beneath the protected runtime home at
+`plan-artifacts/docs-html-progress-20260908/scenarios/scenario-dependency-analyzer/docs/perf/2026-08-23-sda-freshness-cost.html`
 (published copy: `https://claude.ai/code/artifact/6c0fd1a7-b430-45e5-84e2-e8729b4d5bcd`).
 Read the markdown; the HTML is the same content with a stylesheet.
 
@@ -406,3 +406,15 @@ two are the warm-cache measurements used for the sub-second target.
 The post-repair report contains zero `envkit-go` error rows, zero
 `needs_download` rows, and zero stale/error surfaces. Seventeen named fixture
 and template modules are reported as exclusions rather than silently omitted.
+
+## Preserved visual sources
+
+Historical HTML and editable canvas sources live beneath the protected
+control-plane runtime home (`~/.vrooli` for the invoking user).
+These are dated evidence or design supplements; this relocation does not
+change plan status or establish release readiness.
+
+- `plan-artifacts/docs-html-progress-20260908/scenarios/scenario-dependency-analyzer/docs/perf/2026-08-23-sda-freshness-cost.html`
+
+The originating installation must retain these artifacts with its durable backups.
+Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

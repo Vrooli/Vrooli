@@ -345,3 +345,20 @@ Scoped W3 repair: user reported the recovery dialog lacked the visual hierarchy 
 - Tooling: shared Go cache references failed to resolve during initial compilation. Isolated GOCACHE allowed tests to pass; QA report knw-1788852252831737666 records the observation without assigning a cause.
 - Safety: mutation tests use fakes or temporary repositories. The live benchmark only reads repository state. No stage, commit, recovery, or push was executed against the user's checkout.
 - Delivery: lifecycle restart startop-482edfbe966d1ecb6c764f45cb688e0f completed healthy at 2026-09-08T07:27:15Z after setup/build. Updated API and UI are running.
+
+## Work ladder — responsive mutation dialogs (2026-09-08)
+
+- Rung: W3, localized UI behavior under the existing mutation-authorization and push-safety obligations.
+- Evidence: the commit authorization surface was mounted only in the desktop App branch, while push recovery used a hand-rolled fixed overlay. On narrow screens, commit state could be pending without a rendered dialog; push overlay presentation was not owned by the shared portal-backed dialog primitive.
+- Repair: extracted `CommitAuthorizationDialog`, mounted it in both desktop and mobile App branches, and migrated commit authorization plus push safety review to `react-component-library:ResponsiveDialog`.
+- Validation: 27 focused UI tests passed; TypeScript, scoped ESLint, production build, and diff whitespace checks passed. Test Genie unit run `20260908-151507-53396297` remains failed on existing `UNIT_POLICY_PROJECTION_DRIFT` and `TEST_EXECUTION_FAILURE`; no full-scenario pass is claimed.
+- Delivery: no Git mutation, recovery preparation, push, or production restart was performed.
+
+## Work ladder — batched stage clicks (2026-09-08)
+
+- Rung: W3, localized staging interaction and mutation-throughput repair under OT-P0-004 and OT-P0-014.
+- Evidence: each row action called `stageFiles` independently. React Query serialized those calls per repository, but each queued click still repeated authorization and a Git index write. The existing endpoint already accepts multiple paths, so the UI was leaving a batching seam unused.
+- Hypotheses: the dominant cause was per-click request creation; a status-refresh loop was less likely because status reads are disabled while workspace mutations are pending; row rendering was not the owning path because the action handler created one mutation per click.
+- Repair: the first stage action remains immediate. Additional stage actions received while it is active are deduplicated and sent as one follow-up path batch. Queued paths keep per-row pending indicators, and the batch is scoped to the active repository.
+- Validation: focused stage-batcher and core mutation tests pass (7 tests total), TypeScript passes, changed-file ESLint passes, and `git diff --check` passes. Test Genie unit run `20260908-155346-1ec82ebf` failed on existing `UNIT_POLICY_PROJECTION_DRIFT`, `TEST_EXECUTION_FAILURE`, and architecture findings; it does not certify or invalidate this focused repair.
+- Delivery: no service restart, repository staging, commit, recovery preparation, or push was performed.
