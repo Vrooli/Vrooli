@@ -27,6 +27,9 @@
     "1.2.3",
     "1.2.4"
   ],
-  "latest": "1.2.5",
-  "libraryId": "react-component-library:BaseStyles"
+  "latest": "1.3.0",
+  "libraryId": "react-component-library:BaseStyles",
+  "displayName": "Base Styles",
+  "description": "A small global layer normalizing browser defaults, focus rings, scrolling, safe areas, reduced motion, forced colours, text selection, and print output, so no component compensates for browser inconsistency locally.",
+  "tags": []
 }

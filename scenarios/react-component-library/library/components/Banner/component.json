@@ -32,6 +32,16 @@
     "1.0.11",
     "1.0.12"
   ],
-  "latest": "1.0.13",
-  "libraryId": "react-component-library:Banner"
+  "latest": "1.0.14",
+  "libraryId": "react-component-library:Banner",
+  "displayName": "Banner",
+  "description": "The page- or application-level notice with priority ordering, persistence policy, actions, responsive layout, and deterministic stacking when several apply at once.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -1,69 +1,38 @@
 # UI Spec Reconciliation
 
-The React Component Library treats the catalog and scenario experience documents as desired intent, and source plus adoption provenance as observed behavior. Asset reconciliation compares catalog declarations with versioned library source. Page reconciliation applies the same rule one level higher: it compares `scenarios/<scenario>/experience/pages/<page>.json` with the scenario UI files that implement its regions.
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
 
-The authored page sketch belongs in the scenario's experience document. The library may read and update `page.sketch`, but it stores only derived observations such as scan provenance, region verdicts, and coverage history in its own database. Viewport and grid coordinates remain non-normative drawing hints. The region-to-implementation binding is normative and is what verification evaluates.
-
-## Region verdicts
-
-The verdict vocabulary is closed.
-
-| Verdict | Meaning | Advisory blocking rule |
-| --- | --- | --- |
-| `matches` | The resolved file is an unmodified adoption of the placed built asset version. | Never |
-| `drifted` | The resolved file is an adopted asset whose bytes differ from its recorded version. | Report now; eligible for later promotion |
-| `missing` | A declared region has no resolvable implementation file. | Report now; required regions are eligible for later promotion |
-| `extra` | A scanned file in a declared UI slot resolves to no page region. | Never |
-| `unverifiable` | No declared manifest exists, no join rule resolves, or the placement is a placeholder. | Never |
-
-Every region result records its authored owner and the evidence used to derive the verdict. Verification scans a scenario once and reuses that provenance for all regions.
-
-## Three-tier decomposition
-
-Page design exhausts reuse before invention:
-
-1. Replace a local component with a compatible, implemented catalog asset.
-2. Build or adopt a compatible catalog declaration or page-template region that is already designed but not implemented.
-3. Record a genuinely new need as an intentional placeholder only after tiers 1 and 2 both ran and returned no match.
-
-Raw local markup is not a fourth tier. A brief orders tier 1 before tier 2 before tier 3, preserves sketch notes as constraints, and names `sketch verify` as its closing gate.
+A page document declares intent in `experience/pages/`. Source bindings identify implementations; adoption provenance identifies released library usage. Sketch placement, declared library ownership and observed source evidence are separate fields. Verification does not turn local code into an adoption.
 
 ## Region-to-file join
 
-The resolver evaluates these rules in order and stops on the first hit:
+The resolver accepts test IDs and bounded single-attribute selectors. It proves literal intrinsic JSX attributes, including bounded literal-prop forwarding through supported relative or library imports. Unsupported selectors, opaque wrappers, ambiguous matches and unproven forwarding retain explicit reasons. Source reachability is not proof that a conditional branch is visible in the current browser session.
 
-1. Resolve a region's `bindings.elements` test ID through the scenario selector registry. This is proven evidence.
-2. Resolve a placed catalog asset through the scenario's adoption record and adopted path. This is proven evidence.
-3. Slug-match the region ID to a component file inside a slot declared by the template UI manifest. This is heuristic evidence and is labeled `proven: false`.
+The adoption-path join follows explicit provenance. Filename similarity is a labeled heuristic, never proven evidence. Tests: `api/internal/reconcile/resolver_test.go` and `packages/react-component-library/tooling/dom-bindings.test.mjs`.
 
-When none resolves, verification reports `unverifiable` with a reason. Provenance tagged as `UNKNOWN` is kept distinct from scenario-local `CUSTOM` source because the remediation differs.
+## Region verdicts
+
+| Verdict | Checked meaning |
+| --- | --- |
+| `matches` | Proven adoption agrees with the selected built asset/version. |
+| `resolved-local` | Proven custom source implements the region, with no conflicting library placement. |
+| `drifted` | Proven source disagrees with the selected adoption/placement. |
+| `missing` | No matching implementation source was found. |
+| `unverifiable` | A binding/provenance/placement cannot establish the required conclusion. |
+| `extra` | Scanned slot source has no page-region mapping; advisory. |
+
+Tests: `api/internal/reconcile/verdict_test.go`. Every result includes a reason. Local resolution is not a claim that all UX behavior is correct.
 
 ## Coverage
 
-Coverage reports one count for each supply state:
+`built`, `declared` and `invented` describe sketch supply. `library_backed` and `local` count authored ownership declarations. `resolved` counts uniquely proven source bindings; `resolved_local` identifies successful custom implementations. A result can have source coverage without a built sketch asset.
 
-- `built`: an implemented catalog asset supplies the placement.
-- `declared`: a catalog declaration or template region exists but lacks implementation.
-- `invented`: the sketch intentionally carries a placeholder.
+A page with zero proven source bindings cannot pass. Required regions default to true; an explicit false remains optional. Tests `TestZeroResolvedRegionsNeverPass`, `TestResolvedCustomCodeHasItsOwnVerdictAndReason`, and `TestRegionRequiredDefaultsToSchemaContract` enforce those boundaries. Required failures still fail even when another region resolves.
 
-The workbench renders real catalog components where implementations exist and explicit wireframes elsewhere. Each region shows its rendering mode, verdict, join evidence, and authored note.
+## Rendered observation
 
-## Baseline 2026-09-03
+Use `react-component-library page inspect <scenario> <route>` for browser DOM and source attribution, and `components test page:<Name> --version workspace` for declared page behavior. They answer different questions. See the [CLI reference](../reference/cli-commands.md#inspect-a-running-page).
 
-The plan was authored on 2026-09-03. The execution re-measured the live shared tree on 2026-09-04 before plan-owned feature edits; these values are the effective before-state. The immutable collection was partial because unrelated source changed during capture and the React Component Library comprehensive run exceeded its deadline, so the measurements below are retained independently and final validation compares against them directly.
+## Design intent
 
-| Measure | Baseline value |
-| --- | ---: |
-| I19 — declared assets without implementation | 222 assets |
-| I21 — adoption depth | 4.412621763383565% |
-| I27 — machinery-to-asset line ratio | 0.947600477516912 |
-| Go machinery lines | 57,925 |
-| UI lines | 17,566 |
-| Asset lines | 62,977 |
-| Experience page documents | 209 |
-| Documents with regions | 41 |
-| Documents with bindings | 143 |
-| Fleet library region references | 64 |
-| Fleet local region references | 17 |
-
-The visual before-state is captured at 1440×900 in `plan-artifacts/react-component-library-design-from-the-library/screenshots/before/` for the catalog, catalog coverage, and AmbientCanvas asset-detail surfaces. The coverage capture also records that the live coverage endpoint was unavailable before implementation.
+Reuse a suitable library asset where it serves the page. Composed local pages remain valid source implementations and are reported honestly. Library adoption, page behavior and visual quality require their own evidence. Dated zero-coverage measurements from earlier design plans are superseded by the make-the-library-observable closing measurement; they are not current baseline facts.

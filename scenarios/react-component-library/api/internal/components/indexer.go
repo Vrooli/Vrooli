@@ -98,6 +98,18 @@ type IndexResult struct {
 // walking or sweeping the rest of the catalog. Authoring operations use this
 // path so an unrelated component cannot block a draft or publication.
 func (idx *Indexer) IndexManifest(ctx context.Context, path string) (Component, error) {
+	return idx.indexManifest(ctx, path, "")
+}
+
+// IndexAuthoringManifest refreshes a selected draft or new release. Historical
+// releases retain their recorded bytes; creating a successor must not rewrite
+// history or require repairing unrelated historical files. IndexManifest and
+// Run remain the integrity checks for the full on-disk manifest.
+func (idx *Indexer) IndexAuthoringManifest(ctx context.Context, path, targetVersion string) (Component, error) {
+	return idx.indexManifest(ctx, path, targetVersion)
+}
+
+func (idx *Indexer) indexManifest(ctx context.Context, path, targetVersion string) (Component, error) {
 	if idx.diskMutationRoot != "" {
 		var release func()
 		var err error
@@ -127,6 +139,11 @@ func (idx *Indexer) IndexManifest(ctx context.Context, path string) (Component, 
 	if in.ReleaseAttestations, err = loadReleaseAttestations(idx.fs); err != nil {
 		return Component{}, fmt.Errorf("read released version hash registry: %w", err)
 	}
+	if targetVersion != "" {
+		if err := idx.preserveHistoricalReleases(ctx, &in, targetVersion); err != nil {
+			return Component{}, err
+		}
+	}
 	component, err := idx.repo.UpsertManifest(ctx, in)
 	if err != nil {
 		return Component{}, fmt.Errorf("upsert %s: %w", path, err)
@@ -137,6 +154,53 @@ func (idx *Indexer) IndexManifest(ctx context.Context, path string) (Component, 
 		}
 	}
 	return component, nil
+}
+
+func (idx *Indexer) preserveHistoricalReleases(ctx context.Context, in *IndexManifestInput, target string) error {
+	component, err := idx.repo.GetByLibraryID(ctx, in.Manifest.LibraryID)
+	if err != nil {
+		return err
+	}
+	versions, err := idx.repo.ListVersions(ctx, component.ID, 10000)
+	if err != nil {
+		return err
+	}
+	if len(versions) >= 10000 {
+		return fmt.Errorf("historical release preservation exceeds version limit")
+	}
+	released := map[string]bool{}
+	for _, v := range versions {
+		released[v.Version] = v.Status == VersionStatusReleased
+	}
+	for i, incoming := range in.Versions {
+		if incoming.Version == target || !released[incoming.Version] {
+			continue
+		}
+		recorded, err := idx.repo.GetVersion(ctx, component.ID, incoming.Version)
+		if err != nil {
+			return err
+		}
+		if releaseHashMatches(recorded.ContentSHA256, incoming.Content, incoming.ContentSHA256) ||
+			attestsRelease(in.ReleaseAttestations, incoming.SourcePath, incoming.ContentSHA256) {
+			continue
+		}
+		in.Versions[i] = recorded
+		stories, err := idx.repo.ListStories(ctx, StoryQuery{ComponentID: component.ID, Version: incoming.Version, Limit: 10000})
+		if err != nil {
+			return err
+		}
+		if len(stories) >= 10000 {
+			return fmt.Errorf("historical release preservation exceeds story limit")
+		}
+		kept := in.Stories[:0]
+		for _, story := range in.Stories {
+			if story.Version != incoming.Version {
+				kept = append(kept, story)
+			}
+		}
+		in.Stories = append(kept, stories...)
+	}
+	return nil
 }
 
 // Run walks the root, upserts every manifest with valid version folders,

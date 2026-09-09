@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "preview-popout",
+    "title": "Asset preview",
+    "routes": [
+      "/assets/:id/preview"
+    ],
+    "purpose": "Inspect a selected asset specimen in a full-viewport preview with stable story and view parameters."
+  },
+  "priorities": [
+    {
+      "statement": "Inspect a selected asset specimen in a full-viewport preview with stable story and view parameters."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Inspect a selected asset specimen in a full-viewport preview with stable story and view parameters."
+    }
+  ],
+  "regions": [
+    {
+      "id": "preview-popout",
+      "required": true,
+      "purpose": "Inspect a selected asset specimen in a full-viewport preview with stable story and view parameters.",
+      "component": {
+        "local": "preview-popout-page"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "preview-popout": {
+        "testid": "preview-popout"
+      }
+    }
+  }
+}

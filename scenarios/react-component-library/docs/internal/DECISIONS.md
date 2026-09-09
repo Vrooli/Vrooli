@@ -1,5 +1,19 @@
 # Decisions — React Component Library
 
+Dated observations and design decisions below are historical evidence, not current readiness claims. Unchecked recommendations are **design intent**. See the [behavior claim register](TESTING.md#behavior-claim-register).
+
+## 2026-09-08 — Token authority
+
+BaseStyles authors shared runtime token values. The UI token generator derives consumer CSS, Tailwind aliases and the Tokens projection; app-tokens.css owns only disjoint local geometry/runtime compatibility values. This supersedes the 2026-08-29 `_base/tokens.css` authority decision for this scenario and the earlier claim that copied UI ramps author the same values independently. Enforced by `node ui/scripts/design-token-generate.mjs --check` and its parser/generator tests. Revisit if a new owner can provide the same deterministic generation and collision checks without duplicated values.
+
+## 2026-09-08 — Runtime stamp identity
+
+`data-rcl-asset` uses canonical library IDs, sourced from manifest identity and resolved through the actual consumer package resolver. `data-rcl-source-slot` retains legacy catalog/source-slot annotations only. Source headers no longer provide a second runtime identity vocabulary. The stamp plugin tests and pageinspect service tests enforce identity, source attribution and unstamped handling. Major resolution identifies the selected current consumer source, not an attested historical bundle. Revisit when the build supplies exact-version provenance for every rendered node.
+
+## 2026-09-08 — Source coverage and page behavior
+
+A proven custom page region is `resolved-local`; it need not pretend to be a built sketch adoption. Declared library/local ownership, sketch supply and source coverage remain separate fields. Zero proven source coverage never passes. Source-adjacent page contracts provide executable route fixtures, with concrete per-story overrides and undeclared mutation methods blocked. Reconcile, page-story and route-guard checks enforce these decisions.
+
 This document records durable decisions and tradeoffs future agents
 should not accidentally relitigate.
 

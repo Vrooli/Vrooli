@@ -13,6 +13,16 @@
     "1.0.0",
     "1.0.1"
   ],
-  "latest": "1.0.3",
-  "libraryId": "react-component-library:Toggle"
+  "latest": "1.0.4",
+  "libraryId": "react-component-library:Toggle",
+  "displayName": "Toggle",
+  "description": "The two-state pressable with selected semantics, optional icon and label, tooltip integration, and controlled or uncontrolled operation.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

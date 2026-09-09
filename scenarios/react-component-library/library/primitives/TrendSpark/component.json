@@ -9,6 +9,16 @@
   "evictedVersions": [
     "1.0.0"
   ],
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:TrendSpark"
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:TrendSpark",
+  "displayName": "TrendSpark",
+  "description": "Accessible compact trend visualization with a text alternative for version history and adoption signals.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

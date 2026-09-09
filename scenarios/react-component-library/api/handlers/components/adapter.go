@@ -57,6 +57,7 @@ func domainToProto(c components.Component) *componentsv1.Component {
 		DesignStyles:             designAffinitiesToProto(c.DesignStyles),
 		AssetKind:                assetKindToProto(c.AssetKind),
 		Dependencies:             assetDependenciesToProto(c.Dependencies),
+		CatalogKind:              c.CatalogKind,
 		CatalogDomain:            c.CatalogDomain,
 		CatalogDomainOrder:       int32(c.CatalogDomainOrder),
 		CatalogRung:              int32(c.CatalogRung),

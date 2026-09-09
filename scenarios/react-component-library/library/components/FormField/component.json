@@ -13,6 +13,16 @@
     "1.0.1",
     "1.0.2"
   ],
-  "latest": "1.0.3",
-  "libraryId": "react-component-library:FormField"
+  "latest": "1.0.4",
+  "libraryId": "react-component-library:FormField",
+  "displayName": "FormField",
+  "description": "The complete field composition binding label, control, description, required indicator, validation state, error message, and help text through stable identifier relationships.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

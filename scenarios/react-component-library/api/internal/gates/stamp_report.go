@@ -27,13 +27,14 @@ type stampReportDocument struct {
 	GeneratedAt string         `json:"generatedAt"`
 	Totals      map[string]int `json:"totals"`
 	Assets      []struct {
-		Asset     string `json:"asset"`
-		LibraryID string `json:"libraryId"`
-		Identity  string `json:"identity"`
-		Version   string `json:"version"`
-		State     string `json:"state"`
-		Strategy  string `json:"strategy"`
-		Reason    string `json:"reason"`
+		Asset      string `json:"asset"`
+		SourceSlot string `json:"sourceSlot"`
+		LibraryID  string `json:"libraryId"`
+		Identity   string `json:"identity"`
+		Version    string `json:"version"`
+		State      string `json:"state"`
+		Strategy   string `json:"strategy"`
+		Reason     string `json:"reason"`
 	} `json:"assets"`
 }
 
@@ -107,7 +108,10 @@ func LoadStampReport(root string) (StampReport, error) {
 	report.Present = true
 	report.Generated = document.GeneratedAt
 	for _, asset := range document.Assets {
-		key := asset.Asset
+		key := asset.SourceSlot
+		if key == "" {
+			key = asset.Asset
+		}
 		if key == "" {
 			key = asset.Identity
 		}

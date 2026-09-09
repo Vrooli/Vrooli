@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { dirname, resolve, join } from "node:path";
+import { tmpdir } from "node:os";
 import { describe, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import {
@@ -77,12 +78,42 @@ describe("shared asset-stamp contract", () => {
 describe("resolver chain", () => {
   it("resolves a library entry through component.json", () => {
     const metadata = assetStampMetadata(
-      `${scenarioRoot}/library/components/Card/versions/1.1.0/Card.tsx`,
+      `${scenarioRoot}/library/components/Card/versions/1.3.0/Card.tsx`,
       scenarioRoot,
     );
-    assert.equal(metadata?.asset, "primitives.card");
-    assert.equal(metadata?.version, "1.1.0");
+    assert.equal(metadata?.asset, "react-component-library:Card");
+    assert.equal(metadata?.sourceSlot, "primitives.card");
+    assert.equal(metadata?.version, "1.3.0");
     assert.equal(metadata?.strategy, "library");
+  });
+
+  it("resolves both canonical and transitional adopted shims to library IDs", () => {
+    const root = mkdtempSync(join(tmpdir(), "rcl-stamp-"));
+    try {
+      const impl = join(root, "versions", "1.0.0", "Card.tsx");
+      mkdirSync(dirname(impl), { recursive: true });
+      writeFileSync(impl, "/** @libraryId react-component-library:Card */ export const Card = () => <div />;");
+      for (const marker of ["primitives.card", "react-component-library:Card"]) {
+        writeFileSync(join(root, "Card.tsx"), `/** @vrooliComponentSource ${marker}\n * @vrooliComponentSourceSlot primitives.card */\nexport { Card } from './versions/1.0.0/Card';`);
+        const metadata = assetStampMetadata(impl, root, undefined, { adoptedIndex: adoptedAssetIndex(root) });
+        assert.equal(metadata.asset, "react-component-library:Card");
+        assert.equal(metadata.sourceSlot, "primitives.card");
+      }
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it("emits canonical identity and a separate legacy slot on JSX and dynamic roots", () => {
+    for (const source of [
+      'export const Card = () => <div data-rcl-asset="old" data-rcl-source-slot="wrong" />;',
+      'export function Card() { return React.createElement("div", { role: "region", "data-rcl-asset": "old", "data-rcl-source-slot": "wrong" }); }',
+    ]) {
+      const result = stampSource(source, { asset: "react-component-library:Card", sourceSlot: "primitives.card", version: "1.0.0", componentName: "Card" });
+      assert.equal(countOccurrences(result.code, "data-rcl-asset"), 1);
+      assert.equal(countOccurrences(result.code, "data-rcl-source-slot"), 1);
+      assert.ok(result.code.includes('"react-component-library:Card"'));
+      assert.ok(result.code.includes('"primitives.card"'));
+      assert.ok(!result.code.includes('"wrong"'));
+    }
   });
 
   it("does not classify a package-backed re-export as a copied adoption", () => {
@@ -105,15 +136,14 @@ describe("resolver chain", () => {
     assert.equal(adoptedIndex.has(composed), false);
   });
 
-  it("gives every indexed adopted implementation a unique catalog identity", () => {
+  it("gives every indexed adopted implementation a unique library identity", () => {
     const adoptedIndex = adoptedAssetIndex(`${scenarioRoot}/ui/src/components`);
     const seen = new Map();
     for (const entry of adoptedIndex.values()) {
-      if (entry.asset.includes(":")) continue; // backlog: no catalog id yet
       seen.set(entry.asset, (seen.get(entry.asset) || 0) + 1);
     }
     const duplicates = [...seen].filter(([, count]) => count > 1);
-    assert.deepEqual(duplicates, [], "two shims claim the same catalog asset");
+    assert.deepEqual(duplicates, [], "two shims claim the same library asset");
   });
 });
 

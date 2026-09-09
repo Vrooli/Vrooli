@@ -51,6 +51,7 @@ type Component struct {
 	Dependencies             []AssetDependency
 	Expects                  []string
 	Satisfies                []string
+	CatalogKind              string
 	CatalogDomain            string
 	CatalogDomainOrder       int
 	CatalogRung              int

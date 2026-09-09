@@ -1,4 +1,8 @@
 export type StoryEnvironment = {
+  browser?: boolean;
+  wait?: (milliseconds: number) => Promise<void>;
+  flush?: () => Promise<void>;
+  actInteraction?: (dispatch: () => void) => Promise<void>;
   skipKinds?: ReadonlySet<string>;
   queries?: Record<string, unknown>;
   report?: (passed: boolean, failures: unknown[], skipped: unknown[]) => void;

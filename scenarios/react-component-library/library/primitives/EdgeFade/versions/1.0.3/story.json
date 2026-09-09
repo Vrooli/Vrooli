@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "inline-start",
+        "kind": "enum",
+        "label": "Side",
+        "options": [
+          "inline-start",
+          "inline-end"
+        ],
+        "path": "side"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "side": "inline-start"
+      },
+      "id": "side-inline-start",
+      "mode": "pinned",
+      "name": "side inline-start",
+      "role": "anatomy",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "args": {
+        "side": "inline-end"
+      },
+      "id": "side-inline-end",
+      "mode": "pinned",
+      "name": "side inline-end",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "axis",
+      "axis": "side",
+      "covers": {
+        "side": [
+          "inline-start",
+          "inline-end"
+        ]
+      }
+    }
+  ],
+  "title": "EdgeFade"
+}

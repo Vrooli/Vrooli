@@ -17,6 +17,16 @@
     "1.0.0",
     "2.1.2"
   ],
-  "latest": "2.1.3",
-  "libraryId": "react-component-library:useDirection"
+  "latest": "2.1.4",
+  "libraryId": "react-component-library:useDirection",
+  "displayName": "useDirection",
+  "description": "A direction primitive resolving left-to-right or right-to-left behavior for layout, keyboard movement, gestures, and transition origin.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

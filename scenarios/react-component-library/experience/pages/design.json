@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "design",
+    "title": "Choose a scenario",
+    "routes": [
+      "/design"
+    ],
+    "purpose": "Find a scenario with declared pages and open its design inventory."
+  },
+  "priorities": [
+    {
+      "statement": "Find a scenario with declared pages and open its design inventory."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Find a scenario with declared pages and open its design inventory."
+    }
+  ],
+  "regions": [
+    {
+      "id": "design-overview",
+      "required": true,
+      "purpose": "Find a scenario with declared pages and open its design inventory.",
+      "component": {
+        "local": "design-page"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "design-overview": {
+        "selector": "[data-experience-surface=\"design-overview\"]"
+      }
+    }
+  }
+}

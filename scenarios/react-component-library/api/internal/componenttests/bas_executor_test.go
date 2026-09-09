@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -131,4 +133,16 @@ func TestBASArtifactsKeepStorySheetBoundToItsScreenshot(t *testing.T) {
 	if got := byKind["bas-story-sheet"].Reference; got != "/embedded/browser-automation-studio/api/v1/artifacts/sheet.png" {
 		t.Fatalf("story sheet reference = %q", got)
 	}
+}
+
+func TestPageStoryURLUsesConcreteStoryRoute(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "ui", "src", "pages")
+	require.NoError(t, os.MkdirAll(dir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Design.tsx"), []byte("export function Design() { return null }"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Design.story.json"), []byte(`{"schemaVersion":5,"kind":"page","route":"/design","environment":{"fixtures":[]},"stories":[{"id":"detail","name":"Detail","route":"/design/demo/page","role":"anatomy","expect":[{"kind":"text","value":"Design"}]}]}`), 0644))
+	executor := BASCaptureExecutor{PageSourceRoot: root, PageUIBaseURL: "http://ui.test"}
+	got, err := executor.storyURL("page:Design", "workspace", "detail")
+	require.NoError(t, err)
+	require.Equal(t, "http://ui.test/design/demo/page?__rcl_page_story=Design&__rcl_story=detail", got)
 }

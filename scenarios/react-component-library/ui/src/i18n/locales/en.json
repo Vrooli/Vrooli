@@ -91,7 +91,8 @@
     "sourcePathPlaceholder": "e.g. ui/src/components/Example.tsx",
     "sourceScenario": "Source scenario",
     "subtitle": "Find reusable components and non-renderable hooks.",
-    "title": "Library workspace"
+    "title": "Library workspace",
+    "support": "Support assets"
   },
   "componentDetail": {
     "experience": {
@@ -427,7 +428,8 @@
       "missing": "Missing",
       "drifted": "Drifted",
       "extra": "Extra",
-      "unverifiable": "Unverifiable"
+      "unverifiable": "Unverifiable",
+      "resolved-local": "Resolved to custom code"
     },
     "importing": "Preparing import…",
     "previewImport": "Import existing page",
@@ -594,6 +596,16 @@
     "acceptanceDecision_needs_evidence": "Decision recorded: more evidence is required.",
     "acceptanceDecision_failed": "Decision evaluation failed. The original request remains recorded.",
     "acceptanceDecision_accepted": "Design acceptance recorded for this exact revision.",
-    "acceptanceNewAttempt": "Recheck and record a new decision"
+    "acceptanceNewAttempt": "Recheck and record a new decision",
+    "sourceCoverage": "{{resolved}} of {{total}} regions have proven source bindings; {{custom}} use custom code.",
+    "declaredCoverage": "Declared implementation: {{library}} library-backed, {{local}} local.",
+    "showEmptyScenarios": "Show scenarios without pages"
+  },
+  "coverage": {
+    "unavailable": "Coverage unavailable",
+    "retryHelp": "The coverage service could not complete the report. Retry to request it again; check the service logs if it keeps failing.",
+    "retry": "Retry coverage",
+    "nextWorkUnavailable": "Ranked work is unavailable. Retry to load its findings.",
+    "retryNextWork": "Retry ranked work"
   }
 }

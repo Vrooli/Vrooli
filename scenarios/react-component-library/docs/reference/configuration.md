@@ -1,11 +1,13 @@
 # Configuration — React Component Library
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 How this scenario is configured — env vars consumed by the binaries,
 the `.vrooli/service.json` manifest, and the per-user CLI config file.
 
 The lifecycle (`vrooli scenario start`, `make start`) sets every
 required variable automatically. You only need this reference when
-running a binary by hand or when a scenario adds a new variable.
+diagnosing lifecycle configuration or adding a new variable. Never start scenario binaries directly.
 
 ## Environment variables
 

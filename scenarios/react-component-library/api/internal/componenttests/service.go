@@ -69,6 +69,11 @@ func (s *Service) Reusable(ctx context.Context, request Request) (Report, bool, 
 // has a revision authority. A missing authority deliberately disables reuse;
 // it is safer to execute than to claim freshness without a folded revision.
 func (r Runner) ExpectedReport(ctx context.Context, request Request) (string, bool) {
+	// A page uses live application inputs. A source digest alone cannot prove
+	// unchanged API state, so a prior page capture is never reused as a new run.
+	if strings.HasPrefix(request.ComponentID, components.PageStoryPrefix) {
+		return "", false
+	}
 	if r.Revision == nil || r.Assets == nil || request.Version == "" {
 		return "", false
 	}

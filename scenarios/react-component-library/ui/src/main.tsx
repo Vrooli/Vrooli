@@ -53,6 +53,9 @@ function normalizeRouterBasename(raw: string): string {
 }
 
 async function bootstrap() {
+  const pageStory = new URLSearchParams(window.location.search).has("__rcl_page_story")
+    ? (await import("./page-stories")).preparePageStory(new URLSearchParams(window.location.search))
+    : undefined;
   const [
     { default: App },
     { ErrorBoundary },
@@ -90,6 +93,10 @@ async function bootstrap() {
     </LibraryStringsProvider>,
     // vrooli:library-strings-provider end
   );
+  if (pageStory) {
+    window.addEventListener("pagehide", pageStory.dispose, { once: true });
+    await pageStory.run(appRoot);
+  }
 }
 
 void bootstrap();

@@ -16,6 +16,9 @@
   "evictedVersions": [
     "1.0.0"
   ],
-  "latest": "1.0.2",
-  "libraryId": "react-component-library:ToastManager"
+  "latest": "1.0.3",
+  "libraryId": "react-component-library:ToastManager",
+  "displayName": "Toast Manager",
+  "description": "The notification service that queues, deduplicates, updates, dismisses, limits, and announces transient feedback through one application surface.",
+  "tags": []
 }

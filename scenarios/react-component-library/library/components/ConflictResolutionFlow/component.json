@@ -23,6 +23,16 @@
     "1.0.8",
     "1.0.9"
   ],
-  "latest": "1.0.10",
-  "libraryId": "react-component-library:ConflictResolutionFlow"
+  "latest": "1.0.11",
+  "libraryId": "react-component-library:ConflictResolutionFlow",
+  "displayName": "ConflictResolutionFlow",
+  "description": "The concurrency workflow comparing local and remote change, explaining what conflicts, supporting field-level resolution, and retrying against the current version.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -20,6 +20,16 @@
     "1.0.5",
     "1.0.6"
   ],
-  "latest": "1.1.0",
-  "libraryId": "react-component-library:Draggable"
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:Draggable",
+  "displayName": "Draggable",
+  "description": "The direct-manipulation primitive with pointer capture, keyboard dragging, constraints, drag handles, cancellation, velocity reporting, position announcements, and overlay support.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -2,6 +2,18 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-element-rect",
-  "latest": "2.0.0",
-  "libraryId": "react-component-library:useElementRect"
+  "latest": "2.0.1",
+  "libraryId": "react-component-library:useElementRect",
+  "displayName": "useElementRect",
+  "description": "A measured-layout primitive that batches reads and exposes a stable element rectangle without forcing layout on every render.",
+  "tags": [],
+  "draft": "",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

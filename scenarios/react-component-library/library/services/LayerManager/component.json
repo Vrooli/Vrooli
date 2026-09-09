@@ -9,6 +9,16 @@
   "evictedVersions": [
     "1.0.0"
   ],
-  "latest": "2.0.0",
-  "libraryId": "react-component-library:LayerManager"
+  "latest": "2.0.1",
+  "libraryId": "react-component-library:LayerManager",
+  "displayName": "Layer Manager",
+  "description": "The global coordinator for portals, stacking order, modal isolation, nested overlays, inert background content, focus restoration, and reference-counted scroll locking.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

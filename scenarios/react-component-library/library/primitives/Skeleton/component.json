@@ -15,6 +15,16 @@
     "1.0.1",
     "1.0.4"
   ],
-  "latest": "1.0.5",
-  "libraryId": "react-component-library:Skeleton"
+  "latest": "1.0.6",
+  "libraryId": "react-component-library:Skeleton",
+  "displayName": "Skeleton",
+  "description": "The structure-aware loading placeholder that reserves the final layout and can represent text, media, avatars, rows, and custom shapes.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

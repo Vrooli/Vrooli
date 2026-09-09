@@ -2,13 +2,41 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "react-component-library.capture-story",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Capture one immutable library asset across its story, viewport, and theme matrix through ui-health, retaining a stable first-capture baseline.",
   "inputs": {
-    "asset_id": {"type": "string", "required": true, "description": "Catalog asset id, for example primitives.text."},
-    "version": {"type": "string", "description": "Immutable version; defaults to the component manifest latest."},
-    "stories": {"type": "array", "default": [], "description": "Story ids; defaults to every story in the versioned story contract."},
-    "viewports": {"type": "array", "default": ["desktop", "mobile"], "description": "Capture viewport names."},
-    "themes": {"type": "array", "default": ["light", "dark"], "description": "Capture theme names."}
+    "asset_id": {
+      "type": "string",
+      "required": true,
+      "description": "Catalog asset id, for example primitives.text."
+    },
+    "version": {
+      "type": "string",
+      "description": "Immutable version; defaults to the component manifest latest."
+    },
+    "stories": {
+      "type": "array",
+      "default": [],
+      "description": "Story ids; defaults to every story in the versioned story contract."
+    },
+    "viewports": {
+      "type": "array",
+      "default": [
+        "desktop",
+        "mobile"
+      ],
+      "description": "Capture viewport names."
+    },
+    "themes": {
+      "type": "array",
+      "default": [
+        "light",
+        "dark"
+      ],
+      "description": "Capture theme names."
+    }
   },
   "assumptions": [
     "The selected immutable version has one validated story contract.",
@@ -21,10 +49,30 @@
     "The envelope is printed exactly once.",
     "The command does not mutate library source or version content."
   ],
-  "bindings": [{"id": "browser-automation-studio/capture/capture", "effect": "write", "via": "binding"}],
+  "bindings": [
+    {
+      "id": "browser-automation-studio/capture/capture",
+      "effect": "write",
+      "via": "binding"
+    }
+  ],
   "outputs": {
-    "status": {"enum": ["ok", "partial", "unavailable", "failed"]},
-    "phase": {"enum": ["validate", "collect", "decide", "report"]},
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "decide",
+        "report"
+      ]
+    },
     "signals": {
       "asset_id": "requested catalog asset",
       "version": "captured immutable version",
@@ -32,15 +80,69 @@
       "baseline_count": "new baseline count",
       "changed_count": "later combinations whose normalized result changed"
     },
-    "errors": {"classes": ["invalid_input", "asset_not_found", "story_not_found", "scenario_unreachable", "capture_failed", "binding_error", "kernel_runtime"]},
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "asset_not_found",
+        "story_not_found",
+        "scenario_unreachable",
+        "capture_failed",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
     "evidence": "ui-health capture envelopes and baseline keys"
   },
-  "budget": {"wall_ms": 120000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 64, "output_bytes": 65536},
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 64,
+    "output_bytes": 65536
+  },
   "fixtures": [
-    {"id": "missing-asset", "inputs": {}, "expect": {"status": ["failed"]}},
-    {"id": "rcl-text-one-story", "inputs": {"asset_id": "primitives.text", "stories": ["anatomy"], "viewports": ["desktop"], "themes": ["light"]}, "expect": {"status": ["ok", "partial", "unavailable"]}, "requires": ["react-component-library", "ui-health", "browser-automation-studio"]}
+    {
+      "id": "missing-asset",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "rcl-text-one-story",
+      "inputs": {
+        "asset_id": "primitives.text",
+        "stories": [
+          "anatomy"
+        ],
+        "viewports": [
+          "desktop"
+        ],
+        "themes": [
+          "light"
+        ]
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "react-component-library",
+        "ui-health",
+        "browser-automation-studio"
+      ]
+    }
   ],
   "rung": "S3",
   "owner_skill": "react-component-library",
-  "verbs": ["capture"]
+  "verbs": [
+    "capture"
+  ]
 }

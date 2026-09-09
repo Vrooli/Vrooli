@@ -10,6 +10,7 @@ import type { CandidateResponse, CaptureOperation, CritiqueEvidence } from "@vro
 import { listComponentStories } from "../api/components";
 import { API_BASE } from "../api/client";
 import { sketchClient } from "../api/sketch";
+import { strings } from "../consts/strings";
 import { designPath } from "../routes";
 import { useTranslation } from "../i18n";
 
@@ -44,17 +45,18 @@ export function DesignPage() {
 function DesignOverview({ scenario }: { scenario?: string }) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState("");
+  const [showEmpty, setShowEmpty] = useState(false);
   const inventory = useQuery({
     queryKey: ["design-inventory", scenario],
     queryFn: ({ signal }) => sketchClient.listDesignPages({ scenario: scenario ?? "" }, { signal }),
   });
   return (
-    <section className="grid gap-space-md" aria-label={t("design.title")}>
-      <nav aria-label={t("design.breadcrumb")}>
+    <section data-experience-surface="design-overview" className="grid gap-space-sm" aria-label={t("design.title")}>
+      {scenario && <nav aria-label={t("design.breadcrumb")}>
         <Link to={designPath()}>{t("design.title")}</Link>
         {scenario && <span> / {scenario}</span>}
-      </nav>
-      <h1 className="text-title font-semibold">{scenario ?? t("design.chooseScenario")}</h1>
+      </nav>}
+      <h2 className="text-title font-semibold">{scenario ?? t("design.chooseScenario")}</h2>
       <p className="text-app-muted-foreground">{t("design.overviewHelp")}</p>
       <Input
         aria-label={t("design.filter")}
@@ -71,21 +73,24 @@ function DesignOverview({ scenario }: { scenario?: string }) {
           {issue}
         </p>
       ))}
-      <div className="grid gap-space-sm md:grid-cols-2 xl:grid-cols-3">
+      {!scenario && <label className="flex items-center gap-space-2xs text-label text-app-muted-foreground">
+        <input type="checkbox" checked={showEmpty} onChange={event => setShowEmpty(event.target.checked)} />
+        {t(strings.design.showEmptyScenarios)}
+      </label>}
+      <div className="grid gap-space-2xs md:grid-cols-2 xl:grid-cols-3">
         {inventory.data?.scenarios
-          .filter((item) => item.scenario.includes(filter.toLowerCase()))
+          .filter((item) => item.scenario.includes(filter.trim().toLowerCase()))
+          .filter((item) => showEmpty || item.pageCount > 0 || item.issue || Boolean(filter.trim()))
+          .sort((a, b) => b.pageCount - a.pageCount || a.scenario.localeCompare(b.scenario))
           .map((item) => (
-            <Card key={item.scenario}>
-              <CardHeader>
-                <CardTitle>
-                  <Link to={designPath(item.scenario)}>{item.scenario}</Link>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>{t("design.pageCount", { count: item.pageCount })}</p>
-                {item.issue && <p role="alert">{item.issue}</p>}
-              </CardContent>
-            </Card>
+            <Link key={item.scenario} to={designPath(item.scenario)}
+              className="grid min-w-0 gap-space-3xs rounded-panel border border-app-border bg-app-surface p-space-xs hover:bg-app-surface-muted">
+              <span className="flex min-w-0 items-center justify-between gap-space-sm">
+                <span className="min-w-0 break-words font-medium">{item.scenario}</span>
+                <span className="shrink-0 text-label text-app-muted-foreground">{t("design.pageCount", { count: item.pageCount })}</span>
+              </span>
+              {item.issue && <span role="alert" className="text-label">{item.issue}</span>}
+            </Link>
           ))}
         {inventory.data?.pages
           .filter((item) =>
@@ -203,7 +208,7 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
   const evidence = verify.data?.hash === hash ? verify.data.result : undefined;
   const staleEvidence = Boolean(verify.data && !evidence);
   return (
-    <section className="grid min-w-0 grid-cols-1 gap-space-md" aria-label={t("design.workspace")}>
+    <section data-experience-surface="design-workspace" className="grid min-w-0 grid-cols-1 gap-space-md" aria-label={t("design.workspace")}>
       <nav aria-label={t("design.breadcrumb")} className="flex flex-wrap gap-space-2xs">
         <Link to={designPath()}>{t("design.title")}</Link>
         <span>/</span>
@@ -396,6 +401,19 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
                             built: evidence.coverage?.built,
                             total: evidence.coverage?.total,
                           })}
+                    </p>
+                    <p>
+                      {t(strings.design.sourceCoverage, {
+                        resolved: evidence.coverage?.resolved ?? 0,
+                        total: evidence.coverage?.total ?? 0,
+                        custom: evidence.coverage?.resolvedLocal ?? 0,
+                      })}
+                    </p>
+                    <p>
+                      {t(strings.design.declaredCoverage, {
+                        library: evidence.coverage?.libraryBacked ?? 0,
+                        local: evidence.coverage?.local ?? 0,
+                      })}
                     </p>
                     <ul className="grid gap-space-sm">
                       {evidence.regions.map((item, index) => (

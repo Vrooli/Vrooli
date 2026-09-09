@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	previewMarkerAttribute      = regexp.MustCompile(`\sdata-rcl-(?:asset|version|stamp)(?:\s*=\s*(?:"[^"]*"|'[^']*'|\{[^}]*\}))?(?:\s|>)`)
+	previewMarkerAttribute      = regexp.MustCompile(`\sdata-rcl-(?:asset|version|stamp|source-slot)(?:\s*=\s*(?:"[^"]*"|'[^']*'|\{[^}]*\}))?(?:\s|>)`)
 	previewComponentDeclaration = regexp.MustCompile(`(?m)(?:export\s+)?(?:function\s+([A-Za-z_$][\w$]*)\b|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=)`)
 	previewCreateElement        = regexp.MustCompile(`\bcreateElement\(\s*[A-Za-z_$][\w$]*\s*,\s*\{`)
 	previewTypeParameterList    = regexp.MustCompile(`^<[A-Za-z_$][\w$]*(?:\s+extends\b|\s*,|\s*:)`)
@@ -17,7 +17,11 @@ var (
 // plugin. Preview bundles are compiled directly by esbuild rather than by
 // the UI's Vite graph, so leaving this path unstamped would make the rendered
 // story disagree with the production harness oracle.
-func stampPreviewSource(source, sourcePath, asset, version string) string {
+func stampPreviewSource(source, sourcePath, asset, version string, legacySlot ...string) string {
+	sourceSlot := ""
+	if len(legacySlot) > 0 && legacySlot[0] != asset {
+		sourceSlot = legacySlot[0]
+	}
 	asset = strings.TrimSpace(asset)
 	version = strings.TrimSpace(version)
 	if asset == "" || version == "" || !strings.HasSuffix(strings.ToLower(sourcePath), ".tsx") {
@@ -40,6 +44,9 @@ func stampPreviewSource(source, sourcePath, asset, version string) string {
 
 	if rootStart, rootEnd := previewOwnedOpening(cleaned, start); rootStart >= 0 {
 		attrs := ` data-rcl-asset="` + escapeAttribute(asset) + `" data-rcl-version="` + escapeAttribute(version) + `" data-rcl-stamp="vite"`
+		if sourceSlot != "" {
+			attrs += ` data-rcl-source-slot="` + escapeAttribute(sourceSlot) + `"`
+		}
 		insertAt := rootEnd - 1
 		if insertAt > rootStart && cleaned[insertAt-1] == '/' {
 			insertAt--
@@ -51,6 +58,9 @@ func stampPreviewSource(source, sourcePath, asset, version string) string {
 		// The regexp ends at the opening brace. Keep the object valid by
 		// placing the generated properties immediately after that brace.
 		attrs := `"data-rcl-asset": "` + escapeAttribute(asset) + `", "data-rcl-version": "` + escapeAttribute(version) + `", "data-rcl-stamp": "vite", `
+		if sourceSlot != "" {
+			attrs += `"data-rcl-source-slot": "` + escapeAttribute(sourceSlot) + `", `
+		}
 		brace := strings.LastIndex(cleaned[:insertAt], "{")
 		if brace >= 0 {
 			return cleaned[:brace+1] + attrs + cleaned[brace+1:]

@@ -1,5 +1,7 @@
 # One Asset, One Verdict
 
+Dated observations and design decisions below are historical evidence, not current readiness claims. Unchecked recommendations are **design intent**. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 ## Purpose
 
 The React Component Library uses one governed edit loop for an asset. The

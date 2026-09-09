@@ -10,6 +10,16 @@
     "1.0.0",
     "1.0.1"
   ],
-  "latest": "1.1.0",
-  "libraryId": "react-component-library:useResizablePanel"
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:useResizablePanel",
+  "displayName": "useResizablePanel",
+  "description": "Pointer, keyboard and persistence behavior for one resizable panel: logical axis and edge, bounded clamping against the adjacent region, snap points, a collapse threshold, and an injectable storage adapter.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

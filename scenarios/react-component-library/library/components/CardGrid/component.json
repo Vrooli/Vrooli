@@ -13,6 +13,16 @@
     "1.0.1",
     "1.0.2"
   ],
-  "latest": "1.0.3",
-  "libraryId": "react-component-library:CardGrid"
+  "latest": "1.0.4",
+  "libraryId": "react-component-library:CardGrid",
+  "displayName": "Card Grid",
+  "description": "A restrained responsive card arrangement that establishes a raised surface context for repeated records without turning every page section into a floating panel.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

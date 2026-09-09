@@ -5,6 +5,18 @@
   "evictedVersions": [
     "1.0.0"
   ],
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:useResizeObserver"
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:useResizeObserver",
+  "displayName": "useResizeObserver",
+  "description": "A shared-observer primitive reporting element size changes without creating one native observer per component instance.",
+  "tags": [],
+  "draft": "",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

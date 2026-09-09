@@ -31,9 +31,9 @@ describe("AppShell", () => {
     const { fetchHealth } = await import("../api/health");
     vi.mocked(fetchHealth).mockResolvedValue(makeHealthResponse());
   });
-  afterEach(() => cleanup());
+  afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
-  it("renders shell, catalog drawer access, and the child route content", () => {
+  it("renders one shell navigation and the child route content", () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppShell />}>
@@ -43,10 +43,11 @@ describe("AppShell", () => {
       { routerEntries: ["/"] },
     );
     expect(screen.getByTestId("app-shell")).toBeInTheDocument();
-    expect(screen.getByTestId("navigation.sidebar")).toBeInTheDocument();
-    expect(screen.getByTestId("app-sidebar-content")).toBeInTheDocument();
+    expect(screen.getByTestId("app-shell-sidebar")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Browse assets" })).toHaveLength(1);
+    expect(screen.queryByTestId("app-sidebar-content")).not.toBeInTheDocument();
     expect(screen.getByTestId("workspace-header")).toBeInTheDocument();
-    expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
+    expect(screen.getByTestId("app-shell-tabs")).toBeInTheDocument();
     expect(screen.getByTestId("child")).toBeInTheDocument();
     expect(screen.queryByTestId("active-work-menu")).not.toBeInTheDocument();
   });
@@ -61,11 +62,11 @@ describe("AppShell", () => {
       { routerEntries: ["/"] },
     );
 
-    const skipLink = container.querySelector<HTMLAnchorElement>(".rcl-app-shell-skip");
+    const skipLink = container.querySelector<HTMLAnchorElement>("[data-rcl-app-shell-skip]");
     expect(skipLink).toHaveAttribute("href", "#app-shell-main");
     expect(screen.getByRole("main")).toHaveAttribute("id", "app-shell-main");
     expect(screen.getByTestId("app-shell")).toHaveAttribute("data-rcl-app-shell");
-    expect(skipLink?.className).toContain("rcl-app-shell-skip");
+    expect(skipLink).toHaveAttribute("data-rcl-app-shell-skip");
   });
 
   it("does not wrap content in a centered card or eyebrow text", () => {
@@ -94,7 +95,7 @@ describe("AppShell", () => {
     );
     await user.click(screen.getByTestId("sidebar-collapse"));
     expect(screen.getByTestId("workspace-header-open-sidebar")).toBeInTheDocument();
-    expect(screen.getByTestId("navigation.sidebar")).toHaveAttribute("data-mode", "overlay");
+    expect(screen.getByTestId("app-shell")).toHaveAttribute("data-density", "rail");
     await user.click(screen.getByTestId("workspace-header-open-sidebar"));
     expect(screen.queryByTestId("workspace-header-open-sidebar")).not.toBeInTheDocument();
   });
@@ -111,7 +112,7 @@ describe("AppShell", () => {
 
     const shell = screen.getByTestId("app-shell");
     const main = screen.getByRole("main");
-    expect(shell).toHaveAttribute("data-main-mode", "flush");
+    expect(shell).toHaveAttribute("data-main-mode", "fill");
     expect(main.className).toContain("flex-col");
     expect(main.className).toContain("w-full");
   });
@@ -131,45 +132,24 @@ describe("AppShell", () => {
     expect(main.classList.contains("w-0")).toBe(false);
   });
 
-  it("renders the mobile sidebar branch when the media query matches", () => {
+  it("keeps mobile destinations and settings reachable through the shell", async () => {
     vi.stubGlobal("matchMedia", (query: string) => ({
-      matches: true,
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
+      matches: query.includes("max-width"), media: query,
+      addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
     }));
-
-    renderWithProviders(
-      <Routes>
-        <Route element={<AppShell />}>
-          <Route path="/" element={<div>mobile</div>} />
-        </Route>
-      </Routes>,
-      { routerEntries: ["/"] },
-    );
-
-    expect(screen.getByTestId("navigation.sidebar")).toBeInTheDocument();
-  });
-
-  it("opens a full-width safe-area sidebar shell from the workspace header", async () => {
     const user = userEvent.setup();
     renderWithProviders(
       <Routes>
         <Route element={<AppShell />}>
-          <Route path="/" element={<div data-testid="child">hello</div>} />
+          <Route path="/" element={<div>mobile</div>} />
+          <Route path="/coverage" element={<div data-testid="coverage-destination">coverage destination</div>} />
         </Route>
-      </Routes>,
-      { routerEntries: ["/"] },
+      </Routes>, { routerEntries: ["/"] },
     );
-
-    await user.click(screen.getByTestId("workspace-header-open-sidebar"));
-
-    const shell = screen.getByTestId("navigation.sidebar");
-    expect(shell).toHaveAttribute("role", "dialog");
-    expect(shell).toHaveAttribute("data-mode", "responsive");
-    expect(shell).toHaveAttribute("data-open", "true");
-    expect(screen.getByTestId("navigation.sidebar-backdrop")).toBeInTheDocument();
+    expect(screen.getByTestId("app-shell-tabs")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "nav.settings" }).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("link", { name: "Catalog coverage" }));
+    expect(screen.getByTestId("coverage-destination")).toBeInTheDocument();
   });
 
   it("opens the shared main-actions menu and exposes all three guided actions", async () => {

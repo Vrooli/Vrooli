@@ -30,6 +30,9 @@
     "1.0.8",
     "1.0.4"
   ],
-  "latest": "1.0.10",
-  "libraryId": "react-component-library:BulkActionBar"
+  "latest": "1.0.11",
+  "libraryId": "react-component-library:BulkActionBar",
+  "displayName": "BulkActionBar",
+  "description": "The contextual action surface activated by selection, showing counts and scope, guarding destructive operations, and reporting progress, partial failure, and cancellation.",
+  "tags": []
 }

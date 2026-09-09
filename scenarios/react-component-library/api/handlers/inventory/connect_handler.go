@@ -26,8 +26,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	"react-component-library/internal/adoptions"
 	"github.com/vrooli/api-core/uimanifest"
+	"react-component-library/internal/adoptions"
 
 	provenancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/contracts/provenance"
 	widgetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/contracts/widget"
@@ -92,17 +92,25 @@ func (h *connectHandler) ScanScenario(ctx context.Context, req *connect.Request[
 	scenarioRoot := filepath.Join(h.deps.ScenariosRoot, scenario)
 	resp := &inventoryv1.ScanScenarioResponse{Scenario: scenario}
 
-	// Walk each slot's dir for .tsx files.
+	// Slots describe adoption destinations, not the complete application. Scan
+	// the declared entry directory too so feature and router sources participate
+	// in reconciliation. Specific slots retain their classification through seen.
 	slotNames := make([]string, 0, len(mf.Slots))
 	for k := range mf.Slots {
 		slotNames = append(slotNames, k)
 	}
 	sort.Strings(slotNames)
+	scanDirs := map[string]string{}
+	for name, slot := range mf.Slots {
+		scanDirs[name] = slot.Dir
+	}
+	const appSourceSlot = "application-source"
+	scanDirs[appSourceSlot] = filepath.Dir(mf.ResolveFile("appEntry", "ui/src/main.tsx"))
+	slotNames = append(slotNames, appSourceSlot)
 
 	seen := map[string]struct{}{}
 	for _, name := range slotNames {
-		slot := mf.Slots[name]
-		dir := filepath.Join(scenarioRoot, slot.Dir)
+		dir := filepath.Join(scenarioRoot, scanDirs[name])
 		entries, err := walkTSX(ctx, dir)
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) {

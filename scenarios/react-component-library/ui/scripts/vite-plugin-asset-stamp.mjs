@@ -6,11 +6,13 @@ import ts from "typescript";
 export const ASSET_ATTRIBUTE = "data-rcl-asset";
 export const VERSION_ATTRIBUTE = "data-rcl-version";
 export const STAMP_ATTRIBUTE = "data-rcl-stamp";
+export const SOURCE_SLOT_ATTRIBUTE = "data-rcl-source-slot";
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
 const MARKER_ATTRIBUTES = new Set([
   ASSET_ATTRIBUTE,
   VERSION_ATTRIBUTE,
   STAMP_ATTRIBUTE,
+  SOURCE_SLOT_ATTRIBUTE,
 ]);
 
 // Exemption kinds are a policy distinction, not a formatting one. A permanent
@@ -28,6 +30,8 @@ const defaultExemptionsPath = resolve(scriptDir, "asset-stamp-exemptions.json");
 const defaultMapPath = resolve(scriptDir, "asset-stamp-map.json");
 
 const SOURCE_MARKER = /@vrooliComponentSource\s+([^\s*]+)/;
+const LIBRARY_ID_MARKER = /@libraryId\s+([^\s*]+)/;
+const SOURCE_SLOT_MARKER = /@vrooliComponentSourceSlot\s+([^\s*]+)/;
 // Only a re-export makes a file a shim for another module. A plain `import`
 // means the file *composes* that asset, which is bespoke authorship and must
 // not inherit the asset's identity — otherwise hand-written workbench code
@@ -78,7 +82,8 @@ function readStampMap(filePath = defaultMapPath) {
     if (result.has(item.path)) {
       throw new Error(`duplicate asset stamp map entry: ${item.path}`);
     }
-    result.set(item.path, { asset: item.asset.trim(), version: item.version.trim() });
+    if (!item.asset.includes(":")) throw new Error(`asset stamp map ${item.path} needs a canonical library id`);
+    result.set(item.path, { asset: item.asset.trim(), version: item.version.trim(), sourceSlot: item.sourceSlot?.trim() });
   }
   return result;
 }
@@ -101,43 +106,6 @@ function tagName(node) {
 
 function isMarkerAttribute(property) {
   return ts.isJsxAttribute(property) && MARKER_ATTRIBUTES.has(property.name.getText());
-}
-
-function markerAttributes(asset, version) {
-  return [
-    ts.factory.createJsxAttribute(
-      ts.factory.createIdentifier(ASSET_ATTRIBUTE),
-      ts.factory.createStringLiteral(asset),
-    ),
-    ts.factory.createJsxAttribute(
-      ts.factory.createIdentifier(VERSION_ATTRIBUTE),
-      ts.factory.createStringLiteral(version),
-    ),
-    ts.factory.createJsxAttribute(
-      ts.factory.createIdentifier(STAMP_ATTRIBUTE),
-      ts.factory.createStringLiteral("vite"),
-    ),
-  ];
-}
-
-function updateOpeningElement(node, asset, version, stamp) {
-  const properties = node.attributes.properties.filter(
-    (property) => !isMarkerAttribute(property),
-  );
-  if (stamp) properties.push(...markerAttributes(asset, version));
-  return ts.isJsxSelfClosingElement(node)
-    ? ts.factory.updateJsxSelfClosingElement(
-        node,
-        node.tagName,
-        node.typeArguments,
-        ts.factory.createJsxAttributes(properties),
-      )
-    : ts.factory.updateJsxOpeningElement(
-        node,
-        node.tagName,
-        node.typeArguments,
-        ts.factory.createJsxAttributes(properties),
-      );
 }
 
 function isProviderOrFragment(node) {
@@ -217,9 +185,8 @@ function findCreateElementCall(node) {
   let result;
   function visit(candidate) {
     if (result) return;
-    if (ts.isCallExpression(candidate) && candidate.expression.getText() === "createElement") {
-      const first = candidate.arguments[0];
-      if (first && !ts.isStringLiteral(first)) result = candidate;
+    if (ts.isCallExpression(candidate) && ["createElement", "React.createElement"].includes(candidate.expression.getText())) {
+      if (candidate.arguments[0]) result = candidate;
     }
     ts.forEachChild(candidate, visit);
   }
@@ -235,7 +202,7 @@ function renderTarget(sourceFile, componentName) {
   return root ? { kind: "jsx", node: root } : undefined;
 }
 
-export function stampSource(source, { asset, version, componentName }) {
+export function stampSource(source, { asset, version, componentName, sourceSlot }) {
   const sourceFile = ts.createSourceFile(
     "asset.tsx",
     source,
@@ -261,21 +228,21 @@ export function stampSource(source, { asset, version, componentName }) {
 
   if (target.kind === "createElement") {
     const existing = target.node.arguments[1];
-    if (existing && ts.isObjectLiteralExpression(existing)) {
-      const existingText = source.slice(existing.getStart(sourceFile), existing.end - 1).trimEnd();
-      const prefix = existing.properties.length && !existingText.endsWith(",") ? ", " : "";
-      // The marker names contain hyphens, so they are only valid as quoted
-      // object keys. Emitting them bare produces a syntax error that no unit
-      // test catches until a real asset happens to use a dynamic root.
-      edits.push({
-        start: existing.end - 1,
-        end: existing.end - 1,
-        text:
-          `${prefix}${JSON.stringify(ASSET_ATTRIBUTE)}: ${JSON.stringify(asset)}, ` +
-          `${JSON.stringify(VERSION_ATTRIBUTE)}: ${JSON.stringify(version)}, ` +
-          `${JSON.stringify(STAMP_ATTRIBUTE)}: "vite"`,
-      });
+    const properties = existing && ts.isObjectLiteralExpression(existing)
+      ? existing.properties.filter((property) => !property.name || !MARKER_ATTRIBUTES.has(
+        ts.isStringLiteral(property.name) ? property.name.text : property.name.getText(sourceFile)))
+      : existing && existing.kind !== ts.SyntaxKind.NullKeyword
+        ? [ts.factory.createSpreadAssignment(existing)] : [];
+    const markers = [[ASSET_ATTRIBUTE, asset], [VERSION_ATTRIBUTE, version], [STAMP_ATTRIBUTE, "vite"]];
+    if (sourceSlot && sourceSlot !== asset) markers.push([SOURCE_SLOT_ATTRIBUTE, sourceSlot]);
+    for (const [name, value] of markers) {
+      properties.push(ts.factory.createPropertyAssignment(ts.factory.createStringLiteral(name), ts.factory.createStringLiteral(value)));
     }
+    const props = ts.factory.createObjectLiteralExpression(properties, false);
+    const text = ts.createPrinter().printNode(ts.EmitHint.Expression, props, sourceFile);
+    edits.push(existing
+      ? { start: existing.getStart(sourceFile), end: existing.end, text }
+      : { start: target.node.arguments[0].end, end: target.node.arguments[0].end, text: `, ${text}` });
   } else {
     const owned = target.node;
     const opening = ts.isJsxElement(owned) ? owned.openingElement : owned;
@@ -292,7 +259,8 @@ export function stampSource(source, { asset, version, componentName }) {
       text:
         ` ${ASSET_ATTRIBUTE}=${JSON.stringify(asset)}` +
         ` ${VERSION_ATTRIBUTE}=${JSON.stringify(version)}` +
-        ` ${STAMP_ATTRIBUTE}="vite"`,
+        ` ${STAMP_ATTRIBUTE}="vite"` +
+        (sourceSlot && sourceSlot !== asset ? ` ${SOURCE_SLOT_ATTRIBUTE}=${JSON.stringify(sourceSlot)}` : ""),
     });
   }
 
@@ -349,17 +317,19 @@ function libraryMetadata(id, exemptions) {
   const entry = manifest.entry ||
     (tsxEntries.length === 1 ? tsxEntries[0] : tsEntries.length === 1 ? tsEntries[0] : "");
   if (!entry || basename(id) !== entry) return undefined;
-  const asset = String(manifest.catalogId || "").trim();
+  const sourceSlot = String(manifest.catalogId || "").trim();
+  const asset = String(manifest.libraryId || "").trim();
   const libraryId = String(manifest.libraryId || "").trim();
-  const exemption = findExemption(exemptions, asset, libraryId);
+  const exemption = findExemption(exemptions, sourceSlot, libraryId);
   if (!asset) {
     if (!exemption) {
-      throw new Error(`catalog entry ${libraryId || relativePath} has no catalogId or stamp exemption`);
+      throw new Error(`catalog entry ${libraryId || relativePath} has no libraryId or stamp exemption`);
     }
     return { exempt: true, kind: exemption.kind, reason: exemption.reason, relativePath, strategy: "library" };
   }
   return {
     asset,
+    sourceSlot,
     version,
     componentName: basename(entry, entry.slice(entry.lastIndexOf("."))),
     exempt: Boolean(exemption),
@@ -430,8 +400,13 @@ function buildAdoptedIndex(componentsRoot) {
       for (const extension of [".tsx", ".ts"]) {
         const candidate = resolvedBase + extension;
         if (!existsSync(candidate)) continue;
+        const implementation = readFileSync(candidate, "utf8");
+        const libraryId = asset.includes(":") ? asset : LIBRARY_ID_MARKER.exec(implementation)?.[1];
+        const sourceSlot = SOURCE_SLOT_MARKER.exec(body)?.[1] ||
+          SOURCE_SLOT_MARKER.exec(implementation)?.[1] || (!asset.includes(":") ? asset : undefined);
         index.set(candidate.replaceAll("\\", "/"), {
-          asset,
+          asset: libraryId,
+          sourceSlot,
           version,
           componentName: basename(candidate, extension),
           shim: full,
@@ -449,20 +424,13 @@ function adoptedMetadata(id, exemptions, adoptedIndex) {
   const normalized = id.replaceAll("\\", "/");
   const entry = adoptedIndex.get(normalized);
   if (!entry) return undefined;
-  // Exemptions are consulted before the identity check: an asset with no
-  // catalog id yet is legitimately still carrying a library-id marker, and
-  // that is tracked as backlog rather than treated as a build error.
-  const exemption = findExemption(exemptions, entry.asset, entry.asset);
-  // A library-id marker cannot be joined against catalog evidence. The
-  // resolver refuses it rather than stamping an identity the gates cannot
-  // reconcile, which would look like coverage while measuring nothing.
-  if (entry.asset.includes(":") && !exemption) {
-    throw new Error(
-      `adopted shim ${entry.shim} declares @vrooliComponentSource ${entry.asset}; the marker must be a catalog asset id (for example "primitives.card") so rendered evidence can join the catalog`,
-    );
+  const exemption = findExemption(exemptions, entry.sourceSlot, entry.asset);
+  if (!entry.asset?.includes(":") && !exemption) {
+    throw new Error(`adopted shim ${entry.shim} needs a canonical library id in its source marker or the implementation's @libraryId header`);
   }
   return {
     asset: entry.asset,
+    sourceSlot: entry.sourceSlot,
     version: entry.version,
     componentName: entry.componentName,
     exempt: Boolean(exemption),
@@ -485,6 +453,7 @@ function mappedMetadata(id, exemptions, stampMap, scenarioRoot) {
   const exemption = findExemption(exemptions, entry.asset, undefined);
   return {
     asset: entry.asset,
+    sourceSlot: entry.sourceSlot,
     version: entry.version,
     componentName: basename(normalized, normalized.slice(normalized.lastIndexOf("."))),
     exempt: Boolean(exemption),
@@ -544,13 +513,15 @@ function censusLibraryAssets(scenarioRoot, exemptions) {
       } catch {
         continue;
       }
-      const asset = String(manifest.catalogId || "").trim();
+      const sourceSlot = String(manifest.catalogId || "").trim();
       const libraryId = String(manifest.libraryId || "").trim();
-      const exemption = findExemption(exemptions, asset, libraryId);
-      const identity = asset || libraryId;
+      const asset = libraryId;
+      const exemption = findExemption(exemptions, sourceSlot, libraryId);
+      const identity = libraryId;
       if (!identity) continue;
       declared.set(identity, {
         asset: asset || null,
+        sourceSlot,
         libraryId,
         version: String(manifest.latest || "").trim(),
         exempt: Boolean(exemption),
@@ -566,10 +537,11 @@ function censusLibraryAssets(scenarioRoot, exemptions) {
 function censusAdoptedAssets(adoptedIndex, exemptions) {
   const declared = new Map();
   for (const entry of adoptedIndex.values()) {
-    const exemption = findExemption(exemptions, entry.asset, undefined);
+    const exemption = findExemption(exemptions, entry.sourceSlot, entry.asset);
     declared.set(entry.asset, {
       asset: entry.asset,
-      libraryId: null,
+      sourceSlot: entry.sourceSlot,
+      libraryId: entry.asset,
       version: entry.version,
       exempt: Boolean(exemption),
       exemptKind: exemption?.kind || null,
@@ -590,6 +562,7 @@ export function buildStampReport({ declared, stamped, generatedAt }) {
     else state = "unbundled";
     assets.push({
       asset: entry.asset,
+      sourceSlot: entry.sourceSlot,
       libraryId: entry.libraryId,
       identity,
       version: hit?.version || entry.version,
@@ -602,7 +575,8 @@ export function buildStampReport({ declared, stamped, generatedAt }) {
     if (declared.has(identity)) continue;
     assets.push({
       asset: hit.asset,
-      libraryId: null,
+      sourceSlot: hit.sourceSlot,
+      libraryId: hit.asset,
       identity,
       version: hit.version,
       state: "stamped",
@@ -649,6 +623,7 @@ export default function assetStampPlugin(options = {}) {
       }
       stamped.set(metadata.asset, {
         asset: metadata.asset,
+        sourceSlot: metadata.sourceSlot,
         version: metadata.version,
         strategy: metadata.strategy,
       });

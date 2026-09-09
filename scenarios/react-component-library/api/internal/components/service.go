@@ -296,6 +296,16 @@ func (s *service) GetVersion(ctx context.Context, componentID, version string) (
 }
 
 func (s *service) ListStories(ctx context.Context, q StoryQuery) ([]ComponentStory, error) {
+	if strings.HasPrefix(q.ComponentID, PageStoryPrefix) {
+		if q.Version != "" && q.Version != PageStoryVersion {
+			return nil, fmt.Errorf("page subjects use version %q", PageStoryVersion)
+		}
+		page, err := LoadPageStory(ctx, filepath.Dir(s.source.Root()), q.ComponentID)
+		if err != nil {
+			return nil, err
+		}
+		return []ComponentStory{page.Projection}, nil
+	}
 	if q.Limit <= 0 {
 		q.Limit = defaultListLimit
 	}
@@ -306,7 +316,21 @@ func (s *service) ListStories(ctx context.Context, q StoryQuery) ([]ComponentSto
 		}
 		q.ComponentID = component.ID
 	}
-	return s.repo.ListStories(ctx, q)
+	rows, err := s.repo.ListStories(ctx, q)
+	if err != nil || q.ComponentID != "" || q.Version != "" || s.source == nil {
+		return rows, err
+	}
+	pages, err := LoadPageStories(ctx, filepath.Dir(s.source.Root()))
+	if err != nil {
+		return nil, err
+	}
+	for i := len(pages) - 1; i >= 0; i-- {
+		rows = append([]ComponentStory{pages[i].Projection}, rows...)
+	}
+	if len(rows) > q.Limit {
+		rows = rows[:q.Limit]
+	}
+	return rows, nil
 }
 
 func (s *service) ValidateStyleFit(ctx context.Context, componentID, version, scenario string) (StyleFitVerdict, error) {
@@ -577,7 +601,7 @@ func (s *service) UpdateVersionContentAt(ctx context.Context, componentID, versi
 	if err != nil {
 		return Content{}, fmt.Errorf("write version artifact %q from %q: %w", path, c.SourcePath, err)
 	}
-	if _, err := NewIndexer(s.repo, s.source.Root(), nil).IndexManifest(ctx, c.ManifestPath); err != nil {
+	if _, err := NewIndexer(s.repo, s.source.Root(), nil).IndexAuthoringManifest(ctx, c.ManifestPath, v.Version); err != nil {
 		return Content{}, err
 	}
 	return written, nil
@@ -669,7 +693,8 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 	// cannot be hidden behind a stale catalog row. This deliberately avoids a
 	// global walk, keeping the rapid component loop independent of unrelated
 	// catalog errors.
-	refreshed, refreshErr := NewIndexer(s.repo, s.source.Root(), nil).IndexManifest(ctx, c.ManifestPath)
+	version = firstNonEmpty(strings.TrimSpace(version), c.DraftVersion, c.LatestVersion)
+	refreshed, refreshErr := NewIndexer(s.repo, s.source.Root(), nil).IndexAuthoringManifest(ctx, c.ManifestPath, version)
 	if refreshErr == nil {
 		c = refreshed
 	}
@@ -905,11 +930,11 @@ func (s *service) CreateComponentVersion(ctx context.Context, in CreateComponent
 			}
 			// Reconcile any rows written before the index failure. The original
 			// cause remains authoritative even when this best-effort sweep fails.
-			_, _ = NewIndexer(s.repo, s.source.Root(), nil).IndexManifest(ctx, previous.ManifestPath)
+			_, _ = NewIndexer(s.repo, s.source.Root(), nil).IndexAuthoringManifest(ctx, previous.ManifestPath, in.Version)
 		}
 		return cause
 	}
-	if _, err := NewIndexer(s.repo, s.source.Root(), nil).IndexManifest(ctx, c.ManifestPath); err != nil {
+	if _, err := NewIndexer(s.repo, s.source.Root(), nil).IndexAuthoringManifest(ctx, c.ManifestPath, in.Version); err != nil {
 		return CreateComponentVersionResult{}, rollback(err)
 	}
 	c, err = s.Get(ctx, in.ComponentID)

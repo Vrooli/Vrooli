@@ -1,6 +1,7 @@
 package components
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,6 +16,9 @@ func TestCatalogStoryConformance(t *testing.T) {
 	t.Helper()
 	scenarioRoot := filepath.Clean(filepath.Join("..", "..", ".."))
 	libraryRoot := filepath.Join(scenarioRoot, "library")
+	if _, err := LoadPageStories(context.Background(), scenarioRoot); err != nil {
+		t.Fatalf("application page story conformance: %v", err)
+	}
 
 	var failures []string
 	storyCount := 0

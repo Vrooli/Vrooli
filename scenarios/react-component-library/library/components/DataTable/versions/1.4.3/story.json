@@ -1,0 +1,156 @@
+{
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Alpha"
+        },
+        {
+          "kind": "role",
+          "name": "Search work items",
+          "role": "searchbox"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Refreshing",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Refreshing work items"
+        },
+        {
+          "kind": "role",
+          "name": "Search work items",
+          "role": "searchbox"
+        }
+      ],
+      "id": "refreshing",
+      "mode": "live",
+      "name": "Refreshing",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Partial",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Some work items are unavailable"
+        },
+        {
+          "kind": "role",
+          "name": "Search work items",
+          "role": "searchbox"
+        }
+      ],
+      "id": "partial",
+      "mode": "live",
+      "name": "Partial",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "No work items"
+        },
+        {
+          "kind": "role",
+          "name": "Search work items",
+          "role": "searchbox"
+        }
+      ],
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Work items could not be refreshed"
+        },
+        {
+          "kind": "role",
+          "name": "Search work items",
+          "role": "searchbox"
+        }
+      ],
+      "id": "request-error",
+      "mode": "live",
+      "name": "RequestError",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "PermissionDenied",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Request access to work items"
+        },
+        {
+          "kind": "role",
+          "name": "Search work items",
+          "role": "searchbox"
+        }
+      ],
+      "id": "permission-denied",
+      "mode": "live",
+      "name": "PermissionDenied",
+      "role": "boundary"
+    }
+  ]
+}

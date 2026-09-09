@@ -19,6 +19,16 @@
     "0.1.5",
     "0.1.6"
   ],
-  "latest": "1.0.0",
-  "libraryId": "react-component-library:SettingsList"
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:SettingsList",
+  "displayName": "Settings List",
+  "description": "Reusable settings list component implementation for the React component library.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

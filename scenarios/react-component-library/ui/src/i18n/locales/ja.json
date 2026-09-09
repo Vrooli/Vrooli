@@ -81,7 +81,8 @@
     "sourcePathPlaceholder": "例: ui/src/components/Example.tsx",
     "assistedError": "支援付き抽出をキューに入れられませんでした。",
     "assistedStarting": "開始中…",
-    "assistedStart": "抽出を開始"
+    "assistedStart": "抽出を開始",
+    "support": "サポート資産"
   },
   "workflows": {
     "active": "進行中の作業",
@@ -422,7 +423,8 @@
       "missing": "不足",
       "drifted": "差異あり",
       "extra": "余分",
-      "unverifiable": "検証不可"
+      "unverifiable": "検証不可",
+      "resolved-local": "カスタムコードに解決"
     },
     "importing": "インポートを準備中…",
     "previewImport": "既存のページをインポート",
@@ -562,6 +564,16 @@
     "proposePreserveRoutes": "既存のルートを維持する",
     "proposePreserveBehavior": "既存の業務動作を維持する",
     "proposeSourceSnapshot": "参照した資料: {{path}}",
-    "proposeSourceHash": "資料の SHA-256: {{hash}}"
+    "proposeSourceHash": "資料の SHA-256: {{hash}}",
+    "sourceCoverage": "{{total}} 領域中 {{resolved}} 領域のソースを確認済み。{{custom}} 領域はカスタムコードです。",
+    "declaredCoverage": "宣言された実装: ライブラリ {{library}} 領域、ローカル {{local}} 領域。",
+    "showEmptyScenarios": "ページのないシナリオを表示"
+  },
+  "coverage": {
+    "unavailable": "カバレッジを取得できません",
+    "retryHelp": "カバレッジサービスはレポートを完了できませんでした。再試行してください。失敗が続く場合はサービスログを確認してください。",
+    "retry": "カバレッジを再試行",
+    "nextWorkUnavailable": "優先作業を取得できません。再試行してください。",
+    "retryNextWork": "優先作業を再試行"
   }
 }

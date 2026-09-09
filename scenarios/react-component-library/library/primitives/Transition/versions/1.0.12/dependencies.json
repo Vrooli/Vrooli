@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:Transition",
+  "version": "1.0.12",
+  "resolvedAt": "2026-09-08T20:15:02Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Button",
+      "major": 2,
+      "observed": "2.2.11",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.3",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:MotionPrimitive",
+      "major": 1,
+      "observed": "1.0.7",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:Presence",
+      "major": 1,
+      "observed": "1.0.5",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "major": 1,
+      "observed": "1.1.1",
+      "rank": 2
+    }
+  ]
+}

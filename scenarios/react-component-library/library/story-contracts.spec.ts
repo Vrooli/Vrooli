@@ -11,6 +11,8 @@ import { setLocale } from "../ui/src/i18n";
 import { renderWithProviders as render } from "../ui/src/test-utils";
 import { UndoManagerProvider } from "@vrooli/react-component-library/UndoManager/1";
 import { ToastManagerProvider } from "@vrooli/react-component-library/ToastManager/1";
+import App from "../ui/src/App";
+import { pageStoryContracts, installPageAPIState } from "../ui/src/page-stories";
 
 type StoryContract = {
   kind?: string;
@@ -45,6 +47,31 @@ const modules = import.meta.glob("./**/versions/**/*.{ts,tsx}") as Record<
   string,
   () => Promise<StoryModule>
 >;
+
+describe("application page story contracts", () => {
+  afterEach(() => cleanup());
+  for (const [path, contract] of Object.entries(pageStoryContracts)) {
+    for (const story of contract.stories) {
+      it(`${path} > ${story.id}`, async () => {
+        await setLocale("en");
+        const restore = installPageAPIState(story.apiState ?? []);
+        try {
+          render(React.createElement(App), { route: contract.route });
+          const result = await runStory({ ...story, kind: "page" }, { document, window }, {
+            ...jsdomEnv, browser: true,
+            queries: await import("@testing-library/react"),
+            wait: async milliseconds => { await act(async () => { await new Promise(resolve => setTimeout(resolve, milliseconds)); }); },
+            flush: async () => { await act(async () => {}); },
+          });
+          expect(result.failures).toEqual([]);
+        } finally {
+          cleanup();
+          restore();
+        }
+      });
+    }
+  }
+});
 
 const isRenderableComponent = (value: unknown): value is React.ElementType =>
   typeof value === "function" ||

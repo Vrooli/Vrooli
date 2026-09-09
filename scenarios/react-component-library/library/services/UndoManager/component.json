@@ -9,6 +9,16 @@
   "evictedVersions": [
     "1.0.0"
   ],
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:UndoManager"
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:UndoManager",
+  "displayName": "Undo Manager",
+  "description": "The scoped command-history service supporting reversible operations, grouping, expiry, redo, persistence policy, and user-visible undo affordances.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

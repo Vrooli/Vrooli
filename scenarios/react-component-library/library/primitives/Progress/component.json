@@ -17,6 +17,16 @@
     "1.0.4",
     "1.0.0"
   ],
-  "latest": "1.0.5",
-  "libraryId": "react-component-library:Progress"
+  "latest": "1.0.6",
+  "libraryId": "react-component-library:Progress",
+  "displayName": "Progress",
+  "description": "The progress family covering linear, circular, determinate, indeterminate, buffered, and segmented presentation with accessible value reporting.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -27,6 +27,16 @@
     "1.0.0",
     "1.1.7"
   ],
-  "latest": "1.1.9",
-  "libraryId": "react-component-library:CommandPalette"
+  "latest": "1.1.10",
+  "libraryId": "react-component-library:CommandPalette",
+  "displayName": "CommandPalette",
+  "description": "The global or scoped command interface with fuzzy search, recent actions, categories, keyboard navigation, argument collection, async execution, and command history.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

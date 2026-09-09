@@ -334,7 +334,7 @@
         },
         {
           "name": "test",
-          "description": "Run the declarative test contract for one explicit component or hook version",
+          "description": "Run a component, hook, or page story contract (page:<Name> uses --version workspace)",
           "positionals": [
             {
               "name": "component-id",
@@ -345,7 +345,7 @@
           "flags": [
             {
               "name": "version",
-              "description": "Required immutable asset version"
+              "description": "Required release version, or workspace for a page subject"
             },
             {
               "name": "closure",
@@ -2329,6 +2329,49 @@
           "architecture": {
             "primitive": "proto_list"
           }
+        }
+      ]
+    },
+    {
+      "name": "page",
+      "description": "Observe running pages and their library source",
+      "commands": [
+        {
+          "name": "inspect",
+          "description": "Capture a screenshot and DOM tree with resolved asset provenance",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Running scenario slug"
+            },
+            {
+              "name": "route",
+              "required": true,
+              "description": "Concrete route such as /coverage"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PageService",
+            "method": "Inspect"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "flags": [
+            {
+              "name": "wait-selector",
+              "description": "Wait for a visible page state before capturing"
+            }
+          ]
         }
       ]
     }

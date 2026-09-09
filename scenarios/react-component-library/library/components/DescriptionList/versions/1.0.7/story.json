@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "entries": [
+          {
+            "description": "Platform",
+            "term": "Owner"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Owner"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "entries": [
+          {
+            "description": "Platform",
+            "term": "Owner"
+          }
+        ]
+      },
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "boundary"
+    }
+  ],
+  "title": "DescriptionList"
+}

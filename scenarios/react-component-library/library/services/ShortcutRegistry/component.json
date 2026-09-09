@@ -2,6 +2,18 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-service",
   "catalogId": "services.shortcut-registry",
-  "latest": "1.0.0",
-  "libraryId": "react-component-library:ShortcutRegistry"
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:ShortcutRegistry",
+  "displayName": "Shortcut Registry",
+  "description": "The collision-aware registry resolving active keyboard shortcuts by scope, priority, platform, modal layer, and currently focused context.",
+  "tags": [],
+  "draft": "",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -1,5 +1,7 @@
 # CLI Commands — React Component Library
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 The scenario CLI is a thin Go wrapper over the API. Every command
 calls a single API endpoint and renders the result; there is no
 business logic in the CLI. If a command needs to make a decision the
@@ -77,31 +79,22 @@ The `components` group is the authoring and registry surface for the
 Git-tracked library source tree.
 
 ```bash
-react-component-library components init header --library-id react-component-library:header --display-name Header --description "Scenario header" --tags layout,navigation --version 0.1.0
-
-react-component-library components version-create "<component-id>" 0.2.0-beta.1 --draft true
+react-component-library components draft-begin react-component-library:Button --json
 react-component-library components manifest-update "<component-id>" --latest-version 1.0.0
 react-component-library components index
 react-component-library components list --match header --tags layout,navigation
 react-component-library components get "<component-id>"
-react-component-library components get-by-library-id react-component-library:Header
-react-component-library components content-get "<component-id>"
 react-component-library components content-set "<component-id>" ./Header.tsx --expected-sha256 "<sha>"
-react-component-library components versions "<component-id>"
-react-component-library components show-version "<component-id>" 0.1.0
+react-component-library versions list "<component-id>"
+react-component-library versions show "<component-id>" 0.1.0
 react-component-library components ingest web-console ui/src/components/DrawerShell.tsx drawer-shell --slot ui-pattern
 ```
 
-`init`, `version-create`, and `manifest-update` mutate
-`library/components/<slug>/component.json` and
-`library/components/<slug>/versions/<version>/*.tsx`, then re-index the
-registry. SQLite remains the indexed registry and adoption ledger; it is
-not the canonical component source.
-
-`ingest` creates an indexed baseline and a draft from a real scenario TSX
-source file. It returns origin provenance and de-scenario-ification findings;
-fix those findings and run catalog conformance plus preview rendering before
-promoting the draft.
+Use `draft-begin`, edit a temporary copy of its returned draft source path,
+and submit it through `content-set`; `draft-publish` validates and publishes
+that mutable draft. The Git-tracked library is the canonical source; SQLite
+is the indexed registry and adoption ledger. See the checked edit loop in
+[asset-update-flow.md](../guides/asset-update-flow.md).
 
 ## Scenario commands — `versions`
 
@@ -113,7 +106,7 @@ history remain after retirement; only the version source folder is reclaimed.
 ```bash
 react-component-library versions reap --component-id "react-component-library:Button" --older-than-days 30
 react-component-library versions reap --older-than-days 90
-react-component-library versions reap --component-id "react-component-library:Button" --older-than-days 14 --plan-hash "<hash-from-dry-run>" --confirm true
+react-component-library versions reap --component-id "react-component-library:Button" --older-than-days 14 --plan-hash "<hash-from-dry-run>" --confirm
 ```
 
 `reap` is read-only by default and returns blocked items plus an exact plan
@@ -124,17 +117,9 @@ released history.
 
 ## Scenario commands — `adoptions`
 
-```bash
-react-component-library adoptions apply "<component-id>" web-console ui/src/components/adopted/Button.tsx
-react-component-library adoptions apply "<component-id>" web-console ui/src/components/Button.tsx --replace-existing true --confirm-overwrite true
-react-component-library adoptions suggest --scenario web-console --limit 10
-```
-
-Apply validates dependencies and design style at the server. Replacement mode
-is explicit and reports direct import sites; confirmation is required when the
-existing source body differs from the selected library version. Suggestions
-are ranked from real UI inventory and include their matching surface,
-style-fit, and dependency reasons.
+Use `adoptions preflight`, `adoptions link`, and `adoptions obligations` for
+current governed adoption operations. Consult each command's `--help` for its
+required arguments. The former `apply` and `suggest` command paths are retired.
 
 ## Output contracts
 
@@ -230,3 +215,35 @@ math in the CLI:
 - [`configuration.md`](configuration.md) — env vars and config-file precedence
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for "API unreachable", auth, stale binary
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#inside-the-cli-thin-wrapper-domain-organized) — CLI architecture
+
+## Inspect a running page
+
+```bash
+react-component-library page inspect react-component-library /coverage --json
+react-component-library page inspect react-component-library /
+```
+
+`page inspect <scenario> <route>` resolves the running UI port and asks BAS for a
+1280×800 screenshot and computed DOM tree in one browser session. The response
+contains the capture execution id, screenshot path and URL, node counts, and a
+recursive `tree`. Use `--wait-selector` to wait for a visible page state; without
+it the capture is a point-in-time observation after BAS navigation readiness. Each node preserves BAS fields (including `data`, `computed`,
+`rect`, and `selector`) under `observation`; `source` reports `resolved`,
+`unresolved` with a reason, or `unstamped`. Unstamped nodes are never attributed
+from their parent. The human form lists unique stamped assets and source files;
+JSON retains every node.
+
+Source resolution calls the same `resolveLibrarySpecifier` used by package
+consumers. Exact releases report `exact-release`; major selectors report
+`consumer-major-alias` and the selected full version. A major alias describes
+current consumer resolution and cannot prove which historical build rendered a
+page. Only canonical library IDs drive attribution. `data-rcl-source-slot` preserves the old catalog/source-slot annotation for compatibility and is not an identity alias.
+Routes must be concrete and same-origin; there is no unresolved-route fallback.
+BAS limits the tree to 4,000 nodes and depth 20; this is an observation of captured
+nodes, not a claim to cover every element of arbitrarily large pages. A capture
+without either the screenshot or DOM root fails. These behaviors are exercised
+by `api/internal/pageinspect/service_test.go`.
+
+## Application page stories
+
+Place `<PageName>.story.json` beside its TSX source. Use `kind: page`, a concrete root `route`, and optional concrete per-story route overrides for aliases/detail URLs. Run `components test page:<PageName> --version workspace --json`. Explicit `apiState` fixtures match method plus exact path before the app mounts; undeclared POST/mutation calls return unavailable rather than reaching production. Source changes invalidate workspace evidence. Enforcing checks: `api/internal/components/page_stories_test.go`, `api/internal/componenttests/bas_executor_test.go`, and `ui/src/page-stories.test.tsx`.

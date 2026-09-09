@@ -19,6 +19,16 @@
     "1.1.8",
     "1.1.7"
   ],
-  "latest": "1.1.9",
-  "libraryId": "react-component-library:ProgressiveImage"
+  "latest": "1.1.10",
+  "libraryId": "react-component-library:ProgressiveImage",
+  "displayName": "ProgressiveImage",
+  "description": "The image component reserving layout ahead of load, resolving responsive sources, degrading legibly on error, and avoiding visual popping on arrival.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -67,10 +67,10 @@
   "packageManager": "pnpm@9.12.1",
   "private": true,
   "scripts": {
-    "build": "pnpm selector:manifest && pnpm strings:check && pnpm strings:gen && pnpm build:preview-kits && vite build",
+    "build": "pnpm experience:check && pnpm pins:check && pnpm tokens:check && pnpm selector:manifest && pnpm strings:check && pnpm strings:gen && pnpm build:preview-kits && vite build",
     "build:preview-kits": "node scripts/build-preview-kits.mjs",
     "build:profile": "pnpm selector:manifest && pnpm strings:check && pnpm strings:gen && pnpm build:preview-kits && vite build --mode profile",
-    "catalog:check": "pnpm run exports:check && pnpm run type-check:catalog && pnpm run lint:catalog",
+    "catalog:check": "pnpm tokens:check && pnpm run exports:check && pnpm run type-check:catalog && pnpm run lint:catalog",
     "dev": "vrooli lifecycle protect -- vite",
     "exports:check": "node ../../../packages/react-component-library/tooling/sync-exports.mjs --check",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
@@ -91,7 +91,11 @@
     "test:preview-evidence": "react-component-library catalog evidence capture all --all --json",
     "type-check": "pnpm strings:check && pnpm run catalog:check",
     "type-check:catalog": "node scripts/catalog-conformance.mjs type-check",
-    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check",
+    "design-token-generate": "node scripts/design-token-generate.mjs",
+    "tokens:check": "node scripts/design-token-generate.mjs --check",
+    "pins:check": "node scripts/library-pins-check.mjs",
+    "experience:check": "node scripts/experience-routes-check.mjs"
   },
   "type": "module",
   "version": "1.0.0"

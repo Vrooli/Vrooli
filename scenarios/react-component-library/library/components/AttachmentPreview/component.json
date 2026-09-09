@@ -13,6 +13,16 @@
     "1.0.2",
     "1.0.3"
   ],
-  "latest": "1.0.4",
-  "libraryId": "react-component-library:AttachmentPreview"
+  "latest": "1.0.5",
+  "libraryId": "react-component-library:AttachmentPreview",
+  "displayName": "AttachmentPreview",
+  "description": "The message- or form-oriented attachment with upload progress, retry, cancellation, scanning state, preview, removal, and accessible status for each file independently.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -1,13 +1,20 @@
 {
-  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-page",
   "schemaVersion": "1.1.0",
   "page": {
     "id": "catalog-workspace",
     "title": "Component catalog workspace",
-    "routes": ["/"],
+    "routes": [
+      "/",
+      "/components",
+      "/catalog"
+    ],
     "purpose": "Let a library maintainer find a component or hook and open its focused workspace without traversing obsolete dashboard routes.",
-    "prd_refs": ["OT-P0-001", "OT-P0-005"]
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-005"
+    ]
   },
   "priorities": [
     {
@@ -23,8 +30,14 @@
       "id": "hooks",
       "description": "The unified catalog is visible with Hooks selected."
     },
-    { "id": "loading", "description": "Catalog results are loading." },
-    { "id": "empty", "description": "No assets match the active filters." },
+    {
+      "id": "loading",
+      "description": "Catalog results are loading."
+    },
+    {
+      "id": "empty",
+      "description": "No assets match the active filters."
+    },
     {
       "id": "request-error",
       "description": "Catalog retrieval failed and a recovery path is visible."
@@ -35,11 +48,19 @@
       "id": "catalog-results",
       "purpose": "Render the primary catalog's loaded, empty, or failed component and hook results.",
       "component": {
-        "library": { "component": "experience-surface", "version": "1.0.2" }
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.2"
+        }
       },
       "lifecycle": {
         "kind": "async",
-        "states": ["loading", "ready", "empty", "error"]
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
       }
     }
   ],

@@ -2,6 +2,18 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-outside-interaction",
-  "latest": "1.0.0",
-  "libraryId": "react-component-library:useOutsideInteraction"
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:useOutsideInteraction",
+  "displayName": "useOutsideInteraction",
+  "description": "A dismissal primitive that understands pointer, focus, nested layers, portals, and interactions that begin inside a surface but end outside it.",
+  "tags": [],
+  "draft": "",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -159,6 +159,7 @@ export function ComponentEditorImpl({
 
   const contentQuery = useQuery({
     queryKey: ["components", "content", id, selectedVersion ?? "current", selectedFile],
+    retry: false,
     queryFn: async (): Promise<{ content: string; sha256: string }> => {
       // Non-entry files are version-local artifacts. Resolve them through the
       // version projection that populated the Files tab so read-only metadata

@@ -1,5 +1,7 @@
 # Collections
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 The React Component Library collection contract has four layers:
 
 1. Collection state is library-owned: stable keys, query, filter, sort, page, and loading/error/empty state (`useCollection`).

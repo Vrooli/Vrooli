@@ -13,6 +13,16 @@
     "1.0.1",
     "1.0.2"
   ],
-  "latest": "1.0.3",
-  "libraryId": "react-component-library:ComputedField"
+  "latest": "1.0.4",
+  "libraryId": "react-component-library:ComputedField",
+  "displayName": "ComputedField",
+  "description": "The read-only or overridable field whose value derives from other values through the dependency graph, recalculating only the affected nodes rather than the whole form.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

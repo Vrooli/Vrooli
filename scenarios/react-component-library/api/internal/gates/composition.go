@@ -176,7 +176,7 @@ func stampedNode(node *axObservation, assetID string) (*axObservation, bool) {
 	if node == nil {
 		return nil, false
 	}
-	if strings.TrimSpace(node.DOM.Attributes["data-rcl-asset"]) == assetID {
+	if catalogStamp(node.DOM.Attributes) == assetID {
 		return node, true
 	}
 	for index := range node.Children {
@@ -193,7 +193,7 @@ func scoreComposition(root *axObservation, assetID string) (score float64, total
 		if node == nil {
 			return
 		}
-		stamp := strings.TrimSpace(node.DOM.Attributes["data-rcl-asset"])
+		stamp := catalogStamp(node.DOM.Attributes)
 		if stamp != "" && stamp != assetID {
 			return
 		}

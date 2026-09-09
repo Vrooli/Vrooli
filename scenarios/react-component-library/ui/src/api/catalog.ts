@@ -14,13 +14,13 @@ export type { CoverageReport, GetHealthOverviewResponse, ListNextWorkResponse };
 const catalogClient = createClient(CatalogService, transport);
 
 export async function getCatalogCoverage(): Promise<CoverageReport> {
-  const response = await catalogClient.getCoverage({});
+  const response = await catalogClient.getCoverage({}, { timeoutMs: 20_000 });
   if (!response.report) throw new Error("catalog coverage was not returned");
   return response.report;
 }
 
 export async function listCatalogNextWork(limit = 10): Promise<ListNextWorkResponse> {
-  return catalogClient.listNextWork({ limit });
+  return catalogClient.listNextWork({ limit }, { timeoutMs: 20_000 });
 }
 
 export async function getCatalogHealthOverview(): Promise<GetHealthOverviewResponse> {

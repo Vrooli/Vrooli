@@ -1,5 +1,7 @@
 # Integrations — React Component Library
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 This document is the canonical dependency contract for resources,
 other scenarios, and third-party services used by the scenario.
 

@@ -1,0 +1,112 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "idle",
+        "kind": "enum",
+        "options": [
+          "idle",
+          "pending",
+          "success",
+          "error",
+          "offline"
+        ],
+        "path": "status"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "status": "idle"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "idle",
+      "mode": "pinned",
+      "name": "Idle",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "status": "pending"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "pending",
+      "mode": "pinned",
+      "name": "Pending",
+      "role": "axis",
+      "axis": "status",
+      "covers": {
+        "status": [
+          "idle",
+          "pending",
+          "success",
+          "error",
+          "offline"
+        ]
+      }
+    },
+    {
+      "args": {
+        "status": "success"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "success",
+      "mode": "pinned",
+      "name": "Success",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "status": "error"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "error",
+      "mode": "pinned",
+      "name": "Error",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "status": "offline"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "offline",
+      "mode": "pinned",
+      "name": "Offline",
+      "role": "boundary"
+    }
+  ],
+  "title": "StatusIndicator"
+}

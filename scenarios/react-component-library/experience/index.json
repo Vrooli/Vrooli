@@ -1,5 +1,5 @@
 {
-  "$schema": "../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-index",
   "contract": {
     "kind": "scenario-experience",
@@ -25,6 +25,48 @@
       "id": "component-harness",
       "path": "pages/component-harness.json",
       "title": "Component specimen harness",
+      "status": "active"
+    },
+    {
+      "id": "coverage",
+      "path": "pages/coverage.json",
+      "title": "Catalog coverage",
+      "status": "active"
+    },
+    {
+      "id": "capabilities",
+      "path": "pages/capabilities.json",
+      "title": "Library capabilities",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Workspace preferences",
+      "status": "active"
+    },
+    {
+      "id": "preview-popout",
+      "path": "pages/preview-popout.json",
+      "title": "Asset preview",
+      "status": "active"
+    },
+    {
+      "id": "design",
+      "path": "pages/design.json",
+      "title": "Choose a scenario",
+      "status": "active"
+    },
+    {
+      "id": "design-scenario",
+      "path": "pages/design-scenario.json",
+      "title": "Choose a page",
+      "status": "active"
+    },
+    {
+      "id": "design-workspace",
+      "path": "pages/design-workspace.json",
+      "title": "Page design workspace",
       "status": "active"
     }
   ],
@@ -322,6 +364,36 @@
       "id": "filter-bar",
       "path": "components/filter-bar.json",
       "title": "FilterBar",
+      "status": "active"
+    },
+    {
+      "id": "coverage-page",
+      "path": "components/coverage-page.json",
+      "title": "Catalog coverage",
+      "status": "active"
+    },
+    {
+      "id": "capabilities-page",
+      "path": "components/capabilities-page.json",
+      "title": "Capability readiness",
+      "status": "active"
+    },
+    {
+      "id": "settings-page",
+      "path": "components/settings-page.json",
+      "title": "Preferences",
+      "status": "active"
+    },
+    {
+      "id": "design-page",
+      "path": "components/design-page.json",
+      "title": "Design workspaces",
+      "status": "active"
+    },
+    {
+      "id": "preview-popout-page",
+      "path": "components/preview-popout-page.json",
+      "title": "Preview popout",
       "status": "active"
     }
   ]

@@ -11,6 +11,9 @@
     }
   ],
   "draft": "",
-  "latest": "1.1.0",
-  "libraryId": "react-component-library:useCollection"
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:useCollection",
+  "displayName": "useCollection",
+  "description": "Headless collection controller for stable rows, keyboard cursor, keyed selection, and one resolved action declaration.",
+  "tags": []
 }

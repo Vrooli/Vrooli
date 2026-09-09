@@ -977,3 +977,43 @@ type scenarioSourceReaderFunc func(context.Context, string, string) ([]byte, err
 func (f scenarioSourceReaderFunc) Read(ctx context.Context, scenario, sourceFile string) ([]byte, error) {
 	return f(ctx, scenario, sourceFile)
 }
+
+func TestAuthoringSuccessorPreservesAlteredHistoricalRelease(t *testing.T) {
+	repo, _ := newComponentsDB(t)
+	root := t.TempDir()
+	ctx := context.Background()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	authoring := svc.(components.AuthoringService)
+	created, err := svc.InitializeComponent(ctx, components.InitializeComponentInput{
+		LibraryID: "react-component-library:Button", Slug: "Button", DisplayName: "Button", InitialVersion: "1.0.0", ScaffoldExamples: true,
+	})
+	require.NoError(t, err)
+	original, err := repo.GetVersion(ctx, created.Component.ID, "1.0.0")
+	require.NoError(t, err)
+	source := filepath.Join(root, original.SourcePath)
+	changed := original.Content + "\n// Existing working-tree migration.\n"
+	require.NoError(t, os.WriteFile(source, []byte(changed), 0600))
+
+	// A full refresh continues to refuse unrecorded changes to released bytes.
+	_, err = components.NewIndexer(repo, root, nil).IndexManifest(ctx, created.Component.ManifestPath)
+	require.ErrorContains(t, err, "immutable")
+	draft, err := authoring.BeginComponentVersion(ctx, components.BeginComponentVersionInput{Component: created.Component.ID, Bump: "patch"})
+	require.NoError(t, err)
+	require.Contains(t, draft.Version.Content, "Existing working-tree migration")
+	published, err := authoring.PublishComponentVersion(ctx, components.PublishComponentVersionInput{Component: created.Component.ID})
+	require.NoError(t, err)
+	require.Equal(t, "1.0.1", published.Version.Version)
+	require.Contains(t, published.Version.Content, "Existing working-tree migration")
+	preserved, err := repo.GetVersion(ctx, created.Component.ID, "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, original.Content, preserved.Content)
+	require.Equal(t, original.ContentSHA256, preserved.ContentSHA256)
+	actual, err := os.ReadFile(source)
+	require.NoError(t, err)
+	require.Equal(t, changed, string(actual), "authoring never rewrites the historical file")
+	check, err := authoring.CheckComponentVersion(ctx, created.Component.ID, "1.0.0")
+	require.NoError(t, err)
+	require.False(t, check.Passed, "checking the altered historical release must still fail")
+	_, err = components.NewIndexer(repo, root, nil).IndexManifest(ctx, created.Component.ManifestPath)
+	require.ErrorContains(t, err, "immutable")
+}

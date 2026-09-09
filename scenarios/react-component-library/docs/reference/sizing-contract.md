@@ -1,5 +1,7 @@
 # Control sizing contract
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 Control geometry is implemented by `ControlBase/1.1.0`. The six documented rungs resolve their
 minimum block size, padding, typography, and direct-child icon size together: `xs` 32px/12px,
 `sm` 36px/14px, `md` 40px/16px, `lg` 44px/18px, `xl` 48px/20px, and `icon` 40px/16px.

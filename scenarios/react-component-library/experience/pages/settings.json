@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "settings",
+    "title": "Workspace preferences",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Adjust the supported workspace appearance and language preferences."
+  },
+  "priorities": [
+    {
+      "statement": "Adjust the supported workspace appearance and language preferences."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Adjust the supported workspace appearance and language preferences."
+    }
+  ],
+  "regions": [
+    {
+      "id": "workspace-preferences",
+      "required": true,
+      "purpose": "Adjust the supported workspace appearance and language preferences.",
+      "component": {
+        "local": "settings-page"
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "workspace-preferences": {
+        "testid": "settings-page"
+      }
+    }
+  }
+}

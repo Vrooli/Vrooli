@@ -13,6 +13,16 @@
     "1.0.1",
     "1.0.3"
   ],
-  "latest": "1.0.4",
-  "libraryId": "react-component-library:Tooltip"
+  "latest": "1.0.5",
+  "libraryId": "react-component-library:Tooltip",
+  "displayName": "Tooltip",
+  "description": "The concise explanatory overlay with hover intent, keyboard activation, an explicit touch policy, shared delay grouping, collision handling, and description rather than label semantics.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

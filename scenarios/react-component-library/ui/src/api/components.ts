@@ -233,7 +233,8 @@ export type CatalogAsset = Component;
 export async function listCatalogAssets(input: {
   limit?: number;
   match?: string;
-  assetKind: 1 | 2;
+  assetKind?: 1 | 2;
+  catalogKinds?: string[];
 }): Promise<ListComponentsResponse> {
   return baseComponentsClient.listComponents(input);
 }

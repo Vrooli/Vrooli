@@ -81,7 +81,8 @@
     "sourcePathPlaceholder": "مثال: ui/src/components/Example.tsx",
     "assistedError": "تعذر وضع الاستخراج المساعد في الطابور.",
     "assistedStarting": "جارٍ البدء…",
-    "assistedStart": "ابدأ الاستخراج"
+    "assistedStart": "ابدأ الاستخراج",
+    "support": "أصول مساندة"
   },
   "workflows": {
     "active": "العمل النشط",
@@ -426,7 +427,8 @@
       "missing": "مفقود",
       "drifted": "مختلف",
       "extra": "إضافي",
-      "unverifiable": "غير قابل للتحقق"
+      "unverifiable": "غير قابل للتحقق",
+      "resolved-local": "تم تحديد الشيفرة المخصصة"
     },
     "importing": "جارٍ إعداد الاستيراد…",
     "previewImport": "استيراد صفحة موجودة",
@@ -566,6 +568,16 @@
     "proposePreserveRoutes": "الحفاظ على المسارات الحالية",
     "proposePreserveBehavior": "الحفاظ على سلوك الأعمال الحالي",
     "proposeSourceSnapshot": "المصدر المقروء: {{path}}",
-    "proposeSourceHash": "بصمة المصدر SHA-256: {{hash}}"
+    "proposeSourceHash": "بصمة المصدر SHA-256: {{hash}}",
+    "sourceCoverage": "تم إثبات ارتباط المصدر لـ {{resolved}} من {{total}} منطقة؛ تستخدم {{custom}} منها شيفرة مخصصة.",
+    "declaredCoverage": "التنفيذ المعلن: {{library}} منطقة من المكتبة و{{local}} منطقة محلية.",
+    "showEmptyScenarios": "إظهار السيناريوهات بدون صفحات"
+  },
+  "coverage": {
+    "unavailable": "التغطية غير متاحة",
+    "retryHelp": "لم تتمكن خدمة التغطية من إكمال التقرير. أعد المحاولة، وتحقق من سجلات الخدمة إذا استمر الفشل.",
+    "retry": "إعادة محاولة التغطية",
+    "nextWorkUnavailable": "تعذر تحميل العمل المرتب. أعد المحاولة لتحميل النتائج.",
+    "retryNextWork": "إعادة محاولة العمل المرتب"
   }
 }

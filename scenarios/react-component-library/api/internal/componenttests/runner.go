@@ -157,6 +157,7 @@ type Runner struct {
 	Executor StoryExecutor
 	Now      func() time.Time
 	Revision func(context.Context, string, string) (string, error)
+	Pages    func(context.Context, string) (components.PageStorySubject, error)
 }
 
 // Run performs the deterministic, safe pre-harness stages. Browser and React
@@ -165,6 +166,9 @@ type Runner struct {
 // valid. It is deliberately failure-isolating: one bad sibling contract does
 // not hide the others.
 func (r Runner) Run(ctx context.Context, request Request) (Report, error) {
+	if strings.HasPrefix(request.ComponentID, components.PageStoryPrefix) {
+		return r.runPage(ctx, request)
+	}
 	if r.Assets == nil || r.Stories == nil {
 		return Report{}, fmt.Errorf("component test runner is not configured")
 	}
@@ -243,6 +247,10 @@ func (r Runner) directStoryResults(ctx context.Context, asset components.Compone
 	if err := json.Unmarshal([]byte(projected[0].ContractJSON), &story); err != nil {
 		return nil, nil, fmt.Errorf("decode story contract for %s@%s: %w", asset.LibraryID, version.Version, err)
 	}
+	return r.contractStoryResults(ctx, asset, version, story)
+}
+
+func (r Runner) contractStoryResults(ctx context.Context, asset components.Component, version components.ComponentVersion, story components.StoryContract) ([]Result, []Artifact, error) {
 	results := []Result{{Stage: StageContract, AssetLibraryID: asset.LibraryID, Version: version.Version, Verdict: VerdictPassed, Message: "validated story contract accepted"}}
 	artifacts := make([]Artifact, 0, len(story.Stories)*4+1)
 	for _, definition := range story.Stories {
@@ -281,7 +289,7 @@ func (r Runner) directStoryResults(ctx context.Context, asset components.Compone
 		}
 		results = append(results, Result{Stage: StageEvidence, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: evidenceVerdict, Message: evidenceMessage, Remediation: "repair BAS capture artifact production before trusting experience evidence", Evidence: storyEvidence(execution)})
 	}
-	if sheetExecutor, ok := r.Executor.(StorySheetExecutor); ok && len(story.Stories) > 1 {
+	if sheetExecutor, ok := r.Executor.(StorySheetExecutor); ok && len(story.Stories) > 1 && story.Kind != components.StoryKindPage {
 		storyIDs := make([]string, 0, len(story.Stories))
 		for _, definition := range story.Stories {
 			storyIDs = append(storyIDs, definition.ID)

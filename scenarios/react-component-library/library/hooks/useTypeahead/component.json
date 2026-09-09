@@ -2,6 +2,18 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-typeahead",
-  "latest": "1.0.0",
-  "libraryId": "react-component-library:useTypeahead"
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:useTypeahead",
+  "displayName": "useTypeahead",
+  "description": "A buffered keyboard-search primitive that moves through a collection using normalized localized labels with predictable timeout behavior.",
+  "tags": [],
+  "draft": "",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

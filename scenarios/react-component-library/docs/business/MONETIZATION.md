@@ -1,5 +1,7 @@
 # Monetization — React Component Library
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 This document records how the scenario could create revenue or support
 a monetizable Vrooli capability. Keep it honest: `not-applicable` is
 better than inventing a commercial story.

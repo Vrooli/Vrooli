@@ -10,6 +10,16 @@
   "evictedVersions": [
     "1.0.1"
   ],
-  "latest": "1.0.2",
-  "libraryId": "react-component-library:VisualRecipes"
+  "latest": "1.0.3",
+  "libraryId": "react-component-library:VisualRecipes",
+  "displayName": "Visual Recipes",
+  "description": "The typed variant system that maps component variants and states to tokenized styles and keeps arbitrary one-off visual values from spreading, exporting each recipe in a shape tools can enumerate.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

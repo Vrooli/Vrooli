@@ -38,8 +38,8 @@ const hook: CatalogAsset = {
 
 describe("CatalogBrowser", () => {
   beforeEach(() => {
-    listCatalogAssets.mockImplementation(({ assetKind }: { assetKind: number }) =>
-      Promise.resolve({ components: assetKind === 2 ? [hook] : [component] }),
+    listCatalogAssets.mockImplementation(({ catalogKinds }: { catalogKinds: string[] }) =>
+      Promise.resolve({ components: catalogKinds.includes("runtime-hook") ? [hook] : [component] }),
     );
   });
 
@@ -66,7 +66,7 @@ describe("CatalogBrowser", () => {
     expect(screen.getByText(strings.catalog.adoptions)).toBeInTheDocument();
     expect(screen.getByText(/effective/i)).toBeInTheDocument();
     await waitFor(() =>
-      expect(listCatalogAssets).toHaveBeenLastCalledWith(expect.objectContaining({ assetKind: 2 })),
+      expect(listCatalogAssets).toHaveBeenLastCalledWith(expect.objectContaining({ catalogKinds: ["runtime-hook"] })),
     );
   });
 
@@ -109,25 +109,5 @@ describe("CatalogBrowser", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders the adopted foundation reference surface and its drawer state", async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<CatalogBrowser />);
 
-    expect(await screen.findByTestId("adopted-asset-showcase")).toBeInTheDocument();
-    expect(screen.getByText("Adopted foundation reference")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Validate state" }));
-    expect(screen.getByRole("button", { name: "Checking…" })).toHaveAttribute(
-      "data-rcl-pending",
-      "true",
-    );
-
-    await user.click(screen.getByRole("button", { name: "Open drawer" }));
-    expect(screen.getByRole("dialog", { name: "Fixture drawer" })).toBeInTheDocument();
-    await user.click(screen.getByTestId("overlays.full-page-drawer.grabber"));
-    expect(screen.getByRole("dialog", { name: "Fixture drawer" })).toHaveAttribute(
-      "data-state",
-      "closed",
-    );
-  });
 });

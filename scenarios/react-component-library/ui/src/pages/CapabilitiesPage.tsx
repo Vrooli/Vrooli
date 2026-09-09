@@ -1,4 +1,3 @@
-/** @vrooliComponentSource react-component-library:StatusBadge */
 import { useQuery } from "@tanstack/react-query";
 
 import {

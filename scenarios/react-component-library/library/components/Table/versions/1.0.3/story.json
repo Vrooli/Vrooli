@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "rows": [
+          {
+            "Name": "Alpha",
+            "State": "Ready"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "table"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "rows": [
+          {
+            "Name": "Alpha",
+            "State": "Ready"
+          }
+        ]
+      },
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "boundary"
+    }
+  ],
+  "title": "Table"
+}

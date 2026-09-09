@@ -20,6 +20,16 @@
     "1.0.8",
     "1.0.9"
   ],
-  "latest": "1.1.0",
-  "libraryId": "react-component-library:Sortable"
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:Sortable",
+  "displayName": "Sortable",
+  "description": "The reorder controller with collision strategies, animated displacement, keyboard operation, nested containers, optimistic persistence, and rollback when the write fails.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

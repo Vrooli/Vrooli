@@ -19,6 +19,16 @@
     "1.0.7",
     "1.0.0"
   ],
-  "latest": "1.0.8",
-  "libraryId": "react-component-library:UndoBanner"
+  "latest": "1.0.9",
+  "libraryId": "react-component-library:UndoBanner",
+  "displayName": "UndoBanner",
+  "description": "The reversible-action surface explaining what changed, offering undo before it expires, reporting rollback progress, and handling the case where undo itself fails.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

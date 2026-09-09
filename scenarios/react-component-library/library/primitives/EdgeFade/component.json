@@ -11,6 +11,16 @@
     "1.0.0",
     "1.0.1"
   ],
-  "latest": "1.0.2",
-  "libraryId": "react-component-library:EdgeFade"
+  "latest": "1.0.3",
+  "libraryId": "react-component-library:EdgeFade",
+  "displayName": "EdgeFade",
+  "description": "The pointer-transparent gradient mask indicating clipped or scrollable content without intercepting interaction beneath it.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -1,5 +1,7 @@
 # Asset authoring and Preview composition
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 This guide defines the production standard for catalog assets and their
 stories. It is the operational companion to
 [`../concepts/STORY-CONTRACT.md`](../concepts/STORY-CONTRACT.md).
@@ -68,29 +70,7 @@ reference.
 
 Conceptual story shape (the parser's exact field names remain authoritative):
 
-```json
-{
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Filter bar in a page",
-  "args": { "fields": [] },
-  "environment": { "fixtures": ["fixtures.filter-options"] },
-  "frame": {
-    "asset": "navigation.page",
-    "version": "1.0.0",
-    "region": "content",
-    "fixture": "fixtures.filter-options"
-  },
-  "stories": [
-    {
-      "id": "default",
-      "name": "Default page context",
-      "args": {},
-      "expect": [{ "kind": "role", "role": "region", "name": "Filters" }]
-    }
-  ]
-}
-```
+See the current v5 examples in [STORY-CONTRACT.md](../concepts/STORY-CONTRACT.md). The former v3 illustration is retired.
 
 ## Shared harness inventory
 
@@ -870,13 +850,8 @@ ProposeSketch remains the explicit source-aware lexical path.
 The CLI exposes the same operations without handwritten RPC payloads:
 
 ```bash
-react-component-library sketch propose switchboard/conversations \
-  --intent 'Review and respond to conversations' --user Operator \
-  --task 'Read and reply to a conversation' --design-source DESIGN.md --json
-react-component-library sketch infer switchboard/conversations \
-  --intent 'Review and respond to conversations' --user Operator \
-  --task 'Read and reply to a conversation' --design-source DESIGN.md \
-  --key conversations-design-01 --json
+react-component-library sketch propose switchboard/conversations --intent 'Review and respond to conversations' --user Operator --task 'Read and reply to a conversation' --design-source DESIGN.md --json
+react-component-library sketch infer switchboard/conversations --intent 'Review and respond to conversations' --user Operator --task 'Read and reply to a conversation' --design-source DESIGN.md --key conversations-design-01 --json
 react-component-library sketch inference --key conversations-design-01 --json
 ```
 

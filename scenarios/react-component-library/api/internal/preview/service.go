@@ -302,7 +302,7 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 	if stampVersion == "" {
 		stampVersion = asset.LatestVersion
 	}
-	stampedSource := stampPreviewSource(content.Body, content.SourcePath, asset.CatalogID, stampVersion)
+	stampedSource := stampPreviewSource(content.Body, content.SourcePath, asset.LibraryID, stampVersion, asset.CatalogID)
 	js, warnings, err := s.bundler.BuildBundle(ctx, stampedSource, content.SourcePath)
 	if err != nil {
 		return Bundle{}, err

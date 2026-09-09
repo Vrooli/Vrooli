@@ -23,6 +23,16 @@
     "1.0.7",
     "1.0.8"
   ],
-  "latest": "1.0.9",
-  "libraryId": "react-component-library:ResourceCollection"
+  "latest": "1.0.10",
+  "libraryId": "react-component-library:ResourceCollection",
+  "displayName": "ResourceCollection",
+  "description": "The resource-list pattern with querying, sorting, filtering, selection, row actions, pagination, every generic state, and responsive row-or-card presentation.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -1,5 +1,7 @@
 # Research — React Component Library
 
+Dated observations and design decisions below are historical evidence, not current readiness claims. Unchecked recommendations are **design intent**. See the [behavior claim register](internal/TESTING.md#behavior-claim-register).
+
 Notes on substrate decisions that don't rise to a permanent decision in
 `docs/internal/DECISIONS.md` but need a written record so future agents
 don't relitigate them.

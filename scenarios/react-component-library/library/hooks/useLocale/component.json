@@ -12,6 +12,16 @@
     "1.1.0",
     "1.0.1"
   ],
-  "latest": "1.1.1",
-  "libraryId": "react-component-library:useLocale"
+  "latest": "1.1.2",
+  "libraryId": "react-component-library:useLocale",
+  "displayName": "useLocale",
+  "description": "A locale primitive exposing formatting, collation, segmentation, calendar behavior, and localized accessibility labels through the localization adapter.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

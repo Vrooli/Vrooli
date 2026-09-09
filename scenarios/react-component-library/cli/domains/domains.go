@@ -5,6 +5,7 @@ import (
 	"react-component-library/cli/domains/asset"
 	"react-component-library/cli/domains/catalog"
 	"react-component-library/cli/domains/components"
+	"react-component-library/cli/domains/page"
 	"react-component-library/cli/domains/preview"
 	"react-component-library/cli/domains/sketch"
 	"react-component-library/cli/domains/versions"
@@ -22,6 +23,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifestBytes []byte) ([]cliapp.
 		asset.Register,
 		components.Register,
 		preview.Register,
+		page.Register,
 		sketch.Register,
 		versions.Register,
 		workflows.Register,

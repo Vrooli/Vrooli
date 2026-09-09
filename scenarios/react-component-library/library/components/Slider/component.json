@@ -19,6 +19,16 @@
     "1.2.0",
     "1.1.2"
   ],
-  "latest": "1.2.3",
-  "libraryId": "react-component-library:Slider"
+  "latest": "1.2.4",
+  "libraryId": "react-component-library:Slider",
+  "displayName": "Slider",
+  "description": "The single-value range control with keyboard stepping, snapping, marks, formatted output, touch-friendly hit area, and accessible value text.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

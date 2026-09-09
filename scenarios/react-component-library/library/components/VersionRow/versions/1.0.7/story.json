@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Released version",
+      "role": "anatomy",
+      "mode": "pinned",
+      "args": {},
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-version-row]"
+        }
+      ]
+    }
+  ]
+}

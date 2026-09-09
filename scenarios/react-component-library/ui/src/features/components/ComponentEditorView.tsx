@@ -1,4 +1,3 @@
-/** @vrooliComponentSource manipulation.split-pane */
 import { Fragment, type ReactNode } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import {
@@ -13,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { IconButton } from "@vrooli/react-component-library/IconButton/2";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
 import { WorkspaceHeader } from "@vrooli/react-component-library/WorkspaceHeader/1";
@@ -267,9 +266,12 @@ export function ComponentEditorView({ model }: { model: EditorViewModel }) {
       {contentQuery.isLoading && <SourceLoadingSkeleton />}
 
       {contentQuery.error && (
-        <p data-testid={selectors.components.editor.error} className="p-space-sm text-app-danger">
-          {errorMessage(contentQuery.error, t)}
-        </p>
+        <div role="alert" className="grid justify-items-start gap-space-xs p-space-sm">
+          <p data-testid={selectors.components.editor.error} className="text-app-danger">
+            {errorMessage(contentQuery.error, t)}
+          </p>
+          <Button onClick={() => void contentQuery.refetch()}>{t("errorBoundary.retry")}</Button>
+        </div>
       )}
 
       {saveMutation.error && (

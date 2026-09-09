@@ -83,3 +83,41 @@ func TestScanScenario_UnknownScenarioReturnsNotFound(t *testing.T) {
 		t.Fatalf("expected CodeNotFound; got %s", connectErr.Code())
 	}
 }
+
+func TestScanIncludesApplicationSourcesOutsideAdoptionSlots(t *testing.T) {
+	root := t.TempDir()
+	scenario := filepath.Join(root, "scenarios", "sample")
+	files := map[string]string{
+		".vrooli/service.json":             `{}`,
+		"ui/manifest.json":                 `{"slots":{"page":{"dir":"ui/src/pages"}},"files":{"appEntry":{"path":"ui/src/main.tsx"}}}`,
+		"ui/src/main.tsx":                  `export const Main = () => <App />`,
+		"ui/src/App.tsx":                   `export const App = () => <Catalog />`,
+		"ui/src/features/Catalog.tsx":      `export const Catalog = () => <section />`,
+		"ui/src/features/Catalog.test.tsx": `test("not production", () => {})`,
+		"ui/src/pages/Home.tsx":            `export const Home = () => <main />`,
+	}
+	for path, source := range files {
+		abs := filepath.Join(scenario, path)
+		if err := os.MkdirAll(filepath.Dir(abs), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(abs, []byte(source), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h := NewConnectHandler(Deps{Logger: log.New(io.Discard, "", 0), ManifestLoad: uimanifest.NewFSLoader(root), ScenariosRoot: filepath.Join(root, "scenarios")})
+	response, err := h.ScanScenario(context.Background(), connect.NewRequest(&inventoryv1.ScanScenarioRequest{Scenario: "sample"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]string{}
+	for _, surface := range response.Msg.Surfaces {
+		if _, exists := seen[surface.FilePath]; exists {
+			t.Fatalf("duplicate source %s", surface.FilePath)
+		}
+		seen[surface.FilePath] = surface.Slot
+	}
+	if len(seen) != 4 || seen["ui/src/App.tsx"] == "" || seen["ui/src/features/Catalog.tsx"] == "" || seen["ui/src/pages/Home.tsx"] != "page" {
+		t.Fatalf("incomplete or misclassified source inventory: %#v", seen)
+	}
+}

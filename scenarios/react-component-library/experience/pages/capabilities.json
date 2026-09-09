@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "capabilities",
+    "title": "Library capabilities",
+    "routes": [
+      "/capabilities"
+    ],
+    "purpose": "Inspect the library capability inventory and its available operations."
+  },
+  "priorities": [
+    {
+      "statement": "Inspect the library capability inventory and its available operations."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Inspect the library capability inventory and its available operations."
+    }
+  ],
+  "regions": [
+    {
+      "id": "capability-inventory",
+      "required": true,
+      "purpose": "Inspect the library capability inventory and its available operations.",
+      "component": {
+        "local": "capabilities-page"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "capability-inventory": {
+        "testid": "capabilities-page"
+      }
+    }
+  }
+}

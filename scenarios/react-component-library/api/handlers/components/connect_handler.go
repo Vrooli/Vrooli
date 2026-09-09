@@ -94,7 +94,7 @@ func (h *connectHandler) RetireComponent(ctx context.Context, req *connect.Reque
 }
 
 func (h *connectHandler) ListComponents(ctx context.Context, req *connect.Request[componentsv1.ListComponentsRequest]) (*connect.Response[componentsv1.ListComponentsResponse], error) {
-	out, err := h.deps.Service.List(ctx, components.SearchQuery{
+	query := components.SearchQuery{
 		Match:     req.Msg.Match,
 		Tag:       req.Msg.Tag,
 		Tags:      append([]string(nil), req.Msg.Tags...),
@@ -103,7 +103,15 @@ func (h *connectHandler) ListComponents(ctx context.Context, req *connect.Reques
 		Affinity:  req.Msg.Affinity,
 		AssetKind: protoAssetKindToDomain(req.Msg.AssetKind),
 		Limit:     int(req.Msg.Limit),
-	})
+	}
+	limit := query.Limit
+	if limit <= 0 {
+		limit = 200
+	}
+	if len(req.Msg.CatalogKinds) > 0 {
+		query.Limit = 10001
+	}
+	out, err := h.deps.Service.List(ctx, query)
 	if err != nil {
 		h.deps.Logger.Printf("components.ListComponents: %v", err)
 		return nil, components.ToConnectError(err)
@@ -112,6 +120,14 @@ func (h *connectHandler) ListComponents(ctx context.Context, req *connect.Reques
 		Components: make([]*componentsv1.Component, 0, len(out)),
 	}
 	index, indexErr := h.catalogIndex()
+	if len(req.Msg.CatalogKinds) > 0 {
+		if indexErr != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("canonical catalog classification unavailable: %w", indexErr))
+		}
+		if len(out) > 10000 {
+			return nil, connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("canonical catalog filter exceeds the 10000-asset scan bound"))
+		}
+	}
 	if indexErr != nil {
 		// Not fatal: the implementation registry is still authoritative for
 		// everything except placement. Log it rather than failing the list, but
@@ -119,8 +135,7 @@ func (h *connectHandler) ListComponents(ctx context.Context, req *connect.Reques
 		// under "Other / Rung 0" without anything reporting a fault.
 		h.deps.Logger.Printf("components.ListComponents: catalog projection unavailable: %v", indexErr)
 	}
-	for _, c := range out {
-		h.enrichCatalogProjection(index, &c)
+	for _, c := range h.projectCatalogComponents(index, out, req.Msg.CatalogKinds, limit) {
 		resp.Components = append(resp.Components, domainToProto(c))
 	}
 	return connect.NewResponse(resp), nil

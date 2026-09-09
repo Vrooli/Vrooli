@@ -30,11 +30,13 @@ func TestSharedRampNamesMatchAcrossDesignKitsAndLibraryTheme(t *testing.T) {
 	for _, path := range files {
 		raw, err := os.ReadFile(path)
 		require.NoError(t, err, path)
-		var theme map[string]map[string]json.RawMessage
+		var theme map[string]json.RawMessage
 		require.NoError(t, json.Unmarshal(raw, &theme), path)
 		for section, names := range want {
+			var values map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(theme[section], &values), "%s section %s", path, section)
 			for _, name := range names {
-				require.Contains(t, theme[section], name, "%s must expose %s.%s", path, section, name)
+				require.Contains(t, values, name, "%s must expose %s.%s", path, section, name)
 			}
 		}
 	}

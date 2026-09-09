@@ -27,6 +27,16 @@
     "1.2.4",
     "1.2.5"
   ],
-  "latest": "1.2.6",
-  "libraryId": "react-component-library:Popover"
+  "latest": "1.2.7",
+  "libraryId": "react-component-library:Popover",
+  "displayName": "Popover",
+  "description": "The collision-aware anchored surface with focus management, pointer-safe interaction corridors, arrow positioning, nested layering, and a responsive fallback presentation.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

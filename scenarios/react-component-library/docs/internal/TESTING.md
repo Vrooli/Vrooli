@@ -2,122 +2,86 @@
 
 ## Shared guidance
 
-- [Test authoring standard](/docs/testing/UNIT-TEST-AUTHORING.md): boundaries,
-  fixtures, and independently justified expectations.
-- [Execution and validation scope](/docs/TESTING.md): focused checks and Test Genie.
-- [Shared harness recipes](/scenarios/template-manager/docs/internal/TESTING-RECIPES.md): API, UI, CLI,
-  cancellation, workflow replay, and coverage configuration.
+Choose focused regressions and scoped Test Genie phases using [docs/TESTING.md](../../../../docs/TESTING.md). A failing advisory suite is retained with its finding disposition; it does not erase narrower evidence. A green build alone is not visual proof.
 
-The recipes describe template mechanics. This guide owns local behavior, test
-prerequisites, fixtures, and exceptions; local test sources and configuration
-identify the helpers and gates this scenario currently uses.
+## Focused commands
+
+From the scenario root, run token and route checks with `node ui/scripts/design-token-generate.mjs --check` and `node ui/scripts/experience-routes-check.mjs`. Run Go package tests from `api/`; run selected Vitest files from `ui/`.
+
+Use `react-component-library components test page:CoveragePage --version workspace --json` for application-page behavior, or the exact library ID/version for asset stories. BAS owns browser execution; the shared evaluator interprets interactions and expectations. No second ad hoc browser runner is required.
+
+## Behavior claim register
+
+Only the specific current-behavior claims mapped below are asserted as checked. Other documentation prose is explicitly **design intent** or a **dated observation**, not evidence that the current corpus implements it. A test names its enforcement boundary; consult its result before claiming readiness. Paths below are scenario-relative unless prefixed `packages/`.
+
+| Current behavior | Enforcing check |
+| --- | --- |
+| Shared token values derive from BaseStyles; app values cannot collide | `ui/scripts/design-token-generate.mjs --check`; `ui/scripts/design-token-generate.test.mjs` |
+| Canonical library ID stamps retain separate legacy source-slot metadata | `ui/scripts/vite-plugin-asset-stamp.test.mjs` |
+| Consumer major/exact imports resolve through one implementation | `packages/react-component-library/tooling/resolve-specifier.test.mjs` |
+| A page capture joins its bounded DOM to real source and leaves unstamped nodes unstamped | `api/internal/pageinspect/service_test.go` |
+| Literal selector/testid forwarding is proven conservatively | `api/internal/reconcile/resolver_test.go`; `packages/react-component-library/tooling/dom-bindings.test.mjs` |
+| Local source can resolve without a sketch adoption; zero proven bindings cannot pass | `api/internal/reconcile/verdict_test.go` |
+| Required region defaults match the schema | `TestRegionRequiredDefaultsToSchemaContract` in resolver tests |
+| Page routes are concrete and per-story overrides reach the browser | `api/internal/components/page_stories_test.go`; `api/internal/componenttests/bas_executor_test.go` |
+| Page fixtures precede mount and block undeclared mutation methods | `ui/src/page-stories.test.tsx` |
+| Every declared URL pattern has an experience document and page story | `ui/scripts/experience-routes-check.mjs` |
+| Semantic catalog kind is filtered before truncation | `api/handlers/components/catalog_projection_test.go` |
+| Catalog tab requests and navigation preserve the selected view | `ui/src/features/catalog/CatalogBrowser.test.tsx`; CatalogBrowser page stories |
+| Coverage failures expose retry and do not claim an empty ranking | `ui/src/pages/CoveragePage.test.tsx`; CoveragePage page stories |
+| Design ranks declared pages and retains access to empty scenarios | `ui/src/pages/DesignPage.test.tsx`; DesignPage page stories |
+| Preview source errors expose a retry control | PreviewPopoutPage page story; `ui/src/features/components/ComponentEditor.test.tsx` |
+| Settings, capability readiness and unknown-asset boundaries render | Their source-adjacent page stories |
+| Package boundary and pinned exports survive compilation | `packages/react-component-library/tooling/build-boundary.test.mjs`; `ui/scripts/library-pins-check.mjs` |
+| Wrong/unresolved ui-health routes are not replaced with root captures | `scenarios/ui-health/cli/domains/capture` package tests |
+
+## Document claim coverage
+
+This inventory covers the scenario README, design intent and every Markdown document under docs. The narrow checked claim column does not promote surrounding recommendations into implementation facts. Historical numerical results keep their dates; current counts must come from their owner.
+
+| Document | Checked claim or status | Check / evidence boundary |
+| --- | --- | --- |
+| [README.md](../../README.md) | Catalog/source observations, page stories and the served-bundle edit loop | The checks below and guides/asset-update-flow.md |
+| [DESIGN.md](../../DESIGN.md) | Design intent only; runtime token values are not authored here | No blanket visual/readiness guarantee |
+| [docs/RESEARCH.md](../RESEARCH.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/business/GO-TO-MARKET.md](../business/GO-TO-MARKET.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/business/MONETIZATION.md](../business/MONETIZATION.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/concepts/ARCHITECTURE.md](../concepts/ARCHITECTURE.md) | The explicit boundary table only | Checks named in its Runtime observability table |
+| [docs/concepts/ASSET-DERIVATION.md](../concepts/ASSET-DERIVATION.md) | The explicit ownership table only | Checks named in its Current and target ownership table |
+| [docs/concepts/COLLECTIONS.md](../concepts/COLLECTIONS.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/concepts/DATA.md](../concepts/DATA.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/concepts/DOMAINS.md](../concepts/DOMAINS.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/concepts/FLOWS.md](../concepts/FLOWS.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/concepts/GESTURES.md](../concepts/GESTURES.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/concepts/INTEGRATIONS.md](../concepts/INTEGRATIONS.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/concepts/STORY-CONTRACT.md](../concepts/STORY-CONTRACT.md) | Parsed v5 grammar, argument validation, concrete page routes and API fixtures | api/internal/components/story_contract_test.go; api/internal/components/page_stories_test.go; ui/src/page-stories.test.tsx |
+| [docs/concepts/UI-SPEC-RECONCILIATION.md](../concepts/UI-SPEC-RECONCILIATION.md) | Proven local source, separate coverage axes, no zero-coverage pass | api/internal/reconcile/resolver_test.go; api/internal/reconcile/verdict_test.go |
+| [docs/concepts/one-asset-one-verdict.md](../concepts/one-asset-one-verdict.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/guides/asset-preview-composition.md](../guides/asset-preview-composition.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/guides/asset-update-flow.md](../guides/asset-update-flow.md) | Package exports require compilation, UI bundle requires rebuild; token probe changes the captured field width | packages/react-component-library/tooling/build-boundary.test.mjs; dated 2026-09-08 rebuild/capture receipts |
+| [docs/guides/troubleshooting.md](../guides/troubleshooting.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/internal/DECISIONS.md](DECISIONS.md) | 2026-09-08 token authority and canonical stamp decisions | Token generator check; ui/scripts/vite-plugin-asset-stamp.test.mjs |
+| [docs/internal/ERROR-HANDLING.md](ERROR-HANDLING.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/internal/PERFORMANCE.md](PERFORMANCE.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/internal/PROBLEMS.md](PROBLEMS.md) | 2026-09-08 closure and limitations are dated observations | Focused checks and producer receipts named in that entry |
+| [docs/internal/PROGRESS.md](PROGRESS.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/internal/SEAMS.md](SEAMS.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/internal/SECURITY.md](SECURITY.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/internal/TESTING.md](TESTING.md) | This is the claim/check register, not a green-suite declaration | The named executable checks; latest receipts remain producer-owned |
+| [docs/operations/DEPLOYMENT.md](../operations/DEPLOYMENT.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/operations/OBSERVABILITY.md](../operations/OBSERVABILITY.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/operations/RUNBOOK.md](../operations/RUNBOOK.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/reference/api-endpoints.md](../reference/api-endpoints.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/reference/cli-commands.md](../reference/cli-commands.md) | Page inspect returns bounded screenshot/DOM attribution and rejects nonconcrete routes | api/internal/pageinspect/service_test.go; cli/domains/page/page_test.go |
+| [docs/reference/configuration.md](../reference/configuration.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/reference/sizing-contract.md](../reference/sizing-contract.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
+| [docs/reference/style-ownership.md](../reference/style-ownership.md) | Named stylesheet, utility and token fallback gate policies | api/internal/gates/ tests; no corpus-wide compliance assertion |
+| [docs/reference/token-contract.md](../reference/token-contract.md) | Generated token parity and disjoint app-local values | ui/scripts/design-token-generate.mjs --check; ui/scripts/design-token-generate.test.mjs |
 
 ## Scenario-specific testing
 
-Existing local entry points (choose the domain test for the behavior you change):
-
-- [api/handlers/health/handler_test.go](../../api/handlers/health/handler_test.go)
-- [ui/src/App.test.tsx](../../ui/src/App.test.tsx)
-- [ui/src/features/health/HealthCard.test.tsx](../../ui/src/features/health/HealthCard.test.tsx)
-- [cli/app_test.go](../../cli/app_test.go)
-
-## Catalog gate calibration and rendered evidence
-
-### Preview evidence runner boundary
-
-Use `pnpm run test:preview-evidence` for catalog component-story evidence. The
-command delegates story execution and structured capture to the BAS-backed
-component-test runner, then persists per-story artifact references and visual
-gate evidence through `CatalogService.CaptureEvidence`. The isolated story
-route remains the authoritative capture boundary; the RCL UI does not launch a
-second browser runner.
-
-Browser Automation Studio remains the preferred producer for ordinary
-scenario-page workflows and lifecycle evidence. It is not a replacement for
-the RCL story runner until it can select exact story IDs inside the preview
-iframe, preserve frame/harness metadata, and return one authoritative artifact
-per story. Do not add one-off browser scripts for individual components; extend
-the shared runner and its machine-readable manifest instead.
-
-The run manifest is the authoritative capture summary. Each failure includes
-`stage`, `category`, `retryable`, and `message`; categories distinguish
-environment, resolver/contract, product rendering, expectation, and capture
-infrastructure failures. A story timeout is bounded independently from the
-asset timeout with `RCL_PREVIEW_STORY_TIMEOUT_MS`. Earlier successful artifacts
-remain in the output directory and manifest when a later story fails.
-
-The default review request is the `core` set. Stories without evidence metadata
-belong to that set automatically, and the runner infers their state from the
-story ID. Add per-story evidence metadata only when the story needs an explicit
-review-set or state override.
-
-The runner supports controlled diagnostics for its own validation with
-`RCL_PREVIEW_FORCE_FAILURE=blank-root|404|timeout|expectation`; these hooks are
-test-only and must never be used for acceptance captures. Use a small
-`RCL_PREVIEW_STORY_TIMEOUT_MS` for the timeout case. A forced failure must
-produce a non-zero run and a manifest failure row—it must not become a blank
-successful screenshot.
-
-Catalog verdicts are valid only when their runner is backed by the oracle it
-claims to measure. `unmeasured` is a first-class result: it is displayed beside
-pass and fail, remains in every score denominator, and never becomes pass by
-default. Blocking gates must own a planted-error fixture under
-`catalog/calibration/<gate>/fixture.json`; run a gate's calibration with:
-
-```bash
-react-component-library catalog gates composition --calibration-only --json
-```
-
-The composition gate reads the build-stamped rendered tree, not imports or
-hand-authored markers. Its production-ready floor is currently `0.8`, derived
-from the measured cockpit corpus median of `1.0`; data-specific raw nodes are
-allowed only as counted `data-bespoke` escapes with a non-empty reason. The
-coverage report publishes `composition_blocked_asset_count` so a failed
-composition gate is reflected in maturity rather than hidden in row details.
-
-The component Tests surface keeps producer states separate: Integrity,
-Behavior, Experience, and Cost are distinct views; clean Integrity collapses;
-blocked and unmeasured are not failures; and failed experience claims use
-`ClaimMeasurement` subjects for the overlay and the six evidence kinds
-(screenshot, accessibility tree, computed style, layout box, console, and
-performance). A claim without capture must render an explicit unmeasured state.
-
-## API testing
-
-### CRUD reference — `notes` end-to-end
-
-The `notes` domain is the canonical CRUD reference. New scenarios add
-their first non-trivial mutation by copying its layering one file at a
-time. The pattern from wire to render:
-
-| Layer | File | What it owns |
-|---|---|---|
-| Wire contract | `packages/proto/schemas/react-component-library/v1/notes/notes.proto` | `Note`, `service NotesService`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteRequest`, `GetNoteResponse` |
-| REST metadata contract | `packages/proto/schemas/react-component-library/v1/notes/attachments.proto` | `Attachment` and `UploadAttachmentResponse` for the multipart upload exception |
-| Connect error mapping | `internal/notes/service_error_mapping.go` | Typed sentinels become Connect codes (`invalid_argument`, `not_found`, `internal`) |
-| Domain types | `internal/notes/types.go::{Note, Attachment, CreateInput, ErrInvalidNote, ErrNoteNotFound}` | Domain-pure (no proto imports); typed sentinels translate into Connect errors at the handler edge |
-| Repository interface | `internal/notes/repository.go::Repository` | Persistence seam — `Create` / `Get` / `List` |
-| Repository impl | `internal/notes/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |
-| Schema | `internal/notes/schema.{sql,go}::Schema()` | Domain-owned table DDL embedded via `go:embed`; collected by `internal/modules/registry.go::AllSchemas()` and applied at boot via `apidb.EnsureSchemas` |
-| Repository test | `internal/notes/sqlite_test.go` | Real handle via `db.NewSQLite(t)` + `apidb.EnsureSchemas(ctx, d, ...providers...)` over system + notes (the canonical compose pattern) |
-| Service | `internal/notes/service.go::Service` (+ `NewService`) | Application layer: validation (`title` required after whitespace trim), default substitution (`defaultListLimit = 100` when caller passes 0). Handler depends on this, not the repository. |
-| Service test | `internal/notes/service_test.go` | Substitutes `mocks.FakeRepository` (from co-located `internal/notes/mocks/`); pins the validation, default-substitution, and error-propagation contracts |
-| Connect handler test | `handlers/notes/connect_handler_test.go` | Substitutes `mocks.FakeService` and exercises the generated Connect client/handler path |
-| Multipart handler test | `handlers/notes/attachments_handler_test.go` | Uses `blobstore.MemoryBlobStore` plus test metadata repositories to exercise file-upload success and error paths |
-| Mocks | `internal/notes/mocks/{repository,service}.go::{FakeRepository,FakeService}` | Co-located with the domain (Pass-3 pattern) — `FakeRepository` carries state for service tests; `FakeService` records inputs for handler tests. Both use atomic call counters + per-method error knobs. Deleting `internal/notes/` takes them along. |
-| UI client | `ui/src/api/notes.ts` | `notesClient = createClient(NotesService, transport)` plus `uploadAttachment` for multipart metadata |
-| UI tests | `ui/src/api/notes.test.ts` + component tests | Mock generated client methods and `uploadAttachment`; REST helper tests stub `global.fetch` |
-| CLI client | `cli/domains/notes/{register,handlers,attach_handler}.go` | `Register(core)` returns a `cliapp.SubcommandGroup`; handlers use generated Connect clients or `cliapp.UploadFile` and render via cli-core reports |
-| CLI test | `cli/domains/notes/handlers_test.go` | Spins a real `httptest.Server` via `testutil.NewAPIServer`, captures stdout via `testutil.CaptureStdout` |
+The ordinary suite owner is `vrooli scenario test react-component-library --phases <relevant-phases>`. For a background run, block once with `test-genie runs wait --json react-component-library <run-id>`. Do not poll or confuse canceling a local tool with aborting the server-owned run.
 
 ## Cross-references
 
-- **Seams definition + adding new seams**: [`SEAMS.md`](SEAMS.md).
-- **Skill bundle for testing-related work**: load the `seam-discovery-and-enforcement` and
-  `unit-testing-architecture-steer` skills through prompt-manager before substantial test changes.
-- **Test runner used by CI and `vrooli scenario test`**: see
-  `.github/workflows/test.yml` and `packages/cli-core/cmd/scenario_test.go`.
-- **Why no inline mocks in `*_test.go` files**: the testutil package
-  is the single source of fake behavior. Inline mocks in tests
-  fragment the contract; when the interface grows a method, every
-  inline mock has to be updated. One mock in `mocks/`, one update.
+[Edit, rebuild and look](../guides/asset-update-flow.md#edit-rebuild-and-look), [known problems](PROBLEMS.md), [story contract](../concepts/STORY-CONTRACT.md).

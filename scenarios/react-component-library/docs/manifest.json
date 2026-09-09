@@ -179,7 +179,7 @@
             "design-contract",
             "ui-design"
           ],
-          "description": "Canonical scenario UI design language installed from the selected design kit",
+          "description": "Design intent; runtime token values are owned by BaseStyles",
           "audience": [
             "developers",
             "agents",
@@ -254,13 +254,9 @@
             "requiredHeadings": [
               "Purpose Of This Document",
               "Scenario Shape",
-              "System Boundaries",
               "Contracts And Data Flow",
-              "Shared Infrastructure",
-              "Extension Rules",
-              "Architecture Maturity",
-              "Intentional Deviations",
-              "Documentation Architecture",
+              "System Boundaries",
+              "Architecture maturity",
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
@@ -403,11 +399,10 @@
         },
         {
           "path": "concepts/one-asset-one-verdict.md",
-          "docType": "concept",
+          "docType": "asset-verdict",
           "title": "One Asset, One Verdict",
           "aliases": [
             "asset-verdict",
-            "edit-loop",
             "validation-loop"
           ],
           "description": "The governed asset edit, scoped validation, evidence reuse, and aggregate verdict model",
@@ -448,7 +443,7 @@
         },
         {
           "path": "concepts/GESTURES.md",
-          "docType": "concept",
+          "docType": "gestures",
           "title": "Gesture Contract",
           "aliases": [
             "gestures",
@@ -620,6 +615,36 @@
               "../reference/configuration.md"
             ]
           }
+        },
+        {
+          "path": "concepts/COLLECTIONS.md",
+          "docType": "collections",
+          "title": "Collections",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "completion": "optional",
+          "description": "Checked boundaries or explicitly marked design intent; see the behavior claim register.",
+          "requiredBy": [
+            "implemented"
+          ]
+        },
+        {
+          "path": "concepts/UI-SPEC-RECONCILIATION.md",
+          "docType": "ui-spec-reconciliation",
+          "title": "UI Spec Reconciliation",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "completion": "optional",
+          "description": "Checked boundaries or explicitly marked design intent; see the behavior claim register.",
+          "requiredBy": [
+            "implemented"
+          ]
         }
       ]
     },
@@ -1083,6 +1108,51 @@
               ".vrooli/service.json"
             ]
           }
+        },
+        {
+          "path": "reference/sizing-contract.md",
+          "docType": "sizing-contract",
+          "title": "Control sizing contract",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "completion": "optional",
+          "description": "Checked boundaries or explicitly marked design intent; see the behavior claim register.",
+          "requiredBy": [
+            "implemented"
+          ]
+        },
+        {
+          "path": "reference/style-ownership.md",
+          "docType": "style-ownership",
+          "title": "Style ownership",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "completion": "optional",
+          "description": "Checked boundaries or explicitly marked design intent; see the behavior claim register.",
+          "requiredBy": [
+            "implemented"
+          ]
+        },
+        {
+          "path": "reference/token-contract.md",
+          "docType": "token-contract",
+          "title": "Design-token contract for adopted assets",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "completion": "optional",
+          "description": "Checked boundaries or explicitly marked design intent; see the behavior claim register.",
+          "requiredBy": [
+            "implemented"
+          ]
         }
       ]
     },
@@ -1214,7 +1284,11 @@
           "validation": {
             "requiredHeadings": [
               "Shared guidance",
-              "Scenario-specific testing"
+              "Focused commands",
+              "Behavior claim register",
+              "Document claim coverage",
+              "Scenario-specific testing",
+              "Cross-references"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1458,6 +1532,21 @@
               "[TODO]"
             ]
           }
+        },
+        {
+          "path": "RESEARCH.md",
+          "docType": "research",
+          "title": "Research \u2014 React Component Library",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "retired",
+          "completion": "optional",
+          "description": "Checked boundaries or explicitly marked design intent; see the behavior claim register.",
+          "requiredBy": [
+            "implemented"
+          ]
         }
       ]
     }

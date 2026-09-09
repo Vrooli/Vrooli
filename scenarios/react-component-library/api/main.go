@@ -35,6 +35,7 @@ import (
 	depsH "react-component-library/handlers/deps"
 	healthH "react-component-library/handlers/health"
 	inventoryH "react-component-library/handlers/inventory"
+	pageH "react-component-library/handlers/page"
 	previewH "react-component-library/handlers/preview"
 	sketchH "react-component-library/handlers/sketch"
 	themesH "react-component-library/handlers/themes"
@@ -42,8 +43,8 @@ import (
 	workflowsH "react-component-library/handlers/workflows"
 	capabilitiesH "react-component-library/internal/capabilities"
 
-	"react-component-library/internal/availability"
 	"github.com/vrooli/api-core/uimanifest"
+	"react-component-library/internal/availability"
 
 	adoptionsInternal "react-component-library/internal/adoptions"
 	catalogcoverageInternal "react-component-library/internal/catalogcoverage"
@@ -308,6 +309,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		capabilitiesH.Module(),
+		pageH.Module(filepath.Dir(scenariosRoot)),
 		adoptionsH.ModuleFromService(
 			adoptionsSvc,
 			log.Default(),

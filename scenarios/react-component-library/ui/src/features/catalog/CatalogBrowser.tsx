@@ -1,10 +1,10 @@
-/** @vrooliComponentSource data-display.data-table */
 import { useQuery } from "@tanstack/react-query";
 import { FileCode2, Grid2X2, List, Network, Search } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { listCatalogAssets, type CatalogAsset } from "../../api/components";
+import { strings } from "../../consts/strings";
 import { selectors } from "../../consts/selectors";
 import { useTranslation } from "../../i18n";
 import { Input } from "@vrooli/react-component-library/Input/1";
@@ -15,11 +15,10 @@ import {
   ExperienceSurface,
   type ExperienceSurfaceState,
 } from "@vrooli/react-component-library/ExperienceSurface/1";
-import { AdoptedAssetShowcase } from "./AdoptedAssetShowcase";
 import { assetInfoTab, assetPath } from "../../routes";
 
 type Presentation = "tree" | "list" | "cards";
-type KindTab = "components" | "hooks";
+type KindTab = "components" | "hooks" | "support";
 
 interface Props {
   compact?: boolean;
@@ -28,9 +27,10 @@ interface Props {
   surfaceId?: string;
 }
 
-const assetKindForTab: Record<KindTab, 1 | 2> = {
-  components: 1,
-  hooks: 2,
+const catalogKindsForTab: Record<KindTab, string[]> = {
+  components: ["primitive", "component", "pattern", "navigation", "page-template"],
+  hooks: ["runtime-hook"],
+  support: ["foundation", "runtime-service", "adapter", "generator", "fixture", ""],
 };
 
 function adoptionCounts(asset: CatalogAsset) {
@@ -71,7 +71,7 @@ function AssetMetricBadges({ asset }: { asset: CatalogAsset }) {
   const { t } = useTranslation();
   const counts = adoptionCounts(asset);
   const isHook =
-    (asset.assetKind as unknown) === 2 || (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
+    asset.catalogKind === "runtime-hook" || (asset.assetKind as unknown) === 2 || (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
   return (
     <span className="flex shrink-0 flex-wrap justify-end gap-space-3xs text-[11px] text-app-muted-foreground">
       <span className="rounded-pill bg-app-surface-muted px-space-2xs py-space-3xs">
@@ -162,7 +162,7 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
   const query = useQuery({
     queryKey: ["catalog", tab, deferredMatch],
     queryFn: () =>
-      listCatalogAssets({ limit: 200, match: deferredMatch, assetKind: assetKindForTab[tab] }),
+      listCatalogAssets({ limit: 200, match: deferredMatch, catalogKinds: catalogKindsForTab[tab] }),
     staleTime: 30_000,
   });
   const assets = useMemo(() => query.data?.components ?? [], [query.data]);
@@ -181,8 +181,8 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
         return {
           id: `catalog-domain:${domain}`,
           label: (
-            <span className="grid min-w-0 grid-cols-3 items-center gap-space-2xs">
-              <span className="col-span-2 min-w-0 truncate text-label font-semibold uppercase tracking-wide">
+            <span className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-space-2xs">
+              <span className="min-w-0 whitespace-normal break-words text-label font-semibold uppercase tracking-wide">
                 {domain}
               </span>
               <span
@@ -209,33 +209,17 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
               .map((asset) => {
                 const counts = adoptionCounts(asset);
                 const isHook =
-                  (asset.assetKind as unknown) === 2 ||
+                  asset.catalogKind === "runtime-hook" || (asset.assetKind as unknown) === 2 ||
                   (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
                 return {
                   id: asset.id,
-                  // A 2:1 grid rather than flex-1 + shrink-0. With shrink-0 the
-                  // metadata kept its full width and the name — the only part
-                  // that identifies the row — was starved to zero at this tree
-                  // depth.
-                  //
-                  // In the narrow sidebar the metrics stay bare numerals: the
-                  // prose form ("0 adoptions · 23 down") cannot fit a third of
-                  // a sidebar row three levels deep, and truncating it yields
-                  // "0 ad…", which costs the same space and carries no value.
-                  // The full phrasing stays reachable through the row title and
-                  // the aria-label. The full-width workspace catalog has the
-                  // room, so it shows the same adoption badges the flat
-                  // presentations do — direct for every asset, effective only
-                  // for hooks.
-                  //
-                  // The test id rides the label because TreeView owns the row
-                  // element itself; the label is the row's identity surface.
+                  // Keep the identity readable; metadata takes only its natural width.
                   label: (
                     <span
                       data-testid={selectors.catalog.asset}
-                      className="grid min-w-0 grid-cols-3 items-center gap-space-2xs"
+                      className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-space-2xs"
                     >
-                      <span className="rcl-tree-label-main col-span-2 min-w-0 truncate">
+                      <span className="rcl-tree-label-main min-w-0 whitespace-normal break-words">
                         {asset.displayName || asset.libraryId}
                       </span>
                       {compact ? (
@@ -287,7 +271,6 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
           : "flex max-w-5xl flex-col gap-space-sm"
       }
     >
-      {!compact && <AdoptedAssetShowcase />}
       <Tabs
         items={[
           {
@@ -295,12 +278,13 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
             label: t("catalog.components", { defaultValue: "Components" }),
           },
           { id: "hooks", label: t("catalog.hooks", { defaultValue: "Hooks" }) },
+          { id: "support", label: t(strings.catalog.support) },
         ]}
         active={tab}
         onChange={(next) => setTab(next as KindTab)}
         ariaLabel={t("catalog.kindTabs", { defaultValue: "Asset kind" })}
         itemTestId={(item) =>
-          item === "components" ? selectors.catalog.componentsTab : selectors.catalog.hooksTab
+          item === "components" ? selectors.catalog.componentsTab : item === "hooks" ? selectors.catalog.hooksTab : selectors.catalog.supportTab
         }
       />
       <label className="relative block w-full min-w-0">

@@ -6,6 +6,16 @@
     "1.0.0"
   ],
   "draft": "",
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:Surface"
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:Surface",
+  "displayName": "Surface",
+  "description": "The canonical background and elevation primitive for panels, menus, overlays, and grouped content, pairing surface colour, border, and shadow as one elevation token.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

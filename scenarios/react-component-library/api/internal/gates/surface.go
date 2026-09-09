@@ -245,7 +245,7 @@ func loadSurfaceCaptures(root string) (map[string]string, error) {
 }
 
 func collectSurfaceNodes(node capturedSurfaceNode, result map[string]string) {
-	assetID := node.DOM.Attributes["data-rcl-asset"]
+	assetID := catalogStamp(node.DOM.Attributes)
 	if assetID != "" {
 		if value := strings.TrimSpace(node.ComputedStyle["box-shadow"]); value != "" {
 			if _, exists := result[assetID]; !exists {

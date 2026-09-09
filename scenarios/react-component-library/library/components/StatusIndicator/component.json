@@ -13,6 +13,16 @@
     "1.0.0",
     "1.0.3"
   ],
-  "latest": "1.0.4",
-  "libraryId": "react-component-library:StatusIndicator"
+  "latest": "1.0.5",
+  "libraryId": "react-component-library:StatusIndicator",
+  "displayName": "StatusIndicator",
+  "description": "The compact status component combining icon, text, shape, and animation policy to express certainty and urgency independently rather than as one flat variant set.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

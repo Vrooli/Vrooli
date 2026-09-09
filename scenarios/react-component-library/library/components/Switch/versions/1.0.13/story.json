@@ -1,0 +1,128 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Quiet hours",
+          "role": "switch"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Off",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Enabled",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Automatic updates",
+          "role": "switch"
+        }
+      ],
+      "id": "enabled",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "On",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "axis": "label",
+      "composition": {
+        "specimen": {
+          "export": "Bare",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Adaptive chrome",
+          "role": "switch"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-selection-row]",
+          "attribute": "data-bare",
+          "value": "true"
+        }
+      ],
+      "id": "bare",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Bare",
+      "role": "axis"
+    },
+    {
+      "args": {},
+      "axis": "labelPlacement",
+      "composition": {
+        "specimen": {
+          "export": "TrailingLabel",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Adaptive chrome",
+          "role": "switch"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-selection-row]",
+          "attribute": "data-label-placement",
+          "value": "end"
+        }
+      ],
+      "id": "trailing-label",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Trailing label",
+      "role": "axis"
+    }
+  ],
+  "title": "Switch"
+}

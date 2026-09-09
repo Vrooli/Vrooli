@@ -1,5 +1,7 @@
 # Go To Market — React Component Library
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 This document records launch strategy, positioning, channels, and
 validation experiments for the scenario.
 

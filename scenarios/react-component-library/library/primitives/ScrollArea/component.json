@@ -15,6 +15,16 @@
     "1.0.1",
     "1.0.4"
   ],
-  "latest": "1.0.5",
-  "libraryId": "react-component-library:ScrollArea"
+  "latest": "1.0.6",
+  "libraryId": "react-component-library:ScrollArea",
+  "displayName": "ScrollArea",
+  "description": "The accessible scroll container preserving native scrolling and keyboard behavior while offering optional custom indicators and stable layout.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -757,6 +757,10 @@
       "testId": "catalog-hooks-tab",
       "selector": "[data-testid=\"catalog-hooks-tab\"]"
     },
+    "catalog.supportTab": {
+      "testId": "catalog-support-tab",
+      "selector": "[data-testid=\"catalog-support-tab\"]"
+    },
     "catalog.search": {
       "testId": "catalog-search",
       "selector": "[data-testid=\"catalog-search\"]"
@@ -1365,7 +1369,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "0a0cdebf44cc06ab9f69b4676359b3017d6b4caece5942aa6977b0b90b9ad7d7",
-    "ui/src/consts/selectors.ts": "1323e57e2873798b5aad21688d42fa6dceb7615044472d97df032c6f3b499d10",
+    "ui/src/consts/selectors.ts": "565f9a44e7d613a79f8dfb6a52734bbd5b8d5f2f1abef9fd0b61c08c5daffb2c",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

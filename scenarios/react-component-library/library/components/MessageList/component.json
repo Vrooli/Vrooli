@@ -10,6 +10,9 @@
   ],
   "draft": "",
   "evictedVersions": [],
-  "latest": "1.1.1",
-  "libraryId": "react-component-library:MessageList"
+  "latest": "1.1.2",
+  "libraryId": "react-component-library:MessageList",
+  "displayName": "MessageList",
+  "description": "The message collection preserving streaming scroll position, supporting branching, grouping, history loading, a new-message indicator, and stable anchoring while content grows above and below.",
+  "tags": []
 }

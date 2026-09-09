@@ -1,13 +1,17 @@
 {
-  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-page",
   "schemaVersion": "1.1.0",
   "page": {
     "id": "component-preview-workspace",
     "title": "Component preview workspace",
-    "routes": ["/assets/:id"],
+    "routes": [
+      "/assets/:id"
+    ],
     "purpose": "Let a library maintainer inspect a real rendered component specimen and recognize when its preview is loading, usable, or only partially available.",
-    "prd_refs": ["OT-P0-003"]
+    "prd_refs": [
+      "OT-P0-003"
+    ]
   },
   "priorities": [
     {
@@ -23,7 +27,9 @@
       "description": "A component detail workspace is open.",
       "setup": {
         "route": "/assets/react-component-library%3AButton",
-        "query": { "tab": "preview" }
+        "query": {
+          "tab": "preview"
+        }
       }
     },
     {
@@ -35,7 +41,9 @@
       "description": "All rendered preview specimens have announced readiness.",
       "setup": {
         "route": "/assets/react-component-library%3AButton",
-        "query": { "tab": "preview" }
+        "query": {
+          "tab": "preview"
+        }
       }
     },
     {
@@ -49,11 +57,19 @@
       "required": true,
       "purpose": "Render and report the lifecycle of the selected component's real preview specimens.",
       "component": {
-        "library": { "component": "experience-surface", "version": "1.0.2" }
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.2"
+        }
       },
       "lifecycle": {
         "kind": "async",
-        "states": ["loading", "ready", "partial", "error"]
+        "states": [
+          "loading",
+          "ready",
+          "partial",
+          "error"
+        ]
       }
     }
   ],

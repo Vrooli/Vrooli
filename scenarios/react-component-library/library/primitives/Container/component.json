@@ -11,6 +11,16 @@
     "1.1.0",
     "1.1.2"
   ],
-  "latest": "1.1.3",
-  "libraryId": "react-component-library:Container"
+  "latest": "1.1.4",
+  "libraryId": "react-component-library:Container",
+  "displayName": "Container",
+  "description": "The page-width primitive supplying readable maximum widths, responsive gutters, safe-area handling, and predictable nesting.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

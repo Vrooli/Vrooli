@@ -104,6 +104,7 @@ export const strings = {
     sourceScenario: "catalog.sourceScenario",
     subtitle: "catalog.subtitle",
     title: "catalog.title",
+    support: "catalog.support",
   },
   componentDetail: {
     experience: {
@@ -440,6 +441,7 @@ export const strings = {
       drifted: "design.verdict.drifted",
       extra: "design.verdict.extra",
       unverifiable: "design.verdict.unverifiable",
+      "resolved-local": "design.verdict.resolved-local",
     },
     importing: "design.importing",
     previewImport: "design.previewImport",
@@ -607,6 +609,16 @@ export const strings = {
     acceptanceDecision_failed: "design.acceptanceDecision_failed",
     acceptanceDecision_accepted: "design.acceptanceDecision_accepted",
     acceptanceNewAttempt: "design.acceptanceNewAttempt",
+    sourceCoverage: "design.sourceCoverage",
+    declaredCoverage: "design.declaredCoverage",
+    showEmptyScenarios: "design.showEmptyScenarios",
+  },
+  coverage: {
+    unavailable: "coverage.unavailable",
+    retryHelp: "coverage.retryHelp",
+    retry: "coverage.retry",
+    nextWorkUnavailable: "coverage.nextWorkUnavailable",
+    retryNextWork: "coverage.retryNextWork",
   },
 } as const;
 

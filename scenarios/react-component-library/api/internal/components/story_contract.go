@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/url"
 	"regexp"
 	"sort"
 	"strings"
@@ -17,6 +18,7 @@ type StoryContract struct {
 	SchemaVersion int               `json:"schemaVersion"`
 	Schema        string            `json:"$schema,omitempty"`
 	Kind          StoryKind         `json:"kind"`
+	Route         string            `json:"route,omitempty"`
 	Title         string            `json:"title,omitempty"`
 	Args          StoryArgsSchema   `json:"args"`
 	Environment   StoryEnvironment  `json:"environment"`
@@ -29,6 +31,7 @@ type StoryKind string
 const (
 	StoryKindComponent StoryKind = "component"
 	StoryKindHook      StoryKind = "hook"
+	StoryKindPage      StoryKind = "page"
 )
 
 type StoryArgsSchema struct {
@@ -146,6 +149,7 @@ var storyFixtureAdapters = map[string]struct{}{
 }
 
 type StoryDefinition struct {
+	Route  string                       `json:"route,omitempty"`
 	ID     string                       `json:"id"`
 	Name   string                       `json:"name"`
 	Role   string                       `json:"role,omitempty"`
@@ -162,6 +166,16 @@ type StoryDefinition struct {
 	Environment  map[string]string  `json:"environment,omitempty"`
 	Interactions []StoryInteraction `json:"interactions,omitempty"`
 	Expect       []StoryExpectation `json:"expect,omitempty"`
+	APIState     []StoryAPIResponse `json:"apiState,omitempty"`
+}
+
+// StoryAPIResponse declares a page's API state without pretending it is a prop.
+// The page harness supplies these exact responses before mounting the route.
+type StoryAPIResponse struct {
+	Path   string          `json:"path"`
+	Method string          `json:"method"`
+	Status int             `json:"status"`
+	Body   json.RawMessage `json:"body"`
 }
 
 // UnmarshalJSON makes the common zero-argument story ergonomic while keeping
@@ -560,8 +574,34 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 	if contract.SchemaVersion != 5 {
 		diagnostics = append(diagnostics, storyDiagnostic("/schemaVersion", "supported_version", "schemaVersion must be 5 for published story contracts"))
 	}
-	if contract.Kind != StoryKindComponent && contract.Kind != StoryKindHook {
-		diagnostics = append(diagnostics, storyDiagnostic("/kind", "asset_kind", "kind must be component or hook"))
+	if contract.Kind != StoryKindComponent && contract.Kind != StoryKindHook && contract.Kind != StoryKindPage {
+		diagnostics = append(diagnostics, storyDiagnostic("/kind", "asset_kind", "kind must be component, hook, or page"))
+	}
+	if contract.Kind == StoryKindPage {
+		if !concreteStoryPath(contract.Route) {
+			diagnostics = append(diagnostics, storyDiagnostic("/route", "page_route", "page route must be a concrete same-origin path"))
+		}
+		if len(contract.Args.Fields) != 0 {
+			diagnostics = append(diagnostics, storyDiagnostic("/args", "page_api_state", "pages declare API state instead of prop fields"))
+		}
+	} else if contract.Route != "" {
+		diagnostics = append(diagnostics, storyDiagnostic("/route", "page_only", "route is only supported for a page story"))
+	}
+	for i, story := range contract.Stories {
+		seen := map[string]bool{}
+		if story.Route != "" && (contract.Kind != StoryKindPage || !concreteStoryPath(story.Route)) {
+			diagnostics = append(diagnostics, storyDiagnostic(fmt.Sprintf("/stories/%d/route", i), "page_route", "route overrides require a concrete page route"))
+		}
+		if contract.Kind != StoryKindPage && len(story.APIState) > 0 {
+			diagnostics = append(diagnostics, storyDiagnostic(fmt.Sprintf("/stories/%d/apiState", i), "page_only", "API state is only supported for page stories"))
+		}
+		for j, response := range story.APIState {
+			key := response.Method + " " + response.Path
+			if !concreteStoryPath(response.Path) || (response.Method != "GET" && response.Method != "POST") || response.Status < 200 || response.Status > 599 || !json.Valid(response.Body) || seen[key] {
+				diagnostics = append(diagnostics, storyDiagnostic(fmt.Sprintf("/stories/%d/apiState/%d", i, j), "api_response", "API response needs a unique concrete path/method, status 200–599, and JSON body"))
+			}
+			seen[key] = true
+		}
 	}
 	fields := map[string]StoryField{}
 	regionPorts := map[string]string{}
@@ -663,7 +703,7 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		}
 		diagnostics = append(diagnostics, validateStoryArgs(pointer+"/args", story.Args, fields)...)
 		diagnostics = append(diagnostics, validateStoryGrammar(pointer+"/args", story.Args, true)...)
-		if story.Composition == nil || story.Composition.Specimen == nil {
+		if contract.Kind != StoryKindPage && (story.Composition == nil || story.Composition.Specimen == nil) {
 			for expectationIndex, expectation := range story.Expect {
 				if expectation.Kind != "text" || strings.TrimSpace(expectation.Value) == "" {
 					continue
@@ -697,6 +737,11 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 	}
 	sortStoryDiagnostics(diagnostics)
 	return diagnostics
+}
+
+func concreteStoryPath(value string) bool {
+	u, err := url.Parse(value)
+	return err == nil && strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "//") && u.Host == "" && !strings.ContainsAny(u.Path, ":*")
 }
 
 func sortStoryDiagnostics(diagnostics []StoryDiagnostic) {

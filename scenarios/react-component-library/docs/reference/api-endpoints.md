@@ -1,5 +1,7 @@
 # API Endpoints — React Component Library
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 Human-readable reference for the API. The machine-readable
 source of truth is [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) —
 doc generators, Postman collection builders, and SDK stubs read it

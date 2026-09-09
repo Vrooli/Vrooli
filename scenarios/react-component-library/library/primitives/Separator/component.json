@@ -11,6 +11,16 @@
     "1.0.0",
     "1.0.1"
   ],
-  "latest": "1.0.2",
-  "libraryId": "react-component-library:Separator"
+  "latest": "1.0.3",
+  "libraryId": "react-component-library:Separator",
+  "displayName": "Separator",
+  "description": "The semantic divider supporting orientation, inset, and both decorative and grouping roles, so structure can be expressed without adding containers.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -17,6 +17,16 @@
     "1.0.0",
     "1.0.5"
   ],
-  "latest": "1.0.6",
-  "libraryId": "react-component-library:DescriptionList"
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:DescriptionList",
+  "displayName": "DescriptionList",
+  "description": "The responsive name-and-value presentation for metadata, adapting between columns, rows, dense summaries, and long values without truncating meaning.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

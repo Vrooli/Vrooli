@@ -1,5 +1,7 @@
 # Flows — React Component Library
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 This document is the canonical workflow map for ordered behavior.
 
 ## Flow Inventory
@@ -161,9 +163,6 @@ restricted action/assertion vocabulary, and persists a normalized report.
 
 ```sh
 react-component-library components test "<component-id>" --version 1.0.0 --closure true
-react-component-library components test-list "<component-id>"
-react-component-library components test-show "<report-id>"
-react-component-library components test-rerun "<report-id>"
 ```
 
 No contract can name a file, command, arbitrary setup, or mutable hook

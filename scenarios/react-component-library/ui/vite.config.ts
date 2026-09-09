@@ -206,6 +206,7 @@ export default defineConfig(({ mode }): UserConfig => {
         isLibrary
           ? "../library/**/*.{test,spec}.{ts,tsx}"
           : "src/**/*.{test,spec}.{ts,tsx}",
+        ...(isLibrary ? [] : ["scripts/vite-plugin-asset-stamp.test.mjs"]),
       ],
     },
   };

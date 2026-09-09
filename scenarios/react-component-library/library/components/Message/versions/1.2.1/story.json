@@ -1,0 +1,281 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "Message",
+  "args": {
+    "fields": [
+      {
+        "path": "actor.name",
+        "kind": "text",
+        "required": true,
+        "default": "Participant"
+      },
+      {
+        "path": "content",
+        "kind": "structured",
+        "format": "renderable-text"
+      },
+      {
+        "path": "state",
+        "kind": "enum",
+        "options": [
+          "default",
+          "loading",
+          "partial",
+          "success",
+          "request-error",
+          "retry"
+        ],
+        "default": "default"
+      },
+      {
+        "path": "presentation",
+        "kind": "enum",
+        "options": [
+          "card",
+          "transcript"
+        ],
+        "default": "card"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "user",
+      "name": "User message",
+      "role": "anatomy",
+      "mode": "pinned",
+      "args": {
+        "actor": {
+          "name": "Maya Chen",
+          "role": "Operator"
+        },
+        "content": "Please summarize the deployment results for the support team.",
+        "state": "default",
+        "timestamp": "2026-09-05T10:00:00Z",
+        "presentation": "card"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "MessageStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-actor-name]"
+        }
+      ]
+    },
+    {
+      "id": "assistant",
+      "name": "Assistant response",
+      "role": "anatomy",
+      "mode": "pinned",
+      "args": {
+        "actor": {
+          "name": "Release assistant",
+          "role": "Assistant"
+        },
+        "content": "The rollout completed successfully. All three services are healthy, and no requests were lost.",
+        "state": "success",
+        "timestamp": "2026-09-05T10:01:00Z"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "MessageStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-actor-name]"
+        }
+      ]
+    },
+    {
+      "id": "streaming",
+      "name": "Streaming response",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "actor": {
+          "name": "Release assistant",
+          "role": "Assistant"
+        },
+        "content": "I am checking the remaining health signals before completing the summary\u2026",
+        "state": "partial"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "MessageStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-actor-name]"
+        }
+      ]
+    },
+    {
+      "id": "loading",
+      "name": "Loading response",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "actor": {
+          "name": "Release assistant",
+          "role": "Assistant"
+        },
+        "state": "loading"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "MessageStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-actor-name]"
+        }
+      ]
+    },
+    {
+      "id": "request-error",
+      "name": "Response error",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "actor": {
+          "name": "Release assistant",
+          "role": "Assistant"
+        },
+        "content": "The completed portion of the summary remains visible.",
+        "state": "request-error",
+        "errorMessage": "The connection closed before the response finished.",
+        "onRetry": {
+          "$handler": "retryResponse"
+        },
+        "retryLabel": "Retry response"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "MessageStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-actor-name]"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Retry response"
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "name": "Retry available",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "actor": {
+          "name": "Release assistant",
+          "role": "Assistant"
+        },
+        "content": "The completed portion of the summary remains visible.",
+        "state": "retry",
+        "errorMessage": "The connection closed before the response finished.",
+        "onRetry": {
+          "$handler": "retryResponse"
+        },
+        "retryLabel": "Retry response"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "MessageStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-actor-name]"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Retry response"
+        }
+      ]
+    },
+    {
+      "id": "transcript",
+      "name": "Unframed conversation transcript",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "actor": {
+          "name": "Maya Chen",
+          "role": "Operator"
+        },
+        "content": "Please summarize the deployment results for the support team.",
+        "state": "default",
+        "timestamp": "2026-09-05T10:00:00Z",
+        "presentation": "transcript"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "MessageStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-actor-name]"
+        }
+      ]
+    }
+  ]
+}

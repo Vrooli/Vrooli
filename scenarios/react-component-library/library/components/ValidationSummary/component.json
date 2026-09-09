@@ -19,6 +19,16 @@
     "1.0.0",
     "1.0.7"
   ],
-  "latest": "1.0.8",
-  "libraryId": "react-component-library:ValidationSummary"
+  "latest": "1.0.9",
+  "libraryId": "react-component-library:ValidationSummary",
+  "displayName": "ValidationSummary",
+  "description": "The form-level error summary grouping actionable failures, linking to the fields they concern, taking focus at the right moment, and avoiding duplication of every field message.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

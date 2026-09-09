@@ -8,12 +8,14 @@ const { getCatalogCoverage, listCatalogNextWork } = vi.hoisted(() => ({
 }));
 vi.mock("../api/catalog", () => ({ getCatalogCoverage, listCatalogNextWork }));
 
+import { i18n } from "../i18n";
 import { CoveragePage } from "./CoveragePage";
 import { renderWithProviders } from "@vrooli/api-base/testing";
 
 describe("CoveragePage", () => {
   afterEach(() => cleanup());
-  beforeEach(() => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("en");
     getCatalogCoverage.mockReset();
     listCatalogNextWork.mockReset();
   });
@@ -58,6 +60,9 @@ describe("CoveragePage", () => {
     listCatalogNextWork.mockResolvedValue({ rows: [] });
     renderWithProviders(<CoveragePage />);
     expect(await screen.findByText("Coverage unavailable")).toBeInTheDocument();
+    getCatalogCoverage.mockResolvedValue({ maturity: { total: 0, atOrAboveTarget: 0, byRung: {} }, rows: [] });
+    await userEvent.click(screen.getByRole("button", { name: "Retry coverage" }));
+    expect(await screen.findByRole("heading", { name: "Catalog coverage" })).toBeInTheDocument();
   });
 
   it("exercises coverage table search and sorting", async () => {
@@ -94,6 +99,13 @@ describe("CoveragePage", () => {
     expect(screen.queryByText("production-ready")).not.toBeInTheDocument();
   });
 
+  it("does not report an empty work queue when ranking failed", async () => {
+    getCatalogCoverage.mockResolvedValue({ maturity: { total: 0, atOrAboveTarget: 0, byRung: {} }, rows: [] });
+    listCatalogNextWork.mockRejectedValue(new Error("offline"));
+    renderWithProviders(<CoveragePage />);
+    expect(await screen.findByRole("button", { name: "Retry ranked work" })).toBeInTheDocument();
+    expect(screen.queryByText("No below-target work is currently ranked.")).not.toBeInTheDocument();
+  });
   it("shows independent loading and empty-table states", async () => {
     getCatalogCoverage.mockResolvedValue({
       maturity: { total: 0, atOrAboveTarget: 0, byRung: {} },

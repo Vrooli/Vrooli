@@ -17,6 +17,16 @@
     "1.0.6",
     "1.0.7"
   ],
-  "latest": "1.0.8",
-  "libraryId": "react-component-library:MasterDetail"
+  "latest": "1.0.9",
+  "libraryId": "react-component-library:MasterDetail",
+  "displayName": "MasterDetail",
+  "description": "The coordinated collection-and-detail layout preserving selection, scroll position, route state, and transition continuity, and drilling in rather than splitting on compact viewports.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

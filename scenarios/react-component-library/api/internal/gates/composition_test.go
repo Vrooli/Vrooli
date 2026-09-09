@@ -67,3 +67,13 @@ func TestCompositionMetadataRoundTripsScoreAndEscapes(t *testing.T) {
 		t.Fatalf("metadata = %q -> score:%v ok:%v reasons:%v", raw, score, ok, reasons)
 	}
 }
+
+func TestCatalogStampUsesLegacySlotWithoutChangingCanonicalIdentity(t *testing.T) {
+	attributes := map[string]string{"data-rcl-asset": "react-component-library:Card", "data-rcl-source-slot": "primitives.card"}
+	if got := catalogStamp(attributes); got != "primitives.card" {
+		t.Fatalf("got %s", got)
+	}
+	if attributes["data-rcl-asset"] != "react-component-library:Card" {
+		t.Fatal("canonical identity changed")
+	}
+}

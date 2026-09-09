@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Command palette",
+          "role": "dialog"
+        },
+        {
+          "kind": "role",
+          "name": "Open workspace Navigate to the active workspace. Workspace Enter",
+          "role": "option"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Workspace commands",
+      "role": "anatomy"
+    }
+  ],
+  "title": "CommandPalette"
+}

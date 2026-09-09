@@ -2,6 +2,18 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-hover",
-  "latest": "1.0.0",
-  "libraryId": "react-component-library:useHover"
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:useHover",
+  "displayName": "useHover",
+  "description": "A hover-intent primitive accounting for pointer type, entry and exit delay, and movement between related floating surfaces.",
+  "tags": [],
+  "draft": "",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

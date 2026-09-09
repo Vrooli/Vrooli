@@ -71,7 +71,7 @@ func (h *handlers) verify(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("verify sketch", err, nil)
 	}
-	if err := render(ctx, resp.Msg, []string{fmt.Sprintf("Sketch verification: %s/%s", target.Scenario, target.Page), fmt.Sprintf("Built coverage: %.2f%%", resp.Msg.GetCoverage().GetBuiltPercent()), fmt.Sprintf("Passes: %t", resp.Msg.GetPasses())}); err != nil {
+	if err := render(ctx, resp.Msg, []string{fmt.Sprintf("Sketch verification: %s/%s", target.Scenario, target.Page), fmt.Sprintf("Proven source bindings: %d/%d (%d custom)", resp.Msg.GetCoverage().GetResolved(), resp.Msg.GetCoverage().GetTotal(), resp.Msg.GetCoverage().GetResolvedLocal()), fmt.Sprintf("Built coverage: %.2f%%", resp.Msg.GetCoverage().GetBuiltPercent()), fmt.Sprintf("Declared regions: %d library-backed, %d local", resp.Msg.GetCoverage().GetLibraryBacked(), resp.Msg.GetCoverage().GetLocal()), fmt.Sprintf("Passes: %t", resp.Msg.GetPasses())}); err != nil {
 		return err
 	}
 	if !resp.Msg.GetPasses() {

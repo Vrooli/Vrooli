@@ -1,5 +1,7 @@
 # Seams — React Component Library
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](TESTING.md#behavior-claim-register).
+
 This document records the boundaries that keep the component library
 reusable. A seam is an explicit adapter or fixture boundary; it is not a
 shortcut around a consuming scenario's API or authorization policy.

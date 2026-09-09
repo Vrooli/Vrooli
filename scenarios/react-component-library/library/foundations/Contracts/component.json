@@ -2,6 +2,18 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "foundation",
   "catalogId": "foundations.contracts",
-  "latest": "1.0.0",
-  "libraryId": "react-component-library:Contracts"
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:Contracts",
+  "displayName": "Contracts",
+  "description": "The framework-light type layer defining shared change events, async actions, collection shapes, overlay descriptors, and telemetry events, so every other asset speaks one vocabulary at its boundaries.",
+  "tags": [],
+  "draft": "",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

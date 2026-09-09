@@ -1,5 +1,7 @@
 # Style ownership
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 `BaseStyles` is the single owner of the published control reset, focus-visible ring, reduced-motion
 policy, forced-colors policy, control-size tokens, direct-child icon scale, and visually-hidden
 utility. It mounts through `useLibraryStyleSheet` in `document.head`.

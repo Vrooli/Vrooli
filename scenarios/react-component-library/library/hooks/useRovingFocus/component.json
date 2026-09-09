@@ -2,6 +2,18 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-roving-focus",
-  "latest": "1.0.0",
-  "libraryId": "react-component-library:useRovingFocus"
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:useRovingFocus",
+  "displayName": "useRovingFocus",
+  "description": "A focus-management primitive for composite widgets, moving a single tab stop across toolbars, menus, tabs, radio groups, and grids.",
+  "tags": [],
+  "draft": "",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

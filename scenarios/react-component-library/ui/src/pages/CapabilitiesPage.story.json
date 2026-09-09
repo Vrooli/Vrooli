@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Capability readiness",
+  "route": "/capabilities",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "available",
+      "name": "Available dependency",
+      "role": "anatomy",
+      "apiState": [
+        {
+          "path": "/api/v1/capabilities/describe",
+          "method": "GET",
+          "status": 200,
+          "body": {
+            "definitions": [],
+            "states": [
+              {
+                "id": "browser-capture",
+                "name": "Browser capture",
+                "description": "Capture rendered pages",
+                "dependencySlug": "browser-automation-studio",
+                "status": "available",
+                "message": "Capture is ready"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Capability readiness"
+        },
+        {
+          "kind": "text",
+          "value": "Browser capture"
+        },
+        {
+          "kind": "text",
+          "value": "available"
+        }
+      ]
+    }
+  ]
+}

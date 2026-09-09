@@ -1,5 +1,7 @@
 # Gesture contract
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 This document is the durable contract for pointer interaction in the React
 Component Library. A gesture is an accelerator: every action reachable by a
 gesture must also be available through a visible control, menu, or equivalent

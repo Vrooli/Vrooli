@@ -41,6 +41,7 @@ func (h *connectHandler) enrichCatalogProjection(index *assetgraph.Index, compon
 	if err != nil {
 		return
 	}
+	component.CatalogKind = node.Kind
 	component.CatalogDomain = node.Domain
 	component.CatalogDomainOrder = node.DomainOrder
 	component.CatalogRung = int(node.Rung)
@@ -49,4 +50,25 @@ func (h *connectHandler) enrichCatalogProjection(index *assetgraph.Index, compon
 	if err == nil {
 		component.TransitiveDependentCount = len(transitive)
 	}
+}
+
+// Canonical classification happens before truncation. Legacy storage roots can
+// call a hook a component, so they cannot answer a semantic catalog filter.
+func (h *connectHandler) projectCatalogComponents(index *assetgraph.Index, rows []components.Component, kinds []string, limit int) []components.Component {
+	wanted := map[string]bool{}
+	for _, kind := range kinds {
+		wanted[kind] = true
+	}
+	result := make([]components.Component, 0, len(rows))
+	for _, row := range rows {
+		h.enrichCatalogProjection(index, &row)
+		if len(wanted) > 0 && !wanted[row.CatalogKind] {
+			continue
+		}
+		result = append(result, row)
+		if limit > 0 && len(result) >= limit {
+			break
+		}
+	}
+	return result
 }

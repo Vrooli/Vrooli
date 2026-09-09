@@ -13,6 +13,7 @@ import (
 
 type sourceFacts struct {
 	File                string              `json:"file"`
+	DOMBindings         []DOMBinding        `json:"domBindings,omitempty"`
 	Imports             []string            `json:"imports"`
 	Attributes          map[string][]string `json:"attributes"`
 	Elements            []sourceFactElement `json:"elements"`
@@ -21,6 +22,12 @@ type sourceFacts struct {
 	HookCalls           []string            `json:"hookCalls"`
 	Calls               []string            `json:"calls"`
 	InlineStyleElements int                 `json:"inlineStyleElements"`
+}
+
+type DOMBinding struct {
+	Attribute string   `json:"attribute"`
+	Value     string   `json:"value"`
+	Via       []string `json:"via"`
 }
 
 type sourceFactElement struct {
@@ -35,7 +42,7 @@ type SourceFacts = sourceFacts
 // analysis failures with substring evidence.
 func ReadSourceFacts(ctx context.Context, repoRoot string, roots ...string) (map[string]SourceFacts, error) {
 	script := filepath.Join(repoRoot, "packages", "react-component-library", "tooling", "resolve-imports.mjs")
-	args := append([]string{script, "--facts-root"}, roots...)
+	args := append([]string{script, "--binding-facts-root"}, roots...)
 	output, err := exec.CommandContext(ctx, "node", args...).Output()
 	if err != nil {
 		return nil, fmt.Errorf("analyze structured source facts: %w", err)

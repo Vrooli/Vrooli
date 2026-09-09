@@ -17,6 +17,10 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/discovery"
+	repocontract "github.com/vrooli/repo-contract-go"
+	"react-component-library/internal/components"
 )
 
 var basStoryResult = regexp.MustCompile(`(?s)<pre[^>]*id="rcl-story-result"[^>]*>(.*?)</pre>`)
@@ -26,9 +30,11 @@ var basStoryResult = regexp.MustCompile(`(?s)<pre[^>]*id="rcl-story-result"[^>]*
 // production receives BAS's screenshot, DOM, accessibility, console, network,
 // and performance artifacts from one browser session.
 type BASCaptureExecutor struct {
-	RCLBaseURL string
-	BASBaseURL string
-	HTTPClient *http.Client
+	RCLBaseURL     string
+	BASBaseURL     string
+	HTTPClient     *http.Client
+	PageSourceRoot string
+	PageUIBaseURL  string
 }
 
 func NewBASCaptureExecutor() BASCaptureExecutor {
@@ -167,7 +173,11 @@ func (e BASCaptureExecutor) ExecuteStorySheet(ctx context.Context, libraryID, ve
 }
 
 func (e BASCaptureExecutor) executeCapture(ctx context.Context, storyURL, label, libraryID, version, storyID string) (StoryExecution, error) {
-	capture, err := e.captureURL(ctx, storyURL, label, `[data-preview-readiness-marker][data-preview-ready="true"][data-rcl-story-status="passed"]`, `[data-preview-sheet]`)
+	ready := `[data-preview-readiness-marker][data-preview-ready="true"][data-rcl-story-status="passed"]`
+	if strings.HasPrefix(libraryID, components.PageStoryPrefix) {
+		ready = `[data-preview-readiness-marker][data-preview-ready="true"]`
+	}
+	capture, err := e.captureURL(ctx, storyURL, label, ready, `[data-preview-sheet]`)
 	if err != nil {
 		return StoryExecution{}, err
 	}
@@ -275,6 +285,47 @@ func (e BASCaptureExecutor) client() *http.Client {
 }
 
 func (e BASCaptureExecutor) storyURL(libraryID, version, storyID string) (string, error) {
+	if strings.HasPrefix(libraryID, components.PageStoryPrefix) {
+		if version != components.PageStoryVersion {
+			return "", fmt.Errorf("page stories use version workspace")
+		}
+		root := e.PageSourceRoot
+		if root == "" {
+			repo, err := repocontract.ResolveRepoRoot()
+			if err != nil {
+				return "", err
+			}
+			root = filepath.Join(repo, "scenarios", "react-component-library")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		subject, err := components.LoadPageStory(ctx, root, libraryID)
+		if err != nil {
+			return "", err
+		}
+		uiBase := e.PageUIBaseURL
+		if uiBase == "" {
+			uiBase, err = discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURL(ctx, "react-component-library", "UI_PORT")
+			if err != nil {
+				return "", err
+			}
+		}
+		route := subject.Contract.Route
+		for _, story := range subject.Contract.Stories {
+			if story.ID == storyID && story.Route != "" {
+				route = story.Route
+			}
+		}
+		pageURL, err := url.Parse(strings.TrimRight(uiBase, "/") + route)
+		if err != nil {
+			return "", err
+		}
+		query := pageURL.Query()
+		query.Set("__rcl_page_story", strings.TrimPrefix(libraryID, components.PageStoryPrefix))
+		query.Set("__rcl_story", storyID)
+		pageURL.RawQuery = query.Encode()
+		return pageURL.String(), nil
+	}
 	base, err := url.Parse(e.RCLBaseURL + "/preview/" + url.PathEscape(libraryID) + "/harness.html")
 	if err != nil {
 		return "", fmt.Errorf("build story URL: %w", err)

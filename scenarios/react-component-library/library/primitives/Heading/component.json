@@ -17,6 +17,16 @@
     "1.0.0",
     "1.1.3"
   ],
-  "latest": "1.1.4",
-  "libraryId": "react-component-library:Heading"
+  "latest": "1.1.5",
+  "libraryId": "react-component-library:Heading",
+  "displayName": "Heading",
+  "description": "The heading primitive separating visual scale from semantic document level, so styling decisions never distort the accessible outline.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

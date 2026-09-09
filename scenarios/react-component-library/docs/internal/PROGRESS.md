@@ -1,5 +1,7 @@
 # Progress — React Component Library
 
+Dated observations and design decisions below are historical evidence, not current readiness claims. Unchecked recommendations are **design intent**. See the [behavior claim register](TESTING.md#behavior-claim-register).
+
 This log keeps recent dated milestones. It does not certify current readiness.
 Read [PROBLEMS.md](PROBLEMS.md) for tracked gaps and the owning Plan Manager
 record for live execution status.

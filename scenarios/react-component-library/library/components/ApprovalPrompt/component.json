@@ -24,6 +24,9 @@
   ],
   "draft": "",
   "evictedVersions": [],
-  "latest": "1.2.1",
-  "libraryId": "react-component-library:ApprovalPrompt"
+  "latest": "1.2.2",
+  "libraryId": "react-component-library:ApprovalPrompt",
+  "displayName": "ApprovalPrompt",
+  "description": "The human-in-the-loop decision surface presenting the proposed action, its target, scope, consequences, alternatives, expiry, and resulting approval state.",
+  "tags": []
 }

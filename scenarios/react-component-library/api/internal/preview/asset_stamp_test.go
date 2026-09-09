@@ -131,3 +131,16 @@ func TestStampPreviewSourceIgnoresNestedTypeParameterLists(t *testing.T) {
 		t.Fatalf("component root was not stamped: %s", got)
 	}
 }
+
+func TestPreviewUsesCanonicalIdentityAndLegacySlot(t *testing.T) {
+	source := `export const Card = () => <div data-rcl-source-slot="wrong" />;`
+	got := stampPreviewSource(source, "Card.tsx", "react-component-library:Card", "1.3.0", "primitives.card")
+	for _, fragment := range []string{`data-rcl-asset="react-component-library:Card"`, `data-rcl-source-slot="primitives.card"`} {
+		if !strings.Contains(got, fragment) {
+			t.Fatalf("missing %s in %s", fragment, got)
+		}
+	}
+	if strings.Contains(got, "wrong") {
+		t.Fatal(got)
+	}
+}

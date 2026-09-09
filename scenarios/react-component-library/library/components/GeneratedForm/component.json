@@ -21,6 +21,16 @@
     "1.0.6",
     "1.0.7"
   ],
-  "latest": "1.0.8",
-  "libraryId": "react-component-library:GeneratedForm"
+  "latest": "1.0.9",
+  "libraryId": "react-component-library:GeneratedForm",
+  "displayName": "GeneratedForm",
+  "description": "The schema-driven form compiling data, layout, validation, dependency, permission, and action schemas into a cached field-dependency graph with polished defaults and no per-consumer configuration.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

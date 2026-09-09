@@ -1,4 +1,6 @@
-/** @vrooliComponentSource data-display.data-table */
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { useTranslation } from "../i18n";
+import { strings } from "../consts/strings";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -78,6 +80,7 @@ function MaturityCard({ label, value, total }: { label: string; value: number; t
 }
 
 export function CoveragePage() {
+  const { t } = useTranslation();
   const coverage = useQuery({
     queryKey: ["catalog", "coverage"],
     queryFn: getCatalogCoverage,
@@ -117,10 +120,13 @@ export function CoveragePage() {
     );
   if (coverage.isError || !report || !maturity)
     return (
-      <EmptyState
-        title="Coverage unavailable"
-        description="The catalog coverage service did not return a report. Try again when the API is healthy."
-      />
+      <div data-testid="coverage-page" role="alert">
+        <EmptyState
+          title={t(strings.coverage.unavailable)}
+          description={t(strings.coverage.retryHelp)}
+          action={<Button onClick={() => void coverage.refetch()}>{t(strings.coverage.retry)}</Button>}
+        />
+      </div>
     );
 
   return (
@@ -287,6 +293,11 @@ export function CoveragePage() {
         <CardContent>
           {nextWork.isLoading ? (
             <p className="text-body text-app-muted-foreground">Calculating next work…</p>
+          ) : nextWork.isError ? (
+            <div role="alert" className="grid justify-items-start gap-space-xs">
+              <p>{t(strings.coverage.nextWorkUnavailable)}</p>
+              <Button onClick={() => void nextWork.refetch()}>{t(strings.coverage.retryNextWork)}</Button>
+            </div>
           ) : nextRows.length ? (
             <ol className="grid gap-space-xs">
               {nextRows.map((row) => (

@@ -2,6 +2,18 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-controllable-state",
-  "latest": "1.0.0",
-  "libraryId": "react-component-library:useControllableState"
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:useControllableState",
+  "displayName": "useControllableState",
+  "description": "The controlled-or-uncontrolled state primitive that preserves one event contract and prevents a component from maintaining competing internal and external values.",
+  "tags": [],
+  "draft": "",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

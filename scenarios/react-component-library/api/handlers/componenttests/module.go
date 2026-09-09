@@ -58,7 +58,9 @@ func ModuleWithExecutor(db *sql.DB, assets components.Service, sourceRoot string
 // ModuleWithExecutorAndFixture keeps both the browser and generated-fixture
 // boundaries explicit for module tests.
 func ModuleWithExecutorAndFixture(db *sql.DB, assets components.Service, sourceRoot string, executor domain.StoryExecutor, fixture GeneratedFixtureValidator, logger *log.Logger) module.Module {
-	svc := domain.NewService(domain.Runner{Assets: assets, Stories: assets, Executor: executor, Revision: func(ctx context.Context, assetID, version string) (string, error) {
+	svc := domain.NewService(domain.Runner{Assets: assets, Stories: assets, Executor: executor, Pages: func(ctx context.Context, id string) (components.PageStorySubject, error) {
+		return components.LoadPageStory(ctx, filepath.Dir(sourceRoot), id)
+	}, Revision: func(ctx context.Context, assetID, version string) (string, error) {
 		if _, err := os.Stat(filepath.Join(filepath.Dir(sourceRoot), "catalog")); err != nil {
 			// Module tests and isolated providers may intentionally omit the
 			// catalog projection. In that case the runner retains its legacy
@@ -150,6 +152,12 @@ func (h *connectHandler) RunComponentTest(ctx context.Context, req *connect.Requ
 
 func (h *connectHandler) resolveComponentID(ctx context.Context, requested string) (string, error) {
 	requested = strings.TrimSpace(requested)
+	if strings.HasPrefix(requested, components.PageStoryPrefix) {
+		if _, err := components.LoadPageStory(ctx, filepath.Dir(h.sourceRoot), requested); err != nil {
+			return "", err
+		}
+		return requested, nil
+	}
 	if requested == "" || h.assets == nil {
 		return requested, nil
 	}
@@ -211,6 +219,11 @@ func (h *connectHandler) recordContractEvidence(ctx context.Context, report doma
 }
 
 func recordContractEvidence(ctx context.Context, evidenceStore *catalogcoverage.EvidenceStore, sourceRoot string, report domain.Report) error {
+	// Page receipts live in the same report repository. They do not certify a
+	// release in the library catalog, whose evidence has a different subject.
+	if strings.HasPrefix(report.RootLibraryID, components.PageStoryPrefix) {
+		return nil
+	}
 	if evidenceStore == nil || strings.TrimSpace(sourceRoot) == "" {
 		return nil
 	}

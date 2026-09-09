@@ -2,6 +2,18 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-service",
   "catalogId": "services.command-registry",
-  "latest": "1.0.0",
-  "libraryId": "react-component-library:CommandRegistry"
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:CommandRegistry",
+  "displayName": "Command Registry",
+  "description": "The dynamic registry of commands with labels, shortcuts, grouping, visibility rules, availability predicates, and async execution, shared by palettes, menus, and toolbars.",
+  "tags": [],
+  "draft": "",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

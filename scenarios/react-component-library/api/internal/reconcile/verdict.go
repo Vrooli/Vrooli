@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"react-component-library/internal/availability"
 	"sort"
+	"strings"
 
 	"react-component-library/internal/gates"
 )
@@ -12,16 +13,18 @@ import (
 type Verdict string
 
 const (
-	VerdictMatches      Verdict = "matches"
-	VerdictDrifted      Verdict = "drifted"
-	VerdictMissing      Verdict = "missing"
-	VerdictExtra        Verdict = "extra"
-	VerdictUnverifiable Verdict = "unverifiable"
+	VerdictMatches       Verdict = "matches"
+	VerdictResolvedLocal Verdict = "resolved-local"
+	VerdictDrifted       Verdict = "drifted"
+	VerdictMissing       Verdict = "missing"
+	VerdictExtra         Verdict = "extra"
+	VerdictUnverifiable  Verdict = "unverifiable"
 )
 
-var VerdictVocabulary = [...]Verdict{VerdictMatches, VerdictDrifted, VerdictMissing, VerdictExtra, VerdictUnverifiable}
+var VerdictVocabulary = [...]Verdict{VerdictMatches, VerdictDrifted, VerdictMissing, VerdictExtra, VerdictUnverifiable, VerdictResolvedLocal}
 
 type Coverage struct {
+	Resolved, ResolvedLocal, LibraryBacked, Local         int
 	Built, Declared, Invented, Missing, Unresolved, Total int
 	BuiltPercent                                          float64
 	Status                                                string
@@ -96,11 +99,23 @@ func Verify(scenariosRoot, scenario, page string, joins []Result, placements map
 			} else {
 				counted[join.Region] = true
 				verification.Coverage.Total++
+				if join.Proven && !join.Heuristic && join.FilePath != "" && seen[join.Region] == 1 {
+					verification.Coverage.Resolved++
+				}
+				if join.LibraryAsset != "" {
+					verification.Coverage.LibraryBacked++
+				} else if join.LocalComponent != "" {
+					verification.Coverage.Local++
+				}
 				switch {
 				case verdict == VerdictMatches && resolution.IsBuilt():
 					verification.Coverage.Built++
+				case verdict == VerdictResolvedLocal:
+					verification.Coverage.ResolvedLocal++
 				case fill.Placeholder != "":
 					verification.Coverage.Invented++
+				case join.Proven && !join.Heuristic && join.FilePath != "":
+					verification.Coverage.Unresolved++
 				case fill.Asset == "":
 					verification.Coverage.Missing++
 				case fill.Version == "":
@@ -110,6 +125,9 @@ func Verify(scenariosRoot, scenario, page string, joins []Result, placements map
 				}
 			}
 		}
+		if strings.TrimSpace(join.Reason) == "" {
+			join.Reason = verdictReason(join, verdict)
+		}
 		id := join.Region
 		if id == "" {
 			id = join.FilePath
@@ -118,7 +136,7 @@ func Verify(scenariosRoot, scenario, page string, joins []Result, placements map
 		verification.Regions = append(verification.Regions, RegionVerdict{Result: join, Verdict: verdict, Finding: finding, Availability: resolution})
 		// Scoped verification fails on required unknowns; fleet findings stay
 		// advisory and are not silently promoted to global blockers.
-		if verdict == VerdictDrifted || (join.Required && verdict != VerdictMatches) {
+		if verdict == VerdictDrifted || (join.Required && verdict != VerdictMatches && verdict != VerdictResolvedLocal) {
 			verification.Passes = false
 		}
 	}
@@ -128,6 +146,7 @@ func Verify(scenariosRoot, scenario, page string, joins []Result, placements map
 	} else {
 		verification.Coverage.BuiltPercent = 100 * float64(verification.Coverage.Built) / float64(verification.Coverage.Total)
 	}
+	verification.Passes = verification.Passes && verification.Coverage.Resolved > 0
 	return verification
 }
 
@@ -147,6 +166,9 @@ func verdictFor(result Result) Verdict {
 	if result.Provenance == ProvenanceUnknown {
 		return VerdictUnverifiable
 	}
+	if result.Provenance == ProvenanceCustom && result.SelectedAsset == "" {
+		return VerdictResolvedLocal
+	}
 	if result.SelectedAsset == "" || result.SelectedVersion == "" {
 		return VerdictUnverifiable
 	}
@@ -163,4 +185,25 @@ func verdictFor(result Result) Verdict {
 		return VerdictMatches
 	}
 	return VerdictUnverifiable
+}
+
+// Every verdict is an actionable observation, including successful joins.
+func verdictReason(result Result, verdict Verdict) string {
+	switch verdict {
+	case VerdictResolvedLocal:
+		return fmt.Sprintf("resolved to %s code in %s through %s", result.Provenance, result.FilePath, result.JoinRule)
+	case VerdictMatches:
+		return fmt.Sprintf("%s implements selected asset %s@%s with verified build evidence", result.FilePath, result.SelectedAsset, result.SelectedVersion)
+	case VerdictDrifted:
+		return fmt.Sprintf("%s has %s provenance (%s@%s), which differs from selected %s@%s", result.FilePath, result.Provenance, result.ObservedAsset, result.ObservedVersion, result.SelectedAsset, result.SelectedVersion)
+	case VerdictExtra:
+		return fmt.Sprintf("source %s has no declared page region", result.FilePath)
+	case VerdictMissing:
+		return "no proven source binding identifies this region"
+	default:
+		if result.FilePath != "" {
+			return fmt.Sprintf("source %s is located but %s provenance or selected-version evidence remains unverified", result.FilePath, result.Provenance)
+		}
+		return "source binding could not be verified"
+	}
 }

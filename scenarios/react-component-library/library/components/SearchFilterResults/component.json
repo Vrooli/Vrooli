@@ -13,6 +13,16 @@
     "1.0.0",
     "1.0.3"
   ],
-  "latest": "1.0.4",
-  "libraryId": "react-component-library:SearchFilterResults"
+  "latest": "1.0.5",
+  "libraryId": "react-component-library:SearchFilterResults",
+  "displayName": "SearchFilterResults",
+  "description": "The complete search experience combining query entry, structured filters, URL state, suggestions, loading, stale results, empty and no-match distinction, errors, pagination, and result actions.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

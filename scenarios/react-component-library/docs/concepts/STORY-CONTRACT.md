@@ -1,5 +1,7 @@
 # Story Contract v5
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 `story.json` is the single declarative preview and test contract for one
 catalog asset version. Version 5 is the authored contract: it carries public
 argument definitions, deterministic fixtures, named composition roles, story
@@ -20,7 +22,7 @@ whether a new frame is a distinct question or only a duplicate specimen.
 
 ## Required shape
 
-Every contract has `schemaVersion: 5`, `kind` (`component` or `hook`), `args`,
+Every contract has `schemaVersion: 5`, `kind` (`component`, `hook` or `page`), optional public `args`,
 `environment.fixtures`, and at least one named story. Unknown fields are errors.
 The published machine-readable contract is
 `.vrooli/schemas/story-contract.schema.json`.
@@ -76,7 +78,7 @@ warning that the component should expose the appropriate naming prop instead.
 
 ## Story taxonomy and coverage
 
-Every contract has exactly one `role: anatomy` story. Each enum field in
+The catalog asset taxonomy requires exactly one `role: anatomy` story; page-route contracts may use several anatomy stories for distinct routes. Each enum field in
 `args.fields` has an `role: axis` story naming that field; its `covers` values
 discharge release coverage because they describe what the specimen renders,
 not merely the input passed to it. Boundary stories describe conditions that
@@ -136,3 +138,9 @@ hand-authored manifest fields.
 - [CODE: api/internal/components/story_contract.go]
 - [CODE: api/internal/components/indexer.go]
 - [DOC: guides/asset-preview-composition.md]
+
+## Application pages
+
+A source-adjacent `<PageName>.story.json` uses `kind: page` and a concrete `route`. Individual stories may override the route with another concrete URL; dynamic `:parameter` placeholders and foreign origins are rejected. Page stories cannot define public asset args or preview composition. `apiState` contains exact `path`, `method`, HTTP `status` and JSON `body` fixtures. Fixtures install before App mounts; undeclared mutation methods, including Connect POST reads, return unavailable. Unmatched GET/HEAD requests may still load real static assets, so this is not an offline browser sandbox.
+
+Run `components test page:<PageName> --version workspace --json`. Go discovery reads source-adjacent contracts; the browser runs the same evaluator as released assets. The route guard checks every served URL pattern has a story. Tests: `api/internal/components/page_stories_test.go`, `ui/src/page-stories.test.tsx`, and `ui/scripts/experience-routes-check.mjs`.

@@ -340,7 +340,7 @@ func decodeDifferentialObservation(row differentialRow, gate string) (differenti
 }
 
 func stampedAsset(node axObservation) string {
-	if value := strings.TrimSpace(node.DOM.Attributes["data-rcl-asset"]); value != "" {
+	if value := catalogStamp(node.DOM.Attributes); value != "" {
 		return value
 	}
 	for _, child := range node.Children {
@@ -349,4 +349,13 @@ func stampedAsset(node axObservation) string {
 		}
 	}
 	return ""
+}
+
+// Catalog gates still join catalog slots during the dual-stamp transition.
+// Source inspection uses data-rcl-asset directly as the canonical library ID.
+func catalogStamp(attributes map[string]string) string {
+	if slot := strings.TrimSpace(attributes["data-rcl-source-slot"]); slot != "" {
+		return slot
+	}
+	return strings.TrimSpace(attributes["data-rcl-asset"])
 }

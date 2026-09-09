@@ -1,5 +1,7 @@
 # Problems — React Component Library
 
+Dated observations and design decisions below are historical evidence, not current readiness claims. Unchecked recommendations are **design intent**. See the [behavior claim register](TESTING.md#behavior-claim-register).
+
 Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid
 re-discovering the same constraint.
@@ -354,3 +356,17 @@ pass after repair.
 - Added a focused ControlBase cascade regression covering foundation reset precedence and consumer override compatibility. The focused RCL geometry suite passes 8/8; the web-console renderer/markdown suites pass 48/48. All four consumer UI production builds pass. The isolated Chromium harness confirms library defaults, host-reset interaction, Tabs mounting, and consumer overrides after the refresh.
 - Governed component tests pass for BaseStyles 1.2.5 (`ctr_3d82d78252267969`), Tabs 1.3.1 (`ctr_401ac675ba6f95ec`), and ControlBase 1.1.5 (`ctr_4d14439a4ea8ee34`).
 - Outstanding validation is inherited suite health: Test Genie unit runs for RCL (`20260908-040907-45b7a589`) and web-console (`20260908-041111-163e72aa`) remain failed on existing Go/type-check/coverage and policy findings before this styling contract is exercised. Existing package boundary/consumer hook failures are also unrelated to the repaired cascade. No whole-scenario certification claim is made.
+
+## 2026-09-08 — Observable library closure and remaining limits
+
+Closed with focused and live evidence in the make-the-library-observable plan:
+
+- Captured DOM now preserves bounded data attributes; ui-health no longer silently captures `/` for an unresolved surface.
+- `page inspect` returns a screenshot, bounded DOM and consumer-resolved library source together; unstamped nodes remain unattributed.
+- Shared UI/library token conflicts and the phantom hand-authored generator banner are removed. The token drift/collision check and generated header are authoritative.
+- Selector bindings resolve through supported literal prop forwarding. Proven custom source has its own verdict, required regions default correctly, and zero proven source coverage cannot pass.
+- The workbench has one asset tree, semantic catalog tabs, readable labels, actionable Coverage failure/retry and compact Design links ranked by declared pages. All declared URL patterns have executable page stories; the native page-subject runs pass.
+
+Enforcing checks are linked in [TESTING.md](TESTING.md#behavior-claim-register). Before/after captures, command outputs and exact subject run identities are retained under `<runtime-home>/plan-artifacts/react-component-library-make-the-library-observable/`.
+
+Remaining: a cold live Coverage report exceeded the bounded request, so the page truthfully shows Retry coverage; fixture-driven healthy rendering passes. Existing CollectionKeyboard/CollectionList test indexing errors prevent a clean whole-UI typecheck. The broader experience-owner validation still has historical contract/specimen findings, and Go-generated preview harness source is outside the TSX binding resolver. Capture bounds and current-major resolution are explicit limits, not full-page or historical-build certification. Source binding coverage alone does not establish visual quality; the successor design plan must re-anchor its baseline.

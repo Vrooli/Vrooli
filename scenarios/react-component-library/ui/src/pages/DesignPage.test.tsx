@@ -196,10 +196,24 @@ describe("Design workspace", () => {
       issues: [],
     });
     renderPage("/design");
-    expect(await screen.findByRole("link", { name: "demo" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: /demo/ })).toHaveAttribute(
       "href",
       "/design/demo",
     );
+  });
+  it("ranks declared work first and makes empty scenarios available on request", async () => {
+    api.listDesignPages.mockResolvedValue({ scenarios: [
+      { scenario: "aaa-empty", pageCount: 0 },
+      { scenario: "small", pageCount: 1 },
+      { scenario: "useful", pageCount: 8 },
+    ], pages: [], issues: [] });
+    renderPage("/design");
+    await screen.findByRole("link", { name: /useful/ });
+    expect(screen.queryByRole("link", { name: /aaa-empty/ })).not.toBeInTheDocument();
+    const links = screen.getAllByRole("link").filter(link => link.getAttribute("href")?.startsWith("/design/"));
+    expect(links.map(link => link.getAttribute("href"))).toEqual(["/design/useful", "/design/small"]);
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(screen.getByRole("link", { name: /aaa-empty/ })).toBeInTheDocument();
   });
   it("preserves a note after a conflict and sends the loaded revision", async () => {
     setup();
@@ -233,7 +247,7 @@ describe("Design workspace", () => {
     setup();
     api.verifySketch.mockResolvedValue({
       passes: false,
-      coverage: { built: 0, total: 2 },
+      coverage: { built: 0, total: 2, resolved: 1, resolvedLocal: 1, libraryBacked: 1, local: 1 },
       regions: [],
     });
     renderPage();
@@ -242,6 +256,8 @@ describe("Design workspace", () => {
       await screen.findByText(i18n.t("design.coverage", { built: 0, total: 2 })),
     ).toBeInTheDocument();
     expect(screen.getByText(i18n.t("design.verificationNeedsWork"))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t("design.sourceCoverage", { resolved: 1, total: 2, custom: 1 }))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t("design.declaredCoverage", { library: 1, local: 1 }))).toBeInTheDocument();
   });
 });
 

@@ -9,6 +9,16 @@
   "evictedVersions": [
     "1.0.0"
   ],
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:FormStore"
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:FormStore",
+  "displayName": "Form Store",
+  "description": "The field-granular store factory owning values, defaults, dirtiness, touched state, validation, dependencies, submission, autosave, and conflict state.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -1,5 +1,7 @@
 # Security — React Component Library
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](TESTING.md#behavior-claim-register).
+
 This document records the scenario's security and privacy posture.
 Update it before adding auth, user data, external APIs, payment flows,
 secrets, or sensitive business data.

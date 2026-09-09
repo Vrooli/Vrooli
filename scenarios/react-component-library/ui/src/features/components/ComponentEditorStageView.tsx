@@ -1,7 +1,7 @@
 import { Columns2, GripVertical, Maximize2 } from "lucide-react";
 import { useLayoutEffect, useRef, useState, type PointerEvent } from "react";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { IconButton } from "@vrooli/react-component-library/IconButton/2";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { API_BASE } from "../../api/client";
@@ -287,7 +287,7 @@ export function ComponentEditorStageView({ model }: { model: StageViewModel }) {
                             <IconButton
                               data-testid={selectors.components.editor.exampleFocus}
                               type="button"
-                              density="compact"
+                              size="sm"
                               variant="secondary"
                               aria-label={`Focus ${title}`}
                               className="h-control-compact min-h-control-compact min-w-control-compact"
@@ -312,7 +312,7 @@ export function ComponentEditorStageView({ model }: { model: StageViewModel }) {
                                 disabled={
                                   !comparedSpecimens.has(identity) && comparedSpecimens.size >= 4
                                 }
-                                density="compact"
+                                size="sm"
                                 className="h-control-compact min-h-control-compact min-w-control-compact shrink-0"
                                 onClick={(event) => {
                                   event.stopPropagation();

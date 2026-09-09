@@ -9,6 +9,16 @@
   "evictedVersions": [
     "1.2.1"
   ],
-  "latest": "1.2.2",
-  "libraryId": "react-component-library:Stack"
+  "latest": "1.2.3",
+  "libraryId": "react-component-library:Stack",
+  "displayName": "Stack",
+  "description": "The vertical layout primitive giving consistent spacing, alignment, optional separators, wrapping, responsive values, and a choice of semantic element.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

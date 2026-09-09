@@ -228,6 +228,7 @@ const literalSelectors = {
     browser: "catalog-browser",
     componentsTab: "catalog-components-tab",
     hooksTab: "catalog-hooks-tab",
+    supportTab: "catalog-support-tab",
     search: "catalog-search",
     presentation: "catalog-presentation-toggle",
     asset: "catalog-asset",

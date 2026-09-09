@@ -25,3 +25,11 @@ func TestValidateExperienceContractAcceptsHistoricalSchemaVersion(t *testing.T) 
 	legacy := []byte(`{"schemaVersion":1,"componentId":"react-component-library:Button","states":["default"]}`)
 	require.Equal(t, []string{"experience contract kind must be experience-component or rcl-component-experience-contract"}, validateExperienceContract(legacy, StoryContract{}))
 }
+
+func TestExperienceContractResolvesStateExample(t *testing.T) {
+	story := StoryContract{Stories: []StoryDefinition{{ID: "ready"}}}
+	raw := []byte(`{"kind":"experience-component","states":[{"id":"default","example":"ready"}]}`)
+	require.Empty(t, validateExperienceContract(raw, story))
+	raw = []byte(`{"kind":"experience-component","states":[{"id":"default","example":"missing"}]}`)
+	require.NotEmpty(t, validateExperienceContract(raw, story))
+}

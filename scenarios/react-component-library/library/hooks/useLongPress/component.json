@@ -5,6 +5,16 @@
   "deprecatedVersions": [],
   "draft": "",
   "evictedVersions": [],
-  "latest": "1.0.0",
-  "libraryId": "react-component-library:useLongPress"
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:useLongPress",
+  "displayName": "useLongPress",
+  "description": "A token-backed long-press hook with movement tolerance, pointer cancellation, origin capture, and click/context-menu coordination.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

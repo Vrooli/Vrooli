@@ -11,6 +11,16 @@
     "1.0.0",
     "1.0.1"
   ],
-  "latest": "1.0.2",
-  "libraryId": "react-component-library:Slot"
+  "latest": "1.0.3",
+  "libraryId": "react-component-library:Slot",
+  "displayName": "Slot",
+  "description": "The composition primitive that merges behavior, props, and refs onto a consumer-supplied element instead of introducing a wrapper, so every asset can offer an as-child escape hatch.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

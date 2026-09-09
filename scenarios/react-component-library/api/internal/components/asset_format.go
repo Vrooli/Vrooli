@@ -63,18 +63,18 @@ func validateExperienceContract(raw []byte, story StoryContract) []string {
 		return []string{"experience contract kind must be experience-component or rcl-component-experience-contract"}
 	}
 
-	stateIDs := map[string]bool{}
+	stateIDs := map[string]string{}
 	if states, ok := document["states"].([]any); ok {
 		for _, item := range states {
 			switch state := item.(type) {
 			case string:
-				stateIDs[state] = true
+				stateIDs[state] = state
 			case map[string]any:
 				id := stringValue(state["id"])
 				if id == "" {
 					return append([]string{}, "experience contract state is missing id")
 				}
-				stateIDs[id] = true
+				stateIDs[id] = firstNonEmpty(stringValue(state["example"]), id)
 			}
 		}
 	}
@@ -83,8 +83,8 @@ func validateExperienceContract(raw []byte, story StoryContract) []string {
 		for _, item := range story.Stories {
 			storyIDs[item.ID] = true
 		}
-		for id := range stateIDs {
-			if !storyIDs[id] {
+		for id, example := range stateIDs {
+			if !storyIDs[example] {
 				return []string{fmt.Sprintf("experience contract state %q has no matching story", id)}
 			}
 		}
@@ -103,7 +103,7 @@ func validateExperienceContract(raw []byte, story StoryContract) []string {
 			seen[id] = true
 			if refs, ok := claim["states"].([]any); ok {
 				for _, ref := range refs {
-					if stateID := stringValue(ref); stateID != "" && len(stateIDs) > 0 && !stateIDs[stateID] {
+					if stateID := stringValue(ref); stateID != "" && len(stateIDs) > 0 && stateIDs[stateID] == "" {
 						return []string{fmt.Sprintf("experience contract claim %q references unknown state %q", id, stateID)}
 					}
 				}

@@ -1,5 +1,7 @@
 # Error Handling
 
+Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](TESTING.md#behavior-claim-register).
+
 The template uses one error path for proto-typed operations and one
 documented exception path for multipart REST.
 

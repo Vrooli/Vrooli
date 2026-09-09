@@ -1,4 +1,4 @@
-/** @vrooliComponentSource navigation.page
+/**
  *
  * ComponentDetailPage — full-width editor + preview for a component.
  *
@@ -124,11 +124,12 @@ function tabForPane(pane: "details" | "files" | "preview", current: InfoTab): In
   return current === "files" || current === "preview" ? "overview" : current;
 }
 
-function isHook(asset: CatalogAsset) {
+function isSourceOnly(asset: CatalogAsset) {
+  if (asset.catalogKind) return !["primitive", "component", "pattern", "navigation", "page-template"].includes(asset.catalogKind);
   return (asset.assetKind as unknown) === 2 || (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
 }
 
-function HookWorkspace({
+function SourceWorkspace({
   asset,
   onClose,
   tab,
@@ -191,7 +192,7 @@ function HookWorkspace({
                 <dt className="text-app-muted-foreground">
                   {t("catalog.kind", { defaultValue: "Kind" })}
                 </dt>
-                <dd>{t("catalog.hook", { defaultValue: "Hook" })}</dd>
+                <dd>{asset.catalogKind === "runtime-hook" || !asset.catalogKind ? t("catalog.hook", { defaultValue: "Hook" }) : t("catalog.support")}</dd>
                 <dt className="text-app-muted-foreground">
                   {t("catalog.source", { defaultValue: "Source" })}
                 </dt>
@@ -318,7 +319,7 @@ export function ComponentDetailPage() {
 
   const loadedAsset = catalogAsset.data?.component ?? data?.component;
   useEffect(() => {
-    if (loadedAsset && isHook(loadedAsset) && infoTab === "preview") {
+    if (loadedAsset && isSourceOnly(loadedAsset) && infoTab === "preview") {
       setInfoTab("overview");
     }
   }, [loadedAsset, infoTab]);
@@ -348,13 +349,13 @@ export function ComponentDetailPage() {
   }
 
   const component = loadedAsset ?? data.component;
-  if (isHook(component)) {
+  if (isSourceOnly(component)) {
     // Hooks are catalog assets but have no browser-renderable preview. The
     // effect above repairs stale URLs and saved preferences; this fallback
     // keeps the first render useful while it does so.
     const hookTab = infoTab === "preview" ? "overview" : infoTab;
     return (
-      <HookWorkspace
+      <SourceWorkspace
         asset={component}
         onClose={() => {
           void navigate("/");

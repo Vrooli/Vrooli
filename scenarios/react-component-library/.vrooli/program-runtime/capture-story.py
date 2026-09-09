@@ -5,10 +5,7 @@ import subprocess
 from pathlib import Path
 from urllib.parse import quote
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 inputs = inputs if isinstance(inputs, dict) else {}
 
 asset_id = str(inputs.get("asset_id", "") or "").strip()

@@ -9,6 +9,16 @@
   "evictedVersions": [
     "1.0.0"
   ],
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:ChromeTheme"
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:ChromeTheme",
+  "displayName": "Chrome Theme",
+  "description": "The single owner of OS status-bar and app-chrome appearance, resolving a priority-ordered set of contributors and writing both the theme-color meta tag and the safe-area strip from one value.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

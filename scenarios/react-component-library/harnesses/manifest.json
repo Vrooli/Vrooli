@@ -19,7 +19,8 @@
         "component",
         "pattern",
         "navigation",
-        "page-template"
+        "page-template",
+        "page"
       ],
       "requiredCapabilities": [],
       "configKeys": [

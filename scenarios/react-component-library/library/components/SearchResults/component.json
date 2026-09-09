@@ -11,6 +11,16 @@
     "1.0.4",
     "1.0.5"
   ],
-  "latest": "1.0.6",
-  "libraryId": "react-component-library:SearchResults"
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:SearchResults",
+  "displayName": "SearchResults",
+  "description": "The complete result collection with query context, match highlighting, grouping, ranking metadata, filters, and every generic state including no-matches versus nothing-indexed.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }
