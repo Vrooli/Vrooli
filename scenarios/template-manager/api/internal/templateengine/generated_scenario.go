@@ -9,11 +9,11 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
-func validateGeneratedScenario(destination string, runCommands bool, run func(scenarioexec.SubprocessSpec) error, templateName string, manifest templatecontracts.TemplateManifest) []templatecontracts.TemplateValidationIssue {
+func validateGeneratedScenario(destination string, runCommands bool, run func(shell.Spec) error, templateName string, manifest templatecontracts.TemplateManifest) []templatecontracts.TemplateValidationIssue {
 	var issues []templatecontracts.TemplateValidationIssue
 	issues = append(issues, validateGeneratedStartDocument(destination, templateName, manifest)...)
 	issues = append(issues, validateGeneratedExperienceFoundation(destination, templateName)...)
@@ -45,7 +45,7 @@ func validateGeneratedScenario(destination string, runCommands bool, run func(sc
 			}
 		}
 		if runCommands && moduleHasGoFiles(moduleDir) {
-			if execErr := run(scenarioexec.SubprocessSpec{
+			if execErr := run(shell.Spec{
 				Name: "go",
 				Args: []string{"mod", "tidy"},
 				Dir:  moduleDir,

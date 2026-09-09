@@ -58,7 +58,7 @@ const (
 	DefaultDeployTimeout = 30 * time.Minute
 
 	// DefaultPreflightTimeout is the default timeout for preflight validation.
-	// Can be overridden via Config.PreflightTimeoutSeconds.
+	// Can be overridden via PipelineConfig.PreflightTimeoutSeconds.
 	//
 	// Lever impacts:
 	//   Increase: Allow slow dependency installations or network checks.

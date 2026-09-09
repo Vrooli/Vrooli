@@ -31,45 +31,45 @@ type ProbeResult struct {
 	SANs            []string
 }
 
-// Config controls probe behavior.
-type Config struct {
+// ProbeConfig controls probe behavior.
+type ProbeConfig struct {
 	Timeout time.Duration
 	Port    int
 	Verify  bool
 }
 
 // Option configures the probe service.
-type Option func(*Config)
+type Option func(*ProbeConfig)
 
 // WithTimeout sets the default probe timeout.
 func WithTimeout(timeout time.Duration) Option {
-	return func(cfg *Config) {
+	return func(cfg *ProbeConfig) {
 		cfg.Timeout = timeout
 	}
 }
 
 // WithPort overrides the default TLS port (443).
 func WithPort(port int) Option {
-	return func(cfg *Config) {
+	return func(cfg *ProbeConfig) {
 		cfg.Port = port
 	}
 }
 
 // WithVerify enables full certificate verification (chain + hostname).
 func WithVerify(verify bool) Option {
-	return func(cfg *Config) {
+	return func(cfg *ProbeConfig) {
 		cfg.Verify = verify
 	}
 }
 
 // DefaultService probes TLS endpoints using the Go TLS stack.
 type DefaultService struct {
-	config Config
+	config ProbeConfig
 }
 
 // NewService constructs a TLS probe service.
 func NewService(opts ...Option) *DefaultService {
-	cfg := Config{Timeout: 10 * time.Second}
+	cfg := ProbeConfig{Timeout: 10 * time.Second}
 	for _, opt := range opts {
 		opt(&cfg)
 	}

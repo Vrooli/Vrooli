@@ -7,7 +7,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -89,18 +90,18 @@ func (e *Engine) deps() HandlerDeps[context.Context] {
 		Stdout: func(context.Context) io.Writer { return io.Discard },
 		Stderr: func(context.Context) io.Writer { return io.Discard },
 		Root:   func(context.Context) string { return e.root },
-		RunSubprocess: func(_ context.Context, spec scenarioexec.SubprocessSpec) error {
+		RunSubprocess: func(_ context.Context, spec shell.Spec) error {
 			if spec.Stdout == nil {
 				spec.Stdout = &bytes.Buffer{}
 			}
 			if spec.Stderr == nil {
 				spec.Stderr = &bytes.Buffer{}
 			}
-			return scenarioexec.RunSubprocess(spec)
+			return shell.CommandWithDefaults(spec).Run()
 		},
 		LocateTestGenieCLI: func(context.Context) (string, error) {
 			home, _ := os.UserHomeDir()
-			return scenarioexec.LocateTestGenieCLI(nil, e.root, home)
+			return lifecycle.LocateTestGenieCLI(nil, e.root, home)
 		},
 		CommandEnv: func(context.Context) []string { return os.Environ() },
 	}

@@ -19,7 +19,7 @@ type CredentialValidator interface {
 	ResourceName() string
 	CheckID() string
 	Title() string
-	Validate(ctx context.Context, cfg ssh.Config, sshRunner ssh.Runner,
+	Validate(ctx context.Context, cfg ssh.ConnectionConfig, sshRunner ssh.Runner,
 		manifest domain.CloudManifest, client credentialclient.Client) domain.PreflightCheck
 }
 
@@ -33,7 +33,7 @@ var credentialValidators = []CredentialValidator{
 // through stdin and never through this command string.
 type credentialSSHRunner struct {
 	runner ssh.Runner
-	cfg    ssh.Config
+	cfg    ssh.ConnectionConfig
 }
 
 func (r credentialSSHRunner) Run(ctx context.Context, _ string, args []string, stdin io.Reader) ([]byte, error) {
@@ -65,7 +65,7 @@ func (r credentialSSHRunner) Run(ctx context.Context, _ string, args []string, s
 // credential into the cloud API process or an SSH command.
 func RunCredentialValidation(
 	ctx context.Context,
-	cfg ssh.Config,
+	cfg ssh.ConnectionConfig,
 	sshRunner ssh.Runner,
 	manifest domain.CloudManifest,
 	_ string,
@@ -136,7 +136,7 @@ func (v *PostgresCredentialValidator) Title() string        { return "PostgreSQL
 
 func (v *PostgresCredentialValidator) Validate(
 	ctx context.Context,
-	cfg ssh.Config,
+	cfg ssh.ConnectionConfig,
 	sshRunner ssh.Runner,
 	manifest domain.CloudManifest,
 	client credentialclient.Client,

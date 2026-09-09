@@ -21,12 +21,11 @@ NOT in interfaces. The generated Go + TypeScript types are the
 canonical types every test, handler, and UI component reads from.
 
 The `health` proto in `packages/proto/schemas/tunnel-manager/v1/health/`
-is the worked example. The Go fixture (`api/internal/testutil/fixtures/health.go`)
-re-exports the generated `Response` and provides functional-options
-builders; the UI factory (`ui/src/test-utils/factories.ts`) builds
-the same generated type via `create(ResponseSchema, ...)`. Drift
-between the two is impossible because both consume one source of
-truth.
+is the worked example. Go handler tests decode the actual response into
+the generated type. The UI factory (`ui/src/test-utils/factories.ts`)
+builds that type via `create(ResponseSchema, ...)`. Both use the proto
+contract; a Go response factory is only needed when a test consumes
+fabricated response inputs.
 
 For proto-typed API calls, the service block in the proto is also the
 transport contract. Generated Connect-Go handlers and Connect-Web/Go
@@ -216,7 +215,7 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Live read-only Cloudflare credential + scope verification |
 | **Interface** | `internal/config/types.go::CredentialVerifier` (`Verify(ctx, CFConfig, apexes) (CredentialVerification, error)`) |
-| **Production wiring** | `internal/config.NewCFVerifier(doer)` over `httpc.Doer`, wired in `NewProductionService` and backing `ConfigService.VerifyCredentials` / `config credentials-status --verify`. Performs read-only calls (`/user/tokens/verify`, account/tunnel read, `GET /zones?name=<apex>`, DNS-records read) and maps each to `ok\|missing\|invalid\|insufficient_scope` with remediation. Never writes account state; never returns a secret value. |
+| **Production wiring** | `internal/config.NewCFVerifier(doer)` over `httpc.Doer`, wired in `NewProductionService` and backing `ConfigService.VerifyCredentials` / `config credentials-status --verify`. Performs read-only calls (`/user/tokens/verify`, account/tunnel read, `GET /zones?name=<apex>`, DNS-records read, Access application read, and Access organization metadata read) and maps each to `ok\|missing\|invalid\|insufficient_scope\|unavailable` with remediation. It also returns operation-level capability roll-ups. Never writes account state; never returns a secret value. |
 | **Test fake** | `mocks.FakeDoer` (white-box `verifier_test.go` constructs `cfVerifier{doer:fake}`); each canned response asserts the verdict mapping. |
 | **Why it exists** | Presence-only readiness reported `ready:true` for a token that authenticated but lacked `Zone:DNS:Edit`, then produced a dead URL. The probe makes "authenticated" vs "authorized for what TM needs" visible, and gates expose. |
 

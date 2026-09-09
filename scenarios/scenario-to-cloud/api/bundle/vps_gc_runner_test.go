@@ -20,14 +20,14 @@ type fakeRemoteBundles struct {
 	rmCalls int
 }
 
-type runnerFunc func(context.Context, ssh.Config, string, ssh.RunOptions) (ssh.Result, error)
+type runnerFunc func(context.Context, ssh.ConnectionConfig, string, ssh.RunOptions) (ssh.Result, error)
 
-func (f runnerFunc) Run(ctx context.Context, cfg ssh.Config, cmd string, opts ssh.RunOptions) (ssh.Result, error) {
+func (f runnerFunc) Run(ctx context.Context, cfg ssh.ConnectionConfig, cmd string, opts ssh.RunOptions) (ssh.Result, error) {
 	return f(ctx, cfg, cmd, opts)
 }
 
 func (r *fakeRemoteBundles) runner() ssh.Runner {
-	return runnerFunc(func(_ context.Context, _ ssh.Config, cmd string, _ ssh.RunOptions) (ssh.Result, error) {
+	return runnerFunc(func(_ context.Context, _ ssh.ConnectionConfig, cmd string, _ ssh.RunOptions) (ssh.Result, error) {
 		if strings.Contains(cmd, "stat --printf") {
 			var b strings.Builder
 			for name, meta := range r.files {

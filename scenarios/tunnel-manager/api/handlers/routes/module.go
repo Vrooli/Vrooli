@@ -101,7 +101,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        routesconnect.RoutesServiceCreateRouteProcedure,
 		Method:      "POST",
 		Summary:     "Create a route",
-		Description: "Persists a new manifest route. Subdomain (valid DNS label), scenario, and local_port are required; domain defaults to itsagitime.com, health_path to /health, tier to leased, enabled to true.",
+		Description: "Persists a new manifest route. Subdomain (valid DNS label), scenario, local_port, and domain are required; health_path defaults to /health, tier to leased, enabled to true.",
 		Category:    "routes",
 		Request: &module.Schema{
 			Type: "object",
@@ -109,7 +109,7 @@ var Endpoints = []module.EndpointDescriptor{
 				"subdomain":   "string (required, DNS label)",
 				"scenario":    "string (required)",
 				"local_port":  "int32 (required, 1-65535)",
-				"domain":      "string (default itsagitime.com)",
+				"domain":      "string (required; or VROOLI_TUNNEL_DOMAIN)",
 				"tier":        "Tier (default TIER_LEASED)",
 				"health_path": "string (default /health)",
 				"enabled":     "bool (default true)",

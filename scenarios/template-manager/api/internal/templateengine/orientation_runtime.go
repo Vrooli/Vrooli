@@ -138,6 +138,14 @@ func evaluateOrientationStep[C any](deps HandlerDeps[C], ctx C, ev orientationEv
 			report.Complete = false
 		}
 	}
+	if step.ID == "design-language" {
+		for _, checkReport := range evaluateDesignLanguageSource(ev) {
+			report.Checks = append(report.Checks, checkReport)
+			if !checkReport.Passed {
+				report.Complete = false
+			}
+		}
+	}
 	return report
 }
 
@@ -664,4 +672,94 @@ func templateLineMatches(line string, matchers []templateLineMatcher) bool {
 		}
 	}
 	return false
+}
+
+// Design decisions are evaluated by the engine even for older generated
+// orientation manifests whose design-language step only checks DESIGN.md.
+// Deleting a marker or editing a comment cannot certify a chosen design kit.
+func evaluateDesignLanguageSource(ev orientationEval) []templatecontracts.OrientationCheckReport {
+	if info, err := os.Stat(filepath.Join(ev.scenarioRoot, "ui")); err != nil || !info.IsDir() {
+		return nil
+	}
+	checks := []templatecontracts.OrientationCheckReport{
+		{Kind: "design_home_surface", Label: "ui/src/pages/DashboardPage.tsx"},
+		{Kind: "design_shell_configuration", Label: "ui/src/layout/AppShell.tsx"},
+		{Kind: "design_kit_values", Label: "ui/src/design-tokens.css"},
+	}
+	for i := range checks {
+		check := &checks[i]
+		source, err := os.ReadFile(filepath.Join(ev.scenarioRoot, check.Label))
+		if err != nil {
+			check.Message = fmt.Sprintf("%s: required design source unavailable: %v", check.Label, err)
+			continue
+		}
+		if i == 0 {
+			check.Passed = !bytes.Contains(source, []byte("PLACEHOLDER:home-surface"))
+			if check.Passed {
+				check.Message = "home placeholder marker replaced"
+			} else {
+				check.Message = "home surface still contains PLACEHOLDER:home-surface"
+			}
+			continue
+		}
+		if ev.templateSourceRoot == "" {
+			check.Message = check.Label + ": stock template unavailable; design decision cannot be verified"
+			continue
+		}
+		stock, err := os.ReadFile(filepath.Join(ev.templateSourceRoot, check.Label))
+		if err != nil {
+			check.Message = fmt.Sprintf("%s: stock template source unavailable: %v", check.Label, err)
+			continue
+		}
+		if i == 1 {
+			check.Passed = !bytes.Equal(bytes.TrimSpace(source), bytes.TrimSpace(stock))
+			if check.Passed {
+				check.Message = "shell configuration differs from template"
+			} else {
+				check.Message = "shell configuration is unchanged from the template"
+			}
+		} else {
+			check.Passed = designExpressionChanged(string(stock), string(source))
+			if check.Passed {
+				check.Message = "design kit expression values differ from stock"
+			} else {
+				check.Message = "design kit color and font values still equal stock, or required stock values are missing"
+			}
+		}
+	}
+	return checks
+}
+
+var designCSSComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
+var designCSSBlock = regexp.MustCompile(`([^{}]+)\{([^{}]*)\}`)
+var designCSSExpression = regexp.MustCompile(`(--(?:color|font)-[a-zA-Z0-9-]+)\s*:\s*([^;{}]+)`)
+
+func designExpressionValues(source string) map[string]string {
+	values := map[string]string{}
+	source = designCSSComment.ReplaceAllString(source, "")
+	for _, block := range designCSSBlock.FindAllStringSubmatch(source, -1) {
+		selector := strings.Join(strings.Fields(block[1]), " ")
+		for _, declaration := range designCSSExpression.FindAllStringSubmatch(block[2], -1) {
+			for _, scope := range strings.Split(selector, ",") {
+				values[strings.TrimSpace(scope)+":"+declaration[1]] = strings.Join(strings.Fields(declaration[2]), " ")
+			}
+		}
+	}
+	return values
+}
+
+func designExpressionChanged(stock, source string) bool {
+	expected, actual := designExpressionValues(stock), designExpressionValues(source)
+	changed := false
+	for key, value := range expected {
+		current, exists := actual[key]
+		if !exists {
+			if strings.HasPrefix(key, ":root:--") {
+				return false
+			}
+			continue // A kit may express dark-mode selectors differently.
+		}
+		changed = changed || current != value
+	}
+	return len(expected) > 0 && changed
 }

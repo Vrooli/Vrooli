@@ -10,14 +10,14 @@ import (
 // DefaultPlatformResolver implements PlatformResolver.
 type DefaultPlatformResolver struct {
 	executor         ProcessExecutor
-	config           Config
+	config           SmokeTestConfig
 	envReader        EnvironmentReader
 	fs               FileSystem
 	platformOverride string // For testing cross-platform behavior
 }
 
 // NewPlatformResolver creates a new platform resolver.
-func NewPlatformResolver(executor ProcessExecutor, config Config, envReader EnvironmentReader, fs FileSystem) *DefaultPlatformResolver {
+func NewPlatformResolver(executor ProcessExecutor, config SmokeTestConfig, envReader EnvironmentReader, fs FileSystem) *DefaultPlatformResolver {
 	return &DefaultPlatformResolver{
 		executor:  executor,
 		config:    config,

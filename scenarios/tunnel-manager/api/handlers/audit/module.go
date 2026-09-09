@@ -2,11 +2,9 @@ package audit
 
 import (
 	"log"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"tunnel-manager/internal/module"
+	"tunnel-manager/internal/scenarioroot"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -27,14 +25,14 @@ import (
 // modules.AllEndpoints and modules.AllProtoFiles (but NOT AllSchemas).
 //
 // The audit service reads the routes manifest through internalroutes.Service
-// (the RoutesReader seam) and the scenarios filesystem tree through the
-// scenarios root resolved by resolveScenariosRoot.
+// (the RoutesReader seam) and resolves service manifests through the shared
+// repository-contract path seam.
 func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
-	return ModuleWithService(internalaudit.NewService(nil, resolveScenariosRoot(logger)), logger)
+	return ModuleWithService(internalaudit.NewServiceWithScenarioFiles(nil, resolveScenarioFiles(logger)), logger)
 }
 
 func ModuleWithRoutes(routes internalaudit.RoutesReader, logger *log.Logger) module.Module {
-	svc := internalaudit.NewService(routes, resolveScenariosRoot(logger))
+	svc := internalaudit.NewServiceWithScenarioFiles(routes, resolveScenarioFiles(logger))
 	return ModuleWithService(svc, logger)
 }
 
@@ -52,39 +50,12 @@ func ModuleWithService(svc internalaudit.Service, logger *log.Logger) module.Mod
 	}
 }
 
-// resolveScenariosRoot determines the directory that holds scenario folders
-// (each with a .vrooli/service.json). Resolution order:
-//
-//  1. The VROOLI_SCENARIOS_ROOT env var, when set — the explicit override the
-//     lifecycle system can inject.
-//  2. Otherwise, walk up from the current working directory looking for a
-//     `scenarios` directory (the repo layout puts this scenario under
-//     <repo>/scenarios/tunnel-manager/api). The found `scenarios` dir is the
-//     root every scenario hangs off.
-//  3. As a last resort, "scenarios" relative to the cwd, so audit findings
-//     degrade to missing_scenario rather than panicking when the layout is
-//     unexpected.
-func resolveScenariosRoot(logger *log.Logger) string {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_SCENARIOS_ROOT")); root != "" {
-		return root
+func resolveScenarioFiles(logger *log.Logger) *scenarioroot.Resolver {
+	resolver := scenarioroot.New()
+	if _, err := resolver.ScenariosRoot(); err != nil && logger != nil {
+		logger.Printf("audit scenario path resolver unavailable: %v", err)
 	}
-	if cwd, err := os.Getwd(); err == nil {
-		for dir := cwd; ; {
-			candidate := filepath.Join(dir, "scenarios")
-			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-				return candidate
-			}
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
-			dir = parent
-		}
-	}
-	if logger != nil {
-		logger.Printf("audit.resolveScenariosRoot: could not locate a scenarios directory; falling back to ./scenarios (set VROOLI_SCENARIOS_ROOT to override)")
-	}
-	return "scenarios"
+	return resolver
 }
 
 // Endpoints is the machine-readable description of the audit module's public

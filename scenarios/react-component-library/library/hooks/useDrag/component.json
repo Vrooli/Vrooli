@@ -5,21 +5,18 @@
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.0",
-    "1.1.0"
-  ],
-  "latest": "2.0.1",
-  "libraryId": "react-component-library:useDrag",
-  "displayName": "useDrag",
-  "description": "A low-level drag controller keeping frame-by-frame movement outside React rendering, with pointer capture, constraints, velocity, and cancellation.",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0",
+    "1.1.0"
+  ],
+  "latest": "2.0.1",
+  "libraryId": "react-component-library:useDrag"
 }

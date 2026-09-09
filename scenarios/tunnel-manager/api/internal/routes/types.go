@@ -56,10 +56,8 @@ const (
 // NormalizePublicExposure maps an empty or unrecognized value to Inherit.
 var NormalizePublicExposure = manifest.NormalizePublicExposure
 
-// DefaultDomain is the apex domain a subdomain hangs off when a route is
-// created without one. It is a field, never a hardcoded constant baked
-// into URLs — the old scenario hardcoded ".vrooli.com"; the live tunnel
-// is ".itsagitime.com".
+// DefaultDomain is a reserved documentation/test value only. Production route
+// creation resolves the domain from explicit input or VROOLI_TUNNEL_DOMAIN.
 const DefaultDomain = manifest.DefaultDomain
 
 // DefaultHealthPath is the per-route liveness path used when unset.

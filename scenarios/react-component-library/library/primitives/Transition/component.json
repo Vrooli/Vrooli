@@ -13,6 +13,13 @@
     "1.0.8",
     "1.0.9"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.4",
@@ -26,15 +33,5 @@
     "1.0.9"
   ],
   "latest": "1.0.12",
-  "libraryId": "react-component-library:Transition",
-  "displayName": "Transition",
-  "description": "The compact family of tokenized fade, scale, slide, blur, and crossfade transitions sharing one presence lifecycle and one reduced-motion policy.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:Transition"
 }

@@ -22,6 +22,7 @@ import (
 )
 
 func TestNewProductionService_RemoteWiresCloudflareIngress(t *testing.T) {
+	t.Setenv("VROOLI_TUNNEL_DOMAIN", "example.invalid")
 	ctx := context.Background()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(ctx, d,
@@ -66,21 +67,21 @@ func TestNewProductionService_RemoteWiresCloudflareIngress(t *testing.T) {
 	res, err := svc.Sync(ctx, false, false)
 	require.NoError(t, err)
 	require.Equal(t, config.ModeRemote, res.Mode)
-	require.Equal(t, []string{"web-console.itsagitime.com"}, res.Added)
+	require.Equal(t, []string{"web-console.example.invalid"}, res.Added)
 	require.Equal(t, int64(5), doer.Calls.Load(), "remote sync reads+pushes ingress, then resolves zone, looks up, and creates the CNAME")
 	require.Equal(t, "GET", doer.Requests[0].Method)
 	require.Equal(t, "PUT", doer.Requests[1].Method)
 	require.Contains(t, doer.Requests[1].Header.Get("Authorization"), "tok")
 	body, err := io.ReadAll(doer.Requests[1].Body)
 	require.NoError(t, err)
-	require.Contains(t, string(body), "web-console.itsagitime.com")
+	require.Contains(t, string(body), "web-console.example.invalid")
 	require.Contains(t, string(body), "http://localhost:21240")
 
 	// The CNAME create targets the tunnel and is proxied.
 	require.Equal(t, "POST", doer.Requests[4].Method)
 	dnsBody, err := io.ReadAll(doer.Requests[4].Body)
 	require.NoError(t, err)
-	require.Contains(t, string(dnsBody), "web-console.itsagitime.com")
+	require.Contains(t, string(dnsBody), "web-console.example.invalid")
 	require.Contains(t, string(dnsBody), "tun.cfargotunnel.com")
 	require.Contains(t, string(dnsBody), "\"proxied\":true")
 }

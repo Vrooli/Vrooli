@@ -99,13 +99,13 @@ func TestHandlerExposeMapsTTLAndReturnsURL(t *testing.T) {
 	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
 	fake := &fakeService{
 		exposeLease: internalexposure.Lease{ID: "l1", Scenario: "web-console", Status: internalexposure.LeaseActive, ExpiresAt: now},
-		exposeURL:   "https://web-console.itsagitime.com",
+		exposeURL:   "https://web-console.example.invalid",
 	}
 	client := newClient(t, fake)
 
 	resp, err := client.Expose(context.Background(), connect.NewRequest(&exposurev1.ExposeRequest{Scenario: "web-console", TtlSeconds: 3600}))
 	require.NoError(t, err)
-	require.Equal(t, "https://web-console.itsagitime.com", resp.Msg.PublicUrl)
+	require.Equal(t, "https://web-console.example.invalid", resp.Msg.PublicUrl)
 	require.Equal(t, "l1", resp.Msg.Lease.Id)
 	require.Equal(t, exposurev1.LeaseStatus_LEASE_STATUS_ACTIVE, resp.Msg.Lease.Status)
 	require.Equal(t, time.Hour, fake.lastInput.TTL, "ttl_seconds converted to duration")
@@ -155,11 +155,11 @@ func TestHandlerRevokeReportsRetracted(t *testing.T) {
 }
 
 func TestHandlerIsExposed(t *testing.T) {
-	client := newClient(t, &fakeService{isExposed: true, isURL: "https://x.itsagitime.com"})
+	client := newClient(t, &fakeService{isExposed: true, isURL: "https://x.example.invalid"})
 	resp, err := client.IsExposed(context.Background(), connect.NewRequest(&exposurev1.IsExposedRequest{Scenario: "x"}))
 	require.NoError(t, err)
 	require.True(t, resp.Msg.Exposed)
-	require.Equal(t, "https://x.itsagitime.com", resp.Msg.PublicUrl)
+	require.Equal(t, "https://x.example.invalid", resp.Msg.PublicUrl)
 }
 
 func TestHandlerReconcileCounts(t *testing.T) {

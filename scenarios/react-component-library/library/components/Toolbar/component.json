@@ -11,6 +11,13 @@
     "1.0.5",
     "1.0.6"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.2",
@@ -22,15 +29,5 @@
     "1.0.6"
   ],
   "latest": "1.0.9",
-  "libraryId": "react-component-library:Toolbar",
-  "displayName": "Toolbar",
-  "description": "The composite action row with roving focus, logical groups, separators, overflow menu, responsive collapse, and shortcut hints.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:Toolbar"
 }

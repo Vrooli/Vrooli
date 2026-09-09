@@ -15,7 +15,7 @@ Tunnel Manager uses four distinct configuration homes:
 
 | Category | Storage | Examples | Operator surface |
 |---|---|---|---|
-| Source-controlled defaults | domain constants and non-secret scenario docs/manifests | first boot mode `local`, scheduler default intervals, fixed UI port policy | code review / manifest review |
+| Source-controlled defaults | non-secret scenario docs/manifests | first boot mode `local`, scheduler default intervals, fixed UI port policy | code review / manifest review |
 | Product runtime state | SQLite domain tables | `tunnel_config`, routes, leases, metrics, probe history, recovery events | API/CLI/UI domain actions |
 | Operator secrets | Vrooli credential authority (native secure store or encrypted fallback) | Cloudflare account id, tunnel id, API token | Settings UI, `config credentials-*` CLI |
 | Environment overrides | lifecycle/operator process env | scheduler toggles, authz token | lifecycle only; never a credential source |
@@ -49,6 +49,8 @@ for the full policy.
 | _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario's own identity by `api-core/storage`, so no inherited variable can point one scenario at another's database. To relocate storage for a test run, set `VROOLI_STORAGE_ROOT`, which redirects the whole class tree and stays scenario-agnostic. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth. Also used as the fallback privileged-mutation token when `TUNNEL_MANAGER_AUTHZ_ENFORCED=1` and `TUNNEL_MANAGER_OPERATOR_TOKEN` is unset. |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+| `VROOLI_TUNNEL_DOMAIN` | unset | Centralized non-secret apex used only when a route omits its explicit `domain`; there is no deployment-specific default. |
+| `VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN` | unset | Optional centralized HTTPS Access team origin used when the least-privilege Cloudflare token cannot read organization metadata. This is configured once for Tunnel Manager, never per scenario. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect
@@ -76,7 +78,7 @@ Fixed-port values (`UI_PORT`, `API_PORT` range) are declared in
 | `TUNNEL_READY_URL` | `${CLOUDFLARED_METRICS_URL}/ready` | cloudflared readiness endpoint checked by the recovery engine before and after restart attempts. |
 | `TUNNEL_MANAGER_AUTHZ_ENFORCED` | unset / disabled | Set to `1`, `true`, or `yes` to require an operator token for privileged mutation RPCs. Default is local/operator-open for lifecycle-managed local use. |
 | `TUNNEL_MANAGER_OPERATOR_TOKEN` | unset | Preferred privileged-mutation token when authz enforcement is enabled. Falls back to `API_TOKEN` if unset. |
-| Default domain | `itsagitime.com` | Per-route `domain` is a **manifest field**, not a constant; this is the default. `public_url` = `https://<subdomain>.<domain>`. |
+| Default domain | none | Per-route `domain` is required, or is resolved from the centralized `VROOLI_TUNNEL_DOMAIN` setting. `public_url` = `https://<subdomain>.<domain>`. |
 | Lease default TTL | ≈ 1 week | Default lifetime of a LEASED exposure; extendable/revocable, auto-reaped on expiry. |
 | Core set | `packages/api-core/coreset` | SSOT for CORE-tier scenarios that are always exposed and never auto-expired. |
 
@@ -146,10 +148,10 @@ a decision). Per-entry decisions:
 
 ```bash
 tunnel-manager drift list
-tunnel-manager drift adopt api.itsagitime.com --scenario web-console   # → managed scenario route
-tunnel-manager drift adopt api.itsagitime.com --target http://127.0.0.1:9000  # → external route
-tunnel-manager drift ignore legacy.itsagitime.com --note "operator dashboard"  # → never push/prune
-tunnel-manager drift prune stale.itsagitime.com                          # → remove this one entry
+tunnel-manager drift adopt api.example.invalid --scenario web-console   # → managed scenario route
+tunnel-manager drift adopt api.example.invalid --target http://127.0.0.1:9000  # → external route
+tunnel-manager drift ignore legacy.example.invalid --note "operator dashboard"  # → never push/prune
+tunnel-manager drift prune stale.example.invalid                          # → remove this one entry
 ```
 
 The ownership ledger (`ingress_ownership`) is keyed on the full hostname
@@ -165,7 +167,7 @@ rule, so non-scenario services can be exposed through the same governed
 plane:
 
 ```bash
-tunnel-manager routes create --external --subdomain api --target http://127.0.0.1:9000 [--domain itsagitime.com]
+tunnel-manager routes create --external --subdomain api --target http://127.0.0.1:9000 [--domain example.invalid]
 ```
 
 External routes reconcile as `external` (EXTERNAL_OK) once live and are
@@ -187,9 +189,15 @@ untouched (`EnsureRecord` never clobbers an existing record). DNS automation is
 remote-mode only; local (`config.yml`) mode manages its own resolver. TM still
 never touches Cloudflare **Access**.
 
-Run `config credentials-status --verify` to confirm the token has the DNS scope
-before relying on automation; a present-but-unscoped token surfaces as
-`insufficient_scope` rather than producing a dead URL.
+Run `config credentials-status --verify` to confirm the token's live capabilities
+before relying on automation. The read-only probes cover account, tunnel, DNS,
+Access application metadata, and Access organization metadata. A present but
+unscoped credential surfaces as `insufficient_scope`; a Cloudflare/network
+failure surfaces as `unavailable`, rather than being mislabeled as a bad token.
+The Access application probe proves metadata read access only; it does not claim
+that an Access application mutation will be authorized. Access organization
+metadata is shown as an optional gated-UI capability unless public exposure or
+a specific scenario binding requires it.
 
 Privileged mutation RPCs are local/operator-open by default and can be
 fail-closed with `TUNNEL_MANAGER_AUTHZ_ENFORCED=1`. When enabled, the

@@ -40,6 +40,7 @@ func (testCredentialStore) Delete(context.Context, []string) (internalconfig.Cre
 }
 
 func TestIngressAdapter_ReconcileUsesConfiguredRemoteIngress(t *testing.T) {
+	t.Setenv("VROOLI_TUNNEL_DOMAIN", "example.invalid")
 	ctx := context.Background()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(ctx, d,
@@ -83,7 +84,7 @@ func TestIngressAdapter_ReconcileUsesConfiguredRemoteIngress(t *testing.T) {
 	require.Equal(t, "PUT", doer.Requests[1].Method)
 	body, err := io.ReadAll(doer.Requests[1].Body)
 	require.NoError(t, err)
-	require.Contains(t, string(body), "agent-manager.itsagitime.com")
+	require.Contains(t, string(body), "agent-manager.example.invalid")
 	require.Contains(t, string(body), "http://localhost:21100")
 	require.Equal(t, "POST", doer.Requests[4].Method, "ensures the proxied CNAME after the ingress push")
 }

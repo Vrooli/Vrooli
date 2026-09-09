@@ -14,7 +14,7 @@ import (
 
 func newTestServer() *Server {
 	srv := &Server{
-		config:           &Config{Port: "0"},
+		config:           &ServerConfig{Port: "0"},
 		router:           mux.NewRouter(),
 		progressHub:      deployment.NewHub(),
 		sshRunner:        &FakeSSHRunner{DefaultErr: errors.New("ssh not configured")},

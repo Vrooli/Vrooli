@@ -102,7 +102,7 @@ func PlanVPSBundleGC(
 func GCVPSBundles(
 	ctx context.Context,
 	sshRunner ssh.Runner,
-	cfg ssh.Config,
+	cfg ssh.ConnectionConfig,
 	workdir string,
 	req domain.VPSBundleGCRequest,
 ) domain.VPSBundleGCResponse {

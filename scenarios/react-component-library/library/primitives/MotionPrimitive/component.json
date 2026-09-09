@@ -9,6 +9,13 @@
     "1.0.3",
     "1.0.4"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.0",
@@ -19,15 +26,5 @@
     "1.0.5"
   ],
   "latest": "1.0.7",
-  "libraryId": "react-component-library:MotionPrimitive",
-  "displayName": "MotionPrimitive",
-  "description": "The low-level animated element exposing tokenized transitions and continuous motion values without routing frame-by-frame updates through React state.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:MotionPrimitive"
 }

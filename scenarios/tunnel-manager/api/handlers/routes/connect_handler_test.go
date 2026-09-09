@@ -79,19 +79,19 @@ func newClientWithAuthorizer(t *testing.T, svc internalroutes.Service, authorize
 func TestHandlerListDerivesPublicURL(t *testing.T) {
 	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
 	client := newClient(t, &fakeService{listOut: []internalroutes.Route{
-		{ID: "a", Subdomain: "agent-manager", Scenario: "agent-manager", Domain: "itsagitime.com", LocalPort: 21100, Tier: internalroutes.TierCore, Enabled: true, CreatedAt: now, UpdatedAt: now},
+		{ID: "a", Subdomain: "agent-manager", Scenario: "agent-manager", Domain: "example.invalid", LocalPort: 21100, Tier: internalroutes.TierCore, Enabled: true, CreatedAt: now, UpdatedAt: now},
 	}})
 
 	resp, err := client.ListRoutes(context.Background(), connect.NewRequest(&routesv1.ListRoutesRequest{}))
 	require.NoError(t, err)
 	require.Len(t, resp.Msg.Routes, 1)
-	require.Equal(t, "https://agent-manager.itsagitime.com", resp.Msg.Routes[0].PublicUrl)
+	require.Equal(t, "https://agent-manager.example.invalid", resp.Msg.Routes[0].PublicUrl)
 	require.Equal(t, routesv1.Tier_TIER_CORE, resp.Msg.Routes[0].Tier)
 }
 
 func TestHandlerCreateMapsInput(t *testing.T) {
 	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
-	fake := &fakeService{createOut: internalroutes.Route{ID: "new", Subdomain: "web-console", Scenario: "web-console", Domain: "itsagitime.com", LocalPort: 3000, Tier: internalroutes.TierLeased, Enabled: true, CreatedAt: now, UpdatedAt: now}}
+	fake := &fakeService{createOut: internalroutes.Route{ID: "new", Subdomain: "web-console", Scenario: "web-console", Domain: "example.invalid", LocalPort: 3000, Tier: internalroutes.TierLeased, Enabled: true, CreatedAt: now, UpdatedAt: now}}
 	client := newClient(t, fake)
 
 	resp, err := client.CreateRoute(context.Background(), connect.NewRequest(&routesv1.CreateRouteRequest{

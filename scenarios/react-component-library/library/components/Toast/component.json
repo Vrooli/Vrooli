@@ -29,8 +29,5 @@
     "1.0.9"
   ],
   "latest": "1.0.15",
-  "libraryId": "react-component-library:Toast",
-  "displayName": "Toast",
-  "description": "The transient notification rendered through the shared toast service, with queueing, deduplication, in-place updates, action affordances, timeout policy, and announcement.",
-  "tags": []
+  "libraryId": "react-component-library:Toast"
 }

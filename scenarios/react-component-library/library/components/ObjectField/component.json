@@ -12,6 +12,13 @@
     "1.0.6",
     "1.0.7"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -24,15 +31,5 @@
     "1.0.7"
   ],
   "latest": "1.0.9",
-  "libraryId": "react-component-library:ObjectField",
-  "displayName": "ObjectField",
-  "description": "The nested-object field grouping child fields, collapsing sections, summarizing nested errors, supporting optional objects, and preserving per-field subscriptions.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:ObjectField"
 }

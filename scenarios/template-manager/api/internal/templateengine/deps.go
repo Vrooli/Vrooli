@@ -3,7 +3,7 @@ package templateengine
 import (
 	"io"
 
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 // HandlerDeps carries the runtime seams the engine needs to reach the host:
@@ -14,7 +14,7 @@ type HandlerDeps[C any] struct {
 	Stdout             func(C) io.Writer
 	Stderr             func(C) io.Writer
 	Root               func(C) string
-	RunSubprocess      func(C, scenarioexec.SubprocessSpec) error
+	RunSubprocess      func(C, shell.Spec) error
 	LocateTestGenieCLI func(C) (string, error)
 	CommandEnv         func(C) []string
 }

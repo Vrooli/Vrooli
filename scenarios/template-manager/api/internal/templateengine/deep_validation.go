@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/templatevalidation"
 	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
@@ -99,7 +99,7 @@ func runDeepValidationTestGenie[C any](deps HandlerDeps[C], ctx C, templateName,
 		"--wait",
 		"--json",
 	}
-	if err := deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+	if err := deps.RunSubprocess(ctx, shell.Spec{
 		Name:   testGenieCLI,
 		Args:   args,
 		Dir:    deps.Root(ctx),
@@ -410,7 +410,7 @@ func generateDeepValidationScenario[C any](deps HandlerDeps[C], ctx C, info temp
 			Message:  fmt.Sprintf("relocate deep validation artifacts: %v", err),
 		}}
 	}
-	if issues := validateGeneratedScenario(destination, deps.RunSubprocess != nil, func(spec scenarioexec.SubprocessSpec) error {
+	if issues := validateGeneratedScenario(destination, deps.RunSubprocess != nil, func(spec shell.Spec) error {
 		var err error
 		spec.Env, err = templateHookEnv(deps.CommandEnv(ctx), map[string]string{"GOWORK": "off"})
 		if err != nil {

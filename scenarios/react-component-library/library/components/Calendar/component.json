@@ -9,6 +9,13 @@
     "1.0.6",
     "1.0.7"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.5",
@@ -18,15 +25,5 @@
     "1.0.7"
   ],
   "latest": "1.0.9",
-  "libraryId": "react-component-library:Calendar",
-  "displayName": "Calendar",
-  "description": "The reusable calendar surface supporting single, multiple, range, week, and month selection with localization, constraints, keyboard navigation, and virtualized month rendering.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:Calendar"
 }

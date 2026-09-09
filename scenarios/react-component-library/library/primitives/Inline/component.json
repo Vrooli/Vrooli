@@ -5,20 +5,17 @@
   "deprecatedVersions": [
     "1.1.0"
   ],
-  "draft": "",
-  "evictedVersions": [
-    "1.1.0"
-  ],
-  "latest": "1.1.2",
-  "libraryId": "react-component-library:Inline",
-  "displayName": "Inline",
-  "description": "The horizontal layout primitive handling wrapping, alignment, distribution, responsive spacing, and bidirectional reading order.",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.1.0"
+  ],
+  "latest": "1.1.2",
+  "libraryId": "react-component-library:Inline"
 }

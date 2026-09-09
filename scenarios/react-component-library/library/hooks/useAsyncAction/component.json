@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-async-action",
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:useAsyncAction",
-  "displayName": "useAsyncAction",
-  "description": "The standardized async-operation controller covering pending, progress, success, failure, cancellation, retry, optimistic update, rollback, and stale-result protection behind one contract.",
-  "tags": [],
-  "draft": "",
   "deprecatedVersions": [],
   "designStyles": [
     {
@@ -15,5 +9,8 @@
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:useAsyncAction"
 }

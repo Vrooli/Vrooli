@@ -6,21 +6,18 @@
     "1.0.0",
     "1.0.1"
   ],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.0",
-    "1.0.1"
-  ],
-  "latest": "1.0.3",
-  "libraryId": "react-component-library:LayoutGroup",
-  "displayName": "LayoutGroup",
-  "description": "The coordination boundary animating related elements together as layout changes, preserving stable identities and avoiding measurement of unrelated subtrees.",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
+  "latest": "1.0.3",
+  "libraryId": "react-component-library:LayoutGroup"
 }

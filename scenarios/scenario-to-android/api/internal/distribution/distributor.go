@@ -46,7 +46,10 @@ func (d Distributor) Distribute(ctx context.Context, request deliveryramp.Distri
 	}
 	for _, target := range targets {
 		if target.Available {
-			return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionPass, Targets: targets}, nil
+			return deliveryramp.DistributionResult{
+				Disposition: deliveryramp.DispositionDegraded, Targets: targets, CapabilityReady: true,
+				Reason: "distribution prerequisites are ready; no Play Store or publication effect was performed",
+			}, nil
 		}
 	}
 	return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionUnavailable, Targets: targets, Reason: "no Android distribution channel is currently available"}, nil

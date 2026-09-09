@@ -2,10 +2,16 @@ package exposure
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"tunnel-manager/internal/testutil/mocks"
 )
+
+type fakeScenarioFiles struct{ path string }
+
+func (f fakeScenarioFiles) ServiceFile(string) (string, error) { return f.path, nil }
 
 // fixedPorts is a tiny PortResolver returning a single scenario's UI port.
 type fixedPorts struct {
@@ -71,5 +77,20 @@ func TestEnsureRunning_RangedScenarioFallsBackToStart(t *testing.T) {
 	// For unresolved port we still force stop+start (best effort heal); no dial happened.
 	if cmd.CallCount() != 2 {
 		t.Fatalf("expected stop+start for unresolved port case, got %d calls", cmd.CallCount())
+	}
+}
+
+func TestFilePortResolverHealthPathUsesScenarioReadinessContract(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "service.json")
+	if err := os.WriteFile(path, []byte(`{"lifecycle":{"health":{"endpoints":{"ui":"/ui-ready"}}}}`), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	resolver := NewFilePortResolver(fakeScenarioFiles{path: path})
+	got, err := resolver.HealthPath(context.Background(), "secrets-manager")
+	if err != nil {
+		t.Fatalf("HealthPath() error = %v", err)
+	}
+	if got != "/ui-ready" {
+		t.Fatalf("HealthPath() = %q, want /ui-ready", got)
 	}
 }

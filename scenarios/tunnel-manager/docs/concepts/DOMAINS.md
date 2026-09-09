@@ -40,7 +40,7 @@ belong in [`DATA.md`](DATA.md).
 
 ### `routes` — exposure manifest (SSOT)
 - Owns the `routes` table: `subdomain`, `scenario`, `domain` (a field,
-  not a constant; default `itsagitime.com`), `local_port`, `tier`
+  not a constant; default `example.invalid`), `local_port`, `tier`
   (`core`|`leased`), `lease_id` (nullable), `enabled`, `health_path`,
   `source` (`scenario`|`external`), `service_target` (external only).
   Derives `public_url` = `https://<subdomain>.<domain>`.

@@ -22,7 +22,7 @@ func TestOrchestratorWithMockStages(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 	}
 
@@ -43,7 +43,7 @@ func TestOrchestratorValidation(t *testing.T) {
 	orchestrator := NewOrchestrator()
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "", // Missing required field
 	}
 
@@ -59,7 +59,7 @@ func TestOrchestratorGetStatus(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 	}
 
@@ -81,7 +81,7 @@ func TestOrchestratorListPipelines(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 	}
 
@@ -107,7 +107,7 @@ func TestOrchestratorCancellation(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 	}
 
@@ -142,7 +142,7 @@ func TestStageSkipping(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 	}
 
@@ -171,7 +171,7 @@ func TestStageFailure(t *testing.T) {
 
 	ctx := context.Background()
 	stopOnFailure := true
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName:  "test-scenario",
 		StopOnFailure: &stopOnFailure,
 	}
@@ -231,7 +231,7 @@ func TestOrchestratorListPipelinesConcurrency(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 	}
 
@@ -273,12 +273,12 @@ func TestUpdatePipelineConfigAppliesIdleOverridesAndStageSelection(t *testing.T)
 		WithStages(stageOne, stageTwo),
 		WithIDGenerator(&fixedIDGenerator{id: "idle-pipeline"}),
 	)
-	status, err := orchestrator.CreateIdlePipeline(&Config{ScenarioName: "demo", Framework: FrameworkElectron})
+	status, err := orchestrator.CreateIdlePipeline(&PipelineConfig{ScenarioName: "demo", Framework: FrameworkElectron})
 	if err != nil {
 		t.Fatalf("CreateIdlePipeline: %v", err)
 	}
 	stop := true
-	updates := &Config{
+	updates := &PipelineConfig{
 		Platforms: []string{"linux-amd64"}, StopAfterStage: StageBuild, ResumeFromStage: StageBundle,
 		BundleManifestPath: "bundle.json", ResourceArtifactRoot: "resources", DeploymentMode: DeploymentModeProxy,
 		TemplateType: "advanced", LocationMode: "staging", ProxyURL: "http://proxy", Version: "1.2.3",

@@ -13,7 +13,7 @@ type fakeCredentialRunner struct {
 	commands []string
 }
 
-func (f *fakeCredentialRunner) Run(_ context.Context, _ ssh.Config, command string, _ ssh.RunOptions) (ssh.Result, error) {
+func (f *fakeCredentialRunner) Run(_ context.Context, _ ssh.ConnectionConfig, command string, _ ssh.RunOptions) (ssh.Result, error) {
 	f.commands = append(f.commands, command)
 	switch {
 	case strings.Contains(command, "credentials' 'doctor"):
@@ -31,7 +31,7 @@ func TestRunCredentialValidationUsesAuthorityAndNeverReadsPlaintextSecrets(t *te
 	runner := &fakeCredentialRunner{}
 	checks := RunCredentialValidation(
 		context.Background(),
-		ssh.Config{User: "root", Host: "target"},
+		ssh.ConnectionConfig{User: "root", Host: "target"},
 		runner,
 		domain.CloudManifest{
 			Scenario: domain.ManifestScenario{ID: "landing-page-business-suite"},

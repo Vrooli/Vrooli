@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-abortable-task",
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:useAbortableTask",
-  "displayName": "useAbortableTask",
-  "description": "A task primitive that automatically cancels obsolete work when inputs change, the component unmounts, or a newer invocation supersedes the current one.",
-  "tags": [],
-  "draft": "",
   "deprecatedVersions": [],
   "designStyles": [
     {
@@ -15,5 +9,8 @@
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:useAbortableTask"
 }

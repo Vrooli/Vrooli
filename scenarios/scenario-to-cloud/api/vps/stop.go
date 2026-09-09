@@ -30,7 +30,7 @@ type StopScenarioResult struct {
 func StopExistingScenario(
 	ctx context.Context,
 	sshRunner ssh.Runner,
-	cfg ssh.Config,
+	cfg ssh.ConnectionConfig,
 	workdir string,
 	scenarioID string,
 	targetPorts []int, // Ports to forcefully clear (e.g., [35000, 15000])

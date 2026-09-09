@@ -113,13 +113,13 @@ func (o RunOptions) maxOutput() int {
 
 // buildSSHArgs assembles the option flags for an ssh invocation.
 // Always includes BatchMode=yes.
-func buildSSHArgs(cfg Config, opts RunOptions) []string {
+func buildSSHArgs(cfg ConnectionConfig, opts RunOptions) []string {
 	return buildArgs(cfg, opts, "-p")
 }
 
 // buildSCPArgs assembles the option flags for an scp invocation.
 // Same as buildSSHArgs but uses -P (uppercase) for port.
-func buildSCPArgs(cfg Config, opts SCPOptions) []string {
+func buildSCPArgs(cfg ConnectionConfig, opts SCPOptions) []string {
 	runOpts := RunOptions{
 		ConnectTimeout: opts.ConnectTimeout,
 		StrictHostKey:  opts.StrictHostKey,
@@ -129,7 +129,7 @@ func buildSCPArgs(cfg Config, opts SCPOptions) []string {
 
 // buildArgs assembles common SSH/SCP option flags.
 // portFlag is "-p" for ssh and "-P" for scp.
-func buildArgs(cfg Config, opts RunOptions, portFlag string) []string {
+func buildArgs(cfg ConnectionConfig, opts RunOptions, portFlag string) []string {
 	timeout := opts.connectTimeoutSecs()
 
 	out := []string{
@@ -170,7 +170,7 @@ func buildArgs(cfg Config, opts RunOptions, portFlag string) []string {
 }
 
 // buildControlPath returns an OS-safe, short, stable control socket path.
-func buildControlPath(cfg Config) string {
+func buildControlPath(cfg ConnectionConfig) string {
 	sum := sha1.Sum([]byte(fmt.Sprintf("%s@%s:%d", cfg.User, cfg.Host, cfg.Port)))
 	name := "vrooli-ssh-" + hex.EncodeToString(sum[:8])
 	return filepath.ToSlash(filepath.Join(controlPathDir(), name))
@@ -189,11 +189,11 @@ func controlPathDir() string {
 // ---- Legacy adapters for format.go / connect.go display functions ----
 
 // BuildSSHArgs assembles the option flags for an ssh invocation (used by display/format functions).
-func BuildSSHArgs(cfg Config, opts RunOptions) []string {
+func BuildSSHArgs(cfg ConnectionConfig, opts RunOptions) []string {
 	return buildSSHArgs(cfg, opts)
 }
 
 // BuildSCPArgs assembles the option flags for an scp invocation (used by display/format functions).
-func BuildSCPArgs(cfg Config, opts SCPOptions) []string {
+func BuildSCPArgs(cfg ConnectionConfig, opts SCPOptions) []string {
 	return buildSCPArgs(cfg, opts)
 }

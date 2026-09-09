@@ -8,6 +8,13 @@
     "1.0.0",
     "1.0.3"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.1",
@@ -16,15 +23,5 @@
     "1.0.3"
   ],
   "latest": "1.0.5",
-  "libraryId": "react-component-library:ArrayField",
-  "displayName": "ArrayField",
-  "description": "The repeating-field controller for ordered arrays with add, remove, duplicate, reorder, length constraints, nested validation, and optional virtualization for large collections.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:ArrayField"
 }

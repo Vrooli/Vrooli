@@ -23,7 +23,7 @@ export interface ExposureMocks {
 export const makeExposure = (overrides: Record<string, unknown> = {}) => ({
   scenario: "agent-manager",
   subdomain: "agent-manager",
-  publicUrl: "https://agent-manager.itsagitime.com",
+  publicUrl: "https://agent-manager.example.invalid",
   localPort: 21001,
   tier: "core",
   enabled: true,
@@ -38,7 +38,7 @@ export const makeLeasedExposure = (overrides: Record<string, unknown> = {}, days
   return makeExposure({
     scenario: "image-tools",
     subdomain: "image-tools",
-    publicUrl: "https://image-tools.itsagitime.com",
+    publicUrl: "https://image-tools.example.invalid",
     localPort: 21240,
     tier: "leased",
     lease: {

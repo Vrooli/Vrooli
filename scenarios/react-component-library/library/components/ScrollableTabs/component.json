@@ -9,6 +9,13 @@
     "1.1.1",
     "1.1.2"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.2",
@@ -18,15 +25,5 @@
     "1.1.2"
   ],
   "latest": "1.1.4",
-  "libraryId": "react-component-library:ScrollableTabs",
-  "displayName": "ScrollableTabs",
-  "description": "The tab presentation for constrained widths with edge fades, scroll buttons, automatic reveal of the active tab, touch momentum, and preserved keyboard behavior.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:ScrollableTabs"
 }

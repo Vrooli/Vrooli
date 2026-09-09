@@ -8,7 +8,7 @@ import (
 
 func TestResolveDeploymentStageLeavesResourcesServerSideForThinClient(t *testing.T) {
 	stage := NewResolveDeploymentStage()
-	input := &StageInput{Config: &Config{
+	input := &StageInput{Config: &PipelineConfig{
 		DeploymentMode: DeploymentModeExternalServer,
 		ScenarioName:   "vault-consuming-app",
 		ProxyURL:       "https://server.example/apps/vault-consuming-app/proxy/",
@@ -27,7 +27,7 @@ func TestResolveDeploymentStageLeavesResourcesServerSideForThinClient(t *testing
 
 func TestResolveDeploymentStageRejectsDirectVaultEndpointForThinClient(t *testing.T) {
 	stage := NewResolveDeploymentStage()
-	input := &StageInput{Config: &Config{
+	input := &StageInput{Config: &PipelineConfig{
 		DeploymentMode: DeploymentModeExternalServer,
 		ScenarioName:   "secrets-manager",
 		ProxyURL:       "http://127.0.0.1:8200/v1/sys/health",
@@ -46,7 +46,7 @@ func TestResolveDeploymentStageRejectsDirectVaultEndpointForThinClient(t *testin
 
 func TestResolveDeploymentStageRequiresExplicitArtifactTrustMode(t *testing.T) {
 	stage := NewResolveDeploymentStage(WithResolveDeploymentScenarioRoot(t.TempDir()))
-	input := &StageInput{Config: &Config{DeploymentMode: DeploymentModeBundled, ScenarioName: "demo", ResourceArtifactRoot: t.TempDir(), Platforms: []string{"linux-amd64"}}}
+	input := &StageInput{Config: &PipelineConfig{DeploymentMode: DeploymentModeBundled, ScenarioName: "demo", ResourceArtifactRoot: t.TempDir(), Platforms: []string{"linux-amd64"}}}
 	result := stage.Execute(context.Background(), input)
 	if result.Status != StatusFailed || !strings.Contains(result.Error, "artifact trust mode is required") {
 		t.Fatalf("result = %#v, want explicit artifact trust mode rejection", result)

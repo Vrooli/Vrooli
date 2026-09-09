@@ -627,9 +627,20 @@ func (s *DefaultService) reportJourneyEvidence(ctx context.Context, smokeTestID,
 		return
 	}
 	producerBaseURL, _ := discovery.ResolveScenarioURLDefault(ctx, "scenario-to-desktop")
+	artifactDigest := strings.TrimSpace(os.Getenv("VROOLI_ARTIFACT_DIGEST"))
+	if artifactDigest == "" && journey.WorkflowReference != nil {
+		artifactDigest = strings.TrimSpace(journey.WorkflowReference.ArtifactDigest)
+	}
+	if artifactDigest == "" && journey.ProviderObservation != nil {
+		artifactDigest = strings.TrimSpace(journey.ProviderObservation.ArtifactDigest)
+	}
 	reportErr := s.evidenceReporter.ReportJourney(ctx, EvidenceReportInput{
-		ProfileID: profileID, GitCommit: gitCommit, ScenarioName: status.ScenarioName,
-		Platform: platform, RunID: smokeTestID, Disposition: string(journey.Disposition),
+		ProfileID: profileID, GitCommit: gitCommit, ArtifactDigest: artifactDigest,
+		CandidateID:           strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_CANDIDATE_ID")),
+		DestinationRevisionID: strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_DESTINATION_REVISION_ID")),
+		Channel:               strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_CHANNEL")), PolicyVersion: 2,
+		ScenarioName: status.ScenarioName,
+		Platform:     platform, RunID: smokeTestID, Disposition: string(journey.Disposition),
 		Target: &domainv1.EvidenceTarget{Kind: domainv1.EvidenceTarget_KIND_LOCAL}, Captures: items,
 		Journey: journey, ProducerBaseURL: producerBaseURL,
 	})

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"scenario-to-cloud/bundle"
@@ -247,6 +248,91 @@ func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
 		"deployment": deployment,
 		"timestamp":  time.Now().UTC().Format(time.RFC3339),
 	})
+}
+
+// handleGetDeploymentReceipt returns the durable owner receipt for a
+// successfully deployed VPS target. A deployment record alone is not proof
+// of an external effect, so incomplete or failed records refuse the receipt.
+// GET /deployments/{id}/receipt
+func (s *Server) handleGetDeploymentReceipt(w http.ResponseWriter, r *http.Request) {
+	_, deployment := s.FetchDeploymentOnly(w, r)
+	if deployment == nil {
+		return
+	}
+	receipt, err := domain.BuildCloudDeploymentReceipt(deployment, time.Now().UTC())
+	if err != nil {
+		httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{
+			Code:    "receipt_unavailable",
+			Message: "Cloud deployment receipt is unavailable",
+			Hint:    err.Error(),
+		})
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"receipt":   receipt,
+		"timestamp": time.Now().UTC().Format(time.RFC3339Nano),
+	})
+}
+
+// handleRecoverDeployment executes an owner-routed recovery action and
+// returns a receipt only after the owner observes the requested effect.
+// Halt is the currently supported irreversible-safe action. Other recovery
+// modes refuse explicitly until their owner contracts can prove compatibility.
+// POST /deployments/{id}/recovery
+func (s *Server) handleRecoverDeployment(w http.ResponseWriter, r *http.Request) {
+	id, deployment := s.FetchDeploymentOnly(w, r)
+	if deployment == nil {
+		return
+	}
+	var request cloudRecoveryHTTPRequest
+	if r.Body != nil && r.ContentLength != 0 {
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "invalid_recovery_request", Message: "Recovery request is invalid", Hint: err.Error()})
+			return
+		}
+	}
+	if strings.TrimSpace(request.Action) == "" {
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "invalid_recovery_action", Message: "Recovery action is required"})
+		return
+	}
+	if request.ExpectedBundleSHA != "" && (deployment.BundleSHA256 == nil || normalizeRecoverySHA(request.ExpectedBundleSHA) != normalizeRecoverySHA(*deployment.BundleSHA256)) {
+		httputil.WriteAPIError(w, http.StatusPreconditionFailed, httputil.APIError{Code: "identity_mismatch", Message: "Recovery target bundle does not match the requested identity"})
+		return
+	}
+	if request.Action != "halt" {
+		s.handleCloudRepairRecovery(w, r, id, deployment, request)
+		return
+	}
+	if request.DryRun {
+		httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{"receipt": domain.CloudRecoveryReceipt{SchemaVersion: 1, DeploymentID: id, Action: request.Action, Outcome: "preview", Health: "unknown", DryRun: true}, "timestamp": time.Now().UTC().Format(time.RFC3339Nano)})
+		return
+	}
+	if strings.TrimSpace(request.Confirmation) == "" {
+		httputil.WriteAPIError(w, http.StatusPreconditionFailed, httputil.APIError{Code: "confirmation_required", Message: "Recovery execution requires explicit confirmation"})
+		return
+	}
+	if deployment.Status == domain.StatusStopped {
+		receipt := domain.CloudRecoveryReceipt{SchemaVersion: 1, DeploymentID: id, Action: request.Action, Outcome: "halted", Health: "stopped", ExternalReceipt: "scenario-to-cloud:recovery:" + id, ObservedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+		httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{"receipt": receipt, "timestamp": receipt.ObservedAt})
+		return
+	}
+	var manifest domain.CloudManifest
+	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
+		httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{Code: "manifest_unavailable", Message: "Recovery target manifest is unavailable", Hint: err.Error()})
+		return
+	}
+	result := s.stopDeploymentOnVPS(r.Context(), manifest)
+	if !result.OK {
+		httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{Code: "recovery_failed", Message: "Cloud owner could not halt the deployment", Hint: result.Error})
+		return
+	}
+	if err := s.repo.UpdateDeploymentStatus(r.Context(), id, domain.StatusStopped, nil, nil); err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Code: "recovery_persistence_failed", Message: "Cloud owner halted the deployment but could not persist recovery state", Hint: err.Error()})
+		return
+	}
+	s.appendHistoryEvent(r.Context(), id, domain.HistoryEvent{Type: domain.EventStopped, Timestamp: time.Now().UTC(), Message: "Deployment halted by governed recovery", Success: boolPtr(true)})
+	receipt := domain.CloudRecoveryReceipt{SchemaVersion: 1, DeploymentID: id, Action: request.Action, Outcome: "halted", Health: "stopped", ExternalReceipt: "scenario-to-cloud:recovery:" + id, ObservedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{"receipt": receipt, "timestamp": receipt.ObservedAt})
 }
 
 // handleDeleteDeployment removes a deployment record, optionally stopping it first and cleaning up bundles.

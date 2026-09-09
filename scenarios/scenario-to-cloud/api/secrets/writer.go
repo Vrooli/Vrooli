@@ -19,7 +19,7 @@ import (
 func WriteToVPS(
 	ctx context.Context,
 	sshRunner ssh.Runner,
-	cfg ssh.Config,
+	cfg ssh.ConnectionConfig,
 	workdir string,
 	secrets []GeneratedSecret,
 	userSecrets map[string]string,
@@ -111,7 +111,7 @@ func WriteToVPS(
 
 type credentialSSHRunner struct {
 	runner ssh.Runner
-	cfg    ssh.Config
+	cfg    ssh.ConnectionConfig
 }
 
 func (r credentialSSHRunner) Run(ctx context.Context, _ string, args []string, stdin io.Reader) ([]byte, error) {
@@ -137,7 +137,7 @@ func (r credentialSSHRunner) Run(ctx context.Context, _ string, args []string, s
 	return []byte(result.Stdout), nil
 }
 
-func newRemoteCredentialClient(runner ssh.Runner, cfg ssh.Config) (credentialclient.Client, error) {
+func newRemoteCredentialClient(runner ssh.Runner, cfg ssh.ConnectionConfig) (credentialclient.Client, error) {
 	target := fmt.Sprintf("%s@%s", cfg.User, cfg.Host)
 	return credentialclient.NewClient(credentialclient.ClientOptions{RemoteTarget: target, RemoteRunner: credentialSSHRunner{runner: runner, cfg: cfg}})
 }
@@ -200,7 +200,7 @@ func CredentialField(key string) string {
 func AddSecretToVPS(
 	ctx context.Context,
 	sshRunner ssh.Runner,
-	cfg ssh.Config,
+	cfg ssh.ConnectionConfig,
 	workdir string,
 	key string,
 	value string,
@@ -228,7 +228,7 @@ func AddSecretToVPS(
 func UpdateSecretOnVPS(
 	ctx context.Context,
 	sshRunner ssh.Runner,
-	cfg ssh.Config,
+	cfg ssh.ConnectionConfig,
 	workdir string,
 	key string,
 	value string,
@@ -256,7 +256,7 @@ func UpdateSecretOnVPS(
 func DeleteSecretFromVPS(
 	ctx context.Context,
 	sshRunner ssh.Runner,
-	cfg ssh.Config,
+	cfg ssh.ConnectionConfig,
 	workdir string,
 	key string,
 	scenarioID string,

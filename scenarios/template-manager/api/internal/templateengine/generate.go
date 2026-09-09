@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
@@ -153,7 +153,7 @@ func writeGeneratedScenario[C any](deps HandlerDeps[C], ctx C, prepared prepared
 }
 
 func validateGeneratedScenarioResult[C any](deps HandlerDeps[C], ctx C, prepared preparedGenerate) error {
-	issues := validateGeneratedScenario(prepared.destination, deps.RunSubprocess != nil, func(spec scenarioexec.SubprocessSpec) error {
+	issues := validateGeneratedScenario(prepared.destination, deps.RunSubprocess != nil, func(spec shell.Spec) error {
 		var err error
 		spec.Env, err = templateHookEnv(deps.CommandEnv(ctx), map[string]string{"GOWORK": "off"})
 		if err != nil {
@@ -191,7 +191,7 @@ func runTemplateHooks[C any](deps HandlerDeps[C], ctx C, destination string, man
 		if err != nil {
 			return fmt.Errorf("post hook %d: %w", index+1, err)
 		}
-		if err := deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+		if err := deps.RunSubprocess(ctx, shell.Spec{
 			Name:   name,
 			Args:   args,
 			Dir:    cwd,

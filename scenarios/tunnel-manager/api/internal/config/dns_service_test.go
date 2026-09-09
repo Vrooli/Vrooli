@@ -102,8 +102,8 @@ func TestSync_EnsuresDNSForDesiredHostnames(t *testing.T) {
 	_, err := svc.Sync(context.Background(), false, false)
 	require.NoError(t, err)
 
-	require.Equal(t, []string{"agent-manager.itsagitime.com"}, dns.ensured, "DNS ensured for the desired managed hostname")
-	_, ok, _ := dnsLedger.Get(context.Background(), "agent-manager.itsagitime.com")
+	require.Equal(t, []string{"agent-manager.example.invalid"}, dns.ensured, "DNS ensured for the desired managed hostname")
+	_, ok, _ := dnsLedger.Get(context.Background(), "agent-manager.example.invalid")
 	require.True(t, ok, "TM-created record recorded in the DNS ledger")
 }
 
@@ -123,7 +123,7 @@ func TestSmoke_NewHostnameGetsIngressAndDNS(t *testing.T) {
 	_, err := svc.Sync(context.Background(), false, false)
 	require.NoError(t, err)
 
-	host := "fresh-scenario.itsagitime.com"
+	host := "fresh-scenario.example.invalid"
 	// Ingress published the new hostname...
 	var pushedHost bool
 	for _, r := range ingress.pushed {
@@ -143,7 +143,7 @@ func TestSync_DNSIdempotentOnResync(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
 	routes := &fakeRoutes{routes: []internalroutes.Route{route("fresh-scenario", 21242, true)}}
 	ingress := &fakeIngress{live: []config.IngressRule{{Service: "http_status:404"}}}
-	host := "fresh-scenario.itsagitime.com"
+	host := "fresh-scenario.example.invalid"
 	// Model the record already existing: EnsureRecord reports Created=false.
 	dns := &fakeDNS{created: map[string]bool{host: false}}
 	dnsLedger := newFakeDNSLedger()
@@ -166,7 +166,7 @@ func TestSync_DNSIdempotentOnResync(t *testing.T) {
 // ingress is unchanged; a regression that restores the short-circuit makes
 // dns.ensured empty and fails here.
 func TestSync_EnsuresDNSWhenIngressAlreadyMatches(t *testing.T) {
-	host := "agent-manager.itsagitime.com"
+	host := "agent-manager.example.invalid"
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
 	routes := &fakeRoutes{routes: []internalroutes.Route{route("agent-manager", 21100, true)}}
 	// Live ingress already contains the exact desired rule (+ catch-all), so the
@@ -207,7 +207,7 @@ func TestSync_PruneRemovesOnlyTMOwnedDNS(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
 	// No routes desired, so a previously-managed live hostname is orphaned.
 	routes := &fakeRoutes{routes: nil}
-	orphan := "old-scenario.itsagitime.com"
+	orphan := "old-scenario.example.invalid"
 	ingress := &fakeIngress{live: []config.IngressRule{
 		{Hostname: orphan, Service: "http://localhost:9"},
 		{Service: "http_status:404"},
@@ -231,7 +231,7 @@ func TestSync_PruneRemovesOnlyTMOwnedDNS(t *testing.T) {
 func TestSync_PruneSkipsForeignDNS(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
 	routes := &fakeRoutes{routes: nil}
-	orphan := "external.itsagitime.com"
+	orphan := "external.example.invalid"
 	ingress := &fakeIngress{live: []config.IngressRule{
 		{Hostname: orphan, Service: "http://localhost:9"},
 		{Service: "http_status:404"},

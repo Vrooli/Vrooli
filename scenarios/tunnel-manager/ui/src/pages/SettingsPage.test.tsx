@@ -135,7 +135,7 @@ describe("SettingsPage", () => {
       ready: false,
       checks: [
         { name: "cloudflare.zone_dns_edit", state: 4, detail: "example.com", remediation: "Add Zone:DNS:Edit." },
-        { name: "cloudflare.access_apps_edit", state: 1, detail: "access reachable", remediation: "" },
+        { name: "cloudflare.access_apps_read", state: 1, detail: "access reachable", remediation: "" },
       ],
     } as never);
 
@@ -190,7 +190,7 @@ describe("SettingsPage", () => {
   it("reconciles additively via sync({}) and shows the result", async () => {
     const { configClient } = await import("../api/config");
     vi.mocked(configClient.sync).mockResolvedValueOnce(
-      makeSyncResponse({ noChanges: false, message: "", added: ["a.itsagitime.com"], removed: [] }),
+      makeSyncResponse({ noChanges: false, message: "", added: ["a.example.invalid"], removed: [] }),
     );
 
     const user = userEvent.setup();

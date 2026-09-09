@@ -5,20 +5,17 @@
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.0"
-  ],
-  "latest": "1.0.2",
-  "libraryId": "react-component-library:Cluster",
-  "displayName": "Cluster",
-  "description": "The wrapping group primitive for tags, actions, metadata, and controls whose items must keep useful spacing at any available width.",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:Cluster"
 }

@@ -174,7 +174,7 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 }
 
 // resolveManifest determines the manifest path, optionally generating it. Returns an error on failure.
-func (s *BundleStage) resolveManifest(ctx context.Context, result *StageResult, config *Config, scenarioPath, framework string) (string, *errors.DomainError) {
+func (s *BundleStage) resolveManifest(ctx context.Context, result *StageResult, config *PipelineConfig, scenarioPath, framework string) (string, *errors.DomainError) {
 	manifestPath := config.BundleManifestPath
 	if manifestPath == "" {
 		manifestPath = filepath.Join(scenarioPath, "platforms", framework, "bundle", "bundle.json")

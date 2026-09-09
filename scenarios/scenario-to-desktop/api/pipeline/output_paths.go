@@ -17,7 +17,7 @@ func isStagingLocation(mode string) bool {
 
 // resolvePipelineOutputPaths returns the bundle output root and desktop output path.
 // For staging/temp location modes, outputs go under the scenario-to-desktop cache root.
-func resolvePipelineOutputPaths(config *Config, scenarioPath, pipelineID, framework string) (string, string) {
+func resolvePipelineOutputPaths(config *PipelineConfig, scenarioPath, pipelineID, framework string) (string, string) {
 	if framework == "" {
 		framework = FrameworkElectron
 	}

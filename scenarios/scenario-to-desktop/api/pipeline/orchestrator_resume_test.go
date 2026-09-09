@@ -41,7 +41,7 @@ func TestStopAfterStage(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName:   "test-scenario",
 		StopAfterStage: "preflight", // Should stop after preflight
 	}
@@ -92,7 +92,7 @@ func TestStopAfterStageSkipped(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName:   "test-scenario",
 		StopAfterStage: "preflight", // Should stop after preflight even if skipped
 	}
@@ -129,7 +129,7 @@ func TestStopAfterStageInvalidStage(t *testing.T) {
 	orchestrator := NewOrchestrator()
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName:   "test-scenario",
 		StopAfterStage: "invalid-stage",
 	}
@@ -169,7 +169,7 @@ func TestResumePipeline(t *testing.T) {
 	ctx := context.Background()
 
 	// First run: stop after preflight
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName:   "test-scenario",
 		StopAfterStage: "preflight",
 	}
@@ -237,7 +237,7 @@ func TestResumePipelineWithStopAfter(t *testing.T) {
 	ctx := context.Background()
 
 	// First run: stop after preflight
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName:   "test-scenario",
 		StopAfterStage: "preflight",
 	}
@@ -246,7 +246,7 @@ func TestResumePipelineWithStopAfter(t *testing.T) {
 	waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 	// Resume but also stop after generate
-	resumeConfig := &Config{
+	resumeConfig := &PipelineConfig{
 		StopAfterStage: "generate",
 	}
 	resumeStatus, err := orchestrator.ResumePipeline(ctx, status.PipelineID, resumeConfig)
@@ -295,7 +295,7 @@ func TestResumePipelineValidation(t *testing.T) {
 			WithStages(slowStage),
 		)
 
-		status, _ := slowOrchestrator.RunPipeline(ctx, &Config{ScenarioName: "test"})
+		status, _ := slowOrchestrator.RunPipeline(ctx, &PipelineConfig{ScenarioName: "test"})
 		<-executeCh // Wait for stage to start
 
 		_, err := slowOrchestrator.ResumePipeline(ctx, status.PipelineID, nil)
@@ -307,7 +307,7 @@ func TestResumePipelineValidation(t *testing.T) {
 	})
 
 	t.Run("resume completed pipeline without stop_after_stage", func(t *testing.T) {
-		status, _ := orchestrator.RunPipeline(ctx, &Config{ScenarioName: "test"})
+		status, _ := orchestrator.RunPipeline(ctx, &PipelineConfig{ScenarioName: "test"})
 		waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 		_, err := orchestrator.ResumePipeline(ctx, status.PipelineID, nil)
@@ -323,7 +323,7 @@ func TestResumePipelineValidation(t *testing.T) {
 		)
 
 		stopOnFailure := true
-		status, _ := failOrchestrator.RunPipeline(ctx, &Config{
+		status, _ := failOrchestrator.RunPipeline(ctx, &PipelineConfig{
 			ScenarioName:  "test",
 			StopOnFailure: &stopOnFailure,
 		})
@@ -336,11 +336,11 @@ func TestResumePipelineValidation(t *testing.T) {
 	})
 }
 
-// Config tests
+// PipelineConfig tests
 
 func TestConfigDefaults(t *testing.T) {
 	t.Run("StopOnFailure defaults to true", func(t *testing.T) {
-		config := &Config{
+		config := &PipelineConfig{
 			ScenarioName: "test",
 		}
 		// StopOnFailure is nil by default, should be treated as true

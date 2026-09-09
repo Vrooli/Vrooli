@@ -10,8 +10,8 @@ import (
 
 // StageInput carries data between pipeline stages.
 type StageInput struct {
-	// Config is the pipeline configuration.
-	Config *Config `json:"config,omitempty"`
+	// PipelineConfig is the pipeline configuration.
+	Config *PipelineConfig `json:"config,omitempty"`
 
 	// PipelineID is the ID of the current pipeline run.
 	PipelineID string `json:"pipeline_id,omitempty"`

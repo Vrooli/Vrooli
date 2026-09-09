@@ -7,21 +7,18 @@
     "1.0.2",
     "1.0.1"
   ],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.2",
-    "1.0.1"
-  ],
-  "latest": "1.0.4",
-  "libraryId": "react-component-library:Pressable",
-  "displayName": "Pressable",
-  "description": "The canonical interaction primitive unifying pointer, touch, and keyboard activation with pressed, hovered, focus-visible, selected, disabled, and busy state exposed as stable data attributes.",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.2",
+    "1.0.1"
+  ],
+  "latest": "1.0.4",
+  "libraryId": "react-component-library:Pressable"
 }

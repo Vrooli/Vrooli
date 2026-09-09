@@ -114,8 +114,8 @@ func TestSync_EnsuresBypassWhenGloballyEnabled(t *testing.T) {
 	_, err := svc.Sync(context.Background(), false, false)
 	require.NoError(t, err)
 
-	require.Equal(t, []string{"web-console.itsagitime.com"}, access.ensured)
-	_, ok, _ := ledger.Get(context.Background(), "web-console.itsagitime.com")
+	require.Equal(t, []string{"web-console.example.invalid"}, access.ensured)
+	_, ok, _ := ledger.Get(context.Background(), "web-console.example.invalid")
 	require.True(t, ok, "TM-created bypass app recorded in the access ledger")
 }
 
@@ -142,14 +142,14 @@ func TestSync_RouteOverrideEnablesBypass(t *testing.T) {
 	svc := newSvcWithAccess(cfg, []manifest.Route{exposedRoute("web-console", 21100, manifest.PublicExposureEnabled)}, ingress, access, newFakeAccessLedger())
 	_, err := svc.Sync(context.Background(), false, false)
 	require.NoError(t, err)
-	require.Equal(t, []string{"web-console.itsagitime.com"}, access.ensured, "route override `enabled` wins over global off")
+	require.Equal(t, []string{"web-console.example.invalid"}, access.ensured, "route override `enabled` wins over global off")
 }
 
 // A per-route override of `disabled` forces the bypass off even when the global
 // switch is on — and removes a previously-created app (ledger-gated).
 func TestSync_RouteOverrideDisablesAndRemoves(t *testing.T) {
 	cfg := config.TunnelConfig{Mode: config.ModeRemote, PublicExposureEnabled: true}
-	host := "web-console.itsagitime.com"
+	host := "web-console.example.invalid"
 	ingress := &fakeIngress{live: []config.IngressRule{
 		{Hostname: host, Service: "http://localhost:21100"},
 		{Service: "http_status:404"},
@@ -195,7 +195,7 @@ func TestGetAccessStatus_PlanAndHosts(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, st.Enabled)
 	require.True(t, st.Configured)
-	require.Equal(t, []string{"web-console.itsagitime.com"}, st.ToCreate, "inherit+global-on is a create candidate")
+	require.Equal(t, []string{"web-console.example.invalid"}, st.ToCreate, "inherit+global-on is a create candidate")
 	require.Empty(t, st.ToRemove)
 	require.Empty(t, access.ensured, "status is pure — no mutation")
 
@@ -203,8 +203,8 @@ func TestGetAccessStatus_PlanAndHosts(t *testing.T) {
 	for _, h := range st.Hosts {
 		byHost[h.Host] = h
 	}
-	require.True(t, byHost["web-console.itsagitime.com"].EffectiveBypass)
-	require.False(t, byHost["secret-app.itsagitime.com"].EffectiveBypass, "disabled route has no effective bypass")
+	require.True(t, byHost["web-console.example.invalid"].EffectiveBypass)
+	require.False(t, byHost["secret-app.example.invalid"].EffectiveBypass, "disabled route has no effective bypass")
 }
 
 // SetPublicExposure persists the global switch without writing to Cloudflare.

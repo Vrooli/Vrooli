@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"tunnel-manager/internal/httpc"
@@ -26,15 +28,27 @@ import (
 // is exactly <host>/public AND whose name carries the TM marker. The service
 // gates removal further through the access ledger.
 //
-// HARD SCOPE CEILING: the only path it ever scopes an app to is /public, and
-// the only decision it ever writes is bypass. Both are asserted in code
-// (assertPublicBypassDomain / assertBypassDecision) and unit-tested. This is a
-// public-exemption manager, not a general Cloudflare Access manager.
+// HARD WRITE SCOPE CEILING: the only path it ever scopes an app to is /public,
+// and the only decision it ever writes is bypass. Both are asserted in code
+// (assertPublicBypassDomain / assertBypassDecision) and unit-tested. Read-only
+// primary-app metadata discovery is exposed through AccessMetadataReader; it
+// does not add any Access mutation capability.
 type cfAccessClient struct {
 	doer      httpc.Doer
 	apiToken  string
 	accountID string
 	baseURL   string
+}
+
+// cloudflareAccessHTTPError preserves only the provider status class. The
+// response body may contain provider-specific detail and is intentionally not
+// carried into user-facing errors or logs.
+type cloudflareAccessHTTPError struct {
+	status int
+}
+
+func (e cloudflareAccessHTTPError) Error() string {
+	return fmt.Sprintf("Cloudflare Access API rejected the request (HTTP %d)", e.status)
 }
 
 const (
@@ -74,7 +88,26 @@ func NewCFAccessClient(doer httpc.Doer, cfg CFConfig) AccessClient {
 	}
 }
 
-var _ AccessClient = (*cfAccessClient)(nil)
+// NewCFAccessMetadataReader builds the read-only Access metadata client using
+// the same credential/configuration rules as the /public client.
+func NewCFAccessMetadataReader(doer httpc.Doer, cfg CFConfig) AccessMetadataReader {
+	if cfg.APIToken == "" || cfg.AccountID == "" {
+		return nil
+	}
+	if doer == nil {
+		doer = http.DefaultClient
+	}
+	base := cfg.BaseURL
+	if base == "" {
+		base = "https://api.cloudflare.com/client/v4"
+	}
+	return &cfAccessClient{doer: doer, apiToken: cfg.APIToken, accountID: cfg.AccountID, baseURL: base}
+}
+
+var (
+	_ AccessClient         = (*cfAccessClient)(nil)
+	_ AccessMetadataReader = (*cfAccessClient)(nil)
+)
 
 // publicBypassDomain builds the Access app domain for a host: <host>/public. It
 // refuses anything that is not a bare hostname (a host carrying a path, query,
@@ -236,6 +269,128 @@ func (c *cfAccessClient) LookupPublicBypass(ctx context.Context, host string) (A
 	return AccessApp{}, false, nil
 }
 
+// ResolveRuntimeBinding discovers the exact primary Access application for a
+// route and the account's Access authentication domain. It is intentionally
+// read-only: the response contains only the public verifier coordinates that
+// an origin needs, never the management token or an Access assertion.
+func (c *cfAccessClient) ResolveRuntimeBinding(ctx context.Context, host string) (AccessRuntimeBinding, error) {
+	host = strings.TrimSpace(strings.ToLower(host))
+	if host == "" || strings.ContainsAny(host, "/ \t?#") {
+		return AccessRuntimeBinding{}, fmt.Errorf("access: host %q must be a bare hostname with no path", host)
+	}
+
+	body, err := c.do(ctx, http.MethodGet, c.appsURL()+"?per_page=1000", nil)
+	if err != nil {
+		return AccessRuntimeBinding{}, fmt.Errorf("access: list primary apps: %w", err)
+	}
+	var apps struct {
+		Result []struct {
+			Domain   string `json:"domain"`
+			Audience string `json:"aud"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(body, &apps); err != nil {
+		return AccessRuntimeBinding{}, fmt.Errorf("access: parse primary apps: %w", err)
+	}
+	var audience string
+	bestRank := 0
+	matches := 0
+	for _, app := range apps.Result {
+		rank := accessPrimaryDomainRank(app.Domain, host)
+		if rank == 0 || rank < bestRank {
+			continue
+		}
+		if rank > bestRank {
+			bestRank = rank
+			matches = 0
+			audience = ""
+		}
+		matches++
+		if strings.TrimSpace(app.Audience) != "" {
+			audience = strings.TrimSpace(app.Audience)
+		}
+	}
+	if matches == 0 {
+		return AccessRuntimeBinding{}, fmt.Errorf("access: no primary application found for %q", host)
+	}
+	if matches > 1 {
+		return AccessRuntimeBinding{}, fmt.Errorf("access: multiple primary applications found for %q", host)
+	}
+	if audience == "" {
+		return AccessRuntimeBinding{}, fmt.Errorf("access: primary application for %q has no audience tag", host)
+	}
+
+	teamDomain := ""
+	orgBody, orgErr := c.do(ctx, http.MethodGet, fmt.Sprintf("%s/accounts/%s/access/organizations", c.baseURL, url.PathEscape(c.accountID)), nil)
+	if orgErr == nil {
+		var org struct {
+			Result struct {
+				AuthDomain string `json:"auth_domain"`
+			} `json:"result"`
+		}
+		if err := json.Unmarshal(orgBody, &org); err != nil {
+			return AccessRuntimeBinding{}, fmt.Errorf("access: parse organization: %w", err)
+		}
+		teamDomain = normalizeAccessAuthDomain(org.Result.AuthDomain)
+	}
+	// Some least-privilege Access tokens can read applications but not the
+	// organization endpoint. In that case the owner may set the one-time,
+	// non-secret team origin on tunnel-manager itself. It is intentionally read
+	// from this central process environment, never from each scenario.
+	if teamDomain == "" {
+		teamDomain = normalizeAccessAuthDomain(os.Getenv("VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN"))
+	}
+	if teamDomain == "" {
+		if orgErr != nil {
+			var providerErr cloudflareAccessHTTPError
+			if errors.As(orgErr, &providerErr) && (providerErr.status == http.StatusUnauthorized || providerErr.status == http.StatusForbidden) {
+				return AccessRuntimeBinding{}, ErrRemoteUnavailable{Reason: fmt.Sprintf("Cloudflare Access organization metadata was rejected (HTTP %d); grant the tunnel-manager credential read access or configure VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN once on tunnel-manager", providerErr.status)}
+			}
+			return AccessRuntimeBinding{}, ErrRemoteUnavailable{Reason: "Cloudflare Access organization metadata is unavailable; configure VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN once on tunnel-manager or grant organization read access"}
+		}
+		return AccessRuntimeBinding{}, fmt.Errorf("access: organization has no authentication domain")
+	}
+	return AccessRuntimeBinding{
+		TeamDomain:  teamDomain,
+		Audience:    audience,
+		RecoveryURL: teamDomain,
+	}, nil
+}
+
+// accessPrimaryDomainRank accepts the Access application shapes that can
+// protect a hostname while excluding path-specific exceptions such as
+// <host>/public. Exact host coverage wins over host/* and wildcard coverage;
+// equal-specificity matches are rejected by ResolveRuntimeBinding.
+func accessPrimaryDomainRank(rawDomain, host string) int {
+	domain := strings.TrimSpace(strings.ToLower(rawDomain))
+	host = strings.TrimSpace(strings.ToLower(host))
+	switch {
+	case domain == host:
+		return 3
+	case domain == host+"/*":
+		return 2
+	case strings.HasPrefix(domain, "*.") && strings.HasSuffix(host, strings.TrimPrefix(domain, "*")):
+		return 1
+	default:
+		return 0
+	}
+}
+
+func normalizeAccessAuthDomain(raw string) string {
+	value := strings.TrimSpace(strings.TrimRight(raw, "/"))
+	if value == "" {
+		return ""
+	}
+	if !strings.Contains(value, "://") {
+		value = "https://" + value
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return ""
+	}
+	return "https://" + strings.ToLower(parsed.Host)
+}
+
 // parseAccessApp extracts the app id + first policy id from a create response.
 func parseAccessApp(body []byte) AccessApp {
 	var env struct {
@@ -278,7 +433,7 @@ func (c *cfAccessClient) do(ctx context.Context, method, rawURL string, body []b
 		return nil, fmt.Errorf("read response: %w", err)
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("cloudflare Access API error %d: %s", resp.StatusCode, string(data))
+		return nil, cloudflareAccessHTTPError{status: resp.StatusCode}
 	}
 	return data, nil
 }

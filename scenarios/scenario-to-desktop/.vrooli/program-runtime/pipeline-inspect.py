@@ -1,8 +1,5 @@
 # Governed program. Contract and fixtures are in the sibling JSON file.
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 
 envelope = {"program": "scenario-to-desktop.pipeline-inspect", "version": "1",
             "status": "failed", "phase": "validate", "inputs": {},
@@ -24,33 +21,6 @@ def guarded(call):
         except Exception as exc:
             return exc
     return invoke
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
 
 
 # VALIDATE: reject malformed selectors before any binding is called.
@@ -77,7 +47,7 @@ def step_collect():
                                       "created": item.get("createdAt", "")}).sort("created", reverse=True).head(1)
             envelope["evidence"].append("scenario-to-desktop/pipeline/list")
         except Exception as exc:
-            status, klass = classify_transport(exc)
+            status, klass = program.classify(exc)
             return fail(status, klass, klass, "collect:list")
         if not chosen:
             return fail("failed", "pipeline_not_found", "No pipeline for the selected scenario", "collect:list")
@@ -89,7 +59,7 @@ def step_collect():
         guarded(lambda: scenario_to_desktop.tasks.list(pipeline_id=selection["pipeline_id"], limit=100)))
     for key, result in zip(("pipeline", "tasks"), results):
         if isinstance(result, Exception):
-            status, klass = classify_transport(result)
+            status, klass = program.classify(result)
             fail(status, klass, klass, "collect:" + key)
         else:
             handles[key] = result

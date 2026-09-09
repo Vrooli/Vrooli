@@ -3,17 +3,14 @@
   "assetKind": "foundation",
   "catalogId": "foundations.icon-geometry",
   "deprecatedVersions": [],
-  "draft": "",
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:IconGeometry",
-  "displayName": "Icon Geometry",
-  "description": "Provides the shared geometry contract for consistent icon sizing and alignment.",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:IconGeometry"
 }

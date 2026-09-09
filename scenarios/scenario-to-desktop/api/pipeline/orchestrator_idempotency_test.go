@@ -26,7 +26,7 @@ func TestIdempotencyKeyBasic(t *testing.T) {
 	idempotencyKey := "idem-fixture-001"
 
 	// First request
-	config1 := &Config{
+	config1 := &PipelineConfig{
 		ScenarioName:   "test-scenario",
 		IdempotencyKey: idempotencyKey,
 	}
@@ -36,7 +36,7 @@ func TestIdempotencyKeyBasic(t *testing.T) {
 	}
 
 	// Second request with same idempotency key should return the SAME pipeline
-	config2 := &Config{
+	config2 := &PipelineConfig{
 		ScenarioName:   "test-scenario",
 		IdempotencyKey: idempotencyKey,
 	}
@@ -68,7 +68,7 @@ func TestIdempotencyKeyStored(t *testing.T) {
 	ctx := context.Background()
 	idempotencyKey := "stored-key-test"
 
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName:   "test-scenario",
 		IdempotencyKey: idempotencyKey,
 	}
@@ -99,13 +99,13 @@ func TestIdempotencyKeyDifferent(t *testing.T) {
 
 	ctx := context.Background()
 
-	config1 := &Config{
+	config1 := &PipelineConfig{
 		ScenarioName:   "test-scenario",
 		IdempotencyKey: "key-1",
 	}
 	status1, _ := orchestrator.RunPipeline(ctx, config1)
 
-	config2 := &Config{
+	config2 := &PipelineConfig{
 		ScenarioName:   "test-scenario",
 		IdempotencyKey: "key-2",
 	}
@@ -134,7 +134,7 @@ func TestIdempotencyKeyEmpty(t *testing.T) {
 	ctx := context.Background()
 
 	// Two requests without idempotency key
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 		// No IdempotencyKey
 	}
@@ -172,7 +172,7 @@ func TestIdempotencyKeyWithRunningPipeline(t *testing.T) {
 	ctx := context.Background()
 	idempotencyKey := "running-pipeline-key"
 
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName:   "test-scenario",
 		IdempotencyKey: idempotencyKey,
 	}
@@ -206,7 +206,7 @@ func TestIdempotencyKeyWithCompletedPipeline(t *testing.T) {
 	ctx := context.Background()
 	idempotencyKey := "completed-pipeline-key"
 
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName:   "test-scenario",
 		IdempotencyKey: idempotencyKey,
 	}
@@ -283,7 +283,7 @@ func TestReplayWithSameInputsProducesSameOutput(t *testing.T) {
 
 	// Run multiple times with same config
 	for i := 0; i < 5; i++ {
-		config := &Config{
+		config := &PipelineConfig{
 			ScenarioName:   "test-scenario",
 			IdempotencyKey: idempotencyKey,
 			Platforms:      []string{"linux"},
@@ -322,7 +322,7 @@ func TestNoDuplicateWorkOnRetry(t *testing.T) {
 
 	var pipelineIDs []string
 	for i := 0; i < 3; i++ {
-		config := &Config{
+		config := &PipelineConfig{
 			ScenarioName:   "test-scenario",
 			IdempotencyKey: idempotencyKey,
 		}
@@ -363,7 +363,7 @@ func TestRunPipeline_StageFiltering_SingleStage(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 		Stages:       []string{"bundle"}, // Only run bundle
 	}
@@ -403,7 +403,7 @@ func TestRunPipeline_StageFiltering_MultipleStages(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 		Stages:       []string{"bundle", "preflight"}, // Only run these two
 	}
@@ -449,7 +449,7 @@ func TestRunPipeline_StageFiltering_PreservesPipelineOrder(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 		Stages:       []string{"generate", "bundle"}, // User order differs from pipeline order
 	}
@@ -482,7 +482,7 @@ func TestRunPipeline_StageFiltering_InvalidStageName(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 		Stages:       []string{"bundle", "invalid-stage"},
 	}
@@ -509,7 +509,7 @@ func TestRunPipeline_StageFiltering_EmptyRunsAll(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 		// Stages not specified - should run all
 	}
@@ -531,13 +531,13 @@ func TestRunPipeline_StageFiltering_EmptyRunsAll(t *testing.T) {
 func TestConfig_GetStages(t *testing.T) {
 	tests := []struct {
 		name     string
-		config   *Config
+		config   *PipelineConfig
 		expected []string
 	}{
 		{"nil config", nil, nil},
-		{"empty stages", &Config{Stages: []string{}}, nil},
-		{"with single stage", &Config{Stages: []string{"bundle"}}, []string{"bundle"}},
-		{"with multiple stages", &Config{Stages: []string{"bundle", "preflight"}}, []string{"bundle", "preflight"}},
+		{"empty stages", &PipelineConfig{Stages: []string{}}, nil},
+		{"with single stage", &PipelineConfig{Stages: []string{"bundle"}}, []string{"bundle"}},
+		{"with multiple stages", &PipelineConfig{Stages: []string{"bundle", "preflight"}}, []string{"bundle", "preflight"}},
 	}
 
 	for _, tc := range tests {
@@ -571,7 +571,7 @@ func TestCreateIdlePipeline_StageFiltering(t *testing.T) {
 		WithStore(NewInMemoryStore()),
 	)
 
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 		Stages:       []string{"bundle", "generate"}, // Skip preflight
 	}
@@ -595,7 +595,7 @@ func TestCreateIdlePipeline_InvalidStageName(t *testing.T) {
 		WithStages(&mockStage{name: "bundle"}),
 	)
 
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 		Stages:       []string{"invalid"},
 	}

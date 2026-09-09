@@ -53,3 +53,18 @@ func TestLaunchTraceSegmentUsesMonotonicTime(t *testing.T) {
 		t.Fatalf("duration = %v, want 20ms", duration)
 	}
 }
+
+func TestLaunchTraceAcceptsPublishedRuntimeIPCPort(t *testing.T) {
+	trace := fixtureTrace(LaunchRunDemo)
+	trace.Events = append(trace.Events, LaunchEvent{
+		Name:        EventRuntimeIPCPortPublished,
+		Component:   "bundled-runtime",
+		Role:        "bundled_runtime",
+		MonotonicNs: 100_000_000,
+		WallTime:    time.Date(2026, 1, 1, 0, 0, 0, 100_000_000, time.UTC),
+		Details:     map[string]string{"port": "43127"},
+	})
+	if err := trace.Validate(); err != nil {
+		t.Fatalf("runtime IPC publication event should be valid: %v", err)
+	}
+}

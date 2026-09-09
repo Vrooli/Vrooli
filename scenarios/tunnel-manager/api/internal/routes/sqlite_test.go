@@ -32,7 +32,7 @@ func newRepo(t *testing.T) (routes.Repository, *scheduletest.FakeClock) {
 func sampleRoute() routes.Route {
 	return routes.Route{
 		Subdomain: "agent-manager", Scenario: "agent-manager",
-		Domain: "itsagitime.com", LocalPort: 21100,
+		Domain: "example.invalid", LocalPort: 21100,
 		Tier: routes.TierLeased, Enabled: true, HealthPath: "/health",
 	}
 }
@@ -149,7 +149,7 @@ func TestSQLite_ExternalRouteSourceRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	created, err := repo.Create(ctx, routes.Route{
 		Subdomain:     "api",
-		Domain:        "itsagitime.com",
+		Domain:        "example.invalid",
 		Source:        routes.SourceExternal,
 		ServiceTarget: "http://127.0.0.1:9000",
 		Tier:          routes.TierLeased,
@@ -164,7 +164,7 @@ func TestSQLite_ExternalRouteSourceRoundTrip(t *testing.T) {
 	require.Equal(t, "http://127.0.0.1:9000", got.ServiceTarget)
 
 	// A scenario route defaults source to scenario.
-	sc, err := repo.Create(ctx, routes.Route{Subdomain: "web", Scenario: "web-console", Domain: "itsagitime.com", LocalPort: 3000, Tier: routes.TierLeased, HealthPath: "/health", Enabled: true})
+	sc, err := repo.Create(ctx, routes.Route{Subdomain: "web", Scenario: "web-console", Domain: "example.invalid", LocalPort: 3000, Tier: routes.TierLeased, HealthPath: "/health", Enabled: true})
 	require.NoError(t, err)
 	gotSc, err := repo.Get(ctx, sc.ID)
 	require.NoError(t, err)

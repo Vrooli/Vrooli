@@ -2,6 +2,8 @@ package pipeline
 
 import (
 	"context"
+	"crypto/sha512"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -90,12 +92,12 @@ func TestDeployStage_CanSkip(t *testing.T) {
 	stage := NewDeployStage()
 
 	// No deploy config → skip
-	if !stage.CanSkip(&StageInput{Config: &Config{}}) {
+	if !stage.CanSkip(&StageInput{Config: &PipelineConfig{}}) {
 		t.Error("expected CanSkip=true when DeployConfig is nil")
 	}
 
 	// With deploy config → don't skip
-	if stage.CanSkip(&StageInput{Config: &Config{DeployConfig: &DeployConfig{AppKey: "test"}}}) {
+	if stage.CanSkip(&StageInput{Config: &PipelineConfig{DeployConfig: &DeployConfig{AppKey: "test"}}}) {
 		t.Error("expected CanSkip=false when DeployConfig is set")
 	}
 }
@@ -103,7 +105,7 @@ func TestDeployStage_CanSkip(t *testing.T) {
 func TestDeployStageRejectsDevelopmentLocalBundle(t *testing.T) {
 	stage := NewDeployStage()
 	result := stage.Execute(context.Background(), &StageInput{
-		Config:                 &Config{DeployConfig: &DeployConfig{AppKey: "demo"}},
+		Config:                 &PipelineConfig{DeployConfig: &DeployConfig{AppKey: "demo"}},
 		ResourceDeploymentPlan: &ResourceDeploymentPlan{ArtifactTrustMode: "development-local", Promotable: false},
 	})
 	if result.Status != StatusFailed || !strings.Contains(result.Error, "non-promotable") {
@@ -115,7 +117,7 @@ func TestDeployStage_Execute_NilConfig(t *testing.T) {
 	stage := NewDeployStage(WithDeployTimeProvider(newMockTP()))
 
 	result := stage.Execute(context.Background(), &StageInput{
-		Config: &Config{},
+		Config: &PipelineConfig{},
 	})
 
 	if result.Status != StatusFailed {
@@ -146,7 +148,7 @@ func TestDeployStage_Execute_MissingServiceToken(t *testing.T) {
 	stage := NewDeployStage(WithDeployTimeProvider(newMockTP()))
 
 	result := stage.Execute(context.Background(), &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			DeployConfig: &DeployConfig{
 				ScenarioName:  "lpbs",
 				RemoteProfile: "prod",
@@ -183,7 +185,7 @@ func TestDeployStage_Execute_InlineConfig(t *testing.T) {
 	)
 
 	result := stage.Execute(context.Background(), &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			Version: "1.0.0",
 			DeployConfig: &DeployConfig{
 				ScenarioName:  "lpbs",
@@ -212,6 +214,10 @@ func TestDeployStage_Execute_InlineConfig(t *testing.T) {
 	}
 	if deployResult.Artifacts[0].ArtifactID != 42 {
 		t.Errorf("expected artifact ID 42, got %d", deployResult.Artifacts[0].ArtifactID)
+	}
+	digest := sha512.Sum512([]byte("binary"))
+	if deployResult.Artifacts[0].SHA512 != hex.EncodeToString(digest[:]) {
+		t.Errorf("expected artifact sha512 %s, got %s", hex.EncodeToString(digest[:]), deployResult.Artifacts[0].SHA512)
 	}
 	if deployResult.UpdateURL == "" {
 		t.Error("expected update URL to be derived")
@@ -248,7 +254,7 @@ func TestDeployStage_Execute_SavedTarget(t *testing.T) {
 	)
 
 	result := stage.Execute(context.Background(), &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			Version: "1.0.0",
 			DeployConfig: &DeployConfig{
 				TargetName: "production",
@@ -282,7 +288,7 @@ func TestDeployStage_Execute_NoArtifacts(t *testing.T) {
 	)
 
 	result := stage.Execute(context.Background(), &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			DeployConfig: &DeployConfig{
 				ScenarioName:  "lpbs",
 				RemoteProfile: "prod",
@@ -307,7 +313,7 @@ func TestDeployStage_Execute_Cancellation(t *testing.T) {
 	stage := NewDeployStage(WithDeployTimeProvider(newMockTP()))
 
 	result := stage.Execute(ctx, &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			DeployConfig: &DeployConfig{
 				ScenarioName:  "lpbs",
 				RemoteProfile: "prod",
@@ -328,7 +334,7 @@ func TestDeployStage_Execute_MissingInlineConfig(t *testing.T) {
 
 	// Missing scenario_name
 	result := stage.Execute(context.Background(), &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			DeployConfig: &DeployConfig{
 				RemoteProfile: "prod",
 				AppKey:        "my-app",
@@ -344,7 +350,7 @@ func TestDeployStage_Execute_MissingInlineConfig(t *testing.T) {
 
 	// Missing remote_profile
 	result = stage.Execute(context.Background(), &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			DeployConfig: &DeployConfig{
 				ScenarioName: "lpbs",
 				AppKey:       "my-app",
@@ -371,7 +377,7 @@ func TestDeployStage_Execute_TargetNotFound(t *testing.T) {
 	)
 
 	result := stage.Execute(context.Background(), &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			DeployConfig: &DeployConfig{
 				TargetName: "nonexistent",
 				AppKey:     "my-app",
@@ -411,7 +417,7 @@ func TestDeployStage_Execute_RemoteProfileTestFails(t *testing.T) {
 	)
 
 	result := stage.Execute(context.Background(), &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			DeployConfig: &DeployConfig{
 				ScenarioName:  "lpbs",
 				RemoteProfile: "prod",
@@ -501,7 +507,7 @@ func TestDeployStage_Execute_GateReady(t *testing.T) {
 	)
 
 	result := stage.Execute(context.Background(), &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			Version: "1.0.0",
 			DeployConfig: &DeployConfig{
 				ScenarioName:               "lpbs",
@@ -546,7 +552,7 @@ func TestDeployStage_Execute_GateBlocked_Timeout(t *testing.T) {
 	)
 
 	result := stage.Execute(context.Background(), &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			Version: "1.0.0",
 			DeployConfig: &DeployConfig{
 				ScenarioName:               "lpbs",
@@ -593,7 +599,7 @@ func TestDeployStage_Execute_DMUnreachable(t *testing.T) {
 	)
 
 	result := stage.Execute(context.Background(), &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			Version: "1.0.0",
 			DeployConfig: &DeployConfig{
 				ScenarioName:               "lpbs",
@@ -634,7 +640,7 @@ func TestDeployStage_Execute_NoProfileID_SkipsGate(t *testing.T) {
 	)
 
 	result := stage.Execute(context.Background(), &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			Version: "1.0.0",
 			DeployConfig: &DeployConfig{
 				ScenarioName:  "lpbs",
@@ -708,7 +714,7 @@ func TestDeployStage_Execute_GateBlocked_ThenClears(t *testing.T) {
 
 	var gateBlocked bool
 	result := stage.Execute(context.Background(), &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			Version: "1.0.0",
 			DeployConfig: &DeployConfig{
 				ScenarioName:               "lpbs",

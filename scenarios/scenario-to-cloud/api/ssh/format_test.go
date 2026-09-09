@@ -8,7 +8,7 @@ import (
 func TestLocalSSHCommand(t *testing.T) {
 	t.Parallel()
 
-	cfg := Config{Host: "example.com", Port: 22, User: "root", KeyPath: "/home/user/.ssh/id_ed25519"}
+	cfg := ConnectionConfig{Host: "example.com", Port: 22, User: "root", KeyPath: "/home/user/.ssh/id_ed25519"}
 	result := LocalSSHCommand(cfg, "uptime")
 
 	// Must start with "ssh"
@@ -36,7 +36,7 @@ func TestLocalSSHCommand(t *testing.T) {
 func TestLocalSCPCommand(t *testing.T) {
 	t.Parallel()
 
-	cfg := Config{Host: "example.com", Port: 2222, User: "deploy", KeyPath: "/key"}
+	cfg := ConnectionConfig{Host: "example.com", Port: 2222, User: "deploy", KeyPath: "/key"}
 	result := LocalSCPCommand(cfg, "/tmp/bundle.tar.gz", "/opt/deploy/bundle.tar.gz")
 
 	// Must start with "scp"
@@ -62,21 +62,21 @@ func TestFormatCommandForLog(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		cfg          Config
+		cfg          ConnectionConfig
 		cmd          string
 		wantContains []string
 		wontContains []string
 	}{
 		{
 			name:         "redacts key path",
-			cfg:          Config{Host: "example.com", Port: 22, User: "root", KeyPath: "/home/user/.ssh/id_ed25519"},
+			cfg:          ConnectionConfig{Host: "example.com", Port: 22, User: "root", KeyPath: "/home/user/.ssh/id_ed25519"},
 			cmd:          "uptime",
 			wantContains: []string{"ssh", "root@example.com", "<redacted>", "uptime"},
 			wontContains: []string{"/home/user/.ssh/id_ed25519"},
 		},
 		{
 			name:         "no key path no redaction",
-			cfg:          Config{Host: "example.com", Port: 22, User: "root"},
+			cfg:          ConnectionConfig{Host: "example.com", Port: 22, User: "root"},
 			cmd:          "ls",
 			wantContains: []string{"ssh", "root@example.com", "ls"},
 			wontContains: []string{"<redacted>"},

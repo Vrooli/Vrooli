@@ -10,6 +10,7 @@ This guide explains how to configure automatic updates for desktop applications 
 - [CODE: templates/build-tools/template-generator.ts#getEffectiveUpdateProvider] - runtime-safe provider fallback (`generic` -> `none` when URL missing)
 - [CODE: api/pipeline/stage_deploy.go] - deploy-stage update URL derivation for LPBS
 - [DOC: docs/guides/DEPLOYMENT.md#upload-flow] - LPBS deployment/upload flow
+- [CODE: templates/vanilla/storage/update-recovery.ts] - atomic apply intent and installed-client receipt
 
 ## Overview
 
@@ -89,7 +90,16 @@ files:
   - url: https://updates.example.com/my-app/stable/my-app-1.2.3.exe
     sha512: <base64-encoded-sha512-hash>
     size: 85234567
+vrooli:
+  applicationKey: my-app
+  channel: stable
+  platform: windows
+  artifactRef: sha512:<base64-encoded-sha512-hash>
 ```
+
+LPBS adds the `vrooli` binding after it selects the immutable channel revision. A packaged client refuses a supplied binding for another application, channel, platform, architecture, or digest. The update URL remains the product and channel boundary, so redirects and feed responses must stay within the configured owner path.
+
+The client writes `update-intent.json` atomically before `quitAndInstall`. The intent records the predecessor and successor versions, target, channel, and artifact references, then moves from `apply_pending` to `applying`. A restart on the predecessor records an interrupted outcome. A successful receipt is written only after the successor executable is identified and the application server and window have both reached ready state. The receipt is stored at `userData/update-receipt.json` and emitted through the existing telemetry/evidence path; a downloaded or verified update is never treated as installed.
 
 ### Manifest Generation
 

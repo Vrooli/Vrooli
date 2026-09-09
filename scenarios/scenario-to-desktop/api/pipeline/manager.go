@@ -52,7 +52,7 @@ func NewManager(opts ...ManagerOption) *Manager {
 // GetOrCreateActivePipeline returns the active pipeline for a scenario.
 // If no active pipeline exists, it creates a new one in "idle" state (not running).
 // Returns the pipeline status and whether it was newly created.
-func (m *Manager) GetOrCreateActivePipeline(ctx context.Context, scenarioName string, defaultConfig *Config) (*Status, bool, error) {
+func (m *Manager) GetOrCreateActivePipeline(ctx context.Context, scenarioName string, defaultConfig *PipelineConfig) (*Status, bool, error) {
 	if m.orchestrator == nil {
 		return nil, false, fmt.Errorf("orchestrator not configured")
 	}
@@ -107,7 +107,7 @@ func (m *Manager) GetOrCreateActivePipeline(ctx context.Context, scenarioName st
 // CreateNewPipeline archives the current active pipeline and creates a new idle one.
 // Returns the new pipeline status and the archived pipeline ID (if any).
 // The new pipeline is created in "idle" state, ready to be configured and started.
-func (m *Manager) CreateNewPipeline(ctx context.Context, scenarioName string, config *Config) (*Status, string, error) {
+func (m *Manager) CreateNewPipeline(ctx context.Context, scenarioName string, config *PipelineConfig) (*Status, string, error) {
 	if m.orchestrator == nil {
 		return nil, "", fmt.Errorf("orchestrator not configured")
 	}
@@ -242,7 +242,7 @@ func (m *Manager) GetActivePipelineStatus(scenarioName string) (*Status, bool) {
 // If the pipeline is idle, updates its config and starts it.
 // If already running, returns the current status.
 // If completed/failed, creates a new pipeline with config, updates index store, and starts it.
-func (m *Manager) StartActivePipeline(ctx context.Context, scenarioName string, configOverrides *Config) (*Status, error) {
+func (m *Manager) StartActivePipeline(ctx context.Context, scenarioName string, configOverrides *PipelineConfig) (*Status, error) {
 	if m.orchestrator == nil {
 		return nil, fmt.Errorf("orchestrator not configured")
 	}
@@ -330,7 +330,7 @@ func (m *Manager) StartActivePipeline(ctx context.Context, scenarioName string, 
 // This is similar to StartActivePipeline but waits for the pipeline to finish.
 // Returns the final status when complete, failed, or cancelled.
 // Returns an error if the timeout is exceeded or the pipeline disappears.
-func (m *Manager) StartActivePipelineBlocking(ctx context.Context, scenarioName string, configOverrides *Config, timeoutSecs int) (*Status, error) {
+func (m *Manager) StartActivePipelineBlocking(ctx context.Context, scenarioName string, configOverrides *PipelineConfig, timeoutSecs int) (*Status, error) {
 	if m.orchestrator == nil {
 		return nil, fmt.Errorf("orchestrator not configured")
 	}
@@ -416,7 +416,7 @@ func (m *Manager) StartActivePipelineBlocking(ctx context.Context, scenarioName 
 	}
 }
 
-func (m *Manager) updateIdlePipelineConfig(pipelineID string, config *Config) error {
+func (m *Manager) updateIdlePipelineConfig(pipelineID string, config *PipelineConfig) error {
 	updater, ok := m.orchestrator.(ConfigUpdatingOrchestrator)
 	if !ok {
 		return fmt.Errorf("orchestrator does not support updating idle pipeline configuration")
@@ -450,8 +450,8 @@ func (m *Manager) pollForCompletion(ctx context.Context, pipelineID string, time
 }
 
 // buildConfig creates a pipeline config, applying defaults from the provided config.
-func (m *Manager) buildConfig(scenarioName string, userConfig *Config) *Config {
-	config := &Config{
+func (m *Manager) buildConfig(scenarioName string, userConfig *PipelineConfig) *PipelineConfig {
+	config := &PipelineConfig{
 		ScenarioName: scenarioName,
 	}
 
@@ -482,6 +482,7 @@ func (m *Manager) buildConfig(scenarioName string, userConfig *Config) *Config {
 		config.ResumeFromStage = userConfig.ResumeFromStage
 		config.ParentPipelineID = userConfig.ParentPipelineID
 		config.IdempotencyKey = userConfig.IdempotencyKey
+		config.ExpectedArtifactDigests = copyStringMap(userConfig.ExpectedArtifactDigests)
 	}
 
 	return config

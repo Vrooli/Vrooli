@@ -3,20 +3,17 @@
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-disclosure",
   "deprecatedVersions": [],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.0"
-  ],
-  "latest": "1.1.1",
-  "libraryId": "react-component-library:useDisclosure",
-  "displayName": "useDisclosure",
-  "description": "A declarative open-state controller exposing open, close, and toggle with dismissal-reason tracking, controlled operation, and stable callback identities.",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:useDisclosure"
 }

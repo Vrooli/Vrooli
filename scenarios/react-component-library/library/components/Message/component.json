@@ -31,8 +31,5 @@
     "1.0.9"
   ],
   "latest": "1.2.1",
-  "libraryId": "react-component-library:Message",
-  "displayName": "Message",
-  "description": "The structured conversational item carrying actor, content, status, citations, attachments, tool activity, actions, timestamp, error state, and expandable metadata as one coherent unit.",
-  "tags": []
+  "libraryId": "react-component-library:Message"
 }

@@ -30,7 +30,10 @@ const (
 )
 
 const (
-	DefaultDomain     = "itsagitime.com"
+	// DefaultDomain is a reserved documentation/test value only. Production
+	// route creation resolves the domain from explicit input or the centralized
+	// VROOLI_TUNNEL_DOMAIN setting; it never uses this placeholder.
+	DefaultDomain     = "example.invalid"
 	DefaultHealthPath = "/health"
 )
 

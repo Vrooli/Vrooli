@@ -206,7 +206,7 @@ func (c *cfDNSClient) do(ctx context.Context, method, rawURL string, body []byte
 
 // apexOf returns the registrable apex for a hostname by stripping the leading
 // subdomain label. Route subdomains are single DNS labels (validated upstream),
-// so "react-component-library.itsagitime.com" -> "itsagitime.com". A bare apex
+// so "react-component-library.example.invalid" -> "example.invalid". A bare apex
 // (no subdomain) is returned unchanged.
 func apexOf(hostname string) string {
 	hostname = strings.TrimSpace(strings.ToLower(hostname))
@@ -216,7 +216,7 @@ func apexOf(hostname string) string {
 	}
 	rest := hostname[i+1:]
 	if !strings.Contains(rest, ".") {
-		// hostname was already an apex like "itsagitime.com".
+		// hostname was already an apex like "example.invalid".
 		return hostname
 	}
 	return rest

@@ -49,6 +49,12 @@ func (r *Renderer) RenderEnvMap(svc manifest.Service, bin manifest.Binary) (map[
 			env[parts[0]] = parts[1]
 		}
 	}
+	// A bundled service must resolve its catalog and writable state from the
+	// bundle hints below. Repository-only roots inherited from the process that
+	// launched the desktop runtime would silently turn a standalone bundle back
+	// into a source-tree deployment.
+	delete(env, "VROOLI_ROOT")
+	delete(env, "SCENARIO_ROOT")
 
 	// Add standard bundle hints.
 	env["APP_DATA_DIR"] = r.AppData

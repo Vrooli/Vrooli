@@ -1,5 +1,8 @@
 # Error Handling
 
+Template Manager owns this shared transport pattern. Scenario documents link
+here and record local error semantics and exceptions.
+
 The template uses one error path for proto-typed operations and one
 documented exception path for multipart REST.
 

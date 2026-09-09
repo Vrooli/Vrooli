@@ -7,6 +7,13 @@
     "1.1.0",
     "1.1.1"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.2",
@@ -20,15 +27,5 @@
     "1.1.2"
   ],
   "latest": "1.2.4",
-  "libraryId": "react-component-library:Slider",
-  "displayName": "Slider",
-  "description": "The single-value range control with keyboard stepping, snapping, marks, formatted output, touch-friendly hit area, and accessible value text.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:Slider"
 }

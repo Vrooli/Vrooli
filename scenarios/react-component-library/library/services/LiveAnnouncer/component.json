@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-service",
   "catalogId": "services.live-announcer",
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:LiveAnnouncer",
-  "displayName": "Live Announcer",
-  "description": "The single announcement service used by forms, drag operations, navigation, loading states, and async results, queueing and timing messages through one live region.",
-  "tags": [],
-  "draft": "",
   "deprecatedVersions": [],
   "designStyles": [
     {
@@ -15,5 +9,8 @@
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:LiveAnnouncer"
 }

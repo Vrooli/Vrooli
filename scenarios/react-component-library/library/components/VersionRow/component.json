@@ -10,6 +10,13 @@
     "1.0.5",
     "1.0.0"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.1",
@@ -20,15 +27,5 @@
     "1.0.0"
   ],
   "latest": "1.0.7",
-  "libraryId": "react-component-library:VersionRow",
-  "displayName": "VersionRow",
-  "description": "Selectable version history row with lifecycle, adoption, test health, and source identity details.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:VersionRow"
 }

@@ -50,7 +50,7 @@ func (f *fakeRepo) LatestPerRoute(_ context.Context) ([]probes.LatestPair, error
 
 func sampleRoute(sub string, port int) internalroutes.Route {
 	return internalroutes.Route{
-		Subdomain: sub, Scenario: sub, Domain: "itsagitime.com",
+		Subdomain: sub, Scenario: sub, Domain: "example.invalid",
 		LocalPort: port, Tier: internalroutes.TierLeased, Enabled: true, HealthPath: "/health",
 	}
 }
@@ -84,7 +84,7 @@ func TestRunProbes_StatusMappingAndPersistence(t *testing.T) {
 
 	// Internal probes the local port; external probes the public URL.
 	require.Equal(t, "http://localhost:21100/health", doer.Requests[0].URL.String())
-	require.Equal(t, "https://agent-manager.itsagitime.com/health", doer.Requests[1].URL.String())
+	require.Equal(t, "https://agent-manager.example.invalid/health", doer.Requests[1].URL.String())
 }
 
 func TestRunProbes_TimeoutAndSkipsDisabled(t *testing.T) {

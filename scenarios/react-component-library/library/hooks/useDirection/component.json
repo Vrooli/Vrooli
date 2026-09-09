@@ -9,6 +9,13 @@
     "1.0.0",
     "2.1.2"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "2.1.1",
@@ -18,15 +25,5 @@
     "2.1.2"
   ],
   "latest": "2.1.4",
-  "libraryId": "react-component-library:useDirection",
-  "displayName": "useDirection",
-  "description": "A direction primitive resolving left-to-right or right-to-left behavior for layout, keyboard movement, gestures, and transition origin.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:useDirection"
 }

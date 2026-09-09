@@ -305,6 +305,9 @@ func TestUploadArtifact(t *testing.T) {
 	if result.Platform != "windows" {
 		t.Errorf("expected platform 'windows', got %q", result.Platform)
 	}
+	if result.DestinationObject != "s3://test-bucket/uploads/test-app.exe" {
+		t.Errorf("expected immutable destination object, got %q", result.DestinationObject)
+	}
 	// 4 proxy calls: list profiles (for resolve) + presign + list profiles (for resolve) + commit + list profiles (for resolve) + apply
 	// Actually: resolveProfileID calls ListRemoteProfiles each time, so:
 	// presign: 1 list + 1 proxy = 2 admin requests
@@ -324,6 +327,47 @@ func TestUploadArtifact(t *testing.T) {
 		if metadata["sha256"] == "" || metadata["sha512"] == "" {
 			t.Errorf("%s metadata missing checksums: %#v", name, metadata)
 		}
+	}
+}
+
+func TestPromoteChannelUsesCurrentRevisionAndCompleteArtifactSet(t *testing.T) {
+	var promotion map[string]interface{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/v1/admin/remote-profiles" && r.Method == http.MethodGet:
+			_ = json.NewEncoder(w).Encode([]RemoteProfile{{ID: 5, Tag: "prod"}})
+		case r.URL.Path == "/api/v1/admin/remote-profiles/5/proxy" && r.Method == http.MethodPost:
+			var envelope map[string]interface{}
+			_ = json.NewDecoder(r.Body).Decode(&envelope)
+			path, _ := envelope["path"].(string)
+			switch {
+			case strings.Contains(path, "/download-channels/head"):
+				_, _ = w.Write([]byte(`{"revision":7}`))
+			case strings.Contains(path, "/download-channels/promote"):
+				promotion, _ = envelope["body"].(map[string]interface{})
+				_, _ = w.Write([]byte(`{"revision":8}`))
+			default:
+				t.Fatalf("unexpected proxy path %q", path)
+			}
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	err := client.PromoteChannel(context.Background(), &UploadRequest{
+		RemoteProfile: "prod", AppKey: "desktop", Channel: "stable", ReleaseID: "release-1",
+	}, []UploadResult{{ArtifactID: 41, Platform: "windows"}, {ArtifactID: 42, Platform: "linux"}})
+	if err != nil {
+		t.Fatalf("PromoteChannel: %v", err)
+	}
+	if promotion["expected_revision"] != float64(7) {
+		t.Fatalf("expected revision 7, got %#v", promotion["expected_revision"])
+	}
+	ids, ok := promotion["artifact_ids"].(map[string]interface{})
+	if !ok || ids["windows"] != float64(41) || ids["linux"] != float64(42) {
+		t.Fatalf("artifact set = %#v", promotion["artifact_ids"])
 	}
 }
 

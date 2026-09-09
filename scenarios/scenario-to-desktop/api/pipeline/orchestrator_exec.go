@@ -10,7 +10,7 @@ import (
 )
 
 // runPipelineAsync executes the pipeline stages sequentially.
-func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID string, config *Config) {
+func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID string, config *PipelineConfig) {
 	defer o.cancelManager.Clear(pipelineID)
 
 	success := false
@@ -127,7 +127,7 @@ const (
 )
 
 // executeStage runs a single pipeline stage and returns the outcome.
-func (o *DefaultOrchestrator) executeStage(ctx context.Context, stage Stage, input *StageInput, config *Config, pipelineID string) stageOutcome {
+func (o *DefaultOrchestrator) executeStage(ctx context.Context, stage Stage, input *StageInput, config *PipelineConfig, pipelineID string) stageOutcome {
 	stageName := stage.Name()
 
 	o.store.Update(pipelineID, func(s *Status) {
@@ -234,7 +234,7 @@ func (o *DefaultOrchestrator) markPipelineCancelled(pipelineID string) {
 }
 
 // restoreResumeInput copies saved input from a parent pipeline when resuming.
-func (o *DefaultOrchestrator) restoreResumeInput(input *StageInput, config *Config, pipelineID string) {
+func (o *DefaultOrchestrator) restoreResumeInput(input *StageInput, config *PipelineConfig, pipelineID string) {
 	if config.ParentPipelineID == "" {
 		return
 	}

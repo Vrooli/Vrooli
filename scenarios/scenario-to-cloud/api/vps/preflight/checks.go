@@ -164,7 +164,7 @@ func formatBytes(kb int64) string {
 // the newly deployed version from starting correctly.
 func checkStaleScenarioProcesses(
 	ctx context.Context,
-	cfg ssh.Config,
+	cfg ssh.ConnectionConfig,
 	sshRunner ssh.Runner,
 	manifest domain.CloudManifest,
 	warn func(id, title, details, hint string, data map[string]string),

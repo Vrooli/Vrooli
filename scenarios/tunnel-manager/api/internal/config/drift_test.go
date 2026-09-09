@@ -33,41 +33,41 @@ func ledgerEntry(host string, owner Owner) LedgerEntry {
 func TestReconcile_StateTable(t *testing.T) {
 	desiredSet := []DesiredEntry{
 		// scenario route, live → MANAGED
-		desired("managed.itsagitime.com", "http://localhost:21100", SourceScenario, "agent-manager"),
+		desired("managed.example.invalid", "http://localhost:21100", SourceScenario, "agent-manager"),
 		// scenario route, not live → MISSING
-		desired("missing.itsagitime.com", "http://localhost:21200", SourceScenario, "new-scenario"),
+		desired("missing.example.invalid", "http://localhost:21200", SourceScenario, "new-scenario"),
 		// external route, live → EXTERNAL_OK (desired-external)
-		desired("ext-desired.itsagitime.com", "http://127.0.0.1:9000", SourceExternal, ""),
+		desired("ext-desired.example.invalid", "http://127.0.0.1:9000", SourceExternal, ""),
 	}
 	liveSet := []IngressRule{
-		liveRule("managed.itsagitime.com", "http://localhost:21100"),
-		liveRule("ext-desired.itsagitime.com", "http://127.0.0.1:9000"),
+		liveRule("managed.example.invalid", "http://localhost:21100"),
+		liveRule("ext-desired.example.invalid", "http://127.0.0.1:9000"),
 		// ledger EXTERNAL, live, not desired → EXTERNAL_OK (ledger-external)
-		liveRule("ext-ledger.itsagitime.com", "http://127.0.0.1:9100"),
+		liveRule("ext-ledger.example.invalid", "http://127.0.0.1:9100"),
 		// ledger IGNORED, live → IGNORED
-		liveRule("ignored.itsagitime.com", "http://127.0.0.1:9200"),
+		liveRule("ignored.example.invalid", "http://127.0.0.1:9200"),
 		// live, not desired, no ledger → UNMANAGED
-		liveRule("drift.itsagitime.com", "http://127.0.0.1:9300"),
+		liveRule("drift.example.invalid", "http://127.0.0.1:9300"),
 		{Service: "http_status:404"}, // catch-all, ignored
 	}
 	ledgerSet := []LedgerEntry{
-		ledgerEntry("ext-ledger.itsagitime.com", OwnerExternal),
-		ledgerEntry("ignored.itsagitime.com", OwnerIgnored),
+		ledgerEntry("ext-ledger.example.invalid", OwnerExternal),
+		ledgerEntry("ignored.example.invalid", OwnerIgnored),
 		// ledger MANAGED, route gone (not desired) → ORPHANED
-		ledgerEntry("orphaned.itsagitime.com", OwnerManaged),
+		ledgerEntry("orphaned.example.invalid", OwnerManaged),
 	}
 
 	rep := reconcile(ModeRemote, desiredSet, liveSet, ledgerSet)
 	require.Equal(t, ModeRemote, rep.Mode)
 
-	require.Equal(t, StateManaged, stateOf(t, rep, "managed.itsagitime.com").State)
-	require.Equal(t, SourceScenario, stateOf(t, rep, "managed.itsagitime.com").Source)
-	require.Equal(t, StateMissing, stateOf(t, rep, "missing.itsagitime.com").State)
-	require.Equal(t, StateExternalOK, stateOf(t, rep, "ext-desired.itsagitime.com").State)
-	require.Equal(t, StateExternalOK, stateOf(t, rep, "ext-ledger.itsagitime.com").State)
-	require.Equal(t, StateIgnored, stateOf(t, rep, "ignored.itsagitime.com").State)
-	require.Equal(t, StateUnmanaged, stateOf(t, rep, "drift.itsagitime.com").State)
-	require.Equal(t, StateOrphaned, stateOf(t, rep, "orphaned.itsagitime.com").State)
+	require.Equal(t, StateManaged, stateOf(t, rep, "managed.example.invalid").State)
+	require.Equal(t, SourceScenario, stateOf(t, rep, "managed.example.invalid").Source)
+	require.Equal(t, StateMissing, stateOf(t, rep, "missing.example.invalid").State)
+	require.Equal(t, StateExternalOK, stateOf(t, rep, "ext-desired.example.invalid").State)
+	require.Equal(t, StateExternalOK, stateOf(t, rep, "ext-ledger.example.invalid").State)
+	require.Equal(t, StateIgnored, stateOf(t, rep, "ignored.example.invalid").State)
+	require.Equal(t, StateUnmanaged, stateOf(t, rep, "drift.example.invalid").State)
+	require.Equal(t, StateOrphaned, stateOf(t, rep, "orphaned.example.invalid").State)
 
 	// The catch-all (no hostname) is never classified.
 	for _, e := range rep.Entries {
@@ -88,15 +88,15 @@ func TestReconcile_StateTable(t *testing.T) {
 // dropped.
 func TestReconcile_EmptyLedgerMakesLiveExtrasUnmanaged(t *testing.T) {
 	rep := reconcile(ModeRemote,
-		[]DesiredEntry{desired("mine.itsagitime.com", "http://localhost:1", SourceScenario, "mine")},
+		[]DesiredEntry{desired("mine.example.invalid", "http://localhost:1", SourceScenario, "mine")},
 		[]IngressRule{
-			liveRule("mine.itsagitime.com", "http://localhost:1"),
+			liveRule("mine.example.invalid", "http://localhost:1"),
 			liveRule("foreign.example.com", "http://localhost:2"),
 			{Service: "http_status:404"},
 		},
 		nil,
 	)
-	require.Equal(t, StateManaged, stateOf(t, rep, "mine.itsagitime.com").State)
+	require.Equal(t, StateManaged, stateOf(t, rep, "mine.example.invalid").State)
 	require.Equal(t, StateUnmanaged, stateOf(t, rep, "foreign.example.com").State)
 }
 
@@ -105,22 +105,22 @@ func TestReconcile_EmptyLedgerMakesLiveExtrasUnmanaged(t *testing.T) {
 // operator's "never touch this" decision is authoritative.
 func TestReconcile_IgnoredOverridesDesired(t *testing.T) {
 	rep := reconcile(ModeLocal,
-		[]DesiredEntry{desired("h.itsagitime.com", "http://localhost:1", SourceScenario, "s")},
-		[]IngressRule{liveRule("h.itsagitime.com", "http://localhost:1")},
-		[]LedgerEntry{ledgerEntry("h.itsagitime.com", OwnerIgnored)},
+		[]DesiredEntry{desired("h.example.invalid", "http://localhost:1", SourceScenario, "s")},
+		[]IngressRule{liveRule("h.example.invalid", "http://localhost:1")},
+		[]LedgerEntry{ledgerEntry("h.example.invalid", OwnerIgnored)},
 	)
-	require.Equal(t, StateIgnored, stateOf(t, rep, "h.itsagitime.com").State)
+	require.Equal(t, StateIgnored, stateOf(t, rep, "h.example.invalid").State)
 }
 
 // TestReconcile_ExternalMissingIsAddCandidate: an external desired route not
 // yet live is MISSING (the next additive sync publishes it).
 func TestReconcile_ExternalMissingIsAddCandidate(t *testing.T) {
 	rep := reconcile(ModeRemote,
-		[]DesiredEntry{desired("ext.itsagitime.com", "http://127.0.0.1:9000", SourceExternal, "")},
+		[]DesiredEntry{desired("ext.example.invalid", "http://127.0.0.1:9000", SourceExternal, "")},
 		nil,
 		nil,
 	)
-	require.Equal(t, StateMissing, stateOf(t, rep, "ext.itsagitime.com").State)
+	require.Equal(t, StateMissing, stateOf(t, rep, "ext.example.invalid").State)
 }
 
 // TestReconcile_OrphanedManagedNotLive: a ledger-MANAGED hostname whose route
@@ -128,7 +128,7 @@ func TestReconcile_ExternalMissingIsAddCandidate(t *testing.T) {
 // silently forgotten.
 func TestReconcile_OrphanedManagedNotLive(t *testing.T) {
 	rep := reconcile(ModeRemote, nil, nil,
-		[]LedgerEntry{ledgerEntry("gone.itsagitime.com", OwnerManaged)},
+		[]LedgerEntry{ledgerEntry("gone.example.invalid", OwnerManaged)},
 	)
-	require.Equal(t, StateOrphaned, stateOf(t, rep, "gone.itsagitime.com").State)
+	require.Equal(t, StateOrphaned, stateOf(t, rep, "gone.example.invalid").State)
 }

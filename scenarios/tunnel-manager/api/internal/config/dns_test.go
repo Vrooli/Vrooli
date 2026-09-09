@@ -23,9 +23,9 @@ func newTestDNSClient(doer *mocks.FakeDoer) *cfDNSClient {
 
 func TestApexOf(t *testing.T) {
 	cases := map[string]string{
-		"react-component-library.itsagitime.com": "itsagitime.com",
-		"api.itsagitime.com":                     "itsagitime.com",
-		"itsagitime.com":                         "itsagitime.com",
+		"react-component-library.example.invalid": "example.invalid",
+		"api.example.invalid":                     "example.invalid",
+		"example.invalid":                         "example.invalid",
 	}
 	for in, want := range cases {
 		if got := apexOf(in); got != want {
@@ -41,7 +41,7 @@ func TestEnsureRecordCreatesWhenAbsent(t *testing.T) {
 	doer.AddResponse(200, []byte(`{"success":true,"result":{"id":"rec9"}}`))    // create
 
 	c := newTestDNSClient(doer)
-	res, err := c.EnsureRecord(context.Background(), "react-component-library.itsagitime.com")
+	res, err := c.EnsureRecord(context.Background(), "react-component-library.example.invalid")
 	if err != nil {
 		t.Fatalf("EnsureRecord: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestEnsureRecordCreatesWhenAbsent(t *testing.T) {
 	if payload["proxied"] != true {
 		t.Errorf("proxied = %v, want true", payload["proxied"])
 	}
-	if payload["name"] != "react-component-library.itsagitime.com" {
+	if payload["name"] != "react-component-library.example.invalid" {
 		t.Errorf("name = %v", payload["name"])
 	}
 }
@@ -84,7 +84,7 @@ func TestEnsureRecordIdempotentWhenPresent(t *testing.T) {
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"recX","content":"tun123.cfargotunnel.com","type":"CNAME"}]}`))
 
 	c := newTestDNSClient(doer)
-	res, err := c.EnsureRecord(context.Background(), "api.itsagitime.com")
+	res, err := c.EnsureRecord(context.Background(), "api.example.invalid")
 	if err != nil {
 		t.Fatalf("EnsureRecord: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestRemoveRecordDeletesWhenFound(t *testing.T) {
 	doer.AddResponse(200, []byte(`{"success":true}`)) // delete
 
 	c := newTestDNSClient(doer)
-	removed, err := c.RemoveRecord(context.Background(), "api.itsagitime.com")
+	removed, err := c.RemoveRecord(context.Background(), "api.example.invalid")
 	if err != nil {
 		t.Fatalf("RemoveRecord: %v", err)
 	}
@@ -128,7 +128,7 @@ func TestRemoveRecordIdempotentWhenAbsent(t *testing.T) {
 	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`)) // no record
 
 	c := newTestDNSClient(doer)
-	removed, err := c.RemoveRecord(context.Background(), "gone.itsagitime.com")
+	removed, err := c.RemoveRecord(context.Background(), "gone.example.invalid")
 	if err != nil {
 		t.Fatalf("RemoveRecord: %v", err)
 	}

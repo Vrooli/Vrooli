@@ -1,8 +1,5 @@
 # Governed program. Contract and fixtures are in the sibling JSON file.
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 
 envelope = {"program": "scenario-to-desktop.setpoint-read", "version": "1",
             "status": "failed", "phase": "validate", "inputs": {},
@@ -34,34 +31,6 @@ def guarded(call):
     return invoke
 
 
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
-
-
-
 def row(name, reading, target, in_band, reason=None):
     envelope["signals"]["rows"].append({"row": name, "reading": reading, "target": target,
         "in_band": in_band, "unavailable": reason is not None, "reason": reason})
@@ -83,7 +52,7 @@ def step_collect():
     collect_learning(results[1])
     result = results[0]
     if isinstance(result, Exception):
-        status, klass = classify_transport(result)
+        status, klass = program.classify(result)
         fail("partial", klass, klass, "collect:condition")
         handles["reason"] = "scenario_unreachable" if klass == "scenario_unreachable" else "unreliable:" + klass
     else:
@@ -121,11 +90,10 @@ def step_report():
     return None
 
 
-
 # Learning is a typed sensor projection. This program does not recall or capture.
 def collect_learning(result):
     if isinstance(result, Exception):
-        status, klass = classify_transport(result)
+        status, klass = program.classify(result)
         envelope["errors"].append({"class": klass, "detail": klass, "where": "collect:learning"})
         handles["learning_reason"] = "scenario_unreachable" if klass == "scenario_unreachable" else "unreliable:" + klass
     else:

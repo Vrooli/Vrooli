@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-scroll-state",
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:useScrollState",
-  "displayName": "useScrollState",
-  "description": "A scroll primitive reporting position, direction, velocity, boundary proximity, and recent activity without re-rendering on every raw scroll event.",
-  "tags": [],
-  "draft": "",
   "deprecatedVersions": [],
   "designStyles": [
     {
@@ -15,5 +9,8 @@
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:useScrollState"
 }

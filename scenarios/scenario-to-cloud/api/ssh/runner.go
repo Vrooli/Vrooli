@@ -15,12 +15,12 @@ import (
 
 // Runner executes SSH commands on a remote host.
 type Runner interface {
-	Run(ctx context.Context, cfg Config, command string, opts RunOptions) (Result, error)
+	Run(ctx context.Context, cfg ConnectionConfig, command string, opts RunOptions) (Result, error)
 }
 
 // SCPRunner transfers files to a remote host via SCP.
 type SCPRunner interface {
-	Copy(ctx context.Context, cfg Config, localPath, remotePath string, opts SCPOptions) error
+	Copy(ctx context.Context, cfg ConnectionConfig, localPath, remotePath string, opts SCPOptions) error
 }
 
 // exitCode extracts the exit code from an exec error.
@@ -44,7 +44,7 @@ type ExecRunner struct{}
 // It builds the full argument list from cfg + opts, appends the target and command,
 // then runs the ssh binary and returns a Result. The returned error (when non-nil)
 // is always an *SSHError with full context.
-func runSSH(ctx context.Context, cfg Config, command string, opts RunOptions) (Result, error) {
+func runSSH(ctx context.Context, cfg ConnectionConfig, command string, opts RunOptions) (Result, error) {
 	if opts.CommandTimeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, opts.CommandTimeout)
@@ -97,7 +97,7 @@ func runSSH(ctx context.Context, cfg Config, command string, opts RunOptions) (R
 }
 
 // Run executes an SSH command and returns the result.
-func (ExecRunner) Run(ctx context.Context, cfg Config, command string, opts RunOptions) (Result, error) {
+func (ExecRunner) Run(ctx context.Context, cfg ConnectionConfig, command string, opts RunOptions) (Result, error) {
 	return runSSH(ctx, cfg, command, opts)
 }
 
@@ -105,7 +105,7 @@ func (ExecRunner) Run(ctx context.Context, cfg Config, command string, opts RunO
 type ExecSCPRunner struct{}
 
 // Copy transfers a local file to a remote path via SCP.
-func (ExecSCPRunner) Copy(ctx context.Context, cfg Config, localPath, remotePath string, opts SCPOptions) error {
+func (ExecSCPRunner) Copy(ctx context.Context, cfg ConnectionConfig, localPath, remotePath string, opts SCPOptions) error {
 	timeout := opts.TransferTimeout
 	if timeout == 0 {
 		timeout = 10 * time.Minute

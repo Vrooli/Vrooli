@@ -29,7 +29,7 @@ var (
 	execCommandForCLIInstall  = exec.Command
 )
 
-func buildInstallVrooliPlanCommand(cfg ssh.Config, workdir string) string {
+func buildInstallVrooliPlanCommand(cfg ssh.ConnectionConfig, workdir string) string {
 	remotePath := shellutil.RemoteVrooliPath(workdir)
 	remoteBinDir := shellutil.QuoteSingle(filepath.ToSlash(filepath.Dir(remotePath)))
 	return ssh.LocalSSHCommand(cfg, fmt.Sprintf("mkdir -p %s", remoteBinDir)) +
@@ -39,7 +39,7 @@ func buildInstallVrooliPlanCommand(cfg ssh.Config, workdir string) string {
 		ssh.LocalSSHCommand(cfg, fmt.Sprintf("chmod 0755 %s", shellutil.QuotedRemoteVrooliPath(workdir)))
 }
 
-func installRemoteVrooliCLI(ctx context.Context, cfg ssh.Config, workdir string, sshRunner ssh.Runner, scpRunner ssh.SCPRunner) error {
+func installRemoteVrooliCLI(ctx context.Context, cfg ssh.ConnectionConfig, workdir string, sshRunner ssh.Runner, scpRunner ssh.SCPRunner) error {
 	platform, err := detectRemotePlatformFn(ctx, cfg, sshRunner)
 	if err != nil {
 		return err
@@ -61,7 +61,7 @@ func installRemoteVrooliCLI(ctx context.Context, cfg ssh.Config, workdir string,
 	return RunStepWithRetry(ctx, sshRunner, cfg, "install_vrooli", fmt.Sprintf("chmod 0755 %s", shellutil.QuotedRemoteVrooliPath(workdir)))
 }
 
-func detectRemotePlatform(ctx context.Context, cfg ssh.Config, sshRunner ssh.Runner) (remotePlatform, error) {
+func detectRemotePlatform(ctx context.Context, cfg ssh.ConnectionConfig, sshRunner ssh.Runner) (remotePlatform, error) {
 	result, err := sshRunner.Run(ctx, cfg, "uname -s && uname -m", ssh.DefaultRunOptions())
 	if err != nil {
 		return remotePlatform{}, err

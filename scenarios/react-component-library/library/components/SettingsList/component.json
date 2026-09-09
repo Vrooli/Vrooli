@@ -9,6 +9,13 @@
     "0.1.4",
     "0.1.5"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "0.1.4",
@@ -20,15 +27,5 @@
     "0.1.6"
   ],
   "latest": "1.0.1",
-  "libraryId": "react-component-library:SettingsList",
-  "displayName": "Settings List",
-  "description": "Reusable settings list component implementation for the React component library.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:SettingsList"
 }

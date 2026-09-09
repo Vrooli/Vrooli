@@ -75,7 +75,7 @@ As of the Phase 7 follow-up reconciliation, PRD/requirements no longer mark the 
 
 **Real fix:** Done by the implementation and validation-hardening slices recorded in `PROGRESS.md`.
 
-**Owner:** unassigned. **Refs:** `docs/plans/tunnel-manager-regen-adoption-plan.md`, `PRD.md`.
+**Owner:** unassigned. **Refs:** `plan-manager plans get tunnel-manager-regenerate-from-template-adopt-plan`, `PRD.md`.
 
 ### 2026-06-18 — Superseded: `make test` reported fleet-reds from template/example content
 

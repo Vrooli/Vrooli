@@ -292,7 +292,7 @@ Validation checks or pipeline improvements to catch this earlier.`)
 }
 
 // BuildPipelineConfigAttachment creates the pipeline configuration context.
-func BuildPipelineConfigAttachment(cfg *pipeline.Config) *domainpb.ContextAttachment {
+func BuildPipelineConfigAttachment(cfg *pipeline.PipelineConfig) *domainpb.ContextAttachment {
 	var content strings.Builder
 	content.WriteString(fmt.Sprintf("scenario: %s\n", cfg.ScenarioName))
 	content.WriteString(fmt.Sprintf("deployment_mode: %s\n", cfg.GetDeploymentMode()))

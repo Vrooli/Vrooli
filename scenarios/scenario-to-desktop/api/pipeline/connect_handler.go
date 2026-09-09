@@ -86,7 +86,7 @@ func (s *ConnectService) Resume(ctx context.Context, req *connect.Request[pipeli
 	if err := s.requireOrchestrator(); err != nil {
 		return nil, err
 	}
-	var config *Config
+	var config *PipelineConfig
 	if req.Msg.Config != nil {
 		var err error
 		config, err = configFromProto(req.Msg.Config)
@@ -276,7 +276,7 @@ func (s *ConnectService) requireManager() error {
 	return nil
 }
 
-func scenarioConfigFromProto(value *pipelinev1.PipelineConfig, scenarioName string) (*Config, error) {
+func scenarioConfigFromProto(value *pipelinev1.PipelineConfig, scenarioName string) (*PipelineConfig, error) {
 	if value == nil {
 		return nil, nil
 	}
@@ -299,7 +299,7 @@ func pipelineConnectError(err error) error {
 	}
 }
 
-func configFromProto(value *pipelinev1.PipelineConfig) (*Config, error) {
+func configFromProto(value *pipelinev1.PipelineConfig) (*PipelineConfig, error) {
 	if value == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("config is required"))
 	}
@@ -320,19 +320,23 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*Config, error) {
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	config := &Config{
-		ScenarioName:         value.GetScenarioName(),
-		Platforms:            platformsFromProto(value.GetPlatforms()),
-		DeploymentMode:       deploymentModeFromProto(value.GetDeploymentMode()),
-		Framework:            frameworkFromProto(value.GetFramework()),
-		TemplateType:         templateTypeFromProto(value.GetTemplateType()),
-		PreflightSecrets:     value.GetPreflightSecrets(),
-		ResourceArtifactRoot: value.GetResourceArtifactRoot(),
-		ToolArtifactRoot:     value.GetToolArtifactRoot(),
-		ArtifactTrustMode:    resourcedeployment.ArtifactTrustMode(value.GetArtifactTrustMode()),
-		LocationMode:         value.GetLocationMode(),
-		Stages:               stagesFromProto(value.GetStages()),
-		UpdateConfig:         updateConfig,
+	config := &PipelineConfig{
+		ScenarioName:            value.GetScenarioName(),
+		Platforms:               platformsFromProto(value.GetPlatforms()),
+		DeploymentMode:          deploymentModeFromProto(value.GetDeploymentMode()),
+		Framework:               frameworkFromProto(value.GetFramework()),
+		TemplateType:            templateTypeFromProto(value.GetTemplateType()),
+		PreflightSecrets:        value.GetPreflightSecrets(),
+		ResourceArtifactRoot:    value.GetResourceArtifactRoot(),
+		ToolArtifactRoot:        value.GetToolArtifactRoot(),
+		ArtifactTrustMode:       resourcedeployment.ArtifactTrustMode(value.GetArtifactTrustMode()),
+		LocationMode:            value.GetLocationMode(),
+		Stages:                  stagesFromProto(value.GetStages()),
+		UpdateConfig:            updateConfig,
+		ExpectedArtifactDigests: copyStringMap(value.GetExpectedArtifactDigests()),
+	}
+	if targets := value.GetPlatformTargets(); len(targets) > 0 {
+		config.Platforms = append([]string(nil), targets...)
 	}
 	if ext := value.GetNativeExtension(); ext != nil {
 		config.NativeExtension = &generation.NativeExtension{Version: ext.Version, Module: ext.Module, Permissions: ext.Permissions, Platforms: ext.Platforms, ActivationShortcut: ext.ActivationShortcut}
@@ -353,7 +357,7 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*Config, error) {
 	return config, nil
 }
 
-func applyOptionalConfigFromProto(config *Config, value *pipelinev1.PipelineConfig) {
+func applyOptionalConfigFromProto(config *PipelineConfig, value *pipelinev1.PipelineConfig) {
 	if value.SkipPreflight != nil {
 		config.SkipPreflight = value.GetSkipPreflight()
 	}
@@ -375,7 +379,7 @@ func applyOptionalConfigFromProto(config *Config, value *pipelinev1.PipelineConf
 	applyOptionalConfigExecutionFromProto(config, value)
 }
 
-func applyOptionalConfigExecutionFromProto(config *Config, value *pipelinev1.PipelineConfig) {
+func applyOptionalConfigExecutionFromProto(config *PipelineConfig, value *pipelinev1.PipelineConfig) {
 	if value.Clean != nil {
 		config.Clean = value.GetClean()
 	}
@@ -678,7 +682,7 @@ func stringSlice[T ~string](value []T) []string {
 	return result
 }
 
-func configToProto(config *Config) *pipelinev1.PipelineConfig {
+func configToProto(config *PipelineConfig) *pipelinev1.PipelineConfig {
 	if config == nil {
 		return nil
 	}
@@ -693,7 +697,7 @@ func configToProto(config *Config) *pipelinev1.PipelineConfig {
 	return result
 }
 
-func applyOptionalProtoConfig(result *pipelinev1.PipelineConfig, config *Config) {
+func applyOptionalProtoConfig(result *pipelinev1.PipelineConfig, config *PipelineConfig) {
 	if config.SkipPreflight {
 		result.SkipPreflight = boolPtr(true)
 	}
@@ -715,7 +719,13 @@ func applyOptionalProtoConfig(result *pipelinev1.PipelineConfig, config *Config)
 	applyOptionalProtoExecutionConfig(result, config)
 }
 
-func applyOptionalProtoExecutionConfig(result *pipelinev1.PipelineConfig, config *Config) {
+func applyOptionalProtoExecutionConfig(result *pipelinev1.PipelineConfig, config *PipelineConfig) {
+	if len(config.Platforms) > 0 {
+		result.PlatformTargets = append([]string(nil), config.Platforms...)
+	}
+	if len(config.ExpectedArtifactDigests) > 0 {
+		result.ExpectedArtifactDigests = copyStringMap(config.ExpectedArtifactDigests)
+	}
 	if config.ResourceArtifactRoot != "" {
 		result.ResourceArtifactRoot = stringPtr(config.ResourceArtifactRoot)
 	}

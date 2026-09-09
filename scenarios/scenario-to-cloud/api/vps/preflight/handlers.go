@@ -538,7 +538,7 @@ type StopScenarioProcessesResponse struct {
 }
 
 // StopScenarioFunc is a function type for stopping scenarios.
-type StopScenarioFunc func(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, workdir, scenarioID string, targetPorts []int) StopScenarioResult
+type StopScenarioFunc func(ctx context.Context, sshRunner ssh.Runner, cfg ssh.ConnectionConfig, workdir, scenarioID string, targetPorts []int) StopScenarioResult
 
 // StopScenarioResult represents the result of stopping a scenario.
 type StopScenarioResult struct {
@@ -607,13 +607,13 @@ func writeStopScenarioResponse(w http.ResponseWriter, ok bool, action, message, 
 }
 
 // workdirExists checks if the specified directory exists on the remote VPS.
-func workdirExists(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, workdir string) bool {
+func workdirExists(ctx context.Context, sshRunner ssh.Runner, cfg ssh.ConnectionConfig, workdir string) bool {
 	result, _ := sshRunner.Run(ctx, cfg, fmt.Sprintf("test -d %s && echo exists || echo missing", shellutil.QuoteSingle(workdir)), ssh.DefaultRunOptions())
 	return strings.TrimSpace(result.Stdout) == "exists"
 }
 
 // stopAllVrooliProcesses attempts to stop all vrooli processes using CLI (if available) and pkill.
-func stopAllVrooliProcesses(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, workdir string) []string {
+func stopAllVrooliProcesses(ctx context.Context, sshRunner ssh.Runner, cfg ssh.ConnectionConfig, workdir string) []string {
 	var outputs []string
 
 	// Try vrooli stop first (if the deployment-local CLI is available)
@@ -638,7 +638,7 @@ func stopAllVrooliProcesses(ctx context.Context, sshRunner ssh.Runner, cfg ssh.C
 
 // Helper functions for port stopping
 
-func collectPortStopPIDs(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, req StopPortServicesRequest) ([]string, bool, error) {
+func collectPortStopPIDs(ctx context.Context, sshRunner ssh.Runner, cfg ssh.ConnectionConfig, req StopPortServicesRequest) ([]string, bool, error) {
 	if len(req.Ports) == 0 && len(req.PIDs) == 0 && len(req.Services) == 0 {
 		ssRes, err := sshRunner.Run(ctx, cfg, `ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null || ss -ltnH '( sport = :80 or sport = :443 )'`, ssh.DefaultRunOptions())
 		if err != nil {
@@ -677,7 +677,7 @@ func collectPortStopPIDs(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Conf
 	return pids, len(req.Ports) > 0 || len(req.PIDs) > 0 || len(req.Services) > 0, nil
 }
 
-func resolveUnitForPID(ctx context.Context, runner ssh.Runner, cfg ssh.Config, pid string) string {
+func resolveUnitForPID(ctx context.Context, runner ssh.Runner, cfg ssh.ConnectionConfig, pid string) string {
 	cmd := fmt.Sprintf("systemctl status %s --no-pager 2>/dev/null | head -n 1", pid)
 	res, err := runner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
@@ -695,7 +695,7 @@ func resolveUnitForPID(ctx context.Context, runner ssh.Runner, cfg ssh.Config, p
 	return ""
 }
 
-func stopUnit(ctx context.Context, runner ssh.Runner, cfg ssh.Config, unit string) bool {
+func stopUnit(ctx context.Context, runner ssh.Runner, cfg ssh.ConnectionConfig, unit string) bool {
 	cmd := fmt.Sprintf("systemctl stop %s 2>/dev/null", unit)
 	res, err := runner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
@@ -704,7 +704,7 @@ func stopUnit(ctx context.Context, runner ssh.Runner, cfg ssh.Config, unit strin
 	return res.ExitCode == 0
 }
 
-func stopUnitIfActive(ctx context.Context, runner ssh.Runner, cfg ssh.Config, unit string) bool {
+func stopUnitIfActive(ctx context.Context, runner ssh.Runner, cfg ssh.ConnectionConfig, unit string) bool {
 	checkCmd := fmt.Sprintf("systemctl is-active %s 2>/dev/null", unit)
 	checkRes, _ := runner.Run(ctx, cfg, checkCmd, ssh.DefaultRunOptions())
 	if strings.TrimSpace(checkRes.Stdout) != "active" {
@@ -713,7 +713,7 @@ func stopUnitIfActive(ctx context.Context, runner ssh.Runner, cfg ssh.Config, un
 	return stopUnit(ctx, runner, cfg, unit)
 }
 
-func stopPID(ctx context.Context, runner ssh.Runner, cfg ssh.Config, pid string) bool {
+func stopPID(ctx context.Context, runner ssh.Runner, cfg ssh.ConnectionConfig, pid string) bool {
 	killCmd := fmt.Sprintf("kill %s 2>/dev/null && sleep 1 && ! kill -0 %s 2>/dev/null", pid, pid)
 	_, err := runner.Run(ctx, cfg, killCmd, ssh.DefaultRunOptions())
 	if err != nil {

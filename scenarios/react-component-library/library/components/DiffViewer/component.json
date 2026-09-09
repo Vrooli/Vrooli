@@ -9,6 +9,13 @@
     "1.0.4",
     "1.0.2"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.1",
@@ -18,15 +25,5 @@
     "1.0.2"
   ],
   "latest": "1.0.6",
-  "libraryId": "react-component-library:DiffViewer",
-  "displayName": "DiffViewer",
-  "description": "The semantic comparison surface for text or structured change, with split and unified modes, syntax highlighting, hunk navigation, comments, selection, and large-file handling.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:DiffViewer"
 }

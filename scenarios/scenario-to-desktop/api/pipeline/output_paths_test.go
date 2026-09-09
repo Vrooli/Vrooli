@@ -8,8 +8,12 @@ import (
 func TestResolvePipelineOutputPaths_StagingUsesStorageRoot(t *testing.T) {
 	storageRoot := t.TempDir()
 	t.Setenv("VROOLI_STORAGE_ROOT", storageRoot)
+	// The test owns the live namespace. Do not let a lifecycle-injected
+	// namespace from the surrounding process redirect this fixture.
+	t.Setenv("VROOLI_STORAGE_NAMESPACE", "")
+	t.Setenv("VROOLI_SCENARIO", "")
 
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "demo-scenario",
 		LocationMode: "staging",
 	}
@@ -28,7 +32,7 @@ func TestResolvePipelineOutputPaths_StagingUsesStorageRoot(t *testing.T) {
 
 func TestResolvePipelineOutputPaths_ProperUsesScenarioPath(t *testing.T) {
 	scenarioPath := "/repo/scenarios/demo-scenario"
-	outputRoot, desktopPath := resolvePipelineOutputPaths(&Config{
+	outputRoot, desktopPath := resolvePipelineOutputPaths(&PipelineConfig{
 		ScenarioName: "demo-scenario",
 		LocationMode: "proper",
 	}, scenarioPath, "pipe-123", FrameworkElectron)

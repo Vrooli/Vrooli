@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
@@ -103,7 +103,7 @@ func validateRelocationProtoSources[C any](deps HandlerDeps[C], ctx C, info temp
 		if err != nil {
 			relTmp = tmpDir
 		}
-		err = deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+		err = deps.RunSubprocess(ctx, shell.Spec{
 			Name:   "buf",
 			Args:   []string{"lint", "--path", relTmp},
 			Dir:    protoPackageDir,

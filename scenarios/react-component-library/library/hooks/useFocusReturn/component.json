@@ -3,20 +3,17 @@
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-focus-return",
   "deprecatedVersions": [],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.0"
-  ],
-  "latest": "1.1.1",
-  "libraryId": "react-component-library:useFocusReturn",
-  "displayName": "useFocusReturn",
-  "description": "A focus-restoration primitive returning focus to the originating trigger, or to a deterministic fallback when that trigger no longer exists.",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:useFocusReturn"
 }

@@ -23,28 +23,29 @@ const (
 type LaunchEventName string
 
 const (
-	EventRecorderStarted       LaunchEventName = "recorder_started"
-	EventProtocolStarted       LaunchEventName = "protocol_started"
-	EventProtocolCompleted     LaunchEventName = "protocol_completed"
-	EventDemoSpawn             LaunchEventName = "demo_spawn"
-	EventElectronReady         LaunchEventName = "electron_ready"
-	EventSplashCreated         LaunchEventName = "splash_created"
-	EventSplashLoadCompleted   LaunchEventName = "splash_load_completed"
-	EventSplashReadyToShow     LaunchEventName = "splash_ready_to_show"
-	EventSplashShown           LaunchEventName = "splash_shown"
-	EventSplashFirstPaint      LaunchEventName = "splash_first_paint"
-	EventRuntimeSpawned        LaunchEventName = "runtime_spawned"
-	EventRuntimeTokenAvailable LaunchEventName = "runtime_token_available"
-	EventRuntimeHealthReady    LaunchEventName = "runtime_health_ready"
-	EventRuntimeReady          LaunchEventName = "runtime_ready"
-	EventPortDiscovered        LaunchEventName = "port_discovered"
-	EventServerReady           LaunchEventName = "server_ready"
-	EventMainWindowCreated     LaunchEventName = "main_window_created"
-	EventMainWindowLoad        LaunchEventName = "main_window_load_completed"
-	EventMainWindowShown       LaunchEventName = "main_window_shown"
-	EventAppReady              LaunchEventName = "app_ready"
-	EventJourneyStarted        LaunchEventName = "journey_started"
-	EventRecordingEnded        LaunchEventName = "recording_ended"
+	EventRecorderStarted         LaunchEventName = "recorder_started"
+	EventProtocolStarted         LaunchEventName = "protocol_started"
+	EventProtocolCompleted       LaunchEventName = "protocol_completed"
+	EventDemoSpawn               LaunchEventName = "demo_spawn"
+	EventElectronReady           LaunchEventName = "electron_ready"
+	EventSplashCreated           LaunchEventName = "splash_created"
+	EventSplashLoadCompleted     LaunchEventName = "splash_load_completed"
+	EventSplashReadyToShow       LaunchEventName = "splash_ready_to_show"
+	EventSplashShown             LaunchEventName = "splash_shown"
+	EventSplashFirstPaint        LaunchEventName = "splash_first_paint"
+	EventRuntimeSpawned          LaunchEventName = "runtime_spawned"
+	EventRuntimeIPCPortPublished LaunchEventName = "runtime_ipc_port_published"
+	EventRuntimeTokenAvailable   LaunchEventName = "runtime_token_available"
+	EventRuntimeHealthReady      LaunchEventName = "runtime_health_ready"
+	EventRuntimeReady            LaunchEventName = "runtime_ready"
+	EventPortDiscovered          LaunchEventName = "port_discovered"
+	EventServerReady             LaunchEventName = "server_ready"
+	EventMainWindowCreated       LaunchEventName = "main_window_created"
+	EventMainWindowLoad          LaunchEventName = "main_window_load_completed"
+	EventMainWindowShown         LaunchEventName = "main_window_shown"
+	EventAppReady                LaunchEventName = "app_ready"
+	EventJourneyStarted          LaunchEventName = "journey_started"
+	EventRecordingEnded          LaunchEventName = "recording_ended"
 )
 
 var (
@@ -168,7 +169,8 @@ func knownLaunchEvent(name LaunchEventName) bool {
 	for _, candidate := range []LaunchEventName{
 		EventRecorderStarted, EventProtocolStarted, EventProtocolCompleted, EventDemoSpawn,
 		EventElectronReady, EventSplashCreated, EventSplashLoadCompleted, EventSplashReadyToShow,
-		EventSplashShown, EventSplashFirstPaint, EventRuntimeSpawned, EventRuntimeTokenAvailable,
+		EventSplashShown, EventSplashFirstPaint, EventRuntimeSpawned, EventRuntimeIPCPortPublished,
+		EventRuntimeTokenAvailable,
 		EventRuntimeHealthReady, EventRuntimeReady, EventPortDiscovered, EventServerReady,
 		EventMainWindowCreated, EventMainWindowLoad, EventMainWindowShown, EventAppReady,
 		EventJourneyStarted, EventRecordingEnded,

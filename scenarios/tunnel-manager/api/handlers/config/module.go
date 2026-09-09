@@ -2,12 +2,10 @@ package config
 
 import (
 	"log"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"tunnel-manager/internal/authz"
 	"tunnel-manager/internal/module"
+	"tunnel-manager/internal/scenarioroot"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -20,32 +18,6 @@ import (
 	internalconfig "tunnel-manager/internal/config"
 )
 
-// resolveScenariosRoot finds the scenarios directory used to resolve a
-// scenario's fixed UI port during adopt. VROOLI_SCENARIOS_ROOT wins; otherwise
-// walk up from the working directory for a "scenarios" dir; failing that, fall
-// back to "scenarios" relative to cwd. Mirrors the exposure/audit resolvers
-// (each domain keeps its own to avoid a cross-handler import).
-func resolveScenariosRoot() string {
-	if v := strings.TrimSpace(os.Getenv("VROOLI_SCENARIOS_ROOT")); v != "" {
-		return v
-	}
-	if cwd, err := os.Getwd(); err == nil {
-		dir := cwd
-		for {
-			candidate := filepath.Join(dir, "scenarios")
-			if info, statErr := os.Stat(candidate); statErr == nil && info.IsDir() {
-				return candidate
-			}
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
-			dir = parent
-		}
-	}
-	return "scenarios"
-}
-
 func NewProductionService(db *database.RoutedDB, clk schedule.Clock, routes internalconfig.Routes) internalconfig.Service {
 	return internalconfig.NewProductionService(db, clk, internalconfig.ProductionOptions{
 		Routes:       routes,
@@ -53,7 +25,7 @@ func NewProductionService(db *database.RoutedDB, clk schedule.Clock, routes inte
 		// Lets AdoptIngress auto-classify an adopted hostname as a scenario
 		// route (real port) when its subdomain matches a known scenario,
 		// instead of always falling back to an external route with port 0.
-		Scenarios: internalconfig.NewFileScenarioResolver(resolveScenariosRoot()),
+		Scenarios: internalconfig.NewFileScenarioResolver(scenarioroot.New()),
 	})
 }
 
@@ -346,7 +318,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 500, Code: "internal", Description: "Route create or ledger write failure"},
 		},
 		Examples: []module.Example{
-			{Name: "Adopt as external", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/AdoptIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"api.itsagitime.com\",\"target\":\"http://127.0.0.1:9000\"}'"},
+			{Name: "Adopt as external", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/AdoptIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"api.example.invalid\",\"target\":\"http://127.0.0.1:9000\"}'"},
 		},
 	},
 	{
@@ -373,7 +345,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 500, Code: "internal", Description: "Ledger write failure"},
 		},
 		Examples: []module.Example{
-			{Name: "Ignore hostname", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/IgnoreIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"legacy.itsagitime.com\",\"note\":\"operator dashboard\"}'"},
+			{Name: "Ignore hostname", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/IgnoreIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"legacy.example.invalid\",\"note\":\"operator dashboard\"}'"},
 		},
 	},
 	{
@@ -398,7 +370,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 500, Code: "internal", Description: "Ingress apply or ledger delete failure"},
 		},
 		Examples: []module.Example{
-			{Name: "Prune hostname", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/PruneIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"legacy.itsagitime.com\"}'"},
+			{Name: "Prune hostname", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/PruneIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"legacy.example.invalid\"}'"},
 		},
 	},
 	{
@@ -446,6 +418,30 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Get access status", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/GetAccessStatus -H 'Content-Type: application/json' -d '{}'"},
+		},
+	},
+	{
+		ID:          "config_get_authentication_binding",
+		Path:        configconnect.ConfigServiceGetAuthenticationBindingProcedure,
+		Method:      "POST",
+		Summary:     "Resolve managed Cloudflare Access verifier metadata",
+		Description: "Returns the non-secret team domain, audience, and recovery URL for an enabled scenario route. Tunnel Manager resolves the route and primary Access application; no Cloudflare writes or credentials are involved.",
+		Category:    "config",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"scenario": "scenario slug", "hostname": "optional exact hostname disambiguator"},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"binding": "AuthenticationBinding (team_domain, audience, recovery_url)"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "No unique enabled route for the scenario"},
+			{Status: 412, Code: "failed_precondition", Description: "Cloudflare credentials or Access metadata are unavailable"},
+			{Status: 500, Code: "internal", Description: "Route or Cloudflare metadata read failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Get authentication binding", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/GetAuthenticationBinding -H 'Content-Type: application/json' -d '{\"scenario\":\"git-control-tower\"}'"},
 		},
 	},
 }

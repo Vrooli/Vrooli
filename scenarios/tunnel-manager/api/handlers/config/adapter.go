@@ -42,6 +42,14 @@ func accessStatusToProto(s internalconfig.AccessStatus) *configv1.AccessStatus {
 	}
 }
 
+func authenticationBindingToProto(b internalconfig.AccessRuntimeBinding) *configv1.AuthenticationBinding {
+	return &configv1.AuthenticationBinding{
+		TeamDomain:  b.TeamDomain,
+		Audience:    b.Audience,
+		RecoveryUrl: b.RecoveryURL,
+	}
+}
+
 func readinessToProto(r internalconfig.ConfigReadiness) *configv1.ConfigReadiness {
 	return &configv1.ConfigReadiness{
 		DesiredMode:      modeToProto(r.DesiredMode),
@@ -67,9 +75,26 @@ func verificationToProto(v internalconfig.CredentialVerification) *configv1.Veri
 			State:       checkStateToProto(c.State),
 			Detail:      c.Detail,
 			Remediation: c.Remediation,
+			Capability:  c.Capability,
+			Required:    c.Required,
 		})
 	}
-	return &configv1.VerifyCredentialsResponse{Checks: checks, Ready: v.Ready}
+	capabilities := make([]*configv1.CredentialCapability, 0, len(v.Capabilities))
+	for _, c := range v.Capabilities {
+		capabilities = append(capabilities, &configv1.CredentialCapability{
+			Name:       c.Name,
+			Ready:      c.Ready,
+			Required:   c.Required,
+			CheckNames: c.CheckNames,
+			Reason:     c.Reason,
+		})
+	}
+	return &configv1.VerifyCredentialsResponse{
+		Checks:       checks,
+		Ready:        v.Ready,
+		Capabilities: capabilities,
+		AllChecksOk:  v.AllChecksOK,
+	}
 }
 
 func checkStateToProto(s internalconfig.CheckState) configv1.CheckState {
@@ -82,6 +107,8 @@ func checkStateToProto(s internalconfig.CheckState) configv1.CheckState {
 		return configv1.CheckState_CHECK_STATE_INVALID
 	case internalconfig.CheckInsufficientScope:
 		return configv1.CheckState_CHECK_STATE_INSUFFICIENT_SCOPE
+	case internalconfig.CheckUnavailable:
+		return configv1.CheckState_CHECK_STATE_UNAVAILABLE
 	default:
 		return configv1.CheckState_CHECK_STATE_UNSPECIFIED
 	}

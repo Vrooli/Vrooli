@@ -12,8 +12,5 @@
   ],
   "draft": "",
   "latest": "1.0.3",
-  "libraryId": "react-component-library:CardShell",
-  "displayName": "CardShell",
-  "description": "Row chrome for scenario-owned cards with selection, disabled, cursor, focus, and press states.",
-  "tags": []
+  "libraryId": "react-component-library:CardShell"
 }

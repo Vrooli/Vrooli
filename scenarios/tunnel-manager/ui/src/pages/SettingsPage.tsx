@@ -37,6 +37,7 @@ function checkTone(state: CheckState): BadgeTone {
   if (state === CheckState.OK) return "success";
   if (state === CheckState.INSUFFICIENT_SCOPE || state === CheckState.INVALID) return "danger";
   if (state === CheckState.MISSING) return "warning";
+  if (state === CheckState.UNAVAILABLE) return "warning";
   return "neutral";
 }
 
@@ -45,7 +46,24 @@ function checkLabel(state: CheckState) {
   if (state === CheckState.MISSING) return strings.config.checkMissing;
   if (state === CheckState.INVALID) return strings.config.checkInvalid;
   if (state === CheckState.INSUFFICIENT_SCOPE) return strings.config.checkInsufficientScope;
+  if (state === CheckState.UNAVAILABLE) return strings.config.checkUnavailable;
   return strings.config.checkUnknown;
+}
+
+function capabilityLabelKey(name: string) {
+  switch (name) {
+    case "cloudflare_authentication": return strings.config.capabilityCloudflareAuthentication;
+    case "remote_ingress": return strings.config.capabilityRemoteIngress;
+    case "dns_automation": return strings.config.capabilityDnsAutomation;
+    case "access_app_metadata": return strings.config.capabilityAccessAppMetadata;
+    case "gated_ui_authentication": return strings.config.capabilityGatedUiAuthentication;
+    default: return undefined;
+  }
+}
+
+function capabilityLabel(name: string, t: TFunction) {
+  const key = capabilityLabelKey(name);
+  return key ? t(key) : name;
 }
 
 function syncSummary(resp: Awaited<ReturnType<typeof configClient.sync>>, t: TFunction) {
@@ -153,6 +171,7 @@ export function SettingsPage() {
   const verification = verifyCredentialsMutation.data;
   const verificationPending = verifyCredentialsMutation.isPending;
   const verificationChecks = verification?.checks ?? [];
+  const verificationCapabilities = verification?.capabilities ?? [];
   const reconcileResult = reconcileMutation.data;
   const settingsState = configQuery.isLoading
     ? "loading"
@@ -360,9 +379,29 @@ export function SettingsPage() {
                     </p>
                   )}
                   {verificationChecks.length > 0 && (
-                    <ul data-testid={selectors.settingsPage.credentialVerificationResult} className="grid gap-2 md:grid-cols-2">
-                      {verificationChecks.map((check) => <CredentialCheckItem key={`${check.name}-${check.detail}`} check={check} t={t} />)}
-                    </ul>
+                    <>
+                      {verificationCapabilities.length > 0 && (
+                        <ul className="grid gap-2 md:grid-cols-2" aria-label="Capability readiness">
+                          {verificationCapabilities.map((capability) => (
+                            <li key={capability.name} className="rounded-control border border-app-border bg-app-surface-muted p-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="break-words font-medium">{capabilityLabel(capability.name, t)}</span>
+                                <StatusBadge tone={capability.ready ? "success" : capability.required ? "danger" : "warning"}>
+                                  {capability.ready ? t(strings.config.capabilityReady) : capability.required ? t(strings.config.capabilityBlocked) : t(strings.config.capabilityNeedsAttention)}
+                                </StatusBadge>
+                              </div>
+                              <p className="mt-1 text-xs text-app-muted-foreground">
+                                {capability.required ? t(strings.config.capabilityRequired) : t(strings.config.capabilityInformational)}
+                              </p>
+                              {capability.reason && <p className="mt-2 text-xs text-app-warning">{capability.reason}</p>}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <ul data-testid={selectors.settingsPage.credentialVerificationResult} className="grid gap-2 md:grid-cols-2">
+                        {verificationChecks.map((check) => <CredentialCheckItem key={`${check.name}-${check.detail}`} check={check} t={t} />)}
+                      </ul>
+                    </>
                   )}
                 </section>
               </form>
@@ -616,8 +655,12 @@ function CredentialCheckItem({ check, t }: { check: CredentialCheck; t: TFunctio
     <li data-testid={selectors.settingsPage.credentialVerificationCheck} className="rounded-control border border-app-border bg-app-surface-muted p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="break-words font-medium">{check.name}</span>
-        <StatusBadge tone={checkTone(check.state)}>{t(checkLabel(check.state))}</StatusBadge>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {!check.required && <span className="text-xs text-app-muted-foreground">informational</span>}
+          <StatusBadge tone={checkTone(check.state)}>{t(checkLabel(check.state))}</StatusBadge>
+        </div>
       </div>
+      {check.capability && <p className="mt-1 text-xs text-app-muted-foreground">{t(strings.config.checkCapability, { capability: capabilityLabel(check.capability, t) })}</p>}
       {check.detail && <p className="mt-1 text-xs text-app-muted-foreground">{check.detail}</p>}
       {check.remediation && <p className="mt-2 text-xs text-app-warning">{t(strings.config.checkRemediation, { remediation: check.remediation })}</p>}
     </li>

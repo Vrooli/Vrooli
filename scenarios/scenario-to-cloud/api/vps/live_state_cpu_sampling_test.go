@@ -16,7 +16,7 @@ type recordingSSHRunner struct {
 	calls []string
 }
 
-func (r *recordingSSHRunner) Run(ctx context.Context, cfg ssh.Config, command string, opts ssh.RunOptions) (ssh.Result, error) {
+func (r *recordingSSHRunner) Run(ctx context.Context, cfg ssh.ConnectionConfig, command string, opts ssh.RunOptions) (ssh.Result, error) {
 	r.mu.Lock()
 	r.calls = append(r.calls, command)
 	r.mu.Unlock()

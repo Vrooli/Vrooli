@@ -47,7 +47,7 @@ func TestRunCaddyTLSRenew_Success(t *testing.T) {
 		},
 	}
 
-	cfg := ssh.Config{Host: "test", User: "root", Port: 22}
+	cfg := ssh.ConnectionConfig{Host: "test", User: "root", Port: 22}
 	result := RunCaddyTLSRenew(context.Background(), runner, cfg, "example.com")
 
 	if !result.OK {
@@ -67,7 +67,7 @@ func TestRunCaddyTLSRenew_Failure(t *testing.T) {
 		},
 	}
 
-	cfg := ssh.Config{Host: "test", User: "root", Port: 22}
+	cfg := ssh.ConnectionConfig{Host: "test", User: "root", Port: 22}
 	result := RunCaddyTLSRenew(context.Background(), runner, cfg, "example.com")
 
 	if result.OK {

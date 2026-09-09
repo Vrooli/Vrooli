@@ -9,7 +9,7 @@ type testServiceDeps struct {
 	store              *mocks.MockStore
 	cancelManager      *mocks.MockCancelManager
 	telemetryIngestor  *mocks.MockTelemetryIngestor
-	config             smoketest.Config
+	config             smoketest.SmokeTestConfig
 	executor           *mocks.MockProcessExecutor
 	platformResolver   *mocks.MockPlatformResolver
 	telemetryResolver  *mocks.MockTelemetryPathResolver

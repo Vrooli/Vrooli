@@ -3,13 +3,11 @@ package exposure
 import (
 	"context"
 	"log"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"tunnel-manager/internal/authz"
 	"tunnel-manager/internal/cmdrunner"
 	"tunnel-manager/internal/module"
+	"tunnel-manager/internal/scenarioroot"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -48,8 +46,8 @@ func NewProductionService(db *database.RoutedDB, clk schedule.Clock, manifestRea
 	// Reuse the config service's Sync as the ingress reconciler so exposure
 	// never owns Cloudflare calls or local cloudflared restart behavior.
 
-	scenariosRoot := resolveScenariosRoot()
-	ports := internalexposure.NewFilePortResolver(scenariosRoot)
+	scenarioFiles := scenarioroot.New()
+	ports := internalexposure.NewFilePortResolver(scenarioFiles)
 	return internalexposure.NewService(
 		repo,
 		manifestReader,
@@ -103,29 +101,4 @@ func (a ingressAdapter) Reconcile(ctx context.Context) error {
 	// operator's conservative manual `config sync` (additive-only).
 	_, err := a.cfg.Sync(ctx, false, true)
 	return err
-}
-
-// resolveScenariosRoot finds the scenarios directory. VROOLI_SCENARIOS_ROOT
-// wins; otherwise walk up from the working directory looking for a
-// "scenarios" dir; failing that, fall back to "scenarios" relative to cwd.
-func resolveScenariosRoot() string {
-	if v := strings.TrimSpace(os.Getenv("VROOLI_SCENARIOS_ROOT")); v != "" {
-		return v
-	}
-	cwd, err := os.Getwd()
-	if err == nil {
-		dir := cwd
-		for {
-			candidate := filepath.Join(dir, "scenarios")
-			if info, statErr := os.Stat(candidate); statErr == nil && info.IsDir() {
-				return candidate
-			}
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
-			dir = parent
-		}
-	}
-	return "scenarios"
 }

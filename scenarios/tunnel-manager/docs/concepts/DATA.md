@@ -63,7 +63,7 @@ These sketches summarize the implemented schema shape. The exact
 constraints live in the linked `schema.sql` files.
 
 - **`routes`** — `subdomain` (DNS label, unique), `scenario`, `domain`
-  (field, default `itsagitime.com`), `local_port` (fixed UI port), `tier`
+  (field, default `example.invalid`), `local_port` (fixed UI port), `tier`
   (`core`|`leased`), `lease_id` (nullable FK → `leases`), `enabled`,
   `health_path`, `created_at`, `updated_at`. `public_url` is derived
   (`https://<subdomain>.<domain>`), not stored. One route per subdomain.

@@ -27,7 +27,7 @@ type DefaultService struct {
 	logger            Logger
 
 	// New injected components
-	config             Config
+	config             SmokeTestConfig
 	executor           ProcessExecutor
 	platformResolver   PlatformResolver
 	telemetryResolver  TelemetryPathResolver
@@ -63,7 +63,7 @@ func NewService(
 	store Store,
 	cancelManager CancelManager,
 	telemetryIngestor TelemetryIngestor,
-	config Config,
+	config SmokeTestConfig,
 	executor ProcessExecutor,
 	platformResolver PlatformResolver,
 	telemetryResolver TelemetryPathResolver,
@@ -282,16 +282,22 @@ type PerformanceArtifact struct {
 }
 
 type EvidenceReportInput struct {
-	ProfileID       string
-	GitCommit       string
-	ScenarioName    string
-	Platform        string
-	RunID           string
-	Disposition     string
-	Target          *domainv1.EvidenceTarget
-	Captures        []captures.Capture
-	Journey         *deliveryramp.JourneyResult
-	ProducerBaseURL string
+	ProfileID             string
+	GitCommit             string
+	ArtifactDigest        string
+	CandidateID           string
+	DestinationRevisionID string
+	AuthorizationEpoch    uint64
+	PolicyVersion         int
+	Channel               string
+	ScenarioName          string
+	Platform              string
+	RunID                 string
+	Disposition           string
+	Target                *domainv1.EvidenceTarget
+	Captures              []captures.Capture
+	Journey               *deliveryramp.JourneyResult
+	ProducerBaseURL       string
 }
 
 func (s *DefaultService) WithEvidenceReporter(reporter EvidenceReporter) {

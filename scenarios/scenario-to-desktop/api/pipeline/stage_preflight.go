@@ -105,6 +105,11 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	}
 	s.appendResourceEligibilityWarnings(input, result)
 
+	if ShouldDeferPreflightForTarget(input.Config) {
+		skipStage(result, s.timeProvider, PreflightDeferralReason(input.Config))
+		return result
+	}
+
 	if s.service == nil {
 		failStage(result, s.timeProvider, errors.ErrPreflightServiceNotConfigured())
 		return result

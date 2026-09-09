@@ -27,7 +27,7 @@ func TestConnectServiceGetPreservesPipelineInformation(t *testing.T) {
 		ProgressMessage: "Resolving deployment",
 		StartedAt:       1710000000,
 		FinalArtifacts:  map[string]string{"linux": "/tmp/app"},
-		Config:          &Config{ScenarioName: "example", Framework: FrameworkElectron, Platforms: []string{"linux"}},
+		Config:          &PipelineConfig{ScenarioName: "example", Framework: FrameworkElectron, Platforms: []string{"linux"}},
 		IdempotencyKey:  "request-1",
 		Stages: map[string]*StageResult{
 			"bundle": {
@@ -328,7 +328,7 @@ func TestConnectServiceRunAndResumeMapDomainErrorsToContractCodes(t *testing.T) 
 }
 
 func TestPipelineNativeExtensionRoundTripAndAdmission(t *testing.T) {
-	config := &Config{ScenarioName: "portal", Framework: FrameworkElectron, Platforms: []string{"linux"}, NativeExtension: &generation.NativeExtension{Version: 3, Module: "presentation", ActivationShortcut: "CommandOrControl+Shift+Space", Permissions: []string{"window.presentation", "global-shortcut", "desktop.context"}, Platforms: []string{"linux"}, HelperProviders: []generation.HelperProvider{{Owner: "device-control", Capability: "desktop.session"}}}}
+	config := &PipelineConfig{ScenarioName: "portal", Framework: FrameworkElectron, Platforms: []string{"linux"}, NativeExtension: &generation.NativeExtension{Version: 3, Module: "presentation", ActivationShortcut: "CommandOrControl+Shift+Space", Permissions: []string{"window.presentation", "global-shortcut", "desktop.context"}, Platforms: []string{"linux"}, HelperProviders: []generation.HelperProvider{{Owner: "device-control", Capability: "desktop.session"}}}}
 	value, err := configFromProto(configToProto(config))
 	if err != nil || value.NativeExtension == nil || value.NativeExtension.Module != "presentation" || value.NativeExtension.ActivationShortcut != "CommandOrControl+Shift+Space" || len(value.NativeExtension.HelperProviders) != 1 || value.NativeExtension.HelperProviders[0].Capability != "desktop.session" {
 		t.Fatalf("extension lost: %#v %v", value, err)
@@ -362,7 +362,7 @@ func TestPlatformToProtoNormalizesCanonicalArchitectureValues(t *testing.T) {
 
 func TestPipelineConfigProtoRoundTripPreservesExplicitControls(t *testing.T) {
 	stop := true
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "example", Platforms: []string{"linux", "mac"}, Framework: FrameworkElectron,
 		DeploymentMode: DeploymentModeProxy, TemplateType: "advanced", SkipPreflight: true, SkipSmokeTest: true,
 		StopOnFailure: &stop, WebhookURL: "https://hooks.example.test", ProxyURL: "http://proxy.example.test",

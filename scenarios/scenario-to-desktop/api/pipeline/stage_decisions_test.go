@@ -7,7 +7,7 @@ import (
 func TestShouldSkipPreflight(t *testing.T) {
 	tests := []struct {
 		name     string
-		config   *Config
+		config   *PipelineConfig
 		expected bool
 	}{
 		{
@@ -17,37 +17,37 @@ func TestShouldSkipPreflight(t *testing.T) {
 		},
 		{
 			name:     "skip_preflight true returns true",
-			config:   &Config{SkipPreflight: true},
+			config:   &PipelineConfig{SkipPreflight: true},
 			expected: true,
 		},
 		{
 			name:     "deployment_mode proxy returns true",
-			config:   &Config{DeploymentMode: DeploymentModeProxy},
+			config:   &PipelineConfig{DeploymentMode: DeploymentModeProxy},
 			expected: true,
 		},
 		{
 			name:     "deployment_mode external-server returns true",
-			config:   &Config{DeploymentMode: DeploymentModeExternalServer},
+			config:   &PipelineConfig{DeploymentMode: DeploymentModeExternalServer},
 			expected: true,
 		},
 		{
 			name:     "deployment_mode cloud-api returns true",
-			config:   &Config{DeploymentMode: DeploymentModeCloudAPI},
+			config:   &PipelineConfig{DeploymentMode: DeploymentModeCloudAPI},
 			expected: true,
 		},
 		{
 			name:     "deployment_mode bundled returns false",
-			config:   &Config{DeploymentMode: DeploymentModeBundled},
+			config:   &PipelineConfig{DeploymentMode: DeploymentModeBundled},
 			expected: false,
 		},
 		{
 			name:     "default deployment mode returns false (bundled)",
-			config:   &Config{},
+			config:   &PipelineConfig{},
 			expected: false, // Default is bundled, which requires preflight
 		},
 		{
 			name:     "skip_preflight with proxy returns true",
-			config:   &Config{SkipPreflight: true, DeploymentMode: DeploymentModeProxy},
+			config:   &PipelineConfig{SkipPreflight: true, DeploymentMode: DeploymentModeProxy},
 			expected: true,
 		},
 	}
@@ -62,10 +62,40 @@ func TestShouldSkipPreflight(t *testing.T) {
 	}
 }
 
+func TestShouldDeferPreflightForTarget(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *PipelineConfig
+		expected bool
+	}{
+		{name: "nil config", config: nil, expected: false},
+		{name: "no explicit target", config: &PipelineConfig{DeploymentMode: DeploymentModeBundled}, expected: false},
+		{name: "cross target mac", config: &PipelineConfig{DeploymentMode: DeploymentModeBundled, Platforms: []string{"mac-amd64"}}, expected: true},
+		{name: "explicit skip remains explicit", config: &PipelineConfig{SkipPreflight: true, Platforms: []string{"mac-amd64"}}, expected: false},
+		{name: "thin client does not defer", config: &PipelineConfig{DeploymentMode: DeploymentModeProxy, Platforms: []string{"mac-amd64"}}, expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ShouldDeferPreflightForTarget(tt.config); got != tt.expected {
+				t.Fatalf("ShouldDeferPreflightForTarget() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPreflightDeferralReasonIsOperatorActionable(t *testing.T) {
+	config := &PipelineConfig{DeploymentMode: DeploymentModeBundled, Platforms: []string{"mac-amd64"}}
+	reason := PreflightDeferralReason(config)
+	if reason == "" || !containsSubstring(reason, "native runtime validation deferred") || !containsSubstring(reason, "target-host preflight evidence") {
+		t.Fatalf("reason = %q, want target-host limitation and evidence guidance", reason)
+	}
+}
+
 func TestShouldSkipBundle(t *testing.T) {
 	tests := []struct {
 		name     string
-		config   *Config
+		config   *PipelineConfig
 		expected bool
 	}{
 		{
@@ -75,27 +105,27 @@ func TestShouldSkipBundle(t *testing.T) {
 		},
 		{
 			name:     "deployment_mode proxy returns true",
-			config:   &Config{DeploymentMode: DeploymentModeProxy},
+			config:   &PipelineConfig{DeploymentMode: DeploymentModeProxy},
 			expected: true,
 		},
 		{
 			name:     "deployment_mode external-server returns true",
-			config:   &Config{DeploymentMode: DeploymentModeExternalServer},
+			config:   &PipelineConfig{DeploymentMode: DeploymentModeExternalServer},
 			expected: true,
 		},
 		{
 			name:     "deployment_mode cloud-api returns true",
-			config:   &Config{DeploymentMode: DeploymentModeCloudAPI},
+			config:   &PipelineConfig{DeploymentMode: DeploymentModeCloudAPI},
 			expected: true,
 		},
 		{
 			name:     "deployment_mode bundled returns false",
-			config:   &Config{DeploymentMode: DeploymentModeBundled},
+			config:   &PipelineConfig{DeploymentMode: DeploymentModeBundled},
 			expected: false,
 		},
 		{
 			name:     "default deployment mode returns false (bundled)",
-			config:   &Config{},
+			config:   &PipelineConfig{},
 			expected: false, // Default is bundled, which requires bundle stage
 		},
 	}
@@ -113,7 +143,7 @@ func TestShouldSkipBundle(t *testing.T) {
 func TestShouldSkipSmokeTest(t *testing.T) {
 	tests := []struct {
 		name     string
-		config   *Config
+		config   *PipelineConfig
 		expected bool
 	}{
 		{
@@ -123,12 +153,12 @@ func TestShouldSkipSmokeTest(t *testing.T) {
 		},
 		{
 			name:     "skip_smoke_test true returns true",
-			config:   &Config{SkipSmokeTest: true},
+			config:   &PipelineConfig{SkipSmokeTest: true},
 			expected: true,
 		},
 		{
 			name:     "skip_smoke_test false returns false",
-			config:   &Config{SkipSmokeTest: false},
+			config:   &PipelineConfig{SkipSmokeTest: false},
 			expected: false,
 		},
 	}
@@ -146,7 +176,7 @@ func TestShouldSkipSmokeTest(t *testing.T) {
 func TestShouldSkipDeploy(t *testing.T) {
 	tests := []struct {
 		name     string
-		config   *Config
+		config   *PipelineConfig
 		expected bool
 	}{
 		{
@@ -156,12 +186,12 @@ func TestShouldSkipDeploy(t *testing.T) {
 		},
 		{
 			name:     "nil deploy config returns true",
-			config:   &Config{},
+			config:   &PipelineConfig{},
 			expected: true,
 		},
 		{
 			name:     "deploy config present returns false",
-			config:   &Config{DeployConfig: &DeployConfig{AppKey: "my-app"}},
+			config:   &PipelineConfig{DeployConfig: &DeployConfig{AppKey: "my-app"}},
 			expected: false,
 		},
 	}
@@ -222,7 +252,7 @@ func TestValidateCanResume(t *testing.T) {
 func TestShouldStopAfterStage(t *testing.T) {
 	tests := []struct {
 		name      string
-		config    *Config
+		config    *PipelineConfig
 		stageName string
 		expected  bool
 	}{
@@ -234,19 +264,19 @@ func TestShouldStopAfterStage(t *testing.T) {
 		},
 		{
 			name:      "matching stage returns true",
-			config:    &Config{StopAfterStage: StageBuild},
+			config:    &PipelineConfig{StopAfterStage: StageBuild},
 			stageName: StageBuild,
 			expected:  true,
 		},
 		{
 			name:      "non-matching stage returns false",
-			config:    &Config{StopAfterStage: StageBuild},
+			config:    &PipelineConfig{StopAfterStage: StageBuild},
 			stageName: StageGenerate,
 			expected:  false,
 		},
 		{
 			name:      "empty stop_after_stage returns false",
-			config:    &Config{},
+			config:    &PipelineConfig{},
 			stageName: StageBuild,
 			expected:  false,
 		},
@@ -265,7 +295,7 @@ func TestShouldStopAfterStage(t *testing.T) {
 func TestShouldSkipSigning(t *testing.T) {
 	tests := []struct {
 		name     string
-		config   *Config
+		config   *PipelineConfig
 		expected bool
 	}{
 		{
@@ -275,17 +305,17 @@ func TestShouldSkipSigning(t *testing.T) {
 		},
 		{
 			name:     "sign false returns true",
-			config:   &Config{Sign: false},
+			config:   &PipelineConfig{Sign: false},
 			expected: true,
 		},
 		{
 			name:     "sign true returns false",
-			config:   &Config{Sign: true},
+			config:   &PipelineConfig{Sign: true},
 			expected: false,
 		},
 		{
 			name:     "default config returns true (signing is opt-in)",
-			config:   &Config{},
+			config:   &PipelineConfig{},
 			expected: true,
 		},
 	}
@@ -303,7 +333,7 @@ func TestShouldSkipSigning(t *testing.T) {
 func TestShouldSkipGeneration(t *testing.T) {
 	tests := []struct {
 		name     string
-		config   *Config
+		config   *PipelineConfig
 		expected bool
 	}{
 		{
@@ -313,37 +343,37 @@ func TestShouldSkipGeneration(t *testing.T) {
 		},
 		{
 			name:     "no resume returns false",
-			config:   &Config{},
+			config:   &PipelineConfig{},
 			expected: false,
 		},
 		{
 			name:     "resume from bundle returns false",
-			config:   &Config{ResumeFromStage: StageBundle},
+			config:   &PipelineConfig{ResumeFromStage: StageBundle},
 			expected: false,
 		},
 		{
 			name:     "resume from preflight returns false",
-			config:   &Config{ResumeFromStage: StagePreflight},
+			config:   &PipelineConfig{ResumeFromStage: StagePreflight},
 			expected: false,
 		},
 		{
 			name:     "resume from generate returns false",
-			config:   &Config{ResumeFromStage: StageGenerate},
+			config:   &PipelineConfig{ResumeFromStage: StageGenerate},
 			expected: false,
 		},
 		{
 			name:     "resume from build returns true",
-			config:   &Config{ResumeFromStage: StageBuild},
+			config:   &PipelineConfig{ResumeFromStage: StageBuild},
 			expected: true,
 		},
 		{
 			name:     "resume from smoketest returns true",
-			config:   &Config{ResumeFromStage: StageSmokeTest},
+			config:   &PipelineConfig{ResumeFromStage: StageSmokeTest},
 			expected: true,
 		},
 		{
 			name:     "resume from deploy returns true",
-			config:   &Config{ResumeFromStage: StageDeploy},
+			config:   &PipelineConfig{ResumeFromStage: StageDeploy},
 			expected: true,
 		},
 	}

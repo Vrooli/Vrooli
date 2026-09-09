@@ -1,14 +1,14 @@
 package templateengine
 
 import (
+	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/templatevalidation"
 	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
@@ -158,7 +158,7 @@ func validateTemplateShallowGeneratedCopy[C any](deps HandlerDeps[C], ctx C, inf
 			Message:  fmt.Sprintf("relocate validation artifacts: %v", err),
 		}}
 	}
-	return validateGeneratedScenario(destination, deps.RunSubprocess != nil, func(spec scenarioexec.SubprocessSpec) error {
+	return validateGeneratedScenario(destination, deps.RunSubprocess != nil, func(spec shell.Spec) error {
 		if deps.RunSubprocess == nil {
 			return nil
 		}
@@ -167,9 +167,20 @@ func validateTemplateShallowGeneratedCopy[C any](deps HandlerDeps[C], ctx C, inf
 		if err != nil {
 			return err
 		}
-		spec.Stdout = io.Discard
-		spec.Stderr = deps.Stderr(ctx)
-		return deps.RunSubprocess(ctx, spec)
+		var stdout, stderr bytes.Buffer
+		spec.Stdout = &stdout
+		spec.Stderr = &stderr
+		if err := deps.RunSubprocess(ctx, spec); err != nil {
+			detail := strings.TrimSpace(stderr.String())
+			if detail == "" {
+				detail = strings.TrimSpace(stdout.String())
+			}
+			if detail != "" {
+				return fmt.Errorf("%w: %s", err, detail)
+			}
+			return err
+		}
+		return nil
 	}, info.Name, info.Manifest)
 }
 

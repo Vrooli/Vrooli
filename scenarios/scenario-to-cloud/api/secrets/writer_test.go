@@ -13,7 +13,7 @@ type fakeWriterRunner struct {
 	err    error
 }
 
-func (f fakeWriterRunner) Run(_ context.Context, _ ssh.Config, _ string, _ ssh.RunOptions) (ssh.Result, error) {
+func (f fakeWriterRunner) Run(_ context.Context, _ ssh.ConnectionConfig, _ string, _ ssh.RunOptions) (ssh.Result, error) {
 	return f.result, f.err
 }
 
@@ -32,7 +32,7 @@ func TestWriteToVPSRefusesWhenTheRemoteStoreCannotAnswer(t *testing.T) {
 	err := WriteToVPS(
 		context.Background(),
 		runner,
-		ssh.Config{},
+		ssh.ConnectionConfig{},
 		"/root/Vrooli",
 		[]GeneratedSecret{{ID: "pg", Key: "POSTGRES_PASSWORD", Value: "generated"}},
 		nil,
@@ -48,7 +48,7 @@ func TestWriteToVPSRefusesWhenTheRemoteStoreCannotAnswer(t *testing.T) {
 func TestWriteToVPSRequiresAScenarioIdentity(t *testing.T) {
 	runner := fakeWriterRunner{result: ssh.Result{Stdout: `{}`, ExitCode: 0}}
 	err := WriteToVPS(
-		context.Background(), runner, ssh.Config{}, "/root/Vrooli",
+		context.Background(), runner, ssh.ConnectionConfig{}, "/root/Vrooli",
 		[]GeneratedSecret{{ID: "pg", Key: "POSTGRES_PASSWORD", Value: "generated"}}, nil, "  ",
 	)
 	if err == nil || !strings.Contains(err.Error(), "scenario id is required") {
@@ -63,7 +63,7 @@ func TestWriteToVPSNeverPutsASecretValueInTheCommand(t *testing.T) {
 	const value = "super-secret-generated-value"
 	runner := &recordingWriterRunner{stdout: `{"configured":false,"provider_state":"available"}`}
 	_ = WriteToVPS(
-		context.Background(), runner, ssh.Config{}, "/root/Vrooli",
+		context.Background(), runner, ssh.ConnectionConfig{}, "/root/Vrooli",
 		[]GeneratedSecret{{ID: "pg", Key: "POSTGRES_PASSWORD", Value: value}}, nil, "demo",
 	)
 	for _, command := range runner.commands {
@@ -91,7 +91,7 @@ type recordingWriterRunner struct {
 	stdins   [][]byte
 }
 
-func (r *recordingWriterRunner) Run(_ context.Context, _ ssh.Config, command string, opts ssh.RunOptions) (ssh.Result, error) {
+func (r *recordingWriterRunner) Run(_ context.Context, _ ssh.ConnectionConfig, command string, opts ssh.RunOptions) (ssh.Result, error) {
 	r.commands = append(r.commands, command)
 	if len(opts.Stdin) > 0 {
 		r.stdins = append(r.stdins, append([]byte(nil), opts.Stdin...))

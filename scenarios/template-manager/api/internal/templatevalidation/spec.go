@@ -85,6 +85,17 @@ func MaturitySpec() *assessment.Spec {
 				FixClass:            assessment.FixClassManual,
 				FixReason:           "Unknown template lineage requires operator review before selecting a source template.",
 			},
+			CodeTemplateVersionUnsupported: {
+				CapabilityID:        "drift_and_migration",
+				LocalLevelImpact:    "L1",
+				GlobalImpact:        assessment.ImpactCapabilityGap,
+				Dimension:           "operational-targets",
+				SeverityDefault:     "SEVERITY_ERROR",
+				CleanRequirement:    "required",
+				RecommendedSkillIDs: []string{"scenario-generation"},
+				FixClass:            assessment.FixClassManual,
+				FixReason:           "Unsupported template versions require an explicit migration or registered support before adoption.",
+			},
 			CodeOrientationStateMissing: {
 				CapabilityID:        "orientation",
 				LocalLevelImpact:    "L1",

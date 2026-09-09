@@ -16,7 +16,7 @@ import (
 // Cloudflare API v4 calls over the httpc.Doer seam to turn a present-but-
 // possibly-wrong credential set into a per-check verdict. It NEVER writes
 // account state (no DNS record create, no ingress push) and never returns a
-// secret value — only OK/MISSING/INVALID/INSUFFICIENT_SCOPE plus remediation.
+// secret value — only a coarse verdict plus remediation.
 //
 // Why a probe per scope rather than parsing token policies: Cloudflare's
 // /user/tokens/verify confirms the token is active but does not enumerate
@@ -41,7 +41,7 @@ func NewCFVerifier(doer httpc.Doer) CredentialVerifier {
 var _ CredentialVerifier = (*cfVerifier)(nil)
 
 func (v *cfVerifier) Verify(ctx context.Context, cfg CFConfig, apexes []string, accessRequired bool) (CredentialVerification, error) {
-	checks := make([]CredentialCheck, 0, 5+2*len(apexes))
+	checks := make([]CredentialCheck, 0, 6+2*len(apexes))
 
 	// 1. Token present + authenticates.
 	tokenCheck := v.checkToken(ctx, cfg.APIToken)
@@ -59,34 +59,42 @@ func (v *cfVerifier) Verify(ctx context.Context, cfg CFConfig, apexes []string, 
 		checks = append(checks, v.checkZoneDNS(ctx, cfg.APIToken, apex, tokenUsable)...)
 	}
 
-	// 5. Access: Apps and Policies: Edit scope — needed only by the /public
-	// Access-bypass capability. Always probed (so the operator can see it
-	// before enabling), but it counts toward Ready ONLY when the capability is
-	// enabled, so a token without Access scope never breaks readiness for the
-	// vast majority of installs that do not use public exposure.
-	access := v.checkAccessScope(ctx, cfg, tokenUsable)
+	// 5. Access application metadata. This is always probed so operators can
+	// distinguish gated-auth discovery failures from tunnel/DNS failures. The
+	// application read is only required for core readiness when public exposure
+	// is enabled; a GET cannot prove the write permission used by reconciliation.
+	access := v.checkAccessScope(ctx, cfg, tokenUsable, accessRequired)
 	checks = append(checks, access)
 
+	// 6. Access organization metadata. This is the read needed to discover the
+	// shared authentication domain for gated scenarios. It is informational for
+	// generic tunnel-manager readiness because VerifyCredentials has no specific
+	// scenario route, but its failure must be visible and actionable.
+	checks = append(checks, v.checkAccessOrganization(ctx, cfg, tokenUsable))
+
 	ready := true
+	allChecksOK := true
 	for _, c := range checks {
-		if c.Name == CheckNameAccessScope && !accessRequired {
-			continue // informational unless the capability is enabled
-		}
 		if c.State != CheckOK {
+			allChecksOK = false
+		}
+		if c.Required && c.State != CheckOK {
 			ready = false
-			break
 		}
 	}
-	return CredentialVerification{Checks: checks, Ready: ready}, nil
+	return CredentialVerification{
+		Checks:       checks,
+		Capabilities: summarizeCapabilities(checks),
+		Ready:        ready,
+		AllChecksOK:  allChecksOK,
+	}, nil
 }
 
-// checkAccessScope probes the account-scoped Access apps list as a non-mutating
-// proxy for Access: Apps and Policies: Edit. A 403/401 surfaces as
-// insufficient_scope with the exact remediation the operator needs before
-// turning on public exposure; a 200 proves the token can reach the Access
-// surface the reconcile will write to.
-func (v *cfVerifier) checkAccessScope(ctx context.Context, cfg CFConfig, tokenUsable bool) CredentialCheck {
-	c := CredentialCheck{Name: CheckNameAccessScope}
+// checkAccessScope probes the account-scoped Access apps list. A successful
+// GET proves application metadata is readable; it deliberately does not claim
+// that a later POST/DELETE will be authorized.
+func (v *cfVerifier) checkAccessScope(ctx context.Context, cfg CFConfig, tokenUsable, required bool) CredentialCheck {
+	c := newCredentialCheck(CheckNameAccessScope, CapabilityAccessAppMetadata, required)
 	if strings.TrimSpace(cfg.AccountID) == "" {
 		c.State = CheckMissing
 		c.Remediation = "Set the account id via `config credentials-set --account-id <id>`."
@@ -99,14 +107,61 @@ func (v *cfVerifier) checkAccessScope(ctx context.Context, cfg CFConfig, tokenUs
 	}
 	u := fmt.Sprintf("%s/accounts/%s/access/apps?per_page=1", v.baseURL, url.PathEscape(cfg.AccountID))
 	status, _, err := v.get(ctx, cfg.APIToken, u)
-	return classifyResourceCheck(c, status, err,
-		"access apps read failed",
-		"Add Access: Apps and Policies: Edit to the token and re-issue it so TM can manage the /public bypass.",
-		"Access apps endpoint not found for this account.")
+	c = classifyResourceCheck(c, status, err,
+		"Access application metadata read failed",
+		"Grant the tunnel-manager credential read access to Access applications; public-exposure writes require a separate write permission.",
+		"Access applications are not available for this account.")
+	if c.State == CheckOK {
+		c.Detail = "Access application metadata readable; write permission not tested"
+	}
+	return c
+}
+
+// checkAccessOrganization probes the organization endpoint used to discover
+// the shared Access authentication domain. A 401/403 is intentionally
+// classified separately from an invalid API token: token verification and the
+// other account resources may still be healthy.
+func (v *cfVerifier) checkAccessOrganization(ctx context.Context, cfg CFConfig, tokenUsable bool) CredentialCheck {
+	c := newCredentialCheck(CheckNameAccessOrganization, CapabilityGatedUIAuthentication, false)
+	if strings.TrimSpace(cfg.AccountID) == "" {
+		c.State = CheckMissing
+		c.Remediation = "Set the account id via `config credentials-set --account-id <id>`."
+		return c
+	}
+	if !tokenUsable {
+		c.State = CheckUnspecified
+		c.Detail = "skipped: token not usable"
+		return c
+	}
+	u := fmt.Sprintf("%s/accounts/%s/access/organizations", v.baseURL, url.PathEscape(cfg.AccountID))
+	status, body, err := v.get(ctx, cfg.APIToken, u)
+	c = classifyResourceCheck(c, status, err,
+		"Access organization metadata read failed",
+		"Grant the tunnel-manager credential read access to Access organization metadata, or configure VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN once on tunnel-manager.",
+		"Access organization metadata is unavailable for this account; verify that Access is enabled.")
+	if c.State == CheckOK {
+		var org struct {
+			Result struct {
+				AuthDomain string `json:"auth_domain"`
+			} `json:"result"`
+		}
+		if err := json.Unmarshal(body, &org); err != nil {
+			c.State = CheckInvalid
+			c.Detail = "Access organization metadata response was not understood"
+			c.Remediation = "Verify the Cloudflare Access organization response and retry."
+		} else if strings.TrimSpace(org.Result.AuthDomain) == "" {
+			c.State = CheckInvalid
+			c.Detail = "Access organization has no authentication domain"
+			c.Remediation = "Configure the Access authentication domain or set VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN on tunnel-manager."
+		} else {
+			c.Detail = "Access authentication domain readable"
+		}
+	}
+	return c
 }
 
 func (v *cfVerifier) checkToken(ctx context.Context, token string) CredentialCheck {
-	c := CredentialCheck{Name: CheckNameToken}
+	c := newCredentialCheck(CheckNameToken, CapabilityCloudflareAuthentication, true)
 	if strings.TrimSpace(token) == "" {
 		c.State = CheckMissing
 		c.Remediation = "Set the Cloudflare API token via `printf '%s' <token> | config credentials-set --api-token-stdin`."
@@ -115,12 +170,16 @@ func (v *cfVerifier) checkToken(ctx context.Context, token string) CredentialChe
 	status, _, err := v.get(ctx, token, v.baseURL+"/user/tokens/verify")
 	switch {
 	case err != nil:
-		c.State = CheckInvalid
+		c.State = CheckUnavailable
 		c.Detail = "token verify request failed"
 		c.Remediation = "Check network connectivity to api.cloudflare.com and retry."
 	case status == http.StatusUnauthorized || status == http.StatusForbidden:
 		c.State = CheckInvalid
 		c.Remediation = "The token is rejected (expired/revoked). Issue a new token and provide it with `printf '%s' <token> | config credentials-set --api-token-stdin`."
+	case status == http.StatusTooManyRequests || status >= 500:
+		c.State = CheckUnavailable
+		c.Detail = fmt.Sprintf("Cloudflare token verification returned HTTP %d", status)
+		c.Remediation = "Cloudflare did not provide a stable verification result; retry later."
 	case status >= 400:
 		c.State = CheckInvalid
 		c.Detail = fmt.Sprintf("HTTP %d", status)
@@ -133,7 +192,7 @@ func (v *cfVerifier) checkToken(ctx context.Context, token string) CredentialChe
 }
 
 func (v *cfVerifier) checkAccount(ctx context.Context, cfg CFConfig, tokenUsable bool) CredentialCheck {
-	c := CredentialCheck{Name: CheckNameAccount}
+	c := newCredentialCheck(CheckNameAccount, CapabilityRemoteIngress, true)
 	if strings.TrimSpace(cfg.AccountID) == "" {
 		c.State = CheckMissing
 		c.Remediation = "Set the account id via `config credentials-set --account-id <id>`."
@@ -152,7 +211,7 @@ func (v *cfVerifier) checkAccount(ctx context.Context, cfg CFConfig, tokenUsable
 }
 
 func (v *cfVerifier) checkTunnel(ctx context.Context, cfg CFConfig, tokenUsable bool) CredentialCheck {
-	c := CredentialCheck{Name: CheckNameTunnel}
+	c := newCredentialCheck(CheckNameTunnel, CapabilityRemoteIngress, true)
 	if strings.TrimSpace(cfg.TunnelID) == "" {
 		c.State = CheckMissing
 		c.Remediation = "Set the tunnel id via `config credentials-set --tunnel-id <id>`."
@@ -176,8 +235,10 @@ func (v *cfVerifier) checkTunnel(ctx context.Context, cfg CFConfig, tokenUsable 
 // can reach the zone's DNS surface; a token that lost DNS access entirely (the
 // regression this guards) returns 403 here instead of producing a dead URL.
 func (v *cfVerifier) checkZoneDNS(ctx context.Context, token, apex string, tokenUsable bool) []CredentialCheck {
-	lookup := CredentialCheck{Name: CheckNameZoneLookup, Detail: apex}
-	dns := CredentialCheck{Name: CheckNameDNSScope, Detail: apex}
+	lookup := newCredentialCheck(CheckNameZoneLookup, CapabilityDNSAutomation, true)
+	lookup.Detail = apex
+	dns := newCredentialCheck(CheckNameDNSScope, CapabilityDNSAutomation, true)
+	dns.Detail = apex
 	if !tokenUsable {
 		lookup.State = CheckUnspecified
 		lookup.Detail = "skipped: token not usable"
@@ -244,20 +305,26 @@ func (v *cfVerifier) get(ctx context.Context, token, rawURL string) (int, []byte
 }
 
 // classifyResourceCheck maps a single resource read into a verdict: transport
-// error → INVALID(detail), 403/401 → INSUFFICIENT_SCOPE, 404 → INVALID,
-// other 4xx/5xx → INVALID, 2xx → OK.
+// error or provider 429/5xx → UNAVAILABLE, 403/401 → INSUFFICIENT_SCOPE,
+// 404/other 4xx → INVALID, 2xx → OK. The distinction matters: an unavailable
+// provider should not be presented as a bad token or missing permission.
 func classifyResourceCheck(c CredentialCheck, status int, err error, errDetail, scopeRemediation, notFoundRemediation string) CredentialCheck {
 	switch {
 	case err != nil:
-		c.State = CheckInvalid
+		c.State = CheckUnavailable
 		c.Detail = errDetail
 		c.Remediation = "Check connectivity to api.cloudflare.com and retry."
 	case status == http.StatusForbidden || status == http.StatusUnauthorized:
 		c.State = CheckInsufficientScope
+		c.Detail = fmt.Sprintf("Cloudflare rejected the read (HTTP %d)", status)
 		c.Remediation = scopeRemediation
 	case status == http.StatusNotFound:
 		c.State = CheckInvalid
 		c.Remediation = notFoundRemediation
+	case status == http.StatusTooManyRequests || status >= 500:
+		c.State = CheckUnavailable
+		c.Detail = fmt.Sprintf("Cloudflare returned HTTP %d", status)
+		c.Remediation = "Cloudflare did not provide a stable result; retry later."
 	case status >= 400:
 		c.State = CheckInvalid
 		c.Detail = fmt.Sprintf("HTTP %d", status)
@@ -266,6 +333,64 @@ func classifyResourceCheck(c CredentialCheck, status int, err error, errDetail, 
 		c.State = CheckOK
 	}
 	return c
+}
+
+func newCredentialCheck(name, capability string, required bool) CredentialCheck {
+	return CredentialCheck{Name: name, Capability: capability, Required: required}
+}
+
+// summarizeCapabilities preserves a stable display order while grouping the
+// checks that establish each operation. A capability can be not-ready even
+// when it is not a blocker for Tunnel Manager's core remote/DNS readiness.
+func summarizeCapabilities(checks []CredentialCheck) []CredentialCapability {
+	order := []string{
+		CapabilityCloudflareAuthentication,
+		CapabilityRemoteIngress,
+		CapabilityDNSAutomation,
+		CapabilityAccessAppMetadata,
+		CapabilityGatedUIAuthentication,
+	}
+	byCapability := make(map[string]*CredentialCapability, len(order))
+	for _, name := range order {
+		byCapability[name] = &CredentialCapability{Name: name, Ready: true}
+	}
+	for _, check := range checks {
+		if check.Capability == "" {
+			continue
+		}
+		capability, ok := byCapability[check.Capability]
+		if !ok {
+			capability = &CredentialCapability{Name: check.Capability, Ready: true}
+			byCapability[check.Capability] = capability
+			order = append(order, check.Capability)
+		}
+		capability.CheckNames = append(capability.CheckNames, check.Name)
+		capability.Required = capability.Required || check.Required
+		if check.State != CheckOK {
+			capability.Ready = false
+			if capability.Reason == "" {
+				if check.Remediation != "" {
+					capability.Reason = check.Remediation
+				} else if check.Detail != "" {
+					capability.Reason = check.Detail
+				} else {
+					capability.Reason = "one or more checks did not pass"
+				}
+			}
+		}
+	}
+	result := make([]CredentialCapability, 0, len(order))
+	for _, name := range order {
+		capability, ok := byCapability[name]
+		if !ok || len(capability.CheckNames) == 0 {
+			continue
+		}
+		if capability.Ready {
+			capability.Reason = "all checks passed"
+		}
+		result = append(result, *capability)
+	}
+	return result
 }
 
 func dedupeNonEmpty(in []string) []string {

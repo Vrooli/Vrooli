@@ -59,6 +59,7 @@ func (f *fakeRepo) Delete(_ context.Context, _ string) (bool, error) {
 func boolPtr(b bool) *bool { return &b }
 
 func TestCreate_AppliesDefaults(t *testing.T) {
+	t.Setenv("VROOLI_TUNNEL_DOMAIN", "example.invalid")
 	repo := &fakeRepo{}
 	svc := routes.NewService(repo)
 
@@ -68,11 +69,11 @@ func TestCreate_AppliesDefaults(t *testing.T) {
 		LocalPort: 21100,
 	})
 	require.NoError(t, err)
-	require.Equal(t, routes.DefaultDomain, repo.created.Domain)
+	require.Equal(t, "example.invalid", repo.created.Domain)
 	require.Equal(t, routes.DefaultHealthPath, repo.created.HealthPath)
 	require.Equal(t, routes.TierLeased, repo.created.Tier)
 	require.True(t, repo.created.Enabled)
-	require.Equal(t, "https://agent-manager.itsagitime.com", got.PublicURL())
+	require.Equal(t, "https://agent-manager.example.invalid", got.PublicURL())
 }
 
 func TestCreate_RespectsExplicitFields(t *testing.T) {
@@ -96,6 +97,7 @@ func TestCreate_RespectsExplicitFields(t *testing.T) {
 }
 
 func TestCreate_ValidationErrors(t *testing.T) {
+	t.Setenv("VROOLI_TUNNEL_DOMAIN", "example.invalid")
 	svc := routes.NewService(&fakeRepo{})
 	cases := []struct {
 		name  string
@@ -120,7 +122,7 @@ func TestCreate_ValidationErrors(t *testing.T) {
 
 func TestUpdate_PartialMerge(t *testing.T) {
 	repo := &fakeRepo{getResult: routes.Route{
-		ID: "r1", Subdomain: "old", Scenario: "s", Domain: "itsagitime.com",
+		ID: "r1", Subdomain: "old", Scenario: "s", Domain: "example.invalid",
 		LocalPort: 100, Tier: routes.TierLeased, Enabled: true, HealthPath: "/health",
 	}}
 	svc := routes.NewService(repo)
@@ -154,6 +156,7 @@ func TestList_PassesTierFilter(t *testing.T) {
 // --- External routes (Phase 3) --------------------------------------------
 
 func TestCreate_ExternalRouteValidatesTargetNotScenario(t *testing.T) {
+	t.Setenv("VROOLI_TUNNEL_DOMAIN", "example.invalid")
 	repo := &fakeRepo{}
 	svc := routes.NewService(repo)
 
@@ -166,11 +169,12 @@ func TestCreate_ExternalRouteValidatesTargetNotScenario(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, routes.SourceExternal, got.Source)
 	require.Equal(t, "http://127.0.0.1:9000", got.ServiceTarget)
-	require.Equal(t, "https://api.itsagitime.com", got.PublicURL())
+	require.Equal(t, "https://api.example.invalid", got.PublicURL())
 	require.Equal(t, routes.SourceExternal, repo.created.Source)
 }
 
 func TestCreate_ExternalRouteRejectsBadTarget(t *testing.T) {
+	t.Setenv("VROOLI_TUNNEL_DOMAIN", "example.invalid")
 	svc := routes.NewService(&fakeRepo{})
 	_, err := svc.Create(context.Background(), routes.CreateInput{
 		Subdomain:     "api",
@@ -183,6 +187,7 @@ func TestCreate_ExternalRouteRejectsBadTarget(t *testing.T) {
 }
 
 func TestCreate_ScenarioRouteStillRequiresScenarioAndPort(t *testing.T) {
+	t.Setenv("VROOLI_TUNNEL_DOMAIN", "example.invalid")
 	svc := routes.NewService(&fakeRepo{})
 	_, err := svc.Create(context.Background(), routes.CreateInput{Subdomain: "api"})
 	var invalid routes.ErrInvalidRoute

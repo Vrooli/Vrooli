@@ -7,6 +7,13 @@
     "1.0.1",
     "1.0.2"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.0",
@@ -14,15 +21,5 @@
     "1.0.2"
   ],
   "latest": "1.0.4",
-  "libraryId": "react-component-library:ConditionalField",
-  "displayName": "ConditionalField",
-  "description": "The schema-driven field that appears, disables, resets, or reconfigures itself based on a compiled dependency expression rather than ad hoc conditional rendering.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:ConditionalField"
 }

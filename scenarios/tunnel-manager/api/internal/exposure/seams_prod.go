@@ -6,22 +6,27 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
 	"time"
 
 	"tunnel-manager/internal/cmdrunner"
+	"tunnel-manager/internal/manifest"
 )
 
-// FilePortResolver resolves a scenario's fixed UI port from its
-// service.json (<root>/<scenario>/.vrooli/service.json, ports.ui.port).
-// It is the production PortResolver; tests use a fake.
-type FilePortResolver struct {
-	Root string
+// ScenarioFileResolver resolves contract-owned scenario files.
+type ScenarioFileResolver interface {
+	ServiceFile(scenario string) (string, error)
 }
 
-// NewFilePortResolver constructs a resolver rooted at the scenarios dir.
-func NewFilePortResolver(root string) *FilePortResolver {
-	return &FilePortResolver{Root: root}
+// FilePortResolver resolves a scenario's fixed UI port from its contract-owned
+// service manifest. It is the production PortResolver; tests use a fake.
+type FilePortResolver struct {
+	Files ScenarioFileResolver
+}
+
+// NewFilePortResolver constructs a resolver backed by the shared scenario
+// file resolver.
+func NewFilePortResolver(files ScenarioFileResolver) *FilePortResolver {
+	return &FilePortResolver{Files: files}
 }
 
 var _ PortResolver = (*FilePortResolver)(nil)
@@ -32,23 +37,65 @@ type serviceJSON struct {
 	Ports map[string]struct {
 		Port int `json:"port"`
 	} `json:"ports"`
+	Components map[string]struct {
+		Run struct {
+			Readiness struct {
+				Type string `json:"type"`
+				Path string `json:"path"`
+			} `json:"readiness"`
+		} `json:"run"`
+	} `json:"components"`
+	Lifecycle struct {
+		Health struct {
+			Endpoints map[string]string `json:"endpoints"`
+		} `json:"health"`
+	} `json:"lifecycle"`
 }
 
-func (r *FilePortResolver) UIPort(_ context.Context, scenario string) (int, error) {
-	path := filepath.Join(r.Root, scenario, ".vrooli", "service.json")
+func (r *FilePortResolver) loadService(scenario string) (serviceJSON, error) {
+	if r == nil || r.Files == nil {
+		return serviceJSON{}, ErrPortUnresolved{Scenario: scenario, Reason: "scenario file resolver not configured"}
+	}
+	path, err := r.Files.ServiceFile(scenario)
+	if err != nil {
+		return serviceJSON{}, ErrPortUnresolved{Scenario: scenario, Reason: fmt.Sprintf("resolve service.json: %v", err)}
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return 0, ErrPortUnresolved{Scenario: scenario, Reason: fmt.Sprintf("service.json not readable: %v", err)}
+		return serviceJSON{}, ErrPortUnresolved{Scenario: scenario, Reason: fmt.Sprintf("service.json not readable: %v", err)}
 	}
 	var svc serviceJSON
 	if err := json.Unmarshal(data, &svc); err != nil {
-		return 0, ErrPortUnresolved{Scenario: scenario, Reason: fmt.Sprintf("service.json parse: %v", err)}
+		return serviceJSON{}, ErrPortUnresolved{Scenario: scenario, Reason: fmt.Sprintf("service.json parse: %v", err)}
+	}
+	return svc, nil
+}
+
+func (r *FilePortResolver) UIPort(_ context.Context, scenario string) (int, error) {
+	svc, err := r.loadService(scenario)
+	if err != nil {
+		return 0, err
 	}
 	ui, ok := svc.Ports["ui"]
 	if !ok || ui.Port == 0 {
 		return 0, ErrPortUnresolved{Scenario: scenario, Reason: "no fixed UI port declared"}
 	}
 	return ui.Port, nil
+}
+
+func (r *FilePortResolver) HealthPath(_ context.Context, scenario string) (string, error) {
+	svc, err := r.loadService(scenario)
+	if err != nil {
+		return "", err
+	}
+	ui, ok := svc.Components["ui"]
+	if ok && ui.Run.Readiness.Type == "http" && ui.Run.Readiness.Path != "" {
+		return ui.Run.Readiness.Path, nil
+	}
+	if path := svc.Lifecycle.Health.Endpoints["ui"]; path != "" {
+		return path, nil
+	}
+	return manifest.DefaultHealthPath, nil
 }
 
 // CLIRunner ensures a scenario is running by shelling `vrooli scenario

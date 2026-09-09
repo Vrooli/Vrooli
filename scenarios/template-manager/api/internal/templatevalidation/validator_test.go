@@ -148,6 +148,65 @@ func TestProvenanceFixPreviewAndApply(t *testing.T) {
 	}
 }
 
+func TestUnsupportedTemplateVersionIsRefused(t *testing.T) {
+	root := t.TempDir()
+	writeService(t, root, map[string]any{
+		"generation": map[string]any{
+			"template": map[string]any{"id": "react-vite", "version": "99.0.0"},
+		},
+	})
+	report, err := (&Validator{Repository: fakeRepo{template: catalog.TemplateRecord{ID: "react-vite", LatestVersion: "4.0.0"}}}).ValidateScenario(context.Background(), "future", root)
+	if err != nil {
+		t.Fatalf("ValidateScenario() error = %v", err)
+	}
+	if report.Passed() {
+		t.Fatalf("unsupported version was accepted: %#v", report.Findings)
+	}
+	if !hasFinding(report.Findings, CodeTemplateVersionUnsupported) {
+		t.Fatalf("findings = %#v, want %s", report.Findings, CodeTemplateVersionUnsupported)
+	}
+}
+
+func TestAdoptionPreservesCustomTestingProfile(t *testing.T) {
+	repoRoot := t.TempDir()
+	templateDir := filepath.Join(repoRoot, "templates", "scenarios", "react-vite")
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(templateDir, "template.json"), []byte(`{"version":"4.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	writeService(t, root, map[string]any{"service": map[string]any{"name": "custom"}})
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	custom := []byte("{\"unit\":{\"policy_profile\":{\"version\":\"custom-7\",\"required_roles\":[]}}}\n")
+	profilePath := filepath.Join(root, ".vrooli", "testing.json")
+	if err := os.WriteFile(profilePath, custom, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewFixRegistry(repoRoot).Apply(root, []string{CodeProvenanceMissing}); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	got, err := os.ReadFile(profilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(custom) {
+		t.Fatalf("custom testing profile changed during adoption: got %q want %q", got, custom)
+	}
+}
+
+func hasFinding(findings []Finding, code string) bool {
+	for _, finding := range findings {
+		if finding.Code == code {
+			return true
+		}
+	}
+	return false
+}
+
 func writeService(t *testing.T, root string, doc map[string]any) {
 	t.Helper()
 	dir := filepath.Join(root, ".vrooli")

@@ -13,8 +13,5 @@
   "draft": "",
   "evictedVersions": [],
   "latest": "2.0.2",
-  "libraryId": "react-component-library:SelectionStore",
-  "displayName": "Selection Store",
-  "description": "The reusable scoped store for single, multiple, range, keyboard, and programmatic collection selection with stable item identities across reordering and pagination.",
-  "tags": []
+  "libraryId": "react-component-library:SelectionStore"
 }

@@ -77,7 +77,7 @@
             },
             {
               "name": "domain",
-              "description": "Apex domain (default itsagitime.com)"
+              "description": "Apex domain (required unless VROOLI_TUNNEL_DOMAIN is configured)"
             },
             {
               "name": "tier",
@@ -316,7 +316,7 @@
           "flags": [
             {
               "name": "verify",
-              "description": "Run LIVE read-only Cloudflare probes (token verify, account/tunnel read, apex zone lookup + DNS:Edit) instead of the presence-only fast path",
+              "description": "Run LIVE read-only Cloudflare probes (token, account, tunnel, DNS, Access application, and Access organization metadata) instead of the presence-only fast path",
               "local_only": true
             }
           ],
@@ -520,7 +520,7 @@
             {
               "name": "hostname",
               "required": true,
-              "description": "Full ingress hostname (e.g. api.itsagitime.com)"
+              "description": "Full ingress hostname (e.g. api.example.invalid)"
             }
           ],
           "flags": [
@@ -556,7 +556,7 @@
             {
               "name": "hostname",
               "required": true,
-              "description": "Full ingress hostname (e.g. api.itsagitime.com)"
+              "description": "Full ingress hostname (e.g. api.example.invalid)"
             }
           ],
           "flags": [
@@ -588,7 +588,7 @@
             {
               "name": "hostname",
               "required": true,
-              "description": "Full ingress hostname (e.g. api.itsagitime.com)"
+              "description": "Full ingress hostname (e.g. api.example.invalid)"
             }
           ],
           "binding": {

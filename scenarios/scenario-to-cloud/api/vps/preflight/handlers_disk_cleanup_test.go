@@ -17,7 +17,7 @@ type fakeCleanupRunner struct {
 	dfCalls int
 }
 
-func (f *fakeCleanupRunner) Run(_ context.Context, _ ssh.Config, command string, _ ssh.RunOptions) (ssh.Result, error) {
+func (f *fakeCleanupRunner) Run(_ context.Context, _ ssh.ConnectionConfig, command string, _ ssh.RunOptions) (ssh.Result, error) {
 	switch {
 	case strings.Contains(command, "awk '{print $4}'"):
 		f.dfCalls++

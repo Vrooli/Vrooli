@@ -89,8 +89,10 @@ type UploadRequest struct {
 
 // UploadResult is the outcome of a single artifact upload.
 type UploadResult struct {
-	ArtifactID int64  `json:"artifact_id"`
-	Platform   string `json:"platform"`
+	ArtifactID        int64  `json:"artifact_id"`
+	Platform          string `json:"platform"`
+	SHA512            string `json:"sha512"`
+	DestinationObject string `json:"destination_object,omitempty"`
 }
 
 // ListRemoteProfiles returns all remote profiles from the local LPBS.
@@ -165,11 +167,13 @@ func (c *LPBSClient) ProxyRequest(ctx context.Context, profileTag, method, path 
 		proxyPayload)
 }
 
-// UploadArtifact orchestrates the full deploy flow for one artifact:
+// UploadArtifact orchestrates staging for one artifact:
 //  1. Proxy → presign-upload → get S3 URL
 //  2. HTTP PUT to S3 presigned URL (direct, no proxy)
 //  3. Proxy → commit → register artifact
-//  4. Proxy → apply → link to download asset
+//
+// Commercial release callers promote the complete target set separately so a
+// partial upload never becomes visible on a channel.
 func (c *LPBSClient) UploadArtifact(ctx context.Context, req *UploadRequest) (*UploadResult, error) {
 	if req == nil {
 		return nil, fmt.Errorf("upload request is required")
@@ -237,15 +241,78 @@ func (c *LPBSClient) UploadArtifact(ctx context.Context, req *UploadRequest) (*U
 		return nil, err
 	}
 
-	// Step 4: Apply
-	if err := c.proxyApply(ctx, req, artifactID, sha256Hex, requiresEntitlement, manifest, sha512Hex); err != nil {
-		return nil, err
+	// Local packaging keeps the legacy single-asset apply behavior. A release
+	// identity selects the atomic channel promotion path in DeployStage.
+	if req.ReleaseID == "" {
+		if err := c.proxyApply(ctx, req, artifactID, sha256Hex, requiresEntitlement, manifest, sha512Hex); err != nil {
+			return nil, err
+		}
 	}
 
 	return &UploadResult{
-		ArtifactID: artifactID,
-		Platform:   req.Platform,
+		ArtifactID:        artifactID,
+		Platform:          req.Platform,
+		SHA512:            sha512Hex,
+		DestinationObject: fmt.Sprintf("s3://%s/%s", presignResp.Bucket, presignResp.ObjectKey),
 	}, nil
+}
+
+type ChannelHead struct {
+	Revision int64 `json:"revision"`
+}
+
+// GetChannelHead returns the current destination revision. A missing head is
+// the initial revision zero and is safe for the first commercial promotion.
+func (c *LPBSClient) GetChannelHead(ctx context.Context, req *UploadRequest) (*ChannelHead, error) {
+	variantKey := req.Channel
+	if variantKey == "" || variantKey == "stable" {
+		variantKey = "default"
+	}
+	path := "/admin/download-channels/head?app_key=" + url.QueryEscape(req.AppKey) + "&variant_key=" + url.QueryEscape(variantKey)
+	body, err := c.ProxyRequest(ctx, req.RemoteProfile, "GET", path, nil)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "status 404") {
+			return &ChannelHead{}, nil
+		}
+		return nil, fmt.Errorf("get channel head: %w", err)
+	}
+	var head ChannelHead
+	if err := json.Unmarshal(body, &head); err != nil {
+		return nil, fmt.Errorf("decode channel head: %w", err)
+	}
+	return &head, nil
+}
+
+func (c *LPBSClient) PromoteChannel(ctx context.Context, req *UploadRequest, artifacts []UploadResult) error {
+	if req == nil || req.ReleaseID == "" {
+		return fmt.Errorf("release-bound upload request is required")
+	}
+	head, err := c.GetChannelHead(ctx, req)
+	if err != nil {
+		return err
+	}
+	variantKey := req.Channel
+	if variantKey == "" || variantKey == "stable" {
+		variantKey = "default"
+	}
+	artifactIDs := make(map[string]int64, len(artifacts))
+	for _, artifact := range artifacts {
+		if artifact.Platform == "" || artifact.ArtifactID <= 0 {
+			return fmt.Errorf("promotion artifact identity is incomplete")
+		}
+		artifactIDs[artifact.Platform] = artifact.ArtifactID
+	}
+	if len(artifactIDs) == 0 {
+		return fmt.Errorf("promotion requires at least one artifact")
+	}
+	_, err = c.ProxyRequest(ctx, req.RemoteProfile, "POST", "/admin/download-channels/promote", map[string]interface{}{
+		"app_key": req.AppKey, "variant_key": variantKey,
+		"expected_revision": head.Revision, "artifact_ids": artifactIDs,
+	})
+	if err != nil {
+		return fmt.Errorf("promote channel: %w", err)
+	}
+	return nil
 }
 
 func hashArtifact(path string) (string, string, error) {

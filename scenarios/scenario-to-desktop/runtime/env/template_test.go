@@ -76,6 +76,13 @@ func TestRenderer_RenderEnvMap(t *testing.T) {
 			t.Errorf("env[%q] = %q, want %q", tt.key, env[tt.key], tt.want)
 		}
 	}
+
+	if _, ok := env["VROOLI_ROOT"]; ok {
+		t.Fatal("bundled environment must not inherit VROOLI_ROOT")
+	}
+	if _, ok := env["SCENARIO_ROOT"]; ok {
+		t.Fatal("bundled environment must not inherit SCENARIO_ROOT")
+	}
 }
 
 func TestRenderer_RenderArgs(t *testing.T) {

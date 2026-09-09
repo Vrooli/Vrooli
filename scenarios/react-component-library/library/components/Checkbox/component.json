@@ -8,6 +8,13 @@
     "1.0.3",
     "1.0.5"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.4",
@@ -16,15 +23,5 @@
     "1.0.5"
   ],
   "latest": "1.0.7",
-  "libraryId": "react-component-library:Checkbox",
-  "displayName": "Checkbox",
-  "description": "The binary or indeterminate selection control with animated state marks, validation treatment, group membership, and robust keyboard and screen-reader behavior.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:Checkbox"
 }

@@ -31,7 +31,7 @@ func (h *Handler) cleanBundle(scenarioName, framework, locationMode, pipelineID 
 		return nil, fmt.Errorf("pipeline_id is required for staging/temp location_mode")
 	}
 	scenarioPath := sharedpath.ResolveScenarioRoot(scenarioName)
-	config := &Config{ScenarioName: scenarioName, LocationMode: locationMode, Framework: framework}
+	config := &PipelineConfig{ScenarioName: scenarioName, LocationMode: locationMode, Framework: framework}
 	_, desktopPath := resolvePipelineOutputPaths(config, scenarioPath, pipelineID, framework)
 	if desktopPath == "" || !strings.Contains(desktopPath, filepath.Join("platforms", framework)) {
 		return nil, fmt.Errorf("refusing to clean: computed output path is unsafe")

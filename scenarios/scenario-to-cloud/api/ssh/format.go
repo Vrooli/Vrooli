@@ -9,7 +9,7 @@ import (
 )
 
 // LocalSSHCommand builds a local SSH command string for display/logging.
-func LocalSSHCommand(cfg Config, cmd string) string {
+func LocalSSHCommand(cfg ConnectionConfig, cmd string) string {
 	displayOpts := RunOptions{ConnectTimeout: 5 * time.Second}
 	args := append([]string{"ssh"}, BuildSSHArgs(cfg, displayOpts)...)
 	args = append(args, fmt.Sprintf("%s@%s", cfg.User, cfg.Host), "--", "bash", "-lc", shellutil.QuoteSingle(cmd))
@@ -17,7 +17,7 @@ func LocalSSHCommand(cfg Config, cmd string) string {
 }
 
 // LocalSCPCommand builds a local SCP command string for display/logging.
-func LocalSCPCommand(cfg Config, localPath, remotePath string) string {
+func LocalSCPCommand(cfg ConnectionConfig, localPath, remotePath string) string {
 	opts := SCPOptions{ConnectTimeout: 5 * time.Second, StrictHostKey: true}
 	args := append([]string{"scp"}, BuildSCPArgs(cfg, opts)...)
 	args = append(args, localPath, fmt.Sprintf("%s@%s:%s", cfg.User, cfg.Host, remotePath))
@@ -25,7 +25,7 @@ func LocalSCPCommand(cfg Config, localPath, remotePath string) string {
 }
 
 // FormatCommandForLog formats an SSH command for logging, redacting sensitive info.
-func FormatCommandForLog(cfg Config, cmd string) string {
+func FormatCommandForLog(cfg ConnectionConfig, cmd string) string {
 	// Build args with a cleared key path, then add the redacted key separately
 	redactedCfg := cfg
 	redactedCfg.KeyPath = ""

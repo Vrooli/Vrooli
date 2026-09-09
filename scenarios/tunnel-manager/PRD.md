@@ -96,5 +96,5 @@ Reliable, self-healing, **programmable external-access management**. Vrooli gain
 5. **On-demand compute fabric**: scenarios lease their own reachability for bounded windows, enabling spin-up-on-intent workflows.
 
 ## 📎 Appendix
-- Regeneration & adoption plan: `docs/plans/tunnel-manager-regen-adoption-plan.md` (repo root).
+- Regeneration & adoption plan: `plan-manager plans get tunnel-manager-regenerate-from-template-adopt-plan`.
 - Pre-regen reference (port source): `/tmp/tunnel-manager-OLD-reference`.

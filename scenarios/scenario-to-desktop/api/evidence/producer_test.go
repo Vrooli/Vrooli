@@ -9,6 +9,8 @@ import (
 	"connectrpc.com/connect"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	evidencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/evidence"
+	readinessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/readiness"
+	releasesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/releases"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/smoketest"
@@ -17,6 +19,28 @@ import (
 type fakeEvidenceClient struct {
 	request *evidencev1.ReportTargetVerdictRequest
 	err     error
+}
+
+type fakeReadinessClient struct {
+	request *readinessv1.ReportEvidenceRequest
+	err     error
+}
+
+type fakeClientUpdateReceiptClient struct {
+	request *releasesv1.RecordClientUpdateReceiptRequest
+}
+
+func (f *fakeClientUpdateReceiptClient) RecordClientUpdateReceipt(_ context.Context, req *connect.Request[releasesv1.RecordClientUpdateReceiptRequest]) (*connect.Response[releasesv1.RecordClientUpdateReceiptResponse], error) {
+	f.request = req.Msg
+	return connect.NewResponse(&releasesv1.RecordClientUpdateReceiptResponse{ReleaseId: req.Msg.GetReleaseId(), Accepted: true}), nil
+}
+
+func (f *fakeReadinessClient) ReportEvidence(_ context.Context, req *connect.Request[readinessv1.ReportEvidenceRequest]) (*connect.Response[readinessv1.ReportEvidenceResponse], error) {
+	f.request = req.Msg
+	if f.err != nil {
+		return nil, f.err
+	}
+	return connect.NewResponse(&readinessv1.ReportEvidenceResponse{Accepted: true}), nil
 }
 
 func (f *fakeEvidenceClient) ReportTargetVerdict(_ context.Context, req *connect.Request[evidencev1.ReportTargetVerdictRequest]) (*connect.Response[evidencev1.ReportTargetVerdictResponse], error) {
@@ -65,6 +89,49 @@ func TestReporterUnreachableFailsClosed(t *testing.T) {
 	err := reporter.ReportJourney(context.Background(), smoketest.EvidenceReportInput{ProfileID: "profile", GitCommit: "commit", Platform: "linux", RunID: "run", Disposition: "pass", Captures: []captures.Capture{{ID: "j", Type: captures.CaptureJourney, CreatedAt: time.Now()}}})
 	if err == nil {
 		t.Fatal("unreachable deployment-manager must return an error")
+	}
+}
+
+func TestReporterReportsExactOwnerReadinessIdentity(t *testing.T) {
+	evidence := &fakeEvidenceClient{}
+	readiness := &fakeReadinessClient{}
+	reporter := NewConnectReporterWithClients(evidence, readiness)
+	err := reporter.ReportJourney(context.Background(), smoketest.EvidenceReportInput{
+		ProfileID: "profile-1", GitCommit: "commit-1", ArtifactDigest: "sha256:artifact", ScenarioName: "demo",
+		Platform: "linux-x64", Channel: "stable", RunID: "run-1", Disposition: "pass",
+		Captures: []captures.Capture{{ID: "journey-1", Type: captures.CaptureJourney, CreatedAt: time.Now()}, {ID: "recording-1", Type: captures.CaptureRecording, CreatedAt: time.Now()}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if readiness.request == nil || readiness.request.CandidateCommit != "commit-1" || readiness.request.ArtifactDigest != "sha256:artifact" || readiness.request.CriterionId != "platform-delivery-proven" || readiness.request.ProducerBinding != "scenario-to-desktop.evidence.readiness" || readiness.request.Status != "passed" || readiness.request.EvidenceReference != "run:run-1" {
+		t.Fatalf("unexpected readiness request: %#v", readiness.request)
+	}
+}
+
+func TestReporterDoesNotClaimReadinessWithoutArtifactIdentity(t *testing.T) {
+	readiness := &fakeReadinessClient{}
+	err := NewConnectReporterWithClients(&fakeEvidenceClient{}, readiness).ReportJourney(context.Background(), smoketest.EvidenceReportInput{
+		ProfileID: "profile-1", GitCommit: "commit-1", ScenarioName: "demo", Platform: "linux-x64", RunID: "run-1", Disposition: "pass",
+		Captures: []captures.Capture{{ID: "journey-1", Type: captures.CaptureJourney}, {ID: "recording-1", Type: captures.CaptureRecording}},
+	})
+	if err == nil || readiness.request != nil {
+		t.Fatalf("missing artifact identity was accepted: err=%v request=%#v", err, readiness.request)
+	}
+}
+
+func TestReporterRoutesFinalizedClientUpdateReceipt(t *testing.T) {
+	client := &fakeClientUpdateReceiptClient{}
+	reporter := NewConnectReporterWithAllClients(nil, nil, client)
+	observedAt := time.Now().UTC().Truncate(time.Second)
+	if err := reporter.ReportClientUpdateReceipt(context.Background(), ClientUpdateReceiptInput{
+		ReleaseID: "release-1", CandidateID: "candidate-1", PredecessorRef: "desktop-1.0", SuccessorDigest: "sha256:successor",
+		TargetID: "linux-x64", VerifiedVersion: "2.0.0", ExternalReceipt: "update-1", ObservedAt: observedAt,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if client.request == nil || client.request.GetReceipt().GetOutcome() != releasesv1.ReceiptOutcome_RECEIPT_OUTCOME_VERIFIED || client.request.GetReceipt().GetSuccessorDigest() != "sha256:successor" {
+		t.Fatalf("unexpected owner receipt request: %v", client.request)
 	}
 }
 

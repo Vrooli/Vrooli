@@ -91,7 +91,7 @@ export const makeIngressEntry = (
   overrides: MessageInitShape<typeof IngressEntrySchema> = {},
 ): IngressEntry =>
   create(IngressEntrySchema, {
-    hostname: "agent-manager.itsagitime.com",
+    hostname: "agent-manager.example.invalid",
     serviceTarget: resolveApiBase({ defaultPort: "21001" }),
     state: OwnershipState.MANAGED,
     source: IngressSource.SCENARIO,
@@ -124,7 +124,7 @@ export const makeAccessStatus = (
     configured: false,
     hosts: [
       {
-        host: "web-console.itsagitime.com",
+        host: "web-console.example.invalid",
         override: "inherit",
         effectiveBypass: false,
         managed: false,

@@ -28,7 +28,7 @@ type fakeRunner struct {
 	portProcess string
 }
 
-func (f fakeRunner) Run(ctx context.Context, cfg ssh.Config, command string, opts ssh.RunOptions) (ssh.Result, error) {
+func (f fakeRunner) Run(ctx context.Context, cfg ssh.ConnectionConfig, command string, opts ssh.RunOptions) (ssh.Result, error) {
 	_ = ctx
 	_ = cfg
 	_ = opts

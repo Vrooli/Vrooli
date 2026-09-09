@@ -119,7 +119,7 @@ describe("ExposurePanel", () => {
     vi.mocked(routesClient.listRoutes).mockResolvedValue({
       routes: [
         makeRoute({ publicExposure: PublicExposure.ENABLED }),
-        makeRoute({ id: "route-image", scenario: "image-tools", subdomain: "image-tools", publicUrl: "https://image-tools.itsagitime.com" }),
+        makeRoute({ id: "route-image", scenario: "image-tools", subdomain: "image-tools", publicUrl: "https://image-tools.example.invalid" }),
       ],
     } as never);
     vi.mocked(probesClient.classify).mockResolvedValue({

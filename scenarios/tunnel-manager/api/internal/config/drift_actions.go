@@ -284,7 +284,7 @@ func liveServiceFor(live []IngressRule, hostname string) string {
 }
 
 // splitHostname splits a full hostname into its leftmost label (subdomain) and
-// the remaining apex domain. "api.itsagitime.com" → ("api", "itsagitime.com").
+// the remaining apex domain. "api.example.invalid" → ("api", "example.invalid").
 func splitHostname(hostname string) (subdomain, domain string) {
 	i := strings.IndexByte(hostname, '.')
 	if i <= 0 || i == len(hostname)-1 {

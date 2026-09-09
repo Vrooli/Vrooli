@@ -75,11 +75,11 @@ func TestRecordAdaptersExposeGeneratedArtifactAndSmokeEvidence(t *testing.T) {
 
 type adapterOrchestrator struct{ status *pipeline.Status }
 
-func (f adapterOrchestrator) RunPipeline(context.Context, *pipeline.Config) (*pipeline.Status, error) {
+func (f adapterOrchestrator) RunPipeline(context.Context, *pipeline.PipelineConfig) (*pipeline.Status, error) {
 	return nil, nil
 }
 
-func (f adapterOrchestrator) CreateIdlePipeline(*pipeline.Config) (*pipeline.Status, error) {
+func (f adapterOrchestrator) CreateIdlePipeline(*pipeline.PipelineConfig) (*pipeline.Status, error) {
 	return nil, nil
 }
 
@@ -87,7 +87,7 @@ func (f adapterOrchestrator) StartPipeline(context.Context, string) (*pipeline.S
 	return nil, nil
 }
 
-func (f adapterOrchestrator) RunPipelineBlocking(context.Context, *pipeline.Config, int) (*pipeline.Status, error) {
+func (f adapterOrchestrator) RunPipelineBlocking(context.Context, *pipeline.PipelineConfig, int) (*pipeline.Status, error) {
 	return nil, nil
 }
 
@@ -95,7 +95,7 @@ func (f adapterOrchestrator) StartPipelineBlocking(context.Context, string, int)
 	return nil, nil
 }
 
-func (f adapterOrchestrator) ResumePipeline(context.Context, string, *pipeline.Config) (*pipeline.Status, error) {
+func (f adapterOrchestrator) ResumePipeline(context.Context, string, *pipeline.PipelineConfig) (*pipeline.Status, error) {
 	return nil, nil
 }
 

@@ -5,20 +5,17 @@
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.0"
-  ],
-  "latest": "1.0.2",
-  "libraryId": "react-component-library:DragDropStore",
-  "displayName": "Drag Drop Store",
-  "description": "The scoped interaction store tracking the active drag, candidate drop targets, collision results, keyboard dragging state, announcements, and the drag overlay.",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:DragDropStore"
 }

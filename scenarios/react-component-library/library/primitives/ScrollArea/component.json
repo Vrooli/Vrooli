@@ -8,6 +8,13 @@
     "1.0.2",
     "1.0.4"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -16,15 +23,5 @@
     "1.0.4"
   ],
   "latest": "1.0.6",
-  "libraryId": "react-component-library:ScrollArea",
-  "displayName": "ScrollArea",
-  "description": "The accessible scroll container preserving native scrolling and keyboard behavior while offering optional custom indicators and stable layout.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:ScrollArea"
 }

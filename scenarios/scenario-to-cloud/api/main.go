@@ -40,8 +40,8 @@ import (
 	vpspreflight "scenario-to-cloud/vps/preflight"
 )
 
-// Config holds minimal runtime configuration
-type Config struct {
+// ServerConfig holds minimal runtime configuration.
+type ServerConfig struct {
 	Port string
 }
 
@@ -49,7 +49,7 @@ type Config struct {
 // Fields marked with "// Seam:" are integration points that can be substituted
 // for testing. If nil, defaults to the production implementation.
 type Server struct {
-	config           *Config
+	config           *ServerConfig
 	router           *mux.Router
 	db               *database.RoutedDB
 	repo             *persistence.Repository
@@ -97,7 +97,7 @@ func (m devRoutingMux) Mount(pattern string, handler http.Handler) {
 
 // NewServer initializes configuration, database, and routes
 func NewServer() (*Server, error) {
-	cfg := &Config{
+	cfg := &ServerConfig{
 		Port: requireEnv("API_PORT"),
 	}
 
@@ -272,6 +272,9 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/deployments", s.handleListDeployments).Methods("GET")
 	api.HandleFunc("/deployments", s.handleCreateDeployment).Methods("POST")
 	api.HandleFunc("/deployments/{id}", s.handleGetDeployment).Methods("GET")
+	api.HandleFunc("/deployments/{id}/receipt", s.handleGetDeploymentReceipt).Methods("GET")
+	api.HandleFunc("/deployments/{id}/recovery", s.handleRecoverDeployment).Methods("POST")
+	api.HandleFunc("/deployments/{id}/recovery/{operation_id}", s.handleGetCloudRecoveryOperation).Methods("GET")
 	api.HandleFunc("/deployments/{id}", s.handleDeleteDeployment).Methods("DELETE")
 	api.HandleFunc("/deployments/{id}/execute", s.handleExecuteDeployment).Methods("POST")
 	api.HandleFunc("/deployments/{id}/progress", s.handleDeploymentProgress).Methods("GET")
@@ -400,7 +403,7 @@ func getEnvDefault(key, defaultValue string) string {
 }
 
 // adaptStopScenarioFunc adapts vps.StopExistingScenario to the preflight package interface.
-func adaptStopScenarioFunc(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, workdir, scenarioID string, targetPorts []int) vpspreflight.StopScenarioResult {
+func adaptStopScenarioFunc(ctx context.Context, sshRunner ssh.Runner, cfg ssh.ConnectionConfig, workdir, scenarioID string, targetPorts []int) vpspreflight.StopScenarioResult {
 	result := vps.StopExistingScenario(ctx, sshRunner, cfg, workdir, scenarioID, targetPorts)
 	return vpspreflight.StopScenarioResult{
 		OK:      result.OK,

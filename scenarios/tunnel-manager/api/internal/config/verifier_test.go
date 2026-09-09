@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"tunnel-manager/internal/testutil/mocks"
@@ -24,17 +25,18 @@ func checkByName(checks []CredentialCheck, name string) (CredentialCheck, bool) 
 
 func TestVerifyHappyPathAllOK(t *testing.T) {
 	doer := &mocks.FakeDoer{}
-	doer.AddResponse(200, []byte(`{"success":true}`))                           // token verify
-	doer.AddResponse(200, []byte(`{"success":true}`))                           // account
-	doer.AddResponse(200, []byte(`{"success":true}`))                           // tunnel
-	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`)) // zone lookup
-	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))               // dns records
-	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))               // access apps (scope probe)
+	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // token verify
+	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // account
+	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // tunnel
+	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))                       // zone lookup
+	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))                                     // dns records
+	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))                                     // access apps (scope probe)
+	doer.AddResponse(200, []byte(`{"success":true,"result":{"auth_domain":"team.example.invalid"}}`)) // access organization
 
 	v := newTestVerifier(doer)
 	// accessRequired=true: the capability is on, so the Access-scope check
 	// counts toward Ready and must be OK like the rest.
-	got, err := v.Verify(context.Background(), CFConfig{APIToken: "t", AccountID: "a", TunnelID: "tun"}, []string{"itsagitime.com"}, true)
+	got, err := v.Verify(context.Background(), CFConfig{APIToken: "t", AccountID: "a", TunnelID: "tun"}, []string{"example.invalid"}, true)
 	if err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
@@ -46,15 +48,15 @@ func TestVerifyHappyPathAllOK(t *testing.T) {
 			t.Errorf("check %s = %s, want ok", c.Name, c.State)
 		}
 	}
-	if len(got.Checks) != 6 {
-		t.Errorf("expected 6 checks, got %d", len(got.Checks))
+	if len(got.Checks) != 7 {
+		t.Errorf("expected 7 checks, got %d", len(got.Checks))
 	}
 }
 
 func TestVerifyMissingTokenSkipsNetwork(t *testing.T) {
 	doer := &mocks.FakeDoer{} // no responses queued: any HTTP call would error
 	v := newTestVerifier(doer)
-	got, err := v.Verify(context.Background(), CFConfig{AccountID: "a", TunnelID: "tun"}, []string{"itsagitime.com"}, false)
+	got, err := v.Verify(context.Background(), CFConfig{AccountID: "a", TunnelID: "tun"}, []string{"example.invalid"}, false)
 	if err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
@@ -78,7 +80,7 @@ func TestVerifyExpiredTokenInvalid(t *testing.T) {
 	doer := &mocks.FakeDoer{}
 	doer.AddResponse(401, []byte(`{"success":false}`)) // token verify rejected
 	v := newTestVerifier(doer)
-	got, _ := v.Verify(context.Background(), CFConfig{APIToken: "bad", AccountID: "a", TunnelID: "tun"}, []string{"itsagitime.com"}, false)
+	got, _ := v.Verify(context.Background(), CFConfig{APIToken: "bad", AccountID: "a", TunnelID: "tun"}, []string{"example.invalid"}, false)
 	tok, _ := checkByName(got.Checks, CheckNameToken)
 	if tok.State != CheckInvalid {
 		t.Errorf("token state = %s, want invalid", tok.State)
@@ -91,15 +93,16 @@ func TestVerifyExpiredTokenInvalid(t *testing.T) {
 
 func TestVerifyDNSScopeInsufficient(t *testing.T) {
 	doer := &mocks.FakeDoer{}
-	doer.AddResponse(200, []byte(`{"success":true}`))                           // token
-	doer.AddResponse(200, []byte(`{"success":true}`))                           // account
-	doer.AddResponse(200, []byte(`{"success":true}`))                           // tunnel
-	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`)) // zone lookup ok
-	doer.AddResponse(403, []byte(`{"success":false}`))                          // dns records forbidden
-	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))               // access apps (scope probe)
+	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // token
+	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // account
+	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // tunnel
+	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))                       // zone lookup ok
+	doer.AddResponse(403, []byte(`{"success":false}`))                                                // dns records forbidden
+	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))                                     // access apps (scope probe)
+	doer.AddResponse(200, []byte(`{"success":true,"result":{"auth_domain":"team.example.invalid"}}`)) // access organization
 
 	v := newTestVerifier(doer)
-	got, _ := v.Verify(context.Background(), CFConfig{APIToken: "t", AccountID: "a", TunnelID: "tun"}, []string{"itsagitime.com"}, false)
+	got, _ := v.Verify(context.Background(), CFConfig{APIToken: "t", AccountID: "a", TunnelID: "tun"}, []string{"example.invalid"}, false)
 	if got.Ready {
 		t.Fatalf("expected Ready=false on missing DNS scope")
 	}
@@ -114,11 +117,12 @@ func TestVerifyDNSScopeInsufficient(t *testing.T) {
 
 func TestVerifyZoneNotFoundInvalid(t *testing.T) {
 	doer := &mocks.FakeDoer{}
-	doer.AddResponse(200, []byte(`{"success":true}`))             // token
-	doer.AddResponse(200, []byte(`{"success":true}`))             // account
-	doer.AddResponse(200, []byte(`{"success":true}`))             // tunnel
-	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`)) // zone lookup: empty
-	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`)) // access apps (scope probe)
+	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // token
+	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // account
+	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // tunnel
+	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))                                     // zone lookup: empty
+	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))                                     // access apps (scope probe)
+	doer.AddResponse(200, []byte(`{"success":true,"result":{"auth_domain":"team.example.invalid"}}`)) // access organization
 
 	v := newTestVerifier(doer)
 	got, _ := v.Verify(context.Background(), CFConfig{APIToken: "t", AccountID: "a", TunnelID: "tun"}, []string{"unknown.example"}, false)
@@ -139,12 +143,55 @@ func TestVerifyTunnelInsufficientScope(t *testing.T) {
 	doer.AddResponse(403, []byte(`{"success":false}`)) // tunnel forbidden
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"z"}]}`))
 	doer.AddResponse(200, []byte(`{"success":true}`))
-	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`)) // access apps (scope probe)
+	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))                                     // access apps (scope probe)
+	doer.AddResponse(200, []byte(`{"success":true,"result":{"auth_domain":"team.example.invalid"}}`)) // access organization
 
 	v := newTestVerifier(doer)
-	got, _ := v.Verify(context.Background(), CFConfig{APIToken: "t", AccountID: "a", TunnelID: "tun"}, []string{"itsagitime.com"}, false)
+	got, _ := v.Verify(context.Background(), CFConfig{APIToken: "t", AccountID: "a", TunnelID: "tun"}, []string{"example.invalid"}, false)
 	tun, _ := checkByName(got.Checks, CheckNameTunnel)
 	if tun.State != CheckInsufficientScope {
 		t.Errorf("tunnel state = %s, want insufficient_scope", tun.State)
 	}
+}
+
+func TestVerifyAccessOrganizationInsufficientScopeIsActionable(t *testing.T) {
+	doer := &mocks.FakeDoer{}
+	doer.AddResponse(200, []byte(`{"success":true}`))                       // token
+	doer.AddResponse(200, []byte(`{"success":true}`))                       // account
+	doer.AddResponse(200, []byte(`{"success":true}`))                       // tunnel
+	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"z"}]}`)) // zone lookup
+	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))           // dns records
+	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))           // access apps
+	doer.AddResponse(403, []byte(`{"success":false}`))                      // access organization
+
+	got, err := newTestVerifier(doer).Verify(context.Background(), CFConfig{APIToken: "t", AccountID: "a", TunnelID: "tun"}, []string{"example.invalid"}, false)
+	if err != nil {
+		t.Fatalf("Verify: %v", err)
+	}
+	org, ok := checkByName(got.Checks, CheckNameAccessOrganization)
+	if !ok || org.State != CheckInsufficientScope {
+		t.Fatalf("organization check = %+v, want insufficient_scope", org)
+	}
+	if !strings.Contains(org.Detail, "HTTP 403") || !strings.Contains(org.Remediation, "VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN") {
+		t.Fatalf("organization check lacks actionable safe detail: %+v", org)
+	}
+	if !got.Ready {
+		t.Fatal("core remote readiness should remain ready when only optional gated-auth metadata fails")
+	}
+	if got.AllChecksOK {
+		t.Fatal("all checks must be false when organization metadata is forbidden")
+	}
+	capability, ok := capabilityByName(got.Capabilities, CapabilityGatedUIAuthentication)
+	if !ok || capability.Ready || capability.Required {
+		t.Fatalf("access capability = %+v, want not-ready optional capability", capability)
+	}
+}
+
+func capabilityByName(capabilities []CredentialCapability, name string) (CredentialCapability, bool) {
+	for _, capability := range capabilities {
+		if capability.Name == name {
+			return capability, true
+		}
+	}
+	return CredentialCapability{}, false
 }

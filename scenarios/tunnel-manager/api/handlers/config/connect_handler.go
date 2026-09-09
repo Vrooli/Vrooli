@@ -240,3 +240,12 @@ func (h *connectHandler) GetAccessStatus(ctx context.Context, _ *connect.Request
 	}
 	return connect.NewResponse(&configv1.GetAccessStatusResponse{Status: accessStatusToProto(status)}), nil
 }
+
+func (h *connectHandler) GetAuthenticationBinding(ctx context.Context, req *connect.Request[configv1.GetAuthenticationBindingRequest]) (*connect.Response[configv1.GetAuthenticationBindingResponse], error) {
+	binding, err := h.deps.Service.GetAuthenticationBinding(ctx, req.Msg.Scenario, req.Msg.Hostname)
+	if err != nil {
+		h.deps.Logger.Printf("config.GetAuthenticationBinding: %v", err)
+		return nil, internalconfig.ToConnectError(err)
+	}
+	return connect.NewResponse(&configv1.GetAuthenticationBindingResponse{Binding: authenticationBindingToProto(binding)}), nil
+}

@@ -18,7 +18,7 @@ type fakeSCPRunner struct {
 	calls      int
 }
 
-func (f *fakeSCPRunner) Copy(_ context.Context, _ ssh.Config, localPath, remotePath string, _ ssh.SCPOptions) error {
+func (f *fakeSCPRunner) Copy(_ context.Context, _ ssh.ConnectionConfig, localPath, remotePath string, _ ssh.SCPOptions) error {
 	f.calls++
 	f.localPath = localPath
 	f.remotePath = remotePath
@@ -43,7 +43,7 @@ func TestDetectRemotePlatformNormalizesLinuxArchitectures(t *testing.T) {
 			runner := &fakeRunner{
 				results: []fakeResult{{res: ssh.Result{Stdout: tt.stdout, ExitCode: 0}}},
 			}
-			got, err := detectRemotePlatform(context.Background(), ssh.Config{Host: "test"}, runner)
+			got, err := detectRemotePlatform(context.Background(), ssh.ConnectionConfig{Host: "test"}, runner)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatal("expected error")
@@ -106,7 +106,7 @@ func TestInstallRemoteVrooliCLIBuildsUploadsAndMarksExecutable(t *testing.T) {
 		buildLocalVrooliBinaryFn = originalBuild
 	}()
 
-	detectRemotePlatformFn = func(context.Context, ssh.Config, ssh.Runner) (remotePlatform, error) {
+	detectRemotePlatformFn = func(context.Context, ssh.ConnectionConfig, ssh.Runner) (remotePlatform, error) {
 		return remotePlatform{GOOS: "linux", GOARCH: "amd64", Kernel: "linux", Machine: "x86_64"}, nil
 	}
 	buildLocalVrooliBinaryFn = func(remotePlatform) (string, func(), error) {

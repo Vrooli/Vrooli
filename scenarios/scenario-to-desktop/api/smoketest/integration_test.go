@@ -128,7 +128,7 @@ func TestIntegration_TimeoutBehavior(t *testing.T) {
 	logger := mocks.NewMockLogger()
 
 	// Create service with very short timeout (1 second)
-	config := smoketest.Config{
+	config := smoketest.SmokeTestConfig{
 		TimeoutSeconds:      1, // 1 second timeout
 		TelemetryPathMarker: "[Desktop App] Telemetry initialized at ",
 		SuccessMarker:       "SMOKE_TEST_RESULT=passed",

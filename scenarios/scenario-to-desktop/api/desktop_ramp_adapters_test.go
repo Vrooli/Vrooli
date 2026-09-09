@@ -48,6 +48,32 @@ func TestDesktopRampDistributorRegistersImmutableArtifact(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
 			t.Errorf("decode registration: %v", err)
 		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"data":{"id":42}}`))
+	}))
+	defer server.Close()
+	t.Setenv("S2D_LPBS_CATALOG_URL", server.URL)
+	t.Setenv("S2D_DESKTOP_ARTIFACT_URL", "https://downloads.example.test/paid.AppImage")
+	t.Setenv("S2D_LPBS_ADMIN_TOKEN", "operator-token")
+
+	result, err := (desktopRampDistributor{client: server.Client()}).Distribute(context.Background(), deliveryramp.DistributionRequest{Artifact: deliveryramp.Artifact{
+		ImmutableRef: "artifact:sha256",
+		Checksum:     "sha256:abc",
+		Metadata:     map[string]string{"bundle_key": "business_suite", "app_key": "paid-app", "platform": "linux"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Disposition != deliveryramp.DispositionPass || result.EffectReceipt == nil || result.EffectReceipt.ExternalReceipt != "lpbs-asset:42" || gotPath != "/api/v1/admin/download-apps/paid-app" {
+		t.Fatalf("registration result=%+v path=%q", result, gotPath)
+	}
+	if got["app_key"] != "paid-app" {
+		t.Fatalf("registration payload = %#v", got)
+	}
+}
+
+func TestDesktopRampDistributorRefusesHTTPOnlySuccess(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
@@ -63,10 +89,7 @@ func TestDesktopRampDistributorRegistersImmutableArtifact(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Disposition != deliveryramp.DispositionPass || gotPath != "/api/v1/admin/download-apps/paid-app" {
-		t.Fatalf("registration result=%+v path=%q", result, gotPath)
-	}
-	if got["app_key"] != "paid-app" {
-		t.Fatalf("registration payload = %#v", got)
+	if result.Disposition != deliveryramp.DispositionUnavailable || result.EffectReceipt != nil {
+		t.Fatalf("HTTP-only success result = %+v", result)
 	}
 }

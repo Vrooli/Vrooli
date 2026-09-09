@@ -14,18 +14,18 @@ import (
 func TestBuildStageReturnsStructuredFailuresBeforeStartingExternalBuild(t *testing.T) {
 	timeProvider := &mockTimeProvider{now: 100}
 	missingService := NewBuildStage(WithBuildTimeProvider(timeProvider))
-	result := missingService.Execute(context.Background(), &StageInput{Config: &Config{ScenarioName: "demo"}})
+	result := missingService.Execute(context.Background(), &StageInput{Config: &PipelineConfig{ScenarioName: "demo"}})
 	if result.Status != StatusFailed || result.ErrorInfo == nil || result.ErrorInfo.Code != string(errors.CodeServiceStartError) {
 		t.Fatalf("missing service result = %#v", result)
 	}
 	missingPath := NewBuildStage(WithBuildService(&buildServiceSpy{}), WithBuildTimeProvider(timeProvider))
-	result = missingPath.Execute(context.Background(), &StageInput{Config: &Config{ScenarioName: "demo"}})
+	result = missingPath.Execute(context.Background(), &StageInput{Config: &PipelineConfig{ScenarioName: "demo"}})
 	if result.Status != StatusFailed || result.ErrorInfo == nil || result.ErrorInfo.Code != string(errors.CodeDependencyError) {
 		t.Fatalf("missing desktop path result = %#v", result)
 	}
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
-	result = missingService.Execute(cancelled, &StageInput{Config: &Config{ScenarioName: "demo"}})
+	result = missingService.Execute(cancelled, &StageInput{Config: &PipelineConfig{ScenarioName: "demo"}})
 	if result.Status != StatusCancelled {
 		t.Fatalf("cancelled result = %#v", result)
 	}

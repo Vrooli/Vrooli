@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/templatevalidation"
 	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
@@ -63,7 +63,7 @@ func runProtoGenerateForCleanupResult[C any](deps HandlerDeps[C], ctx C, result 
 	if _, err := os.Stat(filepath.Join(protoDir, "Makefile")); err != nil {
 		return nil
 	}
-	if err := deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+	if err := deps.RunSubprocess(ctx, shell.Spec{
 		Name:   "make",
 		Args:   []string{"generate"},
 		Dir:    protoDir,

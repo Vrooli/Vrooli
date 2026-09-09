@@ -79,7 +79,7 @@ func TestConfigFromManifest(t *testing.T) {
 	tests := []struct {
 		name     string
 		manifest domain.CloudManifest
-		want     Config
+		want     ConnectionConfig
 	}{
 		{
 			name: "extracts VPS config from manifest",
@@ -93,7 +93,7 @@ func TestConfigFromManifest(t *testing.T) {
 					},
 				},
 			},
-			want: Config{
+			want: ConnectionConfig{
 				Host:    "prod.example.com",
 				Port:    22,
 				User:    "deploy",
@@ -112,7 +112,7 @@ func TestConfigFromManifest(t *testing.T) {
 					},
 				},
 			},
-			want: Config{
+			want: ConnectionConfig{
 				Host:    "vps.example.com",
 				Port:    2222,
 				User:    "admin",
@@ -131,7 +131,7 @@ func TestConfigFromManifest(t *testing.T) {
 					},
 				},
 			},
-			want: Config{
+			want: ConnectionConfig{
 				Host:    "vps.example.com",
 				Port:    DefaultPort,
 				User:    "admin",
@@ -150,7 +150,7 @@ func TestConfigFromManifest(t *testing.T) {
 					},
 				},
 			},
-			want: Config{
+			want: ConnectionConfig{
 				Host:    "vps.example.com",
 				Port:    22,
 				User:    DefaultUser,

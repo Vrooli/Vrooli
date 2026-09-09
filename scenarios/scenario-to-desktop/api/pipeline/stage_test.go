@@ -39,7 +39,7 @@ func TestBuildStage(t *testing.T) {
 
 	t.Run("CanSkip", func(t *testing.T) {
 		stage := NewBuildStage()
-		input := &StageInput{Config: &Config{}}
+		input := &StageInput{Config: &PipelineConfig{}}
 		if stage.CanSkip(input) {
 			t.Error("expected CanSkip to return false")
 		}
@@ -76,7 +76,7 @@ func TestBundleStage(t *testing.T) {
 
 	t.Run("CanSkip with proxy mode", func(t *testing.T) {
 		stage := NewBundleStage()
-		input := &StageInput{Config: &Config{DeploymentMode: "proxy"}}
+		input := &StageInput{Config: &PipelineConfig{DeploymentMode: "proxy"}}
 		if !stage.CanSkip(input) {
 			t.Error("expected CanSkip to return true for proxy mode")
 		}
@@ -84,7 +84,7 @@ func TestBundleStage(t *testing.T) {
 
 	t.Run("CanSkip with bundled mode", func(t *testing.T) {
 		stage := NewBundleStage()
-		input := &StageInput{Config: &Config{DeploymentMode: "bundled"}}
+		input := &StageInput{Config: &PipelineConfig{DeploymentMode: "bundled"}}
 		if stage.CanSkip(input) {
 			t.Error("expected CanSkip to return false for bundled mode")
 		}
@@ -122,7 +122,7 @@ func TestGenerateStage(t *testing.T) {
 
 	t.Run("CanSkip", func(t *testing.T) {
 		stage := NewGenerateStage()
-		input := &StageInput{Config: &Config{}}
+		input := &StageInput{Config: &PipelineConfig{}}
 		if stage.CanSkip(input) {
 			t.Error("expected CanSkip to return false")
 		}
@@ -174,7 +174,7 @@ func TestPreflightStage(t *testing.T) {
 
 	t.Run("CanSkip when skipped in config", func(t *testing.T) {
 		stage := NewPreflightStage()
-		input := &StageInput{Config: &Config{SkipPreflight: true}}
+		input := &StageInput{Config: &PipelineConfig{SkipPreflight: true}}
 		if !stage.CanSkip(input) {
 			t.Error("expected CanSkip to return true when SkipPreflight is true")
 		}
@@ -182,7 +182,7 @@ func TestPreflightStage(t *testing.T) {
 
 	t.Run("CanSkip when not skipped in bundled mode", func(t *testing.T) {
 		stage := NewPreflightStage()
-		input := &StageInput{Config: &Config{SkipPreflight: false, DeploymentMode: DeploymentModeBundled}}
+		input := &StageInput{Config: &PipelineConfig{SkipPreflight: false, DeploymentMode: DeploymentModeBundled}}
 		if stage.CanSkip(input) {
 			t.Error("expected CanSkip to return false when SkipPreflight is false in bundled mode")
 		}
@@ -190,7 +190,7 @@ func TestPreflightStage(t *testing.T) {
 
 	t.Run("CanSkip in proxy mode", func(t *testing.T) {
 		stage := NewPreflightStage()
-		input := &StageInput{Config: &Config{DeploymentMode: "proxy"}}
+		input := &StageInput{Config: &PipelineConfig{DeploymentMode: "proxy"}}
 		if !stage.CanSkip(input) {
 			t.Error("expected CanSkip to return true in proxy mode")
 		}
@@ -293,7 +293,7 @@ func TestSmokeTestStage(t *testing.T) {
 
 	t.Run("CanSkip when skipped in config", func(t *testing.T) {
 		stage := NewSmokeTestStage()
-		input := &StageInput{Config: &Config{SkipSmokeTest: true}}
+		input := &StageInput{Config: &PipelineConfig{SkipSmokeTest: true}}
 		if !stage.CanSkip(input) {
 			t.Error("expected CanSkip to return true when SkipSmokeTest is true")
 		}
@@ -301,7 +301,7 @@ func TestSmokeTestStage(t *testing.T) {
 
 	t.Run("CanSkip when not skipped", func(t *testing.T) {
 		stage := NewSmokeTestStage()
-		input := &StageInput{Config: &Config{SkipSmokeTest: false}}
+		input := &StageInput{Config: &PipelineConfig{SkipSmokeTest: false}}
 		if stage.CanSkip(input) {
 			t.Error("expected CanSkip to return false when SkipSmokeTest is false")
 		}
@@ -312,7 +312,7 @@ func TestSmokeTestStage(t *testing.T) {
 func TestStageExecuteWithMissingService(t *testing.T) {
 	ctx := context.Background()
 	input := &StageInput{
-		Config:       &Config{ScenarioName: "test"},
+		Config:       &PipelineConfig{ScenarioName: "test"},
 		ScenarioPath: "/tmp/test",
 		Logger:       &mockLogger{},
 	}

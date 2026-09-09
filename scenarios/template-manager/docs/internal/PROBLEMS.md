@@ -86,3 +86,38 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## 2026-09-07 — Shared selector consolidation
+
+W3 implementation review under the existing selector contract; no W0–W2 maturity promotion is claimed. Both React/Vite templates use @vrooli/ui-selectors and exporter scripts with governed package declarations and locks. Focused generation/copy checks pass. Unit run 20260907-213240-57f1e0c5 could not acquire unit-health. Full templateengine testing additionally found an invalid compose-service resource driver (knw-1788818286865080380), outside this selector change. Shared evidence and limitations: `packages/ui-selectors/README.md`.
+
+## 2026-09-07 — Unused health fixture cleanup
+
+W3 scoped implementation cleanup: removed 67 unused scenario health fixture
+pairs after checking that builder and option symbols had no external Go
+consumers. The canonical template example remains linked from the test-authoring
+guide; manifest copy exclusions prevent its propagation to new scenarios.
+Focused generation/copy checks and Proto Health handler/testutil tests pass.
+Test Genie unit run: `20260907-222237-5e59d117` (terminal result recorded in
+the work-record journal). No W0–W2 readiness claim is made.
+
+## Work ladder — shared gamepad ownership
+
+- Rung: W3 (scoped implementation change; W0–W2 not re-certified).
+- Evidence: scenario entry points called `initSpatialNav()`, while local React
+  hooks created independent managers; Swarm Manager's graph used both paths.
+- Repair: shared application controller and React adapters, scoped action
+  routing, modal registration cleanup, and template/provider migration.
+- Measured: 2026-09-07. Package and scenario validation recorded in the work journal.
+
+## Work ladder — shared binary boot harness
+
+- Rung: W3, scoped consolidation under the existing binary-startup contract.
+- Evidence: 67 scenario boot tests and the canonical template duplicated process
+  setup and weak health/shutdown checks. `packages/api-core/boottest` now owns
+  those mechanics; scenarios retain service identity and necessary startup inputs.
+- Measured: 2026-09-07. Shared regression tests pass with the race detector. Real
+  boot checks pass for Proto Health, Unit Health, Vrooli Bridge, and Template Manager.
+- Limitation: Test Genie unit run `20260908-032406-c3fc9bec` returned FAIL with
+  `UNIT_REQUIRED_ROLE_MISSING`: Code Facts did not observe the required UI role.
+  This is separate from the passing focused boot checks; no W0–W2 claim is made.

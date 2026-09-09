@@ -1021,7 +1021,7 @@ func checkOriginHealth(ctx context.Context, domain, host string, timeout time.Du
 	return nil
 }
 
-func fetchCaddyLogs(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, lines int) string {
+func fetchCaddyLogs(ctx context.Context, sshRunner ssh.Runner, cfg ssh.ConnectionConfig, lines int) string {
 	if lines <= 0 {
 		lines = 200
 	}

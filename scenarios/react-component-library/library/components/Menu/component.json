@@ -11,6 +11,13 @@
     "1.2.3",
     "1.2.4"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.1.1",
@@ -23,15 +30,5 @@
     "1.2.5"
   ],
   "latest": "2.0.1",
-  "libraryId": "react-component-library:Menu",
-  "displayName": "Menu",
-  "description": "The menu family covering dropdowns and submenus with roving focus, typeahead, check and radio items, safe pointer corridors, shortcut hints, and async item actions.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:Menu"
 }

@@ -126,22 +126,36 @@ const (
 	// CheckInsufficientScope means the token authenticates but lacks the
 	// permission this check needs (e.g. no Zone:DNS:Edit).
 	CheckInsufficientScope CheckState = "insufficient_scope"
+	// CheckUnavailable means the check could not establish a provider verdict
+	// because the provider or network was unavailable.
+	CheckUnavailable CheckState = "unavailable"
 )
 
 // Canonical credential-check names. Stable identifiers consumers key on. The
 // three that name a credential field REUSE the existing store-key constants
 // rather than re-declaring a secret-looking string literal (which the
-// hardcoded-value structure detector would flag); the two scope checks are
-// plain non-secret identifiers.
+// hardcoded-value structure detector would flag); capability checks are plain
+// non-secret identifiers.
 const (
 	CheckNameAccount    = credentialKeyAccountID
 	CheckNameTunnel     = credentialKeyTunnelID
 	CheckNameDNSScope   = "cloudflare.zone_dns_edit"
 	CheckNameZoneLookup = "cloudflare.zone_lookup"
-	// CheckNameAccessScope probes Access: Apps and Policies: Edit — the scope
-	// the /public Access-bypass capability needs. Informational unless the
-	// capability is enabled (so it never breaks readiness for non-users).
-	CheckNameAccessScope = "cloudflare.access_apps_edit"
+	// CheckNameAccessScope probes read access to Access applications. A GET
+	// cannot prove the write permission required by public-exposure mutation.
+	CheckNameAccessScope = "cloudflare.access_apps_read"
+	// CheckNameAccessOrganization probes the Access organization metadata used
+	// to discover the shared authentication domain for gated scenarios.
+	CheckNameAccessOrganization = "cloudflare.access_organization_read"
+)
+
+// Stable capability identifiers group checks by the operation they establish.
+const (
+	CapabilityCloudflareAuthentication = "cloudflare_authentication"
+	CapabilityRemoteIngress            = "remote_ingress"
+	CapabilityDNSAutomation            = "dns_automation"
+	CapabilityAccessAppMetadata        = "access_app_metadata"
+	CapabilityGatedUIAuthentication    = "gated_ui_authentication"
 )
 
 // CheckNameToken mirrors the API-token store key (which is built from parts, not
@@ -159,13 +173,31 @@ type CredentialCheck struct {
 	Detail string
 	// Remediation is a one-line operator next-step when State != OK.
 	Remediation string
+	// Capability identifies the operation this check informs.
+	Capability string
+	// Required marks whether this check contributes to the core Ready result.
+	Required bool
 }
 
-// CredentialVerification bundles the per-check results of a live probe plus a
-// roll-up Ready flag (true only when every check is OK).
+// CredentialCapability is an operation-level roll-up of the individual live
+// checks. It is browser/CLI safe and makes optional or feature-specific gaps
+// visible without conflating them with remote ingress readiness.
+type CredentialCapability struct {
+	Name       string
+	Ready      bool
+	Required   bool
+	CheckNames []string
+	Reason     string
+}
+
+// CredentialVerification bundles per-check results, operation-level roll-ups,
+// and two intentionally distinct overall flags: Ready reports whether the
+// required core capabilities passed; AllChecksOK includes optional checks.
 type CredentialVerification struct {
-	Checks []CredentialCheck
-	Ready  bool
+	Checks       []CredentialCheck
+	Capabilities []CredentialCapability
+	Ready        bool
+	AllChecksOK  bool
 }
 
 // CredentialVerifier is the outbound-integration seam over live Cloudflare
@@ -326,6 +358,24 @@ type AccessClient interface {
 	LookupPublicBypass(ctx context.Context, host string) (app AccessApp, found bool, err error)
 }
 
+// AccessRuntimeBinding is the non-secret Cloudflare Access material a managed
+// scenario needs to verify human authority at its origin. Tunnel Manager
+// resolves it from the route's Access application and account organization;
+// it never exposes Cloudflare credentials or browser assertions.
+type AccessRuntimeBinding struct {
+	TeamDomain  string
+	Audience    string
+	RecoveryURL string
+}
+
+// AccessMetadataReader is deliberately separate from AccessClient. The latter
+// owns the narrow /public bypass mutation surface; this read-only seam lets the
+// lifecycle consume the primary app's verifier metadata without widening that
+// mutation authority.
+type AccessMetadataReader interface {
+	ResolveRuntimeBinding(ctx context.Context, host string) (AccessRuntimeBinding, error)
+}
+
 // AccessHostState is one host's /public Access-bypass status for the
 // status/preview read model.
 type AccessHostState struct {
@@ -410,7 +460,7 @@ type RoutesManager interface {
 // ScenarioResolver resolves a scenario slug to its fixed UI port. AdoptIngress
 // uses it to auto-classify a bare-adopted hostname (no explicit scenario or
 // target) as a scenario route when its subdomain matches a known scenario —
-// so an operator who adopts e.g. agent-inbox.itsagitime.com gets a
+// so an operator who adopts e.g. agent-inbox.example.invalid gets a
 // scenario-backed route with the real port, not an external route with port 0.
 // Declared at the consumer per seam-discovery; the production impl reads
 // <scenarios-root>/<scenario>/.vrooli/service.json. Optional in Deps: when nil,

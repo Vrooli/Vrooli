@@ -49,6 +49,7 @@ describe("language detection utilities", () => {
     ["config.JSON", "json"],
     ["Dockerfile", "dockerfile"],
     [".env", "bash"],
+    ["", null],
     ["README", null],
     ["archive.unknown", null],
   ] as const)("maps filename %s to %s", (filename, expected) => {

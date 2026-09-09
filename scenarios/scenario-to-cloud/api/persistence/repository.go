@@ -206,7 +206,29 @@ func (r *Repository) InitSchemaOnDialect(ctx context.Context, db DB, dialect str
 			ALTER TABLE deployment_investigations
 				ADD COLUMN IF NOT EXISTS iteration INTEGER DEFAULT 0;
 			ALTER TABLE deployment_investigations
-				ADD COLUMN IF NOT EXISTS max_iterations INTEGER DEFAULT 5;
+			ADD COLUMN IF NOT EXISTS max_iterations INTEGER DEFAULT 5;
+		`},
+		{"add_recovery_operations", `
+			CREATE TABLE IF NOT EXISTS cloud_recovery_operations (
+				id UUID PRIMARY KEY,
+				deployment_id UUID NOT NULL REFERENCES deployments(id) ON DELETE CASCADE,
+				idempotency_key TEXT NOT NULL,
+				action TEXT NOT NULL CHECK (action IN ('rollback', 'forward_repair')),
+				expected_bundle_sha256 TEXT,
+				repair_bundle_sha256 TEXT NOT NULL,
+				repair_bundle_path TEXT NOT NULL,
+				data_compatibility TEXT NOT NULL,
+				status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'succeeded', 'failed')),
+				receipt JSONB,
+				error_message TEXT,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				started_at TIMESTAMPTZ,
+				completed_at TIMESTAMPTZ,
+				UNIQUE (deployment_id, idempotency_key)
+			);
+			CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_deployment_id ON cloud_recovery_operations(deployment_id);
+			CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_status ON cloud_recovery_operations(status);
 		`},
 	}
 
@@ -303,6 +325,27 @@ CREATE TABLE IF NOT EXISTS deployment_investigations (
 );
 CREATE INDEX IF NOT EXISTS idx_investigations_deployment_id ON deployment_investigations(deployment_id);
 CREATE INDEX IF NOT EXISTS idx_investigations_status ON deployment_investigations(status);
+
+CREATE TABLE IF NOT EXISTS cloud_recovery_operations (
+	 id TEXT PRIMARY KEY,
+	 deployment_id TEXT NOT NULL REFERENCES deployments(id) ON DELETE CASCADE,
+	 idempotency_key TEXT NOT NULL,
+	 action TEXT NOT NULL CHECK (action IN ('rollback', 'forward_repair')),
+	 expected_bundle_sha256 TEXT,
+	 repair_bundle_sha256 TEXT NOT NULL,
+	 repair_bundle_path TEXT NOT NULL,
+	 data_compatibility TEXT NOT NULL,
+	 status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'succeeded', 'failed')),
+	 receipt TEXT,
+	 error_message TEXT,
+	 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	 started_at TIMESTAMP,
+	 completed_at TIMESTAMP,
+	 UNIQUE (deployment_id, idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_deployment_id ON cloud_recovery_operations(deployment_id);
+CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_status ON cloud_recovery_operations(status);
 `
 	if _, err := db.ExecContext(ctx, schema); err != nil {
 		return fmt.Errorf("failed to create SQLite schema: %w", err)

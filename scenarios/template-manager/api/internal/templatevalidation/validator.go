@@ -120,15 +120,27 @@ func (v *Validator) checkKnownTemplate(ctx context.Context, report *Report) erro
 		}
 		return err
 	}
-	if record.LatestVersion != "" && compareSemver(report.Provenance.TemplateVersion, record.LatestVersion) < 0 {
-		report.Findings = append(report.Findings, Finding{
-			Code:        CodeTemplateVersionLag,
-			Severity:    SeverityWarn,
-			Title:       "Template version is behind the registered latest version",
-			Message:     fmt.Sprintf("%s is at %s; latest registered version is %s.", report.Provenance.TemplateID, report.Provenance.TemplateVersion, record.LatestVersion),
-			Location:    ".vrooli/service.json",
-			Remediation: "Read every changelog entry above the recorded version, apply migrations, then update generation.template.version.",
-		})
+	if record.LatestVersion != "" {
+		comparison := compareSemver(report.Provenance.TemplateVersion, record.LatestVersion)
+		if !strictSemver.MatchString(report.Provenance.TemplateVersion) || comparison > 0 {
+			report.Findings = append(report.Findings, Finding{
+				Code:        CodeTemplateVersionUnsupported,
+				Severity:    SeverityError,
+				Title:       "Template version is unsupported",
+				Message:     fmt.Sprintf("%s records %s, but the registered latest supported version is %s.", report.Provenance.TemplateID, report.Provenance.TemplateVersion, record.LatestVersion),
+				Location:    ".vrooli/service.json",
+				Remediation: "Refuse adoption until the template version is registered, or review the template migration and select a supported version.",
+			})
+		} else if comparison < 0 {
+			report.Findings = append(report.Findings, Finding{
+				Code:        CodeTemplateVersionLag,
+				Severity:    SeverityWarn,
+				Title:       "Template version is behind the registered latest version",
+				Message:     fmt.Sprintf("%s is at %s; latest registered version is %s.", report.Provenance.TemplateID, report.Provenance.TemplateVersion, record.LatestVersion),
+				Location:    ".vrooli/service.json",
+				Remediation: "Read every changelog entry above the recorded version, apply migrations, then update generation.template.version.",
+			})
+		}
 	}
 	debt, err := v.Repository.ListDebt(ctx, report.Provenance.TemplateID, "open")
 	if err != nil {
@@ -227,6 +239,7 @@ func readProvenance(root string) (Provenance, bool, error) {
 }
 
 var semverPart = regexp.MustCompile(`\d+`)
+var strictSemver = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 
 func compareSemver(a, b string) int {
 	ap := semverParts(a)

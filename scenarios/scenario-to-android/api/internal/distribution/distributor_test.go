@@ -12,8 +12,11 @@ func TestDistributorDoesNotInferSiblingChannelAvailability(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Disposition != deliveryramp.DispositionPass {
-		t.Fatal("verified sideload should remain independently available")
+	if result.Disposition != deliveryramp.DispositionDegraded || !result.CapabilityReady || result.EffectReceipt != nil {
+		t.Fatalf("verified sideload capability must not claim publication: %#v", result)
+	}
+	if result.Reason == "" {
+		t.Fatal("capability-only result must explain that no publication effect occurred")
 	}
 	if result.Targets[0].Available || !result.Targets[1].Available {
 		t.Fatalf("channel availability was inferred: %#v", result.Targets)

@@ -12,12 +12,12 @@ import (
 
 // SSHRunner seam for authorized-keys inspection.
 type SSHRunner interface {
-	Run(ctx context.Context, cfg ssh.Config, command string, opts ssh.RunOptions) (ssh.Result, error)
+	Run(ctx context.Context, cfg ssh.ConnectionConfig, command string, opts ssh.RunOptions) (ssh.Result, error)
 }
 
 // AuthorizedKeysInspector seam for matching explicit keys on remote host.
 type AuthorizedKeysInspector interface {
-	Inspect(ctx context.Context, cfg ssh.Config, identity DeploymentSSHIdentity) (VerificationState, error)
+	Inspect(ctx context.Context, cfg ssh.ConnectionConfig, identity DeploymentSSHIdentity) (VerificationState, error)
 }
 
 // RemoteAuthorizedKeysInspector inspects ~/.ssh/authorized_keys over SSH.
@@ -26,7 +26,7 @@ type RemoteAuthorizedKeysInspector struct {
 }
 
 // Inspect verifies whether the explicit key is authorized remotely.
-func (i RemoteAuthorizedKeysInspector) Inspect(ctx context.Context, cfg ssh.Config, identity DeploymentSSHIdentity) (VerificationState, error) {
+func (i RemoteAuthorizedKeysInspector) Inspect(ctx context.Context, cfg ssh.ConnectionConfig, identity DeploymentSSHIdentity) (VerificationState, error) {
 	if identity.AuthMode != AuthModeExplicitKey || strings.TrimSpace(identity.KeyPath) == "" {
 		return VerificationUnknown, nil
 	}

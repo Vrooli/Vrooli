@@ -19,19 +19,19 @@ type mockOrchestrator struct {
 	createError   error
 	startResult   *Status
 	startError    error
-	updatedConfig *Config
+	updatedConfig *PipelineConfig
 	updateError   error
 }
 
-func (m *mockOrchestrator) RunPipeline(_ context.Context, _ *Config) (*Status, error) {
+func (m *mockOrchestrator) RunPipeline(_ context.Context, _ *PipelineConfig) (*Status, error) {
 	return m.runResult, m.runError
 }
 
-func (m *mockOrchestrator) RunPipelineBlocking(_ context.Context, _ *Config, _ int) (*Status, error) {
+func (m *mockOrchestrator) RunPipelineBlocking(_ context.Context, _ *PipelineConfig, _ int) (*Status, error) {
 	return m.runResult, m.runError
 }
 
-func (m *mockOrchestrator) CreateIdlePipeline(_ *Config) (*Status, error) {
+func (m *mockOrchestrator) CreateIdlePipeline(_ *PipelineConfig) (*Status, error) {
 	return m.createResult, m.createError
 }
 
@@ -43,14 +43,14 @@ func (m *mockOrchestrator) StartPipelineBlocking(_ context.Context, _ string, _ 
 	return m.startResult, m.startError
 }
 
-func (m *mockOrchestrator) UpdatePipelineConfig(_ string, config *Config) error {
+func (m *mockOrchestrator) UpdatePipelineConfig(_ string, config *PipelineConfig) error {
 	m.updatedConfig = config
 	return m.updateError
 }
 func (m *mockOrchestrator) GetStatus(_ string) (*Status, bool) { return m.getResult, m.getFound }
 func (m *mockOrchestrator) CancelPipeline(_ string) bool       { return m.cancelSuccess }
 func (m *mockOrchestrator) ListPipelines() []*Status           { return m.pipelines }
-func (m *mockOrchestrator) ResumePipeline(_ context.Context, _ string, _ *Config) (*Status, error) {
+func (m *mockOrchestrator) ResumePipeline(_ context.Context, _ string, _ *PipelineConfig) (*Status, error) {
 	return m.resumeResult, m.resumeError
 }
 

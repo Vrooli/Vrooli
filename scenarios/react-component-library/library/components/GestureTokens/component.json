@@ -4,21 +4,18 @@
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.1",
-    "1.0.0"
-  ],
-  "latest": "1.1.1",
-  "libraryId": "react-component-library:GestureTokens",
-  "displayName": "GestureTokens",
-  "description": "",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0"
+  ],
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:GestureTokens"
 }

@@ -142,7 +142,26 @@ func (d desktopRampDistributor) Distribute(ctx context.Context, request delivery
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionUnavailable, Reason: fmt.Sprintf("LPBS catalog returned HTTP %d", response.StatusCode)}, nil
 	}
-	return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionPass, Targets: []deliveryramp.DistributionTarget{{ID: "lpbs-download-catalog", Kind: "catalog", Available: true}}}, nil
+	var envelope struct {
+		Data struct {
+			ID int64 `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil || envelope.Data.ID <= 0 {
+		return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionUnavailable, Reason: "LPBS catalog response omitted the durable asset receipt"}, nil
+	}
+	return deliveryramp.DistributionResult{
+		Disposition:     deliveryramp.DispositionPass,
+		CapabilityReady: true,
+		Targets:         []deliveryramp.DistributionTarget{{ID: "lpbs-download-catalog", Kind: "catalog", Available: true}},
+		EffectReceipt: &deliveryramp.DistributionEffectReceipt{
+			TargetID:        "lpbs-download-catalog",
+			ArtifactRef:     request.Artifact.ImmutableRef,
+			ExternalReceipt: fmt.Sprintf("lpbs-asset:%d", envelope.Data.ID),
+			Outcome:         "published",
+			ObservedAt:      time.Now().UTC(),
+		},
+	}, nil
 }
 
 var (

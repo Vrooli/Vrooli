@@ -27,7 +27,7 @@ type DeploymentContext struct {
 	ID         string
 	Deployment *domain.Deployment
 	Manifest   domain.CloudManifest
-	SSHConfig  ssh.Config
+	SSHConfig  ssh.ConnectionConfig
 	Workdir    string
 }
 

@@ -39,7 +39,7 @@ describe("AccessPanel", () => {
     expect(configClient.getAccessStatus).toHaveBeenCalled();
     expect(screen.getByTestId(selectors.access.globalBadge)).toHaveTextContent("disabled");
     expect(screen.getByTestId(selectors.access.configuredBadge)).toHaveTextContent("not configured");
-    expect(screen.getByTestId(selectors.access.hostName)).toHaveTextContent("web-console.itsagitime.com");
+    expect(screen.getByTestId(selectors.access.hostName)).toHaveTextContent("web-console.example.invalid");
     expect(screen.getByTestId(selectors.access.bypassBadge)).toHaveTextContent("Off");
     expect(screen.getByTestId(selectors.access.note)).toHaveTextContent("read-only");
   });
@@ -53,15 +53,15 @@ describe("AccessPanel", () => {
           configured: true,
           hosts: [
             {
-              host: "web-console.itsagitime.com",
+              host: "web-console.example.invalid",
               override: "enabled",
               effectiveBypass: true,
               managed: false,
               appId: "",
             },
           ],
-          toCreate: ["web-console.itsagitime.com"],
-          toRemove: ["stale.itsagitime.com"],
+          toCreate: ["web-console.example.invalid"],
+          toRemove: ["stale.example.invalid"],
         },
       }),
     );
@@ -69,11 +69,11 @@ describe("AccessPanel", () => {
     renderWithProviders(<AccessPanel />);
 
     await waitFor(() => {
-      expect(screen.getByTestId(selectors.access.planCreate)).toHaveTextContent("web-console.itsagitime.com");
+      expect(screen.getByTestId(selectors.access.planCreate)).toHaveTextContent("web-console.example.invalid");
     });
     expect(screen.getByTestId(selectors.access.globalBadge)).toHaveTextContent("enabled");
     expect(screen.getByTestId(selectors.access.configuredBadge)).toHaveTextContent("configured");
-    expect(screen.getByTestId(selectors.access.planRemove)).toHaveTextContent("stale.itsagitime.com");
+    expect(screen.getByTestId(selectors.access.planRemove)).toHaveTextContent("stale.example.invalid");
     expect(screen.getByTestId(selectors.access.bypassBadge)).toHaveTextContent("On");
     expect(screen.getByTestId(selectors.access.overrideBadge)).toHaveTextContent("Enabled");
   });

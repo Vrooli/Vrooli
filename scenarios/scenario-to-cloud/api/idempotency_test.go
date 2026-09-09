@@ -138,7 +138,7 @@ func TestSecretsWriterPreservesExisting(t *testing.T) {
 		},
 	}
 
-	cfg := ssh.Config{Host: "test", Port: 22, User: "root"}
+	cfg := ssh.ConnectionConfig{Host: "test", Port: 22, User: "root"}
 	if err := secrets.WriteToVPS(ctx, fakeSSH, cfg, "/root/Vrooli", []secrets.GeneratedSecret{
 		{ID: "pg_pass", Key: "POSTGRES_PASSWORD", Value: "new-generated-password"},
 		{ID: "api_key", Key: "API_KEY", Value: "new-api-key"},
@@ -168,7 +168,7 @@ func TestStopExistingScenarioIdempotent(t *testing.T) {
 	}
 	fakeSSH.DefaultErr = nil // All commands succeed
 
-	cfg := ssh.Config{Host: "test", Port: 22, User: "root"}
+	cfg := ssh.ConnectionConfig{Host: "test", Port: 22, User: "root"}
 	workdir := "/root/Vrooli"
 	scenarioID := "test-scenario"
 	ports := []int{3000, 3001}

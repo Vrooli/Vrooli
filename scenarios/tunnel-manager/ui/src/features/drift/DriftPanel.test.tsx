@@ -20,7 +20,7 @@ import { DriftPanel } from "./DriftPanel";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
 
-const HOST = "agent-manager.itsagitime.com";
+const HOST = "agent-manager.example.invalid";
 
 describe("DriftPanel", () => {
   beforeEach(async () => {
@@ -74,7 +74,7 @@ describe("DriftPanel", () => {
       makeDriftResponse({
         entries: [
           makeIngressEntry({
-            hostname: "stray.itsagitime.com",
+            hostname: "stray.example.invalid",
             scenario: "",
             state: OwnershipState.UNMANAGED,
             source: IngressSource.EXTERNAL,

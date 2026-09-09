@@ -145,7 +145,7 @@ type fakeRunner struct {
 	err    error
 }
 
-func (f *fakeRunner) Run(_ context.Context, _ Config, _ string, _ RunOptions) (Result, error) {
+func (f *fakeRunner) Run(_ context.Context, _ ConnectionConfig, _ string, _ RunOptions) (Result, error) {
 	return f.result, f.err
 }
 

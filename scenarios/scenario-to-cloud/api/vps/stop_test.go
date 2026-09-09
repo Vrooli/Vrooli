@@ -16,7 +16,7 @@ type testSSHRunner struct {
 	calls     []string
 }
 
-func (r *testSSHRunner) Run(_ context.Context, _ ssh.Config, command string, _ ssh.RunOptions) (ssh.Result, error) {
+func (r *testSSHRunner) Run(_ context.Context, _ ssh.ConnectionConfig, command string, _ ssh.RunOptions) (ssh.Result, error) {
 	r.calls = append(r.calls, command)
 
 	if err, ok := r.errs[command]; ok {
@@ -45,7 +45,7 @@ func TestStopExistingScenario_Success(t *testing.T) {
 		},
 	}
 
-	cfg := ssh.Config{Host: "test", User: "root", Port: 22}
+	cfg := ssh.ConnectionConfig{Host: "test", User: "root", Port: 22}
 	result := StopExistingScenario(context.Background(), runner, cfg, "/opt/vrooli", "my-app", []int{35000})
 
 	if !result.OK {
@@ -68,7 +68,7 @@ func TestStopExistingScenario_StopFails_StillKills(t *testing.T) {
 		},
 	}
 
-	cfg := ssh.Config{Host: "test", User: "root", Port: 22}
+	cfg := ssh.ConnectionConfig{Host: "test", User: "root", Port: 22}
 	result := StopExistingScenario(context.Background(), runner, cfg, "/opt/vrooli", "my-app", nil)
 
 	if !result.OK {
@@ -92,7 +92,7 @@ func TestStopExistingScenarioUsesDeploymentLocalCLIPath(t *testing.T) {
 	}
 
 	workdir := "/opt/vrooli deployment"
-	cfg := ssh.Config{Host: "test", User: "root", Port: 22}
+	cfg := ssh.ConnectionConfig{Host: "test", User: "root", Port: 22}
 	StopExistingScenario(context.Background(), runner, cfg, workdir, "my-app", nil)
 
 	var foundCheck, foundStop bool
@@ -128,7 +128,7 @@ func TestStopExistingScenarioSkipsCLIStopWhenDeploymentLocalBinaryMissing(t *tes
 		},
 	}
 
-	cfg := ssh.Config{Host: "test", User: "root", Port: 22}
+	cfg := ssh.ConnectionConfig{Host: "test", User: "root", Port: 22}
 	result := StopExistingScenario(context.Background(), runner, cfg, "/opt/vrooli", "my-app", nil)
 
 	if !result.OK {

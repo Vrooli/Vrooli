@@ -84,6 +84,9 @@ func buildTemplateValues(root, destination, templateName string, manifest templa
 		return nil, err
 	}
 	values := copyStringMap(baseValues)
+	if templateName == "landing-page-react-vite" && strings.TrimSpace(values["SCENARIO_ID"]) != "" && values["SCENARIO_ID"] != "landing-page-react-vite" {
+		return nil, fmt.Errorf("template %q supports only the canonical scenario id %q until its proto schemas are relocated; use that id or choose react-vite", templateName, "landing-page-react-vite")
+	}
 	values["CURRENT_DATE"] = currentDate
 	values["RANDOM_TOKEN"] = randomToken
 	if err := populateTemplatePathValues(root, destination, values); err != nil {
@@ -148,7 +151,14 @@ func templateValidationSeedValues(info templatecontracts.TemplateInfo) map[strin
 	for _, key := range requiredKeys {
 		switch key {
 		case "SCENARIO_ID":
-			values[key] = "template-validation-" + info.Name
+			if info.Name == "landing-page-react-vite" {
+				// This family currently consumes its canonical shared proto package.
+				// Keep shallow validation on the supported path; arbitrary IDs are
+				// refused by buildTemplateValues until schema relocation is added.
+				values[key] = info.Name
+			} else {
+				values[key] = "template-validation-" + info.Name
+			}
 		case "SCENARIO_DISPLAY_NAME":
 			values[key] = coalesce(info.Manifest.DisplayName, info.Name+" Validation")
 		case "SCENARIO_DESCRIPTION":

@@ -6,21 +6,18 @@
     "1.0.0",
     "1.0.1"
   ],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.1",
-    "1.0.0"
-  ],
-  "latest": "1.0.3",
-  "libraryId": "react-component-library:Badge",
-  "displayName": "Badge",
-  "description": "The compact status or metadata primitive with semantic variants, counters, overflow handling, and meaning carried by more than colour alone.",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0"
+  ],
+  "latest": "1.0.3",
+  "libraryId": "react-component-library:Badge"
 }

@@ -136,9 +136,12 @@ type PipelineStateTransition struct {
 	DurationMs int64         `json:"duration_ms,omitempty"` // Time spent in From state (ms)
 }
 
-// Config represents the configuration for a pipeline run.
-type Config struct {
+// PipelineConfig represents the configuration for a pipeline run.
+type PipelineConfig struct {
 	NativeExtension *generation.NativeExtension `json:"native_extension,omitempty"`
+	// ExpectedArtifactDigests binds governed publication to the finalized
+	// candidate bytes, keyed by exact target identifier.
+	ExpectedArtifactDigests map[string]string `json:"expected_artifact_digests,omitempty"`
 	// ScenarioName is the name of the scenario to deploy (required).
 	ScenarioName string `json:"scenario_name" validate:"required"`
 
@@ -246,13 +249,13 @@ type Config struct {
 	UpdateConfig *generation.UpdateConfig `json:"update_config,omitempty"`
 }
 
-func (c *Config) GetArtifactTrustMode() resourcedeployment.ArtifactTrustMode {
+func (c *PipelineConfig) GetArtifactTrustMode() resourcedeployment.ArtifactTrustMode {
 	return c.ArtifactTrustMode
 }
 
 // ValidateFramework rejects framework values that the generation pipeline does
 // not implement. An empty value is valid because Electron is the default.
-func (c *Config) ValidateFramework() error {
+func (c *PipelineConfig) ValidateFramework() error {
 	if c.Framework == "" || c.Framework == FrameworkElectron {
 		return nil
 	}
@@ -306,8 +309,10 @@ type DeployResult struct {
 
 // DeployArtifactResult tracks a single artifact upload.
 type DeployArtifactResult struct {
-	ArtifactID int64  `json:"artifact_id"`
-	Platform   string `json:"platform"`
+	ArtifactID        int64  `json:"artifact_id"`
+	Platform          string `json:"platform"`
+	SHA512            string `json:"sha512,omitempty"`
+	DestinationObject string `json:"destination_object,omitempty"`
 }
 
 // VersionUpdateRequest controls how a scenario version is resolved for a pipeline run.
@@ -369,8 +374,8 @@ type Status struct {
 	// StageOrder defines the execution order of stages.
 	StageOrder []string `json:"stage_order"`
 
-	// Config is the configuration used for this pipeline run.
-	Config *Config `json:"config"`
+	// PipelineConfig is the configuration used for this pipeline run.
+	Config *PipelineConfig `json:"config"`
 
 	// StartedAt is the Unix timestamp when the pipeline started.
 	StartedAt int64 `json:"started_at"`
@@ -439,7 +444,7 @@ func (s *Status) TransitionTo(target PipelineState, message string) bool {
 }
 
 // GetStopOnFailure returns the stop_on_failure setting with default true.
-func (c *Config) GetStopOnFailure() bool {
+func (c *PipelineConfig) GetStopOnFailure() bool {
 	if c.StopOnFailure == nil {
 		return true
 	}
@@ -456,7 +461,7 @@ func (c *Config) GetStopOnFailure() bool {
 //
 // Other modes (external-server, cloud-api, proxy) are thin-client modes that
 // require a running server. These should be explicitly requested when needed.
-func (c *Config) GetDeploymentMode() string {
+func (c *PipelineConfig) GetDeploymentMode() string {
 	if c.DeploymentMode == "" {
 		return DeploymentModeBundled
 	}
@@ -464,7 +469,7 @@ func (c *Config) GetDeploymentMode() string {
 }
 
 // GetTemplateType returns the template type with default "basic".
-func (c *Config) GetTemplateType() string {
+func (c *PipelineConfig) GetTemplateType() string {
 	if c.TemplateType == "" {
 		return "basic"
 	}
@@ -472,31 +477,31 @@ func (c *Config) GetTemplateType() string {
 }
 
 // GetStopAfterStage returns the stop_after_stage setting.
-func (c *Config) GetStopAfterStage() string {
+func (c *PipelineConfig) GetStopAfterStage() string {
 	return c.StopAfterStage
 }
 
 // GetResumeFromStage returns the resume_from_stage setting.
-func (c *Config) GetResumeFromStage() string {
+func (c *PipelineConfig) GetResumeFromStage() string {
 	return c.ResumeFromStage
 }
 
 // GetStages returns the stages to run, or nil for all stages.
-func (c *Config) GetStages() []string {
+func (c *PipelineConfig) GetStages() []string {
 	if c == nil || len(c.Stages) == 0 {
 		return nil
 	}
 	return c.Stages
 }
 
-func (c *Config) setVersionRollback(rollback *versionRollback) {
+func (c *PipelineConfig) setVersionRollback(rollback *versionRollback) {
 	if c == nil {
 		return
 	}
 	c.versionRollback = rollback
 }
 
-func (c *Config) takeVersionRollback() *versionRollback {
+func (c *PipelineConfig) takeVersionRollback() *versionRollback {
 	if c == nil {
 		return nil
 	}

@@ -17,7 +17,7 @@ import (
 	"testing"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 	scenariocli "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
@@ -66,6 +66,8 @@ func TestBuildTemplateValuesAndCopyTemplateRenderGeneratedGoModPaths(t *testing.
 		t.Fatalf("verifyTemplate() error = %v", err)
 	}
 	for _, excluded := range []string{
+		filepath.Join("api", "internal", "testutil", "fixtures", "health.go"),
+		filepath.Join("api", "internal", "testutil", "fixtures", "health_test.go"),
 		filepath.Join("docs", "internal", "TEMPLATE-GENERATION-CONTRACT.md"),
 		filepath.Join("docs", "internal", "TEMPLATE-MAINTENANCE.md"),
 		"proto",
@@ -94,6 +96,29 @@ func TestBuildTemplateValuesAndCopyTemplateRenderGeneratedGoModPaths(t *testing.
 	}
 }
 
+func TestLandingTemplateRejectsUnsupportedScenarioID(t *testing.T) {
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller(0) failed")
+	}
+	repoRoot, err := repocontract.FindRepoRootFromPath(thisFile)
+	if err != nil {
+		t.Fatalf("FindRepoRootFromPath() error = %v", err)
+	}
+	info, err := loadTemplate(repoRoot, "landing-page-react-vite")
+	if err != nil {
+		t.Fatalf("loadTemplate() error = %v", err)
+	}
+	_, err = buildTemplateValues(repoRoot, filepath.Join(t.TempDir(), "landing"), info.Name, info.Manifest, map[string]string{
+		"SCENARIO_ID":           "unsupported-landing-id",
+		"SCENARIO_DISPLAY_NAME": "Unsupported Landing",
+		"SCENARIO_DESCRIPTION":  "Should be refused",
+	})
+	if err == nil || !strings.Contains(err.Error(), "canonical scenario id") {
+		t.Fatalf("buildTemplateValues() error = %v, want actionable canonical-id refusal", err)
+	}
+}
+
 func TestRunGenerateReactViteHooksWritePrimitiveEvidenceArtifact(t *testing.T) {
 	_, thisFile, _, ok := runtime.Caller(0)
 	if !ok {
@@ -115,7 +140,7 @@ func TestRunGenerateReactViteHooksWritePrimitiveEvidenceArtifact(t *testing.T) {
 	destination := filepath.Join(t.TempDir(), "evidence-app")
 	var sawEvidenceHook bool
 	capture := &capturedSubprocess{
-		onRun: func(spec scenarioexec.SubprocessSpec) error {
+		onRun: func(spec shell.Spec) error {
 			if spec.Name != "go" || !reflect.DeepEqual(spec.Args, []string{"test", "-run", "TestPrimitiveEvidenceArtifactCurrent", "."}) {
 				return nil
 			}
@@ -762,7 +787,7 @@ func TestRunTemplateValidateDeepKeepsRelocationsDuringTestGenie(t *testing.T) {
 	var relocatedPath string
 	capture := &capturedSubprocess{
 		stdout: `{"success":true}`,
-		onRun: func(spec scenarioexec.SubprocessSpec) error {
+		onRun: func(spec shell.Spec) error {
 			if spec.Name != "/tmp/test-genie" {
 				return nil
 			}
@@ -1133,13 +1158,13 @@ func TestPreflightDesignTemplateCollisionsAllowsCanonicalTokenRamp(t *testing.T)
 // post-command tests can assert cwd, command, and call count without
 // actually executing anything.
 type capturedSubprocess struct {
-	calls  []scenarioexec.SubprocessSpec
+	calls  []shell.Spec
 	stdout string
 	err    error
-	onRun  func(scenarioexec.SubprocessSpec) error
+	onRun  func(shell.Spec) error
 }
 
-func (c *capturedSubprocess) Run(_ struct{}, spec scenarioexec.SubprocessSpec) error {
+func (c *capturedSubprocess) Run(_ struct{}, spec shell.Spec) error {
 	c.calls = append(c.calls, spec)
 	if c.onRun != nil {
 		if err := c.onRun(spec); err != nil {
@@ -1152,7 +1177,7 @@ func (c *capturedSubprocess) Run(_ struct{}, spec scenarioexec.SubprocessSpec) e
 	return c.err
 }
 
-func capturedCommand(calls []scenarioexec.SubprocessSpec, name string, args ...string) bool {
+func capturedCommand(calls []shell.Spec, name string, args ...string) bool {
 	for _, call := range calls {
 		if call.Name != name || len(call.Args) != len(args) {
 			continue
@@ -1726,7 +1751,7 @@ func TestValidateRelocationProtoSources_SurfacesStdoutOnLintFailure(t *testing.T
 
 	const lintDiagnostic = `Service name "Notes" should be suffixed with "Service".`
 	deps := newRelocationTestDeps(repoRoot, io.Discard, io.Discard, &capturedSubprocess{})
-	deps.RunSubprocess = func(_ struct{}, spec scenarioexec.SubprocessSpec) error {
+	deps.RunSubprocess = func(_ struct{}, spec shell.Spec) error {
 		if spec.Stdout != nil {
 			_, _ = io.WriteString(spec.Stdout, lintDiagnostic+"\n")
 		}
@@ -1854,8 +1879,8 @@ func TestValidateRelocationProtoSources_RunsOfflineWithBSRUnreachable(t *testing
 		Stdout: func(struct{}) io.Writer { return io.Discard },
 		Stderr: func(struct{}) io.Writer { return io.Discard },
 		Root:   func(struct{}) string { return repoRoot },
-		RunSubprocess: func(_ struct{}, spec scenarioexec.SubprocessSpec) error {
-			return scenarioexec.RunSubprocess(spec)
+		RunSubprocess: func(_ struct{}, spec shell.Spec) error {
+			return shell.CommandWithDefaults(spec).Run()
 		},
 		CommandEnv: func(struct{}) []string {
 			// Inherit PATH/HOME so `buf` and ~/.netrc are reachable, then

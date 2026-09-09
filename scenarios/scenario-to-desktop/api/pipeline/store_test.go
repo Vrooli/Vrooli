@@ -114,7 +114,7 @@ func TestInMemoryStoreReadsAreIndependentSnapshots(t *testing.T) {
 		Stages: map[string]*StageResult{
 			"build": {Stage: "build", Status: StatusRunning, Logs: []string{"started"}},
 		},
-		Config: &Config{Platforms: []string{"linux/amd64"}},
+		Config: &PipelineConfig{Platforms: []string{"linux/amd64"}},
 	})
 
 	read, ok := store.Get("snapshot-test")

@@ -6,12 +6,13 @@ const (
 	Provider = "template-manager"
 	Phase    = "templates"
 
-	CodeProvenanceMissing        = "PROVENANCE_MISSING"
-	CodeTemplateUnknown          = "TEMPLATE_UNKNOWN"
-	CodeTemplateVersionLag       = "TEMPLATE_VERSION_LAG"
-	CodeTemplateManifestDrift    = "TEMPLATE_MANIFEST_DRIFT"
-	CodeOrientationStateMissing  = "ORIENTATION_STATE_MISSING"
-	CodeInheritedDebtOutstanding = "INHERITED_DEBT_OUTSTANDING"
+	CodeProvenanceMissing          = "PROVENANCE_MISSING"
+	CodeTemplateUnknown            = "TEMPLATE_UNKNOWN"
+	CodeTemplateVersionUnsupported = "TEMPLATE_VERSION_UNSUPPORTED"
+	CodeTemplateVersionLag         = "TEMPLATE_VERSION_LAG"
+	CodeTemplateManifestDrift      = "TEMPLATE_MANIFEST_DRIFT"
+	CodeOrientationStateMissing    = "ORIENTATION_STATE_MISSING"
+	CodeInheritedDebtOutstanding   = "INHERITED_DEBT_OUTSTANDING"
 )
 
 type Severity string

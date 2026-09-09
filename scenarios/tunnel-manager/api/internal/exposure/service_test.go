@@ -183,7 +183,7 @@ func TestExpose_CreatesRouteRunsAndLeases(t *testing.T) {
 
 	lease, url, localPort, portAssigned, err := svc.Expose(context.Background(), exposure.ExposeInput{Scenario: "web-console", RequestedBy: "tester"})
 	require.NoError(t, err)
-	require.Equal(t, "https://web-console.itsagitime.com", url)
+	require.Equal(t, "https://web-console.example.invalid", url)
 	require.Equal(t, 21233, localPort)
 	require.False(t, portAssigned, "pre-fixed scenario should not report assignment on expose")
 	require.Equal(t, exposure.LeaseActive, lease.Status)
@@ -312,7 +312,7 @@ func TestIsExposed_CoreAlways_LeasedNeedsActive(t *testing.T) {
 	exposed, url, err := svc.IsExposed(context.Background(), "coresvc")
 	require.NoError(t, err)
 	require.True(t, exposed)
-	require.Equal(t, "https://coresvc.itsagitime.com", url)
+	require.Equal(t, "https://coresvc.example.invalid", url)
 
 	exposed, _, err = svc.IsExposed(context.Background(), "leasedsvc")
 	require.NoError(t, err)

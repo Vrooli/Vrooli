@@ -2,7 +2,11 @@ package pipeline
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/hex"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -218,6 +222,13 @@ func (s *DeployStage) uploadArtifacts(ctx context.Context, client *deploy.LPBSCl
 		}
 
 		appendInfo(result, "Uploading %s artifact: %s", platform, artifactPath)
+		if expected := strings.TrimSpace(input.Config.ExpectedArtifactDigests[platform]); expected != "" {
+			if err := verifyExpectedArtifactDigest(artifactPath, expected); err != nil {
+				failStage(result, s.timeProvider, errors.New(errors.CodeValidation, fmt.Sprintf("candidate artifact binding failed for %s: %v", platform, err)).InDomain("deploy"))
+				return nil, err
+			}
+			appendInfo(result, "Verified candidate artifact binding for %s", platform)
+		}
 		uploadResult, err := client.UploadArtifact(ctx, &deploy.UploadRequest{
 			RemoteProfile:  remoteProfile,
 			ScenarioName:   input.Config.ScenarioName,
@@ -236,11 +247,46 @@ func (s *DeployStage) uploadArtifacts(ctx context.Context, client *deploy.LPBSCl
 		}
 		appendInfo(result, "Uploaded %s artifact: artifact_id=%d", platform, uploadResult.ArtifactID)
 		uploadResults = append(uploadResults, DeployArtifactResult{
-			ArtifactID: uploadResult.ArtifactID,
-			Platform:   uploadResult.Platform,
+			ArtifactID:        uploadResult.ArtifactID,
+			Platform:          uploadResult.Platform,
+			SHA512:            uploadResult.SHA512,
+			DestinationObject: uploadResult.DestinationObject,
 		})
 	}
+	if cfg.ReleaseID != "" {
+		staged := make([]deploy.UploadResult, 0, len(uploadResults))
+		for _, artifact := range uploadResults {
+			staged = append(staged, deploy.UploadResult{ArtifactID: artifact.ArtifactID, Platform: artifact.Platform, SHA512: artifact.SHA512})
+		}
+		if err := client.PromoteChannel(ctx, &deploy.UploadRequest{RemoteProfile: remoteProfile, AppKey: cfg.AppKey, ReleaseID: cfg.ReleaseID, Channel: cfg.Channel}, staged); err != nil {
+			failStage(result, s.timeProvider, errors.ErrDeployFailed(fmt.Errorf("promote complete artifact set: %w", err), remoteProfile))
+			return nil, err
+		}
+		appendInfo(result, "Promoted complete artifact set to channel %s", cfg.Channel)
+	}
 	return uploadResults, nil
+}
+
+func verifyExpectedArtifactDigest(path, expected string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read artifact: %w", err)
+	}
+	switch {
+	case strings.HasPrefix(expected, "sha256:"):
+		sum := sha256.Sum256(data)
+		if hex.EncodeToString(sum[:]) != strings.TrimPrefix(expected, "sha256:") {
+			return fmt.Errorf("sha256 mismatch")
+		}
+	case strings.HasPrefix(expected, "sha512:"):
+		sum := sha512.Sum512(data)
+		if hex.EncodeToString(sum[:]) != strings.TrimPrefix(expected, "sha512:") {
+			return fmt.Errorf("sha512 mismatch")
+		}
+	default:
+		return fmt.Errorf("unsupported digest %q", expected)
+	}
+	return nil
 }
 
 // resolveTarget determines the LPBS scenario name and remote profile from config.

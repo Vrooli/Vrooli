@@ -50,24 +50,24 @@ describe("config API helpers", () => {
     const entry = makeIngressEntry();
     const spy = vi.spyOn(configClient, "adoptIngress").mockResolvedValueOnce({ entry } as never);
 
-    await expect(adoptIngress({ hostname: "a.itsagitime.com", target: "http://127.0.0.1:9000" })).resolves.toEqual({
+    await expect(adoptIngress({ hostname: "a.example.invalid", target: "http://127.0.0.1:9000" })).resolves.toEqual({
       entry,
     });
-    expect(spy).toHaveBeenCalledWith({ hostname: "a.itsagitime.com", target: "http://127.0.0.1:9000" });
+    expect(spy).toHaveBeenCalledWith({ hostname: "a.example.invalid", target: "http://127.0.0.1:9000" });
   });
 
   it("ignores a hostname with an optional note", async () => {
     const entry = makeIngressEntry();
     const spy = vi.spyOn(configClient, "ignoreIngress").mockResolvedValueOnce({ entry } as never);
 
-    await ignoreIngress({ hostname: "a.itsagitime.com", note: "ack" });
-    expect(spy).toHaveBeenCalledWith({ hostname: "a.itsagitime.com", note: "ack" });
+    await ignoreIngress({ hostname: "a.example.invalid", note: "ack" });
+    expect(spy).toHaveBeenCalledWith({ hostname: "a.example.invalid", note: "ack" });
   });
 
   it("prunes a single hostname", async () => {
     const spy = vi.spyOn(configClient, "pruneIngress").mockResolvedValueOnce({ pruned: true } as never);
 
-    await expect(pruneIngress("a.itsagitime.com")).resolves.toEqual({ pruned: true });
-    expect(spy).toHaveBeenCalledWith({ hostname: "a.itsagitime.com" });
+    await expect(pruneIngress("a.example.invalid")).resolves.toEqual({ pruned: true });
+    expect(spy).toHaveBeenCalledWith({ hostname: "a.example.invalid" });
   });
 });

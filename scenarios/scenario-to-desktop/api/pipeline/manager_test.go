@@ -29,7 +29,7 @@ func TestManagerGetOrCreateActivePipelineUsesExistingThenRepairsStaleIndex(t *te
 
 	orchestrator.getFound = false
 	orchestrator.createResult = &Status{PipelineID: "replacement", Status: StatusIdle}
-	status, created, err = manager.GetOrCreateActivePipeline(context.Background(), "demo", &Config{Platforms: []string{"linux-amd64"}})
+	status, created, err = manager.GetOrCreateActivePipeline(context.Background(), "demo", &PipelineConfig{Platforms: []string{"linux-amd64"}})
 	if err != nil || !created || status.PipelineID != "replacement" {
 		t.Fatalf("replacement active pipeline = %#v, created=%v, err=%v", status, created, err)
 	}
@@ -73,7 +73,7 @@ func TestManagerCreateNewAndResetArchiveThePreviousPipeline(t *testing.T) {
 	}
 	orchestrator := &mockOrchestrator{createResult: &Status{PipelineID: "new", Status: StatusIdle}}
 	manager := NewManager(WithManagerIndexStore(index), WithManagerOrchestrator(orchestrator))
-	status, archived, err := manager.CreateNewPipeline(context.Background(), "demo", &Config{Framework: FrameworkElectron})
+	status, archived, err := manager.CreateNewPipeline(context.Background(), "demo", &PipelineConfig{Framework: FrameworkElectron})
 	if err != nil || archived != "old" || status.PipelineID != "new" {
 		t.Fatalf("CreateNewPipeline = %#v, archived=%q, err=%v", status, archived, err)
 	}
@@ -98,7 +98,7 @@ func TestManagerStartActivePipelineUpdatesIdleConfigAndHandlesRunningState(t *te
 	started := &Status{PipelineID: "idle", Status: StatusRunning}
 	orchestrator := &mockOrchestrator{getResult: idle, getFound: true, startResult: started}
 	manager := NewManager(WithManagerIndexStore(index), WithManagerOrchestrator(orchestrator))
-	overrides := &Config{ScenarioName: "demo", Platforms: []string{"linux"}}
+	overrides := &PipelineConfig{ScenarioName: "demo", Platforms: []string{"linux"}}
 	status, err := manager.StartActivePipeline(context.Background(), "demo", overrides)
 	if err != nil || status != started || orchestrator.updatedConfig != overrides {
 		t.Fatalf("start idle = %#v, %v; updated=%#v", status, err, orchestrator.updatedConfig)
@@ -120,7 +120,7 @@ func TestManagerStartActivePipelineFailsGracefullyWithoutConfigUpdateCapability(
 	// adapter to prove Manager returns an actionable error instead of panicking.
 	base := &orchestratorOnly{mockOrchestrator: &mockOrchestrator{getResult: &Status{PipelineID: "idle", Status: StatusIdle}, getFound: true}}
 	manager := NewManager(WithManagerIndexStore(index), WithManagerOrchestrator(base))
-	if _, err := manager.StartActivePipeline(context.Background(), "demo", &Config{ScenarioName: "demo"}); err == nil {
+	if _, err := manager.StartActivePipeline(context.Background(), "demo", &PipelineConfig{ScenarioName: "demo"}); err == nil {
 		t.Fatal("expected missing config-update capability error")
 	}
 }
@@ -136,7 +136,7 @@ func TestManagerStartActivePipelineBlockingStartsIdleAndReplacesTerminalPipeline
 			startResult: &Status{PipelineID: "idle", Status: StatusCompleted},
 		}
 		manager := NewManager(WithManagerIndexStore(index), WithManagerOrchestrator(orchestrator))
-		status, err := manager.StartActivePipelineBlocking(context.Background(), "demo", &Config{ScenarioName: "demo"}, 1)
+		status, err := manager.StartActivePipelineBlocking(context.Background(), "demo", &PipelineConfig{ScenarioName: "demo"}, 1)
 		if err != nil || status.Status != StatusCompleted || orchestrator.updatedConfig == nil {
 			t.Fatalf("blocking idle start = %#v, %v; updated=%#v", status, err, orchestrator.updatedConfig)
 		}
@@ -162,11 +162,11 @@ func TestManagerStartActivePipelineBlockingStartsIdleAndReplacesTerminalPipeline
 
 type orchestratorOnly struct{ mockOrchestrator *mockOrchestrator }
 
-func (o *orchestratorOnly) RunPipeline(ctx context.Context, config *Config) (*Status, error) {
+func (o *orchestratorOnly) RunPipeline(ctx context.Context, config *PipelineConfig) (*Status, error) {
 	return o.mockOrchestrator.RunPipeline(ctx, config)
 }
 
-func (o *orchestratorOnly) CreateIdlePipeline(config *Config) (*Status, error) {
+func (o *orchestratorOnly) CreateIdlePipeline(config *PipelineConfig) (*Status, error) {
 	return o.mockOrchestrator.CreateIdlePipeline(config)
 }
 
@@ -174,7 +174,7 @@ func (o *orchestratorOnly) StartPipeline(ctx context.Context, id string) (*Statu
 	return o.mockOrchestrator.StartPipeline(ctx, id)
 }
 
-func (o *orchestratorOnly) RunPipelineBlocking(ctx context.Context, config *Config, timeout int) (*Status, error) {
+func (o *orchestratorOnly) RunPipelineBlocking(ctx context.Context, config *PipelineConfig, timeout int) (*Status, error) {
 	return o.mockOrchestrator.RunPipelineBlocking(ctx, config, timeout)
 }
 
@@ -182,7 +182,7 @@ func (o *orchestratorOnly) StartPipelineBlocking(ctx context.Context, id string,
 	return o.mockOrchestrator.StartPipelineBlocking(ctx, id, timeout)
 }
 
-func (o *orchestratorOnly) ResumePipeline(ctx context.Context, id string, config *Config) (*Status, error) {
+func (o *orchestratorOnly) ResumePipeline(ctx context.Context, id string, config *PipelineConfig) (*Status, error) {
 	return o.mockOrchestrator.ResumePipeline(ctx, id, config)
 }
 

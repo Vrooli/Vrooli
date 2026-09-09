@@ -19,8 +19,5 @@
     "1.1.1"
   ],
   "latest": "1.2.1",
-  "libraryId": "react-component-library:Text",
-  "displayName": "Text",
-  "description": "The semantic typography primitive exposing tokenized text styles with truncation, balancing, muted treatment, numeric alignment, and locale-aware rendering.",
-  "tags": []
+  "libraryId": "react-component-library:Text"
 }

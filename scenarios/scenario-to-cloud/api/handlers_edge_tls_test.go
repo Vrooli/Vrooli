@@ -74,7 +74,7 @@ func buildTestDeployment(domainName string) *domain.Deployment {
 
 func newTLSHandlerServer(repo DeploymentRepository, sshRunner ssh.Runner, tlsSvc tlsinfo.Service, alpnRunner tlsinfo.ALPNRunner) *Server {
 	srv := &Server{
-		config:         &Config{Port: "0"},
+		config:         &ServerConfig{Port: "0"},
 		router:         mux.NewRouter(),
 		deploymentRepo: repo,
 		sshRunner:      sshRunner,

@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-reduced-motion",
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:useReducedMotion",
-  "displayName": "useReducedMotion",
-  "description": "A motion-policy primitive resolving user preference and application policy into full, reduced, or disabled animation behavior for the calling surface.",
-  "tags": [],
-  "draft": "",
   "deprecatedVersions": [],
   "designStyles": [
     {
@@ -15,5 +9,8 @@
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:useReducedMotion"
 }

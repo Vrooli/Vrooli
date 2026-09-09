@@ -14,11 +14,11 @@ type AppError struct {
 
 // DefaultOutputParser implements OutputParser using configurable markers.
 type DefaultOutputParser struct {
-	config Config
+	config SmokeTestConfig
 }
 
 // NewOutputParser creates a new output parser with the given config.
-func NewOutputParser(config Config) *DefaultOutputParser {
+func NewOutputParser(config SmokeTestConfig) *DefaultOutputParser {
 	return &DefaultOutputParser{config: config}
 }
 

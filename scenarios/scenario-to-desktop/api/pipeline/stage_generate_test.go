@@ -230,7 +230,7 @@ func TestGenerateStage_WithBuildStore(t *testing.T) {
 func TestGenerateProxyEndpointReachesRenderer(t *testing.T) {
 	stage := &GenerateStage{analyzer: &mockAnalyzer{}, timeProvider: &mockTimeProvider{now: time.Now().Unix()}}
 	for _, endpoint := range []string{"http://127.0.0.1:24965", "https://portal.example.test/ui"} {
-		config, err := stage.buildDesktopConfig(&StageInput{Config: &Config{DeploymentMode: DeploymentModeProxy, ProxyURL: endpoint}}, &generation.ScenarioMetadata{Name: "portal"}, &StageResult{})
+		config, err := stage.buildDesktopConfig(&StageInput{Config: &PipelineConfig{DeploymentMode: DeploymentModeProxy, ProxyURL: endpoint}}, &generation.ScenarioMetadata{Name: "portal"}, &StageResult{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -239,7 +239,7 @@ func TestGenerateProxyEndpointReachesRenderer(t *testing.T) {
 		}
 	}
 	for _, endpoint := range []string{"file:///tmp/app", "https://user:password@example.test", "http://example.test/\"code"} {
-		if _, err := stage.buildDesktopConfig(&StageInput{Config: &Config{DeploymentMode: DeploymentModeProxy, ProxyURL: endpoint}}, &generation.ScenarioMetadata{Name: "portal"}, &StageResult{}); err == nil {
+		if _, err := stage.buildDesktopConfig(&StageInput{Config: &PipelineConfig{DeploymentMode: DeploymentModeProxy, ProxyURL: endpoint}}, &generation.ScenarioMetadata{Name: "portal"}, &StageResult{}); err == nil {
 			t.Fatalf("accepted %s", endpoint)
 		}
 	}

@@ -92,7 +92,7 @@ func TestPreflightStage_BundleRootResolution(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test",
 			DeploymentMode: DeploymentModeBundled, // Explicitly set bundled mode for this test
 		},
@@ -182,7 +182,7 @@ func TestPreflightStage_BinaryPathResolution(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test",
 			DeploymentMode: DeploymentModeBundled, // Explicitly set bundled mode for this test
 		},
@@ -210,6 +210,33 @@ func TestPreflightStage_BinaryPathResolution(t *testing.T) {
 }
 
 // TestPreflightStage_NoBundleResult verifies proper error handling when bundle result is missing.
+func TestPreflightStage_DefersCrossTargetRuntimeValidation(t *testing.T) {
+	mockSvc := &mockPreflightService{}
+	stage := NewPreflightStage(
+		WithPreflightService(mockSvc),
+		WithPreflightTimeProvider(&mockTimeProvider{now: time.Now().Unix()}),
+	)
+
+	result := stage.Execute(context.Background(), &StageInput{
+		Config: &PipelineConfig{
+			ScenarioName:   "test",
+			DeploymentMode: DeploymentModeBundled,
+			Platforms:      []string{"mac-amd64"},
+		},
+		BundleResult: &bundle.PackageResult{BundleDir: t.TempDir(), ManifestPath: "bundle.json"},
+	})
+
+	if result.Status != StatusSkipped {
+		t.Fatalf("status = %q, want %q; error=%q", result.Status, StatusSkipped, result.Error)
+	}
+	if mockSvc.lastRequest != nil {
+		t.Fatal("cross-target preflight must not execute the host runtime")
+	}
+	if len(result.Logs) == 0 || !containsSubstring(result.Logs[len(result.Logs)-1], "target-host preflight evidence") {
+		t.Fatalf("logs = %v, want explicit target-host evidence guidance", result.Logs)
+	}
+}
+
 func TestPreflightStage_NoBundleResult(t *testing.T) {
 	mockSvc := &mockPreflightService{}
 	mockTime := &mockTimeProvider{now: time.Now().Unix()}
@@ -219,7 +246,7 @@ func TestPreflightStage_NoBundleResult(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test",
 			DeploymentMode: DeploymentModeBundled, // Bundled mode requires bundle result
 		},
@@ -294,7 +321,7 @@ func TestPreflightStage_Bundleability_FailsFast(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-scenario",
 			DeploymentMode: DeploymentModeBundled,
 		},
@@ -366,7 +393,7 @@ func TestPreflightStage_Bundleability_WarnsWithSwap(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-scenario",
 			DeploymentMode: DeploymentModeBundled,
 		},
@@ -451,7 +478,7 @@ func TestPreflightStage_Bundleability_ExternalServer_SkipsCheck(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-scenario",
 			DeploymentMode: DeploymentModeExternalServer, // External server mode - should skip check
 		},

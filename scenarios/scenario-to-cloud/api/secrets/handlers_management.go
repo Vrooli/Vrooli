@@ -70,22 +70,22 @@ func getDeploymentContext(
 	ctx context.Context,
 	repo DeploymentRepository,
 	deploymentID string,
-) (*domain.Deployment, domain.CloudManifest, ssh.Config, string, error) {
+) (*domain.Deployment, domain.CloudManifest, ssh.ConnectionConfig, string, error) {
 	dep, err := repo.GetDeployment(ctx, deploymentID)
 	if err != nil {
-		return nil, domain.CloudManifest{}, ssh.Config{}, "", fmt.Errorf("get deployment: %w", err)
+		return nil, domain.CloudManifest{}, ssh.ConnectionConfig{}, "", fmt.Errorf("get deployment: %w", err)
 	}
 	if dep == nil {
-		return nil, domain.CloudManifest{}, ssh.Config{}, "", fmt.Errorf("deployment not found")
+		return nil, domain.CloudManifest{}, ssh.ConnectionConfig{}, "", fmt.Errorf("deployment not found")
 	}
 
 	var m domain.CloudManifest
 	if err := json.Unmarshal(dep.Manifest, &m); err != nil {
-		return nil, domain.CloudManifest{}, ssh.Config{}, "", fmt.Errorf("parse manifest: %w", err)
+		return nil, domain.CloudManifest{}, ssh.ConnectionConfig{}, "", fmt.Errorf("parse manifest: %w", err)
 	}
 
 	if m.Target.VPS == nil {
-		return nil, domain.CloudManifest{}, ssh.Config{}, "", fmt.Errorf("deployment has no VPS target")
+		return nil, domain.CloudManifest{}, ssh.ConnectionConfig{}, "", fmt.Errorf("deployment has no VPS target")
 	}
 
 	cfg := ssh.ConfigFromManifest(m)
@@ -98,7 +98,7 @@ func getDeploymentContext(
 func restartScenarioOnVPS(
 	ctx context.Context,
 	sshRunner ssh.Runner,
-	cfg ssh.Config,
+	cfg ssh.ConnectionConfig,
 	workdir string,
 	scenarioID string,
 ) error {

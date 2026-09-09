@@ -9,6 +9,13 @@
     "1.1.4",
     "1.1.0"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.1.2",
@@ -18,15 +25,5 @@
     "1.1.0"
   ],
   "latest": "1.1.6",
-  "libraryId": "react-component-library:Icon",
-  "displayName": "Icon",
-  "description": "The normalized icon renderer applying optical sizing, stroke policy, direction-aware flipping, and accessibility treatment for decorative versus meaningful icons.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:Icon"
 }

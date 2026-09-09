@@ -94,7 +94,7 @@ func ApplyVerificationResult(identity DeploymentSSHIdentity, state VerificationS
 }
 
 // EffectiveSSHConfig returns the SSH config derived from manifest + identity.
-func EffectiveSSHConfig(manifest domain.CloudManifest, identity DeploymentSSHIdentity) ssh.Config {
+func EffectiveSSHConfig(manifest domain.CloudManifest, identity DeploymentSSHIdentity) ssh.ConnectionConfig {
 	m := ApplyToManifest(manifest, identity)
 	return ssh.ConfigFromManifest(m)
 }

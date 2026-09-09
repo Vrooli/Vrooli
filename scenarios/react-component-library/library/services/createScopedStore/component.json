@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-service",
   "catalogId": "services.create-scoped-store",
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:createScopedStore",
-  "displayName": "createScopedStore",
-  "description": "The typed provider and store factory producing isolated store instances per provider, with selector hooks, imperative access, and safe lifecycle teardown.",
-  "tags": [],
-  "draft": "",
   "deprecatedVersions": [],
   "designStyles": [
     {
@@ -15,5 +9,8 @@
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:createScopedStore"
 }

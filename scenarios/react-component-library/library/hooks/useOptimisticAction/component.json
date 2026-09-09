@@ -6,21 +6,18 @@
     "1.0.0",
     "1.0.1"
   ],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.0",
-    "1.0.1"
-  ],
-  "latest": "1.0.3",
-  "libraryId": "react-component-library:useOptimisticAction",
-  "displayName": "useOptimisticAction",
-  "description": "An optimistic state controller that applies a predicted change immediately and deterministically commits or rolls it back once the operation settles.",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
+  "latest": "1.0.3",
+  "libraryId": "react-component-library:useOptimisticAction"
 }

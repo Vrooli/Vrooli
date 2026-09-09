@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -20,7 +21,7 @@ var dnsLabel = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 type Service interface {
 	// Create validates in and persists a route. Subdomain (valid DNS
 	// label), scenario, and local_port (1-65535) are required; domain
-	// defaults to DefaultDomain, health_path to DefaultHealthPath, tier
+	// defaults to VROOLI_TUNNEL_DOMAIN, health_path to DefaultHealthPath, tier
 	// to TierLeased, enabled to true. Returns ErrInvalidRoute on
 	// validation failure or ErrRouteConflict when the subdomain is taken.
 	Create(ctx context.Context, in CreateInput) (Route, error)
@@ -63,9 +64,10 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Route, error) {
 		return Route{}, ErrInvalidRoute{Field: "subdomain", Reason: "must be a valid DNS label (lowercase alphanumerics and hyphens, 1-63 chars)"}
 	}
 
+	domain := strings.TrimSpace(in.Domain)
 	r := Route{
 		Subdomain:      subdomain,
-		Domain:         orDefault(in.Domain, DefaultDomain),
+		Domain:         domain,
 		Tier:           in.Tier,
 		LeaseID:        strings.TrimSpace(in.LeaseID),
 		HealthPath:     orDefault(in.HealthPath, DefaultHealthPath),
@@ -98,6 +100,13 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Route, error) {
 		r.Scenario = scenario
 		r.LocalPort = in.LocalPort
 	}
+	if domain == "" {
+		domain = strings.TrimSpace(os.Getenv("VROOLI_TUNNEL_DOMAIN"))
+	}
+	if domain == "" {
+		return Route{}, ErrInvalidRoute{Field: "domain", Reason: "required (set the route domain or VROOLI_TUNNEL_DOMAIN)"}
+	}
+	r.Domain = domain
 
 	if r.Tier == "" {
 		r.Tier = TierLeased

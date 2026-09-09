@@ -292,8 +292,8 @@ governs how they should look and behave, not which ones exist.
 
 ```bash
 react-component-library components list --json
-react-component-library adoptions resolve-path COMPONENT_ID template-manager
-react-component-library adoptions apply COMPONENT_ID template-manager ADOPTED_PATH
+react-component-library adoptions preflight COMPONENT_ID template-manager
+react-component-library adoptions link COMPONENT_ID template-manager
 ```
 
       If no governed primitive exists, build the scenario-local component
@@ -481,7 +481,7 @@ react-component-library workflows promotion-readiness <asset-id> \
 - [ ] Adopt the published version back, then delete the local original:
 
 ```bash
-react-component-library adoptions apply <component-id> template-manager <adopted-path>
+react-component-library adoptions link <component-id> template-manager
 ```
 
       Promotion is not finished while this scenario still runs its own copy.

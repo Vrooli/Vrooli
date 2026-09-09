@@ -8,6 +8,13 @@
     "1.1.0",
     "1.1.2"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.1.1",
@@ -16,15 +23,5 @@
     "1.1.2"
   ],
   "latest": "1.1.4",
-  "libraryId": "react-component-library:useHandedness",
-  "displayName": "Use Handedness",
-  "description": "Provides reach-side and writing-direction context for logical gesture behavior.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:useHandedness"
 }

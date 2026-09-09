@@ -150,25 +150,57 @@ func (h *handlers) credentialsStatusReport(_ cliapp.OperationContext, message pr
 			ResultsHeading: "Credential fields",
 			Results:        formatCredentialFields(msg.Status.Fields),
 			RetrievalHints: []string{
-				"`config credentials-status --verify` — run LIVE Cloudflare scope checks (token, account, tunnel, DNS:Edit)",
+				"`config credentials-status --verify` — run LIVE Cloudflare capability checks, including Access organization metadata",
 				"`printf '%s' <token> | config credentials-set --account-id <id> --tunnel-id <id> --api-token-stdin` — save a missing API token without argv exposure",
 				"`config sync --dry-run` — preview ingress reconciliation after credentials are ready",
 			},
 		}
 	case *configv1.VerifyCredentialsResponse:
-		summary := "Live Cloudflare credential checks: all OK — DNS automation is unblocked."
-		if !msg.Ready {
-			summary = "Live Cloudflare credential checks found issues (see remediation below)."
+		summary := "Live Cloudflare credential checks: all returned checks passed."
+		if !msg.AllChecksOk {
+			if msg.Ready {
+				summary = "Core Cloudflare capabilities are ready; one or more optional capabilities need attention."
+			} else {
+				summary = "Live Cloudflare credential checks found blocking issues (see remediation below)."
+			}
 		}
+		results := formatCredentialCapabilities(msg.Capabilities)
+		results = append(results, formatCredentialChecks(msg.Checks)...)
 		return cliapp.ListReport{
 			Summary:        []string{summary},
-			ResultsHeading: "Credential checks",
-			Results:        formatCredentialChecks(msg.Checks),
-			RetrievalHints: []string{"`printf '%s' <token> | config credentials-set --api-token-stdin` — store a re-issued token with the missing scope without argv exposure"},
+			ResultsHeading: "Capability and credential checks",
+			Results:        results,
+			RetrievalHints: []string{"`config credentials-status --verify` — re-run the read-only checks after changing the central tunnel-manager credential or Access metadata configuration"},
 		}
 	default:
 		return cliapp.ListReport{Summary: []string{"Credential status response unavailable."}}
 	}
+}
+
+func formatCredentialCapabilities(capabilities []*configv1.CredentialCapability) []string {
+	if len(capabilities) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(capabilities))
+	for _, capability := range capabilities {
+		if capability == nil {
+			continue
+		}
+		state := "READY"
+		if !capability.Ready {
+			state = "NEEDS_ATTENTION"
+		}
+		requirement := "informational"
+		if capability.Required {
+			requirement = "required"
+		}
+		line := fmt.Sprintf("capability %s: %s (%s)", capability.Name, state, requirement)
+		if capability.Reason != "" {
+			line += " — " + capability.Reason
+		}
+		out = append(out, line)
+	}
+	return out
 }
 
 func (h *handlers) bootstrapCall(ctx cliapp.OperationContext) (*configv1.BootstrapCloudflareResponse, error) {
@@ -419,6 +451,12 @@ func formatCredentialChecks(checks []*configv1.CredentialCheck) []string {
 			continue
 		}
 		line := fmt.Sprintf("%s: %s", c.Name, checkStateLabel(c.State))
+		if c.Capability != "" {
+			line += " [" + c.Capability + "]"
+		}
+		if !c.Required {
+			line += " (informational)"
+		}
 		if c.Detail != "" {
 			line += " — " + c.Detail
 		}
@@ -440,6 +478,8 @@ func checkStateLabel(s configv1.CheckState) string {
 		return "INVALID"
 	case configv1.CheckState_CHECK_STATE_INSUFFICIENT_SCOPE:
 		return "INSUFFICIENT_SCOPE"
+	case configv1.CheckState_CHECK_STATE_UNAVAILABLE:
+		return "UNAVAILABLE"
 	default:
 		return "UNSPECIFIED"
 	}

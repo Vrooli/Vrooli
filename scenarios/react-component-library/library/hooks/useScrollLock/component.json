@@ -5,20 +5,17 @@
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.0"
-  ],
-  "latest": "2.0.1",
-  "libraryId": "react-component-library:useScrollLock",
-  "displayName": "useScrollLock",
-  "description": "A reference-counted scroll-lock primitive preserving scrollbar geometry, nested locks, mobile viewport behavior, and restoration on release.",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
+  "latest": "2.0.1",
+  "libraryId": "react-component-library:useScrollLock"
 }

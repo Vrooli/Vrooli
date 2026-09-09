@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-retry",
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:useRetry",
-  "displayName": "useRetry",
-  "description": "A retry controller with attempt limits, backoff, cancellation, and retryability classification, so failures that cannot succeed on repeat are not repeated.",
-  "tags": [],
-  "draft": "",
   "deprecatedVersions": [],
   "designStyles": [
     {
@@ -15,5 +9,8 @@
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:useRetry"
 }

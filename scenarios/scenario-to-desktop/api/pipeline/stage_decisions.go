@@ -7,24 +7,65 @@
 package pipeline
 
 import (
+	"fmt"
+	"strings"
+
 	"scenario-to-desktop-api/shared/errors"
 )
 
 // ShouldSkipPreflight returns true if the preflight stage should be skipped.
 // Skip conditions:
-//   - Config.SkipPreflight is explicitly true
+//   - PipelineConfig.SkipPreflight is explicitly true
 //   - Deployment mode is a thin-client mode (no bundle to validate)
-func ShouldSkipPreflight(config *Config) bool {
+func ShouldSkipPreflight(config *PipelineConfig) bool {
 	if config == nil {
 		return false
 	}
 	return config.SkipPreflight || IsThinClientMode(config.GetDeploymentMode())
 }
 
+// ShouldDeferPreflightForTarget reports whether executable preflight must be
+// deferred because the requested target cannot run on this host. Static
+// bundleability and resource-admission checks still run; only the target
+// runtime execution is deferred. This prevents a cross-target bundle from
+// being falsely validated against the packager host's binaries.
+func ShouldDeferPreflightForTarget(config *PipelineConfig) bool {
+	if config == nil || ShouldSkipPreflight(config) || len(config.Platforms) == 0 {
+		return false
+	}
+
+	host, err := normalizeDesktopPlatform(currentPlatform())
+	if err != nil {
+		return false
+	}
+	for _, requested := range config.Platforms {
+		target, err := normalizeDesktopPlatform(requested)
+		if err != nil || target != host {
+			return true
+		}
+	}
+	return false
+}
+
+// PreflightDeferralReason returns a stable operator-facing explanation for a
+// cross-target preflight deferral. The boolean is kept separate so callers can
+// use the decision without parsing presentation text.
+func PreflightDeferralReason(config *PipelineConfig) string {
+	if !ShouldDeferPreflightForTarget(config) {
+		return ""
+	}
+	host := currentPlatform()
+	targets := make([]string, 0, len(config.Platforms))
+	for _, target := range config.Platforms {
+		targets = append(targets, strings.TrimSpace(target))
+	}
+	return fmt.Sprintf("native runtime validation deferred: requested target(s) %s cannot execute on host %s; target-host preflight evidence is required before release promotion", strings.Join(targets, ", "), host)
+}
+
 // ShouldSkipBundle returns true if the bundle stage should be skipped.
 // Skip conditions:
 //   - Deployment mode is a thin-client mode (no bundling needed)
-func ShouldSkipBundle(config *Config) bool {
+func ShouldSkipBundle(config *PipelineConfig) bool {
 	if config == nil {
 		return false
 	}
@@ -33,8 +74,8 @@ func ShouldSkipBundle(config *Config) bool {
 
 // ShouldSkipSmokeTest returns true if the smoke test stage should be skipped.
 // Skip conditions:
-//   - Config.SkipSmokeTest is explicitly true
-func ShouldSkipSmokeTest(config *Config) bool {
+//   - PipelineConfig.SkipSmokeTest is explicitly true
+func ShouldSkipSmokeTest(config *PipelineConfig) bool {
 	if config == nil {
 		return false
 	}
@@ -43,9 +84,9 @@ func ShouldSkipSmokeTest(config *Config) bool {
 
 // ShouldSkipDeploy returns true if the deploy stage should be skipped.
 // Skip conditions:
-//   - Config is nil
+//   - PipelineConfig is nil
 //   - DeployConfig is nil (deploy not enabled)
-func ShouldSkipDeploy(config *Config) bool {
+func ShouldSkipDeploy(config *PipelineConfig) bool {
 	if config == nil || config.DeployConfig == nil {
 		return true
 	}
@@ -70,7 +111,7 @@ func ValidateCanResume(status *Status) error {
 }
 
 // ShouldStopAfterStage returns true if the pipeline should stop after the given stage.
-func ShouldStopAfterStage(config *Config, stageName string) bool {
+func ShouldStopAfterStage(config *PipelineConfig, stageName string) bool {
 	if config == nil {
 		return false
 	}
@@ -79,8 +120,8 @@ func ShouldStopAfterStage(config *Config, stageName string) bool {
 
 // ShouldSkipSigning returns true if the signing stage should be skipped.
 // Skip conditions:
-//   - Config.Sign is explicitly false or not set (signing is opt-in)
-func ShouldSkipSigning(config *Config) bool {
+//   - PipelineConfig.Sign is explicitly false or not set (signing is opt-in)
+func ShouldSkipSigning(config *PipelineConfig) bool {
 	if config == nil {
 		return true
 	}
@@ -93,7 +134,7 @@ func ShouldSkipSigning(config *Config) bool {
 //
 // Note: Unlike other stages, generation cannot be skipped via config flag because
 // it's required to produce the desktop wrapper for the build stage.
-func ShouldSkipGeneration(config *Config) bool {
+func ShouldSkipGeneration(config *PipelineConfig) bool {
 	if config == nil {
 		return false
 	}

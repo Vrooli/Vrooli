@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/templatevalidation"
 	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
@@ -108,7 +108,7 @@ func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, reloc
 				return fmt.Errorf("relocation post hook %d: %w", index+1, err)
 			}
 			_, _ = fmt.Fprintf(output, "[Relocation post] %s\n", description)
-			if err := deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+			if err := deps.RunSubprocess(ctx, shell.Spec{
 				Name:   name,
 				Args:   args,
 				Dir:    cwd,

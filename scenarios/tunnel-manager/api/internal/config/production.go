@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -93,6 +92,7 @@ func NewProductionService(db ProductionDB, clk schedule.Clock, opts ProductionOp
 		DNS:                resolvingDNSClient{store: store, doer: opts.Doer},
 		DNSLedger:          NewSQLiteDNSLedger(db, clk),
 		Access:             resolvingAccessClient{store: store, doer: opts.Doer},
+		AccessMetadata:     resolvingAccessMetadata{store: store, doer: opts.Doer},
 		AccessLedger:       NewSQLiteAccessLedger(db, clk),
 		Runner:             opts.Runner,
 		Clock:              clk,
@@ -100,27 +100,36 @@ func NewProductionService(db ProductionDB, clk schedule.Clock, opts ProductionOp
 	})
 }
 
-// FileScenarioResolver resolves a scenario's fixed UI port from its
-// service.json (<root>/<scenario>/.vrooli/service.json, ports.ui.port). It is
-// the production ScenarioResolver used by AdoptIngress to tell scenario-backed
-// hostnames from external ones. A nil/zero result (scenario unknown or no fixed
-// UI port) makes adopt fall back to an external route.
-type FileScenarioResolver struct {
-	Root string
+// ScenarioFileResolver resolves contract-owned scenario files.
+type ScenarioFileResolver interface {
+	ServiceFile(scenario string) (string, error)
 }
 
-// NewFileScenarioResolver constructs a resolver rooted at the scenarios dir.
-func NewFileScenarioResolver(root string) *FileScenarioResolver {
-	return &FileScenarioResolver{Root: root}
+// FileScenarioResolver resolves a scenario's fixed UI port from its
+// contract-owned service manifest. It is the production ScenarioResolver used
+// by AdoptIngress to tell scenario-backed hostnames from external ones. A
+// nil/zero result (scenario unknown or no fixed UI port) makes adopt fall back
+// to an external route.
+type FileScenarioResolver struct {
+	Files ScenarioFileResolver
+}
+
+// NewFileScenarioResolver constructs a resolver backed by the shared scenario
+// file resolver.
+func NewFileScenarioResolver(files ScenarioFileResolver) *FileScenarioResolver {
+	return &FileScenarioResolver{Files: files}
 }
 
 var _ ScenarioResolver = (*FileScenarioResolver)(nil)
 
 func (r *FileScenarioResolver) UIPort(_ context.Context, scenario string) (int, error) {
-	if r == nil || strings.TrimSpace(r.Root) == "" || strings.TrimSpace(scenario) == "" {
+	if r == nil || r.Files == nil || strings.TrimSpace(scenario) == "" {
 		return 0, fmt.Errorf("scenario resolver not configured")
 	}
-	path := filepath.Join(r.Root, scenario, ".vrooli", "service.json")
+	path, err := r.Files.ServiceFile(scenario)
+	if err != nil {
+		return 0, fmt.Errorf("resolve service.json for %q: %w", scenario, err)
+	}
 	data, err := os.ReadFile(path) // #nosec G304 -- path built from a fixed root + validated DNS-label subdomain.
 	if err != nil {
 		return 0, fmt.Errorf("read service.json for %q: %w", scenario, err)
@@ -143,10 +152,13 @@ func (r *FileScenarioResolver) UIPort(_ context.Context, scenario string) (int, 
 // IsScenario reports whether the slug names a real scenario (its service.json
 // exists), even when that scenario's UI port is ranged rather than fixed.
 func (r *FileScenarioResolver) IsScenario(_ context.Context, scenario string) bool {
-	if r == nil || strings.TrimSpace(r.Root) == "" || strings.TrimSpace(scenario) == "" {
+	if r == nil || r.Files == nil || strings.TrimSpace(scenario) == "" {
 		return false
 	}
-	path := filepath.Join(r.Root, scenario, ".vrooli", "service.json")
+	path, err := r.Files.ServiceFile(scenario)
+	if err != nil {
+		return false
+	}
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir()
 }
@@ -266,6 +278,34 @@ func (c resolvingAccessClient) client(ctx context.Context) (AccessClient, error)
 		return nil, fmt.Errorf("resolve Cloudflare credentials: %w", err)
 	}
 	client := NewCFAccessClient(c.doer, cfg)
+	if client == nil {
+		return nil, ErrRemoteUnavailable{}
+	}
+	return client, nil
+}
+
+// resolvingAccessMetadata resolves the same authority-backed Cloudflare
+// credentials as the Access mutation client, but exposes only read-only
+// primary-application metadata to lifecycle consumers.
+type resolvingAccessMetadata struct {
+	store CredentialStore
+	doer  httpDoer
+}
+
+func (c resolvingAccessMetadata) ResolveRuntimeBinding(ctx context.Context, host string) (AccessRuntimeBinding, error) {
+	client, err := c.client(ctx)
+	if err != nil {
+		return AccessRuntimeBinding{}, err
+	}
+	return client.ResolveRuntimeBinding(ctx, host)
+}
+
+func (c resolvingAccessMetadata) client(ctx context.Context) (AccessMetadataReader, error) {
+	cfg, err := c.store.Resolve(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Cloudflare credentials: %w", err)
+	}
+	client := NewCFAccessMetadataReader(c.doer, cfg)
 	if client == nil {
 		return nil, ErrRemoteUnavailable{}
 	}

@@ -733,6 +733,70 @@ Get full deployment details.
 }
 ```
 
+### GET /deployments/{id}/receipt
+
+Return the owner-produced receipt for a completed VPS deployment. The endpoint
+returns `409 receipt_unavailable` until the persisted deployment status,
+successful deploy result, exact destination and bundle digest all agree. A
+reachable host or an HTTP success response alone cannot produce this receipt.
+
+**Response:**
+```json
+{
+  "receipt": {
+    "schema_version": 1,
+    "deployment_id": "uuid",
+    "scenario_id": "my-scenario",
+    "scenario_version": "1.2.3",
+    "target_kind": "vps",
+    "destination_id": "sha256:...",
+    "destination_host": "192.168.1.100",
+    "destination_workdir": "/root/Vrooli",
+    "destination_domain": "app.example.com",
+    "bundle_sha256": "...",
+    "outcome": "deployed",
+    "health": "healthy",
+    "external_receipt": "scenario-to-cloud:uuid",
+    "observed_at": "2024-01-15T10:35:00Z"
+  },
+  "timestamp": "2024-01-15T10:35:00Z"
+}
+```
+
+### POST /deployments/{id}/recovery
+
+Request an owner-routed recovery action. `halt` stops the current deployment
+after explicit confirmation. `rollback` and `forward_repair` require
+`expected_bundle_sha256` to match the persisted current bundle,
+`repair_bundle_sha256` to identify an exact retained local bundle, and
+`data_compatibility=compatible`. `dry_run=true` validates those identities and
+returns a preview without creating an operation or changing deployment state.
+Execution is idempotent by `idempotency_key` and returns a pending or running
+operation projection until the owner has observed a healthy deployment.
+
+```json
+{
+  "action": "rollback",
+  "expected_bundle_sha256": "<current-sha256>",
+  "repair_bundle_sha256": "<retained-predecessor-sha256>",
+  "data_compatibility": "compatible",
+  "idempotency_key": "release-1:rollback:<current>:<repair>",
+  "confirmation": "rollback deployment-1"
+}
+```
+
+The effect receipt has `outcome=rolled_back` or `forward_repaired`,
+`health=healthy`, the repaired `bundle_sha256`, and an operation-scoped
+`external_receipt`. A failed operation includes an error and does not include
+an effect receipt.
+
+### GET /deployments/{id}/recovery/{operation_id}
+
+Read the durable recovery operation. `pending` and `running` are in progress;
+`succeeded` is represented by the owner effect receipt and `failed` preserves
+the refusal or execution error. Callers must verify the deployment and
+operation identities before accepting a terminal receipt.
+
 ### DELETE /deployments/{id}
 
 Delete a deployment record.

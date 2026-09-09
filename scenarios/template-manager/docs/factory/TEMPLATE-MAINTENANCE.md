@@ -27,7 +27,7 @@ text — agents over-fit to whichever framing they see.
   documentation contract in `docs/manifest.json`. These should read
   prescriptively — "must", "use", "do not".
 - **Illustrative examples** in a generated scenario: the `notes`
-  domain, the placeholder `AppShell` and home page, the bare-minimum
+  domain, initial `AppShell` configuration and placeholder home page, the bare-minimum
   settings surface, any specific component list inside `DESIGN.md`,
   any sample copy or sample preferences. These should read as
   examples — "for example", "such as", "this is one shape; build
@@ -35,9 +35,19 @@ text — agents over-fit to whichever framing they see.
 
 Failure modes we have actually observed:
 
-- Agents leave the placeholder `AppShell` and home page intact and
-  only bolt new components onto them, because no doc told them the
-  shell itself is a placeholder.
+- Scenarios retained locally drawn navigation and headers after the template
+  moved to library-owned chrome. ui-health's `standard_shell_ownership`
+  check now detects local chrome across `ui/src`, using the declared
+  `ui/manifest.json` shell archetype. One library-owned shell per archetype is
+  the invariant: navigated consoles configure `AppShell/2`; ambient boards
+  choose their own appropriate library archetype. When an archetype cannot
+  carry the product, the scenario records an exact-file `shell-ejection`
+  with a reason in `docs/reference/component-library-gaps.md`. Do not force
+  adoption onto an unproven pre-1.0 shell.
+- Agents removed the home marker without making a product design decision.
+  The engine-owned `design-language` step now checks the home marker, shell
+  configuration against the template, and color/font values against the
+  stock kit. Marker removal alone does not pass.
 - Agents implement exactly and only the settings shown as examples in
   `DESIGN.md` (and delete pre-existing settings like locale switching
   that were not listed there), because the design's example controls
@@ -247,7 +257,9 @@ these ownership rules:
 
 - `docs/concepts/ARCHITECTURE.md` explains why the template is shaped
   this way.
-- `docs/internal/TESTING.md` owns test patterns.
+- Template Manager owns shared harness recipes in `docs/internal/TESTING-RECIPES.md`.
+  Generated `docs/internal/TESTING.md` files link there and own local test strategy,
+  fixtures, real test examples, and exceptions. Do not copy the shared manual.
 - `docs/internal/SEAMS.md` owns the seam/interface registry.
 - `docs/reference/*.md` describes user-facing API, CLI, and config
   surfaces.
@@ -313,3 +325,13 @@ For broad template edits, also run the drift search:
 ```bash
 rg "cmd/server|ParseInterspersed|PrintReportJSON|Pass [0-9]" templates/scenarios/react-vite
 ```
+
+## Shared documentation ownership
+
+The UI architecture, UI manifest reference, and transport error pattern are
+maintained in Template Manager's `docs/concepts/UI-ARCHITECTURE.md`,
+`docs/reference/ui-manifest.md`, and `docs/internal/ERROR-HANDLING.md`.
+Generated scenarios carry short entry pages with room for local differences.
+Update the shared guide when the template contract changes; do not copy its
+body into generated scenarios. Keep entry-page manifest checks aligned with
+the entry-page headings.

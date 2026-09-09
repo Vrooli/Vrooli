@@ -34,19 +34,32 @@ func writeRepoContractFixture(t *testing.T, root string) {
 // contract is found, returning the raw bytes for verbatim copy into a fixture.
 func liveRepoContract(t *testing.T) []byte {
 	t.Helper()
+	if cwd, err := os.Getwd(); err == nil {
+		if data, ok := findRepoContract(cwd); ok {
+			return data
+		}
+	}
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("runtime.Caller failed; cannot locate live repo contract")
 	}
-	dir := filepath.Dir(filename)
+	if data, ok := findRepoContract(filepath.Dir(filename)); ok {
+		return data
+	}
+	t.Fatal("could not locate .vrooli/repo-contract.json above test package")
+	return nil
+}
+
+func findRepoContract(start string) ([]byte, bool) {
+	dir := start
 	for {
 		candidate := filepath.Join(dir, ".vrooli", "repo-contract.json")
 		if data, err := os.ReadFile(candidate); err == nil {
-			return data
+			return data, true
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			t.Fatal("could not locate .vrooli/repo-contract.json above test package")
+			return nil, false
 		}
 		dir = parent
 	}

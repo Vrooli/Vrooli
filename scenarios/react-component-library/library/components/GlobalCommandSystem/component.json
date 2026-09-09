@@ -8,6 +8,13 @@
     "1.0.3",
     "1.0.4"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.1",
@@ -16,15 +23,5 @@
     "1.0.4"
   ],
   "latest": "1.0.6",
-  "libraryId": "react-component-library:GlobalCommandSystem",
-  "displayName": "GlobalCommandSystem",
-  "description": "The command infrastructure combining registry, palette, shortcut hints, menu surfacing, scope and availability, argument prompting, execution, and history.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:GlobalCommandSystem"
 }

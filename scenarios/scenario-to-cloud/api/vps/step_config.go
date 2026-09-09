@@ -58,7 +58,7 @@ func RunOptionsForStep(stepID string) ssh.RunOptions {
 func RunStepWithRetry(
 	ctx context.Context,
 	runner ssh.Runner,
-	sshCfg ssh.Config,
+	sshCfg ssh.ConnectionConfig,
 	stepID string,
 	cmd string,
 ) error {

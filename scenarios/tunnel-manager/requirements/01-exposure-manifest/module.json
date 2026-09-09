@@ -14,7 +14,7 @@
       "prd_ref": "OT-P0-001",
       "category": "routes",
       "criticality": "P0",
-      "description": "A route record persists subdomain, scenario, domain (a field, default itsagitime.com), local UI port, tier (core|leased), lease_id (nullable), enabled flag, and health_path in SQLite, and survives process restart.",
+      "description": "A route record persists subdomain, scenario, domain, local UI port, tier (core|leased), lease_id (nullable), enabled flag, and health_path in SQLite, and survives process restart.",
       "tags": [
         "manifest",
         "sqlite",

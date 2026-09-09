@@ -11,8 +11,5 @@
   "draft": "",
   "evictedVersions": [],
   "latest": "1.0.3",
-  "libraryId": "react-component-library:PromptComposer",
-  "displayName": "PromptComposer",
-  "description": "The message composer with auto-resizing entry, attachments, slash commands, mentions, model and tool context, submit, stop, retry, draft persistence, and keyboard behavior that never traps the user.",
-  "tags": []
+  "libraryId": "react-component-library:PromptComposer"
 }

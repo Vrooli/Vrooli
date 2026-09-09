@@ -28,7 +28,7 @@ func newTestInput() shared.TaskInput {
 					Error:     "npm ERR! missing peer",
 				},
 			},
-			Config: &pipeline.Config{
+			Config: &pipeline.PipelineConfig{
 				ScenarioName: "test-app",
 				Platforms:    []string{"linux"},
 			},

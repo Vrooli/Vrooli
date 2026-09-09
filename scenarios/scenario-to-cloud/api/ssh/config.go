@@ -7,8 +7,8 @@ import (
 	"scenario-to-cloud/domain"
 )
 
-// Config holds SSH connection parameters.
-type Config struct {
+// ConnectionConfig holds SSH connection parameters.
+type ConnectionConfig struct {
 	Host           string
 	Port           int
 	User           string
@@ -22,15 +22,15 @@ const (
 	DefaultUser = "root"
 )
 
-// NewConfig creates a Config with defaults applied for missing values.
-func NewConfig(host string, port int, user, keyPath string) Config {
+// NewConfig creates a ConnectionConfig with defaults applied for missing values.
+func NewConfig(host string, port int, user, keyPath string) ConnectionConfig {
 	if port == 0 {
 		port = DefaultPort
 	}
 	if user == "" {
 		user = DefaultUser
 	}
-	return Config{
+	return ConnectionConfig{
 		Host:           host,
 		Port:           port,
 		User:           user,
@@ -39,8 +39,8 @@ func NewConfig(host string, port int, user, keyPath string) Config {
 	}
 }
 
-// ConfigFromManifest creates an SSH Config from a CloudManifest's VPS target.
-func ConfigFromManifest(manifest domain.CloudManifest) Config {
+// ConfigFromManifest creates an SSH ConnectionConfig from a CloudManifest's VPS target.
+func ConfigFromManifest(manifest domain.CloudManifest) ConnectionConfig {
 	vps := manifest.Target.VPS
 	return NewConfig(vps.Host, vps.Port, vps.User, vps.KeyPath)
 }

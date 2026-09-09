@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
@@ -197,7 +197,7 @@ func runDetemplateFinalizers[C any](deps HandlerDeps[C], ctx C, result *template
 			continue
 		}
 		fin.Ran = true
-		if runErr := deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+		if runErr := deps.RunSubprocess(ctx, shell.Spec{
 			Name:   p.Name,
 			Args:   p.Args,
 			Dir:    p.Dir,

@@ -103,6 +103,12 @@ type Service interface {
 	// the per-host effective decisions, and the dry-run plan (apps a reconcile
 	// would create/remove). Pure — no mutation, no live Cloudflare calls.
 	GetAccessStatus(ctx context.Context) (AccessStatus, error)
+
+	// GetAuthenticationBinding resolves the non-secret Cloudflare Access
+	// verifier coordinates for one enabled scenario route. It is read-only and
+	// is the lifecycle's shared binding seam; callers never provide an audience
+	// tag per scenario.
+	GetAuthenticationBinding(ctx context.Context, scenario, hostname string) (AccessRuntimeBinding, error)
 }
 
 // DerivedCredentialBootstrapper is an optional lifecycle seam for the
@@ -141,6 +147,9 @@ type Deps struct {
 	// convention). Nil disables the capability entirely (the default — no
 	// Access app is ever touched).
 	Access AccessClient
+	// AccessMetadata resolves primary-app verifier metadata. It is read-only;
+	// unlike Access, it cannot create, update, or delete Access applications.
+	AccessMetadata AccessMetadataReader
 	// AccessLedger tracks which Access apps TM created so prune only ever
 	// deletes TM-created apps. Nil disables Access removal (apps are still
 	// created, but never auto-deleted — the safe direction).
@@ -302,8 +311,8 @@ func (s *service) resolveCFConfig(ctx context.Context) (CFConfig, error) {
 
 // routeApexes returns the distinct apex domains across the routes manifest so
 // the verifier probes Zone:DNS:Edit for every zone TM actually publishes into.
-// Falls back to the canonical default apex when no routes carry a domain (so a
-// fresh install still verifies the zone scope it will need on first expose).
+// An empty result is intentional when no routes have been configured; there is
+// no deployment-specific apex fallback.
 func (s *service) routeApexes(ctx context.Context) []string {
 	apexes := make([]string, 0, 2)
 	if s.deps.Routes != nil {
@@ -316,9 +325,6 @@ func (s *service) routeApexes(ctx context.Context) []string {
 		}
 	}
 	apexes = dedupeNonEmpty(apexes)
-	if len(apexes) == 0 {
-		apexes = []string{manifest.DefaultDomain}
-	}
 	return apexes
 }
 
@@ -974,6 +980,58 @@ func (s *service) GetAccessStatus(ctx context.Context) (AccessStatus, error) {
 	}, nil
 }
 
+// GetAuthenticationBinding resolves the primary Access application's public
+// verifier metadata for an enabled scenario route. Route ownership stays in
+// Tunnel Manager, so lifecycle callers identify a scenario rather than
+// carrying a hostname/audience configuration for every application.
+func (s *service) GetAuthenticationBinding(ctx context.Context, scenario, hostname string) (AccessRuntimeBinding, error) {
+	scenario = strings.TrimSpace(scenario)
+	hostname = strings.TrimSpace(strings.ToLower(hostname))
+	if scenario == "" && hostname == "" {
+		return AccessRuntimeBinding{}, ErrInvalidConfig{Field: "scenario", Reason: "scenario or hostname is required"}
+	}
+	if s.deps.Routes == nil {
+		return AccessRuntimeBinding{}, ErrInvalidConfig{Field: "routes", Reason: "route management is not configured"}
+	}
+	if s.deps.AccessMetadata == nil {
+		return AccessRuntimeBinding{}, ErrRemoteUnavailable{Reason: "Cloudflare Access metadata is not configured"}
+	}
+	routes, err := s.deps.Routes.List(ctx, manifest.Tier(""))
+	if err != nil {
+		return AccessRuntimeBinding{}, fmt.Errorf("list routes for authentication binding: %w", err)
+	}
+	var matched string
+	count := 0
+	for _, route := range routes {
+		if !route.Enabled || route.Source == manifest.SourceExternal {
+			continue
+		}
+		routeHost := strings.ToLower(extractHostname(route.PublicURL()))
+		if hostname != "" && routeHost != hostname {
+			continue
+		}
+		if scenario != "" && route.Scenario != scenario {
+			continue
+		}
+		matched = routeHost
+		count++
+	}
+	if count == 0 {
+		return AccessRuntimeBinding{}, ErrInvalidConfig{Field: "route", Reason: fmt.Sprintf("no enabled scenario route found for %q", scenario)}
+	}
+	if count > 1 {
+		return AccessRuntimeBinding{}, ErrInvalidConfig{Field: "route", Reason: fmt.Sprintf("multiple enabled routes found for %q; declare hostname", scenario)}
+	}
+	binding, err := s.deps.AccessMetadata.ResolveRuntimeBinding(ctx, matched)
+	if err != nil {
+		return AccessRuntimeBinding{}, fmt.Errorf("resolve Cloudflare Access binding for %q: %w", matched, err)
+	}
+	if strings.TrimSpace(binding.TeamDomain) == "" || strings.TrimSpace(binding.Audience) == "" {
+		return AccessRuntimeBinding{}, fmt.Errorf("resolve Cloudflare Access binding for %q: incomplete metadata", matched)
+	}
+	return binding, nil
+}
+
 // mergeIngress computes the additive union to publish: start from current live
 // (preserving every unmanaged/ignored/foreign entry), overlay desired
 // scenario+external entries (their service wins), drop the named pruneSet, and
@@ -1208,7 +1266,7 @@ func (s *service) writeLocalIngress(cfg TunnelConfig, desired []IngressRule) err
 func catchAll() IngressRule { return IngressRule{Service: "http_status:404"} }
 
 // extractHostname strips the URL scheme and path, returning only the
-// hostname. e.g. "https://api.itsagitime.com/x" → "api.itsagitime.com".
+// hostname. e.g. "https://api.example.invalid/x" → "api.example.invalid".
 // Ported from the old adapter/systemd.go so config and tunnel derive
 // hostnames identically.
 func extractHostname(publicURL string) string {

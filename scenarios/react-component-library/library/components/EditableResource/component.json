@@ -11,6 +11,13 @@
     "1.0.8",
     "1.0.9"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.5",
@@ -22,15 +29,5 @@
     "1.0.9"
   ],
   "latest": "1.0.11",
-  "libraryId": "react-component-library:EditableResource",
-  "displayName": "EditableResource",
-  "description": "The read-and-edit workflow coordinating optimistic changes, validation, autosave, dirty-state protection, conflict handling, cancellation, and success feedback in place.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:EditableResource"
 }

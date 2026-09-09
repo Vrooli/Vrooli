@@ -48,7 +48,7 @@ type FakeSSHRunner struct {
 var _ ssh.Runner = (*FakeSSHRunner)(nil)
 
 // Run returns the configured response for a command, or an error.
-func (f *FakeSSHRunner) Run(_ context.Context, _ ssh.Config, command string, _ ssh.RunOptions) (ssh.Result, error) {
+func (f *FakeSSHRunner) Run(_ context.Context, _ ssh.ConnectionConfig, command string, _ ssh.RunOptions) (ssh.Result, error) {
 	f.mu.Lock()
 	f.Calls = append(f.Calls, command)
 	f.mu.Unlock()
@@ -89,7 +89,7 @@ type FakeSCPRunner struct {
 var _ ssh.SCPRunner = (*FakeSCPRunner)(nil)
 
 // Copy records the operation and returns any configured error.
-func (f *FakeSCPRunner) Copy(_ context.Context, _ ssh.Config, localPath, remotePath string, _ ssh.SCPOptions) error {
+func (f *FakeSCPRunner) Copy(_ context.Context, _ ssh.ConnectionConfig, localPath, remotePath string, _ ssh.SCPOptions) error {
 	f.mu.Lock()
 	f.Calls = append(f.Calls, struct{ Local, Remote string }{localPath, remotePath})
 	f.mu.Unlock()

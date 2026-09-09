@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"tunnel-manager/internal/manifest"
 )
@@ -19,6 +20,13 @@ type RoutesReader interface {
 	// List returns manifest routes, optionally filtered by tier. The audit
 	// service passes the empty Tier to read every route.
 	List(ctx context.Context, tier manifest.Tier) ([]manifest.Route, error)
+}
+
+// ScenarioFileResolver resolves the contract-owned service manifest for a
+// scenario. Production uses Tunnel Manager's shared repo-contract resolver;
+// tests may use the root adapter provided by NewService.
+type ScenarioFileResolver interface {
+	ServiceFile(scenario string) (string, error)
 }
 
 // Service is the application-layer surface the audit handlers depend on. It
@@ -36,14 +44,29 @@ type Service interface {
 
 type service struct {
 	routes        RoutesReader
-	scenariosRoot string
+	scenarioFiles ScenarioFileResolver
 }
 
 // NewService constructs the production Service. scenariosRoot is the path to
 // the directory holding scenario folders (each with a .vrooli/service.json);
 // it is injectable so tests can point it at a temp tree.
 func NewService(routes RoutesReader, scenariosRoot string) Service {
-	return &service{routes: routes, scenariosRoot: scenariosRoot}
+	return NewServiceWithScenarioFiles(routes, rootScenarioFileResolver(scenariosRoot))
+}
+
+// NewServiceWithScenarioFiles constructs the audit service with a resolver
+// that honors the repository contract's well-known scenario paths.
+func NewServiceWithScenarioFiles(routes RoutesReader, files ScenarioFileResolver) Service {
+	return &service{routes: routes, scenarioFiles: files}
+}
+
+type rootScenarioFileResolver string
+
+func (r rootScenarioFileResolver) ServiceFile(scenario string) (string, error) {
+	if strings.TrimSpace(string(r)) == "" {
+		return "", fmt.Errorf("scenarios root is empty")
+	}
+	return filepath.Join(string(r), scenario, ".vrooli", "service.json"), nil
 }
 
 // Compile-time guarantee.
@@ -82,7 +105,13 @@ func newResult(route manifest.Route, status AuditStatus, detail string) PortAudi
 // "...", "range": "..."}}}`; a fixed UI port lives at ports.ui.port and is 0
 // (absent) when the scenario uses a ranged/dynamic port instead.
 func (s *service) auditRoute(route manifest.Route) PortAuditResult {
-	svcPath := filepath.Join(s.scenariosRoot, route.Scenario, ".vrooli", "service.json")
+	if s.scenarioFiles == nil {
+		return newResult(route, StatusMissingScenario, "service.json resolver is not configured")
+	}
+	svcPath, resolveErr := s.scenarioFiles.ServiceFile(route.Scenario)
+	if resolveErr != nil {
+		return newResult(route, StatusMissingScenario, fmt.Sprintf("service.json not found: %v", resolveErr))
+	}
 	data, err := os.ReadFile(svcPath)
 	if err != nil {
 		return newResult(route, StatusMissingScenario, fmt.Sprintf("service.json not found: %s", svcPath))

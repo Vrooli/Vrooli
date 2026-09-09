@@ -152,7 +152,7 @@ func (l *SlogLogger) Debug(msg string, args ...interface{}) { l.Logger.Debug(msg
 // If an idempotency key is provided and a pipeline with that key exists, the existing
 // pipeline status is returned instead of starting a new one. This enables safe retries
 // where "running twice is no worse than running once".
-func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (*Status, error) {
+func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *PipelineConfig) (*Status, error) {
 	config = cloneConfigForExecution(config)
 	if err := validatePipelineConfig(config); err != nil {
 		return nil, err
@@ -178,12 +178,13 @@ func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (
 // configuration. Callers commonly reuse a request object for retries; keeping
 // that object shared would make normalization and rollback bookkeeping race
 // with the executor of another run.
-func cloneConfigForExecution(config *Config) *Config {
+func cloneConfigForExecution(config *PipelineConfig) *PipelineConfig {
 	if config == nil {
 		return nil
 	}
 	clone := *config
 	clone.Platforms = append([]string(nil), config.Platforms...)
+	clone.ExpectedArtifactDigests = copyStringMap(config.ExpectedArtifactDigests)
 	if config.PreflightSecrets != nil {
 		clone.PreflightSecrets = make(map[string]string, len(config.PreflightSecrets))
 		for key, value := range config.PreflightSecrets {
@@ -193,7 +194,7 @@ func cloneConfigForExecution(config *Config) *Config {
 	return &clone
 }
 
-func validatePipelineConfig(config *Config) error {
+func validatePipelineConfig(config *PipelineConfig) error {
 	if err := config.ValidateFramework(); err != nil {
 		return err
 	}
@@ -229,7 +230,7 @@ func (o *DefaultOrchestrator) idempotentPipeline(key string) *Status {
 	return existing
 }
 
-func normalizePipelinePlatforms(config *Config) error {
+func normalizePipelinePlatforms(config *PipelineConfig) error {
 	if len(config.Platforms) == 0 {
 		config.Platforms = []string{currentPlatform()}
 	}
@@ -245,7 +246,7 @@ func normalizePipelinePlatforms(config *Config) error {
 	return nil
 }
 
-func (o *DefaultOrchestrator) newPipelineStatus(config *Config) *Status {
+func (o *DefaultOrchestrator) newPipelineStatus(config *PipelineConfig) *Status {
 	stages := o.stages
 	if requested := config.GetStages(); len(requested) > 0 {
 		stages = o.filterStages(requested)
@@ -272,7 +273,7 @@ func normalizeDesktopPlatform(value string) (resourcedeployment.Platform, error)
 // It starts the pipeline asynchronously, then polls for completion.
 // Returns the final status when complete, failed, or cancelled.
 // Returns an error if the timeout is exceeded or the pipeline disappears.
-func (o *DefaultOrchestrator) RunPipelineBlocking(ctx context.Context, config *Config, timeoutSecs int) (*Status, error) {
+func (o *DefaultOrchestrator) RunPipelineBlocking(ctx context.Context, config *PipelineConfig, timeoutSecs int) (*Status, error) {
 	// Start pipeline async
 	status, err := o.RunPipeline(ctx, config)
 	if err != nil {
@@ -299,7 +300,7 @@ func (o *DefaultOrchestrator) StartPipelineBlocking(ctx context.Context, pipelin
 // CreateIdlePipeline creates a pipeline in "idle" state without starting execution.
 // The pipeline will remain idle until explicitly started via StartPipeline.
 // This is used for auto-creating pipelines when a scenario is selected.
-func (o *DefaultOrchestrator) CreateIdlePipeline(config *Config) (*Status, error) {
+func (o *DefaultOrchestrator) CreateIdlePipeline(config *PipelineConfig) (*Status, error) {
 	// Validate config
 	if !validation.IsSafeScenarioName(config.ScenarioName) {
 		if config.ScenarioName == "" {
@@ -424,7 +425,7 @@ func (o *DefaultOrchestrator) StartPipeline(ctx context.Context, pipelineID stri
 // UpdatePipelineConfig updates the config of an idle pipeline.
 // Returns error if pipeline is not idle or doesn't exist.
 // This allows updating stop_after_stage and other config fields before starting.
-func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpdates *Config) error {
+func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpdates *PipelineConfig) error {
 	// Get existing status
 	status, ok := o.store.Get(pipelineID)
 	if !ok {
@@ -443,7 +444,7 @@ func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpda
 	// Update config fields
 	o.store.Update(pipelineID, func(s *Status) {
 		if s.Config == nil {
-			s.Config = &Config{}
+			s.Config = &PipelineConfig{}
 		}
 		applyConfigStringFields(s.Config, configUpdates)
 		applyConfigBoolFields(s.Config, configUpdates)
@@ -467,7 +468,7 @@ func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpda
 }
 
 // applyConfigStringFields applies non-empty string field updates from src to dst.
-func applyConfigStringFields(dst, src *Config) {
+func applyConfigStringFields(dst, src *PipelineConfig) {
 	if src.StopAfterStage != "" {
 		dst.StopAfterStage = src.StopAfterStage
 	}
@@ -508,7 +509,7 @@ func applyConfigStringFields(dst, src *Config) {
 
 // applyConfigBoolFields applies boolean field updates from src to dst.
 // Boolean fields are only updated when explicitly true (since default is false).
-func applyConfigBoolFields(dst, src *Config) {
+func applyConfigBoolFields(dst, src *PipelineConfig) {
 	if src.SkipPreflight {
 		dst.SkipPreflight = true
 	}
@@ -527,7 +528,7 @@ func applyConfigBoolFields(dst, src *Config) {
 }
 
 // applyConfigComplexFields applies non-nil/non-zero complex field updates from src to dst.
-func applyConfigComplexFields(dst, src *Config) {
+func applyConfigComplexFields(dst, src *PipelineConfig) {
 	if len(src.Platforms) > 0 {
 		dst.Platforms = src.Platforms
 	}
@@ -565,7 +566,7 @@ func (o *DefaultOrchestrator) CancelPipeline(pipelineID string) bool {
 }
 
 // ResumePipeline resumes a stopped pipeline from its next stage.
-func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID string, config *Config) (*Status, error) {
+func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID string, config *PipelineConfig) (*Status, error) {
 	// Get the parent pipeline
 	parentStatus, ok := o.store.Get(pipelineID)
 	if !ok {
@@ -587,7 +588,7 @@ func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID str
 	}
 
 	// Create the resume config
-	resumeConfig := &Config{
+	resumeConfig := &PipelineConfig{
 		ScenarioName:            parentStatus.Config.ScenarioName,
 		Platforms:               parentStatus.Config.Platforms,
 		DeploymentMode:          parentStatus.Config.DeploymentMode,

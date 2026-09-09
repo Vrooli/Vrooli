@@ -43,6 +43,13 @@ type PortResolver interface {
 	UIPort(ctx context.Context, scenario string) (int, error)
 }
 
+// ReadinessResolver supplies the public UI health path declared by a
+// scenario's service contract. It is optional so existing test doubles and
+// external routes retain the /health default.
+type ReadinessResolver interface {
+	HealthPath(ctx context.Context, scenario string) (string, error)
+}
+
 // CoreSetProvider returns the set of scenario names that must always be
 // exposed (the api-core/coreset closure). Injected so tests pin the set.
 type CoreSetProvider func() []string
@@ -350,10 +357,11 @@ func (s *service) Reconcile(ctx context.Context) (int, int, error) {
 			continue
 		}
 		if _, cerr := s.manifest.Create(ctx, manifest.CreateInput{
-			Subdomain: scenario,
-			Scenario:  scenario,
-			LocalPort: port,
-			Tier:      manifest.TierCore,
+			Subdomain:  scenario,
+			Scenario:   scenario,
+			LocalPort:  port,
+			Tier:       manifest.TierCore,
+			HealthPath: s.healthPath(ctx, scenario),
 		}); cerr != nil {
 			return coreEnsured, 0, cerr
 		}
@@ -454,11 +462,24 @@ func (s *service) ensureRoute(ctx context.Context, scenario string) (manifest.Ro
 		return manifest.Route{}, err
 	}
 	return s.manifest.Create(ctx, manifest.CreateInput{
-		Subdomain: scenario,
-		Scenario:  scenario,
-		LocalPort: port,
-		Tier:      manifest.TierLeased,
+		Subdomain:  scenario,
+		Scenario:   scenario,
+		LocalPort:  port,
+		Tier:       manifest.TierLeased,
+		HealthPath: s.healthPath(ctx, scenario),
 	})
+}
+
+func (s *service) healthPath(ctx context.Context, scenario string) string {
+	path := manifest.DefaultHealthPath
+	resolver, ok := s.ports.(ReadinessResolver)
+	if !ok {
+		return path
+	}
+	if resolved, err := resolver.HealthPath(ctx, scenario); err == nil && strings.TrimSpace(resolved) != "" {
+		return resolved
+	}
+	return path
 }
 
 // retractRoute disables the LEASED route(s) for a scenario. CORE routes are

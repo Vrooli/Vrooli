@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-service",
   "catalogId": "navigation.scroll-restoration",
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:ScrollRestoration",
-  "displayName": "ScrollRestoration",
-  "description": "The service restoring or resetting scroll position based on route, history action, content identity, and explicit user intent, rather than always jumping to the top.",
-  "tags": [],
-  "draft": "",
   "deprecatedVersions": [],
   "designStyles": [
     {
@@ -15,5 +9,8 @@
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:ScrollRestoration"
 }

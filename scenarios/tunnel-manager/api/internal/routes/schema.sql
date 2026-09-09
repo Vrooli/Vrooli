@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS routes (
   id             TEXT PRIMARY KEY,
   subdomain      TEXT NOT NULL UNIQUE,
   scenario       TEXT NOT NULL,
-  domain         TEXT NOT NULL DEFAULT 'itsagitime.com',
+  domain         TEXT NOT NULL,
   local_port     INTEGER NOT NULL,
   tier           TEXT NOT NULL DEFAULT 'leased',
   lease_id       TEXT NOT NULL DEFAULT '',

@@ -12,14 +12,14 @@ import (
 )
 
 // ListVPSBundles lists bundles under <workdir>/.vrooli/cloud/bundles on the target VPS.
-func ListVPSBundles(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, workdir string) ([]domain.VPSBundleInfo, int64, error) {
+func ListVPSBundles(ctx context.Context, sshRunner ssh.Runner, cfg ssh.ConnectionConfig, workdir string) ([]domain.VPSBundleInfo, int64, error) {
 	bundlesPath := shellutil.SafeRemoteJoin(workdir, ".vrooli/cloud/bundles")
 	return listVPSBundlesByPath(ctx, sshRunner, cfg, bundlesPath)
 }
 
 // listVPSBundlesByPath lists bundles under the given remote bundlesPath via SSH.
 // bundlesPath should be an absolute path (typically <workdir>/.vrooli/cloud/bundles).
-func listVPSBundlesByPath(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, bundlesPath string) ([]domain.VPSBundleInfo, int64, error) {
+func listVPSBundlesByPath(ctx context.Context, sshRunner ssh.Runner, cfg ssh.ConnectionConfig, bundlesPath string) ([]domain.VPSBundleInfo, int64, error) {
 	// List bundles with size and modification time (format: size_bytes\tfilename\tmod_time_unix)
 	listCmd := fmt.Sprintf(
 		`cd %s 2>/dev/null && ls -1 mini-vrooli_*.tar.gz 2>/dev/null | while read f; do stat --printf="%%s\t%%n\t%%Y\n" "$f" 2>/dev/null; done || true`,

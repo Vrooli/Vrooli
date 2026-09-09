@@ -5,20 +5,17 @@
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.0"
-  ],
-  "latest": "1.1.1",
-  "libraryId": "react-component-library:useMediaQuery",
-  "displayName": "useMediaQuery",
-  "description": "A hydration-safe media-query primitive with shared subscriptions and a deterministic initial value, used for behavioral adaptation rather than styling.",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:useMediaQuery"
 }

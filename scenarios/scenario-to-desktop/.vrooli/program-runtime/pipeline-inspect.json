@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "scenario-to-desktop.pipeline-inspect",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Inspect one desktop pipeline and its investigation tasks without restarting work or treating packaging success as release approval.",
   "inputs": {
     "scenario": {
@@ -83,7 +86,9 @@
         "kernel_runtime",
         "pipeline_not_found",
         "invalid_response",
-        "identity_mismatch"
+        "identity_mismatch",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Successfully read binding IDs; selected pipeline or capture identities are in signals."

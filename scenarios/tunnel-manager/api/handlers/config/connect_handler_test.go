@@ -74,6 +74,11 @@ type fakeService struct {
 	accessStatusOut   internalconfig.AccessStatus
 	accessStatusErr   error
 	accessStatusCalls int
+	bindingOut        internalconfig.AccessRuntimeBinding
+	bindingErr        error
+	bindingCalls      int
+	bindingScenario   string
+	bindingHostname   string
 }
 
 func (f *fakeService) GetConfig(context.Context) (internalconfig.TunnelConfig, error) {
@@ -156,6 +161,12 @@ func (f *fakeService) GetAccessStatus(context.Context) (internalconfig.AccessSta
 	return f.accessStatusOut, f.accessStatusErr
 }
 
+func (f *fakeService) GetAuthenticationBinding(_ context.Context, scenario, hostname string) (internalconfig.AccessRuntimeBinding, error) {
+	f.bindingCalls++
+	f.bindingScenario, f.bindingHostname = scenario, hostname
+	return f.bindingOut, f.bindingErr
+}
+
 func newClient(t *testing.T, svc internalconfig.Service) configconnect.ConfigServiceClient {
 	t.Helper()
 	return newClientWithAuthorizer(t, svc, nil)
@@ -199,6 +210,22 @@ func TestHandlerGetConfigMapsMode(t *testing.T) {
 	require.Equal(t, "vrooli/tunnel-manager:cloudflare-api-token", resp.Msg.Readiness.CredentialRef)
 	require.Len(t, resp.Msg.Readiness.CredentialFields, 1)
 	require.Equal(t, "CLOUDFLARE_API_TOKEN", resp.Msg.Readiness.CredentialFields[0].Name)
+}
+
+func TestHandlerGetAuthenticationBinding(t *testing.T) {
+	fake := &fakeService{bindingOut: internalconfig.AccessRuntimeBinding{
+		TeamDomain: "https://team.cloudflareaccess.com", Audience: "aud", RecoveryURL: "https://team.cloudflareaccess.com",
+	}}
+	client := newClient(t, fake)
+	resp, err := client.GetAuthenticationBinding(context.Background(), connect.NewRequest(&configv1.GetAuthenticationBindingRequest{
+		Scenario: "git-control-tower", Hostname: "gct.example.invalid",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "git-control-tower", fake.bindingScenario)
+	require.Equal(t, "gct.example.invalid", fake.bindingHostname)
+	require.Equal(t, "https://team.cloudflareaccess.com", resp.Msg.Binding.TeamDomain)
+	require.Equal(t, "aud", resp.Msg.Binding.Audience)
+	require.Equal(t, "https://team.cloudflareaccess.com", resp.Msg.Binding.RecoveryUrl)
 }
 
 func TestHandlerGetCredentialStatusRedactsTokenValue(t *testing.T) {
@@ -272,8 +299,8 @@ func TestHandlerClearCloudflareCredentialsPassesFields(t *testing.T) {
 func TestHandlerSyncMapsResponse(t *testing.T) {
 	fake := &fakeService{syncOut: internalconfig.SyncResult{
 		Mode:    internalconfig.ModeLocal,
-		Added:   []string{"agent-manager.itsagitime.com"},
-		Removed: []string{"legacy.itsagitime.com"},
+		Added:   []string{"agent-manager.example.invalid"},
+		Removed: []string{"legacy.example.invalid"},
 		Message: "dry-run complete",
 	}}
 	client := newClient(t, fake)
@@ -282,8 +309,8 @@ func TestHandlerSyncMapsResponse(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, fake.syncDry, "dry_run propagated to service")
 	require.Equal(t, configv1.Mode_MODE_LOCAL, resp.Msg.Mode)
-	require.Equal(t, []string{"agent-manager.itsagitime.com"}, resp.Msg.Added)
-	require.Equal(t, []string{"legacy.itsagitime.com"}, resp.Msg.Removed)
+	require.Equal(t, []string{"agent-manager.example.invalid"}, resp.Msg.Added)
+	require.Equal(t, []string{"legacy.example.invalid"}, resp.Msg.Removed)
 	require.False(t, resp.Msg.NoChanges)
 	require.Equal(t, "dry-run complete", resp.Msg.Message)
 }
@@ -340,7 +367,7 @@ func TestHandlerGetDriftMapsReport(t *testing.T) {
 	fake := &fakeService{driftOut: internalconfig.DriftReport{
 		Mode: internalconfig.ModeRemote,
 		Entries: []internalconfig.IngressEntry{
-			{Hostname: "a.itsagitime.com", State: internalconfig.StateManaged, Source: internalconfig.SourceScenario, Scenario: "agent-manager", ServiceTarget: "http://localhost:21100"},
+			{Hostname: "a.example.invalid", State: internalconfig.StateManaged, Source: internalconfig.SourceScenario, Scenario: "agent-manager", ServiceTarget: "http://localhost:21100"},
 			{Hostname: "b.example.com", State: internalconfig.StateUnmanaged},
 		},
 		Counts: map[internalconfig.OwnershipState]int{
@@ -363,14 +390,14 @@ func TestHandlerGetDriftMapsReport(t *testing.T) {
 }
 
 func TestHandlerAdoptIngressPassesArgs(t *testing.T) {
-	fake := &fakeService{adoptOut: internalconfig.IngressEntry{Hostname: "api.itsagitime.com", State: internalconfig.StateExternalOK, Source: internalconfig.SourceExternal}}
+	fake := &fakeService{adoptOut: internalconfig.IngressEntry{Hostname: "api.example.invalid", State: internalconfig.StateExternalOK, Source: internalconfig.SourceExternal}}
 	client := newClient(t, fake)
 
 	resp, err := client.AdoptIngress(context.Background(), connect.NewRequest(&configv1.AdoptIngressRequest{
-		Hostname: "api.itsagitime.com", Target: "http://127.0.0.1:9000",
+		Hostname: "api.example.invalid", Target: "http://127.0.0.1:9000",
 	}))
 	require.NoError(t, err)
-	require.Equal(t, "api.itsagitime.com", fake.adoptHost)
+	require.Equal(t, "api.example.invalid", fake.adoptHost)
 	require.Equal(t, "http://127.0.0.1:9000", fake.adoptTarget)
 	require.Equal(t, configv1.OwnershipState_OWNERSHIP_STATE_EXTERNAL_OK, resp.Msg.Entry.State)
 }
@@ -378,18 +405,18 @@ func TestHandlerAdoptIngressPassesArgs(t *testing.T) {
 func TestHandlerAdoptIngressRequiresOperatorTokenWhenEnforced(t *testing.T) {
 	fake := &fakeService{}
 	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
-	_, err := client.AdoptIngress(context.Background(), connect.NewRequest(&configv1.AdoptIngressRequest{Hostname: "x.itsagitime.com"}))
+	_, err := client.AdoptIngress(context.Background(), connect.NewRequest(&configv1.AdoptIngressRequest{Hostname: "x.example.invalid"}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 	require.Zero(t, fake.adoptCalls, "denied adopt must not reach the service")
 }
 
 func TestHandlerIgnoreIngressPassesNote(t *testing.T) {
-	fake := &fakeService{ignoreOut: internalconfig.IngressEntry{Hostname: "legacy.itsagitime.com", State: internalconfig.StateIgnored}}
+	fake := &fakeService{ignoreOut: internalconfig.IngressEntry{Hostname: "legacy.example.invalid", State: internalconfig.StateIgnored}}
 	client := newClient(t, fake)
-	resp, err := client.IgnoreIngress(context.Background(), connect.NewRequest(&configv1.IgnoreIngressRequest{Hostname: "legacy.itsagitime.com", Note: "dashboard"}))
+	resp, err := client.IgnoreIngress(context.Background(), connect.NewRequest(&configv1.IgnoreIngressRequest{Hostname: "legacy.example.invalid", Note: "dashboard"}))
 	require.NoError(t, err)
-	require.Equal(t, "legacy.itsagitime.com", fake.ignoreHost)
+	require.Equal(t, "legacy.example.invalid", fake.ignoreHost)
 	require.Equal(t, "dashboard", fake.ignoreNote)
 	require.Equal(t, configv1.OwnershipState_OWNERSHIP_STATE_IGNORED, resp.Msg.Entry.State)
 }
@@ -397,8 +424,8 @@ func TestHandlerIgnoreIngressPassesNote(t *testing.T) {
 func TestHandlerPruneIngressReturnsPruned(t *testing.T) {
 	fake := &fakeService{pruneOut: true}
 	client := newClient(t, fake)
-	resp, err := client.PruneIngress(context.Background(), connect.NewRequest(&configv1.PruneIngressRequest{Hostname: "legacy.itsagitime.com"}))
+	resp, err := client.PruneIngress(context.Background(), connect.NewRequest(&configv1.PruneIngressRequest{Hostname: "legacy.example.invalid"}))
 	require.NoError(t, err)
-	require.Equal(t, "legacy.itsagitime.com", fake.pruneHost)
+	require.Equal(t, "legacy.example.invalid", fake.pruneHost)
 	require.True(t, resp.Msg.Pruned)
 }

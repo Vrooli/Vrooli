@@ -10,6 +10,13 @@
     "1.0.7",
     "1.0.8"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.5",
@@ -20,15 +27,5 @@
     "1.0.8"
   ],
   "latest": "1.0.10",
-  "libraryId": "react-component-library:Combobox",
-  "displayName": "Combobox",
-  "description": "The searchable selection field supporting local or remote options, typeahead, creation of new values, result highlighting, virtualization, async cancellation, and accessible active-option reporting.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:Combobox"
 }

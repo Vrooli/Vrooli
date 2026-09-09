@@ -33,7 +33,7 @@ func newLedger(t *testing.T) config.OwnershipLedger {
 
 func TestLedger_GetMissingReturnsNotFound(t *testing.T) {
 	l := newLedger(t)
-	_, found, err := l.Get(context.Background(), "nope.itsagitime.com")
+	_, found, err := l.Get(context.Background(), "nope.example.invalid")
 	require.NoError(t, err)
 	require.False(t, found)
 }
@@ -43,13 +43,13 @@ func TestLedger_PutGetListRoundTrip(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, l.Put(ctx, config.LedgerEntry{
-		Hostname: "a.itsagitime.com", Owner: config.OwnerManaged, Scenario: "agent-manager",
+		Hostname: "a.example.invalid", Owner: config.OwnerManaged, Scenario: "agent-manager",
 	}))
 	require.NoError(t, l.Put(ctx, config.LedgerEntry{
-		Hostname: "b.itsagitime.com", Owner: config.OwnerIgnored, Note: "operator dashboard",
+		Hostname: "b.example.invalid", Owner: config.OwnerIgnored, Note: "operator dashboard",
 	}))
 
-	got, found, err := l.Get(ctx, "a.itsagitime.com")
+	got, found, err := l.Get(ctx, "a.example.invalid")
 	require.NoError(t, err)
 	require.True(t, found)
 	require.Equal(t, config.OwnerManaged, got.Owner)
@@ -59,8 +59,8 @@ func TestLedger_PutGetListRoundTrip(t *testing.T) {
 	all, err := l.List(ctx)
 	require.NoError(t, err)
 	require.Len(t, all, 2)
-	require.Equal(t, "a.itsagitime.com", all[0].Hostname, "ordered by hostname")
-	require.Equal(t, "b.itsagitime.com", all[1].Hostname)
+	require.Equal(t, "a.example.invalid", all[0].Hostname, "ordered by hostname")
+	require.Equal(t, "b.example.invalid", all[1].Hostname)
 }
 
 // TestLedger_PutIsIdempotentUpsert: writing the same hostname twice keeps one
@@ -69,8 +69,8 @@ func TestLedger_PutIsIdempotentUpsert(t *testing.T) {
 	l := newLedger(t)
 	ctx := context.Background()
 
-	require.NoError(t, l.Put(ctx, config.LedgerEntry{Hostname: "h.itsagitime.com", Owner: config.OwnerExternal}))
-	require.NoError(t, l.Put(ctx, config.LedgerEntry{Hostname: "h.itsagitime.com", Owner: config.OwnerIgnored, Note: "changed mind"}))
+	require.NoError(t, l.Put(ctx, config.LedgerEntry{Hostname: "h.example.invalid", Owner: config.OwnerExternal}))
+	require.NoError(t, l.Put(ctx, config.LedgerEntry{Hostname: "h.example.invalid", Owner: config.OwnerIgnored, Note: "changed mind"}))
 
 	all, err := l.List(ctx)
 	require.NoError(t, err)
@@ -82,13 +82,13 @@ func TestLedger_PutIsIdempotentUpsert(t *testing.T) {
 func TestLedger_Delete(t *testing.T) {
 	l := newLedger(t)
 	ctx := context.Background()
-	require.NoError(t, l.Put(ctx, config.LedgerEntry{Hostname: "h.itsagitime.com", Owner: config.OwnerManaged}))
+	require.NoError(t, l.Put(ctx, config.LedgerEntry{Hostname: "h.example.invalid", Owner: config.OwnerManaged}))
 
-	removed, err := l.Delete(ctx, "h.itsagitime.com")
+	removed, err := l.Delete(ctx, "h.example.invalid")
 	require.NoError(t, err)
 	require.True(t, removed)
 
-	removed, err = l.Delete(ctx, "h.itsagitime.com")
+	removed, err = l.Delete(ctx, "h.example.invalid")
 	require.NoError(t, err)
 	require.False(t, removed, "deleting a missing row reports false")
 }

@@ -41,6 +41,19 @@ func (f *fakeRoutes) List(context.Context, internalroutes.Tier) ([]internalroute
 	return f.routes, nil
 }
 
+type fakeAccessMetadata struct {
+	binding config.AccessRuntimeBinding
+	err     error
+	host    string
+	calls   int
+}
+
+func (f *fakeAccessMetadata) ResolveRuntimeBinding(_ context.Context, host string) (config.AccessRuntimeBinding, error) {
+	f.calls++
+	f.host = host
+	return f.binding, f.err
+}
+
 // fakeIngress is an in-memory IngressClient recording the last push.
 type fakeIngress struct {
 	live   []config.IngressRule
@@ -188,6 +201,35 @@ func newSvc(repo config.ConfigRepository, routes config.RoutesReader, ingress co
 	})
 }
 
+func TestGetAuthenticationBindingResolvesScenarioRouteThroughMetadataReader(t *testing.T) {
+	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeLocal}}
+	routes := &fakeRoutes{routes: []internalroutes.Route{route("git-control-tower", 21400, true)}}
+	metadata := &fakeAccessMetadata{binding: config.AccessRuntimeBinding{
+		TeamDomain: "https://team.cloudflareaccess.com", Audience: "aud", RecoveryURL: "https://team.cloudflareaccess.com",
+	}}
+	svc := config.NewService(config.Deps{Repo: repo, Routes: routes, AccessMetadata: metadata})
+
+	binding, err := svc.GetAuthenticationBinding(context.Background(), "git-control-tower", "")
+	require.NoError(t, err)
+	require.Equal(t, metadata.binding, binding)
+	require.Equal(t, "git-control-tower.example.invalid", metadata.host)
+	require.Equal(t, 1, metadata.calls)
+}
+
+func TestGetAuthenticationBindingFailsClosedForAmbiguousScenarioRoutes(t *testing.T) {
+	metadata := &fakeAccessMetadata{binding: config.AccessRuntimeBinding{TeamDomain: "https://team.cloudflareaccess.com", Audience: "aud"}}
+	routes := &fakeRoutes{routes: []internalroutes.Route{
+		route("git-control-tower", 21400, true),
+		{Subdomain: "gct-alt", Scenario: "git-control-tower", Domain: internalroutes.DefaultDomain, LocalPort: 21401, Enabled: true},
+	}}
+	svc := config.NewService(config.Deps{Repo: &fakeRepo{}, Routes: routes, AccessMetadata: metadata})
+
+	_, err := svc.GetAuthenticationBinding(context.Background(), "git-control-tower", "")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "multiple enabled routes")
+	require.Zero(t, metadata.calls)
+}
+
 // --- Sync diff -------------------------------------------------------------
 
 // Sync is ADDITIVE by default: it adds desired hostnames and PRESERVES
@@ -203,17 +245,17 @@ func TestSync_AdditivePreservesForeignIngress(t *testing.T) {
 	// Live ingress has a managed hostname (web-console), a foreign one
 	// (legacy) TM did not author, and lacks agent-manager (to be added).
 	ingress := &fakeIngress{live: []config.IngressRule{
-		{Hostname: "web-console.itsagitime.com", Service: "http://localhost:3000"},
-		{Hostname: "legacy.itsagitime.com", Service: "http://localhost:1"},
+		{Hostname: "web-console.example.invalid", Service: "http://localhost:3000"},
+		{Hostname: "legacy.example.invalid", Service: "http://localhost:1"},
 		{Service: "http_status:404"},
 	}}
 	svc := newSvc(repo, routes, ingress, &mocks.FakeCmdRunner{})
 
 	res, err := svc.Sync(context.Background(), false, false)
 	require.NoError(t, err)
-	require.Equal(t, []string{"agent-manager.itsagitime.com"}, res.Added)
+	require.Equal(t, []string{"agent-manager.example.invalid"}, res.Added)
 	require.Empty(t, res.Removed, "additive sync removes nothing")
-	require.Equal(t, []string{"legacy.itsagitime.com"}, res.DriftUnmanaged, "foreign hostname surfaced as drift")
+	require.Equal(t, []string{"legacy.example.invalid"}, res.DriftUnmanaged, "foreign hostname surfaced as drift")
 	require.False(t, res.NoChanges)
 	require.Equal(t, config.ModeRemote, res.Mode)
 
@@ -227,9 +269,9 @@ func TestSync_AdditivePreservesForeignIngress(t *testing.T) {
 		require.NotContains(t, r.Hostname, "vrooli.com", "must not leak hardcoded apex")
 		require.NotContains(t, r.Hostname, "disabled-one")
 	}
-	require.True(t, pushedHosts["legacy.itsagitime.com"], "foreign ingress must survive an additive sync")
-	require.True(t, pushedHosts["agent-manager.itsagitime.com"])
-	require.True(t, pushedHosts["web-console.itsagitime.com"])
+	require.True(t, pushedHosts["legacy.example.invalid"], "foreign ingress must survive an additive sync")
+	require.True(t, pushedHosts["agent-manager.example.invalid"])
+	require.True(t, pushedHosts["web-console.example.invalid"])
 }
 
 // TestSync_LocalModeMergePreservesForeignConfigYAML: a local-mode sync reads
@@ -239,7 +281,7 @@ func TestSync_LocalModeMergePreservesForeignConfigYAML(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := dir + "/config.yml"
 	seed := "tunnel: tid-1\ningress:\n" +
-		"  - hostname: foreign.itsagitime.com\n    service: http://localhost:7000\n" +
+		"  - hostname: foreign.example.invalid\n    service: http://localhost:7000\n" +
 		"  - service: http_status:404\n"
 	require.NoError(t, os.WriteFile(cfgPath, []byte(seed), 0o644))
 
@@ -259,14 +301,14 @@ func TestSync_LocalModeMergePreservesForeignConfigYAML(t *testing.T) {
 
 	res, err := svc.Sync(context.Background(), false, false)
 	require.NoError(t, err)
-	require.Equal(t, []string{"agent-manager.itsagitime.com"}, res.Added)
-	require.Equal(t, []string{"foreign.itsagitime.com"}, res.DriftUnmanaged)
+	require.Equal(t, []string{"agent-manager.example.invalid"}, res.Added)
+	require.Equal(t, []string{"foreign.example.invalid"}, res.DriftUnmanaged)
 	require.Equal(t, 1, runner.CallCount(), "local sync restarts cloudflared")
 
 	written, err := os.ReadFile(cfgPath)
 	require.NoError(t, err)
-	require.Contains(t, string(written), "foreign.itsagitime.com", "foreign config.yml entry must survive an additive sync")
-	require.Contains(t, string(written), "agent-manager.itsagitime.com")
+	require.Contains(t, string(written), "foreign.example.invalid", "foreign config.yml entry must survive an additive sync")
+	require.Contains(t, string(written), "agent-manager.example.invalid")
 	require.Contains(t, string(written), "http_status:404")
 }
 
@@ -278,7 +320,7 @@ func TestSync_DryRunAppliesNothing(t *testing.T) {
 
 	res, err := svc.Sync(context.Background(), true, false)
 	require.NoError(t, err)
-	require.Equal(t, []string{"agent-manager.itsagitime.com"}, res.Added)
+	require.Equal(t, []string{"agent-manager.example.invalid"}, res.Added)
 	require.False(t, res.NoChanges)
 	require.Equal(t, 0, ingress.pushN, "dry-run pushes nothing")
 }
@@ -287,7 +329,7 @@ func TestSync_NoChangesPath(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
 	routes := &fakeRoutes{routes: []internalroutes.Route{route("agent-manager", 21100, true)}}
 	ingress := &fakeIngress{live: []config.IngressRule{
-		{Hostname: "agent-manager.itsagitime.com", Service: "http://localhost:21100"},
+		{Hostname: "agent-manager.example.invalid", Service: "http://localhost:21100"},
 		{Service: "http_status:404"},
 	}}
 	svc := newSvc(repo, routes, ingress, &mocks.FakeCmdRunner{})
@@ -307,12 +349,12 @@ func TestSync_PruneRemovesOrphanedOnly(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
 	routes := &fakeRoutes{routes: []internalroutes.Route{route("agent-manager", 21100, true)}}
 	ingress := &fakeIngress{live: []config.IngressRule{
-		{Hostname: "agent-manager.itsagitime.com", Service: "http://localhost:21100"},
-		{Hostname: "orphan.itsagitime.com", Service: "http://localhost:2"}, // ledger MANAGED, route gone
+		{Hostname: "agent-manager.example.invalid", Service: "http://localhost:21100"},
+		{Hostname: "orphan.example.invalid", Service: "http://localhost:2"}, // ledger MANAGED, route gone
 		{Hostname: "foreign.example.com", Service: "http://localhost:3"},   // UNMANAGED
 		{Service: "http_status:404"},
 	}}
-	ledger := newFakeLedger(config.LedgerEntry{Hostname: "orphan.itsagitime.com", Owner: config.OwnerManaged})
+	ledger := newFakeLedger(config.LedgerEntry{Hostname: "orphan.example.invalid", Owner: config.OwnerManaged})
 	svc := config.NewService(config.Deps{
 		Repo: repo, Routes: routes, Ingress: ingress, Ledger: ledger,
 		Runner: (&mocks.FakeCmdRunner{}).Run,
@@ -321,20 +363,20 @@ func TestSync_PruneRemovesOrphanedOnly(t *testing.T) {
 
 	res, err := svc.Sync(context.Background(), false, true)
 	require.NoError(t, err)
-	require.Equal(t, []string{"orphan.itsagitime.com"}, res.Orphaned)
-	require.Equal(t, []string{"orphan.itsagitime.com"}, res.Pruned)
+	require.Equal(t, []string{"orphan.example.invalid"}, res.Orphaned)
+	require.Equal(t, []string{"orphan.example.invalid"}, res.Pruned)
 	require.Equal(t, []string{"foreign.example.com"}, res.DriftUnmanaged)
 
 	pushedHosts := map[string]bool{}
 	for _, r := range ingress.pushed {
 		pushedHosts[r.Hostname] = true
 	}
-	require.False(t, pushedHosts["orphan.itsagitime.com"], "orphaned entry pruned")
+	require.False(t, pushedHosts["orphan.example.invalid"], "orphaned entry pruned")
 	require.True(t, pushedHosts["foreign.example.com"], "unmanaged drift left intact even with --prune")
-	require.True(t, pushedHosts["agent-manager.itsagitime.com"])
+	require.True(t, pushedHosts["agent-manager.example.invalid"])
 
 	// The pruned hostname's ledger record is cleared.
-	_, found, err := ledger.Get(context.Background(), "orphan.itsagitime.com")
+	_, found, err := ledger.Get(context.Background(), "orphan.example.invalid")
 	require.NoError(t, err)
 	require.False(t, found)
 }
@@ -354,7 +396,7 @@ func TestSync_RecordsManagedOwnership(t *testing.T) {
 
 	_, err := svc.Sync(context.Background(), false, false)
 	require.NoError(t, err)
-	got, found, err := ledger.Get(context.Background(), "agent-manager.itsagitime.com")
+	got, found, err := ledger.Get(context.Background(), "agent-manager.example.invalid")
 	require.NoError(t, err)
 	require.True(t, found)
 	require.Equal(t, config.OwnerManaged, got.Owner)
@@ -455,12 +497,12 @@ func TestGetDrift_ClassifiesDesiredLiveAndLedger(t *testing.T) {
 		route("new-one", 21200, true),       // desired & !live → MISSING
 	}}
 	ingress := &fakeIngress{live: []config.IngressRule{
-		{Hostname: "agent-manager.itsagitime.com", Service: "http://localhost:21100"},
+		{Hostname: "agent-manager.example.invalid", Service: "http://localhost:21100"},
 		{Hostname: "foreign.example.com", Service: "http://localhost:1"}, // UNMANAGED
-		{Hostname: "kept.itsagitime.com", Service: "http://localhost:2"}, // IGNORED
+		{Hostname: "kept.example.invalid", Service: "http://localhost:2"}, // IGNORED
 		{Service: "http_status:404"},
 	}}
-	ledger := newFakeLedger(config.LedgerEntry{Hostname: "kept.itsagitime.com", Owner: config.OwnerIgnored})
+	ledger := newFakeLedger(config.LedgerEntry{Hostname: "kept.example.invalid", Owner: config.OwnerIgnored})
 	svc := config.NewService(config.Deps{
 		Repo: repo, Routes: routes, Ingress: ingress, Ledger: ledger,
 		Runner: (&mocks.FakeCmdRunner{}).Run,
@@ -493,9 +535,9 @@ func TestGetDrift_LocalDefaultWithCredentialsReadsRemote(t *testing.T) {
 	// The real remote tunnel already has the managed route plus other ingress
 	// the operator registered directly on Cloudflare.
 	ingress := &fakeIngress{live: []config.IngressRule{
-		{Hostname: "agent-manager.itsagitime.com", Service: "http://localhost:21100"},
-		{Hostname: "app-monitor.itsagitime.com", Service: "http://localhost:5000"}, // UNMANAGED
-		{Hostname: "web-console.itsagitime.com", Service: "http://localhost:6000"}, // UNMANAGED
+		{Hostname: "agent-manager.example.invalid", Service: "http://localhost:21100"},
+		{Hostname: "app-monitor.example.invalid", Service: "http://localhost:5000"}, // UNMANAGED
+		{Hostname: "web-console.example.invalid", Service: "http://localhost:6000"}, // UNMANAGED
 		{Service: "http_status:404"},
 	}}
 	// A wired Ingress client (≈ complete credentials) means remote is available.
@@ -526,31 +568,31 @@ func driftSvc(repo config.ConfigRepository, routes config.RoutesReader, writer c
 
 func TestAdoptIngress_AsExternalCreatesRouteAndLedger(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
-	ingress := &fakeIngress{live: []config.IngressRule{{Hostname: "api.itsagitime.com", Service: "http://127.0.0.1:9000"}}}
+	ingress := &fakeIngress{live: []config.IngressRule{{Hostname: "api.example.invalid", Service: "http://127.0.0.1:9000"}}}
 	writer := &fakeRoutesWriter{bySubdom: map[string]internalroutes.Route{}}
 	ledger := newFakeLedger()
 	svc := driftSvc(repo, &fakeRoutes{}, writer, ingress, ledger)
 
-	entry, err := svc.AdoptIngress(context.Background(), "api.itsagitime.com", "", "")
+	entry, err := svc.AdoptIngress(context.Background(), "api.example.invalid", "", "")
 	require.NoError(t, err)
 	require.Equal(t, config.StateExternalOK, entry.State)
 	require.Equal(t, config.SourceExternal, entry.Source)
 	require.Len(t, writer.created, 1)
 	require.Equal(t, internalroutes.SourceExternal, writer.created[0].Source)
 	require.Equal(t, "http://127.0.0.1:9000", writer.created[0].ServiceTarget, "adopts the live target when none supplied")
-	got, found, _ := ledger.Get(context.Background(), "api.itsagitime.com")
+	got, found, _ := ledger.Get(context.Background(), "api.example.invalid")
 	require.True(t, found)
 	require.Equal(t, config.OwnerExternal, got.Owner)
 }
 
 func TestAdoptIngress_AsScenarioParsesPort(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
-	ingress := &fakeIngress{live: []config.IngressRule{{Hostname: "web.itsagitime.com", Service: "http://localhost:3000"}}}
+	ingress := &fakeIngress{live: []config.IngressRule{{Hostname: "web.example.invalid", Service: "http://localhost:3000"}}}
 	writer := &fakeRoutesWriter{bySubdom: map[string]internalroutes.Route{}}
 	ledger := newFakeLedger()
 	svc := driftSvc(repo, &fakeRoutes{}, writer, ingress, ledger)
 
-	entry, err := svc.AdoptIngress(context.Background(), "web.itsagitime.com", "web-console", "")
+	entry, err := svc.AdoptIngress(context.Background(), "web.example.invalid", "web-console", "")
 	require.NoError(t, err)
 	require.Equal(t, config.StateManaged, entry.State)
 	require.Equal(t, internalroutes.SourceScenario, writer.created[0].Source)
@@ -566,7 +608,7 @@ func TestAdoptIngress_AsScenarioParsesPort(t *testing.T) {
 func TestAdoptIngress_BareAdoptAutoDetectsScenario(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
 	ingress := &fakeIngress{live: []config.IngressRule{
-		{Hostname: "agent-inbox.itsagitime.com", Service: "http://localhost:21237"},
+		{Hostname: "agent-inbox.example.invalid", Service: "http://localhost:21237"},
 	}}
 	writer := &fakeRoutesWriter{bySubdom: map[string]internalroutes.Route{}}
 	ledger := newFakeLedger()
@@ -577,7 +619,7 @@ func TestAdoptIngress_BareAdoptAutoDetectsScenario(t *testing.T) {
 		Clock:     scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 
-	entry, err := svc.AdoptIngress(context.Background(), "agent-inbox.itsagitime.com", "", "")
+	entry, err := svc.AdoptIngress(context.Background(), "agent-inbox.example.invalid", "", "")
 	require.NoError(t, err)
 	require.Equal(t, config.StateManaged, entry.State, "a known-scenario hostname adopts as a managed scenario route")
 	require.Equal(t, config.SourceScenario, entry.Source)
@@ -586,7 +628,7 @@ func TestAdoptIngress_BareAdoptAutoDetectsScenario(t *testing.T) {
 	require.Equal(t, "agent-inbox", writer.created[0].Scenario)
 	require.Equal(t, 21237, writer.created[0].LocalPort, "uses the scenario's real UI port, not 0")
 	require.Empty(t, writer.created[0].ServiceTarget, "scenario routes derive their target from the port")
-	got, found, _ := ledger.Get(context.Background(), "agent-inbox.itsagitime.com")
+	got, found, _ := ledger.Get(context.Background(), "agent-inbox.example.invalid")
 	require.True(t, found)
 	require.Equal(t, config.OwnerManaged, got.Owner)
 	require.Equal(t, "agent-inbox", got.Scenario)
@@ -598,7 +640,7 @@ func TestAdoptIngress_BareAdoptAutoDetectsScenario(t *testing.T) {
 func TestAdoptIngress_BareAdoptRangedPortScenarioUsesLivePort(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
 	ingress := &fakeIngress{live: []config.IngressRule{
-		{Hostname: "scenario-completeness-scoring.itsagitime.com", Service: "http://localhost:21242"},
+		{Hostname: "scenario-completeness-scoring.example.invalid", Service: "http://localhost:21242"},
 	}}
 	writer := &fakeRoutesWriter{bySubdom: map[string]internalroutes.Route{}}
 	ledger := newFakeLedger()
@@ -609,7 +651,7 @@ func TestAdoptIngress_BareAdoptRangedPortScenarioUsesLivePort(t *testing.T) {
 		Clock:     scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 
-	entry, err := svc.AdoptIngress(context.Background(), "scenario-completeness-scoring.itsagitime.com", "", "")
+	entry, err := svc.AdoptIngress(context.Background(), "scenario-completeness-scoring.example.invalid", "", "")
 	require.NoError(t, err)
 	require.Equal(t, config.StateManaged, entry.State)
 	require.Equal(t, internalroutes.SourceScenario, writer.created[0].Source)
@@ -623,7 +665,7 @@ func TestAdoptIngress_BareAdoptRangedPortScenarioUsesLivePort(t *testing.T) {
 func TestAdoptIngress_BareAdoptUnknownSubdomainFallsBackToExternal(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
 	ingress := &fakeIngress{live: []config.IngressRule{
-		{Hostname: "grafana.itsagitime.com", Service: "http://localhost:3000"},
+		{Hostname: "grafana.example.invalid", Service: "http://localhost:3000"},
 	}}
 	writer := &fakeRoutesWriter{bySubdom: map[string]internalroutes.Route{}}
 	ledger := newFakeLedger()
@@ -634,7 +676,7 @@ func TestAdoptIngress_BareAdoptUnknownSubdomainFallsBackToExternal(t *testing.T)
 		Clock:     scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 
-	entry, err := svc.AdoptIngress(context.Background(), "grafana.itsagitime.com", "", "")
+	entry, err := svc.AdoptIngress(context.Background(), "grafana.example.invalid", "", "")
 	require.NoError(t, err)
 	require.Equal(t, config.StateExternalOK, entry.State)
 	require.Equal(t, internalroutes.SourceExternal, writer.created[0].Source)
@@ -648,13 +690,13 @@ func TestAdoptIngress_BareAdoptUnknownSubdomainFallsBackToExternal(t *testing.T)
 func TestAdoptIngress_ReadoptRepairsExistingRoute(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
 	ingress := &fakeIngress{live: []config.IngressRule{
-		{Hostname: "agent-inbox.itsagitime.com", Service: "http://localhost:21237"},
+		{Hostname: "agent-inbox.example.invalid", Service: "http://localhost:21237"},
 	}}
 	// An existing, wrongly-external route for the same subdomain.
 	writer := &fakeRoutesWriter{bySubdom: map[string]internalroutes.Route{
 		"agent-inbox": {ID: "r-existing", Subdomain: "agent-inbox", Domain: internalroutes.DefaultDomain, Source: internalroutes.SourceExternal, ServiceTarget: "http://localhost:21237"},
 	}}
-	ledger := newFakeLedger(config.LedgerEntry{Hostname: "agent-inbox.itsagitime.com", Owner: config.OwnerExternal})
+	ledger := newFakeLedger(config.LedgerEntry{Hostname: "agent-inbox.example.invalid", Owner: config.OwnerExternal})
 	svc := config.NewService(config.Deps{
 		Repo: repo, Routes: &fakeRoutes{}, RoutesWriter: writer, Ledger: ledger, Ingress: ingress,
 		Scenarios: fakeScenarioResolver{ports: map[string]int{"agent-inbox": 21237}},
@@ -662,7 +704,7 @@ func TestAdoptIngress_ReadoptRepairsExistingRoute(t *testing.T) {
 		Clock:     scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 
-	entry, err := svc.AdoptIngress(context.Background(), "agent-inbox.itsagitime.com", "", "")
+	entry, err := svc.AdoptIngress(context.Background(), "agent-inbox.example.invalid", "", "")
 	require.NoError(t, err)
 	require.Equal(t, config.StateManaged, entry.State)
 	require.Empty(t, writer.created, "must not create a conflicting route")
@@ -670,21 +712,21 @@ func TestAdoptIngress_ReadoptRepairsExistingRoute(t *testing.T) {
 	require.Equal(t, internalroutes.SourceScenario, writer.updated[0].Source)
 	require.Equal(t, 21237, writer.updated[0].LocalPort)
 	require.Equal(t, "agent-inbox", writer.updated[0].Scenario)
-	got, _, _ := ledger.Get(context.Background(), "agent-inbox.itsagitime.com")
+	got, _, _ := ledger.Get(context.Background(), "agent-inbox.example.invalid")
 	require.Equal(t, config.OwnerManaged, got.Owner, "ledger flips EXTERNAL → MANAGED")
 }
 
 func TestIgnoreIngress_RecordsLedgerNoApply(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
-	ingress := &fakeIngress{live: []config.IngressRule{{Hostname: "legacy.itsagitime.com", Service: "http://localhost:1"}}}
+	ingress := &fakeIngress{live: []config.IngressRule{{Hostname: "legacy.example.invalid", Service: "http://localhost:1"}}}
 	ledger := newFakeLedger()
 	svc := driftSvc(repo, &fakeRoutes{}, nil, ingress, ledger)
 
-	entry, err := svc.IgnoreIngress(context.Background(), "legacy.itsagitime.com", "operator dashboard")
+	entry, err := svc.IgnoreIngress(context.Background(), "legacy.example.invalid", "operator dashboard")
 	require.NoError(t, err)
 	require.Equal(t, config.StateIgnored, entry.State)
 	require.Equal(t, 0, ingress.pushN, "ignore never applies")
-	got, found, _ := ledger.Get(context.Background(), "legacy.itsagitime.com")
+	got, found, _ := ledger.Get(context.Background(), "legacy.example.invalid")
 	require.True(t, found)
 	require.Equal(t, config.OwnerIgnored, got.Owner)
 	require.Equal(t, "operator dashboard", got.Note)
@@ -693,30 +735,30 @@ func TestIgnoreIngress_RecordsLedgerNoApply(t *testing.T) {
 func TestPruneIngress_RemovesNamedHostnameOnly(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
 	ingress := &fakeIngress{live: []config.IngressRule{
-		{Hostname: "drop.itsagitime.com", Service: "http://localhost:1"},
-		{Hostname: "keep.itsagitime.com", Service: "http://localhost:2"},
+		{Hostname: "drop.example.invalid", Service: "http://localhost:1"},
+		{Hostname: "keep.example.invalid", Service: "http://localhost:2"},
 		{Service: "http_status:404"},
 	}}
-	ledger := newFakeLedger(config.LedgerEntry{Hostname: "drop.itsagitime.com", Owner: config.OwnerExternal})
+	ledger := newFakeLedger(config.LedgerEntry{Hostname: "drop.example.invalid", Owner: config.OwnerExternal})
 	svc := driftSvc(repo, &fakeRoutes{}, nil, ingress, ledger)
 
-	pruned, err := svc.PruneIngress(context.Background(), "drop.itsagitime.com")
+	pruned, err := svc.PruneIngress(context.Background(), "drop.example.invalid")
 	require.NoError(t, err)
 	require.True(t, pruned)
 	pushedHosts := map[string]bool{}
 	for _, r := range ingress.pushed {
 		pushedHosts[r.Hostname] = true
 	}
-	require.False(t, pushedHosts["drop.itsagitime.com"])
-	require.True(t, pushedHosts["keep.itsagitime.com"])
-	_, found, _ := ledger.Get(context.Background(), "drop.itsagitime.com")
+	require.False(t, pushedHosts["drop.example.invalid"])
+	require.True(t, pushedHosts["keep.example.invalid"])
+	_, found, _ := ledger.Get(context.Background(), "drop.example.invalid")
 	require.False(t, found, "prune clears the ledger record")
 }
 
 func TestPruneIngress_MissingHostnameReturnsFalse(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
 	svc := driftSvc(repo, &fakeRoutes{}, nil, &fakeIngress{}, newFakeLedger())
-	pruned, err := svc.PruneIngress(context.Background(), "ghost.itsagitime.com")
+	pruned, err := svc.PruneIngress(context.Background(), "ghost.example.invalid")
 	require.NoError(t, err)
 	require.False(t, pruned)
 }

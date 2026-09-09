@@ -47,7 +47,7 @@ type fakeResult struct {
 	err error
 }
 
-func (f *fakeRunner) Run(_ context.Context, _ ssh.Config, cmd string, _ ssh.RunOptions) (ssh.Result, error) {
+func (f *fakeRunner) Run(_ context.Context, _ ssh.ConnectionConfig, cmd string, _ ssh.RunOptions) (ssh.Result, error) {
 	f.commands = append(f.commands, cmd)
 	idx := f.calls
 	f.calls++
@@ -66,7 +66,7 @@ func TestRunStepWithRetry_SuccessFirstAttempt(t *testing.T) {
 		},
 	}
 
-	err := RunStepWithRetry(context.Background(), runner, ssh.Config{Host: "test"}, "resource_start", "echo ok")
+	err := RunStepWithRetry(context.Background(), runner, ssh.ConnectionConfig{Host: "test"}, "resource_start", "echo ok")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestRunStepWithRetry_RetriesOnRetryableError(t *testing.T) {
 		},
 	}
 
-	err := RunStepWithRetry(context.Background(), runner, ssh.Config{Host: "test"}, "resource_start", "start postgres")
+	err := RunStepWithRetry(context.Background(), runner, ssh.ConnectionConfig{Host: "test"}, "resource_start", "start postgres")
 	if err != nil {
 		t.Fatalf("unexpected error after retry: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestRunStepWithRetry_NoRetryOnNonRetryableError(t *testing.T) {
 		},
 	}
 
-	err := RunStepWithRetry(context.Background(), runner, ssh.Config{Host: "test"}, "resource_start", "start postgres")
+	err := RunStepWithRetry(context.Background(), runner, ssh.ConnectionConfig{Host: "test"}, "resource_start", "start postgres")
 	if err == nil {
 		t.Fatal("expected error for non-retryable failure")
 	}
@@ -137,7 +137,7 @@ func TestRunStepWithRetry_RespectsMaxRetries(t *testing.T) {
 		},
 	}
 
-	err := RunStepWithRetry(context.Background(), runner, ssh.Config{Host: "test"}, "resource_start", "start postgres")
+	err := RunStepWithRetry(context.Background(), runner, ssh.ConnectionConfig{Host: "test"}, "resource_start", "start postgres")
 	if err == nil {
 		t.Fatal("expected error when all retries exhausted")
 	}
@@ -161,7 +161,7 @@ func TestRunStepWithRetry_NoRetryForStepWithoutConfig(t *testing.T) {
 		},
 	}
 
-	err := RunStepWithRetry(context.Background(), runner, ssh.Config{Host: "test"}, "unknown_step", "echo test")
+	err := RunStepWithRetry(context.Background(), runner, ssh.ConnectionConfig{Host: "test"}, "unknown_step", "echo test")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -188,7 +188,7 @@ func TestRunStepWithRetry_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
-	err := RunStepWithRetry(ctx, runner, ssh.Config{Host: "test"}, "resource_start", "start postgres")
+	err := RunStepWithRetry(ctx, runner, ssh.ConnectionConfig{Host: "test"}, "resource_start", "start postgres")
 	if err == nil {
 		t.Fatal("expected error on cancelled context")
 	}
