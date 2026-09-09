@@ -28,9 +28,12 @@ import (
 // short-circuiting before the first side effect.
 const dryRunHeader = "X-Dry-Run"
 
-func selectionFromProto(value *setupv1.Selection) *onboarding.Selection {
+func selectionFromProto(value *setupv1.Selection) (*onboarding.Selection, error) {
 	if value == nil {
-		return nil
+		return nil, nil
+	}
+	if version := strings.TrimSpace(value.GetSchemaVersion()); version != "" && version != "v1" {
+		return nil, fmt.Errorf("unsupported setup selection schema version %q; supported version is %q", version, "v1")
 	}
 	return &onboarding.Selection{
 		SchemaVersion:       value.GetSchemaVersion(),
@@ -47,7 +50,19 @@ func selectionFromProto(value *setupv1.Selection) *onboarding.Selection {
 		SessionMode:         value.GetSessionMode(),
 		OperatingMode:       mapsClone(value.GetOperatingMode()),
 		Apply:               value.GetApply(),
+		FieldPresence:       selectionFieldPresence(value.GetFieldPresence()),
+	}, nil
+}
+
+func selectionFieldPresence(values map[string]setupv1.SelectionFieldPresence) map[string]string {
+	if len(values) == 0 {
+		return nil
 	}
+	result := make(map[string]string, len(values))
+	for key, value := range values {
+		result[key] = value.String()
+	}
+	return result
 }
 
 func selectionFromJSON(value string) (*onboarding.Selection, error) {
@@ -57,6 +72,9 @@ func selectionFromJSON(value string) (*onboarding.Selection, error) {
 	var selection onboarding.Selection
 	if err := json.Unmarshal([]byte(value), &selection); err != nil {
 		return nil, fmt.Errorf("decode desired selection: %w", err)
+	}
+	if version := strings.TrimSpace(selection.SchemaVersion); version != "" && version != "v1" {
+		return nil, fmt.Errorf("unsupported setup selection schema version %q; supported version is %q", version, "v1")
 	}
 	return &selection, nil
 }
@@ -377,7 +395,10 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 		setupPassphrase = []byte(passphrase)
 	}
 
-	selected := selectionFromProto(req.Msg.GetSelection())
+	selected, selectionErr := selectionFromProto(req.Msg.GetSelection())
+	if selectionErr != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, selectionErr)
+	}
 	if selected == nil {
 		selected, err = selectionFromJSON(profile.SelectionJSON)
 		if err != nil {

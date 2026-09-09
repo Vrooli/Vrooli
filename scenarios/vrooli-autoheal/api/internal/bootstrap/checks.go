@@ -52,7 +52,12 @@ func RegisterChecksFromConfig(registry *checks.Registry, caps *platform.Capabili
 	factory.nonCriticalScenarios = nil
 	factory.resources = nil
 	RegisterChecksWithFactory(registry, caps, factory)
-	controller := NewSupervisionController(registry, configMgr, NewSupervisionSource(checks.DefaultExecutor))
+	controller := NewSupervisionController(
+		registry,
+		configMgr,
+		NewSupervisionSource(checks.DefaultExecutor),
+		newSupervisionDemandClient(checks.DefaultExecutor),
+	)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if _, err := controller.Refresh(ctx); err != nil {

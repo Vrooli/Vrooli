@@ -10,6 +10,7 @@ import (
 	"time"
 
 	platformgo "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/agentscope"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -85,10 +86,15 @@ type StormAuthority struct {
 	Gate func(ctx context.Context) (epochID string, allowed bool, reason string)
 	// Record writes one decision row; the idempotency key makes a repeated
 	// freeze of the same scope in the same epoch one row.
-	Record     func(ctx context.Context, decision StormDecision) error
-	Freeze     func(ref platformgo.ScopeRef) error
-	Thaw       func(ref platformgo.ScopeRef) error
-	Frozen     func(ref platformgo.ScopeRef) (bool, error)
+	Record func(ctx context.Context, decision StormDecision) error
+	Freeze func(ref platformgo.ScopeRef) error
+	Thaw   func(ref platformgo.ScopeRef) error
+	Frozen func(ref platformgo.ScopeRef) (bool, error)
+	// LiveAgent answers whether a coding agent is still running in the
+	// scope. The scope name is not the answer: a session that exited having
+	// started scenario servers leaves its scope named after the agent and
+	// full of supervised services.
+	LiveAgent  func(ref platformgo.ScopeRef) (bool, error)
 	WorkingDir func(pid int) (string, error)
 	Now        func() time.Time
 }
@@ -105,6 +111,7 @@ func NewProductionStormAuthority(mode string) *StormAuthority {
 		Freeze:     platformgo.FreezeScope,
 		Thaw:       platformgo.ThawScope,
 		Frozen:     platformgo.ScopeFrozen,
+		LiveAgent:  agentscope.NewReader().HoldsLiveAgent,
 		WorkingDir: platformgo.ProcessWorkingDir,
 		Now:        time.Now,
 	}
@@ -144,7 +151,8 @@ func ScopeRefForPath(cgroupPath string) platformgo.ScopeRef {
 }
 
 // Contain freezes the target's scope. It refuses a target outside the agent
-// slice before touching the gate, refuses when the gate cannot be read,
+// slice before touching the gate, refuses a scope whose coding agent has
+// exited, refuses when the gate cannot be read,
 // freezes through platform-go (which refuses again on the path), and records
 // the decision either way so a refusal is as durable as a freeze.
 func (a *StormAuthority) Contain(ctx context.Context, target StormTarget) (StormOutcome, error) {
@@ -157,13 +165,20 @@ func (a *StormAuthority) Contain(ctx context.Context, target StormTarget) (Storm
 		return StormOutcome{}, fmt.Errorf("contain-storm: refusing %s (pid %d): scope %q is not an agent session scope under vrooli-agents.slice; supervisors and resources are never frozen", target.Name, target.PID, target.ScopePath)
 	}
 	target.ScopeName = scopeName
+	ref := ScopeRefForPath(target.ScopePath)
+	live, liveErr := a.liveAgent(ref)
+	if liveErr != nil {
+		return StormOutcome{}, fmt.Errorf("contain-storm: refusing %s (pid %d): cannot read the membership of %s: %w; a scope that cannot be inspected is never frozen", target.Name, target.PID, scopeName, liveErr)
+	}
+	if !live {
+		return StormOutcome{}, fmt.Errorf("contain-storm: refusing %s (pid %d): %s holds no live coding agent; its session ended and left long-running children, so freezing it would stop scenario services, not a storm", target.Name, target.PID, scopeName)
+	}
 	if a.WorkingDir != nil && target.WorkingDir == "" {
 		if dir, err := a.WorkingDir(int(target.PID)); err == nil {
 			target.WorkingDir = dir
 		}
 	}
 	epochID, allowed, reason := a.gate(ctx)
-	ref := ScopeRefForPath(target.ScopePath)
 	thaw := "vrooli agent thaw " + strings.TrimSuffix(scopeName, ".scope")
 	if !allowed {
 		decision := StormDecision{EpochID: epochID, State: StormDecisionRefused, Reason: "runtime recovery gate closed: " + reason, IdempotencyKey: fmt.Sprintf("%s/%s/contain-storm/refused/%d", epochID, scopeName, now.Unix()), Target: target, At: now}
@@ -187,6 +202,16 @@ func (a *StormAuthority) Contain(ctx context.Context, target StormTarget) (Storm
 		return StormOutcome{Scope: ref, Target: target, EpochID: epochID, Decision: decision, ThawCommand: thaw, FrozenAt: now}, fmt.Errorf("contain-storm: froze %s but could not record the decision: %w", scopeName, err)
 	}
 	return StormOutcome{Scope: ref, Target: target, EpochID: epochID, Decision: decision, ThawCommand: thaw, FrozenAt: now}, nil
+}
+
+// liveAgent asks the membership question. No predicate configured is not
+// permission: an authority that cannot tell an agent from a scenario server
+// must refuse rather than guess.
+func (a *StormAuthority) liveAgent(ref platformgo.ScopeRef) (bool, error) {
+	if a.LiveAgent == nil {
+		return false, fmt.Errorf("no live-agent predicate is configured")
+	}
+	return a.LiveAgent(ref)
 }
 
 func (a *StormAuthority) gate(ctx context.Context) (string, bool, string) {

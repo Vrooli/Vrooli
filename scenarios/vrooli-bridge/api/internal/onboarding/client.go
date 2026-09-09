@@ -37,6 +37,7 @@ type Selection struct {
 	SessionMode         string            `json:"session_mode,omitempty"`
 	OperatingMode       map[string]string `json:"operating_mode,omitempty"`
 	Apply               bool              `json:"apply,omitempty"`
+	FieldPresence       map[string]string `json:"field_presence,omitempty"`
 }
 
 // HandoffRequest is the only identity Bridge sends across the scenario

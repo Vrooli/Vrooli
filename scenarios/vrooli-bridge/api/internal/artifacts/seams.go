@@ -9,12 +9,11 @@ type NodeReader interface {
 	GetTarget(ctx context.Context, id string) (TargetNode, error)
 }
 
-// DirectedDelivery is the device-sync-hub directed-delivery seam: hand an
-// artifact reference off to device-sync-hub, which moves the bytes to the target
-// node. Bridge implements NO byte transport of its own — this seam IS the
-// "bridge orchestrates, device-sync-hub moves the bytes" boundary. The handler
-// adapter binds the concrete device-sync-hub client (a documented integration
-// point, mirroring audit's workspace-sandbox drop-in); tests substitute a fake.
+// DirectedDelivery is the device-sync-hub directed-delivery seam: hand a source
+// reference to the concrete adapter, which transiently streams it into
+// device-sync-hub and lets the hub move/store the bytes for the target node.
+// Bridge owns no durable byte transport; this seam is the "bridge orchestrates,
+// device-sync-hub owns delivery" boundary. Tests substitute a fake.
 type DirectedDelivery interface {
 	Deliver(ctx context.Context, req DeliveryRequest) (DeliveryResult, error)
 }

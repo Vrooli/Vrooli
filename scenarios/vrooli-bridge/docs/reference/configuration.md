@@ -33,6 +33,9 @@ for the full policy.
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 | `BRIDGE_DESKTOP_OWNER_SOCKET` | unset | Optional absolute Unix socket for the node-local Device Control owner service. Desktop-bound Bridge sessions fail closed unless this explicit adapter path is configured. |
+| `BRIDGE_DEVICE_SYNC_URL` | (lifecycle discovery) | Optional device-sync-hub API base URL. When unset, Bridge resolves the live scenario through api-core discovery. |
+| `BRIDGE_DEVICE_SYNC_TOKEN` | unset | Trusted device-sync-hub device token used only for artifact uploads. Distribution fails closed when it is absent. Keep it in the operator secret store. |
+| `BRIDGE_DEVICE_SYNC_TARGETS` | unset | JSON object mapping Bridge registry node ids to device-sync-hub device ids, for example `{\"node-id\":\"hub-device-id\"}`. The ids are intentionally not conflated. |
 
 ### Delivery safety bounds
 

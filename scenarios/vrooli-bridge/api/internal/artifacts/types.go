@@ -1,10 +1,10 @@
 // Package artifacts is the domain-scoped home for non-git artifact distribution
 // (OT-P1-003): shipping a built desktop installer or a large test fixture to a
-// fleet node. Bridge does NOT move the bytes — it delegates to device-sync-hub's
-// directed delivery via the DirectedDelivery seam and records a durable
-// Distribution that tracks the delivery's reference + status. "Bridge
-// orchestrates, device-sync-hub moves the bytes." The artifact bytes never
-// transit bridge's SQLite store (DATA.md); only the reference + metadata do.
+// fleet node. Bridge does not own byte storage: it delegates delivery through
+// the DirectedDelivery seam, which may transiently stream a source into
+// device-sync-hub, and records a durable Distribution that tracks the
+// delivery's reference + status. The artifact bytes never enter Bridge's
+// SQLite store (DATA.md); only the reference + metadata do.
 //
 // Every outside-world dependency is a narrow seam declared HERE (seams.go) over
 // proto-free DTOs, so the domain imports no sibling domain and no proto: the

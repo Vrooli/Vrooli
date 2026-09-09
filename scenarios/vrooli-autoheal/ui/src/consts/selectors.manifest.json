@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "selectors": {
     "dashboard": {
       "testId": "autoheal-dashboard",
@@ -109,5 +110,9 @@
       "selector": "[data-testid=\"autoheal-system-protection-compact\"]"
     }
   },
-  "dynamicSelectors": {}
+  "dynamicSelectors": {},
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "95f9e446de12bc5dd643c5fecc3dc9204b31fe89a2fb38ab9de4d58604688c29"
+  }
 }

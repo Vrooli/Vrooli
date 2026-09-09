@@ -123,6 +123,39 @@
       "validation": [
         {"type": "unit", "status": "planned", "notes": "Tests assert level computation from a finding set and an error when an unmapped code is emitted."}
       ]
+    },
+    {
+      "id": "UH-ANALYZE-010",
+      "title": "Select reproducible review cohorts",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "api",
+      "criticality": "P1",
+      "description": "When bounded sampled review is requested, Unit Health shall select a deterministic stratified cohort with source identity, policy version, seed, denominator, clean controls, and exclusions. If inventory or source identity is unavailable, Unit Health shall report unavailable or unknown.",
+      "tags": ["sampling", "cohort", "evidence"],
+      "validation": [{"type": "unit", "status": "planned", "notes": "selection tests cover deterministic reselection, caps, controls, empty inventory, and source drift."}]
+    },
+    {
+      "id": "UH-ANALYZE-011",
+      "title": "Keep semantic review advisory",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "api",
+      "criticality": "P1",
+      "description": "When AI or human sampled observations are presented, Unit Health shall preserve advisory, partial, unavailable, invalid, and stale statuses separately from static and runtime proof. Unit Health shall not promote a rule from model agreement alone.",
+      "tags": ["advisory", "ai", "holdout"],
+      "validation": [{"type": "unit", "status": "planned", "notes": "holdout comparison retains unknowns and records independent reviewer, denominator, error counts, and owner decision."}]
+    },
+    {
+      "id": "UH-ANALYZE-012",
+      "title": "Classify mutation evidence",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "api",
+      "criticality": "P1",
+      "description": "When a disposable mutation pilot runs, Unit Health shall classify each experiment as killed, survived, invalid, equivalent, out_of_contract, infrastructure_failure, or unknown and shall retain source and test identities. Mutations shall not run in the shared worktree.",
+      "tags": ["mutation", "evidence", "safety"],
+      "validation": [{"type": "unit", "status": "planned", "notes": "mutation classifier tests cover every disposition and reject missing identities."}]
     }
   ]
 }

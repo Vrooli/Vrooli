@@ -28,7 +28,7 @@ func Module(db internalartifacts.SQLExecutor, clk schedule.Clock, registrySvc re
 	svc := internalartifacts.NewService(
 		internalartifacts.NewSQLiteRepository(db, clk),
 		nodeReaderAdapter{svc: registrySvc},
-		deviceSyncDelivery{},
+		newDeviceSyncDelivery(),
 		clk,
 		internalartifacts.WithProducedRepository(internalartifacts.NewSQLiteProducedRepository(db, clk)),
 		internalartifacts.WithRunReader(runReaderAdapter{svc: runsSvc}),

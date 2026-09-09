@@ -194,6 +194,9 @@ func (f *DefaultCheckFactory) CreateSystemChecks() []checks.Check {
 	systemChecks := []checks.Check{
 		system.NewDiskCheck(f.diskCheckOptions()...),
 		system.NewInodeCheck(),
+		// The other side of the containment ceilings the polite-host plan
+		// installed: how full they are, and which session scopes hold them.
+		system.NewContainmentOccupancyCheck(),
 		system.NewSwapCheck(),
 		system.NewMemoryCheck(), // RAM usage monitoring
 		system.NewZombieCheck(),

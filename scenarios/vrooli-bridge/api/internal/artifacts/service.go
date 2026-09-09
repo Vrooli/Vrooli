@@ -10,8 +10,8 @@ import (
 
 // Service is the application-layer surface the artifacts handler depends on. It
 // orchestrates one artifact distribution: validate the node, create a durable
-// record, hand the bytes off to device-sync-hub (the DirectedDelivery seam), and
-// track the resulting status — bridge moves no bytes of its own.
+// record, hand the source off to device-sync-hub (the DirectedDelivery seam),
+// and track the resulting status — bridge owns no durable byte storage.
 type Service interface {
 	// Distribute ships an artifact to a node via device-sync-hub directed
 	// delivery, recording a durable distribution. On a dry-run it validates and

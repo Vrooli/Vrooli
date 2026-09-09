@@ -20,15 +20,15 @@
           "type": "test",
           "ref": "api/internal/artifacts/distribute_test.go",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Artifact distribution delegates to a device-sync-hub directed-delivery seam; bridge implements no byte-transport of its own."
+          "status": "implemented",
+          "notes": "Focused service and handler tests pass; production wiring streams through device-sync-hub's authenticated multipart edge and fails closed without hub authority or target mapping."
         },
         {
           "type": "test",
           "ref": "api/internal/artifacts/devicesync_integration_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "An installer artifact reaches the target node via device-sync-hub and is available to the job."
+          "notes": "The domain integration shape is covered with durable SQLite and a delivery fake; live target receipt still requires an owner-issued hub token, target mapping, and a connected target device."
         }
       ]
     }

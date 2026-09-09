@@ -63,6 +63,32 @@ selection and independent expectation review follow rule design; the harness
 rejects mixed development/holdout partitions. A matching result is scoped to its
 version and claim, not proof of overall adequacy or permission to promote a rule.
 
+### Bounded sampled review
+
+Use the read-only Program Runtime contract `unit-health.test-quality-sample`
+for semantic review prioritization. Supply an exact scenario, workspace, source
+identity, seed, and sample size. The contract sorts candidates deterministically,
+prioritizes findings and unknowns, and keeps clean controls in the denominator.
+A partial or unavailable cohort is not empty evidence. AI labels are
+closed-vocabulary advisory observations; they require an independent holdout
+label before calibration.
+
+The contract emits one bounded envelope with policy version, seed, source
+identity, denominator, selected rows, excluded count, controls, and limitations.
+It never includes source bodies or credentials. Provider routing must use the
+governed AI Gateway typed classification path.
+
+Holdout labels are supplied independently to
+`go run ./cmd/test-quality-calibrate --holdout labels.json
+--holdout-observations observations.json` after rule and prompt versions are
+frozen. The report retains missing, stale, malformed, and uncertain rows as
+unknown and never promotes a rule automatically.
+
+Mutation pilots run in a disposable workspace. Record test and source identities
+and classify each receipt as killed, survived, invalid, equivalent,
+out_of_contract, infrastructure_failure, or unknown. A surviving valid mutant
+is a review signal. It does not establish a defect or change the shared tree.
+
 ### Scoped self-test classifications
 
 `AppShell.a11y.test.tsx` awaits `expectNoA11yViolations` through the local

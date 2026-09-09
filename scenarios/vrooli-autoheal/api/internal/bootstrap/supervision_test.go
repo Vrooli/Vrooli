@@ -7,8 +7,10 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/vrooli/api-core/coreset"
+	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	checksvrooli "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/vrooli"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
@@ -19,6 +21,44 @@ type mutableSupervisionExecutor struct {
 	mu     sync.Mutex
 	output []byte
 	err    error
+}
+
+type coreDemandFixture struct {
+	mu       sync.Mutex
+	acquires []demand.AcquireRequest
+	renews   []string
+	releases []string
+	err      error
+}
+
+func (f *coreDemandFixture) Acquire(_ context.Context, req demand.AcquireRequest) (demand.Lease, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.acquires = append(f.acquires, req)
+	if f.err != nil {
+		return demand.Lease{}, f.err
+	}
+	return demand.Lease{LeaseID: req.LeaseID, Scenario: req.Scenario, ConsumerID: req.ConsumerID, Kind: req.Kind, ExpiresAt: time.Now().Add(req.TTL)}, nil
+}
+
+func (f *coreDemandFixture) Renew(_ context.Context, leaseID string, _ time.Duration) (demand.Lease, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.renews = append(f.renews, leaseID)
+	if f.err != nil {
+		return demand.Lease{}, f.err
+	}
+	return demand.Lease{LeaseID: leaseID}, nil
+}
+
+func (f *coreDemandFixture) Release(_ context.Context, leaseID, _ string) (demand.Lease, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.releases = append(f.releases, leaseID)
+	if f.err != nil {
+		return demand.Lease{}, f.err
+	}
+	return demand.Lease{LeaseID: leaseID, Status: "released"}, nil
 }
 
 func (e *mutableSupervisionExecutor) set(report coreset.Report, err error) {
@@ -140,5 +180,117 @@ func TestSupervisionControllerReconcilesCanonicalSetAndAdditiveOverrides(t *test
 	canonical, _ = registry.GetCheck("scenario-search-hub")
 	if scenario := canonical.(*checksvrooli.ScenarioCheck); scenario.IsCritical() {
 		t.Fatal("try_start scenario must use warning severity")
+	}
+}
+
+func TestSupervisionControllerReconcilesCoreDemandLeases(t *testing.T) {
+	t.Setenv("VROOLI_ROOT", filepath.Clean("../../../../.."))
+	tmp := t.TempDir()
+	mgr := userconfig.NewManager(filepath.Join(tmp, "config.json"), filepath.Join(tmp, "schema.json"))
+	if err := mgr.Load(); err != nil {
+		t.Fatal(err)
+	}
+
+	executor := &mutableSupervisionExecutor{}
+	executor.set(supervisionReport(
+		supervisedMember("search-hub", coreset.MemberKindScenario, coreset.IntentMustStart),
+		supervisedMember("qdrant", coreset.MemberKindResource, coreset.IntentTryStart),
+	), nil)
+	demandFixture := &coreDemandFixture{}
+	controller := NewSupervisionController(
+		checks.NewRegistry(&platform.Capabilities{Platform: platform.Linux}),
+		mgr,
+		NewSupervisionSource(executor),
+		demandFixture,
+	)
+	if snapshot, err := controller.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	} else if len(snapshot.DemandErrors) != 0 {
+		t.Fatalf("initial demand reconciliation reported errors: %v", snapshot.DemandErrors)
+	}
+	if len(demandFixture.acquires) != 1 {
+		t.Fatalf("acquires = %d, want one scenario core hold", len(demandFixture.acquires))
+	}
+	acquired := demandFixture.acquires[0]
+	if acquired.Scenario != "search-hub" || acquired.Kind != demand.KindCore || acquired.ConsumerID != coreSupervisionConsumerID {
+		t.Fatalf("unexpected core lease request: %+v", acquired)
+	}
+	if acquired.TTL != coreSupervisionLeaseTTL {
+		t.Fatalf("core lease ttl = %s, want %s", acquired.TTL, coreSupervisionLeaseTTL)
+	}
+
+	if _, err := controller.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(demandFixture.renews) != 1 || len(demandFixture.acquires) != 1 {
+		t.Fatalf("second refresh should renew existing hold (acquires=%d renews=%d)", len(demandFixture.acquires), len(demandFixture.renews))
+	}
+
+	executor.set(supervisionReport(supervisedMember("qdrant", coreset.MemberKindResource, coreset.IntentTryStart)), nil)
+	if _, err := controller.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(demandFixture.releases) != 1 || demandFixture.releases[0] != acquired.LeaseID {
+		t.Fatalf("removed scenario core hold was not released: %+v", demandFixture.releases)
+	}
+}
+
+func TestSupervisionControllerKeepsCoreDemandLeasesOnDegradedSource(t *testing.T) {
+	t.Setenv("VROOLI_ROOT", filepath.Clean("../../../../.."))
+	tmp := t.TempDir()
+	mgr := userconfig.NewManager(filepath.Join(tmp, "config.json"), filepath.Join(tmp, "schema.json"))
+	if err := mgr.Load(); err != nil {
+		t.Fatal(err)
+	}
+	executor := &mutableSupervisionExecutor{}
+	executor.set(supervisionReport(supervisedMember("search-hub", coreset.MemberKindScenario, coreset.IntentMustStart)), nil)
+	demandFixture := &coreDemandFixture{}
+	controller := NewSupervisionController(
+		checks.NewRegistry(&platform.Capabilities{Platform: platform.Linux}),
+		mgr,
+		NewSupervisionSource(executor),
+		demandFixture,
+	)
+	if _, err := controller.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	executor.set(coreset.Report{}, errors.New("control plane unavailable"))
+	snapshot, err := controller.Refresh(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !snapshot.Degraded {
+		t.Fatal("expected last-known-good supervision snapshot")
+	}
+	if len(demandFixture.releases) != 0 {
+		t.Fatalf("degraded refresh released core holds: %+v", demandFixture.releases)
+	}
+	if len(demandFixture.renews) != 1 {
+		t.Fatalf("degraded refresh should renew retained core hold, renews=%v", demandFixture.renews)
+	}
+}
+
+func TestSupervisionSourceCheckReportsDemandLeaseFailure(t *testing.T) {
+	t.Setenv("VROOLI_ROOT", filepath.Clean("../../../../.."))
+	tmp := t.TempDir()
+	mgr := userconfig.NewManager(filepath.Join(tmp, "config.json"), filepath.Join(tmp, "schema.json"))
+	if err := mgr.Load(); err != nil {
+		t.Fatal(err)
+	}
+	executor := &mutableSupervisionExecutor{}
+	executor.set(supervisionReport(supervisedMember("search-hub", coreset.MemberKindScenario, coreset.IntentMustStart)), nil)
+	demandFixture := &coreDemandFixture{err: errors.New("runtime unavailable")}
+	controller := NewSupervisionController(
+		checks.NewRegistry(&platform.Capabilities{Platform: platform.Linux}),
+		mgr,
+		NewSupervisionSource(executor),
+		demandFixture,
+	)
+	result := (&supervisionSourceCheck{controller: controller}).Run(context.Background())
+	if result.Status != checks.StatusWarning {
+		t.Fatalf("status = %s, want warning: %+v", result.Status, result)
+	}
+	if result.Details["demandLeaseErrors"] == nil {
+		t.Fatalf("demand lease failure was not exposed: %+v", result.Details)
 	}
 }

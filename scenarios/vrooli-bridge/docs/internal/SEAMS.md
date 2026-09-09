@@ -401,9 +401,9 @@ Note: `internal/presence.Hub` is a concrete shared component (constructed once i
 
 | | |
 |---|---|
-| **Seam** | The "bridge orchestrates, device-sync-hub moves the bytes" boundary — bridge moves NO bytes and stores NO blob. |
+| **Seam** | The "bridge orchestrates, device-sync-hub owns the bytes" boundary — Bridge transiently streams the source but stores NO blob. |
 | **Interface** | `internal/artifacts/seams.go::DirectedDelivery` (`Deliver(DeliveryRequest) DeliveryResult`) + `NodeReader`. |
-| **Production wiring** | `handlers/artifacts/adapter.go::deviceSyncDelivery` produces a device-sync-hub delivery ref; the concrete device-sync-hub TransferService client is the documented drop-in behind this seam (mirroring audit's workspace-sandbox Sink — device-sync-hub carries an environmental authenticator blocker). |
+| **Production wiring** | `handlers/artifacts/adapter.go::deviceSyncDelivery` streams a local-path, `file://`, or HTTP(S) source through device-sync-hub's authenticated multipart upload edge and records the returned item ref. The hub URL, origin device token, and explicit Bridge-node→hub-device mapping are operator configuration; missing trust or mapping fails closed. |
 | **Test fake** | `internal/artifacts/mocks.FakeDelivery`; `distribute_test.go`, `devicesync_integration_test.go` (real sqlite). |
 | **Why it exists** | Bridge never reinvents file transport; the seam keeps the artifacts domain proto-free and lets the real device-sync-hub client drop in without touching the domain. |
 

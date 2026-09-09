@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/coreset"
+	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	checksvrooli "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/vrooli"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
@@ -18,6 +19,12 @@ import (
 )
 
 const supervisionSourceCheckID = "vrooli-supervision-set-source"
+
+const (
+	coreSupervisionConsumerID = "vrooli-autoheal:core-supervision"
+	coreSupervisionRequestID  = "core-supervision"
+	coreSupervisionLeaseTTL   = 2 * time.Minute
+)
 
 // SupervisionSnapshot records whether a report came directly from the control
 // plane or from the in-memory last-known-good copy. A source failure never
@@ -27,6 +34,10 @@ type SupervisionSnapshot struct {
 	Degraded  bool
 	SourceErr string
 	LoadedAt  time.Time
+	// DemandErrors reports lease synchronization failures without making the
+	// health controller discard a valid supervision set. A core lease is a
+	// safety hold; failure to refresh it must remain visible to operators.
+	DemandErrors []string
 }
 
 // SupervisionSource loads the one canonical supervision declaration and owns
@@ -108,15 +119,38 @@ func validateSupervisionReport(report coreset.Report) error {
 // check registry. Operator monitoring config is advisory only and cannot add
 // a second, unreconciled supervision universe.
 type SupervisionController struct {
-	mu        sync.Mutex
-	registry  *checks.Registry
-	configMgr *userconfig.Manager
-	source    *SupervisionSource
-	managed   map[string]struct{}
+	mu         sync.Mutex
+	registry   *checks.Registry
+	configMgr  *userconfig.Manager
+	source     *SupervisionSource
+	managed    map[string]struct{}
+	coreDemand demand.LeaseClient
+	coreLeases map[string]string
 }
 
-func NewSupervisionController(registry *checks.Registry, configMgr *userconfig.Manager, source *SupervisionSource) *SupervisionController {
-	return &SupervisionController{registry: registry, configMgr: configMgr, source: source, managed: make(map[string]struct{})}
+// NewSupervisionController accepts an optional demand client so unit tests can
+// exercise core-hold reconciliation without invoking the control-plane CLI.
+// Production wiring supplies a client; callers that do not supply one retain
+// the historical check-only behavior.
+func NewSupervisionController(registry *checks.Registry, configMgr *userconfig.Manager, source *SupervisionSource, coreDemand ...demand.LeaseClient) *SupervisionController {
+	var leaseClient demand.LeaseClient
+	if len(coreDemand) > 0 {
+		leaseClient = coreDemand[0]
+	}
+	return &SupervisionController{
+		registry:   registry,
+		configMgr:  configMgr,
+		source:     source,
+		managed:    make(map[string]struct{}),
+		coreDemand: leaseClient,
+		coreLeases: make(map[string]string),
+	}
+}
+
+func newSupervisionDemandClient(executor checks.CommandExecutor) demand.LeaseClient {
+	return demand.Client{Runner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		return executor.CombinedOutput(ctx, name, args...)
+	}}
 }
 
 func (c *SupervisionController) Refresh(ctx context.Context) (SupervisionSnapshot, error) {
@@ -126,6 +160,7 @@ func (c *SupervisionController) Refresh(ctx context.Context) (SupervisionSnapsho
 	}
 
 	desired := make(map[string]checks.Check)
+	desiredCoreLeases := make(map[string]string)
 
 	supervised := make(map[string]string, len(snapshot.Report.Members))
 	for _, member := range snapshot.Report.Members {
@@ -136,6 +171,10 @@ func (c *SupervisionController) Refresh(ctx context.Context) (SupervisionSnapsho
 		case coreset.MemberKindScenario:
 			id = "scenario-" + member.Name
 			check = checksvrooli.NewScenarioCheck(member.Name, critical, checksvrooli.WithScenarioSupervision(member.SupervisionIntent, member.AttributionChain))
+			if c.coreDemand != nil {
+				leaseID := demand.StableLeaseID(coreSupervisionConsumerID, member.Name, coreSupervisionRequestID)
+				desiredCoreLeases[leaseID] = member.Name
+			}
 		case coreset.MemberKindResource:
 			if kept, dropped := PruneMissingResources([]string{member.Name}); len(kept) == 0 {
 				if len(dropped) > 0 {
@@ -149,6 +188,14 @@ func (c *SupervisionController) Refresh(ctx context.Context) (SupervisionSnapsho
 		desired[id] = check
 		supervised[id] = member.SupervisionIntent
 	}
+
+	// Core supervision is an authority pin that composes with demand-managed
+	// lifecycle. It does not start or stop anything itself; it only prevents a
+	// demand-managed instance from being reaped while the canonical set still
+	// names it. A degraded source retains the last-known-good set and therefore
+	// must not release any existing pins.
+	demandErrors := c.reconcileCoreLeases(ctx, desiredCoreLeases, snapshot.Degraded)
+	snapshot.DemandErrors = demandErrors
 	// Report stale operator entries once per reconciliation, but never register
 	// them. This makes retirement observable without allowing the old additive
 	// config to recreate deleted scenarios or resources.
@@ -187,6 +234,77 @@ func (c *SupervisionController) Refresh(ctx context.Context) (SupervisionSnapsho
 	return snapshot, nil
 }
 
+func (c *SupervisionController) reconcileCoreLeases(ctx context.Context, desired map[string]string, degraded bool) []string {
+	if c.coreDemand == nil {
+		return nil
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	errorsOut := make([]string, 0)
+	desiredIDs := make([]string, 0, len(desired))
+	for leaseID := range desired {
+		desiredIDs = append(desiredIDs, leaseID)
+	}
+	sort.Strings(desiredIDs)
+	for _, leaseID := range desiredIDs {
+		scenario := desired[leaseID]
+		var renewErr error
+		if _, tracked := c.coreLeases[leaseID]; tracked {
+			if _, err := c.coreDemand.Renew(ctx, leaseID, coreSupervisionLeaseTTL); err == nil {
+				continue
+			} else {
+				// An expired lease cannot be revived by renew. Acquire below
+				// re-establishes the same stable identity when possible.
+				renewErr = err
+			}
+		}
+
+		metadata, _ := json.Marshal(map[string]string{
+			"source":  "core.seed",
+			"purpose": "autoheal supervision",
+		})
+		if _, err := c.coreDemand.Acquire(ctx, demand.AcquireRequest{
+			LeaseID:    leaseID,
+			Scenario:   scenario,
+			ConsumerID: coreSupervisionConsumerID,
+			Kind:       demand.KindCore,
+			RequestID:  coreSupervisionRequestID,
+			Metadata:   string(metadata),
+			TTL:        coreSupervisionLeaseTTL,
+		}); err != nil {
+			if renewErr != nil {
+				errorsOut = append(errorsOut, fmt.Sprintf("renew core lease %s for %s: %v; reacquire: %v", leaseID, scenario, renewErr, err))
+			} else {
+				errorsOut = append(errorsOut, fmt.Sprintf("acquire core lease %s for %s: %v", leaseID, scenario, err))
+			}
+			continue
+		}
+		c.coreLeases[leaseID] = scenario
+	}
+
+	if degraded {
+		return errorsOut
+	}
+	staleIDs := make([]string, 0, len(c.coreLeases))
+	for leaseID := range c.coreLeases {
+		if _, keep := desired[leaseID]; !keep {
+			staleIDs = append(staleIDs, leaseID)
+		}
+	}
+	sort.Strings(staleIDs)
+	for _, leaseID := range staleIDs {
+		scenario := c.coreLeases[leaseID]
+		if _, err := c.coreDemand.Release(ctx, leaseID, "canonical supervision member removed"); err != nil {
+			errorsOut = append(errorsOut, fmt.Sprintf("release core lease %s for %s: %v", leaseID, scenario, err))
+			continue
+		}
+		delete(c.coreLeases, leaseID)
+	}
+	return errorsOut
+}
+
 // Reconcile is the narrow handler-facing form used after operator monitoring
 // overrides change.
 func (c *SupervisionController) Reconcile(ctx context.Context) error {
@@ -223,10 +341,18 @@ func (c *supervisionSourceCheck) Run(ctx context.Context) checks.Result {
 	result.Details["source"] = snapshot.Report.Source
 	result.Details["loadedAt"] = snapshot.LoadedAt
 	result.Details["usingLastKnownGood"] = snapshot.Degraded
+	if len(snapshot.DemandErrors) > 0 {
+		result.Details["demandLeaseErrors"] = append([]string(nil), snapshot.DemandErrors...)
+	}
 	if snapshot.Degraded {
 		result.Status = checks.StatusWarning
 		result.Message = "canonical supervision set is unavailable; retaining last-known-good checks"
 		result.Details["sourceError"] = snapshot.SourceErr
+		return result
+	}
+	if len(snapshot.DemandErrors) > 0 {
+		result.Status = checks.StatusWarning
+		result.Message = "canonical supervision set loaded; core demand leases need attention"
 		return result
 	}
 	result.Status = checks.StatusOK

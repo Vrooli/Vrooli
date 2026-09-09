@@ -198,7 +198,7 @@ applications.
 
 Vrooli's credential store now encodes any value that is not single-line safe
 before it reaches a backend, so it cannot create this state again. See
-`internal/resources/securestore/values.go`.
+`internal/securestore/values.go`.
 
 ## Host posture
 

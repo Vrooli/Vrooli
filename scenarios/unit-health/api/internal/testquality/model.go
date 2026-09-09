@@ -256,6 +256,68 @@ type Report struct {
 	IncompleteReasons []Reason `json:"incompleteReasons,omitempty"`
 }
 
+// SampledObservation is advisory evidence from a bounded cohort review. It is
+// deliberately separate from Result so it cannot be mistaken for a rule verdict.
+type SampledObservation struct {
+	SchemaVersion  string   `json:"schemaVersion"`
+	CohortID       string   `json:"cohortId"`
+	SourceIdentity string   `json:"sourceIdentity"`
+	TestIdentity   string   `json:"testIdentity"`
+	Label          string   `json:"label"`
+	Status         string   `json:"status"` // observed, uncertain, unavailable, invalid, stale
+	Framework      string   `json:"framework,omitempty"`
+	Model          string   `json:"model,omitempty"`
+	Profile        string   `json:"profile,omitempty"`
+	PromptVersion  string   `json:"promptVersion,omitempty"`
+	UsageTokens    int      `json:"usageTokens,omitempty"`
+	EvidenceRefs   []string `json:"evidenceRefs,omitempty"`
+	Limitations    []string `json:"limitations,omitempty"`
+}
+
+var ReviewLabels = []string{"behavioral", "weak_oracle", "missing_negative_case", "implementation_coupled", "valid_exception", "insufficient_context", "uncertain"}
+
+func ValidReviewLabel(label string) bool {
+	for _, known := range ReviewLabels {
+		if label == known {
+			return true
+		}
+	}
+	return false
+}
+
+// HoldoutLabel is authored independently of static and AI observations.
+type HoldoutLabel struct {
+	TestIdentity   string `json:"testIdentity"`
+	SourceIdentity string `json:"sourceIdentity"`
+	RuleVersion    string `json:"ruleVersion"`
+	Label          string `json:"label"`
+	Reviewer       string `json:"reviewer"`
+	ReviewedAt     string `json:"reviewedAt"`
+}
+
+type MutationDisposition string
+
+const (
+	MutationKilled                MutationDisposition = "killed"
+	MutationSurvived              MutationDisposition = "survived"
+	MutationInvalid               MutationDisposition = "invalid"
+	MutationEquivalent            MutationDisposition = "equivalent"
+	MutationOutOfContract         MutationDisposition = "out_of_contract"
+	MutationInfrastructureFailure MutationDisposition = "infrastructure_failure"
+	MutationUnknown               MutationDisposition = "unknown"
+)
+
+type MutationEvidence struct {
+	SchemaVersion  string              `json:"schemaVersion"`
+	MutationID     string              `json:"mutationId"`
+	SourceIdentity string              `json:"sourceIdentity"`
+	TestIdentity   string              `json:"testIdentity"`
+	Disposition    MutationDisposition `json:"disposition"`
+	Command        string              `json:"command,omitempty"`
+	OutputDigest   string              `json:"outputDigest,omitempty"`
+	Limitations    []string            `json:"limitations,omitempty"`
+}
+
 func (r *Report) MarkIncomplete(reason Reason) {
 	if reason == "" || reason == ReasonNone {
 		return

@@ -17,6 +17,8 @@ func main() {
 	observations := flag.String("observations", "", "JSON object of case ID to adapter observations")
 	nativePath := flag.String("native-observations", "", "native runner observation JSON")
 	contextPath := flag.String("context-observations", "", "owner/reference observation JSON array")
+	holdoutPath := flag.String("holdout", "", "independently authored holdout labels JSON")
+	holdoutObservationsPath := flag.String("holdout-observations", "", "sampled observations JSON for holdout comparison")
 	outputPath := flag.String("output", "", "write the complete report to this file instead of stdout")
 	flag.Parse()
 	cases, err := calibration.LoadCases(*root, "development.json", "development")
@@ -78,18 +80,45 @@ func main() {
 		}
 	}
 	contextReport := calibration.CompareContext(contextCases, contextObservations)
+	var holdout *calibration.HoldoutComparison
+	if *holdoutPath != "" {
+		labelsData, err := os.ReadFile(*holdoutPath)
+		if err != nil {
+			fail(err)
+		}
+		var labels []testquality.HoldoutLabel
+		if err := json.Unmarshal(labelsData, &labels); err != nil {
+			fail(err)
+		}
+		var observations []testquality.SampledObservation
+		if *holdoutObservationsPath != "" {
+			obsData, err := os.ReadFile(*holdoutObservationsPath)
+			if err != nil {
+				fail(err)
+			}
+			if err := json.Unmarshal(obsData, &observations); err != nil {
+				fail(err)
+			}
+		}
+		comparison, err := calibration.CompareHoldout(labels, observations, testquality.SchemaVersion)
+		if err != nil {
+			fail(err)
+		}
+		holdout = &comparison
+	}
 	for _, row := range inventory {
 		if row.Disposition == "pending-fixture" {
 			pending++
 		}
 	}
 	out := struct {
-		Inventory    []calibration.InventoryEntry `json:"inventory"`
-		PendingCases int                          `json:"pendingCases"`
-		Calibration  calibration.Report           `json:"calibration"`
-		Native       calibration.NativeReport     `json:"native"`
-		Context      calibration.ContextReport    `json:"context"`
-	}{inventory, pending, report, native, contextReport}
+		Inventory    []calibration.InventoryEntry   `json:"inventory"`
+		PendingCases int                            `json:"pendingCases"`
+		Calibration  calibration.Report             `json:"calibration"`
+		Native       calibration.NativeReport       `json:"native"`
+		Context      calibration.ContextReport      `json:"context"`
+		Holdout      *calibration.HoldoutComparison `json:"holdout,omitempty"`
+	}{inventory, pending, report, native, contextReport, holdout}
 	output := os.Stdout
 	if *outputPath != "" {
 		file, err := os.Create(*outputPath)

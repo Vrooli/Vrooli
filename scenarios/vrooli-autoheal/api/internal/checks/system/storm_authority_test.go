@@ -27,6 +27,11 @@ type fakeStorm struct {
 	gateOpen  bool
 	gateErr   string
 	freezeErr error
+	// agentGone models the scope of a session that exited and left its
+	// scenario servers running; liveAgentErr models a scope that cannot be
+	// inspected at all.
+	agentGone    bool
+	liveAgentErr error
 }
 
 func newFakeStorm(mode string) (*StormAuthority, *fakeStorm) {
@@ -53,6 +58,12 @@ func newFakeStorm(mode string) (*StormAuthority, *fakeStorm) {
 			}
 			fake.frozen[ref.Path] = true
 			return nil
+		},
+		LiveAgent: func(platformgo.ScopeRef) (bool, error) {
+			if fake.liveAgentErr != nil {
+				return false, fake.liveAgentErr
+			}
+			return !fake.agentGone, nil
 		},
 		Thaw:       func(ref platformgo.ScopeRef) error { delete(fake.frozen, ref.Path); return nil },
 		Frozen:     func(ref platformgo.ScopeRef) (bool, error) { return fake.frozen[ref.Path], nil },
@@ -269,5 +280,71 @@ func TestStormDecisionRowRoundTrips(t *testing.T) {
 	}
 	if len(rows) != 1 || rows[0].State != StormDecisionContained || !strings.Contains(rows[0].DetailsJSON, "vrooli-agent-x.scope") {
 		t.Fatalf("rows = %+v", rows)
+	}
+}
+
+// A scope keeps its agent-shaped name after the session that minted it
+// exits, and on 2026-09-04 six such scopes on this host held 1,174 tasks of
+// scenario servers — test-genie, switchboard, storage-manager. Attribution
+// ranks by child count, so those scopes are the most attractive targets the
+// authority can be handed. Freezing one stops the fleet.
+func TestContainStormRefusesAScopeWhoseAgentHasExited(t *testing.T) {
+	authority, fake := newFakeStorm(ContainStormAutomatic)
+	fake.agentGone = true
+	target := StormTarget{Finding: "fork-rate", PID: 4242, Name: "test-genie-api", Children: 300, ScopePath: agentScopePath}
+
+	_, err := authority.Contain(context.Background(), target)
+	if err == nil {
+		t.Fatal("an agentless scope must be refused: it holds scenario services, not a session")
+	}
+	if !strings.Contains(err.Error(), "no live coding agent") {
+		t.Fatalf("refusal must name the reason: %v", err)
+	}
+	if len(fake.frozen) != 0 {
+		t.Fatalf("nothing may be frozen: %v", fake.frozen)
+	}
+}
+
+// The membership question failing is not permission to act.
+func TestContainStormRefusesWhenMembershipCannotBeRead(t *testing.T) {
+	authority, fake := newFakeStorm(ContainStormAutomatic)
+	fake.liveAgentErr = errors.New("cgroup.procs: permission denied")
+	target := StormTarget{Finding: "fork-rate", PID: 4242, Name: "claude", Children: 300, ScopePath: agentScopePath}
+
+	if _, err := authority.Contain(context.Background(), target); err == nil {
+		t.Fatal("an uninspectable scope must be refused, never frozen on the strength of its name")
+	}
+	if len(fake.frozen) != 0 {
+		t.Fatalf("nothing may be frozen: %v", fake.frozen)
+	}
+}
+
+// A missing predicate is the same refusal: an authority that cannot tell an
+// agent from a scenario server has no business freezing either.
+func TestContainStormRefusesWithoutALiveAgentPredicate(t *testing.T) {
+	authority, fake := newFakeStorm(ContainStormAutomatic)
+	authority.LiveAgent = nil
+	target := StormTarget{Finding: "fork-rate", PID: 4242, Name: "claude", Children: 300, ScopePath: agentScopePath}
+
+	if _, err := authority.Contain(context.Background(), target); err == nil {
+		t.Fatal("no predicate must refuse, not default to freezing")
+	}
+	if len(fake.frozen) != 0 {
+		t.Fatalf("nothing may be frozen: %v", fake.frozen)
+	}
+}
+
+// The membership test runs before the gate, so a refusal costs no epoch and
+// leaves no decision row for a scope that was never a candidate.
+func TestContainStormChecksMembershipBeforeTheGate(t *testing.T) {
+	authority, fake := newFakeStorm(ContainStormAutomatic)
+	fake.agentGone = true
+	target := StormTarget{Finding: "fork-rate", PID: 4242, Name: "test-genie-api", Children: 300, ScopePath: agentScopePath}
+
+	if _, err := authority.Contain(context.Background(), target); err == nil {
+		t.Fatal("expected refusal")
+	}
+	if len(fake.decisions) != 0 {
+		t.Fatalf("a scope that is not a candidate writes no decision row: %v", fake.decisions)
 	}
 }

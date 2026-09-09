@@ -159,5 +159,18 @@
         "port": "ui"
       }
     }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/unit-health/SKILL.md",
+      "programs": ["unit-health.test-quality-sample"]
+    },
+    "improve": {
+      "source": "skills/unit-health-improve/SKILL.md",
+      "programs": ["unit-health.test-quality-sample"]
+    },
+    "feature": [],
+    "learning": {"scope": "unit-health-usage"},
+    "waivers": {}
   }
 }

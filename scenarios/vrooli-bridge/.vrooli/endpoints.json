@@ -49,7 +49,7 @@
       "path": "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/DistributeArtifact",
       "method": "POST",
       "summary": "Distribute a non-git artifact to a node (via device-sync-hub)",
-      "description": "Ships a non-git artifact (a built installer, a large fixture) to a node through device-sync-hub's directed delivery — bridge orchestrates, device-sync-hub moves the bytes (bridge stores no blob). Records a durable distribution. An unknown/revoked node is rejected before any delivery. Honours X-Dry-Run. Owner-gated.",
+      "description": "Streams a non-git artifact (a built installer, a large fixture) to a node through device-sync-hub's authenticated directed delivery; Bridge stores no blob. Records a durable distribution. An unknown/revoked node is rejected before any delivery. Honours X-Dry-Run. Owner-gated.",
       "category": "artifacts",
       "request": {
         "type": "object",
@@ -99,7 +99,7 @@
       "examples": [
         {
           "name": "Distribute an installer",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/DistributeArtifact -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\",\"name\":\"app-setup.exe\",\"source_ref\":\"blob://builds/app-setup.exe\",\"destination_path\":\"/opt/app/setup.exe\"}'"
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/DistributeArtifact -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\",\"name\":\"app-setup.exe\",\"source_ref\":\"file:///tmp/app-setup.exe\",\"destination_path\":\"/opt/app/setup.exe\"}'"
         }
       ]
     },
@@ -430,7 +430,7 @@
       "path": "/api/v1/channel/session",
       "method": "GET",
       "summary": "Open an authenticated interactive session",
-      "description": "Opens a binary WebSocket session with explicit owner re-authentication, the vrooli-bridge:write node scope, bounded flow-control window, idle timeout and hard lifetime. SSE job delivery remains available separately.",
+      "description": "Opens a binary WebSocket session with explicit owner re-authentication, the vrooli-bridge:write node scope, bounded flow-control window, frame-rate/size limits, idle timeout and hard lifetime. Remote desktop sessions additionally bind device-control surface, lease epoch, policy revision and owner identity; SSE job delivery remains available separately.",
       "category": "channel",
       "response": {
         "type": "application/octet-stream",
@@ -655,7 +655,7 @@
       "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportSessionFrame",
       "method": "POST",
       "summary": "Receive an authenticated node session frame",
-      "description": "Node-facing Connect-RPC for PTY output and session close events. Requires the node proof and binds the frame to its Bridge session.",
+      "description": "Node-facing Connect-RPC for bounded session output, evidence metadata, revoke, and close events. Requires the node proof and binds the frame to its Bridge session.",
       "category": "channel"
     },
     {

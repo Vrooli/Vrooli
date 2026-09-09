@@ -4,6 +4,27 @@ Generated from testquality/catalog.json (catalog 1). Do not edit by hand.
 
 Declared profiles and calibration cases are not certification. Checked clean applies only to the named supported check; unknown is never a pass. Promotion requires separate recorded evidence.
 
+## Sampled review and mutation evidence
+
+`unit-health.test-quality-sample` is the versioned, read-only Program Runtime
+contract for bounded semantic review. It uses `test-quality-stratified/v1`
+selection with a caller-provided seed and source identity. Findings and unknowns
+are prioritized; clean controls remain in the denominator. The output is bounded
+and contains metadata only.
+
+The contract statuses are `ok`, `partial`, `unavailable`, `refused`, and
+`failed`. Partial rows, privacy refusals, unavailable owners, source drift, and
+invalid labels remain visible. AI labels use the closed vocabulary
+`behavioral`, `weak_oracle`, `missing_negative_case`, `implementation_coupled`,
+`valid_exception`, `insufficient_context`, and `uncertain`. These labels are
+advisory and cannot promote a rule.
+
+Independent holdout comparison records denominators, unknowns, exclusions,
+false positives, false negatives, disagreements, and the owner promotion
+decision. Mutation receipts remain separate from sampled observations and use
+the dispositions `killed`, `survived`, `invalid`, `equivalent`,
+`out_of_contract`, `infrastructure_failure`, and `unknown`.
+
 <a id="rule-assertion-observation"></a>
 
 ## assertion-observation

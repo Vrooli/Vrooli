@@ -1,3 +1,4 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -23,7 +24,8 @@ if (window.top !== window.self) {
   initIframeBridgeChild({ appId: "vrooli-autoheal" });
 }
 
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 // Code-split routes use lazy(); after a rebuild the old hashed chunks are
 // gone, so a tab opened before the deploy would crash on its next
@@ -40,12 +42,14 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <CheckMetadataProvider>
-        <React.Profiler id="App" onRender={onProfilerRender}>
-          <App />
-        </React.Profiler>
-      </CheckMetadataProvider>
-    </QueryClientProvider>
+    <SpatialNavProvider controller={spatialNav}>
+      <QueryClientProvider client={queryClient}>
+        <CheckMetadataProvider>
+          <React.Profiler id="App" onRender={onProfilerRender}>
+            <App />
+          </React.Profiler>
+        </CheckMetadataProvider>
+      </QueryClientProvider>
+    </SpatialNavProvider>
   </React.StrictMode>
 );

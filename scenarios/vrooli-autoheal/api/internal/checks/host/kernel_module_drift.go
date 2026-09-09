@@ -3,8 +3,9 @@ package host
 import (
 	"context"
 
-	"github.com/vrooli/vrooli/internal/hostcapability"
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/safeguards"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
@@ -34,14 +35,22 @@ func runKernelModuleDrift(inv hostinventory.HostInventory) checks.Result {
 		warning++
 		evidence = append(evidence, map[string]any{"kind": "package_targets_other_kernel", "package": drift, "runningKernel": inv.Kernel.Release})
 	}
-	invariants, err := hostcapability.EmbeddedSafeguardInvariants("nvidia-driver")
+	data, err := safeguards.Manifests.ReadFile("nvidia-driver/safeguard.json")
 	if err != nil {
 		warning++
 		evidence = append(evidence, map[string]any{"kind": "invariant_declaration_unavailable", "error": err.Error()})
 	}
-	registry := hostcapability.NewRegistry(hostcapability.AptProvider{}, hostcapability.DarwinProvider{})
+	invariants, decodeErr := hostreqkit.DecodeInvariantDeclarations(data)
+	if decodeErr != nil {
+		err = decodeErr
+	}
+	if err != nil {
+		warning++
+		evidence = append(evidence, map[string]any{"kind": "invariant_declaration_unavailable", "error": err.Error()})
+	}
+	registry := hostreqkit.NewRegistry(hostreqkit.AptProvider{}, hostreqkit.DarwinProvider{})
 	for _, driver := range inv.Packages.Drivers {
-		facts := hostcapability.Facts{
+		facts := hostreqkit.Facts{
 			OS:              inv.Platform,
 			VendorID:        driver.VendorID,
 			DriverPackage:   firstDriverPackage(driver),
@@ -52,7 +61,7 @@ func runKernelModuleDrift(inv hostinventory.HostInventory) checks.Result {
 		if driver.Candidate != nil && driver.Candidate.Available {
 			facts.CandidatePackageNames = []string{driver.Candidate.Name}
 		}
-		results := hostcapability.Evaluate(context.Background(), registry, invariants, facts)
+		results := hostreqkit.Evaluate(context.Background(), registry, invariants, facts)
 		for _, result := range results {
 			evidence = append(evidence, map[string]any{
 				"kind":        "capability_invariant",
@@ -62,12 +71,12 @@ func runKernelModuleDrift(inv hostinventory.HostInventory) checks.Result {
 				"evidence":    result.Evidence,
 			})
 			switch result.Verdict {
-			case hostcapability.Failed:
+			case hostreqkit.Failed:
 				critical++
-			case hostcapability.Undetermined, hostcapability.SatisfiedStructurally:
+			case hostreqkit.Undetermined, hostreqkit.SatisfiedStructurally:
 				warning++
 			}
-			if result.InvariantID == "module-loadable-on-running-kernel" && result.Verdict == hostcapability.Failed {
+			if result.InvariantID == "module-loadable-on-running-kernel" && result.Verdict == hostreqkit.Failed {
 				evidence = append(evidence, map[string]any{
 					"kind":            "missing_nvidia_module_package",
 					"severity":        "critical",
@@ -94,7 +103,7 @@ func runKernelModuleDrift(inv hostinventory.HostInventory) checks.Result {
 
 func firstDriverPackage(driver hostinventory.DriverPackageState) string {
 	for _, packageInfo := range driver.InstalledPackages {
-		if hostcapability.IsNvidiaDriverPackage(packageInfo.Name) {
+		if hostreqkit.IsNvidiaDriverPackage(packageInfo.Name) {
 			return packageInfo.Name
 		}
 	}

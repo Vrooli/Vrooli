@@ -950,7 +950,7 @@
             {
               "name": "source",
               "required": true,
-              "description": "Source reference the bytes live behind (device-sync-hub content ref / URI)",
+              "description": "Local path, file:// URI, or HTTP(S) URI for the bytes to stream through device-sync-hub",
               "bind": {
                 "field": "source_ref"
               }

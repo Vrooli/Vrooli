@@ -17,7 +17,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        artifactsconnect.ArtifactsServiceDistributeArtifactProcedure,
 		Method:      "POST",
 		Summary:     "Distribute a non-git artifact to a node (via device-sync-hub)",
-		Description: "Ships a non-git artifact (a built installer, a large fixture) to a node through device-sync-hub's directed delivery — bridge orchestrates, device-sync-hub moves the bytes (bridge stores no blob). Records a durable distribution. An unknown/revoked node is rejected before any delivery. Honours X-Dry-Run. Owner-gated.",
+		Description: "Streams a non-git artifact (a built installer, a large fixture) to a node through device-sync-hub's authenticated directed delivery; Bridge stores no blob. Records a durable distribution. An unknown/revoked node is rejected before any delivery. Honours X-Dry-Run. Owner-gated.",
 		Category:    "artifacts",
 		Request: &module.Schema{Type: "object", Properties: map[string]string{
 			"node_id":          "string (required)",
@@ -39,7 +39,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 503, Code: "unavailable", Description: "device-sync-hub directed delivery failed"},
 		},
 		Examples: []module.Example{
-			{Name: "Distribute an installer", Curl: "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/DistributeArtifact -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\",\"name\":\"app-setup.exe\",\"source_ref\":\"blob://builds/app-setup.exe\",\"destination_path\":\"/opt/app/setup.exe\"}'"},
+			{Name: "Distribute an installer", Curl: "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/DistributeArtifact -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\",\"name\":\"app-setup.exe\",\"source_ref\":\"file:///tmp/app-setup.exe\",\"destination_path\":\"/opt/app/setup.exe\"}'"},
 		},
 	},
 	{
