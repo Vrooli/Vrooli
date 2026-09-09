@@ -103,6 +103,7 @@ from program_helper import (
     bridge_error,
 )
 from tasks import Tasks, ACTIVE_TASK
+from learn import Learn
 
 
 _LIBRARY_STACK: contextvars.ContextVar[tuple[str, ...]] = contextvars.ContextVar("library_stack", default=())
@@ -463,6 +464,7 @@ _RUNTIME_VERB_NAMES = (
     "lib",
     "tasks",
     "program",
+    "learn",
 )
 
 
@@ -696,7 +698,13 @@ class Namespace:
             identity = name if "." in name else str(spec.get("scenario", "")) + "." + name
             return Tasks(self, _INVOCATION_CONTEXT, Handle, _Budgets.invoke).run(
                 operation=identity, inputs=kwargs, expected_digest=spec.get("digest", ""))
-        environment = _program_globals(self, self._project, "program_runtime_library")
+        name = str(spec.get("name", "program_runtime_library"))
+        identity = name if "." in name or not spec.get("scenario") else f"{spec['scenario']}.{name}"
+        source_name = identity
+        free_text_inputs = [key for key, value in (spec.get("declaration", {}).get("inputs") or {}).items() if isinstance(value, dict) and value.get("free_text") is True]
+        note_kinds = (spec.get("declaration", {}).get("learning", {}) or {}).get("note_kinds", {})
+        bindings = spec.get("declaration", {}).get("bindings", [])
+        environment = _program_globals(self, self._project, source_name, free_text_inputs, note_kinds, bindings, (spec.get("declaration", {}).get("learning") or {}).get("baselines", {}))
         declared_helper = str((spec.get("declaration", {}).get("helpers") or {}).get("program", "")).strip()
         if declared_helper and declared_helper != HELPER_VERSION:
             raise ValueError(f"declared program requires program helper version {declared_helper!r}; this kernel provides {HELPER_VERSION!r}")
@@ -726,8 +734,6 @@ class Namespace:
                     raise ValueError(f"declared contract envelope exceeds {limit} bytes")
                 printed.append(json.loads(encoded))
             environment["__builtins__"]["print"] = capture_envelope
-        name = str(spec.get("name", "unknown"))
-        identity = name if "." in name or not spec.get("scenario") else f"{spec['scenario']}.{name}"
         stack = _LIBRARY_STACK.get()
         if identity in stack:
             raise ValueError(f"recursive library call: {' -> '.join((*stack, identity))}")
@@ -738,17 +744,30 @@ class Namespace:
             # A nested library call is made by the running program harness.
             # Preserve explicit caller fields and identify this hop honestly.
             parent_context["harness"] = "program"
+        parent_context["source"] = spec.get("source", "")
         caller_token = _INVOCATION_CONTEXT.set(parent_context)
         token = _LIBRARY_STACK.set((*stack, identity))
         try:
             exec(compile(str(spec.get("source", "")), f"<library:{name}>", "exec"), environment, environment)
+        except Exception:
+            learn = environment.get("learn")
+            if isinstance(learn, Learn) and learn.started:
+                try:
+                    learn.finalize({"status": "failed", "evidence": []})
+                except Exception:
+                    pass
+            raise
         finally:
             _LIBRARY_STACK.reset(token)
             _INVOCATION_CONTEXT.reset(caller_token)
         if spec.get("contract", False):
             if not printed:
                 raise ValueError("declared contract must print exactly one envelope")
-            return Handle(printed, f"lib.{identity}", metadata={
+            value = printed[0]
+            learn = environment.get("learn")
+            if isinstance(learn, Learn):
+                value = learn.finalize(value)
+            return Handle([value], f"lib.{identity}", metadata={
                 "program": spec.get("declaration", {}).get("name", identity),
                 "version": spec.get("declaration", {}).get("version", ""),
                 "digest": spec.get("digest", ""),
@@ -1159,7 +1178,7 @@ class _NamespaceGroup:
 class BridgeBinding:
     """A callable that can only reach the Go governance bridge."""
 
-    def __init__(self, binding_id: str, effect: str, session_id: str, bridge_url: str, invocations: list[dict[str, str]], reachable: bool = True, reachability_reason: str = "", rows_field: str = "", meta_fields: list[str] | None = None, row_field_candidates: list[str] | None = None, reachability_url: str = "") -> None:
+    def __init__(self, binding_id: str, effect: str, session_id: str, bridge_url: str, invocations: list[dict[str, str]], reachable: bool = True, reachability_reason: str = "", rows_field: str = "", meta_fields: list[str] | None = None, row_field_candidates: list[str] | None = None, reachability_url: str = "", demand_start: bool = False) -> None:
         self.binding_id = binding_id
         self.effect = effect
         self.session_id = session_id
@@ -1171,6 +1190,7 @@ class BridgeBinding:
         self.meta_fields = list(meta_fields or [])
         self.row_field_candidates = list(row_field_candidates or [])
         self.reachability_url = reachability_url
+        self.demand_start = demand_start
         self._records_invocation = True
 
     def __call__(self, *args: Any, **kwargs: Any) -> Handle:
@@ -1185,9 +1205,9 @@ class BridgeBinding:
                 raise AmbiguousResponse(f"binding {self.binding_id} rows must be one of: {candidates}", binding_id=self.binding_id)
         if not self.bridge_url:
             raise ScenarioUnreachable("program-runtime binding bridge is unavailable", binding_id=self.binding_id)
-        if self.reachability_url:
+        if self.reachability_url and not self.demand_start:
             self._check_live_reachability()
-        elif not self.reachable:
+        elif not self.reachable and not self.demand_start:
             raise ScenarioUnreachable(f"binding {self.binding_id} is unreachable: {self.reachability_reason}", binding_id=self.binding_id)
         return self._invoke(kwargs, confirmed, rows_override)
 
@@ -1258,7 +1278,7 @@ class _ProgressBuffer(io.StringIO):
         return written
 
 
-def _program_globals(root: Namespace, project: _ProjectNamespace, name: str) -> ProgramGlobals:
+def _program_globals(root: Namespace, project: _ProjectNamespace, name: str, free_text_inputs=(), note_kinds=None, bindings=(), baselines=None) -> ProgramGlobals:
     """Build one public surface for both session and library execution."""
     builtin_surface: dict[str, Any] = {
         "discover": root.discover,
@@ -1281,6 +1301,7 @@ def _program_globals(root: Namespace, project: _ProjectNamespace, name: str) -> 
         # classify, run, report. One instance per environment; bound below
         # once the globals exist so `program.inputs()` reads the injected value.
         "program": ProgramHelper(),
+        "learn": None,
     }
     # The surface must cover exactly the declared verbs. A verb added to
     # the tuple without a binding here — or bound here without being
@@ -1294,7 +1315,10 @@ def _program_globals(root: Namespace, project: _ProjectNamespace, name: str) -> 
     builtin_surface["__vrooli__"] = root
     protected = set(_RUNTIME_VERB_NAMES) | {"vrooli", "__vrooli__"}
     unresolved_url = root._bridge_url.rsplit("/", 1)[0] + "/execute" if root._bridge_url else ""
+    holder: dict[str, Any] = {}
+    builtin_surface["learn"] = Learn(root, _INVOCATION_CONTEXT, lambda: holder.get("environment", {}).get("inputs", {}), name, free_text_inputs, note_kinds, bindings, baselines)
     environment = ProgramGlobals(protected=protected, known_names=[*root._bindings, *builtin_surface], unresolved_url=unresolved_url, session_id=root._session_id)
+    holder["environment"] = environment
     environment["__name__"] = name
     environment["__builtins__"] = dict(_SAFE_BUILTINS)
     environment["Handle"] = Handle
@@ -1316,6 +1340,7 @@ class SessionKernel:
         self._loop = asyncio.new_event_loop()
         if bindings is None:
             bindings = {}
+        binding_contract_specs = list(bindings) if isinstance(bindings, list) else []
         if isinstance(bindings, list):
             mapped: dict[str, dict[str, dict[str, Any]]] = {}
             reachability: dict[str, dict[str, Any]] = {}
@@ -1340,7 +1365,7 @@ class SessionKernel:
                 leaf = command_segments[-1]
                 if leaf in commands:
                     raise ValueError(f"binding command path collides at {scenario}.{group}.{'.'.join(command_segments)}")
-                commands[leaf] = BridgeBinding(spec["id"], spec.get("effect", ""), session_id, bridge_url, self.invocations, reachable, reason, spec.get("rows_field", ""), spec.get("meta_fields", []), spec.get("row_field_candidates", []), reachability_url)
+                commands[leaf] = BridgeBinding(spec["id"], spec.get("effect", ""), session_id, bridge_url, self.invocations, reachable, reason, spec.get("rows_field", ""), spec.get("meta_fields", []), spec.get("row_field_candidates", []), reachability_url, bool(spec.get("demand_start", False)))
             bindings = mapped
         else:
             reachability = {scenario: {"reachable": True, "reason": ""} for scenario in bindings}
@@ -1356,12 +1381,13 @@ class SessionKernel:
         # see _ProjectNamespace for why the verbs must not leak onto it.
         project = _ProjectNamespace(project_bindings, self.invocations)
         root._project = project
+        root._binding_contract_specs = binding_contract_specs
         self.globals = _program_globals(root, project, "program_runtime_session")
 
     def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "", caller: dict[str, str] | None = None, progress=None) -> dict[str, Any]:
         output = _ProgressBuffer(progress)
         self.invocations.clear()
-        context = {"program_id": program_id, "provenance": provenance}
+        context = {"program_id": program_id, "provenance": provenance, "source": source}
         for key in ("run_id", "agent_profile", "skill_id", "harness"):
             value = str((caller or {}).get(key, "")).strip()
             if value:
@@ -1371,6 +1397,10 @@ class SessionKernel:
         helper = dict.get(self.globals, "program")
         if isinstance(helper, ProgramHelper):
             helper._reset()
+        learn = dict.get(self.globals, "learn")
+        if isinstance(learn, Learn):
+            learn.reset(program_id or "")
+        learning_receipt = None
         try:
             with contextlib.redirect_stdout(output):
                 tree = ast.parse(source, "<program>", "exec")
@@ -1387,15 +1417,28 @@ class SessionKernel:
                     value = self.globals.pop("__program_result", None)
                     if value is not None:
                         print(repr(value))
+            if isinstance(learn, Learn) and learn.started:
+                learning_receipt = learn.finalize({"status": "ok", "evidence": []}).get("learning")
             raw_stdout = output.getvalue()
             limit = MATERIALIZED_OUTPUT_LIMIT if include_materialized else DEFAULT_OUTPUT_LIMIT
             agent_stdout = _bounded_text(raw_stdout, limit)
-            return {"type": "result", "ok": True, "stdout": agent_stdout, "context_bytes": len(raw_stdout.encode()), "agent_bytes": len(agent_stdout.encode()), "output_limit_bytes": limit, "invocations": list(self.invocations)}
+            response = {"type": "result", "ok": True, "stdout": agent_stdout, "context_bytes": len(raw_stdout.encode()), "agent_bytes": len(agent_stdout.encode()), "output_limit_bytes": limit, "invocations": list(self.invocations)}
+            if learning_receipt is not None:
+                response["learning"] = learning_receipt
+            return response
         except Exception as exc:  # noqa: BLE001 - wire the program failure, never crash the host
+            if isinstance(learn, Learn) and learn.started:
+                try:
+                    learning_receipt = learn.finalize({"status": "failed", "evidence": []}).get("learning")
+                except Exception:
+                    pass
             raw_stdout = output.getvalue()
             limit = MATERIALIZED_OUTPUT_LIMIT if include_materialized else DEFAULT_OUTPUT_LIMIT
             agent_stdout = _bounded_text(raw_stdout, limit)
-            return {"type": "result", "ok": False, "stdout": agent_stdout, "context_bytes": len(raw_stdout.encode()), "agent_bytes": len(agent_stdout.encode()), "output_limit_bytes": limit, "error": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc(limit=4), "invocations": list(self.invocations)}
+            response = {"type": "result", "ok": False, "stdout": agent_stdout, "context_bytes": len(raw_stdout.encode()), "agent_bytes": len(agent_stdout.encode()), "output_limit_bytes": limit, "error": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc(limit=4), "invocations": list(self.invocations)}
+            if learning_receipt is not None:
+                response["learning"] = learning_receipt
+            return response
         finally:
             _INVOCATION_CONTEXT.reset(context_token)
             ACTIVE_TASK.reset(task_token)

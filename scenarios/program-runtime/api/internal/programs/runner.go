@@ -37,14 +37,20 @@ type Invocation struct {
 }
 
 type BindingSpec struct {
-	ID                 string   `json:"id"`
-	Namespace          string   `json:"namespace,omitempty"`
-	Scenario           string   `json:"scenario"`
-	Group              string   `json:"group"`
-	Command            string   `json:"command"`
-	Effect             string   `json:"effect"`
-	Reachable          bool     `json:"reachable"`
-	ReachabilityReason string   `json:"reachability_reason"`
+	ContractDigest     string `json:"contract_digest,omitempty"`
+	Signature          string `json:"signature,omitempty"`
+	ID                 string `json:"id"`
+	Namespace          string `json:"namespace,omitempty"`
+	Scenario           string `json:"scenario"`
+	Group              string `json:"group"`
+	Command            string `json:"command"`
+	Effect             string `json:"effect"`
+	Reachable          bool   `json:"reachable"`
+	ReachabilityReason string `json:"reachability_reason"`
+	// DemandStart marks bindings whose Go governance bridge owns dependency
+	// startup. Python must let that bridge perform its lease/start/retry path
+	// instead of rejecting a stopped target during a read-only preflight.
+	DemandStart        bool     `json:"demand_start,omitempty"`
 	RowsField          string   `json:"rows_field,omitempty"`
 	MetaFields         []string `json:"meta_fields,omitempty"`
 	RowFieldCandidates []string `json:"row_field_candidates,omitempty"`
@@ -399,6 +405,8 @@ func (r *SubprocessRunner) executeKernelWithCaller(ctx context.Context, sessionI
 		AgentBytes       int64        `json:"agent_bytes"`
 		OutputLimitBytes int64        `json:"output_limit_bytes"`
 		Invocations      []Invocation `json:"invocations"`
+		// Learning is the kernel's learn.* receipt; absent when no learn verb ran.
+		Learning json.RawMessage `json:"learning"`
 	}
 	type decodedResponse struct {
 		response kernelResponse
@@ -426,7 +434,7 @@ func (r *SubprocessRunner) executeKernelWithCaller(ctx context.Context, sessionI
 				r.killProcess(sessionID, p)
 				return Result{}, fmt.Errorf("read kernel response: %w", decoded.err)
 			}
-			result := Result{Stdout: decoded.response.Stdout, ContextBytes: decoded.response.ContextBytes, AgentBytes: decoded.response.AgentBytes, OutputLimitBytes: decoded.response.OutputLimitBytes, Invocations: decoded.response.Invocations}
+			result := Result{Stdout: decoded.response.Stdout, ContextBytes: decoded.response.ContextBytes, AgentBytes: decoded.response.AgentBytes, OutputLimitBytes: decoded.response.OutputLimitBytes, Invocations: decoded.response.Invocations, LearningJSON: compactLearningJSON(decoded.response.Learning)}
 			if decoded.response.Type == "progress" {
 				if progress != nil {
 					progress(result)

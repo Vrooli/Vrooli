@@ -118,6 +118,27 @@ count is measurement, not permission to edit another scenario.
 | `guide("<intent>")` | A program needs prompt-manager discovery rows for a next step | A human is choosing: `prompt-manager discover` prints the same rows |
 | `lib.<name>()` | `library search` returned a current promoted callable entry whose description matches; the catalog is frozen at session start | The result is a declared contract: run it with `program-runtime library run <scenario>.<name> --input k=v`, or call `lib.<scenario>.<name>(k=v)` from a program |
 
+### In-code learning verbs
+
+Use the ten governed verbs when a program should improve from verified runs:
+`learn.task`, `learn.step`, `learn.recall`, `learn.choose`, `learn.note`,
+`learn.outcome`, `learn.infer`, `learn.act`, `learn.delegate`, and `learn.feedback`. Start with an
+explicit stable task key when free text is excluded; use named steps for child
+attempts and `gather` for bounded concurrent children. Recall is advisory until
+`choose` records adoption, and `outcome` supplies the evidence that can mark a
+verdict `derived: true`.
+
+Use `learn.act` for a code hole that can be expressed as
+`def step(inputs, bindings): ...`; the binding list is an allow-set, not a
+request for ambient access. Supply `verify` and `verifier_revision`; the verifier
+runs even on cache hits. Default reuse requires three verified attempts across
+two input digests, no contradictions, and recent compatible evidence. Reviewed
+`learning.baselines` assets can execute with `allow_ai=False`. Check
+`learn.choose` for `selected_id=None` before acting. Use `learn.infer(verify=...)`
+when its output should become a demonstration. Promotion is a separate reviewable `program-runtime.fragment-promote`
+operation. If Memory is unavailable, branch on the explicit unavailable or
+blocked receipt; do not fabricate a successful learning result.
+
 ### Commands where judgment applies
 
 | Command | Use it when | Do not use it when |

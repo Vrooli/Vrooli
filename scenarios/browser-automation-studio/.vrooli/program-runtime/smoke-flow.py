@@ -1,4 +1,4 @@
-"""browser-automation-studio.smoke-flow v1 — execute one persisted workflow and classify the outcome from its timeline.
+"""browser-automation-studio.smoke-flow v2 — execute one persisted workflow and classify the outcome from its timeline.
 
 Contract: smoke-flow.json (inputs, invariants, bindings, outputs).
 Skill:    browser-automation-studio (usage) — the [S3] leaf "workflow exists, run it".
@@ -10,19 +10,17 @@ which the classify phase may call (program-contracts.md: classify may not act; a
 The failure class comes from the first failed timeline entry (aggregates.status == STEP_STATUS_FAILED, or
 context.error present): its action type and context.errorCode. The execution's error prose is not parsed.
 `parameters` is passed as an object (proto field `parameters`, message ExecutionParameters): the CLI flag
---parameters-file is CLI-local. No retry. No memory. The envelope is printed exactly once, on every path.
+--parameters-file is CLI-local. No retry. Memory: a verified run notes a preference for the exact revision, a structural failure notes an avoid. The envelope is printed exactly once, on every path.
 """
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 workflow_id = str(inputs.get("workflow_id", "") or "")
 parameters = inputs.get("parameters")  # ExecutionParameters object; --parameters-file is a CLI-local json_file alias
 version = inputs.get("version")
+learn.task(scope="bas-usage", operation="browser-automation-studio.smoke-flow", key={"workflow_id": workflow_id, "version": version})
 
 envelope = {
-    "program": "browser-automation-studio.smoke-flow", "version": "1",
+    "program": "browser-automation-studio.smoke-flow", "version": "2",
     "status": "failed", "phase": "validate",
     "inputs": {"workflow_id": workflow_id, "parameters": bool(parameters), "version": version},
     "signals": {"workflow_name": None, "execution_id": None, "execution_status": None,
@@ -36,37 +34,7 @@ ELEMENT_ACTIONS = {"ACTION_TYPE_CLICK", "ACTION_TYPE_INPUT", "ACTION_TYPE_HOVER"
                    "ACTION_TYPE_UPLOAD_FILE", "ACTION_TYPE_KEYBOARD", "ACTION_TYPE_SCROLL"}
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
+fail = program.fail
 
 
 def entry_failed(entry):
@@ -108,7 +76,7 @@ def step_collect():  # COLLECT · confirm the workflow exists before spending a 
     try:
         rows = browser_automation_studio.workflows.get(workflow_id=workflow_id).head(1)
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         low = str(exc).lower()
         if klass == "binding_error":
             # A malformed id and an absent workflow are different callers' mistakes and
@@ -138,7 +106,7 @@ def step_act():  # ACT · exactly one execution with wait; nothing else
     try:
         rows = browser_automation_studio.workflows.execute(**kwargs).head(1)
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         return fail(status, klass, exc, "act")
     if not rows:
         return fail("failed", "binding_error", "execute returned no row", "act")
@@ -160,13 +128,13 @@ def step_classify():  # CLASSIFY · read the execution record and its timeline; 
                 e = ex[0].get("execution", ex[0])
                 envelope["signals"]["execution_status"] = e.get("status") or envelope["signals"]["execution_status"]
         except Exception as exc:
-            status, klass = classify_transport(exc)
+            status, klass = program.classify(exc)
             envelope["errors"].append({"class": klass, "detail": f"executions.get: {str(exc)[:160]}", "where": "classify"})
         try:
             shots = browser_automation_studio.executions.screenshots(execution_id=execution_id)
             envelope["signals"]["screenshot_count"] = shots.count()
         except Exception as exc:
-            status, klass = classify_transport(exc)
+            status, klass = program.classify(exc)
             envelope["errors"].append({"class": klass, "detail": f"executions.screenshots: {str(exc)[:160]}", "where": "classify"})
     st = envelope["signals"]["execution_status"] or ""
     if st == "EXECUTION_STATUS_COMPLETED":
@@ -183,8 +151,9 @@ def step_classify():  # CLASSIFY · read the execution record and its timeline; 
                     and ((e.get("context") or {}).get("assertion") or {}).get("success") is True
                     for e in assertions) and not envelope["errors"]:
                     envelope["signals"]["outcome"] = "verified_success"
+                    learn.note("preference", {"option_id": workflow_id + "@" + str(version)})
             except Exception as exc:
-                status, klass = classify_transport(exc)
+                status, klass = program.classify(exc)
                 envelope["errors"].append({"class":klass,"detail":"Assertion evidence unavailable","where":"classify"})
         envelope["status"] = "ok" if not envelope["errors"] else "partial"
         return "report"
@@ -202,7 +171,7 @@ def step_classify():  # CLASSIFY · read the execution record and its timeline; 
         entries = tl.head(200)
         envelope["signals"]["timeline_entries"] = tl.count()
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         envelope["errors"].append({"class": klass, "detail": f"executions.timeline: {str(exc)[:160]}", "where": "classify"})
         return fail("failed", "step_failed", f"execution status {st}; timeline unreadable", "classify")
     failed = [(i, e) for i, e in enumerate(entries) if entry_failed(e)][:1]
@@ -215,24 +184,24 @@ def step_classify():  # CLASSIFY · read the execution record and its timeline; 
     envelope["signals"]["failed_error_code"] = ctx.get("errorCode")
     if entry.get("nodeId"):
         envelope["evidence"].append(f"node:{entry.get('nodeId')}")
+    # A revision that failed on a structural fault is excluded from the next recommendation.
+    learn.note("avoid", {"option_id": workflow_id + "@" + str(version),
+                         "fingerprint": classify_entry(entry) + ":" + str(envelope["signals"]["failed_action"] or "") + ":" + str(ctx.get("errorCode") or "")},
+               evidence=envelope["evidence"][:5])
     return fail("failed", classify_entry(entry),
                 f"step {idx + 1} {envelope['signals']['failed_action']} {ctx.get('errorCode') or ''}: {str(ctx.get('error') or '')[:120]}", "classify")
 
 
 def step_report():  # REPORT · bounded, always
     envelope["phase"] = "report"
+    status = envelope["signals"].get("outcome", "unknown")
+    learn.outcome(status if status in ("verified_success", "failed", "unavailable", "unknown") else "unknown",
+                  envelope["evidence"] if status == "verified_success" else [],
+                  measurements={"reused_workflow": True})
     print(envelope)
     return None
 
 
 STATES = {"validate": step_validate, "collect": step_collect, "act": step_act, "classify": step_classify, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:  # the one catch that guarantees an envelope on every path
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

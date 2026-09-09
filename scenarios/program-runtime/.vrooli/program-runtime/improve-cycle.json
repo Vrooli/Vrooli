@@ -27,7 +27,7 @@
   ],
   "invariants": [
     "the only scenario binding is the typed telemetry read; ai.classify is called only on a failure-shape tie",
-    "decide is a pure table lookup with no I/O",
+    "decide is a table lookup; the fragment-promotion route may invoke the governed crystallization program for the first promotable candidate",
     "a declined row is never routed; declined rows are listed with their reason",
     "the route for a given board is deterministic except on a declared tie",
     "the envelope is printed exactly once, on every path"
@@ -71,7 +71,7 @@
     "signals": {
       "row": "the setpoint row routed this cycle, or null when every routable row is in band",
       "shape": "the failure shape the route was keyed on: a shape name, duplicate, or *",
-      "route": "one route label: failure-w3-preflight-import, failure-w3-argv-quoting, failure-w2-closed-vocabulary, adoption-w9-placement, maturity-portfolio-audit, health-program-repair, unexercised-fixture-or-retire, governance-curation-mine-unresolved, act-w1-or-blocked-note, condition-report-bug, delegation-w3-and-report-bug, shapes-nomination, discovery-coverage-miss, or in-band",
+      "route": "one route label: failure-w3-preflight-import, failure-w3-argv-quoting, failure-w2-closed-vocabulary, adoption-w9-placement, maturity-portfolio-audit, health-program-repair, unexercised-fixture-or-retire, fragment-promotion, governance-curation-mine-unresolved, act-w1-or-blocked-note, condition-report-bug, delegation-w3-and-report-bug, shapes-nomination, discovery-coverage-miss, or in-band",
       "rationale": "why this row and route: table match, top failure shape, or the tie the classifier broke",
       "declined": "list of {row, reason} for rows the board declined, at most 12; the skill routes these from the reason"
     },

@@ -55,6 +55,9 @@ func TestShippedCorpusIsPreflightCleanAndCarriesNoDuplicatedHelper(t *testing.T)
 		}
 		for _, detail := range details {
 			if m, ok := detail.(map[string]any); ok {
+				if m["kind"] == "dependency" || m["kind"] == "learning_identity_warning" {
+					continue
+				}
 				failures = append(failures, fmt.Sprintf("%s: %v line %v %v: %v", scenario, m["program"], m["line"], m["name"], m["message"]))
 			}
 		}

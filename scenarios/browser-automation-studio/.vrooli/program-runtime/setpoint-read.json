@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "browser-automation-studio.setpoint-read",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Read every row of browser-automation-studio's improve setpoint in one submission and report each as in band, out of band, or unavailable, without estimating.",
   "inputs": {
     "window": {
@@ -93,7 +96,8 @@
         "deadline_exceeded",
         "binding_error",
         "kernel_runtime",
-        "no_governed_binding"
+        "no_governed_binding",
+        "remote_error"
       ]
     },
     "evidence": "sensor command names, one per row"

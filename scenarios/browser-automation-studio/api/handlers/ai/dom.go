@@ -23,12 +23,22 @@ const (
 
 var domExtractionExpression = `(function() {
 	const MAX_DEPTH = 20;
-  const MAX_CHILDREN_PER_NODE = 12;
   const MAX_TOTAL_NODES = 4000;
+  const MAX_DATA_ATTRS = 32;
+  const MAX_DATA_VALUE = 1024;
   const INCLUDE_COMPUTED = true;
   const TEXT_LIMIT = 120;
 
   let nodeCount = 0;
+
+  const readDataAttributes = (element) => {
+    const data = Object.create(null);
+    for (const key of Object.keys(element.dataset || {}).slice(0, MAX_DATA_ATTRS)) {
+      const value = element.dataset[key];
+      if (typeof value === 'string') data[key] = value.slice(0, MAX_DATA_VALUE);
+    }
+    return Object.keys(data).length ? data : null;
+  };
 
   const trimText = (value) => {
     if (typeof value !== 'string') {
@@ -189,6 +199,8 @@ var domExtractionExpression = `(function() {
       inScrollContainer: inScrollContainer(element),
       children: []
     };
+    const data = readDataAttributes(element);
+    if (data) node.data = data;
 
     const layout = readComputed(element);
     if (layout) {
@@ -203,9 +215,6 @@ var domExtractionExpression = `(function() {
     if (depth < MAX_DEPTH) {
       const children = [];
       for (const child of Array.from(element.children)) {
-        if (children.length >= MAX_CHILDREN_PER_NODE) {
-          break;
-        }
         const built = buildNode(child, depth + 1);
         if (built) {
           children.push(built);

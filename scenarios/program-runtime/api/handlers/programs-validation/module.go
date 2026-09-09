@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	scenariomanifest "github.com/vrooli/vrooli/packages/scenario-manifest"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -76,8 +78,12 @@ func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	}
 	var diagnostics []any
 	findings := validateScenario(h.repoRoot, scenario, h.registry, req.Msg.GetIncludeExecution(), &diagnostics)
+	// Historical portfolio debt is still a qualification finding, but cannot
+	// suppress the fresh evidence needed to assess a repair. Only the current
+	// static contract gates fixture execution.
+	executable := len(findings) == 0
 	findings = append(findings, h.portfolioFindings(ctx, scenario)...)
-	if len(findings) == 0 && req.Msg.GetIncludeExecution() {
+	if executable && req.Msg.GetIncludeExecution() {
 		findings = append(findings, h.executeFixtures(ctx, scenario)...)
 	}
 	clean := len(findings) == 0
@@ -198,11 +204,20 @@ func validateScenario(repoRoot, scenario string, registry *bindings.Registry, in
 	if len(entries) == 0 {
 		return nil
 	}
+	manifest, manifestErr := scenariomanifest.Load(filepath.Join(root, ".vrooli", "service.json"))
+	declaredDependencies := map[string]struct{}{}
+	if manifestErr == nil {
+		for name, dependency := range manifest.Dependencies.Scenarios {
+			if dependency.Enabled {
+				declaredDependencies[normalizeScenarioName(name)] = struct{}{}
+			}
+		}
+	}
 
 	jsonFiles := map[string]string{}
 	pyFiles := map[string]string{}
 	for _, entry := range entries {
-		if entry.IsDir() || strings.HasSuffix(entry.Name(), ".output.schema.json") {
+		if entry.IsDir() || entry.Name() == "note-kinds.json" || strings.HasSuffix(entry.Name(), ".output.schema.json") {
 			continue
 		}
 		base := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
@@ -249,9 +264,21 @@ func validateScenario(repoRoot, scenario string, registry *bindings.Registry, in
 				ID     string `json:"id"`
 				Effect string `json:"effect"`
 			} `json:"bindings"`
+			Inputs map[string]struct {
+				FreeText bool `json:"free_text"`
+			} `json:"inputs"`
 		}
 		if json.Unmarshal(data, &contract) != nil {
 			continue
+		}
+		for input, spec := range contract.Inputs {
+			if spec.FreeText && len(details) > 0 && details[0] != nil {
+				*details[0] = append(*details[0], map[string]any{
+					"program": base, "input": input,
+					"message": "free-text input is excluded from the default learning identity key; supply an explicit learn.task key when identity must distinguish it",
+					"kind":    "learning_identity_warning",
+				})
+			}
 		}
 		for _, declared := range contract.Bindings {
 			if _, ok := bindingIDs[declared.ID]; !ok && registry != nil {
@@ -265,6 +292,13 @@ func validateScenario(repoRoot, scenario string, registry *bindings.Registry, in
 		source, readErr := os.ReadFile(sourcePath)
 		if readErr != nil {
 			continue
+		}
+		if untypedLearningSchema(string(source)) && len(details) > 0 && details[0] != nil {
+			*details[0] = append(*details[0], map[string]any{
+				"program": base,
+				"message": "learn.infer/learn.act uses an untyped string schema; provide a JSON Schema with explicit properties and types",
+				"kind":    "learning_schema_warning",
+			})
 		}
 		for _, diagnostic := range programsinternal.ResolveSource(string(source), known, filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py")) {
 			if diagnostic.GetSeverity() == "error" {
@@ -299,6 +333,7 @@ func validateScenario(repoRoot, scenario string, registry *bindings.Registry, in
 				}
 			}
 		}
+		findings = append(findings, programDependencyFindings(scenario, base, string(source), contract.Bindings, registry, declaredDependencies, details...)...)
 		if includeExecution && !hasFixtures(data) {
 			findings = append(findings, "programs.fixture_missing")
 		} else if includeExecution && !fixturesAreWellFormed(data) {
@@ -306,6 +341,76 @@ func validateScenario(repoRoot, scenario string, registry *bindings.Registry, in
 		}
 	}
 	return uniqueStrings(findings)
+}
+
+var programLibraryTargetPattern = regexp.MustCompile(`\blib\.([a-z0-9_]+)\.([a-z0-9_]+(?:\.[a-z0-9_]+)*)`)
+var untypedLearningSchemaPattern = regexp.MustCompile(`learn\.(?:infer|act)\s*\([^)]*schema\s*=\s*["']str["']`)
+
+func untypedLearningSchema(source string) bool {
+	return untypedLearningSchemaPattern.MatchString(source)
+}
+
+func programDependencyFindings(scenario, program, source string, declaredBindings []struct {
+	ID     string `json:"id"`
+	Effect string `json:"effect"`
+}, registry *bindings.Registry, declaredDependencies map[string]struct{}, details ...*[]any,
+) []string {
+	targets := make(map[string][]string)
+	add := func(target, bindingOrCall string) {
+		target = normalizeScenarioName(target)
+		if target == "" || target == normalizeScenarioName(scenario) || target == "program-runtime" {
+			return
+		}
+		targets[target] = append(targets[target], bindingOrCall)
+	}
+	for _, declared := range declaredBindings {
+		if registry != nil {
+			binding, ok := registry.Binding(declared.ID)
+			if ok {
+				add(binding.GetScenario(), declared.ID)
+			}
+			continue
+		}
+		// A nil registry is used by filesystem-only validation tests. Binding IDs
+		// are canonically prefixed by their owning scenario, so preserve useful
+		// dependency coverage even when the live registry is unavailable.
+		if prefix, _, ok := strings.Cut(declared.ID, "/"); ok {
+			add(prefix, declared.ID)
+		}
+	}
+	for _, match := range programLibraryTargetPattern.FindAllStringSubmatch(source, -1) {
+		add(match[1], match[0])
+	}
+	if strings.Contains(source, "learn.") {
+		add("vrooli-memory", "learn.*")
+	}
+
+	findings := make([]string, 0)
+	for target, calls := range targets {
+		if _, declared := declaredDependencies[target]; declared {
+			continue
+		}
+		for _, bindingOrCall := range uniqueStrings(calls) {
+			fix := fmt.Sprintf(`"%s": {"required": false, "startup_policy": "try_start", "purpose": "%s used by %s", "degraded_behavior": "<fill in>", "bundle_policy": "either"}`, target, bindingOrCall, program)
+			message := fmt.Sprintf("%s: program %s binds %s on %s, which .vrooli/service.json does not declare; add dependencies.scenarios.%s with startup_policy try_start", scenario, program, bindingOrCall, target, target)
+			findings = append(findings, "programs.dependency_undeclared")
+			if len(details) > 0 && details[0] != nil {
+				*details[0] = append(*details[0], map[string]any{
+					"program":         program,
+					"binding_or_call": bindingOrCall,
+					"target_scenario": target,
+					"fix":             fix,
+					"message":         message,
+					"kind":            "dependency",
+				})
+			}
+		}
+	}
+	return findings
+}
+
+func normalizeScenarioName(name string) string {
+	return strings.ReplaceAll(strings.TrimSpace(name), "_", "-")
 }
 
 func knownBindingIDs(registry *bindings.Registry) map[string]struct{} {

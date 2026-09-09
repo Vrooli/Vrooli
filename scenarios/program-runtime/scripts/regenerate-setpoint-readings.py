@@ -46,8 +46,9 @@ def rewrite(skill: Path, envelope: dict, date: str) -> None:
     end = text.index(end_marker, start)
     section = text[start:end]
     values = {str(row.get("row")): generated_value(row, date) for row in envelope["signals"]["rows"]}
-    if len(values) != 15:
-        raise ValueError(f"expected 15 setpoint rows, got {len(values)}")
+    expected_rows = 19
+    if len(values) != expected_rows:
+        raise ValueError(f"expected {expected_rows} setpoint rows, got {len(values)}")
 
     lines = section.splitlines()
     seen = set()

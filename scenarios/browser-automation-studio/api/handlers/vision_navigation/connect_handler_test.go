@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -395,4 +396,156 @@ func TestResumeNavigation_HappyPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "resumed", resp.Msg.Status)
 	require.Equal(t, "nav-1", tracker.lastResume)
+}
+
+// ---- GetNavigationStatus: wait + step history ----------------------------
+
+// lockedTracker mirrors the production trackers: it owns a lock, mutates the
+// live session under it, and hands out Snapshot copies.
+type lockedTracker struct {
+	mu      sync.Mutex
+	session *vision.NavigationSession
+}
+
+func (l *lockedTracker) GetSession(string) (*vision.NavigationSession, bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.session == nil {
+		return nil, false
+	}
+	return l.session.Snapshot(), true
+}
+
+func (l *lockedTracker) AbortNavigation(context.Context, string) error  { return nil }
+func (l *lockedTracker) ResumeNavigation(context.Context, string) error { return nil }
+
+func (l *lockedTracker) transition(status vision.NavigationStatus) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.session.SetStatus(status)
+}
+
+func newNavigatingSession() *vision.NavigationSession {
+	return &vision.NavigationSession{
+		NavigationID:  "nav-w",
+		SessionID:     "sess-w",
+		Status:        vision.StatusNavigating,
+		StartedAt:     time.Now(),
+		NavigatorType: vision.NavigatorPlaywright,
+	}
+}
+
+func TestGetNavigationStatus_ReturnsStepsAndTerminal(t *testing.T) {
+	session := newNavigatingSession()
+	session.RecordStep(vision.NavigationStepRecord{ActionType: "navigate", URL: "https://example.com", Description: "open"})
+	session.RecordStep(vision.NavigationStepRecord{ActionType: "click", Selector: "#go", Success: true})
+	session.SetStatus(vision.StatusCompleted)
+	tracker := &lockedTracker{session: session}
+	client := newTestClient(t, Deps{Registry: newTestRegistry(t), Tracker: tracker})
+
+	resp, err := client.GetNavigationStatus(context.Background(), connect.NewRequest(&aiv1.GetNavigationStatusRequest{NavigationId: "nav-w"}))
+	require.NoError(t, err)
+	require.True(t, resp.Msg.Terminal)
+	require.Equal(t, "completed", resp.Msg.Status)
+	require.Len(t, resp.Msg.Steps, 2)
+	require.Equal(t, int32(1), resp.Msg.Steps[0].Index)
+	require.Equal(t, "navigate", resp.Msg.Steps[0].ActionType)
+	require.Equal(t, "https://example.com", resp.Msg.Steps[0].Url)
+	require.Equal(t, "open", resp.Msg.Steps[0].Description)
+	require.Equal(t, int32(2), resp.Msg.Steps[1].Index)
+	require.Equal(t, "#go", resp.Msg.Steps[1].Selector)
+	require.True(t, resp.Msg.Steps[1].Success)
+	require.NotNil(t, resp.Msg.Steps[1].At)
+}
+
+func TestGetNavigationStatus_NonTerminalWithoutWaitReturnsImmediately(t *testing.T) {
+	tracker := &lockedTracker{session: newNavigatingSession()}
+	client := newTestClient(t, Deps{Registry: newTestRegistry(t), Tracker: tracker})
+
+	start := time.Now()
+	resp, err := client.GetNavigationStatus(context.Background(), connect.NewRequest(&aiv1.GetNavigationStatusRequest{NavigationId: "nav-w"}))
+	require.NoError(t, err)
+	require.False(t, resp.Msg.Terminal)
+	require.Equal(t, "navigating", resp.Msg.Status)
+	require.Less(t, time.Since(start), 500*time.Millisecond)
+}
+
+func TestGetNavigationStatus_WaitReturnsEarlyOnTerminalTransition(t *testing.T) {
+	tracker := &lockedTracker{session: newNavigatingSession()}
+	client := newTestClient(t, Deps{Registry: newTestRegistry(t), Tracker: tracker})
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		tracker.transition(vision.StatusCompleted)
+	}()
+
+	start := time.Now()
+	resp, err := client.GetNavigationStatus(context.Background(), connect.NewRequest(&aiv1.GetNavigationStatusRequest{
+		NavigationId: "nav-w",
+		WaitMillis:   10_000,
+	}))
+	elapsed := time.Since(start)
+	require.NoError(t, err)
+	require.True(t, resp.Msg.Terminal)
+	require.Equal(t, "completed", resp.Msg.Status)
+	require.GreaterOrEqual(t, elapsed, 90*time.Millisecond, "should have blocked until the transition")
+	require.Less(t, elapsed, 5*time.Second, "should not have waited for the full wait_millis")
+}
+
+func TestGetNavigationStatus_WaitWakesOnAwaitingHuman(t *testing.T) {
+	tracker := &lockedTracker{session: newNavigatingSession()}
+	client := newTestClient(t, Deps{Registry: newTestRegistry(t), Tracker: tracker})
+
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		tracker.transition(vision.StatusAwaitingHuman)
+	}()
+
+	resp, err := client.GetNavigationStatus(context.Background(), connect.NewRequest(&aiv1.GetNavigationStatusRequest{
+		NavigationId: "nav-w",
+		WaitMillis:   10_000,
+	}))
+	require.NoError(t, err)
+	require.True(t, resp.Msg.Terminal)
+	require.Equal(t, "awaiting_human", resp.Msg.Status)
+}
+
+func TestGetNavigationStatus_WaitTimesOutNonTerminal(t *testing.T) {
+	tracker := &lockedTracker{session: newNavigatingSession()}
+	client := newTestClient(t, Deps{Registry: newTestRegistry(t), Tracker: tracker})
+
+	start := time.Now()
+	resp, err := client.GetNavigationStatus(context.Background(), connect.NewRequest(&aiv1.GetNavigationStatusRequest{
+		NavigationId: "nav-w",
+		WaitMillis:   150,
+	}))
+	elapsed := time.Since(start)
+	require.NoError(t, err)
+	require.False(t, resp.Msg.Terminal)
+	require.Equal(t, "navigating", resp.Msg.Status)
+	require.GreaterOrEqual(t, elapsed, 140*time.Millisecond)
+	require.Less(t, elapsed, 3*time.Second)
+}
+
+func TestGetNavigationStatus_WaitRespectsContextCancel(t *testing.T) {
+	tracker := &lockedTracker{session: newNavigatingSession()}
+	client := newTestClient(t, Deps{Registry: newTestRegistry(t), Tracker: tracker})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := client.GetNavigationStatus(ctx, connect.NewRequest(&aiv1.GetNavigationStatusRequest{
+		NavigationId: "nav-w",
+		WaitMillis:   60_000,
+	}))
+	require.Error(t, err)
+	require.Less(t, time.Since(start), 5*time.Second, "cancelled client must not wait for wait_millis")
+}
+
+func TestClampStatusWait(t *testing.T) {
+	require.Equal(t, time.Duration(0), clampStatusWait(0))
+	require.Equal(t, time.Duration(0), clampStatusWait(-5))
+	require.Equal(t, 250*time.Millisecond, clampStatusWait(250))
+	require.Equal(t, maxStatusWait, clampStatusWait(300_000))
+	require.Equal(t, maxStatusWait, clampStatusWait(9_999_999))
 }

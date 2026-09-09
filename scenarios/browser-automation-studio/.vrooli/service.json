@@ -35,6 +35,86 @@
           "pruner": "custom"
         }
       },
+      "database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "format": "sqlite",
+        "subpath": "browser-automation-studio.db",
+        "regenerable": false,
+        "rationale": "Primary SQLite database containing durable projects, workflows, executions, and retention indexes.",
+        "budget": {
+          "max_bytes": "10GiB",
+          "rationale": "Durable BAS state is bounded by an alarm-only workload ceiling; owner retention may reclaim only explicitly eligible execution evidence."
+        }
+      },
+      "database_wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "format": "sqlite",
+        "subpath": "browser-automation-studio.db-wal",
+        "regenerable": true,
+        "rationale": "SQLite write-ahead log sidecar for the durable BAS database.",
+        "budget": {
+          "max_bytes": "10GiB",
+          "rationale": "The WAL is bounded by the primary database ceiling and can be checkpointed without deleting durable records."
+        }
+      },
+      "database_shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "format": "sqlite",
+        "subpath": "browser-automation-studio.db-shm",
+        "regenerable": true,
+        "rationale": "SQLite shared-memory sidecar for the durable BAS database.",
+        "budget": {
+          "max_bytes": "64MiB",
+          "rationale": "The shared-memory sidecar is regenerable and receives a bounded ceiling to detect abnormal growth."
+        }
+      },
+      "deployment_report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "format": "json",
+        "subpath": "deployment/deployment-report.json",
+        "regenerable": false,
+        "rationale": "Lifecycle deployment evidence is an owner-retained operational record written beneath the scenario data root.",
+        "budget": {
+          "max_bytes": "128MiB",
+          "max_age": "30d",
+          "rationale": "The deployment report is retained for the operational review window and bounded to prevent an abnormal report writer from consuming the data root."
+        }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Shared storage retention enforcement writes the latest compact receipt under BAS's state namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The receipt is bounded regenerable operational state and is replaced on each enforcement run."
+        }
+      },
+      "session_profiles": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "session-profiles",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Persisted browser session profiles contain user-owned cookies, storage, and related authentication state.",
+        "budget": {
+          "max_bytes": "2GiB",
+          "rationale": "Session profiles are durable sensitive state; the ceiling detects runaway profile growth without authorizing generic deletion."
+        }
+      },
       "data": {
         "rung": "owned",
         "kind": "dir",
@@ -287,6 +367,40 @@
         "runtime_only": true,
         "runtime_only_rationale": "Vision sidecar requests use the provider-neutral AI gateway HTTP boundary resolved at startup.",
         "degraded_behavior": "Managed vision calls fail closed while the AI gateway is unavailable."
+      },
+    "vrooli-memory": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Scoped recall and immutable attempt capture for programs that use learn.* verbs.",
+        "degraded_behavior": "Programs run without advice; captures queue in program-runtime's outbox until memory returns.",
+      "bundle_policy": "either"
+    },
+    "agent-manager": {
+      "type": "scenario",
+      "enabled": true,
+      "required": false,
+      "runtime_only": true,
+      "runtime_only_rationale": "Browser automation programs use agent-manager's governed delegated-run boundary for optional supervision and setpoint telemetry.",
+      "startup_policy": "try_start",
+      "description": "Optional delegated-agent workflow provider for browser automation learning programs.",
+      "degraded_behavior": "Browser navigation, authoring, and replay remain available; delegated supervision and its telemetry are reported unavailable."
+    },
+      "workflow-health": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Workflow search for find-flows.",
+        "degraded_behavior": "find-flows falls back to BAS workflows/list.",
+        "bundle_policy": "either"
+      },
+      "search-hub": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Federated search for find-flows candidates.",
+        "degraded_behavior": "find-flows returns only local workflows.",
+        "bundle_policy": "either"
       }
     }
   },

@@ -1,9 +1,7 @@
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 raw_inputs = inputs
 inputs = inputs if isinstance(inputs, dict) else {}
+learn.task(scope="bas-usage", operation="browser-automation-studio.author-flow", key={"project_id": inputs.get("project_id", ""), "workflow_id": inputs.get("workflow_id", "")})
 flow = inputs.get("flow")
 project_id = inputs.get("project_id", "")
 workflow_id = inputs.get("workflow_id", "")
@@ -12,7 +10,7 @@ name = str(inputs.get("name", "") or "candidate").strip()
 folder = str(inputs.get("folder", "") or "candidates").strip()
 
 envelope = {
-    "program": "browser-automation-studio.author-flow", "version": "2",
+    "program": "browser-automation-studio.author-flow", "version": "3",
     "status": "failed", "phase": "validate",
     "inputs": {"flow_nodes": len((flow or {}).get("nodes", [])) if isinstance(flow, dict) else None,
                "name": name, "folder": folder},
@@ -24,37 +22,7 @@ envelope = {
 handles = {}
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
+fail = program.fail
 
 
 def classify_failure(text):
@@ -86,7 +54,7 @@ def step_collect():  # COLLECT · schema validation of the draft (read effect)
     try:
         rows = browser_automation_studio.workflows.validate(workflow=flow, require_assertion=True, baseline_workflow_id=workflow_id, expected_version=expected_version).head(1)
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         return fail(status, klass, exc, "collect")
     if not rows:
         return fail("failed", "binding_error", "validate returned no row", "collect")
@@ -103,7 +71,7 @@ def step_collect():  # COLLECT · schema validation of the draft (read effect)
             if handles["previous"].get("id") != workflow_id or handles["previous"].get("version") != expected_version:
                 return fail("failed", "version_conflict", "Repair baseline changed", "collect")
         except Exception as exc:
-            status, klass = classify_transport(exc)
+            status, klass = program.classify(exc)
             return fail(status, klass, exc, "collect")
     return "classify"
 
@@ -121,7 +89,7 @@ def step_act():  # ACT · one ad hoc execution with wait
         rows = browser_automation_studio.workflows.execute_adhoc(flow_definition=flow, wait_for_completion=True,
                                                                  metadata={"name": name}).head(1)
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         return fail(status, klass, exc, "act")
     if not rows:
         return fail("failed", "binding_error", "execute-adhoc returned no row", "act")
@@ -152,7 +120,7 @@ def step_act():  # ACT · one ad hoc execution with wait
             for e in assertions) and not any((e.get("context") or {}).get("error")
                 or (e.get("aggregates") or {}).get("status") == "STEP_STATUS_FAILED" for e in entries)
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         envelope["errors"].append({"class":klass,"detail":"Assertion evidence unavailable","where":"act:verify"})
     envelope["signals"]["persistable"] = True
     try:
@@ -175,26 +143,23 @@ def step_act():  # ACT · one ad hoc execution with wait
         envelope["status"] = "partial" if envelope["errors"] else "ok"
         if assertions_verified and not envelope["errors"]:
             envelope["signals"]["outcome"] = "verified_success"
+            learn.note("preference", {"option_id": saved["id"] + "@" + str(saved["version"])})
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         return fail(status, klass, exc, "act:persist")
     return "report"
 
 
 def step_report():
     envelope["phase"] = "report"
+    status = envelope["signals"].get("outcome", "unknown")
+    learn.outcome(status if status in ("verified_success", "failed", "unavailable", "unknown") else "unknown",
+                  envelope["evidence"] if status == "verified_success" else [],
+                  measurements={"reused_workflow": False})
     print(envelope)
     return None
 
 
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify, "act": step_act, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:  # the one catch that guarantees an envelope on every path
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

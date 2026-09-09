@@ -72,6 +72,37 @@ class Tasks:
         """Requeue only the frozen finish intent; never execute domain code."""
         return self.handle([self._bridge("resume", attempt_id=attempt_id, resume_token=resume_token)], "tasks.resume")
 
+    def fragment_get(self, *, step_key):
+        """Read the best durable learn.act fragment for a step key."""
+        return self.handle([self._bridge("fragment_get", step_key=step_key)], "tasks.fragment_get")
+
+    def fragment_list(self):
+        return self.handle([self._bridge("fragment_list")], "tasks.fragment_list")
+
+    def delivery_metrics(self):
+        return self.handle([self._bridge("delivery_metrics")], "tasks.delivery_metrics")
+
+    def fragment_promote(self, *, step_key, min_verified=5, operation="", reviewed_by="", evidence=None,
+                         fixtures=None, publish=False, expected_digest=""):
+        """Prepare and optionally publish a reviewed baseline; retain learn.act in source."""
+        from promotion import promote_source
+        record = self._bridge("fragment_get", step_key=step_key)
+        fragment = record.get("fragment") or {}
+        if not record.get("found") or fragment.get("verified", 0) < int(min_verified) or fragment.get("contradicted_since_edit", 0):
+            raise ValueError("fragment lacks eligible verification evidence")
+        spec = self._spec(operation, expected_digest)
+        declaration = spec.get("declaration") or {}
+        candidate = promote_source(spec.get("source", fragment.get("source", "")), fragment.get("step_name"),
+            fragment.get("fragment"), {}, None, compatibility=fragment.get("compatibility"),
+            reviewed_by=reviewed_by, evidence=evidence, fixtures=fixtures)
+        if publish:
+            if not candidate["promoted"]:
+                raise ValueError("publication requires a reviewed unambiguous baseline")
+            receipt = self._bridge("fragment_publish", operation=operation, digest=spec.get("digest", ""),
+                                  step_name=fragment["step_name"], step_key=step_key, min_verified=int(min_verified), baseline=candidate["candidate"]["baseline"])
+            candidate["publication"] = receipt
+        return self.handle([candidate], "tasks.fragment_promote")
+
     def prepare(self, *, operation, inputs, task_id="", attempt_id="", resume_token="", expected_digest=""):
         if ACTIVE_TASK.get():
             raise ValueError("an active task already owns this attempt; nested operations inherit it")

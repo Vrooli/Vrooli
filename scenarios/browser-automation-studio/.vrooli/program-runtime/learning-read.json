@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "browser-automation-studio.learning-read",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Read comparable agent effort and outcome cohorts without inventing baselines or treating absent measurements as zero.",
   "inputs": {
     "from": {
@@ -70,7 +73,9 @@
         "identity_mismatch",
         "invalid_response",
         "capability_gap",
-        "flow_failed"
+        "flow_failed",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Typed Memory and binding-condition sensor references"

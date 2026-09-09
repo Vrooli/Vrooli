@@ -53,6 +53,33 @@ def test_reachable_reports_scenario_reason_and_blocks_unreachable_binding():
     assert blocked["invocations"] == []
 
 
+def test_demand_managed_binding_reaches_go_bridge_without_preflight():
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"ok":true}'
+
+    calls = []
+
+    def urlopen(request, timeout=None):
+        calls.append(request.full_url)
+        assert not request.full_url.endswith("/reachability")
+        return Response()
+
+    kernel = SessionKernel([
+        {"id": "memory/recall/run", "scenario": "memory", "group": "recall", "command": "run", "effect": "read", "reachable": False, "reachability_reason": "scenario API is not running", "demand_start": True},
+    ], bridge_url="http://127.0.0.1:1/internal/program-runtime/bindings/execute")
+    with patch("host.engine.urllib.request.urlopen", side_effect=urlopen):
+        result = kernel.execute("print(memory.recall.run().head(1)[0])")
+    assert result["ok"]
+    assert calls == ["http://127.0.0.1:1/internal/program-runtime/bindings/execute"]
+
+
 def test_bare_binding_call_executes_after_top_level_await():
     class FakeBinding:
         def __call__(self):

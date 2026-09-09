@@ -20,6 +20,8 @@
   "properties": {
     "learning_task": {
       "type": "object",
+      "deprecated": true,
+      "description": "Legacy whole-program learning boundary. Prefer the learn.task, learn.step, learn.recall, learn.choose, learn.note, learn.outcome, learn.infer, learn.act, learn.delegate, and learn.feedback verbs.",
       "additionalProperties": false,
       "required": [
         "scope",
@@ -144,6 +146,116 @@
           },
           "description": {
             "type": "string"
+          },
+          "free_text": {
+            "type": "boolean",
+            "default": false,
+            "description": "Exclude this high-variance input from the default learning identity key."
+          }
+        }
+      }
+    },
+    "learning": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "note_kinds": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          }
+        },
+        "baselines": {
+          "type": "object",
+          "maxProperties": 32,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "version",
+              "fragment",
+              "compatibility",
+              "reviewed_by",
+              "evidence",
+              "fixtures",
+              "digest"
+            ],
+            "properties": {
+              "version": {
+                "const": 1
+              },
+              "fragment": {
+                "type": "string",
+                "maxLength": 16384
+              },
+              "compatibility": {
+                "type": "object"
+              },
+              "reviewed_by": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "evidence": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "items": {
+                  "type": "string",
+                  "maxLength": 256
+                }
+              },
+              "fixtures": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 16,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "inputs",
+                    "expected"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "inputs": {
+                      "type": "object"
+                    },
+                    "expected": {},
+                    "calls": {
+                      "type": "array",
+                      "maxItems": 64,
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "binding_id",
+                          "arguments",
+                          "rows"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "binding_id": {
+                            "type": "string"
+                          },
+                          "arguments": {
+                            "type": "object"
+                          },
+                          "rows": {
+                            "type": "array"
+                          },
+                          "metadata": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
           }
         }
       }
@@ -239,12 +351,26 @@
           "agent.collect",
           "agent.run",
           "lib",
+          "learn.task",
+          "learn.step",
+          "learn.recall",
+          "learn.choose",
+          "learn.note",
+          "learn.outcome",
+          "learn.infer",
+          "learn.act",
+          "learn.delegate",
+          "learn.feedback",
           "tasks.run",
           "tasks.get",
           "tasks.current",
           "tasks.prepare",
           "tasks.finish",
-          "tasks.resume"
+          "tasks.resume",
+          "tasks.fragment_get",
+          "tasks.fragment_list",
+          "tasks.fragment_promote",
+          "tasks.delivery_metrics"
         ]
       }
     },
@@ -308,7 +434,7 @@
         },
         "signals": {
           "type": "object",
-          "description": "Name → one-line description of each signal the envelope carries.",
+          "description": "Name \u2192 one-line description of each signal the envelope carries.",
           "additionalProperties": {
             "type": "string"
           }

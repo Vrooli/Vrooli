@@ -1,10 +1,7 @@
 import json
 import re
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 inputs = inputs if isinstance(inputs, dict) else {}
 
 url = str(inputs.get("url", "") or "").strip()
@@ -29,35 +26,7 @@ envelope = {
 }
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
-
-
-def classify_transport(exc):
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running", "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
+fail = program.fail
 
 
 def step_validate():
@@ -110,7 +79,7 @@ def step_act():
         rows = result.head(16)
         meta = result.meta()
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         return fail(status, klass, exc, "act")
     by_type = {}
     for row in rows:

@@ -1,4 +1,4 @@
-"""browser-automation-studio.find-flows v1 — rank existing typed workflows for a task.
+"""browser-automation-studio.find-flows v2 — rank existing typed workflows for a task.
 
 Contract: find-flows.json.
 Skill:    browser-automation-studio (usage) — the [S3] leaf "does a typed workflow exist?".
@@ -8,19 +8,18 @@ Sources: workflows/list (persisted BAS workflows), workflow-health/workflows/sea
 bas/ assets; skipped without a scenario), search-hub/query/query with rows="ranked" over the
 workflow.flow and workflow.fragment types. No memory: this is an S3 step; prior attempts are
 recalled once by the usage skill in the bas-usage scope.
-Fit is a deterministic token-overlap label; ai.classify runs once, only to break a tie at the k boundary.
+Fit is a deterministic token-overlap label; ai.classify runs at most once, either to break a tie at the k
+boundary or, when no lexical candidate exists, to judge persisted workflow names against the task.
+Persisted candidates carry their version so a caller can form the learning identity <id>@<version>.
 """
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 task = str(inputs.get("task", "") or "").strip()
 scenario = str(inputs.get("scenario", "") or "").strip()
 k = int(inputs.get("k", 5))
 
 envelope = {
-    "program": "browser-automation-studio.find-flows", "version": "1",
+    "program": "browser-automation-studio.find-flows", "version": "2",
     "status": "failed", "phase": "validate",
     "inputs": {"task": task, "scenario": scenario or None, "k": k},
     "signals": {"candidates": [], "sources": {}, "tie_broken_by_ai": False},
@@ -30,37 +29,7 @@ handles = {}
 STOP = {"the", "a", "an", "to", "of", "and", "on", "in", "for", "with", "page", "test", "check", "open", "go"}
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
+fail = program.fail
 
 
 def tokens(text):
@@ -91,7 +60,7 @@ def step_collect():  # COLLECT · governed reads; each source degrades independe
         handles["wf"] = browser_automation_studio.workflows.list(limit=100)
         src["workflows_list"] = handles["wf"].count()
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         return fail(status, klass, exc, "collect")
     if scenario:
         try:
@@ -108,7 +77,7 @@ def step_collect():  # COLLECT · governed reads; each source degrades independe
         src["search_hub"] = handles["sh"].count()
     except Exception as exc:
         src["search_hub"] = None
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         envelope["errors"].append({"class": klass, "detail": f"search-hub: {str(exc)[:160]}", "where": "collect"})
     return "classify"
 
@@ -123,7 +92,7 @@ def step_classify():  # CLASSIFY · deterministic fit first; one ai.classify onl
         ov = len(tt & tokens(text))
         label = fit_label(ov, phrase in text.lower())
         if label != "none":
-            scored.append({"source": "workflows", "id": r.get("id"), "name": r.get("name"), "folder": r.get("folderPath"),
+            scored.append({"source": "workflows", "id": r.get("id"), "version": r.get("version"), "name": r.get("name"), "folder": r.get("folderPath"),
                            "overlap": ov, "fit": label, "runnable_by_id": True})
     if handles.get("wh") is not None:
         for r in handles["wh"].head(k):
@@ -143,7 +112,22 @@ def step_classify():  # CLASSIFY · deterministic fit first; one ai.classify onl
                 scored.append({"source": "search-hub", "id": r.get("id"), "name": r.get("title"), "folder": r.get("path"),
                                "overlap": ov, "fit": label, "runnable_by_id": False, "provider": r.get("providerId")})
     scored.sort(key=lambda c: (-c["overlap"], c["source"], str(c["name"])))
-    if len(scored) > k and scored[k - 1]["overlap"] == scored[k]["overlap"]:
+    if not scored and handles["wf"].count():
+        # Lexical miss (stop words ate the task, or names are terse): spend the one inference
+        # call judging persisted workflow names, which are the only runnable candidates.
+        persisted = handles["wf"].head(min(handles["wf"].count(), 20))
+        try:
+            verdicts = ai.classify(texts=[f"{r.get('name', '')} ({r.get('folderPath', '')})" for r in persisted],
+                                   labels=["fits", "does_not_fit"],
+                                   instruction=f"Does this saved browser workflow accomplish the task: {task}?")
+            envelope["signals"]["tie_broken_by_ai"] = True
+            for r, v in zip(persisted, verdicts.head(len(persisted))):
+                if isinstance(v, dict) and v.get("label") == "fits":
+                    scored.append({"source": "workflows", "id": r.get("id"), "version": r.get("version"), "name": r.get("name"),
+                                   "folder": r.get("folderPath"), "overlap": 0, "fit": "judged", "runnable_by_id": True, "ai": "fits"})
+        except Exception as exc:
+            envelope["errors"].append({"class": "inference_unavailable", "detail": str(exc)[:160], "where": "classify"})
+    elif len(scored) > k and scored[k - 1]["overlap"] == scored[k]["overlap"]:
         tied = [c for c in scored if c["overlap"] == scored[k - 1]["overlap"]]
         try:
             verdicts = ai.classify(texts=[f"{c['name']} ({c['folder']})" for c in tied], labels=["fits", "does_not_fit"],
@@ -169,12 +153,4 @@ def step_report():  # REPORT
 
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:  # the one catch that guarantees an envelope on every path
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

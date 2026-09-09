@@ -81,7 +81,26 @@ CALLS = {
     "progs": lambda: program_runtime.programs.list(provenance="agent", since_seconds=30 * 24 * 60 * 60),
     "portfolio": lambda: program_runtime.programs.portfolio(window_days=30, scenario="", include_ad_hoc=False),
     "maturity": lambda: lib.program_runtime.portfolio_audit(min_rung="S3", window_days=30),
+    "taskmetrics": lambda: optional_read("delivery_metrics"),
+    "fragments": lambda: optional_read("fragment_list"),
+    "advice": lambda: advice_read(),
 }
+
+
+def optional_read(method):
+    """Return an empty typed handle when optional telemetry is not admitted."""
+    try:
+        target = tasks
+    except NameError:
+        return Handle([])
+    return getattr(target, method)()
+
+
+def advice_read():
+    try:
+        return lib.vrooli_memory.compare_outcomes(scope="program-runtime-usage", cohort_limit=10)
+    except AttributeError:
+        return Handle([])
 
 
 # ---- state machine ---------------------------------------------------------------
@@ -207,6 +226,59 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count/head/g
     else:
         dead_row("unexercised-contracts", "portfolio", target, sensor)
 
+    target, sensor = "0", "program-runtime durable task metrics: blocked deliveries older than 24 hours"
+    if "taskmetrics" in h:
+        metric = (h["taskmetrics"].head(1) or [{}])[0]
+        count = int(metric.get("blocked_deliveries_aged", 0) or 0)
+        row("blocked-deliveries-aged", count, target, count == 0, sensor=sensor)
+    else:
+        dead_row("blocked-deliveries-aged", "taskmetrics", target, sensor)
+
+    target, sensor = ">= 0.2", "vrooli-memory.compare-outcomes advice-outcomes over the last 30 days"
+    if "advice" in h:
+        comparison = (h["advice"].head(1) or [{}])[0]
+        advice_rows = ((comparison.get("signals") or {}).get("rows") or [])
+        advice = next((item.get("reading") for item in advice_rows if item.get("row") == "advice-outcomes"), None)
+        cohorts = (advice or {}).get("cohorts", []) if isinstance(advice, dict) else []
+        aggregate = (((comparison.get("signals") or {}).get("aggregate") or {}).get("advice") or {})
+        if isinstance(aggregate, dict) and ("applied" in aggregate or "rejected" in aggregate):
+            applied = int(aggregate.get("applied", 0) or 0)
+            rejected = int(aggregate.get("rejected", 0) or 0)
+        else:
+            applied = sum(int(c.get("appliedAdvice", 0) or 0) for c in cohorts if isinstance(c, dict))
+            rejected = sum(int(c.get("rejectedAdvice", 0) or 0) for c in cohorts if isinstance(c, dict))
+        total = applied + rejected
+        ratio = (applied / total) if total else None
+        reliability = ((comparison.get("signals") or {}).get("reliability") or {})
+        row("advice-application-ratio", {"applied": applied, "rejected": rejected, "ratio": ratio,
+                                          "source_reliable": reliability.get("reliable"),
+                                          "source_reason": reliability.get("reason")}, target,
+            ratio is not None and ratio >= 0.2, unavailable=(total == 0), reason=None if total else "unreliable:no advice decisions", sensor=sensor)
+    else:
+        dead_row("advice-application-ratio", "advice", target, sensor)
+
+    target, sensor = ">= 0.5 after verified fragment", "program-runtime retained successful fragment observations"
+    if "fragments" in h:
+        payload = (h["fragments"].head(1) or [{}])[0]
+        fragments = payload.get("fragments") or []
+        verified = sum(int(f.get("verified", 0) or 0) for f in fragments if isinstance(f, dict))
+        cached = sum(int(f.get("cached_runs", 0) or 0) for f in fragments if isinstance(f, dict))
+        total = verified
+        rate = (cached / total) if total else None
+        row("fragment-cache-hit-rate", {"cached_runs": cached, "act_runs": total, "rate": rate}, target,
+            rate is not None and rate >= 0.5, unavailable=(verified == 0), reason=None if verified else "pending_telemetry", sensor=sensor)
+        promotable_rows = [f for f in fragments if isinstance(f, dict) and int(f.get("verified", 0) or 0) >= 5 and int(f.get("contexts", 0) or 0) >= 2 and int(f.get("contradicted_since_edit", 0) or 0) == 0]
+        promotable = len(promotable_rows)
+        envelope_fragment_reading = {"cached_runs": cached, "act_runs": total, "rate": rate,
+                                     "candidates": [{"step_key": f.get("step_key"), "verified": f.get("verified")} for f in promotable_rows[:10]]}
+        envelope["signals"]["rows"][-1]["reading"] = envelope_fragment_reading
+        row("promotable-fragments", promotable, "0 without a filed route", promotable == 0,
+            sensor="program-runtime durable fragment promotion candidates")
+    else:
+        dead_row("fragment-cache-hit-rate", "fragments", target, sensor)
+        row("promotable-fragments", None, "0 without a filed route", None, unavailable=True, reason="pending_telemetry",
+            sensor="program-runtime durable fragment promotion candidates")
+
     # governance-share: the handle's rows are the observed (ungoverned) names; the share is a meta() scalar.
     # protojson omits a double at 0.0, so an absent governedShare on an available response is 0.0.
     target, sensor = "1.0", f"program-runtime programs governance-share --window-seconds {governance_window_seconds}"
@@ -276,6 +348,10 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count/head/g
 
 def step_report():  # REPORT · bounded, always
     envelope["phase"] = "report"
+    # Keep the envelope inside the declared output budget even as rows are
+    # added. The row readings are authoritative; evidence is a bounded sample.
+    if len(json.dumps(envelope, allow_nan=False, separators=(",", ":")).encode()) > 3800:
+        envelope["evidence"] = envelope["evidence"][:6]
     print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
     return None
 

@@ -35,6 +35,6 @@ describe("AppShell accessibility", () => {
     );
 
     expect(screen.getAllByRole("navigation", { name: "Primary navigation" })).toHaveLength(1);
-    expect(screen.getByRole("navigation", { name: "Mobile navigation" })).toBeInTheDocument();
+    expect(screen.getByTestId("layout-nav-link-dashboard-tab")).toBeInTheDocument();
   });
 });

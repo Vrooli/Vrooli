@@ -48,6 +48,7 @@
       ,"programs.no_live_fixture": {"capability_id": "fixture_evidence", "local_level_impact": "L2", "global_impact": "advisory", "dimension": "tests", "severity_default": "SEVERITY_WARNING", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]}
       ,"programs.budget_exceeded": {"capability_id": "source_discipline", "local_level_impact": "L2", "global_impact": "advisory", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]}
       ,"programs.never_exercised": {"capability_id": "fixture_evidence", "local_level_impact": "L2", "global_impact": "advisory", "dimension": "contracts", "severity_default": "SEVERITY_WARNING", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]}
+      ,"programs.dependency_undeclared": {"capability_id": "binding_reality", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "description": "A program calls a governed binding, library target, or learn.* memory path whose scenario is absent from dependencies.scenarios; severity error and required cleanliness make this a blocking finding.", "recommended_skill_ids": ["program-runtime-improve"]}
     },
     "fallback": {"capability_id": "contract_integrity", "local_level_impact": "L0", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_WARNING", "clean_requirement": "required"}
   }

@@ -1,8 +1,11 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "browser-automation-studio.find-flows",
-  "version": "1",
-  "purpose": "Rank persisted BAS workflows, scenario-owned bas/ assets, and search-hub workflow hits against a task with a deterministic fit label; one ai.classify call only to break a tie at the k boundary.",
+  "version": "2",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Rank persisted workflows, scenario bas/ assets, and search-hub hits against a task with a deterministic fit label; one ai.classify call breaks a k-boundary tie or judges names on a lexical miss.",
   "inputs": {
     "task": {
       "type": "string",
@@ -25,7 +28,7 @@
   "invariants": [
     "no binding with effect write or destructive is called",
     "at most k candidates are returned; no row set above 100 is materialized",
-    "ai.classify runs at most once, and only to break a tie at the k boundary",
+    "ai.classify runs at most once: to break a tie at the k boundary, or to judge persisted workflow names when no lexical candidate exists",
     "the envelope is printed exactly once, on every path",
     "No memory I/O: this is an S3 step; the usage skill owns recall and capture in bas-usage."
   ],
@@ -68,9 +71,9 @@
       ]
     },
     "signals": {
-      "candidates": "up to k of {source, id, name, folder, overlap, fit(strong|weak), runnable_by_id, mutating?, leaf_type?, ai?} sorted by overlap desc",
+      "candidates": "up to k of {source, id, version?, name, folder, overlap, fit(strong|weak|judged), runnable_by_id, mutating?, leaf_type?, ai?} sorted by overlap desc; version is present for persisted workflows so a caller can form <id>@<version>",
       "sources": "row counts per source: workflows_list, workflow_health (null when no scenario was given), search_hub; null when that source failed",
-      "tie_broken_by_ai": "true when ai.classify ran"
+      "tie_broken_by_ai": "true when ai.classify ran (tie break or lexical-miss fallback)"
     },
     "errors": {
       "classes": [
@@ -84,7 +87,9 @@
         "deadline_exceeded",
         "binding_error",
         "kernel_runtime",
-        "inference_unavailable"
+        "inference_unavailable",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "candidate ids in rank order"

@@ -2,6 +2,7 @@ package programsvalidation
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	"program-runtime/internal/bindings"
 	"program-runtime/internal/contracts"
 	programsinternal "program-runtime/internal/programs"
 )
@@ -63,6 +65,32 @@ func TestDeclaredPreflightAcceptsInjectedInputsButRejectsUnknownNames(t *testing
 func TestValidateScenarioStillRejectsMissingScenario(t *testing.T) {
 	if findings := validateScenario(t.TempDir(), "missing", nil, false); len(findings) != 1 || findings[0] != "programs.scenario_missing" {
 		t.Fatalf("findings = %v, want scenario-missing", findings)
+	}
+}
+
+func TestProgramDependencyFindingNamesBindingAndManifestFix(t *testing.T) {
+	bindings := []struct {
+		ID     string `json:"id"`
+		Effect string `json:"effect"`
+	}{{ID: "vrooli-memory/learning/record", Effect: "write"}}
+	details := []any{}
+	findings := programDependencyFindings("demo", "learned", "", bindings, nil, map[string]struct{}{}, &details)
+	if !hasFinding(findings, "programs.dependency_undeclared") {
+		t.Fatalf("findings = %v, want undeclared dependency", findings)
+	}
+	if len(details) != 1 || !strings.Contains(details[0].(map[string]any)["message"].(string), "vrooli-memory") {
+		t.Fatalf("details = %v, want prose dependency fix", details)
+	}
+
+	if findings := programDependencyFindings("demo", "learned", "", bindings, nil, map[string]struct{}{"vrooli-memory": {}}, nil); len(findings) != 0 {
+		t.Fatalf("declared dependency still reported: %v", findings)
+	}
+}
+
+func TestProgramLibraryAndLearnUsesAreDependencies(t *testing.T) {
+	findings := programDependencyFindings("demo", "learned", "lib.vrooli_memory.choose_option()\nlearn.note('preference', {})", nil, nil, map[string]struct{}{}, nil)
+	if !hasFinding(findings, "programs.dependency_undeclared") {
+		t.Fatalf("findings = %v, want undeclared dependency", findings)
 	}
 }
 
@@ -131,6 +159,81 @@ func containsString(values []string, want string) bool {
 }
 
 type fixtureTestRunner struct{ calls int }
+
+type historicalBudgetPortfolio struct{}
+
+func (historicalBudgetPortfolio) PortfolioStats(context.Context, *programsv1.PortfolioStatsRequest) (*programsv1.PortfolioStatsResponse, error) {
+	return &programsv1.PortfolioStatsResponse{Rows: []*programsv1.ProgramPortfolioRow{{Name: "tech-tree-designer.setpoint-read", P95Millis: 60004}}}, nil
+}
+
+type recoveryFixtureRunner struct {
+	calls int
+	fail  bool
+}
+
+func (r *recoveryFixtureRunner) RunDeclaredProgram(_ context.Context, req *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error) {
+	r.calls++
+	if req.Msg.GetProvenance() != programsv1.Provenance_PROVENANCE_TEST || req.Msg.GetExpectedDigest() == "" {
+		return nil, fmt.Errorf("fixture must be pinned and test-provenance")
+	}
+	if req.Msg.GetInputs().GetFields()["collect_diagnostics"].GetStringValue() == "false" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid boolean"))
+	}
+	if r.fail {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("fixture unavailable"))
+	}
+	return connect.NewResponse(&libraryv1.RunDeclaredProgramResponse{Terminal: true, Program: &programsv1.Program{Status: programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, Stdout: `{"status":"ok","signals":{"acceptance":"unknown","unresolved_outcomes":18,"diagnostics":[]}}`}}), nil
+}
+
+// Exercise the shipped recovery case through admission, not just the fixture
+// helper: historical debt must neither starve fresh evidence nor become PASS.
+func TestHistoricalBudgetDebtDoesNotSuppressFreshFixtures(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, err := bindings.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name          string
+		scenario      string
+		execute, fail bool
+		wantCalls     int
+	}{
+		{"recovery", "tech-tree-designer", true, false, 3},
+		{"new-failure", "tech-tree-designer", true, true, 3},
+		{"static-only", "tech-tree-designer", false, false, 0},
+		{"invalid-contract", "missing-fixture-scenario", true, false, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runner := &recoveryFixtureRunner{fail: tc.fail}
+			h := &handler{repoRoot: root, registry: registry, runner: runner, portfolio: historicalBudgetPortfolio{}}
+			response, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: tc.scenario, IncludeExecution: tc.execute}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			findings := response.Msg.GetAssessment().GetLocal().GetBlockingFindingCodes()
+			if runner.calls != tc.wantCalls {
+				t.Fatalf("calls = %d, want %d; findings = %v", runner.calls, tc.wantCalls, findings)
+			}
+			if response.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+				t.Fatal("unresolved debt became a passing qualification")
+			}
+			if tc.scenario == "tech-tree-designer" && !containsString(findings, "programs.budget_exceeded") {
+				t.Fatalf("historical debt lost: %v", findings)
+			}
+			fixtureFailure := false
+			for _, finding := range findings {
+				fixtureFailure = fixtureFailure || strings.HasPrefix(finding, "programs.fixture:")
+			}
+			if fixtureFailure != tc.fail {
+				t.Fatalf("fresh evidence lost or invented: %v", findings)
+			}
+		})
+	}
+}
 
 func (r *fixtureTestRunner) RunDeclaredProgram(_ context.Context, req *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error) {
 	r.calls++

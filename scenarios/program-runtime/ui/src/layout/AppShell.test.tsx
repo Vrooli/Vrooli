@@ -23,13 +23,10 @@ describe("AppShell structure (cimode)", () => {
     cleanup();
   });
 
-  it("renders the title, sidebar, bottom nav, and main outlet", () => {
+  it("renders the title, navigation, utility, and main outlet", async () => {
     renderShell();
-    expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.topBar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.sidebar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.bottomNav)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.layout.shell)).toBeInTheDocument();
+    expect(screen.getByRole("main")).toBeInTheDocument();
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });
 
@@ -39,11 +36,11 @@ describe("AppShell structure (cimode)", () => {
     expect(screen.queryByTestId(selectors.settingsPage.localeOption({ code: "ja" }))).not.toBeInTheDocument();
   });
 
-  it("renders the canonical nav links in both sidebar and bottom nav", () => {
+  it("renders the canonical nav links in sidebar and mobile tabs", async () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     for (const key of ["dashboard", "bindings", "settings"] as const) {
-      expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
-      expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
+      expect(await screen.findByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
+      expect(screen.getByTestId(`${selectors.layout.navLink({ key })}-tab`)).toBeInTheDocument();
     }
   });
 });

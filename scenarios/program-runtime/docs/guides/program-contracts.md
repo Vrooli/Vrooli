@@ -376,18 +376,77 @@ Every `reading` is either a value the sensor returned or `null`. A program never
 prints a number for a row it declined to evaluate; the improve skill's "today"
 column copies `reading` and `reason` verbatim.
 
-## Memory in programs
+## Dependencies a program creates
 
-At steps up to S3, a program does not touch memory; the skill's decision tree
-decides what to remember from the envelope. At S4, the tree lives in the
-orchestrator program, and memory becomes contract-declared phases:
+A program's governed binding calls, `lib.<scenario>.*` calls, and `learn.*`
+verbs create runtime scenario dependencies. Declare each target in the owning
+scenario's `.vrooli/service.json` under `dependencies.scenarios` with
+`required: false`, `startup_policy: "try_start"`, a purpose, degraded behavior,
+and `bundle_policy: "either"`. The programs validation phase emits
+`programs.dependency_undeclared` with the program, target, and literal edge to
+add when this contract is missing. The manifest remains the lifecycle and
+packaging authority; program source is evidence used to detect drift.
 
-- reads happen in `collect` from the declared scope with the declared query;
-- writes happen in `report` with the declared entry kinds;
-- nothing reads or writes memory in `act` or `delegate`.
+## Learning in programs
 
-A memory dependency being down is degraded, not fatal: the program records a
-`memory_unavailable` error, proceeds without recall, and skips capture.
+Programs use the fixed `learn` surface when learning belongs at an execution
+boundary: `learn.task`, `learn.step`, `learn.recall`, `learn.choose`,
+`learn.note`, `learn.outcome`, `learn.infer`, `learn.act`, `learn.delegate`, and `learn.feedback`.
+This allocates identity before any durable effect, starts the checkpoint lazily,
+and freezes notes and outcome evidence into the shared Memory finish path.
+`learn.note` accepts the six fleet kinds (`preference`, `parameter`,
+`target-note`, `avoid`, `trace`, and `correction`) plus contract-declared kinds.
+
+### Verb contract
+
+Use these signatures inside a program. Each call is bounded, governed, and
+recorded under the active task; none shells out or calls a provider directly.
+
+| Verb | Signature | Contract |
+|---|---|---|
+| `learn.task` | `learn.task(scope, operation, key=...)` | Opens the root task identity; explicit keys are preferred when free text is excluded. |
+| `learn.step` | `with learn.step(name, key=...):` | Registers one child attempt and preserves parent-first tree order. |
+| `learn.recall` | `learn.recall(query=..., key=..., kinds=..., since=..., depth=...)` | Returns bounded summaries; zoom only a selected candidate. |
+| `learn.choose` | `learn.choose(options, default)` | Records an explicit adoption decision; it never authorizes the domain action. |
+| `learn.note` | `learn.note(kind, body, ...)` | Uses a typed note kind and writes bounded, redacted evidence. |
+| `learn.outcome` | `learn.outcome(status, evidence=..., measurements=...)` | Closes the task or step with verified evidence; derived verdicts are emitted here. |
+| `learn.infer` | `learn.infer(name, intent, inputs, schema, demos="key", verify=...)` | Runs schema-validated inference and retains bounded verified examples. |
+| `learn.act` | `learn.act(name, intent, inputs, schema, bindings, verify=..., verifier_revision=...)` | Fills a code hole with a normalized `def step(inputs, bindings)` fragment through the allow-list. |
+| `learn.feedback` | `learn.feedback(attempt_id, disposition, evidence, correction="")` | Records later-run support or contradiction; failed delivery joins the finish outbox. |
+| `learn.delegate` | `learn.delegate(name, brief, inputs, schema, bindings, verify=...)` | Requests an agent-manager run; the caller owns verification and outcome capture. |
+
+The root and every named step use a stable step key. By default it combines the
+operation, an input digest with free text removed, and the step name; use an
+explicit `key` when similar tasks must remain distinct. `gather` registers
+concurrent children under the same parent. A child outcome is not a root
+outcome, and a root cannot be verified without its declared evidence.
+
+The fragment reply is code, not prose:
+
+```python
+def step(inputs, bindings):
+    return {"value": inputs["value"]}
+```
+
+`learn.act` validates the reply, executes it through the per-execution binding
+allow set, and records verified or contradicted candidates. A qualified compatible durable
+fragment may be replayed later with its verifier. The improve cycle nominates
+a candidate for review. `fragment-promote` publishes a reviewed baseline into
+`learning.baselines` while retaining `learn.act`; it does not substitute source.
+
+| Reliability condition | Result |
+|---|---|
+| Memory unavailable on a try-start edge | Recall is unavailable; the task receipt is queued for later delivery. |
+| Memory unavailable on a must-start edge | The run is refused before domain work. |
+| Domain finishes before capture delivery | The frozen finish intent retries with backoff; it never re-runs domain code. |
+| Twenty capture deliveries fail | The receipt becomes blocked and aged for the improve board. |
+| Runtime interruption before completion | The attempt is uncertain; recovery never dispatches domain code again. |
+
+The program contract may mark high-variance inputs with `free_text: true`; those
+inputs are excluded from the default identity key. Supply an explicit
+`learn.task(key=...)` when that distinction matters. A memory dependency being
+down is degraded for `try_start` edges: recall is unavailable and the capture
+receipt is blocked for later delivery. A `must_start` edge refuses the run.
 
 ## Calling a program
 
@@ -491,14 +550,16 @@ promote a saved program or waive present binding permissions. Missing historic a
 remain unavailable. Retained artifacts have a 2 MiB bound per version; pinned versions
 must be retained while durable policies or workflows refer to them.
 
-### Runtime learning tasks
+### Legacy declaration compatibility shim
 
-A `learning_task` declaration registers the program as a top-level learning
-boundary. It declares `scope`, the Memory `operation`, `context_fields` from
-declared inputs, and an `outcome` mapping from `signals.outcome` plus explicit
-`evidence_paths`. Both `lib.<scenario>.<program>()` and direct `library run`
-enter `tasks.run`. Nested registered calls inherit the active task, including
-calls inside `gather`; they do not allocate another attempt.
+A legacy `learning_task` declaration remains accepted only for migration and is
+marked deprecated. It declares `scope`, the Memory `operation`, context fields
+from declared inputs, and an outcome mapping. The compatibility shim translates
+that declaration to the same identity, checkpoint, and completion path used by
+`learn.*`; new programs must use the ten verbs. `tasks.run` remains available
+for callers that need the old explicit operation API.
+Nested registered calls inherit the active task, including calls inside
+`gather`; they do not allocate another attempt.
 
 The runtime allocates durable task and attempt identities before invoking
 `vrooli-memory.prepare-attempt`. A start checkpoint admits domain execution
@@ -536,5 +597,7 @@ output and failure text seal token occurrences before SQLite persistence with
 an API-process-only key. Live responses expose the original token; after an API
 restart the historical program corpus cannot recover it. `tasks.current()`
 returns task identity and preparation evidence without resume authority.
-Memory currently accepts operator and test provenance. Other provenance keeps
-its completed domain result and an explicit blocked capture reason.
+Memory accepts operator, test, and agent provenance. Other provenance keeps its
+completed domain result and an explicit blocked capture reason; provenance is
+caller-declared and not authentication. Learning comparison cohorts retain
+the provenance dimension and report counts by provenance.

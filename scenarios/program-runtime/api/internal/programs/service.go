@@ -3,7 +3,9 @@
 package programs
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -63,6 +65,23 @@ type Result struct {
 	MaterializedBytes int64
 	OutputLimitBytes  int64
 	Invocations       []Invocation
+	// LearningJSON is the kernel's learn.* receipt as compact JSON, or "" when
+	// the program used no learn verb.
+	LearningJSON string
+}
+
+// compactLearningJSON canonicalises the kernel's learning receipt. A missing,
+// null, or malformed receipt yields "" rather than a partial document.
+func compactLearningJSON(raw json.RawMessage) string {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return ""
+	}
+	var buffer bytes.Buffer
+	if err := json.Compact(&buffer, trimmed); err != nil {
+		return ""
+	}
+	return buffer.String()
 }
 
 type Options struct {
@@ -364,6 +383,7 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 	}
 	p.Stdout, p.ContextBytes, p.AgentBytes = result.Stdout, result.ContextBytes, result.AgentBytes
 	p.Stdout = boundedText(p.Stdout, int(p.OutputLimitBytes))
+	p.LearningJson = result.LearningJSON
 	p.WallTimeMillis = time.Since(started).Milliseconds()
 	if sampler, ok := s.runner.(UsageSampler); ok {
 		if cpu, available := sampler.CPUTime(p.SessionId); available {
@@ -582,6 +602,17 @@ func (s *Service) ListFilteredWithIdentityWithError(ctx context.Context, session
 		return nil, err
 	}
 	return items, nil
+}
+
+// UsageByName reports runs per named program inside the trailing window. It
+// is the cheap counterpart of PortfolioStats for callers that only rank by
+// usage (the library search corpus) and must not pay for the full CTE.
+func (s *Service) UsageByName(ctx context.Context, windowDays int32) (map[string]int64, error) {
+	since := time.Time{}
+	if windowDays > 0 {
+		since = s.clock().UTC().Add(-time.Duration(windowDays) * 24 * time.Hour)
+	}
+	return s.repo.UsageByName(ctx, since)
 }
 
 // PortfolioStats answers portfolio questions with grouped SQL over the durable

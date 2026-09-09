@@ -120,7 +120,7 @@ func LibraryCorpusHandler(repo *library.Repository, index *contracts.Index, root
 // LibraryCorpusHandlerWithUsage adds a generic, provider-owned usage field to
 // each result. The Search Hub adapter carries it through metadata, so ranking
 // and CLI consumers can distinguish a proven callable from an unexercised one.
-func LibraryCorpusHandlerWithUsage(repo *library.Repository, index *contracts.Index, usageReader func(context.Context) (map[string]int64, error), roots ...string) http.Handler {
+func LibraryCorpusHandlerWithUsage(repo *library.Repository, index *contracts.Index, usageReader UsageReader, roots ...string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -370,24 +370,47 @@ func tokenSet(value string) map[string]struct{} {
 // idempotent and the empty token is valid on first registration or after a
 // restart, so this does not persist cross-process credentials.
 func RegisterSearchHubProvider(ctx context.Context, repo *library.Repository, index *contracts.Index, root string) {
-	go reconcileSearchProviders(ctx, func(callCtx context.Context) error {
-		if _, err := index.Refresh(root); err != nil {
-			return err
-		}
+	go reconcileSearchProviders(ctx, func() error {
+		_, err := index.Refresh(root)
+		return err
+	}, func(callCtx context.Context) error {
 		return registerSearchHubProvider(callCtx, repo, index)
-	}, 2*time.Second, time.Minute)
+	}, 2*time.Second, time.Minute, time.Minute)
 }
 
-// Refresh after success too: a Search Hub restart or a newly authored program
-// must not require restarting Program Runtime to recover capability routing.
-func reconcileSearchProviders(ctx context.Context, register func(context.Context) error, retry, refresh time.Duration) {
+// reconcileSearchProviders refreshes the contract index and registers the
+// providers, then repeats: after `refresh` on success (a Search Hub restart or
+// a newly authored program must not require restarting Program Runtime), and
+// after an exponentially growing delay on failure, from `retry` doubling up to
+// `maxRetry`, reset by the next success. The contract index is a ReadDir of
+// every scenario's program directory, so it is re-read only on the periodic
+// success cycle or when the index refresh itself failed — never on every
+// retry of a registration that failed for an unrelated reason such as Search
+// Hub being down.
+func reconcileSearchProviders(ctx context.Context, refreshIndex func() error, register func(context.Context) error, retry, maxRetry, refresh time.Duration) {
+	if maxRetry < retry {
+		maxRetry = retry
+	}
+	backoff := retry
+	needIndex := true
 	for ctx.Err() == nil {
-		callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		err := register(callCtx)
-		cancel()
+		var err error
+		if needIndex {
+			err = refreshIndex()
+			needIndex = err != nil
+		}
+		if err == nil {
+			callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			err = register(callCtx)
+			cancel()
+		}
 		delay := refresh
 		if err != nil {
-			delay = retry
+			delay = backoff
+			backoff = min(backoff*2, maxRetry)
+		} else {
+			backoff = retry
+			needIndex = true
 		}
 		timer := time.NewTimer(delay)
 		select {

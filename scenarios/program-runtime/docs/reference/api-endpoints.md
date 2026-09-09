@@ -26,6 +26,26 @@ REST-exception failure mode appears.
 
 ---
 
+## Learning task bridge actions
+
+The task bridge is an internal Connect-adjacent JSON bridge used by the kernel;
+the public CLI is the supported operator surface. Each action requires the
+active program/session identity and is bounded by the task store.
+
+| Action | Purpose |
+|---|---|
+| `fragment_get` | Read the best verified, non-contradicted fragment for a step key without counting a cache use. |
+| `fragment_list` | Read bounded fragment telemetry for the improve board. |
+| `delivery_metrics` | Read aged blocked capture deliveries. |
+| `fragment_put` | Record a verified or contradicted fragment candidate with source, input-digest diversity, compatibility, and idempotent attempt evidence. |
+| `fragment_publish` | Publish one reviewed baseline into an unchanged declared program under operator provenance; retain the adaptive source. |
+
+The improve-cycle actuator is the declared program
+`program-runtime.fragment-promote`, run with `program-runtime library run`.
+`--include-program-bindings` on the dependency analyzer exposes the same
+program-derived scenario edges used by programs validation, including
+`programs.dependency_undeclared` when a contract omits a required target.
+
 ## System
 
 ### `GET /health`

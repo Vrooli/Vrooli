@@ -60,10 +60,10 @@ Use these declared programs for reusable browser work and its bounded evidence:
 | Program | Purpose | Required inputs |
 |---|---|---|
 | `browser-automation-studio.author-flow` | Validate and save a typed workflow candidate | `flow`, `project_id`, `name` |
-| `browser-automation-studio.do-task` | Execute an authorized workflow revision with assertions | `task`, `workflow_id`, `version` |
+| `browser-automation-studio.do-task` | Search and recommend, execute an authorized revision, author a candidate, or navigate | `task`; then `workflow_id`+`version`(+`advice_attempt_id`), or `flow`, or `session`+`model`, or `navigation_id` |
 | `browser-automation-studio.find-flows` | Find reusable flows for a task | `task`, optional `scenario` |
 | `browser-automation-studio.learning-read` | Read comparable browser-task learning outcomes | `operation`, `context_key` |
-| `browser-automation-studio.navigate-intent` | Navigate an authorized session toward an intent | `session`, `prompt`, `selected_model`, `max_steps` |
+| `browser-automation-studio.navigate-intent` | Navigate an authorized session toward an intent, or resume one | `session`, `prompt`, `model`, `max_steps`, `wait_millis`; or `navigation_id` |
 | `browser-automation-studio.setpoint-read` | Read the BAS improvement board | optional window inputs |
 | `browser-automation-studio.smoke-flow` | Run a bounded smoke workflow and report evidence | `workflow_id`, `version` |
 
@@ -100,8 +100,29 @@ Use `bas-usage` for comparable task evidence. Keep target, profile, and
 relevant version contexts distinct; remembered selectors and endpoints require
 current verification.
 
-The declared do-task, author-flow, and smoke-flow programs use automatic learning.
-Inspect their outcome and delivery receipt; nested calls share the parent attempt.
+The declared do-task, author-flow, smoke-flow, and navigate-intent programs use the
+learn verbs. Inspect their outcome and delivery receipt (`learning_json` on
+`program-runtime programs get <id> --json`); nested calls share the parent attempt.
+
+The learning loop is a two-run protocol. A search run (`do-task` with only `task`,
+`site` or `scenario`) recalls remembered `preference` and `avoid` notes for that
+site and task, and returns `signals.recommended_workflow` (`workflow_id`,
+`version`, `source: advice|default`) plus `signals.learning.attempt_id`. Selection
+stays explicit: the execution run passes the exact `workflow_id`, `version`, and
+`advice_attempt_id=<that attempt_id>`; its verified or failed outcome grades the
+search run's recommendation through `learn.feedback`, notes a `preference` for
+the revision on verified success, and an `avoid` with the failure fingerprint on
+failure. Learning identity is site plus a digest of the task text, so unrelated
+tasks on one site never share preferences.
+
+Navigation is bounded and resumable. `navigate-intent` (or `do-task` with
+`session` and `model`) starts one navigation; pass `wait_millis` (up to 300000)
+to let the status read block server-side until the navigation is terminal. A
+pending result returns `navigation_id`; resume with `do-task --input
+navigation_id=<id>` (or `navigate-intent --input navigation_id=<id>`). A
+completed navigation's recorded steps become a typed V2 `candidate_flow`; do-task
+authors it through `author-flow`, verifies it through `smoke-flow`, and only then
+notes the preference and a `target-note` for the site.
 For direct operations without automatic learning, use the manual path in
 `prompt-manager skill read vrooli-memory`. That skill owns attempt fields,
 advice decisions, measurements, and capture recovery. Never record device or

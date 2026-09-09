@@ -4,6 +4,7 @@ package bindings
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"google.golang.org/protobuf/reflect/protodesc"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/demand"
@@ -38,6 +41,13 @@ var errNoBinding = errors.New("binding does not exist")
 // short enough to observe lifecycle changes during a session while keeping a
 // fleet-wide binding census from probing the same scenario on every call.
 const reachabilityTTL = 30 * time.Second
+
+// demandStartupRetryInterval bounds discovery churn while a demand-managed
+// target completes its asynchronous lifecycle start. The start command can
+// return with an in-flight operation before the API port is registered.
+const demandStartupRetryInterval = 250 * time.Millisecond
+
+const demandStartupWait = 30 * time.Second
 
 type methodInfo struct {
 	input   protoreflect.MessageDescriptor
@@ -619,7 +629,7 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 		if err := starter.StartScenario(ctx, binding.GetScenario(), ""); err != nil {
 			return nil, fmt.Errorf("start demand-managed scenario %s: %w", binding.GetScenario(), err)
 		}
-		base, err = resolver(ctx, binding.GetScenario())
+		base, err = resolveDemandStartedTarget(ctx, resolver, binding.GetScenario())
 	}
 	if err != nil {
 		return nil, fmt.Errorf("resolve %s: %w", binding.GetScenario(), err)
@@ -679,6 +689,36 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 		return nil, fmt.Errorf("decode %s response object: %w", id, err)
 	}
 	return jsonResult, nil
+}
+
+// resolveDemandStartedTarget waits for the lifecycle operation initiated by
+// ScenarioStarter to register the target API. StartScenario is deliberately
+// allowed to return while the control plane owns an in-flight start record;
+// one immediate resolve would turn that normal transition into a false
+// unavailable result.
+func resolveDemandStartedTarget(ctx context.Context, resolver ReachabilityResolver, scenario string) (string, error) {
+	waitCtx, cancel := context.WithTimeout(ctx, demandStartupWait)
+	defer cancel()
+	var lastErr error
+	for {
+		base, err := resolver(waitCtx, scenario)
+		if err == nil {
+			return base, nil
+		}
+		lastErr = err
+		if !discovery.IsScenarioNotRunning(err) {
+			return "", err
+		}
+		timer := time.NewTimer(demandStartupRetryInterval)
+		select {
+		case <-waitCtx.Done():
+			if lastErr != nil {
+				return "", lastErr
+			}
+			return "", waitCtx.Err()
+		case <-timer.C:
+		}
+	}
 }
 
 // invocationUsage reads token and cost accounting from a decoded response.
@@ -1961,3 +2001,47 @@ func (r *Registry) SkippedManifestCount() int {
 // Ensure the imported registry package remains used even when a build omits
 // the descriptor path in a platform-specific test.
 var _ protoregistry.Files
+
+// ContractDigest covers transitive request/response descriptor files and binding governance.
+// Reachability is excluded so an outage cannot invalidate a compatible implementation.
+func (r *Registry) ContractDigest(id string) string {
+	r = r.active()
+	info, ok := r.methods[id]
+	if !ok {
+		return ""
+	}
+	files := map[string]protoreflect.FileDescriptor{}
+	var visit func(protoreflect.FileDescriptor)
+	visit = func(f protoreflect.FileDescriptor) {
+		if _, ok := files[f.Path()]; ok {
+			return
+		}
+		files[f.Path()] = f
+		for i := 0; i < f.Imports().Len(); i++ {
+			visit(f.Imports().Get(i).FileDescriptor)
+		}
+	}
+	visit(info.input.ParentFile())
+	visit(info.output.ParentFile())
+	names := make([]string, 0, len(files))
+	for name := range files {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	hash := sha256.New()
+	for _, name := range names {
+		data, err := (proto.MarshalOptions{Deterministic: true}).Marshal(protodesc.ToFileDescriptorProto(files[name]))
+		if err != nil {
+			return ""
+		}
+		hash.Write(data)
+	}
+	if binding, ok := r.byID[id]; ok {
+		copy := proto.Clone(binding).(*bindingsv1.Binding)
+		copy.Reachable = false
+		copy.ReachabilityReason = ""
+		data, _ := (proto.MarshalOptions{Deterministic: true}).Marshal(copy)
+		hash.Write(data)
+	}
+	return fmt.Sprintf("sha256:%x", hash.Sum(nil))
+}

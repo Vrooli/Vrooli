@@ -4,7 +4,7 @@ package programs
 // names the kernel binds at the top level before any scenario namespace.
 var runtimeVerbNames = []string{
 	"discover", "recall", "guide", "validate", "capture", "ai", "agent",
-	"gather", "describe", "reachable", "lib", "tasks", "program",
+	"gather", "describe", "reachable", "lib", "tasks", "program", "learn",
 }
 
 // ProgramHelperMembers mirrors `PUBLIC_MEMBERS` in kernel/host/program_helper.py.

@@ -2814,12 +2814,18 @@
         },
         {
           "name": "status",
-          "description": "Get the current state of a navigation session (status, step count, total tokens).",
+          "description": "Get the current state of a navigation session (status, step count, total tokens, recorded steps); --wait-millis blocks server-side until the navigation is terminal.",
           "positionals": [
             {
               "name": "navigation-id",
               "required": true,
               "description": "Navigation session UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "wait-millis",
+              "description": "Block server-side up to this many milliseconds (max 300000) until the navigation reaches a terminal state; 0 returns immediately"
             }
           ],
           "binding": {

@@ -646,6 +646,68 @@ consumer re-audit.
 **Refs:** Scenario QA bug `knw-1787130446936328892`; `docs/spaces/act-space.md`
 cell A10; `program-runtime bindings act --json` captured 2026-08-19.
 
+### 2026-09-09 — Learning-verb close-out retains qualified external evidence
+
+**Symptom:** The learning-verb implementation is exercised by deterministic
+fixtures and a live BAS browser loop, but the BAS comparison remains partial.
+The advice-application setpoint previously appeared unavailable. An earlier stopped-Memory
+probe also appeared not to demand-start the dependency.
+
+**Root cause:** BAS retains one invalid and three legacy records in the measured
+window, while the setpoint reader previously summed only the first ten returned
+comparison cohorts, so valid advice in later cohorts was omitted. An earlier
+promotion probe also used an incorrectly shell-escaped step key.
+The apparent demand-start failure was a runtime ordering/classification race:
+Python performed a stale reachability preflight, while discovery classified the
+control plane's stopped `port=0` JSON as `invalid_port`.
+
+**Workaround:** Use the checked-in all-verbs example, live BAS receipts, and
+focused workflow tests for implementation evidence. Treat the BAS aggregate as
+partial and keep the safe device agent path non-actuating.
+
+**Real fix:** The Memory comparison now exposes bounded all-cohort advice totals
+without replacing preserved cohort rows, and the setpoint consumes those totals.
+The current setpoint reports `36/36 = 1.0` with the source reliability warning
+still visible. The correctly keyed promotion probe now finds the durable
+fragment and returns `promoted=true`; clean the BAS legacy/invalid corpus.
+Demand-start is repaired and proven by the stopped-Memory all-verb receipt.
+
+**Owner:** browser-automation-studio, vrooli-memory, and program-runtime.
+
+**Refs:** `/home/matthalloran8/.vrooli/plan-artifacts/learn-verbs-in-code-program-learning/baseline/after/README.md`,
+`baseline/after/final/34-memory-demand-start.json`,
+`baseline/after/final/35-demand-bridge-smoke.json`,
+`baseline/after/final/20-bas-agent-task-only.txt`,
+`baseline/after/final/21-compare-bas-agent.json`,
+`baseline/after/final/27-device-compare-rerun.json`,
+`baseline/after/final/28-bas-compare-rerun.json`, and
+`baseline/after/final/04-fragment-contract.json`. Filed Plan Manager bug
+`69c088a2-c7dc-4e56-965b-bdee2b1ba5cb`; downstream Scenario QA forwarding
+returned 404 and remains sync-pending.
+
+### 2026-09-09 — Test Genie programs metadata is not authoritative for these runs
+
+**Symptom:** The structure phase passes, but the programs-phase metadata reports
+zero observations or a presentation failure for BAS, Device Control, and Program
+Runtime validation runs.
+
+**Root cause:** The server-owned Test Genie presentation/observation metadata is
+inconsistent with the terminal suite envelope in this shared workspace.
+
+**Workaround:** Retain the full Test Genie receipts, use focused regressions and
+direct program receipts for this change, and do not interpret zero observations
+as zero program coverage.
+
+**Real fix:** Test Genie must preserve phase observation records and derive its
+presentation verdict from the server-owned terminal receipt.
+
+**Owner:** test-genie.
+
+**Refs:** `/home/matthalloran8/.vrooli/plan-artifacts/learn-verbs-in-code-program-learning/baseline/after/final/11-programs-structure.txt`,
+`baseline/after/bas-programs-phase.json`. Filed Plan Manager bug
+`2ce09d3d-b9bc-4fbd-92e4-dc2e332d97c7`; downstream Scenario QA forwarding
+returned 404 and remains sync-pending.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
@@ -687,3 +749,16 @@ a migration handoff with a planned retirement path back into
 - Decision: The operator explicitly authorized full execution of this plan, whose Phase 18 requires the bounded-async operational target. `OT-P0-010` and `PRT-P0-010` close that contract gap without mapping the behavior falsely onto an older target.
 - Result: W0 passed for this approved change. No separate `docs/decisions/` record exists for Program Runtime, and no unrelated product scope was added.
 - Measured: 2026-08-19
+
+## Work ladder — adaptive learning lifecycle, 2026-09-09
+
+- Rung: W0 → W1 → W3, scoped authorized extension and repairs.
+- Authority: Operator approved full implementation and validation of the preceding learning assessment, including portable reviewed baselines and retention of learn.act.
+- Contract: OT-P1-012 and OT-P1-013 express those outcomes; existing LV requirements retain their behavioral obligations.
+- Evidence: Isolated probes showed three attempts reexecuting one invalid fragment, contradiction counts lost before choose, and an avoided default selected. Compatibility and publication require new executable coverage.
+- Implementation: independent per-run verifiers; bounded fresh repairs; compatible, fresh, diverse evidence; separate test/replay cohorts; lost-write-response protection; immutable verifier inputs; durable feedback; reviewed baselines that retain learn.act; ordinary plugin asset packaging.
+- Focused evidence: 205 kernel/Memory program regressions (plus 7 subtests) and 42 consumer workflow tests (plus 21 subtests), runtime task/storage/binding/contract/program packages, the full Memory API suite, and the full plugin API suite pass. The real Go-to-Python integration starts fresh kernels without AI, Memory, or Agent Manager, qualifies reuse after three runs, verifies the fourth cache hit, and proves test evidence cannot qualify operator execution.
+- Public CLI evidence: baseline `prog_097089d8-5dbc-4999-a85c-0b846eb19515` and final baseline `prog_8c6005ca-f030-488e-b0ce-f1b19392b5e5` returned exact verified output with zero model calls. Adaptive `prog_af668024-c0f0-43b7-88b1-e2ef507327f4` generated and verified correct code in one model call. Runtime fragment writes were delivered; Memory delivery remains a separate receipt.
+- Scoped Test Genie: BAS programs `20260909-172143-57ecde41` passed its phase. Runtime `20260909-171648-c4859d26` and programs rerun `20260909-172211-3e519e03`, Memory `20260909-171729-4fed24cc` and programs rerun `20260909-172212-274e1219`, device programs `20260909-171743-d3330263`, and plugin unit `20260909-171648-70f046c4` retain failed phases. Their aggregate PASS output is not accepted as clean evidence.
+- Reported external findings: Test Genie aggregate/phase disagreement `knw-1788974375947586203`; Deployment Manager corpus declaration/binding mismatch `knw-1788974515571592865`; Memory/plugin UI coverage command failures `knw-1788974548432408552`; existing runtime program dependency/portfolio gates `knw-1788974830782855822`.
+- Limits: verifiers must encode real postconditions; eligibility is not a statistical guarantee. Python fragment restrictions complement the existing process/governance boundary, not a hostile-code sandbox. Memory evidence scans are bounded to 1,000 entries and fail closed on truncation; a maintained owner index is the scaling follow-up. Optional service absence does not remove required runtime/domain dependencies. These findings preclude full scenario certification; requirement completion is not manually asserted.

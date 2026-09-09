@@ -6,6 +6,26 @@ This document provides a holistic view of how all major components of Vrooli Asc
 
 ---
 
+## Learning loop for browser workflows
+
+Workflow intent carries an explicit site or operation key through the governed
+learning surface. A verified outcome is written to memory and can be recalled
+on a later run; replay and fragment promotion remain reviewable operations.
+
+```mermaid
+flowchart LR
+    I[Workflow intent + site key] --> N[learn.task]
+    N --> R[learn.recall / learn.choose]
+    R --> A[Author or act]
+    A --> V[Verified outcome + trace]
+    V --> M[(vrooli-memory)]
+    M --> R
+    V --> P[Replay / cached fragment]
+    P --> V
+```
+
+---
+
 ## 📊 System Overview Diagram
 
 ```mermaid

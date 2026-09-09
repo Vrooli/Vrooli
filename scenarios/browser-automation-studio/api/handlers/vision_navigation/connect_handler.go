@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/sirupsen/logrus"
@@ -150,8 +151,13 @@ func (s *service) StartNavigation(
 // GetNavigationStatus
 // =============================================================================
 
+// maxStatusWait caps the server-side wait a single GetNavigationStatus call
+// may block for. Callers needing longer simply call again; the wait is a
+// server primitive so no client ever has to poll.
+const maxStatusWait = 300 * time.Second
+
 func (s *service) GetNavigationStatus(
-	_ context.Context,
+	ctx context.Context,
 	req *connect.Request[aiv1.GetNavigationStatusRequest],
 ) (*connect.Response[aiv1.GetNavigationStatusResponse], error) {
 	navigationID := strings.TrimSpace(req.Msg.GetNavigationId())
@@ -165,7 +171,63 @@ func (s *service) GetNavigationStatus(
 	if !ok {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("navigation session not found"))
 	}
-	return connect.NewResponse(&aiv1.GetNavigationStatusResponse{
+
+	if wait := clampStatusWait(req.Msg.GetWaitMillis()); wait > 0 && !session.Status.Terminal() {
+		deadline := time.NewTimer(wait)
+		defer deadline.Stop()
+		// Each GetSession snapshot carries the Changed() channel that was
+		// current when it was taken, so a transition between the snapshot
+		// and the select still wakes us: the channel is already closed.
+		for !session.Status.Terminal() {
+			select {
+			case <-ctx.Done():
+				return nil, connect.NewError(connect.CodeCanceled, ctx.Err())
+			case <-deadline.C:
+				if fresh, still := s.deps.Tracker.GetSession(navigationID); still {
+					session = fresh
+				}
+				return connect.NewResponse(navigationStatusToProto(session)), nil
+			case <-session.Changed():
+			}
+			session, ok = s.deps.Tracker.GetSession(navigationID)
+			if !ok {
+				// Session was reaped while we waited; it can only be reaped
+				// after completion, so report it as gone rather than hang.
+				return nil, connect.NewError(connect.CodeNotFound, errors.New("navigation session not found"))
+			}
+		}
+	}
+	return connect.NewResponse(navigationStatusToProto(session)), nil
+}
+
+// clampStatusWait bounds a requested wait to [0, maxStatusWait].
+func clampStatusWait(millis int64) time.Duration {
+	if millis <= 0 {
+		return 0
+	}
+	wait := time.Duration(millis) * time.Millisecond
+	if wait > maxStatusWait {
+		return maxStatusWait
+	}
+	return wait
+}
+
+func navigationStatusToProto(session *vision.NavigationSession) *aiv1.GetNavigationStatusResponse {
+	steps := make([]*aiv1.NavigationStep, 0, len(session.Steps))
+	for _, st := range session.Steps {
+		steps = append(steps, &aiv1.NavigationStep{
+			Index:       int32(st.Index),
+			ActionType:  st.ActionType,
+			Selector:    st.Selector,
+			Value:       st.Value,
+			Url:         st.URL,
+			Description: st.Description,
+			Success:     st.Success,
+			Error:       st.Error,
+			At:          timestamppb.New(st.At),
+		})
+	}
+	return &aiv1.GetNavigationStatusResponse{
 		NavigationId:  session.NavigationID,
 		SessionId:     session.SessionID,
 		Status:        string(session.Status),
@@ -173,7 +235,9 @@ func (s *service) GetNavigationStatus(
 		TotalTokens:   int32(session.TotalTokens),
 		StartedAt:     timestamppb.New(session.StartedAt),
 		NavigatorType: string(session.NavigatorType),
-	}), nil
+		Terminal:      session.Status.Terminal(),
+		Steps:         steps,
+	}
 }
 
 // =============================================================================

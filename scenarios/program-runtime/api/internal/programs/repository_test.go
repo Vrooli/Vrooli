@@ -181,6 +181,71 @@ func TestSQLiteRepositoryPortfolioStatsGroupsPercentilesAndUnattributedRows(t *t
 	require.Equal(t, programsv1.FailureCause_FAILURE_CAUSE_KERNEL_RUNTIME.String(), row.GetTopFailureCause())
 }
 
+// The library search corpus ranks by usage on every Search Hub query, so the
+// usage read must agree with PortfolioStats without paying for its full scan.
+func TestSQLiteRepositoryUsageByNameMatchesPortfolioStatsRuns(t *testing.T) {
+	ctx := context.Background()
+	d := newProgramsTestDB(t)
+	created := func(day, minute int) string {
+		return time.Date(2026, 8, day, 14, minute, 0, 0, time.UTC).Format(time.RFC3339Nano)
+	}
+	fixture := []*programsv1.Program{
+		{Id: "a1", ProgramName: "demo.program", CreatedAt: created(11, 0)},
+		{Id: "a2", ProgramName: "demo.program", CreatedAt: created(11, 1), Status: programsv1.ProgramStatus_PROGRAM_STATUS_FAILED},
+		{Id: "a3", ProgramName: "demo.program", CreatedAt: created(12, 0)},
+		{Id: "b1", ProgramName: "other.program", CreatedAt: created(12, 5)},
+		{Id: "old", ProgramName: "other.program", CreatedAt: created(1, 0)},
+		{Id: "ad-hoc", CreatedAt: created(12, 6)},
+	}
+	for _, repo := range []Repository{NewRepository(d), newMemoryRepository()} {
+		for _, p := range fixture {
+			p.SessionId, p.Source, p.Provenance = "s", "x", programsv1.Provenance_PROVENANCE_AGENT
+			if p.Status == programsv1.ProgramStatus_PROGRAM_STATUS_UNSPECIFIED {
+				p.Status = programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED
+			}
+			require.NoError(t, repo.Save(ctx, clone(p)))
+		}
+		since := time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC)
+		aggregate, err := repo.PortfolioStats(ctx, PortfolioFilter{Since: since})
+		require.NoError(t, err)
+		want := map[string]int64{}
+		for _, group := range aggregate.Groups {
+			want[group.Row.GetName()] = group.Row.GetRuns()
+		}
+		got, err := repo.UsageByName(ctx, since)
+		require.NoError(t, err)
+		require.Equal(t, map[string]int64{"demo.program": 3, "other.program": 1}, want)
+		require.Equal(t, want, got)
+		unbounded, err := repo.UsageByName(ctx, time.Time{})
+		require.NoError(t, err)
+		require.Equal(t, map[string]int64{"demo.program": 3, "other.program": 2}, unbounded)
+	}
+}
+
+// On the production table (664 MB, dominated by source/stdout) the usage read
+// is only cheap if SQLite never visits table pages: it must be answered from
+// idx_programs_name_created alone.
+func TestSQLiteRepositoryUsageByNameUsesCoveringIndex(t *testing.T) {
+	ctx := context.Background()
+	d := newProgramsTestDB(t)
+	rows, err := d.QueryContext(ctx, `EXPLAIN QUERY PLAN SELECT program_name, COUNT(*) FROM programs WHERE program_name != '' AND created_at >= ? GROUP BY program_name`, "2026-08-10T00:00:00Z")
+	require.NoError(t, err)
+	defer rows.Close()
+	var plan []string
+	for rows.Next() {
+		var id, parent, notUsed int
+		var detail string
+		require.NoError(t, rows.Scan(&id, &parent, &notUsed, &detail))
+		plan = append(plan, detail)
+	}
+	require.NoError(t, rows.Err())
+	require.NotEmpty(t, plan)
+	for _, step := range plan {
+		require.Contains(t, step, "COVERING INDEX idx_programs_name_created", "plan step %q must not read table pages; full plan: %v", step, plan)
+		require.NotContains(t, step, "TEMP B-TREE", "grouping must come from index order; full plan: %v", plan)
+	}
+}
+
 func TestSQLiteRepositoryMineRefusalsFiltersOperatorByDefault(t *testing.T) {
 	ctx := context.Background()
 	d := newProgramsTestDB(t)

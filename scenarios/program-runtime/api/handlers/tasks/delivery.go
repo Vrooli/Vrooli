@@ -24,6 +24,8 @@ func Delivery(runner libraryconnect.LibraryServiceHandler) tasks.Deliver {
 		provenance := programsv1.Provenance_PROVENANCE_TEST
 		if record.Provenance == "operator" {
 			provenance = programsv1.Provenance_PROVENANCE_OPERATOR
+		} else if record.Provenance == "agent" {
+			provenance = programsv1.Provenance_PROVENANCE_AGENT
 		} else if record.Provenance != "test" {
 			return nil, fmt.Errorf("unsupported memory provenance")
 		}

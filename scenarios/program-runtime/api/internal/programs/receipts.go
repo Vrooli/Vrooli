@@ -14,8 +14,10 @@ import (
 // only in this repository instance, so Wait/Get can return the original live
 // receipt while a fresh process cannot recover authority from historical rows.
 // Partial streamed tokens are sealed too, not just complete 43-byte secrets.
-var resumeReceiptPattern = regexp.MustCompile(`prt_resume_v1_[A-Za-z0-9_-]*`)
-var sealedReceiptPattern = regexp.MustCompile(`prt_sealed_v1_[A-Za-z0-9_-]+`)
+var (
+	resumeReceiptPattern = regexp.MustCompile(`prt_resume_v1_[A-Za-z0-9_-]*`)
+	sealedReceiptPattern = regexp.MustCompile(`prt_sealed_v1_[A-Za-z0-9_-]+`)
+)
 
 type receiptSealer struct {
 	aead cipher.AEAD

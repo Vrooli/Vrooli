@@ -423,6 +423,97 @@ dependency and reason.
 Every verb fails closed and names its unavailable dependency. None of them falls
 back to a shell call or a direct provider call.
 
+## Verified adaptive sections
+
+Use `learn.act` for a bounded implementation that should adapt from verified
+outcomes. Supply an independent postcondition and a stable verifier revision.
+An empty binding list declares pure computation.
+
+```python
+learn.task(operation="example.echo", key="echo/v1")
+result = learn.act(
+    "echo", "Return the input value unchanged.", {"value": inputs["value"]},
+    {"type": "object", "required": ["value"]}, [],
+    verify=lambda output: ("verified_success", ["echo:exact-match"])
+        if output == {"value": inputs["value"]} else ("failed", ["echo:mismatch"]),
+    verifier_revision="echo-equality/v1",
+)
+learn.outcome("verified_success", ["echo:exact-match"])
+```
+
+The runtime supplies the objective, inputs, output schema, binding contracts,
+previous candidate, and bounded failure diagnostics to inference. Each retry
+requests a new candidate. At most five attempts are allowed; session spend and
+execution ceilings still apply. A failed write with uncertain effects stops
+adaptation. An unavailable service does not contradict the implementation.
+
+The verifier runs on every execution, including cache hits and baselines.
+Only a verified root outcome retains new fragment evidence; repeated sections in
+one root attempt cannot inflate durable verification counts. Root failure does
+not automatically condemn unrelated successful child sections. Unsupported
+JSON Schema validation keywords are errors; the kernel supports types, object
+properties, required/additional properties, arrays, enums/constants, bounds,
+patterns, and anyOf/allOf/oneOf/not. All array elements are checked.
+
+Default cache qualification requires three verified attempts across at least
+two distinct input digests, no contradictions, and verification within 30 days.
+Configure `min_verified`, `min_contexts`, and `max_age_days` for the section's
+risk and input domain. These are eligibility criteria, not a statistical
+confidence claim. Test and replay executions use separate cache cohorts. Compatibility
+covers the objective, schema, binding descriptor/governance snapshots,
+`verifier_revision`, and the caller's `compatibility` environment object.
+Increment the verifier revision when its meaning changes. Include relevant
+site/device/protocol versions in compatibility. The explicit task key survives
+the real checkpoint bridge.
+
+A declared `learning.baselines.<step-name>` asset supplies reviewed code,
+compatibility, review evidence, curated fixtures, and a content digest. It runs
+before AI on an unqualified cache miss. `allow_ai=False` makes adaptation
+unavailable while preserving compatible baseline/cache execution. Old
+`fallback_fragment` inputs remain verifier-checked but are not reviewed assets.
+`learn.infer(..., verify=...)` retains demonstrations only when the inference
+postcondition and root outcome succeed; schema-only answers remain unverified.
+
+### Publish a portable baseline
+
+Run `program-runtime.fragment-promote` with `step_key`, `operation`,
+`reviewed_by`, `evidence`, and curated `fixtures`. The default prepares a candidate.
+Inspect it, then use `publish=true` with the current `expected_digest` to update
+one existing program declaration. Publication requires operator provenance,
+sufficient verified observations, at least two input contexts, matching source,
+and an unchanged declaration. The original `learn.act` call remains in source.
+
+Fixtures contain `inputs`, independently expected `expected`, and optional
+ordered `calls` with `binding_id`, `arguments`, `rows`, and optional `metadata`.
+Publication replays these recorded responses without calling live domain tools.
+It rejects mismatches and known private or machine-specific material. Review
+must also check secrets, permissions, environment assumptions, and verifier
+quality; a content digest is integrity, not proof of safety. Runtime attempts,
+raw traces, and changing scores are not exported. Commit the reviewed declaration
+through the ordinary repository workflow; runtime execution never commits Git.
+
+The plugin ramp transports ordinary `.vrooli/program-runtime/*.json` and `*.py`
+assets without interpreting learning state. The target still needs Program
+Runtime and the domain capabilities the code calls; AI, Memory, and Agent
+Manager are optional only when the program's remaining path permits it.
+
+### Degraded operation and feedback
+
+Memory recall unavailable means no advice, not a zero failure rate. Incomplete
+outcome scans carry `evidence_reliable=false`; preference selection does not
+use them as positive evidence. Avoid rules and defaults obey the same eligible
+option set; an empty set returns `selected_id=None`, `source="unavailable"`.
+Check that result before constructing a domain request.
+
+Later-run `learn.feedback` attempts one immediate write. Failed feedback is
+included in the immutable finish intent and retried by the server-owned outbox.
+Only capture is retried; domain effects are never replayed by delivery recovery.
+Missing optional Memory yields a blocked receipt with `memory_not_installed`;
+a declared must-start dependency still refuses admission. Fragment delivery
+failures are reported separately under `learning.fragments`. Eligible local
+cache state can serve during a fragment-store read outage, subject to the same
+freshness, compatibility, and verifier checks.
+
 ## Task-shaped construction patterns
 
 - [Namespace and contracts](../construction/namespace-and-contracts.md)

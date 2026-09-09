@@ -23,6 +23,57 @@ with the owning plan.
 
 ## Progress Log
 
+### 2026-09-09 — Memory-not-installed degradation contract pinned
+
+- Corrected task checkpoint admission so a missing `vrooli-memory.finish-attempt`
+  artifact is tolerated when the caller has no manifest edge, or has a
+  non-`must_start` edge. Completion preserves the domain result and records
+  `delivery=blocked` with `last_error=memory_not_installed`.
+- A focused Go bridge regression proves the absent-edge degraded path and the
+  declared `must_start` refusal path. This closes the remaining P14 matrix gap;
+  the stopped-and-installed demand-start path remains covered by the live
+  receipt below.
+
+### 2026-09-09 — Learning verbs final validation
+
+- Completed the P14 live close-out for the in-code learning verbs. The
+  all-verb fixture ran twice with `status=ok`, cached fragment reuse, zero
+  model calls, derived choice evidence, and delivered learning attempts.
+- Device Control's seven-day comparison is reliable and reports one delivered
+  `agent` cohort. BAS reports four delivered `agent` cohorts and records the
+  live browser navigation, authored workflow, verified smoke flow, preference
+  capture, and verified workflow replay with reuse.
+- Final focused checks passed: 101 kernel tests, the 28-test Memory
+  shared-program suite, the five touched Program Runtime Go package groups,
+  13 BAS workflow tests, and 16 Device Control workflow tests. The setpoint
+  reports zero aged blocked deliveries, advice ratio `1.0`, a `0.5079`
+  fragment-cache hit rate, and zero unexercised contracts.
+- Qualifications remain explicit: BAS comparison is partial because of one
+  invalid and three legacy records; the advice setpoint now reports a non-null
+  `1.0` ratio while preserving Memory's invalid-record reliability warning; the
+  durable fragment promotion probe now resolves the persisted row and returns
+  `promoted=true`; and Test Genie programs metadata is non-authoritative for the
+  affected shared-workspace runs. The follow-up stopped-Memory learning run
+  now proves demand-start, asynchronous startup retry, matched recall, and
+  delivered learning evidence. Receipts and filed defects are in the plan
+  artifact after directory and PROBLEMS.md.
+- Plan Manager's plan-id continuation still resolves the active P14 execution,
+  but execution-addressed `transition` and `complete` return `not_found`; the
+  assessment is retained in the after-measurement README and work record.
+
+### 2026-09-09 — Demand-start lifecycle race repaired
+
+- Corrected the learning dependency path so Python does not reject a stopped
+  demand-managed target from a stale `/reachability` projection before the Go
+  governance bridge can acquire its lease and start the scenario.
+- Corrected discovery classification for the control plane's successful JSON
+  response with `port=0` and `no running runtime ports`, which is a stopped
+  scenario rather than an invalid-port configuration.
+- Added bounded post-start discovery retry for asynchronous lifecycle startup.
+  Focused regressions pass in `api-core/discovery`, Program Runtime bindings,
+  and the kernel. The stopped-Memory all-verb receipt records matched recall
+  with three hits, derived advice, verified outcome, and delivered learning.
+
 ### 2026-09-06 — Shared-program friction repair (scoped implementation evidence)
 
 - Corrected learning exposure semantics: runtime and Memory distinguish unassessed advice from rejection, forward explicit observations and measured effort, and block permanent capture failures without replaying domain actions.
@@ -33,6 +84,30 @@ with the owning plan.
 - Scoped server-owned validation was admitted; one receipt correctly rejected concurrent changes to shared process files before execution. Remaining runs were queued behind other work at this checkpoint. This record is not a complete scenario maturity or certification claim.
 - Final live owner measurement (`prog_349e779f-287e-4357-b4f1-401750ce199d`) reports one eligible attempt, five unassessed exposures, zero applied/rejected/supported/contradicted claims, and reliable untruncated evidence. Canonical debugging and work-ladder changes were verified in the generated Codex projections after Prompt Manager's owner refresh.
 - Follow-up handles: Runtime receipt `6c14ec68-0749-4b79-b948-01414e6e9f4f` / run `program-runtime/20260906-183948-c2e7cdec`; Memory run `vrooli-memory/20260906-184239-af670fe4`; Search Hub run `search-hub/20260906-184345-bf62fa78`; Test Genie receipt `d56689c1-4092-43e3-9bbf-7aea58618dec`. Search Hub's 600-second wait expired with queued status, not a test verdict. No other agents' work was aborted and no test-capacity policy was bypassed. The Runtime receipt was admitted before final discovery refinements, so a terminal receipt must also be checked for source-identity validity before reuse.
+
+### 2026-09-09 — In-code learning verbs and durable fragment reuse
+
+- Delivered the nine in-code learning verbs (`task`, `step`, `recall`, `choose`,
+  `note`, `outcome`, `infer`, `act`, and `delegate`) as a runtime-owned learning
+  surface. The legacy JSON `learning_task` declaration remains a migration shim;
+  new programs express learning in source code with an explicit stable key.
+- Added durable fragment storage, verified-run cache selection, bounded model
+  fragment preflight, cache telemetry, a promotion route, and setpoint readings.
+  The checked-in all-verbs example completed twice with `fragment_source=cache`,
+  zero model calls, `choice.derived=true`, and delivered learning records.
+- Migrated BAS and Device Control learning callers, including explicit operation
+  metadata required by the checkpoint bridge. Final focused regressions pass:
+  BAS 12 tests plus 19 subtests; Device Control 16 tests; migrated Python files
+  compile cleanly. Targeted Program Runtime and Memory Go/Python validation also
+  passed earlier in the execution.
+- Declared the learning dependency edges and updated contracts, requirements,
+  skills, CLI reference, glossary, promotion ladder, and scenario architecture
+  docs. Complete before/after evidence is retained in the plan artifact directory.
+- Qualification: a real BAS browser E2E receipt was unavailable; Test Genie
+  programs metadata reported zero observations despite a passing structure phase;
+  live fragment promotion did not resolve the matching persisted fragment through
+  the task bridge; and Prompt Manager refused core-skill writes. These are recorded
+  in the plan after-measurement README and the problem ledger.
 
 | Date | Author | Status | Summary |
 |---|---|---|---|
@@ -139,3 +214,26 @@ them. They do not assert that an old failure or gap still exists.
 - **2026-08-18 — validated**: Final post-restart Program Runtime run `20260818-221821-fb47b7c6` passed 22/22 after tightening unresolved-name filtering for `left_handle` and `right_handle`. The live unresolved ledger now contains only `test_geni`;
 
 - **2026-08-19 — validated**: Reliability and Act supply-chain repair: projection results and aliases were corrected, imports and unresolved-name telemetry were hardened, authoring evaluation reached 9/12 twice at `authoring-brief@6` with floor 8, Prompt Manager was re-platformed to generated Connect bindings and measures, `guide` became live, nested control-plane manifest groups were restored, and the Act join reached 25 NOW / 2 IN-REACH / 1 MISSING.
+
+### 2026-09-09 — Verified adaptive sections and portable baselines
+
+Implemented the operator-approved learning lifecycle assessment. `learn.act` now
+requires an independent verifier and revision, requests new code after a failed
+candidate, and runs compatible qualified code without AI review. Every output is
+still checked. Reuse requires fresh verified root attempts and distinct inputs;
+test/replay evidence is isolated from live use. Generated fragments cannot mutate
+verifier inputs or tool transport/audit objects, and a potentially committed write
+with a lost response stops adaptation.
+
+Later feedback survives outages in the finish outbox. Memory recall preserves
+contradictions and origin context; choose excludes avoided/contradicted defaults
+and can return no eligible option. BAS handles that result, and Device Control
+accepts the earlier recommendation's attempt ID for evidence-backed feedback.
+Reviewed baselines stay in Git alongside programs; publication preserves source,
+replays curated fixtures, and checks review and source/declaration freshness.
+Plugin composition transports these ordinary assets without exporting Memory.
+
+The canonical construction guide and registry skill describe the new behavior.
+Focused regressions and public CLI generation/baseline smokes passed. The problem
+ledger records exact receipts and failed broader gates; no whole-scenario or
+arbitrary self-healing reliability claim is made.

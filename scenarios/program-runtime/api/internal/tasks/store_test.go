@@ -58,6 +58,25 @@ func TestTaskBeginIdentityAndOrdinal(t *testing.T) {
 	require.Equal(t, input.StartedAt, r.TaskStartedAt)
 }
 
+func TestFragmentCachePersistsVerifiedTraceWithoutCountingReads(t *testing.T) {
+	ctx := context.Background()
+	s := NewStore(taskDB(t, filepath.Join(t.TempDir(), "fragments.db")))
+	_, err := s.PutFragment(ctx, Fragment{StepKey: "program|key|find-account", Fragment: "def step(inputs, bindings):\n    return {'id': inputs['id']}", SourceProgramID: "program-1", Source: "learn.act('find-account')", StepName: "find-account", TraceInputs: map[string]any{"id": "42"}, TraceOutput: map[string]any{"id": "42"}}, 1, 0)
+	require.NoError(t, err)
+	got, err := s.GetFragment(ctx, "program|key|find-account")
+	require.NoError(t, err)
+	require.Equal(t, 1, got.Verified)
+	require.Equal(t, 0, got.CachedRuns)
+	require.Equal(t, map[string]any{"id": "42"}, got.TraceInputs)
+	rows, err := s.ListFragments(ctx)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	_, err = s.PutFragment(ctx, Fragment{StepKey: got.StepKey, Fragment: got.Fragment, SourceProgramID: got.SourceProgramID}, 1, 1)
+	require.NoError(t, err)
+	_, err = s.GetFragment(ctx, got.StepKey)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
 func TestTaskRestartRecoveryAndDeliveryNeverReplayDomain(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "tasks.db")
@@ -138,8 +157,10 @@ func TestPermanentCaptureFailureBlocksWithoutRetryingDomainOrDroppingReceipts(t 
 	})
 	require.NoError(t, err)
 	calls := 0
-	partial := map[string]any{"status": "partial", "signals": map[string]any{"entry_id": "acknowledged-attempt"},
-		"errors": []any{map[string]any{"class": "capture_failed", "cause": "immutable_conflict"}}}
+	partial := map[string]any{
+		"status": "partial", "signals": map[string]any{"entry_id": "acknowledged-attempt"},
+		"errors": []any{map[string]any{"class": "capture_failed", "cause": "immutable_conflict"}},
+	}
 	d := &Drainer{Store: s, Deliver: func(context.Context, Record) (map[string]any, error) { calls++; return partial, nil }}
 	require.NoError(t, d.DrainOnce(ctx, time.Now()))
 	require.NoError(t, d.DrainOnce(ctx, time.Now().Add(time.Hour)))
@@ -149,4 +170,42 @@ func TestPermanentCaptureFailureBlocksWithoutRetryingDomainOrDroppingReceipts(t 
 	require.Equal(t, "verified_success", got.Outcome)
 	require.Equal(t, partial, got.DeliveryResult)
 	require.Equal(t, 1, calls)
+}
+
+// [REQ:LV-10] Duplicate receipts and identical inputs do not inflate qualification.
+func TestFragmentEvidenceIsIdempotentDiverseAndDurable(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "evidence.db")
+	db := taskDB(t, path)
+	s := NewStore(db)
+	f := Fragment{StepKey: "fragment-v2:fixture", Fragment: "def step(inputs, bindings):\n    return inputs", AttemptID: "one", InputDigest: "input-a", Compatibility: map[string]any{"verifier_revision": "v1"}, Evidence: []string{"postcondition:equal"}}
+	_, err := s.PutFragment(ctx, f, 1, 0)
+	require.NoError(t, err)
+	_, err = s.PutFragment(ctx, f, 1, 0)
+	require.NoError(t, err)
+	got, err := s.BestFragment(ctx, f.StepKey)
+	require.NoError(t, err)
+	require.Equal(t, 1, got.Verified)
+	require.Equal(t, 1, got.Contexts)
+	f.AttemptID = "two"
+	_, err = s.PutFragment(ctx, f, 1, 0)
+	require.NoError(t, err)
+	f.AttemptID = "three"
+	f.InputDigest = "input-b"
+	_, err = s.PutFragment(ctx, f, 1, 0)
+	require.NoError(t, err)
+	fresh := NewStore(taskDB(t, path))
+	got, err = fresh.BestFragment(ctx, f.StepKey)
+	require.NoError(t, err)
+	require.Equal(t, 3, got.Verified)
+	require.Equal(t, 2, got.Contexts)
+	require.NotEmpty(t, got.LastVerifiedAt)
+	require.Equal(t, f.Compatibility, got.Compatibility)
+	f.AttemptID = "failed"
+	_, err = fresh.PutFragment(ctx, f, 0, 1)
+	require.NoError(t, err)
+	_, err = fresh.BestFragment(ctx, f.StepKey)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	_, err = fresh.PutFragment(ctx, f, -1, 0)
+	require.Error(t, err)
 }

@@ -420,6 +420,7 @@ func (n *ClaudeCodeVisionNavigator) parseOutput(session *claudeCodeSession, stdo
 			// Track MCP Chrome tool calls
 			if strings.HasPrefix(event.Name, "mcp__claude-in-chrome__") {
 				stepNumber++
+				n.recordStep(session, &event, stepNumber, lastReasoning)
 				n.reportActionToRecording(session, &event, stepNumber, lastReasoning)
 				n.broadcastStep(session, &event, stepNumber, lastReasoning)
 				lastReasoning = "" // Clear after use
@@ -432,7 +433,7 @@ func (n *ClaudeCodeVisionNavigator) parseOutput(session *claudeCodeSession, stdo
 		case "error":
 			n.log.WithField("error", event.Error).Error("claude cli error")
 			session.mu.Lock()
-			session.Status = StatusFailed
+			session.SetStatus(StatusFailed)
 			session.mu.Unlock()
 			return
 
@@ -440,7 +441,7 @@ func (n *ClaudeCodeVisionNavigator) parseOutput(session *claudeCodeSession, stdo
 			// Navigation completed
 			session.mu.Lock()
 			if session.Status == StatusNavigating {
-				session.Status = StatusCompleted
+				session.SetStatus(StatusCompleted)
 			}
 			session.mu.Unlock()
 			n.broadcastComplete(session)
@@ -481,6 +482,44 @@ func (n *ClaudeCodeVisionNavigator) extractReasoning(content json.RawMessage) st
 	}
 
 	return ""
+}
+
+// recordStep appends the MCP tool call to the session's bounded step history
+// and bumps StepCount. The stream-json output only exposes the tool call
+// (not its result), so Success is always true here and Error is empty; a
+// failed tool call still surfaces through the final navigation status.
+func (n *ClaudeCodeVisionNavigator) recordStep(
+	session *claudeCodeSession,
+	event *claudeStreamEvent,
+	stepNumber int,
+	reasoning string,
+) {
+	actionType, url, selector := n.mapMCPToolToAction(event)
+
+	var input map[string]interface{}
+	if len(event.Input) > 0 {
+		_ = json.Unmarshal(event.Input, &input)
+	}
+	value := ""
+	for _, key := range []string{"text", "value", "key", "query"} {
+		if v, ok := input[key].(string); ok && v != "" {
+			value = v
+			break
+		}
+	}
+
+	session.mu.Lock()
+	session.StepCount = stepNumber
+	session.RecordStep(NavigationStepRecord{
+		Index:       stepNumber,
+		ActionType:  actionType,
+		Selector:    selector,
+		Value:       value,
+		URL:         url,
+		Description: reasoning,
+		Success:     true,
+	})
+	session.mu.Unlock()
 }
 
 // reportActionToRecording creates a RecordedNavigationAction and invokes the callback.
@@ -683,14 +722,14 @@ func (n *ClaudeCodeVisionNavigator) finalizeSession(session *claudeCodeSession, 
 		if errors.As(err, &exitErr) {
 			if exitErr.ExitCode() == -1 {
 				// Killed by signal (likely our abort)
-				session.Status = StatusAborted
+				session.SetStatus(StatusAborted)
 				return
 			}
 		}
-		session.Status = StatusFailed
+		session.SetStatus(StatusFailed)
 		n.log.WithError(err).WithField("navigation_id", session.NavigationID).Error("claude process exited with error")
 	} else {
-		session.Status = StatusCompleted
+		session.SetStatus(StatusCompleted)
 	}
 }
 
@@ -701,15 +740,19 @@ func (n *ClaudeCodeVisionNavigator) removeNavigation(navigationID string) {
 	n.mu.Unlock()
 }
 
-// GetSession returns a navigation session by ID.
+// GetSession returns a snapshot of a navigation session by ID. The snapshot
+// carries the session's Changed() channel so callers can wait on the next
+// status transition without holding any lock.
 func (n *ClaudeCodeVisionNavigator) GetSession(navigationID string) (*NavigationSession, bool) {
 	n.mu.RLock()
-	defer n.mu.RUnlock()
 	session, exists := n.activeNavigations[navigationID]
+	n.mu.RUnlock()
 	if !exists {
 		return nil, false
 	}
-	return session.NavigationSession, true
+	session.mu.Lock()
+	defer session.mu.Unlock()
+	return session.Snapshot(), true
 }
 
 // AbortNavigation sends a signal to stop the Claude CLI process.
@@ -756,7 +799,7 @@ func (n *ClaudeCodeVisionNavigator) AbortNavigation(ctx context.Context, navigat
 		}
 	}
 
-	session.Status = StatusAborted
+	session.SetStatus(StatusAborted)
 
 	n.log.WithField("navigation_id", navigationID).Info("vision_navigation: claude code navigation aborted")
 	return nil

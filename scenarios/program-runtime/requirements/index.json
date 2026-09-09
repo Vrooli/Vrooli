@@ -10,6 +10,7 @@
     "03-sessions/module.json",
     "04-programs/module.json",
     "05-telemetry/module.json",
-    "06-platform/module.json"
+    "06-platform/module.json",
+    "07-learning-verbs/module.json"
   ]
 }

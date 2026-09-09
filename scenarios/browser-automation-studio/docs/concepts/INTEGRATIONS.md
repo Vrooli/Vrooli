@@ -14,7 +14,7 @@ The scenario can use managed artifact/storage resources when configured; its def
 
 ## Scenario Dependencies
 
-The API supervises the in-repo Playwright driver. UI and CLI consume API contracts rather than connecting directly to browser processes.
+The API supervises the in-repo Playwright driver. UI and CLI consume API contracts rather than connecting directly to browser processes. Optional `vrooli-memory` provides scoped `learn.*` recall and capture, `workflow-health` provides workflow search, and `search-hub` provides federated candidates. All three use `try_start` and `bundle_policy: either`; BAS falls back to local workflow listing and queued capture when they are unavailable.
 
 ## Third-Party Services
 

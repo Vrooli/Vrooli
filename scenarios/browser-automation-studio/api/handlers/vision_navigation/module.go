@@ -8,8 +8,6 @@
 package vision_navigation
 
 import (
-	"context"
-
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/connectx"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
@@ -19,14 +17,12 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/vision"
 )
 
-// SessionTracker is the narrow seam over PlaywrightVisionNavigator that the
-// handler depends on for session-state lookups (status/abort/resume). Tests
-// inject a fake; production passes *vision.PlaywrightVisionNavigator.
-type SessionTracker interface {
-	GetSession(navigationID string) (*vision.NavigationSession, bool)
-	AbortNavigation(ctx context.Context, navigationID string) error
-	ResumeNavigation(ctx context.Context, navigationID string) error
-}
+// SessionTracker is the narrow seam over the navigators that the handler
+// depends on for session-state lookups (status/wait/abort/resume). Tests
+// inject a fake; production passes a vision.MultiTracker spanning every
+// registered navigator. GetSession must return a snapshot whose Changed()
+// channel closes on the next status transition (see vision.NavigationSession).
+type SessionTracker = vision.SessionTracker
 
 // Deps wires the vision-navigation handler. Logger is required. Registry is
 // required (no registry → no navigators → handler can't function). Credits

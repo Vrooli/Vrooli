@@ -3,6 +3,7 @@ package programs
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -32,6 +33,12 @@ type Repository interface {
 	MineUnresolvedBindings(context.Context, bool) ([]*programsv1.UnresolvedBindingShape, error)
 	GovernanceShare(context.Context, time.Time, bool) (int64, int64, []*programsv1.ObservedCommand, error)
 	PortfolioStats(context.Context, PortfolioFilter) (*PortfolioAggregate, error)
+	// UsageByName answers only "how many runs per named program since a
+	// cutoff". It is the narrow read the library search corpus needs and must
+	// stay answerable from idx_programs_name_created alone: the full portfolio
+	// CTE reads every row (including source/stdout pages) and costs seconds on
+	// a production-sized table, which is too slow for a per-search hook.
+	UsageByName(context.Context, time.Time) (map[string]int64, error)
 }
 
 type ListFilter struct {
@@ -105,6 +112,7 @@ func NewRepository(db SQLExecutor) Repository {
 
 func (r *sqliteRepository) Save(ctx context.Context, p *programsv1.Program) error {
 	p = clone(p)
+	p.LearningJson = persistedLearningJSON(p.GetLearningJson())
 	for _, field := range []*string{&p.Source, &p.Stdout, &p.FailureDetail} {
 		sealed, err := r.receipts.seal(*field)
 		if err != nil {
@@ -113,10 +121,10 @@ func (r *sqliteRepository) Save(ctx context.Context, p *programsv1.Program) erro
 		*field = sealed
 	}
 	_, err := r.db.ExecContext(ctx, `INSERT INTO programs
-	 (id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, failure_location, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness)
-	 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	 ON CONFLICT(id) DO UPDATE SET status=excluded.status, completed_at=excluded.completed_at, stdout=excluded.stdout, context_bytes=excluded.context_bytes, agent_bytes=excluded.agent_bytes, output_limit_bytes=excluded.output_limit_bytes, failure_detail=excluded.failure_detail, failure_shape=excluded.failure_shape, failure_location=excluded.failure_location, wall_time_millis=excluded.wall_time_millis, cpu_time_millis=excluded.cpu_time_millis, library_version=excluded.library_version, failure_cause=excluded.failure_cause, program_name=excluded.program_name, program_digest=excluded.program_digest, caller_run_id=excluded.caller_run_id, caller_agent_profile=excluded.caller_agent_profile, caller_skill_id=excluded.caller_skill_id, caller_harness=excluded.caller_harness`,
-		p.GetId(), p.GetSessionId(), p.GetSource(), strconv.Itoa(int(p.GetProvenance())), statusName(p.GetStatus()), p.GetCreatedAt(), p.GetCompletedAt(), p.GetStdout(), p.GetContextBytes(), p.GetAgentBytes(), p.GetOutputLimitBytes(), p.GetFailureDetail(), p.GetFailureShape(), failureLocation(p.GetFailureDetail()), p.GetWallTimeMillis(), p.GetCpuTimeMillis(), p.GetLibraryVersion(), p.GetFailureCause().String(), p.GetProgramName(), p.GetProgramDigest(), p.GetCallerRunId(), p.GetCallerAgentProfile(), p.GetCallerSkillId(), p.GetCallerHarness())
+	 (id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, failure_location, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json)
+	 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	 ON CONFLICT(id) DO UPDATE SET status=excluded.status, completed_at=excluded.completed_at, stdout=excluded.stdout, context_bytes=excluded.context_bytes, agent_bytes=excluded.agent_bytes, output_limit_bytes=excluded.output_limit_bytes, failure_detail=excluded.failure_detail, failure_shape=excluded.failure_shape, failure_location=excluded.failure_location, wall_time_millis=excluded.wall_time_millis, cpu_time_millis=excluded.cpu_time_millis, library_version=excluded.library_version, failure_cause=excluded.failure_cause, program_name=excluded.program_name, program_digest=excluded.program_digest, caller_run_id=excluded.caller_run_id, caller_agent_profile=excluded.caller_agent_profile, caller_skill_id=excluded.caller_skill_id, caller_harness=excluded.caller_harness, learning_json=excluded.learning_json`,
+		p.GetId(), p.GetSessionId(), p.GetSource(), strconv.Itoa(int(p.GetProvenance())), statusName(p.GetStatus()), p.GetCreatedAt(), p.GetCompletedAt(), p.GetStdout(), p.GetContextBytes(), p.GetAgentBytes(), p.GetOutputLimitBytes(), p.GetFailureDetail(), p.GetFailureShape(), failureLocation(p.GetFailureDetail()), p.GetWallTimeMillis(), p.GetCpuTimeMillis(), p.GetLibraryVersion(), p.GetFailureCause().String(), p.GetProgramName(), p.GetProgramDigest(), p.GetCallerRunId(), p.GetCallerAgentProfile(), p.GetCallerSkillId(), p.GetCallerHarness(), p.GetLearningJson())
 	if err != nil {
 		return fmt.Errorf("save program %q: %w", p.GetId(), err)
 	}
@@ -124,7 +132,7 @@ func (r *sqliteRepository) Save(ctx context.Context, p *programsv1.Program) erro
 }
 
 func (r *sqliteRepository) Get(ctx context.Context, id string) (*programsv1.Program, error) {
-	p, err := r.scan(r.db.QueryRowContext(ctx, `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness FROM programs WHERE id = ?`, id))
+	p, err := r.scan(r.db.QueryRowContext(ctx, `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json FROM programs WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrProgramNotFound
 	}
@@ -139,7 +147,7 @@ func (r *sqliteRepository) List(ctx context.Context, sessionID string, includeOp
 }
 
 func (r *sqliteRepository) ListFiltered(ctx context.Context, filter ListFilter) ([]*programsv1.Program, error) {
-	query := `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness FROM programs WHERE 1=1`
+	query := `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json FROM programs WHERE 1=1`
 	args := make([]any, 0, 8)
 	if filter.SessionID != "" {
 		query += ` AND session_id = ?`
@@ -287,6 +295,38 @@ func (r *sqliteRepository) PortfolioStats(ctx context.Context, filter PortfolioF
 	return aggregate, nil
 }
 
+func (r *sqliteRepository) UsageByName(ctx context.Context, since time.Time) (map[string]int64, error) {
+	// Both predicates and the grouping key are index columns, so SQLite answers
+	// this with a covering scan of idx_programs_name_created and never touches
+	// the table pages that hold source and stdout (verified by
+	// TestSQLiteRepositoryUsageByNameUsesCoveringIndex).
+	query := `SELECT program_name, COUNT(*) FROM programs WHERE program_name != ''`
+	args := make([]any, 0, 1)
+	if !since.IsZero() {
+		query += ` AND created_at >= ?`
+		args = append(args, since.UTC().Format(time.RFC3339Nano))
+	}
+	query += ` GROUP BY program_name`
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("usage by name: %w", err)
+	}
+	defer rows.Close()
+	usage := map[string]int64{}
+	for rows.Next() {
+		var name string
+		var runs int64
+		if err := rows.Scan(&name, &runs); err != nil {
+			return nil, fmt.Errorf("scan usage by name: %w", err)
+		}
+		usage[name] = runs
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate usage by name: %w", err)
+	}
+	return usage, nil
+}
+
 func (r *sqliteRepository) MineFailures(ctx context.Context, includeOperator bool, since time.Time) ([]*programsv1.FailureShape, error) {
 	query := `SELECT failure_shape, COUNT(*), MIN(created_at), MAX(created_at), (SELECT p2.id FROM programs p2 WHERE p2.failure_shape = p.failure_shape AND p2.status = 'failed' ORDER BY p2.created_at DESC, p2.id DESC LIMIT 1) FROM programs p WHERE p.status = 'failed' AND p.failure_shape != ''`
 	args := make([]any, 0, 2)
@@ -409,7 +449,7 @@ func (r *sqliteRepository) scan(row rowScanner) (*programsv1.Program, error) {
 	var provenance string
 	var status, completedAt string
 	var failureCause string
-	if err := row.Scan(&p.Id, &p.SessionId, &p.Source, &provenance, &status, &p.CreatedAt, &completedAt, &p.Stdout, &p.ContextBytes, &p.AgentBytes, &p.OutputLimitBytes, &p.FailureDetail, &p.FailureShape, &p.WallTimeMillis, &p.CpuTimeMillis, &p.LibraryVersion, &failureCause, &p.ProgramName, &p.ProgramDigest, &p.CallerRunId, &p.CallerAgentProfile, &p.CallerSkillId, &p.CallerHarness); err != nil {
+	if err := row.Scan(&p.Id, &p.SessionId, &p.Source, &provenance, &status, &p.CreatedAt, &completedAt, &p.Stdout, &p.ContextBytes, &p.AgentBytes, &p.OutputLimitBytes, &p.FailureDetail, &p.FailureShape, &p.WallTimeMillis, &p.CpuTimeMillis, &p.LibraryVersion, &failureCause, &p.ProgramName, &p.ProgramDigest, &p.CallerRunId, &p.CallerAgentProfile, &p.CallerSkillId, &p.CallerHarness, &p.LearningJson); err != nil {
 		return nil, err
 	}
 	p.Status = parseStatus(status)
@@ -424,6 +464,29 @@ func (r *sqliteRepository) scan(row rowScanner) (*programsv1.Program, error) {
 	p.Stdout = r.receipts.open(p.Stdout)
 	p.FailureDetail = r.receipts.open(p.FailureDetail)
 	return &p, nil
+}
+
+// persistedLearningJSON strips the resume_token from a learning receipt before
+// it reaches the corpus. The token is bearer authority for the task store,
+// which retains only its hash; the live Submit/Wait response may still carry
+// it, but no historical row may. The document is re-emitted compact so a
+// round trip is byte-stable.
+func persistedLearningJSON(receipt string) string {
+	if strings.TrimSpace(receipt) == "" {
+		return ""
+	}
+	var document map[string]any
+	if err := json.Unmarshal([]byte(receipt), &document); err != nil {
+		// Not an object: keep nothing rather than persist an unparsed blob that
+		// could carry a token the sealer does not know how to find.
+		return ""
+	}
+	delete(document, "resume_token")
+	encoded, err := json.Marshal(document)
+	if err != nil {
+		return ""
+	}
+	return string(encoded)
 }
 
 func statusName(status programsv1.ProgramStatus) string {
@@ -510,7 +573,9 @@ func newMemoryRepository() *memoryRepository {
 func (r *memoryRepository) Save(_ context.Context, p *programsv1.Program) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.programs[p.GetId()] = clone(p)
+	stored := clone(p)
+	stored.LearningJson = persistedLearningJSON(stored.GetLearningJson())
+	r.programs[p.GetId()] = stored
 	return nil
 }
 
@@ -640,6 +705,23 @@ func (r *memoryRepository) PortfolioStats(_ context.Context, filter PortfolioFil
 	}
 	sort.Slice(aggregate.Groups, func(i, j int) bool { return aggregate.Groups[i].Row.GetRuns() > aggregate.Groups[j].Row.GetRuns() })
 	return aggregate, nil
+}
+
+func (r *memoryRepository) UsageByName(_ context.Context, since time.Time) (map[string]int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	cutoff := ""
+	if !since.IsZero() {
+		cutoff = since.UTC().Format(time.RFC3339Nano)
+	}
+	usage := map[string]int64{}
+	for _, p := range r.programs {
+		if p.GetProgramName() == "" || p.GetCreatedAt() < cutoff {
+			continue
+		}
+		usage[p.GetProgramName()]++
+	}
+	return usage, nil
 }
 
 func (r *memoryRepository) MineFailures(ctx context.Context, includeOperator bool, since time.Time) ([]*programsv1.FailureShape, error) {

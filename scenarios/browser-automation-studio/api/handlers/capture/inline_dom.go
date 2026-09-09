@@ -26,7 +26,17 @@ const defaultInlineDomExpression = "document.documentElement.outerHTML"
 const defaultInlineDomTreeExpression = `(function() {
   const MAX_DEPTH = 20;
   const MAX_NODES = 4000;
+  const MAX_DATA_ATTRS = 32;
+  const MAX_DATA_VALUE = 1024;
   let count = 0;
+  const readDataAttributes = (element) => {
+    const data = Object.create(null);
+    for (const key of Object.keys(element.dataset || {}).slice(0, MAX_DATA_ATTRS)) {
+      const value = element.dataset[key];
+      if (typeof value === 'string') data[key] = value.slice(0, MAX_DATA_VALUE);
+    }
+    return Object.keys(data).length ? data : null;
+  };
   const role = (el) => el.getAttribute('role') || ({H1:'heading',H2:'heading',H3:'heading',H4:'heading',H5:'heading',H6:'heading',BUTTON:'button',A:el.hasAttribute('href')?'link':null,NAV:'navigation',MAIN:'main',IMG:'img'}[el.tagName] || null);
   const inScrollContainer = (el) => {
     for (let parent = el.parentElement; parent; parent = parent.parentElement) {
@@ -46,6 +56,8 @@ const defaultInlineDomTreeExpression = `(function() {
     const ariaLabel = el.getAttribute('aria-label');
     const text = (ariaLabel && ['BUTTON','A','INPUT','TEXTAREA'].includes(el.tagName) ? ariaLabel : (el.innerText || el.textContent || '')).replace(/\s+/g, ' ').trim().slice(0, 120) || null;
     const node = {tagName: el.tagName, role: role(el), id: el.id || null, text, ariaLabel, selector: selector(el), inScrollContainer: inScrollContainer(el), clientWidth: el.clientWidth, clientHeight: el.clientHeight, scrollWidth: el.scrollWidth, scrollHeight: el.scrollHeight, computed: {display: style.display, position: style.position, margin: style.margin, padding: style.padding, gap: style.gap, flexDirection: style.flexDirection, gridTemplateColumns: style.gridTemplateColumns, color: style.color, backgroundColor: style.backgroundColor, font: style.font, overflow: style.overflow, textOverflow: style.textOverflow, whiteSpace: style.whiteSpace, zIndex: style.zIndex}, rect: {x: rect.x, y: rect.y, width: rect.width, height: rect.height}, children: []};
+    const data = readDataAttributes(el);
+    if (data) node.data = data;
     if (depth < MAX_DEPTH) for (const child of Array.from(el.children)) { const built = build(child, depth + 1); if (built) node.children.push(built); }
     return node;
   };

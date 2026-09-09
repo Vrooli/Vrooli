@@ -116,6 +116,9 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	if err := tasks.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("task schema compatibility failed: %v", err)
+	}
 	if err := sessions.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("session schema compatibility failed: %v", err)
 	}
@@ -182,7 +185,7 @@ func main() {
 	registryBindings := bindingRegistry.List("", "")
 	bindingSpecs := make([]programs.BindingSpec, 0, len(registryBindings))
 	for _, binding := range registryBindings {
-		bindingSpecs = append(bindingSpecs, programs.BindingSpec{ID: binding.GetId(), Namespace: strings.ReplaceAll(binding.GetScenario(), "-", "_"), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(), RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(), RowFieldCandidates: binding.GetRowFieldCandidates()})
+		bindingSpecs = append(bindingSpecs, programs.BindingSpec{ID: binding.GetId(), ContractDigest: bindingRegistry.ContractDigest(binding.GetId()), Signature: binding.GetSignature(), Namespace: strings.ReplaceAll(binding.GetScenario(), "-", "_"), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(), DemandStart: binding.GetScenario() != "program-runtime", RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(), RowFieldCandidates: binding.GetRowFieldCandidates()})
 	}
 	bridgeURL := ""
 	agentBridgeURL := ""
@@ -195,7 +198,7 @@ func main() {
 		current := bindingRegistry.List("", "")
 		out := make([]programs.BindingSpec, 0, len(current))
 		for _, binding := range current {
-			out = append(out, programs.BindingSpec{ID: binding.GetId(), Namespace: strings.ReplaceAll(binding.GetScenario(), "-", "_"), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(), RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(), RowFieldCandidates: binding.GetRowFieldCandidates()})
+			out = append(out, programs.BindingSpec{ID: binding.GetId(), ContractDigest: bindingRegistry.ContractDigest(binding.GetId()), Signature: binding.GetSignature(), Namespace: strings.ReplaceAll(binding.GetScenario(), "-", "_"), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(), DemandStart: binding.GetScenario() != "program-runtime", RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(), RowFieldCandidates: binding.GetRowFieldCandidates()})
 		}
 		return out
 	})
@@ -384,7 +387,7 @@ func main() {
 	// mode, the dev-only RoutingService used by test-genie to install a
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
-	rootMux.Handle("/internal/program-runtime/tasks/", &tasksH.Bridge{Store: taskStore, Contracts: contractIndex, Library: libraryRepository, Sessions: sessionManager, Programs: programService})
+	rootMux.Handle("/internal/program-runtime/tasks/", &tasksH.Bridge{Store: taskStore, Contracts: contractIndex, Library: libraryRepository, Sessions: sessionManager, Programs: programService, RepoRoot: repoRoot})
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 	rootMux.Handle("/internal/program-runtime/bindings/execute", bindingsH.Bridge(bindingRegistry, sessionManager, refusalRepository))
 	rootMux.Handle("/internal/program-runtime/bindings/describe", bindingsH.DescribeBridge(bindingRegistry, sessionManager))
@@ -393,17 +396,17 @@ func main() {
 	rootMux.Handle("/internal/program-runtime/bindings/projection/", bindingsH.ProjectionBridge(sessionManager, bindingRegistry))
 	rootMux.Handle("/internal/program-runtime/bindings/resolve-intent", bindingsH.IntentBridge(bindingRegistry, libraryRepository))
 	rootMux.Handle("/internal/program-runtime/bindings/search", bindingsH.BindingCorpusHandler(bindingRegistry))
-	portfolioUsage := func(ctx context.Context) (map[string]int64, error) {
-		response, err := programService.PortfolioStats(ctx, &programsv1.PortfolioStatsRequest{WindowDays: 30})
-		if err != nil {
-			return nil, err
-		}
-		usage := make(map[string]int64, len(response.GetRows()))
-		for _, row := range response.GetRows() {
-			usage[row.GetName()] = row.GetRuns()
-		}
-		return usage, nil
+	// Library search ranks by usage, which only needs runs-per-name from the
+	// covering (program_name, created_at) index, memoized across the searches
+	// Search Hub issues every minute; the full PortfolioStats scan used here
+	// before cost ~1.9 s per search on a production-sized table.
+	usageTTL := 5 * time.Minute
+	if seconds := envInt64("PROGRAM_RUNTIME_LIBRARY_USAGE_TTL_SECONDS"); seconds > 0 {
+		usageTTL = time.Duration(seconds) * time.Second
 	}
+	portfolioUsage := bindingsH.NewUsageCache(context.Background(), func(ctx context.Context) (map[string]int64, error) {
+		return programService.UsageByName(ctx, 30)
+	}, usageTTL).Read
 	rootMux.Handle("/internal/program-runtime/library/search", bindingsH.LibraryCorpusHandlerWithUsage(libraryRepository, contractIndex, portfolioUsage, repoRoot))
 	rootMux.Handle("/internal/program-runtime/agent/execute", bindingsH.AgentBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
 	rootMux.Handle("/internal/program-runtime/agent/start", bindingsH.AgentStartBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))

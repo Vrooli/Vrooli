@@ -66,6 +66,8 @@ func TestReadContractLoadsRubricFields(t *testing.T) { // [REQ:PRT-P1-012]
 	document["memory"] = map[string]any{"scope": "team:demo", "reads_in": "collect", "writes_in": "report", "entry_kinds": []any{"lesson"}, "scope_input": "scope", "writes_when": "status == ok", "read_scopes": []any{"team:shared"}}
 	document["fixtures"] = []any{map[string]any{"id": "live", "inputs": map[string]any{}, "expect": map[string]any{"status": []any{"ok"}}, "requires": []any{"program-runtime"}}}
 	document["bindings"] = []any{map[string]any{"id": "demo/read/list", "effect": "read", "optional": true, "via": "binding", "note": "optional read"}}
+	document["learning"] = map[string]any{"note_kinds": map[string]any{"domain-note": map[string]any{"type": "object"}}}
+	document["inputs"].(map[string]any)["query"] = map[string]any{"type": "string", "free_text": true}
 	document["assumptions"] = []any{"The fixture data is available."}
 	document["invariants"] = []any{"The envelope is printed exactly once."}
 	document["outputs"].(map[string]any)["signals"] = map[string]any{"score": "measured"}
@@ -77,7 +79,7 @@ func TestReadContractLoadsRubricFields(t *testing.T) { // [REQ:PRT-P1-012]
 	data, err := json.Marshal(document)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(path, data, 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "demo.py"), []byte("print('source-backed')\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "demo.py"), []byte("learn.task()\nlearn.note('domain-note', {})\nprint('source-backed')\n"), 0o600))
 
 	got := readContract("demo", path, testSchema(t))
 	require.Empty(t, got.ValidationError)
@@ -90,6 +92,10 @@ func TestReadContractLoadsRubricFields(t *testing.T) { // [REQ:PRT-P1-012]
 	require.Equal(t, "measured", got.Signals["score"])
 	require.True(t, got.Async)
 	require.Equal(t, "the read may be long", got.AsyncReason)
+	require.Equal(t, []string{"domain-note"}, got.Learning.NoteKinds)
+	require.Equal(t, []string{"note", "task"}, got.Learning.Verbs)
+	require.True(t, got.Learning.UsesMemory)
+	require.True(t, got.Learning.FreeTextInputsWithoutKey)
 }
 
 func TestReadContractReportsMissingSiblingSource(t *testing.T) { // [REQ:PRT-P1-012]

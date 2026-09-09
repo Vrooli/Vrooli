@@ -25,6 +25,7 @@
     "discovery eval has no program binding (no_governed_binding); authoring eval has one but its run exceeds the 100 s kernel invoke budget (kernel_invoke_budget): both rows are read from the shell, never in-program",
     "program-adoption uses the portfolio's last-30-days agent-run denominator and caller identity; rows with caller_harness=daemon are excluded because the improve loop is an operator, not adoption",
     "portfolio-maturity delegates to program-runtime.portfolio-audit at min_rung=S3; program-health counts declared portfolio rows with a failed execution; unexercised-contracts uses the portfolio never_executed set",
+    "blocked-deliveries-aged reads the program-runtime durable task bridge; advice-application-ratio reads all-cohort advice totals from the Memory comparison contract while preserving its reliability reason; fragment-cache-hit-rate and promotable-fragments read durable program-runtime fragment telemetry",
     "external-friction and fleet-improve-coverage are read by agent-manager.friction-digest and prompt-manager.skill-set-read; attribution waits on agent-manager telemetry (pending_telemetry)"
   ],
   "invariants": [
@@ -103,7 +104,7 @@
       ]
     },
     "signals": {
-      "rows": "list of {row, reading, target, in_band, unavailable, reason} in the improve skill's table order: discovery-floor, authoring-floor, agent-failure-rate, program-adoption, portfolio-maturity, program-health, unexercised-contracts, governance-share, act-coverage, binding-condition, delegation-live, uncovered-recurring-shapes, attribution, external-friction, fleet-improve-coverage; reason is one of no_governed_binding, kernel_invoke_budget, scenario_unreachable, read_elsewhere:<program>, pending_telemetry, unreliable:<why>",
+      "rows": "list of {row, reading, target, in_band, unavailable, reason} in the improve skill's table order: discovery-floor, authoring-floor, agent-failure-rate, program-adoption, portfolio-maturity, program-health, unexercised-contracts, blocked-deliveries-aged, advice-application-ratio, fragment-cache-hit-rate, promotable-fragments, governance-share, act-coverage, binding-condition, delegation-live, uncovered-recurring-shapes, attribution, external-friction, fleet-improve-coverage; reason is one of no_governed_binding, kernel_invoke_budget, scenario_unreachable, read_elsewhere:<program>, pending_telemetry, unreliable:<why>",
       "readable": "count of rows read from a governed binding",
       "unavailable": "count of rows declined, permanent reasons included",
       "failure_shapes": "top recurring failure shapes from programs mine, at most six"

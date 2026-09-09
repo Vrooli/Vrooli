@@ -1,7 +1,10 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "browser-automation-studio.author-flow",
-  "version": "2",
+  "version": "3",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Validate and execute one assertion-bearing candidate, then persist it or repair an exact workflow revision while preserving its acceptance contract.",
   "inputs": {
     "flow": {
@@ -117,7 +120,9 @@
         "step_failed",
         "invalid_response",
         "version_conflict",
-        "execution_pending"
+        "execution_pending",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "execution:<id>"
@@ -161,31 +166,37 @@
       "requires": [
         "browser-automation-studio"
       ]
+    },
+    {
+      "id": "live-valid",
+      "inputs": {
+        "project_id": "fixture",
+        "name": "learning fixture",
+        "flow": {
+          "version": 2,
+          "nodes": [],
+          "assertions": []
+        }
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable",
+          "failed"
+        ]
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
     }
   ],
   "rung": "S3",
   "owner_skill": "browser-automation-studio",
-  "learning_task": {
-    "scope": "bas-usage",
-    "operation": "author-flow",
-    "context_fields": [],
-    "outcome": {
-      "status_path": "signals.outcome",
-      "mapping": {
-        "verified_success": "verified_success",
-        "failed": "failed",
-        "unavailable": "unavailable",
-        "unknown": "unknown"
-      },
-      "evidence_paths": [
-        "evidence"
-      ]
-    }
-  },
   "verbs": [
-    "agent.collect",
-    "ai.classify",
-    "tasks.get",
-    "validate"
+    "learn.task",
+    "learn.note",
+    "learn.outcome",
+    "lib"
   ]
 }

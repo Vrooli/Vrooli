@@ -50,6 +50,7 @@ func EnsureCompatibility(ctx context.Context, db SQLExecutor) error {
 		{"caller_agent_profile", "TEXT NOT NULL DEFAULT ''"},
 		{"caller_skill_id", "TEXT NOT NULL DEFAULT ''"},
 		{"caller_harness", "TEXT NOT NULL DEFAULT ''"},
+		{"learning_json", "TEXT NOT NULL DEFAULT ''"},
 	}
 	for _, column := range columns {
 		if found[column.name] {

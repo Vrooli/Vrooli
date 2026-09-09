@@ -168,29 +168,33 @@ func contractProgram(contract contracts.Contract) *sharedv1.LibraryProgram {
 		}
 	}
 	return &sharedv1.LibraryProgram{
-		Name:                 contract.ID,
-		ContentDigest:        contract.Digest,
-		Id:                   contract.ID,
-		Version:              version,
-		Source:               contract.Source,
-		Description:          contract.Purpose,
-		Scenario:             contract.Scenario,
-		Purpose:              contract.Purpose,
-		Kind:                 "contract",
-		Rung:                 contract.Rung,
-		OwnerSkill:           contract.OwnerSkill,
-		ValidationError:      contract.ValidationError,
-		Path:                 contract.SourcePath,
-		CalledBindingIds:     contract.BindingIDs,
-		DeclaredInputs:       contract.InputNames,
-		Verbs:                contract.Verbs,
-		MemoryDeclared:       contract.Memory != nil,
-		FixtureCount:         int32(len(contract.Fixtures)),
-		LiveFixtureCount:     liveFixtures,
-		BindingCount:         int32(len(contract.Bindings)),
-		OptionalBindingCount: optionalBindings,
-		SourceMissing:        contract.SourceMissing,
-		OutputSchemaPresent:  contract.OutputSchemaPath != "",
+		Name:                             contract.ID,
+		ContentDigest:                    contract.Digest,
+		Id:                               contract.ID,
+		Version:                          version,
+		Source:                           contract.Source,
+		Description:                      contract.Purpose,
+		Scenario:                         contract.Scenario,
+		Purpose:                          contract.Purpose,
+		Kind:                             "contract",
+		Rung:                             contract.Rung,
+		OwnerSkill:                       contract.OwnerSkill,
+		ValidationError:                  contract.ValidationError,
+		Path:                             contract.SourcePath,
+		CalledBindingIds:                 contract.BindingIDs,
+		DeclaredInputs:                   contract.InputNames,
+		Verbs:                            contract.Verbs,
+		MemoryDeclared:                   contract.Memory != nil,
+		FixtureCount:                     int32(len(contract.Fixtures)),
+		LiveFixtureCount:                 liveFixtures,
+		BindingCount:                     int32(len(contract.Bindings)),
+		OptionalBindingCount:             optionalBindings,
+		SourceMissing:                    contract.SourceMissing,
+		OutputSchemaPresent:              contract.OutputSchemaPath != "",
+		LearningVerbs:                    contract.Learning.Verbs,
+		LearningUsesMemory:               contract.Learning.UsesMemory,
+		LearningNoteKinds:                contract.Learning.NoteKinds,
+		LearningFreeTextInputsWithoutKey: contract.Learning.FreeTextInputsWithoutKey,
 	}
 }
 
@@ -263,6 +267,8 @@ func (h *handler) RunDeclaredProgram(ctx context.Context, req *connect.Request[l
 	source := "import json\ninputs = json.loads(" + strconv.Quote(string(encoded)) + ")\n# declared-program generated input preamble\n" + contract.Source
 	if contract.LearningTask != nil {
 		source = "import json\nprint(json.dumps(tasks.run(operation=" + strconv.Quote(contract.ID) + ", inputs=json.loads(" + strconv.Quote(string(encoded)) + "), expected_digest=" + strconv.Quote(contract.Digest) + ").head(1)[0]))"
+	} else if len(contract.Learning.Verbs) > 0 && !containsLearningVerb(contract.Learning.Verbs, "task") {
+		source = "learn.task(operation=" + strconv.Quote(contract.ID) + ")\n" + source
 	}
 	session, err := h.sessions.CreateWithExecutionBudgets(ctx, "declared-program:"+contract.ID, "", nil, 0, 0, contract.WallMS, 0)
 	if err != nil {
@@ -309,6 +315,15 @@ func (h *handler) RunDeclaredProgram(ctx context.Context, req *connect.Request[l
 		return declaredProgramResponse(program, ok, time.Since(waitStarted)), nil
 	}
 	return declaredProgramResponse(program, true, time.Since(waitStarted)), nil
+}
+
+func containsLearningVerb(verbs []string, wanted string) bool {
+	for _, verb := range verbs {
+		if verb == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 func declaredProgramResponse(program *programsv1.Program, terminal bool, waited time.Duration) *connect.Response[libraryv1.RunDeclaredProgramResponse] {

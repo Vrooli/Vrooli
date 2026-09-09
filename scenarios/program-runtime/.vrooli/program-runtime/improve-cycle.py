@@ -32,7 +32,8 @@ work = {}
 # Rows this program can route, in the improve skill's setpoint table order (§2). It is the tie-break for "first".
 ROW_ORDER = [
     "agent-failure-rate", "program-adoption", "portfolio-maturity", "program-health",
-    "unexercised-contracts", "governance-share", "act-coverage", "binding-condition",
+    "unexercised-contracts", "blocked-deliveries-aged", "advice-application-ratio",
+    "fragment-cache-hit-rate", "promotable-fragments", "governance-share", "act-coverage", "binding-condition",
     "delegation-live", "uncovered-recurring-shapes",
 ]
 
@@ -46,6 +47,7 @@ ROUTES = {
     ("portfolio-maturity", "*"): "maturity-portfolio-audit",
     ("program-health", "*"): "health-program-repair",
     ("unexercised-contracts", "*"): "unexercised-fixture-or-retire",
+    ("promotable-fragments", "*"): "fragment-promotion",
     ("governance-share", "*"): "governance-curation-mine-unresolved",
     ("act-coverage", "*"): "act-w1-or-blocked-note",
     ("binding-condition", "*"): "condition-report-bug",
@@ -149,6 +151,12 @@ def step_decide():  # DECIDE · pure table lookup; no I/O
     envelope["signals"]["route"] = route
     envelope["signals"]["rationale"] = work["rationale"]
     envelope["evidence"].append(f"setpoint row {name}: reading={work['row'].get('reading')} target={work['row'].get('target')}")
+    if route == "fragment-promotion":
+        reading = work["row"].get("reading") or {}
+        candidates = reading.get("candidates", []) if isinstance(reading, dict) else []
+        if candidates:
+            envelope["signals"]["promotion"] = {"status": "review_required", "step_key": candidates[0].get("step_key"),
+                "next_operation": "program-runtime.fragment-promote", "required": ["operation", "reviewed_by", "evidence", "fixtures"]}
     envelope["status"] = "ok"
     return "report"
 

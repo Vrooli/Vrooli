@@ -1,6 +1,6 @@
 ---
 name: "program-runtime-improve"
-description: "Regulate program-runtime against its setpoint: discovery and authoring floors, agent program failure rate, program adoption, portfolio maturity and health, unexercised contracts, governed share, Act coverage, delegation liveness, recurring uncovered shapes, attribution, and caller skill-set coverage. Routes each out-of-band row to a curation move, a work-ladder rung, or an owner."
+description: "Regulate program-runtime against its setpoint: discovery and authoring floors, agent program failure rate, program adoption, portfolio maturity and health, unexercised contracts, learning-loop durability and advice application, fragment cache and promotion health, governed share, Act coverage, delegation liveness, recurring uncovered shapes, attribution, and caller skill-set coverage. Routes each out-of-band row to a curation move, a work-ladder rung, or an owner."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -40,21 +40,25 @@ Bands are targets. Readings are dated observations; re-read them every cycle wit
 
 | Row | Sensor | Band | Today (generated) |
 |---|---|---|---|
-| discovery-floor | `program-runtime discovery eval --suite evals/discovery.primary.json --mode judged --json` → `met` vs `floor` | met ≥ floor | 2026-09-07: unavailable (no_governed_binding) |
-| authoring-floor | `program-runtime authoring eval --json` → `met` vs `floor` | met ≥ floor; wall time under the 120 s sync bound | 2026-09-07: unavailable (kernel_invoke_budget) |
-| agent-failure-rate | `programs list` filtered in-kernel to `PROVENANCE_AGENT`, failed ÷ total | < 0.15, and zero `kernel_runtime` failures whose detail names a forbidden import | 2026-09-07: {"failed":30,"rate":0.15,"total":200,"window":"last-30-days"} (out of band) |
-| program-adoption | `programs portfolio` window plus `programs list --provenance agent`; caller run id proves adoption | ≥ 0.02 of eligible agent runs; daemon harness excluded | 2026-09-07: {"adopted_agent_runs":0,"daemon_runs_excluded":0,"eligible_agent_runs":200,"rate":0.0,"unattributed_agent_runs":200,"window":"last-30-days"} (out of band) |
-| portfolio-maturity | `program-runtime.portfolio-audit` → deterministic portfolio score | ≥ 0.8 | 2026-09-07: {"score":0.5472222222222223,"scored":90} (out of band) |
-| program-health | `programs portfolio` → declared rows with failed executions | 0 unhealthy declared programs | 2026-09-07: {"declared_programs":6,"examples":[],"unhealthy":0} (in band) |
-| unexercised-contracts | `programs portfolio` → `never_executed` | 0 | 2026-09-07: {"count":84,"examples":["agent-manager.conversation-recall","agent-manager.friction-digest","agent-manager.investigate","agent-manager.investigation-evidence","agent-manager.setpoint-read","agent-manager.supervision-case-read","agent-manager.supervision-experiment-read","ai-gateway.setpoint-read","browser-automation-studio.author-flow","browser-automation-studio.do-task"]} (out of band) |
-| governance-share | `program-runtime programs governance-share --window-seconds 604800 --json` → `governed_share` | 1.0; every observed name filed | 2026-09-07: {"governed_calls":7307,"governed_share":0.9967262310735234,"observed_calls":24,"observed_names":4} (out of band) |
-| act-coverage | `program-runtime bindings act --json` → cells by verdict | 0 cells `ACT_VERDICT_AUTHORED` | 2026-09-07: {"ACT_VERDICT_AUTHORED":2,"ACT_VERDICT_IN_REACH":1,"ACT_VERDICT_NOW":25} (out of band) |
-| binding-condition | `program-runtime bindings condition --json` → dormant and degraded-sustained counts | 0 degraded-sustained; dormant reviewed each cycle | 2026-09-07: {"bindings":33,"by_status":{"CONDITION_STATUS_DEGRADED":2,"CONDITION_STATUS_DORMANT":18,"CONDITION_STATUS_HEALTHY":13}} (out of band) |
-| delegation-live | `program-runtime sessions delegations --json` → count | ≥ 1 succeeded per 7 days | 2026-09-07: {"delegations":35,"window":"all-time"} (in band) |
-| uncovered-recurring-shapes | `program-runtime shapes list --uncovered --min-occurrences 3` → nominated count | 0 nominated shapes with no declared contract | 2026-09-07: {"nominated":8} (out of band) |
-| attribution | `bindings.exercise-unattributed` measure; agent-manager episodes naming a program id | agent-manager subscribed; program id on every fact from a submit | 2026-09-07: unavailable (pending_telemetry) |
-| external-friction | `run agent-manager.friction-digest` with inputs `scenario=program-runtime`, `window_days=7` → `recurring_count` | 0 recurring fingerprints with owner confidence `manifest-derived` | 2026-09-07: unavailable (read_elsewhere:agent-manager.friction-digest) |
-| fleet-improve-coverage | `run prompt-manager.skill-set-read` per scenario with ≥ 50 binding invocations in 30 d (`binding_invocations` grouped by target scenario) → usage present, improve present | every such scenario has a usage and an improve skill registered | 2026-09-07: unavailable (read_elsewhere:prompt-manager.skill-set-read) |
+| discovery-floor | `program-runtime discovery eval --suite evals/discovery.primary.json --mode judged --json` → `met` vs `floor` | met ≥ floor | 2026-09-09: unavailable (no_governed_binding) |
+| authoring-floor | `program-runtime authoring eval --json` → `met` vs `floor` | met ≥ floor; wall time under the 120 s sync bound | 2026-09-09: unavailable (kernel_invoke_budget) |
+| agent-failure-rate | `programs list` filtered in-kernel to `PROVENANCE_AGENT`, failed ÷ total | < 0.15, and zero `kernel_runtime` failures whose detail names a forbidden import | 2026-09-09: {"failed":30,"rate":0.15,"total":200,"window":"last-30-days"} (out of band) |
+| program-adoption | `programs portfolio` window plus `programs list --provenance agent`; caller run id proves adoption | ≥ 0.02 of eligible agent runs; daemon harness excluded | 2026-09-09: {"adopted_agent_runs":0,"daemon_runs_excluded":0,"eligible_agent_runs":200,"rate":0.0,"unattributed_agent_runs":200,"window":"last-30-days"} (out of band) |
+| portfolio-maturity | `program-runtime.portfolio-audit` → deterministic portfolio score | ≥ 0.8 | 2026-09-09: {"score":0.7747524752475248,"scored":101} (out of band) |
+| program-health | `programs portfolio` → declared rows with failed executions | 0 unhealthy declared programs | 2026-09-09: {"declared_programs":100,"unhealthy":11} (out of band) |
+| unexercised-contracts | `programs portfolio` → `never_executed` | 0 | 2026-09-09: {"count":1,"examples":["program-runtime.fragment-promote"]} (out of band) |
+| blocked-deliveries-aged | `vrooli-memory` learning task delivery rows older than 24 h | 0 | 2026-09-09: 0 (in band) |
+| advice-application-ratio | Memory `compare-outcomes` applied decisions ÷ exposed candidates over 30 days | ≥ 0.2 | 2026-09-09: unavailable (unreliable:no advice decisions) |
+| fragment-cache-hit-rate | fragment cached runs ÷ Act runs over 7 days, after any verified fragment exists | ≥ 0.5 | 2026-09-09: unavailable (pending_telemetry) |
+| promotable-fragments | verified fragment candidates without a filed promotion route | 0 | 2026-09-09: 0 (in band) |
+| governance-share | `program-runtime programs governance-share --window-seconds 604800 --json` → `governed_share` | 1.0; every observed name filed | 2026-09-09: {"governed_calls":7935,"governed_share":0.9967340786333375,"observed_calls":26,"observed_names":6} (out of band) |
+| act-coverage | `program-runtime bindings act --json` → cells by verdict | 0 cells `ACT_VERDICT_AUTHORED` | 2026-09-09: {"ACT_VERDICT_AUTHORED":2,"ACT_VERDICT_IN_REACH":1,"ACT_VERDICT_NOW":25} (out of band) |
+| binding-condition | `program-runtime bindings condition --json` → dormant and degraded-sustained counts | 0 degraded-sustained; dormant reviewed each cycle | 2026-09-09: {"bindings":33,"by_status":{"CONDITION_STATUS_DEGRADED":2,"CONDITION_STATUS_DORMANT":18,"CONDITION_STATUS_HEALTHY":13}} (out of band) |
+| delegation-live | `program-runtime sessions delegations --json` → count | ≥ 1 succeeded per 7 days | 2026-09-09: {"delegations":38,"window":"all-time"} (in band) |
+| uncovered-recurring-shapes | `program-runtime shapes list --uncovered --min-occurrences 3` → nominated count | 0 nominated shapes with no declared contract | 2026-09-09: {"nominated":11} (out of band) |
+| attribution | `bindings.exercise-unattributed` measure; agent-manager episodes naming a program id | agent-manager subscribed; program id on every fact from a submit | 2026-09-09: unavailable (pending_telemetry) |
+| external-friction | `run agent-manager.friction-digest` with inputs `scenario=program-runtime`, `window_days=7` → `recurring_count` | 0 recurring fingerprints with owner confidence `manifest-derived` | 2026-09-09: unavailable (read_elsewhere:agent-manager.friction-digest) |
+| fleet-improve-coverage | `run prompt-manager.skill-set-read` per scenario with ≥ 50 binding invocations in 30 d (`binding_invocations` grouped by target scenario) → usage present, improve present | every such scenario has a usage and an improve skill registered | 2026-09-09: unavailable (read_elsewhere:prompt-manager.skill-set-read) |
 
 ### 3. Sensors
 
@@ -95,6 +99,7 @@ A run below floor is a stop: no other route runs until the corpus route (§5) ha
 | Filing | uncovered-recurring-shapes with nominations | File a W1 obligation against the dominant scenario named by `program-runtime shapes list`. Author the declared contract in that scenario. | uncovered-recurring-shapes |
 | Filing | coverage miss telemetry for a recurring shape | File a discovery-failure report against program-runtime naming the failed binding-shape query and the covering contract; use the report-bug skill for the durable finding. | discovery-coverage-miss |
 | Filing | uncovered-recurring-shapes with a covered recurring shape | File a discovery finding against program-runtime. Name the failed intent query and the covering contract. | uncovered-recurring-shapes |
+| Filing | promotable-fragments above 0 | Run the fragment-promotion route for each verified candidate; promotion remains a curation decision and must preserve a fixture. | promotable-fragments |
 | Filing | attribution pending | `report-bug` against agent-manager: subscribe to program-runtime and ai-gateway events; carry `program_id` on invocation facts when the executable is `program-runtime` | attribution |
 | Filing | external-friction recurring fingerprint | Read the fingerprint's episode; if the command is program-runtime's, W3 here; if the fix is skill prose, `skill-improvement-suggestions` on the usage skill | external-friction |
 | Filing | fleet-improve-coverage below band | For each scenario missing a role, file one `skill-set-authoring` run against its owner with the invocation count as the reason; never author into that scenario from here | fleet-improve-coverage |

@@ -501,7 +501,7 @@ func main() {
 			Logger:              log,
 			Registry:            navigatorRegistry,
 			Credits:             creditService,
-			Tracker:             playwrightNav,
+			Tracker:             vision.MultiTracker{playwrightNav, claudeCodeNav},
 			CredentialAuthority: credentialAuthority,
 		}),
 	}

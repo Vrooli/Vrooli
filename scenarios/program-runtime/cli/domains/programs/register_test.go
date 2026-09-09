@@ -1,11 +1,12 @@
 package programs
 
 import (
-	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 )
 
 func TestProgramListReportHasOneRowPerProgram(t *testing.T) {
@@ -50,5 +51,21 @@ func TestProgramSourceReadsStdin(t *testing.T) {
 	source, err := programSource("", "-")
 	if err != nil || source != "print('stdin')" {
 		t.Fatalf("source=%q err=%v", source, err)
+	}
+}
+
+func TestProgramReportSummarisesLearningReceipt(t *testing.T) {
+	receipt := `{"task_id":"t","attempt_id":"a","outcome":"verified_success","delivery":"delivered","attempts":[{"recall_status":"matched"}]}`
+	report := (&handlers{}).programReport(nil, &programsv1.GetProgramResponse{Program: &programsv1.Program{Id: "p1", LearningJson: receipt}})
+	if len(report.Summary) != 2 || report.Summary[1] != "Learning: outcome=verified_success delivery=delivered recall_status=matched." {
+		t.Fatalf("summary=%q", report.Summary)
+	}
+	plain := (&handlers{}).programReport(nil, &programsv1.GetProgramResponse{Program: &programsv1.Program{Id: "p1"}})
+	if len(plain.Summary) != 1 {
+		t.Fatalf("summary=%q, want no learning line without a receipt", plain.Summary)
+	}
+	waited := (&handlers{}).waitReport(nil, &programsv1.WaitForProgramResponse{Terminal: true, Program: &programsv1.Program{Id: "p1", LearningJson: receipt}})
+	if len(waited.Summary) != 2 || !strings.HasPrefix(waited.Summary[1], "Learning: ") {
+		t.Fatalf("summary=%q", waited.Summary)
 	}
 }

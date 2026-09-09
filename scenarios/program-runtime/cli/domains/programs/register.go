@@ -2,6 +2,7 @@ package programs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -204,7 +205,11 @@ func (h *handlers) waitCommand(ctx cliapp.OperationContext) (*programsv1.WaitFor
 
 func (*handlers) waitReport(_ cliapp.OperationContext, r *programsv1.WaitForProgramResponse) cliapp.ListReport {
 	if r.GetTerminal() {
-		return cliapp.ListReport{Summary: []string{fmt.Sprintf("Program %s is terminal: %s.", r.GetProgram().GetId(), r.GetProgram().GetStatus())}}
+		summary := []string{fmt.Sprintf("Program %s is terminal: %s.", r.GetProgram().GetId(), r.GetProgram().GetStatus())}
+		if line := learningSummary(r.GetProgram().GetLearningJson()); line != "" {
+			summary = append(summary, line)
+		}
+		return cliapp.ListReport{Summary: summary}
 	}
 	// Not-terminal is a stated outcome, not a failure: the wait returned at its
 	// bound and the caller may wait again on the same id.
@@ -271,8 +276,35 @@ func (*handlers) submitReport(cliapp.OperationContext, *programsv1.SubmitProgram
 	return cliapp.MutationReport{Result: []string{"Program submitted."}}
 }
 
-func (*handlers) programReport(cliapp.OperationContext, *programsv1.GetProgramResponse) cliapp.ListReport {
-	return cliapp.ListReport{Summary: []string{"Program operation completed."}}
+func (*handlers) programReport(_ cliapp.OperationContext, r *programsv1.GetProgramResponse) cliapp.ListReport {
+	summary := []string{"Program operation completed."}
+	if line := learningSummary(r.GetProgram().GetLearningJson()); line != "" {
+		summary = append(summary, line)
+	}
+	return cliapp.ListReport{Summary: summary}
+}
+
+// learningSummary renders the one line a human needs from the kernel's
+// learning receipt. The full document stays in --json as learning_json.
+func learningSummary(receipt string) string {
+	if strings.TrimSpace(receipt) == "" {
+		return ""
+	}
+	var parsed struct {
+		Outcome  string `json:"outcome"`
+		Delivery string `json:"delivery"`
+		Attempts []struct {
+			RecallStatus string `json:"recall_status"`
+		} `json:"attempts"`
+	}
+	if err := json.Unmarshal([]byte(receipt), &parsed); err != nil {
+		return "Learning receipt present but unreadable; inspect learning_json with --json."
+	}
+	recall := "unknown"
+	if len(parsed.Attempts) > 0 && parsed.Attempts[0].RecallStatus != "" {
+		recall = parsed.Attempts[0].RecallStatus
+	}
+	return fmt.Sprintf("Learning: outcome=%s delivery=%s recall_status=%s.", parsed.Outcome, parsed.Delivery, recall)
 }
 
 func (*handlers) listReport(_ cliapp.OperationContext, r *programsv1.ListProgramsResponse) cliapp.ListReport {

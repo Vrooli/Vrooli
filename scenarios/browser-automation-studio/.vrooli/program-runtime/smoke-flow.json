@@ -1,8 +1,11 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "browser-automation-studio.smoke-flow",
-  "version": "1",
-  "purpose": "Execute one persisted BAS workflow with wait and classify the outcome from the first failed timeline entry (action type and driver error code) into a closed failure vocabulary.",
+  "version": "2",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Execute one persisted BAS workflow with wait and classify the first failed timeline entry into a closed failure vocabulary; a verified run notes a preference for the revision, a structural failure notes an avoid.",
   "inputs": {
     "workflow_id": {
       "type": "string",
@@ -103,7 +106,9 @@
         "selector_not_found",
         "timeout",
         "auth_required",
-        "step_failed"
+        "step_failed",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "workflow:<id>, execution:<id>, node:<id> of the failed entry"
@@ -160,27 +165,10 @@
   ],
   "rung": "S3",
   "owner_skill": "browser-automation-studio",
-  "learning_task": {
-    "scope": "bas-usage",
-    "operation": "smoke-flow",
-    "context_fields": [],
-    "outcome": {
-      "status_path": "signals.outcome",
-      "mapping": {
-        "verified_success": "verified_success",
-        "failed": "failed",
-        "unavailable": "unavailable",
-        "unknown": "unknown"
-      },
-      "evidence_paths": [
-        "evidence"
-      ]
-    }
-  },
   "verbs": [
-    "agent.collect",
-    "ai.classify",
-    "tasks.get",
-    "validate"
+    "learn.task",
+    "learn.note",
+    "learn.outcome",
+    "lib"
   ]
 }

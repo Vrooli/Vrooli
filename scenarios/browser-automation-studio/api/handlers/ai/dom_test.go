@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -13,6 +15,13 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 )
+
+func TestDOMDataAttributes(t *testing.T) {
+	cmd := exec.Command("node", "../capture/testdata/dom_data.cjs")
+	cmd.Stdin = strings.NewReader(domExtractionExpression)
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(output))
+}
 
 // =============================================================================
 // Mock Automation Runner
@@ -494,10 +503,6 @@ func TestFailureMessage(t *testing.T) {
 func TestDOMExtractionExpression(t *testing.T) {
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] expression contains MAX_DEPTH limit", func(t *testing.T) {
 		assert.Contains(t, domExtractionExpression, "MAX_DEPTH = 20")
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] expression contains MAX_CHILDREN_PER_NODE limit", func(t *testing.T) {
-		assert.Contains(t, domExtractionExpression, "MAX_CHILDREN_PER_NODE = 12")
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] expression contains MAX_TOTAL_NODES limit", func(t *testing.T) {

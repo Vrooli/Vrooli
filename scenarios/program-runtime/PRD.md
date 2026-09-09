@@ -53,6 +53,21 @@ product contract, not implementation details.
 
 ### 🟠 P1 – Should have post-launch
 
+The following cross-cutting learn-verb rows are validated by implementation and
+fixture references; their status is maintained from those references.
+
+| ID | Requirement | Validation reference |
+|---|---|---|
+| LV-01 | Ten `learn.*` verbs replace new whole-program learning declarations. | `kernel/tests/test_learn.py`; `schemas/program-contract.schema.json`; `program-runtime/.vrooli/program-runtime/learn-verbs-example.json` |
+| LV-02 | Tasks, named steps, and bounded gather children serialize as an attempt tree. | `kernel/tests/test_learn.py`; `vrooli-memory/.vrooli/program-runtime/finish-attempt.py` |
+| LV-03 | Recall accepts query and returns bounded summaries; choose records explicit adoption. | `kernel/tests/test_learn.py`; `vrooli-memory/.vrooli/program-runtime/compare-outcomes.py` |
+| LV-04 | Agent provenance remains explicit through learning capture and delivery. | `vrooli-memory/api/internal/learning/learning.go`; `packages/proto/schemas/vrooli-memory/v1/learning/learning.proto` |
+| LV-05 | `learn.act` validates fragments, enforces an allow-set, and reuses verified cache entries. | `kernel/tests/test_learn.py`; `api/internal/tasks/store_test.go`; all-verb fixture second run |
+| LV-06 | Missing program dependencies produce `programs.dependency_undeclared`. | `api/handlers/programs-validation/module_test.go`; `schemas/program-contract.schema.json` |
+| LV-07 | Dependency analysis includes program-derived binding edges with file fallback. | `scenario-dependency-analyzer/api/internal/deployment/program_bindings.go`; P3 DAG artifact |
+| LV-08 | Memory, delivery, and blocked-receipt failures degrade with explicit reasons. | `api/internal/tasks/*_test.go`; `program-runtime-improve/SKILL.md` setpoint rows |
+| LV-09 | BAS and device-control execute the learning loop with stable operation keys. | `browser-automation-studio/.vrooli/program-runtime/tests/test_workflows.py`; `device-control/.vrooli/program-runtime/tests/test_workflows.py` |
+
 - [ ] OT-P1-001 | In-kernel capability discovery | The Program Runtime SHOULD expose capability discovery as an in-kernel call so a program resolves an operation by intent without the callable surface being preloaded into the submitting agent's context.
 - [ ] OT-P1-002 | Typed inference bindings | The Program Runtime SHOULD expose classify, extract, and judge operations resolved through ai-gateway, so a program performs bounded typed inference without spawning a delegated agent run.
 - [ ] OT-P1-003 | Delegated agent runs from a program | The Program Runtime SHOULD let a program spawn an agent-manager run and collect its evidence, so unbounded agentic work stays distinguishable from bounded inference.
@@ -64,6 +79,9 @@ product contract, not implementation details.
 - [ ] OT-P1-007 | Binding registry inspection surface | The Program Runtime SHOULD provide an operator surface that browses the resolved callable namespace and, for every fleet capability that is unbound, states which of the declared unbound reasons applies. This is promoted out of OT-P2-001 because it is the only operator surface that carries information before any program has run, and because it renders the same registry state the Act numerator computes.
 - [ ] OT-P1-008 | Program provenance | The Program Runtime SHOULD record whether a program was submitted by an agent or by a human operator, and SHOULD exclude operator-submitted programs from corpus mining by default, so the corpus keeps measuring what agents attempt rather than what operators experiment with.
 - [ ] OT-P1-009 | Act denominator audit | Once the binding-registry numerator is live, the Program Runtime SHOULD audit every Act denominator cell against the resolved registry and raise the stated denominator confidence above `SKETCH`, so Act coverage on the readiness board is measured rather than authored. The denominator was written before this scenario existed and 12 of its 28 cells are marked unaudited; without this target the board reports an Act percentage at `SKETCH` confidence indefinitely.
+
+- [ ] OT-P1-012 | Verified adaptive execution | The Program Runtime SHOULD retain governed learning boundaries, use outcome evidence to select compatible implementations, repair failures within declared budgets, and preserve completed work when optional learning services are unavailable.
+- [ ] OT-P1-013 | Portable reviewed learning baselines | The Program Runtime SHOULD publish reviewed implementations and regression evidence as versioned program assets that run with compatible domain capabilities when optional AI and Memory services are absent.
 
 ### 🟢 P2 – Future / expansion
 

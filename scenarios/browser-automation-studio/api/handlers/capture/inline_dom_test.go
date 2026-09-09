@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,6 +14,13 @@ import (
 
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
 )
+
+func TestInlineDOMDataAttributes(t *testing.T) {
+	cmd := exec.Command("node", "testdata/dom_data.cjs")
+	cmd.Stdin = strings.NewReader(defaultInlineDomTreeExpression)
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(output))
+}
 
 // writeTimelineForDomNode renders a minimal timeline.json whose evaluate frame
 // carries domHTML under the "result" key, mirroring what the execution writer

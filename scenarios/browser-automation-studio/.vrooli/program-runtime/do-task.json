@@ -1,12 +1,16 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "browser-automation-studio.do-task",
-  "version": "2",
-  "purpose": "Dispatch one explicitly selected workflow, validated candidate, or bounded navigation; return evidence for outcome-linked capture.",
+  "version": "3",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Dispatch one selected workflow, validated candidate, or bounded navigation; recommend a remembered revision on search; grade an earlier recommendation on execution; return evidence for capture.",
   "inputs": {
     "task": {
       "type": "string",
       "required": true,
+      "free_text": true,
       "description": "The browser task in plain words; also the navigation prompt."
     },
     "scenario": {
@@ -57,17 +61,32 @@
     "parameters": {
       "type": "object",
       "description": "Typed execution parameters"
+    },
+    "navigation_id": {
+      "type": "string",
+      "description": "Resume a navigation started earlier (from signals.navigation_id) instead of starting one; mutually exclusive with session, workflow_id and flow."
+    },
+    "wait_millis": {
+      "type": "integer",
+      "default": 0,
+      "description": "Server-side bounded wait for the navigation to reach a terminal state, 0..300000. 0 reads status once; a reached navigation is authored and verified in the same run only when the wait allowed it to finish."
+    },
+    "advice_attempt_id": {
+      "type": "string",
+      "description": "The signals.learning.attempt_id of the search run whose recommendation this execution follows; a verified or failed outcome grades that run supported or contradicted through learn.feedback."
     }
   },
   "assumptions": [
     "Caller selects an authorized exact workflow version or supplies an authorized candidate/session",
-    "Runtime captures the outcome automatically and suppresses nested duplicate attempts"
+    "Runtime captures the outcome automatically and suppresses nested duplicate attempts",
+    "Learning identity is site plus a digest of the normalized task text; options and preference notes both use <workflow_id>@<version>"
   ],
   "invariants": [
     "One execution route, no speculative candidate execution or retry",
-    "Search only returns candidates; selection is explicit",
+    "Search only returns candidates; selection is explicit; a recommendation is advice, never authority",
     "No raw screenshots or workflow bodies in the envelope",
-    "Runtime owns one automatic outcome capture for the selected task"
+    "Runtime owns one automatic outcome capture for the selected task",
+    "A failed revision is noted as avoid so the next recommendation excludes it"
   ],
   "bindings": [
     {
@@ -155,7 +174,10 @@
     },
     "signals": {
       "result": "Selected child result signals",
-      "candidates": "At most five selection candidates",
+      "candidates": "At most five selection candidates, each with id and version when runnable_by_id",
+      "recommended_workflow": "On search: {workflow_id, version, option_id, source(advice|default), why[]} from learn.choose over remembered preferences and avoids",
+      "learning": "{attempt_id, task_id, key, advice[], graded?} — attempt_id is what a later execution passes as advice_attempt_id",
+      "navigation_id": "Navigation started or resumed; pass back as navigation_id to resume",
       "outcome": "unknown unless the child explicitly reports failed/unavailable or verified_success with an ok status and evidence; completed navigation is not verification",
       "reused_workflow": "Whether the selected route used an existing workflow"
     },
@@ -187,7 +209,8 @@
         "validation_failed",
         "version_conflict",
         "execution_pending",
-        "no_governed_binding"
+        "no_governed_binding",
+        "remote_error"
       ]
     },
     "evidence": "execution:<id> per attempt, navigation:<id> when the fallback ran"
@@ -198,7 +221,8 @@
     "delegated_runs": 0,
     "materialize_limit": 100,
     "async": true,
-    "async_reason": "wall_ms exceeds the 120 s synchronous bound: submit with --async and wait once."
+    "async_reason": "wall_ms exceeds the 120 s synchronous bound: submit with --async and wait once.",
+    "output_bytes": 65536
   },
   "fixtures": [
     {
@@ -242,34 +266,50 @@
       "requires": [
         "browser-automation-studio"
       ]
+    },
+    {
+      "id": "selection-required",
+      "inputs": {
+        "task": "inspect the current workspace"
+      },
+      "expect": {
+        "status": [
+          "partial",
+          "unavailable",
+          "failed"
+        ]
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
+    },
+    {
+      "id": "resume-and-session-conflict",
+      "inputs": {
+        "task": "inspect",
+        "session": "s",
+        "navigation_id": "n",
+        "model": "m"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
     }
   ],
   "rung": "S3",
   "owner_skill": "browser-automation-studio",
-  "learning_task": {
-    "scope": "bas-usage",
-    "operation": "do-task",
-    "context_fields": [
-      "scenario"
-    ],
-    "outcome": {
-      "status_path": "signals.outcome",
-      "mapping": {
-        "verified_success": "verified_success",
-        "failed": "failed",
-        "unavailable": "unavailable",
-        "unknown": "unknown"
-      },
-      "evidence_paths": [
-        "evidence"
-      ]
-    }
-  },
   "verbs": [
-    "agent.collect",
-    "capture",
-    "lib",
-    "tasks.get",
-    "validate"
+    "learn.task",
+    "learn.step",
+    "learn.choose",
+    "learn.note",
+    "learn.outcome",
+    "learn.feedback",
+    "lib"
   ]
 }

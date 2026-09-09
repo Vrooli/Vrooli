@@ -9,10 +9,7 @@ external-friction — same order as the skill table. A row whose sensor has no
 governed binding is reported unavailable with the reason; it is never computed by hand here.
 """
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 window = int(inputs.get("window", 100))
 evidence_sample = int(inputs.get("evidence_sample", 5))
 
@@ -26,37 +23,7 @@ envelope = {
 handles = {}
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
+fail = program.fail
 
 
 def is_selector_failure(text):
@@ -98,7 +65,7 @@ def step_collect():  # COLLECT · one governed read; the evidence sample is read
         handles["ex"] = browser_automation_studio.executions.list(limit=window)
         handles["ex"].count()
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         return fail(status, klass, exc, "collect")
     # evidence sample: governed reads belong in collect; an outage mid-sample is classified, not counted as unreadable
     failed_h = handles["ex"].filter(lambda r: r.get("status") == "EXECUTION_STATUS_FAILED")
@@ -112,7 +79,7 @@ def step_collect():  # COLLECT · one governed read; the evidence sample is read
                 handles["with_shots"] += 1
             handles["sample_read"] += 1
         except Exception as exc:
-            status, klass = classify_transport(exc)
+            status, klass = program.classify(exc)
             if status == "unavailable":
                 return fail(status, klass, exc, "collect")
             envelope["errors"].append({"class": klass, "detail": f"executions.screenshots: {str(exc)[:120]}", "where": "collect"})
@@ -131,7 +98,7 @@ def step_collect():  # COLLECT · one governed read; the evidence sample is read
             handles[name].head(1)
         except Exception as exc:
             handles[name] = None
-            status, klass = classify_transport(exc)
+            status, klass = program.classify(exc)
             envelope["errors"].append({"class": klass, "detail": f"measures.{name}: {str(exc)[:120]}", "where": "collect"})
     return "classify"
 
@@ -196,7 +163,7 @@ def step_classify():  # CLASSIFY · every reading is count or filter in the kern
             reason=None if valid else "unreliable:incomplete_or_unattributed_window",
             sensor="lib.agent_manager.friction_digest")
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         row("external-friction", None, "0 recurring fingerprints", False, unavailable=True,
             reason=f"agent-manager.friction-digest unavailable: {str(exc)[:160]}",
             sensor="lib.agent_manager.friction_digest(scenario=browser-automation-studio, window_days=7)")
@@ -224,12 +191,4 @@ def step_report():
 
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:  # the one catch that guarantees an envelope on every path
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -21,8 +22,9 @@ import (
 )
 
 type Contract struct {
-	LearningTask       *LearningTask `json:"learning_task,omitempty"`
-	Memory             *Memory       `json:"memory,omitempty"`
+	LearningTask       *LearningTask   `json:"learning_task,omitempty"`
+	Learning           LearningSummary `json:"learning,omitempty"`
+	Memory             *Memory         `json:"memory,omitempty"`
 	Verbs              []string
 	Fixtures           []Fixture
 	Bindings           []BindingRef
@@ -52,6 +54,16 @@ type Contract struct {
 	Source             string
 	SourceMissing      bool
 	ValidationError    string
+}
+
+// LearningSummary is the analyzer-derived projection of the in-program
+// learning surface declared by a contract. It is intentionally small: callers
+// need to know which verbs and note kinds are present, not duplicate source.
+type LearningSummary struct {
+	Verbs                    []string `json:"verbs,omitempty"`
+	UsesMemory               bool     `json:"uses_memory,omitempty"`
+	NoteKinds                []string `json:"note_kinds,omitempty"`
+	FreeTextInputsWithoutKey bool     `json:"free_text_inputs_without_key,omitempty"`
 }
 
 type Memory struct {
@@ -95,6 +107,7 @@ type InputSpec struct {
 	Required bool
 	Default  json.RawMessage
 	Enum     []any
+	FreeText bool
 }
 
 // ResolveInputs applies declared defaults and rejects unknown, missing, or
@@ -213,7 +226,7 @@ func (i *Index) Load(repoRoot string) error {
 			continue
 		}
 		for _, entry := range entries {
-			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") || strings.HasSuffix(entry.Name(), ".output.schema.json") {
+			if entry.IsDir() || entry.Name() == "note-kinds.json" || !strings.HasSuffix(entry.Name(), ".json") || strings.HasSuffix(entry.Name(), ".output.schema.json") {
 				continue
 			}
 			path := filepath.Join(dir, entry.Name())
@@ -284,7 +297,7 @@ func (i *Index) Refresh(repoRoot string) (bool, error) {
 			return false, err
 		}
 		for _, entry := range entries {
-			if entry.IsDir() || strings.HasSuffix(entry.Name(), ".output.schema.json") || (!strings.HasSuffix(entry.Name(), ".json") && !strings.HasSuffix(entry.Name(), ".py")) {
+			if entry.IsDir() || entry.Name() == "note-kinds.json" || strings.HasSuffix(entry.Name(), ".output.schema.json") || (!strings.HasSuffix(entry.Name(), ".json") && !strings.HasSuffix(entry.Name(), ".py")) {
 				continue
 			}
 			info, err := entry.Info()
@@ -370,12 +383,15 @@ func (i *Index) CoveredBy(bindingIDs []string) string {
 
 type rawContract struct {
 	LearningTask *LearningTask `json:"learning_task"`
-	Memory       *Memory       `json:"memory"`
-	Verbs        []string      `json:"verbs"`
-	Fixtures     []Fixture     `json:"fixtures"`
-	Assumptions  []string      `json:"assumptions"`
-	Invariants   []string      `json:"invariants"`
-	Outputs      struct {
+	Learning     struct {
+		NoteKinds map[string]json.RawMessage `json:"note_kinds"`
+	} `json:"learning"`
+	Memory      *Memory   `json:"memory"`
+	Verbs       []string  `json:"verbs"`
+	Fixtures    []Fixture `json:"fixtures"`
+	Assumptions []string  `json:"assumptions"`
+	Invariants  []string  `json:"invariants"`
+	Outputs     struct {
 		Signals map[string]string `json:"signals"`
 	} `json:"outputs"`
 	OutputSchema string                     `json:"output_schema"`
@@ -395,7 +411,7 @@ type rawContract struct {
 }
 
 func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
-	c := Contract{Scenario: scenario, SourcePath: path, ID: scenario + "." + strings.TrimSuffix(filepath.Base(path), ".json")}
+	c := Contract{Scenario: scenario, SourcePath: path, ID: scenario + "." + strings.TrimSuffix(filepath.Base(path), ".json"), Name: strings.TrimSuffix(filepath.Base(path), ".json")}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		c.ValidationError = err.Error()
@@ -469,14 +485,16 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 			Required bool            `json:"required"`
 			Default  json.RawMessage `json:"default"`
 			Enum     []any           `json:"enum"`
+			FreeText bool            `json:"free_text"`
 		}
 		if err := json.Unmarshal(encoded, &spec); err != nil {
 			c.ValidationError = fmt.Sprintf("input %s: %v", name, err)
 			continue
 		}
-		c.Inputs[name] = InputSpec{Type: spec.Type, Required: spec.Required, Default: spec.Default, Enum: spec.Enum}
+		c.Inputs[name] = InputSpec{Type: spec.Type, Required: spec.Required, Default: spec.Default, Enum: spec.Enum, FreeText: spec.FreeText}
 	}
 	sort.Strings(c.InputNames)
+	c.Learning = learningSummary(c.Source, raw.Learning.NoteKinds, c.Inputs)
 	if c.LearningTask != nil {
 		for _, field := range c.LearningTask.ContextFields {
 			if _, ok := c.Inputs[field]; !ok {
@@ -501,6 +519,33 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 		c.Name = strings.TrimSuffix(filepath.Base(path), ".json")
 	}
 	return c
+}
+
+var learnCallPattern = regexp.MustCompile(`\blearn\.([a-z][a-z0-9_]*)\s*\(`)
+var explicitLearnKeyPattern = regexp.MustCompile(`\blearn\.task\s*\([^)]*\bkey\s*=`)
+
+func learningSummary(source string, declaredNoteKinds map[string]json.RawMessage, inputs map[string]InputSpec) LearningSummary {
+	seen := map[string]bool{}
+	for _, match := range learnCallPattern.FindAllStringSubmatch(source, -1) {
+		if len(match) == 2 {
+			seen[match[1]] = true
+		}
+	}
+	verbs := make([]string, 0, len(seen))
+	for verb := range seen {
+		verbs = append(verbs, verb)
+	}
+	sort.Strings(verbs)
+	noteKinds := make([]string, 0, len(declaredNoteKinds))
+	for kind := range declaredNoteKinds {
+		noteKinds = append(noteKinds, kind)
+	}
+	sort.Strings(noteKinds)
+	freeText := false
+	for _, spec := range inputs {
+		freeText = freeText || spec.FreeText
+	}
+	return LearningSummary{Verbs: verbs, UsesMemory: len(verbs) > 0, NoteKinds: noteKinds, FreeTextInputsWithoutKey: freeText && !explicitLearnKeyPattern.MatchString(source)}
 }
 
 func mustRead(path string) []byte { data, _ := os.ReadFile(path); return data }
