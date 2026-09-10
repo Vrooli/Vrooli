@@ -8,7 +8,7 @@
     "purpose": "The declarative surface reaches the same result as the browser, which is what makes remote and automated onboarding possible.",
     "prd_refs": [
       "OT-P0-008",
-      "OT-P1-004"
+      "OT-P0-012"
     ]
   },
   "steps": [

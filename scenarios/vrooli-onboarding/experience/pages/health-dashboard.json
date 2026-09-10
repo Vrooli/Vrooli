@@ -10,7 +10,7 @@
     ],
     "purpose": "Show the live state of the resources this install depends on, and route the operator to the setup step that fixes a gap.",
     "prd_refs": [
-      "OT-P1-001"
+      "OT-P0-010"
     ]
   },
   "priorities": [

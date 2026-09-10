@@ -4,73 +4,51 @@ import (
 	"fmt"
 	"os"
 
-	"vrooli-onboarding/cli/internal/support"
-
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	glossaryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/glossary"
+	"google.golang.org/protobuf/proto"
+	"vrooli-onboarding/cli/internal/support"
 )
 
-// Register exposes `vrooli-onboarding glossary` as a flat command since
-// `/api/v1/glossary` is a single read-only endpoint. Filtering happens
-// server-side via the --query flag.
+const searchProcedure = "/vrooli.vrooli_onboarding.v1.glossary.GlossaryService/SearchGlossary"
+
 func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
-	return cliapp.CommandGroup{
-		Title: "Glossary",
-		Commands: []cliapp.Command{
-			{
-				Name:        "glossary",
-				Description: "Look up Vrooli glossary terms",
-				NeedsAPI:    true,
-				Run:         func(args []string) error { return run(core, args) },
-			},
-		},
-	}
+	return cliapp.CommandGroup{Title: "Glossary", Commands: []cliapp.Command{{Name: "glossary", Description: "Look up Vrooli glossary terms", NeedsAPI: true, Run: func(args []string) error { return run(core, args) }}}}
 }
 
 func run(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("glossary")
-	query := fs.String("query", "", "Optional search term (server-side filter)")
+	query := fs.String("query", "", "Optional search term")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-
-	q := support.BuildQuery(map[string]string{"q": *query})
-	body, err := core.Get("/glossary", q)
-	if err != nil {
+	response := new(glossaryv1.SearchGlossaryResponse)
+	if err := support.RequestProto(core, searchProcedure, &glossaryv1.SearchGlossaryRequest{Query: *query}, response, "glossary"); err != nil {
 		return err
-	}
-	var resp support.GlossaryResponse
-	if err := support.Decode(body, &resp); err != nil {
-		return err
-	}
-
-	summary := []string{fmt.Sprintf("Glossary entries: %d", resp.Count)}
-	if resp.Query != "" {
-		summary = append(summary, fmt.Sprintf("Query: %q", resp.Query))
-	}
-	report := cliapp.ListReport{
-		Summary:        summary,
-		ResultsHeading: "Terms",
-		Results:        rows(resp.Entries),
-		RetrievalHints: []string{
-			fmt.Sprintf("%s glossary --query postgres", support.CLIName),
-			fmt.Sprintf("%s resources list", support.CLIName),
-		},
 	}
 	if *jsonOutput {
-		return cliapp.PrintReportJSON(os.Stdout, report)
+		return printJSON(response)
 	}
-	return cliapp.RenderListReport(os.Stdout, report)
+	summary := []string{fmt.Sprintf("Glossary entries: %d", response.GetCount())}
+	if response.GetQuery() != "" {
+		summary = append(summary, fmt.Sprintf("Query: %q", response.GetQuery()))
+	}
+	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{Summary: summary, ResultsHeading: "Terms", Results: rows(response.GetEntries()), RetrievalHints: []string{fmt.Sprintf("%s glossary --query postgres", support.CLIName), fmt.Sprintf("%s resources list", support.CLIName)}})
 }
 
-func rows(entries []support.GlossaryEntry) []string {
+func printJSON(message proto.Message) error {
+	return support.PrintProto(os.Stdout, message, "glossary")
+}
+
+func rows(entries []*glossaryv1.GlossaryEntry) []string {
 	if len(entries) == 0 {
 		return []string{"(no matching glossary entries)"}
 	}
 	out := make([]string, 0, len(entries))
-	for _, e := range entries {
-		out = append(out, fmt.Sprintf("%s [%s] -> %s", e.Term, e.Category, e.Description))
+	for _, entry := range entries {
+		out = append(out, fmt.Sprintf("%s [%s] -> %s", entry.GetTerm(), entry.GetCategory(), entry.GetDescription()))
 	}
 	return out
 }

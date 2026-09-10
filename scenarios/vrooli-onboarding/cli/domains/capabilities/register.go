@@ -2,7 +2,6 @@ package capabilities
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +11,10 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	capabilitiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/capabilities"
+	capabilitiesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/capabilities/capabilitiesv1connect"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type stringList []string
@@ -39,11 +42,11 @@ func list(core *cliapp.ScenarioApp, args []string) error {
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-	body, err := core.Get("/v2/capabilities", nil)
-	if err != nil {
+	response := &capabilitiesv1.ListCapabilitiesResponse{}
+	if err := request(core, capabilitiesconnect.CapabilitiesServiceListCapabilitiesProcedure, &capabilitiesv1.ListCapabilitiesRequest{Target: "local"}, response); err != nil {
 		return err
 	}
-	return renderJSONOrPretty(body, *jsonOutput, "capabilities")
+	return renderJSONOrPretty(response, *jsonOutput, "capabilities")
 }
 
 func action(core *cliapp.ScenarioApp, args []string, apply bool) error {
@@ -70,17 +73,17 @@ func action(core *cliapp.ScenarioApp, args []string, apply bool) error {
 	for key, value := range secretInputs {
 		inputs[key] = value
 	}
-	request := map[string]any{"capability_id": strings.TrimSpace(*id), "confirm": false, "inputs": inputs}
-	body, err := json.Marshal(request)
+	inputStruct, err := structpb.NewStruct(inputs)
 	if err != nil {
-		return err
+		return fmt.Errorf("encode capability inputs: %w", err)
 	}
-	previewBody, err := core.Request("POST", "/v2/capabilities/preview", nil, body)
-	if err != nil {
+	request := &capabilitiesv1.ActionRequest{CapabilityId: strings.TrimSpace(*id), Confirm: false, Inputs: inputStruct}
+	preview := &capabilitiesv1.PreviewCapabilityResponse{}
+	if err := requestRPC(core, capabilitiesconnect.CapabilitiesServicePreviewCapabilityProcedure, &capabilitiesv1.PreviewCapabilityRequest{Target: "local", Action: request}, preview); err != nil {
 		return err
 	}
 	if *jsonOutput || !apply {
-		if err := renderJSONOrPretty(previewBody, *jsonOutput, "capability preview"); err != nil {
+		if err := renderJSONOrPretty(preview, *jsonOutput, "capability preview"); err != nil {
 			return err
 		}
 	}
@@ -98,18 +101,13 @@ func action(core *cliapp.ScenarioApp, args []string, apply bool) error {
 			return fmt.Errorf("capability apply not confirmed")
 		}
 	}
-	request["confirm"] = true
-	body, err = json.Marshal(request)
-	if err != nil {
-		return err
-	}
-	result, err := core.Request("POST", "/v2/capabilities/apply", nil, body)
-	if err != nil {
+	request.Confirm = true
+	result := &capabilitiesv1.ApplyCapabilityResponse{}
+	if err := requestRPC(core, capabilitiesconnect.CapabilitiesServiceApplyCapabilityProcedure, &capabilitiesv1.ApplyCapabilityRequest{Target: "local", Action: request}, result); err != nil {
 		return err
 	}
 	if *jsonOutput {
-		_, err = os.Stdout.Write(append(result, '\n'))
-		return err
+		return printJSON(result)
 	}
 	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{Result: []string{"Capability applied"}, NextCommand: []string{support.CLIName + " capabilities list"}})
 }
@@ -123,32 +121,18 @@ func readCapabilityInputs(core *cliapp.ScenarioApp, capabilityID string, flags [
 		}
 		inputs[strings.TrimSpace(key)] = value
 	}
-	body, err := core.Get("/v2/capabilities", nil)
-	if err != nil {
+	response := &capabilitiesv1.ListCapabilitiesResponse{}
+	if err := requestRPC(core, capabilitiesconnect.CapabilitiesServiceListCapabilitiesProcedure, &capabilitiesv1.ListCapabilitiesRequest{Target: "local"}, response); err != nil {
 		return nil, nil, err
 	}
-	var response struct {
-		Capabilities []struct {
-			Descriptor struct {
-				ID     string `json:"id"`
-				Inputs []struct {
-					ID   string `json:"id"`
-					Kind string `json:"kind"`
-				} `json:"inputs"`
-			} `json:"descriptor"`
-		} `json:"capabilities"`
-	}
-	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, nil, fmt.Errorf("decode capabilities: %w", err)
-	}
 	var secrets []string
-	for _, capability := range response.Capabilities {
-		if capability.Descriptor.ID != capabilityID {
+	for _, capability := range response.GetCapabilities() {
+		if capability.GetDescriptor_().GetId() != capabilityID {
 			continue
 		}
-		for _, input := range capability.Descriptor.Inputs {
-			if input.Kind == "secret" {
-				secrets = append(secrets, input.ID)
+		for _, input := range capability.GetDescriptor_().GetInputs() {
+			if input.GetKind() == "secret" {
+				secrets = append(secrets, input.GetId())
 			}
 		}
 	}
@@ -171,16 +155,21 @@ func readCapabilityInputs(core *cliapp.ScenarioApp, capabilityID string, flags [
 	return inputs, secretValues, nil
 }
 
-func renderJSONOrPretty(body []byte, jsonOutput bool, label string) error {
+func request(core *cliapp.ScenarioApp, procedure string, message, response proto.Message) error {
+	return requestRPC(core, procedure, message, response)
+}
+
+func requestRPC(core *cliapp.ScenarioApp, procedure string, message, response proto.Message) error {
+	return support.RequestProto(core, procedure, message, response, "capability")
+}
+
+func printJSON(message proto.Message) error {
+	return support.PrintProto(os.Stdout, message, "capability")
+}
+
+func renderJSONOrPretty(message proto.Message, jsonOutput bool, label string) error {
 	if jsonOutput {
-		_, err := os.Stdout.Write(append(body, '\n'))
-		return err
+		return printJSON(message)
 	}
-	var value any
-	if err := json.Unmarshal(body, &value); err != nil {
-		return fmt.Errorf("decode %s response: %w", label, err)
-	}
-	pretty, _ := json.MarshalIndent(value, "", "  ")
-	_, err := fmt.Fprintln(os.Stdout, string(pretty))
-	return err
+	return support.PrintProto(os.Stdout, message, label)
 }

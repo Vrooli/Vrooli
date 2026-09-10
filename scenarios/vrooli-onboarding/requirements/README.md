@@ -22,8 +22,8 @@ Requirements are linked to PRD operational targets using the `prd_ref` field.
 |----------|-----------|-------|-------------|
 | P0 | OT-P0-001 | Resource Configuration Wizard | 3 |
 | P0 | OT-P0-002 | Configuration State Management | 3 |
-| P1 | OT-P1-001 | Health Monitoring Dashboard | 2 |
-| P1 | OT-P1-002 | Progress Persistence System | 2 |
+| P0 | OT-P0-010 | Actionable readiness report | 2 |
+| P0 | OT-P0-011 | Re-enterable setup | 2 |
 | P2 | OT-P2-001 | Smart Flow Optimization | 1 |
 | P2 | OT-P2-002 | User-Friendly Documentation | 1 |
 

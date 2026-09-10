@@ -92,12 +92,14 @@ until a value cannot be found.
 fabricates a connection so the flow looks complete produces state nothing can
 honour, and it is discovered at the worst possible time.
 
-## Profiles wait for a second concrete profile
+## Profiles use bounded repository-owned data
 
-**Tradeoff**: the goal-intake step stays deferred, so first-run has no
-express lane. **Why it wins**: a profile format designed against one example fits
-one example. `active_profile` is already reserved in the schema, so the wait costs
-nothing structurally.
+**Decision**: Purpose intake is implemented with two reviewed JSON profiles and a
+bounded evaluator owned by onboarding. **Tradeoff**: profile authors can express
+recommendations but cannot add executable behavior. **Why it wins**: the UI,
+CLI, and API stay generic, evaluation is auditable, and profile additions do not
+create a second authority for operator state. `active_profile` records provenance
+only; explicit choices remain authoritative.
 
 ## The desktop bundle is a separate install
 

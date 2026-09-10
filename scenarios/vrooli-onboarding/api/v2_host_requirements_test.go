@@ -9,11 +9,7 @@ import (
 )
 
 func TestV2HostRequirementsDerivesMetadataAndSavedOptIn(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("VROOLI_ROOT", root)
-	prior := operatorStatePath
-	operatorStatePath = func() (string, error) { return filepath.Join(root, ".vrooli", "operator-state.json"), nil }
-	t.Cleanup(func() { operatorStatePath = prior })
+	root := newV2Root(t)
 	for _, path := range []string{
 		filepath.Join(root, "scenarios", "alpha", ".vrooli"),
 		filepath.Join(root, "internal", "tools", "demo-tool"),
@@ -37,12 +33,12 @@ func TestV2HostRequirementsDerivesMetadataAndSavedOptIn(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	w := doGet(t, NewServer(), "/api/v2/host-requirements")
+	w := doPost(t, NewServer(), "/vrooli.vrooli_onboarding.v1.host.HostService/ListHostRequirements", `{"target":"local"}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}
 	body := w.Body.String()
-	for _, want := range []string{`"name":"demo_tool"`, `"status":"required"`, `"privilege":"user"`, `"bundling":"host-required"`, `"name":"demo_safeguard"`, `"status":"opted_in"`, `"risk":"high"`, `"config_schema"`, `"target"`} {
+	for _, want := range []string{`"name":"demo_tool"`, `"status":"required"`, `"privilege":"user"`, `"bundling":"host-required"`, `"name":"demo_safeguard"`, `"status":"opted_in"`, `"risk":"high"`, `"configSchema"`, `"target"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("response missing %s: %s", want, body)
 		}

@@ -1,16 +1,24 @@
 package domains
 
 import (
-	"testing"
-
 	"github.com/vrooli/cli-core/cliapp"
+	"os"
+	"testing"
 )
 
 func TestAggregatesExposeAllSurfaceGroups(t *testing.T) {
-	if len(CommandGroups(&cliapp.ScenarioApp{})) < 4 {
+	manifest, err := os.ReadFile("../manifest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flat, nested, err := LoadManifestGroups(&cliapp.ScenarioApp{}, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(flat) < 2 {
 		t.Fatal("flat command groups are incomplete")
 	}
-	if len(SubcommandGroups(&cliapp.ScenarioApp{})) < 5 {
+	if len(nested) < 5 {
 		t.Fatal("subcommand groups are incomplete")
 	}
 }

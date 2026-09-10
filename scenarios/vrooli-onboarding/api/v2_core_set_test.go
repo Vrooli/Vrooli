@@ -21,7 +21,7 @@ func TestV2CoreSetPreviewsTypedClosureAndPatchRejectsInvalidTrustedBase(t *testi
 	t.Cleanup(func() { operatorStatePath = oldPath })
 	operatorStatePath = func() (string, error) { return filepath.Join(root, ".vrooli", "operator-state.json"), nil }
 	srv := NewServer()
-	response := doGet(t, srv, "/api/v2/core-set")
+	response := doRequest(t, srv, http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet", `{"target":"local"}`)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"available":true`) || !strings.Contains(response.Body.String(), `"name":"redis"`) || !strings.Contains(response.Body.String(), `"source":"core.seed"`) {
 		t.Fatalf("core-set response = %d: %s", response.Code, response.Body.String())
 	}
@@ -30,7 +30,7 @@ func TestV2CoreSetPreviewsTypedClosureAndPatchRejectsInvalidTrustedBase(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	response = doRequest(t, srv, http.MethodPatch, "/api/v2/operator-state", `{"core":{"seed":["other"]}}`)
+	response = doOperatorStatePatch(t, srv, `{"core":{"seed":["other"]}}`, "core")
 	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "not a core seed") {
 		t.Fatalf("invalid core patch = %d: %s", response.Code, response.Body.String())
 	}
@@ -54,8 +54,8 @@ func TestV2CoreSetKeepsSeedVisibleWhenClosureUnavailable(t *testing.T) {
 	t.Cleanup(func() { operatorStatePath = oldPath })
 	operatorStatePath = func() (string, error) { return statePath, nil }
 
-	response := doGet(t, NewServer(), "/api/v2/core-set")
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"available":false`) || !strings.Contains(response.Body.String(), `"seed":["seed"]`) || !strings.Contains(response.Body.String(), "closure unavailable") {
+	response := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet", `{"target":"local"}`)
+	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), `"available":true`) || !strings.Contains(response.Body.String(), `"seed":["seed"]`) || !strings.Contains(response.Body.String(), "closure unavailable") {
 		t.Fatalf("fallback response = %d: %s", response.Code, response.Body.String())
 	}
 }

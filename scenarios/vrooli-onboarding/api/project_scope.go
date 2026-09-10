@@ -48,11 +48,14 @@ func projectCredentialReadiness() ([]credentialReadiness, error) {
 	descriptors := make([]readinessCredentialDescriptor, 0, len(refs))
 	for _, ref := range refs {
 		descriptors = append(descriptors, readinessCredentialDescriptor{
-			LogicalID:   ref.LogicalID,
-			Field:       ref.Field,
-			Label:       ref.Label,
-			Description: ref.Description,
-			Required:    ref.Required,
+			LogicalID:    ref.LogicalID,
+			Field:        ref.Field,
+			Label:        ref.Label,
+			Description:  ref.Description,
+			ObtainURL:    ref.ObtainURL,
+			Required:     ref.Required,
+			Provisioning: ref.Provisioning,
+			DerivedFrom:  ref.DerivedFrom,
 		})
 	}
 	return credentialReadinessForDescriptors(credentialclient.ProjectScopeOwner, descriptors), nil

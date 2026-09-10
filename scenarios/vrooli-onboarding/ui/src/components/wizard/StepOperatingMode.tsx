@@ -1,19 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchV2Scenarios } from "../../lib/api";
+import { fetchScenarios } from "../../api/selection";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 import { Switch } from "@vrooli/react-component-library/Switch/1";
 import { i18n } from "../../i18n";
 
-export function StepOperatingMode({ selected, overrides, onAutoRestart }: { selected: Set<string>; overrides?: Record<string, { auto_restart?: boolean }>; onAutoRestart: (name: string, enabled: boolean) => void }) {
-  const { data } = useQuery({ queryKey: ["v2-scenarios"], queryFn: fetchV2Scenarios });
-  const scenarios = (data?.scenarios ?? []).filter((scenario) => scenario.system_required || selected.has(scenario.name));
-  const alwaysOn = scenarios.filter((scenario) => scenario.auto_restart);
-  const onDemand = scenarios.filter((scenario) => !scenario.auto_restart);
+export function StepOperatingMode({ selected, overrides, onAutoRestart }: { selected: Set<string>; overrides?: Record<string, { autoRestart?: boolean }>; onAutoRestart: (name: string, enabled: boolean) => void }) {
+  const { data } = useQuery({ queryKey: ["selection-scenarios"], queryFn: () => fetchScenarios() });
+  const scenarios = (data?.scenarios ?? []).filter((scenario) => scenario.systemRequired || selected.has(scenario.name));
+  const alwaysOn = scenarios.filter((scenario) => scenario.autoRestart);
+  const onDemand = scenarios.filter((scenario) => !scenario.autoRestart);
   const renderGroup = (label: string, group: typeof scenarios) => <SettingsList.Group label={label}>
     {group.map((scenario) => {
-      const autoRestart = overrides?.[scenario.name]?.auto_restart ?? scenario.auto_restart;
-      const overridden = overrides?.[scenario.name]?.auto_restart !== undefined;
-      return <div key={scenario.name} data-testid="operating-mode-row"><SettingsList.Row label={<span data-testid="operating-mode-row-name">{scenario.name}</span>} hint={<span data-testid="recommendation-note" role="note">{overridden ? i18n.t("onboarding.mode.override", { recommendation: scenario.auto_restart ? i18n.t("onboarding.mode.always") : i18n.t("onboarding.mode.demand") }) : i18n.t("onboarding.mode.recommendation", { recommendation: scenario.auto_restart ? i18n.t("onboarding.mode.always") : i18n.t("onboarding.mode.demand") })}{overridden && <span className="block text-primary-soft" data-testid="override-indicator">{i18n.t("onboarding.mode.saved")}</span>}</span>}>
+      const autoRestart = overrides?.[scenario.name]?.autoRestart ?? scenario.autoRestart;
+      const overridden = overrides?.[scenario.name]?.autoRestart !== undefined;
+      return <div key={scenario.name} data-testid="operating-mode-row"><SettingsList.Row label={<span data-testid="operating-mode-row-name">{scenario.name}</span>} hint={<span data-testid="recommendation-note" role="note">{overridden ? i18n.t("onboarding.mode.override", { recommendation: scenario.autoRestart ? i18n.t("onboarding.mode.always") : i18n.t("onboarding.mode.demand") }) : i18n.t("onboarding.mode.recommendation", { recommendation: scenario.autoRestart ? i18n.t("onboarding.mode.always") : i18n.t("onboarding.mode.demand") })}{overridden && <span className="block text-primary-soft" data-testid="override-indicator">{i18n.t("onboarding.mode.saved")}</span>}</span>}>
         <Switch checked={autoRestart} onChange={(event) => onAutoRestart(scenario.name, event.currentTarget.checked)} aria-label={i18n.t("onboarding.mode.keep", { name: scenario.name })} data-testid="keep-running-toggle" />
       </SettingsList.Row></div>;
     })}

@@ -14,6 +14,8 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // CLIName is the invocation name used in retrieval hints and next-command strings.
@@ -29,6 +31,34 @@ func NewFlagSet(name string) *flag.FlagSet {
 // ParseFlags parses args with interspersed positional/flag support.
 func ParseFlags(fs *flag.FlagSet, args []string) error {
 	return cliutil.ParseInterspersed(fs, args)
+}
+
+// RequestProto performs the shared JSON-over-Connect request used by typed CLI
+// domains. Domain packages supply only their procedure, messages, and error
+// label; transport and protobuf handling remain one implementation.
+func RequestProto(core *cliapp.ScenarioApp, procedure string, message, response proto.Message, label string) error {
+	payload, err := protojson.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("encode %s request: %w", label, err)
+	}
+	body, err := core.RequestRoot("POST", procedure, nil, payload)
+	if err != nil {
+		return err
+	}
+	if err := protojson.Unmarshal(body, response); err != nil {
+		return fmt.Errorf("decode %s response: %w", label, err)
+	}
+	return nil
+}
+
+// PrintProto renders a typed response consistently for CLI JSON output.
+func PrintProto(writer io.Writer, message proto.Message, label string) error {
+	body, err := (protojson.MarshalOptions{Multiline: true, Indent: "  "}).Marshal(message)
+	if err != nil {
+		return fmt.Errorf("render %s response: %w", label, err)
+	}
+	_, err = fmt.Fprintln(writer, string(body))
+	return err
 }
 
 // GetJSON is the shared read-only JSON command surface used by onboarding

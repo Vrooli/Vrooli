@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "artifact": "vrooli-onboarding",
+  "target_policy": "Every receipt names the tested artifact and target; timestamps and generated revisions are the only normalized values.",
+  "journeys": [
+    "first-run-to-applied-install",
+    "re-entry-revise-and-reapply",
+    "provision-credential-on-headless-host",
+    "consent-to-a-host-safeguard",
+    "continue-with-a-degraded-install",
+    "headless-parity-with-the-ui",
+    "purpose-profile-intake"
+  ],
+  "deliverables": [
+    {"id":"D01","status":"planned","journeys":["first-run-to-applied-install"]},
+    {"id":"D02","status":"planned","journeys":["first-run-to-applied-install"]},
+    {"id":"D03","status":"in_progress","journeys":["purpose-profile-intake","re-entry-revise-and-reapply"],"evidence":["api/internal/profiles/service_test.go","api/semantic_journey_test.go","ui/src/components/wizard/StepWelcome.profile.test.tsx","cli/manifest.json"]},
+    {"id":"D04","status":"planned","journeys":["consent-to-a-host-safeguard"]},
+    {"id":"D05","status":"planned","journeys":["first-run-to-applied-install"]},
+    {"id":"D06","status":"planned","journeys":["first-run-to-applied-install"]},
+    {"id":"D07","status":"planned","journeys":["re-entry-revise-and-reapply"]},
+    {"id":"D08","status":"planned","journeys":["consent-to-a-host-safeguard"]},
+    {"id":"D09","status":"planned","journeys":["continue-with-a-degraded-install"]},
+    {"id":"D10","status":"planned","journeys":["continue-with-a-degraded-install"]},
+    {"id":"D11","status":"planned","journeys":["provision-credential-on-headless-host"]},
+    {"id":"D12","status":"planned","journeys":["headless-parity-with-the-ui"]},
+    {"id":"D13","status":"planned","journeys":["first-run-to-applied-install"]},
+    {"id":"D14","status":"planned","journeys":["headless-parity-with-the-ui"]},
+    {"id":"D15","status":"implemented","journeys":["headless-parity-with-the-ui"],"evidence":["api/testdata/semantic-journeys.json","api/semantic_journey_test.go"]},
+    {"id":"D16","status":"implemented","journeys":["first-run-to-applied-install","headless-parity-with-the-ui"],"evidence":["bas/evidence/experience-journeys.json"]},
+    {"id":"D17","status":"planned","journeys":["first-run-to-applied-install"]},
+    {"id":"D18","status":"planned","journeys":["first-run-to-applied-install"]},
+    {"id":"D19","status":"planned","journeys":["first-run-to-applied-install"]},
+    {"id":"D20","status":"planned","journeys":["first-run-to-applied-install"]},
+    {"id":"D21","status":"planned","journeys":["headless-parity-with-the-ui"]},
+    {"id":"D22","status":"planned","journeys":["continue-with-a-degraded-install"]},
+    {"id":"D23","status":"planned","journeys":["first-run-to-applied-install"]},
+    {"id":"D24","status":"planned","journeys":["re-entry-revise-and-reapply"]},
+    {"id":"D25","status":"planned","journeys":["first-run-to-applied-install"]}
+  ],
+  "phase_2_obligations": [
+    {"id":"OT-P0-001","journey":"first-run-to-applied-install"},
+    {"id":"OT-P0-002","journey":"headless-parity-with-the-ui"},
+    {"id":"OT-P0-006","journey":"first-run-to-applied-install"},
+    {"id":"OT-P0-008","journey":"headless-parity-with-the-ui"},
+    {"id":"OT-P0-010","journey":"continue-with-a-degraded-install"},
+    {"id":"OT-P0-011","journey":"re-entry-revise-and-reapply"},
+    {"id":"OT-P0-012","journey":"headless-parity-with-the-ui"},
+    {"id":"OT-P0-013","journey":"first-run-to-applied-install"},
+    {"id":"OT-P0-014","journey":"headless-parity-with-the-ui"},
+    {"id":"OT-P2-003","journey":"purpose-profile-intake"}
+  ],
+  "negative_controls": [
+    {"id":"malformed-patch","fixture":"api/testdata/semantic-journeys.json","assertion":"CLI exits non-zero and no state file is written"},
+    {"id":"wrong-expected-state","fixture":"api/testdata/semantic-journeys.json","assertion":"parity assertion fails rather than accepting a visibility-only result"}
+  ]
+}

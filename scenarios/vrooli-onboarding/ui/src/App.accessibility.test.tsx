@@ -1,5 +1,5 @@
 // [REQ:REQ-P0-003] App Accessibility Tests
-import { screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "./test-utils";
 import { renderWithQueryClient } from "./test-utils";
 import App from "./App";
 
@@ -7,13 +7,13 @@ function renderApp() {
   return renderWithQueryClient(<App />);
 }
 
-/** Helper to get all 3 tabs and assert they exist */
+/** Helper to get all application tabs and assert their stable order. */
 function getTabs() {
   const tabs = screen.getAllByRole("tab");
-  expect(tabs).toHaveLength(3);
-  const [tab0, tab1, tab2] = tabs;
-  if (!tab0 || !tab1 || !tab2) throw new Error("Expected 3 tabs");
-  return [tab0, tab1, tab2] as const;
+  expect(tabs).toHaveLength(4);
+  const [tab0, tab1, tab2, tab3] = tabs;
+  if (!tab0 || !tab1 || !tab2 || !tab3) throw new Error("Expected 4 tabs");
+  return [tab0, tab1, tab2, tab3] as const;
 }
 
 describe("App - Accessibility", () => {
@@ -28,7 +28,7 @@ describe("App - Accessibility", () => {
   it("has main content landmark with id", () => {
     renderApp();
     const main = screen.getByRole("main");
-    expect(main).toHaveAttribute("id", "main-content");
+    expect(main).toHaveAttribute("id", "app-shell-main");
   });
 
   it("renders navigation landmark", () => {
@@ -58,6 +58,7 @@ describe("App - Accessibility", () => {
     expect(tab0).toHaveAttribute("aria-controls", "tabpanel-wizard");
     expect(tab1).toHaveAttribute("aria-controls", "tabpanel-dashboard");
     expect(tab2).toHaveAttribute("aria-controls", "tabpanel-glossary");
+    expect(getTabs()[3]).toHaveAttribute("aria-controls", "tabpanel-configuration");
   });
 
   it("all tabpanels exist in DOM with proper IDs", () => {
@@ -65,6 +66,7 @@ describe("App - Accessibility", () => {
     expect(document.getElementById("tabpanel-wizard")).toBeInTheDocument();
     expect(document.getElementById("tabpanel-dashboard")).toBeInTheDocument();
     expect(document.getElementById("tabpanel-glossary")).toBeInTheDocument();
+    expect(document.getElementById("tabpanel-configuration")).toBeInTheDocument();
   });
 
   it("only active tabpanel is visible", () => {
@@ -72,9 +74,11 @@ describe("App - Accessibility", () => {
     const wizardPanel = document.getElementById("tabpanel-wizard");
     const dashboardPanel = document.getElementById("tabpanel-dashboard");
     const glossaryPanel = document.getElementById("tabpanel-glossary");
+    const configurationPanel = document.getElementById("tabpanel-configuration");
     expect(wizardPanel).not.toHaveAttribute("hidden");
     expect(dashboardPanel).toHaveAttribute("hidden");
     expect(glossaryPanel).toHaveAttribute("hidden");
+    expect(configurationPanel).toHaveAttribute("hidden");
   });
 
   it("switching tabs updates aria-selected and visible tabpanel", () => {
@@ -107,11 +111,11 @@ describe("App - Accessibility", () => {
 
   it("Home/End keys jump to first/last tab", () => {
     renderApp();
-    const [tab0, , tab2] = getTabs();
+    const [tab0, , , tab3] = getTabs();
     tab0.focus();
     fireEvent.keyDown(tab0, { key: "End" });
-    expect(tab2).toHaveAttribute("aria-selected", "true");
-    fireEvent.keyDown(tab2, { key: "Home" });
+    expect(tab3).toHaveAttribute("aria-selected", "true");
+    fireEvent.keyDown(tab3, { key: "Home" });
     expect(tab0).toHaveAttribute("aria-selected", "true");
   });
 

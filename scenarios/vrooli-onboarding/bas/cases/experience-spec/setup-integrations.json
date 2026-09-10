@@ -35,7 +35,7 @@
         },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid=\"step-integrations-deferred\"]",
+          "selector": "@selector/wizard.integrations",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         }

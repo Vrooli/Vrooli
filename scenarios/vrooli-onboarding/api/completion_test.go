@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,7 +16,7 @@ func credential(owner, id, field string, required bool, status string) credentia
 }
 
 func host(name, kind, status string, required bool) hostReadiness {
-	return hostReadiness{readinessItem: readinessItem{Name: name, Status: status}, Kind: kind, Required: required}
+	return hostReadiness{Item: readinessItem{Name: name, Status: status}, Kind: kind, Required: required}
 }
 
 func blockerNames(items []completionBlocker) []string {
@@ -229,13 +228,9 @@ func runApplyToTerminal(t *testing.T) applyRun {
 	onboardingApplyExecutor = fake
 	t.Cleanup(func() { onboardingApplyExecutor = previous })
 	useInProcessApplyRunner(t)
-	w := doRequest(t, NewServer(), http.MethodPost, "/api/v2/apply", "{}")
-	if w.Code != http.StatusAccepted {
-		t.Fatalf("apply status = %d: %s", w.Code, w.Body.String())
-	}
-	var accepted applyRun
-	if err := json.Unmarshal(w.Body.Bytes(), &accepted); err != nil {
-		t.Fatal(err)
+	_, accepted := startApplyRequest(t, NewServer())
+	if accepted.ID == "" {
+		t.Fatal("apply response did not include a run id")
 	}
 	return waitApplyTerminal(t, accepted.ID)
 }
@@ -286,13 +281,13 @@ func TestApplyWithheldMarkerUntilTheDegradedSetIsAcknowledged(t *testing.T) {
 		t.Fatal("the marker was written for an unacknowledged optional gap")
 	}
 
-	stale := doRequest(t, NewServer(), http.MethodPost, "/api/v2/readiness/degraded-acknowledgement", `{"readiness_digest":"0000"}`)
+	stale := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/AcknowledgeDegradedReadiness", `{"readinessDigest":"0000"}`)
 	if stale.Code != http.StatusConflict {
 		t.Fatalf("stale acknowledgement status = %d: %s", stale.Code, stale.Body.String())
 	}
 
-	accepted := doRequest(t, NewServer(), http.MethodPost, "/api/v2/readiness/degraded-acknowledgement", `{"readiness_digest":"`+first.DegradedDigest+`"}`)
-	if accepted.Code != http.StatusCreated {
+	accepted := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/AcknowledgeDegradedReadiness", `{"readinessDigest":"`+first.DegradedDigest+`"}`)
+	if accepted.Code != http.StatusOK {
 		t.Fatalf("acknowledgement status = %d: %s", accepted.Code, accepted.Body.String())
 	}
 

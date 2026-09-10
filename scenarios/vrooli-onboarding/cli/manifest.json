@@ -7,80 +7,1078 @@
       "name": "glossary",
       "flat": true,
       "description": "Explain onboarding terms",
-      "commands": [{"name":"glossary","description":"Search the onboarding glossary","binding":{"kind":"local","handler":"glossary"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}}]
+      "commands": [
+        {
+          "name": "glossary",
+          "description": "Search the onboarding glossary",
+          "flags": [
+            {
+              "name": "query",
+              "description": "Optional search term"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GlossaryService",
+            "method": "SearchGlossary"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "configuration-search",
+          "description": "Search safe onboarding configuration metadata",
+          "flags": [
+            {
+              "name": "query",
+              "description": "Search intent"
+            },
+            {
+              "name": "target",
+              "description": "Explicit onboarding target"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GlossaryService",
+            "method": "SearchConfiguration"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
     },
     {
       "name": "readiness",
       "flat": true,
       "description": "Check whether this node is ready",
-      "commands": [{"name":"readiness","description":"Validate required onboarding items","binding":{"kind":"local","handler":"readiness"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:internal"]}}]
+      "commands": [
+        {
+          "name": "readiness",
+          "description": "Validate required onboarding items",
+          "flags": [
+            {
+              "name": "target",
+              "description": "Explicit onboarding target"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReadinessService",
+            "method": "GetReadiness"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "status",
+          "description": "Show stable overall onboarding status",
+          "flags": [
+            {
+              "name": "target",
+              "description": "Explicit onboarding target"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "status"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "acknowledge-degraded",
+          "description": "Acknowledge the current degraded readiness set",
+          "flags": [
+            {
+              "name": "target",
+              "description": "Explicit onboarding target"
+            },
+            {
+              "name": "digest",
+              "description": "Current readiness digest"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReadinessService",
+            "method": "AcknowledgeDegradedReadiness"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "apply",
+      "flat": true,
+      "description": "Apply and inspect node configuration",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Start the committed node configuration apply",
+          "flags": [
+            {
+              "name": "target",
+              "description": "Explicit onboarding target"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ApplyService",
+            "method": "StartApply"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "status",
+          "description": "Read one typed apply run",
+          "flags": [
+            {
+              "name": "target",
+              "description": "Explicit onboarding target"
+            },
+            {
+              "name": "run-id",
+              "description": "Apply run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ApplyService",
+            "method": "GetApplyRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "plan",
+          "description": "Read the typed node configuration apply plan",
+          "flags": [
+            {
+              "name": "target",
+              "description": "Explicit onboarding target"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ApplyService",
+            "method": "GetApplyPlan"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "review",
+          "description": "Create an expiring review and consent receipt for the exact apply plan",
+          "flags": [
+            {
+              "name": "target",
+              "description": "Explicit onboarding target"
+            }
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ApplyService", "method": "ReviewApply"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "cancel",
+          "description": "Request safe-boundary cancellation of an apply run",
+          "flags": [
+            {
+              "name": "target",
+              "description": "Explicit onboarding target"
+            },
+            {
+              "name": "run-id",
+              "description": "Apply run id"
+            }
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ApplyService", "method": "CancelApply"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"]},
+          "architecture": {"primitive": "proto_mutation"}
+        }
+      ]
     },
     {
       "name": "control",
       "flat": true,
       "description": "Inspect and apply the node configuration",
       "commands": [
-        {"name":"closure","description":"Show the transitive selection closure","binding":{"kind":"local","handler":"control.closure"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"apply","description":"Apply the committed node configuration","binding":{"kind":"local","handler":"control.apply"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}}
+        {
+          "name": "closure",
+          "description": "Show the transitive selection closure",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SelectionService",
+            "method": "GetClosure"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
       ]
     },
     {
-      "name":"scenarios","description":"Inspect manifest-derived scenarios","commands":[{"name":"list","description":"List scenarios and dependencies","binding":{"kind":"local","handler":"control.scenarios.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}}]
+      "name": "scenarios",
+      "description": "Inspect manifest-derived scenarios",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List scenarios and dependencies",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SelectionService",
+            "method": "ListScenarios"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
     },
     {
-      "name":"union","description":"Export the deployment union","commands":[{"name":"export","description":"Write the deployment union JSON","flags":[{"name":"output","description":"Output JSON path"}],"binding":{"kind":"local","handler":"control.union.export"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","filesystem:write"]}}]
+      "name": "union",
+      "description": "Export the deployment union",
+      "commands": [
+        {
+          "name": "export",
+          "description": "Write the deployment union JSON",
+          "flags": [
+            {
+              "name": "output",
+              "description": "Output JSON path",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "union.export"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "exception": {
+              "class": "external_delegation",
+              "reason": "The command calls the typed SelectionService procedure and writes its response to a caller-selected output file."
+            }
+          }
+        }
+      ]
     },
     {
-      "name":"host","description":"Inspect host requirements and safeguards","commands":[{"name":"list","description":"List host requirements","binding":{"kind":"local","handler":"control.host.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},{"name":"set-config","description":"Set one safeguard configuration value","flags":[{"name":"name","description":"Safeguard name"},{"name":"key","description":"Configuration key"},{"name":"value-json","description":"JSON-encoded configuration value"}],"binding":{"kind":"local","handler":"control.host.set-config"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write","admin"]}},{"name":"set-recipient","description":"Set the notification recipient","flags":[{"name":"subject","description":"Recipient subject"}],"binding":{"kind":"local","handler":"control.host.set-recipient"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write","admin"]}}]
+      "name": "host",
+      "description": "Inspect host requirements and safeguards",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List host requirements",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HostService",
+            "method": "ListHostRequirements"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "set-config",
+          "description": "Set one safeguard configuration value",
+          "flags": [
+            {
+              "name": "name",
+              "description": "Safeguard name"
+            },
+            {
+              "name": "key",
+              "description": "Configuration key"
+            },
+            {
+              "name": "value-json",
+              "description": "JSON-encoded configuration value"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HostService",
+            "method": "PatchHostSafeguardConfig"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "set-recipient",
+          "description": "Set the notification recipient",
+          "flags": [
+            {
+              "name": "subject",
+              "description": "Recipient subject"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HostService",
+            "method": "SetNotificationRecipient"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
     },
     {
       "name": "credentials",
       "description": "Inspect and provision node credentials",
       "commands": [
-        {"name":"list","description":"List credential descriptors","binding":{"kind":"local","handler":"credentials.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"provision","description":"Provision a credential from standard input","flags":[{"name":"logical-id","description":"Credential logical id"},{"name":"field","description":"Credential field"}],"binding":{"kind":"local","handler":"credentials.provision"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}},
-        {"name":"doctor","description":"Diagnose the credential authority","binding":{"kind":"local","handler":"credentials.doctor"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+        {
+          "name": "list",
+          "description": "List credential descriptors",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialsService",
+            "method": "ListCredentials"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "provision",
+          "description": "Provision a credential from standard input",
+          "flags": [
+            {
+              "name": "logical-id",
+              "description": "Credential logical id"
+            },
+            {
+              "name": "field",
+              "description": "Credential field"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialsService",
+            "method": "ProvisionCredential"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "exception": {
+              "class": "external_delegation",
+              "reason": "The command reads the write-only credential value from standard input before delegating to the typed API."
+            }
+          }
+        },
+        {
+          "name": "doctor",
+          "description": "Diagnose the credential authority",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialsService",
+            "method": "DiagnoseCredentials"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        }
       ]
     },
     {
       "name": "operator",
       "description": "Inspect and commit operator state",
       "commands": [
-        {"name":"show","description":"Show persisted operator state","binding":{"kind":"local","handler":"operator.show"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
-        {"name":"patch","description":"Apply an operator-state merge patch","binding":{"kind":"local","handler":"operator.patch"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write","admin"]}},
-        {"name":"scenarios","description":"Show manifest-derived scenario choices","binding":{"kind":"local","handler":"operator.scenarios"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"readiness","description":"Show composed readiness","binding":{"kind":"local","handler":"operator.readiness"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+        {
+          "name": "show",
+          "description": "Show persisted operator state",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OperatorStateService",
+            "method": "GetOperatorState"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "patch",
+          "description": "Apply an operator-state merge patch",
+          "flags": [
+            {
+              "name": "body-file",
+              "description": "Path to a JSON operator-state merge patch"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "operator.patch"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "exception": {
+              "class": "external_delegation",
+              "reason": "The command reads a JSON merge patch from a file, derives its FieldMask, and sends a typed PatchOperatorState request."
+            }
+          }
+        },
+        {
+          "name": "inputs",
+          "description": "List pending operator inputs",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OperatorInputsService",
+            "method": "ListOperatorInputs"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "resolve-inputs",
+          "description": "Resolve pending operator inputs",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OperatorInputsService",
+            "method": "ResolveOperatorInputs"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
       ]
     },
     {
       "name": "capabilities",
       "description": "Inspect and apply operator capabilities",
       "commands": [
-        {"name":"list","description":"List capability descriptors and status","binding":{"kind":"local","handler":"capabilities.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"preview","description":"Preview a capability action","flags":[{"name":"id","description":"Capability id"}],"binding":{"kind":"local","handler":"capabilities.preview"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"apply","description":"Apply a capability action","flags":[{"name":"id","description":"Capability id"},{"name":"confirm","description":"Confirm the reviewed capability preview"}],"binding":{"kind":"local","handler":"capabilities.apply"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}}
+        {
+          "name": "list",
+          "description": "List capability descriptors and status",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CapabilitiesService",
+            "method": "ListCapabilities"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "preview",
+          "description": "Preview a capability action",
+          "flags": [
+            {
+              "name": "capability-id",
+              "description": "Capability id",
+              "aliases": [
+                "id"
+              ]
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CapabilitiesService",
+            "method": "PreviewCapability"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply a capability action",
+          "flags": [
+            {
+              "name": "capability-id",
+              "description": "Capability id",
+              "aliases": [
+                "id"
+              ]
+            },
+            {
+              "name": "confirm",
+              "description": "Confirm the reviewed capability preview"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CapabilitiesService",
+            "method": "ApplyCapability"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
       ]
     },
     {
       "name": "resources",
       "description": "Inspect onboarding resources",
       "commands": [
-        {"name":"list","description":"List available resources","binding":{"kind":"local","handler":"resources.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"get","description":"Show one resource","binding":{"kind":"local","handler":"resources.get"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"health","description":"Show resource health","binding":{"kind":"local","handler":"resources.health"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+        {
+          "name": "list",
+          "description": "List available resources",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResourcesService",
+            "method": "ListResources"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show one resource",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResourcesService",
+            "method": "GetResource"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "health",
+          "description": "Show resource health",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResourcesService",
+            "method": "GetResourceHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        }
+      ]
+    },
+    {
+      "name": "profiles",
+      "description": "Choose a purpose-driven onboarding profile",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List data-driven onboarding profiles",
+          "binding": {"kind": "connect-rpc", "service": "ProfileService", "method": "ListProfiles"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "evaluate",
+          "description": "Evaluate a profile against purpose answers",
+          "flags": [
+            {
+              "name": "profile-id",
+              "required": true,
+              "description": "Stable profile identifier"
+            },
+            {
+              "name": "answers",
+              "required": true,
+              "description": "Purpose answers as a JSON object",
+              "bind": {"field": "answers", "kind": "json_inline"},
+              "bind_waiver": "Answers is a protobuf map of struct values and must be decoded from one JSON object."
+            }
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ProfileService", "method": "EvaluateProfile"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        }
       ]
     },
     {
       "name": "wizard",
       "description": "Configure one node through the onboarding workflow",
       "commands": [
-        {"name":"status","description":"Show onboarding session status","binding":{"kind":"local","handler":"wizard.status"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"commit","description":"Commit and apply a selection document","flags":[{"name":"selection","description":"Path to a selection document"}],"binding":{"kind":"local","handler":"wizard.commit"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}},
-        {"name":"export","description":"Export the current selection","flags":[{"name":"output","description":"Output selection document path"}],"binding":{"kind":"local","handler":"wizard.export"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:write"]}},
-        {"name":"run","description":"Walk the onboarding capability steps","flags":[{"name":"interactive","description":"Walk all onboarding steps in the terminal"},{"name":"accept-recommendation","description":"Use the manifest-derived starter profile"},{"name":"non-interactive","description":"Never read input"},{"name":"from-step","description":"Start at a declared step id"},{"name":"restart","description":"Restart from the first declared step"}],"binding":{"kind":"local","handler":"wizard.run"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}},
-        {"name":"core-set","description":"Preview and update the operator core seed","flags":[{"name":"add","description":"Comma-separated scenarios to add"},{"name":"remove","description":"Comma-separated scenarios to remove"}],"binding":{"kind":"local","handler":"wizard.core-set"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}}
+        {
+          "name": "status",
+          "description": "Show onboarding session status",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionService",
+            "method": "GetSession"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "draft",
+          "description": "Read the server-owned onboarding draft",
+          "binding": {"kind": "connect-rpc", "service": "SessionService", "method": "GetDraft"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "save-draft",
+          "description": "Save non-secret onboarding choices to the server-owned draft",
+          "binding": {"kind": "connect-rpc", "service": "SessionService", "method": "SaveDraft"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "discard-draft",
+          "description": "Discard the server-owned onboarding draft",
+          "binding": {"kind": "connect-rpc", "service": "SessionService", "method": "DiscardDraft"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "advance-step",
+          "description": "Advance the shared onboarding step pointer",
+          "flags": [
+            {
+              "name": "step-id",
+              "description": "Stable onboarding step id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionService",
+            "method": "AdvanceSessionStep"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "commit",
+          "description": "Commit and apply a selection document",
+          "flags": [
+            {
+              "name": "selection",
+              "description": "Path to a selection document"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SelectionService",
+            "method": "AcceptRecommendation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "export",
+          "description": "Export the current selection",
+          "flags": [
+            {
+              "name": "output",
+              "description": "Output selection document path"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "wizard.export"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "exception": {
+              "class": "external_delegation",
+              "reason": "The interactive workflow and file export compose multiple typed calls and local terminal or filesystem behavior."
+            }
+          }
+        },
+        {
+          "name": "support-export",
+          "description": "Write an explicit metadata-only support diagnostic",
+          "flags": [
+            {
+              "name": "output",
+              "description": "Output diagnostic path"
+            },
+            {
+              "name": "include",
+              "description": "Comma-separated sections: selection,readiness,session"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "wizard.support-export"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "exception": {
+              "class": "external_delegation",
+              "reason": "The support diagnostic composes typed metadata calls and an explicitly selected local file export."
+            }
+          }
+        },
+        {
+          "name": "run",
+          "description": "Walk the onboarding capability steps",
+          "flags": [
+            {
+              "name": "interactive",
+              "description": "Walk all onboarding steps in the terminal"
+            },
+            {
+              "name": "accept-recommendation",
+              "description": "Use the manifest-derived starter profile"
+            },
+            {
+              "name": "non-interactive",
+              "description": "Never read input"
+            },
+            {
+              "name": "from-step",
+              "description": "Start at a declared step id"
+            },
+            {
+              "name": "restart",
+              "description": "Restart from the first declared step"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "wizard.run"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "exception": {
+              "class": "external_delegation",
+              "reason": "The interactive workflow and file export compose multiple typed calls and local terminal or filesystem behavior."
+            }
+          }
+        },
+        {
+          "name": "core-set",
+          "description": "Preview and update the operator core seed",
+          "flags": [
+            {
+              "name": "add",
+              "description": "Comma-separated scenarios to add"
+            },
+            {
+              "name": "remove",
+              "description": "Comma-separated scenarios to remove"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SelectionService",
+            "method": "GetCoreSet"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
       ]
     }
   ],
-  "measures": {"omitted":[{"domain":"onboarding","reason":"Onboarding is an operator workflow, not a reporting domain."}]}
+  "measures": {
+    "omitted": [
+      {
+        "domain": "onboarding",
+        "reason": "Onboarding is an operator workflow, not a reporting domain."
+      }
+    ]
+  },
+  "omitted": [
+    {
+      "service": "OperatorStateService",
+      "method": "PatchOperatorState",
+      "reason": "Exposed through the local file-backed operator.patch exception, which still calls the typed RPC."
+    },
+    {
+      "service": "HostService",
+      "method": "GetHostFacts",
+      "reason": "The host facts RPC is consumed by the web configuration surface; the CLI exposes the combined host list command."
+    },
+    {
+      "service": "SelectionService",
+      "method": "GetRecommendation",
+      "reason": "The wizard and UI consume the recommendation as part of their composed workflow."
+    },
+    {
+      "service": "SelectionService",
+      "method": "CreateHandoff",
+      "reason": "Bridge owns the narrow handoff integration rather than a human CLI command."
+    },
+    {
+      "service": "CapabilitiesService",
+      "method": "GetCapabilityStatus",
+      "reason": "Capability list includes current status for human operators."
+    },
+    {
+      "service": "ResourcesService",
+      "method": "ListDerivedResources",
+      "reason": "The wizard selection view consumes derived resources."
+    },
+    {
+      "service": "HostService",
+      "method": "ListTargets",
+      "reason": "Target discovery is owned by the shared control-plane node tooling."
+    },
+    {
+      "service": "SessionService",
+      "method": "GetStepModel",
+      "reason": "Wizard run consumes the complete step model."
+    },
+    {
+      "service": "SelectionService",
+      "method": "GetUnion",
+      "reason": "Exposed through the local file-backed union.export exception, which still calls the typed RPC."
+    }
+  ]
 }

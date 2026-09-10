@@ -32,18 +32,18 @@ func TestV2CapabilityRoutesUseMetadataOnlyGenericControlPlaneContract(t *testing
 		return exec.CommandContext(ctx, "printf", "%s", output)
 	}
 	t.Cleanup(func() { controlPlaneCommand = previous })
-	status := doGet(t, NewServer(), "/api/v2/capabilities")
+	status := doPost(t, NewServer(), "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ListCapabilities", `{"target":"local"}`)
 	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"id":"demo"`) || strings.Contains(status.Body.String(), "sensitive") {
 		t.Fatalf("status = %d %s", status.Code, status.Body.String())
 	}
-	preview := doPost(t, NewServer(), "/api/v2/capabilities/preview", `{"capability_id":"demo","inputs":{"destination":"/approved","secret":"sensitive"}}`)
+	preview := doPost(t, NewServer(), "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/PreviewCapability", `{"target":"local","action":{"capabilityId":"demo","inputs":{"destination":"/approved","secret":"sensitive"}}}`)
 	if preview.Code != http.StatusOK || !strings.Contains(preview.Body.String(), "write verified metadata") || strings.Contains(preview.Body.String(), "sensitive") {
 		t.Fatalf("preview = %d %s", preview.Code, preview.Body.String())
 	}
-	if unconfirmed := doPost(t, NewServer(), "/api/v2/capabilities/apply", `{"capability_id":"demo","inputs":{"destination":"/approved"}}`); unconfirmed.Code != http.StatusBadRequest {
+	if unconfirmed := doPost(t, NewServer(), "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ApplyCapability", `{"target":"local","action":{"capabilityId":"demo","inputs":{"destination":"/approved"}}}`); unconfirmed.Code != http.StatusBadRequest {
 		t.Fatalf("unconfirmed apply = %d %s", unconfirmed.Code, unconfirmed.Body.String())
 	}
-	result := doPost(t, NewServer(), "/api/v2/capabilities/apply", `{"capability_id":"demo","confirm":true,"inputs":{"destination":"/approved"}}`)
+	result := doPost(t, NewServer(), "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ApplyCapability", `{"target":"local","action":{"capabilityId":"demo","confirm":true,"inputs":{"destination":"/approved"}}}`)
 	if result.Code != http.StatusOK || !strings.Contains(result.Body.String(), `"outcome":"complete"`) || strings.Contains(result.Body.String(), "sensitive") {
 		t.Fatalf("apply = %d %s", result.Code, result.Body.String())
 	}

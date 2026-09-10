@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -18,8 +19,8 @@ func writeProjectScopeFixture(t *testing.T) (string, string) {
 	writeFixtureFile(t, filepath.Join(root, ".vrooli", "service.json"), `{
   "service": {"name": "vrooli", "description": "Project scope"},
   "credentials": {"descriptors": [
-    {"logical_id": "vrooli/remote-desktop", "field": "username", "label": "Remote desktop username", "description": "Username consumed by the host remote-desktop provider.", "required": false},
-    {"logical_id": "vrooli/remote-desktop", "field": "password", "label": "Remote desktop password", "description": "Password consumed by the host remote-desktop provider.", "required": false}
+    {"logical_id": "vrooli/remote-desktop", "field": "username", "label": "Remote desktop username", "description": "Username consumed by the host remote-desktop provider.", "obtain_url": "https://example.test/remote-desktop", "required": false},
+    {"logical_id": "vrooli/remote-desktop", "field": "password", "label": "Remote desktop password", "description": "Password consumed by the host remote-desktop provider.", "obtain_url": "https://example.test/remote-desktop", "required": false}
   ]},
   "hostTools": [{"name": "jq", "required": true, "reason": "JSON parsing"}],
   "hostSafeguards": [{"name": "workspace_sandbox_userns", "required": true, "reason": "Workspace sandbox restart"}]
@@ -45,14 +46,33 @@ func writeProjectScopeFixture(t *testing.T) (string, string) {
 func credentialAddresses(t *testing.T, body []byte) map[string]credentialReadiness {
 	t.Helper()
 	var payload struct {
-		Credentials []credentialReadiness `json:"credentials"`
+		Credentials []struct {
+			Resource    string `json:"resource"`
+			LogicalID   string `json:"logical_id"`
+			LogicalId   string `json:"logicalId"`
+			Field       string `json:"field"`
+			Label       string `json:"label"`
+			Description string `json:"description"`
+			ObtainURL   string `json:"obtain_url"`
+			ObtainUrl   string `json:"obtainUrl"`
+			Required    bool   `json:"required"`
+			Status      string `json:"status"`
+		} `json:"credentials"`
 	}
 	if err := json.Unmarshal(body, &payload); err != nil {
 		t.Fatal(err)
 	}
 	byAddress := make(map[string]credentialReadiness, len(payload.Credentials))
-	for _, credential := range payload.Credentials {
-		byAddress[credential.LogicalID+":"+credential.Field] = credential
+	for _, item := range payload.Credentials {
+		logicalID := item.LogicalID
+		if logicalID == "" {
+			logicalID = item.LogicalId
+		}
+		obtainURL := item.ObtainURL
+		if obtainURL == "" {
+			obtainURL = item.ObtainUrl
+		}
+		byAddress[logicalID+":"+item.Field] = credentialReadiness{Resource: item.Resource, LogicalID: logicalID, Field: item.Field, Label: item.Label, Description: item.Description, ObtainURL: obtainURL, Required: item.Required, Status: item.Status}
 	}
 	return byAddress
 }
@@ -63,7 +83,7 @@ func credentialAddresses(t *testing.T, body []byte) map[string]credentialReadine
 // leave the flow to provision it, which is the defect this asserts against.
 func TestV2CredentialsIncludeProjectScope(t *testing.T) {
 	writeProjectScopeFixture(t)
-	w := doGet(t, NewServer(), "/api/v2/credentials")
+	w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ListCredentials", `{"target":"local"}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}
@@ -79,6 +99,9 @@ func TestV2CredentialsIncludeProjectScope(t *testing.T) {
 		if credential.Label == "" || credential.Description == "" {
 			t.Fatalf("declared label and description did not reach the card: %+v", credential)
 		}
+		if credential.ObtainURL == "" {
+			t.Fatalf("declared acquisition guidance did not reach the card: %+v", credential)
+		}
 		if credential.Required {
 			t.Fatalf("required = true, want the declared false for %s", field)
 		}
@@ -88,7 +111,7 @@ func TestV2CredentialsIncludeProjectScope(t *testing.T) {
 // [REQ:ONB-CRED-PROJECT-SCOPE]
 func TestV2ReadinessIncludesProjectScope(t *testing.T) {
 	writeProjectScopeFixture(t)
-	w := doGet(t, NewServer(), "/api/v2/readiness")
+	w := doReadiness(t)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}
@@ -113,8 +136,13 @@ func TestBundleModeExcludesProjectScopeCredentials(t *testing.T) {
 	t.Setenv("VROOLI_STORAGE_ROOT", storageRoot)
 	stubExternalReadinessProbes(t)
 
-	for _, endpoint := range []string{"/api/v2/credentials", "/api/v2/readiness"} {
-		w := doGet(t, NewServer(), endpoint)
+	for _, endpoint := range []string{"credentials", "readiness"} {
+		var w *httptest.ResponseRecorder
+		if endpoint == "readiness" {
+			w = doReadiness(t)
+		} else {
+			w = doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ListCredentials", `{"target":"local"}`)
+		}
 		if w.Code != http.StatusOK {
 			t.Fatalf("GET %s status = %d: %s", endpoint, w.Code, w.Body.String())
 		}

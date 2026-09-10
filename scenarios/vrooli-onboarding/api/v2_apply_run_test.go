@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestSelectionDigestChangesWhenConsentPlanChanges(t *testing.T) {
 	base := []applyItem{{ID: "safeguard:firewall", Kind: "safeguard", Name: "firewall"}}
@@ -17,6 +20,24 @@ func TestApplyRunPersistsPendingItems(t *testing.T) {
 	loaded, ok := applyRunSnapshot(run.ID)
 	if !ok || loaded.Items[0].Outcome != "pending" {
 		t.Fatalf("persisted run = %#v, found=%v", loaded, ok)
+	}
+}
+
+func TestCancelApplyPersistsSafeBoundaryRequest(t *testing.T) {
+	t.Setenv("VROOLI_ROOT", t.TempDir())
+	run := applyRun{ID: "apply-cancel", Status: "pending", Items: []applyItemResult{{applyItem: applyItem{ID: "resource:postgres", Kind: "resource", Name: "postgres"}, Outcome: "pending"}}}
+	if err := storeApplyRun(run); err != nil {
+		t.Fatalf("store pending run: %v", err)
+	}
+	if _, err := (&Server{}).cancelApply(context.Background(), run.ID); err != nil {
+		t.Fatalf("cancel apply: %v", err)
+	}
+	updated, ok := applyRunSnapshot(run.ID)
+	if !ok || !updated.CancelRequested {
+		t.Fatalf("cancelled run = %#v, found=%v", updated, ok)
+	}
+	if updated.Status != "pending" {
+		t.Fatalf("cancel request changed status before a safe boundary: %q", updated.Status)
 	}
 }
 

@@ -83,7 +83,7 @@
           "id": "OT-P0-009"
         },
         {
-          "id": "OT-P1-002"
+          "id": "OT-P0-011"
         }
       ]
     },
@@ -110,13 +110,13 @@
           "id": "OT-P0-007"
         },
         {
-          "id": "OT-P1-001"
+          "id": "OT-P0-010"
         },
         {
           "id": "OT-P1-003"
         },
         {
-          "id": "OT-P1-004"
+          "id": "OT-P0-012"
         }
       ]
     },
@@ -142,7 +142,7 @@
           "id": "OT-P0-004"
         },
         {
-          "id": "OT-P1-001"
+          "id": "OT-P0-010"
         }
       ]
     },
@@ -171,7 +171,7 @@
           "id": "OT-P0-006"
         },
         {
-          "id": "OT-P1-001"
+          "id": "OT-P0-010"
         }
       ]
     },
@@ -200,7 +200,7 @@
           "id": "OT-P0-008"
         },
         {
-          "id": "OT-P1-004"
+          "id": "OT-P0-012"
         },
         {
           "id": "OT-P1-007"
@@ -228,7 +228,7 @@
           "id": "OT-P0-005"
         },
         {
-          "id": "OT-P1-004"
+          "id": "OT-P0-012"
         },
         {
           "id": "OT-P1-005"
@@ -238,8 +238,8 @@
     {
       "id": "MOD-EXPERIENCE",
       "path": "08-experience-and-evidence",
-      "prd_ref": "OT-P1-006",
-      "priority": "P1",
+      "prd_ref": "OT-P0-013",
+      "priority": "P0",
       "title": "Experience and evidence",
       "requirement_count": 12,
       "requirement_ids": [
@@ -258,7 +258,7 @@
       ],
       "operationalTargets": [
         {
-          "id": "OT-P1-006"
+          "id": "OT-P0-013"
         },
         {
           "id": "OT-P1-007"
@@ -270,10 +270,10 @@
           "id": "OT-P2-003"
         },
         {
-          "id": "OT-P2-004"
+          "id": "OT-P0-014"
         },
         {
-          "id": "OT-P1-002"
+          "id": "OT-P0-011"
         }
       ]
     }

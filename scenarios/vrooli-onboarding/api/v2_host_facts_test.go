@@ -36,7 +36,7 @@ func TestV2HostFactsHealthyPathIsCached(t *testing.T) {
 
 	server := NewServer()
 	for range 2 {
-		response := doRequest(t, server, http.MethodGet, "/api/v2/host-facts", "")
+		response := doPost(t, server, "/vrooli.vrooli_onboarding.v1.host.HostService/GetHostFacts", `{"target":"local"}`)
 		if response.Code != http.StatusOK || response.Body.String() == "" {
 			t.Fatalf("host facts response = %d %q", response.Code, response.Body.String())
 		}
@@ -53,7 +53,7 @@ func TestV2HostFactsTimeoutDegradesWithHTTP200(t *testing.T) {
 	})
 
 	started := time.Now()
-	response := doRequest(t, NewServer(), http.MethodGet, "/api/v2/host-facts", "")
+	response := doPost(t, NewServer(), "/vrooli.vrooli_onboarding.v1.host.HostService/GetHostFacts", `{"target":"local"}`)
 	if response.Code != http.StatusOK || response.Body.String() == "" {
 		t.Fatalf("timeout response = %d %q", response.Code, response.Body.String())
 	}
@@ -68,11 +68,11 @@ func TestV2HostFactsPartialProbeKeepsAvailableFields(t *testing.T) {
 		return hostFactsResponse{Available: true, MemoryTotalBytes: &memory}, context.DeadlineExceeded
 	})
 
-	response := doRequest(t, NewServer(), http.MethodGet, "/api/v2/host-facts", "")
+	response := doPost(t, NewServer(), "/vrooli.vrooli_onboarding.v1.host.HostService/GetHostFacts", `{"target":"local"}`)
 	if response.Code != http.StatusOK || response.Body.String() == "" {
 		t.Fatalf("partial response = %d %q", response.Code, response.Body.String())
 	}
-	if got := response.Body.String(); !containsAll(got, `"available":true`, `"memory_total_bytes":123`) {
+	if got := response.Body.String(); !containsAll(got, `"available":true`, `"memoryTotalBytes":"123"`) {
 		t.Fatalf("partial response lost fields: %s", got)
 	}
 }

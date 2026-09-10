@@ -52,7 +52,7 @@ lifecycle markers, caches, and generated runtime state are not.
 | Setup completed, and with what | `operator-state` completion marker | Apply | 8 |
 | Degraded acknowledgement | `operator-state` | Operator | 9 |
 | Trust posture | `operator-state.trust_posture` | Control plane | — *(preserved, never written here)* |
-| Active profile | `operator-state.active_profile` | *(deferred)* | — |
+| Active profile | `operator-state.active_profile` | Onboarding profile provenance | Welcome / goal intake |
 | Integration binding | `operator-state.integrations.*` | integration-hub *(deferred)* | 4 |
 
 The bold row is the one that historically had two authorities. Resource
@@ -67,7 +67,9 @@ carries only declarative dependency data.
 `vrooli resource enable`, setup, autoheal, vrooli-bridge — patches through it.
 
 Its write is: **load → merge the field-scoped patch → validate against the schema
-→ atomic write under a lock**. Three consequences:
+→ atomic write under a process and native cross-process sidecar lock**. The
+sidecar remains present across replacements, and lock acquisition supports
+context cancellation. Three consequences:
 
 - A field the writing binary does not model is preserved. An older binary cannot
   truncate a newer document.
@@ -119,12 +121,24 @@ per concern. These are the contract; no surface reimplements them.
 
 The typed V2 host-requirements endpoint returns every operator-controllable decision the **current
 catalog** declares — with its type, schema, risk, privilege, and default. The UI
-renders forms from it and search-hub indexes it.
+renders forms from it. The configuration-search provider in
+[`.vrooli/search.json`](../../.vrooli/search.json) indexes safe names, purposes, tags,
+stable wizard routes, target applicability, and prerequisites; it never indexes
+configured values, credential addresses, or secret fields. The API serves the same
+metadata locally when search-hub is unavailable.
 
 This is what keeps the wizard hardcode-free. A safeguard that declares a new
 config field, or a resource that declares a new credential descriptor, appears in
 the UI with no code change. It also means the answer to "what can I configure?"
 is computed from manifests rather than maintained as a list that drifts.
+
+Search ownership is split deliberately: `.vrooli/search.json` owns the provider
+contract and evidence corpus, the typed `SearchConfiguration` RPC owns filtering
+and metadata redaction, and the UI owns only navigation. Add or change a safe
+descriptor in the provider feed when a supported setup route changes; keep
+credential values and target-private addresses out of the feed. Search results
+deep-link to the stable step route with `target`, `setting`, and draft context
+preserved in the URL.
 
 ## Environment
 
@@ -134,7 +148,7 @@ The lifecycle exports these. Set them yourself only when running a piece by hand
 |---|---|
 | `API_PORT` | Go API port |
 | `UI_PORT` | UI port |
-| `VITE_API_BASE_URL` | UI → API base, `http://localhost:${API_PORT}/api/v1` |
+| `VITE_API_BASE_URL` | UI → API base, `http://localhost:${API_PORT}` |
 | `VROOLI_ROOT` | Repository root; selects the repository catalog and state document |
 | `BUNDLE_ROOT` | Desktop bundle root; selects the staged catalog |
 | `VROOLI_STORAGE_ROOT` | Storage root for a bundled install's operator state |

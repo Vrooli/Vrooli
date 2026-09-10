@@ -4,9 +4,20 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func newV2Root(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	t.Setenv("VROOLI_ROOT", root)
+	previous := operatorStatePath
+	operatorStatePath = func() (string, error) { return filepath.Join(root, ".vrooli", "operator-state.json"), nil }
+	t.Cleanup(func() { operatorStatePath = previous })
+	return root
+}
 
 // [REQ:REQ-P0-001] Helper function tests
 

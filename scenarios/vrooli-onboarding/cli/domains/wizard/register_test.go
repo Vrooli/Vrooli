@@ -17,7 +17,7 @@ import (
 
 func TestRegisterAndSelectionErrors(t *testing.T) {
 	group := Register(&cliapp.ScenarioApp{})
-	if group.Name != "wizard" || len(group.Subcommands) != 5 {
+	if group.Name != "wizard" || len(group.Subcommands) != 7 {
 		t.Fatalf("unexpected wizard group: %+v", group)
 	}
 	if err := group.Subcommands[1].Run(nil); err == nil {
@@ -42,12 +42,44 @@ func TestReportReadinessBlockersRetainsSafeMetadataInError(t *testing.T) {
 
 func TestDeclarativeWizardApplyExportAndStatus(t *testing.T) {
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPatch || r.Method == http.MethodPost {
-			_, _ = w.Write([]byte(`{"ok":true,"status":"applied"}`))
+		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyPlan" {
+			_, _ = w.Write([]byte(`{"planId":"plan-1","planDigest":"digest-1","revision":"rev-1","items":[]}`))
 			return
 		}
-		if r.URL.Path == "/api/v1/v2/scenarios" {
+		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply" {
+			_, _ = w.Write([]byte(`{"planId":"plan-1","planDigest":"digest-1","revision":"rev-1","consentReceiptId":"receipt-1"}`))
+			return
+		}
+		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.apply.ApplyService/StartApply" {
+			_, _ = w.Write([]byte(`{"run":{"runId":"run-1","status":"APPLY_RUN_STATE_APPLIED","legacyStatus":"applied","steps":[]}}`))
+			return
+		}
+		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.session.SessionService/GetSession" {
+			_, _ = w.Write([]byte(`{"step":0,"stepId":"welcome","firstUnsatisfiedStep":0,"completion":false}`))
+			return
+		}
+		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.selection.SelectionService/AcceptRecommendation" {
+			_, _ = w.Write([]byte(`{"selection":{"schemaVersion":"v1","apply":true},"firstUnsatisfiedStep":0}`))
+			return
+		}
+		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.selection.SelectionService/ListScenarios" {
 			_, _ = w.Write([]byte(`{"scenarios":[{"name":"demo","enabled":true}]}`))
+			return
+		}
+		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/GetOperatorState" {
+			_, _ = w.Write([]byte(`{"state":{"activeProfile":"engineering","core":{"seed":["demo"]},"scenarios":{"demo":{"enabled":true,"autoRestart":true},"disabled":{"enabled":false,"autoRestart":false}},"resources":{"ollama":{"enabled":false}},"hostTools":{"git":{"optedIn":true}},"hostSafeguards":{"sandbox":{"optedIn":false}}}}`))
+			return
+		}
+		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState" {
+			_, _ = w.Write([]byte(`{"state":{}}`))
+			return
+		}
+		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/GetReadiness" {
+			_, _ = w.Write([]byte(`{"configurationRevision":"test","status":"READINESS_STATE_READY","credentials":[],"hosts":[],"blockers":[],"degraded":[]}`))
+			return
+		}
+		if r.Method == http.MethodPatch || r.Method == http.MethodPost {
+			_, _ = w.Write([]byte(`{"ok":true,"status":"applied"}`))
 			return
 		}
 		_, _ = w.Write([]byte(`{"status":"ready","credentials":[],"hosts":[]}`))
@@ -67,22 +99,147 @@ func TestDeclarativeWizardApplyExportAndStatus(t *testing.T) {
 	if err := group.Subcommands[2].Run([]string{"--output", output}); err != nil {
 		t.Fatal(err)
 	}
-	if err := group.Subcommands[3].Run([]string{}); err != nil {
+	contents, err := os.ReadFile(output)
+	if err != nil {
 		t.Fatal(err)
+	}
+	var exported Selection
+	if err := json.Unmarshal(contents, &exported); err != nil {
+		t.Fatal(err)
+	}
+	if exported.ActiveProfile != "engineering" || len(exported.CoreSeed) != 1 || exported.CoreSeed[0] != "demo" {
+		t.Fatalf("export lost profile or core seed: %+v", exported)
+	}
+	if exported.ScenarioState["disabled"] || exported.ScenarioState["demo"] != true {
+		t.Fatalf("export lost explicit scenario choices: %+v", exported.ScenarioState)
+	}
+	if exported.OperatingMode["demo"].AutoRestart != true || exported.OperatingMode["disabled"].AutoRestart != false {
+		t.Fatalf("export lost operating mode: %+v", exported.OperatingMode)
+	}
+	if exported.Resources["ollama"] || exported.HostTools["git"] != true || exported.HostSafeguards["sandbox"] {
+		t.Fatalf("export lost explicit false-valued choices: resources=%+v tools=%+v safeguards=%+v", exported.Resources, exported.HostTools, exported.HostSafeguards)
+	}
+	if err := group.Subcommands[4].Run([]string{}); err != nil {
+		t.Fatal(err)
+	}
+	supportPath := filepath.Join(t.TempDir(), "support.json")
+	if err := os.WriteFile(supportPath, []byte("stale"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := group.Subcommands[3].Run([]string{"--output", supportPath, "--include", "selection,readiness,session"}); err != nil {
+		t.Fatal(err)
+	}
+	supportContents, err := os.ReadFile(supportPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fileInfo, err := os.Stat(supportPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := fileInfo.Mode().Perm(); got != 0o600 {
+		t.Fatalf("support export permissions = %o, want 600", got)
+	}
+	if strings.Contains(string(supportContents), "SECRET-CANARY") || strings.Contains(string(supportContents), "credential_diagnosis") {
+		t.Fatalf("support export leaked excluded diagnostic data: %s", supportContents)
+	}
+	var supportDocument map[string]json.RawMessage
+	if err := json.Unmarshal(supportContents, &supportDocument); err != nil {
+		t.Fatal(err)
+	}
+	for _, section := range []string{"selection", "readiness", "session"} {
+		if _, ok := supportDocument[section]; !ok {
+			t.Fatalf("support export omitted requested section %q: %s", section, supportContents)
+		}
+	}
+}
+
+func TestSupportExportRequiresKnownExplicitSections(t *testing.T) {
+	if _, err := supportExportSections(""); err == nil {
+		t.Fatal("support export must require explicit inclusion choices")
+	}
+	if _, err := supportExportSections("selection,unknown"); err == nil {
+		t.Fatal("unsupported support-export section was accepted")
+	}
+	sections, err := supportExportSections("selection,readiness,selection")
+	if err != nil || strings.Join(sections, ",") != "selection,readiness" {
+		t.Fatalf("sections=%v err=%v, want deduplicated explicit sections", sections, err)
+	}
+}
+
+func TestWritePrivateExportRefusesSymlinkTargets(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "target.json")
+	link := filepath.Join(root, "export.json")
+	if err := os.WriteFile(target, []byte("original"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks unavailable on this platform: %v", err)
+	}
+
+	if err := writePrivateExport(link, []byte("replacement")); err == nil {
+		t.Fatal("private export followed a symlink target")
+	}
+	contents, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(contents) != "original" {
+		t.Fatalf("symlink target changed to %q", contents)
+	}
+	info, err := os.Lstat(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("refused symlink was replaced")
+	}
+
+	external := filepath.Join(root, "external")
+	if err := os.Mkdir(external, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	linkedDirectory := filepath.Join(root, "linked-directory")
+	if err := os.Symlink(external, linkedDirectory); err != nil {
+		t.Skipf("symlinked directories unavailable on this platform: %v", err)
+	}
+	if err := writePrivateExport(filepath.Join(linkedDirectory, "export.json"), []byte("replacement")); err == nil {
+		t.Fatal("private export accepted a symlinked parent directory")
 	}
 }
 
 func TestInteractiveWizardWalksAllTenSteps(t *testing.T) {
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/v2/steps":
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyPlan":
+			_, _ = w.Write([]byte(`{"planId":"plan-1","planDigest":"digest-1","revision":"rev-1","items":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply":
+			_, _ = w.Write([]byte(`{"planId":"plan-1","planDigest":"digest-1","revision":"rev-1","consentReceiptId":"receipt-1"}`))
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/StartApply":
+			_, _ = w.Write([]byte(`{"run":{"runId":"run-1","status":"APPLY_RUN_STATE_APPLIED","legacyStatus":"applied"}}`))
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/GetStepModel":
 			_, _ = w.Write([]byte(testStepModelJSON))
-		case "/api/v1/v2/scenarios":
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/GetSession":
+			_, _ = w.Write([]byte(`{"step":0,"stepId":"welcome","firstUnsatisfiedStep":0,"completion":false}`))
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/AdvanceSessionStep":
+			_, _ = w.Write([]byte(`{"step":0,"stepId":"welcome","firstUnsatisfiedStep":0,"completion":false}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/ListScenarios":
 			_, _ = w.Write([]byte(`{"scenarios":[{"name":"demo"}]}`))
-		case "/api/v1/v2/core-set":
-			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trusted_base":["demo"],"member_counts":{"scenario":1,"resource":0}}`))
-		case "/api/v1/v2/resources":
-			_, _ = w.Write([]byte(`{"optional":[{"name":"ollama"}],"standalone":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetRecommendation":
+			_, _ = w.Write([]byte(`{"profile":"starter","scenarios":[],"resources":[],"explanation":"starter"}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet":
+			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trustedBase":["demo"],"memberCounts":{"scenario":1,"resource":0}}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetUnion":
+			_, _ = w.Write([]byte(`{"optionalResources":[{"name":"ollama"}],"standaloneResources":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ListCredentials":
+			_, _ = w.Write([]byte(`{"credentials":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ListOperatorInputs":
+			_, _ = w.Write([]byte(`{"requests":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/GetReadiness":
+			_, _ = w.Write([]byte(`{"configurationRevision":"test"}`))
+		case "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState":
+			_, _ = w.Write([]byte(`{"state":{}}`))
 		case "/api/v1/v2/host-requirements":
 			_, _ = w.Write([]byte(`{"tools":[{"name":"git","required":true}],"safeguards":[{"name":"safe","required":false}]}`))
 		default:
@@ -109,26 +266,40 @@ func TestInteractiveWizardProvisionsCredentialsAndReviewsPlan(t *testing.T) {
 	var reviewedPlan bool
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/v2/steps":
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/GetStepModel":
 			_, _ = w.Write([]byte(testStepModelJSON))
-		case "/api/v1/v2/scenarios":
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/GetSession":
+			_, _ = w.Write([]byte(`{"step":0,"stepId":"welcome","firstUnsatisfiedStep":0,"completion":false}`))
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/AdvanceSessionStep":
+			_, _ = w.Write([]byte(`{"step":0,"stepId":"welcome","firstUnsatisfiedStep":0,"completion":false}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/ListScenarios":
 			_, _ = w.Write([]byte(`{"scenarios":[{"name":"demo"}]}`))
-		case "/api/v1/v2/core-set":
-			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trusted_base":["demo"],"member_counts":{"scenario":1,"resource":0}}`))
-		case "/api/v1/v2/resources":
-			_, _ = w.Write([]byte(`{"optional":[],"standalone":[]}`))
-		case "/api/v1/v2/credentials":
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetRecommendation":
+			_, _ = w.Write([]byte(`{"profile":"starter","scenarios":[],"resources":[],"explanation":"starter"}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet":
+			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trustedBase":["demo"],"memberCounts":{"scenario":1,"resource":0}}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetUnion":
+			_, _ = w.Write([]byte(`{"optionalResources":[],"standaloneResources":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ListCredentials":
 			_, _ = w.Write([]byte(`{"credentials":[{"logical_id":"demo","field":"api_key","label":"Demo key","required":true,"status":"missing"}]}`))
+		case "/vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ListOperatorInputs":
+			_, _ = w.Write([]byte(`{"requests":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/GetReadiness":
+			_, _ = w.Write([]byte(`{"configurationRevision":"test"}`))
+		case "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState":
+			_, _ = w.Write([]byte(`{"state":{}}`))
 		case "/api/v1/v2/host-requirements":
 			_, _ = w.Write([]byte(`{"tools":[{"name":"git","required":true,"risk":"low","privilege":"user"}],"safeguards":[{"name":"safe","required":false,"risk":"medium","privilege":"elevated"}]}`))
-		case "/api/v1/v2/credentials/provision":
+		case "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ProvisionCredential":
 			provisioned = true
 			_, _ = w.Write([]byte(`{"status":"provisioned"}`))
-		case "/api/v1/v2/apply/plan":
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyPlan":
 			reviewedPlan = true
-			_, _ = w.Write([]byte(`{"items":[{"kind":"tool","name":"git","required":true}]}`))
-		case "/api/v1/v2/apply":
-			_, _ = w.Write([]byte(`{"run_id":"run-1","status":"applied","items":[{"name":"git","outcome":"applied"}]}`))
+			_, _ = w.Write([]byte(`{"planId":"plan-1","planDigest":"digest-1","revision":"rev-1","items":[{"kind":"tool","name":"git","required":true,"observedState":"pending"}]}`))
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply":
+			_, _ = w.Write([]byte(`{"planId":"plan-1","planDigest":"digest-1","revision":"rev-1","consentReceiptId":"receipt-1"}`))
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/StartApply":
+			_, _ = w.Write([]byte(`{"run":{"runId":"run-1","status":"APPLY_RUN_STATE_APPLIED","legacyStatus":"applied","steps":[{"name":"git","state":"APPLY_STEP_STATE_APPLIED","legacyOutcome":"applied"}]}}`))
 		default:
 			_, _ = w.Write([]byte(`{"status":"ready","credentials":[],"hosts":[]}`))
 		}
@@ -200,24 +371,26 @@ func TestCoreSetCommandPreviewsBeforeFieldScopedPatch(t *testing.T) {
 	var patched []string
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/v2/core-set" && !r.URL.Query().Has("seed"):
+		case r.Method == http.MethodPost && r.URL.Path == "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet" && len(order) == 0:
 			order = append(order, "current")
-			_, _ = w.Write([]byte(`{"available":true,"seed":["alpha"],"trusted_base":[]}`))
-		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/v2/core-set":
+			_, _ = w.Write([]byte(`{"available":true,"seed":["alpha"],"trustedBase":[]}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet":
 			order = append(order, "preview")
-			_, _ = w.Write([]byte(`{"available":true,"seed":["beta"],"trusted_base":[],"member_counts":{"scenario":1,"resource":0}}`))
-		case r.Method == http.MethodPatch && r.URL.Path == "/api/v1/v2/operator-state":
+			_, _ = w.Write([]byte(`{"available":true,"seed":["beta"],"trustedBase":[],"memberCounts":{"scenario":1,"resource":0}}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState":
 			order = append(order, "patch")
 			var body struct {
-				Core struct {
-					Seed []string `json:"seed"`
-				} `json:"core"`
+				State struct {
+					Core struct {
+						Seed []string `json:"seed"`
+					} `json:"core"`
+				} `json:"state"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Fatal(err)
 			}
-			patched = body.Core.Seed
-			_, _ = w.Write([]byte(`{"version":"1.0.0"}`))
+			patched = body.State.Core.Seed
+			_, _ = w.Write([]byte(`{"state":{"version":"1.0.0"}}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -237,10 +410,10 @@ func TestCoreSetCommandPreviewsBeforeFieldScopedPatch(t *testing.T) {
 func TestCoreSetCommandDoesNotWriteWithoutClosure(t *testing.T) {
 	patched := false
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPatch {
+		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState" {
 			patched = true
 		}
-		if r.URL.Query().Has("seed") {
+		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet" {
 			_, _ = w.Write([]byte(`{"available":false,"seed":["alpha","beta"],"error":"catalog unavailable"}`))
 			return
 		}
@@ -291,24 +464,38 @@ func TestApplyPlanIsDisclosedBeforeConsent(t *testing.T) {
 	var planRequested, applyRequested bool
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/v2/steps":
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/GetStepModel":
 			_, _ = w.Write([]byte(testStepModelJSON))
-		case "/api/v1/v2/scenarios":
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/GetSession":
+			_, _ = w.Write([]byte(`{"step":0,"stepId":"welcome","firstUnsatisfiedStep":0,"completion":false}`))
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/AdvanceSessionStep":
+			_, _ = w.Write([]byte(`{"step":0,"stepId":"welcome","firstUnsatisfiedStep":0,"completion":false}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/ListScenarios":
 			_, _ = w.Write([]byte(`{"scenarios":[{"name":"demo"}]}`))
-		case "/api/v1/v2/core-set":
-			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trusted_base":["demo"],"member_counts":{"scenario":1,"resource":0}}`))
-		case "/api/v1/v2/resources":
-			_, _ = w.Write([]byte(`{"optional":[],"standalone":[]}`))
-		case "/api/v1/v2/credentials":
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetRecommendation":
+			_, _ = w.Write([]byte(`{"profile":"starter","scenarios":[],"resources":[],"explanation":"starter"}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet":
+			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trustedBase":["demo"],"memberCounts":{"scenario":1,"resource":0}}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetUnion":
+			_, _ = w.Write([]byte(`{"optionalResources":[],"standaloneResources":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ListCredentials":
 			_, _ = w.Write([]byte(`{"credentials":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ListOperatorInputs":
+			_, _ = w.Write([]byte(`{"requests":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/GetReadiness":
+			_, _ = w.Write([]byte(`{"configurationRevision":"test"}`))
+		case "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState":
+			_, _ = w.Write([]byte(`{"state":{}}`))
 		case "/api/v1/v2/host-requirements":
 			_, _ = w.Write([]byte(`{"tools":[],"safeguards":[]}`))
-		case "/api/v1/v2/apply/plan":
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyPlan":
 			planRequested = true
-			_, _ = w.Write([]byte(`{"items":[{"kind":"safeguard","name":"host_hardening","required":true,"privileged":true}]}`))
-		case "/api/v1/v2/apply":
+			_, _ = w.Write([]byte(`{"planId":"plan-1","planDigest":"digest-1","revision":"rev-1","items":[{"kind":"safeguard","name":"host_hardening","required":true,"privileged":true,"observedState":"pending"}]}`))
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply":
+			_, _ = w.Write([]byte(`{"planId":"plan-1","planDigest":"digest-1","revision":"rev-1","consentReceiptId":"receipt-1"}`))
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/StartApply":
 			applyRequested = true
-			_, _ = w.Write([]byte(`{"run_id":"run-1","status":"applied"}`))
+			_, _ = w.Write([]byte(`{"run":{"runId":"run-1","status":"APPLY_RUN_STATE_APPLIED","legacyStatus":"applied"}}`))
 		default:
 			_, _ = w.Write([]byte(`{"status":"ready","credentials":[],"hosts":[]}`))
 		}
@@ -343,7 +530,7 @@ func TestApplyPlanIsDisclosedBeforeConsent(t *testing.T) {
 		t.Fatal("the apply plan must be fetched before consent, so a declined run still discloses it")
 	}
 	if applyRequested {
-		t.Fatal("a declined run must not POST /v2/apply")
+		t.Fatal("a declined run must not start an apply procedure")
 	}
 	if !strings.Contains(output, "host_hardening") {
 		t.Fatalf("the declined run did not disclose the plan contents: %q", output)
@@ -361,11 +548,11 @@ func TestApplyPlanIsDisclosedBeforeConsent(t *testing.T) {
 // being shown as elevated.
 func TestApplyPlanSeparatesPendingFromAlreadyApplied(t *testing.T) {
 	body := []byte(`{"items":[
-		{"kind":"tool","name":"git","required":true,"state":"satisfied"},
-		{"kind":"tool","name":"jq","required":false,"state":"satisfied"},
-		{"kind":"safeguard","name":"host_hardening","required":true,"privileged":true,"state":"pending"},
-		{"kind":"safeguard","name":"clock","required":true,"state":"pending"},
-		{"kind":"resource","name":"postgres","required":true,"state":"unknown"}
+		{"kind":"tool","name":"git","required":true,"observedState":"satisfied"},
+		{"kind":"tool","name":"jq","required":false,"observedState":"satisfied"},
+		{"kind":"safeguard","name":"host_hardening","required":true,"privileged":true,"observedState":"pending"},
+		{"kind":"safeguard","name":"clock","required":true,"observedState":"pending"},
+		{"kind":"resource","name":"postgres","required":true,"observedState":"unknown"}
 	]}`)
 	output := captureStdout(t, func() {
 		if err := printApplyPlan(body); err != nil {
@@ -435,7 +622,7 @@ func TestApplyPlanWithNoChangesSaysSo(t *testing.T) {
 // end without applying anything, and printing only the status would name the
 // failure without saying what to do about it.
 func TestApplyReportShowsWhyNothingHappened(t *testing.T) {
-	body := []byte(`{"status":"blocked","items":[],"blockers":[{"name":"vrooli-onboarding","reason":"artifacts are stale and a dependency would restart it","remediation":"Run ` + "`vrooli scenario start vrooli-onboarding`" + `, then apply again."}]}`)
+	body := []byte(`{"status":"APPLY_RUN_STATE_FAILED","legacyStatus":"blocked","steps":[],"blockers":[{"name":"vrooli-onboarding","reason":"artifacts are stale and a dependency would restart it","remediation":"Run ` + "`vrooli scenario start vrooli-onboarding`" + `, then apply again."}]}`)
 	output := captureStdout(t, func() {
 		if err := printApplyReport(body); err != nil {
 			t.Fatalf("printApplyReport: %v", err)
@@ -458,7 +645,7 @@ func TestApplyReportShowsWhyNothingHappened(t *testing.T) {
 // rendering as if it had run. The detail fell straight through to "completed"
 // whenever an item carried a reason but no error.
 func TestApplyReportDoesNotCallASkippedItemCompleted(t *testing.T) {
-	body := []byte(`{"status":"applied","items":[{"name":"vrooli-onboarding","outcome":"skipped_self","remediation":"already running; onboarding does not restart itself mid-apply"}]}`)
+	body := []byte(`{"status":"APPLY_RUN_STATE_APPLIED","legacyStatus":"applied","steps":[{"name":"vrooli-onboarding","state":"APPLY_STEP_STATE_SKIPPED_SELF","legacyOutcome":"skipped_self","remediation":"already running; onboarding does not restart itself mid-apply"}]}`)
 	output := captureStdout(t, func() {
 		if err := printApplyReport(body); err != nil {
 			t.Fatalf("printApplyReport: %v", err)

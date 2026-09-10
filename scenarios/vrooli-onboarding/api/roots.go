@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/envx"
 )
 
 // Roots is the single environment-to-storage mapping used by the onboarding
@@ -17,10 +18,12 @@ type Roots struct {
 	Source      string
 }
 
+var rootEnvironment envx.Reader = envx.OS{}
+
 func resolveRoots() (Roots, error) {
-	repo := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
-	storage := strings.TrimSpace(os.Getenv("VROOLI_STORAGE_ROOT"))
-	bundle := strings.TrimSpace(os.Getenv("BUNDLE_ROOT"))
+	repo := strings.TrimSpace(rootEnvironment.Getenv("VROOLI_ROOT"))
+	storage := strings.TrimSpace(rootEnvironment.Getenv("VROOLI_STORAGE_ROOT"))
+	bundle := strings.TrimSpace(rootEnvironment.Getenv("BUNDLE_ROOT"))
 	roots := Roots{RepoRoot: repo}
 	switch {
 	case repo != "":

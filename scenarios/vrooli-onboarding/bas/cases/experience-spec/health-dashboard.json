@@ -8,7 +8,7 @@
       "surface": "experience-health-dashboard"
     },
     "name": "experience-health-dashboard-spec-smoke",
-    "requirement": "OT-P1-001",
+    "requirement": "OT-P0-010",
     "version": "1"
   },
   "nodes": [
@@ -35,7 +35,7 @@
         },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid=\"health-card\"]",
+          "selector": "@selector/dashboard.root",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         }

@@ -31,8 +31,8 @@ already decided is lost or read-only.
 ## In a terminal
 
 ```bash
-vrooli-onboarding wizard run --interactive
-vrooli-onboarding wizard run --accept-recommendation --non-interactive
+vrooli-onboarding wizard run --interactive=true
+vrooli-onboarding wizard run --accept-recommendation=true --non-interactive=true
 vrooli-onboarding wizard status
 ```
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
+	readinessdomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/readiness"
 	"net/http"
 	"sort"
 	"strings"
@@ -12,13 +14,7 @@ import (
 
 // completionBlocker names one reason configuration is not complete. It carries
 // metadata only and never a credential value.
-type completionBlocker struct {
-	// Kind is one of credential, host, recovery, or apply.
-	Kind        string `json:"kind"`
-	Name        string `json:"name"`
-	Reason      string `json:"reason"`
-	Remediation string `json:"remediation"`
-}
+type completionBlocker = readinessdomain.CompletionBlocker
 
 // completionAssessment separates the two questions the flow has always
 // conflated: what stops configuration from being complete, and what is merely
@@ -187,6 +183,20 @@ func configurationMayComplete(assessment completionAssessment, state OperatorSta
 
 type degradedAcknowledgementRequest struct {
 	ReadinessDigest string `json:"readiness_digest"`
+}
+
+func acknowledgeDegradedReadiness(ctx context.Context, digest string) (readinessdomain.AcknowledgeResult, error) {
+	readiness, err := buildReadinessResponse(ctx)
+	if err != nil {
+		return readinessdomain.AcknowledgeResult{}, err
+	}
+	if readiness.DegradedDigest != digest {
+		return readinessdomain.AcknowledgeResult{}, fmt.Errorf("the acknowledged degraded set is not the current one")
+	}
+	if _, err := operatorStateService().RecordDegradedAcknowledgement(ctx, digest, operatorStateNow()); err != nil {
+		return readinessdomain.AcknowledgeResult{}, err
+	}
+	return readinessdomain.AcknowledgeResult{Status: "acknowledged", ReadinessDigest: digest, Degraded: readiness.Degraded}, nil
 }
 
 func (s *Server) handleV2DegradedAcknowledgement(w http.ResponseWriter, r *http.Request) {

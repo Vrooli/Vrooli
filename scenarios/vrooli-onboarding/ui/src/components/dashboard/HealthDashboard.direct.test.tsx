@@ -1,8 +1,14 @@
 // [REQ:REQ-P1-002] Health Dashboard Component Tests
-import { screen, waitFor, fireEvent } from "@testing-library/react";
+import { screen, waitFor, fireEvent } from "../../test-utils";
 import { vi } from "vitest";
-import { renderWithQueryClient, mockFetchSuccess, mockFetchPending } from "../../test-utils";
+import { renderWithQueryClient } from "../../test-utils";
 import { HealthDashboard } from "./HealthDashboard";
+
+const resourcesApi = vi.hoisted(() => ({ fetchResourceHealth: vi.fn() }));
+vi.mock("../../api/resources", () => resourcesApi);
+
+function mockHealthSuccess(body: unknown) { resourcesApi.fetchResourceHealth.mockResolvedValue(body); }
+function mockHealthPending() { resourcesApi.fetchResourceHealth.mockImplementation(() => new Promise(() => {})); }
 
 function renderDashboard(props: React.ComponentProps<typeof HealthDashboard> = {}) {
   return renderWithQueryClient(<HealthDashboard {...props} />);
@@ -15,7 +21,7 @@ const mockHealthData = {
     { name: "ollama", status: "running", category: "ai", available: true, last_checked: "2026-01-01T00:00:00Z" },
   ],
   total: 3,
-  healthy_count: 2,
+  healthyCount: 2,
   checked_at: "2026-01-01T00:00:00Z",
 };
 
@@ -25,14 +31,14 @@ describe("HealthDashboard", () => {
   });
 
   it("shows loading state initially", () => {
-    mockFetchPending();
+    mockHealthPending();
     renderDashboard();
     expect(screen.getByTestId("health-loading")).toBeInTheDocument();
     expect(screen.getByTestId("health-loading")).toBeInTheDocument();
   });
 
   it("shows error state on fetch failure", async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
+    resourcesApi.fetchResourceHealth.mockRejectedValue(new Error("Network error"));
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("health-error")).toBeInTheDocument();
@@ -41,7 +47,7 @@ describe("HealthDashboard", () => {
   });
 
   it("renders resource health cards after loading", async () => {
-    mockFetchSuccess(mockHealthData);
+    mockHealthSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("health-card-postgres")).toBeInTheDocument();
@@ -51,7 +57,7 @@ describe("HealthDashboard", () => {
   });
 
   it("displays healthy count summary", async () => {
-    mockFetchSuccess(mockHealthData);
+    mockHealthSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("health-summary")).toBeInTheDocument();
@@ -60,7 +66,7 @@ describe("HealthDashboard", () => {
   });
 
   it("shows health grid with list role", async () => {
-    mockFetchSuccess(mockHealthData);
+    mockHealthSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("health-grid")).toBeInTheDocument();
@@ -69,7 +75,7 @@ describe("HealthDashboard", () => {
   });
 
   it("shows status indicators with descriptive accessible labels", async () => {
-    mockFetchSuccess(mockHealthData);
+    mockHealthSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("status-indicator-postgres")).toBeInTheDocument();
@@ -79,7 +85,7 @@ describe("HealthDashboard", () => {
   });
 
   it("shows empty state when no resources", async () => {
-    mockFetchSuccess({ resources: [], total: 0, healthy_count: 0, checked_at: "" });
+    mockHealthSuccess({ resources: [], total: 0, healthyCount: 0, checkedAt: "" });
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByText(/no resources detected/i)).toBeInTheDocument();
@@ -87,7 +93,7 @@ describe("HealthDashboard", () => {
   });
 
   it("shows auto-refresh indicator", async () => {
-    mockFetchSuccess(mockHealthData);
+    mockHealthSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByText(/auto-refreshes/i)).toBeInTheDocument();
@@ -95,7 +101,7 @@ describe("HealthDashboard", () => {
   });
 
   it("shows reattempt button on error state", async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
+    resourcesApi.fetchResourceHealth.mockRejectedValue(new Error("Network error"));
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("health-reattempt")).toBeInTheDocument();
@@ -104,7 +110,7 @@ describe("HealthDashboard", () => {
   });
 
   it("shows refresh button when resources loaded", async () => {
-    mockFetchSuccess(mockHealthData);
+    mockHealthSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("health-refresh")).toBeInTheDocument();
@@ -113,7 +119,7 @@ describe("HealthDashboard", () => {
   });
 
   it("displays resource categories", async () => {
-    mockFetchSuccess(mockHealthData);
+    mockHealthSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("health-card-postgres")).toBeInTheDocument();
@@ -123,7 +129,7 @@ describe("HealthDashboard", () => {
   });
 
   it("shows last checked timestamp", async () => {
-    mockFetchSuccess(mockHealthData);
+    mockHealthSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("health-last-checked")).toBeInTheDocument();
@@ -133,7 +139,7 @@ describe("HealthDashboard", () => {
 
   it("shows 'Go to Setup Wizard' button in empty state when callback provided", async () => {
     const onNavigate = vi.fn();
-    mockFetchSuccess({ resources: [], total: 0, healthy_count: 0, checked_at: "2026-01-01T00:00:00Z" });
+    mockHealthSuccess({ resources: [], total: 0, healthyCount: 0, checkedAt: "2026-01-01T00:00:00Z" });
     renderDashboard({ onNavigateToWizard: onNavigate });
     await waitFor(() => {
       expect(screen.getByTestId("health-go-to-wizard")).toBeInTheDocument();

@@ -29,11 +29,16 @@ func TestRegisterExposesSafeCredentialCommands(t *testing.T) {
 func TestListDoctorAndProvisionUseSafeTransport(t *testing.T) {
 	var provisionBody string
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v1/v2/credentials/provision" {
+		switch r.URL.Path {
+		case "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ProvisionCredential":
 			data, _ := io.ReadAll(r.Body)
 			provisionBody = string(data)
+			_, _ = w.Write([]byte(`{"status":"provisioned","logicalId":"demo","field":"key"}`))
+		case "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/DiagnoseCredentials":
+			_, _ = w.Write([]byte(`{"provider":{"condition":"available"}}`))
+		default:
+			_, _ = w.Write([]byte(`{"credentials":[]}`))
 		}
-		_, _ = w.Write([]byte(`{"status":"configured","credentials":[]}`))
 	}))
 	group := Register(core)
 	if err := group.Subcommands[0].Run([]string{"--json"}); err != nil {

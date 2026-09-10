@@ -1,5 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "../../test-utils";
 import { describe, expect, it } from "vitest";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 import { ApplyPlanDisclosure } from "./ApplyPlanDisclosure";
 import type { ApplyPlanItem } from "../../lib/applyPlan";
@@ -16,7 +17,7 @@ describe("ApplyPlanDisclosure", () => {
   it("separates what changes the host from what is already in place", () => {
     // Before this the UI rendered one flat list, so an operator on a fully
     // configured host saw every item as a pending change.
-    render(<ApplyPlanDisclosure items={allItems} />);
+    renderWithProviders(<ApplyPlanDisclosure items={allItems} />);
     const pending = screen.getByTestId("apply-plan-pending");
     expect(within(pending).getByText(/host_hardening/)).toBeInTheDocument();
     expect(within(pending).queryByText(/\bgit\b/)).toBeNull();
@@ -26,7 +27,7 @@ describe("ApplyPlanDisclosure", () => {
   });
 
   it("marks every elevated item and counts them, instead of hedging", () => {
-    render(<ApplyPlanDisclosure items={allItems} />);
+    renderWithProviders(<ApplyPlanDisclosure items={allItems} />);
     const elevated = screen.getByTestId("apply-plan-item-safeguard:host_hardening");
     expect(within(elevated).getByLabelText("elevated")).toBeInTheDocument();
     expect(elevated.textContent).toContain("required, elevated");
@@ -38,19 +39,19 @@ describe("ApplyPlanDisclosure", () => {
   });
 
   it("says plainly when nothing needs elevation", () => {
-    render(<ApplyPlanDisclosure items={[gitItem]} />);
+    renderWithProviders(<ApplyPlanDisclosure items={[gitItem]} />);
     expect(screen.getByTestId("privilege-warning").textContent).toContain("No item in this plan requires elevated privilege");
   });
 
   it("discloses what apply does and that it removes nothing", () => {
-    render(<ApplyPlanDisclosure items={allItems} />);
+    renderWithProviders(<ApplyPlanDisclosure items={allItems} />);
     const effects = screen.getByTestId("apply-plan-effects");
     expect(effects.textContent).toContain("vrooli host safeguard <name>");
     expect(effects.textContent).toContain("Nothing is removed");
   });
 
   it("never claims an item with no reported state is already in place", () => {
-    render(<ApplyPlanDisclosure items={[postgresItem]} />);
+    renderWithProviders(<ApplyPlanDisclosure items={[postgresItem]} />);
     expect(screen.getByTestId("apply-plan-unknown")).toBeInTheDocument();
     expect(screen.queryByTestId("apply-plan-satisfied")).toBeNull();
   });
@@ -60,7 +61,7 @@ describe("ApplyPlanDisclosure", () => {
   // for state it could have reported. Saying "not checked" of something the
   // system can check is the defect this heading previously carried.
   it("attributes the unsampled group to its cost, not to a handler", () => {
-    render(<ApplyPlanDisclosure items={[postgresItem]} />);
+    renderWithProviders(<ApplyPlanDisclosure items={[postgresItem]} />);
     const unsampled = screen.getByTestId("apply-plan-unknown").textContent ?? "";
     expect(unsampled).toContain("Not sampled");
     expect(unsampled).toContain("control-plane round trip");
@@ -69,7 +70,7 @@ describe("ApplyPlanDisclosure", () => {
   });
 
   it("keeps the empty-plan message", () => {
-    render(<ApplyPlanDisclosure items={[]} />);
+    renderWithProviders(<ApplyPlanDisclosure items={[]} />);
     expect(screen.getByTestId("apply-plan").textContent).toContain("no consented host changes");
   });
 });

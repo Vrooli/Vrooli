@@ -150,6 +150,14 @@ body {
   min-height: 100%;
 }
 
+/* The scenario's manifest-owned navigation is the visible IA. The shared
+   shell still owns the page landmark and geometry, while its empty rail/tabs
+   stay out of the rendered surface. */
+.onboarding-rcl-shell [data-rcl-app-shell-sidebar],
+.onboarding-rcl-shell [data-rcl-app-shell-tabs],
+.onboarding-rcl-shell > [data-rcl-app-shell-skip] { display: none !important; }
+.onboarding-rcl-shell [data-rcl-app-shell-main] { overflow: auto !important; }
+
 button:focus-visible,
 input:focus-visible {
   outline: 2px solid var(--color-primary);
@@ -243,12 +251,16 @@ h1[tabindex="-1"]:focus { outline: none; }
   [data-rcl-wizard-footer] { inset-inline: 0; }
 }
 @media (max-width: 640px) {
-  .app-bar__inner { min-height: 52px; padding-inline: .75rem; gap: .5rem; }
+  /* Browser zoom can preserve the nominal viewport while shrinking the
+     effective inline size. Keep target selection and navigation discoverable
+     instead of compressing the tab labels into a clipped single row. */
+  .app-bar__inner { min-height: 52px; padding-inline: .75rem; gap: .5rem; flex-wrap: wrap; }
   .app-brand > span:last-child { display: none; }
-  .app-tabs { flex: 1; justify-content: center; }
-  .app-tab { padding-inline: .55rem !important; }
+  .app-tabs { order: 3; flex: 1 1 100%; min-width: 0; justify-content: flex-start; overflow-x: auto; overflow-y: hidden; }
+  .app-tab { min-width: 0; flex: 0 0 auto; white-space: nowrap; padding-inline: .55rem !important; }
   .app-tab kbd, .app-tab [data-testid="nav-wizard-badge"] { display: none !important; }
-  .target-chip { margin-inline-start: 0; max-width: 5.5rem; }
+  .target-chip { flex: 0 1 5.5rem; min-width: 0; margin-inline-start: 0; max-width: 5.5rem; overflow: hidden; white-space: nowrap; }
+  .target-chip > span:last-child, .target-chip select { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .onboarding-wizard { min-height: calc(100dvh - 52px); }
   .wizard-progress { padding: .7rem .9rem; }
   .wizard-stage { padding: 1.4rem 1rem 6.5rem; }
@@ -258,4 +270,8 @@ h1[tabindex="-1"]:focus { outline: none; }
   .surface-heading { align-items: flex-start; flex-direction: column; }
   .health-stats, .health-loading__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .health-stats > :last-child, .health-loading__stats > :last-child { grid-column: 1 / -1; }
+  .welcome-screen h1 { max-width: 100%; overflow-wrap: anywhere; }
+  .welcome-screen__lede { max-width: 100%; overflow-wrap: anywhere; }
+  .commitment-row > div { min-inline-size: 0; overflow-wrap: anywhere; }
+  .commitment-row p, .commitment-row span:not(.commitment-row__icon) { overflow-wrap: anywhere; }
 }

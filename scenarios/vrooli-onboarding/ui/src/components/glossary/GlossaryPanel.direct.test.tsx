@@ -1,8 +1,14 @@
 // [REQ:REQ-P2-004] Glossary Panel Component Tests
-import { screen, waitFor, fireEvent, within } from "@testing-library/react";
+import { screen, waitFor, fireEvent, within } from "../../test-utils";
 import { vi } from "vitest";
-import { renderWithQueryClient, mockFetchSuccess, mockFetchPending } from "../../test-utils";
+import { renderWithQueryClient } from "../../test-utils";
 import { GlossaryPanel } from "./GlossaryPanel";
+
+const glossaryApi = vi.hoisted(() => ({ fetchGlossary: vi.fn() }));
+vi.mock("../../api/glossary", () => glossaryApi);
+
+function mockGlossarySuccess(body: unknown) { glossaryApi.fetchGlossary.mockResolvedValue(body); }
+function mockGlossaryPending() { glossaryApi.fetchGlossary.mockImplementation(() => new Promise(() => {})); }
 
 const mockGlossaryData = {
   entries: [
@@ -19,20 +25,20 @@ describe("GlossaryPanel", () => {
   });
 
   it("renders glossary panel container", async () => {
-    mockFetchSuccess(mockGlossaryData);
+    mockGlossarySuccess(mockGlossaryData);
     renderWithQueryClient(<GlossaryPanel />);
     expect(screen.getByTestId("glossary-panel")).toBeInTheDocument();
   });
 
   it("shows loading state initially", () => {
-    mockFetchPending();
+    mockGlossaryPending();
     renderWithQueryClient(<GlossaryPanel />);
     expect(screen.getByTestId("glossary-loading")).toBeInTheDocument();
     expect(screen.getByTestId("glossary-loading")).toBeInTheDocument();
   });
 
   it("renders glossary entries after loading", async () => {
-    mockFetchSuccess(mockGlossaryData);
+    mockGlossarySuccess(mockGlossaryData);
     renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getByTestId("glossary-list")).toBeInTheDocument();
@@ -43,7 +49,7 @@ describe("GlossaryPanel", () => {
   });
 
   it("displays term descriptions", async () => {
-    mockFetchSuccess(mockGlossaryData);
+    mockGlossarySuccess(mockGlossaryData);
     renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getByText(/local service like a database/i)).toBeInTheDocument();
@@ -51,7 +57,7 @@ describe("GlossaryPanel", () => {
   });
 
   it("renders search input with accessible label", async () => {
-    mockFetchSuccess(mockGlossaryData);
+    mockGlossarySuccess(mockGlossaryData);
     renderWithQueryClient(<GlossaryPanel />);
     const searchInput = screen.getByTestId("glossary-search");
     expect(searchInput).toBeInTheDocument();
@@ -60,7 +66,7 @@ describe("GlossaryPanel", () => {
   });
 
   it("shows empty state when no entries match", async () => {
-    mockFetchSuccess({ entries: [], count: 0, query: "xyz" });
+    mockGlossarySuccess({ entries: [], count: 0, query: "xyz" });
     renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getByTestId("glossary-empty")).toBeInTheDocument();
@@ -69,7 +75,7 @@ describe("GlossaryPanel", () => {
   });
 
   it("shows search hint in empty state when search term present", async () => {
-    mockFetchSuccess({ entries: [], count: 0 });
+    mockGlossarySuccess({ entries: [], count: 0 });
     renderWithQueryClient(<GlossaryPanel />);
     // Type something to set search term
     const searchInput = screen.getByTestId("glossary-search");
@@ -80,7 +86,7 @@ describe("GlossaryPanel", () => {
   });
 
   it("uses dl element for glossary list (proper semantics)", async () => {
-    mockFetchSuccess(mockGlossaryData);
+    mockGlossarySuccess(mockGlossaryData);
     renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getByTestId("glossary-list")).toBeInTheDocument();
@@ -89,7 +95,7 @@ describe("GlossaryPanel", () => {
   });
 
   it("renders category badges for entries", async () => {
-    mockFetchSuccess(mockGlossaryData);
+    mockGlossarySuccess(mockGlossaryData);
     renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(within(screen.getByTestId("glossary-list")).getAllByText("core")).toHaveLength(2);
@@ -98,13 +104,13 @@ describe("GlossaryPanel", () => {
   });
 
   it("renders heading with proper hierarchy", () => {
-    mockFetchPending();
+    mockGlossaryPending();
     renderWithQueryClient(<GlossaryPanel />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Glossary");
   });
 
   it("shows result count after loading entries", async () => {
-    mockFetchSuccess(mockGlossaryData);
+    mockGlossarySuccess(mockGlossaryData);
     renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getByTestId("glossary-count")).toBeInTheDocument();
@@ -113,7 +119,7 @@ describe("GlossaryPanel", () => {
   });
 
   it("shows clear search button in input when search term is present", async () => {
-    mockFetchSuccess(mockGlossaryData);
+    mockGlossarySuccess(mockGlossaryData);
     renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getByTestId("glossary-list")).toBeInTheDocument();
@@ -130,7 +136,7 @@ describe("GlossaryPanel", () => {
   });
 
   it("shows clickable clear search link in empty state", async () => {
-    mockFetchSuccess({ entries: [], count: 0 });
+    mockGlossarySuccess({ entries: [], count: 0 });
     renderWithQueryClient(<GlossaryPanel />);
     const searchInput = screen.getByTestId("glossary-search");
     fireEvent.change(searchInput, { target: { value: "nonexistent" } });
@@ -143,7 +149,7 @@ describe("GlossaryPanel", () => {
   });
 
   it("shows debounce indicator while waiting for search", async () => {
-    mockFetchSuccess(mockGlossaryData);
+    mockGlossarySuccess(mockGlossaryData);
     renderWithQueryClient(<GlossaryPanel />);
     // Wait for initial load
     await waitFor(() => {
@@ -157,7 +163,7 @@ describe("GlossaryPanel", () => {
   });
 
   it("renders entry descriptions alongside terms", async () => {
-    mockFetchSuccess(mockGlossaryData);
+    mockGlossarySuccess(mockGlossaryData);
     renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getByTestId("glossary-list")).toBeInTheDocument();
@@ -169,13 +175,13 @@ describe("GlossaryPanel", () => {
   });
 
   it("renders subheading text", () => {
-    mockFetchPending();
+    mockGlossaryPending();
     renderWithQueryClient(<GlossaryPanel />);
     expect(screen.getByText(/without needing to read the codebase first/i)).toBeInTheDocument();
   });
 
   it("glossary list uses dl element for proper term/definition semantics", async () => {
-    mockFetchSuccess(mockGlossaryData);
+    mockGlossarySuccess(mockGlossaryData);
     renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getByTestId("glossary-list")).toBeInTheDocument();
@@ -188,7 +194,7 @@ describe("GlossaryPanel", () => {
   });
 
   it("clearing search via button resets search input", async () => {
-    mockFetchSuccess({ entries: [], count: 0 });
+    mockGlossarySuccess({ entries: [], count: 0 });
     renderWithQueryClient(<GlossaryPanel />);
     const searchInput = screen.getByTestId("glossary-search");
     fireEvent.change(searchInput, { target: { value: "nonexistent" } });

@@ -24,6 +24,20 @@ type App struct {
 
 func NewApp() (*App, error) {
 	app := &App{}
+	commandGroups := func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+		groups, _, err := domains.ManifestCommandGroups(core, manifestBytes)
+		if err != nil {
+			panic(err)
+		}
+		return groups
+	}
+	subcommandGroups := func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+		_, groups, err := domains.ManifestCommandGroups(core, manifestBytes)
+		if err != nil {
+			panic(err)
+		}
+		return groups
+	}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:             appName,
 		Version:          appVersion,
@@ -31,12 +45,13 @@ func NewApp() (*App, error) {
 		APIPrefix:        "/api",
 		DefaultAPIBase:   defaultAPIBase,
 		ExtraAPIEnvVars:  []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+		ExtraTokenEnvVars: []string{"VROOLI_AUTH_LOCAL_TOKEN"},
 		BuildFingerprint: buildFingerprint,
 		BuildTimestamp:   buildTimestamp,
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
-		CommandGroups:    domains.CommandGroups,
-		SubcommandGroups: domains.SubcommandGroups,
+		CommandGroups:    commandGroups,
+		SubcommandGroups: subcommandGroups,
 	})
 	if err != nil {
 		return nil, err

@@ -13,12 +13,15 @@ the contract, not the flag list.
 ## The wizard
 
 ```bash
-vrooli-onboarding wizard run --interactive     # same ten-step flow used by the UI
-vrooli-onboarding wizard run --accept-recommendation --non-interactive # apply the explicit starter profile
-vrooli-onboarding wizard status                # step pointer + which steps are satisfied
-vrooli-onboarding wizard commit --selection "<file>"   # non-interactive, no prompts
-vrooli-onboarding wizard export --output "<file>"     # current selection as a selection document
-vrooli-onboarding wizard core-set --add <scenario> --remove <scenario> --json
+vrooli-onboarding wizard run --interactive=true
+vrooli-onboarding wizard run --accept-recommendation=true --non-interactive=true
+vrooli-onboarding wizard status
+vrooli-onboarding wizard commit --selection "<selection>"
+vrooli-onboarding wizard export --output "<output>"
+vrooli-onboarding wizard support-export --output "<output>" --include "selection,readiness,session"
+vrooli-onboarding wizard core-set --add "<scenario>" --remove "<scenario>" --json
+vrooli-onboarding profiles list --json
+vrooli-onboarding profiles evaluate --profile-id "<profile>" --answers '<json>' --json
 ```
 
 `wizard run` without a mode is a read-only catalog response for compatibility
@@ -54,13 +57,19 @@ This is the surface automation drives. It is stable, reviewable, and diffable,
 and it is what makes remote onboarding possible without hand-editing JSON over
 SSH.
 
+`wizard support-export` writes a local mode-`0600`, metadata-only diagnostic.
+The `--include` flag is required and accepts only `selection`, `readiness`, and
+`session`; omitted sections are not collected. Credential values, credential
+diagnosis details, completion internals, and automatic outbound upload are not
+part of this export. Inspect the generated file before sharing it.
+
 ## Inspecting the derived stack
 
 ```bash
-vrooli-onboarding scenarios list                 # deps and effective choices
-vrooli-onboarding closure                        # transitive closure of the selection
-vrooli-onboarding resources list                 # required · optional · standalone
-vrooli-onboarding wizard export --output "<file>" # current selection as a target document
+vrooli-onboarding scenarios list
+vrooli-onboarding closure
+vrooli-onboarding resources list
+vrooli-onboarding union export --output "<output>"
 ```
 
 `union export` is what bundle packaging, VPS provisioning, and vrooli-bridge
@@ -69,9 +78,9 @@ consume to decide what to ship.
 ## Credentials
 
 ```bash
-vrooli-onboarding credentials list               # descriptors + configured status, never values
-printf '%s' "$VALUE" | vrooli-onboarding credentials provision --logical-id <id> --field <field>
-vrooli-onboarding credentials doctor             # backend condition and its fix
+vrooli-onboarding credentials list
+printf '%s' "$VALUE" | vrooli-onboarding credentials provision --logical-id "<logical-id>" --field "<field>"
+vrooli-onboarding credentials doctor
 vrooli credentials store status                 # metadata-only encrypted-store status
 printf '%s' "$PASSPHRASE" | vrooli credentials store init
 printf '%s' "$PASSPHRASE" | vrooli credentials store unlock
@@ -97,9 +106,9 @@ provisioning anything. `doctor` names this condition explicitly; see
 ## Host tools and safeguards
 
 ```bash
-vrooli-onboarding host list                                        # tools + safeguards with risk and privilege
 vrooli-onboarding host list
-vrooli-onboarding host set-config --name <safeguard> --key <k> --value-json <json>
+vrooli-onboarding host list
+vrooli-onboarding host set-config --name "<safeguard>" --key "<k>" --value-json "<json>"
 ```
 
 `host list` shows `risk`, `privilege`, `bundling`, and supported platforms before
@@ -110,11 +119,21 @@ path named.
 ## Apply and readiness
 
 ```bash
-vrooli-onboarding apply                                       # install, apply, enable, start — per-item report
-vrooli-onboarding readiness [--json]                          # blockers control the exit code
-vrooli-onboarding readiness acknowledge-degraded [--digest D] # accept the current optional gaps
-vrooli-onboarding wizard status [--json]                      # readiness and committed state
+vrooli-onboarding start --target local
+vrooli-onboarding plan --target local --json
+vrooli-onboarding review --target local --json
+vrooli-onboarding status --target local --json
+vrooli-onboarding cancel --target local --run-id "<run-id>" --json
+vrooli-onboarding readiness --target local --json
+vrooli-onboarding acknowledge-degraded --target local --digest "<digest>"
+vrooli-onboarding wizard status --json
 ```
+
+`status` is the stable overall onboarding verdict and does not require an
+apply-run identifier. Apply-run inspection remains available through the
+`apply status --run-id <run-id>` command when a caller needs individual step
+events. `--json` writes only the typed response to standard output so scripts
+can parse it; human diagnostics use the human renderer or standard error.
 
 `readiness` prints every blocker with its reason and remediation, then exits
 non-zero while one remains. Automation cannot branch on prose; the exit code is
@@ -132,8 +151,8 @@ completion over a different gap later.
 ## Operator state
 
 ```bash
-vrooli-onboarding operator show [--effective]     # committed document, or resolved values
-vrooli-onboarding operator patch --body-file <patch.json>
+vrooli-onboarding operator show --json
+vrooli-onboarding operator patch --body-file "<patch-file>" --json
 ```
 
 `patch` sends an [RFC 7386](https://www.rfc-editor.org/rfc/rfc7386) JSON Merge
@@ -147,8 +166,10 @@ is missing a step and that is the defect to file.
 ## Glossary and status
 
 ```bash
-vrooli-onboarding glossary [--query <term>]
-vrooli-onboarding status
+vrooli-onboarding glossary --query "<query>"
+
+vrooli-onboarding configuration-search --query "<query>" --target "<target>"
+vrooli-onboarding readiness --json
 ```
 
 ## Retired

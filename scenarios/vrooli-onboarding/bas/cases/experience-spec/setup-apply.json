@@ -35,7 +35,7 @@
         },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid=\"apply-plan\"]",
+          "selector": "@selector/apply.plan",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         }

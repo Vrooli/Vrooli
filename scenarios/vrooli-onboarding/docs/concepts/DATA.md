@@ -46,7 +46,7 @@ flowchart LR
 | Completion marker and degraded acknowledgement | `operator-state` | Patches |
 | Trust posture | `operator-state.trust_posture` | **Preserves. Never writes.** |
 | Core-set authority | `operator-state.core` | **Preserves. Never writes.** |
-| Active profile | `operator-state.active_profile` | Reserved; deferred |
+| Active profile | `operator-state.active_profile` | Patches the selected profile provenance |
 | Integration bindings | integration-hub | Deferred; creates nothing |
 
 The two "preserves, never writes" rows are load-bearing. Trust posture selects

@@ -9,6 +9,13 @@ Hashes and recovery instructions are in the project documentation cleanup record
 Current unresolved issues belong in this scenario's problem ledger; the historical
 handoff notes below remain follow-up leads until checked against current evidence.
 
+Current clarification (2026-09-09): the historical notes about a deferred
+second-profile intake are superseded by the active bounded profile engine and
+the four repository-owned profiles documented in `docs/configuration/profiles.md`.
+The remaining open work is semantic and external qualification, not profile
+data availability. The dated entries below remain unchanged as historical
+evidence.
+
 | Date       | Author            | Status Snapshot | Notes |
 |------------|-------------------|-----------------|-------|
 | 2026-08-12 | Final post-receipt verification | 21/21 phases passed; 68/70 requirements remain earned | Archived |

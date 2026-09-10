@@ -5,18 +5,29 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
+func doReadiness(t *testing.T) *httptest.ResponseRecorder {
+	t.Helper()
+	response, err := buildReadinessResponse(context.Background())
+	if err != nil {
+		t.Fatalf("build readiness: %v", err)
+	}
+	w := httptest.NewRecorder()
+	w.Code = http.StatusOK
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		t.Fatal(err)
+	}
+	return w
+}
+
 func TestV2ReadinessReportsOnlyMetadata(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("VROOLI_ROOT", root)
-	oldPath := operatorStatePath
-	operatorStatePath = func() (string, error) { return filepath.Join(root, ".vrooli", "operator-state.json"), nil }
-	t.Cleanup(func() { operatorStatePath = oldPath })
+	root := newV2Root(t)
 	if err := os.MkdirAll(filepath.Join(root, "scenarios", "alpha", ".vrooli"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +56,7 @@ func TestV2ReadinessReportsOnlyMetadata(t *testing.T) {
 		return []byte(`{"configured":true,"trust_anchor_match":true,"provider":"native-secure-store"}`), nil
 	}
 	t.Cleanup(func() { releaseAuthorityStatusCommand = releasePrior })
-	w := doGet(t, NewServer(), "/api/v2/readiness")
+	w := doReadiness(t)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}
@@ -79,11 +90,7 @@ func TestReleaseAuthorityReadinessNamesRemediation(t *testing.T) {
 }
 
 func TestV2ReadinessReportsMissingRequiredHostTool(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("VROOLI_ROOT", root)
-	prior := operatorStatePath
-	operatorStatePath = func() (string, error) { return filepath.Join(root, ".vrooli", "operator-state.json"), nil }
-	t.Cleanup(func() { operatorStatePath = prior })
+	root := newV2Root(t)
 	for _, path := range []string{filepath.Join(root, "scenarios", "alpha", ".vrooli"), filepath.Join(root, "internal", "tools", "missing-tool"), filepath.Join(root, ".vrooli")} {
 		if err := os.MkdirAll(path, 0o755); err != nil {
 			t.Fatal(err)
@@ -99,7 +106,7 @@ func TestV2ReadinessReportsMissingRequiredHostTool(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	w := doGet(t, NewServer(), "/api/v2/readiness")
+	w := doReadiness(t)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}
@@ -115,11 +122,7 @@ func TestV2ReadinessReportsMissingRequiredHostTool(t *testing.T) {
 }
 
 func TestV2ReadinessReportsDeclaredIntegrationsWithoutFabricatingProviders(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("VROOLI_ROOT", root)
-	oldPath := operatorStatePath
-	operatorStatePath = func() (string, error) { return filepath.Join(root, ".vrooli", "operator-state.json"), nil }
-	t.Cleanup(func() { operatorStatePath = oldPath })
+	root := newV2Root(t)
 	for _, path := range []string{filepath.Join(root, "scenarios", "alpha", ".vrooli"), filepath.Join(root, ".vrooli")} {
 		if err := os.MkdirAll(path, 0o755); err != nil {
 			t.Fatal(err)
@@ -136,18 +139,14 @@ func TestV2ReadinessReportsDeclaredIntegrationsWithoutFabricatingProviders(t *te
 		return []byte(`{"configured":true,"trust_anchor_match":true}`), nil
 	}
 	t.Cleanup(func() { releaseAuthorityStatusCommand = releasePrior })
-	w := doGet(t, NewServer(), "/api/v2/readiness")
+	w := doReadiness(t)
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"name":"alpha/github-oauth"`) || !strings.Contains(w.Body.String(), "Read project issues") || !strings.Contains(w.Body.String(), "repo:read") {
 		t.Fatalf("readiness = %d: %s", w.Code, w.Body.String())
 	}
 }
 
 func TestV2ReadinessIncludesScenarioCredentialDeclarations(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("VROOLI_ROOT", root)
-	oldPath := operatorStatePath
-	operatorStatePath = func() (string, error) { return filepath.Join(root, ".vrooli", "operator-state.json"), nil }
-	t.Cleanup(func() { operatorStatePath = oldPath })
+	root := newV2Root(t)
 	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +176,7 @@ func TestV2ReadinessIncludesScenarioCredentialDeclarations(t *testing.T) {
 	prior := credentialStatusCommand
 	credentialStatusCommand = func(context.Context, string, string) ([]byte, error) { return []byte(`{"configured":true}`), nil }
 	t.Cleanup(func() { credentialStatusCommand = prior })
-	w := doGet(t, NewServer(), "/api/v2/readiness")
+	w := doReadiness(t)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}
@@ -231,11 +230,7 @@ func TestRecoveryReadinessCarriesEscrowClassesAndRootCopyIssues(t *testing.T) {
 }
 
 func TestV2ReadinessElevatesRequiredAbsentRecoveryToMissing(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("VROOLI_ROOT", root)
-	priorStatePath := operatorStatePath
-	operatorStatePath = func() (string, error) { return filepath.Join(root, ".vrooli", "operator-state.json"), nil }
-	t.Cleanup(func() { operatorStatePath = priorStatePath })
+	root := newV2Root(t)
 	for _, dir := range []string{filepath.Join(root, "scenarios", "alpha", ".vrooli"), filepath.Join(root, ".vrooli")} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
@@ -257,7 +252,7 @@ func TestV2ReadinessElevatesRequiredAbsentRecoveryToMissing(t *testing.T) {
 		return []byte(`{"configured":true,"trust_anchor_match":true}`), nil
 	}
 	t.Cleanup(func() { releaseAuthorityStatusCommand = previousRelease })
-	w := doGet(t, NewServer(), "/api/v2/readiness")
+	w := doReadiness(t)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}

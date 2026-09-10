@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Wand2, Activity, BookOpen, ChevronDown } from "lucide-react";
+import { Wand2, Activity, BookOpen, Search, ChevronDown } from "lucide-react";
 import { WizardShell } from "./components/wizard/WizardShell";
 import { HealthDashboard } from "./components/dashboard/HealthDashboard";
 import { GlossaryPanel } from "./components/glossary/GlossaryPanel";
@@ -7,16 +7,21 @@ import { useGlobalKeyboardShortcuts } from "./hooks/useGlobalKeyboardShortcuts";
 import { useWizardState } from "./hooks/useWizardState";
 import { cn } from "./lib/utils";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { Select } from "@vrooli/react-component-library/Select/1";
+import { AppShell } from "./components/layout/AppShell";
 import { stepRegistry } from "./components/wizard/stepRegistry";
-import { fetchV2Targets } from "./lib/api";
-import type { OnboardingTarget } from "./types";
+import { fetchTargets } from "./api/host";
+import type { OnboardingTarget } from "./api/host";
 import { i18n } from "./i18n";
+import { ConfigurationSearchPanel } from "./components/configuration/ConfigurationSearchPanel";
+import type { ConfigurationDescriptor } from "./api/configuration";
 
-type AppView = "wizard" | "dashboard" | "glossary";
+type AppView = "wizard" | "dashboard" | "glossary" | "configuration";
 
 function initialViewForPath(pathname: string): AppView {
   if (pathname === "/health-dashboard") return "dashboard";
   if (pathname === "/glossary") return "glossary";
+  if (pathname === "/configuration") return "configuration";
   return "wizard";
 }
 
@@ -44,6 +49,12 @@ const NAV_ITEMS: {
     icon: <BookOpen className="h-4 w-4" aria-hidden="true" />,
     testId: "nav-glossary",
   },
+  {
+    id: "configuration",
+    label: i18n.t("onboarding.app.configuration"),
+    icon: <Search className="h-4 w-4" aria-hidden="true" />,
+    testId: "nav-configuration",
+  },
 ];
 
 const VIEW_IDS = NAV_ITEMS.map((item) => item.id);
@@ -55,7 +66,7 @@ export default function App() {
   const [target, setTarget] = useState(() => new URLSearchParams(window.location.search).get("target") || "local");
   const [targetOptions, setTargetOptions] = useState<OnboardingTarget[]>([{ id: "local", name: "This machine", status: "local" }]);
   useEffect(() => {
-    fetchV2Targets().then((result) => {
+    fetchTargets().then((result) => {
       if (Array.isArray(result?.targets) && result.targets.length > 0) setTargetOptions(result.targets);
     }).catch(() => undefined);
   }, []);
@@ -82,6 +93,9 @@ export default function App() {
     isLastStep,
     totalSteps,
     planAccepted,
+    operatorStateError,
+    operatorStateSaveState,
+    retryOperatorStateSave,
     acceptRecommendation,
   } = useWizardState();
 
@@ -138,7 +152,20 @@ export default function App() {
     onAdjustRecommendation: () => goToStep(1),
   });
 
+  const openConfiguration = (descriptor: ConfigurationDescriptor) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("target", target || "local");
+    params.set("setting", descriptor.id);
+    params.set("draft", "current");
+    const query = params.toString();
+    window.history.pushState({}, "", `${descriptor.route}${query ? `?${query}` : ""}`);
+    setView("wizard");
+    tabRefs.current[0]?.focus();
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
   return (
+    <AppShell>
     <div className="min-h-full bg-surface text-foreground" data-plan-accepted={planAccepted ? "true" : "false"}>
       {/* Skip to content link for screen readers */}
       <a
@@ -156,16 +183,16 @@ export default function App() {
         aria-label={i18n.t("onboarding.app.mainNavigation")}
         className="app-bar"
       >
-        <div
-          className="app-bar__inner"
-          role="tablist"
-          aria-label={i18n.t("onboarding.app.applicationViews")}
-        >
+        <div className="app-bar__inner">
           <div className="app-brand" aria-label={i18n.t("onboarding.app.brand")}>
             <span className="app-brand__mark" aria-hidden="true">V</span>
             <span>{i18n.t("onboarding.app.brand")}</span>
           </div>
-          <div className="app-tabs">
+          <div
+            className="app-tabs"
+            role="tablist"
+            aria-label={i18n.t("onboarding.app.applicationViews")}
+          >
           {NAV_ITEMS.map((item, idx) => (
             <Button
               variant="ghost"
@@ -217,9 +244,12 @@ export default function App() {
             <span className="target-chip__dot" aria-hidden="true" />
             <span className="sr-only">{i18n.t("onboarding.app.setupTarget")}</span>
             {targetOptions.length > 1 ? <>
-              <select value={target} onChange={(event) => setTarget(event.target.value)} aria-label={i18n.t("onboarding.app.setupTarget")}>
-                {targetOptions.map((option) => <option key={option.id} value={option.id}>{option.id === "local" ? "local" : option.name ?? option.id}</option>)}
-              </select>
+              <Select
+                value={target}
+                onValueChange={setTarget}
+                aria-label={i18n.t("onboarding.app.setupTarget")}
+                options={targetOptions.map((option) => ({ value: option.id, label: option.id === "local" ? "local" : option.name ?? option.id }))}
+              />
               <ChevronDown aria-hidden="true" />
             </> : <span>{target === "local" ? "local" : target}</span>}
           </label>
@@ -237,7 +267,7 @@ export default function App() {
       </div>
 
       {/* Content */}
-      <main id="main-content">
+      <div id="main-content">
         <div
           role="tabpanel"
           id="tabpanel-wizard"
@@ -287,6 +317,9 @@ export default function App() {
                 showPrev={currentStep > 0}
                 showNext={!isLastStep}
                 target={target}
+                operatorStateError={operatorStateError}
+                operatorStateSaveState={operatorStateSaveState}
+                onRetryOperatorStateSave={() => { void retryOperatorStateSave(); }}
                 onTargetChange={(nextTarget) => {
                   const normalized = nextTarget.trim() || "local";
                   setTarget(normalized);
@@ -333,7 +366,20 @@ export default function App() {
         >
           {view === "glossary" && <GlossaryPanel />}
         </div>
-      </main>
+        <div
+          role="tabpanel"
+          id="tabpanel-configuration"
+          aria-labelledby="tab-configuration"
+          className={cn(
+            "mx-auto max-w-3xl px-3 py-4 sm:px-6 sm:py-8",
+            view === "configuration" && "animate-panel-enter",
+          )}
+          hidden={view !== "configuration"}
+        >
+          {view === "configuration" && <ConfigurationSearchPanel target={target} onNavigate={openConfiguration} />}
+        </div>
+      </div>
     </div>
+    </AppShell>
   );
 }

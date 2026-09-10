@@ -7,11 +7,43 @@
         "rung": "owned",
         "kind": "file",
         "class": "config",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Operator choices are authoritative durable configuration; the byte ceiling detects unexpected growth but never authorizes deletion."
+        },
+        "rationale": "Per-install operator choices are persisted atomically through the routed operator-state authority and must survive retention cycles."
+      },
+      "deployment_report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "deployment/deployment-report.json",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "The report is durable deployment evidence; it measured 5500 bytes on 2026-09-09, so the 1 MiB ceiling detects unexpected growth without authorizing deletion."
+        },
+        "rationale": "Scenario Dependency Analyzer generates this durable deployment report in the scenario data namespace; its provenance must survive retention cycles even though the analyzer can refresh it."
+      },
+      "retention_receipts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "retention",
         "regenerable": true,
-        "rationale": "Per-install operator choices are persisted atomically through the routed operator-state authority."
+        "reclaim": {
+          "pruner": "builtin"
+        },
+        "budget": {
+          "max_age": "30d",
+          "max_bytes": "1MiB",
+          "rationale": "The framework rewrites the enforcement receipt on each retention cycle; 30 days and 1 MiB bound regenerable operational bookkeeping."
+        },
+        "rationale": "The shared retention engine writes the scenario's enforcement receipt beneath the routed state namespace."
       }
     },
-    "rationale": "The scenario owns one routed configuration file; credential values and runtime databases remain owned by their authorities."
+    "rationale": "The scenario owns routed operator configuration and one generated deployment report; credential values and runtime databases remain owned by their authorities."
   },
   "service": {
     "parent": "vrooli",
@@ -77,7 +109,7 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "timeout": 10000,
-          "interval": 30000,
+          "interval": 2000,
           "critical": true
         },
         {
@@ -85,7 +117,7 @@
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
-          "interval": 30000,
+          "interval": 2000,
           "critical": false
         }
       ]
@@ -114,7 +146,17 @@
     }
   },
   "dependencies": {
-    "resources": {}
+    "resources": {},
+    "scenarios": {
+      "vrooli-bridge": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Vrooli Onboarding reaches vrooli-bridge through the typed node-reach transport for optional remote host and validation target discovery; it does not import bridge implementation code.",
+        "description": "Optional remote host and validation target capability.",
+        "degraded_behavior": "Local onboarding remains available; remote targets report an explicit bridge-unavailable state until vrooli-bridge is healthy and configured."
+      }
+    }
   },
   "components": {
     "api": {
@@ -128,7 +170,10 @@
           "{{bin.api}}"
         ],
         "port": "api",
-        "cwd": "api"
+        "cwd": "api",
+        "env": {
+          "VROOLI_AUTH_MODE": "personal_local"
+        }
       }
     },
     "ui": {

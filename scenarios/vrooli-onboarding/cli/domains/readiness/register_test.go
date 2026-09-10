@@ -1,6 +1,8 @@
 package readiness
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -51,6 +53,24 @@ func TestRunReturnsMachineReadableRequiredFailure(t *testing.T) {
 	}
 }
 
+func TestRunJSONKeepsDiagnosticsOffStdout(t *testing.T) {
+	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"status":"missing","blockers":[{"kind":"host","name":"docker","reason":"tool is missing","remediation":"Apply the selection."}],"degraded":[]}`))
+	}))
+	var stdout, stderr bytes.Buffer
+	err := runWithOutput(core, true, &stdout, &stderr)
+	if _, ok := err.(*ExitError); !ok {
+		t.Fatalf("runWithOutput error = %T %v, want ExitError", err, err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &document); err != nil {
+		t.Fatalf("stdout is not one JSON document: %q: %v", stdout.String(), err)
+	}
+	if !strings.Contains(stderr.String(), "Blocked: host docker") {
+		t.Fatalf("stderr = %q, want human blocker diagnostics", stderr.String())
+	}
+}
+
 func TestRunReturnsFailureForRequiredHostAndUnacknowledgedDegradation(t *testing.T) {
 	for _, body := range []string{
 		`{"status":"missing","blockers":[{"kind":"host","name":"workspace_sandbox_userns","reason":"safeguard is missing on this host","remediation":"Apply the selection."}],"degraded":[]}`,
@@ -80,7 +100,7 @@ func TestRunIgnoresDeferredOptionalItems(t *testing.T) {
 func TestAcknowledgeDegradedReadsTheCurrentDigestWhenNoneIsGiven(t *testing.T) {
 	var posted string
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
+		if strings.Contains(r.URL.Path, "AcknowledgeDegradedReadiness") {
 			body := make([]byte, r.ContentLength)
 			_, _ = r.Body.Read(body)
 			posted = string(body)

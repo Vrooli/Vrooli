@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"vrooli-onboarding/cli/internal/clock"
 )
 
 // Apply can take many minutes: a scenario start is bounded at five, and a
@@ -68,7 +70,7 @@ type applyProgressReporter struct {
 
 func newApplyProgressReporter(out io.Writer, now func() time.Time) *applyProgressReporter {
 	if now == nil {
-		now = time.Now
+		now = clock.Real{}.Now
 	}
 	return &applyProgressReporter{out: out, now: now, announced: map[string]bool{}}
 }

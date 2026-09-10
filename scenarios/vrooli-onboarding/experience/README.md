@@ -66,6 +66,12 @@ launch demo and the desktop evidence handed to deployment-manager. The
 accessibility matrix remains a separate gate until its all-steps run is
 recorded.
 
+**Semantic parity.** The requirement-to-journey matrix and independent
+real-client outcome corpus are documented in
+[`SEMANTIC-JOURNEYS.md`](SEMANTIC-JOURNEYS.md). The matrix is deliberately
+honest about later target receipts: a declared journey is not proof that every
+deliverable has passed.
+
 ## Order of work
 
 A UX change lands in this order:

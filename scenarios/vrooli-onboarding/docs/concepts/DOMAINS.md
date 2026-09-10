@@ -7,16 +7,17 @@ tests agree on where a decision lives.
 
 ## Domain inventory
 
-| Domain | Purpose | Archetype | Owns data | Source Paths | Surfaces | Requirements |
+| Domain | Responsibility | Primary Archetype | Owns data | Source Paths | Surfaces | Requirements |
 |---|---|---|---|---|---|---|
 | capability-selection | Turn a scenario choice into a resolved stack: transitive closure, derived and optional resources, operating-mode recommendation, and the union other tiers consume. | reporting | No | `api/closure.go`, scenario manifests | API, UI, CLI | `ONB-SELECT-*`, `ONB-OPMODE-PER-SCENARIO` |
 | operator-state-authority | Commit every operator decision through one typed service that merges field-scoped patches, validates before writing, and preserves fields it does not own. | mutation | `.vrooli/operator-state.json`, via the control-plane service | `internal/operatorstate/**` | API, CLI, control plane | `ONB-STATE-*`, `ONB-REENTRY-RESUMES` |
-| credentials | Present descriptor-complete guidance and relay a value to the credential authority without it crossing any other boundary. | integration | No | `api/v2_credentials.go`, credential descriptors | API, UI, CLI | `ONB-CRED-*` |
+| credentials | Present descriptor-complete guidance and relay a value to the credential authority without it crossing any other boundary. | service | No | `api/v2_credentials.go`, credential descriptors | API, UI, CLI | `ONB-CRED-*` |
 | host-consent | Derive host tools and safeguards from manifests and obtain informed operator consent before any host change. | reporting | No | `api/v2_host_requirements.go`, `internal/tools/**`, `internal/safeguards/**` | API, UI, CLI | `ONB-HOST-*` |
 | apply-and-readiness | Turn recorded intent into applied host state by delegating to control-plane handlers, then probe and report honest readiness. | orchestration | No | `api/v2_apply.go`, `api/v2_readiness.go` | API, UI, CLI | `ONB-APPLY-*`, `ONB-READY-*` |
 | surface-parity | Keep the UI, interactive CLI, non-interactive CLI, and API equal in capability and identical in result. | orchestration | Session pointer, in shared state | `api/v2_session.go`, `cli/domains/wizard/**` | API, CLI, UI | `ONB-PARITY-*`, `ONB-CLI-*` |
-| deployment-tiers | Resolve catalog and state location from the running tier so one flow serves repository, bundle, and remote installs. | integration | No | `api/v2_read_model.go`, desktop catalog packager | API | `ONB-TIER-*` |
+| deployment-tiers | Resolve catalog and state location from the running tier so one flow serves repository, bundle, and remote installs. | service | No | `api/v2_read_model.go`, desktop catalog packager | API | `ONB-TIER-*` |
 | experience | Satisfy the declared page, state, claim, and journey contract, with accessibility and theming as gates. | orchestration | Browser-local navigation only | `ui/src/components/wizard/**`, `experience/**` | UI | `ONB-UX-*`, `ONB-REENTRY-REVISABLE` |
+| purpose-profiles | Evaluate bounded, versioned purpose questionnaires into explainable scenario recommendations. | reporting | No | `profiles/*.json`, `api/internal/profiles/**` | API, CLI, UI | `ONB-PROFILE-*` |
 | contract-evidence | Keep declared endpoint, CLI, and requirement contracts equal to the running code, enforced by tests. | reporting | No | `.vrooli/endpoints.json`, `requirements/**`, `api/*_test.go` | API, CLI | `ONB-CONTRACT-*` |
 
 ## Domain relationships
@@ -30,6 +31,7 @@ flowchart TB
   CS & CR & HC & AR --> OSA["operator-state-authority"]
   SP["surface-parity"] --> CS & CR & HC & AR
   EX["experience"] --> SP
+  PP["purpose-profiles"] --> SP
   CE["contract-evidence"] -. "gates" .-> SP & CS & CR & HC & AR
   DT -. "resolves catalog + state location for" .-> CS & HC
 ```
@@ -57,8 +59,6 @@ as metadata, patches only the fields it owns, and preserves the rest.
 | Candidate | Why deferred | Revisit trigger |
 |---|---|---|
 | integrations | Connector and connection models are owned by integration-hub | integration-hub ships |
-| profiles | A format designed against one example fits one example | A second concrete profile exists |
-| configuration-discovery | Needs the operator-surface feed first | The feed lands; search-hub's provider gap is filled |
 
 ## Cross-References
 

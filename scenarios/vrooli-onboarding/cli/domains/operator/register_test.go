@@ -22,6 +22,10 @@ func TestRegisterAndPatchValidation(t *testing.T) {
 
 func TestCommandsUseV2ReadAndPatchRoutes(t *testing.T) {
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			_, _ = w.Write([]byte(`{}`))
+			return
+		}
 		if r.Method == http.MethodPatch {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"ok":true}`))

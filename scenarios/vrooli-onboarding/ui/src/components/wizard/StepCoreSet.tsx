@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchV2CoreSet, fetchV2Scenarios } from "../../lib/api";
+import { fetchCoreSet, fetchScenarios } from "../../api/selection";
 import { NavigationTree } from "@vrooli/react-component-library/NavigationTree/1";
 import { i18n } from "../../i18n";
+import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
 
 interface Props {
   seed: Set<string>;
@@ -16,10 +17,10 @@ export function StepCoreSet({ seed, trustedBase, onChange }: Props) {
   const [draftSeed, setDraftSeed] = useState(committed);
   useEffect(() => setDraftSeed(committedKey ? committedKey.split("\u0000") : []), [committedKey]);
   const draft = useMemo(() => new Set(draftSeed), [draftSeed]);
-  const scenarios = useQuery({ queryKey: ["v2-scenarios"], queryFn: fetchV2Scenarios });
+  const scenarios = useQuery({ queryKey: ["selection-scenarios"], queryFn: () => fetchScenarios() });
   const preview = useQuery({
-    queryKey: ["v2-core-set", draftSeed],
-    queryFn: () => fetchV2CoreSet(draftSeed),
+    queryKey: ["selection-core-set", draftSeed],
+    queryFn: () => fetchCoreSet(draftSeed),
   });
   const toggle = (name: string) => {
     const next = new Set(draft);
@@ -38,7 +39,7 @@ export function StepCoreSet({ seed, trustedBase, onChange }: Props) {
       {(scenarios.data?.scenarios ?? []).map((scenario) => {
         const trusted = trustedBase.has(scenario.name);
         return <li key={scenario.name} data-rcl-navigation-tree-item><label className="flex min-h-11 items-center gap-3 rounded-lg border border-muted p-3">
-          <input type="checkbox" checked={draft.has(scenario.name)} disabled={trusted} onChange={() => toggle(scenario.name)} aria-label={i18n.t("onboarding.core.supervise", { name: scenario.name })} data-testid="core-set-toggle" className="h-5 w-5 accent-emerald-500" />
+          <Checkbox checked={draft.has(scenario.name)} disabled={trusted} onCheckedChange={() => toggle(scenario.name)} aria-label={i18n.t("onboarding.core.supervise", { name: scenario.name })} data-testid="core-set-toggle" />
           <span><span className="block font-medium">{scenario.name}</span>{trusted && <span className="block text-xs text-muted">{i18n.t("onboarding.core.trusted")}</span>}</span>
         </label></li>;
       })}
@@ -48,11 +49,11 @@ export function StepCoreSet({ seed, trustedBase, onChange }: Props) {
       <h2 className="font-semibold">{i18n.t("onboarding.core.closure")}</h2>
       {preview.isLoading && <p role="status" className="mt-2 text-sm text-muted">{i18n.t("onboarding.core.computing")}</p>}
       {preview.error && <p role="alert" className="mt-2 text-sm text-danger">{i18n.t("onboarding.core.previewError")}</p>}
-      {preview.data && !preview.data.available && <p role="status" className="mt-2 text-sm text-warning">{preview.data.error ?? i18n.t("onboarding.core.unavailable")} Seed: {preview.data.seed.join(", ")}</p>}
+      {preview.data && !preview.data.available && <p role="status" className="mt-2 text-sm text-warning">{preview.data.error || i18n.t("onboarding.core.unavailable")} Seed: {preview.data.seed.join(", ")}</p>}
       {preview.data?.available && <>
-        <p className="mt-2 text-sm text-muted">{preview.data.member_counts?.scenario ?? 0} scenarios · {preview.data.member_counts?.resource ?? 0} resources</p>
+        <p className="mt-2 text-sm text-muted">{preview.data.memberCounts?.scenario ?? 0} scenarios · {preview.data.memberCounts?.resource ?? 0} resources</p>
         <ul className="mt-3 max-h-56 space-y-1 overflow-auto text-sm">
-          {members.map((member) => <li key={`${member.kind}:${member.name}`}><span className="font-medium">{member.name}</span> <span className="text-muted">{member.kind} · {member.supervision_intent}</span></li>)}
+          {members.map((member) => <li key={`${member.kind}:${member.name}`}><span className="font-medium">{member.name}</span> <span className="text-muted">{member.kind} · {member.supervisionIntent}</span></li>)}
         </ul>
       </>}
     </section>

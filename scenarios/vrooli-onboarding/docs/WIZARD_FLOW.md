@@ -13,7 +13,7 @@ satisfy is [`experience/`](../experience/).
 ## One command configures or heals a host
 
 ```bash
-vrooli setup --include-optional --maintenance-window --sudo-mode=ask --onboarding=auto
+vrooli-onboarding wizard run --interactive=true
 ```
 
 That command is the whole flow. Setup performs the bootstrap steps, hands off to
@@ -31,7 +31,7 @@ Two commands prove the resulting state, and they must agree:
 
 ```bash
 vrooli credentials doctor --format json
-curl -s http://127.0.0.1:$(vrooli scenario port vrooli-onboarding API_PORT)/api/v2/readiness
+vrooli-onboarding readiness --json
 ```
 
 ## Why the flow is shaped this way
@@ -66,7 +66,9 @@ stateDiagram-v2
   Credentials --> Integrations
   Integrations --> Host
   Host --> OperatingMode
-  OperatingMode --> Apply
+  OperatingMode --> ApplyReview
+  ApplyReview --> Apply: consent receipt issued
+  ApplyReview --> OperatingMode: plan changed or expired
   Apply --> Validation
   Validation --> [*]: ready
   Validation --> Validation: recheck
@@ -209,7 +211,8 @@ operator-input queue and returns a configuration-pending result. The request
 contains its kind, explanation, default, validation contract, and the work it
 unblocks; it never contains a secret or a prompt-specific implementation.
 
-The UI resolves the queue through `POST /api/v2/operator-inputs/resolve`. The
+The UI resolves the queue through `OperatorInputsService/ResolveOperatorInputs`.
+The
 interactive CLI reads the same queue and submits the same answer document. Both
 surfaces keep secret values in memory only, and the API applies the credential
 store change before removing the request. A failed apply leaves the request in
@@ -258,7 +261,7 @@ conformance test is what makes that duplication safe.
 │      writes /etc/sysctl.d/99-vrooli.conf                │
 │      ├ tcp_backlog        [ 4096 ]                      │
 │      └ enable_bbr         [ ✓ ]                         │
-│  ☐ nat-protection prevents loopback bypass    root  MED │
+│  ☐ personal-local principal binds OS user    root  MED │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -284,7 +287,7 @@ Global startup behaviour and profile selection are
 [declared open work](../../../docs/configuration/operating-mode.md) in the
 configuration contract. This step does not invent them.
 
-### 8 — Apply
+### 8 — Apply review and execution
 
 The only step that changes host state.
 
@@ -297,10 +300,14 @@ sequenceDiagram
   participant CP as Control plane
   participant H as Host
 
-  Op->>W: Confirm setup
+  Op->>W: Request apply review
   W->>S: read committed selection
   S-->>W: selection + prior completion marker
   W->>W: plan items, order by dependency
+  W->>CP: ReviewApply(target, plan, revision)
+  CP-->>W: plan digest + short-lived consent receipt
+  Op->>W: Confirm the reviewed plan
+  W->>CP: StartApply(plan, revision, receipt, idempotency key)
   loop each planned item
     W->>CP: install tool / apply safeguard / enable resource / start scenario
     CP->>H: perform
@@ -314,6 +321,13 @@ sequenceDiagram
 
 Contract:
 
+- Review and execution are separate operations. The consent receipt is bound to
+  the target, plan identifier, canonical plan digest, and operator-state
+  revision. Start rejects a stale, changed, expired, consumed, or mismatched
+  receipt before a host mutation.
+- The caller supplies one idempotency key for the user operation. A retry with
+  the same key and plan digest returns the original run rather than dispatching
+  duplicate work; reuse of the key for another plan is rejected.
 - Apply orders and reports; each action is performed by its owning control-plane
   handler. Onboarding carries no private host-repair implementation.
 - Idempotent: a second run with unchanged state changes nothing and reports
@@ -373,7 +387,7 @@ The degraded acknowledgement is durable operator state, not a click. It carries
 the digest of the exact degraded set it accepted, so a page reload cannot
 discard it and an acknowledgement of one gap cannot authorise completion over a
 different gap later. Record it with
-`POST /api/v2/readiness/degraded-acknowledgement`, or from the CLI with
+`ReadinessService/AcknowledgeDegradedReadiness`, or from the CLI with
 `vrooli-onboarding readiness acknowledge-degraded`.
 
 The CLI's `readiness` command and the wizard's `validation` step exit non-zero
@@ -386,9 +400,35 @@ it.
 
 ## Cross-cutting contracts
 
+### Session and operation state
+
+The wizard persists decisions through the operator-state authority and keeps
+navigation and operation state separate. A session pointer can be resumed from
+another surface; it never authorizes a host mutation. Apply state follows this
+state machine:
+
+~~~mermaid
+stateDiagram-v2
+  [*] --> Draft
+  Draft --> Reviewed: ReviewApply
+  Reviewed --> Applied: StartApply accepted
+  Reviewed --> Stale: state, target, or plan changed
+  Reviewed --> Expired: receipt TTL elapsed
+  Reviewed --> Draft: operator edits a decision
+  Applied --> Completed: readiness and completion marker agree
+  Applied --> NeedsAttention: item failed or required readiness is missing
+  NeedsAttention --> Reviewed: operator fixes state and requests a new review
+  Stale --> Draft
+  Expired --> Draft
+~~~
+
+Only StartApply can start the operation, and only the control-plane handlers
+can mutate the host. A browser session, CLI session, or bridge caller must
+present a fresh reviewed receipt for its exact target and revision.
+
 ### Starter recommendation and input parity
 
-`GET /api/v2/recommendation` returns the manifest-derived `starter` profile:
+`SelectionService/GetRecommendation` returns the manifest-derived `starter` profile:
 system-required scenarios plus the transitive resources they require. It is a
 default, not an authorization decision. The UI and interactive CLI prefill it;
 the operator can replace optional choices before applying. The declarative CLI
@@ -438,11 +478,24 @@ Settled; do not relitigate without new evidence.
 - **Apply is part of the wizard**, not a follow-up the operator must remember.
 - **One write authority**, field-scoped patches, schema-validated before write.
 
+### Purpose intake and profiles
+
+The welcome step offers repository-owned local, general-purpose,
+develop-and-publish, and customer-preinstalled profiles. `ProfileService/ListProfiles`
+returns profile metadata including provenance. `ProfileService/EvaluateProfile`
+accepts typed answers, applies only the bounded condition operators, and returns
+visible questions, validation issues, recommendations, and the deduplicated
+scenario/resource result. Customer presets remain recommendations: explicit
+operator choices can replace optional defaults, while the selected preset source
+and revision remain visible.
+
+The UI, CLI, and API use the same evaluator. The operator reviews the result,
+then `SelectionService/AcceptRecommendation` commits the selected profile and
+scenario choices through operator-state. Manual selection remains a first-class
+path. Profile data grants no permissions and cannot execute code.
+
 ### What is deferred
 
-- **Goal intake** — depends on profiles.
-- **Profiles** — until a second concrete profile exists. `active_profile` is
-  already reserved in the state schema.
 - **Integration-hub** — owns connectors and connections; the integrations step is empty until it ships.
 
 ## See also

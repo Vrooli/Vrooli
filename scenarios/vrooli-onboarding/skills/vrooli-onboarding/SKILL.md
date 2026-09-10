@@ -23,7 +23,7 @@ Use Vrooli Onboarding to record capability intent, delegate host changes to
 the control plane, read composed readiness, acknowledge only the exact optional
 degraded set, and produce a typed local or remote handoff.
 
-Required reading: `path:scenarios/vrooli-onboarding/docs/WIZARD_FLOW.md`.
+Required reading: `path:docs/WIZARD_FLOW.md`.
 
 ### Scope
 

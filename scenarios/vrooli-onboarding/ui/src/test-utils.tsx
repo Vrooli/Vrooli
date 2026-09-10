@@ -1,27 +1,15 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, type RenderOptions } from "@testing-library/react";
+import { renderWithProviders, type ProviderRenderOptions } from "@vrooli/api-base/testing";
+export { act, cleanup, fireEvent, renderHook, screen, waitFor, within } from "@testing-library/react";
+export { renderWithProviders } from "@vrooli/api-base/testing";
+export type { ProviderRenderOptions } from "@vrooli/api-base/testing";
 import { vi } from "vitest";
-import type { ReactElement } from "react";
 
-/** Creates a QueryClient configured for tests (no retries, no refetch). */
-export function createTestQueryClient() {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
-  });
-}
-
-/** Renders a component wrapped in QueryClientProvider with a fresh test client. */
+/** Compatibility name for older tests; all rendering uses the canonical provider tree. */
 export function renderWithQueryClient(
-  ui: ReactElement,
-  options?: Omit<RenderOptions, "wrapper">,
+  ui: Parameters<typeof renderWithProviders>[0],
+  options?: ProviderRenderOptions,
 ) {
-  const queryClient = createTestQueryClient();
-  return render(ui, {
-    wrapper: ({ children }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    ),
-    ...options,
-  });
+  return renderWithProviders(ui, options);
 }
 
 /** Mocks globalThis.fetch to resolve with the given JSON body. */

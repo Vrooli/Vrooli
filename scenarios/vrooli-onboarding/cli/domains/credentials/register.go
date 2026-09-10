@@ -1,7 +1,6 @@
 package credentials
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -11,14 +10,71 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	credentialsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/credentials"
+	credentialsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/credentials/credentialsv1connect"
+	"google.golang.org/protobuf/proto"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "credentials", Description: "Inspect and provision onboarding credentials", NeedsAPI: true, Subcommands: []cliapp.Command{
-		{Name: "list", Description: "List credential descriptors", Run: func(args []string) error { return support.GetJSON(core, "credentials", args, "/v2/credentials") }},
+		{Name: "list", Description: "List credential descriptors", Run: func(args []string) error { return list(core, args) }},
 		{Name: "provision", Description: "Provision a credential from standard input", Run: func(args []string) error { return provision(core, args) }},
-		{Name: "doctor", Description: "Diagnose the credential authority", Run: func(args []string) error { return support.GetJSON(core, "credentials", args, "/v2/credentials/doctor") }},
+		{Name: "doctor", Description: "Diagnose the credential authority", Run: func(args []string) error { return diagnose(core, args) }},
 	}}
+}
+
+// ManifestHandlers supplies the one credential command whose operation needs
+// stdin handling. The request still crosses the generated Connect contract;
+// only the secret acquisition and final report remain bespoke.
+func ManifestHandlers(core *cliapp.ScenarioApp) map[string]cliapp.PrimitiveHandler {
+	return map[string]cliapp.PrimitiveHandler{
+		"CredentialsService.ProvisionCredential": cliapp.ExternalDelegation(func(ctx cliapp.RunContext) error {
+			logicalID := strings.TrimSpace(ctx.Flag("logical-id"))
+			field := strings.TrimSpace(ctx.Flag("field"))
+			if field == "" {
+				field = "value"
+			}
+			if logicalID == "" {
+				return fmt.Errorf("--logical-id is required")
+			}
+			value, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				return fmt.Errorf("read credential from standard input: %w", err)
+			}
+			valueText := strings.TrimSpace(string(value))
+			if valueText == "" {
+				return fmt.Errorf("standard input did not contain a credential value")
+			}
+			response := &credentialsv1.ProvisionCredentialResponse{}
+			request := &credentialsv1.ProvisionCredentialRequest{Target: "local", LogicalId: logicalID, Field: field, Value: valueText}
+			if err := requestRPC(ctx.Core(), provisionProcedure, request, response); err != nil {
+				return err
+			}
+			if ctx.JSON() {
+				return printJSON(response)
+			}
+			return cliapp.RenderMutationReport(ctx.Stdout(), cliapp.MutationReport{Result: []string{"Credential provisioned"}, NextCommand: []string{support.CLIName + " readiness"}})
+		}),
+	}
+}
+
+const (
+	listProcedure      = credentialsconnect.CredentialsServiceListCredentialsProcedure
+	provisionProcedure = credentialsconnect.CredentialsServiceProvisionCredentialProcedure
+	diagnoseProcedure  = credentialsconnect.CredentialsServiceDiagnoseCredentialsProcedure
+)
+
+func list(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("credentials list")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	response := &credentialsv1.ListCredentialsResponse{}
+	if err := request(core, listProcedure, &credentialsv1.ListCredentialsRequest{Target: "local"}, response); err != nil {
+		return err
+	}
+	return renderJSONOrPretty(response, *jsonOutput)
 }
 
 func provision(core *cliapp.ScenarioApp, args []string) error {
@@ -40,17 +96,46 @@ func provision(core *cliapp.ScenarioApp, args []string) error {
 	if err != nil {
 		return fmt.Errorf("read credential from standard input: %w", err)
 	}
-	if strings.TrimSpace(string(value)) == "" {
+	valueText := strings.TrimSpace(string(value))
+	if valueText == "" {
 		return fmt.Errorf("standard input did not contain a credential value")
 	}
-	body, _ := json.Marshal(map[string]string{"logical_id": strings.TrimSpace(*logicalID), "field": strings.TrimSpace(*field), "value": strings.TrimSpace(string(value))})
-	response, err := core.Request("POST", "/v2/credentials/provision", nil, body)
-	if err != nil {
+	response := &credentialsv1.ProvisionCredentialResponse{}
+	request := &credentialsv1.ProvisionCredentialRequest{Target: "local", LogicalId: strings.TrimSpace(*logicalID), Field: strings.TrimSpace(*field), Value: valueText}
+	if err := requestRPC(core, provisionProcedure, request, response); err != nil {
 		return err
 	}
 	if *jsonOutput {
-		_, err = os.Stdout.Write(append(response, '\n'))
-		return err
+		return printJSON(response)
 	}
 	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{Result: []string{"Credential provisioned"}, NextCommand: []string{support.CLIName + " readiness"}})
+}
+
+func diagnose(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("credentials doctor")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	response := &credentialsv1.DiagnoseCredentialsResponse{}
+	if err := request(core, diagnoseProcedure, &credentialsv1.DiagnoseCredentialsRequest{Target: "local"}, response); err != nil {
+		return err
+	}
+	return renderJSONOrPretty(response, *jsonOutput)
+}
+
+func request(core *cliapp.ScenarioApp, procedure string, message, response proto.Message) error {
+	return support.RequestProto(core, procedure, message, response, "credential")
+}
+
+func requestRPC(core *cliapp.ScenarioApp, procedure string, message, response proto.Message) error {
+	return request(core, procedure, message, response)
+}
+
+func printJSON(message proto.Message) error {
+	return support.PrintProto(os.Stdout, message, "credential")
+}
+
+func renderJSONOrPretty(message proto.Message, jsonOutput bool) error {
+	return printJSON(message)
 }

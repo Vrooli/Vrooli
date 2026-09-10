@@ -89,7 +89,7 @@ problem, not a host fault:
 ```bash
 # through vrooli-bridge, against the remote host
 vrooli-onboarding wizard commit --selection selection.json
-vrooli-onboarding wizard status --json    # readiness and committed state
+vrooli-onboarding wizard status --json
 ```
 
 If credential provisioning fails, the remote host almost certainly has no

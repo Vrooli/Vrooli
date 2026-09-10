@@ -4,12 +4,46 @@
 > the target contract: a passing contract check does not make an untested
 > deployment claim true.
 
+## UI design-system migration boundary (2026-09-08)
+
+- Intent: keep onboarding calm, legible, keyboard-accessible, and deployment-aware
+  while moving the application boundary onto the shared shell and preserving the
+  existing wizard selectors and behavior.
+- References: the scenario's existing semantic tokens, i18n registry, and
+  `@vrooli/react-component-library` primitives. This phase does not change
+  product branding or add a locale.
+- Constraints: preserve the descriptor-driven wizard, reviewed apply contract,
+  target selection, accessibility landmarks, and stable automation selectors.
+- Scope: token + primitive + shell-boundary migration for the high-traffic
+  onboarding surface. Dynamic descriptor fields remain a follow-up because
+  their checkbox and schema-driven controls need a shared generated-field
+  adapter rather than a cosmetic tag swap.
+- Remaining debt: the scenario retains ui-health's advisory visual heuristic for
+  intentionally screen-reader-only elements. The manifest overlay now reconciles
+  the existing component-tree layout, and library assertions are owned by the
+  component-library source rather than an adopter test. The static validator has
+  no blocking shell, API-base, manifest, or component-adoption findings.
+
 ## Work ladder
 
+- 2026-09-08 implementation review: rung W3 is the highest broken layer under the
+  scenario work ladder. W0 and W1 remain covered by the existing PRD and
+  requirements registry; W2 has current proto, manifest, transport, and endpoint
+  drift evidence. W3 implementation evidence is the passing onboarding API
+  package suite, CLI package suite, all four drift-gate teeth checks, and the
+  docs/API Test Genie phases in run `20260908-032815-0965838d`. The supported
+  unit phase still reports the pre-existing UI role, policy, and coverage debt.
+  Measured 2026-09-08. This review fixes the onboarding API and documentation
+  contract drift; it does not claim to fix the comprehensive run's dependencies,
+  performance, storage, tidiness, security, or broad unit/UI failures because
+  those are outside this migration's change boundary.
+
+- 2026-09-07 review: highest unresolved rung was W0 for the requested professional launch scope. The user required complete configuration and exceptional UI/CLI/API UX before launch; the PRD then classified actionable readiness, re-entry, remote/headless, accessibility, and configuration discovery below the launch tier. Phase 02 of the professional launch-readiness plan promoted those obligations to OT-P0-010 through OT-P0-014. The promotion repairs the document contradiction; implementation and measured evidence remain separate gates. September 5 findings below were retrieved as historical evidence, not current certification. Source inspection and one live welcome screenshot inform the review artifact at `~/.vrooli/reports/onboarding-review-20260907.html`.
+
 - Rung: W3
-- Evidence: onboarding has no scenario-specific Cloudflare bootstrap route, client, or UI predicate. Credential provisioning uses the generic descriptor-driven path, while tunnel-manager owns completion of its derived credentials during its lifecycle. API tests, targeted UI tests, typecheck, production builds, BaseStyles/token censuses, the discriminating scenario-canonical-layer gate, selector checks, and the required BAS registry build pass. W0, W1, and W2 pass. The latest focused V2/health/glossary suite passes 59 tests, and fresh ui-health validation reports zero status-bar mismatch errors. The latest targeted experience run `20260904-024646-57d6df68` passes at L3 with zero findings; workflow run `20260904-025648-a960cdb8` passes at L5 with zero failed phases after data-backed wait synchronization.
-- Blocker: the broader remote VPS evidence limitation below remains; plan-level comprehensive runs and the shared component-library baseline remain blocked by pre-existing/unrelated infrastructure and catalog drift. The latest comprehensive run `20260904-040316-78e2633e` is terminal **FAIL** (19/27 phases passed); its remaining errors include dependency tidy drift, storage coverage, generic unit-policy/test execution, Lighthouse accessibility, tidiness budget, security findings, and the incomplete immutable baseline. The current catalog readiness report still includes stale global scaffold/gate debt from older live library versions; the six current target-version governed tests pass.
-- Measured: 2026-09-04
+- Evidence: W0 previously passed the capacity posture and fit gate against OT-P0-004 and OT-P0-006, but the launch contract now also includes OT-P0-010 through OT-P0-014. W1 passes after the unearned `ONB-UX-JOURNEY-EVIDENCE` status was returned to `in_progress`; W2 passes with zero findings. The initial W3 build failure was repaired through Scenario Dependency Analyzer and focused API tests pass. Comprehensive rerun `20260905-063647-e3cfde3d` executed all 27 phases but is terminal FAIL (20 passed, 7 failed): dependencies, docs, performance, unit, storage, tidiness, and security remain red.
+- Blocker: W3 is at R0 because the comprehensive run still contains error findings (`UNIT_REQUIRED_ROLE_MISSING`, `TIDINESS_BUDGET_EXCEEDED`, and security errors) plus four other failed phases. These scenario-wide repairs exceed the capacity plan's Phase 12 boundary; do not layer new onboarding implementation under the red gate without explicit scope expansion.
+- Measured: 2026-09-05
 
 ## Current evidence
 
@@ -31,7 +65,11 @@
   `127effab0d00fc8e9d65b1f8a3966f8a1c15090d31c6364b14fd114aafeb833c`), and
   the complete V2 endpoint sweep returned HTTP 200 before the normal runtime
   was restored.
-- `vrooli scenario requirements validate vrooli-onboarding`: **zero findings**; 68/70 requirements are complete, with remote VPS proof and profile intake intentionally remaining.
+- `vrooli scenario requirements validate vrooli-onboarding`: the retained historical
+  receipt reports 68/70 because it predates the current purpose-profile work. The
+  live profile requirement is now backed by the bounded evaluator tests, the UI
+  contract, and the canonical profile documentation; remote VPS proof remains
+  externally pending.
 - Bridge transport proof: typed dispatch to the online Linux node
   `swarminator` completed remote Test Genie run
   `20260812-232719-f5532e2a` with **21/21 phases passed**. A subsequent
@@ -53,9 +91,9 @@
   zero failed phases**.
 - `experience-manager spec validate vrooli-onboarding`: **L3, zero findings**;
   all 11 pages and all 6 journeys are active.
-- `vrooli scenario requirements validate vrooli-onboarding`: **zero findings**;
-  68/70 requirements are complete, with remote VPS proof and profile intake
-  intentionally remaining planned.
+- The archived 68/70 requirement receipt predates the current profile evaluator;
+  it remains historical evidence rather than a current completion claim. Remote
+  VPS proof remains pending.
 - API coverage is 75.1%, CLI coverage is 76.5%, and UI coverage is 96.32%
   statements / 85.21% branches (217 tests).
 - Six BAS journey cases plus seven generated experience observers are registered
@@ -93,6 +131,20 @@
   scope. No baseline recapture was made.
 
 ## Remaining blockers and limitations
+
+### Shared controls and UI manifest now use governed contracts (2026-09-09)
+
+Onboarding-owned raw checkbox, select, text, and secret controls were replaced
+with the published `Checkbox`, `Select`, `Input`, and `PasswordInput` primitives
+in the application target selector, scenario catalog, capability actions,
+derived resources, host requirements, core-set, and readiness surfaces.
+The scenario now declares a `.vrooli/ui-manifest.json` overlay for its existing
+component-tree layout, tracks the full template slot filesystem, and keeps
+library assertions with the component-library owner. Focused UI Health is L5 and
+CLI Health is L4 with zero findings. The remaining UI Health warnings are the
+intentional screen-reader-only clipping heuristic (72 observations across the
+runtime surface), recorded as report-only debt. Evidence is retained at
+`evidence/phase-21-ui-control-migration-20260909.json`.
 
 ### Bundle acceptance is green; remote VPS acceptance remains unavailable
 
@@ -143,17 +195,22 @@ aspirational; they are not represented as machine-proven claims.
 
 ### Advisory UI debt remains
 
-- The scenario has local Button/SearchInput/StatusBadge components but has not
-  adopted the external `react-component-library` catalog.
-- UI health still reports advisory focus-zoom and screen-reader clipping
-  heuristics, plus a raw empty-state primitive in the glossary.
-- Template provenance is not declared for this pre-template scenario.
+- UI Health reports the screen-reader-only clipping heuristic on the runtime
+  surface. This is report-only until the provider distinguishes intentional
+  `sr-only` accessibility styling from meaningful text clipping.
+- Alternate/error-state assertions that need deterministic backend fixtures or
+  computed-style evidence remain aspirational; they are not represented as
+  machine-proven claims.
 
 ### Explicitly deferred scope
 
-Profile preselection, integrations, mobile tiers, and credential lifecycle
-repair/recovery remain outside this plan's shipped scope. The profile
-requirement is deliberately planned rather than presented as complete.
+Integration-hub connectors remain outside this scenario's shipped scope and are
+intentionally deferred. Mobile tiers and credential lifecycle/recovery
+operations remain owned by their accountable scenarios; onboarding now exposes
+their conditional manifest contracts and truthful readiness states, but native,
+remote, provider, and recovery qualification still require owner evidence.
+Purpose-profile intake is implemented; its remaining gap is cross-interface
+semantic certification rather than profile data or evaluator availability.
 
 ## Resolved in this implementation
 

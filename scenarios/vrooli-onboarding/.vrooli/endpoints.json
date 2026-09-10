@@ -23,87 +23,107 @@
     {
       "name": "wizard",
       "description": "Interactive nine-step setup",
-      "endpoint_id": "session-get"
+      "endpoint_id": "session_get"
     },
     {
       "name": "wizard apply",
       "description": "Non-interactive setup from a selection document",
-      "endpoint_id": "apply-run"
+      "endpoint_id": "apply_start"
     },
     {
       "name": "wizard status",
       "description": "Step pointer and satisfied steps",
-      "endpoint_id": "session-get"
+      "endpoint_id": "session_get"
+    },
+    {
+      "name": "wizard advance-step",
+      "description": "Advance the shared onboarding step pointer",
+      "endpoint_id": "session_advance"
     },
     {
       "name": "scenarios list",
       "description": "List scenarios with filters",
-      "endpoint_id": "scenarios"
+      "endpoint_id": "selection_scenarios"
+    },
+    {
+      "name": "profiles list",
+      "description": "List supported onboarding profiles",
+      "endpoint_id": "profiles_list"
+    },
+    {
+      "name": "profiles evaluate",
+      "description": "Evaluate a purpose-driven onboarding profile",
+      "endpoint_id": "profiles_evaluate"
     },
     {
       "name": "closure",
       "description": "Transitive closure of the selection",
-      "endpoint_id": "closure"
+      "endpoint_id": "selection_closure"
     },
     {
       "name": "resources list",
       "description": "Required, optional, and standalone resources",
-      "endpoint_id": "resources-derived"
+      "endpoint_id": "selection_union"
     },
     {
       "name": "union export",
       "description": "What a target must carry",
-      "endpoint_id": "union"
+      "endpoint_id": "selection_union"
     },
     {
       "name": "credentials list",
       "description": "Descriptors and configured status",
-      "endpoint_id": "credentials-read-model"
+      "endpoint_id": "credentials_list"
     },
     {
       "name": "credentials provision",
       "description": "Provision a value read from stdin",
-      "endpoint_id": "credentials-provision"
+      "endpoint_id": "credentials_provision"
     },
     {
       "name": "credentials doctor",
       "description": "Diagnose the credential backend",
-      "endpoint_id": "credentials-doctor"
+      "endpoint_id": "credentials_diagnose"
     },
     {
       "name": "host list",
       "description": "Host tools and safeguards with risk and privilege",
-      "endpoint_id": "host-requirements"
+      "endpoint_id": "host_requirements"
     },
     {
       "name": "host set-config",
       "description": "Set a validated safeguard config value",
-      "endpoint_id": "operator-state-patch"
+      "endpoint_id": "host_patch_safeguard_config"
+    },
+    {
+      "name": "host set-recipient",
+      "description": "Set the notification recipient",
+      "endpoint_id": "host_set_recipient"
     },
     {
       "name": "apply",
       "description": "Apply the committed selection",
-      "endpoint_id": "apply-run"
+      "endpoint_id": "apply_start"
     },
     {
       "name": "readiness",
       "description": "Composed readiness; non-zero exit when a required item is not ready",
-      "endpoint_id": "readiness"
+      "endpoint_id": "readiness_get"
     },
     {
       "name": "operator show",
       "description": "Read committed operator state",
-      "endpoint_id": "operator-state-get"
+      "endpoint_id": "operator_state_get"
     },
     {
       "name": "operator patch",
       "description": "Apply a merge patch to operator state",
-      "endpoint_id": "operator-state-patch"
+      "endpoint_id": "operator_state_patch"
     },
     {
       "name": "glossary",
       "description": "Look up a term",
-      "endpoint_id": "glossary"
+      "endpoint_id": "glossary_search"
     }
   ],
   "endpoints": [
@@ -111,407 +131,513 @@
       "id": "health",
       "path": "/health",
       "method": "GET",
-      "category": "system",
       "summary": "Service health check",
       "description": "Returns API readiness for infrastructure probes.",
-      "examples": [
-        {
-          "name": "Check health",
-          "curl": "curl http://localhost:${API_PORT}/health"
+      "category": "system",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Lifecycle probes, load balancers, and curl must reach this health endpoint without a generated client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.vrooli_onboarding.v1.shared.HealthResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.vrooli_onboarding.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
         }
-      ],
-      "cli_mapping": {
-        "command": "vrooli-onboarding status"
       }
     },
     {
       "id": "health-v1",
       "path": "/api/v1/health",
       "method": "GET",
-      "category": "system",
       "summary": "Service health check for clients",
-      "description": "The same health payload on the client-facing prefix."
-    },
-    {
-      "id": "resource-health",
-      "path": "/api/v1/resources/health",
-      "method": "GET",
-      "category": "resources",
-      "summary": "Live resource availability",
-      "requirements": [
-        "ONB-READY-RESOURCE-PROBE"
-      ]
-    },
-    {
-      "id": "list-resources",
-      "path": "/api/v1/resources",
-      "method": "GET",
-      "category": "resources",
-      "summary": "Resource inventory with status and category",
-      "description": "Categories are read from resource manifests, not from a table in code.",
-      "requirements": [
-        "ONB-SELECT-NO-HARDCODED-INVENTORY"
-      ]
-    },
-    {
-      "id": "get-resource",
-      "path": "/api/v1/resources/{name}",
-      "method": "GET",
-      "category": "resources",
-      "summary": "One resource by name",
-      "params": {
-        "name": "Resource identifier"
+      "description": "The client-facing alias of the operational health probe.",
+      "category": "system",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Lifecycle probes, load balancers, and curl must reach this health endpoint without a generated client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.vrooli_onboarding.v1.shared.HealthResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.vrooli_onboarding.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
       }
     },
     {
-      "id": "operator-state-get",
-      "path": "/api/v1/operator-state",
-      "method": "GET",
-      "category": "state",
-      "summary": "Read committed operator state",
-      "description": "The committed document with effective values resolved through the configuration resolution order.",
-      "requirements": [
-        "ONB-STATE-AUTHORITY"
-      ]
+      "id": "session_get",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/GetSession",
+      "method": "POST",
+      "summary": "Read onboarding session",
+      "description": "Returns the durable cross-surface wizard pointer.",
+      "category": "session"
     },
     {
-      "id": "operator-state-patch",
-      "path": "/api/v2/operator-state",
-      "method": "PATCH",
-      "category": "state",
-      "summary": "Apply an RFC 7386 JSON Merge Patch to operator state",
-      "description": "The only write. Named fields change; every other field is preserved, including fields this binary does not model. A null removes a key. The merged document is schema-validated before the write; a rejection names the failing path and leaves the stored document untouched.",
-      "requirements": [
-        "ONB-STATE-MERGE-PATCH",
-        "ONB-STATE-PRESERVES-UNKNOWN",
-        "ONB-STATE-SCHEMA-VALIDATED"
-      ],
-      "examples": [
-        {
-          "name": "Enable a scenario",
-          "curl": "curl -X PATCH http://localhost:${API_PORT}/api/v2/operator-state -H 'Content-Type: application/merge-patch+json' -d '{\"scenarios\":{\"swarm-manager\":{\"enabled\":true}}}'"
+      "id": "session_advance",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/AdvanceSessionStep",
+      "method": "POST",
+      "summary": "Advance onboarding session",
+      "description": "Persists the stable onboarding step id.",
+      "category": "session",
+      "request": {
+        "type": "object",
+        "properties": {
+          "step_id": "string (required)"
         }
-      ]
+      }
     },
     {
-      "id": "scenarios",
-      "path": "/api/v2/scenarios",
-      "method": "GET",
-      "category": "selection",
-      "summary": "Manifest-derived scenario read model",
-      "description": "Every scenario with system_required, runtime kind, auto-restart recommendation, effective operator choice, and declared scenario and resource dependencies.",
-      "requirements": [
-        "ONB-SELECT-READ-MODEL",
-        "ONB-SELECT-SYSTEM-LOCKED"
-      ],
-      "examples": [
-        {
-          "name": "List scenarios",
-          "curl": "curl http://localhost:${API_PORT}/api/v2/scenarios"
+      "id": "session_model",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/GetStepModel",
+      "method": "POST",
+      "summary": "Read onboarding step model",
+      "description": "Returns the stable cross-surface wizard step model.",
+      "category": "session"
+    },
+    {
+      "id": "operatorinputs_list",
+      "path": "/vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ListOperatorInputs",
+      "method": "POST",
+      "summary": "List pending operator inputs",
+      "description": "Returns the typed metadata queue awaiting operator answers.",
+      "category": "operatorinputs",
+      "response": {
+        "type": "object",
+        "properties": {
+          "requests": "array\u003csetup.OperatorInputRequest\u003e"
         }
-      ]
+      }
     },
     {
-      "id": "core-set",
-      "path": "/api/v2/core-set",
-      "method": "GET",
-      "category": "state",
-      "summary": "Preview the declared supervision authority",
-      "description": "Returns the current or proposed core seed, the immutable trusted base, and the canonical scenario/resource supervision closure. If the catalog is unavailable, the response preserves the visible seed and reports available false.",
-      "requirements": [
-        "ONB-CORE-SUPERVISION-AUTHORITY"
-      ]
-    },
-    {
-      "id": "recommendation",
-      "path": "/api/v2/recommendation",
-      "method": "GET",
-      "category": "selection",
-      "summary": "Manifest-derived starter profile",
-      "description": "Returns the minimal named starter profile, its scenario selection, and required resource closure for browser and terminal parity."
-    },
-    {
-      "id": "recommendation-accept",
-      "path": "/api/v2/recommendation/accept",
+      "id": "operatorinputs_resolve",
+      "path": "/vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ResolveOperatorInputs",
       "method": "POST",
-      "category": "selection",
-      "summary": "Accept the manifest-derived starter profile",
-      "description": "Idempotently writes the recommended scenario choices and returns the durable onboarding session position."
-    },
-    {
-      "id": "resources-derived",
-      "path": "/api/v2/resources",
-      "method": "GET",
-      "category": "selection",
-      "summary": "Required, optional, and standalone resources",
-      "description": "Required resources derived from the closure and locked; optional resources declared through optional_dependencies; standalone resources no selected scenario requires.",
-      "requirements": [
-        "ONB-SELECT-OPTIONAL-RESOURCES"
-      ]
-    },
-    {
-      "id": "closure",
-      "path": "/api/v2/closure",
-      "method": "GET",
-      "category": "selection",
-      "summary": "Transitive closure of the current selection",
-      "description": "Every scenario and resource the selection implies, with the reason each member entered the set. Replaces the retired setup-order endpoint.",
-      "requirements": [
-        "ONB-SELECT-CLOSURE",
-        "ONB-SELECT-CASCADE-DISCLOSURE"
-      ]
-    },
-    {
-      "id": "union",
-      "path": "/api/v2/union",
-      "method": "GET",
-      "category": "selection",
-      "summary": "Deployment union for the current selection",
-      "description": "The union of scenarios, resources, tools, and safeguards a bundle, VPS, or bridged host must carry to run the selection.",
-      "requirements": [
-        "ONB-SELECT-UNION-EXPORT",
-        "ONB-TIER-SUBSET-SHIPPING"
-      ]
-    },
-    {
-      "id": "credentials-read-model",
-      "path": "/api/v2/credentials",
-      "method": "GET",
-      "category": "credentials",
-      "summary": "Credential descriptors for the selected stack",
-      "description": "Descriptor label, description, obtain_url, required flag, and configured status. Never returns a credential value.",
-      "requirements": [
-        "ONB-CRED-DESCRIPTOR-COMPLETE"
-      ]
-    },
-    {
-      "id": "handoff",
-      "path": "/api/v2/handoff",
-      "method": "POST",
-      "category": "selection",
-      "summary": "Resolve the effective selection for vrooli-bridge",
-      "description": "Accepts bridge node identity and returns the manifest-derived capability selection owned by onboarding. The request and response contain no operator-state internals or credential values.",
-      "requirements": [
-        "ONB-TIER-REMOTE-ONBOARDING"
-      ]
-    },
-    {
-      "id": "apply-run",
-      "path": "/api/v2/apply",
-      "method": "POST",
-      "category": "apply",
-      "summary": "Apply the committed selection to the host",
-      "description": "Installs opted-in tools, applies opted-in safeguards, enables resources, and starts scenarios by delegating to control-plane handlers. Idempotent. A failing item skips its dependants and the run is recorded as partially applied.",
-      "requirements": [
-        "ONB-APPLY-EXECUTES",
-        "ONB-APPLY-IDEMPOTENT",
-        "ONB-APPLY-PARTIAL-FAILURE"
-      ]
-    },
-    {
-      "id": "apply-plan",
-      "path": "/api/v2/apply/plan",
-      "method": "GET",
-      "category": "apply",
-      "summary": "Preview the exact consent-filtered apply plan",
-      "requirements": [
-        "ONB-HOST-CONSENT"
-      ]
-    },
-    {
-      "id": "apply-report",
-      "path": "/api/v2/apply/{run_id}",
-      "method": "GET",
-      "category": "apply",
-      "summary": "Per-item report for an apply run",
-      "params": {
-        "run_id": "Apply run identifier"
+      "summary": "Resolve operator inputs",
+      "description": "Validates and applies the submitted operator answers.",
+      "category": "operatorinputs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "answers": "array\u003cAnswer\u003e (required)"
+        }
       },
-      "requirements": [
-        "ONB-APPLY-PER-ITEM-RESULT"
-      ]
-    },
-    {
-      "id": "session-get",
-      "path": "/api/v2/session",
-      "method": "GET",
-      "category": "session",
-      "summary": "Setup session state",
-      "description": "The step pointer, which steps are satisfied, and the first unsatisfied step. Shared state, so another surface resumes at the same step.",
-      "requirements": [
-        "ONB-PARITY-RESUMABLE-SESSION",
-        "ONB-REENTRY-RESUMES"
-      ]
-    },
-    {
-      "id": "session-step",
-      "path": "/api/v2/session/step",
-      "method": "POST",
-      "category": "session",
-      "summary": "Move the session step pointer",
-      "requirements": [
-        "ONB-PARITY-RESUMABLE-SESSION"
-      ]
-    },
-    {
-      "id": "steps",
-      "path": "/api/v2/steps",
-      "method": "GET",
-      "category": "session",
-      "summary": "Generated onboarding step model"
-    },
-    {
-      "id": "targets",
-      "path": "/api/v2/targets",
-      "method": "GET",
-      "category": "host",
-      "summary": "List reachable onboarding targets",
-      "description": "Returns the local machine and reachable remote targets when the bridge is available."
-    },
-    {
-      "id": "operator-inputs",
-      "path": "/api/v2/operator-inputs",
-      "method": "GET",
-      "category": "session",
-      "summary": "Read pending typed operator decisions",
-      "description": "Returns request metadata and recommendations without exposing secret values."
-    },
-    {
-      "id": "operator-inputs-resolve",
-      "path": "/api/v2/operator-inputs/resolve",
-      "method": "POST",
-      "category": "session",
-      "summary": "Resolve pending typed operator decisions",
-      "description": "Accepts answers for the pending request ids and removes the queue after validation. Secret values are not persisted by the queue."
-    },
-    {
-      "id": "capabilities",
-      "path": "/api/v2/capabilities",
-      "method": "GET",
-      "category": "credentials",
-      "summary": "Discover provider-defined operator capabilities",
-      "description": "Returns capability descriptors, typed inputs, candidate metadata, current state, remediation, and secret-free evidence."
-    },
-    {
-      "id": "capabilities-status",
-      "path": "/api/v2/capabilities/status",
-      "method": "GET",
-      "category": "credentials",
-      "summary": "Read provider-defined capability status",
-      "description": "The status alias exposes the same metadata-only capability catalog."
-    },
-    {
-      "id": "capabilities-preview",
-      "path": "/api/v2/capabilities/preview",
-      "method": "POST",
-      "category": "credentials",
-      "summary": "Preview a typed provider capability",
-      "description": "Validates a typed action and returns the exact declared mutations without performing external writes."
-    },
-    {
-      "id": "capabilities-apply",
-      "path": "/api/v2/capabilities/apply",
-      "method": "POST",
-      "category": "credentials",
-      "summary": "Apply a confirmed provider capability",
-      "description": "Passes typed inputs to the owning control-plane provider and returns only typed result metadata and secret-free evidence."
-    },
-    {
-      "id": "host-requirements",
-      "path": "/api/v2/host-requirements",
-      "method": "GET",
-      "category": "host",
-      "summary": "Host tools and safeguards for the selection",
-      "description": "Derived from selected manifests with risk, privilege, bundling, supported platforms, and any declared safeguard config schema.",
-      "requirements": [
-        "ONB-HOST-DERIVED",
-        "ONB-HOST-RISK-DISCLOSURE",
-        "ONB-HOST-CONFIG-FORMS"
-      ]
-    },
-    {
-      "id": "host-facts",
-      "path": "/api/v2/host-facts",
-      "method": "GET",
-      "category": "host",
-      "summary": "Read-only host facts for first paint",
-      "description": "Returns optional CPU, memory, disk, GPU, and platform facts. The probe is bounded and degrades to available=false when the host is slow or unavailable.",
-      "requirements": ["ONB-HOST-FACTS"]
-    },
-    {
-      "id": "readiness",
-      "path": "/api/v2/readiness",
-      "method": "GET",
-      "category": "readiness",
-      "summary": "Composed readiness with remediation",
-      "description": "Probes credentials, host tools, host safeguards, and resource reachability. Every non-ready item names a remediation. Never returns a credential value.",
-      "requirements": [
-        "ONB-READY-COMPOSED",
-        "ONB-READY-RESOURCE-PROBE",
-        "ONB-READY-REMEDIATION"
-      ],
-      "examples": [
-        {
-          "name": "Check readiness",
-          "curl": "curl http://localhost:${API_PORT}/api/v2/readiness"
+      "response": {
+        "type": "object",
+        "properties": {
+          "configuration_pending": "boolean",
+          "outcomes": "array\u003cAnswerOutcome\u003e"
         }
-      ]
-    },
-    {
-      "id": "credentials-provision",
-      "path": "/api/v2/credentials/provision",
-      "method": "POST",
-      "category": "credentials",
-      "summary": "Relay a credential value to the credential authority",
-      "description": "Accepts the value only in the request body and returns only logical_id and field. The value is never written to operator state, logs, URLs, or any response.",
-      "requirements": [
-        "ONB-CRED-RELAY",
-        "ONB-CRED-NO-DISCLOSURE"
-      ]
-    },
-    {
-      "id": "credentials-doctor",
-      "path": "/api/v2/credentials/doctor",
-      "method": "GET",
-      "category": "credentials",
-      "summary": "Diagnose the credential backend",
-      "description": "Distinguishes an unset value, an unreachable secure store, and a host with no backend, and names the fix for each.",
-      "requirements": [
-        "ONB-CRED-DIAGNOSIS",
-        "ONB-CRED-HEADLESS-STORE"
-      ]
-    },
-    {
-      "id": "readiness-degraded-acknowledgement",
-      "path": "/api/v2/readiness/degraded-acknowledgement",
-      "method": "POST",
-      "category": "readiness",
-      "summary": "Record that the operator accepted the current degraded set",
-      "description": "Records a durable acknowledgement of the exact degraded optional items readiness reports now, identified by its digest. Completion stays withheld while any required item is unresolved, and a digest that no longer names the current gap is rejected. Never accepts or returns a credential value.",
-      "requirements": [
-        "ONB-READY-DEGRADED-CONTINUE",
-        "ONB-COMPLETE-REQUIRES-READY"
-      ],
-      "examples": [
-        {
-          "name": "Acknowledge the current degraded set",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v2/readiness/degraded-acknowledgement -H 'Content-Type: application/json' -d '{\"readiness_digest\":\"<digest from GET /api/v2/readiness>\"}'"
-        }
-      ]
-    },
-    {
-      "id": "glossary",
-      "path": "/api/v1/glossary",
-      "method": "GET",
-      "category": "documentation",
-      "summary": "Plain-language term lookup",
-      "description": "Entries are read from manifests, not from a table in code.",
-      "query": {
-        "q": "Optional search term"
       },
-      "requirements": [
-        "ONB-SELECT-NO-HARDCODED-INVENTORY"
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Malformed or incomplete answers"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "A capability did not become ready; remediation is returned"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Queue or control-plane failure"
+        }
       ]
+    },
+    {
+      "id": "readiness_get",
+      "path": "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/GetReadiness",
+      "method": "POST",
+      "summary": "Read onboarding readiness",
+      "description": "Returns the typed metadata-safe readiness verdict.",
+      "category": "readiness"
+    },
+    {
+      "id": "readiness_acknowledge",
+      "path": "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/AcknowledgeDegradedReadiness",
+      "method": "POST",
+      "summary": "Acknowledge degraded readiness",
+      "description": "Records acknowledgement for the exact current degraded readiness set.",
+      "category": "readiness",
+      "request": {
+        "type": "object",
+        "properties": {
+          "readiness_digest": "string (required)"
+        }
+      },
+      "errors": [
+        {
+          "status": 409,
+          "code": "aborted",
+          "description": "The digest does not identify the current degraded set"
+        }
+      ]
+    },
+    {
+      "id": "apply_start",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/StartApply",
+      "method": "POST",
+      "summary": "Start onboarding apply",
+      "description": "Starts a durable host configuration run.",
+      "category": "apply"
+    },
+    {
+      "id": "apply_run",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyRun",
+      "method": "POST",
+      "summary": "Read onboarding apply run",
+      "description": "Returns typed state and step events for one apply run.",
+      "category": "apply",
+      "request": {
+        "type": "object",
+        "properties": {
+          "run_id": "string (required)"
+        }
+      }
+    },
+    {
+      "id": "apply_plan",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyPlan",
+      "method": "POST",
+      "summary": "Read onboarding apply plan",
+      "description": "Returns the typed actions implied by the current selection.",
+      "category": "apply"
+    },
+    {
+      "id": "selection_scenarios",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/ListScenarios",
+      "method": "POST",
+      "summary": "List onboarding scenarios",
+      "description": "",
+      "category": "selection"
+    },
+    {
+      "id": "selection_core_set",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet",
+      "method": "POST",
+      "summary": "Read onboarding core set",
+      "description": "",
+      "category": "selection",
+      "request": {
+        "type": "object",
+        "properties": {
+          "seed": "array of strings"
+        }
+      }
+    },
+    {
+      "id": "selection_recommendation",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetRecommendation",
+      "method": "POST",
+      "summary": "Read onboarding recommendation",
+      "description": "",
+      "category": "selection"
+    },
+    {
+      "id": "selection_accept_recommendation",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/AcceptRecommendation",
+      "method": "POST",
+      "summary": "Accept onboarding recommendation",
+      "description": "",
+      "category": "selection"
+    },
+    {
+      "id": "selection_closure",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetClosure",
+      "method": "POST",
+      "summary": "Read selection closure",
+      "description": "",
+      "category": "selection"
+    },
+    {
+      "id": "selection_union",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetUnion",
+      "method": "POST",
+      "summary": "Read deployment union",
+      "description": "",
+      "category": "selection"
+    },
+    {
+      "id": "selection_handoff",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/CreateHandoff",
+      "method": "POST",
+      "summary": "Create onboarding handoff",
+      "description": "",
+      "category": "selection"
+    },
+    {
+      "id": "capabilities_list",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ListCapabilities",
+      "method": "POST",
+      "summary": "List operator capabilities",
+      "description": "Returns provider-owned capability descriptors, inputs, status, remediation, and secret-free evidence.",
+      "category": "capabilities"
+    },
+    {
+      "id": "capabilities_status",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/GetCapabilityStatus",
+      "method": "POST",
+      "summary": "Read operator capability status",
+      "description": "Returns the current provider capability statuses without action execution.",
+      "category": "capabilities"
+    },
+    {
+      "id": "capabilities_preview",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/PreviewCapability",
+      "method": "POST",
+      "summary": "Preview a capability action",
+      "description": "Validates typed inputs and returns the provider's declared mutations without applying them.",
+      "category": "capabilities"
+    },
+    {
+      "id": "capabilities_apply",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ApplyCapability",
+      "method": "POST",
+      "summary": "Apply a confirmed capability action",
+      "description": "Applies a confirmed provider capability and returns secret-free evidence.",
+      "category": "capabilities"
+    },
+    {
+      "id": "credentials_list",
+      "path": "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ListCredentials",
+      "method": "POST",
+      "summary": "List credential descriptors",
+      "description": "Returns credential metadata and status without credential values.",
+      "category": "credentials"
+    },
+    {
+      "id": "credentials_provision",
+      "path": "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ProvisionCredential",
+      "method": "POST",
+      "summary": "Provision one credential",
+      "description": "Stores a credential value supplied in the write-only request; the value is never returned.",
+      "category": "credentials",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Credential identity or value is missing"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Verified operator authorization is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Onboarding write capability is required"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Native credential authority could not provision the credential"
+        }
+      ]
+    },
+    {
+      "id": "credentials_diagnose",
+      "path": "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/DiagnoseCredentials",
+      "method": "POST",
+      "summary": "Diagnose the credential authority",
+      "description": "Returns typed provider, inventory, and recovery metadata without credential values.",
+      "category": "credentials"
+    },
+    {
+      "id": "host_requirements",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/ListHostRequirements",
+      "method": "POST",
+      "summary": "List host requirements",
+      "description": "Returns typed host tools and safeguards for a selected target.",
+      "category": "host"
+    },
+    {
+      "id": "host_facts",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/GetHostFacts",
+      "method": "POST",
+      "summary": "Read host facts",
+      "description": "Returns bounded, secret-free inventory facts for a selected target.",
+      "category": "host"
+    },
+    {
+      "id": "host_targets",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/ListTargets",
+      "method": "POST",
+      "summary": "List onboarding targets",
+      "description": "Returns the fleet target inventory and shared readiness checks.",
+      "category": "host"
+    },
+    {
+      "id": "host_patch_safeguard_config",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/PatchHostSafeguardConfig",
+      "method": "POST",
+      "summary": "Patch safeguard configuration",
+      "description": "Commits one typed safeguard configuration value.",
+      "category": "host"
+    },
+    {
+      "id": "host_set_recipient",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/SetNotificationRecipient",
+      "method": "POST",
+      "summary": "Set notification recipient",
+      "description": "Commits the notification recipient for the selected host.",
+      "category": "host"
+    },
+    {
+      "id": "operator_state_get",
+      "path": "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/GetOperatorState",
+      "method": "POST",
+      "summary": "Read operator state",
+      "description": "Returns the typed persisted operator selection document.",
+      "category": "operatorstate"
+    },
+    {
+      "id": "operator_state_patch",
+      "path": "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState",
+      "method": "POST",
+      "summary": "Patch operator state",
+      "description": "Applies only the operator state fields named by the update mask.",
+      "category": "operatorstate"
+    },
+    {
+      "id": "resources_list",
+      "path": "/vrooli.vrooli_onboarding.v1.resources.ResourcesService/ListResources",
+      "method": "POST",
+      "summary": "List onboarding resources",
+      "description": "",
+      "category": "resources"
+    },
+    {
+      "id": "resources_get",
+      "path": "/vrooli.vrooli_onboarding.v1.resources.ResourcesService/GetResource",
+      "method": "POST",
+      "summary": "Read one onboarding resource",
+      "description": "",
+      "category": "resources"
+    },
+    {
+      "id": "resources_health",
+      "path": "/vrooli.vrooli_onboarding.v1.resources.ResourcesService/GetResourceHealth",
+      "method": "POST",
+      "summary": "Read onboarding resource health",
+      "description": "",
+      "category": "resources"
+    },
+    {
+      "id": "resources_derived",
+      "path": "/vrooli.vrooli_onboarding.v1.resources.ResourcesService/ListDerivedResources",
+      "method": "POST",
+      "summary": "List derived onboarding resources",
+      "description": "",
+      "category": "resources"
+    },
+    {
+      "id": "glossary_search",
+      "path": "/vrooli.vrooli_onboarding.v1.glossary.GlossaryService/SearchGlossary",
+      "method": "POST",
+      "summary": "Search onboarding glossary",
+      "description": "",
+      "category": "documentation"
+    },
+    {
+      "id": "apply_review",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply",
+      "method": "POST",
+      "summary": "Review onboarding apply",
+      "description": "Freezes the exact target, revision, and plan effects for explicit consent.",
+      "category": "apply"
+    },
+    {
+      "id": "session_draft_get",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/GetDraft",
+      "method": "POST",
+      "summary": "Read onboarding draft",
+      "description": "Returns the target- and actor-scoped non-secret draft.",
+      "category": "session"
+    },
+    {
+      "id": "session_draft_save",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/SaveDraft",
+      "method": "POST",
+      "summary": "Save onboarding draft",
+      "description": "Persists non-secret choices without changing effective host state.",
+      "category": "session",
+      "request": {
+        "type": "object",
+        "properties": {
+          "actor": "string (required)",
+          "base_revision": "string (required)",
+          "choices": "object",
+          "target": "string (required)"
+        }
+      }
+    },
+    {
+      "id": "session_draft_discard",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/DiscardDraft",
+      "method": "POST",
+      "summary": "Discard onboarding draft",
+      "description": "Removes a target- and actor-scoped draft without changing committed intent.",
+      "category": "session"
+    },
+    {
+      "id": "apply_cancel",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/CancelApply",
+      "method": "POST",
+      "summary": "Cancel onboarding apply",
+      "description": "Requests cancellation at the next safe item boundary.",
+      "category": "apply",
+      "request": {
+        "type": "object",
+        "properties": {
+          "run_id": "string (required)"
+        }
+      }
+    },
+    {
+      "id": "configuration_search",
+      "path": "/vrooli.vrooli_onboarding.v1.glossary.GlossaryService/SearchConfiguration",
+      "method": "POST",
+      "summary": "Search safe onboarding configuration metadata",
+      "description": "",
+      "category": "configuration"
+    },
+    {
+      "id": "profiles_evaluate",
+      "path": "/vrooli.vrooli_onboarding.v1.profiles.ProfileService/EvaluateProfile",
+      "method": "POST",
+      "summary": "Evaluate a declarative onboarding profile",
+      "description": "",
+      "category": "selection"
+    },
+    {
+      "id": "profiles_list",
+      "path": "/vrooli.vrooli_onboarding.v1.profiles.ProfileService/ListProfiles",
+      "method": "POST",
+      "summary": "List supported onboarding profiles",
+      "description": "",
+      "category": "selection"
     }
   ]
 }

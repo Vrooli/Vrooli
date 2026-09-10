@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 func hostNames(items []hostItem) []string {
@@ -21,7 +22,7 @@ func hostNames(items []hostItem) []string {
 	return names
 }
 
-func resolvedNames(requirements []hostreq.ResolvedRequirement) []string {
+func resolvedNames(requirements []hostreqspec.ResolvedRequirement) []string {
 	names := make([]string, 0, len(requirements))
 	for _, requirement := range requirements {
 		names = append(names, requirement.Name)
@@ -118,7 +119,7 @@ func TestBundleModeExcludesProjectScopeHostItems(t *testing.T) {
 	t.Setenv("BUNDLE_ROOT", bundle)
 	t.Setenv("VROOLI_STORAGE_ROOT", storageRoot)
 
-	w := doGet(t, NewServer(), "/api/v2/host-requirements")
+	w := doPost(t, NewServer(), "/vrooli.vrooli_onboarding.v1.host.HostService/ListHostRequirements", `{"target":"local"}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}

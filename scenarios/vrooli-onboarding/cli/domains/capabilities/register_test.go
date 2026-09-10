@@ -29,9 +29,9 @@ func TestCapabilitySecretComesFromStandardInput(t *testing.T) {
 	var previewBody string
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/v2/capabilities":
+		case "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ListCapabilities":
 			_, _ = w.Write([]byte(`{"capabilities":[{"descriptor":{"id":"demo","inputs":[{"id":"token","kind":"secret"}]}}]}`))
-		case "/api/v1/v2/capabilities/preview":
+		case "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/PreviewCapability":
 			body, _ := io.ReadAll(r.Body)
 			previewBody = string(body)
 			_, _ = w.Write([]byte(`{"capability_id":"demo","mutations":[]}`))
@@ -60,14 +60,14 @@ func TestCapabilityApplyPreviewsBeforeApplying(t *testing.T) {
 	var calls []string
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/v2/capabilities":
+		case "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ListCapabilities":
 			_, _ = w.Write([]byte(`{"capabilities":[{"descriptor":{"id":"demo","policy":{"requires_confirmation":true},"inputs":[]}}]}`))
-		case "/api/v1/v2/capabilities/preview":
+		case "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/PreviewCapability":
 			calls = append(calls, "preview")
 			_, _ = w.Write([]byte(`{"capability_id":"demo","mutations":[]}`))
-		case "/api/v1/v2/capabilities/apply":
+		case "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ApplyCapability":
 			calls = append(calls, "apply")
-			_, _ = w.Write([]byte(`{"state":"ready","outcome":"applied"}`))
+			_, _ = w.Write([]byte(`{"state":"CAPABILITY_STATE_READY","outcome":"applied"}`))
 		default:
 			_, _ = w.Write([]byte(`{"state":"ready"}`))
 		}

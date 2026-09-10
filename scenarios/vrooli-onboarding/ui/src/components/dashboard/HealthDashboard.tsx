@@ -1,7 +1,7 @@
 import { Activity, RefreshCw, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import type { ResourceHealthStatus } from "../../types";
-import { fetchResourceHealth } from "../../lib/api";
+import type { ResourceHealth } from "@vrooli/proto-types/vrooli-onboarding/v1/resources/resources_pb";
+import { fetchResourceHealth } from "../../api/resources";
 import { cn } from "../../lib/utils";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
@@ -15,7 +15,7 @@ interface HealthDashboardProps {
   onNavigateToWizard?: () => void;
 }
 
-function HealthCard({ res }: { res: ResourceHealthStatus }) {
+function HealthCard({ res }: { res: ResourceHealth }) {
   return (
     <div
       data-testid={`health-card-${res.name}`}
@@ -34,7 +34,7 @@ function HealthCard({ res }: { res: ResourceHealthStatus }) {
           </span>
           <span className="text-sm font-medium sm:text-base">{res.name}</span>
         </div>
-        <StatusBadge>{res.category}</StatusBadge>
+      <StatusBadge>{res.category}</StatusBadge>
       </div>
       <StatusBadge tone={res.available ? "success" : "warning"}>{res.status}</StatusBadge>
     </div>
@@ -44,22 +44,22 @@ function HealthCard({ res }: { res: ResourceHealthStatus }) {
 export function HealthDashboard({ onNavigateToWizard }: HealthDashboardProps = {}) {
   const { data, isLoading, error, dataUpdatedAt, refetch, isRefetching } = useQuery({
     queryKey: ["resource-health"],
-    queryFn: fetchResourceHealth,
+    queryFn: () => fetchResourceHealth(),
     refetchInterval: 30_000,
   });
 
   const resources = data?.resources ?? [];
-  const healthyCount = data?.healthy_count ?? 0;
+  const healthyCount = data?.healthyCount ?? 0;
   const allHealthy = !isLoading && !error && healthyCount === resources.length;
 
   return (
     <div data-testid="health-dashboard" className="health-surface">
       <div data-testid="health-card" role="status" className="sr-only">{i18n.t("onboarding.dashboard.surface")}</div>
       {/* Header - always rendered for heading hierarchy */}
-      <header className="surface-heading">
+      <section className="surface-heading" aria-labelledby="health-dashboard-heading">
         <div>
           <p className="surface-eyebrow">{i18n.t("onboarding.dashboard.eyebrow")}</p>
-          <h1>{i18n.t("onboarding.dashboard.heading")}</h1>
+          <h1 id="health-dashboard-heading">{i18n.t("onboarding.dashboard.heading")}</h1>
           {!isLoading && !error && resources.length > 0 && (
             <p data-testid="health-summary" className="mt-1 text-sm text-muted">
               <span className={cn("font-medium", allHealthy ? "text-primary" : "text-warning")}>
@@ -87,7 +87,7 @@ export function HealthDashboard({ onNavigateToWizard }: HealthDashboardProps = {
             </Button>
           )}
         </div>
-      </header>
+      </section>
 
       {!isLoading && !error && resources.length > 0 && (
         <div className="health-stats" data-testid="health-summary-cards">

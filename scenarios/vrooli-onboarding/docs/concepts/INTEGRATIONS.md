@@ -2,12 +2,12 @@
 
 ## What onboarding integrates with
 
-### Target-aware REST reach
+### Target-aware Connect reach
 
 The onboarding API remains the authority for operator state on the configured
 machine. A request with `target=local` executes locally. A request with another
 registered node id is dispatched through Bridge's governed scenario channel;
-the node executes the same `/api/v2/...` handler with the original HTTP verb.
+the node executes the same Connect procedure with the original typed request.
 The browser therefore does not carry a second remote state implementation.
 
 | Counterpart | Direction | Contract |
@@ -33,7 +33,7 @@ document locally and reports durable step status and readiness back to the
 caller.
 | `scenario-to-cloud` | ← Onboarding | Same surface for a VPS target |
 | `vrooli-autoheal` | ← Onboarding | Reads the committed selection and the completion marker to know what should be running |
-| `search-hub` | ← Onboarding | Indexes the operator-surface feed so a setting is findable by intent *(deferred)* |
+| `search-hub` | ← Onboarding | Receives the metadata-only configuration provider declared in `.vrooli/search.json`; onboarding also serves the same contract as a local fallback |
 | `experience-manager` | ← Onboarding | Validates the page, state, claim, and journey contract in `experience/` |
 | `browser-automation-studio` | ← Onboarding | Records journey evidence per declared journey |
 | `integration-hub` | — | **Deferred.** Owns connectors and connections |
@@ -41,7 +41,8 @@ caller.
 ## The bridge boundary
 
 vrooli-bridge owns reaching a machine and holding the connection. Onboarding owns
-deciding what runs there. Bridge sends node identity to `POST /api/v2/handoff`;
+deciding what runs there. Bridge sends node identity to
+`SelectionService/CreateHandoff`;
 onboarding returns the effective capability-shaped selection, without exposing
 operator-state internals or credential values. Bridge transfers that selection
 through its private remote temporary-file path, then runs the onboarding CLI and

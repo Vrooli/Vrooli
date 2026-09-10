@@ -11,6 +11,7 @@
     "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "@vrooli/ui-selectors": "file:../../../packages/ui-selectors",
     "axe-core": "^4.12.1",
+    "brace-expansion": "2.1.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "express": "^5.2.1",
@@ -20,11 +21,12 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "15.1.1",
-    "tailwind-merge": "^2.3.0"
+    "tailwind-merge": "^2.3.0",
+    "ws": "8.21.0"
   },
   "description": "React + Vite front-end for Vrooli Onboarding",
   "devDependencies": {
-    "@eslint/js": "^9",
+    "@eslint/js": "^9.39.4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
@@ -33,7 +35,7 @@
     "@typescript-eslint/eslint-plugin": "^8.7.0",
     "@typescript-eslint/parser": "^8.7.0",
     "@vitejs/plugin-react": "^4.3.1",
-    "@vitest/coverage-v8": "^2.1.4",
+    "@vitest/coverage-v8": "^3.2.6",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.9.1",
     "eslint-import-resolver-typescript": "^4.4.4",
@@ -41,29 +43,45 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.11",
     "jsdom": "^29.0.0",
-    "postcss": "^8.4.44",
+    "postcss": "8.5.18",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.3",
-    "typescript-eslint": "^8",
-    "vite": "^5.4.6",
-    "vitest": "^2.1.4"
+    "typescript-eslint": "^8.57.1",
+    "vite": "^6.4.3",
+    "vitest": "^3.2.6"
   },
   "name": "vrooli-onboarding-ui",
   "packageManager": "pnpm@9.12.1",
+  "pnpm": {
+    "overrides": {
+      "minimatch@3.1.5>brace-expansion": "1.1.18",
+      "minimatch@9.0.9>brace-expansion": "2.0.2",
+      "minimatch@10.2.4>brace-expansion": "5.0.9",
+      "browserslist": "4.28.7",
+      "js-yaml": "4.3.2",
+      "nanoid": "3.3.18",
+      "picomatch": "4.0.4",
+      "postcss": "8.5.18",
+      "undici": "7.29.0",
+      "vite": "6.4.3",
+      "ws": "8.21.0"
+    }
+  },
   "private": true,
   "scripts": {
     "build": "pnpm selector:manifest && vite build",
+    "build:profile": "vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint src --ext ts,tsx",
     "lint:fix": "eslint src --ext ts,tsx --fix",
     "preview": "vite preview",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check",
     "selector:manifest": "node scripts/generate-selector-manifest.mjs",
     "strings:check": "node scripts/strings-check.mjs",
     "test": "pnpm selector:manifest && vitest run --coverage",
     "test:coverage": "pnpm selector:manifest && vitest run --coverage",
     "test:no-coverage": "vitest run",
-    "type-check": "pnpm selector:manifest && tsc --noEmit",
-    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
+    "type-check": "pnpm selector:manifest && tsc --noEmit"
   },
   "type": "module",
   "version": "1.0.0"

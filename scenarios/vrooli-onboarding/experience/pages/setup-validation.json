@@ -10,8 +10,8 @@
     ],
     "purpose": "Prove the install works, and make every gap actionable without leaving the step.",
     "prd_refs": [
-      "OT-P1-001",
-      "OT-P1-002"
+      "OT-P0-010",
+      "OT-P0-011"
     ]
   },
   "priorities": [

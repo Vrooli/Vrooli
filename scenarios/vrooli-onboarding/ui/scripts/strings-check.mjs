@@ -21,7 +21,7 @@ function findHardcodedStrings() {
   for (const file of productionFiles(sourceRoot)) {
     const source = readFileSync(file, "utf8");
     const location = relative(uiRoot, file);
-    const jsxText = />\s*([A-Za-z][^<{\n]{2,})\s*</g;
+    const jsxText = /<[A-Za-z](?:(?!=>)[^>]|=>)*>\s*([A-Za-z][^<{\n]{2,})\s*</g;
     for (const match of source.matchAll(jsxText)) {
       const value = match[1].trim();
       if (value && !/^(V|[A-Z]\s*)$/.test(value)) findings.push(`${location}: JSX text "${value}"`);

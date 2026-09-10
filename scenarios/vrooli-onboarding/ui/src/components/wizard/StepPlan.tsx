@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
-import { fetchV2Closure, fetchV2Recommendation } from "../../lib/api";
-import type { V2ClosureResponse, V2Recommendation } from "../../types";
+import { fetchClosure, fetchRecommendation } from "../../api/selection";
+import type { GetClosureResponse, GetRecommendationResponse } from "@vrooli/proto-types/vrooli-onboarding/v1/selection/selection_pb";
 import { PlanSummary } from "@vrooli/react-component-library/PlanSummary/0";
 import { i18n } from "../../i18n";
 
 export function StepPlan({ onAccept, onAdjust }: { onAccept: () => Promise<void>; onAdjust: () => void }) {
-  const [recommendation, setRecommendation] = useState<V2Recommendation | null>(null);
-  const [closure, setClosure] = useState<V2ClosureResponse | null>(null);
+  const [recommendation, setRecommendation] = useState<GetRecommendationResponse | null>(null);
+  const [closure, setClosure] = useState<GetClosureResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [accepting, setAccepting] = useState(false);
 
   useEffect(() => {
     let active = true;
-    Promise.all([fetchV2Recommendation(), fetchV2Closure()]).then(([nextRecommendation, nextClosure]) => {
+    Promise.all([fetchRecommendation(), fetchClosure()]).then(([nextRecommendation, nextClosure]) => {
       if (!active) return;
       if (!Array.isArray(nextRecommendation?.scenarios) || !Array.isArray(nextRecommendation?.resources)) {
         setError(i18n.t("onboarding.plan.unavailable"));

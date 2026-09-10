@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	clitest "github.com/vrooli/cli-core/cliapptest"
+	resourcesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/resources/resourcesv1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -26,12 +27,12 @@ func TestCommandsRenderAPIResponses(t *testing.T) {
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
-		case "/api/v1/resources":
+		case resourcesconnect.ResourcesServiceListResourcesProcedure:
 			_, _ = w.Write([]byte(`{"count":1,"resources":[{"name":"postgres","status":"running","category":"database","installed":true}]}`))
-		case "/api/v1/resources/postgres":
-			_, _ = w.Write([]byte(`{"name":"postgres","status":"running","category":"database","installed":true}`))
-		case "/api/v1/resources/health":
-			_, _ = w.Write([]byte(`{"healthy_count":1,"total":1,"checked_at":"2026-01-01T00:00:00Z","resources":[{"name":"postgres","status":"healthy","category":"database","available":true}]}`))
+		case resourcesconnect.ResourcesServiceGetResourceProcedure:
+			_, _ = w.Write([]byte(`{"resource":{"name":"postgres","status":"running","category":"database","installed":true}}`))
+		case resourcesconnect.ResourcesServiceGetResourceHealthProcedure:
+			_, _ = w.Write([]byte(`{"healthyCount":1,"total":1,"checkedAt":"2026-01-01T00:00:00Z","resources":[{"name":"postgres","status":"healthy","category":"database","available":true}]}`))
 		default:
 			http.NotFound(w, r)
 		}

@@ -1,25 +1,6 @@
 {
+  "schemaVersion": 1,
   "selectors": {
-    "library.forms.search-input.root": {
-      "testId": "forms.search-input",
-      "selector": "[data-testid=\"forms.search-input\"]"
-    },
-    "library.controls.button.root": {
-      "testId": "controls.button",
-      "selector": "[data-testid=\"controls.button\"]"
-    },
-    "library.controls.button.icon": {
-      "testId": "controls.button.icon",
-      "selector": "[data-testid=\"controls.button.icon\"]"
-    },
-    "library.controls.button.label": {
-      "testId": "controls.button.label",
-      "selector": "[data-testid=\"controls.button.label\"]"
-    },
-    "library.react-component-library:StatusBadge.root": {
-      "testId": "react-component-library:StatusBadge",
-      "selector": "[data-testid=\"react-component-library:StatusBadge\"]"
-    },
     "app.skipToContent": {
       "testId": "skip-to-content",
       "selector": "[data-testid=\"skip-to-content\"]"
@@ -275,6 +256,26 @@
     "glossary.list": {
       "testId": "glossary-list",
       "selector": "[data-testid=\"glossary-list\"]"
+    },
+    "library.forms.search-input.root": {
+      "testId": "forms.search-input",
+      "selector": "[data-testid=\"forms.search-input\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.react-component-library:StatusBadge.root": {
+      "testId": "react-component-library:StatusBadge",
+      "selector": "[data-testid=\"react-component-library:StatusBadge\"]"
     }
   },
   "dynamicSelectors": {
@@ -322,5 +323,9 @@
         }
       ]
     }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b7078154c77daecffe58b09e5962e7da641479427050dd7dcb31c491b03dde1e",
+    "ui/src/consts/selectors.ts": "e119d5bb878e601c23c3216d0361364fd7cedbac1729c46233092b4382cc29b4"
   }
 }

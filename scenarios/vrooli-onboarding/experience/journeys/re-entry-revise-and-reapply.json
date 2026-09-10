@@ -7,7 +7,7 @@
     "title": "Re-entry: add a capability to a configured install",
     "purpose": "An operator returns to a configured install, adds one scenario, and re-applies \u2014 without re-answering decisions they already made.",
     "prd_refs": [
-      "OT-P1-002",
+      "OT-P0-011",
       "OT-P0-006"
     ]
   },

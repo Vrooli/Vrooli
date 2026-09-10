@@ -11,6 +11,10 @@ import (
 
 func TestControlCommandsReadApplyAndExport(t *testing.T) {
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			_, _ = w.Write([]byte(`{}`))
+			return
+		}
 		if r.Method == http.MethodPatch || r.Method == http.MethodPost {
 			_, _ = w.Write([]byte(`{"ok":true}`))
 			return
@@ -19,9 +23,6 @@ func TestControlCommandsReadApplyAndExport(t *testing.T) {
 	}))
 	groups := CommandGroups(core)
 	if err := groups[0].Commands[0].Run([]string{"--json"}); err != nil {
-		t.Fatal(err)
-	}
-	if err := groups[1].Commands[0].Run([]string{"--json"}); err != nil {
 		t.Fatal(err)
 	}
 	subs := SubcommandGroups(core)

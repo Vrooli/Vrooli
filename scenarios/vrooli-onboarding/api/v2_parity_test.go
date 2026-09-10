@@ -13,12 +13,12 @@ func TestAPIPatchPreservesSharedOperatorStateFields(t *testing.T) {
 	t.Setenv("VROOLI_ROOT", root)
 	t.Setenv("BUNDLE_ROOT", "")
 	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","trust_posture":"shared","core":{"seed":["git","postgres"],"trusted_base":["git"]}}`)
-	w := doRequest(t, NewServer(), http.MethodPatch, "/api/v2/operator-state", `{"scenarios":{"demo":{"enabled":true}}}`)
+	w := doOperatorStatePatch(t, NewServer(), `{"scenarios":{"demo":{"enabled":true}}}`, "scenarios.demo.enabled")
 	if w.Code != http.StatusOK {
 		t.Fatalf("patch = %d: %s", w.Code, w.Body.String())
 	}
 	body := w.Body.String()
-	for _, preserved := range []string{`"trust_posture":"shared"`, `"trusted_base":["git"]`, `"enabled":true`} {
+	for _, preserved := range []string{`"trustPosture":"shared"`, `"trustedBase":["git"]`, `"enabled":true`} {
 		if !strings.Contains(body, preserved) {
 			t.Fatalf("shared state lost %s: %s", preserved, body)
 		}
@@ -112,20 +112,32 @@ func applyParityPatch(t *testing.T, patch map[string]any) map[string]any {
 	if err != nil {
 		t.Fatal(err)
 	}
-	w := doRequest(t, NewServer(), http.MethodPatch, "/api/v2/operator-state", string(body))
+	var patchValue map[string]any
+	if err := json.Unmarshal(body, &patchValue); err != nil {
+		t.Fatal(err)
+	}
+	paths := make([]string, 0)
+	for top, rawChoices := range patchValue {
+		_, ok := rawChoices.(map[string]any)
+		if !ok {
+			paths = append(paths, top)
+			continue
+		}
+		paths = append(paths, strings.ReplaceAll(strings.ReplaceAll(top, "host_safeguards", "hostSafeguards"), "host_tools", "hostTools"))
+	}
+	w := doOperatorStatePatch(t, NewServer(), string(body), paths...)
 	if w.Code != http.StatusOK {
 		t.Fatalf("parity patch = %d: %s", w.Code, w.Body.String())
 	}
 	var state map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &state); err != nil {
-		t.Fatal(err)
-	}
+	state = operatorStateFromResponse(t, w.Body.Bytes())
 	return state
 }
 
 func canonicalParityState(t *testing.T, state map[string]any) string {
 	t.Helper()
 	delete(state, "updated_at")
+	delete(state, "updatedAt")
 	body, err := json.Marshal(state)
 	if err != nil {
 		t.Fatal(err)

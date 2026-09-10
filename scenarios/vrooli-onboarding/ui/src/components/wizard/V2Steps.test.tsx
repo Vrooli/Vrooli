@@ -1,5 +1,5 @@
 // [REQ:ONB-CORE-SUPERVISION-AUTHORITY]
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "../../test-utils";
 import { vi } from "vitest";
 import { renderWithProviders } from "@vrooli/api-base/testing";
 import { DerivedResourceStep } from "./DerivedResourceStep";
@@ -11,52 +11,71 @@ import { StepCredentials } from "./StepCredentials";
 import { StepReady } from "./StepReady";
 import { ScenarioCatalogStep } from "./ScenarioCatalogStep";
 import { StepCoreSet } from "./StepCoreSet";
+import { ApplyRunState, ApplyStepState } from "@vrooli/proto-types/vrooli-onboarding/v1/apply/apply_pb";
 
 const api = vi.hoisted(() => ({
-  fetchV2Scenarios: vi.fn(),
-  fetchV2CoreSet: vi.fn(),
-  fetchV2HostRequirements: vi.fn(),
-  fetchV2Readiness: vi.fn(),
-  fetchV2Closure: vi.fn(),
-  fetchV2Resources: vi.fn(),
-  provisionCredential: vi.fn(),
-  applyOnboarding: vi.fn(),
-  fetchV2ApplyPlan: vi.fn(),
-  fetchV2ApplyStatus: vi.fn(),
+  fetchHostRequirements: vi.fn(),
+}));
+const credentialsApi = vi.hoisted(() => ({ provisionCredential: vi.fn() }));
+const capabilitiesApi = vi.hoisted(() => ({
   fetchCapabilities: vi.fn(),
   previewCapability: vi.fn(),
   applyCapability: vi.fn(),
-  acknowledgeDegraded: vi.fn(),
+}));
+const selectionApi = vi.hoisted(() => ({
+  fetchScenarios: vi.fn(),
+  fetchCoreSet: vi.fn(),
+  fetchClosure: vi.fn(),
+}));
+const resourcesApi = vi.hoisted(() => ({ fetchDerivedResources: vi.fn() }));
+
+const applyApi = vi.hoisted(() => ({
+  startApply: vi.fn(),
+  reviewApply: vi.fn(),
+  fetchApplyPlan: vi.fn(),
+  fetchApplyRun: vi.fn(),
+  cancelApply: vi.fn(),
 }));
 
-vi.mock("../../lib/api", () => api);
+const readinessApi = vi.hoisted(() => ({ fetchReadiness: vi.fn(), acknowledgeDegraded: vi.fn() }));
+const operatorInputsApi = vi.hoisted(() => ({ fetchOperatorInputs: vi.fn(), resolveOperatorInputs: vi.fn() }));
+
+vi.mock("../../api/host", () => api);
+vi.mock("../../api/credentials", () => credentialsApi);
+vi.mock("../../api/capabilities", () => capabilitiesApi);
+vi.mock("../../api/selection", () => selectionApi);
+vi.mock("../../api/resources", () => resourcesApi);
+vi.mock("../../api/apply", () => applyApi);
+vi.mock("../../api/readiness", () => readinessApi);
+vi.mock("../../api/operatorinputs", () => operatorInputsApi);
 
 const scenarios = {
   scenarios: [
-    { name: "control-plane", system_required: true, enabled: true, auto_restart: true, resources: ["postgres"], description: "Required" },
-    { name: "writer", system_required: false, enabled: false, auto_restart: false, resources: ["ollama"], description: "Optional" },
+    { name: "control-plane", systemRequired: true, enabled: true, autoRestart: true, resources: ["postgres"], description: "Required" },
+    { name: "writer", systemRequired: false, enabled: false, autoRestart: false, resources: ["ollama"], description: "Optional" },
   ],
   count: 2,
 };
 
 beforeEach(() => {
-  api.fetchV2Scenarios.mockResolvedValue(scenarios);
-  api.fetchV2CoreSet.mockResolvedValue({
+  window.localStorage.clear();
+  selectionApi.fetchScenarios.mockResolvedValue(scenarios);
+  selectionApi.fetchCoreSet.mockResolvedValue({
     available: true,
     seed: ["control-plane", "writer"],
-    trusted_base: ["control-plane"],
-    member_counts: { scenario: 2, resource: 1 },
+    trustedBase: ["control-plane"],
+    memberCounts: { scenario: 2, resource: 1 },
     members: [
-      { name: "control-plane", kind: "scenario", supervision_intent: "must_start" },
-      { name: "writer", kind: "scenario", supervision_intent: "must_start" },
-      { name: "postgres", kind: "resource", supervision_intent: "must_serve" },
+      { name: "control-plane", kind: "scenario", supervisionIntent: "must_start" },
+      { name: "writer", kind: "scenario", supervisionIntent: "must_start" },
+      { name: "postgres", kind: "resource", supervisionIntent: "must_serve" },
     ],
   });
-  api.fetchV2HostRequirements.mockResolvedValue({
+  api.fetchHostRequirements.mockResolvedValue({
     tools: [{ name: "git", required: true, reason: "source control", status: "required" }],
     safeguards: [{ name: "firewall", required: false, reason: "network safety", status: "optional", risk: "medium", config_schema: { type: "object", properties: { target: { type: "string", description: "collector target" } } } }],
   });
-  api.fetchV2Readiness.mockResolvedValue({
+  readinessApi.fetchReadiness.mockResolvedValue({
     status: "degraded",
     scenarios: ["control-plane"],
     resources: ["postgres"],
@@ -67,21 +86,25 @@ beforeEach(() => {
     blockers: [],
     degraded: [],
   });
-  api.acknowledgeDegraded.mockResolvedValue({ status: "acknowledged", readiness_digest: "digest-under-test" });
-  api.fetchV2Closure.mockResolvedValue({ resources: [{ name: "postgres", required: true, direct: true, provenance: [] }, { name: "ollama", required: false, direct: false, provenance: [] }], scenarios: [] });
-  api.fetchV2Resources.mockResolvedValue({
+  readinessApi.acknowledgeDegraded.mockResolvedValue({ status: "acknowledged", readinessDigest: "digest-under-test" });
+  operatorInputsApi.fetchOperatorInputs.mockResolvedValue({ requests: [] });
+  operatorInputsApi.resolveOperatorInputs.mockResolvedValue({ configurationPending: false, outcomes: [] });
+  selectionApi.fetchClosure.mockResolvedValue({ resources: [{ name: "postgres", required: true, direct: true, provenance: [] }, { name: "ollama", required: false, direct: false, provenance: [] }], scenarios: [] });
+  resourcesApi.fetchDerivedResources.mockResolvedValue({
     resources: [{ name: "postgres", category: "database", enabled: true, installed: true }, { name: "ollama", category: "ai", enabled: false, installed: true }],
     required: [{ name: "postgres", category: "database", enabled: true, installed: true }],
     optional: [{ name: "ollama", category: "ai", enabled: false, installed: true }],
     standalone: [{ name: "qdrant", category: "search", enabled: false, installed: true }], count: 3,
   });
-  api.provisionCredential.mockResolvedValue({ status: "provisioned" });
-  api.applyOnboarding.mockResolvedValue({ status: "applied", items: [{ name: "postgres", outcome: "applied" }] });
-  api.fetchV2ApplyPlan.mockResolvedValue({ items: [{ id: "resource:postgres", kind: "resource", name: "postgres", required: true }] });
-  api.fetchV2ApplyStatus.mockResolvedValue({ run_id: "apply-test", status: "applied", items: [{ name: "postgres", outcome: "applied" }] });
-  api.fetchCapabilities.mockResolvedValue({ capabilities: [], count: 0 });
-  api.previewCapability.mockResolvedValue({ capability_id: "demo-capability", plan_id: "demo-plan", state: "ready_to_preview", mutations: [{ id: "demo-write", summary: "write a verified demo artifact", reversible: true }] });
-  api.applyCapability.mockResolvedValue({ capability_id: "demo-capability", state: "ready", outcome: "demo_ready", retryable: true, evidence: [{ kind: "demo", artifact_identity: "demo-artifact", observed_at: "now", verified: true }] });
+  credentialsApi.provisionCredential.mockResolvedValue({ status: "provisioned" });
+  applyApi.startApply.mockResolvedValue({ run: { runId: "apply-test", status: ApplyRunState.APPLIED, legacyStatus: "applied", steps: [{ name: "postgres", state: ApplyStepState.APPLIED, legacyOutcome: "applied" }] } });
+  applyApi.reviewApply.mockResolvedValue({ target: "local", planId: "plan-test", planDigest: "digest-test", revision: "revision-test", consentReceiptId: "receipt-test" });
+  applyApi.fetchApplyPlan.mockResolvedValue({ target: "local", plan_id: "plan-test", plan_digest: "digest-test", revision: "revision-test", items: [{ id: "resource:postgres", kind: "resource", name: "postgres", required: true, privileged: false, state: "pending" }] });
+  applyApi.fetchApplyRun.mockResolvedValue({ runId: "apply-test", status: ApplyRunState.APPLIED, legacyStatus: "applied", steps: [{ name: "postgres", state: ApplyStepState.APPLIED, legacyOutcome: "applied" }] });
+  applyApi.cancelApply.mockResolvedValue({ run: { runId: "apply-test", status: ApplyRunState.CANCELLED, legacyStatus: "cancelled", steps: [] } });
+  capabilitiesApi.fetchCapabilities.mockResolvedValue({ capabilities: [], count: 0 });
+  capabilitiesApi.previewCapability.mockResolvedValue({ capability_id: "demo-capability", plan_id: "demo-plan", state: "ready_to_preview", mutations: [{ id: "demo-write", summary: "write a verified demo artifact", reversible: true }] });
+  capabilitiesApi.applyCapability.mockResolvedValue({ capability_id: "demo-capability", state: "ready", outcome: "demo_ready", retryable: true, evidence: [{ kind: "demo", artifact_identity: "demo-artifact", observed_at: "now", verified: true }] });
 });
 
 describe("V2 onboarding wizard steps", () => {
@@ -99,10 +122,10 @@ describe("V2 onboarding wizard steps", () => {
   });
 
   it("keeps the seed visible when closure computation is unavailable", async () => {
-    api.fetchV2CoreSet.mockResolvedValueOnce({
+    selectionApi.fetchCoreSet.mockResolvedValueOnce({
       available: false,
       seed: ["control-plane"],
-      trusted_base: ["control-plane"],
+      trustedBase: ["control-plane"],
       error: "catalog unavailable",
     });
     renderWithProviders(<StepCoreSet seed={new Set(["control-plane"])} trustedBase={new Set(["control-plane"])} onChange={vi.fn()} />);
@@ -113,7 +136,7 @@ describe("V2 onboarding wizard steps", () => {
   it("derives resources and lets operators select optional scenarios", async () => {
     const onToggle = vi.fn();
     const onResourceToggle = vi.fn();
-    renderWithProviders(<><ScenarioCatalogStep selected={new Set()} onToggle={onToggle} /><DerivedResourceStep selected={new Set(["writer"])} operatorState={{ version: "1", updated_at: "now", resources: { ollama: { enabled: true } } }} onToggle={onResourceToggle} /></>);
+    renderWithProviders(<><ScenarioCatalogStep selected={new Set()} onToggle={onToggle} /><DerivedResourceStep selected={new Set(["writer"])} operatorState={{ version: "1", updatedAt: "now", resources: { ollama: { enabled: true } } }} onToggle={onResourceToggle} /></>);
     expect(await screen.findByTestId("scenario-card-writer")).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(screen.getByTestId("scenario-card-writer"));
     expect(onToggle).toHaveBeenCalledWith("writer");
@@ -174,7 +197,7 @@ describe("V2 onboarding wizard steps", () => {
     const input = await screen.findByLabelText("Value for OpenRouter key");
     fireEvent.change(input, { target: { value: "secret-value" } });
     fireEvent.click(screen.getByRole("button", { name: "Save securely" }));
-    await waitFor(() => expect(api.provisionCredential).toHaveBeenCalledWith({ logical_id: "openrouter", field: "api_key", value: "secret-value" }));
+    await waitFor(() => expect(credentialsApi.provisionCredential).toHaveBeenCalledWith({ logical_id: "openrouter", field: "api_key", value: "secret-value" }, "local"));
     expect(input).toHaveValue("");
 
     renderWithProviders(<StepReady />);
@@ -184,7 +207,7 @@ describe("V2 onboarding wizard steps", () => {
   });
 
   it("surfaces provider failures", async () => {
-    api.fetchV2Readiness.mockRejectedValueOnce(new Error("probe unavailable"));
+    readinessApi.fetchReadiness.mockRejectedValueOnce(new Error("probe unavailable"));
     renderWithProviders(<StepReady />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Readiness could not be checked");
   });
@@ -193,24 +216,24 @@ describe("V2 onboarding wizard steps", () => {
   // reload must not silently discard the operator's acceptance, and accepting
   // one gap must not authorise completion over a different one.
   it("records the degraded acknowledgement through the API rather than in component state", async () => {
-    api.fetchV2Readiness.mockResolvedValue({
+    readinessApi.fetchReadiness.mockResolvedValue({
       status: "degraded", scenarios: [], resources: [], credentials: [], hosts: [], integrations: [], checked_at: "now",
       blockers: [],
       degraded: [{ kind: "credential", name: "vrooli/remote-desktop:username", reason: "the credential is declared and not configured", remediation: "Provide it on the credentials step." }],
       degraded_digest: "digest-under-test",
       degraded_acknowledged: false,
     });
-    api.acknowledgeDegraded.mockResolvedValue({ status: "acknowledged", readiness_digest: "digest-under-test" });
+    readinessApi.acknowledgeDegraded.mockResolvedValue({ status: "acknowledged", readinessDigest: "digest-under-test" });
     renderWithProviders(<StepReady />);
     expect(await screen.findByTestId("readiness-degraded")).toHaveTextContent("vrooli/remote-desktop:username");
     fireEvent.click(await screen.findByTestId("readiness-continue-degraded"));
-    await waitFor(() => expect(api.acknowledgeDegraded).toHaveBeenCalledWith("digest-under-test"));
+    await waitFor(() => expect(readinessApi.acknowledgeDegraded).toHaveBeenCalledWith("digest-under-test", "local"));
   });
 
   // The gate is at the marker write, but the operator must still be told why
   // the flow will not report completion.
   it("names blocking items and states that completion is withheld", async () => {
-    api.fetchV2Readiness.mockResolvedValue({
+    readinessApi.fetchReadiness.mockResolvedValue({
       status: "missing", scenarios: [], resources: [], credentials: [], hosts: [], integrations: [], checked_at: "now",
       blockers: [{ kind: "credential", name: "vrooli/calendar:jwt-secret", reason: "the credential is declared and not configured", remediation: "Provide it on the credentials step." }],
       degraded: [],
@@ -222,7 +245,7 @@ describe("V2 onboarding wizard steps", () => {
   });
 
   it("supports enum, boolean, and numeric host configuration fields", async () => {
-    api.fetchV2HostRequirements.mockResolvedValueOnce({
+    api.fetchHostRequirements.mockResolvedValueOnce({
       tools: [],
       safeguards: [{
         name: "firewall", required: false, reason: "network safety", status: "optional", risk: "medium",
@@ -242,7 +265,7 @@ describe("V2 onboarding wizard steps", () => {
   });
 
   it("keeps provider guidance out of the focused apply report", async () => {
-    api.fetchV2Readiness.mockResolvedValueOnce({
+    readinessApi.fetchReadiness.mockResolvedValueOnce({
       status: "ready",
       scenarios: [],
       resources: [],
@@ -258,13 +281,13 @@ describe("V2 onboarding wizard steps", () => {
     expect(screen.queryByTestId("backend-diagnosis")).not.toBeInTheDocument();
     expect(screen.queryByTestId("credential-obtain-link")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Apply selection" }));
-    await waitFor(() => expect(api.applyOnboarding).toHaveBeenCalled());
+    await waitFor(() => expect(applyApi.startApply).toHaveBeenCalled());
     expect(await screen.findByTestId("run-ladder")).toHaveTextContent("postgres");
-    expect(await screen.findByTestId("run-ladder")).toHaveTextContent("pending");
+    expect(await screen.findByTestId("run-ladder")).toHaveTextContent("succeeded");
   });
 
   it("surfaces capability status and provider evidence without owner-specific rendering", async () => {
-    api.fetchCapabilities.mockResolvedValueOnce({
+    capabilitiesApi.fetchCapabilities.mockResolvedValueOnce({
       count: 1,
       capabilities: [{
         descriptor: {
@@ -280,15 +303,15 @@ describe("V2 onboarding wizard steps", () => {
     fireEvent.change(screen.getByLabelText("Destination"), { target: { value: "/mnt/approved" } });
     fireEvent.click(screen.getByTestId("capability-confirm-demo-capability"));
     fireEvent.click(screen.getByRole("button", { name: "Preview" }));
-    await waitFor(() => expect(api.previewCapability).toHaveBeenCalledWith({ capability_id: "demo-capability", confirm: false, inputs: { destination: "/mnt/approved" } }));
+    await waitFor(() => expect(capabilitiesApi.previewCapability).toHaveBeenCalledWith({ capability_id: "demo-capability", confirm: false, inputs: { destination: "/mnt/approved" } }));
     fireEvent.click(await screen.findByRole("button", { name: "Apply reviewed capability" }));
-    await waitFor(() => expect(api.applyCapability).toHaveBeenCalledWith({ capability_id: "demo-capability", confirm: true, inputs: { destination: "/mnt/approved" } }));
+    await waitFor(() => expect(capabilitiesApi.applyCapability).toHaveBeenCalledWith({ capability_id: "demo-capability", confirm: true, inputs: { destination: "/mnt/approved" } }));
     expect(screen.getByTestId("capability-result-demo-capability")).toHaveTextContent("demo_ready");
     expect(screen.queryByText("secret-value")).not.toBeInTheDocument();
   });
 
   it("renders evidence-only providers without inventing an action control", async () => {
-    api.fetchCapabilities.mockResolvedValueOnce({
+    capabilitiesApi.fetchCapabilities.mockResolvedValueOnce({
       count: 1,
       capabilities: [{
         descriptor: {
@@ -306,10 +329,32 @@ describe("V2 onboarding wizard steps", () => {
     expect(screen.queryByRole("button", { name: "Preview" })).not.toBeInTheDocument();
   });
 
+  it("renders provider provenance and unsupported disposition generically", async () => {
+    capabilitiesApi.fetchCapabilities.mockResolvedValueOnce({
+      count: 1,
+      capabilities: [{
+        descriptor: {
+          version: "operator-capability/v1", id: "platform-permission-fixture", owner: "fixture.owner", title: "Platform permission",
+          scope: "selected host", purpose: "request a declared permission", sensitivity: "operator", disposition: "unsupported", disposition_reason: "target does not expose the owner",
+          provenance: { requester: "onboarding operator", scope: "selected host", grant_source: "explicit consent", revocation_limit: "owner revoke only" },
+          inputs: [{ id: "permission", kind: "enum", label: "Permission", required: true, options: ["notifications"] }],
+          policy: { requires_confirmation: true, idempotent: true, retryable: true }, evidence: { secret_free: true, kinds: ["permission"] },
+        },
+        state: "unsupported", missing_inputs: ["permission"], updated_at: "now",
+      }],
+    });
+    renderWithProviders(<StepCredentials />);
+    const card = await screen.findByTestId("capability-card-platform-permission-fixture");
+    expect(card).toHaveTextContent("selected host");
+    expect(card).toHaveTextContent("owner revoke only");
+    expect(screen.getByTestId("capability-blocked-platform-permission-fixture")).toHaveTextContent("target does not expose the owner");
+    expect(screen.queryByRole("button", { name: "Preview" })).not.toBeInTheDocument();
+  });
+
   it("keeps capability secrets write-only and clears them after apply", async () => {
-    api.previewCapability.mockClear();
-    api.applyCapability.mockClear();
-    api.fetchCapabilities.mockResolvedValueOnce({
+    capabilitiesApi.previewCapability.mockClear();
+    capabilitiesApi.applyCapability.mockClear();
+    capabilitiesApi.fetchCapabilities.mockResolvedValueOnce({
       count: 1,
       capabilities: [{
         descriptor: {
@@ -333,15 +378,15 @@ describe("V2 onboarding wizard steps", () => {
     await waitFor(() => expect(passphrase).toHaveValue("ephemeral-passphrase"));
     fireEvent.click(screen.getByTestId("capability-confirm-secret-capability"));
     fireEvent.click(screen.getByRole("button", { name: "Preview" }));
-    await waitFor(() => expect(api.previewCapability).toHaveBeenCalledWith({ capability_id: "secret-capability", confirm: false, inputs: { destination: "/mnt/approved", passphrase: "ephemeral-passphrase" } }));
+    await waitFor(() => expect(capabilitiesApi.previewCapability).toHaveBeenCalledWith({ capability_id: "secret-capability", confirm: false, inputs: { destination: "/mnt/approved", passphrase: "ephemeral-passphrase" } }));
     fireEvent.click(await screen.findByRole("button", { name: "Apply reviewed capability" }));
-    await waitFor(() => expect(api.applyCapability).toHaveBeenCalledWith({ capability_id: "secret-capability", confirm: true, inputs: { destination: "/mnt/approved", passphrase: "ephemeral-passphrase" } }));
+    await waitFor(() => expect(capabilitiesApi.applyCapability).toHaveBeenCalledWith({ capability_id: "secret-capability", confirm: true, inputs: { destination: "/mnt/approved", passphrase: "ephemeral-passphrase" } }));
     expect(screen.getByLabelText("Passphrase")).toHaveValue("");
     expect(screen.getByTestId("capability-result-secret-capability")).not.toHaveTextContent("ephemeral-passphrase");
   });
 
   it("reports preview and apply failures without claiming success", async () => {
-    api.fetchCapabilities.mockResolvedValueOnce({
+    capabilitiesApi.fetchCapabilities.mockResolvedValueOnce({
       count: 1,
       capabilities: [{
         descriptor: {
@@ -355,15 +400,15 @@ describe("V2 onboarding wizard steps", () => {
         state: "needs_operator_input", missing_inputs: ["destination", "enabled"], remediation: "Choose a destination.", updated_at: "now",
       }],
     });
-    api.previewCapability.mockRejectedValueOnce(new Error("preview unavailable"));
+    capabilitiesApi.previewCapability.mockRejectedValueOnce(new Error("preview unavailable"));
     renderWithProviders(<StepCredentials />);
     fireEvent.change(await screen.findByLabelText("Destination"), { target: { value: "/mnt/approved" } });
     fireEvent.click(screen.getByLabelText(/Enabled/));
     fireEvent.click(screen.getByRole("button", { name: "Preview" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("The capability preview failed");
 
-    api.previewCapability.mockResolvedValueOnce({ capability_id: "failing-capability", plan_id: "demo-plan", state: "ready_to_preview", mutations: [] });
-    api.applyCapability.mockRejectedValueOnce(new Error("apply unavailable"));
+    capabilitiesApi.previewCapability.mockResolvedValueOnce({ capability_id: "failing-capability", plan_id: "demo-plan", state: "ready_to_preview", mutations: [] });
+    capabilitiesApi.applyCapability.mockRejectedValueOnce(new Error("apply unavailable"));
     fireEvent.click(screen.getByRole("button", { name: "Preview" }));
     await waitFor(() => expect(screen.getByTestId("capability-preview-failing-capability")).toBeInTheDocument());
     fireEvent.click(screen.getByTestId("capability-confirm-failing-capability"));
@@ -372,7 +417,7 @@ describe("V2 onboarding wizard steps", () => {
   });
 
   it("does not render manual recovery commands in the onboarding action surface", async () => {
-    api.fetchV2Readiness.mockResolvedValueOnce({
+    readinessApi.fetchReadiness.mockResolvedValueOnce({
       status: "missing",
       scenarios: [],
       resources: [],
@@ -392,27 +437,63 @@ describe("V2 onboarding wizard steps", () => {
   });
 
   it("waits for an async partial apply and exposes retry evidence", async () => {
-    const initialApplyCalls = api.applyOnboarding.mock.calls.length;
-    api.applyOnboarding.mockResolvedValueOnce({ run_id: "apply-pending", status: "pending", items: [] });
-    api.fetchV2ApplyStatus.mockResolvedValueOnce({ run_id: "apply-pending", status: "partially_applied", items: [
-      { name: "firewall", outcome: "failed", error: "permission denied" },
-      { name: "writer", outcome: "blocked", error: "blocked by firewall" },
+    const initialApplyCalls = applyApi.startApply.mock.calls.length;
+    applyApi.startApply.mockResolvedValueOnce({ run: { runId: "apply-pending", status: ApplyRunState.PENDING, legacyStatus: "pending", steps: [] } });
+    applyApi.fetchApplyRun.mockResolvedValueOnce({ runId: "apply-pending", status: ApplyRunState.PARTIALLY_APPLIED, legacyStatus: "partially_applied", steps: [
+      { name: "firewall", state: ApplyStepState.FAILED, legacyOutcome: "failed", error: "permission denied" },
+      { name: "writer", state: ApplyStepState.BLOCKED, legacyOutcome: "blocked", error: "blocked by firewall" },
     ] });
     renderWithProviders(<StepApply />);
     fireEvent.click(await screen.findByRole("button", { name: "Apply selection" }));
     expect(await screen.findByTestId("skipped-note")).toHaveTextContent("Some items were skipped or failed");
     fireEvent.click(screen.getByTestId("retry"));
-    await waitFor(() => expect(api.applyOnboarding).toHaveBeenCalledTimes(initialApplyCalls + 2));
+    await waitFor(() => expect(applyApi.startApply).toHaveBeenCalledTimes(initialApplyCalls + 2));
+  });
+
+  it("requests cancellation and preserves the run identity", async () => {
+    applyApi.startApply.mockResolvedValueOnce({ run: { runId: "apply-cancel", status: ApplyRunState.PENDING, legacyStatus: "pending", steps: [] } });
+    applyApi.cancelApply.mockResolvedValueOnce({ run: { runId: "apply-cancel", status: ApplyRunState.CANCELLED, legacyStatus: "cancelled", steps: [] } });
+    renderWithProviders(<StepApply />);
+    fireEvent.click(await screen.findByRole("button", { name: "Apply selection" }));
+    fireEvent.click(await screen.findByTestId("apply-cancel"));
+    await waitFor(() => expect(applyApi.cancelApply).toHaveBeenCalledWith("apply-cancel", "local"));
+    expect(screen.getByTestId("apply-state")).toHaveTextContent("apply stopped safely");
+    expect(screen.getByTestId("apply-state")).toHaveTextContent("apply-cancel");
   });
 
   it("reports credential provisioning failure without clearing the input", async () => {
-    api.provisionCredential.mockRejectedValueOnce(new Error("authority unavailable"));
+    credentialsApi.provisionCredential.mockRejectedValueOnce(new Error("authority unavailable"));
     renderWithProviders(<StepCredentials />);
     const input = await screen.findByLabelText("Value for OpenRouter key");
     fireEvent.change(input, { target: { value: "secret-value" } });
     fireEvent.click(screen.getByRole("button", { name: "Save securely" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Credential provisioning failed");
     expect(input).toHaveValue("secret-value");
+  });
+
+  it("renders and submits every declared operator-input kind", async () => {
+    operatorInputsApi.fetchOperatorInputs.mockResolvedValueOnce({
+      requests: [
+        { id: "secret", kind: 1, title: "Secret", description: "Sensitive", required: true, options: [], candidates: [], validation: "required", declinable: true },
+        { id: "choice", kind: 2, title: "Choice", description: "Pick one", required: true, options: ["one", "two"], candidates: [], validation: "select" },
+        { id: "confirm", kind: 3, title: "Confirm", description: "Confirm it", required: false, options: [], candidates: [] },
+        { id: "path", kind: 4, title: "Path", description: "Path", required: false },
+        { id: "enum", kind: 5, title: "Enum", description: "Enum", required: false, options: ["value"] },
+        { id: "boolean", kind: 6, title: "Boolean", description: "Boolean", required: false },
+        { id: "duration", kind: 7, title: "Duration", description: "Duration", required: false },
+        { id: "confirmation", kind: 8, title: "Confirmation", description: "Confirmation", required: false },
+        { id: "unknown", kind: 99, title: "Unknown", description: "Fallback", required: false },
+      ],
+    });
+    readinessApi.fetchReadiness.mockResolvedValueOnce({ status: "ready", scenarios: [], resources: [], credentials: [], hosts: [], integrations: [], checked_at: "now", blockers: [], degraded: [] });
+    renderWithProviders(<StepCredentials target="remote" />);
+    expect(await screen.findByTestId("target-question-set")).toHaveTextContent("Secret");
+    expect(screen.getByLabelText("Secret")).toBeInTheDocument();
+    expect(screen.getByText("Choice")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Secret"), { target: { value: "temporary" } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit secret answers" }));
+    await waitFor(() => expect(operatorInputsApi.resolveOperatorInputs).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ requestId: "secret", value: "temporary", declined: false })]), "remote"));
+    expect(await screen.findByTestId("target-question-status")).toHaveTextContent("Answers submitted");
   });
 
 

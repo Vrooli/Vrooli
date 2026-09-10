@@ -5,6 +5,24 @@ import (
 	"testing"
 )
 
+type mapEnvironment map[string]string
+
+func (e mapEnvironment) Getenv(key string) string { return e[key] }
+
+func TestResolveRootsUsesInjectedEnvironment(t *testing.T) {
+	previous := rootEnvironment
+	rootEnvironment = mapEnvironment{"VROOLI_ROOT": "/fixed-repo"}
+	t.Cleanup(func() { rootEnvironment = previous })
+
+	roots, err := resolveRoots()
+	if err != nil {
+		t.Fatalf("resolveRoots: %v", err)
+	}
+	if roots.RepoRoot != "/fixed-repo" || roots.StorageRoot != "/fixed-repo/.vrooli" {
+		t.Fatalf("roots = %+v", roots)
+	}
+}
+
 func TestResolveRootsCoversEnvironmentCombinations(t *testing.T) {
 	cases := []struct {
 		name, repo, storage, bundle, source, repoRoot, storageRoot, catalogRoot string

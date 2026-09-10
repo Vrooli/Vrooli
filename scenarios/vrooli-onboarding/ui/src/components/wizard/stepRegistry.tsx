@@ -9,10 +9,11 @@ import { StepReady } from "./StepReady";
 import { ScenarioCatalogStep } from "./ScenarioCatalogStep";
 import { StepCoreSet } from "./StepCoreSet";
 import { StepWelcome } from "./StepWelcome";
-import type { OperatorState, V2Step } from "../../types";
+import type { OperatorState } from "../../api/operatorstate";
+import type { WizardStep } from "../../api/session";
 
 export interface StepRegistryProps {
-  step: V2Step;
+  step: WizardStep;
   selectedScenarios: Set<string>;
   operatorState: OperatorState | null;
   toggleScenario: (name: string) => void;
@@ -30,7 +31,7 @@ export interface StepRegistryProps {
   ) => void;
   setResourceEnabled: (name: string, enabled: boolean) => void;
   target: string;
-  acceptRecommendation?: () => Promise<void>;
+  acceptRecommendation?: (profile?: string, scenarios?: string[]) => Promise<void>;
   onAdjustRecommendation?: () => void;
 }
 
@@ -47,7 +48,7 @@ export const stepRegistry: Record<string, StepRenderer> = {
   "core-set": ({ operatorState, setCoreSeed }) => (
     <StepCoreSet
       seed={new Set(operatorState?.core?.seed ?? [])}
-      trustedBase={new Set(operatorState?.core?.trusted_base ?? [])}
+      trustedBase={new Set(operatorState?.core?.trustedBase ?? [])}
       onChange={setCoreSeed}
     />
   ),

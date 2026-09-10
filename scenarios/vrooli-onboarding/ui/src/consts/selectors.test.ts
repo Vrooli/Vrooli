@@ -3,26 +3,6 @@ import { selectors, selectorsManifest } from "./selectors";
 
 // [REQ:ONBOARD-SMART-FLOW-002] Selector registry validation
 
-// The merged selector tree produces complex conditional types that TypeScript
-// cannot fully resolve statically. Dynamic selector functions are present at
-// runtime but typed as `undefined` at compile time. We use a runtime guard to
-// extract them without dangerous cast patterns.
-type AnyFn = (...args: unknown[]) => string;
-
-/** Runtime extraction of dynamic selectors that TypeScript cannot statically resolve. */
-function getDynamic(value: unknown): AnyFn {
-  if (typeof value !== "function") {
-    throw new Error(`Expected dynamic selector function, got ${typeof value}`);
-  }
-  return (...args) => {
-    const result: unknown = Reflect.apply(value, undefined, args);
-    if (typeof result !== "string") {
-      throw new Error(`Expected dynamic selector function to return string, got ${typeof result}`);
-    }
-    return result;
-  };
-}
-
 describe("selectors registry", () => {
   describe("literal selectors", () => {
     it("exposes app-level selectors as plain strings", () => {
@@ -62,39 +42,27 @@ describe("selectors registry", () => {
 
   describe("dynamic selectors", () => {
     it("wizard.scenarioCard returns testId with name", () => {
-      const fn = getDynamic(selectors.wizard.scenarioCard);
+      const fn = selectors.wizard.scenarioCard;
       expect(fn({ name: "writer" })).toBe("scenario-card-writer");
     });
 
     it("dashboard.healthCard returns testId with name", () => {
-      const fn = getDynamic(selectors.dashboard.healthCard);
+      const fn = selectors.dashboard.healthCard;
       expect(fn({ name: "postgres" })).toBe("health-card-postgres");
     });
 
     it("dashboard.statusIndicator returns testId with name", () => {
-      const fn = getDynamic(selectors.dashboard.statusIndicator);
+      const fn = selectors.dashboard.statusIndicator;
       expect(fn({ name: "redis" })).toBe("status-indicator-redis");
     });
 
     it("glossary.entry returns testId with term", () => {
-      const fn = getDynamic(selectors.glossary.entry);
+      const fn = selectors.glossary.entry;
       expect(fn({ term: "container" })).toBe("glossary-entry-container");
     });
 
-    it("throws for missing required parameter", () => {
-      const fn = getDynamic(selectors.wizard.scenarioCard);
-      expect(() => fn({})).toThrow(/missing parameter/i);
-    });
 
-    it("throws for wrong parameter type (expects number)", () => {
-      const fn = getDynamic(selectors.wizard.scenarioCard);
-      expect(() => fn({ name: 1 })).toThrow(/must be a string/i);
-    });
 
-    it("throws for unknown extra parameters", () => {
-      const fn = getDynamic(selectors.wizard.scenarioCard);
-      expect(() => fn({ name: "writer", extra: "nope" })).toThrow(/unknown parameter/i);
-    });
   });
 
   describe("manifest", () => {

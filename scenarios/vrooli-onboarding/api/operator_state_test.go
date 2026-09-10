@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -23,15 +24,15 @@ func TestOperatorStateRoundTripIsAtomicAndDoesNotNeedDatabase(t *testing.T) {
 	operatorStatePath = func() (string, error) { return path, nil }
 	operatorStateNow = func() time.Time { return time.Date(2026, 7, 29, 0, 0, 0, 0, time.UTC) }
 	srv := NewServer()
-	w := doGet(t, srv, "/api/v1/operator-state")
+	w := doOperatorStateGet(t, srv)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GET = %d: %s", w.Code, w.Body.String())
 	}
-	w = doRequest(t, srv, http.MethodPatch, "/api/v2/operator-state", `{"scenarios":{"example":{"enabled":true,"auto_restart":false}}}`)
+	w = doOperatorStatePatch(t, srv, `{"scenarios":{"example":{"enabled":true,"auto_restart":false}}}`, "scenarios")
 	if w.Code != http.StatusOK {
 		t.Fatalf("PATCH = %d: %s", w.Code, w.Body.String())
 	}
-	w = doGet(t, srv, "/api/v1/operator-state")
+	w = doOperatorStateGet(t, srv)
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"example"`) {
 		t.Fatalf("round trip = %d: %s", w.Code, w.Body.String())
 	}
@@ -80,9 +81,62 @@ func TestOperatorStateRejectsInvalidSafeguardConfigBeforeWrite(t *testing.T) {
 	t.Cleanup(func() { operatorStatePath = oldPath })
 	operatorStatePath = func() (string, error) { return filepath.Join(t.TempDir(), "operator-state.json"), nil }
 	srv := NewServer()
-	w := doRequest(t, srv, http.MethodPatch, "/api/v2/operator-state", `{"host_safeguards":{"remote_desktop_access":{"opted_in":true,"config":{"experience":"not-a-real-experience"}}}}`)
+	w := doOperatorStatePatch(t, srv, `{"host_safeguards":{"remote_desktop_access":{"opted_in":true,"config":{"experience":"not-a-real-experience"}}}}`, "host_safeguards")
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("invalid config status = %d, want %d: %s", w.Code, http.StatusBadRequest, w.Body.String())
+	}
+}
+
+func doOperatorStateGet(t *testing.T, srv *Server) *httptest.ResponseRecorder {
+	t.Helper()
+	return doRequest(t, srv, http.MethodPost, "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/GetOperatorState", `{"target":"local"}`)
+}
+
+func doOperatorStatePatch(t *testing.T, srv *Server, state string, paths ...string) *httptest.ResponseRecorder {
+	t.Helper()
+	var value json.RawMessage = []byte(state)
+	body, err := json.Marshal(map[string]any{
+		"target":     "local",
+		"state":      value,
+		"updateMask": strings.Join(paths, ","),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return doRequest(t, srv, http.MethodPost, "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState", string(body))
+}
+
+func operatorStateFromResponse(t *testing.T, body []byte) map[string]any {
+	t.Helper()
+	var envelope struct {
+		State map[string]any `json:"state"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	return envelope.State
+}
+
+func TestOperatorStateMaskLeavesUnmaskedFieldsUntouched(t *testing.T) {
+	oldPath := operatorStatePath
+	t.Cleanup(func() { operatorStatePath = oldPath })
+	path := filepath.Join(t.TempDir(), "operator-state.json")
+	operatorStatePath = func() (string, error) { return path, nil }
+	writeFixtureFile(t, path, `{"version":"1.0.0","updated_at":"2026-07-29T00:00:00Z","trust_posture":"shared","scenarios":{"alpha":{"enabled":false},"beta":{"enabled":true}}}`)
+
+	srv := NewServer()
+	before := operatorStateFromResponse(t, doOperatorStateGet(t, srv).Body.Bytes())
+	patched := doOperatorStatePatch(t, srv, `{"scenarios":{"alpha":{"enabled":true}}}`, "scenarios")
+	if patched.Code != http.StatusOK {
+		t.Fatalf("masked patch = %d: %s", patched.Code, patched.Body.String())
+	}
+	after := operatorStateFromResponse(t, patched.Body.Bytes())
+	if before["trustPosture"] != after["trustPosture"] {
+		t.Fatalf("unmasked trust_posture changed: before=%v after=%v", before["trustPosture"], after["trustPosture"])
+	}
+	scenarios := after["scenarios"].(map[string]any)
+	if scenarios["alpha"].(map[string]any)["enabled"] != true || scenarios["beta"].(map[string]any)["enabled"] != true {
+		t.Fatalf("masked scenario merge lost a field: %#v", scenarios)
 	}
 }
 

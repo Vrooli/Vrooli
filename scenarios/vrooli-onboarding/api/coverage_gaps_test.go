@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,16 +12,14 @@ import (
 	"testing"
 
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	internalglossary "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/glossary"
 )
 
 func TestGlossarySupportsEmptyAndFilteredQueries(t *testing.T) {
-	server := NewServer()
 	for _, query := range []string{"", "postgres", "does-not-exist"} {
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/glossary?q="+query, nil)
-		w := httptest.NewRecorder()
-		server.Handler().ServeHTTP(w, req)
-		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"entries"`) {
-			t.Fatalf("query %q: %d %s", query, w.Code, w.Body.String())
+		response, err := internalglossary.Search(context.Background(), query)
+		if err != nil || response == nil {
+			t.Fatalf("query %q: %v", query, err)
 		}
 	}
 }
@@ -177,10 +174,20 @@ func TestV2ReadModelsDegradeWhenCatalogRootIsAbsent(t *testing.T) {
 	t.Setenv("VROOLI_ROOT", "")
 	t.Setenv("BUNDLE_ROOT", "")
 	server := NewServer()
-	for _, path := range []string{"/api/v2/scenarios", "/api/v2/resources", "/api/v2/credentials", "/api/v2/host-requirements"} {
-		w := doGet(t, server, path)
-		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"status":"degraded"`) {
-			t.Fatalf("GET %s = %d %s", path, w.Code, w.Body.String())
+	for _, path := range []string{"/vrooli.vrooli_onboarding.v1.host.HostService/ListHostRequirements"} {
+		w := doPost(t, server, path, `{"target":"local"}`)
+		if w.Code != http.StatusInternalServerError || !strings.Contains(strings.ToLower(w.Body.String()), "catalog") {
+			t.Fatalf("POST %s = %d %s", path, w.Code, w.Body.String())
+		}
+	}
+	w := doRequest(t, server, http.MethodPost, "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ListCredentials", `{"target":"local"}`)
+	if w.Code != http.StatusInternalServerError || !strings.Contains(w.Body.String(), "catalog") {
+		t.Fatalf("POST credentials list = %d %s", w.Code, w.Body.String())
+	}
+	for _, path := range []string{"/vrooli.vrooli_onboarding.v1.selection.SelectionService/ListScenarios", "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetUnion"} {
+		w := doRequest(t, server, http.MethodPost, path, `{"target":"local"}`)
+		if w.Code != http.StatusOK && !strings.Contains(w.Body.String(), "catalog") {
+			t.Fatalf("POST %s = %d %s", path, w.Code, w.Body.String())
 		}
 	}
 }

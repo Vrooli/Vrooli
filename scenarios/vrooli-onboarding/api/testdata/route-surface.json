@@ -19,56 +19,8 @@
       "internal_reason": "client API health alias"
     },
     {
-      "method": "GET",
-      "path": "/api/v1/resources/health",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/resources",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/resources/{name}",
-      "surfaces": [
-        "cli"
-      ],
-      "internal_reason": "CLI resource detail command; the UI uses the derived V2 resource read model"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/operator-state",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "PATCH",
-      "path": "/api/v2/operator-state",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/scenarios",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/recommendation",
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/GetOperatorState",
       "surfaces": [
         "cli",
         "ui"
@@ -76,44 +28,7 @@
     },
     {
       "method": "POST",
-      "path": "/api/v2/recommendation/accept",
-      "surfaces": ["ui"]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/resources",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/core-set",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/closure",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/union",
-      "surfaces": [
-        "cli"
-      ],
-      "internal_reason": "Deployment-union export is a CLI artifact affordance; the UI exposes the derived closure instead"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/credentials",
+      "path": "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState",
       "surfaces": [
         "cli",
         "ui"
@@ -121,37 +36,69 @@
     },
     {
       "method": "POST",
-      "path": "/api/v2/handoff",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/ListScenarios",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetRecommendation",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/AcceptRecommendation",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetClosure",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetUnion",
+      "surfaces": [
+        "cli"
+      ],
+      "internal_reason": "Deployment-union export is a CLI artifact affordance."
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ListCredentials",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/CreateHandoff",
       "surfaces": [],
-      "internal_reason": "vrooli-bridge consumes this HTTP projection directly"
+      "internal_reason": "vrooli-bridge consumes this typed onboarding handoff directly"
     },
     {
       "method": "POST",
-      "path": "/api/v2/apply",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/apply/plan",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/apply/{run_id}",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/session",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/StartApply",
       "surfaces": [
         "cli",
         "ui"
@@ -159,23 +106,7 @@
     },
     {
       "method": "POST",
-      "path": "/api/v2/session/step",
-      "surfaces": [
-        "ui"
-      ],
-      "internal_reason": "UI navigation currently owns the durable pointer; the CLI resume phase will add the reverse write"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/steps",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/operator-inputs",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyPlan",
       "surfaces": [
         "cli",
         "ui"
@@ -183,63 +114,109 @@
     },
     {
       "method": "POST",
-      "path": "/api/v2/operator-inputs/resolve",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyRun",
       "surfaces": [
         "cli",
         "ui"
       ]
     },
     {
-      "method": "GET",
-      "path": "/api/v2/capabilities",
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply",
       "surfaces": [
         "cli",
         "ui"
       ]
     },
     {
-      "method": "GET",
-      "path": "/api/v2/capabilities/status",
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/CancelApply",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/GetSession",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/AdvanceSessionStep",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/GetStepModel",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/GetDraft",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/SaveDraft",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/DiscardDraft",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ListOperatorInputs",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ResolveOperatorInputs",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ListCapabilities",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/GetCapabilityStatus",
       "surfaces": [],
-      "internal_reason": "Compatibility alias for the canonical capabilities status read"
+      "internal_reason": "Typed status projection is retained for provider and readiness consumers without a dedicated operator surface"
     },
     {
       "method": "POST",
-      "path": "/api/v2/capabilities/preview",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "POST",
-      "path": "/api/v2/capabilities/apply",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/host-facts",
-      "surfaces": ["ui"]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/targets",
-      "surfaces": ["ui"]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/host-requirements",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
-    },
-    {
-      "method": "GET",
-      "path": "/api/v2/readiness",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/PreviewCapability",
       "surfaces": [
         "cli",
         "ui"
@@ -247,7 +224,7 @@
     },
     {
       "method": "POST",
-      "path": "/api/v2/readiness/degraded-acknowledgement",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ApplyCapability",
       "surfaces": [
         "cli",
         "ui"
@@ -255,27 +232,136 @@
     },
     {
       "method": "POST",
-      "path": "/api/v2/credentials/provision",
+      "path": "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/GetReadiness",
       "surfaces": [
         "cli",
         "ui"
       ]
     },
     {
-      "method": "GET",
-      "path": "/api/v2/credentials/doctor",
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/AcknowledgeDegradedReadiness",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ProvisionCredential",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/DiagnoseCredentials",
       "surfaces": [
         "cli"
       ],
-      "internal_reason": "CLI credential doctor is the explicit terminal diagnosis affordance; the UI consumes the same diagnosis through readiness"
+      "internal_reason": "CLI credential diagnosis is the explicit terminal diagnosis affordance; the UI consumes the same metadata through readiness"
     },
     {
-      "method": "GET",
-      "path": "/api/v1/glossary",
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/ListHostRequirements",
       "surfaces": [
         "cli",
         "ui"
       ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/GetHostFacts",
+      "surfaces": [
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/ListTargets",
+      "surfaces": [
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/PatchHostSafeguardConfig",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/SetNotificationRecipient",
+      "surfaces": [
+        "cli"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.resources.ResourcesService/ListResources",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.resources.ResourcesService/GetResource",
+      "surfaces": [
+        "cli"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.resources.ResourcesService/GetResourceHealth",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.resources.ResourcesService/ListDerivedResources",
+      "surfaces": [
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.profiles.ProfileService/ListProfiles",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.profiles.ProfileService/EvaluateProfile",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.glossary.GlossaryService/SearchGlossary",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.glossary.GlossaryService/SearchConfiguration",
+      "surfaces": [
+        "cli",
+        "ui",
+        "search-hub"
+      ],
+      "internal_reason": "Safe metadata search returns stable settings routes and never configured values"
     }
   ]
 }

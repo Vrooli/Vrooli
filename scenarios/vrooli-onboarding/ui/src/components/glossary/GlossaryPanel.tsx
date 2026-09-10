@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, BookOpen } from "lucide-react";
-import { fetchGlossary } from "../../lib/api";
+import { fetchGlossary } from "../../api/glossary";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { SearchInput } from "@vrooli/react-component-library/SearchInput/1";
 import { Button } from "@vrooli/react-component-library/Button/2";
@@ -25,15 +25,15 @@ export function GlossaryPanel() {
   return (
     <div data-testid="glossary-panel" className="glossary-surface">
       {/* Header */}
-      <header className="surface-heading">
+      <section className="surface-heading" aria-labelledby="glossary-heading">
         <div>
           <p className="surface-eyebrow">{i18n.t("onboarding.glossary.eyebrow")}</p>
-          <h1>{i18n.t("onboarding.glossary.heading")}</h1>
+          <h1 id="glossary-heading">{i18n.t("onboarding.glossary.heading")}</h1>
           <p className="mt-1 text-sm text-muted">
             {i18n.t("onboarding.glossary.intro")}
           </p>
         </div>
-      </header>
+      </section>
 
       <div className="glossary-search">
         <SearchInput ref={searchRef} value={searchTerm} onChange={(event) => { setSearchTerm(event.target.value); }} placeholder={i18n.t("onboarding.glossary.searchPlaceholder")} aria-label={i18n.t("onboarding.glossary.searchLabel")} data-testid="glossary-search" />

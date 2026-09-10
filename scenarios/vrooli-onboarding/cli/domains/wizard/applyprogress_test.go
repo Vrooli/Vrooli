@@ -214,7 +214,7 @@ func TestApplyProgressTreatsPendingItemsAsNotStarted(t *testing.T) {
 // against the API source. If that constant is renamed, every heartbeat above
 // silently stops firing while the tests still pass.
 func TestApplyingOutcomeMatchesTheAPIContract(t *testing.T) {
-	source, err := os.ReadFile(filepath.Join("..", "..", "..", "api", "v2_apply.go"))
+	source, err := os.ReadFile(filepath.Join("..", "..", "..", "api", "apply.go"))
 	if err != nil {
 		t.Fatalf("read the API apply source: %v", err)
 	}

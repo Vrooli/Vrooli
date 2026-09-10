@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 // TestApplyStateFromReadinessNeverGuesses pins the mapping from a readiness
 // verdict to the state shown to the operator before consent. "deferred" and
@@ -89,5 +93,31 @@ func TestApplyPlanEmitsOnlyTheKindsBothSurfacesRender(t *testing.T) {
 		if !seen[kind] {
 			t.Fatalf("kind %q is rendered by both surfaces but this test no longer exercises it; the parity guard would miss a regression", kind)
 		}
+	}
+}
+
+func TestCatalogIdentityChangesWhenManifestEffectChanges(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(`{"service":{"name":"alpha","system_required":true}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	models := []ScenarioReadModel{{Name: "alpha"}}
+	first, err := catalogIdentity(root, models)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(`{"service":{"name":"alpha","system_required":false}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	second, err := catalogIdentity(root, models)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == second {
+		t.Fatal("catalog identity ignored a changed scenario manifest")
 	}
 }

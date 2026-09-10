@@ -7,6 +7,9 @@ import (
 	"regexp"
 	"sort"
 	"testing"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/authz"
+	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/modules"
 )
 
 type routeSurfaceEntry struct {
@@ -48,6 +51,9 @@ func TestEveryRegisteredRouteIsInTheSurfaceContract(t *testing.T) {
 	for _, match := range pattern.FindAllStringSubmatch(string(source), -1) {
 		registered[match[2]+" "+match[1]] = true
 	}
+	for _, endpoint := range modules.AllEndpoints() {
+		registered[endpoint.Method+" "+endpoint.Path] = true
+	}
 	if len(registered) != len(contractRoutes) {
 		t.Fatalf("registered route count = %d, contract count = %d; registered=%v contract=%v", len(registered), len(contractRoutes), sortedKeys(registered), sortedEntryKeys(contractRoutes))
 	}
@@ -59,6 +65,22 @@ func TestEveryRegisteredRouteIsInTheSurfaceContract(t *testing.T) {
 	for key := range contractRoutes {
 		if !registered[key] {
 			t.Errorf("contract route is not registered: %s", key)
+		}
+	}
+}
+
+func TestEveryOnboardingProcedureHasExplicitAuthorizationClassification(t *testing.T) {
+	for _, entry := range modules.AllProtoFiles() {
+		services := entry.File.Services()
+		for serviceIndex := 0; serviceIndex < services.Len(); serviceIndex++ {
+			service := services.Get(serviceIndex)
+			methods := service.Methods()
+			for methodIndex := 0; methodIndex < methods.Len(); methodIndex++ {
+				procedure := "/" + string(service.FullName()) + "/" + string(methods.Get(methodIndex).Name())
+				if _, ok := authz.ClassifyProcedure(procedure); !ok {
+					t.Errorf("procedure %s has no explicit authorization classification", procedure)
+				}
+			}
 		}
 	}
 }

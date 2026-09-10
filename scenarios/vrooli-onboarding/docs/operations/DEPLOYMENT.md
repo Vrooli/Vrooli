@@ -16,7 +16,8 @@ A desktop bundle must stage **every** manifest class the wizard reads:
 `catalog/internal/safeguards/`. A bundle missing one fails the packaging check
 rather than reaching an operator and failing at first launch.
 
-The set to stage is not hand-maintained: it comes from `GET /api/v2/union` for
+The set to stage is not hand-maintained: it comes from
+`SelectionService/GetUnion` for
 the bundled scenario's selection.
 
 The desktop runtime supplies `BUNDLE_ROOT` and `VROOLI_STORAGE_ROOT` and

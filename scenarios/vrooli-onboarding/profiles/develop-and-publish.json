@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "develop-and-publish",
+  "version": "1.0.0",
+  "titleKey": "profiles.developPublish.title",
+  "descriptionKey": "profiles.developPublish.description",
+  "owner": "vrooli-onboarding",
+  "compatibleCatalogMajor": 1,
+  "questions": [
+    {
+      "id": "purposes",
+      "type": "multi-select",
+      "promptKey": "setup.purpose.prompt",
+      "required": true,
+      "options": [
+        {"id": "develop-apps", "labelKey": "setup.purpose.develop"},
+        {"id": "publish-apps", "labelKey": "setup.purpose.publish"}
+      ],
+      "minSelections": 1
+    },
+    {
+      "id": "desktopPlatforms",
+      "type": "multi-select",
+      "promptKey": "setup.publish.platforms",
+      "required": true,
+      "visibleWhen": {"contains": {"answer": "purposes", "value": "publish-apps"}},
+      "options": [
+        {"id": "linux", "labelKey": "platform.linux"},
+        {"id": "macos", "labelKey": "platform.macos"},
+        {"id": "windows", "labelKey": "platform.windows"}
+      ],
+      "minSelections": 1
+    },
+    {
+      "id": "hosting",
+      "type": "single-select",
+      "promptKey": "setup.publish.hosting",
+      "required": true,
+      "visibleWhen": {"contains": {"answer": "purposes", "value": "publish-apps"}},
+      "options": [
+        {"id": "local", "labelKey": "hosting.local"},
+        {"id": "managed-vps", "labelKey": "hosting.managedVps"}
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "desktop-publishing",
+      "when": {"contains": {"answer": "purposes", "value": "publish-apps"}},
+      "recommend": [
+        {"capabilityRef": "release.desktop", "scenarioRefs": ["scenario-to-desktop", "landing-page-business-suite"], "reasonKey": "setup.reason.desktop"}
+      ]
+    },
+    {
+      "id": "identity-for-publishing",
+      "when": {"contains": {"answer": "purposes", "value": "publish-apps"}},
+      "recommend": [
+        {"capabilityRef": "identity.operator", "scenarioRefs": ["scenario-authenticator"], "reasonKey": "setup.reason.identity"}
+      ]
+    }
+  ],
+  "manualSelection": {"available": true},
+  "provenance": {"source": "repository", "reviewRevision": "develop-and-publish-r1"}
+}

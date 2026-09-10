@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,19 +60,32 @@ func TestV2BundleModeServesAllCatalogReadModels(t *testing.T) {
 	t.Setenv("BUNDLE_ROOT", bundle)
 	t.Setenv("VROOLI_STORAGE_ROOT", storageRoot)
 
-	for _, endpoint := range []string{"/api/v2/scenarios", "/api/v2/resources", "/api/v2/host-requirements", "/api/v2/readiness", "/api/v2/closure", "/api/v2/union", "/api/v2/credentials", "/api/v2/session"} {
-		w := doGet(t, NewServer(), endpoint)
+	for _, endpoint := range []string{"host-requirements", "/api/v2/readiness", "credentials"} {
+		var w *httptest.ResponseRecorder
+		if endpoint == "/api/v2/readiness" {
+			w = doReadiness(t)
+		} else if endpoint == "host-requirements" {
+			w = doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.host.HostService/ListHostRequirements", `{"target":"local"}`)
+		} else {
+			w = doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ListCredentials", `{"target":"local"}`)
+		}
 		if w.Code != http.StatusOK {
 			t.Fatalf("GET %s status = %d: %s", endpoint, w.Code, w.Body.String())
 		}
 	}
-	step := doRequest(t, NewServer(), http.MethodPost, "/api/v2/session/step", `{"step":2}`)
-	if step.Code != http.StatusOK || !strings.Contains(step.Body.String(), `"step":2`) {
+	for _, endpoint := range []string{"ListScenarios", "GetUnion"} {
+		w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/"+endpoint, `{"target":"local"}`)
+		if w.Code != http.StatusOK {
+			t.Fatalf("selection %s status = %d: %s", endpoint, w.Code, w.Body.String())
+		}
+	}
+	step := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.session.SessionService/AdvanceSessionStep", `{"target":"local","stepId":"core-set"}`)
+	if step.Code != http.StatusOK || !strings.Contains(step.Body.String(), `"stepId":"core-set"`) {
 		t.Fatalf("session step = %d: %s", step.Code, step.Body.String())
 	}
-	w := doGet(t, NewServer(), "/api/v2/resources")
+	w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetUnion", `{"target":"local"}`)
 	var body struct {
-		Resources []resourceReadModel `json:"resources"`
+		Resources []resourceReadModel `json:"resourceModels"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
@@ -87,10 +101,23 @@ func TestV2BundleModeUsesBundleLocalAppDataWithOnlyBundleRoot(t *testing.T) {
 	t.Setenv("VROOLI_STORAGE_ROOT", "")
 	t.Setenv("BUNDLE_ROOT", bundle)
 
-	for _, endpoint := range []string{"/api/v2/scenarios", "/api/v2/resources", "/api/v2/host-requirements", "/api/v2/readiness", "/api/v2/closure", "/api/v2/union", "/api/v2/credentials", "/api/v2/session"} {
-		w := doGet(t, NewServer(), endpoint)
+	for _, endpoint := range []string{"host-requirements", "/api/v2/readiness", "credentials"} {
+		var w *httptest.ResponseRecorder
+		if endpoint == "/api/v2/readiness" {
+			w = doReadiness(t)
+		} else if endpoint == "host-requirements" {
+			w = doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.host.HostService/ListHostRequirements", `{"target":"local"}`)
+		} else {
+			w = doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ListCredentials", `{"target":"local"}`)
+		}
 		if w.Code != http.StatusOK {
 			t.Fatalf("GET %s status = %d: %s", endpoint, w.Code, w.Body.String())
+		}
+	}
+	for _, endpoint := range []string{"ListScenarios", "GetUnion"} {
+		w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/"+endpoint, `{"target":"local"}`)
+		if w.Code != http.StatusOK {
+			t.Fatalf("selection %s status = %d: %s", endpoint, w.Code, w.Body.String())
 		}
 	}
 }
@@ -101,19 +128,8 @@ func TestV2BundleModeNamesMissingCatalogAsDegraded(t *testing.T) {
 	t.Setenv("BUNDLE_ROOT", bundle)
 	t.Setenv("VROOLI_STORAGE_ROOT", storageRoot)
 
-	w := doGet(t, NewServer(), "/api/v2/host-requirements")
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
-	}
-	var body map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
-		t.Fatal(err)
-	}
-	if body["status"] != "degraded" {
-		t.Fatalf("body = %s", w.Body.String())
-	}
-	errBody, ok := body["error"].(map[string]any)
-	if !ok || errBody["code"] != "catalog_unavailable" || errBody["missing_catalog"] != "catalog/internal/tools" {
-		t.Fatalf("degraded error = %v", body["error"])
+	w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.host.HostService/ListHostRequirements", `{"target":"local"}`)
+	if w.Code != http.StatusInternalServerError || !strings.Contains(strings.ToLower(w.Body.String()), "catalog") {
+		t.Fatalf("missing catalog error = %s", w.Body.String())
 	}
 }

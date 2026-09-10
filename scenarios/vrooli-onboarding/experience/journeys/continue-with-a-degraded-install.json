@@ -7,7 +7,7 @@
     "title": "Finish setup with an optional gap",
     "purpose": "Every required item is ready and one optional item is not. The operator continues deliberately, and the acknowledgement is recorded rather than forgotten.",
     "prd_refs": [
-      "OT-P1-001"
+      "OT-P0-010"
     ]
   },
   "steps": [

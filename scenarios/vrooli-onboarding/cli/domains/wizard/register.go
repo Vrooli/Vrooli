@@ -4,17 +4,31 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
+	onboardingselection "vrooli-onboarding/cli/domains/selection"
 	"vrooli-onboarding/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
+	applyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/apply"
+	credentialsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/credentials"
+	credentialsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/credentials/credentialsv1connect"
+	operatorinputsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorinputs"
+	operatorstatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorstate"
+	readinessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/readiness"
+	selectionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/selection"
+	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/session"
 	"golang.org/x/term"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"vrooli-onboarding/cli/internal/clock"
 )
 
 // Selection is the stable automation document. It names operator intent and
@@ -120,25 +134,73 @@ type operatorInputRequest struct {
 	Default     string   `json:"default"`
 	Options     []string `json:"options"`
 	Required    bool     `json:"required"`
+	Declinable  bool     `json:"declinable"`
+	Decision    string   `json:"decision"`
 }
 
 type operatorInputQueue struct {
-	Requests []operatorInputRequest `json:"requests"`
+	Version          int32                  `json:"version"`
+	ExpectedRevision string                 `json:"expected_revision,omitempty"`
+	Requests         []operatorInputRequest `json:"requests"`
 }
 
-type stepModelEntry struct {
-	ID      string `json:"id"`
-	Ordinal int    `json:"ordinal"`
-}
+const (
+	applyStartProcedure            = "/vrooli.vrooli_onboarding.v1.apply.ApplyService/StartApply"
+	applyReviewProcedure           = "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply"
+	applyRunProcedure              = "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyRun"
+	applyPlanProcedure             = "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyPlan"
+	sessionGetProcedure            = "/vrooli.vrooli_onboarding.v1.session.SessionService/GetSession"
+	sessionAdvanceProcedure        = "/vrooli.vrooli_onboarding.v1.session.SessionService/AdvanceSessionStep"
+	sessionModelProcedure          = "/vrooli.vrooli_onboarding.v1.session.SessionService/GetStepModel"
+	operatorInputsListProcedure    = "/vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ListOperatorInputs"
+	operatorInputsResolveProcedure = "/vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ResolveOperatorInputs"
+	operatorStateGetProcedure      = "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/GetOperatorState"
+	operatorStatePatchProcedure    = "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState"
+	readinessGetProcedure          = "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/GetReadiness"
+)
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "wizard", Description: "Configure an installation through the onboarding API", NeedsAPI: true, Subcommands: []cliapp.Command{
-		{Name: "status", Description: "Show the computed onboarding step and committed state", Run: func(args []string) error { return support.GetJSON(core, "wizard", args, "/v2/session") }},
+		{Name: "status", Description: "Show the computed onboarding step and committed state", Run: func(args []string) error { return sessionStatus(core, args) }},
 		{Name: "commit", Description: "Commit a selection document and apply it; top-level apply applies committed state", Run: func(args []string) error { return apply(core, args) }},
 		{Name: "export", Description: "Export the current manifest-derived selection", Run: func(args []string) error { return exportSelection(core, args) }},
+		{Name: "support-export", Description: "Write an explicit, metadata-only support diagnostic", Run: func(args []string) error { return supportExport(core, args) }},
 		{Name: "run", Description: "Walk the same ten capability steps used by the UI", Run: func(args []string) error { return runWizard(core, args) }},
 		{Name: "core-set", Description: "Preview and update the operator core seed", Run: func(args []string) error { return runCoreSet(core, args) }},
+		{Name: "advance-step", Description: "Advance the shared onboarding step pointer", Run: func(args []string) error { return advanceSessionStep(core, args) }},
 	}}
+}
+
+// ManifestHandlers retains the workflow commands that need terminal and file
+// behavior while the surrounding command tree is loaded from the manifest.
+func ManifestHandlers(core *cliapp.ScenarioApp) map[string]cliapp.PrimitiveHandler {
+	return map[string]cliapp.PrimitiveHandler{
+		"wizard.export": cliapp.ExternalDelegation(func(ctx cliapp.RunContext) error {
+			return exportSelection(core, contextArgs(ctx))
+		}),
+		"wizard.support-export": cliapp.ExternalDelegation(func(ctx cliapp.RunContext) error {
+			return supportExport(core, contextArgs(ctx))
+		}),
+		"wizard.run": cliapp.ExternalDelegation(func(ctx cliapp.RunContext) error {
+			return runWizard(core, contextArgs(ctx))
+		}),
+	}
+}
+
+func contextArgs(ctx cliapp.RunContext) []string {
+	args := append([]string(nil), ctx.Args()...)
+	for _, flag := range ctx.Schema().Flags {
+		if flag.Bool {
+			if ctx.BoolFlag(flag.Name) {
+				args = append(args, "--"+flag.Name)
+			}
+			continue
+		}
+		if ctx.FlagProvided(flag.Name) {
+			args = append(args, "--"+flag.Name, ctx.Flag(flag.Name))
+		}
+	}
+	return args
 }
 
 func runWizard(core *cliapp.ScenarioApp, args []string) error {
@@ -146,61 +208,52 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 	interactive := fs.Bool("interactive", false, "Walk all nine onboarding steps in the terminal")
 	acceptRecommendation := fs.Bool("accept-recommendation", false, "Use the manifest-derived starter profile without asking for scenario names")
 	nonInteractive := fs.Bool("non-interactive", false, "Never read input; return a typed needs-input error when a decision is required")
+	target := fs.String("target", "local", "Onboarding target scenario")
 	fromStep := fs.String("from-step", "", "Start at a declared step id instead of the session pointer")
 	restart := fs.Bool("restart", false, "Restart from the first declared step instead of resuming")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
+	}
+	if strings.TrimSpace(*target) == "" {
+		return fmt.Errorf("--target is required")
 	}
 	if *nonInteractive && !*acceptRecommendation {
 		_, _ = fmt.Fprintln(os.Stdout, `{"status":"needs_input","reason":"use --accept-recommendation or run with --interactive"}`)
 		return fmt.Errorf("wizard needs operator input; rerun with --accept-recommendation or --interactive")
 	}
 	if *acceptRecommendation {
-		return applyRecommendation(core)
+		return applyRecommendation(core, strings.TrimSpace(*target))
 	}
 	if !*interactive {
-		return support.GetJSON(core, "wizard", args, "/v2/scenarios")
+		return onboardingselection.List(core, args)
 	}
 	reader := bufio.NewReader(os.Stdin)
-	stepsBody, err := core.Get("/v2/steps", nil)
-	if err != nil {
+	stepResponse := &sessionv1.GetStepModelResponse{}
+	if err := requestSession(core, sessionModelProcedure, &sessionv1.GetStepModelRequest{Target: strings.TrimSpace(*target)}, stepResponse); err != nil {
 		return err
 	}
-	var stepResponse struct {
-		Steps []stepModelEntry `json:"steps"`
-	}
-	if err := json.Unmarshal(stepsBody, &stepResponse); err != nil {
-		return fmt.Errorf("decode step model: %w", err)
-	}
-	sort.Slice(stepResponse.Steps, func(i, j int) bool { return stepResponse.Steps[i].Ordinal < stepResponse.Steps[j].Ordinal })
+	sort.Slice(stepResponse.Steps, func(i, j int) bool { return stepResponse.Steps[i].GetOrdinal() < stepResponse.Steps[j].GetOrdinal() })
 	for _, step := range stepResponse.Steps {
-		if _, ok := stepHandlers[step.ID]; !ok {
-			return unimplementedStepError{ID: step.ID}
+		if _, ok := stepHandlers[step.GetId()]; !ok {
+			return unimplementedStepError{ID: step.GetId()}
 		}
 	}
 	stepIndex := func(id string) (int, error) {
 		for _, step := range stepResponse.Steps {
-			if step.ID == id {
-				return step.Ordinal, nil
+			if step.GetId() == id {
+				return int(step.GetOrdinal()), nil
 			}
 		}
 		return 0, fmt.Errorf("unknown onboarding step %q", id)
 	}
 	startIndex := 0
 	if !*restart {
-		sessionBody, sessionErr := core.Get("/v2/session", nil)
-		if sessionErr != nil {
+		sessionResponse := &sessionv1.GetSessionResponse{}
+		if sessionErr := requestSession(core, sessionGetProcedure, &sessionv1.GetSessionRequest{Target: strings.TrimSpace(*target)}, sessionResponse); sessionErr != nil {
 			return sessionErr
 		}
-		var session struct {
-			FirstUnsatisfiedStep int  `json:"first_unsatisfied_step"`
-			Completion           bool `json:"completion"`
-		}
-		if err := json.Unmarshal(sessionBody, &session); err != nil {
-			return fmt.Errorf("decode onboarding session: %w", err)
-		}
-		startIndex = session.FirstUnsatisfiedStep
-		if session.Completion {
+		startIndex = int(sessionResponse.GetFirstUnsatisfiedStep())
+		if sessionResponse.GetCompletion() {
 			_, _ = fmt.Fprintln(os.Stdout, "Onboarding configuration is already applied; use --restart to walk it again.")
 			return nil
 		}
@@ -216,13 +269,13 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 		startIndex = 0
 	}
 	if startIndex > 0 {
-		_, _ = fmt.Fprintf(os.Stdout, "Resuming onboarding at %s; %d step(s) already satisfied.\n", stepResponse.Steps[startIndex].ID, startIndex)
+		_, _ = fmt.Fprintf(os.Stdout, "Resuming onboarding at %s; %d step(s) already satisfied.\n", stepResponse.Steps[startIndex].GetId(), startIndex)
 	}
 	shouldRun := func(id string) bool { index, err := stepIndex(id); return err == nil && index >= startIndex }
 	stepOrdinal := func(id string) (int, error) {
 		for _, step := range stepResponse.Steps {
-			if step.ID == id {
-				return step.Ordinal + 1, nil
+			if step.GetId() == id {
+				return int(step.GetOrdinal()) + 1, nil
 			}
 		}
 		return 0, fmt.Errorf("step model is missing %q", id)
@@ -254,39 +307,19 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 		line, err := reader.ReadString('\n')
 		return strings.TrimSpace(line), err
 	}
-	scenarios, err := core.Get("/v2/scenarios", nil)
-	if err != nil {
+	scenarioResponse := &selectionv1.ListScenariosResponse{}
+	if err := onboardingselection.Request(core, onboardingselection.ListScenariosProcedure, &selectionv1.ListScenariosRequest{Target: strings.TrimSpace(*target)}, scenarioResponse); err != nil {
 		return err
-	}
-	var scenarioResponse struct {
-		Scenarios []struct {
-			Name string `json:"name"`
-		} `json:"scenarios"`
-	}
-	if err := json.Unmarshal(scenarios, &scenarioResponse); err != nil {
-		return fmt.Errorf("decode scenarios: %w", err)
 	}
 	selection := Selection{ScenarioState: map[string]bool{}, ActiveProfile: "starter"}
-	coreSetBody, err := core.Get("/v2/core-set", nil)
+	currentCore, err := onboardingselection.CoreSetForTarget(core, nil, strings.TrimSpace(*target))
 	if err != nil {
 		return err
-	}
-	var currentCore coreSetView
-	if err := json.Unmarshal(coreSetBody, &currentCore); err != nil {
-		return fmt.Errorf("decode core set: %w", err)
 	}
 	selection.CoreSeed = append([]string(nil), currentCore.Seed...)
-	recommendationBody, err := core.Get("/v2/recommendation", nil)
-	if err != nil {
+	recommendation := &selectionv1.GetRecommendationResponse{}
+	if err := onboardingselection.Request(core, onboardingselection.GetRecommendationProcedure, &selectionv1.GetRecommendationRequest{Target: strings.TrimSpace(*target)}, recommendation); err != nil {
 		return err
-	}
-	var recommendation struct {
-		Profile   string   `json:"profile"`
-		Scenarios []string `json:"scenarios"`
-		Resources []string `json:"resources"`
-	}
-	if err := json.Unmarshal(recommendationBody, &recommendation); err != nil {
-		return fmt.Errorf("decode recommendation: %w", err)
 	}
 	for _, name := range recommendation.Scenarios {
 		selection.ScenarioState[name] = true
@@ -303,26 +336,15 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 		known[scenario.Name] = true
 		names = append(names, scenario.Name)
 	}
-	resourcesBody, err := core.Get("/v2/resources", nil)
-	if err != nil {
+	union := &selectionv1.GetUnionResponse{}
+	if err := onboardingselection.Request(core, onboardingselection.GetUnionProcedure, &selectionv1.GetUnionRequest{Target: strings.TrimSpace(*target)}, union); err != nil {
 		return err
 	}
-	var resourceResponse struct {
-		Optional []struct {
-			Name string `json:"name"`
-		} `json:"optional"`
-		Standalone []struct {
-			Name string `json:"name"`
-		} `json:"standalone"`
-	}
-	if err := json.Unmarshal(resourcesBody, &resourceResponse); err != nil {
-		return fmt.Errorf("decode resources: %w", err)
-	}
-	optionalNames := make([]string, 0, len(resourceResponse.Optional)+len(resourceResponse.Standalone))
-	for _, resource := range resourceResponse.Optional {
+	optionalNames := make([]string, 0, len(union.OptionalResources)+len(union.StandaloneResources))
+	for _, resource := range union.OptionalResources {
 		optionalNames = append(optionalNames, resource.Name)
 	}
-	for _, resource := range resourceResponse.Standalone {
+	for _, resource := range union.StandaloneResources {
 		optionalNames = append(optionalNames, resource.Name)
 	}
 	sort.Strings(optionalNames)
@@ -330,21 +352,9 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 	for _, name := range optionalNames {
 		knownResources[name] = true
 	}
-	credentialsBody, err := core.Get("/v2/credentials", nil)
-	if err != nil {
-		return err
-	}
-	var credentialResponse struct {
-		Credentials []struct {
-			LogicalID string `json:"logical_id"`
-			Field     string `json:"field"`
-			Label     string `json:"label"`
-			Required  bool   `json:"required"`
-			Status    string `json:"status"`
-		} `json:"credentials"`
-	}
-	if err := json.Unmarshal(credentialsBody, &credentialResponse); err != nil {
-		return fmt.Errorf("decode credentials: %w", err)
+	credentialResponse := &credentialsv1.ListCredentialsResponse{}
+	if err := requestSession(core, credentialsconnect.CredentialsServiceListCredentialsProcedure, &credentialsv1.ListCredentialsRequest{Target: strings.TrimSpace(*target)}, credentialResponse); err != nil {
+		return fmt.Errorf("list credentials: %w", err)
 	}
 	hostBody, err := core.Get("/v2/host-requirements", nil)
 	if err != nil {
@@ -357,7 +367,7 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 	if err := json.Unmarshal(hostBody, &hostResponse); err != nil {
 		return fmt.Errorf("decode host requirements: %w", err)
 	}
-	var applyResult []byte
+	var applyResult *applyv1.GetApplyRunResponse
 	runStep := func(id string) error {
 		switch id {
 		case "welcome":
@@ -432,35 +442,32 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 			}
 			return nil
 		case "credentials":
-			if err := resolvePendingOperatorInputs(core, func(_ int, prompt string) (string, error) { return read("credentials", prompt) }, func(_ int, prompt string) (string, error) { return readSecret("credentials", prompt) }); err != nil {
+			if err := resolvePendingOperatorInputs(core, strings.TrimSpace(*target), func(_ int, prompt string) (string, error) { return read("credentials", prompt) }, func(_ int, prompt string) (string, error) { return readSecret("credentials", prompt) }); err != nil {
 				return err
 			}
 			if _, err := read("credentials", "credentials are listed by the API; provision values with credentials provision, then press enter"); err != nil {
 				return err
 			}
-			for _, credential := range credentialResponse.Credentials {
-				if credential.Status == "configured" {
+			for _, credential := range credentialResponse.GetCredentials() {
+				if credential.GetStatus() == "configured" {
 					continue
 				}
-				label := credential.Label
+				label := credential.GetLabel()
 				if label == "" {
-					label = credential.LogicalID + "/" + credential.Field
+					label = credential.GetLogicalId() + "/" + credential.GetField()
 				}
 				value, readErr := readSecret("credentials", fmt.Sprintf("enter %s; leave blank to defer (value is never printed)", label))
 				if readErr != nil {
 					return readErr
 				}
 				if value == "" {
-					if credential.Required {
+					if credential.GetRequired() {
 						_, _ = fmt.Fprintln(os.Stdout, "Required credential deferred; readiness will remain blocked.")
 					}
 					continue
 				}
-				body, marshalErr := json.Marshal(map[string]string{"logical_id": credential.LogicalID, "field": credential.Field, "value": value})
-				if marshalErr != nil {
-					return marshalErr
-				}
-				if _, requestErr := core.Request("POST", "/v2/credentials/provision", nil, body); requestErr != nil {
+				provisioned := &credentialsv1.ProvisionCredentialResponse{}
+				if requestErr := requestSession(core, credentialsconnect.CredentialsServiceProvisionCredentialProcedure, &credentialsv1.ProvisionCredentialRequest{Target: strings.TrimSpace(*target), LogicalId: credential.GetLogicalId(), Field: credential.GetField(), Value: value}, provisioned); requestErr != nil {
 					return fmt.Errorf("provision %s: %w", label, requestErr)
 				}
 				_, _ = fmt.Fprintln(os.Stdout, "Credential stored through the native authority:", label)
@@ -530,19 +537,19 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 			// to inform the answer. Persisting the selection first is what
 			// makes the plan computable, and it authorizes nothing on its own:
 			// selectionPatch carries no apply flag, and the host is only
-			// touched by POST /v2/apply below.
+			// touched by StartApply below.
 			patch, marshalErr := json.Marshal(selectionPatch(selection))
 			if marshalErr != nil {
 				return marshalErr
 			}
-			if _, err := core.Request("PATCH", "/v2/operator-state", nil, patch); err != nil {
+			if err := patchOperatorState(core, strings.TrimSpace(*target), patch); err != nil {
 				return err
 			}
-			planBody, err := core.Get("/v2/apply/plan", nil)
-			if err != nil {
+			planResponse := &applyv1.GetApplyPlanResponse{}
+			if err := requestApply(core, applyPlanProcedure, &applyv1.GetApplyPlanRequest{Target: strings.TrimSpace(*target)}, planResponse); err != nil {
 				return err
 			}
-			if err := printApplyPlan(planBody); err != nil {
+			if err := renderApplyPlan(planResponse); err != nil {
 				return err
 			}
 			confirmation, err := read("apply", "apply this selection now? answer yes or no; press enter for yes")
@@ -553,16 +560,12 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 				return fmt.Errorf("selection not applied; answer yes to commit the wizard selection")
 			}
 			selection.Apply = true
-			applyResult, err = core.Request("POST", "/v2/apply", nil, []byte("{}"))
+			applyResponse, err := startApplyWithConsent(core, strings.TrimSpace(*target), planResponse)
 			if err != nil {
 				return err
 			}
-			var applyResponse struct {
-				RunID  string `json:"run_id"`
-				Status string `json:"status"`
-			}
-			if err := json.Unmarshal(applyResult, &applyResponse); err == nil && applyResponse.RunID != "" {
-				applyResult, err = waitForApply(core, applyResponse.RunID, applyResponse.Status)
+			if applyResponse.GetRun() != nil {
+				applyResult, err = waitForApply(core, strings.TrimSpace(*target), applyResponse.GetRun())
 				if err != nil {
 					return err
 				}
@@ -572,12 +575,16 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 			if _, err := read("validation", "validation will run after apply; press enter to print final status"); err != nil {
 				return err
 			}
-			readinessResult, err := core.Get("/v2/readiness", nil)
-			if err != nil {
+			readinessResponse := &readinessv1.GetReadinessResponse{}
+			if err := requestOperator(core, readinessGetProcedure, &readinessv1.GetReadinessRequest{Target: strings.TrimSpace(*target)}, readinessResponse); err != nil {
 				return err
 			}
+			readinessResult, err := protojson.Marshal(readinessResponse)
+			if err != nil {
+				return fmt.Errorf("encode readiness: %w", err)
+			}
 			if applyResult != nil {
-				if err := printApplyReport(applyResult); err != nil {
+				if err := renderApplyReport(applyResult); err != nil {
 					return err
 				}
 			}
@@ -591,50 +598,40 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 	}
 	session := &wizardSession{runStep: runStep}
 	for _, step := range stepResponse.Steps {
-		if !shouldRun(step.ID) {
+		if !shouldRun(step.GetId()) {
 			continue
 		}
-		handler, ok := stepHandlers[step.ID]
+		handler, ok := stepHandlers[step.GetId()]
 		if !ok {
-			return unimplementedStepError{ID: step.ID}
+			return unimplementedStepError{ID: step.GetId()}
 		}
 		if err := handler(session); err != nil {
 			return err
 		}
-		body, marshalErr := json.Marshal(map[string]int{"step": step.Ordinal})
-		if marshalErr != nil {
-			return marshalErr
-		}
-		if _, err := core.Request("POST", "/v2/session/step", nil, body); err != nil {
-			return fmt.Errorf("record completed step %s: %w", step.ID, err)
+		if err := requestSession(core, sessionAdvanceProcedure, &sessionv1.AdvanceSessionStepRequest{Target: strings.TrimSpace(*target), StepId: step.GetId()}, &sessionv1.GetSessionResponse{}); err != nil {
+			return fmt.Errorf("record completed step %s: %w", step.GetId(), err)
 		}
 	}
 	return nil
 }
 
-type coreSetView struct {
-	Available    bool           `json:"available"`
-	Seed         []string       `json:"seed"`
-	TrustedBase  []string       `json:"trusted_base"`
-	MemberCounts map[string]int `json:"member_counts"`
-	Error        string         `json:"error"`
-}
+type coreSetView = selectionv1.GetCoreSetResponse
 
 func runCoreSet(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("wizard core-set")
+	target := fs.String("target", "local", "Onboarding target scenario")
 	add := fs.String("add", "", "Comma-separated scenarios to add to core.seed")
 	remove := fs.String("remove", "", "Comma-separated scenarios to remove from core.seed")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-	currentBody, err := core.Get("/v2/core-set", nil)
+	if strings.TrimSpace(*target) == "" {
+		return fmt.Errorf("--target is required")
+	}
+	current, err := fetchCoreSetForTarget(core, nil, strings.TrimSpace(*target))
 	if err != nil {
 		return err
-	}
-	var current coreSetView
-	if err := json.Unmarshal(currentBody, &current); err != nil {
-		return fmt.Errorf("decode core set: %w", err)
 	}
 	seed := map[string]bool{}
 	for _, name := range current.Seed {
@@ -651,7 +648,7 @@ func runCoreSet(core *cliapp.ScenarioApp, args []string) error {
 		proposed = append(proposed, name)
 	}
 	sort.Strings(proposed)
-	preview, err := fetchCoreSet(core, proposed)
+	preview, err := fetchCoreSetForTarget(core, proposed, strings.TrimSpace(*target))
 	if err != nil {
 		return err
 	}
@@ -663,11 +660,11 @@ func runCoreSet(core *cliapp.ScenarioApp, args []string) error {
 		if err != nil {
 			return err
 		}
-		if _, err := core.Request("PATCH", "/v2/operator-state", nil, body); err != nil {
+		if err := patchOperatorState(core, strings.TrimSpace(*target), body); err != nil {
 			return err
 		}
 	}
-	encoded, err := json.Marshal(preview)
+	encoded, err := (protojson.MarshalOptions{Multiline: true, Indent: "  "}).Marshal(preview)
 	if err != nil {
 		return err
 	}
@@ -679,20 +676,12 @@ func runCoreSet(core *cliapp.ScenarioApp, args []string) error {
 	return err
 }
 
-func fetchCoreSet(core *cliapp.ScenarioApp, seed []string) (coreSetView, error) {
-	query := url.Values{}
-	for _, name := range normalizedNames(seed) {
-		query.Add("seed", name)
-	}
-	body, err := core.Get("/v2/core-set", query)
-	if err != nil {
-		return coreSetView{}, err
-	}
-	var view coreSetView
-	if err := json.Unmarshal(body, &view); err != nil {
-		return coreSetView{}, fmt.Errorf("decode core-set preview: %w", err)
-	}
-	return view, nil
+func fetchCoreSet(core *cliapp.ScenarioApp, seed []string) (*coreSetView, error) {
+	return fetchCoreSetForTarget(core, seed, "local")
+}
+
+func fetchCoreSetForTarget(core *cliapp.ScenarioApp, seed []string, target string) (*coreSetView, error) {
+	return onboardingselection.CoreSetForTarget(core, normalizedNames(seed), target)
 }
 
 func normalizedNames(values []string) []string {
@@ -710,88 +699,91 @@ func normalizedNames(values []string) []string {
 	return result
 }
 
-func applyRecommendation(core *cliapp.ScenarioApp) error {
-	if err := rejectPendingOperatorInputs(core); err != nil {
+func applyRecommendation(core *cliapp.ScenarioApp, target string) error {
+	if err := rejectPendingOperatorInputs(core, target); err != nil {
 		return err
 	}
-	body, err := core.Get("/v2/recommendation", nil)
+	accepted := &selectionv1.AcceptRecommendationResponse{}
+	if err := onboardingselection.Request(core, onboardingselection.AcceptRecommendationProcedure, &selectionv1.AcceptRecommendationRequest{Target: target}, accepted); err != nil {
+		return err
+	}
+	var err error
+	planResponse := &applyv1.GetApplyPlanResponse{}
+	if err := requestApply(core, applyPlanProcedure, &applyv1.GetApplyPlanRequest{Target: target}, planResponse); err != nil {
+		return err
+	}
+	if err := renderApplyPlan(planResponse); err != nil {
+		return err
+	}
+	applyResponse, err := startApplyWithConsent(core, target, planResponse)
 	if err != nil {
 		return err
 	}
-	var recommendation struct {
-		Profile   string   `json:"profile"`
-		Scenarios []string `json:"scenarios"`
-		Resources []string `json:"resources"`
-	}
-	if err := json.Unmarshal(body, &recommendation); err != nil {
-		return fmt.Errorf("decode recommendation: %w", err)
-	}
-	scenarios := map[string]any{}
-	for _, name := range recommendation.Scenarios {
-		scenarios[name] = map[string]any{"enabled": true}
-	}
-	resources := map[string]any{}
-	for _, name := range recommendation.Resources {
-		resources[name] = map[string]any{"enabled": true}
-	}
-	patch := map[string]any{
-		"active_profile": recommendation.Profile,
-		"scenarios":      scenarios,
-		"resources":      resources,
-	}
-	patchBody, err := json.Marshal(patch)
-	if err != nil {
-		return err
-	}
-	if _, err := core.Request("PATCH", "/v2/operator-state", nil, patchBody); err != nil {
-		return err
-	}
-	planBody, err := core.Get("/v2/apply/plan", nil)
-	if err != nil {
-		return err
-	}
-	if err := printApplyPlan(planBody); err != nil {
-		return err
-	}
-	applyResult, err := core.Request("POST", "/v2/apply", nil, []byte("{}"))
-	if err != nil {
-		return err
-	}
-	var applyResponse struct {
-		RunID  string `json:"run_id"`
-		Status string `json:"status"`
-	}
-	if err := json.Unmarshal(applyResult, &applyResponse); err == nil && applyResponse.RunID != "" {
-		applyResult, err = waitForApply(core, applyResponse.RunID, applyResponse.Status)
+	var applyResult *applyv1.GetApplyRunResponse
+	if applyResponse.GetRun() != nil {
+		applyResult, err = waitForApply(core, target, applyResponse.GetRun())
 		if err != nil {
 			return err
 		}
 	}
-	readiness, err := core.Get("/v2/readiness", nil)
+	readinessResponse := &readinessv1.GetReadinessResponse{}
+	if err := requestOperator(core, readinessGetProcedure, &readinessv1.GetReadinessRequest{Target: target}, readinessResponse); err != nil {
+		return err
+	}
+	readiness, err := protojson.Marshal(readinessResponse)
 	if err != nil {
 		return err
 	}
-	if err := printApplyReport(applyResult); err != nil {
+	if err := renderApplyReport(applyResult); err != nil {
 		return err
 	}
 	_, err = fmt.Fprintln(os.Stdout, "Readiness:", string(readiness))
 	return err
 }
 
-func readOperatorInputQueue(core *cliapp.ScenarioApp) (operatorInputQueue, error) {
-	body, err := core.Get("/v2/operator-inputs", nil)
-	if err != nil {
+func startApplyWithConsent(core *cliapp.ScenarioApp, target string, plan *applyv1.GetApplyPlanResponse) (*applyv1.StartApplyResponse, error) {
+	if plan == nil || strings.TrimSpace(plan.GetPlanId()) == "" || strings.TrimSpace(plan.GetPlanDigest()) == "" || strings.TrimSpace(plan.GetRevision()) == "" {
+		return nil, fmt.Errorf("apply plan is incomplete; reload the target plan before applying")
+	}
+	review := &applyv1.ReviewApplyResponse{}
+	if err := requestApply(core, applyReviewProcedure, &applyv1.ReviewApplyRequest{
+		Target: target, PlanId: plan.GetPlanId(), PlanDigest: plan.GetPlanDigest(), ExpectedRevision: plan.GetRevision(),
+	}, review); err != nil {
+		return nil, err
+	}
+	result := &applyv1.StartApplyResponse{}
+	if err := requestApply(core, applyStartProcedure, &applyv1.StartApplyRequest{
+		Target: target, PlanId: review.GetPlanId(), PlanDigest: review.GetPlanDigest(), ExpectedRevision: review.GetRevision(),
+		ConsentReceiptId: review.GetConsentReceiptId(), IdempotencyKey: "wizard:" + target + ":" + plan.GetPlanDigest(),
+	}, result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func readOperatorInputQueue(core *cliapp.ScenarioApp, target string) (operatorInputQueue, error) {
+	response := &operatorinputsv1.ListOperatorInputsResponse{}
+	if err := requestOperator(core, operatorInputsListProcedure, &operatorinputsv1.ListOperatorInputsRequest{Target: target}, response); err != nil {
 		return operatorInputQueue{}, err
 	}
-	var queue operatorInputQueue
-	if err := json.Unmarshal(body, &queue); err != nil {
-		return operatorInputQueue{}, fmt.Errorf("decode operator input queue: %w", err)
+	queue := operatorInputQueue{Version: response.GetVersion()}
+	for _, request := range response.GetRequests() {
+		if request == nil {
+			continue
+		}
+		kind := strings.ToLower(strings.TrimPrefix(request.GetKind().String(), "OPERATOR_INPUT_KIND_"))
+		queue.Requests = append(queue.Requests, operatorInputRequest{ID: request.GetId(), Kind: kind, Title: request.GetTitle(), Description: request.GetDescription(), Default: request.GetDefaultValue(), Options: request.GetOptions(), Required: request.GetRequired(), Declinable: request.GetDeclinable()})
 	}
+	readiness := &readinessv1.GetReadinessResponse{}
+	if err := requestOperator(core, readinessGetProcedure, &readinessv1.GetReadinessRequest{Target: target}, readiness); err != nil {
+		return operatorInputQueue{}, err
+	}
+	queue.ExpectedRevision = readiness.GetConfigurationRevision()
 	return queue, nil
 }
 
-func rejectPendingOperatorInputs(core *cliapp.ScenarioApp) error {
-	queue, err := readOperatorInputQueue(core)
+func rejectPendingOperatorInputs(core *cliapp.ScenarioApp, target string) error {
+	queue, err := readOperatorInputQueue(core, target)
 	if err != nil {
 		return err
 	}
@@ -808,15 +800,15 @@ func rejectPendingOperatorInputs(core *cliapp.ScenarioApp) error {
 	return fmt.Errorf("wizard has pending operator input; resolve it through onboarding before applying the recommendation")
 }
 
-func resolvePendingOperatorInputs(core *cliapp.ScenarioApp, read, readSecret func(int, string) (string, error)) error {
-	queue, err := readOperatorInputQueue(core)
+func resolvePendingOperatorInputs(core *cliapp.ScenarioApp, target string, read, readSecret func(int, string) (string, error)) error {
+	queue, err := readOperatorInputQueue(core, target)
 	if err != nil {
 		return err
 	}
 	if len(queue.Requests) == 0 {
 		return nil
 	}
-	answers := make([]map[string]string, 0, len(queue.Requests))
+	answers := make([]*operatorinputsv1.Answer, 0, len(queue.Requests))
 	for _, request := range queue.Requests {
 		prompt := request.Title
 		if request.Description != "" {
@@ -828,6 +820,9 @@ func resolvePendingOperatorInputs(core *cliapp.ScenarioApp, read, readSecret fun
 		if request.Default != "" {
 			prompt += " (default: " + request.Default + ")"
 		}
+		if request.Declinable {
+			prompt += " (type decline to keep this optional control declined)"
+		}
 		readAnswer := read
 		if request.Kind == "secret" {
 			readAnswer = readSecret
@@ -836,17 +831,47 @@ func resolvePendingOperatorInputs(core *cliapp.ScenarioApp, read, readSecret fun
 		if err != nil {
 			return err
 		}
+		if request.Declinable && strings.EqualFold(strings.TrimSpace(value), "decline") {
+			answers = append(answers, &operatorinputsv1.Answer{RequestId: request.ID, Declined: true})
+			continue
+		}
 		if value == "" {
 			value = request.Default
 		}
-		answers = append(answers, map[string]string{"request_id": request.ID, "value": value})
+		answers = append(answers, &operatorinputsv1.Answer{RequestId: request.ID, Value: value})
 	}
-	body, err := json.Marshal(answers)
-	if err != nil {
-		return err
-	}
-	if _, err := core.Request("POST", "/v2/operator-inputs/resolve", nil, body); err != nil {
+	response := &operatorinputsv1.ResolveOperatorInputsResponse{}
+	if err := requestOperator(core, operatorInputsResolveProcedure, &operatorinputsv1.ResolveOperatorInputsRequest{Target: target, ExpectedRevision: queue.ExpectedRevision, Answers: answers}, response); err != nil {
 		return fmt.Errorf("resolve onboarding operator input: %w", err)
+	}
+	return nil
+}
+
+func requestOperator(core *cliapp.ScenarioApp, procedure string, message, response proto.Message) error {
+	return support.RequestProto(core, procedure, message, response, "operator inputs")
+}
+
+func patchOperatorState(core *cliapp.ScenarioApp, target string, body []byte) error {
+	state := &operatorstatev1.OperatorState{}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, state); err != nil {
+		return fmt.Errorf("decode operator-state patch: %w", err)
+	}
+	var patch map[string]json.RawMessage
+	if err := json.Unmarshal(body, &patch); err != nil {
+		return fmt.Errorf("decode operator-state patch fields: %w", err)
+	}
+	paths := make([]string, 0, len(patch))
+	for path := range patch {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	response := &operatorstatev1.PatchOperatorStateResponse{}
+	if err := support.RequestProto(core, operatorStatePatchProcedure, &operatorstatev1.PatchOperatorStateRequest{
+		Target:     target,
+		State:      state,
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: paths},
+	}, response, "operator state"); err != nil {
+		return err
 	}
 	return nil
 }
@@ -871,27 +896,36 @@ func describeHostItems(items []hostItem) string {
 	return strings.Join(parts, ", ")
 }
 
-// printApplyPlan is the operator's disclosure before consent. It must answer
+// printApplyPlan decodes a Connect response for compatibility with focused
+// renderer tests. The CLI request path uses renderApplyPlan directly, so the
+// production renderer only receives generated protobuf messages.
+func printApplyPlan(body []byte) error {
+	plan := &applyv1.GetApplyPlanResponse{}
+	if err := protojson.Unmarshal(body, plan); err != nil {
+		return fmt.Errorf("decode apply plan: %w", err)
+	}
+	return renderApplyPlan(plan)
+}
+
+// renderApplyPlan is the operator's disclosure before consent. It must answer
 // four questions the flat kind/name list did not: how much is about to happen,
 // which items change host state with elevation, which items are already in
 // place, and what "apply" actually does to this machine. The plan is a
 // desired-state list, so without the state split every entry reads as a
 // pending change even when most are already satisfied.
-func printApplyPlan(body []byte) error {
-	var plan struct {
-		Items []planItem `json:"items"`
+func renderApplyPlan(response *applyv1.GetApplyPlanResponse) error {
+	items := make([]planItem, 0, len(response.GetItems()))
+	for _, item := range response.GetItems() {
+		items = append(items, planItem{Kind: item.GetKind(), Name: item.GetName(), Required: item.GetRequired(), Privileged: item.GetPrivileged(), State: item.GetObservedState()})
 	}
-	if err := json.Unmarshal(body, &plan); err != nil {
-		return fmt.Errorf("decode apply plan: %w", err)
-	}
-	if len(plan.Items) == 0 {
+	if len(items) == 0 {
 		_, _ = fmt.Fprintln(os.Stdout, "Apply plan: no changes. Nothing will be executed.")
 		return nil
 	}
 
-	pending := filterByState(plan.Items, "pending")
-	satisfied := filterByState(plan.Items, "satisfied")
-	unknown := filterByState(plan.Items, "unknown")
+	pending := filterByState(items, "pending")
+	satisfied := filterByState(items, "satisfied")
+	unknown := filterByState(items, "unknown")
 	elevatedPending := 0
 	for _, item := range pending {
 		if item.Privileged {
@@ -900,7 +934,7 @@ func printApplyPlan(body []byte) error {
 	}
 
 	_, _ = fmt.Fprintf(os.Stdout, "\nApply plan — %d selected item(s): %d not yet in place, %d already in place, %d not sampled.\n",
-		len(plan.Items), len(pending), len(satisfied), len(unknown))
+		len(items), len(pending), len(satisfied), len(unknown))
 
 	_, _ = fmt.Fprintln(os.Stdout, "\nWhat \"apply\" does, per kind:")
 	_, _ = fmt.Fprintln(os.Stdout, "  tool       `vrooli host install <name>`   — installs a program on this host")
@@ -1007,49 +1041,47 @@ func pluralKind(kind string, count int) string {
 }
 
 func printApplyReport(body []byte) error {
-	var report struct {
-		Status string `json:"status"`
-		Items  []struct {
-			Name        string `json:"name"`
-			Outcome     string `json:"outcome"`
-			Error       string `json:"error"`
-			BlockedBy   string `json:"blocked_by"`
-			Remediation string `json:"remediation"`
-		} `json:"items"`
-		Blockers []struct {
-			Name        string `json:"name"`
-			Reason      string `json:"reason"`
-			Remediation string `json:"remediation"`
-		} `json:"blockers"`
-	}
-	if err := json.Unmarshal(body, &report); err != nil {
+	report := &applyv1.GetApplyRunResponse{}
+	if err := protojson.Unmarshal(body, report); err != nil {
 		return fmt.Errorf("decode apply report: %w", err)
 	}
-	_, _ = fmt.Fprintln(os.Stdout, "Apply report:", report.Status)
+	return renderApplyReport(report)
+}
+
+func renderApplyReport(report *applyv1.GetApplyRunResponse) error {
+	status := report.GetLegacyStatus()
+	if status == "" {
+		status = report.GetStatus().String()
+	}
+	_, _ = fmt.Fprintln(os.Stdout, "Apply report:", status)
 	// A run can end without applying anything -- refused up front, for example.
 	// Printing only the status would tell the operator that something went
 	// wrong while withholding the one line that says what to do about it.
-	for _, blocker := range report.Blockers {
-		_, _ = fmt.Fprintf(os.Stdout, "  ! %s: %s\n", blocker.Name, blocker.Reason)
-		if strings.TrimSpace(blocker.Remediation) != "" {
-			_, _ = fmt.Fprintf(os.Stdout, "    fix: %s\n", blocker.Remediation)
+	for _, blocker := range report.GetBlockers() {
+		_, _ = fmt.Fprintf(os.Stdout, "  ! %s: %s\n", blocker.GetName(), blocker.GetReason())
+		if strings.TrimSpace(blocker.GetRemediation()) != "" {
+			_, _ = fmt.Fprintf(os.Stdout, "    fix: %s\n", blocker.GetRemediation())
 		}
 	}
-	for _, item := range report.Items {
-		detail := item.Error
+	for _, item := range report.GetSteps() {
+		outcome := item.GetLegacyOutcome()
+		if outcome == "" {
+			outcome = item.GetState().String()
+		}
+		detail := item.GetError()
 		if detail == "" {
-			detail = item.BlockedBy
+			detail = item.GetBlockedBy()
 		}
 		// An item can carry a reason without having failed -- a skipped item is
 		// the plain case. Falling straight through to "completed" reported those
 		// as if they had run.
 		if detail == "" {
-			detail = item.Remediation
+			detail = item.GetRemediation()
 		}
 		if detail == "" {
 			detail = "completed"
 		}
-		_, _ = fmt.Fprintf(os.Stdout, "  - %s: %s (%s)\n", item.Name, item.Outcome, detail)
+		_, _ = fmt.Fprintf(os.Stdout, "  - %s: %s (%s)\n", item.GetName(), outcome, detail)
 	}
 	return nil
 }
@@ -1085,23 +1117,96 @@ const (
 	applyPollInterval    = 500 * time.Millisecond
 )
 
-func waitForApply(core *cliapp.ScenarioApp, runID, status string) ([]byte, error) {
-	result := []byte(`{"run_id":"` + runID + `","status":"` + status + `"}`)
+func requestApply(core *cliapp.ScenarioApp, procedure string, message, response proto.Message) error {
+	return support.RequestProto(core, procedure, message, response, "apply")
+}
+
+func requestSession(core *cliapp.ScenarioApp, procedure string, message, response proto.Message) error {
+	return support.RequestProto(core, procedure, message, response, "session")
+}
+
+func printSessionResponse(response proto.Message) error {
+	return support.PrintProto(os.Stdout, response, "session")
+}
+
+func sessionStatus(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("wizard status")
+	target := fs.String("target", "local", "Onboarding target scenario")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*target) == "" {
+		return fmt.Errorf("--target is required")
+	}
+	response := &sessionv1.GetSessionResponse{}
+	if err := requestSession(core, sessionGetProcedure, &sessionv1.GetSessionRequest{Target: strings.TrimSpace(*target)}, response); err != nil {
+		return err
+	}
+	if *jsonOutput {
+		return printSessionResponse(response)
+	}
+	_, err := fmt.Fprintf(os.Stdout, "Onboarding step %s (%d), first unsatisfied step %d, completion=%t\n", response.GetStepId(), response.GetStep(), response.GetFirstUnsatisfiedStep(), response.GetCompletion())
+	return err
+}
+
+func advanceSessionStep(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("wizard advance-step")
+	target := fs.String("target", "local", "Onboarding target scenario")
+	stepID := fs.String("step-id", "", "Stable onboarding step id")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*target) == "" || strings.TrimSpace(*stepID) == "" {
+		return fmt.Errorf("--target and --step-id are required")
+	}
+	response := &sessionv1.GetSessionResponse{}
+	if err := requestSession(core, sessionAdvanceProcedure, &sessionv1.AdvanceSessionStepRequest{Target: strings.TrimSpace(*target), StepId: strings.TrimSpace(*stepID)}, response); err != nil {
+		return err
+	}
+	if *jsonOutput {
+		return printSessionResponse(response)
+	}
+	_, err := fmt.Fprintf(os.Stdout, "Onboarding step advanced to %s (%d)\n", response.GetStepId(), response.GetStep())
+	return err
+}
+
+func applyItems(steps []*applyv1.ApplyStep) []applyRunItem {
+	items := make([]applyRunItem, 0, len(steps))
+	for _, step := range steps {
+		if step == nil {
+			continue
+		}
+		outcome := step.GetLegacyOutcome()
+		if outcome == "" {
+			outcome = strings.ToLower(strings.TrimPrefix(step.GetState().String(), "APPLY_STEP_STATE_"))
+		}
+		items = append(items, applyRunItem{ID: step.GetId(), Kind: step.GetKind(), Name: step.GetName(), Outcome: outcome, Error: step.GetError()})
+	}
+	return items
+}
+
+func waitForApply(core *cliapp.ScenarioApp, target string, current *applyv1.GetApplyRunResponse) (*applyv1.GetApplyRunResponse, error) {
+	if current == nil {
+		return nil, fmt.Errorf("apply start returned no run")
+	}
 	var (
 		unreachableSince time.Time
 		announced        bool
-		items            []applyRunItem
 	)
-	reporter := newApplyProgressReporter(os.Stdout, time.Now)
-	for status == "pending" || status == "applying" {
+	reporter := newApplyProgressReporter(os.Stdout, clock.Real{}.Now)
+	reporter.Observe(applyItems(current.GetSteps()))
+	for current.GetStatus() == applyv1.ApplyRunState_APPLY_RUN_STATE_PENDING || current.GetStatus() == applyv1.ApplyRunState_APPLY_RUN_STATE_APPLYING {
 		time.Sleep(applyPollInterval)
 
-		body, err := core.Get("/v2/apply/"+runID, nil)
+		response := &applyv1.GetApplyRunResponse{}
+		err := requestApply(core, applyRunProcedure, &applyv1.GetApplyRunRequest{Target: target, RunId: current.GetRunId()}, response)
 		if err != nil {
 			// The run is server-owned. Keep waiting for it rather than
 			// reporting a failure this client cannot actually observe.
 			if unreachableSince.IsZero() {
-				unreachableSince = time.Now()
+				unreachableSince = clock.Real{}.Now()
 			}
 			if !announced {
 				announced = true
@@ -1115,7 +1220,7 @@ func waitForApply(core *cliapp.ScenarioApp, runID, status string) ([]byte, error
 				_, _ = fmt.Fprintln(os.Stdout, "The onboarding API moved to", core.APIRootBase())
 			}
 			if time.Since(unreachableSince) > applyReconnectWindow {
-				return nil, fmt.Errorf("apply run %s is still in progress but the onboarding API has been unreachable for %s: %w", runID, applyReconnectWindow, err)
+				return nil, fmt.Errorf("apply run %s is still in progress but the onboarding API has been unreachable for %s: %w", current.GetRunId(), applyReconnectWindow, err)
 			}
 			continue
 		}
@@ -1125,31 +1230,27 @@ func waitForApply(core *cliapp.ScenarioApp, runID, status string) ([]byte, error
 			reporter.Reconnected()
 		}
 
-		result = body
-		var current struct {
-			Status string         `json:"status"`
-			Items  []applyRunItem `json:"items"`
-		}
-		if err := json.Unmarshal(result, &current); err != nil {
-			return nil, err
-		}
-		items = current.Items
-		reporter.Observe(items)
-		status = current.Status
+		*current = *response
+		reporter.Observe(applyItems(current.GetSteps()))
 	}
-	reporter.Finish(status, items)
-	return result, nil
+	items := applyItems(current.GetSteps())
+	reporter.Finish(current.GetLegacyStatus(), items)
+	return current, nil
 }
 
 func apply(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("wizard commit")
 	selectionPath := fs.String("selection", "", "Path to a selection document")
+	target := fs.String("target", "local", "Onboarding target scenario")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 	if strings.TrimSpace(*selectionPath) == "" {
 		return fmt.Errorf("--selection is required")
+	}
+	if strings.TrimSpace(*target) == "" {
+		return fmt.Errorf("--target is required")
 	}
 	body, err := support.ReadJSONFile(*selectionPath, true)
 	if err != nil {
@@ -1159,62 +1260,105 @@ func apply(core *cliapp.ScenarioApp, args []string) error {
 	if err := json.Unmarshal(body, &selection); err != nil {
 		return fmt.Errorf("decode selection: %w", err)
 	}
-	selection, err = expandSpecialSelection(core, selection)
+	selection, err = expandSpecialSelection(core, selection, strings.TrimSpace(*target))
 	if err != nil {
 		return err
 	}
-	patch := selectionPatch(selection)
-	patchBody, err := json.Marshal(patch)
+	accepted := &selectionv1.AcceptRecommendationResponse{}
+	if err := onboardingselection.Request(core, onboardingselection.AcceptRecommendationProcedure, &selectionv1.AcceptRecommendationRequest{Target: strings.TrimSpace(*target), Profile: selection.ActiveProfile, Selection: selectionDocument(selection)}, accepted); err != nil {
+		return err
+	}
+	plan := &applyv1.GetApplyPlanResponse{}
+	if err := requestApply(core, applyPlanProcedure, &applyv1.GetApplyPlanRequest{Target: strings.TrimSpace(*target)}, plan); err != nil {
+		return err
+	}
+	if err := renderApplyPlan(plan); err != nil {
+		return err
+	}
+	result, err := startApplyWithConsent(core, strings.TrimSpace(*target), plan)
 	if err != nil {
 		return err
 	}
-	if _, err := core.Request("PATCH", "/v2/operator-state", nil, patchBody); err != nil {
-		return err
+	run := result.GetRun()
+	if run == nil {
+		return fmt.Errorf("apply start returned no run")
 	}
-	result, err := core.Request("POST", "/v2/apply", nil, []byte("{}"))
+	final, err := waitForApply(core, strings.TrimSpace(*target), run)
 	if err != nil {
 		return err
 	}
 	if *jsonOutput {
-		_, err = os.Stdout.Write(append(result, '\n'))
+		body, marshalErr := (protojson.MarshalOptions{Multiline: true, Indent: "  "}).Marshal(final)
+		if marshalErr != nil {
+			return marshalErr
+		}
+		_, err = fmt.Fprintln(os.Stdout, string(body))
 		return err
 	}
 	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{Result: []string{"Selection committed and applied"}, NextCommand: []string{support.CLIName + " wizard status"}})
+}
+
+func selectionDocument(selection Selection) *setupv1.Selection {
+	document := &setupv1.Selection{SchemaVersion: "v1", Scenarios: append([]string(nil), selection.Scenarios...), CoreSeed: normalizedNames(selection.CoreSeed), OptionalResources: append([]string(nil), selection.OptionalResources...), Apply: selection.Apply}
+	for _, name := range selection.Host.Tools {
+		document.HostTools = append(document.HostTools, name)
+	}
+	for _, name := range selection.Host.Safeguards {
+		document.HostSafeguards = append(document.HostSafeguards, name)
+	}
+	for name, optedIn := range selection.HostTools {
+		if optedIn {
+			document.HostTools = append(document.HostTools, name)
+		}
+	}
+	for name, optedIn := range selection.HostSafeguards {
+		if optedIn {
+			document.HostSafeguards = append(document.HostSafeguards, name)
+		}
+	}
+	document.OperatingMode = map[string]string{}
+	for name, mode := range selection.OperatingMode {
+		if mode.AutoRestart {
+			document.OperatingMode[name] = "auto-restart"
+		} else {
+			document.OperatingMode[name] = "manual"
+		}
+	}
+	if len(document.OperatingMode) == 0 {
+		document.OperatingMode = nil
+	}
+	sort.Strings(document.Scenarios)
+	sort.Strings(document.CoreSeed)
+	sort.Strings(document.OptionalResources)
+	sort.Strings(document.HostTools)
+	sort.Strings(document.HostSafeguards)
+	return document
 }
 
 // expandSpecialSelection resolves the small set of bridge profile aliases at
 // the node where the selection is committed. The profile document remains
 // portable, while the applied operator state contains concrete names rather
 // than pretending that "all" is a scenario.
-func expandSpecialSelection(core *cliapp.ScenarioApp, selection Selection) (Selection, error) {
+func expandSpecialSelection(core *cliapp.ScenarioApp, selection Selection, target string) (Selection, error) {
 	var err error
-	selection.Scenarios, err = expandScenarioNames(core, selection.Scenarios)
+	selection.Scenarios, err = expandScenarioNames(core, selection.Scenarios, target)
 	if err != nil {
 		return Selection{}, err
 	}
-	selection.OptionalResources, err = expandResourceNames(core, selection.OptionalResources)
+	selection.OptionalResources, err = expandResourceNames(core, selection.OptionalResources, target)
 	if err != nil {
 		return Selection{}, err
 	}
 	return selection, nil
 }
 
-func expandScenarioNames(core *cliapp.ScenarioApp, names []string) ([]string, error) {
+func expandScenarioNames(core *cliapp.ScenarioApp, names []string, target string) ([]string, error) {
 	if !containsAlias(names, "all") {
 		return removeAlias(names, "none"), nil
 	}
-	body, err := core.Get("/v2/scenarios", nil)
-	if err != nil {
+	response := &selectionv1.ListScenariosResponse{}
+	if err := onboardingselection.Request(core, onboardingselection.ListScenariosProcedure, &selectionv1.ListScenariosRequest{Target: target}, response); err != nil {
 		return nil, fmt.Errorf("expand all scenarios: %w", err)
-	}
-	var response struct {
-		Scenarios []struct {
-			Name    string `json:"name"`
-			Enabled bool   `json:"enabled"`
-		} `json:"scenarios"`
-	}
-	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("decode scenarios while expanding selection: %w", err)
 	}
 	result := removeAlias(names, "all")
 	for _, scenario := range response.Scenarios {
@@ -1225,25 +1369,16 @@ func expandScenarioNames(core *cliapp.ScenarioApp, names []string) ([]string, er
 	return uniqueNames(result), nil
 }
 
-func expandResourceNames(core *cliapp.ScenarioApp, names []string) ([]string, error) {
+func expandResourceNames(core *cliapp.ScenarioApp, names []string, target string) ([]string, error) {
 	if !containsAlias(names, "enabled") {
 		return removeAlias(names, "none"), nil
 	}
-	body, err := core.Get("/v2/resources", nil)
-	if err != nil {
+	response := &selectionv1.GetUnionResponse{}
+	if err := onboardingselection.Request(core, onboardingselection.GetUnionProcedure, &selectionv1.GetUnionRequest{Target: target}, response); err != nil {
 		return nil, fmt.Errorf("expand enabled resources: %w", err)
 	}
-	var response struct {
-		Resources []struct {
-			Name    string `json:"name"`
-			Enabled bool   `json:"enabled"`
-		} `json:"resources"`
-	}
-	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("decode resources while expanding selection: %w", err)
-	}
 	result := removeAlias(names, "enabled")
-	for _, resource := range response.Resources {
+	for _, resource := range response.ResourceModels {
 		if resource.Enabled {
 			result = append(result, resource.Name)
 		}
@@ -1286,24 +1421,33 @@ func uniqueNames(names []string) []string {
 func exportSelection(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("wizard export")
 	outputPath := fs.String("output", "", "Output selection document path")
+	target := fs.String("target", "local", "Onboarding target scenario")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-	if strings.TrimSpace(*outputPath) == "" {
-		return fmt.Errorf("--output is required")
+	if strings.TrimSpace(*outputPath) == "" || strings.TrimSpace(*target) == "" {
+		return fmt.Errorf("--output and --target are required")
 	}
-	body, err := core.Get("/v2/scenarios", nil)
+	selection, err := currentSelectionForTarget(core, strings.TrimSpace(*target))
 	if err != nil {
 		return err
 	}
-	var response struct {
-		Scenarios []struct {
-			Name    string `json:"name"`
-			Enabled bool   `json:"enabled"`
-		} `json:"scenarios"`
+	data, _ := json.MarshalIndent(selection, "", "  ")
+	if err := writePrivateExport(*outputPath, append(data, '\n')); err != nil {
+		return err
 	}
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("decode scenarios: %w", err)
+	_, err = fmt.Fprintln(os.Stdout, "Selection exported to", *outputPath)
+	return err
+}
+
+func currentSelection(core *cliapp.ScenarioApp) (Selection, error) {
+	return currentSelectionForTarget(core, "local")
+}
+
+func currentSelectionForTarget(core *cliapp.ScenarioApp, target string) (Selection, error) {
+	response := &selectionv1.ListScenariosResponse{}
+	if err := onboardingselection.Request(core, onboardingselection.ListScenariosProcedure, &selectionv1.ListScenariosRequest{Target: target}, response); err != nil {
+		return Selection{}, err
 	}
 	selection := Selection{Scenarios: []string{}, ScenarioState: map[string]bool{}}
 	for _, scenario := range response.Scenarios {
@@ -1312,46 +1456,314 @@ func exportSelection(core *cliapp.ScenarioApp, args []string) error {
 			selection.Scenarios = append(selection.Scenarios, scenario.Name)
 		}
 	}
-	stateBody, err := core.Get("/operator-state", nil)
-	if err == nil {
-		var state struct {
-			Resources map[string]struct {
-				Enabled *bool `json:"enabled"`
-			} `json:"resources"`
-			HostTools map[string]struct {
-				OptedIn *bool `json:"opted_in"`
-			} `json:"host_tools"`
-			HostSafeguards map[string]struct {
-				OptedIn *bool `json:"opted_in"`
-			} `json:"host_safeguards"`
-		}
-		if json.Unmarshal(stateBody, &state) == nil {
-			selection.Resources = map[string]bool{}
-			for name, choice := range state.Resources {
-				if choice.Enabled != nil {
-					selection.Resources[name] = *choice.Enabled
-				}
-			}
-			selection.HostTools = map[string]bool{}
-			for name, choice := range state.HostTools {
-				if choice.OptedIn != nil {
-					selection.HostTools[name] = *choice.OptedIn
-				}
-			}
-			selection.HostSafeguards = map[string]bool{}
-			for name, choice := range state.HostSafeguards {
-				if choice.OptedIn != nil {
-					selection.HostSafeguards[name] = *choice.OptedIn
-				}
-			}
-		}
+	stateResponse := &operatorstatev1.GetOperatorStateResponse{}
+	if err := support.RequestProto(core, operatorStateGetProcedure, &operatorstatev1.GetOperatorStateRequest{Target: target}, stateResponse, "operator state"); err != nil {
+		return selection, nil
 	}
-	data, _ := json.MarshalIndent(selection, "", "  ")
-	if err := os.WriteFile(*outputPath, append(data, '\n'), 0o600); err != nil {
+	stateBody, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(stateResponse.GetState())
+	if err != nil {
+		return selection, nil
+	}
+	var state exportedOperatorState
+	if json.Unmarshal(stateBody, &state) == nil {
+		applyExportedOperatorState(&selection, state)
+	}
+	return selection, nil
+}
+
+type supportExportDocument struct {
+	SchemaVersion string            `json:"schema_version"`
+	GeneratedAt   string            `json:"generated_at"`
+	Target        string            `json:"target"`
+	Included      []string          `json:"included"`
+	Selection     *Selection        `json:"selection,omitempty"`
+	Readiness     *supportReadiness `json:"readiness,omitempty"`
+	Session       *supportSession   `json:"session,omitempty"`
+}
+
+type supportReadiness struct {
+	Target                string              `json:"target"`
+	ConfigurationRevision string              `json:"configuration_revision"`
+	ExpiresAt             string              `json:"expires_at"`
+	Status                string              `json:"status"`
+	Scenarios             []string            `json:"scenarios"`
+	Resources             []string            `json:"resources"`
+	Credentials           []supportCredential `json:"credentials"`
+	Hosts                 []supportHost       `json:"hosts"`
+	Blockers              []completionBlocker `json:"blockers"`
+	Degraded              []completionBlocker `json:"degraded"`
+	DegradedDigest        string              `json:"degraded_digest,omitempty"`
+	DegradedAcknowledged  bool                `json:"degraded_acknowledged"`
+	CheckedAt             string              `json:"checked_at"`
+	Recovery              supportRecovery     `json:"recovery"`
+}
+
+type supportCredential struct {
+	Resource     string `json:"resource"`
+	LogicalID    string `json:"logical_id"`
+	Field        string `json:"field"`
+	Label        string `json:"label"`
+	Required     bool   `json:"required"`
+	Status       string `json:"status"`
+	Provisioning string `json:"provisioning,omitempty"`
+	DerivedFrom  string `json:"derived_from,omitempty"`
+}
+
+type supportHost struct {
+	Name     string `json:"name"`
+	Kind     string `json:"kind"`
+	Status   string `json:"status"`
+	Required bool   `json:"required"`
+}
+
+type supportRecovery struct {
+	ReceiptExists  bool     `json:"receipt_exists"`
+	ExportedAt     string   `json:"exported_at,omitempty"`
+	EntryCount     int      `json:"entry_count"`
+	Uncovered      []string `json:"uncovered"`
+	RequiredAbsent []string `json:"required_absent"`
+}
+
+type supportSession struct {
+	Step                 int32  `json:"step"`
+	StepID               string `json:"step_id"`
+	FirstUnsatisfiedStep int32  `json:"first_unsatisfied_step"`
+	Completion           bool   `json:"completion"`
+}
+
+func supportExport(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("wizard support-export")
+	outputPath := fs.String("output", "", "Output diagnostic path")
+	include := fs.String("include", "", "Comma-separated metadata sections: selection,readiness,session")
+	target := fs.String("target", "local", "Onboarding target scenario")
+	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-	_, err = fmt.Fprintln(os.Stdout, "Selection exported to", *outputPath)
+	if strings.TrimSpace(*outputPath) == "" || strings.TrimSpace(*target) == "" {
+		return fmt.Errorf("--output and --target are required")
+	}
+	included, err := supportExportSections(*include)
+	if err != nil {
+		return err
+	}
+	document := supportExportDocument{SchemaVersion: "vrooli-onboarding-support.v1", GeneratedAt: clock.Real{}.Now().UTC().Format(time.RFC3339Nano), Target: strings.TrimSpace(*target), Included: included}
+	for _, section := range included {
+		switch section {
+		case "selection":
+			value, err := currentSelectionForTarget(core, strings.TrimSpace(*target))
+			if err != nil {
+				return fmt.Errorf("collect selection: %w", err)
+			}
+			document.Selection = &value
+		case "readiness":
+			response := &readinessv1.GetReadinessResponse{}
+			if err := requestOperator(core, readinessGetProcedure, &readinessv1.GetReadinessRequest{Target: strings.TrimSpace(*target)}, response); err != nil {
+				return fmt.Errorf("collect readiness: %w", err)
+			}
+			body, err := protojson.Marshal(response)
+			if err != nil {
+				return fmt.Errorf("encode readiness: %w", err)
+			}
+			var value supportReadiness
+			if err := json.Unmarshal(body, &value); err != nil {
+				return fmt.Errorf("decode readiness: %w", err)
+			}
+			document.Readiness = &value
+		case "session":
+			response := &sessionv1.GetSessionResponse{}
+			if err := requestSession(core, sessionGetProcedure, &sessionv1.GetSessionRequest{Target: strings.TrimSpace(*target)}, response); err != nil {
+				return fmt.Errorf("collect session: %w", err)
+			}
+			document.Session = &supportSession{Step: response.GetStep(), StepID: response.GetStepId(), FirstUnsatisfiedStep: response.GetFirstUnsatisfiedStep(), Completion: response.GetCompletion()}
+		}
+	}
+	data, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode support export: %w", err)
+	}
+	if err := writePrivateExport(*outputPath, append(data, '\n')); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(os.Stdout, "Metadata-only support diagnostic exported to", *outputPath)
 	return err
+}
+
+func supportExportSections(raw string) ([]string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, fmt.Errorf("--include is required; choose one or more of selection,readiness,session")
+	}
+	valid := map[string]bool{"selection": true, "readiness": true, "session": true}
+	seen := map[string]bool{}
+	sections := make([]string, 0, 3)
+	for _, value := range strings.Split(raw, ",") {
+		section := strings.TrimSpace(value)
+		if section == "" {
+			continue
+		}
+		if !valid[section] {
+			return nil, fmt.Errorf("unsupported support-export section %q; choose selection,readiness,session", section)
+		}
+		if !seen[section] {
+			seen[section] = true
+			sections = append(sections, section)
+		}
+	}
+	if len(sections) == 0 {
+		return nil, fmt.Errorf("--include must name at least one section")
+	}
+	return sections, nil
+}
+
+func writePrivateExport(path string, data []byte) error {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return fmt.Errorf("output path is required")
+	}
+	absolutePath, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return fmt.Errorf("resolve support-export path: %w", err)
+	}
+	directory := filepath.Dir(absolutePath)
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		return fmt.Errorf("create support-export directory: %w", err)
+	}
+	resolvedDirectory, err := filepath.EvalSymlinks(directory)
+	if err != nil {
+		return fmt.Errorf("resolve support-export directory: %w", err)
+	}
+	if filepath.Clean(resolvedDirectory) != filepath.Clean(directory) {
+		return fmt.Errorf("refuse support-export directory through symlink: %s", directory)
+	}
+	if info, err := os.Lstat(absolutePath); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("refuse support-export symlink: %s", path)
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("inspect support-export path: %w", err)
+	}
+	file, err := os.CreateTemp(directory, ".vrooli-onboarding-export-*")
+	if err != nil {
+		return fmt.Errorf("create support-export staging file: %w", err)
+	}
+	temporaryPath := file.Name()
+	removeTemporary := true
+	defer func() {
+		if removeTemporary {
+			_ = os.Remove(temporaryPath)
+		}
+	}()
+	if err := file.Chmod(0o600); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("protect support export: %w", err)
+	}
+	if _, err := file.Write(data); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("write support export: %w", err)
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("sync support export: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close support export: %w", err)
+	}
+	if err := os.Rename(temporaryPath, absolutePath); err != nil {
+		return fmt.Errorf("install support export: %w", err)
+	}
+	removeTemporary = false
+	return nil
+}
+
+// exportedOperatorState is deliberately metadata-only. Pointer fields retain
+// an explicit false choice instead of collapsing it into an omitted value,
+// while no credential or private completion field is copied into the
+// automation document.
+type exportedOperatorState struct {
+	ActiveProfile *string `json:"active_profile"`
+	Core          struct {
+		Seed []string `json:"seed"`
+	} `json:"core"`
+	Scenarios map[string]struct {
+		Enabled     *bool `json:"enabled"`
+		AutoRestart *bool `json:"auto_restart"`
+	} `json:"scenarios"`
+	Resources map[string]struct {
+		Enabled *bool `json:"enabled"`
+	} `json:"resources"`
+	HostTools map[string]struct {
+		OptedIn *bool `json:"opted_in"`
+	} `json:"host_tools"`
+	HostSafeguards map[string]struct {
+		OptedIn *bool `json:"opted_in"`
+	} `json:"host_safeguards"`
+}
+
+func applyExportedOperatorState(selection *Selection, state exportedOperatorState) {
+	if state.ActiveProfile != nil {
+		selection.ActiveProfile = *state.ActiveProfile
+	}
+	if len(state.Core.Seed) > 0 {
+		selection.CoreSeed = append([]string(nil), state.Core.Seed...)
+	}
+	if len(state.Scenarios) > 0 {
+		if selection.ScenarioState == nil {
+			selection.ScenarioState = map[string]bool{}
+		}
+		selection.OperatingMode = map[string]struct {
+			AutoRestart bool `json:"auto_restart"`
+		}{}
+		for name, choice := range state.Scenarios {
+			if choice.Enabled != nil {
+				selection.ScenarioState[name] = *choice.Enabled
+				if *choice.Enabled && !containsName(selection.Scenarios, name) {
+					selection.Scenarios = append(selection.Scenarios, name)
+				}
+			}
+			if choice.AutoRestart != nil {
+				selection.OperatingMode[name] = struct {
+					AutoRestart bool `json:"auto_restart"`
+				}{AutoRestart: *choice.AutoRestart}
+			}
+		}
+	}
+	selection.Resources = boolChoices(state.Resources, func(choice struct {
+		Enabled *bool `json:"enabled"`
+	},
+	) *bool {
+		return choice.Enabled
+	})
+	selection.HostTools = boolChoices(state.HostTools, func(choice struct {
+		OptedIn *bool `json:"opted_in"`
+	},
+	) *bool {
+		return choice.OptedIn
+	})
+	selection.HostSafeguards = boolChoices(state.HostSafeguards, func(choice struct {
+		OptedIn *bool `json:"opted_in"`
+	},
+	) *bool {
+		return choice.OptedIn
+	})
+}
+
+func containsName(names []string, want string) bool {
+	for _, name := range names {
+		if name == want {
+			return true
+		}
+	}
+	return false
+}
+
+func boolChoices[T any](choices map[string]T, value func(T) *bool) map[string]bool {
+	if len(choices) == 0 {
+		return nil
+	}
+	result := make(map[string]bool, len(choices))
+	for name, choice := range choices {
+		if enabled := value(choice); enabled != nil {
+			result[name] = *enabled
+		}
+	}
+	return result
 }
 
 // completionBlocker mirrors the API's metadata-only blocker. It never carries a

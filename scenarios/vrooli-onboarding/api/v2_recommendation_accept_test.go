@@ -18,8 +18,8 @@ func TestV2RecommendationAcceptIsIdempotent(t *testing.T) {
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true},"dependencies":{"resources":{"postgres":{"required":true}}}}`)
 	writeFixtureFile(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{"name":"postgres"}`)
 
-	first := doRequest(t, NewServer(), http.MethodPost, "/api/v2/recommendation/accept", "{}")
-	second := doRequest(t, NewServer(), http.MethodPost, "/api/v2/recommendation/accept", "{}")
+	first := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/AcceptRecommendation", `{"target":"local"}`)
+	second := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/AcceptRecommendation", `{"target":"local"}`)
 	if first.Code != http.StatusOK || second.Code != http.StatusOK {
 		t.Fatalf("accept statuses = %d and %d", first.Code, second.Code)
 	}

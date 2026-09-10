@@ -40,6 +40,9 @@ type closureMember struct {
 	Provenance []closureProvenance `json:"provenance"`
 	Required   bool                `json:"required"`
 	Direct     bool                `json:"direct"`
+	State      string              `json:"state"`
+	Reason     string              `json:"reason,omitempty"`
+	Policy     string              `json:"policy,omitempty"`
 }
 
 type closureResult struct {
@@ -88,6 +91,38 @@ func appendClosureMember(members map[string]*closureMember, name string, provena
 		}
 	}
 	member.Provenance = append(member.Provenance, provenance)
+}
+
+func markClosureMember(members map[string]*closureMember, name, state, reason, policy string) {
+	member, ok := members[name]
+	if !ok {
+		member = &closureMember{Name: name}
+		members[name] = member
+	}
+	if member.State == "" || state == "ignored" {
+		member.State = state
+	}
+	if strings.TrimSpace(member.Reason) == "" {
+		member.Reason = strings.TrimSpace(reason)
+	}
+	if strings.TrimSpace(member.Policy) == "" {
+		member.Policy = strings.TrimSpace(policy)
+	}
+}
+
+func dependencyPolicy(spec dependencySpec) string {
+	policy := strings.ToLower(strings.TrimSpace(spec.StartupPolicy))
+	if policy == "" {
+		if spec.Required {
+			return "must_start"
+		}
+		return "try_start"
+	}
+	return policy
+}
+
+func dependencyIgnored(spec dependencySpec) bool {
+	return dependencyPolicy(spec) == "ignore"
 }
 
 func sortedDependencyNames(required, optional map[string]dependencySpec) []string {
@@ -147,27 +182,48 @@ func resolveClosureForState(root string, models []ScenarioReadModel, state Opera
 			if !ok {
 				spec = manifest.OptionalDependencies.Resources[depName]
 			}
+			policy := dependencyPolicy(spec)
+			if dependencyIgnored(spec) {
+				markClosureMember(resources, depName, "ignored", "startup policy is ignore", policy)
+				continue
+			}
 			if !dependencyEnabled(spec) {
+				if spec.Required {
+					return fmt.Errorf("required resource %q from scenario %q is disabled", depName, name)
+				}
+				markClosureMember(resources, depName, "ignored", "dependency is disabled by manifest", policy)
 				continue
 			}
 			if !spec.Required {
 				if choice, ok := state.Resources[depName]; ok && choice.Enabled != nil && !*choice.Enabled {
+					markClosureMember(resources, depName, "ignored", "dependency declined by operator", policy)
 					continue
 				}
 			}
 			appendClosureMember(resources, depName, closureProvenance{Kind: dependencyKind(spec), From: name}, spec.Required, false)
+			markClosureMember(resources, depName, "included", "declared by dependency", policy)
 		}
 		for _, depName := range sortedDependencyNames(manifest.Dependencies.Scenarios, manifest.OptionalDependencies.Scenarios) {
 			spec, ok := manifest.Dependencies.Scenarios[depName]
 			if !ok {
 				spec = manifest.OptionalDependencies.Scenarios[depName]
 			}
+			policy := dependencyPolicy(spec)
+			if dependencyIgnored(spec) {
+				markClosureMember(scenarios, depName, "ignored", "startup policy is ignore", policy)
+				continue
+			}
 			if !dependencyEnabled(spec) {
+				if spec.Required {
+					return fmt.Errorf("required scenario %q from scenario %q is disabled", depName, name)
+				}
+				markClosureMember(scenarios, depName, "ignored", "dependency is disabled by manifest", policy)
 				continue
 			}
 			if err := visit(depName, closureProvenance{Kind: dependencyKind(spec), From: name}, false); err != nil {
 				return err
 			}
+			markClosureMember(scenarios, depName, "included", "declared by dependency", policy)
 		}
 		delete(visiting, name)
 		stack = stack[:len(stack)-1]
@@ -182,6 +238,7 @@ func resolveClosureForState(root string, models []ScenarioReadModel, state Opera
 		if err := visit(model.Name, closureProvenance{Kind: "selected"}, true); err != nil {
 			return closureResult{}, err
 		}
+		markClosureMember(scenarios, model.Name, "selected", "selected by operator", "must_start")
 	}
 	// Standalone resources are operator choices rather than scenario closure
 	// members. Include only explicit enablement, preserving required resources
@@ -200,6 +257,7 @@ func resolveClosureForState(root string, models []ScenarioReadModel, state Opera
 			return closureResult{}, err
 		}
 		appendClosureMember(resources, name, closureProvenance{Kind: "operator_enabled", From: "operator-state"}, false, true)
+		markClosureMember(resources, name, "selected", "selected as a standalone resource", "try_start")
 	}
 
 	result := closureResult{

@@ -55,7 +55,36 @@ The API sets `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`,
 `X-Frame-Options: DENY`, and disables the legacy XSS auditor, at one middleware
 boundary so every handler — including errors and health probes — is covered.
 
-The bundled desktop runtime speaks over an authenticated loopback channel only.
+The bundled desktop runtime speaks over a loopback channel whose mutation
+requests are authenticated by the shared personal-local provider. The runtime
+creates an owner-only local session token, passes its path to the API, and the
+trusted desktop renderer obtains the token through the origin-checked preload
+bridge. The provider grants only the declared onboarding capabilities; neither
+loopback location nor the API process's OS user is identity proof.
+
+## Node-local trust
+
+The target interceptor treats an empty or `local` target as the node-local
+path. A named target is sent through Bridge, where the owner is established
+before the signed frame is created. The agent is the only originator of a
+node-local call; browser credentials never cross to a node. Mutation methods
+still apply the onboarding operator authorization rule at their Connect
+boundary.
+
+## Decision D9 — verified local operator authority
+
+The onboarding API never authorizes a mutation from the transport peer address
+alone. In personal-local mode, the shared `api-core/authn` provider verifies a
+runtime-owned session token on a loopback request and installs a
+provider-neutral human principal with the onboarding capability set. The
+desktop browser path is explicit and documented: its preload bridge returns the
+token only to a trusted local renderer, and the onboarding Connect transport
+adds it automatically. PTY callers use the same token through the supported
+`VROOLI_AUTH_LOCAL_TOKEN` environment binding. Remote modes use the configured
+verified identity providers. Anonymous, agent, expired, revoked, or
+underprivileged callers fail before the domain service runs. A remote target
+also requires explicit authorization metadata so the originating principal can
+survive Bridge forwarding.
 
 ## Threat notes
 
@@ -65,5 +94,23 @@ The bundled desktop runtime speaks over an authenticated loopback channel only.
 | A hand-edited state file disables a system-required scenario | The manifest wins for `system_required`; the operator field is ignored |
 | A stale binary truncates a newer state document | Merge-patch writes preserve unmodelled fields |
 | An invalid write bricks configuration | Schema validation precedes the write; a rejection leaves the document untouched |
-| Concurrent writes lose a decision | Merge happens under a write lock; disjoint patches both survive |
+| Concurrent writes lose a decision | The operator-state authority merges under a process lock and a native cross-process sidecar lock; disjoint patches both survive |
 | A tier without a catalog looks like a broken host | Typed degraded state naming the missing catalog, not a 500 |
+
+## Current scanner receipt
+
+On 2026-09-09, `security-health validate scenario vrooli-onboarding --json`
+completed with `VALIDATION_STATUS_PASSED`. Gitleaks reported zero findings;
+the earlier password-field matches in `StepReadiness.tsx` were scanner matches
+on the `PasswordInput` component name, not credential values, and were removed
+by aliasing the same RCL component as `SecureValueInput`. No scanner suppression
+was added.
+
+The latest receipt remains at security-health L1 Foundation with 336 advisory
+findings (113 warnings and 223 informational findings): 70 gosec, 10
+govulncheck, 52 pnpm-audit, and 204 OSV findings. The dependency governance
+reindex completed after the onboarding UI lockfile remediation and reports zero
+HIGH or CRITICAL dependency gaps; 19 lower-severity advisory gaps remain. These
+scanner findings are retained as owner-triage debt and must not be described as
+clean-launch clearance. Live remote peer-identity, host-key rotation, and
+platform-specific authority exercises remain separate acceptance gates.

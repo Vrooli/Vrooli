@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/modules"
 )
 
 // TestEndpointContract keeps the checked-in public declaration honest in both
@@ -73,6 +74,9 @@ func TestEndpointContract(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+	for _, endpoint := range modules.AllEndpoints() {
+		got[endpoint.Method+" "+endpoint.Path] = true
 	}
 	var missing, extra []string
 	for key := range want {

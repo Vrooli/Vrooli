@@ -14,24 +14,40 @@ func TestRunWizardUsesTheDeclaredStepSequence(t *testing.T) {
 	var seen []string
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/v2/steps":
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyPlan":
+			_, _ = w.Write([]byte(`{"planId":"plan-1","planDigest":"digest-1","revision":"rev-1","items":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply":
+			_, _ = w.Write([]byte(`{"planId":"plan-1","planDigest":"digest-1","revision":"rev-1","consentReceiptId":"receipt-1"}`))
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/StartApply":
+			_, _ = w.Write([]byte(`{"run":{"runId":"run-1","status":"APPLY_RUN_STATE_APPLIED","legacyStatus":"applied"}}`))
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/GetStepModel":
 			_, _ = w.Write([]byte(testStepModelJSON))
-		case "/api/v1/v2/scenarios":
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/GetSession":
+			_, _ = w.Write([]byte(`{"step":0,"stepId":"welcome","firstUnsatisfiedStep":0,"completion":false}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/ListScenarios":
 			_, _ = w.Write([]byte(`{"scenarios":[{"name":"demo"}]}`))
-		case "/api/v1/v2/core-set":
-			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trusted_base":["demo"],"member_counts":{"scenario":1,"resource":0}}`))
-		case "/api/v1/v2/resources":
-			_, _ = w.Write([]byte(`{"optional":[],"standalone":[]}`))
-		case "/api/v1/v2/credentials":
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetRecommendation":
+			_, _ = w.Write([]byte(`{"profile":"starter","scenarios":[],"resources":[],"explanation":"starter"}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet":
+			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trustedBase":["demo"],"memberCounts":{"scenario":1,"resource":0}}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetUnion":
+			_, _ = w.Write([]byte(`{"optionalResources":[],"standaloneResources":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ListCredentials":
 			_, _ = w.Write([]byte(`{"credentials":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ListOperatorInputs":
+			_, _ = w.Write([]byte(`{"requests":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/GetReadiness":
+			_, _ = w.Write([]byte(`{"configurationRevision":"test"}`))
+		case "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState":
+			_, _ = w.Write([]byte(`{"state":{}}`))
 		case "/api/v1/v2/host-requirements":
 			_, _ = w.Write([]byte(`{"tools":[],"safeguards":[]}`))
-		case "/api/v1/v2/session/step":
-			_, _ = w.Write([]byte(`{"step":8}`))
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/AdvanceSessionStep":
+			_, _ = w.Write([]byte(`{"step":8,"stepId":"validation","firstUnsatisfiedStep":0,"completion":false}`))
 		default:
 			_, _ = w.Write([]byte(`{"first_unsatisfied_step":0,"completion":false,"profile":"starter","scenarios":[],"resources":[]}`))
 		}
-		if r.URL.Path != "/api/v1/v2/session/step" {
+		if r.URL.Path != "/vrooli.vrooli_onboarding.v1.session.SessionService/AdvanceSessionStep" {
 			seen = append(seen, r.URL.Path)
 		}
 	}))
@@ -68,18 +84,34 @@ func TestStepHandlerRejectsUnknownModelEntry(t *testing.T) {
 func TestRunWizardResumesAtFirstUnsatisfiedStep(t *testing.T) {
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/v2/steps":
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyPlan":
+			_, _ = w.Write([]byte(`{"planId":"plan-1","planDigest":"digest-1","revision":"rev-1","items":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply":
+			_, _ = w.Write([]byte(`{"planId":"plan-1","planDigest":"digest-1","revision":"rev-1","consentReceiptId":"receipt-1"}`))
+		case "/vrooli.vrooli_onboarding.v1.apply.ApplyService/StartApply":
+			_, _ = w.Write([]byte(`{"run":{"runId":"run-1","status":"APPLY_RUN_STATE_APPLIED","legacyStatus":"applied"}}`))
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/GetStepModel":
 			_, _ = w.Write([]byte(testStepModelJSON))
-		case "/api/v1/v2/session":
-			_, _ = w.Write([]byte(`{"first_unsatisfied_step":6,"completion":false}`))
-		case "/api/v1/v2/scenarios":
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/GetSession":
+			_, _ = w.Write([]byte(`{"step":6,"stepId":"host","firstUnsatisfiedStep":6,"completion":false}`))
+		case "/vrooli.vrooli_onboarding.v1.session.SessionService/AdvanceSessionStep":
+			_, _ = w.Write([]byte(`{"step":6,"stepId":"host","firstUnsatisfiedStep":6,"completion":false}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/ListScenarios":
 			_, _ = w.Write([]byte(`{"scenarios":[{"name":"demo"}]}`))
-		case "/api/v1/v2/core-set":
-			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trusted_base":["demo"],"member_counts":{"scenario":1,"resource":0}}`))
-		case "/api/v1/v2/resources":
-			_, _ = w.Write([]byte(`{"optional":[],"standalone":[]}`))
-		case "/api/v1/v2/credentials":
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetRecommendation":
+			_, _ = w.Write([]byte(`{"profile":"starter","scenarios":[],"resources":[],"explanation":"starter"}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet":
+			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trustedBase":["demo"],"memberCounts":{"scenario":1,"resource":0}}`))
+		case "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetUnion":
+			_, _ = w.Write([]byte(`{"optionalResources":[],"standaloneResources":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ListCredentials":
 			_, _ = w.Write([]byte(`{"credentials":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ListOperatorInputs":
+			_, _ = w.Write([]byte(`{"requests":[]}`))
+		case "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/GetReadiness":
+			_, _ = w.Write([]byte(`{"configurationRevision":"test"}`))
+		case "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState":
+			_, _ = w.Write([]byte(`{"state":{}}`))
 		case "/api/v1/v2/host-requirements":
 			_, _ = w.Write([]byte(`{"tools":[],"safeguards":[]}`))
 		default:

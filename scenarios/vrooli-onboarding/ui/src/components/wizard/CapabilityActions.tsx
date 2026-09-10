@@ -1,7 +1,10 @@
 import { useMemo, useRef, useState } from "react";
-import { applyCapability, previewCapability } from "../../lib/api";
-import type { CapabilityInput, CapabilityPreview, CapabilityResult, CapabilityStatus } from "../../types";
+import { applyCapability, previewCapability, type CapabilityInput, type CapabilityPreview, type CapabilityResult, type CapabilityStatus } from "../../api/capabilities";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import { PasswordInput } from "@vrooli/react-component-library/PasswordInput/2";
+import { Select } from "@vrooli/react-component-library/Select/1";
 import { i18n } from "../../i18n";
 
 interface CapabilityActionsProps {
@@ -117,8 +120,9 @@ function CapabilityCard({
 }) {
   const descriptor = status.descriptor;
   const hasAction = (descriptor.inputs ?? []).length > 0;
+  const blocked = descriptor.disposition === "unsupported" || descriptor.disposition === "deferred" || status.state === "unsupported";
   const missing = new Set(status.missing_inputs ?? []);
-  const canPreview = descriptor.inputs?.filter((input) => input.required && input.kind !== "confirmation").every((input) => hasInput(input, values, secretValues, missing)) ?? false;
+  const canPreview = !blocked && (descriptor.inputs?.filter((input) => input.required && input.kind !== "confirmation").every((input) => hasInput(input, values, secretValues, missing)) ?? false);
   const canApply = Boolean(preview && confirmed && canPreview);
 
   return <article className="rounded-lg border border-muted bg-surface-muted p-4" data-testid={`capability-card-${descriptor.id}`}>
@@ -130,17 +134,28 @@ function CapabilityCard({
       <span className="rounded-full border border-muted px-2 py-1 text-xs text-muted">{descriptor.id}</span>
     </div>
     {descriptor.description && <p className="mt-2 text-sm text-foreground">{descriptor.description}</p>}
+	    {(descriptor.scope || descriptor.purpose || descriptor.disposition || descriptor.provenance) && <dl className="mt-3 grid gap-1 text-xs text-muted sm:grid-cols-2" data-testid={`capability-provenance-${descriptor.id}`}>
+	      {descriptor.scope && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.scope")}</dt><dd>{descriptor.scope}</dd></div>}
+	      {descriptor.purpose && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.purpose")}</dt><dd>{descriptor.purpose}</dd></div>}
+	      {descriptor.sensitivity && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.sensitivity")}</dt><dd>{descriptor.sensitivity}</dd></div>}
+	      {descriptor.disposition && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.disposition")}</dt><dd>{descriptor.disposition}{descriptor.disposition_reason ? ` · ${descriptor.disposition_reason}` : ""}</dd></div>}
+	      {descriptor.provenance?.requester && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.requester")}</dt><dd>{descriptor.provenance.requester}</dd></div>}
+	      {descriptor.provenance?.scope && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.permissionScope")}</dt><dd>{descriptor.provenance.scope}</dd></div>}
+	      {descriptor.provenance?.grant_source && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.grantSource")}</dt><dd>{descriptor.provenance.grant_source}</dd></div>}
+	      {descriptor.provenance?.revocation_limit && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.revocationLimit")}</dt><dd>{descriptor.provenance.revocation_limit}</dd></div>}
+	    </dl>}
     {descriptor.risk && <p className="mt-2 text-xs text-warning">{i18n.t("onboarding.capabilities.risk", { risk: descriptor.risk })}</p>}
+	    {(descriptor.disposition === "unsupported" || descriptor.disposition === "deferred" || status.state === "unsupported") && <p className="mt-2 text-sm text-warning" role="status" data-testid={`capability-blocked-${descriptor.id}`}>{descriptor.disposition_reason || status.remediation || i18n.t("onboarding.capabilities.blocked")}</p>}
     {status.remediation && <p className="mt-2 text-xs text-primary-soft">{i18n.t("onboarding.capabilities.next", { remediation: status.remediation })}</p>}
     {(status.evidence ?? []).length > 0 && <EvidenceList evidence={status.evidence ?? []} />}
-    {hasAction && <div className="mt-3 space-y-3">
+    {hasAction && !blocked && <div className="mt-3 space-y-3">
       {(descriptor.inputs ?? []).map((input) => <CapabilityInput key={input.id} input={input} value={input.kind === "secret" ? secretValues[input.id] : values[input.id]} missing={missing.has(input.id)} onValue={(value) => onValue(input.id, value, input.kind === "secret")} />)}
     </div>}
-    {hasAction && descriptor.policy.requires_confirmation && <label className="mt-3 flex items-start gap-2 text-sm"><input data-testid={`capability-confirm-${descriptor.id}`} type="checkbox" checked={confirmed} onChange={(event) => onConfirm(event.target.checked)} className="mt-1 h-4 w-4" /><span>{i18n.t("onboarding.capabilities.confirmation")}</span></label>}
+    {hasAction && !blocked && descriptor.policy.requires_confirmation && <Checkbox data-testid={`capability-confirm-${descriptor.id}`} checked={confirmed} onCheckedChange={onConfirm} label={i18n.t("onboarding.capabilities.confirmation")} className="mt-3" />}
     {error && <p className="mt-3 text-sm text-danger" role="alert">{error}</p>}
     {preview && <div className="mt-3 rounded-md border border-primary-soft/30 bg-primary-soft/10 p-3 text-sm" data-testid={`capability-preview-${descriptor.id}`}><p className="font-medium">{i18n.t("onboarding.capabilities.review")}</p><ul className="mt-1 list-disc pl-5">{(preview.mutations ?? []).map((mutation) => <li key={mutation.id}>{mutation.summary}{mutation.reversible ? ` · ${i18n.t("onboarding.capabilities.reversible")}` : ""}</li>)}</ul>{preview.remediation && <p className="mt-2 text-xs text-muted">{preview.remediation}</p>}</div>}
     {result && <div className={`mt-3 rounded-md border p-3 text-sm ${result.state === "ready" ? "border-primary-soft/30 bg-primary-soft/10" : "border-warning/30 bg-warning-surface"}`} data-testid={`capability-result-${descriptor.id}`} role="status"><p className="font-medium">{result.outcome} · {result.state}</p>{result.remediation && <p className="mt-1 text-xs text-muted">{result.remediation}</p>}{result.evidence && <EvidenceList evidence={result.evidence} />}</div>}
-    {hasAction && <div className="mt-3 flex flex-wrap gap-2">
+    {hasAction && !blocked && <div className="mt-3 flex flex-wrap gap-2">
       <Button type="button" variant="secondary" disabled={busy || !canPreview} onClick={() => { void onPreview(); }}>{busy ? i18n.t("onboarding.capabilities.working") : i18n.t("onboarding.capabilities.preview")}</Button>
       <Button type="button" disabled={busy || !canApply} onClick={() => { void onApply(); }}>{i18n.t("onboarding.capabilities.apply")}</Button>
     </div>}
@@ -150,11 +165,11 @@ function CapabilityCard({
 function CapabilityInput({ input, value, missing, onValue }: { input: CapabilityInput; value?: InputValue; missing: boolean; onValue: (value: InputValue) => void }) {
   if (input.kind === "confirmation") return null;
   const label = <span className="font-medium">{input.label}{input.required ? ` · ${i18n.t("onboarding.capabilities.required")}` : ""}{missing ? ` · ${i18n.t("onboarding.capabilities.needed")}` : ""}</span>;
-  if (input.kind === "boolean") return <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={value === true} onChange={(event) => onValue(event.target.checked)} className="mt-1 h-4 w-4" />{label}</label>;
+  if (input.kind === "boolean") return <Checkbox checked={value === true} onCheckedChange={onValue as (checked: boolean) => void} label={label} />;
   const options = input.options ?? [];
   const candidates = input.candidates ?? [];
   const selectOptions = options.length > 0 ? options.map((option) => ({ value: option, label: option })) : candidates.map((candidate) => ({ value: candidate.id, label: candidate.label || candidate.location || candidate.id }));
-  return <label className="block text-sm"><span>{label}</span>{input.description && <span className="mt-1 block text-xs text-muted">{input.description}</span>}{input.validation && <span className="mt-1 block text-xs text-muted">{i18n.t("onboarding.capabilities.validation", { value: input.validation })}</span>}{selectOptions.length > 0 ? <select value={typeof value === "string" ? value : ""} onChange={(event) => onValue(event.target.value)} className="mt-2 min-h-11 w-full rounded-md border border-muted bg-surface px-3 py-2" aria-label={input.label}><option value="">{i18n.t("onboarding.capabilities.choose")}</option>{selectOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : <input type={input.kind === "secret" ? "password" : "text"} autoComplete="off" value={typeof value === "string" ? value : ""} placeholder={input.default ?? ""} onChange={(event) => onValue(event.target.value)} className="mt-2 min-h-11 w-full rounded-md border border-muted bg-surface px-3 py-2" aria-label={input.label} />}</label>;
+  return <label className="block text-sm"><span>{label}</span>{input.description && <span className="mt-1 block text-xs text-muted">{input.description}</span>}{input.validation && <span className="mt-1 block text-xs text-muted">{i18n.t("onboarding.capabilities.validation", { value: input.validation })}</span>}{selectOptions.length > 0 ? <Select value={typeof value === "string" ? value : ""} onValueChange={onValue} className="mt-2" aria-label={input.label} options={selectOptions} placeholder={i18n.t("onboarding.capabilities.choose")} /> : input.kind === "secret" ? <PasswordInput revealable={false} autoComplete="off" maxLength={input.constraints?.max_length} value={typeof value === "string" ? value : ""} placeholder={input.default ?? ""} onValueChange={onValue} className="mt-2" aria-label={input.label} /> : <Input type={input.kind === "duration" ? "text" : "text"} autoComplete="off" maxLength={input.constraints?.max_length} value={typeof value === "string" ? value : ""} placeholder={input.default ?? ""} onChange={(event) => onValue(event.target.value)} className="mt-2" aria-label={input.label} />}</label>;
 }
 
 function EvidenceList({ evidence }: { evidence: Array<{ kind: string; artifact_identity: string; verified: boolean; coverage?: string[]; remediation?: string }> }) {

@@ -1,8 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import { isApplyRunSettled, pollApplyRun } from "./applyRun";
-import type { V2ApplyResponse } from "../types";
+import { create } from "@bufbuild/protobuf";
+import { ApplyRunState, GetApplyRunResponseSchema, type GetApplyRunResponse } from "@vrooli/proto-types/vrooli-onboarding/v1/apply/apply_pb";
 
-const run = (status: string): V2ApplyResponse => ({ run_id: "apply-1", status, items: [] });
+const run = (status: ApplyRunState): GetApplyRunResponse => create(GetApplyRunResponseSchema, {
+  runId: "apply-1",
+  status,
+  legacyStatus: "",
+  selectionDigest: "",
+  error: "",
+  steps: [],
+  blockers: [],
+  degraded: [],
+  degradedDigest: "",
+  runnerPid: 0n,
+}) as unknown as GetApplyRunResponse;
 
 // A clock the test advances itself, so the reconnect window is exercised
 // without the test actually waiting five minutes.
@@ -21,9 +33,9 @@ function controlledClock() {
 
 describe("isApplyRunSettled", () => {
   it("treats only in-flight statuses as unsettled", () => {
-    expect(isApplyRunSettled("pending")).toBe(false);
-    expect(isApplyRunSettled("applying")).toBe(false);
-    for (const status of ["applied", "partially_applied", "configuration_incomplete", "interrupted", "failed"]) {
+    expect(isApplyRunSettled(ApplyRunState.PENDING)).toBe(false);
+    expect(isApplyRunSettled(ApplyRunState.APPLYING)).toBe(false);
+    for (const status of [ApplyRunState.APPLIED, ApplyRunState.ALREADY_SATISFIED, ApplyRunState.PARTIALLY_APPLIED, ApplyRunState.CONFIGURATION_INCOMPLETE, ApplyRunState.FAILED]) {
       expect(isApplyRunSettled(status)).toBe(true);
     }
   });
@@ -33,18 +45,18 @@ describe("pollApplyRun", () => {
   it("follows a run to a settled state", async () => {
     const clock = controlledClock();
     const fetchStatus = vi.fn()
-      .mockResolvedValueOnce(run("applying"))
-      .mockResolvedValueOnce(run("applied"));
+      .mockResolvedValueOnce(run(ApplyRunState.APPLYING))
+      .mockResolvedValueOnce(run(ApplyRunState.APPLIED));
     const seen: string[] = [];
 
-    const final = await pollApplyRun(run("pending"), {
+    const final = await pollApplyRun(run(ApplyRunState.PENDING), {
       fetchStatus,
-      onUpdate: (current) => seen.push(current.status),
+      onUpdate: (current) => seen.push(ApplyRunState[current.status].toLowerCase()),
       wait: clock.wait,
       now: clock.now,
     });
 
-    expect(final.status).toBe("applied");
+    expect(final.status).toBe(ApplyRunState.APPLIED);
     expect(seen).toEqual(["pending", "applying", "applied"]);
   });
 
@@ -55,10 +67,10 @@ describe("pollApplyRun", () => {
     const fetchStatus = vi.fn()
       .mockRejectedValueOnce(new Error("Failed to fetch"))
       .mockRejectedValueOnce(new Error("Failed to fetch"))
-      .mockResolvedValueOnce(run("applied"));
+      .mockResolvedValueOnce(run(ApplyRunState.APPLIED));
     const connectionEvents: boolean[] = [];
 
-    const final = await pollApplyRun(run("applying"), {
+    const final = await pollApplyRun(run(ApplyRunState.APPLYING), {
       fetchStatus,
       onUpdate: () => {},
       onConnectionChange: (connected) => connectionEvents.push(connected),
@@ -66,7 +78,7 @@ describe("pollApplyRun", () => {
       now: clock.now,
     });
 
-    expect(final.status).toBe("applied");
+    expect(final.status).toBe(ApplyRunState.APPLIED);
     expect(connectionEvents).toEqual([false, true]);
   });
 
@@ -76,10 +88,10 @@ describe("pollApplyRun", () => {
       .mockRejectedValueOnce(new Error("down"))
       .mockRejectedValueOnce(new Error("down"))
       .mockRejectedValueOnce(new Error("down"))
-      .mockResolvedValueOnce(run("applied"));
+      .mockResolvedValueOnce(run(ApplyRunState.APPLIED));
     const connectionEvents: boolean[] = [];
 
-    await pollApplyRun(run("applying"), {
+    await pollApplyRun(run(ApplyRunState.APPLYING), {
       fetchStatus,
       onUpdate: () => {},
       onConnectionChange: (connected) => connectionEvents.push(connected),
@@ -94,7 +106,7 @@ describe("pollApplyRun", () => {
     const clock = controlledClock();
     const fetchStatus = vi.fn().mockRejectedValue(new Error("still down"));
 
-    await expect(pollApplyRun(run("applying"), {
+    await expect(pollApplyRun(run(ApplyRunState.APPLYING), {
       fetchStatus,
       onUpdate: () => {},
       wait: async (ms) => {
@@ -110,14 +122,14 @@ describe("pollApplyRun", () => {
     const clock = controlledClock();
     const fetchStatus = vi.fn();
 
-    const final = await pollApplyRun(run("already_satisfied"), {
+    const final = await pollApplyRun(run(ApplyRunState.ALREADY_SATISFIED), {
       fetchStatus,
       onUpdate: () => {},
       wait: clock.wait,
       now: clock.now,
     });
 
-    expect(final.status).toBe("already_satisfied");
+    expect(final.status).toBe(ApplyRunState.ALREADY_SATISFIED);
     expect(fetchStatus).not.toHaveBeenCalled();
   });
 });

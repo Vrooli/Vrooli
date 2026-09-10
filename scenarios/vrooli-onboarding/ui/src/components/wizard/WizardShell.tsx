@@ -1,11 +1,12 @@
 import FormWizard from "@vrooli/react-component-library/FormWizard";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { useLayoutEffect, useRef } from "react";
-import type { V2Step } from "../../types";
+import type { WizardStep } from "../../api/session";
 import { i18n } from "../../i18n";
 
 interface WizardShellProps {
   currentStep: number;
-  steps: V2Step[];
+  steps: WizardStep[];
   onNext: () => void;
   onPrev: () => void;
   onGoToStep?: (step: number) => void;
@@ -17,6 +18,9 @@ interface WizardShellProps {
   target?: string;
   onTargetChange?: (target: string) => void;
   targetOptions?: Array<{ id: string; name?: string; status?: string }>;
+  operatorStateError?: string | null;
+  operatorStateSaveState?: "idle" | "saving" | "saved" | "failed" | "conflict";
+  onRetryOperatorStateSave?: () => void;
 }
 
 /** The library FormWizard is the single owner of progress and navigation. */
@@ -31,6 +35,9 @@ export function WizardShell({
   showPrev = true,
   showNext = true,
   children,
+  operatorStateError,
+  operatorStateSaveState = "idle",
+  onRetryOperatorStateSave,
 }: WizardShellProps) {
   const active = steps[currentStep];
   const act = actForStep(active?.id);
@@ -64,7 +71,17 @@ export function WizardShell({
           {steps.map((step, index) => <i key={step.id} data-state={index < currentStep ? "done" : index === currentStep ? "active" : "pending"} />)}
         </div>
       </div>
-      <main className="wizard-stage">
+      <section className="wizard-stage" aria-label={i18n.t("onboarding.shell.setup")}>
+        {operatorStateError && <p role="alert" data-testid="operator-state-save-error">{operatorStateError}</p>}
+        {operatorStateSaveState !== "idle" && <div role="status" aria-live="polite" data-testid="operator-state-save-state">
+          <span>
+            {operatorStateSaveState === "saving" && i18n.t("onboarding.shell.savingPreferences")}
+            {operatorStateSaveState === "saved" && i18n.t("onboarding.shell.savedPreferences")}
+            {operatorStateSaveState === "failed" && i18n.t("onboarding.shell.failedPreferences")}
+            {operatorStateSaveState === "conflict" && i18n.t("onboarding.shell.conflictingPreferences")}
+          </span>
+          {(operatorStateSaveState === "failed" || operatorStateSaveState === "conflict") && onRetryOperatorStateSave && <Button type="button" variant="secondary" onClick={onRetryOperatorStateSave} data-testid="operator-state-save-retry">{i18n.t("onboarding.shell.retryPreferences")}</Button>}
+        </div>}
         <FormWizard
           key={steps.map((step) => step.id).join("/")}
           steps={steps.map((step) => ({
@@ -95,7 +112,7 @@ export function WizardShell({
           previousAriaLabel={i18n.t("onboarding.shell.previous")}
           className="wizard-form"
         />
-      </main>
+      </section>
     </div>
   );
 }

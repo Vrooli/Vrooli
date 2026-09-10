@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestV2CredentialProvisionUsesMetadataOnlyResponse(t *testing.T) {
+func TestCredentialProvisionUsesMetadataOnlyResponse(t *testing.T) {
 	prior := credentialProvisionCommand
 	var received string
 	credentialProvisionCommand = func(_ context.Context, logicalID, field, value string) error {
@@ -17,8 +17,8 @@ func TestV2CredentialProvisionUsesMetadataOnlyResponse(t *testing.T) {
 	}
 	t.Cleanup(func() { credentialProvisionCommand = prior })
 
-	w := doPost(t, NewServer(), "/api/v2/credentials/provision", `{"logical_id":"vrooli/demo","field":"api-key","value":"test-value"}`)
-	if w.Code != http.StatusCreated {
+	w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ProvisionCredential", `{"target":"local","logicalId":"vrooli/demo","field":"api-key","value":"test-value"}`)
+	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}
 	if received != "vrooli/demo/api-key/test-value" {
@@ -29,34 +29,34 @@ func TestV2CredentialProvisionUsesMetadataOnlyResponse(t *testing.T) {
 	}
 }
 
-func TestV2CredentialProvisionRejectsMissingValue(t *testing.T) {
-	w := doPost(t, NewServer(), "/api/v2/credentials/provision", `{"logical_id":"vrooli/demo","field":"api-key"}`)
+func TestCredentialProvisionRejectsMissingValue(t *testing.T) {
+	w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ProvisionCredential", `{"target":"local","logicalId":"vrooli/demo","field":"api-key"}`)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}
 }
 
-func TestV2CredentialDoctorRelaysMetadataOnly(t *testing.T) {
+func TestCredentialDoctorRelaysMetadataOnly(t *testing.T) {
 	prior := credentialDoctorCommand
 	credentialDoctorCommand = func(context.Context) ([]byte, error) {
-		return []byte(`{"backend":"libsecret","condition":"available"}`), nil
+		return []byte(`{"provider":{"backend":"libsecret","condition":"available"},"credentials":[{"logical_id":"vrooli/demo","field":"api-key","label":"Demo key","description":"Key for the demo provider.","obtain_url":"https://example.test/demo-key","provisioning":"operator"}]}`), nil
 	}
 	t.Cleanup(func() { credentialDoctorCommand = prior })
 
-	w := doGet(t, NewServer(), "/api/v2/credentials/doctor")
-	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"backend":"libsecret"`) {
+	w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/DiagnoseCredentials", `{"target":"local"}`)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"backend":"libsecret"`) || !strings.Contains(w.Body.String(), `"obtainUrl":"https://example.test/demo-key"`) || !strings.Contains(w.Body.String(), `"provisioning":"operator"`) {
 		t.Fatalf("status/body = %d/%s", w.Code, w.Body.String())
 	}
 }
 
-func TestV2CredentialDoctorHidesRelayFailureDetails(t *testing.T) {
+func TestCredentialDoctorHidesRelayFailureDetails(t *testing.T) {
 	prior := credentialDoctorCommand
 	credentialDoctorCommand = func(context.Context) ([]byte, error) {
 		return nil, errors.New("private host detail")
 	}
 	t.Cleanup(func() { credentialDoctorCommand = prior })
 
-	w := doGet(t, NewServer(), "/api/v2/credentials/doctor")
+	w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/DiagnoseCredentials", `{"target":"local"}`)
 	if w.Code != http.StatusServiceUnavailable || strings.Contains(w.Body.String(), "private host detail") {
 		t.Fatalf("status/body = %d/%s", w.Code, w.Body.String())
 	}

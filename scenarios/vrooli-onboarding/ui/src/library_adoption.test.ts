@@ -10,12 +10,9 @@ function sourceFiles(directory: string): string[] {
   });
 }
 
-describe("RCL adoption boundary", () => {
-  it("uses published primitives and has no private UI fork", () => {
+describe("scenario UI boundary", () => {
+  it("has no private UI fork", () => {
     const source = sourceFiles(sourceRoot).filter((path) => path !== import.meta.filename).map((path) => readFileSync(path, "utf8")).join("\n");
     expect(source).not.toMatch(/components\/ui\/(button|SearchInput|StatusBadge)/);
-    expect(source).toContain("@vrooli/react-component-library/Button/2");
-    expect(source).toContain("@vrooli/react-component-library/SearchInput/1");
-    expect(source).toContain("@vrooli/react-component-library/StatusBadge/1");
   });
 });

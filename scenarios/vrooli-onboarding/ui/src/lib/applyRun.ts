@@ -1,4 +1,4 @@
-import type { V2ApplyResponse } from "../types";
+import { ApplyRunState, type GetApplyRunResponse } from "@vrooli/proto-types/vrooli-onboarding/v1/apply/apply_pb";
 
 /**
  * Applying a selection starts scenarios, and starting a scenario can restart
@@ -12,15 +12,15 @@ import type { V2ApplyResponse } from "../types";
 export const APPLY_RECONNECT_WINDOW_MS = 5 * 60 * 1000;
 export const APPLY_POLL_INTERVAL_MS = 500;
 
-export function isApplyRunSettled(status: string): boolean {
-  return status !== "pending" && status !== "applying";
+export function isApplyRunSettled(status: ApplyRunState): boolean {
+  return status !== ApplyRunState.PENDING && status !== ApplyRunState.APPLYING;
 }
 
 export interface PollApplyRunOptions {
   /** Fetches the current server-owned run state. */
-  fetchStatus: (runID: string) => Promise<V2ApplyResponse>;
+  fetchStatus: (runID: string) => Promise<GetApplyRunResponse>;
   /** Called on every observed state, including the first. */
-  onUpdate: (run: V2ApplyResponse) => void;
+  onUpdate: (run: GetApplyRunResponse) => void;
   /** Called when the API becomes unreachable, and again when it returns. */
   onConnectionChange?: (connected: boolean) => void;
   wait: (ms: number) => Promise<void>;
@@ -37,9 +37,9 @@ export interface PollApplyRunOptions {
  * that is the one case where this client genuinely cannot say what happened.
  */
 export async function pollApplyRun(
-  accepted: V2ApplyResponse,
+  accepted: GetApplyRunResponse,
   options: PollApplyRunOptions,
-): Promise<V2ApplyResponse> {
+): Promise<GetApplyRunResponse> {
   const {
     fetchStatus,
     onUpdate,
@@ -57,7 +57,7 @@ export async function pollApplyRun(
   while (!isApplyRunSettled(current.status)) {
     await wait(pollIntervalMs);
     try {
-      current = await fetchStatus(accepted.run_id);
+      current = await fetchStatus(accepted.runId);
       if (unreachableSince !== null) {
         unreachableSince = null;
         onConnectionChange?.(true);
