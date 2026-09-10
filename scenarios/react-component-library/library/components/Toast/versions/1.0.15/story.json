@@ -106,6 +106,9 @@
       "name": "Dismissible",
       "role": "boundary"
     }
+    ,
+    {"id":"empty","name":"Empty toast","args":{"message":""},"expect":[{"kind":"role","role":"alert"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long toast message","args":{"message":"This deliberately long toast message wraps while preserving its alert role and its dismiss action."},"expect":[{"kind":"role","role":"alert"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Toast"
 }

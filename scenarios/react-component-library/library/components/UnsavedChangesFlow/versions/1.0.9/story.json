@@ -15,10 +15,14 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-unsaved-changes-flow]"
         }
       ],
       "role": "anatomy"
-    }
+    },
+    {"id":"empty","name":"No unsaved changes","args":{"dirty":false},"expect":[{"kind":"visible","selector":"[data-rcl-unsaved-changes-flow]"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Saving changes","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-rcl-unsaved-changes-flow]"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Save error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-unsaved-changes-flow]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long unsaved changes warning","args":{"message":"This deliberately long warning explains that leaving now will discard changes and must wrap without clipping the recovery actions."},"expect":[{"kind":"visible","selector":"[data-rcl-unsaved-changes-flow]"}],"role":"boundary","mode":"pinned"}
   ]
 }

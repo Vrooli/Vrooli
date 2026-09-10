@@ -38,11 +38,12 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-stat-card]"
         }
       ],
       "role": "boundary"
-    }
+    },
+    {"id":"overflow","name":"Long stat card content","args":{"label":"A deliberately long metric label that must wrap cleanly"},"expect":[{"kind":"text","value":"42"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "StatCard"
 }

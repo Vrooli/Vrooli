@@ -1,10 +1,9 @@
 # CLI Commands — Proto Health
 
-The scenario CLI is a thin Go wrapper over the API. Every command
-calls a single API endpoint and renders the result; there is no
-business logic in the CLI. If a command needs to make a decision the
-API doesn't expose, the correct fix is to add the API endpoint —
-**not** to compute it locally.
+The scenario CLI is a thin Go wrapper over the API for descriptor-backed
+validation. The source-level owner check is the one local exception: it runs
+Buf against an owner directory so malformed schemas can be reported before
+generated descriptors exist.
 
 The CLI binary is built from `cli/`, installed by `make setup` to
 `~/.vrooli/bin/proto-health`, and rebuilt automatically when its
@@ -36,7 +35,9 @@ The manifest's `governance` block (`effect`, `run_eligible`,
 to derive action certainty automatically; scenarios that adopt the
 manifest don't need hand-classified action-safety lists.
 
-`binding.kind` is currently `connect-rpc` only. REST-exception
+`binding.kind` is normally `connect-rpc`. The `validate owner` command is a
+local source check because an invalid owner may have no generated descriptor;
+REST-exception
 commands (the canonical example is `notes attach`, which uses
 multipart upload) are appended to the loaded group outside the manifest
 path in the domain's `register.go` and documented in the manifest's
@@ -87,6 +88,26 @@ Read values back without an argument:
 
 ```bash
 proto-health configure api_base
+```
+
+## Validation commands
+
+### `proto-health validate scenario <name>`
+
+Validate one descriptor-backed scenario through the API.
+
+```bash
+proto-health validate scenario react-component-library --json
+```
+
+### `proto-health validate owner <owner>`
+
+Validate one source schema owner directly. This catches duplicate field tags,
+unknown imports, and malformed files even when code generation has not produced
+a descriptor for the owner.
+
+```bash
+proto-health validate owner react-component-library --json
 ```
 
 ## Scenario commands — `notes` (CRUD reference)

@@ -117,6 +117,9 @@
       "name": "Retryable error",
       "role": "boundary"
     }
+    ,
+    {"id":"loading-boundary","name":"loading","args":{"state":"loading","surfaceId":"activity"},"expect":[{"kind":"role","role":"status"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long async panel content","args":{"state":"ready","surfaceId":"activity"},"expect":[{"kind":"role","role":"status"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "AsyncPanel"
 }

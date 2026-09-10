@@ -42,19 +42,52 @@ func (e CycleError) Error() string {
 	return fmt.Sprintf("catalog dependency cycle: %s", joinPath(e.Path))
 }
 
+// DroppedEdge records a requires edge that named a node the catalog does not
+// define. BuildTolerant returns these instead of failing so that a serving
+// read path can still answer; the graph-reconciled gate is what turns them
+// into blocking findings.
+type DroppedEdge struct {
+	From string
+	To   string
+}
+
+func (e DroppedEdge) String() string { return fmt.Sprintf("%s requires %s", e.From, e.To) }
+
 func Build(assets []catalogcoverage.Asset) (*Index, error) {
+	index, dropped, err := build(assets)
+	if err != nil {
+		return nil, err
+	}
+	if len(dropped) > 0 {
+		return nil, UnknownAssetError{ID: dropped[0].To}
+	}
+	return index, nil
+}
+
+// BuildTolerant builds the same index but skips requires edges whose target is
+// undefined, reporting them rather than failing. Read paths that only need
+// placement facts use this: a single dangling edge anywhere in the catalog
+// used to fail every catalog-filtered query for every asset, which is how one
+// unclassified asset took down search across the whole library.
+func BuildTolerant(assets []catalogcoverage.Asset) (*Index, []DroppedEdge, error) {
+	return build(assets)
+}
+
+func build(assets []catalogcoverage.Asset) (*Index, []DroppedEdge, error) {
 	i := &Index{nodes: map[string]Node{}, forward: map[string][]string{}, reverse: map[string][]string{}}
 	for _, asset := range assets {
 		rung, err := assetrung.Of(asset.Kind)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		i.nodes[asset.ID] = Node{ID: asset.ID, Name: asset.Name, Kind: asset.Kind, Rung: rung, RungName: rung.Name(), Domain: asset.Domain, DomainOrder: asset.DomainOrder}
 	}
+	var dropped []DroppedEdge
 	for _, asset := range assets {
 		for _, dep := range asset.Requires {
 			if _, ok := i.nodes[dep]; !ok {
-				return nil, UnknownAssetError{ID: dep}
+				dropped = append(dropped, DroppedEdge{From: asset.ID, To: dep})
+				continue
 			}
 			i.forward[asset.ID] = append(i.forward[asset.ID], dep)
 			i.reverse[dep] = append(i.reverse[dep], asset.ID)
@@ -64,7 +97,7 @@ func Build(assets []catalogcoverage.Asset) (*Index, error) {
 		sort.Strings(i.forward[id])
 		sort.Strings(i.reverse[id])
 	}
-	return i, nil
+	return i, dropped, nil
 }
 
 func (i *Index) Closure(id string) ([]Node, error) {

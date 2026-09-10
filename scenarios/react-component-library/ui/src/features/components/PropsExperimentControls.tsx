@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Input } from "@vrooli/react-component-library/Input/1";
+import { Select } from "@vrooli/react-component-library/Select/1";
 import {
   controlId,
   isVisible,
@@ -67,10 +68,15 @@ export function PropsExperimentControls({
                   {hint && <span className="font-normal text-app-muted-foreground">{hint}</span>}
                 </span>
                 {control.kind === "select" ? (
-                  <select
+                  <Select
                     id={id}
                     aria-label={control.label}
                     className="mt-space-3xs h-control-sm w-full rounded-control border border-app-border bg-app-background px-space-2xs text-sm"
+                    options={control.options?.map((option) => ({
+                      value: optionKey(option),
+                      label: optionLabel(option),
+                    })) ?? []}
+                    placeholder={`Choose ${control.label.toLowerCase()}`}
                     value={
                       control.options?.some((option) => optionKey(option) === optionKey(value))
                         ? optionKey(value)
@@ -84,14 +90,7 @@ export function PropsExperimentControls({
                         control.options?.find((option) => optionKey(option) === event.target.value),
                       )
                     }
-                  >
-                    <option value="">Choose {control.label.toLowerCase()}</option>
-                    {(control.options ?? []).map((option) => (
-                      <option key={optionKey(option)} value={optionKey(option)}>
-                        {optionLabel(option)}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 ) : control.kind === "json" ? (
                   <textarea
                     id={id}

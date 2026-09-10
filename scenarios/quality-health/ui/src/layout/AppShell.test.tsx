@@ -1,6 +1,6 @@
 /**
- * AppShell tests — focus on the shell's structural contract (header + sidebar
- * + main + bottom nav) and the locale switcher seam. Page content is exercised
+ * AppShell tests — focus on the library shell's structural contract (header +
+ * sidebar + main + bottom tabs) and the locale switcher seam. Page content is exercised
  * in the per-page tests; this file only verifies the shell composes correctly.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -26,10 +26,10 @@ describe("AppShell structure (cimode)", () => {
   it("renders the title, sidebar, bottom nav, and main outlet", () => {
     renderShell();
     expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.topBar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.sidebar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.bottomNav)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-header`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-sidebar`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-tabs`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-main`)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });
 
@@ -45,7 +45,7 @@ describe("AppShell structure (cimode)", () => {
     renderShell();
     for (const key of ["dashboard", "settings"] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
-      expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
+      expect(screen.getByTestId(`${selectors.layout.sidebarLink({ key })}-tab`)).toBeInTheDocument();
     }
   });
 });

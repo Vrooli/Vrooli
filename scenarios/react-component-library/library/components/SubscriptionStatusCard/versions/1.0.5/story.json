@@ -20,14 +20,27 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-testid='monetization.subscription-status-card']"
         }
       ],
       "id": "active",
       "mode": "live",
       "name": "Active plan",
       "role": "anatomy"
-    }
+    },
+    {
+      "id": "status",
+      "name": "Status axis",
+      "axis": "status",
+      "covers": {"status": ["active", "trialing", "past_due", "canceled", "inactive"]},
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "StatusStory"}},
+      "expect": [{"kind": "visible", "selector": "[data-testid='monetization.subscription-status-card']"}],
+      "role": "axis",
+      "mode": "pinned"
+    },
+    {"id":"empty","name":"Empty subscription label","args":{"plan":"pro","status":"active","credits":0,"label":""},"expect":[{"kind":"visible","selector":"[data-testid='monetization.subscription-status-card']"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long subscription label","args":{"plan":"pro","status":"active","credits":42,"label":"A deliberately long subscription status explanation that must wrap cleanly"},"expect":[{"kind":"visible","selector":"[data-testid='monetization.subscription-status-card']"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "SubscriptionStatusCard"
 }

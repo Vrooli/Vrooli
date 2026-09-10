@@ -67,8 +67,22 @@ export function WizardShell({
           <span><strong>{actLabel}</strong><span aria-hidden="true"> · </span>{active?.title}</span>
           <span className="wizard-progress__count">{currentStep + 1} / {steps.length}</span>
         </div>
-        <div className="wizard-progress__segments" aria-hidden="true">
-          {steps.map((step, index) => <i key={step.id} data-state={index < currentStep ? "done" : index === currentStep ? "active" : "pending"} />)}
+        <div className="wizard-progress__segments" role="list" aria-label={i18n.t("onboarding.shell.progressSteps")}>
+          {steps.map((step, index) => {
+            const reachable = Boolean(onGoToStep);
+            return (
+              <button
+                key={step.id}
+                type="button"
+                className="wizard-progress__segment"
+                data-state={index < currentStep ? "done" : index === currentStep ? "active" : "pending"}
+                aria-current={index === currentStep ? "step" : undefined}
+                aria-label={`${index + 1}. ${step.title}`}
+                disabled={!reachable}
+                onClick={() => onGoToStep?.(index)}
+              />
+            );
+          })}
         </div>
       </div>
       <section className="wizard-stage" aria-label={i18n.t("onboarding.shell.setup")}>

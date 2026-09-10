@@ -15,10 +15,12 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-conflict-flow]"
         }
       ],
       "role": "anatomy"
-    }
+    },
+    {"id":"loading","name":"Loading conflict state","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-rcl-conflict-flow]"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Conflict error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-conflict-flow]"}],"role":"boundary","mode":"pinned"}
   ]
 }

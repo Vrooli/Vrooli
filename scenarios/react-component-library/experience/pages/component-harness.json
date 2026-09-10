@@ -15,6 +15,13 @@
       "statement": "The selected component example is rendered and ready for direct interaction."
     }
   ],
+  "claims": [{
+    "id": "harness-state-covered",
+    "type": "state-covered",
+    "statement": "The component harness is captured in the declared page state.",
+    "tier": "machine",
+    "states": ["default"]
+  }],
   "states": [
     {
       "id": "default",

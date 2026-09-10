@@ -71,5 +71,11 @@
         { "kind": "text", "value": "Enter an address and a login" }
       ]
     }
+    ,
+    {"id":"empty","name":"Empty wizard","args":{"steps":[]},"expect":[{"kind":"visible","selector":"[data-rcl-wizard-footer]"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading step","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-rcl-wizard-footer]"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Wizard error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-wizard-footer]"}],"role":"boundary","mode":"pinned"},
+    {"id":"many","name":"Many wizard steps","args":{"steps":[{"id":"one","label":"One"},{"id":"two","label":"Two"},{"id":"three","label":"Three"},{"id":"four","label":"Four"}]},"expect":[{"kind":"visible","selector":"[data-rcl-wizard-footer]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long wizard step labels","args":{"steps":[{"id":"one","label":"A deliberately long step label that must wrap without clipping the navigation"}]},"expect":[{"kind":"visible","selector":"[data-rcl-wizard-footer]"}],"role":"boundary","mode":"pinned"}
   ]
 }

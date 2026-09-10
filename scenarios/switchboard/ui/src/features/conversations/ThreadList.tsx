@@ -118,7 +118,7 @@ function ThreadRow({ thread, agent, selected }: { thread: Thread; agent?: Agent;
         to={`/conversations/${thread.id}`}
         aria-current={selected ? "page" : undefined}
         className={[
-          "relative flex gap-3 rounded-panel border py-2.5 pl-4 pr-3 transition-colors",
+          "relative flex gap-3 rounded-control border py-2.5 pl-4 pr-3 transition-colors",
           selected ? "border-app-primary/40 bg-app-primary/5" : "border-transparent hover:bg-app-surface-muted",
         ].join(" ")}
       >

@@ -44,11 +44,17 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-timeline]"
         }
       ],
       "role": "boundary"
     }
+    ,
+    {"id":"error","name":"Timeline error","args":{"state":"error"},"expect":[{"kind":"text","value":"Created"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading timeline","args":{"state":"loading"},"expect":[{"kind":"text","value":"Created"}],"role":"boundary","mode":"pinned"},
+    {"id":"one","name":"One timeline event","args":{"events":[{"id":"one","title":"Created"}]},"expect":[{"kind":"text","value":"Created"}],"role":"boundary","mode":"pinned"},
+    {"id":"many","name":"Many timeline events","args":{"events":[{"id":"one","title":"Created"},{"id":"two","title":"Reviewed"},{"id":"three","title":"Published"},{"id":"four","title":"Captured"}]},"expect":[{"kind":"text","value":"Created"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long timeline event","args":{"events":[{"id":"long","title":"A deliberately long timeline event title that must wrap cleanly"}]},"expect":[{"kind":"text","value":"Created"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Timeline"
 }

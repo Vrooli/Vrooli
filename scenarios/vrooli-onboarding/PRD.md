@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD)
 
 ## 🎯 Overview
-- **Purpose**: Vrooli Onboarding is the permanent operator surface for deciding what a Vrooli install runs and under what permissions. It projects manifest declarations into one guided workflow, commits operator decisions through a single typed authority, applies them to the host, and reports honest readiness — on a workstation, a desktop bundle, or a remote VPS.
+- **Purpose**: Vrooli Onboarding is the permanent operator surface for helping a person configure a safe, understandable Vrooli installation for a purpose. It turns reviewed purpose profiles or complete manual choices into one explained capability selection, commits operator decisions through a single typed authority, applies them through owning control-plane operations, and reports honest readiness and recovery standing on a workstation, desktop bundle, or remote VPS.
 - **Primary users/verticals**: First-run operators installing Vrooli; returning operators changing a running install; agents and remote coordinators (vrooli-bridge, scenario-to-cloud) configuring a host they cannot see.
 - **Deployment surfaces**: Web UI, interactive CLI, non-interactive CLI, REST API, bundled desktop app.
 - **Value promise**: An operator reaches a configured, applied, verifiably ready install in under ten minutes on any deployment tier, and never has to hand-edit a JSON file to do it.
@@ -23,6 +23,7 @@
 - [ ] OT-P0-012 | Remote and headless onboarding | The non-interactive surface shall let vrooli-bridge and scenario-to-cloud configure a remote host or VPS with no hand-edited file.
 - [x] OT-P0-013 | Accessible, themed operator experience | The wizard shall meet WCAG 2.1 AA, shall be operable by keyboard alone, and shall render correctly in light and dark themes.
 - [x] OT-P0-014 | Configuration discovery | The wizard shall publish its configuration surface to search-hub so an operator may find a setting by intent rather than by path.
+- [ ] OT-P0-015 | Purpose-led setup and profiles | When setup begins, the wizard shall offer reviewed local, general-purpose, development/publishing, and customer-preinstalled purpose profiles through the shared evaluator, while preserving complete manual selection and explicit overrides across UI, CLI, and API surfaces. The data-driven implementation exists; cross-interface semantic certification remains open.
 
 ### 🟠 P1 – Should have post-launch
 - [x] OT-P1-003 | Descriptor-complete credential guidance | Each credential card should present the declared purpose and the obtain link carried by the credential descriptor.
@@ -32,7 +33,6 @@
 ### 🟢 P2 – Future / expansion
 - [x] OT-P2-001 | Per-scenario operating mode | The wizard may expose the manifest-recommended auto-restart choice per scenario and may persist operator overrides.
 - [x] OT-P2-002 | Deferred integrations contract | If a scenario declares an integration before integration-hub ships, then the integrations step shall present it as deferred and shall create no placeholder binding.
-- [x] OT-P2-003 | Goal intake and profiles | The wizard evaluates reviewed local, general-purpose, publishing, and customer-preset profiles, explains conditional recommendations and provenance, and pre-selects those choices while preserving manual selection. The data-driven implementation is present; cross-interface semantic certification remains open.
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks: Go for the API, CLI, and the shared control-plane state service; React + TypeScript + Vite for the UI, consuming the shared component library and design tokens.

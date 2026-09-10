@@ -10,6 +10,7 @@ import { BudgetMeter } from "../components/console/BudgetMeter";
 import { ChannelChip } from "../components/console/ChannelChip";
 import { GateCard } from "../components/console/GateCard";
 import { Page, StatStrip } from "../components/console/Page";
+import { Panel } from "../components/console/Panel";
 import { Quiet, Region } from "../components/console/Region";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
@@ -77,13 +78,13 @@ export function DashboardPage() {
         errorDetail={errorDetail}
         onRetry={() => void overview.refetch()}
         empty={
-          <div data-testid="overview-all-clear" role="status" className="flex items-center gap-3 rounded-panel border border-app-success/30 bg-app-success/5 px-4 py-3 text-sm">
+          <Panel data-testid="overview-all-clear" role="status" className="flex items-center gap-3 border-app-success/30 bg-app-success/5 px-4 py-3 text-sm">
             <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0 text-app-success" />
             <div>
               <p className="font-medium text-app-foreground">{t(strings.console.overview.allClear)}</p>
               <p className="text-app-muted-foreground">{t(strings.console.overview.allClearDetail)}</p>
             </div>
-          </div>
+          </Panel>
         }
       >
         <ul data-testid="overview-attention" className="flex flex-col gap-3">
@@ -112,11 +113,13 @@ export function DashboardPage() {
             </Link>
           }
         >
-          <ul data-testid="overview-channel-health" className="divide-y divide-app-border overflow-hidden rounded-panel border border-app-border bg-app-surface">
-            {channels.map((channel) => (
-              <ChannelHealthRow key={channel.id} channel={channel} />
-            ))}
-          </ul>
+          <Panel className="overflow-hidden p-0">
+            <ul data-testid="overview-channel-health" className="divide-y divide-app-border">
+              {channels.map((channel) => (
+                <ChannelHealthRow key={channel.id} channel={channel} />
+              ))}
+            </ul>
+          </Panel>
         </Region>
 
         <Region
@@ -133,11 +136,13 @@ export function DashboardPage() {
             ) : (
               <ul className="flex flex-col gap-3">
                 {pressure.map((budget) => (
-                  <li key={budget.thread_id} className="rounded-panel border border-app-border bg-app-surface p-3">
+                  <li key={budget.thread_id}>
+                    <Panel className="p-3">
                     <Link to={`/conversations/${budget.thread_id}`} className="mb-2 block truncate text-xs font-medium text-app-primary">
                       {budget.agent_id} · {budget.thread_key}
                     </Link>
                     <BudgetMeter budget={budget} testId="overview-budget-meter" />
+                    </Panel>
                   </li>
                 ))}
               </ul>
@@ -154,9 +159,10 @@ export function DashboardPage() {
           onRetry={() => void overview.refetch()}
           empty={<Quiet icon={<ShieldOff className="h-5 w-5" />} title={t(strings.console.overview.noRefusals)} description={t(strings.console.overview.noRefusalsDetail)} />}
         >
-          <ul data-testid="overview-refusals" className="divide-y divide-app-border overflow-hidden rounded-panel border border-app-border bg-app-surface">
-            {refusals.slice(0, 8).map((refusal, index) => (
-              <li key={`${refusal.thread_id}-${refusal.at}-${index}`} className="flex flex-col gap-1 px-3 py-2.5 text-sm">
+          <Panel className="overflow-hidden p-0">
+            <ul data-testid="overview-refusals" className="divide-y divide-app-border">
+              {refusals.slice(0, 8).map((refusal, index) => (
+                <li key={`${refusal.thread_id}-${refusal.at}-${index}`} className="flex flex-col gap-1 px-3 py-2.5 text-sm">
                 <div className="flex items-center justify-between gap-2">
                   <Link to={`/conversations/${refusal.thread_id}`} className="min-w-0 truncate font-medium text-app-foreground hover:text-app-primary">
                     {refusal.sender_address}
@@ -167,9 +173,10 @@ export function DashboardPage() {
                   <ChannelChip id={refusal.channel_id} name={refusal.channel_display_name} accent={refusal.channel_accent} />
                   <span className="truncate text-xs text-app-muted-foreground">{refusal.reason}</span>
                 </div>
-              </li>
-            ))}
-          </ul>
+                </li>
+              ))}
+            </ul>
+          </Panel>
         </Region>
       </div>
     </Page>

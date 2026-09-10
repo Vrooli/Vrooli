@@ -131,6 +131,8 @@
      "selector": "[data-rcl-bottom-sheet][data-content-padding='comfortable']"
     }
    ]
-  }
+  },
+  {"id":"empty","name":"Empty sheet","args":{},"expect":[{"kind":"role","role":"dialog"},{"kind":"visible","selector":"[data-rcl-bottom-sheet]"}],"role":"boundary","mode":"pinned"},
+  {"id":"overflow","name":"Long sheet content","args":{},"expect":[{"kind":"role","role":"dialog"},{"kind":"visible","selector":"[data-rcl-bottom-sheet]"}],"role":"boundary","mode":"pinned"}
  ]
 }

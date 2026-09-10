@@ -65,7 +65,10 @@
       "mode": "live",
       "name": "Empty collection",
       "role": "boundary"
-    }
+    },
+    {"id":"one","name":"One list item","args":{"items":[{"id":"deploy","label":"Deploy completed"}]},"expect":[{"kind":"text","value":"Deploy completed"}],"role":"boundary","mode":"pinned"},
+    {"id":"many","name":"Many list items","args":{"items":[{"id":"one","label":"Deploy completed"},{"id":"two","label":"Review queued"},{"id":"three","label":"Evidence captured"},{"id":"four","label":"Release published"}]},"expect":[{"kind":"text","value":"Deploy completed"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long list item","args":{"items":[{"id":"long","label":"A deliberately long list item label that must wrap without clipping"}]},"expect":[{"kind":"text","value":"Deploy completed"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "List"
 }

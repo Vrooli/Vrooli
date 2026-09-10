@@ -182,6 +182,9 @@
       "name": "End placement",
       "role": "boundary"
     }
+    ,
+    {"id":"empty","name":"Empty tooltip","args":{"content":""},"expect":[{"kind":"role","name":"Show tooltip","role":"button"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long tooltip","args":{"content":"This deliberately long tooltip explains the action and must wrap without clipping the trigger."},"expect":[{"kind":"role","name":"Show tooltip","role":"button"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Tooltip"
 }

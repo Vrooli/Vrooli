@@ -82,6 +82,99 @@ type service struct {
 	repoRoot   string
 }
 
+// sourceLedgerReader keeps preview closure validation aligned with the
+// materialized version that the bundle reads. The registry remains the
+// identity and version existence authority, while dependencies.json is the
+// derived lock for the checked-in source. This matters when a registry was
+// opened from a prior checkout whose derived projections are older than the
+// current materialized release tree.
+type sourceLedgerReader struct {
+	components.Service
+	repoRoot string
+}
+
+func (r sourceLedgerReader) GetVersion(ctx context.Context, componentID, version string) (components.ComponentVersion, error) {
+	artifact, err := r.Service.GetVersion(ctx, componentID, version)
+	if err != nil {
+		return components.ComponentVersion{}, err
+	}
+	asset, err := r.Service.Get(ctx, componentID)
+	if err != nil {
+		return components.ComponentVersion{}, err
+	}
+	lockPath := sourceVersionDirectory(r.repoRoot, asset.SourcePath, version)
+	raw, readErr := os.ReadFile(filepath.Join(lockPath, "dependencies.json"))
+	if os.IsNotExist(readErr) {
+		return artifact, nil
+	}
+	if readErr != nil {
+		return components.ComponentVersion{}, readErr
+	}
+	var lock struct {
+		Dependencies []struct {
+			LibraryID string `json:"libraryId"`
+			Observed  string `json:"observed"`
+			Version   string `json:"version"`
+		} `json:"dependencies"`
+	}
+	if err := json.Unmarshal(raw, &lock); err != nil {
+		return components.ComponentVersion{}, fmt.Errorf("read preview dependency ledger %s: %w", lockPath, err)
+	}
+	dependencies := make([]components.AssetDependency, 0, len(lock.Dependencies))
+	for _, dependency := range lock.Dependencies {
+		observed := strings.TrimSpace(dependency.Observed)
+		if observed == "" {
+			observed = strings.TrimSpace(dependency.Version)
+		}
+		if strings.TrimSpace(dependency.LibraryID) == "" || observed == "" {
+			continue
+		}
+		dependencies = append(dependencies, components.AssetDependency{LibraryID: strings.TrimSpace(dependency.LibraryID), Version: observed})
+	}
+	artifact.Dependencies = dependencies
+	artifact.DependencyLockPresent = true
+	if files, filesErr := materializedVersionFiles(lockPath, artifact.SourcePath); filesErr != nil {
+		return components.ComponentVersion{}, filesErr
+	} else if files != nil {
+		artifact.Files = files
+	}
+	return artifact, nil
+}
+
+func materializedVersionFiles(versionDir, sourcePath string) ([]components.ComponentVersionFile, error) {
+	entries, err := os.ReadDir(versionDir)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	files := make([]components.ComponentVersionFile, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		path := entry.Name()
+		body, readErr := os.ReadFile(filepath.Join(versionDir, path))
+		if readErr != nil {
+			return nil, readErr
+		}
+		files = append(files, components.ComponentVersionFile{
+			Path:          path,
+			Content:       string(body),
+			ContentSHA256: digest(string(body)),
+			IsEntry:       filepath.Base(sourcePath) == path,
+		})
+	}
+	return files, nil
+}
+
+func sourceVersionDirectory(repoRoot, sourcePath, version string) string {
+	path := filepath.Join(repoRoot, "scenarios", "react-component-library", "library", filepath.FromSlash(filepath.Clean(sourcePath)))
+	assetDir := filepath.Dir(filepath.Dir(filepath.Dir(path)))
+	return filepath.Join(assetDir, "versions", strings.TrimSpace(version))
+}
+
 // NewService wires the components service (for resolution + content)
 // and the bundler. Both are required — there is no degraded mode.
 func NewService(comp components.Service, bundler Bundler) Service {
@@ -261,7 +354,7 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 	var closure []components.ResolvedAsset
 	if len(asset.Dependencies) > 0 {
 		var closureErr error
-		closure, closureErr = components.ResolveDependencyClosure(ctx, s.components, id, version)
+		closure, closureErr = components.ResolveDependencyClosure(ctx, sourceLedgerReader{Service: s.components, repoRoot: s.repoRoot}, id, version)
 		if closureErr != nil {
 			return Bundle{}, closureErr
 		}
@@ -278,13 +371,42 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 	if contentErr != nil {
 		return Bundle{}, contentErr
 	}
+	// Versioned preview evidence must bundle the materialized source tree. The
+	// registry is the identity and dependency authority, but its immutable file
+	// snapshot can lag the checked-in materialization while a corpus backfill is
+	// in progress. Reading the selected entry from the filesystem keeps source,
+	// dependency ledger, and captured image on the same version.
+	if version != "" {
+		materialized := false
+		if strings.TrimSpace(s.repoRoot) != "" {
+			libraryRoot := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "library")
+			candidate := filepath.Join(libraryRoot, filepath.FromSlash(filepath.Clean(content.SourcePath)))
+			if isWithinRoot(candidate, libraryRoot) {
+				if raw, readErr := os.ReadFile(candidate); readErr == nil {
+					content.Body = string(raw)
+					content.SHA256 = digest(content.Body)
+					materialized = true
+				}
+			}
+		}
+		if !materialized {
+			if reader, ok := s.components.(interface {
+				GetVersionContentAt(context.Context, string, string, string) (components.Content, error)
+			}); ok {
+				entry := filepath.Base(content.SourcePath)
+				if current, readErr := reader.GetVersionContentAt(ctx, id, version, entry); readErr == nil {
+					content = current
+				}
+			}
+		}
+	}
 	var declarations []deps.Declaration
 	if s.deps != nil {
 		dependencyVersion := version
 		if dependencyVersion == "" {
 			dependencyVersion = asset.LatestVersion
 		}
-		versionRecord, versionErr := s.components.GetVersion(ctx, id, dependencyVersion)
+		versionRecord, versionErr := (sourceLedgerReader{Service: s.components, repoRoot: s.repoRoot}).GetVersion(ctx, id, dependencyVersion)
 		if versionErr != nil {
 			return Bundle{}, versionErr
 		}
@@ -313,6 +435,9 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 	}); ok && version != "" {
 		storyContent, storyErr := storyReader.GetVersionContentAt(ctx, id, version, "story.tsx")
 		if storyErr == nil {
+			if current, readErr := os.ReadFile(filepath.Join(sourceVersionDirectory(s.repoRoot, asset.SourcePath, version), "story.tsx")); readErr == nil {
+				storyContent.Body = string(current)
+			}
 			if err := validateSpecimenSource(storyContent.Body); err != nil {
 				return Bundle{}, err
 			}

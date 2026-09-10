@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "selectors": {
     "app.title": {
       "testId": "app-title",
@@ -104,22 +105,6 @@
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
     },
-    "layout.topBar": {
-      "testId": "layout-top-bar",
-      "selector": "[data-testid=\"layout-top-bar\"]"
-    },
-    "layout.sidebar": {
-      "testId": "layout-sidebar",
-      "selector": "[data-testid=\"layout-sidebar\"]"
-    },
-    "layout.bottomNav": {
-      "testId": "layout-bottom-nav",
-      "selector": "[data-testid=\"layout-bottom-nav\"]"
-    },
-    "layout.main": {
-      "testId": "layout-main",
-      "selector": "[data-testid=\"layout-main\"]"
-    },
     "theme.switcher": {
       "testId": "theme-switcher",
       "selector": "[data-testid=\"theme-switcher\"]"
@@ -186,30 +171,10 @@
         }
       ]
     },
-    "layout.sidebarLink": {
-      "description": "Sidebar navigation link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
-      "testIdPattern": "layout-sidebar-link-${key}",
-      "params": [
-        {
-          "name": "key",
-          "type": "enum",
-          "values": [
-            "overview",
-            "inventory",
-            "search",
-            "runs",
-            "findings",
-            "fixes",
-            "settings"
-          ]
-        }
-      ]
-    },
-    "layout.bottomNavLink": {
-      "description": "Bottom-nav link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
-      "testIdPattern": "layout-bottom-nav-link-${key}",
+    "layout.navLink": {
+      "description": "App shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
       "params": [
         {
           "name": "key",
@@ -258,5 +223,10 @@
         }
       ]
     }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
+    "ui/src/consts/selectors.ts": "3e03e8d9ce80998b81c66943317f273782992788cb710477cf0e70a5fdd68aa1",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

@@ -15,10 +15,12 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-form-actions]"
         }
       ],
       "role": "anatomy"
-    }
+    },
+    {"id":"loading","name":"Submitting actions","args":{"pending":true},"expect":[{"kind":"visible","selector":"[data-rcl-form-actions]"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Action error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-form-actions]"}],"role":"boundary","mode":"pinned"}
   ]
 }

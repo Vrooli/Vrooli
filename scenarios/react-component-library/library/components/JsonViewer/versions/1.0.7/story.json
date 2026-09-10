@@ -38,7 +38,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-testid='data-display.json-viewer']"
         }
       ],
       "role": "boundary"

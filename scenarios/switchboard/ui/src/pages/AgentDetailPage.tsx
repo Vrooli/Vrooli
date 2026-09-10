@@ -9,6 +9,7 @@ import { AgentMark } from "../components/console/AgentMark";
 import { BudgetMeter } from "../components/console/BudgetMeter";
 import { ChannelChip } from "../components/console/ChannelChip";
 import { Page } from "../components/console/Page";
+import { Panel } from "../components/console/Panel";
 import { Quiet, Region } from "../components/console/Region";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
@@ -61,7 +62,7 @@ export function AgentDetailPage() {
         </a>
       }
     >
-      <div data-testid="agent-header" className="flex flex-wrap items-center gap-4 rounded-panel border border-app-border bg-app-surface p-4">
+      <Panel data-testid="agent-header" className="flex flex-wrap items-center gap-4 p-4">
         <AgentMark name={agent?.display_name ?? agentId} appearance={agent?.appearance} size="xl" testId="agent-avatar" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -81,7 +82,7 @@ export function AgentDetailPage() {
           {agent?.broken ? <p className="mt-2 text-sm text-app-danger">{agent.broken}</p> : null}
           <p className="mt-2 text-xs text-app-muted-foreground">{t(strings.console.agentDetail.profileOwnedElsewhere)}</p>
         </div>
-      </div>
+      </Panel>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="flex flex-col gap-6">
@@ -95,7 +96,7 @@ export function AgentDetailPage() {
           >
             {notFound ? <Quiet title={t(strings.console.agentDetail.notFound)} description={t(strings.console.agentDetail.notFoundDetail)} /> : null}
             {agent ? (
-              <div data-testid="agent-grant" role="region" aria-label={t(strings.console.agentDetail.whatItMayDo)} className="rounded-panel border border-app-border bg-app-surface">
+              <Panel data-testid="agent-grant" role="region" aria-label={t(strings.console.agentDetail.whatItMayDo)} className="p-0">
                 <ul className="divide-y divide-app-border">
                   {agent.grant.scopes.map((scope) => (
                     <li key={scope} className="flex items-center gap-3 px-4 py-3 text-sm">
@@ -129,7 +130,7 @@ export function AgentDetailPage() {
                     ) : null}
                   </p>
                 </div>
-              </div>
+              </Panel>
             ) : null}
           </Region>
 
@@ -143,17 +144,19 @@ export function AgentDetailPage() {
               agent.bindings.length === 0 ? (
                 <Quiet title={t(strings.console.agents.notReachable)} description={t(strings.console.agentDetail.notReachableDetail)} />
               ) : (
-                <ul data-testid="agent-channels" className="divide-y divide-app-border rounded-panel border border-app-border bg-app-surface">
-                  {agent.bindings.map((binding) => (
-                    <li key={binding.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
+                <Panel data-testid="agent-channels" className="p-0">
+                  <ul className="divide-y divide-app-border">
+                    {agent.bindings.map((binding) => (
+                      <li key={binding.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
                       <ChannelChip id={binding.channel_id} name={binding.channel_display_name} accent={binding.channel_accent} size="md" />
                       <code className="truncate font-mono text-xs text-app-muted-foreground">{binding.address}{binding.thread_key ? ` · ${binding.thread_key}` : ""}</code>
                       <StatusBadge tone={binding.live ? "success" : "warning"} className="ml-auto">
                         {binding.live ? t(strings.console.agents.live) : t(strings.console.agents.paused)}
                       </StatusBadge>
-                    </li>
-                  ))}
-                </ul>
+                      </li>
+                    ))}
+                  </ul>
+                </Panel>
               )
             ) : null}
           </Region>
@@ -166,12 +169,14 @@ export function AgentDetailPage() {
             ) : (
               <ul className="flex flex-col gap-2">
                 {agentThreads.slice(0, 6).map((thread) => (
-                  <li key={thread.id} className="rounded-panel border border-app-border bg-app-surface p-3">
+                  <li key={thread.id}>
+                    <Panel className="p-3">
                     <Link to={`/conversations/${thread.id}`} className="mb-2 flex items-center gap-2 text-xs">
                       <ChannelChip id={thread.channel_id} name={thread.channel_display_name} accent={thread.channel_accent} />
                       <span className="truncate font-mono text-app-muted-foreground">{thread.thread_key}</span>
                     </Link>
                     <BudgetMeter budget={thread.budget} compact />
+                    </Panel>
                   </li>
                 ))}
               </ul>

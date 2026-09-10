@@ -1,5 +1,5 @@
 /** @vrooliComponentSource navigation.master-detail */
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "../../components/theme/useTheme";
 import { selectors } from "../../consts/selectors";
@@ -27,7 +27,7 @@ import type { DiffRow } from "../../api/versions";
 import { useShellNavigation } from "../../components/ShellNavigationContext";
 import { configureEditorBeforeMount, configureEditorMount } from "./componentEditorMonaco";
 import { parseStorySpecimens, specimenIdentity } from "./componentEditorStories";
-import type { PreviewSpecimen, SpecimenIdentity } from "./ComponentEditorStage";
+import type { PreviewSpecimen, SpecimenIdentity } from "./componentEditorStories";
 import { useComponentEditorPanes, type WorkspacePane } from "./useComponentEditorPanes";
 import { useComponentPreviewMessaging, type PreviewEvent } from "./useComponentPreviewMessaging";
 import { useComponentEditorTools } from "./useComponentEditorTools";
@@ -91,7 +91,6 @@ interface ComponentEditorProps {
   /** Lets the asset-page root expose preview readiness to external automation. */
   onPreviewExperienceStateChange?: (state: "loading" | "partial" | "ready" | "error") => void;
   /** Structural assets open in the single-specimen stage; ordinary components keep the gallery. */
-  stageMode?: boolean;
   /** Standalone preview routes omit editor navigation and workspace chrome. */
   chromeless?: boolean;
 }
@@ -122,7 +121,6 @@ export function ComponentEditorImpl({
   selectedStory,
   onSelectedStoryChange,
   onPreviewExperienceStateChange,
-  stageMode: initialStageMode,
   chromeless = false,
 }: ComponentEditorProps) {
   const { t } = useTranslation();
@@ -229,15 +227,9 @@ export function ComponentEditorImpl({
   const [readyExamples, setReadyExamples] = useState<ReadonlySet<string>>(() => new Set());
   const [specimenErrors, setSpecimenErrors] = useState<Record<string, string>>({});
   const [specimenRetries, setSpecimenRetries] = useState<Record<string, number>>({});
-  const [comparedSpecimens, setComparedSpecimens] = useState<ReadonlySet<SpecimenIdentity>>(
-    () => new Set(),
-  );
   const [activeSpecimen, setActiveSpecimen] = useState<SpecimenIdentity | null>(null);
   const [previewToolsCollapsed, setPreviewToolsCollapsed] = useState(true);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
-  const [stageMode, setStageMode] = useState(
-    () => initialStageMode ?? readPreviewPreference("rcl.preview.view", "focus") === "focus",
-  );
   const [specimenOverrides, setSpecimenOverrides] = useState<
     Record<string, Record<string, unknown>>
   >({});
@@ -254,16 +246,12 @@ export function ComponentEditorImpl({
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(
-        "rcl.preview.view",
-        JSON.stringify(stageMode ? "focus" : "canvas"),
-      );
       window.localStorage.setItem("rcl.preview.kit", JSON.stringify(previewKit));
       window.localStorage.setItem("rcl.preview.frame", JSON.stringify(frameEnabled));
     } catch {
       // Preferences are best-effort in private and embedded browser contexts.
     }
-  }, [frameEnabled, previewKit, stageMode]);
+  }, [frameEnabled, previewKit]);
   const {
     currentPane,
     splitView,
@@ -302,38 +290,6 @@ export function ComponentEditorImpl({
   useEffect(() => {
     onPreviewExperienceStateChange?.(previewExperienceState);
   }, [onPreviewExperienceStateChange, previewExperienceState]);
-  useEffect(() => {
-    if (!stageMode) return;
-    setPreviewToolsCollapsed(true);
-    const fitPreview = () => emulator.fitToPane(previewStageRef.current);
-    const collapseFrame = window.requestAnimationFrame(() =>
-      window.requestAnimationFrame(fitPreview),
-    );
-    const resizeObserver = new ResizeObserver(() => {
-      window.requestAnimationFrame(() => emulator.fitToPane(previewStageRef.current));
-    });
-    const viewportFrame = previewStageRef.current?.querySelector<HTMLElement>(
-      "[data-emulator-viewport-frame]",
-    );
-    if (viewportFrame) resizeObserver.observe(viewportFrame);
-    else if (previewStageRef.current) resizeObserver.observe(previewStageRef.current);
-    return () => {
-      window.cancelAnimationFrame(collapseFrame);
-      resizeObserver.disconnect();
-    };
-  }, [emulator.fitToPane, previewReady, stageMode]);
-
-  useEffect(() => {
-    if (!stageMode) return;
-    const leaveSpecimen = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setStageMode(false);
-      setComparedSpecimens(new Set());
-    };
-    window.addEventListener("keydown", leaveSpecimen);
-    return () => window.removeEventListener("keydown", leaveSpecimen);
-  }, [stageMode]);
-
   const resolvedPreviewTheme =
     filters.colorScheme === "system" ? appResolvedTheme : filters.colorScheme;
 
@@ -367,18 +323,6 @@ export function ComponentEditorImpl({
     previewFailedMessage: t(strings.components.editor.previewFailed),
     propsRejectedMessage: t(strings.components.editor.propsRejected),
   });
-  const toggleComparison = useCallback(
-    (identity: SpecimenIdentity) => {
-      setComparedSpecimens((current) => {
-        const next = new Set(current);
-        if (next.has(identity)) next.delete(identity);
-        else if (next.size < 4) next.add(identity);
-        return next;
-      });
-      activateSpecimen(identity);
-    },
-    [activateSpecimen],
-  );
   // The app owns the resolved theme. Emulator "system" means follow the
   // app decision, never a separate OS media decision inside the iframe.
   useEffect(() => {
@@ -406,15 +350,10 @@ export function ComponentEditorImpl({
     [storiesQuery.data?.stories],
   );
   const examples = storySpecimens;
-  const selectAllComparison = useCallback(() => {
-    const selected = examples.slice(0, 4).map((example) => specimenIdentity(example));
-    setComparedSpecimens(new Set(selected));
-    if (selected[0]) activateSpecimen(selected[0]);
-  }, [activateSpecimen, examples]);
   // Only the active specimen is mounted in the normal workspace; comparison
   // mounts exactly two. Waiting for every indexed example left the region in
   // loading forever even after the visible preview had announced readiness.
-  const expectedReadyCount = comparedSpecimens.size >= 2 ? comparedSpecimens.size : 1;
+  const expectedReadyCount = 1;
 
   useEffect(() => {
     // A transient loading/fallback specimen can outlive the story query when
@@ -543,17 +482,6 @@ export function ComponentEditorImpl({
     : examples.length > 0
       ? examples
       : [undefined];
-  const comparisonActive = !stageMode && comparedSpecimens.size >= 2;
-  const visibleSpecimens = stageMode
-    ? specimens
-        .filter(
-          (example) =>
-            specimenIdentity(example) === (activeSpecimen ?? specimenIdentity(specimens[0])),
-        )
-        .slice(0, 1)
-    : comparisonActive
-      ? specimens.filter((example) => comparedSpecimens.has(specimenIdentity(example)))
-      : specimens;
   const activeExample = specimens.find((example) => specimenIdentity(example) === activeSpecimen);
   const activeStoryContract: ComponentStory | undefined = (storiesQuery.data?.stories ?? []).find((story) => story.version === (activeExample?.version || activeVersion));
   const compatibleFrameCandidates = (frameCandidatesQuery.data?.candidates ?? []).filter(
@@ -623,12 +551,10 @@ export function ComponentEditorImpl({
         splitLayout,
         saveDesktopPanelLayout,
         visiblePanes,
-        visibleSpecimens,
         readyExamples,
         previewMessage,
         specimenErrors,
         specimenRetries,
-        comparedSpecimens,
         frameEnabled,
         baselineSha,
         previewReloadKey,
@@ -664,8 +590,6 @@ export function ComponentEditorImpl({
         selectSplitPane,
         specimens,
         activeSpecimen,
-        specimenIdentity,
-        activateSpecimen,
         framePickerEnabled,
         frameCandidatesQuery,
         frameOverride,
@@ -677,13 +601,7 @@ export function ComponentEditorImpl({
         filters,
         previewKit,
         setPreviewKit,
-        stageMode,
-        setStageMode,
         setPreviewToolsCollapsed,
-        setComparedSpecimens,
-        comparisonActive,
-        toggleComparison,
-        selectAllComparison,
         emulator,
         togglePreviewTools,
         togglePreviewFullscreen,

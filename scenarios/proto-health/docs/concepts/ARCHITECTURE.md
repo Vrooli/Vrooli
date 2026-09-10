@@ -64,7 +64,7 @@ proto-surface fact for downstream tools.
 |---|---|---|---|
 | API (`api/`) | Scenario core | Descriptor reading, per-scenario validation, proto-surface facts, message-level fleet reachability for proto findings, transport edge | Service dependency drift analysis |
 | UI (`ui/`) | Browser presentation | Fleet/status inspection, findings and surface rendering, loading/error/empty states | Validation rules, descriptor parsing |
-| CLI (`cli/`) | Operator/agent wrapper | `validate scenario` and `describe scenario` commands, output formatting, API invocation | Duplicated validation logic |
+| CLI (`cli/`) | Operator/agent wrapper | `validate scenario`, `validate owner`, and `describe scenario` commands, output formatting, API invocation, and pre-generation Buf attribution | Duplicated descriptor policy logic |
 | Contracts (`packages/proto/schemas/proto-health/`) | Wire shape | `ProtoHealthService` and generated clients | Hand-written route/type mirrors |
 
 The load-bearing principle: the API is the only surface that contains

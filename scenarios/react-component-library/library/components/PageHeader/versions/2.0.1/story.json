@@ -46,7 +46,9 @@
         "label": "Long title",
         "path": "longTitle"
       }
-    ]
+    ,
+    {"id":"empty","name":"Empty page heading","args":{"title":""},"expect":[{"kind":"role","role":"heading"}],"role":"boundary","mode":"pinned"}
+  ]
   },
   "environment": {
     "fixtures": []

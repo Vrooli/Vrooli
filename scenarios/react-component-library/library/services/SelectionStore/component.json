@@ -11,7 +11,10 @@
     }
   ],
   "draft": "",
-  "evictedVersions": [],
+  "evictedVersions": [
+    "2.0.1",
+    "1.0.0"
+  ],
   "latest": "2.0.2",
   "libraryId": "react-component-library:SelectionStore"
 }

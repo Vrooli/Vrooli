@@ -10,9 +10,9 @@
   ],
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
   "draft": "",
@@ -22,7 +22,8 @@
     "1.1.0",
     "1.1.2",
     "2.0.0",
-    "1.1.3"
+    "1.1.3",
+    "2.0.1"
   ],
   "latest": "2.0.2",
   "libraryId": "react-component-library:useSwipeGesture"

@@ -13,7 +13,10 @@ import (
 func ValidateManifestIdentity(scope Scope) (Result, error) {
 	root := scope.Root
 	result := Result{}
-	catalog, err := loadAssets(scope)
+	// Resolve catalog identity against the complete projection first. The
+	// caller's library-id scope is applied to manifests below and must not make
+	// the catalog-id lookup appear empty.
+	catalog, err := loadAssets(Scope{Root: scope.Root})
 	if err != nil {
 		return Result{}, err
 	}

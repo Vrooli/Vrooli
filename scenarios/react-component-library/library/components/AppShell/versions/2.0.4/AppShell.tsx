@@ -173,7 +173,7 @@ export const appShellStyles = `
 
 function defaultRenderLink(_item: AppShellNavItem, props: AppShellLinkProps) {
   const { children, ...rest } = props;
-  return <a {...rest}>{children}</a>;
+  return <a data-rcl-selector="navigation.app-shell" {...rest}>{children}</a>;
 }
 
 export const AppShell = withClassName(function AppShell({
@@ -331,7 +331,7 @@ export const AppShell = withClassName(function AppShell({
       className={className}
     >
       <StyleSheet libraryId="react-component-library:AppShell" version="2.0.4" css={appShellStyles} />
-      <a data-rcl-app-shell-skip="" href={`#${mainId}`} data-testid={`${testId}-skip`}>
+      <a data-rcl-app-shell-skip="" data-rcl-selector="navigation.app-shell" href={`#${mainId}`} data-testid={`${testId}-skip`}>
         {resolvedSkipLabel}
       </a>
       <div data-rcl-app-shell-body="" ref={bodyRef}>

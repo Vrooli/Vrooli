@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { ComponentStory } from "../../api/components";
-import type { PreviewSpecimen, SpecimenIdentity } from "./ComponentEditorStage";
+import type { PreviewSpecimen, SpecimenIdentity } from "./componentEditorStories";
 import type { PreviewDiagnostics } from "./ComponentEditorTools";
 import type { PreviewEvent } from "./useComponentPreviewMessaging";
 

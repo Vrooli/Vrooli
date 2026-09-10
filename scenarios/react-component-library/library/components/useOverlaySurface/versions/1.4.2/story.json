@@ -29,5 +29,8 @@
         { "kind": "visible", "selector": "[data-testid='runtime.use-overlay-surface.grabber']" }
       ]
     }
+    ,
+    {"id":"loading","name":"Loading overlay","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-testid='runtime.use-overlay-surface']"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Overlay error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-testid='runtime.use-overlay-surface']"}],"role":"boundary","mode":"pinned"}
   ]
 }

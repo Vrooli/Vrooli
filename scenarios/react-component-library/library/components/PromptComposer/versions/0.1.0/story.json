@@ -3,5 +3,5 @@
   "kind": "component",
   "args": { "fields": [] },
   "environment": { "fixtures": [] },
-  "stories": [{ "id": "default", "name": "Default", "args": {}, "expect": [] }]
+  "stories": [{ "id": "default", "name": "Default", "args": {}, "expect": [{ "kind": "visible", "selector": "[data-rcl-prompt-composer]" }], "role": "anatomy" }]
 }

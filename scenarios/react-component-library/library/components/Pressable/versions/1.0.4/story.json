@@ -70,6 +70,42 @@
       "mode": "live",
       "name": "Pending",
       "role": "boundary"
+    },
+    {
+      "id": "empty",
+      "name": "Empty pressable",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Ready"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-pressable]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "error",
+      "name": "Error pressable",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Pending"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-pressable]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "loading",
+      "name": "Loading pressable",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Pending"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-pressable]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "overflow",
+      "name": "Overflow pressable content",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Ready"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-pressable]"}],
+      "role": "boundary",
+      "mode": "pinned"
     }
   ],
   "title": "Pressable"

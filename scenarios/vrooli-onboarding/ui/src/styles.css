@@ -21,8 +21,9 @@ body {
 }
 .app-bar__inner { max-width: 70rem; min-height: 58px; margin-inline: auto; padding-inline: 1.25rem; display: flex; align-items: center; gap: 1.5rem; }
 .app-brand { display: inline-flex; align-items: center; gap: .65rem; font-weight: 700; letter-spacing: -.02em; }
-.app-brand__mark { display: grid; place-items: center; inline-size: 28px; block-size: 28px; border-radius: 9px; background: var(--color-primary); color: var(--color-on-primary); font-size: .8rem; box-shadow: 0 6px 18px var(--shadow-primary); }
-.app-tabs { display: flex; align-items: center; gap: .25rem; }
+.app-brand__mark { display: block; inline-size: 30px; block-size: 30px; border-radius: 9px; box-shadow: 0 6px 18px var(--shadow-primary); }
+.app-tabs { display: flex; align-items: center; gap: .35rem; min-inline-size: 0; }
+.app-tab { gap: .75rem !important; white-space: nowrap; }
 .app-tab[aria-selected="true"] { background: var(--color-surface-muted); }
 .target-chip { margin-inline-start: auto; display: inline-flex; align-items: center; gap: .4rem; min-height: 34px; padding-inline: .7rem .5rem; border-radius: 999px; background: var(--color-surface-muted); color: var(--color-muted); font: var(--text-code); }
 .target-chip__dot { inline-size: 6px; block-size: 6px; border-radius: 50%; background: var(--color-success); }
@@ -36,9 +37,14 @@ body {
 .wizard-progress__meta strong { color: var(--color-foreground); font-weight: 650; }
 .wizard-progress__count { font-family: var(--font-mono); font-size: .7rem; }
 .wizard-progress__segments { display: flex; gap: 5px; margin-block-start: .55rem; }
-.wizard-progress__segments i { flex: 1; block-size: 3px; border-radius: 999px; background: var(--color-border); }
-.wizard-progress__segments i[data-state="done"] { background: var(--color-primary); }
-.wizard-progress__segments i[data-state="active"] { background: color-mix(in srgb, var(--color-primary) 50%, var(--color-border)); }
+.wizard-progress__segment { flex: 1; min-inline-size: 0; block-size: 10px; padding: 3px 0; border: 0; border-radius: 999px; background: transparent; cursor: pointer; }
+.wizard-progress__segment::before { content: ""; display: block; inline-size: 100%; block-size: 3px; border-radius: 999px; background: var(--color-border); transition: background-color var(--dur-quick) var(--ease-standard), transform var(--dur-quick) var(--ease-standard); }
+.wizard-progress__segment[data-state="done"]::before { background: var(--color-primary); }
+.wizard-progress__segment[data-state="active"]::before { background: color-mix(in srgb, var(--color-primary) 50%, var(--color-border)); }
+.wizard-progress__segment:hover::before, .wizard-progress__segment:focus-visible::before { background: var(--color-foreground); transform: scaleY(1.75); }
+.wizard-progress__segment:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+.wizard-progress__segment:disabled { cursor: default; }
+.wizard-progress__segment:disabled:hover::before { background: var(--color-border); transform: none; }
 .wizard-stage { width: min(100%, 48rem); margin-inline: auto; padding: 2.25rem 1.5rem 7rem; }
 .wizard-form [data-rcl-wizard-panel] { min-height: 22rem; }
 .welcome-screen { display: grid; gap: 1.25rem; }
@@ -239,24 +245,25 @@ h1[tabindex="-1"]:focus { outline: none; }
 .readiness-surface--apply [data-testid="apply-plan-pending"] { padding: .8rem 1rem; border: 1px solid color-mix(in srgb, var(--color-warning) 35%, var(--color-border)); border-radius: 12px; background: var(--color-warning-surface); }
 [data-rcl-wizard-footer] {
   position: fixed;
-  inset-inline: max(0px, calc((100% - 768px) / 2));
+  inset-inline: 0;
   inset-block-end: 0;
   z-index: 20;
   box-sizing: border-box;
-  padding: .8rem 1.5rem !important;
+  padding: .8rem max(1.5rem, calc((100vw - 48rem) / 2 + 1.5rem)) !important;
   background: color-mix(in srgb, var(--color-surface-elevated) 96%, transparent);
   box-shadow: 0 -12px 30px color-mix(in srgb, var(--color-foreground) 5%, transparent);
 }
 @media (max-width: 720px) {
-  [data-rcl-wizard-footer] { inset-inline: 0; }
+  [data-rcl-wizard-footer] { padding-inline: 1rem !important; }
 }
 @media (max-width: 640px) {
   /* Browser zoom can preserve the nominal viewport while shrinking the
      effective inline size. Keep target selection and navigation discoverable
      instead of compressing the tab labels into a clipped single row. */
-  .app-bar__inner { min-height: 52px; padding-inline: .75rem; gap: .5rem; flex-wrap: wrap; }
+  .app-bar__inner { min-height: 52px; padding-inline: .75rem; gap: .5rem; flex-wrap: nowrap; }
   .app-brand > span:last-child { display: none; }
-  .app-tabs { order: 3; flex: 1 1 100%; min-width: 0; justify-content: flex-start; overflow-x: auto; overflow-y: hidden; }
+  .app-tabs { flex: 1 1 auto; min-width: 0; justify-content: flex-start; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+  .app-tabs::-webkit-scrollbar { display: none; }
   .app-tab { min-width: 0; flex: 0 0 auto; white-space: nowrap; padding-inline: .55rem !important; }
   .app-tab kbd, .app-tab [data-testid="nav-wizard-badge"] { display: none !important; }
   .target-chip { flex: 0 1 5.5rem; min-width: 0; margin-inline-start: 0; max-width: 5.5rem; overflow: hidden; white-space: nowrap; }

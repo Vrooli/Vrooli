@@ -188,6 +188,11 @@
         }
       ]
     }
+    ,
+    {"id":"orientation","name":"Orientation axis","axis":"orientation","covers":{"orientation":["horizontal","vertical"]},"args":{},"expect":[{"kind":"role","role":"radiogroup"}],"role":"axis","mode":"pinned"},
+    {"id":"empty","name":"No selected option","args":{"options":[]},"expect":[{"kind":"role","role":"radiogroup"}],"role":"boundary","mode":"pinned"},
+    {"id":"many","name":"Many options","args":{"options":[{"value":"one","label":"One"},{"value":"two","label":"Two"},{"value":"three","label":"Three"},{"value":"four","label":"Four"}]},"expect":[{"kind":"role","role":"radiogroup"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long option labels","args":{"options":[{"value":"long","label":"A deliberately long radio option label that must wrap without clipping"}]},"expect":[{"kind":"role","role":"radiogroup"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "RadioGroup"
 }

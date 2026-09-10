@@ -490,7 +490,7 @@
         "page-template",
         "navigation"
       ],
-      "blocking": false,
+      "blocking": true,
       "runner": {
         "react-vite": "vrooli scenario test react-component-library --phase experience"
       },
@@ -514,7 +514,7 @@
         "page-template",
         "navigation"
       ],
-      "blocking": false,
+      "blocking": true,
       "runner": {
         "react-vite": "vrooli scenario test react-component-library --phase experience"
       },
@@ -935,6 +935,22 @@
       "blocking": true,
       "description": "Sibling story frames answer distinct rendered questions instead of duplicating one specimen.",
       "runner": { "react-vite": "react-component-library catalog gates story-distinctness" }
+    },
+    {
+      "id": "story-coverage", "reads": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Required story states are derived from the public implementation and missing states are reported.",
+      "runner": { "react-vite": "react-component-library catalog gates story-coverage" }
+    },
+    {
+      "id": "story-args-fields", "reads": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "The preview read model derives prop fields from TypeScript and exposes hand-authored drift.",
+      "runner": { "react-vite": "react-component-library catalog gates story-args-fields" }
     },
     {
       "id": "dist-resolution", "reads": "closure",

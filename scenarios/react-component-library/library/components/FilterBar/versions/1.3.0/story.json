@@ -15,7 +15,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-filter-bar]"
         }
       ],
       "role": "anatomy"
@@ -24,7 +24,7 @@
       "id": "compact",
       "name": "Compact conversation search",
       "mode": "live",
-      "role": "anatomy",
+      "role": "boundary",
       "args": {},
       "composition": {
         "specimen": {
@@ -50,10 +50,10 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-filter-bar]"
         }
       ],
-      "role": "anatomy"
+      "role": "boundary"
     }
   ]
 }

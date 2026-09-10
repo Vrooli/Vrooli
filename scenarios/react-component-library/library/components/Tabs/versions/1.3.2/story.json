@@ -68,6 +68,33 @@
       "args": {},
       "composition": { "specimen": { "module": "./story.tsx", "export": "Segmented" } },
       "expect": [{ "kind": "visible", "selector": "[data-rcl-tabs-variant='segmented']" }]
+    },
+    {
+      "id": "empty",
+      "name": "Empty tabs",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "visible", "selector": "[data-testid='navigation.tabs']"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "one",
+      "name": "One tab",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "visible", "selector": "[data-testid='navigation.tabs']"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "many",
+      "name": "Many tabs",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Overflowing"}},
+      "expect": [{"kind": "visible", "selector": "[data-testid='navigation.tabs.Links']"}],
+      "role": "boundary",
+      "mode": "pinned"
     }
   ]
 }

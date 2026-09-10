@@ -49,18 +49,19 @@ export function Composer({ disabledReason, busy, onSend }: ComposerProps) {
 
   if (disabledReason) {
     return (
-      <div data-testid="conversations-composer" role="status" className="rounded-panel border border-dashed border-app-border bg-app-surface px-4 py-3 text-sm text-app-muted-foreground">
+      <div data-testid="conversations-composer" role="status" className="rounded-control border border-dashed border-app-border bg-app-surface px-4 py-3 text-sm text-app-muted-foreground">
         {disabledReason}
       </div>
     );
   }
 
   return (
+    <div className="rounded-panel border border-app-border bg-app-surface p-2 shadow-subtle focus-within:border-app-primary">
     <form
       data-testid="conversations-composer"
       aria-label={t(strings.console.conversations.sendLabel)}
       onSubmit={(event) => void submit(event)}
-      className="flex flex-col gap-2 rounded-panel border border-app-border bg-app-surface p-2 shadow-subtle focus-within:border-app-primary"
+      className="flex flex-col gap-2"
     >
       {attachment ? (
         <div className="flex items-center gap-2 px-1 text-xs">
@@ -113,5 +114,6 @@ export function Composer({ disabledReason, busy, onSend }: ComposerProps) {
         <p className="hidden px-1 text-[11px] text-app-muted-foreground md:block">{t(strings.console.conversations.enterHint)}</p>
       )}
     </form>
+    </div>
   );
 }

@@ -74,6 +74,24 @@
       ],
       "role": "boundary",
       "mode": "live"
+    },
+    {
+      "id": "loading",
+      "name": "Loading value",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Text"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-input]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "error",
+      "name": "Invalid value",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Text"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-input]"}],
+      "role": "boundary",
+      "mode": "pinned"
     }
   ]
 }

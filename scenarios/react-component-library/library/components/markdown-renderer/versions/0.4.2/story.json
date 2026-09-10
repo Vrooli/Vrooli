@@ -43,6 +43,11 @@
       "name": "GFM, prose, and code",
       "role": "anatomy"
     }
+    ,
+    {"id":"empty","name":"Empty markdown","args":{"content":""},"expect":[{"kind":"text","value":"Shared markdown"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading markdown","args":{"state":"loading"},"expect":[{"kind":"text","value":"Shared markdown"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Markdown error","args":{"state":"error"},"expect":[{"kind":"text","value":"Shared markdown"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long markdown","args":{"content":"# A deliberately long markdown heading that must wrap cleanly\n\nThis paragraph contains enough content to exercise the renderer boundary."},"expect":[{"kind":"text","value":"Shared markdown"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Markdown Renderer"
 }

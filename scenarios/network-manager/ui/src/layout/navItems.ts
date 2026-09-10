@@ -1,4 +1,5 @@
 import { strings } from "../consts/strings";
+import { Activity, Gauge, Laptop, LayoutDashboard, Settings, SlidersHorizontal, type LucideIcon } from "lucide-react";
 
 /**
  * Canonical nav-item list shared by `Sidebar` and `BottomNav` so the two
@@ -21,13 +22,14 @@ export interface NavItem {
   end?: boolean;
   /** Translation key path. */
   labelKey: (typeof strings.layout.nav)[keyof typeof strings.layout.nav];
+  icon: LucideIcon;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "snapshots", path: "/snapshots", labelKey: strings.layout.nav.snapshots },
-  { key: "resolver", path: "/resolver", labelKey: strings.layout.nav.resolver },
-  { key: "devices", path: "/devices", labelKey: strings.layout.nav.devices },
-  { key: "optimization", path: "/optimization", labelKey: strings.layout.nav.optimization },
-  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
+  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard, icon: LayoutDashboard },
+  { key: "snapshots", path: "/snapshots", labelKey: strings.layout.nav.snapshots, icon: Activity },
+  { key: "resolver", path: "/resolver", labelKey: strings.layout.nav.resolver, icon: Gauge },
+  { key: "devices", path: "/devices", labelKey: strings.layout.nav.devices, icon: Laptop },
+  { key: "optimization", path: "/optimization", labelKey: strings.layout.nav.optimization, icon: SlidersHorizontal },
+  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: Settings },
 ];

@@ -165,6 +165,9 @@
       "name": "Shared controlled adapter",
       "role": "boundary"
     }
+    ,
+    {"id":"empty","name":"Empty toggle label","args":{"children":""},"expect":[{"kind":"role","name":"Pin to dashboard","role":"button"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long toggle label","args":{"children":"A deliberately long toggle label that must wrap without clipping its button semantics"},"expect":[{"kind":"role","name":"Pin to dashboard","role":"button"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Toggle"
 }

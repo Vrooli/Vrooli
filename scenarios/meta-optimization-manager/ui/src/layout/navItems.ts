@@ -1,4 +1,5 @@
 import { strings } from "../consts/strings";
+import { Activity, FlaskConical, LayoutDashboard, Settings, Target, type LucideIcon } from "lucide-react";
 
 /**
  * Canonical nav-item list shared by `Sidebar` and `BottomNav` so the two
@@ -20,12 +21,13 @@ export interface NavItem {
   end?: boolean;
   /** Translation key path. */
   labelKey: (typeof strings.layout.nav)[keyof typeof strings.layout.nav];
+  icon: LucideIcon;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "focus", path: "/focus", labelKey: strings.layout.nav.focus },
-  { key: "convergence", path: "/convergence", labelKey: strings.layout.nav.convergence },
-  { key: "trials", path: "/trials", labelKey: strings.layout.nav.trials },
-  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
+  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard, icon: LayoutDashboard },
+  { key: "focus", path: "/focus", labelKey: strings.layout.nav.focus, icon: Target },
+  { key: "convergence", path: "/convergence", labelKey: strings.layout.nav.convergence, icon: Activity },
+  { key: "trials", path: "/trials", labelKey: strings.layout.nav.trials, icon: FlaskConical },
+  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: Settings },
 ];

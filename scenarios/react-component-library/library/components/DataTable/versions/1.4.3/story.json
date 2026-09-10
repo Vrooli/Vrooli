@@ -151,6 +151,15 @@
       "mode": "live",
       "name": "PermissionDenied",
       "role": "boundary"
+    },
+    {
+      "id": "loading",
+      "name": "Loading rows",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Refreshing"}},
+      "expect": [{"kind": "text", "value": "Refreshing work items"}],
+      "role": "boundary",
+      "mode": "pinned"
     }
   ]
 }

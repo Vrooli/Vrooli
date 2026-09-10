@@ -9,7 +9,6 @@ import { BarChart3, FolderTree, Menu, Settings as SettingsIcon, Sparkles } from 
 import { Link } from "react-router-dom";
 import { ShellNavigationContext } from "../ShellNavigationContext";
 import { CreateComponentDialog } from "../../features/components/CreateComponentDialog";
-import { Button } from "../Button";
 import { IconButton } from "../IconButton";
 import { Input } from "../Input";
 import { ActionLauncher, type LauncherAction } from "../ActionLauncher";
@@ -120,9 +119,6 @@ export function ApplicationShell({ children }: Props) {
                 className="h-control-sm w-field-wide"
               />
             </form>
-            <Button size="sm" onClick={() => setShowCreate(true)}>
-              {t("dashboard.create", { defaultValue: "Create" })}
-            </Button>
           </>
         ) : undefined
       }

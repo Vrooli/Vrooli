@@ -29,6 +29,15 @@
         );
         const state = harness?.getAttribute("data-experience-state");
         const status = harness?.getAttribute("data-rcl-story-status");
+        const tile = frame.closest("[data-story-id]");
+        const meta = tile?.querySelector("[data-story-meta]");
+        const size = tile?.querySelector("[data-story-size]");
+        const paintedNodes = Number(harness?.getAttribute("data-rcl-painted-nodes") || 0);
+        const renderedHeight = Number(harness?.getAttribute("data-rcl-rendered-height") || 0);
+        const renderedWidth = Number(harness?.getAttribute("data-rcl-rendered-width") || 0);
+        if (size) size.textContent = renderedWidth && renderedHeight ? `${renderedWidth} × ${renderedHeight}px` : "no visible content";
+        if (meta && paintedNodes === 0 && status === "passed") meta.dataset.emptyRender = "true";
+        if (renderedHeight > 0) frame.style.height = `${Math.min(1200, Math.max(96, renderedHeight + 32))}px`;
         if (state === "error" || status === "failed") failed += 1;
         if (state === "ready" && status === "passed") ready += 1;
       } catch (_) {

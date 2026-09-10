@@ -5,15 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"path/filepath"
 	"strings"
 
 	"connectrpc.com/connect"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	internalaudit "quality-health/internal/audit"
 	"quality-health/internal/autofix"
 	"quality-health/internal/commands"
 	"quality-health/internal/contracts"
 	"quality-health/internal/surfaces"
+	"quality-health/internal/testsyntax"
 
 	"github.com/vrooli/maturity-go/assessment"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
@@ -23,12 +26,14 @@ import (
 )
 
 type Deps struct {
-	Service      *internalaudit.Service
-	Logger       *log.Logger
-	MaturitySpec *assessment.Spec
+	SyntaxObserver SyntaxObserver
+	Service        *internalaudit.Service
+	Logger         *log.Logger
+	MaturitySpec   *assessment.Spec
 }
 
 type Handler struct {
+	syntax SyntaxObserver
 	auditconnect.UnimplementedAuditServiceHandler
 	svc    *internalaudit.Service
 	logger *log.Logger
@@ -46,7 +51,12 @@ func NewHandlerWithDeps(deps Deps) *Handler {
 	if deps.Service == nil {
 		deps.Service = internalaudit.New(nil)
 	}
-	return &Handler{svc: deps.Service, logger: deps.Logger, spec: deps.MaturitySpec}
+	if deps.SyntaxObserver == nil {
+		if root, err := repocontract.ResolveRepoRoot(); err == nil {
+			deps.SyntaxObserver = &testsyntax.Service{Runner: testsyntax.NodeRunner{Script: filepath.Join(root, "scenarios", "quality-health", "ui", "scripts", "observe-vitest-syntax.mjs")}}
+		}
+	}
+	return &Handler{svc: deps.Service, logger: deps.Logger, spec: deps.MaturitySpec, syntax: deps.SyntaxObserver}
 }
 
 var _ auditconnect.AuditServiceHandler = (*Handler)(nil)

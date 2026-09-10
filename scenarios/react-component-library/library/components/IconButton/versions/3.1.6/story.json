@@ -507,6 +507,33 @@
           "value": "xs"
         }
       ]
+    },
+    {
+      "id": "empty",
+      "name": "Empty label",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "button", "name": "Close panel"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "error",
+      "name": "Error action",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "SurfaceDanger"}},
+      "expect": [{"kind": "role", "role": "button", "name": "Delete"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "overflow",
+      "name": "Overflow label",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "button", "name": "Close panel"}],
+      "role": "boundary",
+      "mode": "pinned"
     }
   ]
 }

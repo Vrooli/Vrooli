@@ -6,6 +6,7 @@ import { Button } from "@vrooli/react-component-library/Button/2";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { ExperienceSurface, type ExperienceSurfaceState } from "../experience/ExperienceSurface";
+import { Panel } from "./Panel";
 
 interface RegionProps {
   /** Matches the region id declared in `experience/pages/*.json`. */
@@ -55,7 +56,7 @@ export function Region({
     body = empty ?? children;
   } else if (state === "error") {
     body = error ?? (
-      <div role="alert" className="flex flex-col items-start gap-3 rounded-panel border border-app-danger/40 bg-app-danger/5 p-4 text-sm">
+      <Panel role="alert" className="flex flex-col items-start gap-3 bg-app-danger/5 p-4 text-sm">
         <div className="flex items-start gap-2">
           <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-app-danger" />
           <div>
@@ -69,7 +70,7 @@ export function Region({
             {t(strings.console.region.retry)}
           </Button>
         ) : null}
-      </div>
+      </Panel>
     );
   }
   return (
@@ -108,15 +109,15 @@ export function Skeleton({ rows = 3, className }: { rows?: number; className?: s
 /** Quiet empty treatment for a region: an icon, a line, an optional action. */
 export function Quiet({ icon, title, description, action, testId }: { icon?: ReactNode; title: string; description?: string; action?: ReactNode; testId?: string }) {
   return (
-    <div
+    <Panel
       data-testid={testId}
       role="status"
-      className="flex flex-col items-center justify-center gap-2 rounded-panel border border-dashed border-app-border px-4 py-8 text-center"
+      className="flex flex-col items-center justify-center gap-2 border-dashed px-4 py-8 text-center"
     >
       {icon ? <span className="text-app-muted-foreground">{icon}</span> : null}
       <p className="text-sm font-medium text-app-foreground">{title}</p>
       {description ? <p className="max-w-prose text-sm text-app-muted-foreground">{description}</p> : null}
       {action ? <div className="mt-2">{action}</div> : null}
-    </div>
+    </Panel>
   );
 }

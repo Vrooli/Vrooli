@@ -154,8 +154,8 @@ func (e BASCaptureExecutor) ExecuteStorySheet(ctx context.Context, libraryID, ve
 	if strings.TrimSpace(e.BASBaseURL) == "" {
 		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("BAS CaptureService base URL is required")}
 	}
-	if len(storyIDs) == 0 || len(storyIDs) > 4 {
-		return StoryExecution{}, fmt.Errorf("story sheet must contain between one and four stories")
+	if len(storyIDs) == 0 {
+		return StoryExecution{}, fmt.Errorf("story sheet must contain at least one story")
 	}
 	base, err := e.storyURL(libraryID, version, "")
 	if err != nil {

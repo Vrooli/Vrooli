@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
+import { Panel } from "./console/Panel";
 
 /* eslint-disable react-refresh/only-export-components -- class error boundaries are component exports by design. */
 
@@ -60,7 +61,7 @@ function DefaultFallback({ onRetry }: { onRetry: () => void }) {
       role="alert"
       className="flex min-h-dvh flex-col items-center justify-center bg-app-background p-6 text-app-foreground"
     >
-      <div className="w-full max-w-md rounded-panel border border-app-border bg-app-surface p-6 text-center">
+      <Panel className="w-full max-w-md p-6 text-center">
         <h1 className="text-2xl font-semibold">{t(strings.errorBoundary.title)}</h1>
         <p className="mt-3 text-app-muted-foreground">{t(strings.errorBoundary.message)}</p>
         <button
@@ -71,7 +72,7 @@ function DefaultFallback({ onRetry }: { onRetry: () => void }) {
         >
           {t(strings.errorBoundary.retry)}
         </button>
-      </div>
+      </Panel>
     </div>
   );
 }

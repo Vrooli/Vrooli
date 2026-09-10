@@ -148,6 +148,7 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 			{Name: "agent-manager", Source: internalfocus.NewAgentManagerGapSource(internalfocus.NewAgentManagerFindingReader())},
 			{Name: "durability", Source: internalfocus.NewDurabilityGapSource(internalfocus.NewAgentManagerDurabilityReader())},
 			{Name: "program-runtime", Source: internalfocus.NewProgramRuntimeGapSource(internalfocus.NewProgramRuntimeFrictionReader())},
+			{Name: "program-runtime-learning", Source: internalfocus.NewLearningFindingGapSource()},
 			{Name: "test-genie", Source: internalfocus.NewTestGenieGapSource()},
 			{Name: "condition", Source: conditionSource},
 		}),

@@ -10,6 +10,7 @@ import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { consoleApi, consoleKeys, type ChannelListing } from "../api/console";
 import { AgentMark } from "../components/console/AgentMark";
 import { Page } from "../components/console/Page";
+import { Panel } from "../components/console/Panel";
 import { Quiet, Region } from "../components/console/Region";
 import { strings } from "../consts/strings";
 import { useSession } from "../features/session/SessionProvider";
@@ -48,13 +49,13 @@ export function ChannelsPage() {
   return (
     <Page headingId="channels-heading" testId="page-channels" title={t(strings.console.channels.title)} description={t(strings.console.channels.description)}>
       {attached ? (
-        <div role="status" data-testid="channels-attached" className="flex items-center gap-2 rounded-panel border border-app-success/40 bg-app-success/5 px-3 py-2 text-sm">
+        <Panel role="status" data-testid="channels-attached" className="flex items-center gap-2 border-app-success/40 bg-app-success/5 px-3 py-2 text-sm">
           <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-app-success" />
           {t(strings.console.channels.attached, { channel: attached })}
           <Link to="/conversations" className="ml-auto text-xs font-medium text-app-primary">
             {t(strings.console.channels.goToConversations)}
           </Link>
-        </div>
+        </Panel>
       ) : null}
       <Region
         surfaceId="catalog-region"
@@ -128,10 +129,11 @@ function ChannelRow({ channel, bindings, threads, highlighted, onAttach }: { cha
     <li
       data-testid="channels-row"
       data-channel-id={d.id}
-      className={["relative flex flex-col gap-3 overflow-hidden rounded-panel border bg-app-surface p-4 pl-5 sm:flex-row sm:items-center", highlighted ? "border-app-primary" : "border-app-border"].join(" ")}
+      className="relative"
     >
-      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1.5" style={{ background: d.accent ?? "var(--color-accent)" }} />
-      <div className="min-w-0 flex-1">
+      <Panel className={["relative flex flex-col gap-3 overflow-hidden p-4 pl-5 sm:flex-row sm:items-center", highlighted ? "border-app-primary" : ""].join(" ")}>
+        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1.5" style={{ background: d.accent ?? "var(--color-accent)" }} />
+        <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-semibold text-app-foreground">{d.displayName}</h3>
           <StatusBadge tone={live ? "success" : channel.implemented ? "warning" : "neutral"} data-testid="channels-availability">
@@ -159,7 +161,7 @@ function ChannelRow({ channel, bindings, threads, highlighted, onAttach }: { cha
           </p>
         ) : null}
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
         {live ? (
           <Button type="button" size="sm" data-testid="channels-attach" onClick={onAttach}>
             <Link2 aria-hidden="true" className="h-4 w-4" />
@@ -170,7 +172,8 @@ function ChannelRow({ channel, bindings, threads, highlighted, onAttach }: { cha
             {t(strings.console.channels.satisfyRequirement)}
           </Link>
         )}
-      </div>
+        </div>
+      </Panel>
     </li>
   );
 }

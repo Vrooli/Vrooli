@@ -240,5 +240,10 @@
         }
       ]
     }
+    ,
+    {"id":"disabled","name":"Disabled attachment actions","args":{"disabled":true},"expect":[{"kind":"visible","selector":"[data-rcl-composer-attachments]"}],"role":"boundary","mode":"pinned"},
+    {"id":"one","name":"One attachment","args":{"attachments":[{"id":"brief","name":"project-brief.pdf"}]},"expect":[{"kind":"visible","selector":"[data-rcl-composer-attachments]"}],"role":"boundary","mode":"pinned"},
+    {"id":"many","name":"Many attachments","args":{"attachments":[{"id":"brief","name":"project-brief.pdf"},{"id":"image","name":"diagram.png"},{"id":"notes","name":"release-notes.md"}]},"expect":[{"kind":"visible","selector":"[data-rcl-composer-attachments]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long attachment name","args":{"attachments":[{"id":"long","name":"release-evidence-with-a-deliberately-long-filename-that-must-wrap.pdf"}]},"expect":[{"kind":"visible","selector":"[data-rcl-composer-attachments]"}],"role":"boundary","mode":"pinned"}
   ]
 }

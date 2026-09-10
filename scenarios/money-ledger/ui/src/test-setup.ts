@@ -29,6 +29,19 @@ import { afterEach, beforeEach, vi } from "vitest";
 import { i18n } from "./i18n";
 import { Providers } from "./app/providers";
 
+if (!window.matchMedia) {
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  })) as typeof window.matchMedia;
+}
+
 configureTestProviders((children) => React.createElement(Providers, { children }));
 
 let consoleError: ReturnType<typeof vi.spyOn>;

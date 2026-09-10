@@ -84,5 +84,8 @@
         { "kind": "count", "selector": "[data-rcl-form-field]", "value": "0" }
       ]
     }
+    ,
+    {"id":"empty","name":"Empty password","args":{"value":""},"expect":[{"kind":"visible","selector":"[data-rcl-input-group]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long password guidance","args":{"description":"Use a deliberately long password guidance message so the field demonstrates wrapping without clipping the visibility control."},"expect":[{"kind":"visible","selector":"[data-rcl-input-group]"}],"role":"boundary","mode":"pinned"}
   ]
 }

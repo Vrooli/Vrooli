@@ -171,7 +171,19 @@
         }
       },
       "role": "boundary"
-    }
+    },
+    {
+      "id": "as",
+      "name": "Element axis",
+      "axis": "as",
+      "covers": {"as": ["section", "div", "main", "aside"]},
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Ready"}},
+      "expect": [{"kind": "text", "value": "Results are ready"}],
+      "role": "axis",
+      "mode": "pinned"
+    },
+    {"id":"overflow","name":"Long ready message","args":{"state":"ready","message":"Results are ready with a deliberately long explanation that must wrap inside the experience surface."},"expect":[{"kind":"text","value":"Results are ready"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "ExperienceSurface"
 }

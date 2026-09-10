@@ -13,12 +13,13 @@ import {
 
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { IconButton } from "@vrooli/react-component-library/IconButton/3";
+import { Select } from "@vrooli/react-component-library/Select/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
 import { WorkspaceHeader } from "@vrooli/react-component-library/WorkspaceHeader/1";
 import { AssetWorkspace } from "../assets/AssetWorkspace";
 import { selectors } from "../../consts/selectors";
-import { ComponentEditorStage } from "./ComponentEditorStage";
+import { PreviewStorySheet } from "./PreviewStorySheet";
 import { ComponentEditorSource } from "./ComponentEditorSource";
 import { ComponentEditorMobileTools, ComponentEditorTools } from "./ComponentEditorTools";
 import { ThemeSwitcher } from "./ThemeSwitcher";
@@ -124,12 +125,10 @@ export function ComponentEditorView({ model }: { model: EditorViewModel }) {
     splitLayout,
     saveDesktopPanelLayout,
     visiblePanes,
-    visibleSpecimens,
     readyExamples,
     previewMessage,
     specimenErrors,
     specimenRetries,
-    comparedSpecimens,
     frameEnabled,
     baselineSha,
     previewReloadKey,
@@ -165,8 +164,6 @@ export function ComponentEditorView({ model }: { model: EditorViewModel }) {
     selectSplitPane,
     specimens,
     activeSpecimen,
-    specimenIdentity,
-    activateSpecimen,
     framePickerEnabled,
     frameCandidatesQuery,
     frameOverride,
@@ -178,13 +175,7 @@ export function ComponentEditorView({ model }: { model: EditorViewModel }) {
     filters,
     previewKit,
     setPreviewKit,
-    stageMode,
-    setStageMode,
     setPreviewToolsCollapsed,
-    setComparedSpecimens,
-    comparisonActive,
-    toggleComparison,
-    selectAllComparison,
     emulator,
     togglePreviewTools,
     togglePreviewFullscreen,
@@ -208,15 +199,15 @@ export function ComponentEditorView({ model }: { model: EditorViewModel }) {
           description={t(strings.components.editor.subtitle)}
           leading={
             shellNavigation.sidebarCollapsed ? (
-              <button
+              <IconButton
                 type="button"
                 onClick={shellNavigation.openSidebar}
                 aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })}
                 data-testid="workspace-header-open-sidebar"
-                className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
+                variant="ghost"
               >
                 <Menu aria-hidden className="h-icon-md w-icon-md" />
-              </button>
+              </IconButton>
             ) : undefined
           }
           actions={
@@ -400,41 +391,30 @@ export function ComponentEditorView({ model }: { model: EditorViewModel }) {
                             aria-label="Preview controls"
                             className="absolute left-space-xs right-space-xs top-space-xs z-20 flex min-w-0 max-w-inline-overlay flex-wrap items-center gap-space-2xs rounded-panel border border-app-border/80 bg-app-surface/95 px-space-2xs py-space-2xs shadow-xl backdrop-blur"
                           >
-                            {stageMode && (
-                              <nav
-                                className="order-last min-w-0 max-w-full basis-full overflow-x-auto border-t border-app-border/70 pt-space-2xs"
-                                aria-label={t(strings.components.editor.storiesLabel)}
-                              >
-                                <div className="flex w-max gap-space-3xs">
-                                  {specimens.map((example: any) => {
-                                    const identity = specimenIdentity(example);
-                                    const selected = identity === activeSpecimen;
-                                    return (
-                                      <Button
-                                        key={identity}
-                                        data-testid={selectors.components.editor.storyPickerItem}
-                                        type="button"
-                                        variant={selected ? "primary" : "secondary"}
-                                        className="h-control-tight min-w-touch shrink-0 px-space-2xs text-xs"
-                                        aria-current={selected ? "true" : undefined}
-                                        title={example?.description}
-                                        onClick={() => activateSpecimen(identity)}
-                                      >
-                                        {example?.displayName || example?.name || "Default"}
-                                      </Button>
-                                    );
-                                  })}
-                                </div>
-                              </nav>
-                            )}
                             {framePickerEnabled && (
                               <div className="flex min-w-0 items-center gap-space-3xs">
                                 <label className="flex h-control items-center gap-space-3xs rounded-control border border-app-border/80 bg-app-surface px-space-2xs text-xs text-app-muted-foreground">
                                   <span className="sr-only">Preview frame</span>
-                                  <select
+                                  <Select
                                     aria-label="Preview frame"
                                     data-testid="components-editor-frame-picker"
                                     className="h-full min-h-touch max-w-[12rem] bg-transparent text-app-foreground outline-none"
+                                    options={[
+                                      {
+                                        value: "",
+                                        label: frameCandidatesQuery.isPending
+                                          ? "Loading frames…"
+                                          : frameCandidatesQuery.isError
+                                            ? "Frames unavailable"
+                                            : compatibleFrameCandidates.length === 0
+                                              ? "No compatible frames"
+                                              : "Story frame",
+                                      },
+                                      ...compatibleFrameCandidates.map((candidate: any) => ({
+                                        value: candidate.asset,
+                                        label: `${candidate.label} · ${candidate.region}`,
+                                      })),
+                                    ]}
                                     value={frameOverride ? frameOverride.asset : ""}
                                     disabled={
                                       frameCandidatesQuery.isPending || frameCandidatesQuery.isError
@@ -446,25 +426,7 @@ export function ComponentEditorView({ model }: { model: EditorViewModel }) {
                                       setFrameSaveMessage("");
                                       setFrameOverride(next);
                                     }}
-                                  >
-                                    <option value="">
-                                      {frameCandidatesQuery.isPending
-                                        ? "Loading frames…"
-                                        : frameCandidatesQuery.isError
-                                          ? "Frames unavailable"
-                                          : compatibleFrameCandidates.length === 0
-                                            ? "No compatible frames"
-                                            : "Story frame"}
-                                    </option>
-                                    {compatibleFrameCandidates.map((candidate: any) => (
-                                      <option
-                                        key={`${candidate.asset}:${candidate.region}`}
-                                        value={candidate.asset}
-                                      >
-                                        {candidate.label} · {candidate.region}
-                                      </option>
-                                    ))}
-                                  </select>
+                                  />
                                 </label>
                                 {frameOverride && (
                                   <Button
@@ -522,32 +484,9 @@ export function ComponentEditorView({ model }: { model: EditorViewModel }) {
                               filters={filters}
                               compactOnMobile
                             />
-                            <Button
-                              type="button"
-                              variant={stageMode ? "primary" : "secondary"}
-                              className="h-control-tight px-space-2xs text-xs"
-                              aria-pressed={stageMode}
-                              data-testid="components-editor-stage-mode"
-                              onClick={() => {
-                                setStageMode((enabled: boolean) => !enabled);
-                                setPreviewToolsCollapsed(true);
-                                setComparedSpecimens(new Set());
-                              }}
-                            >
-                              {stageMode ? "Focus" : "Canvas"}
-                            </Button>
-                            {!stageMode && specimens.length > 1 && (
-                              <Button
-                                type="button"
-                                variant={comparisonActive ? "primary" : "secondary"}
-                                className="h-control-tight px-space-2xs text-xs"
-                                data-testid={selectors.components.editor.storySheetAll}
-                                aria-pressed={comparisonActive}
-                                onClick={selectAllComparison}
-                              >
-                                Story sheet ({Math.min(specimens.length, 4)})
-                              </Button>
-                            )}
+                            <span className="rounded-control border border-app-border bg-app-surface px-space-2xs py-space-3xs text-xs text-app-muted-foreground" data-testid="components-editor-story-sheet-label">
+                              Story sheet · all states
+                            </span>
                             <EmulatorToolbar emulator={emulator} compactOnMobile />
                             {activeSpecimen && (
                               <IconButton
@@ -573,18 +512,12 @@ export function ComponentEditorView({ model }: { model: EditorViewModel }) {
                               </IconButton>
                             )}
                           </div>
-                          <ComponentEditorStage
-                            emulator={emulator}
-                            filters={filters}
-                            stageMode={stageMode}
-                            comparisonActive={comparisonActive}
+                          <PreviewStorySheet
                             specimens={specimens}
-                            visibleSpecimens={visibleSpecimens}
                             readyExamples={readyExamples}
                             previewMessage={previewMessage}
                             specimenErrors={specimenErrors}
                             specimenRetries={specimenRetries}
-                            comparedSpecimens={comparedSpecimens}
                             activeSpecimen={activeSpecimen}
                             previewKit={previewKit}
                             frameEnabled={frameEnabled}
@@ -597,9 +530,6 @@ export function ComponentEditorView({ model }: { model: EditorViewModel }) {
                             previewCanvasRef={previewCanvasRef}
                             toolsDocked={desktopLayout}
                             toolsOpen={desktopLayout && !previewToolsCollapsed}
-                            onClearComparison={() => setComparedSpecimens(new Set())}
-                            onSelectAllComparison={selectAllComparison}
-                            onToggleComparison={toggleComparison}
                             onRetrySpecimen={retrySpecimen}
                             onRegisterPreviewFrame={registerPreviewFrame}
                             onPreviewLoad={(identity: string) => {
@@ -613,11 +543,6 @@ export function ComponentEditorView({ model }: { model: EditorViewModel }) {
                             }
                             postToPreviewFrames={postToPreviewFrames}
                             onCloseTools={() => setPreviewToolsCollapsed(true)}
-                            onEnterSpecimen={(identity) => {
-                              setActiveSpecimen(identity);
-                              setStageMode(true);
-                              setComparedSpecimens(new Set());
-                            }}
                             tools={<ComponentEditorTools {...editorToolProps} />}
                           />
                           {!desktopLayout && (

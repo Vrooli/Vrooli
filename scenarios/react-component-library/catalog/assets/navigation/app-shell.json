@@ -7,6 +7,9 @@
     "modes": [],
     "parts": []
   },
+  "budgets": {
+    "mountMs": 24
+  },
   "asset": {
     "id": "navigation.app-shell",
     "name": "AppShell",
@@ -26,16 +29,12 @@
   "dependencies": {
     "requires": [
       {
-        "asset": "foundations.tokens",
-        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
-      },
-      {
         "asset": "foundations.class-merge",
         "reason": "Consumer className merges through the shared helper."
       },
       {
         "asset": "navigation.sidebar",
-        "reason": "The desktop navigation column, drawer, and resize seam are owned by SidebarShell rather than re-drawn here."
+        "reason": "The desktop navigation column, drawer, and resize seam are owned by SidebarShell."
       },
       {
         "asset": "navigation.bottom-navigation",
@@ -43,11 +42,19 @@
       },
       {
         "asset": "controls.icon-button",
-        "reason": "The drawer's menu control is the governed icon button, so its tap target and focus ring are not re-implemented."
+        "reason": "The drawer's menu control is the governed icon button."
+      },
+      {
+        "asset": "react-component-library:NotificationBadge",
+        "reason": "Notification badge tones are supplied by the governed badge asset."
+      },
+      {
+        "asset": "react-component-library:StyleSheet",
+        "reason": "Shell styles are injected through the library stylesheet foundation."
       },
       {
         "asset": "hooks.use-media-query",
-        "reason": "The md breakpoint is the library's, read once, so the shell and its navigation assets agree on where a phone ends."
+        "reason": "The breakpoint is read through the library media-query hook."
       },
       {
         "asset": "hooks.use-locale",

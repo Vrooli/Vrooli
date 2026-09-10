@@ -3,8 +3,34 @@ package focus
 import (
 	"context"
 	"errors"
+	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	"testing"
 )
+
+func TestLearningFindingsRetainOwnerStateAndPartialEvidence(t *testing.T) {
+	source := &learningFindingGapSource{reader: func(context.Context) (*programsv1.ListLearningFindingsResponse, error) {
+		return &programsv1.ListLearningFindingsResponse{Truncated: true, Findings: []*programsv1.LearningFinding{
+			{FindingId: "one", Owner: "browser-automation-studio", State: "routed", Dimension: "verification", Evidence: []string{"execution:one"}},
+			{FindingId: "done", Owner: "fixture", State: "measured"},
+		}}, nil
+	}}
+	gaps, err := source.DerivedGaps(context.Background())
+	if err != nil || len(gaps) != 2 {
+		t.Fatalf("gaps=%+v err=%v", gaps, err)
+	}
+	if gaps[0].ProviderIDs[0] != "browser-automation-studio" || gaps[0].EvidenceLocator != "program-runtime://learning/findings/one" {
+		t.Fatalf("owner evidence lost: %+v", gaps[0])
+	}
+	if gaps[1].AvailabilityReason == "" {
+		t.Fatal("truncated read presented as complete")
+	}
+	source.reader = func(context.Context) (*programsv1.ListLearningFindingsResponse, error) {
+		return nil, errors.New("offline")
+	}
+	if _, err = source.DerivedGaps(context.Background()); err == nil {
+		t.Fatal("offline learning queue presented as empty")
+	}
+}
 
 type fakeProgramFrictionReader struct {
 	report    ProgramFrictionReport

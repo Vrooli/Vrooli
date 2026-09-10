@@ -14,7 +14,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-bounded-meter]"
         }
       ],
       "id": "default",

@@ -15,6 +15,13 @@
       "statement": "Find a declared page in the selected scenario and open its design workspace."
     }
   ],
+  "claims": [{
+    "id": "design-scenario-state-covered",
+    "type": "state-covered",
+    "statement": "The scenario design review is captured in the declared page state.",
+    "tier": "machine",
+    "states": ["default"]
+  }],
   "states": [
     {
       "id": "default",

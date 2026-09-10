@@ -21,6 +21,13 @@
       "statement": "The component and hook catalog is usable before secondary controls or metadata."
     }
   ],
+  "claims": [{
+    "id": "catalog-results-state-covered",
+    "type": "state-covered",
+    "statement": "The catalog results surface is captured in each declared page state.",
+    "tier": "machine",
+    "states": ["default", "hooks", "loading", "empty", "request-error"]
+  }],
   "states": [
     {
       "id": "default",

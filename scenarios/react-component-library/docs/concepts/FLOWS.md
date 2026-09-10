@@ -136,10 +136,10 @@ component machine claims against the BAS accessibility tree.
 
 1. The editor queries indexed stories as named states and renders the selected
    story in its own sandboxed harness iframe.
-2. The workbench keeps story navigation, a dominant canvas, generated Args,
-   explicit Environment controls, status, and Reset together. Narrow screens
-   move contextual tools into focused sheets. Comparison remains intentional
-   host UI state only.
+2. The workbench keeps the deterministic story sheet, generated Args, explicit
+	 Environment controls, status, and Reset together. Narrow screens move
+	 contextual tools into focused sheets. Comparison is driven by the story
+	 selection in the URL rather than by persisted layout state.
 3. The Args form is generated from one asset-level schema. Editing a field
    updates only that path, validates the complete effective args, and posts
    the resulting data-only object to the matching iframe. Raw JSON is a

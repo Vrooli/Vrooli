@@ -352,5 +352,8 @@
         }
       ]
     }
+    ,
+    {"id":"disabled","name":"Disabled number field","args":{"disabled":true,"value":16},"expect":[{"kind":"role","role":"spinbutton","name":"Font size"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long number field label","args":{"label":"Maximum permitted font size for the component preview and generated documentation"},"expect":[{"kind":"role","role":"spinbutton"}],"role":"boundary","mode":"pinned"}
   ]
 }

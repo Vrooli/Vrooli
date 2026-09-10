@@ -138,6 +138,21 @@ func scanScenarioLibraryImports(sourceRoot string) ([]components.LibraryPackageS
 	return result, declared, err
 }
 
+// unmaterializedVersionError marks a dependency lock that pins a version whose
+// source directory no longer exists on disk. Version retirement removes source
+// but keeps the release ledger, so a stale pin is a corpus defect to report —
+// not a reason to abort the whole catalog coverage computation, which is what
+// it used to do.
+type unmaterializedVersionError struct {
+	Asset   string
+	Version string
+	Dir     string
+}
+
+func (e unmaterializedVersionError) Error() string {
+	return fmt.Sprintf("version %s@%s is pinned but not materialized at %s", e.Asset, e.Version, e.Dir)
+}
+
 func collectGateVersionTokens(assets map[string]gateLibraryAsset, asset gateLibraryAsset, version string, reference map[string]themes.DesignToken, required map[string]bool, seen map[string]bool) error {
 	key := asset.name + "@" + version
 	if seen[key] {
@@ -147,6 +162,9 @@ func collectGateVersionTokens(assets map[string]gateLibraryAsset, asset gateLibr
 	versionDir := filepath.Join(asset.dir, "versions", version)
 	entries, err := os.ReadDir(versionDir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return unmaterializedVersionError{Asset: asset.name, Version: version, Dir: versionDir}
+		}
 		return err
 	}
 	files := []components.ComponentVersionFile{}

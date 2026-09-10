@@ -132,6 +132,9 @@
       "name": "Retry recovery",
       "role": "boundary"
     }
+    ,
+    {"id":"loading","name":"Loading filtered results","args":{"state":"loading"},"expect":[{"kind":"role","role":"search"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long filter summary","args":{"summary":"A deliberately long filter summary that must wrap without clipping the result count"},"expect":[{"kind":"role","role":"search"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "SearchFilterResults"
 }

@@ -38,9 +38,12 @@ describe("WizardShell", () => {
     expect(onGoToStep).toHaveBeenCalledWith(0);
   });
 
-  it("does not expose future steps as clickable controls", () => {
-    renderShell(0);
-    expect(screen.queryByRole("button", { name: /Capabilities/ })).not.toBeInTheDocument();
+  it("exposes every progress segment as a navigation control", () => {
+    const onGoToStep = renderShell(0);
+    const segments = screen.getAllByRole("button", { name: /^\d+\. / });
+    expect(segments).toHaveLength(3);
+    fireEvent.click(segments[1]!);
+    expect(onGoToStep).toHaveBeenCalledWith(1);
   });
 
   it.each([

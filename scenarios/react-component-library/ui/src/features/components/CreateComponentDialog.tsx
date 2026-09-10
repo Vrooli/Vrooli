@@ -147,15 +147,18 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
               {t(strings.components.create.tags)}
               <div className="mt-space-3xs flex flex-wrap gap-space-3xs rounded-control border border-app-border bg-app-background p-space-3xs">
                 {tags.map((tag) => (
-                  <button
+                  <Button
                     key={tag}
                     type="button"
+                    variant="secondary"
+                    size="xs"
+                    shape="square"
                     onClick={() => setTags((current) => current.filter((value) => value !== tag))}
                     aria-label={`Remove ${tag}`}
                     className="rounded bg-app-surface-muted px-space-2xs py-space-3xs text-xs"
                   >
                     {tag} ×
-                  </button>
+                  </Button>
                 ))}
                 <Input
                   data-testid={selectors.components.create.tags}

@@ -3,5 +3,5 @@
   "kind": "component",
   "args": { "fields": [{ "path": "inputs", "kind": "structured", "label": "Operator inputs" }, { "path": "values", "kind": "structured", "label": "Values" }] },
   "environment": { "fixtures": [] },
-  "stories": [{ "id": "operator-inputs", "name": "Operator inputs", "args": {}, "expect": [{ "kind": "visible", "selector": "body" }] }]
+  "stories": [{ "id": "operator-inputs", "name": "Operator inputs", "args": {}, "expect": [{ "kind": "visible", "selector": "[data-rcl-validation-adapter]" }], "role": "anatomy" }, { "id": "empty", "name": "Empty validation", "args": {"inputs":[],"values":{}}, "expect": [{ "kind": "visible", "selector": "[data-rcl-validation-adapter]" }], "role": "boundary", "mode": "pinned" }, { "id": "one", "name": "One validation issue", "args": {"inputs":["workspace"],"values":{"workspace":""}}, "expect": [{ "kind": "visible", "selector": "[data-rcl-validation-adapter]" }], "role": "boundary", "mode": "pinned" }, { "id": "many", "name": "Many validation issues", "args": {"inputs":["workspace","region","owner"],"values":{"workspace":"","region":"","owner":""}}, "expect": [{ "kind": "visible", "selector": "[data-rcl-validation-adapter]" }], "role": "boundary", "mode": "pinned" }]
 }

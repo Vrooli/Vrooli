@@ -1,3 +1,4 @@
+import { Code2, Settings, type LucideIcon } from "lucide-react";
 import { strings } from "../consts/strings";
 
 /**
@@ -15,9 +16,10 @@ export interface NavItem {
   end?: boolean;
   /** Translation key path. */
   labelKey: (typeof strings.layout.nav)[keyof typeof strings.layout.nav];
+  icon: LucideIcon;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "workbench", path: "/", end: true, labelKey: strings.layout.nav.workbench },
-  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
+  { key: "workbench", path: "/", end: true, labelKey: strings.layout.nav.workbench, icon: Code2 },
+  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: Settings },
 ];

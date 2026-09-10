@@ -36,7 +36,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-diff-viewer]"
         }
       ],
       "role": "boundary"

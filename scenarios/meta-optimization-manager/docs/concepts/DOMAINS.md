@@ -79,3 +79,15 @@ Shared substrate, not bounded contexts: the composition root + HTTP server (`api
 - [DATA.md](DATA.md) — the SQLite gaps registry, trials history, and fitness-audit index.
 - [COVERAGE-MODEL.md](COVERAGE-MODEL.md) — the canonical attestation contract + question-space model + legend.
 - [../internal/SEAMS.md](../internal/SEAMS.md) — the read-client seams and their test doubles.
+
+
+### Durable learning findings
+
+The named `program-runtime-learning` focus source reads
+`ProgramService.ListLearningFindings`. It preserves owner, lifecycle state,
+judgment dimension, and evidence location as a separate empirical gap source.
+It never exposes feedback or worker claim authority. A truncated projection
+adds an explicit availability gap; a failed read does not erase other sources.
+The owning worker consumes `program-runtime.learning-maintain`, claims the
+finding, and records separate repair, validation, and subsequent-use evidence.
+Focus ranking is prioritization; it does not itself execute or certify repair.

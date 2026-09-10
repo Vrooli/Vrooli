@@ -129,7 +129,10 @@
         }
       },
       "role": "boundary"
-    }
+    },
+    {"id":"size","name":"Size axis","axis":"size","covers":{"size":["sm","md","lg"]},"args":{},"expect":[{"kind":"role","role":"dialog"}],"role":"axis","mode":"pinned"},
+    {"id":"empty","name":"Empty drawer","args":{},"expect":[{"kind":"role","role":"dialog"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long drawer content","args":{},"expect":[{"kind":"role","role":"dialog"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "DrawerShell"
 }

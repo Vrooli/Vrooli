@@ -100,5 +100,8 @@
         }
       ]
     }
+    ,
+    {"id":"empty","name":"Empty settings","args":{"items":[]},"expect":[{"kind":"text","selector":"[data-testid='settings-list-measurement']","value":"width=320; border=0px; min-height=48px"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long setting labels","args":{"items":[{"id":"long","label":"A deliberately long setting label that must wrap without clipping"}]},"expect":[{"kind":"text","selector":"[data-testid='settings-list-measurement']","value":"width=320; border=0px; min-height=48px"}],"role":"boundary","mode":"pinned"}
   ]
 }

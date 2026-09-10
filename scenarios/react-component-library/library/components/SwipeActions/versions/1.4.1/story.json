@@ -116,5 +116,8 @@
         }
       ]
     }
+    ,
+    {"id": "action-labels", "name": "Action labels axis", "axis": "actionLabels", "covers": {"actionLabels": ["show", "hidden"]}, "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Rows"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-swipe-actions]"}], "role": "axis", "mode": "pinned"},
+    {"id": "release-mode", "name": "Release mode axis", "axis": "releaseMode", "covers": {"releaseMode": ["rest", "commit"]}, "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Rows"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-swipe-actions]"}], "role": "axis", "mode": "pinned"}
   ]
 }

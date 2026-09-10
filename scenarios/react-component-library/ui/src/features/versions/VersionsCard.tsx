@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert } from "@vrooli/react-component-library/Alert/1";
 import { type CaptureCell } from "@vrooli/react-component-library/CaptureGrid/1";
 import { BoundedMeter } from "@vrooli/react-component-library/BoundedMeter/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { BulkActionBar } from "@vrooli/react-component-library/BulkActionBar/1";
 import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1";
 import { DiffViewer } from "@vrooli/react-component-library/DiffViewer/1";
@@ -207,8 +208,10 @@ export function VersionsCard({
                     : "Materialized — bytes are on disk"}
                 </span>
                 {presence === "evicted" ? (
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     data-testid={`${selectors.versions.materializeButton}-${version.version}`}
                     className="rounded-control border border-app-border px-space-xs py-space-2xs text-xs text-app-foreground"
                     disabled={materializeMutation.isPending}
@@ -217,7 +220,7 @@ export function VersionsCard({
                     {materializeMutation.isPending
                       ? "Materializing…"
                       : `Materialize v${version.version}`}
-                  </button>
+                  </Button>
                 ) : null}
               </div>
               {materializeErrors[version.version] ? (
@@ -365,13 +368,15 @@ export function VersionsCard({
               <FindingList findings={tokenFindings} />
             </div>
           )}
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             className="mt-space-xs rounded-control border border-app-border px-space-xs py-space-2xs text-xs"
             onClick={() => onSelectVersion?.(undefined)}
           >
             {t(strings.versions.currentSource)}
-          </button>
+          </Button>
           <div data-testid={selectors.versions.list} className="mt-space-xs">
             {versions.length > 50 ? (
               <VirtualList
@@ -411,13 +416,15 @@ export function VersionsCard({
               </span>
             }
             actions={
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
                 className="h-control-compact rounded-control border border-app-border px-space-xs text-xs"
                 onClick={() => setRetireActionsVisible((visible) => !visible)}
               >
                 {retireActionsVisible ? "Hide retire actions" : "Review retire actions"}
-              </button>
+              </Button>
             }
           />
           <BulkActionBar
@@ -484,9 +491,11 @@ export function VersionsCard({
               placeholder="—"
             />
           </label>
-          <button
+          <Button
             data-testid={selectors.versions.diff.runButton}
             type="button"
+            variant="primary"
+            size="sm"
             onClick={() => diffMutation.mutate()}
             disabled={!from || !to || diffMutation.isPending}
             className="h-control-compact px-space-xs text-xs"
@@ -494,7 +503,7 @@ export function VersionsCard({
             {diffMutation.isPending
               ? t(strings.versions.diff.running)
               : t(strings.versions.diff.runAction)}
-          </button>
+          </Button>
         </div>
 
         {diffMutation.error && (

@@ -101,7 +101,12 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeHarnessError(w, h.logger, id, err)
 		return
 	}
-	if stories := previewStorySheetIDs(r); len(stories) > 0 {
+	if sheetRequested(r) {
+		stories, err := h.resolveStorySheetIDs(r, componentID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		h.serveStorySheet(w, r, componentID, stories)
 		return
 	}
@@ -196,10 +201,10 @@ func previewStorySheetIDs(r *http.Request) []string {
 		return nil
 	}
 	seen := map[string]bool{}
-	ids := make([]string, 0, 4)
+	ids := make([]string, 0)
 	for _, value := range strings.Split(raw, ",") {
 		id := strings.TrimSpace(value)
-		if id == "" || seen[id] || len(ids) >= 4 {
+		if id == "" || id == "all" || seen[id] {
 			continue
 		}
 		seen[id] = true
@@ -208,12 +213,117 @@ func previewStorySheetIDs(r *http.Request) []string {
 	return ids
 }
 
+func sheetRequested(r *http.Request) bool {
+	q := r.URL.Query()
+	return strings.TrimSpace(q.Get("stories")) != "" || strings.TrimSpace(q.Get("role")) != "" || strings.TrimSpace(q.Get("axis")) != "" || strings.TrimSpace(q.Get("viewport")) != ""
+}
+
+func (h *HarnessHandler) resolveStorySheetIDs(r *http.Request, componentID string) ([]string, error) {
+	if h.components == nil {
+		return nil, fmt.Errorf("story sheet for %s is unavailable without the component service", componentID)
+	}
+	component, err := h.components.Get(r.Context(), componentID)
+	if err != nil {
+		return nil, err
+	}
+	version := strings.TrimSpace(r.URL.Query().Get("version"))
+	if version == "" {
+		version = strings.TrimSpace(component.LatestVersion)
+	}
+	if version == "" {
+		return nil, fmt.Errorf("asset %s has no released story version", componentID)
+	}
+	projections, err := h.components.ListStories(r.Context(), components.StoryQuery{ComponentID: componentID, Version: version, Limit: 1000})
+	if err != nil {
+		return nil, err
+	}
+	type storyInfo struct{ ID, Role, Axis string }
+	known := make([]storyInfo, 0)
+	for _, projection := range projections {
+		contract, diagnostics := components.ParseStoryContract([]byte(projection.ContractJSON))
+		if contract == nil || len(components.StoryContractErrors(diagnostics)) > 0 {
+			continue
+		}
+		for _, story := range contract.Stories {
+			known = append(known, storyInfo{ID: story.ID, Role: story.Role, Axis: story.Axis})
+		}
+		if version == "" {
+			version = projection.Version
+		}
+	}
+	if len(known) == 0 {
+		return nil, fmt.Errorf("asset %s has no story contract", componentID)
+	}
+	requested := previewStorySheetIDs(r)
+	if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("stories")), "all") {
+		requested = make([]string, 0, len(known))
+		for _, story := range known {
+			requested = append(requested, story.ID)
+		}
+	}
+	if raw := strings.TrimSpace(r.URL.Query().Get("role")); raw != "" {
+		roles := map[string]bool{}
+		for _, value := range strings.Split(raw, ",") {
+			value = strings.TrimSpace(value)
+			if value != "anatomy" && value != "axis" && value != "boundary" {
+				return nil, fmt.Errorf("unknown story role %q for asset %s", value, componentID)
+			}
+			roles[value] = true
+		}
+		requested = requested[:0]
+		for _, story := range known {
+			if roles[story.Role] {
+				requested = append(requested, story.ID)
+			}
+		}
+	}
+	if axis := strings.TrimSpace(r.URL.Query().Get("axis")); axis != "" {
+		requested = requested[:0]
+		anatomy := ""
+		for _, story := range known {
+			if story.Role == "anatomy" {
+				anatomy = story.ID
+			}
+			if story.Role == "axis" && story.Axis == axis {
+				requested = append(requested, story.ID)
+			}
+		}
+		if anatomy != "" {
+			requested = append([]string{anatomy}, requested...)
+		}
+		if len(requested) == 0 {
+			return nil, fmt.Errorf("unknown axis %q for asset %s", axis, componentID)
+		}
+	}
+	if len(requested) == 0 {
+		if story := strings.TrimSpace(r.URL.Query().Get("story")); story != "" {
+			requested = []string{story}
+		} else {
+			return nil, fmt.Errorf("story selection is empty for asset %s", componentID)
+		}
+	}
+	knownIDs := map[string]bool{}
+	for _, story := range known {
+		knownIDs[story.ID] = true
+	}
+	for _, storyID := range requested {
+		if !knownIDs[storyID] {
+			return nil, fmt.Errorf("unknown story id %q for asset %s", storyID, componentID)
+		}
+	}
+	viewports := strings.Split(strings.TrimSpace(r.URL.Query().Get("viewport")), ",")
+	if strings.TrimSpace(r.URL.Query().Get("viewport")) != "" && len(viewports) > 1 && len(requested) > 1 {
+		return nil, fmt.Errorf("viewport axis conflicts with multiple stories for asset %s", componentID)
+	}
+	return requested, nil
+}
+
 // serveStorySheet is the generic composite-review surface. It deliberately
 // contains only isolated story documents and labels their source contracts;
 // BAS captures the outer data-preview-sheet as one review accelerator while
 // each iframe remains independently capturable through the normal route.
 func (h *HarnessHandler) serveStorySheet(w http.ResponseWriter, r *http.Request, componentID string, storyIDs []string) {
-	type tile struct{ ID, Label, Source string }
+	type tile struct{ ID, Label, Role, Viewport, Source string }
 	tiles := make([]tile, 0, len(storyIDs))
 	componentLabel := componentID
 	if h.components != nil {
@@ -226,33 +336,71 @@ func (h *HarnessHandler) serveStorySheet(w http.ResponseWriter, r *http.Request,
 	if kit == "" {
 		kit = defaultPreviewKit
 	}
-	for _, storyID := range storyIDs {
-		story, err := h.resolveStory(r, componentID)
-		if err != nil || story.Name != storyID {
-			// resolveStory reads the requested story query, so validate each tile
-			// with an explicit query clone rather than trusting client labels.
-			clone := r.Clone(r.Context())
-			query := clone.URL.Query()
-			query.Set("story", storyID)
-			clone.URL.RawQuery = query.Encode()
-			story, err = h.resolveStory(clone, componentID)
-			if err != nil {
-				writeHarnessError(w, h.logger, componentID, err)
-				return
+	viewports := []string{""}
+	if raw := strings.TrimSpace(r.URL.Query().Get("viewport")); raw != "" {
+		viewports = nil
+		for _, value := range strings.Split(raw, ",") {
+			value = strings.TrimSpace(value)
+			if value != "" {
+				viewports = append(viewports, value)
 			}
 		}
-		if version == "" {
-			version = story.Version
+	}
+	theme := strings.TrimSpace(r.URL.Query().Get("theme"))
+	if theme != "light" && theme != "dark" {
+		theme = ""
+	}
+	for _, storyID := range storyIDs {
+		for _, viewport := range viewports {
+			story, err := h.resolveStory(r, componentID)
+			if err != nil || story.Name != storyID {
+				// resolveStory reads the requested story query, so validate each tile
+				// with an explicit query clone rather than trusting client labels.
+				clone := r.Clone(r.Context())
+				query := clone.URL.Query()
+				query.Set("story", storyID)
+				clone.URL.RawQuery = query.Encode()
+				story, err = h.resolveStory(clone, componentID)
+				if err != nil {
+					writeHarnessError(w, h.logger, componentID, err)
+					return
+				}
+			}
+			if version == "" {
+				version = story.Version
+			}
+			query := url.Values{"story": []string{storyID}, "version": []string{story.Version}, "kit": []string{kit}, "sheet": []string{"1"}}
+			if theme != "" {
+				query.Set("theme", theme)
+			}
+			if viewport != "" {
+				query.Set("viewport", viewport)
+			}
+			tileID := storyID
+			if viewport != "" {
+				tileID += ":" + viewport
+			}
+			tiles = append(tiles, tile{ID: tileID, Label: story.DisplayName, Role: story.Role, Viewport: viewport, Source: "/preview/" + url.PathEscape(componentID) + "/harness.html?" + query.Encode()})
 		}
-		query := url.Values{"story": []string{storyID}, "version": []string{version}, "kit": []string{kit}, "view": []string{"canvas"}}
-		tiles = append(tiles, tile{ID: storyID, Label: story.DisplayName, Source: "/preview/" + url.PathEscape(componentID) + "/harness.html?" + query.Encode()})
 	}
 	var body strings.Builder
 	body.WriteString(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>`)
 	body.WriteString(html.EscapeString(componentLabel + " story review"))
 	body.WriteString(`</title><style>`)
 	body.WriteString(storySheetCSS)
+	baseCSS, cssErr := previewDesignSystemCSS(h.repoRoot, kit)
+	if cssErr != nil {
+		http.Error(w, "preview: base styles unavailable: "+cssErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	body.WriteString(baseCSS)
+	body.WriteString(storySheetCSS)
 	body.WriteString(`</style></head><body><main class="story-sheet"`)
+	if theme != "" {
+		body.WriteString(` data-rcl-theme="`)
+		body.WriteString(html.EscapeString(theme))
+		body.WriteString(`"`)
+	}
 	body.WriteString(` data-preview-sheet="story-gallery" data-preview-capture-boundary="component-sheet"`)
 	body.WriteString(` data-experience-surface="component-harness" data-experience-state="loading"`)
 	body.WriteString(` data-rcl-story-status="pending"><header class="story-sheet__header"><h1>`)
@@ -269,8 +417,13 @@ func (h *HarnessHandler) serveStorySheet(w http.ResponseWriter, r *http.Request,
 		body.WriteString(html.EscapeString(tile.ID))
 		body.WriteString(`"><h2>`)
 		body.WriteString(html.EscapeString(tile.Label))
-		body.WriteString(`</h2><p>`)
-		body.WriteString(html.EscapeString(tile.ID))
+		body.WriteString(`</h2><p class="story-tile__meta" data-story-meta data-story-role="`)
+		body.WriteString(html.EscapeString(tile.Role))
+		body.WriteString(`"><span class="story-role story-role--`)
+		body.WriteString(html.EscapeString(tile.Role))
+		body.WriteString(`">`)
+		body.WriteString(html.EscapeString(tile.Role))
+		body.WriteString(`</span> · <span data-story-size>measuring</span>`)
 		body.WriteString(`</p><iframe title="`)
 		body.WriteString(html.EscapeString(tile.Label))
 		body.WriteString(` story" src="`)
@@ -311,7 +464,29 @@ func (h *HarnessHandler) resolveComponentID(r *http.Request, id string) (string,
 	if !strings.Contains(id, ":") || h.components == nil {
 		return id, nil
 	}
+	// Library-qualified preview URLs carry the manifest's public identifier.
+	// Use the explicit library-id seam first so the browser route follows the
+	// same lookup as the component transport, even when UUID/slug resolution
+	// has different repository behavior.
 	component, err := h.components.GetByLibraryID(r.Context(), id)
+	if err != nil {
+		var notFound components.ErrComponentNotFound
+		if !errors.As(err, &notFound) {
+			return "", err
+		}
+		// Retry the canonical service lookup for stable catalog IDs and UUIDs.
+		// The suffix fallback also keeps unqualified authored references useful
+		// when a caller accidentally carries the namespace in front of a slug.
+		component, err = h.components.Get(r.Context(), id)
+		if err != nil {
+			if !errors.As(err, &notFound) {
+				return "", err
+			}
+			if _, suffix, ok := strings.Cut(id, ":"); ok && strings.TrimSpace(suffix) != "" {
+				component, err = h.components.Get(r.Context(), strings.TrimSpace(suffix))
+			}
+		}
+	}
 	if err != nil {
 		return "", err
 	}
@@ -361,6 +536,9 @@ type harnessStory struct {
 	Version               string
 	DisplayName           string
 	Kind                  components.StoryKind
+	Role                  string
+	RendersNothing        bool
+	RendersNothingReason  string
 	PropsJSON             string
 	ArgsJSON              string
 	EnvironmentJSON       string
@@ -406,7 +584,12 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 	declaredIDs := []string{}
 	for _, projected := range stories {
 		contractJSON := []byte(projected.ContractJSON)
-		if reader, ok := h.components.(interface {
+		materialized, materializedErr := materializedVersionFile(h.repoRoot, component, projected.Version, "story.json")
+		if materializedErr == nil {
+			contractJSON = materialized
+		} else if !errors.Is(materializedErr, os.ErrNotExist) {
+			return harnessStory{}, components.StoryContractParseError{ComponentID: id, Version: projected.Version, Detail: materializedErr.Error()}
+		} else if reader, ok := h.components.(interface {
 			GetVersionContentAt(context.Context, string, string, string) (components.Content, error)
 		}); ok {
 			content, contentErr := reader.GetVersionContentAt(r.Context(), id, projected.Version, "story.json")
@@ -463,7 +646,8 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 			}
 			return harnessStory{
 				Name: definition.ID, Version: projected.Version, DisplayName: definition.Name,
-				Kind: contract.Kind, PropsJSON: string(args), ArgsJSON: projected.ArgsJSON,
+				Kind: contract.Kind, Role: definition.Role, RendersNothing: definition.RendersNothing, RendersNothingReason: definition.RendersNothingReason,
+				PropsJSON: string(args), ArgsJSON: projected.ArgsJSON,
 				EnvironmentJSON: string(environment), EnvironmentSchemaJSON: projected.EnvironmentJSON,
 				InteractionsJSON: string(interactions), ExpectJSON: string(expect),
 				Composition: composition, Fixture: fixture, Geometry: definition.Geometry,
@@ -473,6 +657,15 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 		}
 	}
 	return harnessStory{}, components.StoryNotFoundError{ComponentID: id, StoryID: storyID, DeclaredIDs: declaredIDs}
+}
+
+func materializedVersionFile(repoRoot string, asset components.Component, version, name string) ([]byte, error) {
+	if strings.TrimSpace(repoRoot) == "" || strings.TrimSpace(asset.SourcePath) == "" || strings.TrimSpace(version) == "" {
+		return nil, os.ErrNotExist
+	}
+	source := filepath.Join(repoRoot, "scenarios", "react-component-library", "library", filepath.FromSlash(filepath.Clean(asset.SourcePath)))
+	assetDir := filepath.Dir(filepath.Dir(filepath.Dir(source)))
+	return os.ReadFile(filepath.Join(assetDir, "versions", strings.TrimSpace(version), name))
 }
 
 type previewArchetype string
@@ -759,28 +952,31 @@ func renderHarnessHTML(id string, b internalpreview.Bundle, ex harnessStory, des
 
 func renderHarnessJavaScript(id string, b internalpreview.Bundle, ex harnessStory) string {
 	replacements := map[string]string{
-		"__COMPONENT_MODULE_URL__":     jsString("data:text/javascript;base64," + base64Encode(b.JS)),
-		"__STORY_HARNESS_MODULE_URL__": jsString(storyHarnessModuleURL(b.HarnessJS, b.CompositionHarnessJS)),
-		"__FRAME_MODULE_URL__":         jsString("data:text/javascript;base64," + base64Encode(b.FrameJS)),
-		"__STORY_NAME__":               jsString(ex.Name),
-		"__STORY_VERSION__":            jsString(ex.Version),
-		"__STORY_DISPLAY_NAME__":       jsString(ex.DisplayName),
-		"__STORY_KIND__":               jsString(string(ex.Kind)),
-		"__STORY_PROPS__":              jsonObjectLiteral(ex.PropsJSON),
-		"__STORY_ARGS__":               jsonObjectLiteral(ex.ArgsJSON),
-		"__STORY_ENVIRONMENT__":        jsonObjectLiteral(ex.EnvironmentJSON),
-		"__STORY_ENVIRONMENT_SCHEMA__": jsonObjectLiteral(ex.EnvironmentSchemaJSON),
-		"__STORY_INTERACTIONS__":       jsonArrayLiteral(ex.InteractionsJSON),
-		"__STORY_EXPECT__":             jsonArrayLiteral(ex.ExpectJSON),
-		"__STORY_COMPOSITION__":        compositionJSON(ex.Composition),
-		"__STORY_GEOMETRY__":           geometryJSON(ex.Geometry),
-		"__STORY_MODE__":               jsString(string(ex.Mode)),
-		"__STORY_SLOT__":               jsString(ex.Slot),
-		"__STORY_ASSET_KIND__":         jsString(string(ex.AssetKind)),
-		"__STORY_ARCHETYPE__":          jsString(ex.Archetype),
-		"__STORY_FIXTURE__":            fixtureJSON(ex.Fixture, b.FixtureJSON),
-		"__PREVIEW_ID__":               jsString(id),
-		"__BUNDLE_SHA256__":            jsString(b.SHA256),
+		"__COMPONENT_MODULE_URL__":         jsString("data:text/javascript;base64," + base64Encode(b.JS)),
+		"__STORY_HARNESS_MODULE_URL__":     jsString(storyHarnessModuleURL(b.HarnessJS, b.CompositionHarnessJS)),
+		"__FRAME_MODULE_URL__":             jsString("data:text/javascript;base64," + base64Encode(b.FrameJS)),
+		"__STORY_NAME__":                   jsString(ex.Name),
+		"__STORY_VERSION__":                jsString(ex.Version),
+		"__STORY_DISPLAY_NAME__":           jsString(ex.DisplayName),
+		"__STORY_KIND__":                   jsString(string(ex.Kind)),
+		"__STORY_ROLE__":                   jsString(ex.Role),
+		"__STORY_RENDERS_NOTHING__":        strconv.FormatBool(ex.RendersNothing),
+		"__STORY_RENDERS_NOTHING_REASON__": jsString(ex.RendersNothingReason),
+		"__STORY_PROPS__":                  jsonObjectLiteral(ex.PropsJSON),
+		"__STORY_ARGS__":                   jsonObjectLiteral(ex.ArgsJSON),
+		"__STORY_ENVIRONMENT__":            jsonObjectLiteral(ex.EnvironmentJSON),
+		"__STORY_ENVIRONMENT_SCHEMA__":     jsonObjectLiteral(ex.EnvironmentSchemaJSON),
+		"__STORY_INTERACTIONS__":           jsonArrayLiteral(ex.InteractionsJSON),
+		"__STORY_EXPECT__":                 jsonArrayLiteral(ex.ExpectJSON),
+		"__STORY_COMPOSITION__":            compositionJSON(ex.Composition),
+		"__STORY_GEOMETRY__":               geometryJSON(ex.Geometry),
+		"__STORY_MODE__":                   jsString(string(ex.Mode)),
+		"__STORY_SLOT__":                   jsString(ex.Slot),
+		"__STORY_ASSET_KIND__":             jsString(string(ex.AssetKind)),
+		"__STORY_ARCHETYPE__":              jsString(ex.Archetype),
+		"__STORY_FIXTURE__":                fixtureJSON(ex.Fixture, b.FixtureJSON),
+		"__PREVIEW_ID__":                   jsString(id),
+		"__BUNDLE_SHA256__":                jsString(b.SHA256),
 	}
 	// The evaluator is embedded into the same module as the harness so the
 	// browser and jsdom paths execute one implementation.
@@ -828,6 +1024,20 @@ func buildImportMapJSON(b internalpreview.Bundle) (string, []string) {
 		imports["@testing-library/dom"] = packageRuntimeURL("@testing-library/dom", version, "", &warnings)
 	} else {
 		warnings = append(warnings, "preview: dependency \"@testing-library/dom\" cannot be resolved from the governed preview runtime store")
+	}
+	// ClassMerge is a catalog foundation, so its runtime peers are part of the
+	// deterministic preview substrate even when a stale or incomplete derived
+	// dependency projection omits the transitive @deps header. They are already
+	// governed by tools/preview-runtime/package.json; exposing them here keeps
+	// specimens that import ClassMerge from failing in the browser with an
+	// unresolved bare module specifier.
+	for name, versionRange := range map[string]string{
+		"clsx":           "^2.1.1",
+		"tailwind-merge": "^2.6.1",
+	} {
+		if version, ok := internaldeps.ResolveRangeToLatest(versionRange, packageRuntimeCandidatesFor(name)); ok {
+			imports[name] = packageRuntimeURL(name, version, "", &warnings)
+		}
 	}
 	for _, d := range b.Dependencies {
 		name := strings.TrimSpace(d.DepName)

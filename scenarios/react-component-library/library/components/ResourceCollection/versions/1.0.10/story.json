@@ -134,7 +134,8 @@
       "mode": "live",
       "name": "Empty",
       "role": "boundary"
-    }
+    },
+    {"id":"loading","name":"Loading resources","args":{"state":"loading"},"expect":[{"kind":"role","role":"heading","name":"Resources"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Resource Collection"
 }

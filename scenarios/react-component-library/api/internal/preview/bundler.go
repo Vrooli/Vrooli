@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -210,44 +209,6 @@ func versionedAssetFile(root, name, version string, kinds, extensions []string) 
 		if candidate, ok := assetFile(assetRoot, name, extensions); ok {
 			return candidate, true
 		}
-		// Published imports use a major selector (for example /Portal/1),
-		// while the preview source tree stores immutable full versions. Resolve
-		// the selector to the newest version in that major line.
-		major, err := strconv.Atoi(version)
-		if err != nil {
-			continue
-		}
-		versionsRoot := filepath.Dir(assetRoot)
-		entries, err := os.ReadDir(versionsRoot)
-		if err != nil {
-			continue
-		}
-		versions := make([]string, 0, len(entries))
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				continue
-			}
-			parts := strings.Split(entry.Name(), ".")
-			if len(parts) != 3 || parts[0] != version {
-				continue
-			}
-			if _, e1 := strconv.Atoi(parts[1]); e1 != nil {
-				continue
-			}
-			if _, e2 := strconv.Atoi(parts[2]); e2 != nil {
-				continue
-			}
-			versions = append(versions, entry.Name())
-		}
-		sort.Slice(versions, func(i, j int) bool {
-			return compareVersions(versions[i], versions[j]) > 0
-		})
-		_ = major // validates that the selector is numeric above
-		for _, candidateVersion := range versions {
-			if candidate, ok := assetFile(filepath.Join(versionsRoot, candidateVersion), name, extensions); ok {
-				return candidate, true
-			}
-		}
 	}
 	return "", false
 }
@@ -260,21 +221,6 @@ func assetFile(root, name string, extensions []string) (string, bool) {
 		}
 	}
 	return "", false
-}
-
-func compareVersions(left, right string) int {
-	for index, leftPart := range strings.Split(left, ".") {
-		rightPart := strings.Split(right, ".")[index]
-		l, _ := strconv.Atoi(leftPart)
-		r, _ := strconv.Atoi(rightPart)
-		if l != r {
-			if l > r {
-				return 1
-			}
-			return -1
-		}
-	}
-	return 0
 }
 
 func (b Esbuilder) resolveDir(sourcePath string) (string, error) {

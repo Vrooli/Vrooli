@@ -105,7 +105,22 @@ func ModuleWithCapture(repoRoot string, db *sql.DB, assets components.Service, e
 	return h.module()
 }
 
+// warmReports builds the coverage report in the background at startup. The
+// computation runs the whole gate corpus — minutes on a cold cache — and
+// reportCache only computes synchronously when nothing is cached, so without
+// this the first visitor after every restart waits out the entire corpus and
+// their browser gives up first. That is what made "Coverage unavailable" the
+// normal state of the page rather than an exceptional one.
+func (h *handler) warmReports() {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+		defer cancel()
+		_, _ = h.report(ctx)
+	}()
+}
+
 func (h *handler) module() module.Module {
+	h.warmReports()
 	path, service := catalogconnect.NewCatalogServiceHandler(h)
 	return module.Module{
 		Name:      "catalog",
@@ -880,20 +895,35 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	if assetID := strings.TrimSpace(req.Msg.GetAssetId()); assetID != "" {
 		filtered := response.Findings[:0]
 		for _, finding := range response.Findings {
-			if finding.GetAssetId() == assetID || finding.GetAssetId() == strings.TrimPrefix(assetID, "react-component-library:") {
+			if finding.GetCode() == "catalog.gate_inspected_nothing" || sameAssetIdentity(finding.GetAssetId(), assetID) {
 				filtered = append(filtered, finding)
 			}
 		}
 		response.Findings = filtered
 		filteredErrors := response.RunnerErrors[:0]
 		for _, finding := range response.RunnerErrors {
-			if finding.GetAssetId() == assetID || finding.GetAssetId() == strings.TrimPrefix(assetID, "react-component-library:") {
+			if sameAssetIdentity(finding.GetAssetId(), assetID) {
 				filteredErrors = append(filteredErrors, finding)
 			}
 		}
 		response.RunnerErrors = filteredErrors
 	}
 	return connect.NewResponse(response), nil
+}
+
+func sameAssetIdentity(left, right string) bool {
+	left = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(left), "react-component-library:"))
+	right = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(right), "react-component-library:"))
+	if left == right {
+		return true
+	}
+	if index := strings.LastIndex(left, "."); index >= 0 {
+		left = left[index+1:]
+	}
+	if index := strings.LastIndex(right, "."); index >= 0 {
+		right = right[index+1:]
+	}
+	return left != "" && left == right
 }
 
 func assetSetSlice(assetID string) map[string]struct{} {

@@ -167,7 +167,8 @@
       "mode": "pinned",
       "name": "Activity error",
       "role": "boundary"
-    }
+    },
+    {"id":"overflow","name":"Long activity content","args":{"activityState":"ready","title":"Release artifact with a deliberately long identity that must wrap without clipping"},"expect":[{"kind":"visible","selector":"[data-experience-surface=\"asset-activity\"]"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "AssetDetailShell"
 }

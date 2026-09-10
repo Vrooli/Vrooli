@@ -18,10 +18,13 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-spinner]"
         }
       ]
     }
+    ,
+    {"id":"loading","name":"loading","args":{},"expect":[{"kind":"visible","selector":"[data-rcl-spinner]"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-spinner]"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Spinner"
 }

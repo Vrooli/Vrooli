@@ -147,6 +147,9 @@
       "name": "Legible error",
       "role": "boundary"
     }
+    ,
+    {"id":"empty","name":"Empty image source","args":{"src":"","alt":"Abstract blue-green Aurora workspace landscape"},"expect":[{"kind":"role","name":"Abstract blue-green Aurora workspace landscape","role":"img"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long image alternative text","args":{"src":"/aurora.png","alt":"A deliberately long alternative description of the blue-green Aurora workspace landscape"},"expect":[{"kind":"role","role":"img"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "ProgressiveImage"
 }

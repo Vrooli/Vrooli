@@ -15,7 +15,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-evidence-carousel]"
         }
       ],
       "role": "anatomy"

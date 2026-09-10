@@ -13,7 +13,7 @@
     {
       "libraryId": "react-component-library:ClassMerge",
       "major": 1,
-      "observed": "1.0.2",
+      "observed": "1.0.3",
       "rank": 1
     },
     {
@@ -31,13 +31,13 @@
     {
       "libraryId": "react-component-library:useAnnounce",
       "major": 1,
-      "observed": "1.0.2",
+      "observed": "1.0.3",
       "rank": 2
     },
     {
       "libraryId": "react-component-library:useDrag",
       "major": 2,
-      "observed": "2.0.0",
+      "observed": "2.0.1",
       "rank": 2
     },
     {
@@ -49,7 +49,7 @@
     {
       "libraryId": "react-component-library:useOptimisticAction",
       "major": 1,
-      "observed": "1.0.2",
+      "observed": "1.0.3",
       "rank": 2
     }
   ]

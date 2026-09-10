@@ -127,18 +127,16 @@ export function ThemeSwitcher({
           </p>
           <label className="mt-space-2xs block">
             <span className="sr-only">{t(strings.components.themeSwitcher.kitLabel)}</span>
-            <select
+            <Select
               data-testid={selectors.components.themeSwitcher.kitSelect}
               value={kit}
               onChange={(event) => setKit(event.target.value)}
               className="h-control-sm min-h-control-sm w-full rounded-md border border-app-border bg-app-surface px-space-2xs text-xs text-app-foreground"
-            >
-              {previewKits.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name || option.id}
-                </option>
-              ))}
-            </select>
+              options={previewKits.map((option) => ({
+                value: option.id,
+                label: option.name || option.id,
+              }))}
+            />
           </label>
         </section>
 

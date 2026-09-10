@@ -7,20 +7,23 @@ import {
   type ListNextWorkResponse,
 } from "@vrooli/proto-types/react-component-library/v1/catalog/catalog_pb";
 
-import { API_BASE, transport } from "./client";
+import { API_BASE, SLOW_API_TIMEOUT_MS, slowTransport, transport } from "./client";
 
 export type { CoverageReport, GetHealthOverviewResponse, ListNextWorkResponse };
 
 const catalogClient = createClient(CatalogService, transport);
+// Coverage and next-work run the whole gate corpus server-side; they need the
+// long deadline, and nothing else on this client does.
+const catalogReportClient = createClient(CatalogService, slowTransport);
 
 export async function getCatalogCoverage(): Promise<CoverageReport> {
-  const response = await catalogClient.getCoverage({}, { timeoutMs: 20_000 });
+  const response = await catalogReportClient.getCoverage({}, { timeoutMs: SLOW_API_TIMEOUT_MS });
   if (!response.report) throw new Error("catalog coverage was not returned");
   return response.report;
 }
 
 export async function listCatalogNextWork(limit = 10): Promise<ListNextWorkResponse> {
-  return catalogClient.listNextWork({ limit }, { timeoutMs: 20_000 });
+  return catalogReportClient.listNextWork({ limit }, { timeoutMs: SLOW_API_TIMEOUT_MS });
 }
 
 export async function getCatalogHealthOverview(): Promise<GetHealthOverviewResponse> {

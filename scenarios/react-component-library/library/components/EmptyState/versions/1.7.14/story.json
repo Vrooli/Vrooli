@@ -118,6 +118,24 @@
       "mode": "pinned",
       "name": "Compact",
       "role": "boundary"
+    },
+    {
+      "id": "empty",
+      "name": "Empty state",
+      "args": {"title": "Nothing to review", "description": ""},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "NoComponents"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-empty-state]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "overflow",
+      "name": "Overflow description",
+      "args": {"title": "Nothing to review", "description": "Review and apply all pending workspace configuration changes before continuing."},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "NoComponents"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-empty-state]"}],
+      "role": "boundary",
+      "mode": "pinned"
     }
   ],
   "title": "EmptyState"

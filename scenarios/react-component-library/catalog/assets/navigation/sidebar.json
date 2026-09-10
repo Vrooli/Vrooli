@@ -26,24 +26,32 @@
   "dependencies": {
     "requires": [
       {
-        "asset": "foundations.tokens",
-        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
+        "asset": "foundations.gesture-tokens",
+        "reason": "Gesture behavior uses the governed gesture token foundation."
       },
       {
-        "asset": "primitives.surface",
-        "reason": "Background and elevation come from the shared surface primitive rather than per-overlay shadow values."
+        "asset": "manipulation.resize-handle",
+        "reason": "The resize seam uses the governed resize handle."
       },
       {
-        "asset": "primitives.scroll-area",
-        "reason": "Independent scrolling with preserved keyboard behavior."
+        "asset": "react-component-library:StyleSheet",
+        "reason": "Sidebar styles are injected through the library stylesheet foundation."
       },
       {
-        "asset": "navigation.nav-link",
-        "reason": "Items are shared navigation links with active and pending state."
+        "asset": "hooks.use-escape-key",
+        "reason": "Escape behavior is provided by the governed escape-key hook."
       },
       {
-        "asset": "foundations.class-merge",
-        "reason": "All class composition uses the shared Tailwind conflict resolver."
+        "asset": "hooks.use-handedness",
+        "reason": "Reach-side behavior follows the governed handedness hook."
+      },
+      {
+        "asset": "hooks.use-resizable-panel",
+        "reason": "Panel size persistence and bounds use the governed resizable-panel hook."
+      },
+      {
+        "asset": "hooks.use-swipe-gesture",
+        "reason": "Phone drawer gestures use the governed swipe-gesture hook."
       }
     ]
   },

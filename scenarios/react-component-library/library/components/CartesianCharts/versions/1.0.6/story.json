@@ -133,6 +133,9 @@
       "name": "Histogram",
       "role": "boundary"
     }
+    ,
+    {"id":"empty","name":"Empty chart","args":{"series":[]},"expect":[{"kind":"role","name":"Progression","role":"img"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long chart labels","args":{"series":[{"name":"A deliberately long series label that must wrap","values":[1,2,3]}]},"expect":[{"kind":"role","name":"Progression","role":"img"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Cartesian charts"
 }

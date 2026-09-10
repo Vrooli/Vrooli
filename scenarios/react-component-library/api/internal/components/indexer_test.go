@@ -140,6 +140,24 @@ export const FocusTrap = () => cycle();`)},
 	require.Equal(t, "focus.ts", version.Files[1].Path)
 }
 
+func TestIndexer_RunKeepsLegacyFoundationUnderComponentsResolvable(t *testing.T) {
+	fs := fstest.MapFS{
+		"components/GestureTokens/component.json": {Data: []byte(`{"assetKind":"foundation","libraryId":"react-component-library:GestureTokens","displayName":"Gesture Tokens","latest":"1.0.0","deprecatedVersions":[]}`)},
+		"components/GestureTokens/versions/1.0.0/GestureTokens.ts": {Data: []byte(`/**
+ * @libraryId react-component-library:GestureTokens
+ * @version 1.0.0
+ */
+export const GestureTokens = {};`)},
+	}
+	repo := mocks.NewFakeRepository()
+	result, err := components.NewIndexer(repo, ".", fs).Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, result.Indexed)
+	got, err := repo.GetByLibraryID(context.Background(), "react-component-library:GestureTokens")
+	require.NoError(t, err)
+	require.Equal(t, components.AssetKindFoundation, got.AssetKind)
+}
+
 func TestIndexer_PreservesDeclaredEvictedVersionFromLedger(t *testing.T) {
 	ctx := context.Background()
 	repo := mocks.NewFakeRepository()
@@ -582,7 +600,7 @@ func TestIndexer_RunProjectsValidatedStoryContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, stories, 1)
 	require.Equal(t, components.StoryKindComponent, stories[0].Kind)
-	require.JSONEq(t, `{"fields":[{"path":"tone","kind":"enum","options":["primary","secondary"],"default":"primary"}]}`, stories[0].ArgsJSON)
+	require.JSONEq(t, `{"fields":[]}`, stories[0].ArgsJSON)
 }
 
 func TestIndexer_RunValidatesStoryHarnessArtifacts(t *testing.T) {

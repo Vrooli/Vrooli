@@ -127,6 +127,10 @@
      "selector": "[data-rcl-responsive-dialog][data-content-padding='comfortable']"
     }
    ]
-  }
+  },
+  {"id":"empty","name":"Empty dialog","args":{},"expect":[{"kind":"role","role":"dialog"},{"kind":"visible","selector":"[data-testid='overlays.responsive-dialog']"}],"role":"boundary","mode":"pinned"},
+  {"id":"loading","name":"Loading dialog","args":{"state":"loading"},"expect":[{"kind":"role","role":"dialog"},{"kind":"visible","selector":"[data-testid='overlays.responsive-dialog']"}],"role":"boundary","mode":"pinned"},
+  {"id":"error","name":"Dialog error","args":{"state":"error"},"expect":[{"kind":"role","role":"dialog"},{"kind":"visible","selector":"[data-testid='overlays.responsive-dialog']"}],"role":"boundary","mode":"pinned"},
+  {"id":"overflow","name":"Long dialog content","args":{},"expect":[{"kind":"role","role":"dialog"},{"kind":"visible","selector":"[data-testid='overlays.responsive-dialog']"}],"role":"boundary","mode":"pinned"}
  ]
 }

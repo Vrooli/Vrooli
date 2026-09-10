@@ -49,6 +49,57 @@
     },
     {
       "args": {
+        "children": "",
+        "variant": "secondary"
+      },
+      "composition": {
+        "specimen": {
+          "export": "ButtonStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [{"kind": "visible", "selector": "[data-rcl-control]"}],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty label",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Save changes",
+        "variant": "primary"
+      },
+      "composition": {
+        "specimen": {
+          "export": "AsyncSaveStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [{"kind": "role", "role": "status", "name": "Saving changes status"}],
+      "id": "loading",
+      "mode": "pinned",
+      "name": "Loading save",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Review and apply all pending workspace configuration changes",
+        "variant": "primary"
+      },
+      "composition": {
+        "specimen": {
+          "export": "LongContentStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [{"kind": "visible", "selector": "[data-rcl-control]"}],
+      "id": "overflow",
+      "mode": "pinned",
+      "name": "Overflow label",
+      "role": "boundary"
+    },
+    {
+      "args": {
         "children": "Continue",
         "iconName": "arrowEnd",
         "size": "lg"

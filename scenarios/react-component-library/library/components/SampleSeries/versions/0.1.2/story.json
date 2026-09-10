@@ -66,6 +66,9 @@
       "name": "One point draws nothing",
       "role": "boundary"
     }
+    ,
+    {"id":"empty","name":"Empty series","args":{"values":[]},"expect":[{"kind":"text","value":"hand-authored, mid-scale, reviewed 2026-09-01"}],"role":"boundary","mode":"pinned"},
+    {"id":"many","name":"Many data points","args":{"values":[1,2,3,4,5,6]},"expect":[{"kind":"text","value":"hand-authored, mid-scale, reviewed 2026-09-01"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "SampleSeries"
 }

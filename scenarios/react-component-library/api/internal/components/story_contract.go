@@ -149,13 +149,19 @@ var storyFixtureAdapters = map[string]struct{}{
 }
 
 type StoryDefinition struct {
-	Route  string                       `json:"route,omitempty"`
-	ID     string                       `json:"id"`
-	Name   string                       `json:"name"`
-	Role   string                       `json:"role,omitempty"`
-	Axis   string                       `json:"axis,omitempty"`
-	Covers map[string][]json.RawMessage `json:"covers,omitempty"`
-	States []string                     `json:"states,omitempty"`
+	Route string `json:"route,omitempty"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Role  string `json:"role,omitempty"`
+	// RendersNothing is an explicit opt-out for primitives whose contract is
+	// intentionally non-visual (for example a portal or a layout-only hook).
+	// It is deliberately paired with a human-readable reason so an empty
+	// anatomy frame cannot silently become accepted again.
+	RendersNothing       bool                         `json:"rendersNothing,omitempty"`
+	RendersNothingReason string                       `json:"reason,omitempty"`
+	Axis                 string                       `json:"axis,omitempty"`
+	Covers               map[string][]json.RawMessage `json:"covers,omitempty"`
+	States               []string                     `json:"states,omitempty"`
 	// Description is optional specimen context shown by the catalog workbench.
 	Description  string             `json:"description,omitempty"`
 	Mode         StoryMode          `json:"mode,omitempty"`
@@ -1144,7 +1150,7 @@ func validateStoryInteraction(pointer string, assetKind StoryKind, interaction S
 }
 
 func allowedExpectation(kind string) bool {
-	return map[string]bool{"role": true, "text": true, "attribute": true, "visible": true, "notVisible": true, "layout": true, "count": true}[kind]
+	return map[string]bool{"role": true, "text": true, "attribute": true, "visible": true, "exists": true, "notVisible": true, "layout": true, "count": true}[kind]
 }
 
 func isJSONScalar(raw json.RawMessage) bool {

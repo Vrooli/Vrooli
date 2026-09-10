@@ -1,0 +1,1 @@
+{"gate":"story-coverage","assetId":"calibration-story-coverage","runner":"external","requiredFailureCode":"catalog.story_coverage_missing","description":"Story coverage is calibrated by the corpus gate and its missing-state report."}

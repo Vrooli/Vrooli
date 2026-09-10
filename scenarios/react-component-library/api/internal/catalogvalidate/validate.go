@@ -65,6 +65,8 @@ func (v *Validator) Validate() ([]Finding, error) {
 	findings = append(findings, blockingRunnerFindings(v.RepoRoot, catalogDir)...)
 	findings = append(findings, implementationIdentityFindings(v.RepoRoot)...)
 	findings = append(findings, vacuousAllowlistFindings(v.RepoRoot)...)
+	findings = append(findings, tautologicalAllowlistFindings(v.RepoRoot)...)
+	findings = append(findings, storyCoverageAllowlistFindings(v.RepoRoot)...)
 	sort.Slice(findings, func(i, j int) bool {
 		if findings[i].Location != findings[j].Location {
 			return findings[i].Location < findings[j].Location
@@ -155,7 +157,86 @@ type vacuousAllowlistFile struct {
 	Entries       []vacuousAllowlistEntry `json:"entries"`
 }
 
-const vacuousAllowlistRelativePath = "scenarios/react-component-library/library/vacuous-allowlist.json"
+const (
+	vacuousAllowlistRelativePath       = "scenarios/react-component-library/library/vacuous-allowlist.json"
+	tautologicalAllowlistRelativePath  = "scenarios/react-component-library/library/tautological-story-allowlist.json"
+	storyCoverageAllowlistRelativePath = "scenarios/react-component-library/library/story-coverage-allowlist.json"
+)
+
+func storyCoverageAllowlistFindings(repoRoot string) []Finding {
+	path := filepath.Join(repoRoot, storyCoverageAllowlistRelativePath)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return []Finding{{Code: "catalog.story_coverage_allowlist_unreadable", Severity: "error", Location: storyCoverageAllowlistRelativePath, Message: err.Error()}}
+	}
+	current, findings := parseVacuousAllowlist(storyCoverageAllowlistRelativePath, data)
+	if len(findings) > 0 {
+		return findings
+	}
+	scenarioRoot := filepath.Join(repoRoot, "scenarios", "react-component-library")
+	for _, entry := range current.Entries {
+		if _, statErr := os.Stat(filepath.Join(scenarioRoot, filepath.FromSlash(entry.Path))); statErr != nil {
+			findings = append(findings, Finding{Code: "catalog.story_coverage_allowlist_unknown_entry", Severity: "error", Location: entry.Path, Message: "allowlisted story contract does not exist"})
+		}
+	}
+	baselineData, baselineErr := gitShow(repoRoot, "HEAD:"+storyCoverageAllowlistRelativePath)
+	if baselineErr != nil {
+		return findings
+	}
+	baseline, baselineFindings := parseVacuousAllowlist(storyCoverageAllowlistRelativePath, baselineData)
+	findings = append(findings, baselineFindings...)
+	if len(baselineFindings) > 0 {
+		return findings
+	}
+	for _, entryPath := range allowlistGrowth(current.Entries, baseline.Entries) {
+		findings = append(findings, Finding{Code: "catalog.story_coverage_allowlist_growth", Severity: "error", Location: entryPath, Message: "story coverage allowlist may shrink but may not gain entries"})
+	}
+	for _, entry := range current.Entries {
+		if allowlistPaths(baseline.Entries)[entry.Path] && allowlistSourceChanged(repoRoot, filepath.ToSlash(filepath.Join("scenarios/react-component-library", entry.Path))) {
+			findings = append(findings, Finding{Code: "catalog.story_coverage_allowlist_source_changed", Severity: "error", Location: entry.Path, Message: "source changed while its story coverage debt remains allowlisted; remove the entry after adding the required stories"})
+		}
+	}
+	return findings
+}
+
+func tautologicalAllowlistFindings(repoRoot string) []Finding {
+	path := filepath.Join(repoRoot, tautologicalAllowlistRelativePath)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return []Finding{{Code: "catalog.tautological_allowlist_unreadable", Severity: "error", Location: tautologicalAllowlistRelativePath, Message: err.Error()}}
+	}
+	current, findings := parseVacuousAllowlist(tautologicalAllowlistRelativePath, data)
+	if len(findings) > 0 {
+		return findings
+	}
+	for _, entry := range current.Entries {
+		contractPath := filepath.Join(repoRoot, "scenarios", "react-component-library", filepath.FromSlash(entry.Path))
+		if _, statErr := os.Stat(contractPath); statErr != nil {
+			findings = append(findings, Finding{Code: "catalog.tautological_allowlist_unknown_entry", Severity: "error", Location: entry.Path, Message: "allowlisted contract does not exist"})
+		}
+	}
+	baselineData, baselineErr := gitShow(repoRoot, "HEAD:"+tautologicalAllowlistRelativePath)
+	if baselineErr != nil {
+		return findings
+	}
+	baseline, baselineFindings := parseVacuousAllowlist(tautologicalAllowlistRelativePath, baselineData)
+	findings = append(findings, baselineFindings...)
+	for _, entryPath := range allowlistGrowth(current.Entries, baseline.Entries) {
+		findings = append(findings, Finding{Code: "catalog.tautological_allowlist_growth", Severity: "error", Location: entryPath, Message: "tautological story allowlist may shrink but may not gain entries"})
+	}
+	for _, entry := range current.Entries {
+		if allowlistPaths(baseline.Entries)[entry.Path] && allowlistSourceChanged(repoRoot, filepath.ToSlash(filepath.Join("scenarios/react-component-library", entry.Path))) {
+			findings = append(findings, Finding{Code: "catalog.tautological_allowlist_source_changed", Severity: "error", Location: entry.Path, Message: "source changed while its tautological story remains allowlisted; remove the entry and add a real expectation"})
+		}
+	}
+	return findings
+}
 
 // vacuousAllowlistFindings enforces the two-way ratchet around legacy
 // contracts. The committed file is the comparison authority; a missing HEAD

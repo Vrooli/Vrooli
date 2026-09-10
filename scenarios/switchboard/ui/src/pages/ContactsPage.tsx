@@ -4,10 +4,12 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1";
 
 import { ConsoleApiError, TRUST_TIERS, consoleApi, consoleKeys, type Contact, type TierChange, type TrustTier } from "../api/console";
 import { ChannelChip } from "../components/console/ChannelChip";
 import { Page } from "../components/console/Page";
+import { Panel } from "../components/console/Panel";
 import { Quiet, Region } from "../components/console/Region";
 import { TIER_LABEL_KEY, TierBadge, tierRank } from "../components/console/TierBadge";
 import { strings } from "../consts/strings";
@@ -72,7 +74,7 @@ export function ContactsPage() {
           <div className={showListOnMobile ? "flex min-h-0 flex-1 flex-col gap-3" : "hidden min-h-0 flex-1 flex-col gap-3 lg:flex"}>
           <label className="block">
             <span className="sr-only">{t(strings.console.contacts.search)}</span>
-            <input
+            <Input
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -81,21 +83,23 @@ export function ContactsPage() {
               className="min-h-11 w-full rounded-control border border-app-border bg-app-surface px-3 text-base text-app-foreground placeholder:text-app-muted-foreground md:min-h-10 md:text-sm"
             />
           </label>
-          <ul data-testid="contacts-list" className="min-h-0 flex-1 divide-y divide-app-border overflow-y-auto rounded-panel border border-app-border bg-app-surface">
-            {visible.map((contact) => (
-              <ContactRow key={contact.id} contact={contact} selected={contact.id === contactId} />
-            ))}
-            {visible.length === 0 ? <li className="px-3 py-6 text-center text-sm text-app-muted-foreground">{t(strings.console.contacts.noMatches)}</li> : null}
-          </ul>
+          <Panel className="min-h-0 flex-1 overflow-y-auto p-0">
+            <ul data-testid="contacts-list" className="divide-y divide-app-border">
+              {visible.map((contact) => (
+                <ContactRow key={contact.id} contact={contact} selected={contact.id === contactId} />
+              ))}
+              {visible.length === 0 ? <li className="px-3 py-6 text-center text-sm text-app-muted-foreground">{t(strings.console.contacts.noMatches)}</li> : null}
+            </ul>
+          </Panel>
           </div>
         </Region>
         <div className={["min-h-0", showListOnMobile ? "hidden lg:block" : "block"].join(" ")}>
           {contactId ? (
             <ContactPanel key={contactId} contactId={contactId} />
           ) : (
-            <div className="flex h-full min-h-[12rem] items-center justify-center rounded-panel border border-dashed border-app-border p-6 text-center text-sm text-app-muted-foreground">
+            <Panel className="flex h-full min-h-[12rem] items-center justify-center border-dashed p-6 text-center text-sm text-app-muted-foreground">
               {t(strings.console.contacts.pickContact)}
-            </div>
+            </Panel>
           )}
         </div>
       </div>
@@ -163,7 +167,7 @@ function ContactPanel({ contactId }: { contactId: string }) {
   const name = contact?.display_name?.trim() || contact?.address || contactId;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto rounded-panel border border-app-border bg-app-surface p-4">
+    <Panel className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-4">
       <div className="flex items-center gap-3">
         <button type="button" onClick={() => navigate("/contacts")} aria-label={t(strings.console.common.back)} className="grid h-11 w-11 place-items-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted lg:hidden">
           <ArrowLeft aria-hidden="true" className="h-4 w-4" />
@@ -184,7 +188,7 @@ function ContactPanel({ contactId }: { contactId: string }) {
       </div>
 
       {contact ? (
-        <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-panel border border-app-border bg-app-border text-xs">
+        <Panel className="grid grid-cols-3 gap-px overflow-hidden bg-app-border p-0 text-xs">
           {[
             [t(strings.console.contacts.firstSeen), relativeTime(contact.first_seen)],
             [t(strings.console.contacts.messages), String(contact.message_count)],
@@ -195,7 +199,7 @@ function ContactPanel({ contactId }: { contactId: string }) {
               <dd className="font-mono text-sm font-semibold text-app-foreground">{value}</dd>
             </div>
           ))}
-        </dl>
+        </Panel>
       ) : null}
 
       <fieldset data-testid="contacts-tier-control" className="flex flex-col gap-2" disabled={!contact || update.isPending}>
@@ -211,7 +215,7 @@ function ContactPanel({ contactId }: { contactId: string }) {
                 aria-checked={selected}
                 data-testid={`contacts-tier-${tier}`}
                 onClick={() => setDraftTier(tier)}
-                className={["flex items-start gap-3 rounded-panel border px-3 py-2.5 text-left", selected ? "border-app-primary bg-app-primary/5" : "border-app-border hover:bg-app-surface-muted"].join(" ")}
+                className={["flex items-start gap-3 rounded-control border px-3 py-2.5 text-left", selected ? "border-app-primary bg-app-primary/5" : "border-app-border hover:bg-app-surface-muted"].join(" ")}
               >
                 <TierBadge tier={tier} className="mt-0.5 shrink-0" />
                 <span className="min-w-0 text-sm">
@@ -225,16 +229,16 @@ function ContactPanel({ contactId }: { contactId: string }) {
           })}
         </div>
         {changed && affected.length > 0 ? (
-          <div data-testid="contacts-ceiling-warning" role="alert" className="flex items-start gap-2 rounded-panel border border-app-warning/50 bg-app-warning/10 px-3 py-2 text-xs text-app-foreground">
+          <Panel data-testid="contacts-ceiling-warning" role="alert" className="flex items-start gap-2 border-app-warning/50 bg-app-warning/10 px-3 py-2 text-xs text-app-foreground">
             <AlertTriangle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-app-warning" />
             <p>{t(strings.console.contacts.ceilingWarning, { count: affected.length, tier: t(TIER_LABEL_KEY[nextTier]) })}</p>
-          </div>
+          </Panel>
         ) : null}
         {changed && nextTier === "owner" ? (
-          <div role="alert" className="flex items-start gap-2 rounded-panel border border-app-danger/40 bg-app-danger/5 px-3 py-2 text-xs text-app-foreground">
+          <Panel role="alert" className="flex items-start gap-2 border-app-danger/40 bg-app-danger/5 px-3 py-2 text-xs text-app-foreground">
             <AlertTriangle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-app-danger" />
             <p>{t(strings.console.contacts.ownerWarning)}</p>
-          </div>
+          </Panel>
         ) : null}
         <div className="flex items-center gap-2 pt-1">
           <Button type="button" size="sm" data-testid="contacts-confirm" disabled={!changed} pending={update.isPending} onClick={() => nextTier && update.mutate(nextTier)}>
@@ -259,9 +263,10 @@ function ContactPanel({ contactId }: { contactId: string }) {
       </fieldset>
 
       <Region surfaceId="rooms-region" testId="contacts-rooms-region" state={roomsState} title={t(strings.console.contacts.roomsTitle)} empty={<Quiet title={t(strings.console.contacts.noRooms)} />}>
-        <ul data-testid="contacts-rooms" className="divide-y divide-app-border rounded-panel border border-app-border">
-          {rooms.map((room) => (
-            <li key={room.thread_id} className="flex items-center gap-2 px-3 py-2 text-xs">
+        <Panel className="p-0">
+          <ul data-testid="contacts-rooms" className="divide-y divide-app-border">
+            {rooms.map((room) => (
+              <li key={room.thread_id} className="flex items-center gap-2 px-3 py-2 text-xs">
               <ChannelChip id={room.channel_id} name={room.channel_display_name} accent={room.channel_accent} />
               <Link to={`/conversations/${room.thread_id}`} className="min-w-0 flex-1 truncate font-mono text-app-foreground hover:text-app-primary">
                 {room.thread_key}
@@ -269,10 +274,11 @@ function ContactPanel({ contactId }: { contactId: string }) {
               {room.is_group ? <span className="text-app-muted-foreground">{t(strings.console.contacts.people, { count: room.participant_count })}</span> : null}
               <span className="text-app-muted-foreground">{t(strings.console.conversations.roomCeiling)}</span>
               <TierBadge tier={room.ceiling_tier} />
-            </li>
-          ))}
-        </ul>
+              </li>
+            ))}
+          </ul>
+        </Panel>
       </Region>
-    </div>
+    </Panel>
   );
 }

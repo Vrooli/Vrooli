@@ -79,6 +79,7 @@
     {
       "id": "empty",
       "name": "Empty collection",
+      "role": "boundary",
       "args": {
         "items": [],
         "fields": {
@@ -103,7 +104,7 @@
       "id": "interactive",
       "name": "Open and filter a collection",
       "mode": "live",
-      "role": "anatomy",
+      "role": "boundary",
       "args": {},
       "composition": {
         "specimen": {
@@ -154,7 +155,7 @@
         "bulkBar": "none",
         "currentKey": "triage"
       },
-      "role": "anatomy",
+      "role": "boundary",
       "expect": [
         {
           "kind": "text",

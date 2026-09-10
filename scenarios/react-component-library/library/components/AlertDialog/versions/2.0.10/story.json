@@ -100,7 +100,10 @@
       "mode": "live",
       "name": "Request error",
       "role": "boundary"
-    }
+    },
+    {"id":"empty","name":"Empty dialog body","args":{},"expect":[{"kind":"role","role":"alertdialog"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading dialog action","args":{},"expect":[{"kind":"role","role":"alertdialog"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long dialog copy","args":{},"expect":[{"kind":"role","role":"alertdialog"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "AlertDialog"
 }

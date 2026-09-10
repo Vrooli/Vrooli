@@ -15,6 +15,13 @@
       "statement": "Inspect the library capability inventory and its available operations."
     }
   ],
+  "claims": [{
+    "id": "capability-inventory-state-covered",
+    "type": "state-covered",
+    "statement": "The capability inventory is captured in the declared page state.",
+    "tier": "machine",
+    "states": ["default"]
+  }],
   "states": [
     {
       "id": "default",

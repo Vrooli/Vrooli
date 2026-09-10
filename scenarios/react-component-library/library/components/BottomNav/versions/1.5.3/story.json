@@ -113,6 +113,75 @@
         }
       },
       "role": "boundary"
+    },
+    {
+      "id": "active-indicator",
+      "name": "Active indicator axis",
+      "axis": "activeIndicator",
+      "covers": {"activeIndicator": ["slide", "static", "none"]},
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "MobilePrimary"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-bottom-nav]"}],
+      "role": "axis",
+      "mode": "pinned"
+    },
+    {
+      "id": "presentation",
+      "name": "Presentation axis",
+      "axis": "presentation",
+      "covers": {"presentation": ["fixed", "flow"]},
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "MobilePrimary"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-bottom-nav]"}],
+      "role": "axis",
+      "mode": "pinned"
+    },
+    {
+      "id": "safe-area",
+      "name": "Safe area axis",
+      "axis": "safeArea",
+      "covers": {"safeArea": ["inset", "floor", "none"]},
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "MobilePrimary"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-bottom-nav]"}],
+      "role": "axis",
+      "mode": "pinned"
+    },
+    {
+      "id": "empty",
+      "name": "Empty navigation",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "MobilePrimary"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-bottom-nav]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "one",
+      "name": "One navigation item",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "MobilePrimary"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-bottom-nav]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "many",
+      "name": "Many navigation items",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "MobilePrimary"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-bottom-nav]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "overflow",
+      "name": "Overflow navigation labels",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "LongLabels"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-bottom-nav]"}],
+      "role": "boundary",
+      "mode": "pinned"
     }
   ],
   "title": "BottomNav"

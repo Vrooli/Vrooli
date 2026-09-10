@@ -141,3 +141,10 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+
+## Work ladder — learning owner queue, 2026-09-09
+
+- Rung: W3 scoped empirical focus-source extension under the operator-approved adaptive learning work.
+- Evidence: Runtime failure/refusal telemetry omitted later semantic corrections and unresolved learning ownership. The new typed read retains owner, state, evidence and truncation without feedback/claim capabilities.
+- Validation: `go test ./internal/focus ./handlers/focus` passes; Test Genie unit run `20260909-191450-55aea902` passed. Existing Test Genie fleet fixtures were updated from retired Scenario to canonical Target field so the focused package compiles against current proto.

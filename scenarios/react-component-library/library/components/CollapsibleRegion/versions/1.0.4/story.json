@@ -26,7 +26,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-collapsible-region]"
         }
       ]
     },
@@ -39,8 +39,10 @@
       "name": "Closed",
       "expect": [
         {
-          "kind": "visible",
-          "selector": "body"
+          "kind": "attribute",
+          "selector": "[data-collapsible-region]",
+          "attribute": "data-open",
+          "value": "false"
         }
       ],
       "role": "boundary"

@@ -13,12 +13,22 @@ import (
 // components re-read all 410 catalog JSON files and re-walked the 848-edge
 // graph 200 times. Callers that enrich more than one row must resolve the
 // index once and pass it in.
+// A dangling requires edge is reported and skipped rather than failing the
+// build: placement facts for every other asset stay answerable, and the
+// graph-reconciled gate remains the authority that blocks on the edge itself.
 func (h *connectHandler) catalogIndex() (*assetgraph.Index, error) {
 	assets, err := catalogcoverage.LoadCatalog(filepath.Join(filepath.Dir(h.deps.SourceRoot), "catalog"))
 	if err != nil {
 		return nil, err
 	}
-	return assetgraph.Build(assets)
+	index, dropped, err := assetgraph.BuildTolerant(assets)
+	if err != nil {
+		return nil, err
+	}
+	for _, edge := range dropped {
+		h.deps.Logger.Printf("components: catalog graph edge skipped, target is not a defined asset: %s", edge)
+	}
+	return index, nil
 }
 
 // enrichCatalogProjection joins the indexed implementation row to the

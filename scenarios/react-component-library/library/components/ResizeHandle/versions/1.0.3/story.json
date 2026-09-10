@@ -433,5 +433,7 @@
         }
       ]
     }
+    ,
+    {"id":"overflow","name":"Long resize handle label","args":{"label":"Resize sessions with a deliberately long accessible label"},"expect":[{"kind":"role","role":"separator","name":"Resize Sessions"}],"role":"boundary","mode":"pinned"}
   ]
 }

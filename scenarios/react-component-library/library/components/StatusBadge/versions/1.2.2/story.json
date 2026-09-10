@@ -120,6 +120,22 @@
       "mode": "pinned",
       "name": "Danger",
       "role": "boundary"
+    },
+    {
+      "id": "empty",
+      "name": "Empty status",
+      "args": {"children": "", "tone": "neutral"},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-status-badge]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "overflow",
+      "name": "Overflow status",
+      "args": {"children": "Requires manual review before this release can proceed", "tone": "warning"},
+      "expect": [{"kind": "text", "value": "Requires manual review before this release can proceed"}],
+      "role": "boundary",
+      "mode": "pinned"
     }
   ],
   "title": "Status Badge"

@@ -116,6 +116,33 @@
       "mode": "live",
       "name": "Card inside raised grid context",
       "role": "boundary"
+    },
+    {
+      "id": "error",
+      "name": "Error card",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "EmptyStateCard"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-card]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "loading",
+      "name": "Loading card",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "MetricCard"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-card]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "overflow",
+      "name": "Overflow card content",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "LongContentCard"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-card]"}],
+      "role": "boundary",
+      "mode": "pinned"
     }
   ],
   "title": "Card"

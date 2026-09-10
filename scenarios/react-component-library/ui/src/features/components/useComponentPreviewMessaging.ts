@@ -6,7 +6,7 @@ import {
   type SetStateAction,
 } from "react";
 
-import type { SpecimenIdentity } from "./ComponentEditorStage";
+import type { SpecimenIdentity } from "./componentEditorStories";
 
 export type PreviewEvent = { story: string; name: string; args: unknown[]; ts: number };
 type Setter<T> = Dispatch<SetStateAction<T>>;

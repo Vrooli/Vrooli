@@ -99,6 +99,52 @@
       ]
     },
     {
+      "id": "state",
+      "name": "State axis",
+      "role": "axis",
+      "axis": "state",
+      "mode": "pinned",
+      "args": {
+        "messages": [
+          {
+            "id": "message",
+            "actor": {
+              "name": "Release assistant",
+              "role": "Assistant"
+            },
+            "content": "The response is still being assembled."
+          }
+        ],
+        "state": "partial",
+        "height": 440
+      },
+      "covers": {
+        "state": [
+          "default",
+          "loading",
+          "refreshing",
+          "empty",
+          "partial",
+          "stale",
+          "request-error",
+          "offline",
+          "retry"
+        ]
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "MessageListStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        }
+      ]
+    },
+    {
       "id": "loading",
       "name": "Loading",
       "role": "boundary",

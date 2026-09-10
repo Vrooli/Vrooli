@@ -50,6 +50,10 @@
       },
       "role": "anatomy"
     }
+    ,
+    {"id":"as","name":"Element axis","axis":"as","covers":{"as":["header","div","section"]},"args":{},"expect":[{"kind":"text","value":"Component Library"}],"role":"axis","mode":"pinned"},
+    {"id":"empty","name":"Empty workspace title","args":{"title":""},"expect":[{"kind":"text","value":"Component Library"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long workspace title","args":{"title":"Component Library workspace with a deliberately long title that must wrap cleanly"},"expect":[{"kind":"text","value":"Component Library"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "WorkspaceHeader"
 }

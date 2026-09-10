@@ -1,5 +1,21 @@
 import type { ComponentStory } from "../../api/components";
-import type { PreviewSpecimen, SpecimenIdentity } from "./ComponentEditorStage";
+
+export type SpecimenIdentity = `${string}:${string}`;
+export type PreviewSpecimen = {
+  id: string;
+  componentId: string;
+  libraryId: string;
+  version: string;
+  name: string;
+  displayName: string;
+  propsJson: string;
+  environment: Record<string, string>;
+  expectJson: string;
+  sourcePath: string;
+  storyId: string;
+  role?: "anatomy" | "axis" | "boundary" | string;
+  description?: string;
+};
 
 export function specimenIdentity(
   example?: Pick<PreviewSpecimen, "version" | "name">,
@@ -14,6 +30,7 @@ export function parseStorySpecimens(stories: ComponentStory[]): PreviewSpecimen[
         id?: unknown;
         name?: unknown;
         description?: unknown;
+        role?: unknown;
         args?: unknown;
         environment?: unknown;
         expect?: unknown;
@@ -55,6 +72,7 @@ export function parseStorySpecimens(stories: ComponentStory[]): PreviewSpecimen[
             expectJson: JSON.stringify(Array.isArray(definition.expect) ? definition.expect : []),
             sourcePath: contract.sourcePath,
             storyId: definition.id,
+            role: typeof definition.role === "string" ? definition.role : undefined,
           },
         ];
       });

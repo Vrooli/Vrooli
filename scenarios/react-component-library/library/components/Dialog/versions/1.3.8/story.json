@@ -38,6 +38,42 @@
       "mode": "live",
       "name": "Workspace editor",
       "role": "anatomy"
+    },
+    {
+      "id": "empty",
+      "name": "Empty dialog",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "dialog", "name": "Edit workspace"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "loading",
+      "name": "Loading dialog",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "dialog", "name": "Edit workspace"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "error",
+      "name": "Error dialog",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "dialog", "name": "Edit workspace"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "overflow",
+      "name": "Overflow dialog content",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "dialog", "name": "Edit workspace"}],
+      "role": "boundary",
+      "mode": "pinned"
     }
   ],
   "title": "Dialog"

@@ -13,9 +13,9 @@
   ],
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
   "draft": "",
@@ -27,7 +27,8 @@
     "1.2.2",
     "1.2.3",
     "1.2.4",
-    "1.2.5"
+    "1.2.5",
+    "2.0.0"
   ],
   "latest": "2.0.1",
   "libraryId": "react-component-library:Menu"

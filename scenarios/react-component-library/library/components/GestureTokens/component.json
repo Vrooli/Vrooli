@@ -1,6 +1,6 @@
 {
-  "assetKind": "component",
-  "catalogId": "components.gesture-tokens",
+  "assetKind": "foundation",
+  "catalogId": "foundations.gesture-tokens",
   "deprecatedVersions": [
     "1.0.0"
   ],

@@ -9,7 +9,6 @@ export function PreviewPopoutPage() {
   const { id = "" } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const view = searchParams.get("view") === "canvas" ? false : true;
   const componentQuery = useQuery({
     queryKey: ["components", "preview-popout", id],
     queryFn: () => componentsClient.getComponent({ id }),
@@ -22,14 +21,13 @@ export function PreviewPopoutPage() {
       data-testid="preview-popout"
       aria-label={`Preview ${libraryId}`}
       data-preview-story={searchParams.get("story") || ""}
-      data-preview-view={view ? "focus" : "canvas"}
+      data-preview-view="sheet"
       className="flex h-screen min-h-0 w-screen flex-col overflow-hidden bg-app-background"
     >
       <ComponentEditor
         id={id}
         libraryId={libraryId}
         renderable
-        stageMode={view}
         chromeless
         activePane="preview"
         selectedStory={searchParams.get("story") || undefined}

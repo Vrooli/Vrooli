@@ -8,6 +8,9 @@ const previewStory = {
   version: __STORY_VERSION__,
   displayName: __STORY_DISPLAY_NAME__,
   kind: __STORY_KIND__,
+  role: __STORY_ROLE__,
+  rendersNothing: __STORY_RENDERS_NOTHING__,
+  rendersNothingReason: __STORY_RENDERS_NOTHING_REASON__,
   props: __STORY_PROPS__,
   args: __STORY_ARGS__,
   environment: __STORY_ENVIRONMENT__,
@@ -248,6 +251,7 @@ const captureTheme = captureParams.get("theme");
 const captureMotion = captureParams.get("motion");
 const captureSeed = captureParams.get("seed");
 const captureMode = captureParams.get("runner") === "1" ? "isolated" : "workbench";
+const captureSheet = captureParams.get("sheet") === "1";
 const captureFixtureShape = captureParams.get("fixtureShape") || (String(previewStory.name || "").toLowerCase().includes("failure") ? "failure" : "typical");
 document.documentElement.dataset.rclCaptureMode = captureMode;
 if (captureMotion === "reduce") {
@@ -321,12 +325,58 @@ const showPreviewError = (message) => {
     parent.postMessage({ type: "preview-error", id: __PREVIEW_ID__, sha256: __BUNDLE_SHA256__, story: previewStory.name || "", version: previewStory.version || "", message }, "*");
   } catch (e) {}
 };
-const reportStoryResult = (passed, failures, skipped = []) => {
+const syncPortalCaptureBoundary = () => {
+  const sheet = harnessRoot?.querySelector("[data-preview-sheet]");
+  const portal = document.getElementById("rcl-layer-root");
+  const activePortal = portal && portal.children.length > 0;
+  if (activePortal) {
+    sheet?.removeAttribute("data-preview-capture-boundary");
+    portal.dataset.previewCaptureBoundary = "component-sheet";
+    portal.dataset.previewSheet = "portal";
+    portal.style.minHeight = "100vh";
+    portal.style.width = "100%";
+    return portal;
+  }
+  portal?.removeAttribute("data-preview-capture-boundary");
+  if (portal) delete portal.dataset.previewSheet;
+  if (sheet) sheet.dataset.previewCaptureBoundary = "component-sheet";
+  return sheet || harnessRoot;
+};
+const measurePaintedContent = () => {
+  const activeBoundary = syncPortalCaptureBoundary();
+  const stage = document.querySelector("[data-preview-stage]") ||
+    activeBoundary ||
+    document.querySelector("[data-preview-sheet]") || harnessRoot;
+  if (!stage) return { paintedNodes: 0, renderedWidth: 0, renderedHeight: 0 };
+  const isChrome = (element) => [...(element.classList || [])].some((name) => name.startsWith("rcl-preview-"));
+  let paintedNodes = 0;
+  let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+  for (const element of stage.querySelectorAll("*")) {
+    if (element.hasAttribute("data-preview-readiness-marker") || isChrome(element) || element.closest("[data-preview-readiness-marker]")) continue;
+    const style = getComputedStyle(element);
+    if (style.display === "none" || style.visibility === "hidden" || Number.parseFloat(style.opacity) === 0) continue;
+    const rect = element.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) continue;
+    const background = style.backgroundColor && style.backgroundColor !== "rgba(0, 0, 0, 0)";
+    const border = ["borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth"].some((key) => Number.parseFloat(style[key]) > 0);
+    const directText = [...element.childNodes].some((node) => node.nodeType === 3 && node.textContent.trim().length > 0);
+    const media = ["IMG", "SVG", "CANVAS", "VIDEO"].includes(element.tagName);
+    if (!background && !border && !directText && !media) continue;
+    paintedNodes += 1;
+    left = Math.min(left, rect.left); top = Math.min(top, rect.top);
+    right = Math.max(right, rect.right); bottom = Math.max(bottom, rect.bottom);
+  }
+  return { paintedNodes, renderedWidth: paintedNodes ? Math.round(right - left) : 0, renderedHeight: paintedNodes ? Math.round(bottom - top) : 0 };
+};
+const reportStoryResult = (passed, failures, skipped = [], painted = measurePaintedContent()) => {
   performanceEntries.push(...performance.getEntriesByType("measure").map((entry) => ({ name: entry.name, duration: entry.duration })));
   const result = {
     passed,
     failures: Array.isArray(failures) ? failures : [],
     skipped: Array.isArray(skipped) ? skipped : [],
+    paintedNodes: painted.paintedNodes || 0,
+    renderedWidth: painted.renderedWidth || 0,
+    renderedHeight: painted.renderedHeight || 0,
     performance: {
       mountMs: mountMs || Math.max(0, performance.now() - mountStartedAt),
       commitCount,
@@ -336,7 +386,15 @@ const reportStoryResult = (passed, failures, skipped = []) => {
       measures: performanceEntries,
     },
   };
-  if (harnessRoot) harnessRoot.dataset.rclStoryStatus = passed ? "passed" : "failed";
+  if (harnessRoot) {
+    harnessRoot.dataset.rclStoryStatus = passed ? "passed" : "failed";
+    harnessRoot.dataset.rclStoryRole = previewStory.role || "";
+    harnessRoot.dataset.rclRendersNothing = previewStory.rendersNothing ? "true" : "false";
+    if (previewStory.rendersNothingReason) harnessRoot.dataset.rclRendersNothingReason = previewStory.rendersNothingReason;
+    harnessRoot.dataset.rclPaintedNodes = String(result.paintedNodes);
+    harnessRoot.dataset.rclRenderedWidth = String(result.renderedWidth);
+    harnessRoot.dataset.rclRenderedHeight = String(result.renderedHeight);
+  }
   // The DOM mirror is consumed only by the server-owned headless runner; the
   // normal iframe path continues to receive the typed postMessage below.
   storyResultEl.textContent = JSON.stringify(result);
@@ -538,6 +596,7 @@ try {
       return failures;
     };
     const wrapStandalone = (subject) => {
+      if (captureSheet) return subject;
       const archetype = previewStory.geometry?.archetype || previewStory.archetype || "pattern";
       if (archetype !== "primitive") {
         const className = "rcl-preview-stage rcl-preview-stage--" + archetype;
@@ -680,7 +739,7 @@ try {
       renderSheet(wrapStandalone(standaloneSubject), "standalone");
     };
     renderPreview({});
-    void runStory(previewStory, { document, window }, { queries: testingLibraryDOM, report: reportStoryResult, browser: true }).then(() => {
+    void runStory(previewStory, { document, window }, { queries: testingLibraryDOM, report: reportStoryResult, measure: measurePaintedContent, browser: true }).then(() => {
       setHarnessState("ready");
       parent.postMessage({ type: "preview-ready", id: __PREVIEW_ID__, sha256: __BUNDLE_SHA256__, story: previewStory.name || "", version: previewStory.version || "" }, "*");
     }).catch((error) => {

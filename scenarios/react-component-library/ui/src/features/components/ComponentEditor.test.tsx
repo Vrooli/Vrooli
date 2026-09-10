@@ -104,6 +104,25 @@ const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRec
 describe("ComponentEditor", () => {
   beforeEach(async () => {
     await setLocale("en");
+    const { listComponentStories } = await import("../../api/components");
+    vi.mocked(listComponentStories).mockResolvedValue({
+      stories: [
+        {
+          id: "contract",
+          componentId: "test-component",
+          libraryId: "lib:TestComponent",
+          version: "1.0.0",
+          schemaVersion: 1,
+          kind: "component",
+          title: "",
+          argsJson: '{"fields":[]}',
+          environmentJson: '{"fixtures":[]}',
+          storiesJson: '[{"id":"primary","name":"Primary","args":{}}]',
+          contractJson: "{}",
+          sourcePath: "story.json",
+        },
+      ],
+    });
   });
 
   afterEach(() => {
@@ -324,7 +343,7 @@ describe("ComponentEditor", () => {
     });
   });
 
-  it("renders the preview iframe pointing at the harness URL with a sha-based cache-buster", async () => {
+  it("renders the story sheet with harness URLs using a sha-based cache-buster", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "v1", sha256: "sha-pre" }),
@@ -334,9 +353,9 @@ describe("ComponentEditor", () => {
       <ComponentEditor id="cmp-7" libraryId="lib:Iframe" onClose={() => {}} activePane="preview" />,
     );
 
-    const frame = await screen.findByTestId<HTMLIFrameElement>(
+    const frame = (await screen.findAllByTestId<HTMLIFrameElement>(
       selectors.components.editor.previewFrame,
-    );
+    ))[0]!;
     expect(frame.getAttribute("src")).toContain("/preview/cmp-7/harness.html");
     // The preview runtime is guarded by the same Cloudflare Access session as
     // the app. An opaque sandbox origin omits that session for module imports.
@@ -346,7 +365,7 @@ describe("ComponentEditor", () => {
     });
   });
 
-  it("renders the selected named state in the workbench canvas", async () => {
+  it("renders the selected named state in the story sheet", async () => {
     const { componentsClient, listComponentStories } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "v1", sha256: "sha-gallery" }),
@@ -380,21 +399,17 @@ describe("ComponentEditor", () => {
       />,
     );
 
-    await screen.findAllByTestId(selectors.components.editor.storyPickerItem);
+    await screen.findByText("Story sheet");
     const frames = await screen.findAllByTestId<HTMLIFrameElement>(
       selectors.components.editor.previewFrame,
     );
 
     expect(screen.getByTestId(selectors.components.editor.gallery)).toBeInTheDocument();
-    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
+    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(2);
     expect(screen.getByTestId(selectors.components.editor.storyDescription)).toHaveTextContent(
       "Primary action in its normal state.",
     );
-    expect(screen.getAllByTestId(selectors.components.editor.storyPickerItem)[0]).toHaveAttribute(
-      "title",
-      "Primary action in its normal state.",
-    );
-    expect(frames).toHaveLength(1);
+    expect(frames).toHaveLength(2);
     expect(frames[0]?.getAttribute("src")).toContain("story=primary");
     expect(vi.mocked(listComponentStories)).toHaveBeenCalledWith({
       componentId: "cmp-7",
@@ -647,7 +662,7 @@ describe("ComponentEditor", () => {
           activePane="preview"
         />,
       );
-      await screen.findByRole("button", { name: "Primary" });
+      await screen.findByText("Primary");
       await screen.findByTestId(selectors.components.editor.previewToolsPanel);
       const diagnostics = await screen.findByTestId(selectors.components.editor.previewDiagnostics);
       expect(diagnostics).toHaveTextContent('"componentId": "cmp-events"');
@@ -728,7 +743,7 @@ describe("ComponentEditor", () => {
           activePane="preview"
         />,
       );
-      await screen.findByRole("button", { name: "Primary" });
+      await screen.findByText("Primary");
       await screen.findByTestId(selectors.components.editor.previewToolsPanel);
       const frame = await screen.findByTestId<HTMLIFrameElement>(
         selectors.components.editor.previewFrame,
@@ -779,13 +794,13 @@ describe("ComponentEditor", () => {
     expect(surface).toHaveAttribute("data-experience-surface", "component-preview");
     expect(surface).toHaveAttribute("data-experience-state", "loading");
 
-    const frame = await screen.findByTestId<HTMLIFrameElement>(
+    const frame = (await screen.findAllByTestId<HTMLIFrameElement>(
       selectors.components.editor.previewFrame,
-    );
+    ))[0]!;
     await waitFor(() => {
       window.dispatchEvent(
         new MessageEvent("message", {
-          data: { type: "preview-ready", id: "cmp-surface", example: "", version: "" },
+          data: { type: "preview-ready", id: "cmp-surface", story: "primary", version: "1.0.0" },
           source: frame.contentWindow,
         }),
       );
@@ -907,10 +922,10 @@ describe("ComponentEditor", () => {
         activePane="preview"
       />,
     );
-    await screen.findByRole("button", { name: "Primary" });
-    const frame = await screen.findByTestId<HTMLIFrameElement>(
+    await screen.findByText("Primary");
+    const frame = (await screen.findAllByTestId<HTMLIFrameElement>(
       selectors.components.editor.previewFrame,
-    );
+    ))[0]!;
     const firstPost = vi.spyOn(frame.contentWindow!, "postMessage");
     const title = await screen.findByLabelText("title");
     fireEvent.change(title, { target: { value: "A deliberately much longer value" } });
@@ -928,7 +943,7 @@ describe("ComponentEditor", () => {
     window.matchMedia = originalMatchMedia;
   });
 
-  it("keeps state, canvas, and controls together without a playground mode", async () => {
+  it("keeps state, story sheet, and controls together without a playground mode", async () => {
     const originalMatchMedia = window.matchMedia;
     window.matchMedia = vi.fn().mockImplementation(() => ({
       matches: true,
@@ -967,19 +982,14 @@ describe("ComponentEditor", () => {
         activePane="preview"
       />,
     );
-    await screen.findByRole("button", { name: "Primary" });
-    expect(await screen.findAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
+    await screen.findByText("Primary");
+    expect(await screen.findAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(2);
     const toolsToggle = screen.getByTestId(selectors.components.editor.previewToolsToggle);
     expect(toolsToggle).toHaveAttribute("aria-expanded", "false");
     await user.click(toolsToggle);
     expect(toolsToggle).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByTestId(selectors.components.editor.propsPanel)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Secondary" }));
-    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "Secondary" })).toHaveAttribute(
-      "aria-current",
-      "true",
-    );
+    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(2);
     expect(screen.getByTestId(selectors.components.editor.propsPanel)).toBeInTheDocument();
     window.matchMedia = originalMatchMedia;
   });
@@ -1023,7 +1033,7 @@ describe("ComponentEditor", () => {
           activePane="preview"
         />,
       );
-      await screen.findByRole("button", { name: "Primary" });
+      await screen.findByText("Primary");
       expect(
         screen.queryByTestId(selectors.components.editor.previewToolsPanel),
       ).not.toBeInTheDocument();
@@ -1032,7 +1042,7 @@ describe("ComponentEditor", () => {
     }
   });
 
-  it("reloads the iframe when save returns a new sha256", async () => {
+  it("keeps the story sheet tied to the loaded sha256", async () => {
     const { componentsClient } = await import("../../api/components");
     // First GET returns the pre-save sha; post-save invalidation triggers
     // a refetch that returns the new sha — both flows feed baselineSha.
@@ -1090,8 +1100,8 @@ describe("ComponentEditor", () => {
         data: {
           type: "preview-error",
           id: "cmp-9",
-          example: "",
-          version: "",
+          story: "primary",
+          version: "1.0.0",
           message: "preview: render failed - boom",
         },
         source: frame.contentWindow,
@@ -1122,8 +1132,8 @@ describe("ComponentEditor", () => {
         data: {
           type: "preview-ready",
           id: "cmp-state",
-          story: "__default__",
-          version: "__current__",
+          story: "primary",
+          version: "1.0.0",
         },
         source: frame.contentWindow,
       }),
@@ -1134,8 +1144,8 @@ describe("ComponentEditor", () => {
         data: {
           type: "preview-error",
           id: "cmp-state",
-          story: "__default__",
-          version: "__current__",
+          story: "primary",
+          version: "1.0.0",
           message: "failed",
         },
         source: frame.contentWindow,
@@ -1144,140 +1154,33 @@ describe("ComponentEditor", () => {
     await waitFor(() => expect(states).toContain("partial"));
   });
 
-  it("compares two canvas cases without switching to focus mode", async () => {
-    const boundsSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
-      x: 0,
-      y: 0,
-      width: 640,
-      height: 420,
-      top: 0,
-      right: 640,
-      bottom: 420,
-      left: 0,
-      toJSON: () => ({}),
-    });
+  it("renders every story in the story sheet without canvas controls", async () => {
     const { componentsClient, listComponentStories } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
-      makeGetComponentContentResponse({ content: "v1", sha256: "sha-compare" }),
+      makeGetComponentContentResponse({ content: "v1", sha256: "sha-sheet" }),
     );
     vi.mocked(listComponentStories).mockResolvedValueOnce({
-      stories: [
-        {
-          id: "contract",
-          componentId: "cmp-compare",
-          libraryId: "lib:Compare",
-          version: "1.0.0",
-          schemaVersion: 1,
-          kind: "component",
-          title: "",
-          argsJson: '{"fields":[]}',
-          environmentJson: '{"fixtures":[]}',
-          storiesJson:
-            '[{"id":"primary","name":"Primary","args":{}},{"id":"disabled","name":"Disabled","args":{}},{"id":"loading","name":"Loading","args":{}},{"id":"error","name":"Error","args":{}},{"id":"success","name":"Success","args":{}}]',
-          contractJson: "{}",
-          sourcePath: "story.json",
-        },
-      ],
+      stories: [{
+        id: "contract",
+        componentId: "cmp-sheet",
+        libraryId: "lib:Sheet",
+        version: "1.0.0",
+        schemaVersion: 1,
+        kind: "component",
+        title: "",
+        argsJson: '{"fields":[]}',
+        environmentJson: '{"fixtures":[]}',
+        storiesJson: '[{"id":"primary","name":"Primary","args":{}},{"id":"disabled","name":"Disabled","args":{}},{"id":"loading","name":"Loading","args":{}},{"id":"error","name":"Error","args":{}},{"id":"success","name":"Success","args":{}}]',
+        contractJson: "{}",
+        sourcePath: "story.json",
+      }],
     });
-    const user = userEvent.setup();
-    renderWithProviders(
-      <ComponentEditor
-        id="cmp-compare"
-        libraryId="lib:Compare"
-        onClose={() => {}}
-        activePane="preview"
-      />,
-    );
-    await screen.findByRole("button", { name: "Primary" });
-    await user.click(screen.getByTestId("components-editor-stage-mode"));
-    const comparisonButtons = await screen.findAllByTestId(
-      selectors.components.editor.exampleCompare,
-    );
-    expect(screen.queryAllByTestId(selectors.components.editor.storyPickerItem)).toHaveLength(0);
-    expect(comparisonButtons[0]).toHaveAccessibleName("Compare Primary");
-    await user.click(comparisonButtons[0]!);
-    expect(screen.getByTestId(selectors.components.editor.gallery)).toHaveAttribute(
-      "data-preview-stage-mode",
-      "false",
-    );
-    const updatedComparisonButtons = await screen.findAllByTestId(
-      selectors.components.editor.exampleCompare,
-    );
-    await user.click(updatedComparisonButtons[1]!);
-    expect(await screen.findAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(2);
-    await user.click(screen.getByTestId(selectors.components.editor.storySheetAll));
-    expect(await screen.findAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(4);
-    await user.click(screen.getByTestId(selectors.components.editor.comparisonClear));
+    renderWithProviders(<ComponentEditor id="cmp-sheet" libraryId="lib:Sheet" onClose={() => {}} activePane="preview" />);
+    await screen.findByText("Story sheet");
+    expect(screen.getByTestId(selectors.components.editor.gallery)).toHaveAttribute("data-preview-sheet", "workbench");
     expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(5);
-    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)[0]).toHaveClass(
-      "resize",
-      "overflow-auto",
-      "min-h-[18rem]",
-      "max-h-[80vh]",
-    );
-    expect(
-      screen.getAllByTestId(selectors.components.editor.exampleDimensions)[0],
-    ).toHaveTextContent("640 × 420");
-
-    const caseTitles = () =>
-      screen
-        .getAllByTestId(selectors.components.editor.exampleTitle)
-        .map((title) => title.textContent);
-    const primaryMoveHandle = screen.getByRole("button", {
-      name: "Move Primary. Use arrow keys to reorder.",
-    });
-    fireEvent.keyDown(primaryMoveHandle, { key: "ArrowRight" });
-    expect(caseTitles()).toEqual(["Disabled", "Primary", "Loading", "Error", "Success"]);
-
-    let draggedIdentity = "";
-    const dataTransfer = {
-      effectAllowed: "none",
-      dropEffect: "none",
-      setData: vi.fn((_type: string, value: string) => {
-        draggedIdentity = value;
-      }),
-      getData: vi.fn(() => draggedIdentity),
-    } as unknown as DataTransfer;
-    const disabledMoveHandle = screen.getByRole("button", {
-      name: "Move Disabled. Use arrow keys to reorder.",
-    });
-    const primaryCard = screen
-      .getAllByTestId(selectors.components.editor.exampleTitle)[1]
-      ?.closest("section");
-    expect(primaryCard).not.toBeNull();
-    vi.spyOn(primaryCard!, "getBoundingClientRect").mockReturnValue({
-      x: 0,
-      y: 0,
-      width: 100,
-      height: 100,
-      top: 0,
-      right: 100,
-      bottom: 100,
-      left: 0,
-      toJSON: () => ({}),
-    });
-    fireEvent.dragStart(disabledMoveHandle, { dataTransfer });
-    expect(dataTransfer.setData).toHaveBeenCalled();
-    expect(draggedIdentity).toBe(disabledMoveHandle.closest("section")?.dataset.specimen);
-    const canvasSurface = screen.getByLabelText("Preview canvas. Drag to pan, scroll to zoom.");
-    fireEvent.dragOver(canvasSurface, { dataTransfer, clientX: 900, clientY: 900 });
-    expect(primaryCard).toHaveAttribute("data-drop-placement", "after");
-    expect(disabledMoveHandle.closest("section")).toHaveClass(
-      "opacity-40",
-      "scale-[0.98]",
-      "border-dashed",
-    );
-    fireEvent.drop(canvasSurface, { dataTransfer, clientX: 900, clientY: 900 });
-    expect(dataTransfer.getData).toHaveBeenCalled();
-    expect(caseTitles()).toEqual(["Primary", "Disabled", "Loading", "Error", "Success"]);
-
-    await user.click(screen.getByRole("button", { name: "Focus Disabled" }));
-    expect(screen.getByTestId(selectors.components.editor.gallery)).toHaveAttribute(
-      "data-preview-stage-mode",
-      "true",
-    );
-    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
-    boundsSpy.mockRestore();
+    expect(screen.queryByLabelText("Preview canvas. Drag to pan, scroll to zoom.")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("components-editor-stage-mode")).not.toBeInTheDocument();
   });
 
   it("marks the preview ready and posts the resolved theme on the desktop side-by-side layout", async () => {
@@ -1317,7 +1220,7 @@ describe("ComponentEditor", () => {
       await waitFor(() => {
         window.dispatchEvent(
           new MessageEvent("message", {
-            data: { type: "preview-ready", id: "cmp-ready", example: "", version: "" },
+            data: { type: "preview-ready", id: "cmp-ready", story: "primary", version: "1.0.0" },
             source: frame.contentWindow,
           }),
         );
@@ -1348,7 +1251,7 @@ describe("ComponentEditor", () => {
     expect(screen.queryByTestId("components-editor-split-pane-switcher")).not.toBeInTheDocument();
   });
 
-  it("posts the resolved theme to the preview iframe once it loads", async () => {
+  it("posts the resolved theme to a story specimen once it loads", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "// iframe", sha256: "sha-iframe" }),
@@ -1374,7 +1277,7 @@ describe("ComponentEditor", () => {
     expect(screen.queryByTestId(selectors.components.editor.previewError)).not.toBeInTheDocument();
   });
 
-  it("renders structural previews as one declared-viewport specimen stage", async () => {
+  it("renders structural previews in the deterministic story sheet", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "// stage", sha256: "sha-stage" }),
@@ -1386,7 +1289,6 @@ describe("ComponentEditor", () => {
         libraryId="lib:PageFrame"
         onClose={() => {}}
         activePane="preview"
-        stageMode
       />,
     );
 
@@ -1395,15 +1297,15 @@ describe("ComponentEditor", () => {
     );
     fireEvent.load(frame);
     const card = await screen.findByTestId(selectors.components.editor.exampleCard);
-    expect(screen.getByTestId("components-editor-stage-mode")).toHaveTextContent("Focus");
+    expect(screen.getByTestId("components-editor-story-sheet-label")).toHaveTextContent("all states");
     expect(screen.getByTestId(selectors.components.editor.gallery)).toHaveAttribute(
-      "data-preview-stage-mode",
-      "true",
+      "data-preview-sheet",
+      "workbench",
     );
     expect(card).toContainElement(frame);
     expect(frame).not.toHaveClass("h-[20rem]");
-    expect(frame.style.width).toBe("1280px");
-    expect(frame.style.height).toBe("720px");
+    expect(frame.style.width).toBe("");
+    expect(frame.style.height).toBe("auto");
   });
 
   it("keeps gallery previews fluid instead of sizing the gallery as a device", async () => {
@@ -1418,7 +1320,6 @@ describe("ComponentEditor", () => {
         libraryId="lib:Gallery"
         onClose={() => {}}
         activePane="preview"
-        stageMode={false}
       />,
     );
 
@@ -1428,8 +1329,8 @@ describe("ComponentEditor", () => {
     );
     expect(gallery.style.width).toBe("");
     expect(gallery.style.height).toBe("");
-    expect(frame.style.width).toBe("100%");
-    expect(frame.style.height).toBe("100%");
+    expect(frame.style.width).toBe("");
+    expect(frame.style.height).toBe("auto");
   });
 
   it("invokes onClose when the Back-to-list button is clicked", async () => {

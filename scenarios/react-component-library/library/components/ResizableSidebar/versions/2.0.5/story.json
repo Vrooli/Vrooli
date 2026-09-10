@@ -90,5 +90,8 @@
         }
       ]
     }
+    ,
+    {"id":"disabled","name":"Disabled sidebar resize","args":{"disabled":true},"expect":[{"kind":"role","role":"complementary","name":"Filters"}],"role":"boundary","mode":"pinned"},
+    {"id":"empty","name":"Empty sidebar","args":{"children":""},"expect":[{"kind":"role","role":"complementary","name":"Filters"}],"role":"boundary","mode":"pinned"}
   ]
 }

@@ -349,6 +349,10 @@
           "name": "Message"
         }
       ]
-    }
+    },
+    {"id":"empty","name":"Empty input group","args":{"children":""},"expect":[{"kind":"visible","selector":"[data-rcl-input-group]"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading input group","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-rcl-input-group]"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Input group error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-input-group]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long input group label","args":{"label":"A deliberately long group label that must wrap without changing the field order"},"expect":[{"kind":"visible","selector":"[data-rcl-input-group]"}],"role":"boundary","mode":"pinned"}
   ]
 }

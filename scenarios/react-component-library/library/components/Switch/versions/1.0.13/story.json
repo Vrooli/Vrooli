@@ -123,6 +123,9 @@
       "name": "Trailing label",
       "role": "axis"
     }
+    ,
+    {"id":"loading","name":"Loading switch","args":{"state":"loading"},"expect":[{"kind":"role","name":"Quiet hours","role":"switch"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Switch error","args":{"state":"error"},"expect":[{"kind":"role","name":"Quiet hours","role":"switch"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Switch"
 }

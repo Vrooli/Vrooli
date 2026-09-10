@@ -9,5 +9,5 @@
   "background_color": "#f8fafc",
   "theme_color": "#f8fafc",
   "categories": ["productivity", "utilities"],
-  "icons": [{"src":"/public/logo.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+  "icons": [{"src":"/public/logo.webp","sizes":"512x512","type":"image/webp","purpose":"any maskable"}]
 }

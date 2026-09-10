@@ -57,7 +57,7 @@ export function Transcript({ messages, agent, agentName, selfAddresses = ["owner
               data-testid="conversations-message"
               data-author-kind={message.author_kind}
               data-pending={pending || undefined}
-              className={["group flex gap-3 rounded-panel px-2", grouped ? "py-0.5" : "mt-2 py-1"].join(" ")}
+              className={["group flex gap-3 rounded-control px-2", grouped ? "py-0.5" : "mt-2 py-1"].join(" ")}
             >
               <div className="w-8 shrink-0">
                 {grouped ? null : isAgent ? (
@@ -93,7 +93,7 @@ export function Transcript({ messages, agent, agentName, selfAddresses = ["owner
                 )}
                 <div
                   className={[
-                    "max-w-[72ch] whitespace-pre-wrap break-words rounded-panel px-3 py-2 text-sm leading-relaxed",
+                    "max-w-[72ch] whitespace-pre-wrap break-words rounded-control px-3 py-2 text-sm leading-relaxed",
                     isAgent ? "border-l-2 border-app-accent bg-app-accent/5 text-app-foreground" : "bg-app-surface-muted text-app-foreground",
                     pending ? "opacity-60" : "",
                   ].join(" ")}

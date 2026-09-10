@@ -5,6 +5,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/Card";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
+import { Select } from "../components/Select";
 import { searchDesignAssets } from "../api/catalog";
 import type { CandidateResponse, CaptureOperation, CritiqueEvidence } from "@vrooli/proto-types/react-component-library/v1/sketch/sketch_pb";
 import { listComponentStories } from "../api/components";
@@ -290,21 +291,21 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
           </div>
           <div className="flex flex-wrap items-center gap-space-sm">
             <label htmlFor="design-revision">{t("design.revision")}</label>
-            <select
+            <Select
               id="design-revision"
               value={revision}
+              options={[
+                { value: "", label: t("design.current") },
+                ...(history.data?.revisions
+                  .filter((item) => !item.current)
+                  .map((item) => ({
+                    value: item.contentHash,
+                    label: `${item.createdAt} · ${item.contentHash.slice(0, 12)}`,
+                  })) ?? []),
+              ]}
               onChange={(event) => setRevision(event.target.value)}
               className="min-h-touch max-w-full rounded-control border border-app-border bg-app-surface px-space-xs"
-            >
-              <option value="">{t("design.current")}</option>
-              {history.data?.revisions
-                .filter((item) => !item.current)
-                .map((item) => (
-                  <option key={item.contentHash} value={item.contentHash}>
-                    {item.createdAt} · {item.contentHash.slice(0, 12)}
-                  </option>
-                ))}
-            </select>
+            />
             <span className="break-all text-sm text-app-muted-foreground">
               {hash.slice(0, 12)} · {readOnly ? t("design.readOnly") : t("design.saved")}
             </span>
@@ -531,51 +532,49 @@ function TemplateEditor({
         {catalog.isPending && open && <p role="status">{t("design.loading")}</p>}
         {catalog.error && <Failure error={catalog.error} retry={() => void catalog.refetch()} />}
         <label htmlFor="design-template">{t("design.template")}</label>
-        <select
+        <Select
           id="design-template"
           className="min-h-touch min-w-0 max-w-full rounded-control border border-app-border bg-app-surface"
           value={asset}
+          options={[
+            { value: "", label: t("design.chooseTemplate") },
+            ...(catalog.data?.results.map((item) => ({
+              value: item.catalogId,
+              label: `${item.name} · ${item.implemented ? t("design.published") : t("design.declarationOnly")}`,
+            })) ?? []),
+          ]}
           disabled={readOnly || mutation.isPending}
           onChange={(event) => {
             setAsset(event.target.value);
             setMapping({});
             setConfirmed(false);
           }}
-        >
-          <option value="">{t("design.chooseTemplate")}</option>
-          {catalog.data?.results.map((item) => (
-            <option key={item.catalogId} value={item.catalogId}>
-              {item.name} · {item.implemented ? t("design.published") : t("design.declarationOnly")}
-            </option>
-          ))}
-        </select>
+        />
         {selected && (
           <>
             <p>{selected.description}</p>
             {regions.map((from, index) => (
               <div key={from} className="grid min-w-0 gap-space-2xs sm:grid-cols-2">
                 <label htmlFor={`template-remap-${index}`}>{from}</label>
-                <select
+                <Select
                   id={`template-remap-${index}`}
                   className="min-h-touch min-w-0 max-w-full rounded-control border border-app-border bg-app-surface"
                   value={mapping[from] ?? ""}
+                  options={[
+                    {
+                      value: "",
+                      label: selected.regions.includes(from)
+                        ? t("design.keepRegion")
+                        : t("design.leaveUnmapped"),
+                    },
+                    ...selected.regions.map((to) => ({ value: to, label: to })),
+                  ]}
                   disabled={readOnly || mutation.isPending}
                   onChange={(event) => {
                     setMapping({ ...mapping, [from]: event.target.value });
                     setConfirmed(false);
                   }}
-                >
-                  <option value="">
-                    {selected.regions.includes(from)
-                      ? t("design.keepRegion")
-                      : t("design.leaveUnmapped")}
-                  </option>
-                  {selected.regions.map((to) => (
-                    <option key={to} value={to}>
-                      {to}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
             ))}
             <Button disabled={readOnly || mutation.isPending} onClick={() => mutation.mutate(true)}>
@@ -682,17 +681,18 @@ function DesignCanvas({ target, hash, configured, readOnly, candidate, previewSt
     <CardContent className="grid gap-space-sm">
       {!configured && <p>{t("design.canvasUnconfigured")}</p>}
       <div className="flex flex-wrap items-center gap-space-sm">
-        <label>{t("design.canvasWidth")} <select value={width} onChange={(e) => setWidth(e.target.value)}>
-          <option value="1440px">{t("design.canvasDesktop")}</option>
-          <option value="390px">{t("design.canvasPhone")}</option>
-        </select></label>
-        <label>{t("design.canvasTheme")} <select value={theme} onChange={(e) => setTheme(e.target.value)}>
-          <option value="light">{t("design.canvasLight")}</option><option value="dark">{t("design.canvasDark")}</option>
-        </select></label>
-        {previewStates.length > 0 && <label>{t("design.canvasState")} <select value={previewState} onChange={(e) => setPreviewState(e.target.value)}>
-          <option value="">{t("design.canvasInitialState")}</option>
-          {previewStates.map((state) => <option key={state} value={state}>{state}</option>)}
-        </select></label>}
+        <label>{t("design.canvasWidth")} <Select value={width} onChange={(e) => setWidth(e.target.value)} options={[
+          { value: "1440px", label: t("design.canvasDesktop") },
+          { value: "390px", label: t("design.canvasPhone") },
+        ]} /></label>
+        <label>{t("design.canvasTheme")} <Select value={theme} onChange={(e) => setTheme(e.target.value)} options={[
+          { value: "light", label: t("design.canvasLight") },
+          { value: "dark", label: t("design.canvasDark") },
+        ]} /></label>
+        {previewStates.length > 0 && <label>{t("design.canvasState")} <Select value={previewState} onChange={(e) => setPreviewState(e.target.value)} options={[
+          { value: "", label: t("design.canvasInitialState") },
+          ...previewStates.map((state) => ({ value: state, label: state })),
+        ]} /></label>}
         <Button data-action="render-design" disabled={!configured || readOnly || render.isPending} onClick={() => render.mutate()}>
           {render.isPending ? t("design.canvasRendering") : t("design.canvasRender")}
         </Button>
@@ -823,10 +823,10 @@ function CandidatePreview({ target, initial, onSelected }: { target: { scenario:
     {authored.length > 0 && <>
       <p>{t("design.portMappingHelp")}</p>
       {authored.map((region) => <label key={region}>{t("design.portMappingRegion", { region })}
-        <select className="block w-full" value={value(region)} onChange={(event) => setSelections({ ...selections, [region]: event.target.value })}>
-          <option value="">{t("design.portMappingChoose")}</option>
-          {ports.map((port) => <option key={port.templateRegion || port.id} value={port.templateRegion || port.id}>{port.templateRegion || port.id}</option>)}
-        </select>
+        <Select className="block w-full" value={value(region)} options={[
+          { value: "", label: t("design.portMappingChoose") },
+          ...ports.map((port) => ({ value: port.templateRegion || port.id, label: port.templateRegion || port.id })),
+        ]} onChange={(event) => setSelections({ ...selections, [region]: event.target.value })} />
       </label>)}
       <Button disabled={map.isPending || !authored.some((region) => value(region))} onClick={() => map.mutate()}>{t("design.portMappingApply")}</Button>
       {map.error && <Failure error={map.error} />}
@@ -877,18 +877,16 @@ function CandidateAssetPicker({ current, onSelected }: { current: CandidateRespo
   return <details className="rounded-control border border-app-border p-space-sm">
     <summary>{t("design.fillerTitle")}</summary>
     <div className="grid gap-space-sm pt-space-sm">
-      <label>{t("design.fillerRegion")}<select className="block w-full" value={activeRegion} onChange={(e) => setRegion(e.target.value)}>
-        {emptyRegions.map((r) => <option key={r.id} value={r.id}>{r.id}</option>)}
-      </select></label>
+      <label>{t("design.fillerRegion")}<Select className="block w-full" value={activeRegion} options={emptyRegions.map((r) => ({ value: r.id, label: r.id }))} onChange={(e) => setRegion(e.target.value)} /></label>
       <label>{t("design.fillerSearch")}<Input value={query} onChange={(e) => { setQuery(e.target.value); setAssetId(""); setStoryId(""); }} /></label>
-      <label>{t("design.fillerAsset")}<select className="block w-full" value={assetId} onChange={(e) => { setAssetId(e.target.value); setStoryId(""); }}>
-        <option value="">{t("design.fillerChoose")}</option>
-        {assets.map((item) => <option key={item.catalogId} value={item.catalogId}>{item.name} · {item.version}</option>)}
-      </select></label>
-      <label>{t("design.fillerStory")}<select className="block w-full" value={storyId} onChange={(e) => setStoryId(e.target.value)}>
-        <option value="">{t("design.fillerChoose")}</option>
-        {stories.data?.map((story) => <option key={story.id} value={story.id}>{story.name}</option>)}
-      </select></label>
+      <label>{t("design.fillerAsset")}<Select className="block w-full" value={assetId} options={[
+        { value: "", label: t("design.fillerChoose") },
+        ...assets.map((item) => ({ value: item.catalogId, label: `${item.name} · ${item.version}` })),
+      ]} onChange={(e) => { setAssetId(e.target.value); setStoryId(""); }} /></label>
+      <label>{t("design.fillerStory")}<Select className="block w-full" value={storyId} options={[
+        { value: "", label: t("design.fillerChoose") },
+        ...(stories.data?.map((story) => ({ value: story.id, label: story.name })) ?? []),
+      ]} onChange={(e) => setStoryId(e.target.value)} /></label>
       <Button disabled={!asset || !activeRegion || !stories.data?.some((story) => story.id === storyId) || place.isPending} onClick={() => place.mutate()}>{t("design.fillerPlace")}</Button>
       {search.error && <Failure error={search.error} />}{stories.error && <Failure error={stories.error} />}{place.error && <Failure error={place.error} />}
     </div>

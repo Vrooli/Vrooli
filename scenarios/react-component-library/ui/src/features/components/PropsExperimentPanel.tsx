@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { Select } from "@vrooli/react-component-library/Select/1";
 import { type ComponentStory } from "../../api/components";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -208,21 +209,16 @@ export function PropsExperimentPanel({
                 <span>{fixture.label}</span>
                 <span className="font-normal text-app-muted-foreground">{fixture.adapter}</span>
               </span>
-              <select
+              <Select
                 id={`rcl-preview-fixture-${fixture.key}`}
                 aria-label={fixture.label}
                 className="mt-space-3xs h-control-sm w-full rounded-control border border-app-border bg-app-background px-space-2xs text-sm"
                 value={environment[fixture.key] ?? fixture.options[0] ?? ""}
+                options={fixture.options.map((option) => ({ value: option, label: option }))}
                 onChange={(event) =>
                   setEnvironment((current) => ({ ...current, [fixture.key]: event.target.value }))
                 }
-              >
-                {fixture.options.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
           ))}
         </fieldset>

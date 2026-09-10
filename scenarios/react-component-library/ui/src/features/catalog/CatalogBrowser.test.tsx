@@ -98,7 +98,7 @@ describe("CatalogBrowser", () => {
     expect(screen.getByTestId(selectors.catalog.asset).className).toContain("min-h-surface-short");
   });
 
-  it("leaves creation to the workspace header", async () => {
+  it("leaves creation to the workspace action launcher", async () => {
     renderWithProviders(<CatalogBrowser />);
     await screen.findByTestId(selectors.catalog.asset);
     expect(

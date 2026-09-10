@@ -165,7 +165,8 @@
         }
       },
       "role": "boundary"
-    }
+    },
+    {"id":"overflow","name":"Long inspector content","args":{"title":"Workflow canvas with a deliberately long title that must wrap"},"expect":[{"kind":"role","role":"main"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "InspectorLayout"
 }

@@ -149,7 +149,10 @@ describe("App - Wizard Navigation", () => {
 describe("App - View Navigation", () => {
   it("renders navigation bar", async () => {
     await renderApp();
-    expect(screen.getByTestId("app-nav")).toBeInTheDocument();
+    const nav = screen.getByTestId("app-nav");
+    expect(nav).toBeInTheDocument();
+    expect(nav.querySelector(".app-brand__mark")).toHaveAttribute("src", "/public/logo.webp");
+    expect(nav.querySelector(".app-tab")).toHaveClass("gap-3");
   });
 
   it("shows wizard view by default", async () => {

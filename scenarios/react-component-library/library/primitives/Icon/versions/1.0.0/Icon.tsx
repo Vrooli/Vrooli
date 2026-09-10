@@ -4,7 +4,7 @@ import {
   ICON_REGISTRY,
   iconSize,
   type IconName,
-} from "../../../../foundations/IconRegistry/versions/1.0.0/IconRegistry";
+} from "../../../../foundations/IconRegistry/versions/1.1.1/IconRegistry";
 import { SEMANTIC_TOKENS } from "../../../../foundations/Tokens/versions/1.0.0/Tokens";
 
 export type { IconName };

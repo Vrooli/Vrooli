@@ -217,25 +217,22 @@ frame, harness, fixture, theme, kit, viewport, and state. Workspace screenshots
 may be retained as debugging evidence, but their disposition must be
 `not-acceptance-evidence`.
 
-For efficient review, the generic isolated route supports a bounded story
+For efficient review, the generic isolated route supports a deterministic story
 sheet. Provide `stories=<id>,<id>,...` on the same version-pinned
-`/preview/{library-id}/harness.html` URL; the route accepts at most four unique
-story IDs, renders each in a labeled iframe, and exposes exactly one outer
-`data-preview-sheet` boundary. The outer harness reaches `ready` only after all
-child stories report a passed result. BAS captures this URL through the same
-CaptureService workflow used for individual stories. Each tile is still
-rendered and validated in its own isolated harness before it is placed on the
-labeled sheet. The capture manifest records the complete story group and
-sheet artifact, so a contact sheet does not hide which stories were reviewed.
-Individual captures remain the authoritative evidence and the sheet is only a
-review accelerator.
+`/preview/{library-id}/harness.html` URL; `stories=all` selects the complete
+contract, while `role`, `axis`, `story`, `viewport`, and `theme` narrow the
+selection. The route renders every selected story in a labeled iframe and
+exposes exactly one outer `data-preview-sheet` boundary. The outer harness
+reaches `ready` only after all child stories report a result. BAS captures this
+URL through the same CaptureService workflow used for individual stories. Each
+tile is rendered and validated in its own isolated harness before it is placed
+on the labeled sheet, and missing required states occupy labeled placeholder
+tiles so the coverage gap remains visible.
 
-In the live Components Preview canvas, use the per-story comparison controls or
-the bounded Story sheet control to select a group of stories. The canvas switches from a
-single focused specimen to one labeled multi-story sheet. `Show all stories`
-clears the sheet selection and returns to the normal canvas. The cap is
-intentional: larger sets reduce legibility and should be split into additional
-sheets.
+In the live Components Preview tab, the story sheet is the primary surface.
+Use its URL-addressable filters to select all stories, one role, one story, or
+one or more viewports. The sheet owns comparison, sizing, and retry state; it
+does not persist tile positions or a separate layout model.
 
 ## Temporary frame experiments
 
@@ -272,9 +269,9 @@ The contract parser and compatibility model live in
 `api/internal/components/catalog_frames.go`. The Preview resolver and exact
 version checks live in `api/internal/preview/frame.go` and
 `api/internal/preview/service.go`. The frame candidate API is implemented by
-`api/handlers/components/connect_handler.go`, and the authoring picker is
-implemented by `ui/src/features/components/ComponentEditorController.tsx` and
-`ComponentEditorStage.tsx`. Keep this guide aligned with those seams when the
+`api/handlers/components/connect_handler.go`, and the component preview surface
+is implemented by `ui/src/features/components/ComponentEditorController.tsx`
+and `PreviewStorySheet.tsx`. Keep this guide aligned with those seams when the
 wire contract or catalog format changes.
 
 

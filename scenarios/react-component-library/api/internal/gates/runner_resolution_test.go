@@ -49,8 +49,8 @@ func TestCatalogRunnersResolveAgainstTheCLIManifest(t *testing.T) {
 			t.Logf("resolved gate=%s target=%s runner=%s", gate.ID, target, runner)
 		}
 	}
-	if seen != 61 {
-		t.Fatalf("runner count = %d, want authored baseline 61 after stylesheet-key and token-fallback-literal gates", seen)
+	if seen != 63 {
+		t.Fatalf("runner count = %d, want authored baseline 63 after story and blocking appearance gates", seen)
 	}
 }
 

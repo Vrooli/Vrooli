@@ -28,6 +28,9 @@
       "name": "Gated feature",
       "role": "anatomy"
     }
+    ,
+    {"id":"empty","name":"Empty upgrade message","args":{"message":""},"expect":[{"kind":"role","role":"alert"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long upgrade message","args":{"message":"This deliberately long upgrade explanation wraps while retaining the plan requirement and its recovery action."},"expect":[{"kind":"role","role":"alert"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "UpgradePrompt"
 }

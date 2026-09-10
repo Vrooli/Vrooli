@@ -32,6 +32,28 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "owner",
+          "description": "Validate one schema owner directly from its source files",
+          "positionals": [
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Schema owner under packages/proto/schemas/"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "process:execute"
+            ]
+          }
         }
       ]
     },

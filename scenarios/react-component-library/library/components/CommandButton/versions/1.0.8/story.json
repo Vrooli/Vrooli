@@ -15,10 +15,14 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-command-button]"
         }
       ],
       "role": "anatomy"
-    }
+    },
+    {"id":"empty","name":"Empty command label","args":{"label":""},"expect":[{"kind":"visible","selector":"[data-rcl-command-button]"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading command","args":{"pending":true},"expect":[{"kind":"visible","selector":"[data-rcl-command-button]"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Command error","args":{"status":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-command-button]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long command label","args":{"label":"Run this deliberately long command label without clipping the action affordance"},"expect":[{"kind":"visible","selector":"[data-rcl-command-button]"}],"role":"boundary","mode":"pinned"}
   ]
 }

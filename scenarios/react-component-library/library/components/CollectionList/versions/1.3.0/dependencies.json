@@ -19,7 +19,7 @@
     {
       "libraryId": "react-component-library:ClassMerge",
       "major": 1,
-      "observed": "1.0.2",
+      "observed": "1.0.3",
       "rank": 1
     },
     {
@@ -49,7 +49,7 @@
     {
       "libraryId": "react-component-library:useCollection",
       "major": 1,
-      "observed": "1.0.2",
+      "observed": "1.1.1",
       "rank": 2
     },
     {

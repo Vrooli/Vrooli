@@ -18,7 +18,7 @@ const (
 )
 
 func appearanceGate(gate string) bool {
-	return gate == "unit" || gate == "interaction" || gate == "visual"
+	return gate == "unit" || gate == "interaction"
 }
 
 func profileFor(ctx context.Context) string {

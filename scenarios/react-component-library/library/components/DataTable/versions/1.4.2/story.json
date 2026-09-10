@@ -15,10 +15,16 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-data-table]"
         }
       ],
-      "role": "anatomy"
+      "role": "anatomy",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      }
     }
   ]
 }

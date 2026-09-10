@@ -98,7 +98,9 @@
       "mode": "live",
       "name": "Disabled field",
       "role": "boundary"
-    }
+    },
+    {"id":"empty","name":"Empty field","args":{"value":""},"expect":[{"kind":"role","role":"textbox"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long field label","args":{"label":"Workspace name with a deliberately long explanatory label that must wrap cleanly"},"expect":[{"kind":"role","role":"textbox"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "FormField"
 }

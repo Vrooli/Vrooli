@@ -226,7 +226,6 @@ export function ComponentDetailPage() {
   const [comparison, setComparison] = useState<ComparisonSession | null>(null);
   const infoTab = assetInfoTab(search);
   const selectedStory = assetStory(search);
-  const requestedPreviewView = search.get("view");
   const setInfoTab = (tab: InfoTab) =>
     setSearch(assetSearchForTab(tab, undefined, selectedStory), { replace: true });
   const [previewExperienceState, setPreviewExperienceState] = useState<
@@ -394,15 +393,6 @@ export function ComponentDetailPage() {
         id={component.id}
         libraryId={component.libraryId || component.id}
         latestVersion={component.latestVersion || component.version}
-        stageMode={
-          requestedPreviewView === "focus"
-            ? true
-            : requestedPreviewView === "canvas"
-              ? false
-              : /navigation|pattern|sidebar|shell|pageframe|page-template|bottomnav/i.test(
-                  component.libraryId || component.id,
-                )
-        }
         onClose={() => {
           void navigate("/");
         }}

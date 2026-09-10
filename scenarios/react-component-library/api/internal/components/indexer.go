@@ -763,7 +763,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			ParityReport:          parity,
 			Presence:              "materialized",
 		})
-		story, storyFindings, _ := idx.readVersionStory(filepath.ToSlash(filepath.Join(versionPath, "story.json")), manifest.LibraryID, version, manifest.AssetKind)
+		story, storyFindings, _ := idx.readVersionStory(filepath.ToSlash(filepath.Join(versionPath, "story.json")), manifest.LibraryID, version, manifest.AssetKind, string(src))
 		if story != nil {
 			stories = append(stories, *story)
 		}
@@ -950,7 +950,7 @@ func (idx *Indexer) catalogPorts(catalogID string) ([]string, []string, bool) {
 	return nil, nil, false
 }
 
-func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, assetKind AssetKind) (*ComponentStory, []IndexFinding, []string) {
+func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, assetKind AssetKind, componentSource string) (*ComponentStory, []IndexFinding, []string) {
 	// Foundations are source-only closure members. The story-contract schema
 	// intentionally has no foundation kind, so legacy story-shaped companions
 	// beside them must not be reported as malformed component contracts.
@@ -1021,7 +1021,8 @@ func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, asse
 			}
 		}
 	}
-	args, _ := json.Marshal(contract.Args)
+	derivedArgs := StoryArgsSchema{Fields: DeriveStoryFields(componentSource)}
+	args, _ := json.Marshal(derivedArgs)
 	environment, _ := json.Marshal(contract.Environment)
 	stories, _ := json.Marshal(contract.Stories)
 	normalized, _ := json.Marshal(contract)
@@ -1118,6 +1119,14 @@ func assetKindForManifestPath(path, declared string) (AssetKind, error) {
 	}
 	if kind == "service" && inferred == AssetKindComponent && strings.HasPrefix(clean, "services/") {
 		return inferred, nil
+	}
+	// GestureTokens was historically authored below components/ even though it
+	// is a foundation. Keep that materialized release addressable while the
+	// library is migrated to the canonical foundations/ root; dependency
+	// closures must be able to resolve the released foundation during the
+	// migration.
+	if kind == AssetKindFoundation && inferred == AssetKindComponent && strings.HasPrefix(clean, "components/") {
+		return kind, nil
 	}
 	if !kind.Valid() || kind != inferred {
 		return "", ErrInvalidHeader{SourcePath: path, Field: "assetKind", Reason: "must match authored asset root " + string(inferred)}

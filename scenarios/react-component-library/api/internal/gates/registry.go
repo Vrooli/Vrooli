@@ -47,6 +47,8 @@ var readOverrides = map[string]Reads{
 	"provenance-stamp": ReadsAsset, "evidence-freshness": ReadsAsset, "composition": ReadsAsset,
 	"composition-contract":     ReadsAsset,
 	"scenario-canonical-layer": ReadsCorpus,
+	"story-coverage":           ReadsCorpus,
+	"story-args-fields":        ReadsCorpus,
 }
 
 // Runner is the compatibility shape used by direct calibration/unit callers.
@@ -101,8 +103,8 @@ var registry = []Definition{
 	registeredDefinition("api", false, ValidateAPI, "catalog/assets/**", "library/**"),
 	registeredDefinition("unit", false, ValidateUnit, "catalog/config.json", "ui/src/**"),
 	registeredDefinition("interaction", false, ValidateInteraction, "catalog/config.json", "ui/src/**"),
-	declarationOnlyDefinition("accessibility", false, "catalog/config.json", "ui/src/**"),
-	declarationOnlyDefinition("responsive", false, "catalog/config.json", "ui/src/**"),
+	registeredDefinition("accessibility", false, ValidateAccessibility, "catalog/config.json", "ui/src/**"),
+	registeredDefinition("responsive", false, ValidateResponsive, "catalog/config.json", "ui/src/**"),
 	registeredDefinition("visual", false, ValidateVisual, "catalog/config.json", "ui/src/**"),
 	registeredDefinition("rtl", false, ValidateRTL, "catalog/config.json", "library/**"),
 	registeredDefinition("reduced-motion", false, ValidateReducedMotion, "catalog/config.json", "library/**"),
@@ -135,6 +137,8 @@ var registry = []Definition{
 	registeredDefinition("deprecated-import", true, ValidateDeprecatedImports, "catalog/assets/**", "library/**"),
 	registeredDefinition("provenance-stamp", true, ValidateProvenanceStamp, "catalog/assets/**", "library/**"),
 	registeredDefinition("story-grammar", true, ValidateStoryGrammar, "catalog/assets/**", "library/**"),
+	registeredDefinition("story-coverage", true, ValidateStoryCoverage, "catalog/assets/**", "library/**"),
+	registeredDefinition("story-args-fields", true, ValidateStoryArgsFields, "catalog/assets/**", "library/**"),
 	registeredDefinition("story-distinctness", true, ValidateStoryDistinctness, "catalog/assets/**", "library/**"),
 	registeredDefinition("harness-manifest", true, ValidateHarnessManifest, "harnesses/manifest.json", "harnesses/**", "library/**"),
 	registeredDefinition("evidence-freshness", true, ValidateEvidenceFreshness, "catalog/assets/**", "library/**"),
@@ -262,6 +266,17 @@ func filterToScope(result Result, assets []string) Result {
 		}
 		for asset := range allowed {
 			if f.AssetID == strings.TrimPrefix(asset, "react-component-library:") {
+				return true
+			}
+			findingShort := strings.ToLower(f.AssetID)
+			allowedShort := strings.ToLower(strings.TrimPrefix(asset, "react-component-library:"))
+			if index := strings.LastIndex(findingShort, "."); index >= 0 {
+				findingShort = findingShort[index+1:]
+			}
+			if index := strings.LastIndex(allowedShort, "."); index >= 0 {
+				allowedShort = allowedShort[index+1:]
+			}
+			if findingShort == allowedShort {
 				return true
 			}
 		}

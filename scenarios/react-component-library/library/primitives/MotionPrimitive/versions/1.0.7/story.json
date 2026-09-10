@@ -69,6 +69,10 @@
       "name": "Direct motion value",
       "role": "boundary"
     }
+    ,
+    {"id":"reduced-motion","name":"reducedMotion","axis":"reducedMotion","covers":{"reducedMotion":[true,false]},"args":{},"expect":[{"kind":"role","name":"Motion example","role":"status"}],"role":"axis","mode":"pinned"},
+    {"id":"empty","name":"Empty motion content","args":{"children":""},"expect":[{"kind":"role","name":"Motion example","role":"status"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long motion content","args":{"children":"A deliberately long motion description that must wrap cleanly"},"expect":[{"kind":"role","name":"Motion example","role":"status"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "MotionPrimitive"
 }

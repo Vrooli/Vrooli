@@ -150,6 +150,10 @@
      "selector": "[data-rcl-full-page-drawer][data-content-padding='comfortable']"
     }
    ]
-  }
+  },
+  {"id":"empty","name":"Empty drawer","args":{},"expect":[{"kind":"role","role":"dialog"},{"kind":"visible","selector":"[data-rcl-full-page-drawer]"}],"role":"boundary","mode":"pinned"},
+  {"id":"loading","name":"Loading drawer","args":{"state":"loading"},"expect":[{"kind":"role","role":"dialog"},{"kind":"visible","selector":"[data-rcl-full-page-drawer]"}],"role":"boundary","mode":"pinned"},
+  {"id":"error","name":"Drawer error","args":{"state":"error"},"expect":[{"kind":"role","role":"dialog"},{"kind":"visible","selector":"[data-rcl-full-page-drawer]"}],"role":"boundary","mode":"pinned"},
+  {"id":"overflow","name":"Long drawer content","args":{},"expect":[{"kind":"role","role":"dialog"},{"kind":"visible","selector":"[data-rcl-full-page-drawer]"}],"role":"boundary","mode":"pinned"}
  ]
 }

@@ -265,6 +265,66 @@
      "value": "right"
     }
    ]
+  },
+  {
+   "id": "mobile-chrome",
+   "name": "Mobile chrome axis",
+   "axis": "mobileChrome",
+   "covers": {"mobileChrome": ["shell", "content"]},
+   "args": {},
+   "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+   "expect": [{"kind": "visible", "selector": "[data-rcl-sidebar-shell]"}],
+   "role": "axis",
+   "mode": "pinned"
+  },
+  {
+   "id": "mode",
+   "name": "Mode axis",
+   "axis": "mode",
+   "covers": {"mode": ["persistent", "responsive", "overlay"]},
+   "args": {},
+   "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+   "expect": [{"kind": "visible", "selector": "[data-rcl-sidebar-shell]"}],
+   "role": "axis",
+   "mode": "pinned"
+  },
+  {
+   "id": "empty",
+   "name": "Empty navigation",
+   "args": {},
+   "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+   "expect": [{"kind": "visible", "selector": "[data-rcl-sidebar-shell]"}],
+   "role": "boundary",
+   "mode": "pinned"
+  },
+  {
+   "id": "loading",
+   "name": "Loading navigation",
+   "args": {},
+   "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+   "expect": [{"kind": "visible", "selector": "[data-rcl-sidebar-shell]"}],
+   "role": "boundary",
+   "states": ["loading"],
+   "mode": "pinned"
+  },
+  {
+   "id": "error",
+   "name": "Error navigation",
+   "args": {},
+   "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+   "expect": [{"kind": "visible", "selector": "[data-rcl-sidebar-shell]"}],
+   "role": "boundary",
+   "states": ["error"],
+   "mode": "pinned"
+  },
+  {
+   "id": "overflow",
+   "name": "Overflow navigation",
+   "args": {},
+   "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+   "expect": [{"kind": "visible", "selector": "[data-rcl-sidebar-shell]"}],
+   "role": "boundary",
+   "mode": "pinned"
   }
  ]
 }

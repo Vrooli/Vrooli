@@ -15,6 +15,13 @@
       "statement": "Read catalog maturity and gate findings, or identify why a report is unavailable."
     }
   ],
+  "claims": [{
+    "id": "coverage-report-state-covered",
+    "type": "state-covered",
+    "statement": "The coverage report is captured in the declared page state.",
+    "tier": "machine",
+    "states": ["default"]
+  }],
   "states": [
     {
       "id": "default",

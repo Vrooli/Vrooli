@@ -178,13 +178,10 @@ export function ActionLauncher({
           onClick={() => onActionChange("menu")}
           size="icon"
           shape="pill"
-          className="fixed bottom-6 end-6 z-40 h-control-2xl w-control-2xl rounded-full p-0 shadow-lg"
+          className="rcl-action-launcher fixed end-6 z-40 h-control-2xl w-control-2xl rounded-full p-0 shadow-lg"
           // Justified inline style: the floating trigger has to clear the device
           // safe area, and env() inside calc() is a runtime value no utility class
           // or design token can carry. Both operands are still token-backed.
-          style={{
-            insetBlockEnd: "calc(var(--space-md) + env(safe-area-inset-bottom, 0px))",
-          }}
         >
           <Plus aria-hidden className="h-icon-lg w-icon-lg" />
         </Button>

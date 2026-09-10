@@ -207,6 +207,54 @@
       "mode": "live",
       "name": "Interactive lifecycle",
       "role": "boundary"
+    },
+    {
+      "id": "disabled",
+      "name": "Disabled",
+      "args": {"selectedCount": 8, "totalCount": 24, "disabled": true},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-bulk-action-bar]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "empty",
+      "name": "Empty selection",
+      "args": {"selectedCount": 0, "totalCount": 24},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-bulk-action-bar]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "loading",
+      "name": "Loading",
+      "args": {"selectedCount": 8, "totalCount": 24, "status": "submitting", "progress": {"completed": 5, "total": 8, "label": "Archiving 5 of 8 records…"}},
+      "expect": [{"kind": "role", "role": "status"}, {"kind": "visible", "selector": "[data-rcl-bulk-action-bar]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "one",
+      "name": "One selected item",
+      "args": {"selectedCount": 1, "totalCount": 24},
+      "expect": [{"kind": "text", "value": "1 item selected"}, {"kind": "visible", "selector": "[data-rcl-bulk-action-bar]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "many",
+      "name": "Many selected items",
+      "args": {"selectedCount": 240, "totalCount": 240},
+      "expect": [{"kind": "text", "value": "240 items selected"}, {"kind": "visible", "selector": "[data-rcl-bulk-action-bar]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "overflow",
+      "name": "Long selection copy",
+      "args": {"selectedCount": 240, "totalCount": 1000, "description": "This selection contains a deliberately long recovery explanation so the action surface must wrap its copy without losing the decision or its controls."},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-bulk-action-bar]"}],
+      "role": "boundary",
+      "mode": "pinned"
     }
   ],
   "title": "BulkActionBar"

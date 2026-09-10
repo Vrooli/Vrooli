@@ -19,13 +19,13 @@
     {
       "libraryId": "react-component-library:ClassMerge",
       "major": 1,
-      "observed": "1.0.2",
+      "observed": "1.0.3",
       "rank": 1
     },
     {
       "libraryId": "react-component-library:Heading",
       "major": 1,
-      "observed": "1.1.4",
+      "observed": "1.1.5",
       "rank": 3
     },
     {
@@ -37,7 +37,7 @@
     {
       "libraryId": "react-component-library:Presence",
       "major": 1,
-      "observed": "1.0.2",
+      "observed": "1.0.5",
       "rank": 3
     },
     {
@@ -49,7 +49,7 @@
     {
       "libraryId": "react-component-library:Stack",
       "major": 1,
-      "observed": "1.2.2",
+      "observed": "1.2.3",
       "rank": 3
     },
     {

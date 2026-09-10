@@ -1,36 +1,7 @@
 import json
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 
 envelope = {"program": "visited-tracker.setpoint-read", "version": "2", "status": "failed", "phase": "validate", "inputs": {}, "signals": {}, "errors": [], "evidence": []}
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
 
 def fail(status, kind, detail):
     envelope["status"] = status
@@ -107,7 +78,7 @@ def step_collect():
         envelope["evidence"].append({"binding": "program-runtime/bindings/condition", "conditions": [{"binding": str(item.get("bindingId", ""))[:200], "status": str(item.get("status", ""))[:80]} for item in conditions]})
         envelope["status"] = "ok" if measured else "partial"
     except Exception as exc:
-        status, kind = classify_transport(exc)
+        status, kind = program.classify(exc)
         fail("partial", kind, str(exc))
         rows.append({"row": "binding-condition", "reading": None, "target": 0, "in_band": None, "unavailable": True, "reason": "scenario_unreachable" if status == "unavailable" else "unreliable:" + kind})
     campaign = envelope["inputs"].get("campaign_id", "")
@@ -127,7 +98,7 @@ def step_collect():
             else:
                 rows.append({"row": "attention-fairness", "reading": None, "target": 86400, "in_band": None, "unavailable": True, "reason": "unreliable:missing-telemetry"})
         except Exception as exc:
-            status, kind = classify_transport(exc)
+            status, kind = program.classify(exc)
             fail("partial", kind, str(exc))
             rows.append({"row": "attention-fairness", "reading": None, "target": 86400, "in_band": None, "unavailable": True, "reason": "scenario_unreachable" if status == "unavailable" else "unreliable:" + kind})
     else:

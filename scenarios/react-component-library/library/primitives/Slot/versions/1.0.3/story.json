@@ -18,7 +18,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-testid=\"primitives.slot\"]"
         }
       ]
     }

@@ -5,6 +5,8 @@ import { FileCode2, Folder } from "lucide-react";
 
 import { adoptionsClient, type ResolvedVersionFile } from "../../api/adoptions";
 import { Tabs } from "@vrooli/react-component-library/Tabs/1";
+import { Select } from "@vrooli/react-component-library/Select/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { selectors } from "../../consts/selectors";
 import { useTranslation } from "../../i18n";
 import type { TemplateOption } from "./adoptionTemplates";
@@ -111,8 +113,11 @@ function TreeRows({
         const active = fileKey(file) === selectedFile;
         return (
           <li key={child.name}>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              shape="square"
+              size="sm"
               data-testid={selectors.components.editor.fileTreeNode}
               data-slot={file.slot}
               data-entry={file.isEntry ? "true" : "false"}
@@ -137,7 +142,7 @@ function TreeRows({
                   {t("components.editor.entryTag", { defaultValue: "entry" })}
                 </span>
               )}
-            </button>
+            </Button>
           </li>
         );
       })}
@@ -186,18 +191,13 @@ export function AdoptionFileTree({
     <div className="flex items-center gap-space-2xs text-[11px] text-app-muted-foreground">
       <span>{t("components.editor.templateLabel", { defaultValue: "Template" })}</span>
       {multiTemplate ? (
-        <select
+        <Select
           data-testid={selectors.components.editor.templateSelect}
           value={template}
           onChange={(event) => onSelectTemplate(event.target.value)}
           className="rounded-control border border-app-border bg-app-surface px-space-2xs py-space-3xs text-[11px] text-app-foreground"
-        >
-          {templates.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          options={templates.map((option) => ({ value: option.id, label: option.label }))}
+        />
       ) : (
         <span
           data-testid={selectors.components.editor.templateSelect}

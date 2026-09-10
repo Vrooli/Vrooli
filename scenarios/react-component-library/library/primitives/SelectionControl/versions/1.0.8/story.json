@@ -199,6 +199,9 @@
       "name": "Host labelled",
       "role": "axis"
     }
+    ,
+    {"id":"empty","name":"Empty selection label","args":{"label":""},"expect":[{"kind":"role","name":"Keep me signed in","role":"checkbox"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long selection label","args":{"label":"Keep this session signed in on this deliberately long device description"},"expect":[{"kind":"role","name":"Keep me signed in","role":"checkbox"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "SelectionControl"
 }

@@ -40,11 +40,17 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-search-results]"
         }
       ],
       "role": "boundary"
     }
+    ,
+    {"id":"error","name":"Search error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-search-results]"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading search","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-rcl-search-results]"}],"role":"boundary","mode":"pinned"},
+    {"id":"one","name":"One search result","args":{"items":[{"id":"one","title":"Release evidence"}]},"expect":[{"kind":"visible","selector":"[data-rcl-search-results]"}],"role":"boundary","mode":"pinned"},
+    {"id":"many","name":"Many search results","args":{"items":[{"id":"one","title":"Release evidence"},{"id":"two","title":"Review queue"},{"id":"three","title":"Published artifact"},{"id":"four","title":"Captured preview"}]},"expect":[{"kind":"visible","selector":"[data-rcl-search-results]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long result title","args":{"items":[{"id":"long","title":"A deliberately long result title that must wrap without clipping the result affordance"}]},"expect":[{"kind":"visible","selector":"[data-rcl-search-results]"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "SearchResults"
 }

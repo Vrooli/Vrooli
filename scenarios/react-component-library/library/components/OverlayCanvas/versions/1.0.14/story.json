@@ -15,7 +15,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-testid='visualization.overlay-canvas']"
         }
       ],
       "role": "anatomy"

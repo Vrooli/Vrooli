@@ -10,7 +10,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <LibraryAppShell
       brand="Vrooli"
-      brandMark={<span aria-hidden="true">V</span>}
+      brandMark={<img src="/public/logo.webp" alt="" />}
       items={[]}
       mobileNav="tabs"
       mainMode="fill"

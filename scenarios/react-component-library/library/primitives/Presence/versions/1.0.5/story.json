@@ -93,6 +93,11 @@
       "name": "Unmounted after exit",
       "role": "boundary"
     }
+    ,
+    {"id":"empty","name":"Empty presence","args":{"children":""},"expect":[{"kind":"text","value":"Ready to continue"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading presence","args":{"state":"loading"},"expect":[{"kind":"text","value":"Ready to continue"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Presence error","args":{"state":"error"},"expect":[{"kind":"text","value":"Ready to continue"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long presence content","args":{"children":"A deliberately long presence description that must wrap cleanly"},"expect":[{"kind":"text","value":"Ready to continue"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Presence"
 }

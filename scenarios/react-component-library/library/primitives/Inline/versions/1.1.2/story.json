@@ -18,10 +18,13 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-inline]"
         }
       ]
     }
+    ,
+    {"id":"empty","name":"Empty inline layout","args":{"children":""},"expect":[{"kind":"visible","selector":"[data-rcl-inline]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long inline content","args":{"children":"A deliberately long inline label that demonstrates wrapping without clipping the primitive"},"expect":[{"kind":"visible","selector":"[data-rcl-inline]"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Inline"
 }

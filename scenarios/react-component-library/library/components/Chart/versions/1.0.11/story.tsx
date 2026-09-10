@@ -1,6 +1,11 @@
-// Preview contract exports for Chart 1.0.9.
-// The declarative story contract owns expectations; this module supplies the
-// typed specimen seam for versions whose composition is supplied by a harness.
+import { Chart } from "./Chart";
+
+const data = [
+  { id: "jan", label: "Jan", value: 42, detail: "Measured" },
+  { id: "feb", label: "Feb", value: 58, detail: "Measured" },
+  { id: "mar", label: "Mar", value: 71, detail: "Measured" },
+];
+
 export function Default() {
-  return null;
+  return <Chart data={data} title="Monthly performance" description="A compact trend specimen for the catalog." />;
 }

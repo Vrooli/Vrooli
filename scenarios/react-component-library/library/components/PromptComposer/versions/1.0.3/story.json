@@ -277,5 +277,11 @@
         }
       ]
     }
+    ,
+    {"id":"empty","name":"Empty prompt","args":{"value":""},"expect":[{"kind":"visible","selector":"[data-rcl-prompt-composer]"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Submitting prompt","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-rcl-prompt-composer]"}],"role":"boundary","mode":"pinned"},
+    {"id":"one","name":"One attachment","args":{"attachments":[{"id":"brief","name":"brief.pdf"}]},"expect":[{"kind":"visible","selector":"[data-rcl-prompt-composer]"}],"role":"boundary","mode":"pinned"},
+    {"id":"many","name":"Many attachments","args":{"attachments":[{"id":"brief","name":"brief.pdf"},{"id":"diagram","name":"diagram.png"},{"id":"notes","name":"notes.md"}]},"expect":[{"kind":"visible","selector":"[data-rcl-prompt-composer]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long prompt","args":{"value":"This deliberately long prompt demonstrates wrapping and readable actions when the composer contains a detailed request with recovery context."},"expect":[{"kind":"visible","selector":"[data-rcl-prompt-composer]"}],"role":"boundary","mode":"pinned"}
   ]
 }

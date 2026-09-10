@@ -354,6 +354,7 @@ const onboarding = {
     adjust: "Adjust",
     commit: "Commit",
     setup: "Setup",
+    progressSteps: "Onboarding steps",
     previous: "Go to previous step",
     savingPreferences: "Saving preferences…",
     savedPreferences: "Preferences saved locally. Host effects require review and apply.",

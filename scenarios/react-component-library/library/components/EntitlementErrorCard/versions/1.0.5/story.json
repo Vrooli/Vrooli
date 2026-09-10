@@ -27,7 +27,9 @@
       "mode": "live",
       "name": "Payment required",
       "role": "anatomy"
-    }
+    },
+    {"id":"empty","name":"Empty entitlement message","args":{"message":""},"expect":[{"kind":"role","role":"alert"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long entitlement message","args":{"message":"This deliberately long entitlement explanation wraps while retaining the recovery action and the reason access is unavailable."},"expect":[{"kind":"role","role":"alert"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "EntitlementErrorCard"
 }

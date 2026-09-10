@@ -158,6 +158,9 @@
         }
       ]
     }
+    ,
+    {"id":"loading","name":"Loading virtual list","args":{"state":"loading"},"expect":[{"kind":"text","value":"Recent activity"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Virtual list error","args":{"state":"error"},"expect":[{"kind":"text","value":"Recent activity"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "VirtualList"
 }

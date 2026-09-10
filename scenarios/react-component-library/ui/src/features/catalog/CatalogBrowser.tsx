@@ -25,6 +25,8 @@ interface Props {
   onNavigate?: () => void;
   /** Only the primary workspace catalog is an authored readiness surface. */
   surfaceId?: string;
+  /** Route-specific copy keeps the public pages semantically distinct. */
+  view?: "home" | "catalog" | "components";
 }
 
 const catalogKindsForTab: Record<KindTab, string[]> = {
@@ -103,8 +105,27 @@ function AssetRow({
   currentTab?: ReturnType<typeof assetInfoTab>;
 }) {
   const isTree = presentation === "tree";
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const previewURL = `/preview/${encodeURIComponent(asset.libraryId)}/preview.png?version=${encodeURIComponent(asset.latestVersion || asset.version || "")}`;
   const content = (
     <>
+      {presentation === "cards" ? (
+        <span className="mb-space-xs block aspect-[16/9] overflow-hidden rounded-control bg-app-surface-muted">
+          {previewFailed ? (
+            <span className="flex h-full items-center justify-center px-space-xs text-center text-xs text-app-muted-foreground">
+              Preview pending
+            </span>
+          ) : (
+            <img
+              src={previewURL}
+              alt={`${asset.displayName || asset.libraryId} preview`}
+              className="h-full w-full object-contain"
+              loading="lazy"
+              onError={() => setPreviewFailed(true)}
+            />
+          )}
+        </span>
+      ) : null}
       <span className="flex min-w-0 flex-1 items-center gap-space-2xs">
         <span
           aria-hidden
@@ -149,13 +170,15 @@ function AssetRow({
   );
 }
 
-export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props) {
+export function CatalogBrowser({ compact = false, onNavigate, surfaceId, view = "catalog" }: Props) {
   const { t } = useTranslation();
   const { id: selectedID } = useParams<{ id: string }>();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<KindTab>("components");
-  const [presentation, setPresentation] = useState<Presentation>("tree");
+  const [presentation, setPresentation] = useState<Presentation>(() =>
+    view === "home" || view === "components" ? "cards" : "tree",
+  );
   const [match, setMatch] = useState(() => searchParams.get("q") ?? "");
   const navigate = useNavigate();
   const deferredMatch = useDeferredValue(match);
@@ -271,6 +294,18 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
           : "flex max-w-5xl flex-col gap-space-sm"
       }
     >
+      <header className="grid gap-space-3xs">
+        <h1 className="text-lg font-semibold text-app-foreground">
+          {view === "home" ? "Library workspace" : view === "components" ? "Components" : "Catalog"}
+        </h1>
+        <p className="text-xs text-app-muted-foreground">
+          {view === "home"
+            ? "Browse the published UI capability and choose an asset to inspect."
+            : view === "components"
+              ? "Explore renderable components by state, adoption, and design domain."
+              : "Inspect the complete published capability graph, including support assets and hooks."}
+        </p>
+      </header>
       <Tabs
         items={[
           {
@@ -288,7 +323,7 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
         }
       />
       <label className="relative block w-full min-w-0">
-        <span className="sr-only">{t("catalog.search", { defaultValue: "Search catalog" })}</span>
+        <span className="sr-only">Filter assets in this catalog view</span>
         <Search
           aria-hidden
           className="absolute start-2 top-2.5 h-icon-sm w-icon-sm text-app-muted-foreground"
@@ -313,9 +348,12 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
               ["cards", Grid2X2],
             ] as const
           ).map(([mode, Icon]) => (
-            <button
+            <Button
               key={mode}
               type="button"
+              variant={presentation === mode ? "secondary" : "ghost"}
+              size="icon"
+              shape="square"
               data-testid={selectors.catalog.presentation}
               aria-pressed={presentation === mode}
               aria-label={t(`catalog.${mode}`, { defaultValue: mode })}
@@ -327,7 +365,7 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
               }
             >
               <Icon aria-hidden className="h-icon-sm w-icon-sm" />
-            </button>
+            </Button>
           ))}
         </div>
       )}

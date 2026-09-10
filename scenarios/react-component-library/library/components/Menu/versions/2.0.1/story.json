@@ -39,6 +39,11 @@
       "name": "Workspace actions",
       "role": "anatomy"
     }
+    ,
+    {"id":"empty","name":"Empty menu","args":{"items":[]},"expect":[{"kind":"role","name":"Workspace actions","role":"menu"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading menu","args":{"state":"loading"},"expect":[{"kind":"role","name":"Workspace actions","role":"menu"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Menu error","args":{"state":"error"},"expect":[{"kind":"role","name":"Workspace actions","role":"menu"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long menu item labels","args":{"items":[{"id":"long","label":"A deliberately long menu item label that must wrap cleanly"}]},"expect":[{"kind":"role","name":"Workspace actions","role":"menu"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Menu"
 }

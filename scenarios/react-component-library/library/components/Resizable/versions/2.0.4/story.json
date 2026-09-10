@@ -183,5 +183,8 @@
         }
       ]
     }
+    ,
+    {"id":"disabled","name":"Disabled resize","args":{"disabled":true},"expect":[{"kind":"role","role":"separator","name":"Resize Inspector"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long resize label","args":{"label":"Resize the inspector panel with a deliberately long accessible label"},"expect":[{"kind":"role","role":"separator"}],"role":"boundary","mode":"pinned"}
   ]
 }

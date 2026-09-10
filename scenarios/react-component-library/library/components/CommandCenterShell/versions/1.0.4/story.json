@@ -217,7 +217,10 @@
         }
       },
       "role": "boundary"
-    }
+    },
+    {"id":"one","name":"One command metric","args":{"metrics":[{"label":"Active runs","value":"1"}]},"expect":[{"kind":"role","role":"main"}],"role":"boundary","mode":"pinned"},
+    {"id":"many","name":"Many command metrics","args":{"metrics":[{"label":"Active runs","value":"12"},{"label":"Queued","value":"28"},{"label":"Failed","value":"3"},{"label":"Review","value":"7"}]},"expect":[{"kind":"role","role":"main"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long command center title","args":{"title":"Operations command center with a deliberately long workspace title that must wrap cleanly"},"expect":[{"kind":"role","role":"main"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "CommandCenterShell"
 }

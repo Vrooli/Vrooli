@@ -13,6 +13,7 @@ import { BudgetMeter, budgetPressure } from "../components/console/BudgetMeter";
 import { ChannelChip } from "../components/console/ChannelChip";
 import { GateCard } from "../components/console/GateCard";
 import { Page } from "../components/console/Page";
+import { Panel } from "../components/console/Panel";
 import { Quiet, Region } from "../components/console/Region";
 import { TierBadge } from "../components/console/TierBadge";
 import { strings } from "../consts/strings";
@@ -94,9 +95,9 @@ export function ConversationsPage() {
             <ThreadPane key={threadId} threadId={threadId} agents={agents} />
           ) : (
             <Region surfaceId="transcript-region" testId="conversations-transcript-region" state="empty" className="md:h-full">
-              <div className="flex items-center justify-center rounded-panel border border-dashed border-app-border px-4 py-3 text-sm text-app-muted-foreground md:h-full md:min-h-[16rem]">
+              <Panel className="flex items-center justify-center border-dashed px-4 py-3 text-sm text-app-muted-foreground md:h-full md:min-h-[16rem]">
                 {t(strings.console.conversations.pickThread)}
-              </div>
+              </Panel>
             </Region>
           )}
         </div>
@@ -201,7 +202,7 @@ function ThreadPane({ threadId, agents }: { threadId: string; agents: Record<str
   else if (isInApp && socket.state !== "open") composerReason = t(strings.console.conversations.connecting);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-panel border border-app-border bg-app-surface">
+    <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-0">
       <header className="flex shrink-0 flex-col gap-2 border-b border-app-border px-3 py-2.5 md:px-4">
         <div className="flex items-center gap-3">
           <Link to="/conversations" aria-label={t(strings.console.common.back)} className="grid h-11 w-11 shrink-0 place-items-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted md:hidden">
@@ -274,21 +275,21 @@ function ThreadPane({ threadId, agents }: { threadId: string; agents: Record<str
           </Region>
         ) : null}
         {thread && (tone === "warning" || tone === "danger") ? (
-          <div className="mb-2 rounded-panel border border-app-border bg-app-surface p-2">
+          <Panel className="mb-2 p-2">
             <BudgetMeter budget={thread.budget} compact testId="conversations-budget" />
-          </div>
+          </Panel>
         ) : null}
         {thread && ceilingBlocksAll ? (
-          <p data-testid="conversations-silence" role="status" className="mb-2 rounded-panel border border-app-danger/30 bg-app-danger/5 px-3 py-2 text-xs text-app-foreground">
+          <Panel data-testid="conversations-silence" role="status" className="mb-2 border-app-danger/30 bg-app-danger/5 px-3 py-2 text-xs text-app-foreground">
             {t(strings.console.conversations.strangerCeiling)}{" "}
             <Link to="/contacts" className="font-medium text-app-primary">
               {t(strings.console.conversations.reviewContacts)}
             </Link>
-          </p>
+          </Panel>
         ) : null}
         {notFound ? null : <Composer disabledReason={composerReason} busy={busy} onSend={send} />}
       </footer>
-    </div>
+    </Panel>
   );
 }
 

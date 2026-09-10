@@ -132,6 +132,8 @@
           "module": "./story.tsx"
         }
       }
-    }
+    },
+    {"id":"empty","name":"Empty meter","args":{"value":0,"max":100},"expect":[{"kind":"visible","selector":"[data-rcl-bounded-meter-control]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long meter status","args":{"status":"This status explanation is intentionally long so the meter demonstrates wrapping while preserving its value and accessible label."},"expect":[{"kind":"visible","selector":"[data-rcl-bounded-meter-control]"}],"role":"boundary","mode":"pinned"}
   ]
 }

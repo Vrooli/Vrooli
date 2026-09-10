@@ -208,7 +208,25 @@ func normalizeCSSNumber(value string) string {
 }
 
 func normalizeCSSValue(value string) string {
-	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(value))), "")
+	value = strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(value))), "")
+	// CSS authors commonly omit the leading zero in fractional alpha values
+	// (`.06`), while Chromium serializes the same value as `0.06`. Normalize
+	// that presentation detail so the surface gate compares the elevation
+	// itself rather than browser number formatting.
+	value = regexp.MustCompile(`(^|[^0-9])\.(\d+)`).ReplaceAllString(value, `${1}0.${2}`)
+	return regexp.MustCompile(`(^|[^0-9])0\.(\d+)`).ReplaceAllStringFunc(value, func(match string) string {
+		prefix := ""
+		digits := match
+		if len(match) > 0 && (match[0] < '0' || match[0] > '9') {
+			prefix = match[:1]
+			digits = match[1:]
+		}
+		fraction := strings.TrimRight(strings.TrimPrefix(digits, "0."), "0")
+		if fraction == "" {
+			return prefix + "0"
+		}
+		return prefix + "0." + fraction
+	})
 }
 
 func loadSurfaceCaptures(root string) (map[string]string, error) {

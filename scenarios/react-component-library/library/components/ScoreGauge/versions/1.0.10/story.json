@@ -14,12 +14,15 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-testid='data-display.score-gauge']"
         }
       ],
       "id": "default",
       "name": "Default",
       "role": "anatomy"
     }
+    ,
+    {"id":"empty","name":"Empty score","args":{"value":0,"max":0},"expect":[{"kind":"visible","selector":"[data-testid='data-display.score-gauge']"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long score label","args":{"label":"A deliberately long score explanation that must wrap cleanly"},"expect":[{"kind":"visible","selector":"[data-testid='data-display.score-gauge']"}],"role":"boundary","mode":"pinned"}
   ]
 }

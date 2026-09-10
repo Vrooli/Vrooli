@@ -1,5 +1,5 @@
 const CACHE = "vrooli-onboarding-v1";
-const APP_SHELL = ["/", "/index.html", "/site.webmanifest", "/public/logo.svg"];
+const APP_SHELL = ["/", "/index.html", "/site.webmanifest", "/public/logo.webp"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(APP_SHELL)));

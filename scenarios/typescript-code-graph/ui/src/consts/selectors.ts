@@ -32,10 +32,6 @@ const literalSelectors = {
   },
   layout: {
     shell: "layout-shell",
-    topBar: "layout-top-bar",
-    sidebar: "layout-sidebar",
-    bottomNav: "layout-bottom-nav",
-    main: "layout-main",
   },
   theme: {
     switcher: "theme-switcher",
@@ -177,29 +173,19 @@ const literalSelectors = {
 // is a TypeScript error when "fr" isn't a supported locale. The runtime enum
 // validation in `normalizeParams` provides the same guarantee at call time.
 const dynamicSelectorDefinitions = {
-  locale: {
-    toggle: defineDynamicSelector({
-      description: "Locale toggle button by language code",
-      testIdPattern: "locale-toggle-${code}",
-      params: { code: { type: "enum", values: LOCALE_CODES } },
-    }),
-  },
-  layout: {
-    sidebarLink: defineDynamicSelector({
-      description: "Sidebar navigation link by canonical nav key",
-      testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["workbench", "settings"] as const } },
-    }),
-    bottomNavLink: defineDynamicSelector({
-      description: "Bottom-nav link by canonical nav key",
-      testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["workbench", "settings"] as const } },
-    }),
+  shared: {
+    severityBadge: {
+      root: defineDynamicSelector({
+        description: "Severity badge by level",
+        testIdPattern: "severity-badge-${level}",
+        params: { level: { type: "string" } },
+      }),
+    },
   },
   ui: {
     tabs: {
       trigger: defineDynamicSelector({
-        description: "Tab trigger button by tab value",
+        description: "Tab trigger by tab value",
         testIdPattern: "tabs-trigger-${value}",
         params: { value: { type: "string" } },
       }),
@@ -210,112 +196,103 @@ const dynamicSelectorDefinitions = {
       }),
     },
   },
-  shared: {
-    severityBadge: {
-      root: defineDynamicSelector({
-        description: "Severity badge by level",
-        testIdPattern: "severity-badge-${level}",
-        params: {
-          level: {
-            type: "enum",
-            values: ["info", "low", "medium", "high", "critical"] as const,
-          },
-        },
-      }),
-    },
-  },
   features: {
     explorer: {
       canvas: {
         node: defineDynamicSelector({
-          description: "Graph canvas node group by node id",
+          description: "Explorer canvas node by node id",
           testIdPattern: "explorer-canvas-node-${id}",
           params: { id: { type: "string" } },
         }),
       },
       accessibleList: {
         item: defineDynamicSelector({
-          description: "Accessible-list row by node id",
+          description: "Accessible graph item by node id",
           testIdPattern: "explorer-accessible-item-${id}",
           params: { id: { type: "string" } },
         }),
       },
       filterBar: {
         chip: defineDynamicSelector({
-          description: "Domain filter chip by package key",
+          description: "Explorer filter chip by key",
           testIdPattern: "explorer-filter-chip-${key}",
           params: { key: { type: "string" } },
         }),
       },
-      legend: {
-        severity: defineDynamicSelector({
-          description: "Legend severity row by level",
-          testIdPattern: "explorer-legend-${level}",
-          params: {
-            level: {
-              type: "enum",
-              values: ["info", "low", "medium", "high", "critical"] as const,
-            },
-          },
-        }),
-      },
       drilldown: {
         symbol: defineDynamicSelector({
-          description: "File-drilldown symbol row by node id",
-          testIdPattern: "explorer-drilldown-symbol-${id}",
+          description: "Explorer symbol by symbol id",
+          testIdPattern: "explorer-symbol-${id}",
           params: { id: { type: "string" } },
         }),
         symbolComments: defineDynamicSelector({
-          description: "Leading-comments / JSDoc block for a symbol row by node id",
-          testIdPattern: "explorer-drilldown-symbol-comments-${id}",
+          description: "Explorer symbol comments by symbol id",
+          testIdPattern: "explorer-symbol-comments-${id}",
           params: { id: { type: "string" } },
+        }),
+      },
+      legend: {
+        severity: defineDynamicSelector({
+          description: "Explorer legend severity by level",
+          testIdPattern: "explorer-legend-severity-${level}",
+          params: { level: { type: "string" } },
         }),
       },
     },
     sidecar: {
       indicator: defineDynamicSelector({
-        description: "Sidecar status indicator by status token",
+        description: "Sidecar status indicator by status",
         testIdPattern: "sidecar-status-indicator-${status}",
-        params: {
-          status: {
-            type: "enum",
-            values: [
-              "unspecified",
-              "ready",
-              "unhealthy",
-              "restarting",
-              "permanently_unhealthy",
-            ] as const,
-          },
-        },
+        params: { status: { type: "string" } },
       }),
     },
     warnings: {
       item: defineDynamicSelector({
-        description: "Warning row by index",
+        description: "Warning item by index",
         testIdPattern: "warnings-item-${index}",
         params: { index: { type: "number" } },
       }),
     },
     rewrite: {
       opRow: defineDynamicSelector({
-        description: "Rewrite operation editor row by index",
+        description: "Rewrite operation row by index",
         testIdPattern: "rewrite-op-row-${index}",
         params: { index: { type: "number" } },
       }),
       opResult: defineDynamicSelector({
-        description: "Rewrite apply per-operation result row by index",
+        description: "Rewrite operation result by index",
         testIdPattern: "rewrite-op-result-${index}",
         params: { index: { type: "number" } },
       }),
     },
     fixtures: {
       item: defineDynamicSelector({
-        description: "Fixture list row by fixture name",
+        description: "Fixture item by name",
         testIdPattern: "fixtures-item-${name}",
         params: { name: { type: "string" } },
       }),
     },
+  },
+  locale: {
+    toggle: defineDynamicSelector({
+      description: "Locale toggle button by language code",
+      testIdPattern: "locale-toggle-${code}",
+      params: { code: { type: "enum", values: LOCALE_CODES } },
+    }),
+  },
+  layout: {
+    navLink: defineDynamicSelector({
+      description: "App shell navigation link by canonical nav key",
+      testIdPattern: "layout-nav-link-${key}",
+      params: {
+        key: {
+          type: "enum",
+          values: [
+            "workbench",
+            "settings",          ] as const,
+        },
+      },
+    }),
   },
   settingsPage: {
     themeOption: defineDynamicSelector({

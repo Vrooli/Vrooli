@@ -248,7 +248,22 @@
           "value": "Allow attachment inspection?"
         }
       ]
-    }
+    },
+    {
+      "id": "density",
+      "name": "Density axis",
+      "axis": "density",
+      "covers": {"density": ["comfortable", "compact"]},
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "text", "value": "Confirm the exact scope"}],
+      "role": "axis",
+      "mode": "pinned"
+    },
+    {"id":"disabled","name":"Disabled","args":{"disabled":true},"expect":[{"kind":"text","value":"Confirm the exact scope"}],"role":"boundary","mode":"pinned"},
+    {"id":"empty","name":"Empty approval context","args":{"title":""},"expect":[{"kind":"role","role":"button"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Submitting approval","args":{"status":"submitting"},"expect":[{"kind":"role","role":"status"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long approval context","args":{"title":"Confirm the exact scope of this release publication and its attached evidence before continuing"},"expect":[{"kind":"role","role":"button"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "ApprovalPrompt"
 }

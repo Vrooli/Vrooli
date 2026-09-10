@@ -15,10 +15,14 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-error-boundary]"
         }
       ],
       "role": "anatomy"
-    }
+    },
+    {"id":"empty","name":"No error details","args":{"message":""},"expect":[{"kind":"visible","selector":"[data-rcl-error-boundary]"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Recovering from error","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-rcl-error-boundary]"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Captured error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-error-boundary]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long error details","args":{"message":"This deliberately long diagnostic explains the failed operation and the recovery path without clipping the boundary surface."},"expect":[{"kind":"visible","selector":"[data-rcl-error-boundary]"}],"role":"boundary","mode":"pinned"}
   ]
 }

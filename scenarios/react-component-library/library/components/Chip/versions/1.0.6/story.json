@@ -54,6 +54,9 @@
       "name": "Selected",
       "role": "boundary"
     }
+    ,
+    {"id":"empty","name":"Empty chip label","args":{"children":""},"expect":[{"kind":"role","name":"Filter","role":"button"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long chip label","args":{"children":"A deliberately long chip label that must wrap without clipping its button semantics"},"expect":[{"kind":"role","name":"Filter","role":"button"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Chip"
 }

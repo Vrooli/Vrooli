@@ -57,22 +57,6 @@
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
     },
-    "layout.topBar": {
-      "testId": "layout-top-bar",
-      "selector": "[data-testid=\"layout-top-bar\"]"
-    },
-    "layout.sidebar": {
-      "testId": "layout-sidebar",
-      "selector": "[data-testid=\"layout-sidebar\"]"
-    },
-    "layout.bottomNav": {
-      "testId": "layout-bottom-nav",
-      "selector": "[data-testid=\"layout-bottom-nav\"]"
-    },
-    "layout.main": {
-      "testId": "layout-main",
-      "selector": "[data-testid=\"layout-main\"]"
-    },
     "theme.switcher": {
       "testId": "theme-switcher",
       "selector": "[data-testid=\"theme-switcher\"]"
@@ -367,54 +351,19 @@
     }
   },
   "dynamicSelectors": {
-    "locale.toggle": {
-      "description": "Locale toggle button by language code",
-      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
-      "testIdPattern": "locale-toggle-${code}",
+    "shared.severityBadge.root": {
+      "description": "Severity badge by level",
+      "selectorPattern": "[data-testid=\"severity-badge-${level}\"]",
+      "testIdPattern": "severity-badge-${level}",
       "params": [
         {
-          "name": "code",
-          "type": "enum",
-          "values": [
-            "en",
-            "ja",
-            "ar"
-          ]
-        }
-      ]
-    },
-    "layout.sidebarLink": {
-      "description": "Sidebar navigation link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
-      "testIdPattern": "layout-sidebar-link-${key}",
-      "params": [
-        {
-          "name": "key",
-          "type": "enum",
-          "values": [
-            "workbench",
-            "settings"
-          ]
-        }
-      ]
-    },
-    "layout.bottomNavLink": {
-      "description": "Bottom-nav link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
-      "testIdPattern": "layout-bottom-nav-link-${key}",
-      "params": [
-        {
-          "name": "key",
-          "type": "enum",
-          "values": [
-            "workbench",
-            "settings"
-          ]
+          "name": "level",
+          "type": "string"
         }
       ]
     },
     "ui.tabs.trigger": {
-      "description": "Tab trigger button by tab value",
+      "description": "Tab trigger by tab value",
       "selectorPattern": "[data-testid=\"tabs-trigger-${value}\"]",
       "testIdPattern": "tabs-trigger-${value}",
       "params": [
@@ -435,26 +384,8 @@
         }
       ]
     },
-    "shared.severityBadge.root": {
-      "description": "Severity badge by level",
-      "selectorPattern": "[data-testid=\"severity-badge-${level}\"]",
-      "testIdPattern": "severity-badge-${level}",
-      "params": [
-        {
-          "name": "level",
-          "type": "enum",
-          "values": [
-            "info",
-            "low",
-            "medium",
-            "high",
-            "critical"
-          ]
-        }
-      ]
-    },
     "features.explorer.canvas.node": {
-      "description": "Graph canvas node group by node id",
+      "description": "Explorer canvas node by node id",
       "selectorPattern": "[data-testid=\"explorer-canvas-node-${id}\"]",
       "testIdPattern": "explorer-canvas-node-${id}",
       "params": [
@@ -465,7 +396,7 @@
       ]
     },
     "features.explorer.accessibleList.item": {
-      "description": "Accessible-list row by node id",
+      "description": "Accessible graph item by node id",
       "selectorPattern": "[data-testid=\"explorer-accessible-item-${id}\"]",
       "testIdPattern": "explorer-accessible-item-${id}",
       "params": [
@@ -476,7 +407,7 @@
       ]
     },
     "features.explorer.filterBar.chip": {
-      "description": "Domain filter chip by package key",
+      "description": "Explorer filter chip by key",
       "selectorPattern": "[data-testid=\"explorer-filter-chip-${key}\"]",
       "testIdPattern": "explorer-filter-chip-${key}",
       "params": [
@@ -486,28 +417,10 @@
         }
       ]
     },
-    "features.explorer.legend.severity": {
-      "description": "Legend severity row by level",
-      "selectorPattern": "[data-testid=\"explorer-legend-${level}\"]",
-      "testIdPattern": "explorer-legend-${level}",
-      "params": [
-        {
-          "name": "level",
-          "type": "enum",
-          "values": [
-            "info",
-            "low",
-            "medium",
-            "high",
-            "critical"
-          ]
-        }
-      ]
-    },
     "features.explorer.drilldown.symbol": {
-      "description": "File-drilldown symbol row by node id",
-      "selectorPattern": "[data-testid=\"explorer-drilldown-symbol-${id}\"]",
-      "testIdPattern": "explorer-drilldown-symbol-${id}",
+      "description": "Explorer symbol by symbol id",
+      "selectorPattern": "[data-testid=\"explorer-symbol-${id}\"]",
+      "testIdPattern": "explorer-symbol-${id}",
       "params": [
         {
           "name": "id",
@@ -516,9 +429,9 @@
       ]
     },
     "features.explorer.drilldown.symbolComments": {
-      "description": "Leading-comments / JSDoc block for a symbol row by node id",
-      "selectorPattern": "[data-testid=\"explorer-drilldown-symbol-comments-${id}\"]",
-      "testIdPattern": "explorer-drilldown-symbol-comments-${id}",
+      "description": "Explorer symbol comments by symbol id",
+      "selectorPattern": "[data-testid=\"explorer-symbol-comments-${id}\"]",
+      "testIdPattern": "explorer-symbol-comments-${id}",
       "params": [
         {
           "name": "id",
@@ -526,26 +439,30 @@
         }
       ]
     },
+    "features.explorer.legend.severity": {
+      "description": "Explorer legend severity by level",
+      "selectorPattern": "[data-testid=\"explorer-legend-severity-${level}\"]",
+      "testIdPattern": "explorer-legend-severity-${level}",
+      "params": [
+        {
+          "name": "level",
+          "type": "string"
+        }
+      ]
+    },
     "features.sidecar.indicator": {
-      "description": "Sidecar status indicator by status token",
+      "description": "Sidecar status indicator by status",
       "selectorPattern": "[data-testid=\"sidecar-status-indicator-${status}\"]",
       "testIdPattern": "sidecar-status-indicator-${status}",
       "params": [
         {
           "name": "status",
-          "type": "enum",
-          "values": [
-            "unspecified",
-            "ready",
-            "unhealthy",
-            "restarting",
-            "permanently_unhealthy"
-          ]
+          "type": "string"
         }
       ]
     },
     "features.warnings.item": {
-      "description": "Warning row by index",
+      "description": "Warning item by index",
       "selectorPattern": "[data-testid=\"warnings-item-${index}\"]",
       "testIdPattern": "warnings-item-${index}",
       "params": [
@@ -556,7 +473,7 @@
       ]
     },
     "features.rewrite.opRow": {
-      "description": "Rewrite operation editor row by index",
+      "description": "Rewrite operation row by index",
       "selectorPattern": "[data-testid=\"rewrite-op-row-${index}\"]",
       "testIdPattern": "rewrite-op-row-${index}",
       "params": [
@@ -567,7 +484,7 @@
       ]
     },
     "features.rewrite.opResult": {
-      "description": "Rewrite apply per-operation result row by index",
+      "description": "Rewrite operation result by index",
       "selectorPattern": "[data-testid=\"rewrite-op-result-${index}\"]",
       "testIdPattern": "rewrite-op-result-${index}",
       "params": [
@@ -578,13 +495,44 @@
       ]
     },
     "features.fixtures.item": {
-      "description": "Fixture list row by fixture name",
+      "description": "Fixture item by name",
       "selectorPattern": "[data-testid=\"fixtures-item-${name}\"]",
       "testIdPattern": "fixtures-item-${name}",
       "params": [
         {
           "name": "name",
           "type": "string"
+        }
+      ]
+    },
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.navLink": {
+      "description": "App shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "workbench",
+            "settings"
+          ]
         }
       ]
     },
@@ -623,7 +571,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
-    "ui/src/consts/selectors.ts": "2ed80504450ccda82fc94b1cc2e000e8986b8c765477cbbcefbc4b8a90c4c684",
+    "ui/src/consts/selectors.ts": "6e1a4f880a24ed2d64a0d2ed6e2ce34945fd3e02c7ad4374c6ccf7993e290b37",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

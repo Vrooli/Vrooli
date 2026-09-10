@@ -72,7 +72,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-testid=\"primitives.surface\"]"
         }
       ],
       "role": "axis",

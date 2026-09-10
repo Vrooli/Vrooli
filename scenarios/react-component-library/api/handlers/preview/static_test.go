@@ -84,7 +84,7 @@ func TestPreviewConsumerCSSRejectsPathTraversalAndMissingBuild(t *testing.T) {
 	require.ErrorContains(t, err, "invalid consumer")
 }
 
-func TestPreviewStorySheetIDsIsBoundedAndDeduplicated(t *testing.T) {
+func TestPreviewStorySheetIDsIsDeduplicated(t *testing.T) {
 	req := httptest.NewRequest("GET", "/preview/x/harness.html?stories=default,loading,default,error,extra", nil)
 	got := previewStorySheetIDs(req)
 	require.Equal(t, []string{"default", "loading", "error", "extra"}, got)
@@ -303,7 +303,7 @@ func TestRenderHarnessHTMLSupportsScopedTemporaryPropsOverrides(t *testing.T) {
 	require.Contains(t, html, `rcl-preview-props-error`)
 	require.Contains(t, html, `rcl-story-result`)
 	require.Contains(t, html, `id="rcl-story-result"`)
-	require.Contains(t, html, `const reportStoryResult = (passed, failures, skipped = []) =>`)
+	require.Contains(t, html, `const reportStoryResult = (passed, failures, skipped = [], painted = measurePaintedContent()) =>`)
 	require.Contains(t, html, `export async function runStory(previewStory, modules, env = browserEnv)`)
 	require.Contains(t, html, `void runStory(previewStory, { document, window }`)
 	require.Contains(t, html, `const initialTarget = previewStory.interactions?.[0]?.target || previewStory.expect?.[0]`)

@@ -15,6 +15,13 @@
       "statement": "Adjust the supported workspace appearance and language preferences."
     }
   ],
+  "claims": [{
+    "id": "settings-state-covered",
+    "type": "state-covered",
+    "statement": "The settings page is captured in the declared page state.",
+    "tier": "machine",
+    "states": ["default"]
+  }],
   "states": [
     {
       "id": "default",

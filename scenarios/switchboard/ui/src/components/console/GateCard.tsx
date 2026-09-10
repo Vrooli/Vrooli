@@ -3,6 +3,7 @@ import { KeyRound, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { Panel } from "./Panel";
 
 import { consoleApi, type Gate } from "../../api/console";
 import { strings } from "../../consts/strings";
@@ -52,13 +53,13 @@ export function GateCard({ gate, viewerIsOwner = true, compact, onAnswered, test
   });
 
   return (
-    <article
+    <Panel
       data-testid={testId}
       role="alert"
       aria-live="polite"
       data-gate-status={gate.status}
       className={[
-        "flex flex-col gap-3 rounded-panel border bg-app-surface p-4",
+        "flex flex-col gap-3 p-4",
         urgent ? "border-app-warning/60" : "border-app-border",
         compact ? "" : "shadow-subtle",
       ].join(" ")}
@@ -111,6 +112,6 @@ export function GateCard({ gate, viewerIsOwner = true, compact, onAnswered, test
           </p>
         )
       ) : null}
-    </article>
+    </Panel>
   );
 }

@@ -273,10 +273,12 @@ func validateActiveSourceFiles(scope Scope, gate string, check func(asset assetD
 
 func nonEmpty(result Result, gate string) Result {
 	if result.Inspected == 0 {
-		result.RunnerError = append(result.RunnerError, Finding{
-			Code:        "catalog." + gate + "_zero_inspected",
+		result.Findings = append(result.Findings, Finding{
+			Code:        "catalog.gate_inspected_nothing",
 			AssetID:     "",
-			Message:     "gate inspected zero inputs; runner configuration is stale or broken",
+			Severity:    FindingSeverityBlocking,
+			Blocking:    true,
+			Message:     fmt.Sprintf("gate %q inspected zero inputs; runner configuration is stale or broken", gate),
 			Remediation: "Treat this as a runner fault, never as a pass. The most common cause is a source-glob that no longer matches the tree — check the path pattern this gate resolves against, and whether an asset kind or directory was renamed without updating it. A gate reporting no findings after inspecting nothing is indistinguishable from a clean corpus, which is exactly the failure this finding exists to make visible.",
 			DocsRef:     "docs/internal/TESTING.md",
 		})

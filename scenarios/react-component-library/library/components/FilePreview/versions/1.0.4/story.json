@@ -15,10 +15,14 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-file-preview]"
         }
       ],
       "role": "anatomy"
-    }
+    },
+    {"id":"empty","name":"No file selected","args":{"file":null},"expect":[{"kind":"visible","selector":"[data-rcl-file-preview]"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading file","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-rcl-file-preview]"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"File preview error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-file-preview]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long file name","args":{"name":"release-evidence-with-a-deliberately-long-filename-that-must-wrap.pdf"},"expect":[{"kind":"visible","selector":"[data-rcl-file-preview]"}],"role":"boundary","mode":"pinned"}
   ]
 }

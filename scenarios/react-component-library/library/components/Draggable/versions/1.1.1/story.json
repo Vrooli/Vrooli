@@ -150,7 +150,9 @@
       "mode": "live",
       "name": "Disabled",
       "role": "boundary"
-    }
+    },
+    {"id":"overflow","name":"Long draggable label","args":{"label":"Project brief with a deliberately long title that must remain readable while it is moved"},"expect":[{"kind":"role","role":"group"}],"role":"boundary","mode":"pinned"},
+    {"id":"empty","name":"Empty draggable content","args":{"label":""},"expect":[{"kind":"role","role":"group"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Draggable"
 }

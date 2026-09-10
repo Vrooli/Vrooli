@@ -38,6 +38,55 @@
       "mode": "live",
       "name": "Workspace details",
       "role": "anatomy"
+    },
+    {
+      "id": "responsive",
+      "name": "Responsive axis",
+      "axis": "responsive",
+      "covers": {"responsive": ["auto", "none"]},
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "dialog", "name": "Workspace details"}],
+      "role": "axis",
+      "mode": "pinned"
+    },
+    {
+      "id": "empty",
+      "name": "Empty popover",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "dialog", "name": "Workspace details"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "loading",
+      "name": "Loading popover",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "dialog", "name": "Workspace details"}],
+      "role": "boundary",
+      "states": ["loading"],
+      "mode": "pinned"
+    },
+    {
+      "id": "error",
+      "name": "Error popover",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "dialog", "name": "Workspace details"}],
+      "role": "boundary",
+      "states": ["error"],
+      "mode": "pinned"
+    },
+    {
+      "id": "overflow",
+      "name": "Overflow popover content",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "dialog", "name": "Workspace details"}],
+      "role": "boundary",
+      "mode": "pinned"
     }
   ],
   "title": "Popover"

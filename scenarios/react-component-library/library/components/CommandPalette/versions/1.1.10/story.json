@@ -39,6 +39,13 @@
       "name": "Workspace commands",
       "role": "anatomy"
     }
+    ,
+    {"id": "empty", "name": "Empty commands", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}}, "expect": [{"kind": "role", "role": "dialog", "name": "Command palette"}], "role": "boundary", "mode": "pinned"},
+    {"id": "loading", "name": "Loading commands", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}}, "expect": [{"kind": "role", "role": "dialog", "name": "Command palette"}], "role": "boundary", "mode": "pinned"},
+    {"id": "error", "name": "Error commands", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}}, "expect": [{"kind": "role", "role": "dialog", "name": "Command palette"}], "role": "boundary", "mode": "pinned"},
+    {"id": "one", "name": "One command", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}}, "expect": [{"kind": "role", "role": "dialog", "name": "Command palette"}], "role": "boundary", "mode": "pinned"},
+    {"id": "many", "name": "Many commands", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}}, "expect": [{"kind": "role", "role": "dialog", "name": "Command palette"}], "role": "boundary", "mode": "pinned"},
+    {"id": "overflow", "name": "Overflow commands", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}}, "expect": [{"kind": "role", "role": "dialog", "name": "Command palette"}], "role": "boundary", "mode": "pinned"}
   ],
   "title": "CommandPalette"
 }

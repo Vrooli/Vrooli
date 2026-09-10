@@ -47,5 +47,5 @@
 - Branding hooks: use Workflow Health as the first-viewport signal; keep generated PWA assets valid until final product branding replaces them.
 
 ## 📎 Appendix
-- Plan source: `/home/matthalloran8/.vrooli/plans/workflow-health-scenario-and-workflow-phase.md`.
+- Plan source: `plan-manager plans get workflow-health-scenario-and-workflow-phase`.
 - Key references: `docs/reference/health-maturity-assessments.md`, `docs/reference/ai-search-routing.md`, `scenarios/test-genie/docs/phases/README.md`, and `scenarios/test-genie/docs/phases/playbooks/README.md`.

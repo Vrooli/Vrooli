@@ -313,5 +313,8 @@
         }
       ]
     }
+    ,
+    {"id":"empty","name":"Empty icon state","args":{"name":""},"expect":[{"kind":"visible","selector":"[data-rcl-morphing-icon]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long icon label","args":{"label":"A deliberately long icon label that must remain accessible without changing the glyph"},"expect":[{"kind":"visible","selector":"[data-rcl-morphing-icon]"}],"role":"boundary","mode":"pinned"}
   ]
 }

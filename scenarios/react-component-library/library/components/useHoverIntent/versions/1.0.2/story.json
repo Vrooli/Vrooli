@@ -3,5 +3,5 @@
   "kind": "component",
   "args": { "fields": [] },
   "environment": { "fixtures": [] },
-  "stories": [{ "id": "default", "name": "Default", "args": {}, "expect": [] }]
+  "stories": [{ "id": "default", "name": "Default", "args": {}, "expect": [], "rendersNothing": true, "reason": "This asset exports a pointer intent hook and has no visual DOM of its own.", "role": "anatomy" }, { "id": "loading", "name": "loading", "args": {}, "expect": [], "rendersNothing": true, "reason": "The hook reports pointer intent state and does not paint a loading surface.", "role": "boundary", "mode": "pinned" }, { "id": "error", "name": "error", "args": {}, "expect": [], "rendersNothing": true, "reason": "The hook reports pointer intent state and does not paint an error surface.", "role": "boundary", "mode": "pinned" }]
 }

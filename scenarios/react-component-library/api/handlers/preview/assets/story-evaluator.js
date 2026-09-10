@@ -55,7 +55,7 @@ const expectationFailure = (document, queries, expectation, env) => {
     node = locate(document, queries, { selector: expectation.selector });
   }
   if (expectation.kind === "notVisible") return visible(node, document) ? "expected target not to be visible" : "";
-  if (["visible", "text", "role"].includes(expectation.kind)) {
+  if (["visible", "exists", "text", "role"].includes(expectation.kind)) {
     if (visible(node, document)) return "";
     return "expected target to be visible";
   }
@@ -179,7 +179,15 @@ export async function runStory(previewStory, modules, env = browserEnv) {
     if (result?.skipped) skipped.push({ index, expectation, reason: result.reason });
     else if (result) failures.push({ kind: "expect", expectation, message: result });
   }
-  const result = { passed: failures.length === 0, failures, skipped };
-  env.report?.(result.passed, failures, skipped);
+  const painted = env.measure?.() || {};
+  if (previewStory.role === "anatomy" && painted.paintedNodes === 0) {
+    if (previewStory.rendersNothing === true && String(previewStory.rendersNothingReason || "").trim().length >= 20) {
+      skipped.push({ kind: "empty-render", reason: previewStory.rendersNothingReason });
+    } else {
+      failures.push({ kind: "render", message: "anatomy story rendered no visible content (0 painted nodes)" });
+    }
+  }
+  const result = { passed: failures.length === 0, failures, skipped, ...painted };
+  env.report?.(result.passed, failures, skipped, painted);
   return result;
 }

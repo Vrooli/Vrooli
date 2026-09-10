@@ -48,7 +48,7 @@
     {"id":"OT-P0-012","journey":"headless-parity-with-the-ui"},
     {"id":"OT-P0-013","journey":"first-run-to-applied-install"},
     {"id":"OT-P0-014","journey":"headless-parity-with-the-ui"},
-    {"id":"OT-P2-003","journey":"purpose-profile-intake"}
+    {"id":"OT-P0-015","journey":"purpose-profile-intake"}
   ],
   "negative_controls": [
     {"id":"malformed-patch","fixture":"api/testdata/semantic-journeys.json","assertion":"CLI exits non-zero and no state file is written"},

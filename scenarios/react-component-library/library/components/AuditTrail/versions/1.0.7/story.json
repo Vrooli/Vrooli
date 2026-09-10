@@ -44,7 +44,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-testid='data-display.audit-trail']"
         }
       ],
       "role": "boundary"

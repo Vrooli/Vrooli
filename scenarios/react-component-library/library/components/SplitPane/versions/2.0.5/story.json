@@ -124,5 +124,9 @@
         }
       ]
     }
+    ,
+    {"id":"disabled","name":"Disabled split resize","args":{"disabled":true},"expect":[{"kind":"role","role":"separator","name":"Resize Needs review"}],"role":"boundary","mode":"pinned"},
+    {"id":"empty","name":"Empty split pane","args":{"children":""},"expect":[{"kind":"role","role":"separator"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long split pane content","args":{"title":"Needs review with a deliberately long title that must wrap"},"expect":[{"kind":"role","role":"separator"}],"role":"boundary","mode":"pinned"}
   ]
 }

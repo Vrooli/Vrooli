@@ -15,10 +15,42 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-evidence-carousel]"
         }
       ],
       "role": "anatomy"
+    },
+    {
+      "id": "empty",
+      "name": "Empty evidence",
+      "args": {},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-evidence-carousel]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "one",
+      "name": "One evidence item",
+      "args": {},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-evidence-carousel]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "many",
+      "name": "Many evidence items",
+      "args": {},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-evidence-carousel]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "overflow",
+      "name": "Overflow evidence",
+      "args": {},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-evidence-carousel]"}],
+      "role": "boundary",
+      "mode": "pinned"
     }
   ]
 }

@@ -36,7 +36,12 @@
       "mode": "live",
       "name": "Keyed layout movement",
       "role": "anatomy"
-    }
+    },
+    {"id":"empty","name":"Empty layout","args":{"items":[]},"expect":[{"kind":"text","value":"Movement follows the cause"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Moving layout","args":{},"expect":[{"kind":"text","value":"Movement follows the cause"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Layout transition error","args":{},"expect":[{"kind":"text","value":"Movement follows the cause"}],"role":"boundary","mode":"pinned"},
+    {"id":"disabled","name":"Disabled movement","args":{"disabled":true},"expect":[{"kind":"text","value":"Movement follows the cause"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long layout labels","args":{},"expect":[{"kind":"text","value":"Movement follows the cause"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "AutoAnimateLayout"
 }

@@ -1,6 +1,7 @@
 package gates
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -76,6 +77,18 @@ func ValidateScenarioTokenRequirements(scope Scope) (Result, error) {
 				continue
 			}
 			if collectErr := collectGateVersionTokens(assets, asset, version, reference, required, map[string]bool{}); collectErr != nil {
+				var unmaterialized unmaterializedVersionError
+				if errors.As(collectErr, &unmaterialized) {
+					result.Findings = append(result.Findings, Finding{
+						Code:        "catalog.pinned_version_unmaterialized",
+						AssetID:     "__corpus__.scenario-token-requirements",
+						File:        repoRel(root, unmaterialized.Dir),
+						Message:     fmt.Sprintf("scenario %s reaches %s@%s through a dependency lock, but that version's source has been retired from disk", scenario, unmaterialized.Asset, unmaterialized.Version),
+						Remediation: fmt.Sprintf("Repin the lock that requires %s@%s to an active released version, or restore the retired version. Token requirements cannot be proven against source that no longer exists.", unmaterialized.Asset, unmaterialized.Version),
+						DocsRef:     "docs/concepts/ARCHITECTURE.md#version-lifecycle",
+					})
+					continue
+				}
 				return Result{}, collectErr
 			}
 		}

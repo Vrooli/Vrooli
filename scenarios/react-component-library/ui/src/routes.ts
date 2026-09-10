@@ -32,7 +32,6 @@ export type AssetRouteState = {
   tab?: AssetInfoTab;
   story?: string;
   testReport?: string;
-  view?: "focus" | "canvas";
 };
 
 const assetTabs = new Set<AssetInfoTab>([
@@ -49,15 +48,13 @@ export function assetPath(assetID: string, state: AssetRouteState = {}): string 
   const search = new URLSearchParams();
   if (state.tab && state.tab !== "preview") search.set("tab", state.tab);
   if (state.story) search.set("story", state.story);
-  if (state.view) search.set("view", state.view);
   const serialized = search.toString();
   return `/assets/${encodeURIComponent(assetID)}${serialized ? `?${serialized}` : ""}`;
 }
 
-export function previewPath(assetID: string, story?: string, view?: "focus" | "canvas"): string {
+export function previewPath(assetID: string, story?: string): string {
   const search = new URLSearchParams();
   if (story) search.set("story", story);
-  if (view) search.set("view", view);
   const serialized = search.toString();
   return `/assets/${encodeURIComponent(assetID)}/preview${serialized ? `?${serialized}` : ""}`;
 }

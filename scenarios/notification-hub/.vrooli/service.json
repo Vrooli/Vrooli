@@ -222,7 +222,9 @@
         "field": "password",
         "label": "Notification Hub SMTP password",
         "required": false,
-        "description": "Optional SMTP password used for email notification delivery when SMTP is configured."
+        "description": "Optional SMTP password used for email notification delivery when SMTP is configured.",
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/notification-hub/docs/reference/configuration.md"
       }
     ]
   },

@@ -374,6 +374,44 @@
       "states": [
         "rtl"
       ]
+    },
+    {
+      "id": "empty",
+      "name": "Empty shell content",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "main"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "loading",
+      "name": "Loading shell content",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "main"}],
+      "role": "boundary",
+      "states": ["loading"],
+      "mode": "pinned"
+    },
+    {
+      "id": "error",
+      "name": "Error shell content",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "main"}],
+      "role": "boundary",
+      "states": ["error"],
+      "mode": "pinned"
+    },
+    {
+      "id": "overflow",
+      "name": "Overflow shell content",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "main"}],
+      "role": "boundary",
+      "mode": "pinned"
     }
   ],
   "title": "AppShell"

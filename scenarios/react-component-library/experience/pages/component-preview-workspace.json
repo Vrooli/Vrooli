@@ -21,6 +21,13 @@
       "statement": "A failed specimen remains visible with a retry path without hiding other usable previews."
     }
   ],
+  "claims": [{
+    "id": "preview-workspace-state-covered",
+    "type": "state-covered",
+    "statement": "The component preview workspace is captured in each declared page state.",
+    "tier": "machine",
+    "states": ["default", "preview-loading", "preview-ready", "preview-partial"]
+  }],
   "states": [
     {
       "id": "default",

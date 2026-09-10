@@ -31,7 +31,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-edge-fade]"
         }
       ]
     },
@@ -45,7 +45,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-edge-fade]"
         }
       ],
       "role": "axis",

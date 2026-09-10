@@ -183,9 +183,9 @@
     },
     {
       "id": "ONB-PROFILE-PRESELECT",
-      "title": "Where a reviewed named profile exists, the wizard may evaluate its questions and pre-select its recommended scenario set at goal intake.",
+      "title": "When a reviewed named profile exists, the wizard shall evaluate its questions and pre-select its recommended scenario set at purpose intake.",
       "status": "complete",
-      "prd_ref": "OT-P2-003",
+      "prd_ref": "OT-P0-015",
       "category": "experience",
       "description": "The welcome step evaluates reviewed repository-owned profiles through the shared bounded evaluator. Profile recommendations remain explicit, explainable, and subordinate to operator choices.",
       "validation": [

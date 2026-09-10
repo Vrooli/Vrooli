@@ -77,6 +77,59 @@ func NewProgramRuntimeGapSource(reader ProgramFrictionReader) GapSource {
 	return &programRuntimeGapSource{reader: reader}
 }
 
+// Learning evidence remains a separate source: a failed read cannot erase the
+// runtime failure/refusal projection, and a partial queue is never complete.
+type learningFindingGapSource struct {
+	reader func(context.Context) (*programsv1.ListLearningFindingsResponse, error)
+}
+
+func NewLearningFindingGapSource() GapSource {
+	r := NewProgramRuntimeFrictionReader().(*programRuntimeFrictionReader)
+	return &learningFindingGapSource{reader: func(ctx context.Context) (*programsv1.ListLearningFindingsResponse, error) {
+		ctx, cancel := context.WithTimeout(ctx, r.deadline)
+		defer cancel()
+		base, err := r.resolver.ResolveScenarioURLDefault(ctx, "program-runtime")
+		if err != nil {
+			return nil, err
+		}
+		response, err := programsconnect.NewProgramServiceClient(r.http, base).ListLearningFindings(ctx, connect.NewRequest(&programsv1.ListLearningFindingsRequest{Limit: 100}))
+		if err != nil {
+			return nil, err
+		}
+		if response == nil || response.Msg == nil {
+			return nil, fmt.Errorf("empty learning findings response")
+		}
+		return response.Msg, nil
+	}}
+}
+
+func (*learningFindingGapSource) Axis() Axis { return AxisEmpirical }
+
+func (s *learningFindingGapSource) DerivedGaps(ctx context.Context) ([]Gap, error) {
+	reading, err := s.reader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("learning findings unavailable: %w", err)
+	}
+	if reading == nil {
+		return nil, fmt.Errorf("empty learning findings response")
+	}
+	out := make([]Gap, 0, len(reading.GetFindings())+1)
+	for _, f := range reading.GetFindings() {
+		if f == nil || f.GetFindingId() == "" || f.GetState() == "measured" {
+			continue
+		}
+		out = append(out, Gap{ID: "empirical/program-runtime/learning/" + f.GetFindingId(), Axis: AxisEmpirical,
+			Title:       "Learning correction awaits " + f.GetOwner() + ": " + f.GetDimension(),
+			ProviderIDs: []string{f.GetOwner()}, EvidenceSource: "program-runtime.learning", EvidenceLocator: "program-runtime://learning/findings/" + f.GetFindingId(), Recurrence: 1,
+			Notes:     append([]string{"owner=" + f.GetOwner(), "state=" + f.GetState(), "updated_at=" + f.GetUpdatedAt()}, f.GetEvidence()...),
+			FollowUps: []string{"Read program-runtime.learning-maintain and claim the finding before repair; preserve independent validation and later outcome evidence."}})
+	}
+	if reading.GetTruncated() {
+		out = append(out, Gap{ID: "empirical/program-runtime/learning/truncated", Axis: AxisEmpirical, Global: true, Title: "Learning findings exceed the bounded projection", EvidenceSource: "program-runtime.learning", AvailabilityReason: "truncated: narrow by owner; omitted findings remain unresolved"})
+	}
+	return out, nil
+}
+
 var _ GapSource = (*programRuntimeGapSource)(nil)
 
 func (*programRuntimeGapSource) Axis() Axis { return AxisEmpirical }

@@ -15,6 +15,13 @@
       "statement": "Inspect a selected asset specimen in a full-viewport preview with stable story and view parameters."
     }
   ],
+  "claims": [{
+    "id": "preview-popout-state-covered",
+    "type": "state-covered",
+    "statement": "The standalone preview is captured in the declared page state.",
+    "tier": "machine",
+    "states": ["default"]
+  }],
   "states": [
     {
       "id": "default",

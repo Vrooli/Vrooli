@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Panel } from "./Panel";
 
 interface PageProps {
   title: string;
@@ -41,21 +42,23 @@ export function Page({ title, description, eyebrow, actions, children, layout = 
 
 export function StatStrip({ items }: { items: Array<{ label: string; value: string | number; hint?: string; tone?: "neutral" | "warning" | "danger" | "success"; testId?: string }> }) {
   return (
-    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-panel border border-app-border bg-app-border sm:grid-cols-4">
-      {items.map((item) => (
-        <div key={item.label} data-testid={item.testId} className="flex flex-col gap-0.5 bg-app-surface px-4 py-3">
-          <dt className="text-xs font-medium text-app-muted-foreground">{item.label}</dt>
-          <dd
-            className={[
-              "font-mono text-xl font-semibold tabular-nums leading-tight",
-              item.tone === "danger" ? "text-app-danger" : item.tone === "warning" ? "text-app-warning" : item.tone === "success" ? "text-app-success" : "text-app-foreground",
-            ].join(" ")}
-          >
-            {item.value}
-          </dd>
-          {item.hint ? <dd className="text-xs text-app-muted-foreground">{item.hint}</dd> : null}
-        </div>
-      ))}
-    </dl>
+    <Panel className="overflow-hidden p-0">
+      <dl className="grid grid-cols-2 gap-px bg-app-border sm:grid-cols-4">
+        {items.map((item) => (
+          <div key={item.label} data-testid={item.testId} className="flex flex-col gap-0.5 bg-app-surface px-4 py-3">
+            <dt className="text-xs font-medium text-app-muted-foreground">{item.label}</dt>
+            <dd
+              className={[
+                "font-mono text-xl font-semibold tabular-nums leading-tight",
+                item.tone === "danger" ? "text-app-danger" : item.tone === "warning" ? "text-app-warning" : item.tone === "success" ? "text-app-success" : "text-app-foreground",
+              ].join(" ")}
+            >
+              {item.value}
+            </dd>
+            {item.hint ? <dd className="text-xs text-app-muted-foreground">{item.hint}</dd> : null}
+          </div>
+        ))}
+      </dl>
+    </Panel>
   );
 }

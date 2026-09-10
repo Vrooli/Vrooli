@@ -8,6 +8,7 @@ import { Button } from "@vrooli/react-component-library/Button/2";
 import { ConsoleApiError, consoleApi, consoleKeys, type AgentDraft } from "../api/console";
 import { AgentMark } from "../components/console/AgentMark";
 import { Page } from "../components/console/Page";
+import { Panel } from "../components/console/Panel";
 import { Region } from "../components/console/Region";
 import { strings } from "../consts/strings";
 import { useSession } from "../features/session/SessionProvider";
@@ -59,7 +60,8 @@ export function AgentNewPage() {
     >
       <Region surfaceId="draft-region" testId="agent-new-draft-region" state={state} errorDetail={prepare.error instanceof Error ? prepare.error.message : undefined} onRetry={() => prepare.reset()}>
         <div className="grid gap-6 lg:grid-cols-2">
-          <form onSubmit={submit} className="flex flex-col gap-3 rounded-panel border border-app-border bg-app-surface p-4">
+          <Panel className="p-0">
+          <form onSubmit={submit} className="flex flex-col gap-3 p-4">
             <label className="flex flex-col gap-1.5 text-sm font-medium" htmlFor="agent-description">
               {t(strings.console.agents.descriptionLabel)}
               <textarea
@@ -79,8 +81,9 @@ export function AgentNewPage() {
               </Button>
             </div>
           </form>
+          </Panel>
 
-          <section aria-live="polite" aria-label={t(strings.console.agents.reviewHeading)} className="flex flex-col gap-3 rounded-panel border border-dashed border-app-border p-4">
+          <Panel role="region" aria-live="polite" aria-label={t(strings.console.agents.reviewHeading)} className="flex flex-col gap-3 border-dashed p-4">
             <h3 className="text-sm font-semibold">{t(strings.console.agents.reviewHeading)}</h3>
             {draft ? (
               <>
@@ -127,7 +130,7 @@ export function AgentNewPage() {
             ) : (
               <p className="text-sm text-app-muted-foreground">{t(strings.console.agents.reviewPlaceholder)}</p>
             )}
-          </section>
+          </Panel>
         </div>
       </Region>
     </Page>

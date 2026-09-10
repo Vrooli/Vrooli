@@ -185,7 +185,7 @@ export default function App() {
       >
         <div className="app-bar__inner">
           <div className="app-brand" aria-label={i18n.t("onboarding.app.brand")}>
-            <span className="app-brand__mark" aria-hidden="true">V</span>
+            <img className="app-brand__mark" src="/public/logo.webp" alt="" />
             <span>{i18n.t("onboarding.app.brand")}</span>
           </div>
           <div
@@ -210,7 +210,7 @@ export default function App() {
               id={`tab-${item.id}`}
               tabIndex={view === item.id ? 0 : -1}
               className={cn(
-                "app-tab min-h-11 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors sm:gap-2 sm:px-3",
+                "app-tab min-h-11 inline-flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors sm:gap-3 sm:px-3",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/50",
                 view === item.id
                   ? "bg-surface-subtle text-foreground"

@@ -10,7 +10,8 @@
     ],
     "purpose": "Orient an operator to the install decision and provide an explicit entry into capability selection.",
     "prd_refs": [
-      "OT-P0-001"
+      "OT-P0-001",
+      "OT-P0-015"
     ]
   },
   "priorities": [

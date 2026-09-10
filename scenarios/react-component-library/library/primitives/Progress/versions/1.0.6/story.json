@@ -185,6 +185,12 @@
       "name": "Interactive progress",
       "role": "boundary"
     }
+    ,
+    {"id":"size","name":"Size axis","axis":"size","covers":{"size":["sm","md","lg"]},"args":{},"expect":[{"kind":"role","role":"progressbar"}],"role":"axis","mode":"pinned"},
+    {"id":"tone","name":"Tone axis","axis":"tone","covers":{"tone":["neutral","success","warning","danger"]},"args":{},"expect":[{"kind":"role","role":"progressbar"}],"role":"axis","mode":"pinned"},
+    {"id":"empty","name":"Empty progress","args":{"value":0,"max":0},"expect":[{"kind":"role","role":"progressbar"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading progress","args":{"state":"loading"},"expect":[{"kind":"role","role":"progressbar"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long progress label","args":{"label":"A deliberately long progress explanation that must wrap cleanly"},"expect":[{"kind":"role","role":"progressbar"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Progress"
 }

@@ -210,7 +210,7 @@ describe("AppShell", () => {
     expect(screen.getByText("Integration readiness and recovery guidance")).toBeInTheDocument();
   });
 
-  it("submits catalog search and opens create from the workspace header", async () => {
+  it("submits catalog search and opens create from the single action launcher", async () => {
     const user = userEvent.setup();
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: false,
@@ -234,7 +234,8 @@ describe("AppShell", () => {
     await user.keyboard("{Enter}");
     expect(screen.getByText("catalog")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "dashboard.create" }));
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "launcher.open" }));
+    await user.click(screen.getByTestId("launcher-create"));
+    expect(screen.getAllByRole("dialog").some((dialog) => dialog.getAttribute("data-state") !== "closed")).toBe(true);
   });
 });

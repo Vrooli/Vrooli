@@ -15,6 +15,13 @@
       "statement": "Find a scenario with declared pages and open its design inventory."
     }
   ],
+  "claims": [{
+    "id": "design-page-state-covered",
+    "type": "state-covered",
+    "statement": "The design page is captured in the declared page state.",
+    "tier": "machine",
+    "states": ["default"]
+  }],
   "states": [
     {
       "id": "default",

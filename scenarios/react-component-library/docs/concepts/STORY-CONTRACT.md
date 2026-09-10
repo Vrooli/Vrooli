@@ -100,6 +100,16 @@ Token requirements follow the same rule: the indexer derives external CSS
 custom properties from version source. `requiredTokens` is not a manifest
 field.
 
+The same rule applies to `args.fields`. The indexer reads the component's own
+TypeScript props type and projects supported props into the story read model:
+string unions become enum fields, booleans and numbers retain their scalar
+kind, strings and children become text, and arrays and objects retain their
+collection or object kind. Inherited DOM attributes and unsupported callback
+shapes are omitted. Authors keep story args and expectations in `story.json`,
+but do not maintain a second copy of the prop field definition. The
+`story-args-fields` gate reports any remaining hand-authored copy so it can be
+removed without changing the source of truth.
+
 ## Deterministic behavior
 
 Stories provide public props only. Interactions are limited to `click`, `type`,

@@ -1421,14 +1421,17 @@ func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, stale map[string]
 			}
 			sort.Strings(selected)
 		}
+		// Name the gate on the way out. A runner that fails on a filesystem
+		// read used to surface as a bare "open <path>: no such file" with no
+		// indication of which of the sixty-one gates produced it.
 		result, available, runErr := gates.Run(definition.ID, gates.Scope{Root: root, Assets: selected, DB: runtimeDB})
 		if runErr != nil {
-			return nil, runErr
+			return nil, fmt.Errorf("gate %s: %w", definition.ID, runErr)
 		}
 		if available {
 			result = gates.NormalizeResult(root, result)
 			if err := AnnotateFindings(root, definition.ID, &result); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("gate %s: annotate findings: %w", definition.ID, err)
 			}
 			runners[definition.ID] = result
 		}

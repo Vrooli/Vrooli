@@ -50,7 +50,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-page]"
         }
       ],
       "role": "boundary"

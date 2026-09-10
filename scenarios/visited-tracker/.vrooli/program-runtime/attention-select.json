@@ -1,6 +1,9 @@
 {
   "name": "visited-tracker.attention-select",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Return up to 20 revision-aware review candidates without reserving or recording visits; compose in any authorized scenario improvement program.",
   "inputs": {
     "campaign_id": {
@@ -62,7 +65,9 @@
         "invalid_input",
         "deadline_exceeded",
         "binding_error",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Binding identity and snapshot observation metadata."

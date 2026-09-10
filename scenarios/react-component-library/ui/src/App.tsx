@@ -88,7 +88,7 @@ export default function App() {
           path={appRoutes.catalog}
           element={
             <Page>
-              <CatalogBrowser surfaceId="catalog-results" />
+              <CatalogBrowser surfaceId="catalog-results" view="home" />
             </Page>
           }
         />
@@ -96,7 +96,7 @@ export default function App() {
           path={appRoutes.components}
           element={
             <Page>
-              <CatalogBrowser surfaceId="catalog-results" />
+                <CatalogBrowser surfaceId="catalog-results" view="components" />
             </Page>
           }
         />
@@ -104,7 +104,7 @@ export default function App() {
           path={appRoutes.assetCatalog}
           element={
             <Page>
-              <CatalogBrowser surfaceId="catalog-results" />
+                <CatalogBrowser surfaceId="catalog-results" view="catalog" />
             </Page>
           }
         />

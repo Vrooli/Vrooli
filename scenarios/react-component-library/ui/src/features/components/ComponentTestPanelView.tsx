@@ -17,6 +17,7 @@ import type {
 } from "../../api/componentTests";
 import { API_BASE } from "../../api/client";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { Select } from "@vrooli/react-component-library/Select/1";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { assetSearchForTab } from "../../routes";
@@ -524,18 +525,13 @@ function EvidenceWorkspace({
       {storyChoices.length ? (
         <label className="flex flex-wrap items-center gap-space-2xs text-xs text-app-muted-foreground">
           <span className="font-medium text-app-foreground">Captured story</span>
-          <select
+          <Select
             aria-label="Captured story"
             className="min-w-0 rounded-control border border-app-border bg-app-surface px-space-xs py-space-2xs text-app-foreground"
             value={selectedStoryID}
+            options={storyChoices.map((story) => ({ value: story.id, label: story.label }))}
             onChange={(event) => onSelectStory(event.target.value)}
-          >
-            {storyChoices.map((story) => (
-              <option key={story.id} value={story.id}>
-                {story.label}
-              </option>
-            ))}
-          </select>
+          />
         </label>
       ) : null}
       {!hasBASArtifacts ? (
@@ -936,9 +932,12 @@ export function ComponentTestPanelView({
                 {failedClaims.map((claim) => {
                   const selected = claim.id === activeClaimID;
                   return (
-                    <button
+                    <Button
                       key={claim.id}
                       type="button"
+                      variant="ghost"
+                      shape="square"
+                      size="sm"
                       role="tab"
                       aria-selected={selected}
                       onClick={() => setSelectedClaimID(claim.id)}
@@ -954,7 +953,7 @@ export function ComponentTestPanelView({
                           {claim.statement}
                         </span>
                       </span>
-                    </button>
+                    </Button>
                   );
                 })}
               </div>

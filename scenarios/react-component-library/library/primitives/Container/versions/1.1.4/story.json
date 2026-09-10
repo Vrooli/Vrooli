@@ -48,7 +48,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-testid=\"primitives.container\"]"
         }
       ]
     },
@@ -63,7 +63,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-testid=\"primitives.container\"]"
         }
       ],
       "role": "axis",
@@ -89,7 +89,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-testid=\"primitives.container\"]"
         }
       ],
       "role": "axis",
@@ -115,10 +115,12 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-testid=\"primitives.container\"]"
         }
       ],
-      "role": "boundary"
+      "role": "axis",
+      "axis": "width",
+      "covers": {"width": ["compact", "content", "comfortable", "wide", "full"]}
     },
     {
       "args": {
@@ -131,10 +133,12 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-testid=\"primitives.container\"]"
         }
       ],
-      "role": "boundary"
+      "role": "axis",
+      "axis": "width",
+      "covers": {"width": ["compact", "content", "comfortable", "wide", "full"]}
     }
   ],
   "title": "Container"

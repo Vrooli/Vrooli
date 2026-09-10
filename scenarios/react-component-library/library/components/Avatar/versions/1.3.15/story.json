@@ -401,7 +401,10 @@
       "mode": "live",
       "name": "Group overflow",
       "role": "boundary"
-    }
+    },
+    {"id":"empty-boundary","name":"empty","args":{"imageState":"loaded","name":"","presence":"offline","shape":"circle","size":"md"},"expect":[{"kind":"role","role":"img"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading-boundary","name":"loading","args":{"imageState":"loading","name":"Maya Chen","presence":"away","shape":"circle","size":"lg"},"expect":[{"kind":"role","role":"img"}],"role":"boundary","mode":"pinned"},
+    {"id":"error-boundary","name":"error","args":{"imageState":"error","name":"Maya Chen","presence":"busy","shape":"circle","size":"lg"},"expect":[{"kind":"role","role":"img"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Avatar"
 }

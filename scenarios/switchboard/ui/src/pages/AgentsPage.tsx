@@ -8,6 +8,7 @@ import { consoleApi, consoleKeys, type Agent } from "../api/console";
 import { AgentMark } from "../components/console/AgentMark";
 import { ChannelChip } from "../components/console/ChannelChip";
 import { Page } from "../components/console/Page";
+import { Panel } from "../components/console/Panel";
 import { Quiet, Region } from "../components/console/Region";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
@@ -47,13 +48,13 @@ export function AgentsPage() {
       }
     >
       {sourceDown ? (
-        <div role="alert" className="flex items-start gap-2 rounded-panel border border-app-warning/50 bg-app-warning/10 px-3 py-2 text-sm">
+        <Panel role="alert" className="flex items-start gap-2 border-app-warning/50 bg-app-warning/10 px-3 py-2 text-sm">
           <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-app-warning" />
           <p>
             <span className="font-medium">{t(strings.console.agents.sourceUnavailable)}</span>{" "}
             <span className="text-app-muted-foreground">{roster.data?.source.reason}</span>
           </p>
-        </div>
+        </Panel>
       ) : null}
       <Region
         surfaceId="roster-region"
@@ -93,8 +94,9 @@ function AgentCard({ agent }: { agent: Agent }) {
     <li data-testid="agents-card" data-agent-id={agent.id}>
       <Link
         to={`/agents/${encodeURIComponent(agent.id)}`}
-        className="flex h-full flex-col gap-3 rounded-panel border border-app-border bg-app-surface p-4 transition-colors hover:border-app-primary/50 hover:shadow-subtle"
+        className="block h-full transition-colors hover:shadow-subtle"
       >
+        <Panel className="flex h-full flex-col gap-3 p-4 hover:border-app-primary/50">
         <div className="flex items-start gap-3">
           <AgentMark name={agent.display_name} appearance={agent.appearance} size="lg" live={reachable ? live : undefined} testId="agents-avatar" />
           <div className="min-w-0 flex-1">
@@ -142,6 +144,7 @@ function AgentCard({ agent }: { agent: Agent }) {
             <span className="ml-auto text-app-muted-foreground">{t(strings.console.agents.activity24h, { turns: agent.activity.turns_24h, refusals: agent.activity.refusals_24h })}</span>
           ) : null}
         </div>
+        </Panel>
       </Link>
     </li>
   );

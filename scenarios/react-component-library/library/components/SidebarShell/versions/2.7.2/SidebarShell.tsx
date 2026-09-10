@@ -674,6 +674,7 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(functi
         <button
           type="button"
           data-testid={`${testId}-backdrop`}
+          data-rcl-selector="navigation.sidebar"
           data-rcl-sidebar-backdrop=""
           data-mode={mode}
           aria-label={closeLabel}
@@ -707,6 +708,7 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(functi
             <button
               type="button"
               data-testid={`${testId}-close`}
+              data-rcl-selector="navigation.sidebar"
               aria-label={closeLabel}
               onClick={onMobileClose}
               className="rcl-sidebar-shell__close"

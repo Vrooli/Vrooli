@@ -72,7 +72,7 @@ export function StartConversationDialog({ open, onClose }: StartConversationDial
               data-testid="conversations-start-agent"
               onClick={() => setSelected(agent.id)}
               className={[
-                "flex w-full items-center gap-3 rounded-panel border px-3 py-2 text-left",
+                "flex w-full items-center gap-3 rounded-control border px-3 py-2 text-left",
                 selected === agent.id ? "border-app-primary bg-app-primary/5" : "border-app-border hover:bg-app-surface-muted",
               ].join(" ")}
             >

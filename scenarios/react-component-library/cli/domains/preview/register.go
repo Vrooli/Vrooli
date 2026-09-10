@@ -30,5 +30,15 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			Flags: []cliapp.Flag{{Name: "version", Required: true, Description: "Asset version whose @deps declarations should be installed"}},
 		},
 	}).WithPrimitive(cliapp.ExternalDelegation(h.populateStore)))
+	group.Subcommands = append(group.Subcommands, (cliapp.Command{
+		Name:        "capture",
+		Description: "Capture released anatomy stories into versions/<version>/preview.png",
+		Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
+			{Name: "asset", Description: "Library id for one asset"},
+			{Name: "version", Description: "Released version for the selected asset"},
+			{Name: "all", Bool: true, Description: "Capture every released version with materialized source"},
+			{Name: "refresh", Bool: true, Description: "Recapture existing preview.png files"},
+		}},
+	}).WithPrimitive(cliapp.ExternalDelegation(h.capture)))
 	return group, nil
 }

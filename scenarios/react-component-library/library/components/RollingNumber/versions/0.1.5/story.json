@@ -77,7 +77,10 @@
       "mode": "live",
       "name": "Only the changed digit rolls",
       "role": "boundary"
-    }
+    },
+    {"id":"scale","name":"Scale axis","axis":"scale","covers":{"scale":["compact","standard","large"]},"args":{},"expect":[{"kind":"text","value":"1,284"}],"role":"axis","mode":"pinned"},
+    {"id":"empty","name":"Empty number","args":{"value":0},"expect":[{"kind":"text","value":"1,284"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Large number","args":{"value":999999999},"expect":[{"kind":"text","value":"1,284"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "RollingNumber"
 }

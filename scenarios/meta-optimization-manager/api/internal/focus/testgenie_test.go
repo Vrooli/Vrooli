@@ -30,7 +30,7 @@ func TestTestGenieGapSourceEmitsTypedFleetEvidence(t *testing.T) {
 	_, handler := runsconnect.NewRunsServiceHandler(focusTestGenieRuns{health: &runsv1.FleetHealth{
 		WindowDays:             30,
 		TotalRuns:              10,
-		Scenarios:              []*runsv1.FleetScenarioHealth{{Scenario: "demo", Runs: 10, PassedRuns: 2, FailedRuns: 8}},
+		Scenarios:              []*runsv1.FleetScenarioHealth{{Target: "demo", Runs: 10, PassedRuns: 2, FailedRuns: 8}},
 		FailureClassifications: []*runsv1.FailureClassificationCount{{Classification: "maturity_contract", Count: 6}, {Classification: "system", Count: 2}},
 	}})
 	server := httptest.NewServer(handler)
@@ -55,7 +55,7 @@ func TestTestGenieGapSourceEmitsTypedFleetEvidence(t *testing.T) {
 func TestTestGenieGapSourceOmitsCleanFleet(t *testing.T) {
 	_, handler := runsconnect.NewRunsServiceHandler(focusTestGenieRuns{health: &runsv1.FleetHealth{
 		TotalRuns: 2,
-		Scenarios: []*runsv1.FleetScenarioHealth{{Scenario: "demo", Runs: 2, PassedRuns: 2}},
+		Scenarios: []*runsv1.FleetScenarioHealth{{Target: "demo", Runs: 2, PassedRuns: 2}},
 	}})
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)

@@ -100,8 +100,9 @@ belong in [`DATA.md`](DATA.md).
   suggestions for local proto issues.
 - Does not own: cross-scenario graph analysis, dependency manifest
   drift, or authoritative dead-proto detection.
-- API: planned `ProtoHealthService.ValidateScenario`.
-- CLI: planned `proto-health validate scenario <name> --json`.
+- API: `ScenarioValidationService.ValidateScenario` for descriptor-backed policy checks.
+- CLI: `proto-health validate scenario <name> --json` and the source-level
+  `proto-health validate owner <owner> --json` check for pre-generation failures.
 - UI: planned per-scenario findings view.
 - Storage: none required in v1.
 - Requirements: PROTO-VAL-001, PROTO-VAL-002.

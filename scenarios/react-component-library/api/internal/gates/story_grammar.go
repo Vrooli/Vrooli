@@ -1,6 +1,8 @@
 package gates
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,7 +15,11 @@ import (
 
 func ValidateStoryGrammar(scope Scope) (Result, error) {
 	root := scope.Root
-	catalog, err := loadAssets(scope)
+	// The catalog map is needed to classify every implementation path as
+	// renderable before the caller's asset scope is applied. Loading it through
+	// the selected library id would omit the corresponding catalog id
+	// (for example react-component-library:Badge vs primitives.badge).
+	catalog, err := loadAssets(Scope{Root: scope.Root})
 	if err != nil {
 		return Result{}, err
 	}
@@ -73,13 +79,24 @@ func ValidateStoryGrammar(scope Scope) (Result, error) {
 			if story.Role == "axis" {
 				axes[story.Axis] = true
 			}
-			if len(story.Expect) == 0 {
+			if storyNeedsExpectation(story) {
 				result.Findings = append(result.Findings, Finding{
-					Code: "catalog.story_expectation_missing", AssetID: assetID, File: repoRel(root, path),
+					Code: "catalog.story_tautological_expectation", AssetID: assetID, File: repoRel(root, path),
 					Message:     fmt.Sprintf("story %q declares no expectation", story.ID),
-					Remediation: "Add at least one rendered expectation to the story, such as a role, text, attribute, or layout assertion.",
+					Remediation: fmt.Sprintf("Asset %s must assert something the component itself renders; add a role, text, attribute, count, or layout expectation.", assetID),
 					DocsRef:     "docs/concepts/STORY-CONTRACT.md#story-roles",
 				})
+			}
+			for expectationIndex, expectation := range story.Expect {
+				selector := strings.TrimSpace(expectation.Selector)
+				if (expectation.Kind == "visible" || expectation.Kind == "exists") && (selector == "body" || selector == "html" || selector == ":root") {
+					result.Findings = append(result.Findings, Finding{
+						Code: "catalog.story_tautological_expectation", AssetID: assetID, File: repoRel(root, path),
+						Message:     fmt.Sprintf("story %q expectation %d selects %q, which is visible in every document", story.ID, expectationIndex, selector),
+						Remediation: fmt.Sprintf("Asset %s must assert something the component itself renders; replace %q with a component-owned selector, role, or text.", assetID, selector),
+						DocsRef:     "docs/concepts/STORY-CONTRACT.md#story-roles",
+					})
+				}
 			}
 		}
 		if anatomyCount != 1 {
@@ -100,8 +117,80 @@ func ValidateStoryGrammar(scope Scope) (Result, error) {
 				})
 			}
 		}
+		for _, boundary := range contract.Stories {
+			if boundary.Role != "boundary" {
+				continue
+			}
+			var boundaryArgs map[string]json.RawMessage
+			if json.Unmarshal(boundary.Args, &boundaryArgs) != nil {
+				continue
+			}
+			// A boundary may use an axis value as part of a meaningful
+			// condition, such as long content with a warning tone. It is
+			// redundant only when its complete argument set consists of axis
+			// values; the coverage gate owns that same axis-only rule for the
+			// latest version.
+			if !storyGrammarBoundaryArgsAreAxisOnly(contract, boundaryArgs) || storyGrammarBoundaryHasExplicitState(boundary) {
+				continue
+			}
+			for _, axis := range contract.Stories {
+				if axis.Role != "axis" {
+					continue
+				}
+				for fieldPath, values := range axis.Covers {
+					value, ok := boundaryArgs[fieldPath]
+					if !ok || !containsRawValue(values, value) {
+						continue
+					}
+					result.Findings = append(result.Findings, Finding{
+						Code: "catalog.story_boundary_redundant", AssetID: assetID, File: repoRel(root, path),
+						Message:     fmt.Sprintf("boundary story %q repeats enum value for axis %q", boundary.ID, fieldPath),
+						Remediation: fmt.Sprintf("Move the %s value into the axis story's covers matrix, or make boundary story %q render a non-enum condition.", fieldPath, boundary.ID),
+						DocsRef:     "docs/concepts/STORY-CONTRACT.md#story-roles",
+					})
+				}
+			}
+		}
 	}
 	return nonEmpty(result, "story-grammar"), nil
+}
+
+func isEnumField(contract *components.StoryContract, path string) bool {
+	for _, field := range contract.Args.Fields {
+		if field.Path == path {
+			return field.Kind == components.StoryFieldEnum
+		}
+	}
+	return false
+}
+
+func storyGrammarBoundaryArgsAreAxisOnly(contract *components.StoryContract, args map[string]json.RawMessage) bool {
+	if len(args) == 0 {
+		return false
+	}
+	for path := range args {
+		if !isEnumField(contract, path) {
+			return false
+		}
+	}
+	return true
+}
+
+func storyGrammarBoundaryHasExplicitState(story components.StoryDefinition) bool {
+	return len(story.States) > 0 || len(story.Interactions) > 0
+}
+
+func storyNeedsExpectation(story components.StoryDefinition) bool {
+	return len(story.Expect) == 0 && !story.RendersNothing
+}
+
+func containsRawValue(values []json.RawMessage, target json.RawMessage) bool {
+	for _, value := range values {
+		if bytes.Equal(bytes.TrimSpace(value), bytes.TrimSpace(target)) {
+			return true
+		}
+	}
+	return false
 }
 
 func scopeReportsAsset(scope Scope, assetID string) bool {

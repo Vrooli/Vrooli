@@ -81,7 +81,8 @@
       "mode": "live",
       "name": "Offline status",
       "role": "boundary"
-    }
+    },
+    {"id":"loading","name":"Submitting form","args":{"state":"loading"},"expect":[{"kind":"role","role":"form"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Form"
 }

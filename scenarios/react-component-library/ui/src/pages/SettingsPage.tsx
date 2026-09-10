@@ -10,6 +10,7 @@
  */
 import { useState } from "react";
 import { NumberField } from "@vrooli/react-component-library/NumberField/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { type Theme } from "../components/theme/theme-context";
 import { useTheme } from "../components/theme/useTheme";
 import { Select } from "@vrooli/react-component-library/Select/1";
@@ -149,9 +150,12 @@ function AppearanceCards({
       {options.map((o) => {
         const active = o.value === value;
         return (
-          <button
+          <Button
             key={o.value}
             type="button"
+            variant={active ? "primary" : "secondary"}
+            shape="square"
+            size="lg"
             role="radio"
             aria-checked={active}
             data-testid={`${testid}-${o.value}`}
@@ -164,7 +168,7 @@ function AppearanceCards({
             ].join(" ")}
           >
             <span className="block font-medium">{o.label}</span>
-          </button>
+          </Button>
         );
       })}
     </div>

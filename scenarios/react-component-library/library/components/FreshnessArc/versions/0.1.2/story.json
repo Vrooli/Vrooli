@@ -66,6 +66,9 @@
       "name": "Cached: dashed and drained",
       "role": "boundary"
     }
+    ,
+    {"id":"empty","name":"Empty freshness","args":{"value":null},"expect":[{"kind":"text","value":"observed 9s ago · ttl 30s"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long freshness label","args":{"label":"observed a deliberately long time ago · ttl 30s"},"expect":[{"kind":"text","value":"observed 9s ago · ttl 30s"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "FreshnessArc"
 }

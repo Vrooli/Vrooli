@@ -46,11 +46,13 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-nav-link]"
         }
       ],
       "role": "boundary"
-    }
+    },
+    {"id":"empty","name":"Empty link label","args":{"children":"","href":"#overview"},"expect":[{"kind":"role","role":"link"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long link label","args":{"children":"Open the component catalog and inspect every available release detail","href":"#catalog"},"expect":[{"kind":"role","role":"link"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "NavLink"
 }

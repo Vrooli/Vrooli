@@ -16,6 +16,13 @@
       "statement": "Inspect a page declaration, its revisions and verification evidence; the legacy sketch route redirects here."
     }
   ],
+  "claims": [{
+    "id": "design-workspace-state-covered",
+    "type": "state-covered",
+    "statement": "The design workspace is captured in the declared page state.",
+    "tier": "machine",
+    "states": ["default"]
+  }],
   "states": [
     {
       "id": "default",

@@ -15,10 +15,14 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-responsive-panel]"
         }
       ],
       "role": "anatomy"
-    }
+    },
+    {"id":"empty","name":"Empty panel","args":{"children":""},"expect":[{"kind":"visible","selector":"[data-rcl-responsive-panel]"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading panel","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-rcl-responsive-panel]"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Panel error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-responsive-panel]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long panel content","args":{"children":"This deliberately long panel content demonstrates wrapping while preserving the responsive surface and its heading."},"expect":[{"kind":"visible","selector":"[data-rcl-responsive-panel]"}],"role":"boundary","mode":"pinned"}
   ]
 }

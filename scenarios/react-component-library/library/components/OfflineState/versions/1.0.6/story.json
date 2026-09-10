@@ -36,7 +36,9 @@
       "mode": "live",
       "name": "Offline snapshot",
       "role": "anatomy"
-    }
+    },
+    {"id":"loading-boundary","name":"loading","args":{"state":"loading"},"expect":[{"kind":"role","role":"status"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Offline error","args":{"state":"error"},"expect":[{"kind":"role","role":"status"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "OfflineState"
 }

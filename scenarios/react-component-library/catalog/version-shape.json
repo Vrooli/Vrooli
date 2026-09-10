@@ -9,7 +9,8 @@
     "storySource": {"authored": true, "required": true, "name": "story.tsx"},
     "storyContract": {"generated": true, "required": true, "name": "story.json"},
     "dependencyLock": {"generated": true, "required": true, "name": "dependencies.json"},
-    "experienceContract": {"authored": true, "required": false, "name": "experience-contract.json"}
+    "experienceContract": {"authored": true, "required": false, "name": "experience-contract.json"},
+    "previewImage": {"generated": true, "required": false, "name": "preview.png"}
   },
   "forbidden": "every other file name"
 }

@@ -15,10 +15,12 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-async-form-flow]"
         }
       ],
       "role": "anatomy"
-    }
+    },
+    {"id":"loading","name":"Submitting form","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-rcl-async-form-flow]"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Form error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-async-form-flow]"}],"role":"boundary","mode":"pinned"}
   ]
 }

@@ -27,7 +27,9 @@
       "mode": "live",
       "name": "Pending sync",
       "role": "anatomy"
-    }
+    },
+    {"id":"loading-boundary","name":"loading","args":{"state":"loading"},"expect":[{"kind":"role","role":"status"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Sync error","args":{"state":"error"},"expect":[{"kind":"role","role":"status"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "PendingSyncBadge"
 }

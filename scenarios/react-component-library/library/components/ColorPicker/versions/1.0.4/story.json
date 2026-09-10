@@ -136,5 +136,12 @@
       "name": "Custom color records on blur",
       "role": "boundary"
     }
+    ,
+    {"id": "empty", "name": "Empty palette", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "ControlledWithRecents"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-color-picker]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "loading", "name": "Loading palette", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "ControlledWithRecents"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-color-picker]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "error", "name": "Error palette", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "ControlledWithRecents"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-color-picker]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "one", "name": "One color", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "ControlledWithRecents"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-color-picker]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "many", "name": "Many colors", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "ControlledWithRecents"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-color-picker]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "overflow", "name": "Overflow palette", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "ControlledWithRecents"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-color-picker]"}], "role": "boundary", "mode": "pinned"}
   ]
 }

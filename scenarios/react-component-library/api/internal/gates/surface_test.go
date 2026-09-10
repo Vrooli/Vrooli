@@ -48,6 +48,12 @@ func TestEquivalentBoxShadowsAcceptsComputedBrowserSerialization(t *testing.T) {
 	) {
 		t.Fatal("different elevation offsets should not compare equal")
 	}
+	if !equivalentBoxShadows(
+		"rgba(9, 18, 22, 0.06) 0px 1px 2px 0px, rgba(9, 18, 22, 0.1) 0px 1px 3px 0px",
+		"0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10)",
+	) {
+		t.Fatal("leading-zero formatting in authored alpha values should compare equal")
+	}
 }
 
 func TestValidateSurfaceDisciplinePublishesCorpusCounts(t *testing.T) {

@@ -34,7 +34,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-badge]"
         }
       ]
     },
@@ -48,7 +48,7 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-badge]"
         }
       ],
       "role": "axis",
@@ -73,10 +73,12 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-badge]"
         }
       ],
-      "role": "boundary"
+      "role": "axis",
+      "axis": "tone",
+      "covers": {"tone": ["neutral", "info", "success", "warning", "danger"]}
     },
     {
       "args": {
@@ -88,10 +90,12 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-badge]"
         }
       ],
-      "role": "boundary"
+      "role": "axis",
+      "axis": "tone",
+      "covers": {"tone": ["neutral", "info", "success", "warning", "danger"]}
     },
     {
       "args": {
@@ -103,10 +107,12 @@
       "expect": [
         {
           "kind": "visible",
-          "selector": "body"
+          "selector": "[data-rcl-badge]"
         }
       ],
-      "role": "boundary"
+      "role": "axis",
+      "axis": "tone",
+      "covers": {"tone": ["neutral", "info", "success", "warning", "danger"]}
     }
   ],
   "title": "Badge"

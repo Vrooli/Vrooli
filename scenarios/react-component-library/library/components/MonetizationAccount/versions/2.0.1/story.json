@@ -36,7 +36,8 @@
     {"args": {}, "composition": {"specimen": {"export": "AuthorityUnavailableState", "module": "./story.tsx"}}, "expect": [{"kind": "visible", "selector": "[data-error-type=authority_unavailable]"}], "id": "authority-unavailable", "mode": "live", "name": "Authority unavailable", "role": "boundary"},
     {"args": {}, "composition": {"specimen": {"export": "RateLimitedState", "module": "./story.tsx"}}, "expect": [{"kind": "visible", "selector": "[data-error-type=rate_limited]"}], "id": "rate-limited", "mode": "live", "name": "Rate limited", "role": "boundary"},
     {"args": {}, "composition": {"specimen": {"export": "RankRequiredState", "module": "./story.tsx"}}, "expect": [{"kind": "visible", "selector": "[data-error-type=rank_required]"}], "id": "rank-required", "mode": "live", "name": "Plan rank required", "role": "boundary"},
-    {"args": {}, "composition": {"specimen": {"export": "UnknownErrorState", "module": "./story.tsx"}}, "expect": [{"kind": "visible", "selector": "[data-error-type=unknown]"}], "id": "unknown", "mode": "live", "name": "Unknown entitlement error", "role": "boundary"}
+    {"args": {}, "composition": {"specimen": {"export": "UnknownErrorState", "module": "./story.tsx"}}, "expect": [{"kind": "visible", "selector": "[data-error-type=unknown]"}], "id": "unknown", "mode": "live", "name": "Unknown entitlement error", "role": "boundary"},
+    {"args": {"state":"loading"}, "expect": [{"kind":"role","role":"status"}], "id":"loading-boundary", "mode":"pinned", "name":"loading", "role":"boundary"}
   ],
   "title": "MonetizationAccount"
 }

@@ -40,6 +40,13 @@
       "name": "Default",
       "role": "anatomy"
     }
+    ,
+    {"id": "orientation", "name": "Orientation axis", "axis": "orientation", "covers": {"orientation": ["horizontal", "vertical"]}, "args": {}, "expect": [{"kind": "text", "value": "Implemented"}], "role": "axis", "mode": "pinned"},
+    {"id": "empty", "name": "Empty steps", "args": {}, "expect": [{"kind": "text", "value": "Implemented"}], "role": "boundary", "mode": "pinned"},
+    {"id": "loading", "name": "Loading steps", "args": {}, "expect": [{"kind": "text", "value": "Implemented"}], "role": "boundary", "mode": "pinned"},
+    {"id": "error", "name": "Error steps", "args": {}, "expect": [{"kind": "text", "value": "Implemented"}], "role": "boundary", "mode": "pinned"},
+    {"id": "one", "name": "One step", "args": {}, "expect": [{"kind": "text", "value": "Implemented"}], "role": "boundary", "mode": "pinned"},
+    {"id": "many", "name": "Many steps", "args": {}, "expect": [{"kind": "text", "value": "Implemented"}], "role": "boundary", "mode": "pinned"}
   ],
   "title": "ProgressLadder"
 }

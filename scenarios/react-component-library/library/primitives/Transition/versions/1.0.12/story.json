@@ -58,6 +58,9 @@
       "name": "Interruptible transition",
       "role": "boundary"
     }
+    ,
+    {"id":"empty","name":"Empty transition","args":{"children":""},"expect":[{"kind":"role","role":"status"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long transition content","args":{"children":"A deliberately long transition description that must wrap cleanly"},"expect":[{"kind":"role","role":"status"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "Transition"
 }

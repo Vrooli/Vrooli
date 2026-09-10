@@ -195,5 +195,13 @@
       "name": "Disabled",
       "role": "boundary"
     }
+    ,
+    {"id": "step", "name": "Step axis", "axis": "step", "covers": {"step": [0.1, 1, 10]}, "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}}, "expect": [{"kind": "role", "role": "slider", "name": "Touch scroll sensitivity"}], "role": "axis", "mode": "pinned"},
+    {"id": "empty", "name": "Unlabelled control", "role": "boundary", "mode": "pinned", "args": {"aria-label": "Value", "value": 0}, "expect": [{"kind": "role", "role": "slider"}, {"kind": "visible", "selector": "[data-rcl-slider]"}]},
+    {"id": "loading", "name": "Unavailable while loading", "role": "boundary", "mode": "pinned", "args": {"label": "Loading threshold", "disabled": true, "defaultValue": 50}, "expect": [{"kind": "role", "role": "slider"}, {"kind": "visible", "selector": "[data-rcl-slider]"}]},
+    {"id": "error", "name": "Invalid value", "role": "boundary", "mode": "pinned", "args": {"label": "Output volume", "invalid": true, "value": 80}, "expect": [{"kind": "role", "role": "slider"}, {"kind": "visible", "selector": "[data-rcl-slider]"}]},
+    {"id": "one", "name": "Single step", "role": "boundary", "mode": "pinned", "args": {"label": "Single step", "min": 0, "max": 1, "step": 1, "defaultValue": 1}, "expect": [{"kind": "role", "role": "slider"}, {"kind": "visible", "selector": "[data-rcl-slider]"}]},
+    {"id": "many", "name": "Many tick marks", "role": "boundary", "mode": "pinned", "args": {"label": "Fine adjustment", "min": 0, "max": 100, "step": 1, "ticks": 1, "defaultValue": 50}, "expect": [{"kind": "role", "role": "slider"}, {"kind": "visible", "selector": "[data-rcl-slider]"}]},
+    {"id": "overflow", "name": "Long label and description", "role": "boundary", "mode": "pinned", "args": {"label": "Maximum permitted speculative rendering latency before the editor changes its presentation", "description": "This explanation is intentionally long so the control demonstrates wrapping without clipping its accessible name or formatted value."}, "expect": [{"kind": "role", "role": "slider"}, {"kind": "visible", "selector": "[data-rcl-slider]"}]}
   ]
 }

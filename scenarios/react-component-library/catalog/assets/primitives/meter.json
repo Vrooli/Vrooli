@@ -6,7 +6,7 @@
     "id": "primitives.meter",
     "name": "Meter",
     "kind": "primitive",
-    "surface": "base",
+    "surface": "raised",
     "domain": "primitives",
     "description": "The bounded-value visualization for capacity, quota, strength, or health, using semantic thresholds and explicitly not implying task progress.",
     "targets": [
@@ -22,8 +22,24 @@
   "dependencies": {
     "requires": [
       {
-        "asset": "foundations.tokens",
-        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+        "asset": "foundations.class-merge",
+        "reason": "Consumer class names are merged at the stamped meter root."
+      },
+      {
+        "asset": "primitives.stack",
+        "reason": "The meter layout uses the governed stack primitive."
+      },
+      {
+        "asset": "react-component-library:StyleSheet",
+        "reason": "The component injects its governed stylesheet through the library foundation."
+      },
+      {
+        "asset": "primitives.text",
+        "reason": "Labels and descriptions use the governed text primitive."
+      },
+      {
+        "asset": "foundations.visual-recipes",
+        "reason": "Surface elevation is selected through the governed visual recipe."
       },
       {
         "asset": "hooks.use-locale",

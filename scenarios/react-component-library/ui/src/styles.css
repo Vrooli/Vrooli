@@ -90,3 +90,13 @@ body {
 .pr-safe {
   padding-right: env(safe-area-inset-right, 0px);
 }
+
+.rcl-action-launcher {
+  inset-block-end: var(--space-md);
+}
+
+@media (max-width: 639px) {
+  .rcl-action-launcher {
+    inset-block-end: calc(var(--space-md) + 4rem + env(safe-area-inset-bottom, 0px));
+  }
+}
