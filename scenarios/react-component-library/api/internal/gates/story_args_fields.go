@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"react-component-library/internal/components"
 	"react-component-library/internal/librarywalk"
@@ -21,6 +22,9 @@ func ValidateStoryArgsFields(scope Scope) (Result, error) {
 	sort.Strings(paths)
 	result := Result{}
 	for _, manifestPath := range paths {
+		if strings.Contains(filepath.ToSlash(manifestPath), "/library/.retired/") {
+			continue
+		}
 		assetID := implementationName(manifestPath)
 		if !scopeReportsAsset(scope, assetID) {
 			continue
@@ -45,11 +49,14 @@ func ValidateStoryArgsFields(scope Scope) (Result, error) {
 			return Result{}, readErr
 		}
 		contract, diagnostics := components.ParseStoryContract(storyData)
-		if contract == nil || len(components.StoryContractErrors(diagnostics)) > 0 || len(contract.Args.Fields) == 0 {
+		if contract == nil || len(components.StoryContractErrors(diagnostics)) > 0 {
 			continue
 		}
 		derived := components.DeriveStoryFields(implementationText(versionDir))
 		result.Inspected++
+		if len(contract.Args.Fields) == 0 {
+			continue
+		}
 		if storyFieldsEquivalent(contract.Args.Fields, derived) {
 			continue
 		}

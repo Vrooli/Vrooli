@@ -1,21 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "Primary navigation",
-        "kind": "text",
-        "label": "Label",
-        "path": "label"
-      },
-      {
-        "default": [],
-        "kind": "structured",
-        "label": "Items",
-        "path": "items"
-      }
-    ]
-  },
+  "args": {},
   "composition": {
     "frame": {
       "asset": "navigation.page",

@@ -1,34 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "No components indexed",
-        "kind": "text",
-        "label": "Title",
-        "path": "title"
-      },
-      {
-        "default": "Run the indexer to discover catalog source.",
-        "kind": "text",
-        "label": "Description",
-        "path": "description"
-      },
-      {
-        "default": "",
-        "kind": "structured",
-        "label": "Icon",
-        "path": "icon"
-      },
-      {
-        "default": "Create adoption",
-        "format": "renderable-text",
-        "kind": "structured",
-        "label": "Action label",
-        "path": "actionLabel"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

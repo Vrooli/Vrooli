@@ -2,31 +2,7 @@
   "schemaVersion": 5,
   "kind": "component",
   "title": "ComposerAttachmentTray",
-  "args": {
-    "fields": [
-      {
-        "path": "items",
-        "kind": "array",
-        "default": [
-          {
-            "id": "brief",
-            "name": "Launch brief.pdf",
-            "mimeType": "application/pdf",
-            "sizeBytes": 284000,
-            "status": "success"
-          },
-          {
-            "id": "image",
-            "name": "Conversation layout.png",
-            "mimeType": "image/png",
-            "sizeBytes": 1480000,
-            "status": "uploading",
-            "progress": 62
-          }
-        ]
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

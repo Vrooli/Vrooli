@@ -1,22 +1,7 @@
 {
   "schemaVersion": 5,
   "kind": "component",
-  "args": {
-    "fields": [
-      {
-        "path": "value",
-        "kind": "text",
-        "label": "Value",
-        "default": "7"
-      },
-      {
-        "path": "tone",
-        "kind": "text",
-        "label": "Tone",
-        "default": "warning"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

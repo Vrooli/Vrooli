@@ -1,20 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "loaded",
-        "kind": "enum",
-        "label": "Display state",
-        "options": [
-          "loading",
-          "loaded",
-          "error"
-        ],
-        "path": "displayState"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },
@@ -149,7 +135,10 @@
     }
     ,
     {"id":"empty","name":"Empty image source","args":{"src":"","alt":"Abstract blue-green Aurora workspace landscape"},"expect":[{"kind":"role","name":"Abstract blue-green Aurora workspace landscape","role":"img"}],"role":"boundary","mode":"pinned"},
-    {"id":"overflow","name":"Long image alternative text","args":{"src":"/aurora.png","alt":"A deliberately long alternative description of the blue-green Aurora workspace landscape"},"expect":[{"kind":"role","role":"img"}],"role":"boundary","mode":"pinned"}
+    {"id":"overflow","name":"Long image alternative text","args":{"src":"/aurora.png","alt":"A deliberately long alternative description of the blue-green Aurora workspace landscape"},"expect":[{"kind":"role","role":"img"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading-state","name":"Loading image boundary","args":{},"composition":{"specimen":{"module":"./story.tsx","export":"Loading"}},"expect":[{"kind":"role","role":"img"}],"role":"boundary","mode":"pinned"},
+    {"id":"one","name":"One image","args":{},"composition":{"specimen":{"module":"./story.tsx","export":"Default"}},"expect":[{"kind":"role","role":"img"}],"role":"boundary","mode":"pinned"},
+    {"id":"many","name":"Many responsive images","args":{},"composition":{"specimen":{"module":"./story.tsx","export":"ResponsiveSources"}},"expect":[{"kind":"role","role":"img"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "ProgressiveImage"
 }

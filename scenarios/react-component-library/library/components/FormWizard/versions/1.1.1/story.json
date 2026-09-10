@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "kind": "component",
   "title": "FormWizard",
-  "args": { "fields": [{ "path": "draftKey", "kind": "text", "label": "Draft key" }] },
+  "args": {},
   "environment": { "fixtures": [] },
   "stories": [
     {

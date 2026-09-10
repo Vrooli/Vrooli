@@ -2,43 +2,7 @@
   "schemaVersion": 5,
   "kind": "component",
   "title": "Message",
-  "args": {
-    "fields": [
-      {
-        "path": "actor.name",
-        "kind": "text",
-        "required": true,
-        "default": "Participant"
-      },
-      {
-        "path": "content",
-        "kind": "structured",
-        "format": "renderable-text"
-      },
-      {
-        "path": "state",
-        "kind": "enum",
-        "options": [
-          "default",
-          "loading",
-          "partial",
-          "success",
-          "request-error",
-          "retry"
-        ],
-        "default": "default"
-      },
-      {
-        "path": "presentation",
-        "kind": "enum",
-        "options": [
-          "card",
-          "transcript"
-        ],
-        "default": "card"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

@@ -1,35 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "content",
-        "kind": "enum",
-        "label": "Width",
-        "options": [
-          "compact",
-          "content",
-          "comfortable",
-          "wide",
-          "full"
-        ],
-        "path": "width"
-      },
-      {
-        "default": "none",
-        "kind": "enum",
-        "label": "Gutter",
-        "options": [
-          "none",
-          "sm",
-          "md",
-          "lg",
-          "responsive"
-        ],
-        "path": "gutter"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

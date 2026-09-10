@@ -1,19 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "inline-start",
-        "kind": "enum",
-        "label": "Side",
-        "options": [
-          "inline-start",
-          "inline-end"
-        ],
-        "path": "side"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

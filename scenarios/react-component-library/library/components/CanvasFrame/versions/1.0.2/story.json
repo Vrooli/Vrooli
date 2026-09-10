@@ -1,19 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "focus",
-        "kind": "enum",
-        "label": "Mode",
-        "options": [
-          "focus",
-          "canvas"
-        ],
-        "path": "mode"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

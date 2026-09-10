@@ -1,34 +1,7 @@
 {
   "schemaVersion": 5,
   "kind": "component",
-  "args": {
-    "fields": [
-      {
-        "kind": "array",
-        "default": [
-          {
-            "id": "support",
-            "title": "Support escalation",
-            "description": "Maya: Can you review the deployment results?",
-            "channel": "In-app \u00b7 Release assistant"
-          },
-          {
-            "id": "operations",
-            "title": "Operations handoff",
-            "description": "All services are healthy. The next check is scheduled.",
-            "channel": "Slack \u00b7 Operations assistant"
-          },
-          {
-            "id": "triage",
-            "title": "Incident triage",
-            "description": "An attachment is waiting for review.",
-            "channel": "Email \u00b7 Support assistant"
-          }
-        ],
-        "path": "items"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

@@ -1,57 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "sidebar",
-        "kind": "enum",
-        "label": "Density",
-        "options": [
-          "sidebar",
-          "rail"
-        ],
-        "path": "density"
-      },
-      {
-        "default": "tabs",
-        "kind": "enum",
-        "label": "Mobile navigation",
-        "options": [
-          "tabs",
-          "drawer"
-        ],
-        "path": "mobileNav"
-      },
-      {
-        "default": "scroll",
-        "kind": "enum",
-        "label": "Main mode",
-        "options": [
-          "scroll",
-          "fill"
-        ],
-        "path": "mainMode"
-      },
-      {
-        "default": false,
-        "kind": "boolean",
-        "label": "Header strip",
-        "path": "header"
-      },
-      {
-        "default": false,
-        "kind": "boolean",
-        "label": "Badges",
-        "path": "badges"
-      },
-      {
-        "default": false,
-        "kind": "boolean",
-        "label": "Long labels",
-        "path": "longLabels"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

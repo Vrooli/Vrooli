@@ -1,55 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "Operations command center",
-        "kind": "text",
-        "label": "Title",
-        "path": "title"
-      },
-      {
-        "default": "Content",
-        "kind": "structured",
-        "label": "Navigation",
-        "path": "navigation"
-      },
-      {
-        "default": [
-          {
-            "detail": "3 need attention",
-            "label": "Active runs",
-            "value": "12"
-          },
-          {
-            "label": "Queued",
-            "value": "28"
-          }
-        ],
-        "kind": "structured",
-        "label": "Metrics",
-        "path": "metrics"
-      },
-      {
-        "default": "Content",
-        "kind": "structured",
-        "label": "Controls",
-        "path": "controls"
-      },
-      {
-        "default": "Content",
-        "kind": "structured",
-        "label": "Children",
-        "path": "children"
-      },
-      {
-        "default": "partial",
-        "kind": "text",
-        "label": "Region State",
-        "path": "regionState"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

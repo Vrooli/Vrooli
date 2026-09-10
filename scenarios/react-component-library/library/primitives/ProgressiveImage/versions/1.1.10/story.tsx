@@ -89,6 +89,7 @@ export function Loading({ args }: StoryHarnessProps<Args>) {
     >
       <ProgressiveImage
         {...args}
+        displayState="loading"
         src={image("#475569", "#334155", "Loading workspace")}
         alt={libraryStrings(
           "primitives.progressive-image.alt.abstract-loading-workspace-preview",

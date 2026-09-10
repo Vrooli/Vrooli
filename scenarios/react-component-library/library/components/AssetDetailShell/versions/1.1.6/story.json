@@ -1,39 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "Release artifact",
-        "kind": "text",
-        "label": "Title",
-        "path": "title"
-      },
-      {
-        "default": "Content",
-        "kind": "structured",
-        "label": "Preview",
-        "path": "preview"
-      },
-      {
-        "default": "dl",
-        "kind": "structured",
-        "label": "Metadata",
-        "path": "metadata"
-      },
-      {
-        "default": "Content",
-        "kind": "structured",
-        "label": "Activity",
-        "path": "activity"
-      },
-      {
-        "default": "ready",
-        "kind": "text",
-        "label": "Activity State",
-        "path": "activityState"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

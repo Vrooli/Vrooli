@@ -2,15 +2,7 @@
   "schemaVersion": 5,
   "kind": "component",
   "title": "PromptComposer",
-  "args": {
-    "fields": [
-      {
-        "path": "value",
-        "kind": "text",
-        "default": ""
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

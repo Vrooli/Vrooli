@@ -151,7 +151,6 @@
     },
     {"id":"empty","name":"Empty error detail","args":{"message":""},"expect":[{"kind":"role","role":"alert"}],"role":"boundary","mode":"pinned"},
     {"id":"loading","name":"Retrying error state","args":{"state":"loading"},"expect":[{"kind":"role","role":"alert"}],"role":"boundary","mode":"pinned"},
-    {"id":"error","name":"Request failure","args":{"state":"error"},"expect":[{"kind":"role","role":"alert"}],"role":"boundary","mode":"pinned"},
     {"id":"overflow","name":"Long error detail","args":{"message":"This deliberately long error explanation wraps while preserving the retry action and the alert semantics."},"expect":[{"kind":"role","role":"alert"}],"role":"boundary","mode":"pinned"}
   ],
   "title": "ErrorState"

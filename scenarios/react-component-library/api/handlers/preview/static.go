@@ -579,7 +579,11 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 		return harnessStory{}, err
 	}
 	if len(stories) == 0 {
-		return harnessStory{}, components.StoryContractNotFoundError{ComponentID: id, Version: version}
+		if contractJSON, materializedErr := materializedVersionFile(h.repoRoot, component, version, "story.json"); materializedErr == nil {
+			stories = []components.ComponentStory{{ComponentID: id, Version: version, ContractJSON: string(contractJSON)}}
+		} else {
+			return harnessStory{}, components.StoryContractNotFoundError{ComponentID: id, Version: version}
+		}
 	}
 	declaredIDs := []string{}
 	for _, projected := range stories {

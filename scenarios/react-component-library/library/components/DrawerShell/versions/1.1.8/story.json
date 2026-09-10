@@ -1,45 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": true,
-        "kind": "boolean",
-        "label": "Open",
-        "path": "open"
-      },
-      {
-        "default": "Component details",
-        "kind": "text",
-        "label": "Title",
-        "path": "title"
-      },
-      {
-        "default": "compact",
-        "kind": "text",
-        "label": "Size",
-        "path": "size"
-      },
-      {
-        "default": false,
-        "kind": "boolean",
-        "label": "Avoid Keyboard",
-        "path": "avoidKeyboard"
-      },
-      {
-        "default": null,
-        "kind": "structured",
-        "label": "On Close",
-        "path": "onClose"
-      },
-      {
-        "default": "Drawer body content",
-        "kind": "structured",
-        "label": "Children",
-        "path": "children"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

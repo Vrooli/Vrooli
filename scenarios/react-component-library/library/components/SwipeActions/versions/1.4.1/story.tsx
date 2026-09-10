@@ -33,12 +33,14 @@ function Row({
   name,
   time,
   releaseMode,
+  disabled = false,
   onAction,
 }: {
   id: string;
   name: string;
   time: string;
   releaseMode?: "rest" | "commit";
+  disabled?: boolean;
   onAction: (label: string) => void;
 }) {
   return (
@@ -46,6 +48,7 @@ function Row({
       testId={`patterns.swipe-actions.${id}`}
       actions={actionsFor(id, onAction)}
       releaseMode={releaseMode}
+      disabled={disabled}
       label={`Actions for ${name}`}
     >
       <div
@@ -65,7 +68,7 @@ function Row({
   );
 }
 
-function List({ releaseMode }: { releaseMode?: "rest" | "commit" }) {
+function List({ releaseMode, disabled = false }: { releaseMode?: "rest" | "commit"; disabled?: boolean }) {
   const [last, setLast] = useState("");
   return (
     <div style={{ inlineSize: "20rem" }}>
@@ -73,7 +76,7 @@ function List({ releaseMode }: { releaseMode?: "rest" | "commit" }) {
         {last}
       </div>
       {ROWS.map((row) => (
-        <Row key={row.id} {...row} releaseMode={releaseMode} onAction={setLast} />
+        <Row key={row.id} {...row} releaseMode={releaseMode} disabled={disabled} onAction={setLast} />
       ))}
     </div>
   );
@@ -85,6 +88,10 @@ export function Rows() {
 
 export function AutoCommit() {
   return <List releaseMode="commit" />;
+}
+
+export function Disabled() {
+  return <List disabled />;
 }
 
 /** Reveal follows the reach side, so an end-anchored drawer flips the track. */

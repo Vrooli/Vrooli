@@ -1,7 +1,7 @@
 {
   "schemaVersion": 5,
   "kind": "component",
-  "args": { "fields": [{ "path": "length", "kind": "number", "label": "Length" }, { "path": "label", "kind": "text", "label": "Label" }] },
+  "args": {},
   "environment": { "fixtures": [] },
   "stories": [{ "id": "grouped-code", "name": "Grouped code", "args": {}, "role": "anatomy", "expect": [{ "kind": "visible", "selector": "fieldset.pin-input" }] }, { "id": "empty", "name": "Empty pin", "args": {"value":""}, "role": "boundary", "mode": "pinned", "expect": [{ "kind": "visible", "selector": "fieldset.pin-input" }] }, { "id": "overflow", "name": "Long pin guidance", "args": {"label":"Enter the verification code from the authenticator app"}, "role": "boundary", "mode": "pinned", "expect": [{ "kind": "visible", "selector": "fieldset.pin-input" }] }]
 }

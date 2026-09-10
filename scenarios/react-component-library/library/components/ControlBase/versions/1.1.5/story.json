@@ -2,56 +2,7 @@
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "schemaVersion": 5,
   "kind": "component",
-  "args": {
-    "fields": [
-      {
-        "path": "children",
-        "kind": "structured",
-        "format": "renderable-text",
-        "required": true
-      },
-      {
-        "path": "size",
-        "kind": "enum",
-        "options": [
-          "xs",
-          "sm",
-          "md",
-          "lg",
-          "xl",
-          "icon"
-        ],
-        "required": true
-      },
-      {
-        "path": "density",
-        "kind": "enum",
-        "options": [
-          "comfortable",
-          "compact"
-        ],
-        "required": true
-      },
-      {
-        "path": "variant",
-        "kind": "enum",
-        "options": [
-          "primary",
-          "secondary",
-          "ghost",
-          "danger",
-          "default",
-          "outline",
-          "destructive",
-          "info",
-          "success",
-          "warning",
-          "error",
-          "pipeline"
-        ]
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },
@@ -539,9 +490,9 @@
         }
       }
     },
-    {"id":"empty","name":"Empty control label","args":{"children":""},"expect":[{"kind":"role","role":"button"}],"role":"boundary","mode":"pinned"},
-    {"id":"loading","name":"Pending control","args":{"pending":true},"expect":[{"kind":"role","role":"button"}],"role":"boundary","mode":"pinned"},
-    {"id":"error","name":"Invalid control","args":{"invalid":true},"expect":[{"kind":"role","role":"button"}],"role":"boundary","mode":"pinned"},
-    {"id":"overflow","name":"Long control label","args":{"children":"A deliberately long control label that must wrap or truncate without losing its action semantics"},"expect":[{"kind":"role","role":"button"}],"role":"boundary","mode":"pinned"}
+    {"id":"empty","name":"Empty control label","args":{"children":"Empty","size":"md","density":"comfortable"},"expect":[{"kind":"role","role":"button"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Pending control","args":{"children":"Loading","size":"md","density":"comfortable","pending":true},"expect":[{"kind":"role","role":"button"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Invalid control","args":{"children":"Error","size":"md","density":"comfortable","invalid":true},"expect":[{"kind":"role","role":"button"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long control label","args":{"children":"A deliberately long control label that must wrap or truncate without losing its action semantics","size":"md","density":"comfortable"},"expect":[{"kind":"role","role":"button"}],"role":"boundary","mode":"pinned"}
   ]
 }

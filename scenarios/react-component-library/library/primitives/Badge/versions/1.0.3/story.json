@@ -1,22 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "neutral",
-        "kind": "enum",
-        "label": "Tone",
-        "options": [
-          "neutral",
-          "info",
-          "success",
-          "warning",
-          "danger"
-        ],
-        "path": "tone"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

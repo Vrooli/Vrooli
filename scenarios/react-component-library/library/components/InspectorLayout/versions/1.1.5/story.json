@@ -1,39 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "Workflow editor",
-        "kind": "text",
-        "label": "Title",
-        "path": "title"
-      },
-      {
-        "default": "Content",
-        "kind": "structured",
-        "label": "Toolbar",
-        "path": "toolbar"
-      },
-      {
-        "default": "Content",
-        "kind": "structured",
-        "label": "Canvas",
-        "path": "canvas"
-      },
-      {
-        "default": "Content",
-        "kind": "structured",
-        "label": "Inspector",
-        "path": "inspector"
-      },
-      {
-        "default": "ready",
-        "kind": "text",
-        "label": "Inspector State",
-        "path": "inspectorState"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

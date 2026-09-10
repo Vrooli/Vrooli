@@ -1,27 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "activity",
-        "kind": "text",
-        "label": "Surface Id",
-        "path": "surfaceId"
-      },
-      {
-        "default": "loading",
-        "kind": "text",
-        "label": "State",
-        "path": "state"
-      },
-      {
-        "default": "Content",
-        "kind": "structured",
-        "label": "Children",
-        "path": "children"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

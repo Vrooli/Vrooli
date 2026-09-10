@@ -1,31 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "flat",
-        "kind": "enum",
-        "label": "Elevation",
-        "options": [
-          "flat",
-          "raised",
-          "floating",
-          "overlay"
-        ],
-        "path": "elevation"
-      },
-      {
-        "default": "solid",
-        "kind": "enum",
-        "label": "Variant",
-        "options": [
-          "solid",
-          "translucent"
-        ],
-        "path": "variant"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

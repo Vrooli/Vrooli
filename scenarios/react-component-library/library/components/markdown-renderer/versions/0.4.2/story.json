@@ -1,15 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "# Shared markdown\n\n| State | Value |\n| --- | --- |\n| Ready | yes |\n\n> Keep operator context visible.\n\n```ts\nconst stable = true;\n```",
-        "kind": "text",
-        "label": "Markdown",
-        "path": "content"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

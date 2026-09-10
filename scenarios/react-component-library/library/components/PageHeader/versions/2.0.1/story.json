@@ -1,55 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": 1,
-        "kind": "enum",
-        "label": "Heading level",
-        "options": [
-          1,
-          2
-        ],
-        "path": "level"
-      },
-      {
-        "default": "comfortable",
-        "kind": "enum",
-        "label": "Density",
-        "options": [
-          "comfortable",
-          "compact"
-        ],
-        "path": "density"
-      },
-      {
-        "default": false,
-        "kind": "boolean",
-        "label": "Eyebrow",
-        "path": "eyebrow"
-      },
-      {
-        "default": false,
-        "kind": "boolean",
-        "label": "Leading",
-        "path": "leading"
-      },
-      {
-        "default": true,
-        "kind": "boolean",
-        "label": "Actions",
-        "path": "actions"
-      },
-      {
-        "default": false,
-        "kind": "boolean",
-        "label": "Long title",
-        "path": "longTitle"
-      }
-    ,
-    {"id":"empty","name":"Empty page heading","args":{"title":""},"expect":[{"kind":"role","role":"heading"}],"role":"boundary","mode":"pinned"}
-  ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },
@@ -249,6 +200,31 @@
       "states": [
         "overflow"
       ]
+    },
+    {
+      "id": "empty",
+      "name": "Empty title",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "level": 1,
+        "density": "comfortable",
+        "actions": false,
+        "longTitle": false
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "heading",
+          "name": "Agents"
+        }
+      ],
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      }
     }
   ],
   "title": "PageHeader"

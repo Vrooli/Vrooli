@@ -1,21 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "idle",
-        "kind": "enum",
-        "options": [
-          "idle",
-          "pending",
-          "success",
-          "error",
-          "offline"
-        ],
-        "path": "status"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

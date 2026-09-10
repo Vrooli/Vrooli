@@ -1,19 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "path": "selectedCount",
-        "kind": "number",
-        "default": 8
-      },
-      {
-        "path": "totalCount",
-        "kind": "number",
-        "default": 24
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

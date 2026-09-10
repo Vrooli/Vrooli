@@ -118,6 +118,13 @@
     }
     ,
     {"id": "action-labels", "name": "Action labels axis", "axis": "actionLabels", "covers": {"actionLabels": ["show", "hidden"]}, "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Rows"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-swipe-actions]"}], "role": "axis", "mode": "pinned"},
-    {"id": "release-mode", "name": "Release mode axis", "axis": "releaseMode", "covers": {"releaseMode": ["rest", "commit"]}, "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Rows"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-swipe-actions]"}], "role": "axis", "mode": "pinned"}
+    {"id": "release-mode", "name": "Release mode axis", "axis": "releaseMode", "covers": {"releaseMode": ["rest", "commit"]}, "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Rows"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-swipe-actions]"}], "role": "axis", "mode": "pinned"},
+    {"id": "disabled", "name": "Disabled rows", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Disabled"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-swipe-actions]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "empty", "name": "Empty actions", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Rows"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-swipe-actions]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "loading", "name": "Loading action surface", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Rows"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-swipe-actions]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "error", "name": "Action surface error", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Rows"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-swipe-actions]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "one", "name": "One action row", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Rows"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-swipe-actions]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "many", "name": "Many action rows", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Rows"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-swipe-actions]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "overflow", "name": "Long action labels", "args": {}, "composition": {"specimen": {"module": "./story.tsx", "export": "Rows"}}, "expect": [{"kind": "visible", "selector": "[data-rcl-swipe-actions]"}], "role": "boundary", "mode": "pinned"}
   ]
 }

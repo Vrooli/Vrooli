@@ -1,14 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": true,
-        "kind": "boolean",
-        "path": "open"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

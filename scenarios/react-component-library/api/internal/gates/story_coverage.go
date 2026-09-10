@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode"
 
 	"react-component-library/internal/components"
 	"react-component-library/internal/librarywalk"
@@ -178,7 +179,7 @@ func observedStorySet(stories []components.StoryDefinition) map[string]bool {
 		values := []string{story.ID, story.Name, story.Description}
 		values = append(values, story.States...)
 		for _, value := range values {
-			name := strings.ToLower(strings.TrimSpace(value))
+			name := normalizeStoryName(value)
 			if role != "" && name != "" {
 				observed[storyKey(role, name)] = true
 				if role == "anatomy" {
@@ -194,9 +195,9 @@ func storySetContains(observed map[string]bool, wanted requiredStory) bool {
 	if observed[storyKey(wanted.Role, wanted.Name)] {
 		return true
 	}
-	wantedName := strings.ToLower(strings.TrimSpace(wanted.Name))
+	wantedName := normalizeStoryName(wanted.Name)
 	for key := range observed {
-		if strings.HasPrefix(key, strings.ToLower(wanted.Role)+":") && strings.Contains(key, wantedName) {
+		if strings.HasPrefix(key, normalizeStoryName(wanted.Role)+":") && strings.Contains(key, wantedName) {
 			return true
 		}
 	}
@@ -204,7 +205,27 @@ func storySetContains(observed map[string]bool, wanted requiredStory) bool {
 }
 
 func storyKey(role, name string) string {
-	return strings.ToLower(strings.TrimSpace(role)) + ":" + strings.ToLower(strings.TrimSpace(name))
+	return normalizeStoryName(role) + ":" + normalizeStoryName(name)
+}
+
+func normalizeStoryName(value string) string {
+	var builder strings.Builder
+	previousWasSeparator := true
+	for _, r := range strings.TrimSpace(value) {
+		if r == '-' || r == '_' || unicode.IsSpace(r) {
+			if !previousWasSeparator {
+				builder.WriteByte('-')
+				previousWasSeparator = true
+			}
+			continue
+		}
+		if unicode.IsUpper(r) && !previousWasSeparator {
+			builder.WriteByte('-')
+		}
+		builder.WriteRune(unicode.ToLower(r))
+		previousWasSeparator = false
+	}
+	return strings.Trim(builder.String(), "-")
 }
 
 func boundaryAxisFindings(root, storyPath, assetID string, contract *components.StoryContract, fields []components.StoryField) []Finding {

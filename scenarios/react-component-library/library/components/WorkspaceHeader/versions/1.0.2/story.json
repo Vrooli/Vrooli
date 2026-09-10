@@ -1,27 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "Component Library",
-        "kind": "text",
-        "label": "Title",
-        "path": "title"
-      },
-      {
-        "default": "Browse reusable UI assets",
-        "kind": "text",
-        "label": "Description",
-        "path": "description"
-      },
-      {
-        "default": "Content",
-        "kind": "structured",
-        "label": "Primary Action",
-        "path": "primaryAction"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

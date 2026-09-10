@@ -3,53 +3,7 @@
   "schemaVersion": 5,
   "kind": "component",
   "title": "MorphingIcon 3.0",
-  "args": {
-    "fields": [
-      {
-        "default": "",
-        "kind": "structured",
-        "label": "Icon",
-        "path": "children"
-      },
-      {
-        "default": "auto",
-        "kind": "enum",
-        "label": "Transition",
-        "options": [
-          "auto",
-          "morph",
-          "crossfade",
-          "none"
-        ],
-        "path": "morph",
-        "required": true
-      },
-      {
-        "default": "md",
-        "kind": "enum",
-        "label": "Size",
-        "options": [
-          "sm",
-          "md",
-          "lg"
-        ],
-        "path": "size",
-        "required": true
-      },
-      {
-        "default": 320,
-        "kind": "number",
-        "label": "Duration (ms)",
-        "path": "duration"
-      },
-      {
-        "default": "",
-        "kind": "text",
-        "label": "Accessible label",
-        "path": "label"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

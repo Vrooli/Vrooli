@@ -1,15 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "graph TD; A-->B;",
-        "kind": "text",
-        "label": "Diagram source",
-        "path": "code"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

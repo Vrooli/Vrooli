@@ -2,62 +2,7 @@
   "schemaVersion": 5,
   "kind": "component",
   "title": "MessageList",
-  "args": {
-    "fields": [
-      {
-        "path": "messages",
-        "kind": "array",
-        "default": [
-          {
-            "id": "request",
-            "actor": {
-              "name": "Maya Chen",
-              "role": "Operator"
-            },
-            "content": "Please summarize the deployment results for the support team.",
-            "group": "Today",
-            "timestamp": "2026-09-05T10:00:00Z"
-          },
-          {
-            "id": "response",
-            "actor": {
-              "name": "Release assistant",
-              "role": "Assistant"
-            },
-            "content": "The rollout completed successfully. All three services are healthy, and no requests were lost.",
-            "state": "success",
-            "group": "Today",
-            "timestamp": "2026-09-05T10:01:00Z"
-          }
-        ]
-      },
-      {
-        "path": "state",
-        "kind": "enum",
-        "options": [
-          "default",
-          "loading",
-          "refreshing",
-          "empty",
-          "partial",
-          "stale",
-          "request-error",
-          "offline",
-          "retry"
-        ],
-        "default": "default"
-      },
-      {
-        "path": "presentation",
-        "kind": "enum",
-        "options": [
-          "card",
-          "transcript"
-        ],
-        "default": "card"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

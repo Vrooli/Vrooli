@@ -1,51 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "More details about this identity",
-        "kind": "text",
-        "label": "Tooltip label",
-        "path": "label",
-        "required": true
-      },
-      {
-        "default": "top",
-        "kind": "enum",
-        "label": "Placement",
-        "options": [
-          "top",
-          "bottom",
-          "start",
-          "end"
-        ],
-        "path": "placement",
-        "required": true
-      },
-      {
-        "default": 280,
-        "kind": "number",
-        "label": "Open delay (ms)",
-        "maximum": 2000,
-        "minimum": 0,
-        "path": "delay"
-      },
-      {
-        "default": 100,
-        "kind": "number",
-        "label": "Close delay (ms)",
-        "maximum": 2000,
-        "minimum": 0,
-        "path": "closeDelay"
-      },
-      {
-        "default": false,
-        "kind": "boolean",
-        "label": "Open initially",
-        "path": "defaultOpen"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

@@ -1,37 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "body",
-        "kind": "enum",
-        "label": "Style",
-        "options": [
-          "display",
-          "title",
-          "heading",
-          "body",
-          "label",
-          "caption",
-          "code",
-          "overline"
-        ],
-        "path": "textStyle"
-      },
-      {
-        "default": "default",
-        "kind": "enum",
-        "label": "Tone",
-        "options": [
-          "default",
-          "muted",
-          "accent",
-          "danger"
-        ],
-        "path": "tone"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

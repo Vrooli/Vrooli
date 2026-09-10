@@ -1,21 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "healthy",
-        "kind": "text",
-        "label": "Status",
-        "path": "data.status"
-      },
-      {
-        "default": "api",
-        "kind": "text",
-        "label": "Service",
-        "path": "data.service"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

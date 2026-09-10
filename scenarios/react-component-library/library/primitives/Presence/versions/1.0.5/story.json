@@ -1,33 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": true,
-        "kind": "boolean",
-        "label": "Present",
-        "path": "present"
-      },
-      {
-        "default": "Ready to continue",
-        "kind": "text",
-        "label": "Content",
-        "path": "children"
-      },
-      {
-        "default": true,
-        "kind": "boolean",
-        "label": "Animate initial mount",
-        "path": "initial"
-      },
-      {
-        "default": false,
-        "kind": "boolean",
-        "label": "Keep exit boundary mounted",
-        "path": "keepMounted"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },

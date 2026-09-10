@@ -1,19 +1,6 @@
 {
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "args": {
-    "fields": [
-      {
-        "default": "horizontal",
-        "kind": "enum",
-        "label": "Orientation",
-        "options": [
-          "horizontal",
-          "vertical"
-        ],
-        "path": "orientation"
-      }
-    ]
-  },
+  "args": {},
   "environment": {
     "fixtures": []
   },
