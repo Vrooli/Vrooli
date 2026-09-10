@@ -83,6 +83,36 @@ func TestScenarioAppPreflightValidatesAPIBase(t *testing.T) {
 	}
 }
 
+func TestScenarioAppCommandCanBypassGroupAPIPreflight(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+	noAPI := false
+	ran := false
+	app.SetCommandsWithSubgroups(nil, []SubcommandGroup{{
+		Name:     "brief",
+		NeedsAPI: true,
+		Subcommands: []Command{{
+			Name:             "hook",
+			NeedsAPIOverride: &noAPI,
+			Run:              func([]string) error { ran = true; return nil },
+		}},
+	}})
+	if err := app.CLI.Run([]string{"brief", "hook"}); err != nil {
+		t.Fatalf("group API preflight should be bypassed: %v", err)
+	}
+	if !ran {
+		t.Fatal("API-free command did not run")
+	}
+}
+
 func TestScenarioAppGlobalDryRunRefusesUndeclaredCommandBeforeTransport(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)

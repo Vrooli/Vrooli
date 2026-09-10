@@ -54,7 +54,7 @@ func DescriptorsForScope(root string, scope Scope) ([]CredentialRef, error) {
 				continue
 			}
 			seen[key] = true
-			refs = append(refs, CredentialRef{Resource: resource, Env: descriptor.Env, LogicalID: descriptor.LogicalID, Field: descriptor.ResolvedField(), Label: firstNonEmpty(descriptor.Label, descriptor.Description), Description: descriptor.Description, Required: descriptor.Required})
+			refs = append(refs, CredentialRef{Resource: resource, Env: descriptor.Env, LogicalID: descriptor.LogicalID, Field: descriptor.ResolvedField(), Label: firstNonEmpty(descriptor.Label, descriptor.Description), Description: descriptor.Description, ObtainURL: descriptor.ObtainURL, Provisioning: descriptor.Provisioning, DerivedFrom: descriptor.DerivedFrom, Required: descriptor.Required})
 		}
 	}
 	if scope.IncludeProject {

@@ -47,11 +47,78 @@ Guideline:
 - If local action is `noop`/`unhandled`, relay intent to host.
 - Still call `preventDefault()` on claimed browser-reserved chords like `Ctrl/Cmd+K`.
 
+## Built-in gamepad navigation
+
+Initialize navigation once in each application entry point. The shared
+controller owns polling, default focus navigation, selection, Back, and host
+relay. Repeated default initialization returns the same controller; competing
+configuration is rejected. Dispose only when the application itself is torn down.
+
+```tsx
+import { initSpatialNav } from '@vrooli/iframe-bridge/spatial';
+import { SpatialNavProvider } from '@vrooli/iframe-bridge/react';
+
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
+// Inside the application's React root:
+<SpatialNavProvider controller={spatialNav}><App /></SpatialNavProvider>
+```
+
+The core and `./spatial` exports have no React runtime dependency. Only `./react`
+requires the application's React peer (18 or later). The provider does not create
+or dispose a controller, so StrictMode remounts and nested consumers share input.
+`useSpatialNav()` reads that controller without starting a polling loop. Outside
+a provider it can read the initialized application controller, including portals
+and existing application integrations; it fails clearly if none exists.
+
+### Custom controls and dialogs
+
+```tsx
+import { useRef } from 'react';
+import { useGamepad, useSpatialScope } from '@vrooli/iframe-bridge/react';
+
+function Dialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useSpatialScope(ref, open);
+  useGamepad(ref, action => {
+    if (action !== 'back') return false;
+    onClose();
+    return true;
+  }, open);
+  return open ? <div ref={ref} role="dialog"><button onClick={onClose}>Close</button></div> : null;
+}
+```
+
+Handlers are eligible only while their element contains focus and lies within the
+active modal scope. If focus has not yet entered an open modal, its own handler
+can still receive input, including Back. Innermost handlers run first; the most recently registered
+handler wins ties at the same element. Returning `true` consumes input; otherwise
+it continues outward and then to default navigation/host relay. Use an explicit
+handler for Back dismissal so closing a dialog changes application state.
+A custom control should consume only actions it implements, leaving escape paths
+available. `SpatialGroup` registers spatial, grid, passthrough, or modal groups
+against the same controller. Passthrough does not create a raw input manager;
+register custom actions with `useGamepad` on the focused control.
+
+Modal cleanup removes its exact registration, even if a parent unmounts before a
+child. Closing the top scope restores its previous focus when that target remains
+connected and eligible. When conditionally mounting a referenced element, pass
+its mounted/open condition to the hook so registration follows that lifecycle.
+
+### Validation ownership
+
+`pnpm test` in this package covers the engine and actual React adapters, including
+StrictMode, callback updates, scoped consumption, cleanup, and fallback behavior.
+Scenario tests cover their own controls, focus groups, and modal dismissal; they
+do not copy the shared hook implementation or SDK mocks. The canonical template
+keeps initialization in `ui/src/main.tsx` so new applications inherit support.
+
 ## Development
 
 ```bash
-pnpm --filter @vrooli/iframe-bridge install
-pnpm --filter @vrooli/iframe-bridge build
+vrooli package build iframe-bridge
+# Focused package tests (from packages/iframe-bridge):
+pnpm test
 ```
 
 ## Propagating Package Updates
@@ -62,4 +129,5 @@ After editing this package, use the native refresh command:
 vrooli package refresh iframe-bridge all
 ```
 
-That rebuilds `@vrooli/iframe-bridge`, discovers governed dependents, runs `vrooli scenario setup`, and restarts only consumers that were already running.
+That rebuilds `@vrooli/iframe-bridge`, discovers governed dependents, runs `vrooli scenario setup`, without restarting consumers by default. Use the explicit `--restart` option
+when a running consumer should restart.

@@ -29,9 +29,13 @@ type Command struct {
 	HelpText        string
 	LongDescription string
 	NeedsAPI        bool
-	Args            ArgSchema
-	Run             func(args []string) error
-	RunCtx          func(ctx RunContext) error
+	// NeedsAPIOverride lets a command in an API-backed subgroup explicitly
+	// remain runnable without its scenario API. Prompt-time hooks use this for
+	// their fail-closed no-op path when the owning scenario is stopped.
+	NeedsAPIOverride *bool
+	Args             ArgSchema
+	Run              func(args []string) error
+	RunCtx           func(ctx RunContext) error
 	// Architecture declares the command's renderer-separated primitive class
 	// (or an explicit exception class for legitimate special cases). It is
 	// optional and additive: a zero value means "unclassified/legacy" and
@@ -331,6 +335,9 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 	}
 
 	needsAPI := cmd.NeedsAPI || group.NeedsAPI
+	if cmd.NeedsAPIOverride != nil {
+		needsAPI = *cmd.NeedsAPIOverride
+	}
 	if needsAPI {
 		if restarted := a.checkStaleAndMaybeRebuild(originalArgs); restarted {
 			return nil

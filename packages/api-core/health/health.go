@@ -100,6 +100,11 @@ type Response struct {
 	// Version is the service version (optional).
 	Version string `json:"version,omitempty"`
 
+	// BuildIdentity identifies the authored build currently serving this
+	// response. The control plane uses it to reject a healthy HTTP responder
+	// that belongs to an older source revision.
+	BuildIdentity string `json:"build_identity,omitempty"`
+
 	// UptimeSeconds is the service uptime in seconds (optional).
 	UptimeSeconds float64 `json:"uptime_seconds,omitempty"`
 
@@ -177,13 +182,14 @@ type Checker interface {
 
 // Builder constructs a health handler with configuration and checks.
 type Builder struct {
-	service    string
-	version    string
-	checks     []checkerEntry
-	metrics    []metricEntry
-	functional func(context.Context) FunctionalStatus
-	timeout    time.Duration
-	startTime  time.Time
+	service       string
+	version       string
+	buildIdentity string
+	checks        []checkerEntry
+	metrics       []metricEntry
+	functional    func(context.Context) FunctionalStatus
+	timeout       time.Duration
+	startTime     time.Time
 
 	// For testing
 	nowFunc func() time.Time
@@ -240,6 +246,12 @@ func New(service ...string) *Builder {
 // Version sets the service version string.
 func (b *Builder) Version(v string) *Builder {
 	b.version = v
+	return b
+}
+
+// BuildIdentity sets the source/build identity reported by the health handler.
+func (b *Builder) BuildIdentity(identity string) *Builder {
+	b.buildIdentity = identity
 	return b
 }
 
@@ -315,6 +327,7 @@ func (b *Builder) buildResponse(ctx context.Context) Response {
 		Timestamp:     now.UTC().Format(time.RFC3339),
 		Readiness:     true,
 		Version:       b.version,
+		BuildIdentity: b.buildIdentity,
 		UptimeSeconds: now.Sub(b.startTime).Seconds(),
 		Metrics:       b.collectMetrics(now),
 	}

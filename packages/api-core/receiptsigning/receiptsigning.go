@@ -16,6 +16,9 @@ const (
 
 	PurposeExperimentAuditReceipt   Purpose = "experiment-audit-receipt-v1"
 	PurposeExperimentHoldoutReceipt Purpose = "experiment-holdout-receipt-v1"
+	// PurposeCloudEvidenceReceipt binds scenario-to-cloud evidence records
+	// and deployment receipts to their producer.
+	PurposeCloudEvidenceReceipt Purpose = "cloud-evidence-receipt-v1"
 )
 
 // Purpose domain-separates a signature so evidence of one kind cannot be
@@ -23,7 +26,7 @@ const (
 type Purpose string
 
 func (p Purpose) Valid() bool {
-	return p == PurposeExperimentAuditReceipt || p == PurposeExperimentHoldoutReceipt
+	return p == PurposeExperimentAuditReceipt || p == PurposeExperimentHoldoutReceipt || p == PurposeCloudEvidenceReceipt
 }
 
 // SignatureEnvelope is stored alongside evidence, never instead of evidence.

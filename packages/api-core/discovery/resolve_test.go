@@ -23,9 +23,11 @@ func (f *demandClientFixture) Acquire(_ context.Context, req demand.AcquireReque
 	f.acquires = append(f.acquires, req)
 	return demand.Lease{LeaseID: req.LeaseID, Scenario: req.Scenario, ConsumerID: req.ConsumerID, Kind: req.Kind, Status: "active"}, nil
 }
+
 func (f *demandClientFixture) Renew(context.Context, string, time.Duration) (demand.Lease, error) {
 	return demand.Lease{}, nil
 }
+
 func (f *demandClientFixture) Release(_ context.Context, leaseID, _ string) (demand.Lease, error) {
 	f.releases = append(f.releases, leaseID)
 	return demand.Lease{LeaseID: leaseID, Status: "released"}, nil
@@ -111,6 +113,21 @@ func TestResolveScenarioPortInvalidOutput(t *testing.T) {
 	var discoveryErr *Error
 	if !errors.As(err, &discoveryErr) || discoveryErr.Kind != ErrInvalidPort {
 		t.Fatalf("expected ErrInvalidPort, got %v", err)
+	}
+}
+
+func TestResolveScenarioPortStructuredNoRuntimePortsIsNotRunning(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(ResolverConfig{
+		CommandRunner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
+			return []byte(`{"success":false,"scenario":"my-scenario","port_name":"API_PORT","port":0,"error":"no running runtime ports found for scenario \\\"my-scenario\\\""}`), nil
+		},
+	})
+
+	_, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT")
+	if !IsScenarioNotRunning(err) {
+		t.Fatalf("expected structured no-runtime-ports output to classify as stopped, got %v", err)
 	}
 }
 

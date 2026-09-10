@@ -122,6 +122,24 @@ func TestLoadFromManifestBuildsLocalBinding(t *testing.T) {
 	}
 }
 
+func TestLoadFromManifestAllowsLocalCommandToBypassAPIInAPISubgroup(t *testing.T) {
+	manifest := []byte(`{"name":"demo","groups":[{"name":"brief","commands":[{"name":"build","binding":{"kind":"connect-rpc","service":"BriefService","method":"Build"},"governance":{"effect":"read","run_eligible":true}},{"name":"hook","needs_api":false,"binding":{"kind":"local","handler":"hook"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	group, err := LoadFromManifest(manifest, "brief", map[string]func(RunContext) error{
+		"BriefService.Build": func(RunContext) error { return nil },
+		"hook":               func(RunContext) error { return nil },
+	})
+	if err != nil {
+		t.Fatalf("LoadFromManifest() error = %v", err)
+	}
+	if !group.NeedsAPI {
+		t.Fatal("mixed group lost its API requirement")
+	}
+	hook := findCommand(t, group, "hook")
+	if hook.NeedsAPIOverride == nil || *hook.NeedsAPIOverride {
+		t.Fatalf("hook API override = %v, want explicit false", hook.NeedsAPIOverride)
+	}
+}
+
 func TestParseManifestAcceptsNestedGroupsAndFindsNestedGroup(t *testing.T) {
 	manifest := []byte(`{"name":"demo","groups":[{"name":"runtime","groups":[{"name":"supervisor","commands":[{"name":"status","binding":{"kind":"connect-rpc","service":"RuntimeService","method":"Status"},"governance":{"effect":"read","run_eligible":true}}]}]}]}`)
 	parsed, err := ParseManifest(manifest)

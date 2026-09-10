@@ -82,6 +82,37 @@ type SessionContainer interface {
 	ContainSelf(scope string, containment SessionContainment) (ContainedSession, error)
 }
 
+// ContainmentCapability is an optional interface a SessionContainer may
+// implement to say whether this host has a ceiling primitive at all. It
+// answers a different question from a failed Run: false means "no ceiling
+// exists on this platform", which is a permanent, honest limit; a failure on
+// a container that reports true is a regression worth an operator's attention.
+//
+// It is optional on purpose. This package stays free of platform-go so a
+// binary can register any container, so capability is asked for rather than
+// imported; a container that does not implement it is assumed capable, which
+// preserves the behaviour every existing container already has.
+//
+// Without this distinction a macOS or BSD host — where no primitive exists
+// and none ever will — emits the same uncontained warning on every launch as
+// a Linux host whose user bus just broke. That is how an alarm becomes noise
+// and a real regression stops being noticed.
+type ContainmentCapability interface {
+	SupportsContainment() bool
+}
+
+// containmentSupported reports whether the container claims a ceiling
+// primitive on this host. A container that does not declare capability is
+// assumed capable, so an unimplemented declaration never downgrades a real
+// failure into an expected one.
+func containmentSupported(container SessionContainer) bool {
+	capability, ok := container.(ContainmentCapability)
+	if !ok {
+		return true
+	}
+	return capability.SupportsContainment()
+}
+
 // CeilingDiagnostic reports, in one operator-readable sentence, why the
 // containment ceiling is about to refuse work — or "" when it has room.
 //
@@ -187,11 +218,18 @@ func agentScopeName(runID, sessionID string) string {
 }
 
 // containmentReport is what a launch records about its ceiling.
+//
+// Unsupported separates the two ways Method can be "none": the platform has
+// no ceiling primitive (expected, permanent), or it has one and setting it up
+// failed (a regression). A reader that cannot tell them apart must either
+// alarm on every launch on a platform that can never comply, or alarm on
+// none of them; both lose the signal.
 type containmentReport struct {
-	Scope   string
-	Method  string
-	Source  string
-	Failure string
+	Scope       string
+	Method      string
+	Source      string
+	Failure     string
+	Unsupported bool
 }
 
 // UncontainedError is returned by a SessionContainer's Run when the ceiling
@@ -219,7 +257,15 @@ func runContainedChild(request AgentLaunchRequest, argv0, scope string, containm
 		var uncontained *UncontainedError
 		if errors.As(err, &uncontained) {
 			report.Failure = uncontained.Err.Error()
-			log.Printf("agent launch uncontained agent=%s scope=%s: %v", request.Agent, scope, uncontained.Err)
+			report.Unsupported = !containmentSupported(container)
+			if report.Unsupported {
+				// The platform has no ceiling primitive. Recorded, not warned:
+				// this is the host's permanent shape, and a per-launch warning
+				// about it trains readers to skip the line that matters.
+				log.Printf("agent launch uncontained agent=%s scope=%s: platform has no containment primitive", request.Agent, scope)
+			} else {
+				log.Printf("agent launch uncontained agent=%s scope=%s: %v", request.Agent, scope, uncontained.Err)
+			}
 			return runNativeChild(request, argv0)(ctx, path, args, environment, stdin, stdout, stderr)
 		}
 		report.Scope, report.Method = session.Scope, session.Method
@@ -240,6 +286,13 @@ func containSelf(request AgentLaunchRequest, scope string, containment SessionCo
 	report.Scope, report.Method = session.Scope, session.Method
 	if err != nil {
 		report.Failure = err.Error()
-		log.Printf("agent launch uncontained agent=%s scope=%s: %v", request.Agent, scope, err)
+		report.Unsupported = !containmentSupported(DefaultSessionContainer)
+		if report.Unsupported {
+			// See runContainedChild: an absent primitive is the platform's
+			// shape, so it is recorded rather than warned about per launch.
+			log.Printf("agent launch uncontained agent=%s scope=%s: platform has no containment primitive", request.Agent, scope)
+		} else {
+			log.Printf("agent launch uncontained agent=%s scope=%s: %v", request.Agent, scope, err)
+		}
 	}
 }

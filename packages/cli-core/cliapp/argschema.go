@@ -43,6 +43,7 @@ type Flag struct {
 	Aliases     []string
 	Description string
 	Required    bool
+	Repeated    bool
 	Default     string
 	Bool        bool
 	// LocalOnly marks a parsed CLI control that is intentionally not part of
@@ -136,6 +137,9 @@ func (s ArgSchema) Validate() error {
 		}
 		if f.Bool && f.Default != "" {
 			return fmt.Errorf("flag %q is Bool; Default must be empty (presence implies true)", name)
+		}
+		if f.Bool && f.Repeated {
+			return fmt.Errorf("flag %q is Bool; Repeated requires a valued flag", name)
 		}
 		if err := validateFlagValues(f, name); err != nil {
 			return err

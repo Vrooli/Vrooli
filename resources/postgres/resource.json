@@ -94,8 +94,10 @@
         "field": "password",
         "env": "POSTGRES_PASSWORD",
         "label": "PostgreSQL password",
+        "provisioning": "operator",
         "description": "Password for the managed PostgreSQL service account.",
-        "required": true
+        "required": true,
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/resources/postgres"
       }
     ]
   },
@@ -151,6 +153,39 @@
             "artifact-checksum"
           ]
         }
+      }
+    },
+    "persistent_data": [
+      {
+        "id": "postgres-databases",
+        "binding": "database:*",
+        "backup_provider": "postgres",
+        "migration_owner": "resource"
+      }
+    ],
+    "backup": {
+      "provider": "postgres",
+      "consistency": "database_native",
+      "dump": {
+        "tool": "pg_dump",
+        "argv": [
+          "--format=custom",
+          "--no-password",
+          "--dbname",
+          "{database}",
+          "--file",
+          "{output}"
+        ]
+      },
+      "restore": {
+        "tool": "pg_restore",
+        "argv": [
+          "--no-password",
+          "--exit-on-error",
+          "--dbname",
+          "{database}",
+          "{input}"
+        ]
       }
     }
   },

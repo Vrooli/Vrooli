@@ -19,8 +19,11 @@ type CredentialRef struct {
 	// Description is the operator-facing purpose of the credential. It is
 	// carried separately from Label because a credential card must show both
 	// the name and the reason the value is being asked for.
-	Description string `json:"description,omitempty"`
-	Required    bool   `json:"required"`
+	Description  string `json:"description,omitempty"`
+	ObtainURL    string `json:"obtain_url,omitempty"`
+	Provisioning string `json:"provisioning,omitempty"`
+	DerivedFrom  string `json:"derived_from,omitempty"`
+	Required     bool   `json:"required"`
 }
 
 type CredentialStatus struct {
@@ -128,6 +131,9 @@ type RecoveryStatus struct {
 	RequiredAbsent           []string `json:"required_absent,omitempty"`
 	Basis                    string   `json:"basis"`
 	ManagedInstancesIncluded bool     `json:"managed_instances_included"`
+	Status                   string   `json:"status"`
+	AgeSeconds               int64    `json:"age_seconds,omitempty"`
+	FreshnessReason          string   `json:"freshness_reason,omitempty"`
 }
 
 type DoctorResponse struct {

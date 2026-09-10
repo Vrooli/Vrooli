@@ -106,6 +106,7 @@
         "field": "api-key",
         "env": "OPENROUTER_API_KEY",
         "label": "OpenRouter API Key",
+        "provisioning": "operator",
         "description": "OpenRouter unified API gateway across LLM providers. Required for scenarios that route LLM calls through OpenRouter rather than calling providers directly.",
         "required": true,
         "obtain_url": "https://openrouter.ai/keys"

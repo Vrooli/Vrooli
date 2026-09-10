@@ -4,7 +4,7 @@
 // the same three-way failure taxonomy.
 package securestore
 
-import internalstore "github.com/vrooli/vrooli/internal/resources/securestore"
+import internalstore "github.com/vrooli/vrooli/internal/securestore"
 
 type (
 	Store   = internalstore.Store

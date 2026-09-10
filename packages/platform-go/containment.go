@@ -165,6 +165,22 @@ func ContainSelf(scope string, containment Containment) (ScopeRef, string, error
 	return containSelf(scope, containment)
 }
 
+// SupportsContainment reports whether this host has a native primitive for
+// placing a process tree under a ceiling. It answers a different question
+// from a failed call: false means "no ceiling exists on this platform", so a
+// caller must not treat an uncontained session as a defect, while a failure
+// on a host that reports true is a real regression a caller should surface.
+// Callers that only need to know why one attempt failed should test
+// errors.Is(err, ErrUnsupported) instead; this query exists so a caller can
+// decide before it launches, and so a readiness surface can state the
+// platform's honest capability without provoking a launch.
+//
+// The evidence caveat in this file's header applies here too: Linux is
+// host-verified, macOS and Windows are compile- and fixture-verified only, so
+// true on those platforms asserts that a primitive is implemented, not that
+// it has been observed containing a real tree.
+func SupportsContainment() bool { return supportsContainment() }
+
 // FreezeScope pauses every task in the tree: cgroup.freeze on Linux,
 // SIGSTOP to the process group on macOS, Job termination on Windows (where
 // no pause primitive spans a tree; documented, fixture-verified). It refuses

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	evidencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/evidence"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/evidence/evidencev1connect"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type DeploymentEvidenceClient interface {
@@ -47,6 +49,7 @@ func NewDeploymentReporterFromURL(baseURL, profileID, gitCommit string, httpClie
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 30 * time.Second}
 	}
+	httpClient = withDeploymentManagerServiceAuth(httpClient)
 	reporter := NewDeploymentReporter(evidencev1connect.NewEvidenceServiceClient(httpClient, strings.TrimRight(baseURL, "/")), profileID, gitCommit)
 	for _, option := range options {
 		if option != nil {
@@ -54,6 +57,37 @@ func NewDeploymentReporterFromURL(baseURL, profileID, gitCommit string, httpClie
 		}
 	}
 	return reporter
+}
+
+type deploymentManagerServiceAuthTransport struct {
+	base http.RoundTripper
+}
+
+func (t deploymentManagerServiceAuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	base := t.base
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	token := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_SERVICE_TOKEN"))
+	if token == "" {
+		if path := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_SERVICE_TOKEN_FILE")); path != "" {
+			if data, err := os.ReadFile(path); err == nil {
+				token = strings.TrimSpace(string(data))
+			}
+		}
+	}
+	if token == "" {
+		return base.RoundTrip(req)
+	}
+	clone := req.Clone(req.Context())
+	clone.Header.Set("Authorization", "Bearer "+token)
+	return base.RoundTrip(clone)
+}
+
+func withDeploymentManagerServiceAuth(client *http.Client) *http.Client {
+	copy := *client
+	copy.Transport = deploymentManagerServiceAuthTransport{base: client.Transport}
+	return &copy
 }
 
 func (r *DeploymentReporter) ReportValidationGate(ctx context.Context, verdict ReleaseVerdict) error {
@@ -84,14 +118,15 @@ func (r *DeploymentReporter) ReportValidationGate(ctx context.Context, verdict R
 		return fmt.Errorf("encode matrix release detail: %w", err)
 	}
 	refs := make([]*commonv1.EvidenceRef, 0, len(verdict.Evidence))
+	createdAt := time.Now().UTC()
 	for _, evidence := range verdict.Evidence {
 		if evidence == nil {
 			continue
 		}
-		refs = append(refs, &commonv1.EvidenceRef{Producer: r.producer, ArtifactId: evidence.GetEvidenceId(), Kind: evidence.GetKind().String(), Checksum: evidence.GetSha256()})
+		refs = append(refs, &commonv1.EvidenceRef{Producer: r.producer, ArtifactId: evidence.GetEvidenceId(), Kind: evidence.GetKind().String(), Checksum: evidence.GetSha256(), CreatedAt: timestamppb.New(createdAt)})
 	}
 	target := &commonv1.EvidenceTarget{Ramp: r.ramp, Platform: r.platform, Os: r.os, DeviceKind: commonv1.DeviceKind_DEVICE_KIND_HOST}
-	_, err = r.client.ReportTargetVerdict(ctx, connect.NewRequest(&evidencev1.ReportTargetVerdictRequest{ProfileId: r.profile, GitCommitHash: r.commit, Verdict: &commonv1.TargetVerdict{Target: target, Disposition: disposition, Refs: refs, RunId: verdict.RunID, Detail: string(detail)}}))
+	_, err = r.client.ReportTargetVerdict(ctx, connect.NewRequest(&evidencev1.ReportTargetVerdictRequest{ProfileId: r.profile, GitCommitHash: r.commit, Verdict: &commonv1.TargetVerdict{Target: target, Disposition: disposition, Refs: refs, RunId: verdict.RunID, Detail: string(detail), EvidenceClass: "release-grade"}}))
 	if err != nil {
 		return fmt.Errorf("report matrix release verdict: %w", err)
 	}

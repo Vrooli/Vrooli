@@ -388,6 +388,8 @@ export interface HealthOptions {
   serviceName: string
   /** Service version */
   version?: string
+  /** Authored build identity reported by the managed process */
+  buildIdentity?: string
   /** API port for connectivity check */
   apiPort?: number | string
   /** API host for connectivity check */
@@ -493,6 +495,8 @@ export interface HealthCheckResult {
   timestamp: string
   /** Service version */
   version?: string
+  /** Authored build identity reported by the managed process */
+  build_identity?: string
   /** Whether service is ready to accept traffic */
   readiness: boolean
   /** API connectivity status */

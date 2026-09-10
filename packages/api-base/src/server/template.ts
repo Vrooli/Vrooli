@@ -574,6 +574,7 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
   app.get('/health', createHealthEndpoint({
     serviceName,
     version,
+    buildIdentity: process.env.VROOLI_BUILD_IDENTITY,
     apiPort: parsedApiPort,
     apiHost,
   }))

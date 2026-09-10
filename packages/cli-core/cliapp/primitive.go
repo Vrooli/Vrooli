@@ -193,6 +193,30 @@ func ProtoOperational[Resp proto.Message](
 	}}
 }
 
+// ProtoOperationalWithExit is the diagnostic counterpart for status contracts
+// whose authoritative response also gates the process result. It renders the
+// complete typed response first, then returns the domain-owned exit decision;
+// therefore --json remains parseable even when the status is not ready.
+func ProtoOperationalWithExit[Resp proto.Message](
+	call func(ctx OperationContext) (Resp, error),
+	report func(ctx OperationContext, resp Resp) OperationalReport,
+	exit func(ctx OperationContext, resp Resp) error,
+) PrimitiveHandler {
+	return PrimitiveHandler{primitive: PrimitiveOperational, Run: func(ctx RunContext) error {
+		resp, err := call(ctx)
+		if err != nil {
+			return err
+		}
+		if err := RenderProtoOperational(ctx, resp, report(ctx, resp)); err != nil {
+			return err
+		}
+		if exit == nil {
+			return nil
+		}
+		return exit(ctx, resp)
+	}}
+}
+
 // Action builds a renderer-separated single-call handler for non-proto commands
 // that still have one operation result and a mutation-shaped human report. Use
 // it for REST-backed or local actions that cannot use a Connect-RPC primitive

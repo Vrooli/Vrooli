@@ -1,18 +1,21 @@
 package cliapp
 
 import (
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
-	_ "google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/dynamicpb"
+	"google.golang.org/protobuf/types/known/structpb"
 	_ "google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -22,7 +25,7 @@ func testMessageDescriptor(t *testing.T) protoreflect.MessageDescriptor {
 		Name: strptr("test.proto"), Package: strptr("test"), Syntax: strptr("proto3"),
 		MessageType: []*descriptorpb.DescriptorProto{
 			{Name: strptr("Envelope"), Field: []*descriptorpb.FieldDescriptorProto{{Name: strptr("role"), JsonName: strptr("role"), Number: int32ptr(1), Label: labelptr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL), Type: typeptr(descriptorpb.FieldDescriptorProto_TYPE_STRING)}}},
-			{Name: strptr("Request"), Field: []*descriptorpb.FieldDescriptorProto{{Name: strptr("request"), JsonName: strptr("request"), Number: int32ptr(1), Label: labelptr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL), Type: typeptr(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE), TypeName: strptr(".test.Envelope")}, {Name: strptr("query"), JsonName: strptr("query"), Number: int32ptr(2), Label: labelptr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL), Type: typeptr(descriptorpb.FieldDescriptorProto_TYPE_STRING)}}},
+			{Name: strptr("Request"), Field: []*descriptorpb.FieldDescriptorProto{{Name: strptr("request"), JsonName: strptr("request"), Number: int32ptr(1), Label: labelptr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL), Type: typeptr(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE), TypeName: strptr(".test.Envelope")}, {Name: strptr("query"), JsonName: strptr("query"), Number: int32ptr(2), Label: labelptr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL), Type: typeptr(descriptorpb.FieldDescriptorProto_TYPE_STRING)}, {Name: strptr("tags"), JsonName: strptr("tags"), Number: int32ptr(3), Label: labelptr(descriptorpb.FieldDescriptorProto_LABEL_REPEATED), Type: typeptr(descriptorpb.FieldDescriptorProto_TYPE_STRING)}}},
 		},
 	}}}
 	files, err := protodesc.NewFiles(set)
@@ -274,5 +277,48 @@ func TestStructuredDecodeKindExemptsOnlyStructuredDecoders(t *testing.T) {
 		if got := StructuredDecodeKind(kind); got != want {
 			t.Fatalf("StructuredDecodeKind(%q) = %t, want %t", kind, got, want)
 		}
+	}
+}
+
+func TestSetJSONFieldSupportsMapOfStructValues(t *testing.T) {
+	descriptor := (&structpb.Struct{}).ProtoReflect().Descriptor()
+	message := dynamicpb.NewMessage(descriptor)
+	field := descriptor.Fields().ByName("fields")
+	if field == nil || !field.IsMap() {
+		t.Fatal("struct fields descriptor is not a map")
+	}
+	if err := setJSONField(message, field, []byte(`{"enabled":true,"count":3}`)); err != nil {
+		t.Fatalf("decode map JSON: %v", err)
+	}
+	if got := message.Get(field).Map().Len(); got != 2 {
+		t.Fatalf("map entries = %d, want 2", got)
+	}
+	encoded, err := protojson.Marshal(message)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded["enabled"] != true || decoded["count"] != float64(3) {
+		t.Fatalf("encoded map = %#v", decoded)
+	}
+}
+
+func TestRepeatedFlagHydratesScalarList(t *testing.T) {
+	descriptor := testMessageDescriptor(t)
+	field := descriptor.Fields().ByName("tags")
+	message := dynamicpb.NewMessage(descriptor)
+	ctx := NewTestRunContext(TestRunContextOptions{
+		Schema:    ArgSchema{Flags: []Flag{{Name: "tag", Repeated: true, Bind: FlagBind{Field: "tags"}}}},
+		FlagLists: map[string][]string{"tag": {"alpha", "beta"}},
+	})
+	if err := hydrateProtoRequest(ctx, descriptor, message, nil); err != nil {
+		t.Fatalf("hydrate repeated flag: %v", err)
+	}
+	values := message.Get(field).List()
+	if values.Len() != 2 || values.Get(0).String() != "alpha" || values.Get(1).String() != "beta" {
+		t.Fatalf("repeated values = %v, want alpha,beta", values)
 	}
 }

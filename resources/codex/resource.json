@@ -38,6 +38,13 @@
     "detection_signal": "CODEX_CI=1 AND CODEX_THREAD_ID non-empty",
     "hook_surface": "native-permissions"
   },
+  "agent_hooks": {
+    "document_scopes": ["user", "project"],
+    "events": [
+      {"name": "PreToolUse", "supported": true, "can_inject_context": false, "reason": "Only the brokered tool hook is observed; no prompt-time injection canary exists."},
+      {"name": "UserPromptSubmit", "supported": false, "can_inject_context": false, "reason": "The installed Codex hook surface has no verified prompt-time event."}
+    ]
+  },
   "cli": {
     "enabled": true,
     "command": "resource-codex",
@@ -82,6 +89,7 @@
         "field": "api-key",
         "env": "OPENAI_API_KEY",
         "label": "OpenAI API key",
+        "provisioning": "operator",
         "description": "Optional API-key authentication for Codex workflows; a signed-in Codex CLI session is also supported.",
         "required": false,
         "obtain_url": "https://platform.openai.com/api-keys"
@@ -91,8 +99,10 @@
         "field": "organization-id",
         "env": "OPENAI_ORG_ID",
         "label": "OpenAI organization ID",
+        "provisioning": "operator",
         "description": "Optional organization identifier used with the OpenAI API.",
-        "required": false
+        "required": false,
+        "obtain_url": "https://platform.openai.com/settings/organization/general"
       }
     ]
   },

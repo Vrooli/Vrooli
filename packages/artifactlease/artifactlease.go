@@ -66,3 +66,15 @@ func EvaluateReclaim(l Lease, found bool, now time.Time, grace time.Duration) El
 
 // Remove deletes an artifact's lease.
 func Remove(artifact string) error { return lease.Remove(artifact) }
+
+// Claim records a fresh installation: new bytes were written to this path.
+// It bumps the generation and clears any recorded absence.
+func Claim(artifact string, owner Owner, ownerModule string, ttl time.Duration, now time.Time) (Lease, error) {
+	return lease.Claim(artifact, owner, ownerModule, ttl, now)
+}
+
+// Renew extends an existing lease, or claims when none is usable. It declines
+// to rewrite a lease that is still fresh and carries no absence.
+func Renew(artifact string, owner Owner, ownerModule string, ttl time.Duration, now time.Time) (Lease, error) {
+	return lease.Renew(artifact, owner, ownerModule, ttl, now)
+}

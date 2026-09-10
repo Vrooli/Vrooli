@@ -370,6 +370,7 @@
         "field": "huggingface-token",
         "env": "KYUTAI_STT_HF_TOKEN",
         "label": "Hugging Face token",
+        "provisioning": "operator",
         "description": "Optional Hugging Face access token used only to avoid anonymous download rate limits when fetching Kyutai STT weights on first start. The Kyutai STT models are public; leave empty unless you hit rate limits.",
         "obtain_url": "https://huggingface.co/settings/tokens",
         "required": false

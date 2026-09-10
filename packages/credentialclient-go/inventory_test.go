@@ -29,31 +29,31 @@ func writeScopeFixture(t *testing.T) string {
 	write(filepath.Join(root, ".vrooli", "service.json"), `{
   "service": {"name": "vrooli", "description": "Project scope"},
   "credentials": {"descriptors": [
-    {"logical_id": "vrooli/remote-desktop", "field": "username", "label": "Remote desktop username", "required": false},
-    {"logical_id": "vrooli/remote-desktop", "field": "password", "label": "Remote desktop password", "required": false}
+    {"logical_id": "vrooli/remote-desktop", "field": "username", "label": "Remote desktop username", "obtain_url": "https://example.test/remote-desktop", "provisioning": "operator", "required": false},
+    {"logical_id": "vrooli/remote-desktop", "field": "password", "label": "Remote desktop password", "description": "Derived host password", "obtain_url": "https://example.test/remote-desktop", "provisioning": "derived", "derived_from": "username", "required": false}
   ]}
 }`)
 	write(filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{
   "service": {"name": "alpha", "description": "Alpha"},
-  "credentials": {"descriptors": [{"logical_id": "vrooli/alpha", "field": "token", "required": true}]}
+  "credentials": {"descriptors": [{"logical_id": "vrooli/alpha", "field": "token", "obtain_url": "https://example.test/alpha", "provisioning": "operator", "required": true}]}
 }`)
 	write(filepath.Join(root, "scenarios", "beta", ".vrooli", "service.json"), `{
   "service": {"name": "beta", "description": "Beta"},
-  "credentials": {"descriptors": [{"logical_id": "vrooli/beta", "field": "token", "required": false}]}
+  "credentials": {"descriptors": [{"logical_id": "vrooli/beta", "field": "token", "obtain_url": "https://example.test/beta", "provisioning": "operator", "required": false}]}
 }`)
 	write(filepath.Join(root, "resources", "one", "resource.json"), `{
   "name": "one", "display_name": "One", "description": "One", "category": "general",
   "driver": "external-cli",
   "binary": "one",
   "cli": {"enabled": true, "command": "one", "adapter": {"kind": "go_module", "module_dir": "cli"}, "source_build": {"kind": "go_module"}, "invoke": {"kind": "installed_command", "command": "one"}, "freshness": {"inputs": ["cli/**", "resource.json"]}},
-  "credentials": {"descriptors": [{"logical_id": "vrooli/one", "field": "password", "required": true}]}
+  "credentials": {"descriptors": [{"logical_id": "vrooli/one", "field": "password", "description": "One password", "obtain_url": "https://example.test/one", "provisioning": "operator", "required": true}]}
 }`)
 	write(filepath.Join(root, "resources", "two", "resource.json"), `{
   "name": "two", "display_name": "Two", "description": "Two", "category": "general",
   "driver": "external-cli",
   "binary": "two",
   "cli": {"enabled": true, "command": "two", "adapter": {"kind": "go_module", "module_dir": "cli"}, "source_build": {"kind": "go_module"}, "invoke": {"kind": "installed_command", "command": "two"}, "freshness": {"inputs": ["cli/**", "resource.json"]}},
-  "credentials": {"descriptors": [{"logical_id": "vrooli/two", "field": "password", "required": false}]}
+  "credentials": {"descriptors": [{"logical_id": "vrooli/two", "field": "password", "obtain_url": "https://example.test/two", "provisioning": "operator", "required": false}]}
 }`)
 	return root
 }
@@ -91,7 +91,13 @@ func TestDescriptorsForScopeIncludesProjectManifest(t *testing.T) {
 		"vrooli/alpha:token", "vrooli/beta:token", "vrooli/one:password",
 		"vrooli/remote-desktop:password", "vrooli/remote-desktop:username", "vrooli/two:password")
 	for _, ref := range refs {
+		if ref.Provisioning == "" {
+			t.Fatalf("descriptor %s:%s lost provisioning classification: %+v", ref.LogicalID, ref.Field, ref)
+		}
 		if ref.LogicalID != "vrooli/remote-desktop" {
+			if ref.LogicalID == "vrooli/one" && ref.ObtainURL != "https://example.test/one" {
+				t.Fatalf("resource descriptor lost acquisition guide: %+v", ref)
+			}
 			continue
 		}
 		if ref.Resource != ProjectScopeOwner {
@@ -99,6 +105,12 @@ func TestDescriptorsForScopeIncludesProjectManifest(t *testing.T) {
 		}
 		if ref.Label == "" {
 			t.Fatalf("project descriptor %s carries no label", ref.Field)
+		}
+		if ref.ObtainURL == "" {
+			t.Fatalf("project descriptor %s carries no acquisition guide", ref.Field)
+		}
+		if ref.Field == "password" && (ref.Provisioning != "derived" || ref.DerivedFrom != "username") {
+			t.Fatalf("project descriptor %s lost provisioning metadata: %+v", ref.Field, ref)
 		}
 	}
 }

@@ -28,3 +28,8 @@ func adoptIntoScope(AdoptSpec) (ScopeRef, string, error) {
 }
 
 func sliceCgroupPath(string) (string, error) { return "", ErrUnsupported }
+
+// supportsContainment reports false: every entry point in this file returns
+// ErrUnsupported, so a caller must read an uncontained session here as the
+// platform's honest limit rather than as a defect.
+func supportsContainment() bool { return false }

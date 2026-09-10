@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -118,6 +120,104 @@ func TestInProcessResolvePreservesUnconfiguredTaxonomy(t *testing.T) {
 	if !errors.As(err, &resolutionErr) {
 		t.Fatalf("Resolve() error type = %T, want *ResolutionError", err)
 	}
+}
+
+func TestInProcessDoctorClassifiesRecoveryFreshnessAndCoverage(t *testing.T) {
+	const identity = "vrooli/test"
+	const field = "api-key"
+
+	tests := []struct {
+		name          string
+		receipt       bool
+		receiptAge    time.Duration
+		covers        bool
+		wantStatus    string
+		wantReason    string
+		wantUncovered bool
+	}{
+		{name: "no receipt", wantStatus: "incomplete", wantReason: "no verified recovery receipt exists", wantUncovered: true},
+		{name: "covered and fresh", receipt: true, covers: true, wantStatus: "protected", wantReason: "covers the current configured credential inventory"},
+		{name: "covered but stale", receipt: true, receiptAge: recoveryFreshnessWindow + time.Hour, covers: true, wantStatus: "stale", wantReason: "older than the supported freshness window"},
+		{name: "receipt misses configured credential", receipt: true, wantStatus: "incomplete", wantReason: "does not cover every current required or configured credential", wantUncovered: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			store := &testStore{value: "secret"}
+			authority, err := credentialauthority.NewAuthority(store)
+			if err != nil {
+				t.Fatal(err)
+			}
+			stateDir := t.TempDir()
+			client, err := NewInProcess(InProcessOptions{
+				Authority: authority,
+				StateDir:  stateDir,
+				Descriptors: func() ([]CredentialRef, error) {
+					return []CredentialRef{{LogicalID: identity, Field: field, Required: true}}, nil
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if test.receipt {
+				entries := []credentialauthority.RecoveryEntry{}
+				if test.covers {
+					entries = append(entries, credentialauthority.RecoveryEntry{Identity: credentialauthority.Identity(identity), Field: field})
+				}
+				exportedAt := time.Now().UTC().Add(-test.receiptAge)
+				if err := credentialauthority.WriteRecoveryReceipt(stateDir, filepath.Join(stateDir, "recovery.bundle"), entries, exportedAt); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			response, err := client.Doctor(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if response.Recovery.Status != test.wantStatus || !strings.Contains(response.Recovery.FreshnessReason, test.wantReason) {
+				t.Fatalf("recovery = %+v, want status %q and reason containing %q", response.Recovery, test.wantStatus, test.wantReason)
+			}
+			if test.wantUncovered != (len(response.Recovery.Uncovered) == 1) {
+				t.Fatalf("uncovered = %v, want one entry: %v", response.Recovery.Uncovered, test.wantUncovered)
+			}
+		})
+	}
+}
+
+func TestInProcessRecoveryExportRecordsVerifiedReceipt(t *testing.T) {
+	authority, err := credentialauthority.NewAuthority(&testStore{value: "secret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stateDir := t.TempDir()
+	client, err := NewInProcess(InProcessOptions{Authority: authority, StateDir: stateDir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outputPath := filepath.Join(t.TempDir(), "recovery.bundle")
+	ref := CredentialRef{LogicalID: "vrooli/test", Field: "api-key"}
+	if _, err := client.RecoveryExport(context.Background(), RecoveryExportRequest{Entries: []CredentialRef{ref}, Passphrase: "correct horse battery staple", OutputPath: outputPath}); err != nil {
+		t.Fatal(err)
+	}
+	receipt, found, err := credentialauthority.ReadRecoveryReceipt(stateDir)
+	if err != nil || !found {
+		t.Fatalf("receipt = %+v, found = %v, err = %v", receipt, found, err)
+	}
+	if receipt.Verification != "decrypt-readback" || receipt.VerifiedAt.IsZero() || !receipt.Covers(credentialauthority.Identity("vrooli/test"), "api-key") {
+		t.Fatalf("receipt = %+v, want verified coverage", receipt)
+	}
+	if _, err := credentialauthority.InspectRecovery(mustReadFile(t, outputPath), "correct horse battery staple"); err != nil {
+		t.Fatalf("exported bundle does not decrypt after receipt: %v", err)
+	}
+}
+
+func mustReadFile(t *testing.T, path string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
 }
 
 func TestUnavailableTransportReturnsTypedError(t *testing.T) {

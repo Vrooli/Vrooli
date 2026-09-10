@@ -201,3 +201,9 @@ func adoptIntoScope(AdoptSpec) (ScopeRef, string, error) {
 }
 
 func sliceCgroupPath(string) (string, error) { return "", ErrUnsupported }
+
+// supportsContainment reports true: Job Objects are a kernel primitive on
+// every supported Windows host. Per this package's evidence note the body is
+// compile- and fixture-verified only, so true asserts an implemented
+// primitive, not an observed one.
+func supportsContainment() bool { return true }

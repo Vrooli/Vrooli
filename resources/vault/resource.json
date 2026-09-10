@@ -48,8 +48,10 @@
         "field": "token",
         "env": "VAULT_TOKEN",
         "label": "Vault operator token",
+        "provisioning": "operator",
         "description": "Operator token used by Vrooli-authored Vault integrations.",
-        "required": false
+        "required": false,
+        "obtain_url": "https://developer.hashicorp.com/vault/docs/commands/token"
       }
     ]
   },

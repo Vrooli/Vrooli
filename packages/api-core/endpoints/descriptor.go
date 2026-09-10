@@ -71,6 +71,11 @@ const (
 	// endpoints whose browser-native or long-lived transport cannot be
 	// expressed by a generated client procedure.
 	RESTReasonStreamUpgrade RESTReason = "stream_upgrade"
+
+	// RESTReasonBrowserSurface covers a browser-facing compatibility endpoint
+	// whose HTTP status or input contract must remain distinct from the
+	// generated Connect procedure used by the same domain.
+	RESTReasonBrowserSurface RESTReason = "browser_surface"
 )
 
 // RESTException tags an EndpointDescriptor whose Path is a hand-authored

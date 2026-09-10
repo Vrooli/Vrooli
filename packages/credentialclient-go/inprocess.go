@@ -25,6 +25,7 @@ const (
 	credentialHTTPTimeout    = 15 * time.Second
 	credentialResponseLimit  = 1 << 20
 	defaultHydrationLeaseTTL = 5 * time.Minute
+	recoveryFreshnessWindow  = 30 * 24 * time.Hour
 )
 
 type InProcessOptions struct {
@@ -247,7 +248,7 @@ func (c *inProcessClient) Doctor(ctx context.Context) (DoctorResponse, error) {
 		DeclarationSiteCount:     inventory.DeclarationSiteCount,
 		InventoryBasis:           inventory.InventoryBasis,
 		ManagedInstancesIncluded: inventory.ManagedInstancesIncluded,
-		Recovery:                 RecoveryStatus{Uncovered: []string{}, RequiredAbsent: append([]string(nil), inventory.RequiredAbsent...), Basis: inventory.InventoryBasis, ManagedInstancesIncluded: inventory.ManagedInstancesIncluded},
+		Recovery:                 RecoveryStatus{Status: "unassessed", Uncovered: []string{}, RequiredAbsent: append([]string(nil), inventory.RequiredAbsent...), Basis: inventory.InventoryBasis, ManagedInstancesIncluded: inventory.ManagedInstancesIncluded},
 	}
 	response.Provider = ProviderDiagnosis{Platform: diagnosis.Platform, Adapter: diagnosis.Adapter, Backend: diagnosis.Backend, Condition: diagnosis.Condition, Available: diagnosis.Available, Writable: diagnosis.Writable, Explanation: diagnosis.Explanation, Fix: diagnosis.Fix}
 	if c.stateDir != "" {
@@ -255,6 +256,7 @@ func (c *inProcessClient) Doctor(ctx context.Context) (DoctorResponse, error) {
 			response.Recovery.ReceiptExists = true
 			response.Recovery.ExportedAt = receipt.ExportedAt.Format("2006-01-02T15:04:05Z07:00")
 			response.Recovery.EntryCount = len(receipt.Entries)
+			response.Recovery.AgeSeconds = maxInt64(0, int64(time.Since(receipt.ExportedAt).Seconds()))
 			for _, descriptor := range descriptors {
 				if !credentialConfigured(c.authority, descriptor) {
 					continue
@@ -264,7 +266,20 @@ func (c *inProcessClient) Doctor(ctx context.Context) (DoctorResponse, error) {
 					response.Recovery.Uncovered = append(response.Recovery.Uncovered, descriptor.LogicalID+":"+descriptor.Field)
 				}
 			}
+			switch {
+			case len(response.Recovery.Uncovered) > 0 || len(response.Recovery.RequiredAbsent) > 0:
+				response.Recovery.Status = "incomplete"
+				response.Recovery.FreshnessReason = "the latest recovery receipt does not cover every current required or configured credential"
+			case response.Recovery.AgeSeconds > int64(recoveryFreshnessWindow.Seconds()):
+				response.Recovery.Status = "stale"
+				response.Recovery.FreshnessReason = "the recovery receipt is older than the supported freshness window"
+			default:
+				response.Recovery.Status = "protected"
+				response.Recovery.FreshnessReason = "the latest recovery receipt covers the current configured credential inventory"
+			}
 		} else {
+			response.Recovery.Status = "incomplete"
+			response.Recovery.FreshnessReason = "no verified recovery receipt exists"
 			for _, descriptor := range descriptors {
 				if credentialConfigured(c.authority, descriptor) {
 					response.Recovery.Uncovered = append(response.Recovery.Uncovered, descriptor.LogicalID+":"+descriptor.Field)
@@ -273,6 +288,13 @@ func (c *inProcessClient) Doctor(ctx context.Context) (DoctorResponse, error) {
 		}
 	}
 	return response, nil
+}
+
+func maxInt64(left, right int64) int64 {
+	if left > right {
+		return left
+	}
+	return right
 }
 
 func credentialConfigured(authority *credentialauthority.Authority, descriptor CredentialRef) bool {
@@ -326,6 +348,9 @@ func (c *inProcessClient) RecoveryExport(_ context.Context, request RecoveryExpo
 	if err != nil {
 		return RecoveryExportResponse{}, err
 	}
+	if _, err := credentialauthority.InspectRecovery(bundle, request.Passphrase); err != nil {
+		return RecoveryExportResponse{}, fmt.Errorf("verify recovery bundle before recording receipt: %w", err)
+	}
 	if strings.TrimSpace(request.OutputPath) == "" {
 		return RecoveryExportResponse{}, fmt.Errorf("recovery output path is required")
 	}
@@ -336,7 +361,10 @@ func (c *inProcessClient) RecoveryExport(_ context.Context, request RecoveryExpo
 		return RecoveryExportResponse{}, err
 	}
 	if c.stateDir != "" {
-		_ = credentialauthority.WriteRecoveryReceipt(c.stateDir, request.OutputPath, entries, time.Now())
+		now := time.Now().UTC()
+		if err := credentialauthority.WriteRecoveryReceiptWithMetadata(c.stateDir, request.OutputPath, entries, credentialauthority.RecoveryReceipt{VerifiedAt: now, Verification: "decrypt-readback", ScheduleState: "manual"}, now); err != nil {
+			return RecoveryExportResponse{}, fmt.Errorf("record verified recovery receipt: %w", err)
+		}
 	}
 	return RecoveryExportResponse{Path: request.OutputPath, EntryCount: len(entries)}, nil
 }

@@ -46,6 +46,13 @@
     "detection_signal": "OPENCODE_PID matches a calling-process ancestor",
     "hook_surface": "native-permissions"
   },
+  "agent_hooks": {
+    "document_scopes": ["user", "project"],
+    "events": [
+      {"name": "PreToolUse", "supported": true, "can_inject_context": false, "reason": "Only the brokered tool hook is observed; no prompt-time injection canary exists."},
+      {"name": "UserPromptSubmit", "supported": false, "can_inject_context": false, "reason": "OpenCode's native hook surface has no verified prompt-time event."}
+    ]
+  },
   "cli": {
     "enabled": true,
     "command": "resource-opencode",
@@ -90,6 +97,7 @@
         "field": "api-key",
         "env": "OPENROUTER_API_KEY",
         "label": "OpenRouter API key",
+        "provisioning": "operator",
         "description": "Optional gateway credential shared with the OpenRouter resource.",
         "required": false,
         "obtain_url": "https://openrouter.ai/keys"
@@ -99,24 +107,30 @@
         "field": "cloudflare-api-token",
         "env": "CLOUDFLARE_API_TOKEN",
         "label": "Cloudflare AI Gateway token",
+        "provisioning": "operator",
         "description": "Optional token for Cloudflare AI Gateway.",
-        "required": false
+        "required": false,
+        "obtain_url": "https://dash.cloudflare.com/profile/api-tokens"
       },
       {
         "logical_id": "vrooli/opencode",
         "field": "cloudflare-account-id",
         "env": "CLOUDFLARE_ACCOUNT_ID",
         "label": "Cloudflare account ID",
+        "provisioning": "operator",
         "description": "Optional Cloudflare account identifier for an AI Gateway.",
-        "required": false
+        "required": false,
+        "obtain_url": "https://dash.cloudflare.com/"
       },
       {
         "logical_id": "vrooli/opencode",
         "field": "cloudflare-gateway-slug",
         "env": "CLOUDFLARE_AI_GATEWAY_SLUG",
         "label": "Cloudflare AI Gateway slug",
+        "provisioning": "operator",
         "description": "Optional AI Gateway slug.",
-        "required": false
+        "required": false,
+        "obtain_url": "https://developers.cloudflare.com/ai-gateway/"
       }
     ]
   },

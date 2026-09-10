@@ -114,14 +114,18 @@
         "field": "account-sid",
         "env": "TWILIO_ACCOUNT_SID",
         "label": "Twilio account SID",
-        "required": true
+        "provisioning": "operator",
+        "required": true,
+        "obtain_url": "https://console.twilio.com/"
       },
       {
         "logical_id": "vrooli/twilio",
         "field": "auth-token",
         "env": "TWILIO_AUTH_TOKEN",
         "label": "Twilio auth token",
-        "required": true
+        "provisioning": "operator",
+        "required": true,
+        "obtain_url": "https://console.twilio.com/"
       }
     ]
   },

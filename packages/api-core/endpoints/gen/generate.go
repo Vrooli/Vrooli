@@ -332,7 +332,8 @@ func validRESTReason(r endpoints.RESTReason) bool {
 		endpoints.RESTReasonWebhookReceiver,
 		endpoints.RESTReasonThirdPartyShape,
 		endpoints.RESTReasonOpsProbe,
-		endpoints.RESTReasonStreamUpgrade:
+		endpoints.RESTReasonStreamUpgrade,
+		endpoints.RESTReasonBrowserSurface:
 		return true
 	}
 	return false

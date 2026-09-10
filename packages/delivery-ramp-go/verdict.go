@@ -10,13 +10,14 @@ import (
 )
 
 type TargetVerdictInput struct {
-	Producer    string
-	Target      Target
-	Disposition Disposition
-	RunID       string
-	Detail      string
-	References  []EvidenceReference
-	CreatedAt   time.Time
+	Producer      string
+	Target        Target
+	Disposition   Disposition
+	RunID         string
+	Detail        string
+	EvidenceClass string
+	References    []EvidenceReference
+	CreatedAt     time.Time
 }
 
 // NewTargetVerdict emits the deployment-manager reference-only contract. It
@@ -34,16 +35,24 @@ func NewTargetVerdict(input TargetVerdictInput) (*commonv1.TargetVerdict, error)
 	if input.Disposition == DispositionPass && len(input.References) == 0 {
 		return nil, fmt.Errorf("passing target verdict requires evidence references")
 	}
+	evidenceClass := strings.TrimSpace(input.EvidenceClass)
+	if evidenceClass == "" {
+		evidenceClass = "release-grade"
+	}
+	createdAt := input.CreatedAt.UTC()
+	if createdAt.IsZero() {
+		createdAt = time.Now().UTC()
+	}
 	refs := make([]*commonv1.EvidenceRef, 0, len(input.References))
 	for _, reference := range input.References {
-		if strings.TrimSpace(reference.ID) == "" || strings.TrimSpace(reference.Checksum) == "" || !reference.Redacted {
+		if strings.TrimSpace(reference.ID) == "" || strings.TrimSpace(reference.Kind) == "" || strings.TrimSpace(reference.Checksum) == "" || !reference.Redacted {
 			return nil, fmt.Errorf("evidence reference %q is incomplete or not redacted", reference.ID)
 		}
-		refs = append(refs, &commonv1.EvidenceRef{Producer: input.Producer, ArtifactId: reference.ID, Kind: reference.Kind, Checksum: reference.Checksum, CreatedAt: timestamp(input.CreatedAt)})
+		refs = append(refs, &commonv1.EvidenceRef{Producer: input.Producer, ArtifactId: reference.ID, Kind: reference.Kind, Checksum: reference.Checksum, CreatedAt: timestamp(createdAt)})
 	}
 	verdict := &commonv1.TargetVerdict{
 		Target:      &commonv1.EvidenceTarget{Ramp: input.Target.Ramp, Platform: input.Target.Platform, Os: input.Target.OS, DeviceKind: deviceKind(input.Target.DeviceKind), BridgeNodeId: optional(input.Target.NodeID)},
-		Disposition: protoDisposition(input.Disposition), Refs: refs, RunId: input.RunID, Detail: input.Detail,
+		Disposition: protoDisposition(input.Disposition), Refs: refs, RunId: input.RunID, Detail: input.Detail, EvidenceClass: evidenceClass,
 	}
 	if input.Target.Transport.Kind == TransportBridge {
 		verdict.Target.BridgeJobId = optional(input.RunID)

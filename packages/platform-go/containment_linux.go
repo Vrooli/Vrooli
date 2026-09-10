@@ -200,12 +200,50 @@ func systemdScopeCgroup(scope string) string {
 // own runtime directory when that directory exists. A shell entered through
 // su, or a service, otherwise carries another uid's bus and every user-manager
 // call fails with "Failed to connect to bus" while the uid's manager is fine.
+// UserBusUnavailable reports why the calling process cannot address its own
+// user manager, or "" when it can. It exists because userManagerEnv fails
+// open: when /run/user/<uid>/bus is absent it hands back the inherited
+// environment unchanged, and an inherited XDG_RUNTIME_DIR belonging to a
+// different uid then sends every busctl call at a bus this process cannot
+// open. Observed 2026-09-08: a daemon running as uid 1000 carried a root
+// login session's XDG_RUNTIME_DIR=/run/user/0, so systemd reported the
+// variables as "not defined" when they were defined and merely unreadable.
+//
+// This is a diagnostic, not a gate: containSelf still falls back to the
+// hand-made cgroup, which is why the condition can persist unnoticed.
+func UserBusUnavailable() string {
+	runtimeDir := "/run/user/" + strconv.Itoa(os.Getuid())
+	if _, err := os.Stat(filepath.Join(runtimeDir, "bus")); err != nil {
+		inherited := os.Getenv("XDG_RUNTIME_DIR")
+		if inherited != "" && inherited != runtimeDir {
+			return fmt.Sprintf("%s is absent and the inherited XDG_RUNTIME_DIR is %s, which belongs to another user; busctl --user cannot reach this uid's manager", filepath.Join(runtimeDir, "bus"), inherited)
+		}
+		return fmt.Sprintf("%s is absent; busctl --user cannot reach this uid's manager", filepath.Join(runtimeDir, "bus"))
+	}
+	return ""
+}
+
 func userManagerEnv(env []string) []string {
 	if env == nil {
 		env = os.Environ()
 	}
 	runtimeDir := "/run/user/" + strconv.Itoa(os.Getuid())
 	if _, err := os.Stat(filepath.Join(runtimeDir, "bus")); err != nil {
+		// Fail open, but never hand on another uid's session: an inherited
+		// XDG_RUNTIME_DIR from a different user makes busctl address a bus
+		// this process cannot open, and systemd then reports the variables as
+		// undefined rather than unreadable. Dropping them produces the same
+		// honest failure without the misleading message.
+		if inherited := os.Getenv("XDG_RUNTIME_DIR"); inherited != "" && inherited != runtimeDir {
+			out := make([]string, 0, len(env))
+			for _, entry := range env {
+				if strings.HasPrefix(entry, "XDG_RUNTIME_DIR=") || strings.HasPrefix(entry, "DBUS_SESSION_BUS_ADDRESS=") {
+					continue
+				}
+				out = append(out, entry)
+			}
+			return out
+		}
 		return env
 	}
 	out := make([]string, 0, len(env)+2)
@@ -650,4 +688,16 @@ func sliceCgroupPath(slice string) (string, error) {
 		return path, nil
 	}
 	return "", fmt.Errorf("platform: the user manager reported no cgroup for %s", slice)
+}
+
+// supportsContainment reports whether this Linux host has a usable ceiling
+// primitive. Both paths in containSelf end in a cgroup v2 tree: the busctl
+// route asks the user manager to make the scope, the fallback makes it by
+// hand. Neither is possible without the unified hierarchy mounted, so that
+// mount is the honest predicate. It deliberately does not probe the user bus:
+// an unreachable bus is why containSelf falls back to the hand-made cgroup,
+// not a reason to tell a caller this host cannot contain anything.
+func supportsContainment() bool {
+	info, err := os.Stat(filepath.Join(cgroupMount, "cgroup.controllers"))
+	return err == nil && !info.IsDir()
 }

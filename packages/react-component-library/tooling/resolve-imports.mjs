@@ -234,3 +234,10 @@ if (process.argv[1] && process.argv[1].endsWith("resolve-imports.mjs") && proces
   const roots = process.argv.slice(3);
   console.log(JSON.stringify(serializeSourceFacts(roots.length === 1 ? roots[0] : roots)));
 }
+if (process.argv[1] && process.argv[1].endsWith("resolve-imports.mjs") && process.argv[2] === "--binding-facts-root") {
+  const roots = process.argv.slice(3);
+  const facts = serializeSourceFacts(roots.length === 1 ? roots[0] : roots);
+  const { forwardedDOMBindings } = await import("./dom-bindings.mjs");
+  const bindings = await forwardedDOMBindings(facts.map(fact => fact.file));
+  console.log(JSON.stringify(facts.map(fact => ({ ...fact, domBindings: bindings.get(fact.file) ?? [] }))));
+}

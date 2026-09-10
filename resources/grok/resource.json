@@ -38,6 +38,13 @@
     "detection_signal": "GROK_AGENT=1",
     "hook_surface": "native-permissions"
   },
+  "agent_hooks": {
+    "document_scopes": ["user", "admin"],
+    "events": [
+      {"name": "PreToolUse", "supported": true, "can_inject_context": false, "reason": "Only the brokered tool hook is observed; no prompt-time injection canary exists."},
+      {"name": "UserPromptSubmit", "supported": false, "can_inject_context": false, "reason": "Grok's native hook surface has no verified prompt-time event."}
+    ]
+  },
   "cli": {
     "enabled": true,
     "command": "resource-grok",

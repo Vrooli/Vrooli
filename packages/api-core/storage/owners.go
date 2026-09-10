@@ -3,12 +3,25 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
 )
+
+// skippedInventoryDirs are directory names manifest discovery never descends
+// into. They hold dependencies, build output, coverage, or VCS objects, none
+// of which can contain a canonical owner manifest.
+var skippedInventoryDirs = map[string]bool{
+	"node_modules": true,
+	".pnpm":        true,
+	".git":         true,
+	"dist":         true,
+	"build":        true,
+	"coverage":     true,
+}
 
 // OwnerKind identifies the repository artifact that owns a storage declaration.
 // Keeping this vocabulary in api-core prevents each consumer from inventing a
@@ -184,6 +197,28 @@ func LoadOwnerInventory(opts InventoryOptions) (OwnerInventory, error) {
 				return fmt.Errorf("read %s: %w", path, entryErr)
 			}
 			if entry.IsDir() {
+				if path == base {
+					return nil
+				}
+				// Manifest discovery never needs dependency, build, or VCS
+				// trees; descending into them made every inventory load a
+				// walk of millions of node_modules entries.
+				if skippedInventoryDirs[entry.Name()] {
+					return fs.SkipDir
+				}
+				if kind == OwnerScenario {
+					// Only scenarios/<name>/.vrooli/service.json is an owner
+					// manifest, so nothing below scenarios/<name>/.vrooli needs
+					// to be read.
+					relative, relErr := filepath.Rel(base, path)
+					if relErr != nil {
+						return nil
+					}
+					parts := strings.Split(filepath.ToSlash(relative), "/")
+					if len(parts) >= 3 || (len(parts) == 2 && parts[1] != ".vrooli") {
+						return fs.SkipDir
+					}
+				}
 				return nil
 			}
 			if entry.Name() != manifestName {

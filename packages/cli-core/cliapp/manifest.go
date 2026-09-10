@@ -30,6 +30,7 @@ type ManifestGroup struct {
 type ManifestCommand struct {
 	Name         string                `json:"name"`
 	Description  string                `json:"description,omitempty"`
+	NeedsAPI     *bool                 `json:"needs_api,omitempty"`
 	Positionals  []ManifestPositional  `json:"positionals,omitempty"`
 	Flags        []ManifestFlag        `json:"flags,omitempty"`
 	Binding      ManifestBinding       `json:"binding"`
@@ -104,8 +105,11 @@ type ManifestFlag struct {
 	Aliases     []string `json:"aliases,omitempty"`
 	Description string   `json:"description,omitempty"`
 	Required    bool     `json:"required,omitempty"`
+	Repeatable  bool     `json:"repeatable,omitempty"`
+	Repeated    bool     `json:"repeated,omitempty"`
 	Default     string   `json:"default,omitempty"`
 	Bool        bool     `json:"bool,omitempty"`
+	Type        string   `json:"type,omitempty"`
 	LocalOnly   bool     `json:"local_only,omitempty"`
 	// Values, when non-empty, declares the closed vocabulary the flag
 	// accepts; ValueAliases maps accepted synonyms to a declared value.
@@ -363,9 +367,15 @@ func loadFromManifest(raw []byte, groupName string, bindings map[string]boundHan
 		if err != nil {
 			return SubcommandGroup{}, fmt.Errorf("cli manifest %q: command %s/%s: %w", m.Name, group.Name, c.Name, err)
 		}
+		commandNeedsAPI := needsAPI
+		if c.NeedsAPI != nil {
+			commandNeedsAPI = *c.NeedsAPI
+		}
 		subs = append(subs, Command{
 			Name:              c.Name,
 			Description:       c.Description,
+			NeedsAPI:          commandNeedsAPI,
+			NeedsAPIOverride:  c.NeedsAPI,
 			Args:              args,
 			RunCtx:            handler.run,
 			Architecture:      declared,
@@ -409,8 +419,9 @@ func ManifestArgs(c ManifestCommand) (ArgSchema, error) {
 			Aliases:      f.Aliases,
 			Description:  f.Description,
 			Required:     f.Required,
+			Repeated:     f.Repeated || f.Repeatable,
 			Default:      f.Default,
-			Bool:         f.Bool,
+			Bool:         f.Bool || f.Type == "bool",
 			LocalOnly:    f.LocalOnly,
 			Values:       f.Values,
 			ValueAliases: f.ValueAliases,

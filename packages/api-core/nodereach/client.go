@@ -294,6 +294,10 @@ type CallResponse struct {
 type ScenarioRequest struct {
 	NodeID   string
 	Scenario string
+	// Authorization is the already-verified caller credential to preserve
+	// through a target proxy. It is intentionally opaque to nodereach and is
+	// never logged; an empty value uses the client's configured owner token.
+	Authorization string
 	// Procedure is the canonical fully-qualified Connect procedure, for
 	// example /vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ListOperatorInputs.
 	Procedure string
@@ -343,12 +347,16 @@ func (c *Client) CallScenario(ctx context.Context, req ScenarioRequest) ([]byte,
 			httpReq.Header.Set("X-Vrooli-HTTP-Method", method)
 		}
 	}
-	token, err := c.resolveToken(callCtx)
-	if err != nil {
-		return nil, &Error{Kind: ErrTransport, Node: req.NodeID, Verb: req.Scenario, Err: err}
-	}
-	if token != "" {
-		httpReq.Header.Set("Authorization", authHeader(token))
+	if authorization := strings.TrimSpace(req.Authorization); authorization != "" {
+		httpReq.Header.Set("Authorization", authorization)
+	} else {
+		token, err := c.resolveToken(callCtx)
+		if err != nil {
+			return nil, &Error{Kind: ErrTransport, Node: req.NodeID, Verb: req.Scenario, Err: err}
+		}
+		if token != "" {
+			httpReq.Header.Set("Authorization", authHeader(token))
+		}
 	}
 	response, err := c.httpClient.Do(httpReq)
 	if err != nil {

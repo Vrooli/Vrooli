@@ -285,6 +285,14 @@ func ProtoBindings(core *ScenarioApp, serviceFQN protoreflect.FullName, options 
 // is intended for LoadFromManifestPrimitives so the manifest declaration and
 // the constructed handler remain mechanically coupled.
 func ProtoPrimitiveBindings(core *ScenarioApp, serviceFQN protoreflect.FullName, options ProtoBindingOptions, readMethods map[string]bool) (map[string]PrimitiveHandler, error) {
+	return ProtoPrimitiveBindingsWithOperational(core, serviceFQN, options, readMethods, nil)
+}
+
+// ProtoPrimitiveBindingsWithOperational is ProtoPrimitiveBindings with an
+// explicit set of diagnostic methods that use the operational renderer. The
+// method names remain caller-owned because status vocabulary is a scenario
+// contract, while handler construction stays in cli-core.
+func ProtoPrimitiveBindingsWithOperational(core *ScenarioApp, serviceFQN protoreflect.FullName, options ProtoBindingOptions, readMethods, operationalMethods map[string]bool) (map[string]PrimitiveHandler, error) {
 	desc, err := protoregistry.GlobalFiles.FindDescriptorByName(serviceFQN)
 	if err != nil {
 		return nil, fmt.Errorf("lookup proto service %q: %w", serviceFQN, err)
@@ -301,7 +309,11 @@ func ProtoPrimitiveBindings(core *ScenarioApp, serviceFQN protoreflect.FullName,
 		call := func(ctx OperationContext) (proto.Message, error) {
 			return invokeProtoOperation(ctx, core, svc, m, key, options.Normalize)
 		}
-		if readMethods[string(method.Name())] {
+		if operationalMethods[string(method.Name())] {
+			out[key] = ProtoOperational(call, func(_ OperationContext, _ proto.Message) OperationalReport {
+				return OperationalReport{Status: []string{string(m.Name()) + " completed."}, NextSteps: []string{"Use --json for the complete generated protobuf response."}}
+			})
+		} else if readMethods[string(method.Name())] {
 			out[key] = ProtoList(call, func(_ OperationContext, _ proto.Message) ListReport {
 				return ListReport{Summary: []string{string(m.Name()) + " completed."}, ResultsHeading: "Typed response", Results: []string{"Use --json for the complete generated protobuf response."}}
 			})
@@ -330,6 +342,45 @@ func LoadProtoGroupFromManifest(core *ScenarioApp, serviceFQN protoreflect.FullN
 		return SubcommandGroup{}, err
 	}
 	return LoadFromManifest(raw, groupName, selected)
+}
+
+// LoadProtoPrimitiveGroupFromManifest is the evidence-carrying counterpart of
+// LoadProtoGroupFromManifest. It builds every handler from a cli-core
+// primitive, then narrows the set to the Connect bindings selected by one
+// manifest group. Keeping the selection here prevents scenario CLIs from
+// maintaining a second command-to-method registry.
+func LoadProtoPrimitiveGroupFromManifest(core *ScenarioApp, serviceFQN protoreflect.FullName, raw []byte, groupName string, options ProtoBindingOptions, readMethods map[string]bool) (SubcommandGroup, error) {
+	available, err := ProtoPrimitiveBindings(core, serviceFQN, options, readMethods)
+	if err != nil {
+		return SubcommandGroup{}, err
+	}
+	manifest, err := ParseManifest(raw)
+	if err != nil {
+		return SubcommandGroup{}, err
+	}
+	group := manifest.FindGroup(groupName)
+	if group == nil {
+		return SubcommandGroup{}, fmt.Errorf("cli manifest %q: group %q not found (have: %s)", manifest.Name, groupName, listGroupNames(manifest))
+	}
+	selected := make(map[string]PrimitiveHandler, len(group.Commands))
+	for _, command := range group.Commands {
+		if command.Binding.Kind != "connect-rpc" {
+			continue
+		}
+		if command.Binding.Service != string(serviceFQN[strings.LastIndex(string(serviceFQN), ".")+1:]) {
+			continue
+		}
+		key := command.Binding.BindingKey()
+		handler, ok := available[key]
+		if !ok {
+			return SubcommandGroup{}, fmt.Errorf("cli manifest %q: command %s/%s binding %s is not present on proto service %s", manifest.Name, group.Name, command.Name, key, serviceFQN)
+		}
+		selected[key] = handler
+	}
+	if len(selected) == 0 {
+		return SubcommandGroup{}, fmt.Errorf("cli manifest %q: group %q has no bindings for proto service %s", manifest.Name, groupName, serviceFQN)
+	}
+	return LoadFromManifestPrimitives(raw, groupName, selected)
 }
 
 func selectProtoBindingsForManifest(raw []byte, groupName string, serviceName protoreflect.Name, available map[string]func(RunContext) error) (map[string]func(RunContext) error, error) {
@@ -464,13 +515,18 @@ func hydrateProtoRequest(ctx OperationContext, md protoreflect.MessageDescriptor
 		} else if !ctx.FlagProvided(f.Name) && f.Default == "" {
 			continue
 		}
-		value := ctx.Flag(f.Name)
 		resolved, err := ResolveArgField(md, f.Name, schema)
 		if err != nil {
 			return err
 		}
-		if err := applyResolvedValue(msg, resolved, value, normalize); err != nil {
-			return fmt.Errorf("flag --%s: %w", f.Name, err)
+		values := []string{ctx.Flag(f.Name)}
+		if f.Repeated {
+			values = ctx.FlagValues(f.Name)
+		}
+		for _, value := range values {
+			if err := applyResolvedValue(msg, resolved, value, normalize); err != nil {
+				return fmt.Errorf("flag --%s: %w", f.Name, err)
+			}
 		}
 	}
 	return nil
@@ -508,13 +564,47 @@ func setProtoField(msg *dynamicpb.Message, fd protoreflect.FieldDescriptor, raw,
 	if kind == "json_inline" {
 		return setJSONField(msg, fd, []byte(raw))
 	}
-	if fd.IsList() || fd.IsMap() {
+	if fd.IsList() {
+		return appendScalarListValue(msg, fd, raw)
+	}
+	if fd.IsMap() {
 		return fmt.Errorf("field %s is repeated or map; use json_inline", fd.Name())
 	}
 	return setScalarField(msg, fd, raw)
 }
 
+func appendScalarListValue(msg *dynamicpb.Message, fd protoreflect.FieldDescriptor, raw string) error {
+	if fd.Kind() == protoreflect.MessageKind || fd.Kind() == protoreflect.GroupKind || fd.Kind() == protoreflect.EnumKind {
+		return fmt.Errorf("field %s requires json_inline for repeated message or enum values", fd.Name())
+	}
+	value, err := scalarProtoValue(fd.Kind(), raw)
+	if err != nil {
+		return err
+	}
+	msg.Mutable(fd).List().Append(value)
+	return nil
+}
+
 func setJSONField(msg *dynamicpb.Message, fd protoreflect.FieldDescriptor, body []byte) error {
+	if fd.IsMap() {
+		var entries map[string]json.RawMessage
+		if err := json.Unmarshal(body, &entries); err != nil {
+			return err
+		}
+		values := msg.Mutable(fd).Map()
+		for key, raw := range entries {
+			mapKey, err := jsonMapKey(fd.MapKey(), key)
+			if err != nil {
+				return err
+			}
+			mapValue, err := jsonMapValue(fd.MapValue(), raw)
+			if err != nil {
+				return fmt.Errorf("map entry %q: %w", key, err)
+			}
+			values.Set(mapKey, mapValue)
+		}
+		return nil
+	}
 	if fd.IsList() {
 		var values []json.RawMessage
 		if err := json.Unmarshal(body, &values); err != nil {
@@ -561,6 +651,108 @@ func setJSONField(msg *dynamicpb.Message, fd protoreflect.FieldDescriptor, body 
 		return err
 	}
 	return setScalarField(msg, fd, fmt.Sprint(value))
+}
+
+func jsonMapKey(fd protoreflect.FieldDescriptor, raw string) (protoreflect.MapKey, error) {
+	switch fd.Kind() {
+	case protoreflect.StringKind:
+		return protoreflect.ValueOfString(raw).MapKey(), nil
+	case protoreflect.BoolKind:
+		value, err := strconv.ParseBool(raw)
+		if err != nil {
+			return protoreflect.MapKey{}, err
+		}
+		return protoreflect.ValueOfBool(value).MapKey(), nil
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
+		value, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil {
+			return protoreflect.MapKey{}, err
+		}
+		return protoreflect.ValueOfInt32(int32(value)).MapKey(), nil
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
+		value, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return protoreflect.MapKey{}, err
+		}
+		return protoreflect.ValueOfInt64(value).MapKey(), nil
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
+		value, err := strconv.ParseUint(raw, 10, 32)
+		if err != nil {
+			return protoreflect.MapKey{}, err
+		}
+		return protoreflect.ValueOfUint32(uint32(value)).MapKey(), nil
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		value, err := strconv.ParseUint(raw, 10, 64)
+		if err != nil {
+			return protoreflect.MapKey{}, err
+		}
+		return protoreflect.ValueOfUint64(value).MapKey(), nil
+	default:
+		return protoreflect.MapKey{}, fmt.Errorf("unsupported JSON map key kind %s", fd.Kind())
+	}
+}
+
+func jsonMapValue(fd protoreflect.FieldDescriptor, raw []byte) (protoreflect.Value, error) {
+	if fd.Kind() == protoreflect.MessageKind || fd.Kind() == protoreflect.GroupKind {
+		sub := dynamicpb.NewMessage(fd.Message())
+		if err := protojson.Unmarshal(raw, sub); err != nil {
+			return protoreflect.Value{}, err
+		}
+		return protoreflect.ValueOfMessage(sub), nil
+	}
+	var scalar any
+	if err := json.Unmarshal(raw, &scalar); err != nil {
+		return protoreflect.Value{}, err
+	}
+	return scalarProtoValue(fd.Kind(), fmt.Sprint(scalar))
+}
+
+func scalarProtoValue(kind protoreflect.Kind, raw string) (protoreflect.Value, error) {
+	switch kind {
+	case protoreflect.StringKind:
+		return protoreflect.ValueOfString(raw), nil
+	case protoreflect.BoolKind:
+		value, err := strconv.ParseBool(raw)
+		if err != nil {
+			return protoreflect.Value{}, err
+		}
+		return protoreflect.ValueOfBool(value), nil
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
+		value, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil {
+			return protoreflect.Value{}, err
+		}
+		return protoreflect.ValueOfInt32(int32(value)), nil
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
+		value, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return protoreflect.Value{}, err
+		}
+		return protoreflect.ValueOfInt64(value), nil
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
+		value, err := strconv.ParseUint(raw, 10, 32)
+		if err != nil {
+			return protoreflect.Value{}, err
+		}
+		return protoreflect.ValueOfUint32(uint32(value)), nil
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		value, err := strconv.ParseUint(raw, 10, 64)
+		if err != nil {
+			return protoreflect.Value{}, err
+		}
+		return protoreflect.ValueOfUint64(value), nil
+	case protoreflect.FloatKind, protoreflect.DoubleKind:
+		value, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return protoreflect.Value{}, err
+		}
+		if kind == protoreflect.FloatKind {
+			return protoreflect.ValueOfFloat32(float32(value)), nil
+		}
+		return protoreflect.ValueOfFloat64(value), nil
+	default:
+		return protoreflect.Value{}, fmt.Errorf("unsupported JSON map value kind %s", kind)
+	}
 }
 
 func setScalarField(msg *dynamicpb.Message, fd protoreflect.FieldDescriptor, raw string) error {

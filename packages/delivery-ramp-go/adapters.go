@@ -2,6 +2,8 @@ package deliveryramp
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/targetmodel"
@@ -41,8 +43,8 @@ type Artifact struct {
 }
 
 type BuildRequest struct {
-	Cell       Cell              `json:"cell"`
-	SourceRef  string            `json:"source_ref"`
+	Cell      Cell   `json:"cell"`
+	SourceRef string `json:"source_ref"`
 	// Format describes the delivery representation. It is intentionally not
 	// encoded in Cell.Target, which remains an execution target identity.
 	Format     DeliveryFormat    `json:"format,omitempty"`
@@ -70,9 +72,19 @@ type DriverRequest struct {
 }
 
 type DistributionRequest struct {
-	Cell     Cell     `json:"cell"`
-	Artifact Artifact `json:"artifact"`
+	Cell     Cell           `json:"cell"`
+	Artifact Artifact       `json:"artifact"`
 	Format   DeliveryFormat `json:"format,omitempty"`
+}
+
+func (r DistributionRequest) ValidateResult(result DistributionResult) error {
+	if err := result.Validate(); err != nil {
+		return err
+	}
+	if result.EffectReceipt != nil && strings.TrimSpace(r.Artifact.ImmutableRef) != result.EffectReceipt.ArtifactRef {
+		return fmt.Errorf("distribution effect receipt artifact %q does not match requested artifact %q", result.EffectReceipt.ArtifactRef, r.Artifact.ImmutableRef)
+	}
+	return nil
 }
 
 type DistributionTarget struct {
@@ -82,11 +94,73 @@ type DistributionTarget struct {
 	Reason    string `json:"reason,omitempty"`
 }
 
+// DistributionEffectReceipt is producer-attributed evidence that a
+// distribution owner performed an external effect. Capability readiness and
+// target availability do not populate this value.
+type DistributionEffectReceipt struct {
+	TargetID        string    `json:"target_id"`
+	ArtifactRef     string    `json:"artifact_ref"`
+	ExternalReceipt string    `json:"external_receipt"`
+	Outcome         string    `json:"outcome"`
+	ObservedAt      time.Time `json:"observed_at"`
+}
+
 type DistributionResult struct {
-	Disposition Disposition          `json:"disposition"`
-	Targets     []DistributionTarget `json:"targets,omitempty"`
-	References  []EvidenceReference  `json:"references,omitempty"`
-	Reason      string               `json:"reason,omitempty"`
+	Disposition     Disposition                `json:"disposition"`
+	Targets         []DistributionTarget       `json:"targets,omitempty"`
+	References      []EvidenceReference        `json:"references,omitempty"`
+	CapabilityReady bool                       `json:"capability_ready,omitempty"`
+	EffectReceipt   *DistributionEffectReceipt `json:"effect_receipt,omitempty"`
+	Reason          string                     `json:"reason,omitempty"`
+}
+
+// Validate enforces the boundary between a ready capability and an external
+// distribution effect. A distributor may report degraded readiness without a
+// receipt, but a passing or effectful result must identify the exact target,
+// artifact, and owner receipt that observed the effect.
+func (r DistributionResult) Validate() error {
+	if !r.Disposition.Valid() {
+		return fmt.Errorf("invalid distribution disposition %q", r.Disposition)
+	}
+	if r.Disposition != DispositionPass && strings.TrimSpace(r.Reason) == "" {
+		return fmt.Errorf("distribution disposition %q requires a reason", r.Disposition)
+	}
+	if r.Disposition == DispositionPass && r.EffectReceipt == nil {
+		return fmt.Errorf("passing distribution requires an effect receipt")
+	}
+	for _, target := range r.Targets {
+		if strings.TrimSpace(target.ID) == "" || strings.TrimSpace(target.Kind) == "" {
+			return fmt.Errorf("distribution target id and kind are required")
+		}
+		if !target.Available && strings.TrimSpace(target.Reason) == "" {
+			return fmt.Errorf("unavailable distribution target %q requires a reason", target.ID)
+		}
+		if r.Disposition == DispositionPass && !target.Available {
+			return fmt.Errorf("passing distribution cannot include unavailable target %q", target.ID)
+		}
+	}
+	if r.EffectReceipt == nil {
+		return nil
+	}
+	receipt := r.EffectReceipt
+	if r.Disposition != DispositionPass && r.Disposition != DispositionDegraded {
+		return fmt.Errorf("distribution disposition %q cannot carry an effect receipt", r.Disposition)
+	}
+	if strings.TrimSpace(receipt.TargetID) == "" || strings.TrimSpace(receipt.ArtifactRef) == "" || strings.TrimSpace(receipt.ExternalReceipt) == "" || strings.TrimSpace(receipt.Outcome) == "" {
+		return fmt.Errorf("distribution effect receipt identity and outcome are required")
+	}
+	if receipt.ObservedAt.IsZero() {
+		return fmt.Errorf("distribution effect receipt observed_at is required")
+	}
+	if len(r.Targets) > 0 {
+		for _, target := range r.Targets {
+			if target.ID == receipt.TargetID {
+				return nil
+			}
+		}
+		return fmt.Errorf("distribution effect receipt target %q is not declared", receipt.TargetID)
+	}
+	return nil
 }
 
 type Builder interface {

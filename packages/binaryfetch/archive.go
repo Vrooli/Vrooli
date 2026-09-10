@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 // ErrNoBinaryInArchive is returned when the requested binPath (or, when binPath
@@ -317,70 +318,8 @@ func extractTarLayer(archivePath, destDir string) error {
 }
 
 func extractAllTarReader(tr *tar.Reader, destDir string) error {
-	if err := os.MkdirAll(destDir, 0o755); err != nil {
-		return fmt.Errorf("binaryfetch: create extract dir: %w", err)
-	}
-	for {
-		hdr, err := tr.Next()
-		if errors.Is(err, io.EOF) {
-			return nil
-		}
-		if err != nil {
-			return fmt.Errorf("binaryfetch: read tar: %w", err)
-		}
-		target, err := safeJoin(destDir, hdr.Name)
-		if err != nil {
-			return err
-		}
-		switch hdr.Typeflag {
-		case tar.TypeDir:
-			if err := os.MkdirAll(target, 0o755); err != nil {
-				return fmt.Errorf("binaryfetch: mkdir %q: %w", hdr.Name, err)
-			}
-		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-				return fmt.Errorf("binaryfetch: mkdir parent of %q: %w", hdr.Name, err)
-			}
-			mode := os.FileMode(hdr.Mode).Perm()
-			if mode == 0 {
-				mode = 0o644
-			}
-			if err := writeReaderMode(tr, target, mode); err != nil {
-				return err
-			}
-		case tar.TypeSymlink:
-			if err := createSafeSymlink(destDir, hdr.Name, hdr.Linkname, target); err != nil {
-				return err
-			}
-		case tar.TypeLink:
-			linkTarget, err := safeJoin(destDir, hdr.Linkname)
-			if err != nil {
-				return fmt.Errorf("binaryfetch: hardlink %q target: %w", hdr.Name, err)
-			}
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-				return fmt.Errorf("binaryfetch: mkdir hardlink parent of %q: %w", hdr.Name, err)
-			}
-			// OCI layers can contain a regular placeholder followed by its
-			// canonical hardlink name. Replace that entry so extraction remains
-			// faithful to the layer instead of failing on an existing path.
-			if err := os.Remove(target); err != nil && !errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("binaryfetch: replace hardlink target %q: %w", hdr.Name, err)
-			}
-			if err := os.Link(linkTarget, target); err != nil {
-				return fmt.Errorf("binaryfetch: create hardlink %q -> %q: %w", hdr.Name, hdr.Linkname, err)
-			}
-		case tar.TypeXGlobalHeader, tar.TypeXHeader, tar.TypeGNULongName, tar.TypeGNULongLink:
-			// Archive metadata, not filesystem content. Go's tar reader consumes
-			// most of these itself but surfaces the pax global header, which
-			// every git-produced tarball carries. Rejecting it as an unsupported
-			// entry type made a legitimate upstream archive un-extractable —
-			// the strictness added to stop silent drops has to distinguish
-			// "carries no file" from "carries a file we cannot place".
-			continue
-		default:
-			return fmt.Errorf("binaryfetch: unsupported tar entry type %d for %q", hdr.Typeflag, hdr.Name)
-		}
-	}
+	_, err := walkTar(tr, destDir, ExtractOptions{}, true)
+	return err
 }
 
 // safeJoin joins destDir with a (possibly attacker-controlled) relative entry
@@ -389,11 +328,11 @@ func extractAllTarReader(tr *tar.Reader, destDir string) error {
 func safeJoin(destDir, name string) (string, error) {
 	cleaned := filepath.Clean(filepath.FromSlash(name))
 	if filepath.IsAbs(cleaned) || cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(os.PathSeparator)) {
-		return "", fmt.Errorf("binaryfetch: archive entry %q escapes extract dir", name)
+		return "", &ArchiveError{Violation: ViolationTraversal, Entry: name, Detail: "escapes extract dir"}
 	}
 	target := filepath.Join(destDir, cleaned)
 	if target != destDir && !strings.HasPrefix(target, filepath.Clean(destDir)+string(os.PathSeparator)) {
-		return "", fmt.Errorf("binaryfetch: archive entry %q escapes extract dir", name)
+		return "", &ArchiveError{Violation: ViolationTraversal, Entry: name, Detail: "escapes extract dir"}
 	}
 	return target, nil
 }
@@ -427,13 +366,25 @@ func extractAllTarBzip2(archivePath, destDir string) error {
 	return nil
 }
 
-func createSafeSymlink(root, name, linkname, target string) error {
+// resolveSafeSymlink returns where a symlink entry would point once placed
+// under root, rejecting absolute targets and any target that resolves outside
+// root. It performs no filesystem access, so the dry pass and the real
+// extraction share exactly one escape rule.
+func resolveSafeSymlink(root, name, linkname string) (string, error) {
 	if filepath.IsAbs(filepath.FromSlash(linkname)) {
-		return fmt.Errorf("binaryfetch: symlink %q has an absolute target", name)
+		return "", &ArchiveError{Violation: ViolationSymlinkEscape, Entry: name, Detail: "symlink has an absolute target"}
 	}
 	resolved, err := safeJoin(root, filepath.ToSlash(filepath.Join(filepath.Dir(name), filepath.FromSlash(linkname))))
 	if err != nil {
-		return fmt.Errorf("binaryfetch: symlink %q target escapes extract dir: %w", name, err)
+		return "", &ArchiveError{Violation: ViolationSymlinkEscape, Entry: name, Detail: "symlink target escapes extract dir"}
+	}
+	return resolved, nil
+}
+
+func createSafeSymlink(root, name, linkname, target string) error {
+	resolved, err := resolveSafeSymlink(root, name, linkname)
+	if err != nil {
+		return err
 	}
 	if _, err := os.Stat(resolved); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("binaryfetch: inspect symlink %q target: %w", name, err)
@@ -456,36 +407,8 @@ func extractAllZip(archivePath, destDir string) error {
 		return fmt.Errorf("binaryfetch: open zip: %w", err)
 	}
 	defer zr.Close()
-
-	for _, zf := range zr.File {
-		target, err := safeJoin(destDir, zf.Name)
-		if err != nil {
-			return err
-		}
-		if zf.FileInfo().IsDir() {
-			if err := os.MkdirAll(target, 0o755); err != nil {
-				return fmt.Errorf("binaryfetch: mkdir %q: %w", zf.Name, err)
-			}
-			continue
-		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return fmt.Errorf("binaryfetch: mkdir parent of %q: %w", zf.Name, err)
-		}
-		mode := zf.Mode().Perm()
-		if mode == 0 {
-			mode = 0o644
-		}
-		rc, err := zf.Open()
-		if err != nil {
-			return fmt.Errorf("binaryfetch: open zip entry %q: %w", zf.Name, err)
-		}
-		err = writeReaderMode(rc, target, mode)
-		rc.Close()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	_, err = walkZip(zr.File, destDir, ExtractOptions{}, true)
+	return err
 }
 
 func copyZipEntry(zf *zip.File, destFile string) error {
@@ -502,11 +425,15 @@ func writeReader(r io.Reader, destFile string) error {
 }
 
 func writeReaderMode(r io.Reader, destFile string, mode os.FileMode) error {
+	return writeReaderModeLimit(r, destFile, mode, maxArchiveEntryBytes)
+}
+
+func writeReaderModeLimit(r io.Reader, destFile string, mode os.FileMode, limit int64) error {
 	out, err := os.OpenFile(destFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode) //nolint:gosec // destFile is validated by safeJoin under a controlled dir
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(out, io.LimitReader(r, maxArchiveEntryBytes)); err != nil {
+	if _, err := io.Copy(out, io.LimitReader(r, limit)); err != nil {
 		out.Close()
 		return fmt.Errorf("binaryfetch: extract entry: %w", err)
 	}
@@ -536,4 +463,313 @@ func normalizeArchive(value string) string {
 	default:
 		return strings.ToLower(strings.TrimSpace(value))
 	}
+}
+
+// ArchiveViolation classifies why a bounded walk refused an archive. Callers
+// map these onto their own reason codes; the strings are stable.
+type ArchiveViolation string
+
+const (
+	ViolationTraversal        ArchiveViolation = "traversal"
+	ViolationSymlinkEscape    ArchiveViolation = "symlink_escape"
+	ViolationTooLarge         ArchiveViolation = "too_large"
+	ViolationEntryLimit       ArchiveViolation = "entry_limit"
+	ViolationUnsupportedEntry ArchiveViolation = "unsupported_entry"
+	ViolationDeadline         ArchiveViolation = "deadline"
+)
+
+// ArchiveError is the typed refusal returned by the bounded walkers and by the
+// shared path/symlink rules every extractor in this package uses.
+type ArchiveError struct {
+	Violation ArchiveViolation
+	Entry     string
+	Detail    string
+}
+
+func (e *ArchiveError) Error() string {
+	if e.Entry == "" {
+		return "binaryfetch: archive " + string(e.Violation) + ": " + e.Detail
+	}
+	return fmt.Sprintf("binaryfetch: archive entry %q %s (%s)", e.Entry, e.Detail, e.Violation)
+}
+
+// ExtractOptions bounds an archive walk. A zero MaxEntries or MaxExpandedBytes
+// means unbounded; a zero MaxEntryBytes keeps the package's historical
+// per-entry cap; a zero Deadline means no time budget.
+type ExtractOptions struct {
+	MaxEntries       int64
+	MaxExpandedBytes int64
+	MaxEntryBytes    int64
+	Deadline         time.Time
+}
+
+func (o ExtractOptions) entryLimit() int64 {
+	if o.MaxEntryBytes > 0 {
+		return o.MaxEntryBytes
+	}
+	return maxArchiveEntryBytes
+}
+
+// ArchiveSummary reports what a bounded walk observed. Inspect and Extract
+// return the same shape so a dry pass can be compared with the real one.
+type ArchiveSummary struct {
+	Entries       int64 `json:"entries"`
+	ExpandedBytes int64 `json:"expanded_bytes"`
+	Files         int64 `json:"files"`
+	Directories   int64 `json:"directories"`
+	Symlinks      int64 `json:"symlinks"`
+	Hardlinks     int64 `json:"hardlinks"`
+}
+
+// InspectArchiveBounded walks every entry of the archive enforcing the same
+// path, symlink, entry-type, count, size and time rules as
+// ExtractArchiveBounded, without writing anything. It is the refuse-before-
+// write pass a target performs on a release bundle. Supported formats: tar,
+// tar.gz, tar.bz2, tar.zst (when a decompressor is registered) and zip.
+func InspectArchiveBounded(archivePath, format string, opts ExtractOptions) (ArchiveSummary, error) {
+	return walkArchive(archivePath, format, inspectRoot, opts, false)
+}
+
+// ExtractArchiveBounded extracts the archive into destDir under the declared
+// bounds. It refuses on the first violation; callers own cleanup of the
+// partially written destDir, which is why they extract into a staging root.
+func ExtractArchiveBounded(archivePath, format, destDir string, opts ExtractOptions) (ArchiveSummary, error) {
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		return ArchiveSummary{}, fmt.Errorf("binaryfetch: create extract dir: %w", err)
+	}
+	return walkArchive(archivePath, format, destDir, opts, true)
+}
+
+// inspectRoot is a placeholder root for the dry pass: safeJoin and
+// resolveSafeSymlink only reason about the relative shape of an entry, so no
+// filesystem access happens beneath it.
+const inspectRoot = string(os.PathSeparator) + "binaryfetch-inspect-root"
+
+func walkArchive(archivePath, format, destDir string, opts ExtractOptions, write bool) (ArchiveSummary, error) {
+	f, err := os.Open(archivePath) //nolint:gosec // caller-owned archive path
+	if err != nil {
+		return ArchiveSummary{}, err
+	}
+	defer f.Close()
+	switch normalizeArchive(format) {
+	case "tar":
+		return walkTar(tar.NewReader(f), destDir, opts, write)
+	case "tar.gz":
+		gz, err := gzip.NewReader(f)
+		if err != nil {
+			return ArchiveSummary{}, fmt.Errorf("binaryfetch: open gzip: %w", err)
+		}
+		defer gz.Close()
+		return walkTar(tar.NewReader(gz), destDir, opts, write)
+	case "tar.bz2":
+		return walkTar(tar.NewReader(bzip2.NewReader(f)), destDir, opts, write)
+	case "tar.zst":
+		decompressor, ok := registeredArchiveDecompressor("tar.zst")
+		if !ok {
+			return ArchiveSummary{}, fmt.Errorf("binaryfetch: no decompressor registered for tar.zst")
+		}
+		stream, err := decompressor(f)
+		if err != nil {
+			return ArchiveSummary{}, fmt.Errorf("binaryfetch: open tar.zst: %w", err)
+		}
+		defer stream.Close()
+		return walkTar(tar.NewReader(stream), destDir, opts, write)
+	case "zip":
+		zr, err := zip.OpenReader(archivePath)
+		if err != nil {
+			return ArchiveSummary{}, fmt.Errorf("binaryfetch: open zip: %w", err)
+		}
+		defer zr.Close()
+		return walkZip(zr.File, destDir, opts, write)
+	default:
+		return ArchiveSummary{}, fmt.Errorf("binaryfetch: unsupported archive format %q", format)
+	}
+}
+
+// bounds accumulates the walk counters and enforces the declared limits before
+// any byte of the offending entry is written.
+type bounds struct {
+	opts    ExtractOptions
+	summary ArchiveSummary
+}
+
+func (b *bounds) admit(name string, size int64) error {
+	if !b.opts.Deadline.IsZero() && time.Now().After(b.opts.Deadline) {
+		return &ArchiveError{Violation: ViolationDeadline, Entry: name, Detail: "time budget exhausted"}
+	}
+	b.summary.Entries++
+	if b.opts.MaxEntries > 0 && b.summary.Entries > b.opts.MaxEntries {
+		return &ArchiveError{Violation: ViolationEntryLimit, Entry: name, Detail: fmt.Sprintf("exceeds %d entries", b.opts.MaxEntries)}
+	}
+	if size < 0 || size > b.opts.entryLimit() {
+		return &ArchiveError{Violation: ViolationTooLarge, Entry: name, Detail: fmt.Sprintf("entry exceeds %d bytes", b.opts.entryLimit())}
+	}
+	b.summary.ExpandedBytes += size
+	if b.opts.MaxExpandedBytes > 0 && b.summary.ExpandedBytes > b.opts.MaxExpandedBytes {
+		return &ArchiveError{Violation: ViolationTooLarge, Entry: name, Detail: fmt.Sprintf("expanded size exceeds %d bytes", b.opts.MaxExpandedBytes)}
+	}
+	return nil
+}
+
+// deadlineReader aborts a long copy once the time budget is spent, so a slow
+// decompression bomb cannot outlive the budget between entry checks.
+type deadlineReader struct {
+	r        io.Reader
+	deadline time.Time
+	entry    string
+}
+
+func (d deadlineReader) Read(p []byte) (int, error) {
+	if !d.deadline.IsZero() && time.Now().After(d.deadline) {
+		return 0, &ArchiveError{Violation: ViolationDeadline, Entry: d.entry, Detail: "time budget exhausted"}
+	}
+	return d.r.Read(p)
+}
+
+func walkTar(tr *tar.Reader, destDir string, opts ExtractOptions, write bool) (ArchiveSummary, error) {
+	if write {
+		if err := os.MkdirAll(destDir, 0o755); err != nil {
+			return ArchiveSummary{}, fmt.Errorf("binaryfetch: create extract dir: %w", err)
+		}
+	}
+	b := &bounds{opts: opts}
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			return b.summary, nil
+		}
+		if err != nil {
+			return b.summary, fmt.Errorf("binaryfetch: read tar: %w", err)
+		}
+		switch hdr.Typeflag {
+		case tar.TypeXGlobalHeader, tar.TypeXHeader, tar.TypeGNULongName, tar.TypeGNULongLink:
+			// Archive metadata, not filesystem content. Go's tar reader consumes
+			// most of these itself but surfaces the pax global header, which
+			// every git-produced tarball carries. Rejecting it as an unsupported
+			// entry type made a legitimate upstream archive un-extractable —
+			// the strictness added to stop silent drops has to distinguish
+			// "carries no file" from "carries a file we cannot place".
+			continue
+		}
+		target, err := safeJoin(destDir, hdr.Name)
+		if err != nil {
+			return b.summary, err
+		}
+		size := int64(0)
+		if hdr.Typeflag == tar.TypeReg {
+			size = hdr.Size
+		}
+		if err := b.admit(hdr.Name, size); err != nil {
+			return b.summary, err
+		}
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			b.summary.Directories++
+			if write {
+				if err := os.MkdirAll(target, 0o755); err != nil {
+					return b.summary, fmt.Errorf("binaryfetch: mkdir %q: %w", hdr.Name, err)
+				}
+			}
+		case tar.TypeReg:
+			b.summary.Files++
+			if !write {
+				continue
+			}
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return b.summary, fmt.Errorf("binaryfetch: mkdir parent of %q: %w", hdr.Name, err)
+			}
+			mode := os.FileMode(hdr.Mode).Perm()
+			if mode == 0 {
+				mode = 0o644
+			}
+			if err := writeReaderModeLimit(deadlineReader{r: tr, deadline: opts.Deadline, entry: hdr.Name}, target, mode, opts.entryLimit()); err != nil {
+				return b.summary, err
+			}
+		case tar.TypeSymlink:
+			b.summary.Symlinks++
+			if _, err := resolveSafeSymlink(destDir, hdr.Name, hdr.Linkname); err != nil {
+				return b.summary, err
+			}
+			if write {
+				if err := createSafeSymlink(destDir, hdr.Name, hdr.Linkname, target); err != nil {
+					return b.summary, err
+				}
+			}
+		case tar.TypeLink:
+			b.summary.Hardlinks++
+			linkTarget, err := safeJoin(destDir, hdr.Linkname)
+			if err != nil {
+				return b.summary, &ArchiveError{Violation: ViolationTraversal, Entry: hdr.Name, Detail: "hardlink target escapes extract dir"}
+			}
+			if !write {
+				continue
+			}
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return b.summary, fmt.Errorf("binaryfetch: mkdir hardlink parent of %q: %w", hdr.Name, err)
+			}
+			// OCI layers can contain a regular placeholder followed by its
+			// canonical hardlink name. Replace that entry so extraction remains
+			// faithful to the layer instead of failing on an existing path.
+			if err := os.Remove(target); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return b.summary, fmt.Errorf("binaryfetch: replace hardlink target %q: %w", hdr.Name, err)
+			}
+			if err := os.Link(linkTarget, target); err != nil {
+				return b.summary, fmt.Errorf("binaryfetch: create hardlink %q -> %q: %w", hdr.Name, hdr.Linkname, err)
+			}
+		default:
+			return b.summary, &ArchiveError{Violation: ViolationUnsupportedEntry, Entry: hdr.Name, Detail: fmt.Sprintf("unsupported tar entry type %d", hdr.Typeflag)}
+		}
+	}
+}
+
+func walkZip(files []*zip.File, destDir string, opts ExtractOptions, write bool) (ArchiveSummary, error) {
+	b := &bounds{opts: opts}
+	for _, zf := range files {
+		target, err := safeJoin(destDir, zf.Name)
+		if err != nil {
+			return b.summary, err
+		}
+		if zf.Mode()&os.ModeSymlink != 0 || zf.Mode()&os.ModeType&^os.ModeDir != 0 {
+			return b.summary, &ArchiveError{Violation: ViolationUnsupportedEntry, Entry: zf.Name, Detail: "unsupported zip entry type"}
+		}
+		if zf.FileInfo().IsDir() {
+			if err := b.admit(zf.Name, 0); err != nil {
+				return b.summary, err
+			}
+			b.summary.Directories++
+			if write {
+				if err := os.MkdirAll(target, 0o755); err != nil {
+					return b.summary, fmt.Errorf("binaryfetch: mkdir %q: %w", zf.Name, err)
+				}
+			}
+			continue
+		}
+		if zf.UncompressedSize64 > uint64(maxArchiveEntryBytes) {
+			return b.summary, &ArchiveError{Violation: ViolationTooLarge, Entry: zf.Name, Detail: "entry exceeds the per-entry cap"}
+		}
+		if err := b.admit(zf.Name, int64(zf.UncompressedSize64)); err != nil {
+			return b.summary, err
+		}
+		b.summary.Files++
+		if !write {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return b.summary, fmt.Errorf("binaryfetch: mkdir parent of %q: %w", zf.Name, err)
+		}
+		mode := zf.Mode().Perm()
+		if mode == 0 {
+			mode = 0o644
+		}
+		rc, err := zf.Open()
+		if err != nil {
+			return b.summary, fmt.Errorf("binaryfetch: open zip entry %q: %w", zf.Name, err)
+		}
+		err = writeReaderModeLimit(deadlineReader{r: rc, deadline: opts.Deadline, entry: zf.Name}, target, mode, opts.entryLimit())
+		rc.Close()
+		if err != nil {
+			return b.summary, err
+		}
+	}
+	return b.summary, nil
 }

@@ -129,10 +129,16 @@ type LaunchResult struct {
 	// ContainmentSource says whether the ceilings came from the converged
 	// vrooli-agents.slice or the launcher's defaults; ContainmentFailure is
 	// why a session runs uncontained. Phase 10's editor lease stores them.
-	Scope              string
-	ContainmentMethod  string
-	ContainmentSource  string
-	ContainmentFailure string
+	//
+	// ContainmentUnsupported distinguishes the two meanings of an empty
+	// ceiling: true is a platform with no primitive (permanent and expected),
+	// false with a non-empty ContainmentFailure is a host that should have
+	// contained the session and did not. Only the second is a regression.
+	Scope                  string
+	ContainmentMethod      string
+	ContainmentSource      string
+	ContainmentFailure     string
+	ContainmentUnsupported bool
 	// LeaseRecorded says whether the session's editor lease reached the
 	// runtime registry; ClaimOverlaps names live holders of overlapping
 	// claims (advisory).
@@ -309,6 +315,7 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 	err = runChild(ctx, path, append([]string(nil), request.Args...), environment, request.Stdin, request.Stdout, request.Stderr)
 	launchResult.Scope, launchResult.ContainmentMethod = report.Scope, report.Method
 	launchResult.ContainmentSource, launchResult.ContainmentFailure = report.Source, report.Failure
+	launchResult.ContainmentUnsupported = report.Unsupported
 	return launchResult, err
 }
 

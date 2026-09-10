@@ -187,7 +187,7 @@ export class SpatialNavManager {
    * Modal scope stack.  When non-empty, spatial navigation is constrained to
    * the top element (e.g., a dialog).  Supports nesting (dialog opens dialog).
    */
-  private scopeStack: HTMLElement[] = [];
+  private scopeStack: { element: HTMLElement; previous: HTMLElement | null }[] = [];
 
   // Bound listeners
   private readonly onMouseMove: () => void;
@@ -217,6 +217,11 @@ export class SpatialNavManager {
       if (!this.active || this.focusingProgrammatically) return;
       const target = e.target;
       if (target instanceof HTMLElement) {
+        if (this.activeScope && !this.activeScope.contains(target)) {
+          const first = this.findFirstFocusable();
+          if (first) this.focusElement(first);
+          return;
+        }
         this.setFocusRing(target);
       }
     };
@@ -244,7 +249,11 @@ export class SpatialNavManager {
     }
 
     // Focus the previously focused element, or the first focusable one.
-    const target = this.currentFocused ?? this.findFirstFocusable();
+    const native = document.activeElement;
+    const candidate = native instanceof HTMLElement && native.matches(this.focusableSelector)
+      ? native : this.currentFocused;
+    const target = candidate?.isConnected && (!this.activeScope || this.activeScope.contains(candidate))
+      ? candidate : this.findFirstFocusable();
     if (target) {
       this.focusElement(target);
     }
@@ -387,8 +396,9 @@ export class SpatialNavManager {
    * `element` until `popScope()` is called.  Supports nesting.
    * Automatically focuses the first focusable element inside the scope.
    */
-  pushScope(element: HTMLElement): void {
-    this.scopeStack.push(element);
+  pushScope(element: HTMLElement): () => void {
+    const entry = { element, previous: document.activeElement instanceof HTMLElement ? document.activeElement : null };
+    this.scopeStack.push(entry);
 
     // Focus the first focusable element inside the new scope.
     if (this.active) {
@@ -397,20 +407,39 @@ export class SpatialNavManager {
         this.focusElement(candidates[0]);
       }
     }
+    return () => this.removeScope(entry);
   }
 
   /**
    * Pop the current modal scope, restoring the previous one (or root).
    */
   popScope(): void {
-    this.scopeStack.pop();
+    const entry = this.scopeStack[this.scopeStack.length - 1];
+    if (entry) this.removeScope(entry);
+  }
+
+  private removeScope(entry: { element: HTMLElement; previous: HTMLElement | null }): void {
+    const index = this.scopeStack.indexOf(entry);
+    if (index < 0) return;
+    const wasTop = index === this.scopeStack.length - 1;
+    this.scopeStack.splice(index, 1);
+    // A portal child may outlive its parent modal. Keep its return target on
+    // the surviving focus chain instead of a soon-to-be-detached parent.
+    for (const remaining of this.scopeStack.slice(index)) {
+      if (remaining.previous && entry.element.contains(remaining.previous)) {
+        remaining.previous = entry.previous;
+      }
+    }
+    if (wasTop && entry.previous?.isConnected && (!this.activeScope || this.activeScope.contains(entry.previous))) {
+      this.focusElement(entry.previous);
+    }
   }
 
   /**
    * The currently active scope element, or `undefined` if no modal scope.
    */
   get activeScope(): HTMLElement | undefined {
-    return this.scopeStack[this.scopeStack.length - 1];
+    return this.scopeStack[this.scopeStack.length - 1]?.element;
   }
 
   // -----------------------------------------------------------------------
@@ -432,6 +461,7 @@ export class SpatialNavManager {
     }
 
     this.groups = [];
+    this.scopeStack = [];
     this.currentFocused = null;
   }
 

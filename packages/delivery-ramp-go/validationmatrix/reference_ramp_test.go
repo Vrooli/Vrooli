@@ -31,7 +31,17 @@ func (referenceRamp) Execute(context.Context, deliveryramp.DriverRequest) (deliv
 }
 
 func (referenceRamp) Distribute(context.Context, deliveryramp.DistributionRequest) (deliveryramp.DistributionResult, error) {
-	return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionPass, Targets: []deliveryramp.DistributionTarget{{ID: "reference-local", Kind: "local", Available: true}}}, nil
+	return deliveryramp.DistributionResult{
+		Disposition: deliveryramp.DispositionPass,
+		Targets:     []deliveryramp.DistributionTarget{{ID: "reference-local", Kind: "local", Available: true}},
+		EffectReceipt: &deliveryramp.DistributionEffectReceipt{
+			TargetID:        "reference-local",
+			ArtifactRef:     "artifact:reference",
+			ExternalReceipt: "reference-distribution:1",
+			Outcome:         "published",
+			ObservedAt:      time.Now().UTC(),
+		},
+	}, nil
 }
 
 type referenceTransport struct{ driver deliveryramp.Driver }

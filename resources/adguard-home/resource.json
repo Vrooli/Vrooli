@@ -150,7 +150,9 @@
         "env": "ADGUARD_HOME_USERNAME",
         "label": "AdGuard Home admin username",
         "description": "Administrator username used by resource-local diagnostics and Network Manager when checking AdGuard Home.",
-        "required": false
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/resources/adguard-home"
       },
       {
         "logical_id": "vrooli/adguard-home",
@@ -158,7 +160,9 @@
         "env": "ADGUARD_HOME_PASSWORD",
         "label": "AdGuard Home admin password",
         "description": "Administrator password stored through the Vrooli secret flow; never pass this value to Network Manager directly.",
-        "required": false
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/resources/adguard-home"
       }
     ]
   },

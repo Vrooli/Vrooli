@@ -156,3 +156,12 @@ func TestFileCredentialSourceRejectsBroadPermissions(t *testing.T) {
 		t.Fatal("Credential() accepted world-readable file")
 	}
 }
+
+func TestCloudEvidencePurposeIsDomainSeparated(t *testing.T) {
+	if !PurposeCloudEvidenceReceipt.Valid() {
+		t.Fatal("cloud evidence purpose must be valid")
+	}
+	if Purpose("cloud-evidence-receipt-v0").Valid() {
+		t.Fatal("unknown purpose must be refused")
+	}
+}

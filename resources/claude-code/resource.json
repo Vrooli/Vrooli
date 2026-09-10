@@ -38,6 +38,13 @@
     "detection_signal": "CLAUDECODE=1",
     "hook_surface": "native-permissions"
   },
+  "agent_hooks": {
+    "document_scopes": ["user", "project"],
+    "events": [
+      {"name": "PreToolUse", "supported": true, "can_inject_context": false, "reason": "Observed broker hook surface; it is not a prompt-time injection channel."},
+      {"name": "UserPromptSubmit", "supported": true, "can_inject_context": true, "verified_by": "canary", "verified_at": "2026-09-07T19:30:22.333Z", "reason": "Live interactive Claude Code canary round-tripped VROOLI-CANARY-7f3a91c2 through hookSpecificOutput.additionalContext."}
+    ]
+  },
   "cli": {
     "enabled": true,
     "command": "resource-claude-code",
@@ -82,6 +89,7 @@
         "field": "api-key",
         "env": "OPENROUTER_API_KEY",
         "label": "OpenRouter API key",
+        "provisioning": "operator",
         "description": "Optional gateway credential shared with the OpenRouter resource.",
         "required": false,
         "obtain_url": "https://openrouter.ai/keys"
@@ -91,6 +99,7 @@
         "field": "anthropic-api-key",
         "env": "ANTHROPIC_API_KEY",
         "label": "Anthropic API key",
+        "provisioning": "operator",
         "description": "Optional credential for Claude models.",
         "required": false,
         "obtain_url": "https://console.anthropic.com/settings/keys"
@@ -100,6 +109,7 @@
         "field": "api-key",
         "env": "OPENAI_API_KEY",
         "label": "OpenAI API key",
+        "provisioning": "operator",
         "description": "Optional credential for OpenAI models.",
         "required": false,
         "obtain_url": "https://platform.openai.com/api-keys"
@@ -109,6 +119,7 @@
         "field": "api-key",
         "env": "GEMINI_API_KEY",
         "label": "Gemini API key",
+        "provisioning": "operator",
         "description": "Optional credential shared with the Gemini resource.",
         "required": false,
         "obtain_url": "https://aistudio.google.com/app/apikey"

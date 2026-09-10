@@ -37,10 +37,11 @@ type (
 var ParseIdentity = internalcredentialauthority.ParseIdentity
 
 var (
-	InspectRecovery      = internalcredentialauthority.InspectRecovery
-	NewRecoveryEpoch     = internalcredentialauthority.NewRecoveryEpoch
-	ReadRecoveryReceipt  = internalcredentialauthority.ReadRecoveryReceipt
-	WriteRecoveryReceipt = internalcredentialauthority.WriteRecoveryReceipt
+	InspectRecovery                  = internalcredentialauthority.InspectRecovery
+	NewRecoveryEpoch                 = internalcredentialauthority.NewRecoveryEpoch
+	ReadRecoveryReceipt              = internalcredentialauthority.ReadRecoveryReceipt
+	WriteRecoveryReceipt             = internalcredentialauthority.WriteRecoveryReceipt
+	WriteRecoveryReceiptWithMetadata = internalcredentialauthority.WriteRecoveryReceiptWithMetadata
 )
 
 // The failure taxonomy, re-exported because a consumer that cannot tell these

@@ -471,6 +471,16 @@ func (r *Resolver) lookupPortViaLadder(ctx context.Context, reportSlug, target, 
 
 	port, parseErr := strconv.Atoi(portText)
 	if parseErr != nil || port <= 0 {
+		lower := strings.ToLower(text)
+		if strings.Contains(lower, "no running runtime ports") || strings.Contains(lower, "no runtime ports found") {
+			return 0, &Error{
+				Kind:     ErrScenarioNotRunning,
+				Scenario: reportSlug,
+				PortKey:  portKey,
+				Output:   text,
+				Err:      parseErr,
+			}
+		}
 		return 0, &Error{
 			Kind:     ErrInvalidPort,
 			Scenario: reportSlug,
