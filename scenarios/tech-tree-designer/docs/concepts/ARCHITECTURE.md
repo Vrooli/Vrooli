@@ -1,6 +1,6 @@
 # Architecture - Tech Tree Designer
 
-Tech Tree Designer is Vrooli's scenario-centric planning surface. It keeps the modern `react-vite` scenario shape while replacing the old Gin/Postgres implementation with Connect, SQLite, generated proto contracts, and domain-owned code.
+Tech Tree Designer is Vrooli's ecosystem design environment. The current scenario-centric graph and proto planner use Connect, SQLite, generated proto contracts and domain-owned code. The September 2026 target extends those seams to repository-wide design; it does not claim that extension is implemented.
 
 ## Purpose Of This Document
 
@@ -8,7 +8,19 @@ This document records the intended system shape for the regenerated scenario. Pr
 
 ## Scenario Shape
 
-```
+### Target: three distinct views
+
+| View | Meaning | Authority |
+|---|---|---|
+| Observed ecosystem | Implemented entities and relationships, with source, time, coverage and uncertainty | SDA and qualified source owners |
+| Intended ecosystem | Revisable sectors, capabilities and authored relationships; long-term horizon | TTD ontology |
+| Proposal workspace | Selected context plus proposed artifacts and graph deltas, including new entities or corrections | Immutable TTD design revision; no canonical effect until authorized application |
+
+The daily path is bottom-up documentation-first design. Top-down decomposition provides optional context and evolves through reviewed learning; it is neither an exhaustive ontology nor an execution mandate. A contribution mapping is not verified fulfillment.
+
+### Current implementation
+
+```text
 scenario-dependency-analyzer DescribeInterfaceGraph
         |
         v
@@ -61,9 +73,51 @@ SQLite is the default store. Domain schemas live beside their domain code:
 - `api/internal/planning/schema.sql` for planned scenarios and planned proto files.
 - `api/internal/ontology/schema.sql` for capabilities, capability edges, fulfillment links, and explicit coverage exclusions.
 
-`materialize` is the one intentional outside-scenario write path: it writes validated planned proto text into `packages/proto/schemas/<slug>/` and runs `make generate`.
+Current `materialize` is an outside-scenario write path: it writes validated planned proto text into `packages/proto/schemas/<slug>/` and runs `make generate`. It is not a generic proposal apply command. The target delegates all artifact effects through their qualified owners and retains separate authored-graph receipts; observed facts are subsequently re-derived.
 
 ## Intentional Deviations
+
+### Target extension: artifact-first design bundles
+
+The intended extension is a reviewable design bundle spanning existing or new
+scenarios, resources, and shared paths. It includes proposed docs, requirements,
+experiences, interfaces, skills, and programs rather than only proto text.
+[Contract-Driven Scenario Development](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md)
+owns the shared review, authority, and promotion contract.
+
+TTD owns bundle identity, graph relationships, revision navigation, and design
+review. Plan Manager owns the plan and references the reviewed bundle. Reuse
+qualified Workspace Sandbox operations for workspace/diff/apply behavior and
+control-plane operations for isolated test runtimes. Do not implement a private
+copying, source-control, or runtime lifecycle system in this scenario.
+
+This extension is not implemented by the current planning domain: its files are
+`ProtoFile` values, paths require `.proto`, and materialization writes live schemas.
+Qualify general artifact kinds, base conflicts, revision-bound approval, publication
+isolation, and interrupted multi-target application before exposing a generic draft
+workflow. An owner-generated receipt must distinguish applied, conflicted, and partial
+state. A stopped TTD does not authorize canonical writes; the caller's grant decides
+the documented fallback location.
+
+The bundle owner must retain an immutable revision manifest independent of an
+ephemeral workspace. Each entry names an owner/artifact kind, safe relative path,
+operation (add/change/delete), base content identity, proposed content identity,
+and dependencies. Bundle revisions link target outcomes, plans, and evidence.
+Reject escaping paths, secrets/runtime data, overlapping selections, and ambiguous
+owner dispatch. Unapproved skills/programs remain outside live discovery.
+
+Preview is read-only. Approval selects exact entries and their revision. Apply
+rechecks relevant bases and owner grants, then delegates to qualified owner
+operations. Persist intent before effects and retain per-entry receipts; the bundle
+is complete only when every selected entry is applied or explicitly disposed by
+the operator. On interruption, resume the same operation identity and inspect actual
+owner receipts. Do not promise multi-owner atomicity: surface partial application,
+dependency holds, and recovery actions. Never roll back over newer unrelated edits.
+
+Qualification must exercise changed bases, independent concurrent edits, duplicate
+apply delivery, a crash between owner writes, rejected publication, deleted draft
+compute with preserved reviewed bytes, and denied network/billing effects. The
+existing proto materializer does not establish these general-bundle properties.
 
 | Date | Deviation | Reason | Revisit Trigger |
 |---|---|---|---|

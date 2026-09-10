@@ -1,3 +1,4 @@
+import { LayoutDashboard, GitBranch, Network, Waypoints, Settings, type LucideIcon } from "lucide-react";
 import { strings } from "../consts/strings";
 
 /**
@@ -15,12 +16,13 @@ export interface NavItem {
   end?: boolean;
   /** Translation key path. */
   labelKey: (typeof strings.layout.nav)[keyof typeof strings.layout.nav];
+  icon: LucideIcon;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "graph", path: "/graph", labelKey: strings.layout.nav.graph },
-  { key: "ontology", path: "/ontology", labelKey: strings.layout.nav.ontology },
-  { key: "planning", path: "/planning", labelKey: strings.layout.nav.planning },
-  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
+  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard, icon: LayoutDashboard },
+  { key: "graph", path: "/graph", labelKey: strings.layout.nav.graph, icon: GitBranch },
+  { key: "ontology", path: "/ontology", labelKey: strings.layout.nav.ontology, icon: Network },
+  { key: "planning", path: "/planning", labelKey: strings.layout.nav.planning, icon: Waypoints },
+  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: Settings },
 ];

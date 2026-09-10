@@ -10,6 +10,8 @@ import (
 	libraryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library/library_v1connect"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	"google.golang.org/protobuf/types/known/structpb"
+	"program-runtime/internal/contracts"
+	"program-runtime/internal/library"
 	"program-runtime/internal/tasks"
 )
 
@@ -48,5 +50,20 @@ func Delivery(runner libraryconnect.LibraryServiceHandler) tasks.Deliver {
 			return nil, fmt.Errorf("decode finish envelope: %w", err)
 		}
 		return envelope, nil
+	}
+}
+
+// FinishResolver allows optional Memory installation to recover previously
+// unpinned captures, while retaining the selected contract before delivery.
+func FinishResolver(index *contracts.Index, repository *library.Repository) func(context.Context) (string, error) {
+	return func(ctx context.Context) (string, error) {
+		c, ok := index.Get("vrooli-memory", "finish-attempt")
+		if !ok || c.ValidationError != "" {
+			return "", fmt.Errorf("Memory finish contract unavailable")
+		}
+		if err := repository.RetainDeclared(ctx, c); err != nil {
+			return "", err
+		}
+		return c.Digest, nil
 	}
 }

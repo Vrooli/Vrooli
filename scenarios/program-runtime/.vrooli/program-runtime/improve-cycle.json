@@ -5,7 +5,7 @@
   "helpers": {
     "program": "1"
   },
-  "purpose": "Read the setpoint envelope and recent shape telemetry, then route the first actionable nomination or coverage miss—or the first out-of-band setpoint row—to one improve-skill instruction deterministically.",
+  "purpose": "Read the setpoint envelope and recent shape telemetry, then route the first actionable nomination or coverage miss\u2014or the first out-of-band setpoint row\u2014to one improve-skill instruction deterministically.",
   "inputs": {
     "board": {
       "type": "object",
@@ -21,13 +21,13 @@
   "assumptions": [
     "the board was produced by program-runtime.setpoint-read in the same cycle",
     "events are either supplied for fixture replay or read from the durable telemetry store",
-    "route labels are the rows of program-runtime-improve §5; nomination and coverage-miss events produce filing instructions",
-    "rows setpoint-read declines by construction (discovery-floor, authoring-floor, attribution, external-friction, fleet-improve-coverage) are routed by the skill's §5 table from a shell reading or from the program named in the row's reason, never by this program",
+    "route labels are the rows of program-runtime-improve \u00a75; nomination and coverage-miss events produce filing instructions",
+    "rows setpoint-read declines by construction (discovery-floor, authoring-floor, attribution, external-friction, fleet-improve-coverage) are routed by the skill's \u00a75 table from a shell reading or from the program named in the row's reason, never by this program",
     "ai-gateway is reachable only when two failure shapes tie; otherwise no inference runs"
   ],
   "invariants": [
     "the only scenario binding is the typed telemetry read; ai.classify is called only on a failure-shape tie",
-    "decide is a table lookup; the fragment-promotion route may invoke the governed crystallization program for the first promotable candidate",
+    "decide is a table lookup; the fragment-promotion route names reviewed baseline publication for the first promotable candidate",
     "a declined row is never routed; declined rows are listed with their reason",
     "the route for a given board is deterministic except on a declared tie",
     "the envelope is printed exactly once, on every path"
@@ -71,7 +71,7 @@
     "signals": {
       "row": "the setpoint row routed this cycle, or null when every routable row is in band",
       "shape": "the failure shape the route was keyed on: a shape name, duplicate, or *",
-      "route": "one route label: failure-w3-preflight-import, failure-w3-argv-quoting, failure-w2-closed-vocabulary, adoption-w9-placement, maturity-portfolio-audit, health-program-repair, unexercised-fixture-or-retire, fragment-promotion, governance-curation-mine-unresolved, act-w1-or-blocked-note, condition-report-bug, delegation-w3-and-report-bug, shapes-nomination, discovery-coverage-miss, or in-band",
+      "route": "one route label: failure-w3-preflight-import, failure-w3-argv-quoting, failure-w2-closed-vocabulary, adoption-w9-placement, maturity-portfolio-audit, health-program-repair, unexercised-fixture-or-retire, fragment-promotion, governance-curation-mine-unresolved, act-w1-or-blocked-note, condition-report-bug, delegation-w3-and-report-bug, shapes-nomination, discovery-coverage-miss, or in-band; learning-owner-queue, learning-delivery-recovery, learning-advice-consumption, learning-fragment-eligibility",
       "rationale": "why this row and route: table match, top failure shape, or the tie the classifier broke",
       "declined": "list of {row, reason} for rows the board declined, at most 12; the skill routes these from the reason"
     },

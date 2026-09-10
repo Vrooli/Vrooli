@@ -34,7 +34,8 @@
     "the envelope is printed exactly once, on every path",
     "every read is guarded on its own worker: one dead binding yields one row with reason scenario_unreachable and the other rows survive",
     "a row with a permanent reason never lowers the status; only a failed read makes the board partial",
-    "a declined row carries reading null; a number is never printed for a row that was not evaluated"
+    "a declined row carries reading null; a number is never printed for a row that was not evaluated",
+    "A sensor that answered is readable: a zero denominator reads as an out-of-band zero or a named empty state, never as unavailable, so an unused loop cannot be mistaken for a healthy one."
   ],
   "bindings": [
     {
@@ -83,7 +84,8 @@
     }
   ],
   "verbs": [
-    "gather"
+    "gather",
+    "tasks.learning_findings"
   ],
   "outputs": {
     "status": {
@@ -104,7 +106,7 @@
       ]
     },
     "signals": {
-      "rows": "list of {row, reading, target, in_band, unavailable, reason} in the improve skill's table order: discovery-floor, authoring-floor, agent-failure-rate, program-adoption, portfolio-maturity, program-health, unexercised-contracts, blocked-deliveries-aged, advice-application-ratio, fragment-cache-hit-rate, promotable-fragments, governance-share, act-coverage, binding-condition, delegation-live, uncovered-recurring-shapes, attribution, external-friction, fleet-improve-coverage; reason is one of no_governed_binding, kernel_invoke_budget, scenario_unreachable, read_elsewhere:<program>, pending_telemetry, unreliable:<why>",
+      "rows": "list of {row, reading, target, in_band, unavailable, reason} in the improve skill's table order: discovery-floor, authoring-floor, agent-failure-rate, program-adoption, portfolio-maturity, program-health, unexercised-contracts, blocked-deliveries-aged, advice-application-ratio, fragment-cache-hit-rate, promotable-fragments, act-adoption, governance-share, act-coverage, binding-condition, delegation-live, uncovered-recurring-shapes, attribution, external-friction, fleet-improve-coverage; reason is one of no_governed_binding, kernel_invoke_budget, scenario_unreachable, read_elsewhere:<program>, pending_telemetry, no_advice_decisions, no_verified_fragments, unreliable:<why>",
       "readable": "count of rows read from a governed binding",
       "unavailable": "count of rows declined, permanent reasons included",
       "failure_shapes": "top recurring failure shapes from programs mine, at most six"

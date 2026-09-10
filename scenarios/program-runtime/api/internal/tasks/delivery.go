@@ -13,9 +13,11 @@ import (
 // It must return an acknowledged envelope; kernel success alone is not delivery.
 type Deliver func(context.Context, Record) (map[string]any, error)
 type Drainer struct {
-	Store   *Store
-	Deliver Deliver
-	mu      sync.Mutex
+	ResolveFinishDigest func(context.Context) (string, error)
+	lastResolve         time.Time
+	Store               *Store
+	Deliver             Deliver
+	mu                  sync.Mutex
 }
 
 // Run is the server-owned outbox loop. Cancellation stops observation and
@@ -38,6 +40,17 @@ func (d *Drainer) Run(ctx context.Context, report func(error)) {
 func (d *Drainer) DrainOnce(ctx context.Context, now time.Time) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.ResolveFinishDigest != nil && now.Sub(d.lastResolve) >= time.Minute {
+		d.lastResolve = now
+		if digest, err := d.ResolveFinishDigest(ctx); err == nil && digest != "" {
+			if err = d.Store.RequeueUnpinned(ctx, digest); err != nil {
+				return err
+			}
+		}
+	}
+	if err := d.Store.RouteFindings(ctx); err != nil {
+		return err
+	}
 	pending, err := d.Store.Pending(ctx, now)
 	if err != nil {
 		return err
@@ -80,7 +93,7 @@ func (d *Drainer) DrainOnce(ctx context.Context, now time.Time) error {
 			return err
 		}
 	}
-	return nil
+	return d.Store.DrainFeedback(ctx, now, d.Deliver)
 }
 
 // Invalid immutable inputs and denied authority require a new decision, not

@@ -4,8 +4,7 @@ How this scenario is configured — env vars consumed by the binaries,
 the `.vrooli/service.json` manifest, and the per-user CLI config file.
 
 The lifecycle (`vrooli scenario start`, `make start`) sets every
-required variable automatically. You only need this reference when
-running a binary by hand or when a scenario adds a new variable.
+required variable automatically. Use this reference to diagnose lifecycle configuration or assess a proposed variable. Do not start binaries by hand.
 
 ## Environment variables
 
@@ -101,8 +100,7 @@ versioned-migration helpers (`Migrate` / `MigrationProvider` in
 
 See [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#domain-owned-schema)
 for the design rationale and [`../internal/SEAMS.md`](../internal/SEAMS.md)
-for the per-seam table including `notes.Schema` and
-`database.SystemSchema`.
+for domain-owned graph, planning and ontology seams.
 
 ## CLI config file
 
@@ -127,7 +125,7 @@ Set values via the CLI rather than editing the file directly:
 
 ```bash
 tech-tree-designer configure api_base http://localhost:15001/api/v1
-tech-tree-designer configure token <token>
+tech-tree-designer configure token "<token>"
 ```
 
 ## API-base resolution precedence

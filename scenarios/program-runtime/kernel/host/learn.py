@@ -18,7 +18,7 @@ import datetime
 from typing import Any
 
 from tasks import ACTIVE_TASK, Tasks
-from fragments import StepFailed, wrap, digest, normalize, validate_baseline
+from fragments import StepFailed, wrap, digest, normalize, validate_baseline, durable_learning_write, learning_quarantine
 
 ACTIVE_STEP = contextvars.ContextVar("program_runtime_step", default=None)
 
@@ -147,6 +147,7 @@ class Learn:
     def __init__(self, owner, invocation_context, input_getter, program_name: str = "", free_text_inputs=(), note_kinds=None, bindings=(), baselines=None):
         self.owner = owner
         self.baselines = dict(baselines or {})
+        self.capability_policy = []
         self.binding_contracts = list(bindings) if not isinstance(bindings, set) else sorted(bindings)
         self._fragment_delivery = []
         self.invocation_context = invocation_context
@@ -185,6 +186,9 @@ class Learn:
         self._fragment_candidates = []
         self._measurements: dict[str, Any] = {}
         self._feedback: list[dict[str, Any]] = []
+        self._result_refs = {}
+        self._last_result_ref = ""
+        self._result_delivery = []
 
     def reset(self, program_name: str = ""):
         self.__init__(self.owner, self.invocation_context, self.input_getter, program_name or self.program_name, self.free_text_inputs, self.note_kinds, self.binding_contracts, self.baselines)
@@ -222,6 +226,7 @@ class Learn:
         declaration = spec.get("declaration") or {}
         self.baselines = dict((declaration.get("learning") or {}).get("baselines", self.baselines))
         self.binding_contracts = declaration.get("bindings", self.binding_contracts)
+        self.capability_policy = (declaration.get("learning") or {}).get("capabilities", [])
         self.free_text_inputs.update(key for key, value in declaration.get("inputs", {}).items() if value.get("free_text"))
         self._source = spec.get("source", self._source)
         if not self._key_explicit:
@@ -293,7 +298,48 @@ class Learn:
                     decision["evidence_refs"] = ["outcome:" + status]
         return {"status": status, "evidence": self._evidence}
 
-    def feedback(self, attempt_id, disposition, evidence, correction=""):
+    def result_ref(self, name=None):
+        """Opaque durable result identity; preserves infer/delegate output schemas."""
+        if name is None:
+            return self._last_result_ref
+        return self._result_refs.get(str(name), "")
+
+    def result(self, name, artifact=None, *, verb="result", **attribution):
+        """Register externally verified artifacts, such as an exact BAS flow revision."""
+        name = _text(name, "name")
+        if artifact is not None and (not isinstance(artifact, dict) or set(artifact) != {"kind", "owner", "id", "revision"}
+                or any(not isinstance(v, str) or not v or len(v) > 256 for v in artifact.values())):
+            raise ValueError("artifact requires bounded kind, owner, id and revision strings")
+        self.used = True
+        self._begin()
+        reference = "prt_feedback_v1_" + secrets.token_urlsafe(24)
+        request = dict(feedback_ref=reference, task_id=self._record.get("task_id", self.task_id), attempt_id=self._record.get("attempt_id", self.attempt_id),
+                       step_attempt_id=ACTIVE_STEP.get() or "", scope=self._record.get("scope", self.scope), verb=verb, resume_token=self.resume_token,
+                       step_name=name, **attribution)
+        if artifact is not None:
+            request["artifact"] = artifact
+        delivery = self._learning_write("learning_result_put", request)
+        self._result_refs[name] = reference
+        self._last_result_ref = reference
+        self._result_delivery.append({"feedback_ref": reference, **{key: delivery[key] for key in ("delivery", "event_id", "last_error", "reason") if key in delivery}})
+        return reference
+
+    def _learning_write(self, action, request):
+        def send(bridge_action, **payload):
+            response = Tasks(self.owner, self.invocation_context, None, 100.0)._bridge(bridge_action, **payload)
+            if bridge_action == "learning_feedback" and payload.get("disposition") == "contradicted" and payload.get("dimension") in ("execution", "verification"):
+                target = response.get("target", {})
+                if target.get("step_key") and target.get("fragment_hash"):
+                    learning_quarantine(self.owner, self._provenance(), target["step_key"], [target["fragment_hash"]])
+            return response
+        try:
+            return durable_learning_write(self.owner, self.invocation_context, self._provenance(), action, request,
+                send, program_name=self.program_name)
+        except Exception as exc:
+            # Learning delivery must never trigger replay of successful domain effects.
+            return {"delivery": "unavailable", "last_error": str(exc)[:160]}
+
+    def feedback(self, attempt_id, disposition, evidence, correction="", *, dimension="verification"):
         """Grade an earlier attempt's advice from a later run.
 
         A search-then-execute split (recommend in one run, execute in another)
@@ -310,8 +356,20 @@ class Learn:
             raise ValueError("feedback requires non-empty evidence")
         if not isinstance(correction, str) or len(correction.encode("utf-8")) > 2048:
             raise ValueError("feedback correction must be bounded text")
+        if dimension not in ("execution", "verification", "usefulness", "efficiency", "context"):
+            raise ValueError("invalid feedback dimension")
         self.used = True
         self._begin()
+        if attempt_id.startswith("prt_feedback_v1_"):
+            request = {"feedback_ref": attempt_id, "disposition": disposition, "dimension": dimension,
+                       "evidence": list(dict.fromkeys(evidence[:16])), "correction": correction}
+            request["observation_id"] = "observation-" + digest(request)
+            receipt = self._learning_write("learning_feedback", request)
+            # Do not let a disconnected process reuse a candidate after a correction.
+            if disposition == "contradicted" and dimension in ("execution", "verification"):
+                self._fragment_cache.clear()
+            self._result_delivery.append({"feedback_ref": attempt_id, **receipt})
+            return {"feedback_ref": attempt_id, "observation_id": request["observation_id"], **receipt}
         provenance = self._provenance()
         observation = {"attempt_id": attempt_id, "disposition": disposition,
                        "evidence_refs": list(dict.fromkeys(evidence[:20])),
@@ -493,7 +551,9 @@ class Learn:
         query = "preference/v1 avoid/v1 option_id " + " ".join(str(item) for item in ids[:10] if item) + " " + self.operation
         recalled = self.recall(query=query, kinds=["preference", "avoid"])
         avoided = {body.get("option_id") for body in recalled.get("notes", {}).get("avoid", []) if isinstance(body, dict)}
-        candidates = [item for item in ids if item and item not in avoided]
+        choice_revision = digest([self.operation, self.key])
+        candidates = [item for item in ids if item and item not in avoided and self._artifact_eligible(
+            {"kind": "choice", "owner": self._artifact_owner(), "id": str(item), "revision": choice_revision})]
         weights = {item: 0.0 for item in candidates}
         why = []
         preference_hits = []
@@ -522,7 +582,7 @@ class Learn:
         if current_step and current_step in self._steps:
             self._steps[current_step]["decisions"] = list(self._decisions)
         return {"selected_id": selected, "source": "unavailable" if selected is None else "advice" if len(winners) == 1 and selected in weights and weights[selected] > 0 else "default", "conflicting": len(winners) > 1, "why": why,
-                "learning": {"advice": self._decisions}}
+                "learning": {"advice": self._decisions}, "feedback_ref": self.result("choose", verb="choose", artifact={"kind": "choice", "owner": self._artifact_owner(), "id": str(selected), "revision": choice_revision})}
 
     def infer(self, name, intent, inputs, schema, demos="key", verify=None):
         if not isinstance(schema, dict) or not isinstance(inputs, dict):
@@ -540,7 +600,8 @@ class Learn:
                 examples = self.recall(kinds=["example"], key="*" if demos == "scope" else None, limit=8)
                 examples["hits"] = [hit for hit in examples.get("hits", [])
                                     if hit.get("evidence_reliable", hit.get("evidenceReliable", True)) is not False
-                                    and int(hit.get("contradicted", 0) or 0) == 0]
+                                    and int(hit.get("contradicted", 0) or 0) == 0
+                                    and self._artifact_eligible(hit.get("body", {}).get("artifact"))]
                 instruction = ""
                 step.record["demos_used"] = min(len(examples.get("hits", [])), 8)
                 if examples.get("hits"):
@@ -568,18 +629,33 @@ class Learn:
                     step.outcome(status, evidence)
                     if status != "verified_success":
                         raise StepFailed("inference_verification_failed")
-                    self._examples.append({"inputs": inputs, "output": output, "step": str(name)})
+                    artifact = {"kind": "inference", "owner": self._artifact_owner(), "id": digest({"inputs": inputs, "output": output}), "revision": digest({"intent": intent, "schema": schema})}
+                    self._examples.append({"inputs": inputs, "output": output, "step": str(name), "artifact": artifact})
                 else:
                     step.outcome("unknown", [])
+                self.result(str(name), verb="infer", artifact=artifact if verify is not None else None)
                 return output
             except Exception:
                 step.outcome("failed", []) if step.record and step.record.get("outcome") == "unknown" else None
                 raise
 
-    def act(self, name, intent, inputs, schema, bindings, attempts=3, fallback_fragment=None,
+    def act(self, name, intent, inputs, schema, bindings=None, attempts=3, fallback_fragment=None,
             *, verify=None, verifier_revision="", compatibility=None, baseline=None,
-            min_verified=3, min_contexts=2, max_age_days=30, allow_ai=True):
-        """Execute a verified section; AI is bounded adaptation, never the correctness oracle."""
+            min_verified=3, min_contexts=2, max_age_days=30, allow_ai=True, capabilities=None, allowed_effects=None,
+            key=None):
+        """Execute a verified section; AI is bounded adaptation, never the correctness oracle.
+
+        `key` names the section's own learning identity. Without it the fragment inherits the
+        task key, which is right for a section whose correct code depends on the task, and wrong
+        for one that does not: a program keyed per session or per prompt digest would start a
+        fresh cache entry every run and never reach `min_verified`. A section that maps an
+        owner's response shape is task-independent, so it declares a stable key and pools its
+        evidence across every task. The step attempt record stays keyed by the task either way.
+        """
+        if bindings is None:
+            bindings = self._resolve_capabilities(capabilities, allowed_effects)
+        elif capabilities is not None:
+            raise ValueError("act accepts bindings or capabilities, not both")
         _validate_binding_specs(bindings, "act")
         if not callable(verify) or not isinstance(verifier_revision, str) or not verifier_revision.strip():
             raise ValueError("act requires verify and verifier_revision")
@@ -603,17 +679,39 @@ class Learn:
         with self.step(name) as step:
             provenance = self._provenance()
             cohort = "cohort:" + (provenance if provenance in ("test", "replay") else "live")
-            cache_key = (self.operation, self.key or self._default_key(), str(name), contract_hash, cohort)
+            section_key = _canonical_key(key) if key is not None else (self.key or self._default_key())
+            cache_key = (self.operation, section_key, str(name), contract_hash, cohort)
             step_key = "fragment-v2:" + digest(list(cache_key))
             candidate = self._fragment_cache.get(cache_key)
+            rejected_hashes = set(learning_quarantine(self.owner, self._provenance(), step_key))
+            pending_evidence = False
+            pending_error = "pending"
+            rejected_truncated = False
             if getattr(self.owner, "_bridge_url", ""):
                 try:
-                    durable = Tasks(self.owner, self.invocation_context, None, 100.0)._bridge("fragment_get", step_key=step_key)
+                    pending = self._learning_write(None, {})
+                    if pending.get("delivery") in ("pending", "unavailable"):
+                        # Undelivered evidence may contradict a learned fragment, so the
+                        # unreviewed cache is withheld. A reviewed baseline is a declared,
+                        # human-approved asset that runtime evidence cannot disqualify, and
+                        # generation is not reuse: both still run. A delivery outage therefore
+                        # degrades reuse instead of disabling the section.
+                        pending_evidence = True
+                        pending_error = str(pending.get("last_error", "pending"))[:160]
+                        candidate = None
+                        self._fragment_cache.pop(cache_key, None)
+                        raise RuntimeError("learning evidence delivery pending; cached code withheld")
+                    durable = Tasks(self.owner, self.invocation_context, None, 100.0)._bridge("fragment_get", step_key=step_key, min_verified=int(min_verified),
+                        min_contexts=int(min_contexts), max_age_days=float(max_age_days))
+                    rejected_truncated = bool(durable.get("rejected_truncated"))
+                    rejected_hashes.update(learning_quarantine(self.owner, self._provenance(), step_key, durable.get("rejected_hashes", [])))
                     # An authoritative no-match also invalidates an older process-local candidate.
                     candidate = durable.get("fragment") if durable.get("found") else None
                     self._fragment_cache.pop(cache_key, None)
                 except Exception as exc:
-                    self._fragment_delivery.append({"step": str(name), "delivery": "unavailable", "operation": "read", "error": str(exc)[:160]})
+                    self._fragment_delivery.append({"step": str(name), "delivery": "pending" if pending_evidence else "unavailable",
+                                                    "operation": "read", "error": str(exc)[:160],
+                                                    **({"cache_withheld": True} if pending_evidence else {})})
             if candidate and not isinstance(candidate, dict):
                 candidate = None
             eligible = False
@@ -635,10 +733,17 @@ class Learn:
             # Legacy embedded fallbacks remain executable but undergo the same verifier.
             if fragment is None and fallback_fragment:
                 fragment, source = normalize(fallback_fragment), "fallback"
+            if fragment is None and pending_evidence and not allow_ai:
+                # Withheld cache was the only remaining path: name the delivery outage
+                # rather than reporting a missing baseline the author never declared.
+                step.outcome("unavailable", [])
+                self._capture_failure(name, "learning_evidence_pending")
+                raise StepFailed("learning_evidence_pending",
+                                 errors=[{"class": "learning_delivery", "detail": pending_error}])
             errors = []
             model_calls = 0
             used_baseline = source in ("baseline", "fallback")
-            forbidden_hashes = set()
+            forbidden_hashes = set(rejected_hashes)
             for _ in range(max(1, min(int(attempts), 5))):
                 invocation_start = len(getattr(self.owner, "_invocations", []))
                 attempted_effects = []
@@ -659,7 +764,12 @@ class Learn:
                         fragment = _fragment_reply(reply)
                         source = "model"
                     fragment = normalize(fragment)
-                    if digest(fragment) in forbidden_hashes:
+                    fragment_hash = hashlib.sha256(fragment.strip().encode()).hexdigest()
+                    if rejected_truncated and source != "cache":
+                        rejection = Tasks(self.owner, self.invocation_context, None, 100.0)._bridge("fragment_rejection", step_key=step_key, fragment_hash="sha256:" + fragment_hash)
+                        if rejection.get("rejected"):
+                            rejected_hashes.update(learning_quarantine(self.owner, self._provenance(), step_key, [fragment_hash]))
+                    if digest(fragment) in forbidden_hashes or fragment_hash in rejected_hashes:
                         raise StepFailed("repeated_failed_candidate")
                     output = wrap(fragment)(inputs, _AllowedBindings(self.owner, allowed, effects=attempted_effects))
                     if not _matches_schema(output, schema):
@@ -679,8 +789,11 @@ class Learn:
                     # Keep raw inputs and outputs out of Memory traces and portable assets.
                     step.note("trace", {"fragment": "sha256:" + digest(fragment), "bindings": sorted(allowed),
                                         "output": {"digest": digest(output)}})
-                    return {"output": output, "fragment_source": source, "model_calls": model_calls,
+                    return {"output": output, "feedback_ref": self.result(str(name), verb="act", step_key=step_key,
+                                fragment_hash="sha256:" + hashlib.sha256(fragment.strip().encode()).hexdigest(), compatibility_digest=contract_hash),
+                            "fragment_source": source, "model_calls": model_calls,
                             "compatibility_digest": contract_hash, "step_key": step_key,
+                            "cache_withheld": pending_evidence,
                             "verified": True, "eligibility": "reviewed" if source == "baseline" else "qualified" if source == "cache" else "probation"}
                 except Exception as exc:
                     invoked = getattr(self.owner, "_invocations", [])[invocation_start:]
@@ -694,6 +807,7 @@ class Learn:
                     if wrote:
                         step.record["outcome"] = "unknown"
                         step.record["error_class"] = "uncertain_effects"
+                        self._capture_failure(name, "uncertain_effects")
                         raise StepFailed("uncertain_effects", errors=errors) from exc
                     if unavailable:
                         # A model outage may fall back to the reviewed baseline, but never retries domain writes.
@@ -705,26 +819,87 @@ class Learn:
                             except Exception:
                                 pass
                         step.outcome("unavailable", [])
+                        self._capture_failure(name, "adaptation_unavailable")
                         raise StepFailed("adaptation_unavailable", errors=errors) from exc
                     candidate = {"fragment": fragment or ""}
                     fragment, source = None, "model"
             step.outcome("failed", [])
+            self._capture_failure(name, "fragment_failed")
             raise StepFailed("fragment_failed", errors=errors)
 
+    def result_status(self, artifact=None, *, feedback_ref=None):
+        """Read exact artifact eligibility; unavailable is explicit, never a clean bill."""
+        if (artifact is None) == (feedback_ref is None):
+            raise ValueError("result_status requires artifact or feedback_ref")
+        request = {"artifact": artifact} if artifact is not None else {"feedback_ref": _text(feedback_ref, "feedback_ref")}
+        if not getattr(self.owner, "_bridge_url", ""):
+            return {"available": False, "eligible": False, "reason": "bridge_unavailable"}
+        try:
+            pending = self._learning_write(None, {})
+            if pending.get("delivery") != "delivered":
+                return {"available": False, "eligible": False, "reason": "learning_evidence_pending"}
+            response = Tasks(self.owner, self.invocation_context, None, 100.0)._bridge("learning_result_status", **request)
+            return {**response, "available": True, "eligible": bool(response.get("eligible", False)) and not response.get("contradicted", False)}
+        except Exception as exc:
+            return {"available": False, "eligible": False, "reason": str(exc)[:160]}
+
+    def _artifact_eligible(self, artifact):
+        if not artifact or not getattr(self.owner, "_bridge_url", ""):
+            return True
+        return self.result_status(artifact).get("eligible", False)
+
+    def _artifact_owner(self):
+        owner = self.program_name.split(".", 1)[0]
+        return self._scope_scenario_aliases.get(owner, owner)
+
+    def _capture_failure(self, name, reason):
+        reference = self.result(str(name), verb="act", artifact={"kind": "adaptation-failure", "owner": self._artifact_owner(),
+            "id": digest([self.operation, name]), "revision": digest(reason)})
+        self.feedback(reference, "contradicted", ["runtime:" + reason], dimension="execution")
+
+    def _resolve_capabilities(self, capabilities, allowed_effects):
+        if not isinstance(capabilities, list) or not capabilities or len(capabilities) > 16 or any(not isinstance(v, str) or not v.strip() for v in capabilities):
+            raise ValueError("act requires bindings or 1..16 capability intents")
+        effects = set(allowed_effects or ["read"])
+        if not effects.issubset({"read", "write", "destructive"}):
+            raise ValueError("invalid allowed_effects")
+        self.used = True
+        self._begin()
+        specs = {item["id"]: item for item in getattr(self.owner, "_binding_contract_specs", self.binding_contracts)
+                 if isinstance(item, dict) and item.get("id")}
+        resolved = []
+        for intent in capabilities:
+            reply = self.owner.discover(intent=intent, mode="fast")
+            rows = reply.head(1) if hasattr(reply, "head") else [reply]
+            row = rows[0] if rows else {}
+            binding = row.get("binding_id", "")
+            if row.get("unavailable"):
+                raise StepFailed("capability_resolution_unavailable")
+            spec = specs.get(binding, {})
+            effect = spec.get("effect", "")
+            declared = [item if isinstance(item, str) else item.get("id", "") for item in self.binding_contracts]
+            explicit = any(fnmatch.fnmatchcase(binding, pattern) for pattern in declared if pattern)
+            scoped = any(isinstance(policy, dict) and policy.get("scenario") == spec.get("scenario", binding.split("/", 1)[0])
+                         and effect in policy.get("effects", []) for policy in self.capability_policy)
+            if not spec or effect not in effects or not (explicit or scoped):
+                raise StepFailed("capability_not_authorized")
+            resolved.append(binding)
+        return sorted(set(resolved))
+
     def _reject_fragment(self, cache_key, step_key, fragment, step_name, compatibility, attempt_id):
+        learning_quarantine(self.owner, self._provenance(), step_key, [hashlib.sha256(fragment.strip().encode()).hexdigest()])
         self._fragment_cache.pop(cache_key, None)
         self._fragment_stats.pop(cache_key, None)
         self._fragment_write(step_key=step_key, fragment=fragment, contradicted_delta=1,
-                             step_name=step_name, compatibility=compatibility, attempt_id=attempt_id)
+                             step_name=step_name, compatibility=compatibility, attempt_id=self._record.get("attempt_id", self.attempt_id))
 
     def _fragment_write(self, **request):
         if not getattr(self.owner, "_bridge_url", ""):
             return
         try:
-            Tasks(self.owner, self.invocation_context, None, 100.0)._bridge("fragment_put", **request,
-                source=getattr(self, "_source", ""),
-                source_program_id=self.invocation_context.get({}).get("program_id", ""))
-            self._fragment_delivery.append({"step": request.get("step_name", ""), "delivery": "delivered", "operation": "write"})
+            request.update(resume_token=self.resume_token, source=getattr(self, "_source", ""), source_program_id=self.invocation_context.get({}).get("program_id", ""))
+            delivery = self._learning_write("fragment_put", request)
+            self._fragment_delivery.append({"step": request.get("step_name", ""), "operation": "write", **{key: delivery[key] for key in ("delivery", "event_id", "last_error", "reason") if key in delivery}})
         except Exception as exc:
             self._fragment_delivery.append({"step": request.get("step_name", ""), "delivery": "unavailable", "operation": "write", "error": str(exc)[:160]})
 
@@ -786,6 +961,7 @@ class Learn:
             step.note("parameter", {"name": "approach", "value": "agent-manager"})
             step.note("trace", {"bindings": bindings, "output": output, "attribution": "unavailable"})
             step.outcome(status, evidence)
+            self.result(str(name), verb="delegate")
             return output
 
     def finalize(self, result):
@@ -809,7 +985,7 @@ class Learn:
                 self._notes.append({"kind": "example", "body": {
                     "inputs_digest": hashlib.sha256(encoded.encode("utf-8")).hexdigest(),
                     "inputs_redacted": stable,
-                    "output": example["output"],
+                    "output": example["output"], "artifact": example.get("artifact"),
                 }, "evidence": ["inference:" + example["step"]]})
         attempt = {"attempt_id": self._record.get("attempt_id", self.attempt_id),
                    "task_id": self._record.get("task_id", self.task_id),
@@ -899,6 +1075,8 @@ class Learn:
                 "resume_token": self.resume_token, "notes": self._notes, "observations": observations, "advice": self._decisions,
                 "attempts": attempts, "steps": learning_receipt["steps"], "recall_status": self.recall_status,
                 "fragments": list(self._fragment_delivery), "measurements": dict(self._measurements), "feedback": [{k: v for k, v in item.items() if k not in ("observation", "scope")} for item in self._feedback]}
+        result["learning"]["result_refs"] = dict(self._result_refs)
+        result["learning"]["result_delivery"] = list(self._result_delivery)
         return result
 
     def _durable_step_key(self, cache_key):

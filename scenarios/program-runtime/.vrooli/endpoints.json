@@ -137,6 +137,14 @@
       "category": "bindings"
     },
     {
+      "id": "programs_learning_findings",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/ListLearningFindings",
+      "method": "POST",
+      "summary": "Read bounded unresolved learning findings with owner and evidence.",
+      "description": "",
+      "category": "programs"
+    },
+    {
       "id": "programs_submit",
       "path": "/vrooli.program_runtime.v1.programs.ProgramService/SubmitProgram",
       "method": "POST",
@@ -165,6 +173,14 @@
       "path": "/vrooli.program_runtime.v1.programs.ProgramService/ListPrograms",
       "method": "POST",
       "summary": "List submitted programs.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "programs_portfolio",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/PortfolioStats",
+      "method": "POST",
+      "summary": "Report grouped program portfolio usage and health.",
       "description": "",
       "category": "programs"
     },

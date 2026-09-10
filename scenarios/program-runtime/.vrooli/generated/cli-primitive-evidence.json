@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "05d2e6a48cb338e0555d372006b55c6f5733b53a4d23cf1c060020efde9ada51",
+  "manifest_hash": "64251341a6b9fd557cdecbfeefc9bc84a99de2c383d1b1763d08571ffcfcce6e",
   "commands": [
     {
       "path": "authoring eval",
@@ -146,6 +146,14 @@
       "group": "programs",
       "command": "governance-share",
       "binding": "vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "programs learning-findings",
+      "group": "programs",
+      "command": "learning-findings",
+      "binding": "vrooli.program_runtime.v1.programs.ProgramService.ListLearningFindings",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

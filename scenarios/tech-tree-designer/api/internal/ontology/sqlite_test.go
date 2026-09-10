@@ -10,7 +10,7 @@ import (
 	ontologyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/ontology"
 )
 
-func TestSQLiteRepositoryRoundTrip(t *testing.T) {
+func TestSQLiteRepositoryRoundTrip(t *testing.T) { // [REQ:TTD-ONTOLOGY-001]
 	ctx := context.Background()
 	database := db.NewSQLite(t)
 	if err := apicoredb.EnsureSchemas(ctx, database, apicoredb.SchemaProviderFunc(Schema)); err != nil {

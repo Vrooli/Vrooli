@@ -125,6 +125,9 @@ type Fragment struct {
 	TraceOutput           map[string]any `json:"trace_output,omitempty"`
 	LastUsedAt            string         `json:"last_used_at"`
 	CreatedAt             string         `json:"created_at"`
+	// Published is set by the fragment_list bridge, never by the store: the owning contract
+	// already declares this exact fragment as a reviewed learning.baselines entry.
+	Published bool `json:"published,omitempty"`
 }
 
 // GetFragment is an observation. Only verified execution records count as reuse.
@@ -144,20 +147,7 @@ func (s *Store) BestFragment(ctx context.Context, stepKey string) (*Fragment, er
 }
 
 func (s *Store) bestFragment(ctx context.Context, stepKey string) (*Fragment, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	var f Fragment
-	var inputs, output string
-	err := s.db.QueryRowContext(ctx, `SELECT step_key,fragment_hash,fragment,verified,cached_runs,contradicted_since_edit,source_program_id,source,step_name,trace_inputs,trace_output,last_used_at,created_at FROM learning_fragments WHERE step_key=? AND verified>0 AND contradicted_since_edit=0 ORDER BY verified DESC,last_used_at DESC,created_at DESC LIMIT 1`, stepKey).Scan(&f.StepKey, &f.FragmentHash, &f.Fragment, &f.Verified, &f.CachedRuns, &f.ContradictedSinceEdit, &f.SourceProgramID, &f.Source, &f.StepName, &inputs, &output, &f.LastUsedAt, &f.CreatedAt)
-	if err != nil {
-		return nil, err
-	}
-	_ = json.Unmarshal([]byte(inputs), &f.TraceInputs)
-	_ = json.Unmarshal([]byte(output), &f.TraceOutput)
-	if err := s.fragmentEvidence(ctx, &f); err != nil {
-		return nil, err
-	}
-	return &f, nil
+	return s.EligibleFragment(ctx, stepKey, 0, 0, 0)
 }
 
 func (s *Store) PutFragment(ctx context.Context, f Fragment, verifiedDelta, contradictedDelta int) (*Fragment, error) {

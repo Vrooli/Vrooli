@@ -17,33 +17,35 @@ cd scenarios/tech-tree-designer
 make start
 ```
 
-Health:
+Health (the CLI resolves the managed API location):
 
 ```bash
-curl -s "http://localhost:${API_PORT}/health"
 tech-tree-designer status
 ```
 
 ## Test
 
+From the same scenario directory, select a focused phase:
+
 ```bash
-cd scenarios/tech-tree-designer
-make test
+vrooli scenario test tech-tree-designer --phases unit
 ```
 
-For focused local checks during implementation:
+Use the server-owned wait command returned by the runner. See
+[TESTING](internal/TESTING.md) for documentation checks and broader validation scope.
+
+For focused local checks during implementation, from the scenario directory:
 
 ```bash
-cd scenarios/tech-tree-designer/api && GOWORK=off go test ./...
-cd scenarios/tech-tree-designer/cli && GOWORK=off go test ./...
-cd scenarios/tech-tree-designer/ui && corepack pnpm test
+(cd api && GOWORK=off go test ./internal/planning)
+(cd cli && GOWORK=off go test ./domains/planning)
 ```
 
 ## Current Limitations
 
 The regenerated scenario exposes graph, planning, and ontology surfaces through the Connect API, CLI, and UI. Use `tech-tree-designer graph --help`, `tech-tree-designer plan --help`, and `tech-tree-designer ontology --help` for command details.
 
-Deferred integrations are tracked in [`internal/PROBLEMS.md`](internal/PROBLEMS.md): AI strategic analysis, the future SDA graph source, scenario scaffold generation from planned nodes, and proto-health import governance.
+SDA is the current observed-interface source. General repository-wide proposals, immutable review, owner-directed application/recovery and scale qualification remain targets; the existing proto materializer does not provide them. AI strategy and qualified experiments have later priority. Read [START-HERE](START-HERE.md) and [TESTING](internal/TESTING.md) before expanding scope. For documentation-only changes, use the listed owner validators rather than treating a full runtime suite as necessary certification.
 
 ## Cross-References
 

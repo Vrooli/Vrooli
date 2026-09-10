@@ -466,6 +466,37 @@ Increment the verifier revision when its meaning changes. Include relevant
 site/device/protocol versions in compatibility. The explicit task key survives
 the real checkpoint bridge.
 
+### Section keys: what the fragment's evidence pools under
+
+A fragment's cache identity includes the task key, which is correct only when the
+section's correct code depends on the task. It usually does not. A section that
+maps an owner's response shape, normalizes rows, or reads a vocabulary is
+task-independent, and under a task key that varies per run — a session id, a
+prompt digest, a URL — it starts a fresh cache entry every execution and can
+never reach `min_verified`. The section would call the model forever and never
+qualify.
+
+Give such a section its own `key`:
+
+```python
+learn.act("row-normalization", intent, inputs, schema, bindings,
+          key="bas/flow-row-shapes/v1",          # pools across every task
+          fallback_fragment=ROW_MAPPING_V1,
+          verify=verify_normalization, verifier_revision="row-fields/v1")
+```
+
+The key names what the code is about, not what the run is about, so pick a stable
+string and version it when the section's subject changes. The step attempt record
+stays keyed by the task either way: only the fragment's evidence pools. Omit `key`
+when different tasks genuinely need different code.
+
+Fragments run with a deliberately small builtin set: `len`, `min`, `max`, `sum`,
+`str`, `int`, `float`, `bool`, `dict`, `list`, `range`, `sorted`, `enumerate`,
+`any`, `all`, `isinstance`, and `set`. `type` is a forbidden call, and imports,
+lambdas, `with`, nested functions and private attributes are rejected at
+normalization. Keep shape validation in ordinary program code and pass the section
+well-formed inputs; a fragment is for the mapping, not the guard rails.
+
 A declared `learning.baselines.<step-name>` asset supplies reviewed code,
 compatibility, review evidence, curated fixtures, and a content digest. It runs
 before AI on an unqualified cache miss. `allow_ai=False` makes adaptation
@@ -527,3 +558,137 @@ Runnable versions of these are the scenario-owned programs in
 contract beside it (`program-contracts.md`): `fleet-fanout`, `concurrent-fanout`,
 `typed-inference`, `batch-inference`, `delegated-run`, `failure-triage`,
 `handle-shaping`, `registry-sweep`.
+
+## Adaptive authoring and delayed feedback
+
+Authors supply the objective, inputs, output schema, independent postcondition,
+compatibility context, and permitted effects. The runtime supplies binding
+contracts, candidate selection, bounded generation/repair, evidence retention,
+and failure routing. Keep settled logic as ordinary program code.
+
+`learn.act(..., capabilities=["<capability intent>"], allowed_effects=["read"],
+verify=..., verifier_revision="v1")` resolves intents through governed discovery.
+Use either `capabilities` or the existing exact `bindings` list. Resolution must
+match an admitted binding contract and the effect allow-set. It does not grant
+new permissions. The generated implementation receives current binding schemas;
+the author does not copy argument shapes into the implementation prompt.
+A program can declare `learning.capabilities` as
+`[{"scenario":"browser-automation-studio","effects":["read"]}]` to authorize
+intent resolution within one owner without enumerating methods. The per-call
+`allowed_effects` intersects this declaration; session grants still apply.
+An empty explicit `bindings=[]` remains pure computation. Discovery refusal and
+unavailability are distinct from an implementation failing its postcondition.
+
+### Result identity
+
+`learn.act` and `learn.choose` include `feedback_ref` in their existing result
+objects. `learn.infer` and `learn.delegate` preserve their raw output schemas;
+read `learn.result_ref("<step-name>")` to retrieve their reference. The finish
+receipt also retains result references and their delivery state. References are
+opaque feedback capabilities: preserve them with the returned task result, keep
+them out of public queue projections and portable assets, and do not parse them.
+
+Register an external artifact, such as a BAS workflow revision, with
+`learn.result("workflow", {"kind":"workflow", "owner":"browser-automation-studio",
+"id":workflow_id, "revision":str(version)})`. This allocates attribution; it
+does not certify the artifact. `learn.result_status(artifact)` reads its current
+eligibility. Check `available` before using `eligible`; an unreadable result is
+unknown. Put relevant environment and verifier revisions in the artifact identity
+or task compatibility before pooling evidence.
+
+A later run calls `learn.feedback(feedback_ref, "contradicted", evidence,
+correction="<observed correction>", dimension="verification")`. A conversation
+or downstream consumer can instead run `program-runtime.learning-feedback` with
+those fields. No domain action is repeated. Legacy attempt-ID feedback remains
+supported for existing consumers.
+
+| Dimension | Meaning and response |
+|---|---|
+| execution | The attempted implementation failed; confirmed code failure disqualifies that exact implementation. |
+| verification | The declared postcondition was wrong; contradictory evidence disqualifies the exact implementation/artifact. |
+| usefulness | The output did not meet the user's need; retain separate semantic evidence and exclude contradicted advice/examples/artifacts. Do not silently rewrite the verifier. |
+| efficiency | The result required excessive effort; route improvement evidence without declaring correct code incorrect. |
+| context | Requirements or environment changed; route the new context without treating the old implementation as globally defective. |
+
+Silence is not support. Model interpretation of an ambiguous comment is not
+confirmed failure. Name the child result when attribution is known; otherwise
+retain a parent-level finding. A successful sibling is not contradicted merely
+because the enclosing task failed. Operator and agent observations share the
+live evidence cohort; test and replay evidence cannot disqualify live artifacts.
+
+### Delivery and owner work
+
+The kernel journals learning writes before sending them. Pending evidence is
+retried on later learning operations and before cached execution; a restart or
+changed service port does not erase it. Undelivered contradictory evidence
+withholds reuse: the unreviewed learned cache is withheld, because an
+undelivered contradiction may be exactly the evidence that disqualifies it.
+
+Withholding stops at reuse. A declared `learning.baselines` asset was reviewed by
+a person and replayed against its fixtures at publication, so runtime evidence
+cannot disqualify it and it still executes; generation is not reuse, so bounded
+adaptation still runs, protected by the on-disk candidate quarantine and the
+verifier. A delivery outage therefore degrades a section to "no learned cache"
+instead of disabling it, and `learning.cache_withheld` on the result says so.
+Only a section with no reviewed baseline and `allow_ai=False` has nothing left to
+run; it raises `learning_evidence_pending`, which names the delivery outage
+rather than a baseline the author never declared. A failed journal write is an
+explicit unavailable receipt, never successful capture. Program Runtime atomically records accepted feedback,
+updates eligibility, and retains its Memory projection for the server-owned
+outbox. Memory projection uses the original target scope and attempt identity.
+The outbox retries evidence delivery only. If Memory was absent at original
+capture, the drainer can pin its validated finish contract once when it becomes
+available; subsequent retries retain that version rather than adopting new code.
+
+Terminal adaptation failures and later contradictions produce durable findings.
+The server routes them to the owning scenario queue. Read the bounded public
+projection with `program-runtime programs learning-findings --owner <scenario>`;
+Meta Optimization consumes the same typed projection independently of runtime
+failure/refusal metrics. Truncation remains visible; narrow the owner rather than
+interpreting omitted findings as resolved.
+
+Use `program-runtime.learning-maintain` to list or advance a finding. The ordered
+states are `observed`, `routed`, `claimed`, `repaired`, `validated`, `measured`.
+An advance requires the expected state, exact owner, and evidence. Preserve the
+returned `claim_ref` privately across worker runs; retain the same reference after
+an unavailable response. Only the claim holder advances repair states. A claim expires after 30 minutes;
+a holder can renew it with fresh evidence, or another worker can reclaim an
+expired `claimed` finding. Repaired and validated states are not reset by expiry. A repair
+receipt needs a changed artifact reference; validation needs independent test
+or oracle evidence; measured needs subsequent comparable task evidence. The store
+checks transition/claim integrity. The owning worker is responsible for the
+meaning of its evidence; a nonempty evidence string is not a correctness oracle.
+
+```mermaid
+flowchart TD
+    A[Goal and verification contract] --> B[Adaptive section]
+    B --> C[Verified result and feedback reference]
+    C --> D[Compatible reuse]
+    E[Later user or downstream evidence] --> F[Durable feedback]
+    F --> D
+    B --> G[Unresolved finding]
+    F --> G
+    G --> H[Server routes owner queue]
+    H --> I[Owner worker claims and repairs]
+    I --> J[Independent validation]
+    J --> K[Subsequent task measurement]
+    K --> D
+```
+
+| Owner | Produces | Consumes and acts |
+|---|---|---|
+| Program Runtime | Attempt tree, result references, candidate evidence, owner findings | Selects compatible implementations; adapts within budget; delivers evidence; exposes queue state. |
+| Memory | Recall and comparable outcome projections | Retains original-scope feedback and returns advisory knowledge. |
+| BAS | Task postconditions, navigation evidence, exact workflow revisions | Applies browser-specific checks, extracts task results, qualifies and repairs browser flows. |
+| Scenario improve worker | Claimed repair and validation evidence | Reads its owner queue; fixes domain behavior under its existing authority. |
+| Meta Optimization | Prioritized cross-owner gaps | Reads unresolved learning findings and runtime health; does not claim that ranking a gap repairs it. |
+
+A worker must be scheduled by the existing goal-loop/agent system to perform
+engineering changes. The server automatically captures and routes findings; it
+does not grant a queue reader unrestricted code-editing authority. Reviewed
+portable baselines retain the publication workflow above. Runtime learning does
+not automatically commit or publish private task data.
+
+Permanently refused feedback remains in the private journal for inspection and
+returns `refused`; it leaves the retry queue so it cannot block unrelated reuse.
+Transient delivery failures remain pending and return `partial`.

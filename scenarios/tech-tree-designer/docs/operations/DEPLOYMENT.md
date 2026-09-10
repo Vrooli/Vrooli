@@ -1,62 +1,38 @@
 # Deployment — Tech Tree Designer
 
-This document records supported delivery tiers, packaging assumptions,
-runtime dependencies, and deployment readiness.
-
 ## Purpose Of This Document
 
-Use this document to answer:
-
-- Where can this scenario run?
-- What runtime assumptions must hold?
-- What blocks desktop, mobile, cloud, SaaS, or enterprise packaging?
-- What must pass before deployment?
+Distinguish local implementation from qualified support for repository-wide design.
 
 ## Supported Tiers
 
-| Tier | Status | Requirements | Blockers |
-|---|---|---|---|
-| Local Vrooli stack | active | Vrooli lifecycle, Go, Node/pnpm, SQLite path | Replace template reference domains before product deployment. |
-| Desktop/mobile app | deferred | Cross-platform runtime, packaged UI/API, storage resolver | Run cross-platform readiness before adoption. |
-| Managed cloud/SaaS | deferred | Hosted runtime, auth, observability, cost model | Requires deployment and monetization review. |
-| Enterprise/self-host | deferred | Install docs, backup/restore, support model | Requires operational hardening. |
+Local Vrooli is the existing runtime shape, not certification of all new targets. Desktop/mobile packaging, remote multi-user, SaaS and enterprise operation require separate qualification. Compact browser review is a UX target, not a claim of on-device backend portability.
 
 ## Runtime Requirements
 
-- API port: assigned by lifecycle as `API_PORT`.
-- UI port: assigned by lifecycle as `UI_PORT`.
-- Storage: embedded SQLite, resolved from the scenario id by `api-core/storage`.
-- Resources: none external by default.
-- Network: local API/UI communication.
+Lifecycle owns API/UI ports, process identity and health. Embedded SQLite stores current metadata; SDA supplies observed interface data. Proposed experiments require qualified control-plane isolation of runtime identities, databases, ports and effects. No additional resource is approved by this documentation.
 
 ## Packaging
 
-| Surface | Packaging Notes |
-|---|---|
-| API | Go binary built by scenario lifecycle. |
-| UI | Vite production bundle served by `ui/server.js`. |
-| CLI | Go CLI installed through scenario manifest install hooks. |
-| Proto | Schemas live under `packages/proto/schemas/tech-tree-designer/`; generated clients are shared artifacts. |
+Preserve the lifecycle-built Go API/CLI, Vite UI and shared generated proto contracts. Reuse artifact owners for code generation and publication. Document owner capability/version compatibility and unsupported operations before releasing generic bundle consumers.
 
 ## Release Checklist
 
-- [ ] `make setup` passes.
-- [ ] `make test` passes.
-- [ ] PRD operational targets have linked requirements.
-- [ ] Template reference domain has been replaced or explicitly retained
-      with product justification.
-- [ ] `docs/manifest.json` maturity reflects current docs.
-- [ ] `RUNBOOK.md`, `OBSERVABILITY.md`, `SECURITY.md`, and
-      `MONETIZATION.md` are active or explicitly not-applicable.
+- [ ] Applicable requirements have fresh evidence, not only declared completion.
+- [ ] General artifact/revision/grant/conflict/recovery invariants pass real owner-path qualification.
+- [ ] Draft publication and ungranted runtime/billing effects are denied.
+- [ ] Operator experiences are grounded and validated, including partial/stale/error states.
+- [ ] Performance cohorts and budgets are approved and measured.
+- [ ] Retention, backup/restore and interrupted-apply recovery are qualified.
+- [ ] Deployment-specific identity, secrets and access control are verified.
+- [ ] Documentation, API/CLI references and evidence describe the same supported surface.
 
 ## Rollback
 
-Local development rollback is source-control based. For deployed
-targets, document the deployment-specific rollback path before release.
+Coordinate source and storage compatibility with their owners. Do not use destructive repository resets or database restoration as automatic compensation for partial application. Inspect per-entry receipts, preserve newer unrelated work and obtain applicable recovery authority.
 
 ## Cross-References
 
-- [`RUNBOOK.md`](RUNBOOK.md) — operator procedures
-- [`OBSERVABILITY.md`](OBSERVABILITY.md) — health and telemetry
-- [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — dependencies
-- [`../reference/configuration.md`](../reference/configuration.md) — env vars and lifecycle config
+- [Runbook](RUNBOOK.md)
+- [Observability](OBSERVABILITY.md)
+- [Security](../internal/SECURITY.md)

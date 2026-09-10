@@ -1083,6 +1083,17 @@
           "architecture": {"primitive":"proto_list","primary_field":"rows"}
         },
         {
+          "name": "learning-findings",
+          "description": "Read unresolved learning findings with accountable owners and evidence; excludes feedback authority.",
+          "flags": [
+            {"name":"owner", "description":"Filter by owning scenario."},
+            {"name":"limit", "type":"int", "description":"Maximum findings, 1..100."}
+          ],
+          "binding": {"kind":"connect-rpc","service":"vrooli.program_runtime.v1.programs.ProgramService","method":"ListLearningFindings"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list","primary_field":"findings"}
+        },
+        {
           "name": "mine-refusals",
           "description": "Summarize recurring binding refusals.",
           "flags": [

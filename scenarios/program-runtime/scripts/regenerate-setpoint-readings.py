@@ -46,17 +46,20 @@ def rewrite(skill: Path, envelope: dict, date: str) -> None:
     end = text.index(end_marker, start)
     section = text[start:end]
     values = {str(row.get("row")): generated_value(row, date) for row in envelope["signals"]["rows"]}
-    expected_rows = 19
-    if len(values) != expected_rows:
-        raise ValueError(f"expected {expected_rows} setpoint rows, got {len(values)}")
+    # Agreement is checked by row name in both directions below. A hardcoded row count used to sit
+    # here; it had to be bumped by hand whenever setpoint-read gained a row, and when it was not,
+    # regeneration refused to run at all while the table and the envelope agreed row for row.
 
     lines = section.splitlines()
     seen = set()
+    listed = set()
     rewritten = []
     for line in lines:
         if line.startswith("|") and line.count("|") >= 5:
             cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
             name = cells[0] if cells else ""
+            if re.fullmatch(r"[a-z0-9][a-z0-9-]*", name):
+                listed.add(name)
             if name in values and len(cells) >= 4:
                 cells[3] = values[name]
                 line = "| " + " | ".join(cells) + " |"
@@ -65,6 +68,9 @@ def rewrite(skill: Path, envelope: dict, date: str) -> None:
     missing = sorted(set(values) - seen)
     if missing:
         raise ValueError("skill is missing setpoint rows: " + ", ".join(missing))
+    unreported = sorted(listed - set(values))
+    if unreported:
+        raise ValueError("envelope does not report skill setpoint rows: " + ", ".join(unreported))
     replacement = "\n".join(rewritten)
     skill.write_text(text[:start] + replacement + "\n" + text[end:])
 

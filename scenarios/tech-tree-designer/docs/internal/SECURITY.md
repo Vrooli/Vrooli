@@ -1,55 +1,42 @@
 # Security — Tech Tree Designer
 
-This document records the scenario's security and privacy posture.
-Update it before adding auth, user data, external APIs, payment flows,
-secrets, or sensitive business data.
-
 ## Purpose Of This Document
 
-Use this document to answer:
-
-- What sensitive data exists?
-- How is access controlled?
-- Where do secrets come from?
-- Which threats are known and how are they mitigated?
+Define target safety boundaries for repository-wide drafts and application. These controls require implementation evidence; their specification does not assert that the current proto materializer provides them.
 
 ## Data Sensitivity
 
-| Data | Sensitivity | Owner | Notes |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
+Repository drafts can contain proprietary source, architecture, requirements, proposed instructions and personal or secret material. Graph topology may reveal sensitive infrastructure. Logs, diffs and exports require the same access scope as their source. Exclude credentials, runtime databases, environment files and generated secret-bearing outputs by default.
 
 ## Auth And Authorization
 
-The generated template does not include an auth provider. Add auth only
-when product requirements identify protected data or user-specific
-behavior. UI and CLI must not enforce business authorization locally;
-authorization belongs at the API/service layer.
+Swarm or the qualified authority owner supplies the grant; the API/service verifies it before effects. Bind review to immutable revision and selected entries. A plan link, local host access or draft creation is not publication, execution, billing, commit or deployment authorization.
+
+Recheck scope, expiry/revocation and owner capability at apply time. Material amendments require disposition under the governing mandate; do not silently reuse approval for changed bytes or effects. Reject unknown identities/grants rather than infer permission. Remote and multi-user deployment remain unqualified until identity, tenancy and access controls are tested.
 
 ## Secrets
 
-| Secret | Source | Required? | Notes |
-|---|---|---|---|
-| None by default | n/a | no | Add entries when resources or third-party APIs require secrets. |
+Draft manifests and receipts contain identifiers and redacted findings, not credential values. Use existing secret owners for authorized runtime needs; never copy live credentials into proposal storage. Scan imports/exports at the appropriate owner boundary and report exclusions without leaking contents.
 
 ## Threat Model
 
-| Risk | Impact | Mitigation | Status |
-|---|---|---|---|
-| Unsafe file upload handling | Malicious or oversized upload could affect storage. | Multipart handler validates metadata and BlobStore seam isolates bytes. | template-reference |
-| Missing auth for product data | User/customer data could be exposed if added without access control. | Add API-layer auth before storing protected data. | deferred |
+| Risk | Required control and qualification |
+|---|---|
+| Path traversal, symlink escape, ambiguous root, overlapping selections | Canonicalize within an approved repository root; validate owner-specific paths and reject unsafe or overlapping entries before writes |
+| Draft instructions becoming executable | Keep proposed skills/programs outside live discovery; publication uses their canonical owner and separate applicable authority |
+| Prompt injection in imported files or graph text | Treat content as data; it cannot expand grants, select tools or override the mandate |
+| Concurrent edits and replay | Recheck relevant base identities; use durable operation IDs and per-entry receipts |
+| Partial writes or malicious rollback | Expose partial state; reconcile owner receipts; never restore over unrelated newer edits |
+| Resource exhaustion | Enforce scope, byte, traversal, queue and retention limits; exercise adversarial graphs/artifacts |
+| Experiment leakage | Qualified workspace plus control-plane runtime identity, ports, databases and network/billing restrictions; no execution by merely opening a draft |
+| Stale or forged fulfillment | Keep provenance and evidence revision; a mapping or applied document is not proof of capability |
 
 ## Security Gaps
 
-| Gap | Severity | Revisit Trigger |
-|---|---|---|
-| No product-specific data classification | medium | Fill after PRD/domain map defines real data. |
-| No auth model | conditional | Required before protected or multi-user data. |
+Generic proposal grants, publication isolation, bounded imports, partial-apply recovery and remote access are target obligations until tested. A documentation-only mandate does not authorize experiments, payment calls, publishing skills or changing live service configuration.
 
 ## Cross-References
 
-- [`../concepts/DATA.md`](../concepts/DATA.md) — data ownership and retention
-- [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — external services and secrets
-- [`ERROR-HANDLING.md`](ERROR-HANDLING.md) — error response behavior
-- [`PROBLEMS.md`](PROBLEMS.md) — unresolved security debt
+- [Data](../concepts/DATA.md)
+- [Flows](../concepts/FLOWS.md)
+- [Testing](TESTING.md)

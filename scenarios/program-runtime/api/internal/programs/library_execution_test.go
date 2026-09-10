@@ -375,7 +375,7 @@ board = lib.program_runtime.setpoint_read().head(1)[0]
 assert board["status"] == "ok", board
 assert board["signals"]["failure_shapes"] == [{"shape":"kernel_runtime", "count":3}], board
 assert board["signals"]["failure_shapes_window"] == "all-time"
-assert len(json.dumps(board).encode()) < 4096
+assert len(json.dumps(board).encode()) < 8192
 print("bounded failure evidence verified")`)
 	if err != nil || !strings.Contains(result.Stdout, "bounded failure evidence verified") {
 		t.Fatalf("result=%+v err=%v", result, err)

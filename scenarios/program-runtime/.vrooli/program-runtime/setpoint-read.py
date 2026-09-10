@@ -7,7 +7,8 @@ Canon:    program-contracts.md §"The envelope" (row shape, `reason` vocabulary,
 Phases: validate -> collect -> classify -> report. Read-only. No inference, no delegation.
 Every governed read is guarded on its own worker, so one dead binding yields one row with
 reason `scenario_unreachable` and the other rows survive. A row whose reason is permanent
-(`no_governed_binding`, `kernel_invoke_budget`, `read_elsewhere:<program>`, `pending_telemetry`)
+(`no_governed_binding`, `kernel_invoke_budget`, `read_elsewhere:<program>`, `pending_telemetry`,
+`no_advice_decisions`, `no_verified_fragments`)
 never lowers the status; only a failed read makes the board `partial`.
 """
 
@@ -82,6 +83,7 @@ CALLS = {
     "portfolio": lambda: program_runtime.programs.portfolio(window_days=30, scenario="", include_ad_hoc=False),
     "maturity": lambda: lib.program_runtime.portfolio_audit(min_rung="S3", window_days=30),
     "taskmetrics": lambda: optional_read("delivery_metrics"),
+    "learning_findings": lambda: tasks.learning_findings(),
     "fragments": lambda: optional_read("fragment_list"),
     "advice": lambda: advice_read(),
 }
@@ -226,6 +228,19 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count/head/g
     else:
         dead_row("unexercised-contracts", "portfolio", target, sensor)
 
+    if "learning_findings" in h:
+        queue = (h["learning_findings"].head(1) or [{}])[0]
+        findings = queue.get("findings", [])
+        truncated = bool(queue.get("truncated")) or len(findings) > 100
+        states = {}
+        for finding in findings[:100]:
+            state = finding.get("state", "unknown")
+            states[state] = states.get(state, 0) + 1
+        row("learning-findings", {"count": len(findings[:100]), "states": states, "truncated": truncated},
+            "0 unresolved findings", not findings and not truncated, sensor="program-runtime.learning-maintain")
+    else:
+        dead_row("learning-findings", "learning_findings", "0 unresolved findings", "program-runtime.learning-maintain")
+
     target, sensor = "0", "program-runtime durable task metrics: blocked deliveries older than 24 hours"
     if "taskmetrics" in h:
         metric = (h["taskmetrics"].head(1) or [{}])[0]
@@ -250,10 +265,18 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count/head/g
         total = applied + rejected
         ratio = (applied / total) if total else None
         reliability = ((comparison.get("signals") or {}).get("reliability") or {})
-        row("advice-application-ratio", {"applied": applied, "rejected": rejected, "ratio": ratio,
-                                          "source_reliable": reliability.get("reliable"),
+        # A source that answered and reported no decisions is a readable zero, not an outage:
+        # nothing applied advice, which is exactly the out-of-band condition this row exists
+        # to catch. Only an unreliable source is declined, so an idle loop cannot read green.
+        source_reliable = reliability.get("reliable")
+        unreadable = source_reliable is False
+        row("advice-application-ratio", {"applied": applied, "rejected": rejected,
+                                          "ratio": ratio if total else 0.0, "decisions": total,
+                                          "source_reliable": source_reliable,
                                           "source_reason": reliability.get("reason")}, target,
-            ratio is not None and ratio >= 0.2, unavailable=(total == 0), reason=None if total else "unreliable:no advice decisions", sensor=sensor)
+            total > 0 and ratio is not None and ratio >= 0.2, unavailable=unreadable,
+            reason="unreliable:" + str(reliability.get("reason") or "source unreliable") if unreadable
+                   else ("no_advice_decisions" if not total else None), sensor=sensor)
     else:
         dead_row("advice-application-ratio", "advice", target, sensor)
 
@@ -265,19 +288,59 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count/head/g
         cached = sum(int(f.get("cached_runs", 0) or 0) for f in fragments if isinstance(f, dict))
         total = verified
         rate = (cached / total) if total else None
+        # The band is conditional on a verified fragment existing, so zero verified fragments
+        # does not violate it. Name that state exactly: `pending_telemetry` reads as a broken
+        # sensor, and the sensor is fine — nothing has been learned yet. act-adoption below
+        # is the row that goes red for it.
         row("fragment-cache-hit-rate", {"cached_runs": cached, "act_runs": total, "rate": rate}, target,
-            rate is not None and rate >= 0.5, unavailable=(verified == 0), reason=None if verified else "pending_telemetry", sensor=sensor)
-        promotable_rows = [f for f in fragments if isinstance(f, dict) and int(f.get("verified", 0) or 0) >= 5 and int(f.get("contexts", 0) or 0) >= 2 and int(f.get("contradicted_since_edit", 0) or 0) == 0]
+            rate is not None and rate >= 0.5, unavailable=(verified == 0),
+            reason=None if verified else "no_verified_fragments", sensor=sensor)
+        qualified = [f for f in fragments if isinstance(f, dict) and int(f.get("verified", 0) or 0) >= 5 and int(f.get("contexts", 0) or 0) >= 2 and int(f.get("contradicted_since_edit", 0) or 0) == 0]
+        # A fragment whose owning contract already declares it as a reviewed baseline has been
+        # promoted; counting it kept this row red after the right action, so a healthy fleet could
+        # never reach the band. The bridge marks those rows `published`.
+        promotable_rows = [f for f in qualified if not f.get("published")]
         promotable = len(promotable_rows)
         envelope_fragment_reading = {"cached_runs": cached, "act_runs": total, "rate": rate,
+                                     "published": len(qualified) - promotable,
                                      "candidates": [{"step_key": f.get("step_key"), "verified": f.get("verified")} for f in promotable_rows[:10]]}
         envelope["signals"]["rows"][-1]["reading"] = envelope_fragment_reading
         row("promotable-fragments", promotable, "0 without a filed route", promotable == 0,
-            sensor="program-runtime durable fragment promotion candidates")
+            sensor="program-runtime durable fragment promotion candidates, excluding published baselines")
     else:
         dead_row("fragment-cache-hit-rate", "fragments", target, sensor)
         row("promotable-fragments", None, "0 without a filed route", None, unavailable=True, reason="pending_telemetry",
             sensor="program-runtime durable fragment promotion candidates")
+
+    # act-adoption: the declared-versus-learned gap. A complete adaptive mechanism that no
+    # program calls improves nothing, and fragment-cache-hit-rate cannot show that because its
+    # band is conditional on a verified fragment already existing. This row is the one that
+    # goes red for zero adoption, so an unused loop is never indistinguishable from a healthy one.
+    target = ">= 1 program with a verified fragment"
+    sensor = "program-runtime library list declared verbs or analyzer learning_verbs + retained fragment observations"
+    if "lib" in h and "fragments" in h:
+        entries = h["lib"].head(1000)
+
+        def declares_act(entry):
+            # The analyzer projection names verbs bare ("act"); the contract's declared `verbs`
+            # carries the prefix ("learn.act"). An `or` chain across the two short-circuited on the
+            # non-empty bare list and never matched, so this row read 0 while programs declared it.
+            analyzed = entry.get("learningVerbs") or entry.get("learning_verbs") or []
+            declared = entry.get("verbs") or []
+            return "act" in analyzed or "learn.act" in analyzed or "learn.act" in declared
+
+        declaring = [e for e in entries if isinstance(e, dict) and declares_act(e)]
+        payload = (h["fragments"].head(1) or [{}])[0]
+        fragment_rows = payload.get("fragments") or []
+        learned = len({f.get("step_key") for f in fragment_rows
+                       if isinstance(f, dict) and int(f.get("verified", 0) or 0) >= 1})
+        row("act-adoption", {"programs_declaring_act": len(declaring), "verified_fragments": learned,
+                             "examples": sorted(str(e.get("name", "")) for e in declaring)[:10]},
+            target, learned >= 1, sensor=sensor)
+    elif "lib" in h:
+        dead_row("act-adoption", "fragments", target, sensor)
+    else:
+        dead_row("act-adoption", "lib", target, sensor)
 
     # governance-share: the handle's rows are the observed (ungoverned) names; the share is a meta() scalar.
     # protojson omits a double at 0.0, so an absent governedShare on an available response is 0.0.
@@ -327,7 +390,22 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count/head/g
         dead_row("uncovered-recurring-shapes", "shapes", target, sensor)
 
     # Rows owned elsewhere: read by the named program, or waiting on a measure that does not exist yet.
-    row("attribution", None, "program_id on agent-manager facts", None, unavailable=True, reason="pending_telemetry")
+    # attribution: the agent-provenance corpus already read carries the caller run id, so this
+    # is measurable here. A dark row cannot be told apart from a healthy one on a board; an
+    # unattributed corpus is a real, readable failure of the loop's accounting.
+    target = "0 unattributed agent runs"
+    sensor = "program-runtime programs list --provenance agent --since-seconds 2592000 caller run identity"
+    adoption = next((item for item in envelope["signals"]["rows"] if item["row"] == "program-adoption"), None)
+    reading = (adoption or {}).get("reading")
+    if isinstance(reading, dict) and reading.get("eligible_agent_runs"):
+        unattributed = int(reading.get("unattributed_agent_runs", 0) or 0)
+        eligible = int(reading.get("eligible_agent_runs", 0) or 0)
+        row("attribution", {"unattributed_agent_runs": unattributed, "eligible_agent_runs": eligible,
+                            "attributed_share": round((eligible - unattributed) / eligible, 4),
+                            "window": "last-30-days"}, target, unattributed == 0, sensor=sensor)
+    else:
+        row("attribution", None, target, None, unavailable=True,
+            reason="unreliable:no agent-provenance runs in corpus", sensor=sensor)
     row("external-friction", None, "0 recurring fingerprints", None, unavailable=True,
         reason="read_elsewhere:agent-manager.friction-digest")
     row("fleet-improve-coverage", None, "all high-volume callers conformant", None, unavailable=True,

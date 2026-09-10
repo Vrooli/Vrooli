@@ -26,7 +26,7 @@ type handlers struct {
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	h := &handlers{client: programsconnect.NewProgramServiceClient(httpClient, baseURL)}
-	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{"ProgramService.SubmitProgram": cliapp.ProtoMutation(h.submit, h.submitReport), "ProgramService.GetProgram": cliapp.ProtoList(h.get, h.programReport), "ProgramService.WaitForProgram": cliapp.ProtoList(h.waitCommand, h.waitReport), "ProgramService.ListPrograms": cliapp.ProtoList(h.list, h.listReport), "ProgramService.PortfolioStats": cliapp.ProtoList(h.portfolio, h.portfolioReport), "vrooli.program_runtime.v1.programs.ProgramService.MineFailures": cliapp.ProtoList(h.mine, h.failureReport), "vrooli.program_runtime.v1.programs.ProgramService.MineRefusals": cliapp.ProtoList(h.mineRefusals, h.refusalReport), "vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings": cliapp.ProtoList(h.mineUnresolved, h.unresolvedReport), "vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare": cliapp.ProtoList(h.governanceShare, h.governanceReport)})
+	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{"vrooli.program_runtime.v1.programs.ProgramService.ListLearningFindings": cliapp.ProtoList(h.learningFindings, h.learningFindingsReport), "ProgramService.SubmitProgram": cliapp.ProtoMutation(h.submit, h.submitReport), "ProgramService.GetProgram": cliapp.ProtoList(h.get, h.programReport), "ProgramService.WaitForProgram": cliapp.ProtoList(h.waitCommand, h.waitReport), "ProgramService.ListPrograms": cliapp.ProtoList(h.list, h.listReport), "ProgramService.PortfolioStats": cliapp.ProtoList(h.portfolio, h.portfolioReport), "vrooli.program_runtime.v1.programs.ProgramService.MineFailures": cliapp.ProtoList(h.mine, h.failureReport), "vrooli.program_runtime.v1.programs.ProgramService.MineRefusals": cliapp.ProtoList(h.mineRefusals, h.refusalReport), "vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings": cliapp.ProtoList(h.mineUnresolved, h.unresolvedReport), "vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare": cliapp.ProtoList(h.governanceShare, h.governanceReport)})
 }
 
 func (h *handlers) portfolio(ctx cliapp.OperationContext) (*programsv1.PortfolioStatsResponse, error) {
@@ -385,4 +385,31 @@ func parseProvenance(value string) (programsv1.Provenance, error) {
 	default:
 		return programsv1.Provenance_PROVENANCE_UNSPECIFIED, fmt.Errorf("provenance must be agent, operator, test, or replay")
 	}
+}
+
+func (h *handlers) learningFindings(ctx cliapp.OperationContext) (*programsv1.ListLearningFindingsResponse, error) {
+	limit := int64(50)
+	if raw := strings.TrimSpace(ctx.Flag("limit")); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil || parsed < 1 || parsed > 100 {
+			return nil, fmt.Errorf("limit must be 1..100")
+		}
+		limit = parsed
+	}
+	r, err := h.client.ListLearningFindings(context.Background(), connect.NewRequest(&programsv1.ListLearningFindingsRequest{Owner: ctx.Flag("owner"), Limit: int32(limit)}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("learning findings", err, nil)
+	}
+	return r.Msg, nil
+}
+func (*handlers) learningFindingsReport(_ cliapp.OperationContext, r *programsv1.ListLearningFindingsResponse) cliapp.ListReport {
+	results := []string{}
+	for _, f := range r.GetFindings() {
+		results = append(results, fmt.Sprintf("%s owner=%s state=%s dimension=%s updated=%s", f.GetFindingId(), f.GetOwner(), f.GetState(), f.GetDimension(), f.GetUpdatedAt()))
+	}
+	summary := []string{fmt.Sprintf("%d unresolved learning finding(s).", len(results))}
+	if r.GetTruncated() {
+		summary = append(summary, "Truncated: narrow by owner; omitted findings remain unresolved.")
+	}
+	return cliapp.ListReport{Summary: summary, ResultsHeading: "Learning owner queue", Results: results, ListShaped: true, ResultCount: len(results)}
 }

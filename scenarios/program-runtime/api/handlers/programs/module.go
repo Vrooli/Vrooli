@@ -11,6 +11,7 @@ import (
 	"program-runtime/internal/budgets"
 	"program-runtime/internal/module"
 	internalprograms "program-runtime/internal/programs"
+	"program-runtime/internal/tasks"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -23,17 +24,44 @@ type handler struct {
 	service   *internalprograms.Service
 	authoring internalprograms.AuthoringDeps
 	discovery internalprograms.DiscoveryEvalDeps
+	learning  *tasks.Store
 }
 
 func Module(service *internalprograms.Service, authoring internalprograms.AuthoringDeps, discovery ...internalprograms.DiscoveryEvalDeps) module.Module {
+	return ModuleWithLearning(service, authoring, nil, discovery...)
+}
+
+func ModuleWithLearning(service *internalprograms.Service, authoring internalprograms.AuthoringDeps, learning *tasks.Store, discovery ...internalprograms.DiscoveryEvalDeps) module.Module {
 	var discoveryDeps internalprograms.DiscoveryEvalDeps
 	if len(discovery) > 0 {
 		discoveryDeps = discovery[0]
 	}
 	return module.Module{Name: "programs", Mount: func(r *mux.Router) {
-		path, h := programsconnect.NewProgramServiceHandler(&handler{service: service, authoring: authoring, discovery: discoveryDeps})
+		path, h := programsconnect.NewProgramServiceHandler(&handler{service: service, authoring: authoring, discovery: discoveryDeps, learning: learning})
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h})
 	}, Endpoints: Endpoints}
+}
+
+func (h *handler) ListLearningFindings(ctx context.Context, req *connect.Request[programsv1.ListLearningFindingsRequest]) (*connect.Response[programsv1.ListLearningFindingsResponse], error) {
+	if h.learning == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("learning store unavailable"))
+	}
+	limit := int(req.Msg.GetLimit())
+	if limit == 0 {
+		limit = 50
+	}
+	if limit < 1 || limit > 100 || len(req.Msg.GetOwner()) > 128 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("limit must be 1..100 and owner bounded"))
+	}
+	findings, err := h.learning.ListLearningFindings(ctx, req.Msg.GetOwner())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	response := &programsv1.ListLearningFindingsResponse{Truncated: len(findings) > limit}
+	for _, f := range findings[:min(limit, len(findings))] {
+		response.Findings = append(response.Findings, &programsv1.LearningFinding{FindingId: f.ID, Owner: f.Owner, State: f.State, Dimension: f.Dimension, Correction: f.Correction, Evidence: f.Evidence, UpdatedAt: f.UpdatedAt})
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (h *handler) RunDiscoveryEval(ctx context.Context, req *connect.Request[programsv1.RunDiscoveryEvalRequest]) (*connect.Response[programsv1.RunDiscoveryEvalResponse], error) {

@@ -12,7 +12,7 @@ import (
 	ontologyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/ontology"
 )
 
-func TestParseTopologySeedCounts(t *testing.T) {
+func TestParseTopologySeedCounts(t *testing.T) { // [REQ:TTD-ONTOLOGY-001]
 	data, err := os.ReadFile(filepath.Join("..", "..", "..", "data", "seed", "macro_topology.json"))
 	if err != nil {
 		t.Fatalf("ReadFile(seed) error = %v", err)

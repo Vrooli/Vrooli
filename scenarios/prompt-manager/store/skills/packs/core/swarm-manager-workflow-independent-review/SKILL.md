@@ -7,9 +7,9 @@ metadata:
   schemaVersion: 1
   tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
   status: "active"
-  revision: 3
+  revision: 5
   createdAt: "2026-07-18T03:05:27Z"
-  updatedAt: "2026-07-18T03:05:27Z"
+  updatedAt: "2026-09-10T16:02:00Z"
   modes: ["contract"]
   requires:
     scenarios: ["prompt-manager", "swarm-manager"]
@@ -23,7 +23,7 @@ Independently review the completed backlog execution using only the immutable sn
 
 ## Method
 
-Run `prompt-manager skill read swarm-manager-review` and apply its evidence strategy, its GCT-results and baseline-delta evaluation steps, its evidence-type selection, and its classification rules. Its Inputs section describes a legacy envelope — your inputs arrive in `{{.snapshot}}` instead; the doctrine is unchanged.
+Run `prompt-manager skill read swarm-manager-review` and apply its evidence strategy, its GCT-results and baseline-delta evaluation steps, its evidence-type selection, and its classification rules. Its Inputs section describes a legacy envelope — your inputs arrive in the snapshot field instead; the doctrine is unchanged.
 
 ## Verdict work table
 
@@ -37,6 +37,8 @@ Run `prompt-manager skill read swarm-manager-review` and apply its evidence stra
 Return the required terminal `outcome` alongside `handoff`: use `accepted` for `ready` or `ready_with_notes`, `changes-requested` for `needs_work`, and `inconclusive` for `not_assessable`.
 
 ## Evidence resolution
+
+Every evidence item with `settlement: unavailable` must include non-empty `unavailable_reason` and `attempted_producer`. Name the missing producer or source and explain why its evidence is unavailable. A title or description does not replace these typed fields. If the immutable snapshot lacks a producer result, report that absence without claiming you invoked the producer.
 
 Judge the exact authored acceptance claim. Do not strengthen “attached test evidence” into “the entire suite must pass,” and do not treat a producer-specific check as a requirement that the author did not state. A failing suite or phase refutes the criterion only when the criterion requires that result to pass, or when the failure is attributable to the execution and affects the claimed behavior.
 
@@ -54,8 +56,8 @@ When `disposition.kind` is `follow_up`, populate `disposition.follow_up` with a 
 
 | Variable | Content |
 | --- | --- |
-| `{{.entity}}` | Subject identity: kind, name, executionId, version. |
-| `{{.snapshot}}` | The execution context: deliverable content, changed paths, affected scenarios, GCT review results, and baseline-diff results where available. |
+| `entity` | Subject identity: kind, name, executionId, version. |
+| `snapshot` | The execution context: deliverable content, changed paths, affected scenarios, GCT and baseline results, and bound owner workflow/run evidence where available. Owner lifecycle/usage observations and reported agent summaries have different trust; unavailable evidence is not a pass. |
 
 ## Boundary
 

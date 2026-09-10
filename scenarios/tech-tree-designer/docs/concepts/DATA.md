@@ -1,52 +1,52 @@
-# Data - Tech Tree Designer
+# Data — Tech Tree Designer
 
 ## Purpose Of This Document
 
-Record data ownership, storage, retention, and import/export expectations for TTD.
+Separate current storage from the target revision/retention contract. The target is a design specification, not a claim that generic proposal tables already exist.
 
 ## Storage Overview
 
-TTD uses SQLite through the `react-vite` template's routed database substrate. Product tables are domain-owned beside the code that interprets them.
+Current planning and ontology metadata use embedded SQLite with domain-owned schemas. Storage adapters must remain replaceable behind domain repositories. General proposals retain immutable manifests and content identities; ephemeral working directories are not the source of truth.
 
 ## Data Ownership
 
-| Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
-|---|---|---|---|---|---|
-| Health status | health | none | runtime probes | not persisted | Operational only. |
-| Graph cache | graph | SQLite optional | `proto-health` / future SDA | rebuildable | Cache must never become graph SSOT. |
-| Planned scenarios | planning | SQLite | `planned_scenario` | until deleted/materialized | Slug, sector, tier, target stability. |
-| Planned proto files | planning | SQLite | `planned_proto_file.text` | until deleted/materialized | Real `.proto` text is the plan SSOT. |
-| Capabilities | ontology | SQLite | `capability` | until deleted | Top-down capability tree, including sector roots. |
-| Capability edges | ontology | SQLite | `capability_edge` | until deleted | Decomposition, progression, and requirement edges. |
-| Fulfillment links | ontology | SQLite | `fulfillment` | until deleted | Many-to-many scenario-to-capability placement. |
+| Data | Authority | Target lifetime |
+|---|---|---|
+| Observed entities, edges and source evidence | SDA or another qualified source; TTD caches derived views | Rebuildable, with source revision/time, coverage and freshness |
+| Intended capabilities and authored relationships | TTD ontology | Revisioned; reviewed changes retain provenance |
+| Proposal manifest and graph delta | TTD planning | Durable beyond draft compute; pinned by reviews/plans/receipts |
+| Proposed artifact bytes | Qualified artifact/workspace owner, referenced by immutable identity | Retained while a reviewed revision is referenced |
+| Authority decision | Swarm or applicable owner | TTD retains reference, not a substitute grant |
+| Apply operation and per-entry receipts | TTD coordination plus authoritative effect-owner receipts | Retained for audit, retry and recovery |
+| Experiment evidence | Validation/runtime owner | Linked to exact revision, environment, input and allowances |
+
+A proposal revision names its repository identity, selected roots/entities, parent revision, target outcomes, plan references, author, source snapshots and findings. Every entry identifies artifact owner/kind, safe relative path, add/change/delete operation, base identity (including expected absence for additions), proposed identity and dependencies. Authored graph deltas carry equivalent relevant-base identities. Required approved evidence is tied to the same selected revision.
 
 ## Schema Map
 
-| Domain | Planned Schema Location | Status |
-|---|---|---|
-| health | none | implemented |
-| graph | none | no cache table yet |
-| planning | `api/internal/planning/schema.sql` | implemented |
-| ontology | `api/internal/ontology/schema.sql` | implemented |
+Current schemas: api/internal/planning/schema.sql and api/internal/ontology/schema.sql. The graph is source-derived; optional caches are not authoritative. A proposal schema is a development obligation, not a new table name promised here.
 
 ## Migrations And Compatibility
 
-This is a greenfield regeneration. Use declarative domain-owned schemas until real production users exist. Do not add Postgres migrations or compatibility shims for the deleted implementation.
+Keep schemas beside their interpreting domains and use the shared storage substrate. Preserve existing planned proto records, ontology identities and referenced evidence through any conversion. Define conversion/export and recovery before replacing live storage. Do not introduce an engine or migration framework merely for the larger vision.
 
 ## Import / Export
 
-Graph export supports JSON, DOT, and text. Ontology import ingests the versioned macro topology seed from `data/seed/macro_topology.json`. Planning materialization exports validated planned proto files to `packages/proto/schemas/<slug>/` and runs proto generation.
+Current graph export supports JSON, DOT and text; ontology imports the macro topology seed; proto materialization writes shared schemas and runs generation. None constitutes generic bundle application.
+
+Target exports include versioned manifests, content references/bytes as authorized, provenance and integrity checks. Imports validate schema, paths, size, owners and exclusions; imported grants are references requiring revalidation, not transferable authority. Generated outputs are regenerated by their owners instead of becoming independent source edits.
 
 ## Retention And Deletion
 
-Planned scenarios, planned proto files, capabilities, capability edges, and fulfillment links are deletable through domain APIs/CLI. Materialized proto files become shared repo artifacts and are governed by proto package policy, not by TTD's SQLite retention.
+Use scoped deltas, deduplicated content and lazy loading. Reference counts/pins protect reviewed revisions when draft compute is deleted or a proposal is abandoned. Explicit deletion must identify affected references, recovery limits and external canonical artifacts it does not delete. Retention windows, quotas, archive policy and backup recovery objectives require qualification; no automatic destructive defaults are approved here.
 
 ## Privacy Notes
 
-TTD stores planning metadata and proto text, not end-user private content. Planned proto text may reveal future scenario names and interface intent, so treat it as internal planning data.
+Source, requirements, skills and topology may be sensitive. Exclude runtime data and secrets; redact findings/logs. Scope access to drafts, exports and receipts consistently. See SECURITY.
 
 ## Cross-References
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md)
-- [`DOMAINS.md`](DOMAINS.md)
-- [`../internal/SEAMS.md`](../internal/SEAMS.md)
+- [Architecture](ARCHITECTURE.md)
+- [Flows](FLOWS.md)
+- [Security](../internal/SECURITY.md)
+- [Performance](../internal/PERFORMANCE.md)

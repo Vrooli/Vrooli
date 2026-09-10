@@ -1,7 +1,7 @@
 {
   "version": "2.0.0",
   "title": "Tech Tree Designer Documentation",
-  "description": "Documentation contract for the scenario generated from the react-vite template",
+  "description": "Documentation contract for current implementation and the repository-wide ecosystem design target.",
   "defaultDocument": "START-HERE.md",
   "contract": {
     "kind": "scenario-docs",
@@ -77,7 +77,7 @@
             "orientation",
             "onboarding"
           ],
-          "description": "First implementation session after scenario generation",
+          "description": "Existing-scenario development entrypoint, target sequence and qualification gaps",
           "audience": [
             "developers",
             "agents"
@@ -93,7 +93,9 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "scenario-generation"
+            "tech-tree-designer",
+            "tech-tree-designer-improve",
+            "scenario-work-ladder"
           ],
           "validation": {
             "requiredHeadings": [
@@ -149,7 +151,7 @@
             "product-requirements",
             "operational-targets"
           ],
-          "maturity": "stub",
+          "maturity": "active",
           "requiredBy": [
             "oriented"
           ],
@@ -159,14 +161,14 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "\ud83c\udfaf Overview",
-              "\ud83c\udfaf Operational Targets",
-              "\ud83d\udd34 P0 \u2013 Must ship for viability",
-              "\ud83d\udfe0 P1 \u2013 Should have post-launch",
-              "\ud83d\udfe2 P2 \u2013 Future / expansion",
-              "\ud83e\uddf1 Tech Direction Snapshot",
-              "\ud83e\udd1d Dependencies & Launch Plan",
-              "\ud83c\udfa8 UX & Branding"
+              "🎯 Overview",
+              "🎯 Operational Targets",
+              "🔴 P0 – Must ship for viability",
+              "🟠 P1 – Should have post-launch",
+              "🟢 P2 – Future / expansion",
+              "🧱 Tech Direction Snapshot",
+              "🤝 Dependencies & Launch Plan",
+              "🎨 UX & Branding"
             ],
             "forbiddenPlaceholders": []
           }
@@ -242,6 +244,24 @@
               "Current Limitations",
               "Cross-References"
             ],
+            "forbiddenPlaceholders": []
+          }
+        },
+        {
+          "path": "../experience/README.md",
+          "docType": "experience-contract",
+          "title": "Experience Contract",
+          "description": "Draft page and journey intent; not runtime qualification",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "maturity": "draft",
+          "requiredBy": ["oriented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [],
             "forbiddenPlaceholders": []
           }
         }
@@ -544,7 +564,7 @@
             "pricing-hypothesis",
             "sku-fit"
           ],
-          "maturity": "stub",
+          "maturity": "draft",
           "requiredBy": [
             "monetizable"
           ],
@@ -589,7 +609,7 @@
             "launch-strategy",
             "market-validation"
           ],
-          "maturity": "stub",
+          "maturity": "draft",
           "requiredBy": [
             "monetizable"
           ],
@@ -641,7 +661,7 @@
             "delivery-tiers",
             "release-readiness"
           ],
-          "maturity": "stub",
+          "maturity": "draft",
           "requiredBy": [
             "deployable"
           ],
@@ -682,7 +702,7 @@
             "operator-procedures",
             "incident-response"
           ],
-          "maturity": "stub",
+          "maturity": "draft",
           "requiredBy": [
             "deployable"
           ],
@@ -724,7 +744,7 @@
             "health-signals",
             "alerts"
           ],
-          "maturity": "stub",
+          "maturity": "draft",
           "requiredBy": [
             "deployable",
             "monetizable"
@@ -954,6 +974,17 @@
       "extensionPolicy": "Add internal docs for durable developer/agent memory: seams, tests, errors, decisions, problems, progress, audits, and skill-specific findings. Do not place user-facing procedures here.",
       "documents": [
         {
+          "path": "internal/development-proposal.json",
+          "docType": "development-proposal",
+          "title": "Development Review Proposal",
+          "description": "Unapproved Swarm preview input; field completeness does not authorize launch.",
+          "audience": ["developers", "agents", "operators"],
+          "maturity": "draft",
+          "requiredBy": ["oriented"],
+          "completion": "required",
+          "validation": {"forbiddenPlaceholders": []}
+        },
+        {
           "path": "internal/SEAMS.md",
           "docType": "seams",
           "title": "Seams",
@@ -962,7 +993,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry \u2014 every interface and its production / test fake",
+          "description": "Boundary registry — every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1102,7 +1133,7 @@
             "threat-model",
             "secrets"
           ],
-          "maturity": "stub",
+          "maturity": "draft",
           "requiredBy": [
             "deployable"
           ],
@@ -1143,7 +1174,7 @@
             "budgets",
             "measurements"
           ],
-          "maturity": "stub",
+          "maturity": "draft",
           "requiredBy": [
             "validated",
             "deployable"
@@ -1264,7 +1295,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log \u2014 append a row whenever work lands",
+          "description": "Lifecycle log — append a row whenever work lands",
           "audience": [
             "developers",
             "agents"

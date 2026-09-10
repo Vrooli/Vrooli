@@ -1,5 +1,7 @@
 # API Endpoints
 
+This reference describes the existing health/graph/proto-planning/ontology surface, not the September 2026 general proposal target. New typed operations for scope selection, immutable revisions, review, apply receipts and recovery require owner qualification and contract generation before they belong here. Do not infer generic artifact support from existing proto materialization. See [target flows](../concepts/FLOWS.md).
+
 ## System
 
 ### `GET /health`

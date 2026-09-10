@@ -98,6 +98,8 @@ func TestSubprocessRunnerUsesAllowlistedEnvironmentAndPinnedScratchDir(t *testin
 	t.Setenv("SCENARIO_DATA_DIR", dataDir)
 	t.Setenv("VROOLI_EVENTS_API_BASE", "https://secret.invalid")
 	t.Setenv("PROGRAM_RUNTIME_SECRET", "do-not-leak")
+	learningState := t.TempDir()
+	t.Setenv("PROGRAM_RUNTIME_LEARNING_STATE_DIR", learningState)
 	hostPythonPath := filepath.Join(t.TempDir(), "host-python-path")
 	t.Setenv("PYTHONPATH", hostPythonPath)
 	path := filepath.Join(t.TempDir(), "probe.py")
@@ -106,6 +108,7 @@ for line in sys.stdin:
     source = json.loads(line).get("source", "")
     if source == "env": value = str(os.environ.get("VROOLI_EVENTS_API_BASE"))
     elif source == "secret": value = str(os.environ.get("PROGRAM_RUNTIME_SECRET"))
+    elif source == "learning_state": value = str(os.environ.get("PROGRAM_RUNTIME_LEARNING_STATE_DIR"))
     elif source == "python": value = sys.executable
     elif source == "sys_path": value = os.pathsep.join(sys.path)
     else: value = os.getcwd()
@@ -115,7 +118,7 @@ for line in sys.stdin:
 	}
 	runner := NewSubprocessRunner(path)
 	defer runner.Close()
-	for source, want := range map[string]string{"env": "None", "secret": "None"} {
+	for source, want := range map[string]string{"env": "None", "secret": "None", "learning_state": learningState} {
 		result, err := runner.Execute(context.Background(), "sess_hardening", source, false)
 		if err != nil || result.Stdout != want {
 			t.Fatalf("source=%s stdout=%q err=%v", source, result.Stdout, err)

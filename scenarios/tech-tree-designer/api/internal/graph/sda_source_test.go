@@ -21,7 +21,7 @@ func (f *fakeSDAClient) DescribeInterfaceGraph(_ context.Context, req SDAInterfa
 	return f.resp, f.err
 }
 
-func TestSDASourceGraphMapsInterfaceGraph(t *testing.T) {
+func TestSDASourceGraphMapsInterfaceGraph(t *testing.T) { // [REQ:TTD-SDA-001]
 	client := &fakeSDAClient{resp: &SDAInterfaceGraphResponse{Graph: &sdagraphv1.InterfaceGraph{
 		Nodes: []*sdagraphv1.GraphNode{
 			{Scenario: "connect-app"},

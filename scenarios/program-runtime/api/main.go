@@ -289,7 +289,7 @@ func main() {
 	}
 	taskDeliveryContext, stopTaskDelivery := context.WithCancel(context.Background())
 	taskDeliveryDone := make(chan struct{})
-	taskDrainer := &tasks.Drainer{Store: taskStore, Deliver: tasksH.Delivery(libraryH.DeclaredRunner(bindingRegistry, contractIndex, libraryH.RunDependencies{Repository: libraryRepository, RepoRoot: repoRoot, Sessions: sessionManager, Programs: programService}))}
+	taskDrainer := &tasks.Drainer{Store: taskStore, ResolveFinishDigest: tasksH.FinishResolver(contractIndex, libraryRepository), Deliver: tasksH.Delivery(libraryH.DeclaredRunner(bindingRegistry, contractIndex, libraryH.RunDependencies{Repository: libraryRepository, RepoRoot: repoRoot, Sessions: sessionManager, Programs: programService}))}
 	go func() {
 		defer close(taskDeliveryDone)
 		taskDrainer.Run(taskDeliveryContext, func(err error) { log.Printf("learning task delivery: %v", err) })
@@ -373,7 +373,7 @@ func main() {
 		healthH.ModuleWithDescriptor(db, "program-runtime-api", "1.0.0", bindingRegistry.SkippedManifestCount, bindingRegistry.SnapshotMetadata),
 		capsH.Module(capabilities.NewRegistry()),
 		bindingsH.Module(bindingRegistry, libraryRepository),
-		programsH.Module(programService, authoringDeps, programs.DiscoveryEvalDeps{SuitePath: programs.DefaultDiscoverySuitePath(repoRoot), Resolve: func(ctx context.Context, intent string, limit int32, mode string) (*bindingsv1.ResolveIntentResponse, error) {
+		programsH.ModuleWithLearning(programService, authoringDeps, taskStore, programs.DiscoveryEvalDeps{SuitePath: programs.DefaultDiscoverySuitePath(repoRoot), Resolve: func(ctx context.Context, intent string, limit int32, mode string) (*bindingsv1.ResolveIntentResponse, error) {
 			return bindingsH.ResolveIntentForEvaluation(ctx, bindingRegistry, libraryRepository, intent, limit, mode)
 		}}),
 		programsValidationH.ModuleWithPortfolio(repoRoot, bindingRegistry, libraryH.DeclaredRunner(bindingRegistry, contractIndex, libraryH.RunDependencies{Repository: libraryRepository, RepoRoot: repoRoot, Sessions: sessionManager, Programs: programService}), programService),

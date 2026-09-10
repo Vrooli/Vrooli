@@ -159,6 +159,18 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "capabilities": {
+          "description": "Scenario and effect allow-set for intent-based adaptive authoring. Resolution still requires live governed binding contracts and session grants.",
+          "type": "array", "maxItems": 16,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["scenario", "effects"],
+            "properties": {
+              "scenario": {"type":"string", "pattern":"^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength":128},
+              "effects": {"type":"array", "minItems":1, "maxItems":3, "uniqueItems":true, "items":{"enum":["read","write","destructive"]}}
+            }
+          }
+        },
         "note_kinds": {
           "type": "object",
           "additionalProperties": {
@@ -361,6 +373,9 @@
           "learn.act",
           "learn.delegate",
           "learn.feedback",
+          "learn.result",
+          "learn.result_ref",
+          "learn.result_status",
           "tasks.run",
           "tasks.get",
           "tasks.current",
@@ -370,7 +385,9 @@
           "tasks.fragment_get",
           "tasks.fragment_list",
           "tasks.fragment_promote",
-          "tasks.delivery_metrics"
+          "tasks.delivery_metrics",
+          "tasks.learning_findings",
+          "tasks.learning_finding_transition"
         ]
       }
     },

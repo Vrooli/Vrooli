@@ -1,56 +1,33 @@
 # Observability — Tech Tree Designer
 
-This document records logs, metrics, telemetry, health checks, and
-business/product signals for the scenario.
-
 ## Purpose Of This Document
 
-Use this document to answer:
-
-- What signals tell us the scenario is healthy?
-- What signals tell us users are getting value?
-- Which logs or metrics should an operator inspect first?
-- What telemetry gaps remain before deployment or monetization?
+Expose product correctness, progress and resource cost without treating health checks as evidence of design readiness.
 
 ## Signals
 
-| Signal | Type | Source | Purpose | Threshold |
-|---|---|---|---|---|
-| `/health` status | health | API | API and dependency reachability | healthy for local development |
-| UI health endpoint | health | UI server | UI bundle/server reachability | responds during lifecycle health check |
-| test-genie result | validation | `make test` | scenario correctness evidence | all required phases pass |
+Current lifecycle health establishes process/API/UI reachability. Target product signals include source freshness/coverage, bounded query results, immutable review identity, validation applicability and per-entry apply/recovery state.
 
 ## Logs
 
-| Log | Source | How To Read | Notes |
-|---|---|---|---|
-| API logs | lifecycle-managed API process | `make logs` | Request logging uses deterministic clock seam in tests. |
-| UI logs | lifecycle-managed UI server | `make logs` | Production bundle server logs only. |
+Use lifecycle logs. Target structured records correlate proposal, revision, operation, entry, owner and validation run IDs. Record denied effects, conflicts, retries and recovery decisions without logging secret values or full sensitive drafts. Preserve durable receipts independently of transient logs.
 
 ## Metrics
 
-| Metric | Status | Notes |
-|---|---|---|
-| Product activation | deferred | Define after PRD users and workflows are real. |
-| Requirement coverage | active | Tracked through requirements and test-genie coverage artifacts. |
-| Performance budgets | deferred | Define in `../internal/PERFORMANCE.md`. |
+Measure query/diff/apply latency distributions, source/cache age, visited/returned nodes and bytes, layout stalls, CPU/RSS/heap, disk IO, queue depth, retained unique content, pinned revisions and recovery backlog. See PERFORMANCE for cohort requirements and pending thresholds.
+
+Product-value measures include author-to-review effort, artifacts re-authored after approval, conflict/recovery frequency and successful fresh-agent target discovery. These are evaluation hypotheses, not measured improvements.
 
 ## Alerts / Health
 
-The generated scenario has lifecycle health checks for API and UI. Add
-deployment-specific alerts only when deployment target and operator
-expectations are known.
+Separate process health, dependency availability, stale source coverage, validation gaps and unresolved effects. Configure thresholds from qualified cohorts and operator expectations. An empty graph or completed HTTP request is not proof that the full operation succeeded.
 
 ## Telemetry Gaps
 
-| Gap | Impact | Revisit Trigger |
-|---|---|---|
-| Product usage telemetry | Cannot validate monetization or adoption. | Add before public launch or monetization review. |
-| Cost telemetry | Cannot evaluate hosted/SaaS unit economics. | Add before managed deployment. |
+The expanded proposal/scale sensors and alert thresholds are unqualified. Establish owner, invocation, bounded result schema, freshness and evidence storage for each sensor before claiming autonomous-development acceptance. Missing sensors must remain visible.
 
 ## Cross-References
 
-- [`RUNBOOK.md`](RUNBOOK.md) — operational procedures
-- [`DEPLOYMENT.md`](DEPLOYMENT.md) — readiness gates
-- [`../business/MONETIZATION.md`](../business/MONETIZATION.md) — business validation signals
-- [`../internal/PERFORMANCE.md`](../internal/PERFORMANCE.md) — performance measurements
+- [Runbook](RUNBOOK.md)
+- [Performance](../internal/PERFORMANCE.md)
+- [Testing](../internal/TESTING.md)

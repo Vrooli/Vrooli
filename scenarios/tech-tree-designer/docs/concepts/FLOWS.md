@@ -1,66 +1,84 @@
-# Flows - Tech Tree Designer
+# Flows — Tech Tree Designer
 
 ## Purpose Of This Document
 
-Record user/system workflows and lifecycle state machines for graph, planning, ontology, and health surfaces.
+Describe existing proto planning and the target documentation-first workflow without confusing draft, approval, application and proof.
 
 ## Flow Inventory
 
-| Flow | Domain | Status | Notes |
-|---|---|---|---|
-| Health check | health | implemented | Lifecycle and UI can read API readiness. |
-| Live graph describe/query/export | graph | implemented | Connect API, CLI, and UI graph routes are available. |
-| Planned proto validate/materialize | planning | implemented | Planned scenario CRUD, file storage, validation, and materialization are available. |
-| Ontology coverage rollup | ontology | implemented | Capability hierarchy, fulfillment links, graph-derived coverage, and focus ranking are available. |
+| Flow | Current boundary | Target |
+|---|---|---|
+| Observe | SDA interface graph and planned overlay | Provenance-bearing bounded observed views, explicit partial/stale results |
+| Design contracts | Planned scenarios and .proto files | Multi-target artifact and authored-graph proposals |
+| Curate ontology | Hierarchy, mappings, coverage/focus | Reviewed revisions; contribution distinct from verified fulfillment |
+| Review/apply | Proto validation/materialization | Exact-revision, owner-directed, recoverable general application |
+| Experiment | Not qualified by this contract update | Explicitly granted isolated draft experiments (P1) |
 
 ## Flow Details
 
-### Health check
+### Bottom-up documentation-first design
 
-1. Lifecycle, CLI, or UI requests `/health`.
-2. API probes database reachability.
-3. API returns proto-shaped JSON health response.
+1. Start from selected repository paths, new target identities, or a bounded observed neighborhood. Query intended capability context only when useful.
+2. Select existing or new scenarios, resources, shared packages and project-level artifacts. The proposal need not reproduce the official graph and may contain proposed corrections or new entities.
+3. Retain references and deltas in a separate proposal workspace. Author real proposed PRDs, requirements, docs, experiences, interface schemas and skill/program definitions without publishing them.
+4. Validate with artifact owners. Show coverage, unsupported validators, unresolved decisions and expected effects.
+5. Produce an immutable revision. Plan Manager stores concise rationale, sequencing and links to that revision, rather than re-describing every artifact.
+6. The operator reviews and authorizes the applicable mandate through Swarm. The executing agent consumes the approved target and iterates within that mandate; ordinary in-scope improvements do not each require a new backlog item.
 
-### Live graph describe/query/export
+Missing graph coverage does not prevent drafting an otherwise supported artifact.
+Retain unknown source relationships and proposal-local corrections explicitly;
+do not require a full graph refresh or an ontology visit before creating a draft.
+The graph-backed journey in `experience/` is one entry path, not a mandatory wizard.
 
-1. API calls the `GraphSource` seam.
-2. The current source reads SDA `DescribeInterfaceGraph` and maps scenario nodes plus proto/Go import evidence into the TTD graph contract.
-3. The graph service overlays planned scenarios from the planning store.
-4. Connect, CLI, or UI consumers request describe, neighborhood, path, ancestors, or export results.
+### Top-down design and bottom-up learning
 
-### Planned proto validate/materialize
+Curate sectors, capabilities, decomposition and relationships as a revisable intended model. Link proposed/implemented contributions with provenance. Evidence can justify a fulfillment judgment, but a scenario mapping alone cannot. Propose ontology corrections from implementation lessons; review them as authored changes. The civilization-scale horizon guides exploration, not an exhaustive task list or execution grant.
 
-1. An operator or agent creates a planned scenario and stores planned `.proto` files.
-2. Validation compiles planned files against live `packages/proto/schemas` plus planned overlays.
-3. Findings are returned without mutating the shared proto tree.
-4. Materialization writes validated files under `packages/proto/schemas/<slug>/` and runs proto generation.
+### One apply experience, multiple authoritative effects
 
-### Ontology coverage rollup
+1. Resolve the exact revision and selected entries; preview effects and dependencies read-only.
+2. Recheck grants, owner support, required validation and relevant base identities. Hold dependent entries when prerequisites fail.
+3. Persist operation intent before effects; delegate artifact writes/generation/publication to qualified owners.
+4. Apply authorized authored-ontology deltas through TTD's own domain with equivalent conflict checks.
+5. Record per-entry receipts and overall complete, partial or conflicted state. Re-derive observed facts from their sources after actual changes; never promote proposed dependencies into observed truth.
+6. Resume an interrupted operation with the same identity and reconcile owner receipts before retrying. Recovery or compensation requires applicable authority and must preserve newer unrelated edits.
 
-1. Ontology stores capability hierarchy, progression edges, and fulfillment links.
-2. Coverage reads the current graph through the scenario-source seam rather than owning implementation topology.
-3. Results classify capabilities as built, in-flight, or gaps, and report unmapped scenarios separately.
+Application and observation refresh have separate standing. If selected writes
+succeed but the source refresh fails, retain the successful owner receipts and
+show observation as stale or unavailable. Retry the read without replaying writes.
+Neither successful application nor successful refresh establishes capability fulfillment.
+
+### Qualified experiments
+
+A draft can describe code and experiments, but opening it grants no execution. If explicitly authorized, reuse qualified workspace operations and control-plane runtime isolation. Capture exact bytes, runtime identities, databases, network/billing allowances, fixtures and evidence. Experiment success is not permission to apply or deploy.
 
 ## State Machines
 
-Planning materialization is the only write flow with a validation gate: invalid findings block writes to `packages/proto/schemas/<slug>/`.
+Target proposal lifecycle: draft → immutable review revision → authorized selection → applying → applied or partial/conflicted. Amendment creates a new revision; approval does not silently follow it. Rejected/abandoned proposals retain pinned reviewed content according to retention policy.
+
+Revision-bound application approval is not a per-edit development gate. After
+initial target application, an approved development mandate may authorize code,
+documentation and experiment changes without another bundle approval. Protected
+target changes and effects outside the mandate still require an amendment. Preserve
+both the approved target and subsequent implementation checkpoints.
+
+Per-entry outcomes include pending, held, applied, conflicted, failed and operator-disposed. An operation is not complete while a selected entry has an unresolved outcome. Cancellation stops new permitted work but does not erase effects or receipts. Do not claim global atomicity across owners.
 
 ## Maturity Ladder
 
-Future long-running planning/materialization flows should use formal workflow coverage if they add retries, cancellation, stale completion, or cleanup invariants.
+Contract clarity precedes obligations, evidence and implementation maturity. Each failure/retry state needs deterministic tests and owner-path qualification. Existing proto tests cannot establish generic bundle safety.
 
 ## Production Shape
 
-Health is a REST ops probe. Product flows should be Connect-RPC unless they meet an explicit REST exception reason.
+API, CLI and UI share typed behavior. Owner operations and durable results support agent use without UI automation. TTD is not an execution scheduler, authorization system or private sandbox.
 
 ## Deferred / Unmodeled Flows
 
-- AI strategic analysis.
-- SDA-backed graph source.
-- Scenario scaffold generation from a planned node.
+P1 alternatives and experiments follow the safe core. P2 strategic AI and civilization-scale simulation remain optional expansion. Exact retention durations, numerical performance thresholds and remote access guarantees remain qualification decisions.
 
 ## Cross-References
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md)
-- [`DOMAINS.md`](DOMAINS.md)
-- [`../internal/SEAMS.md`](../internal/SEAMS.md)
+- [Architecture](ARCHITECTURE.md)
+- [Data](DATA.md)
+- [Testing](../internal/TESTING.md)
+- [Experiences](../../experience/README.md)

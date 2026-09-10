@@ -45,6 +45,9 @@ with learn.step("find-account"):
         {"type": "object", "properties": {"value": {"type": "string"}}, "required": ["value"]},
         [],
         attempts=3,
+        # The section's own learning identity. `value` is free text and lands in the task key, so
+        # without this the fragment would start a fresh cache entry per input and never qualify.
+        key="program-runtime/example-identity/v1",
         verify=lambda output: ("verified_success", ["value:exact-match"]) if output.get("value") == value else ("failed", ["value:mismatch"]),
         verifier_revision="value-equality/v1",
         baseline={} if mode == "adapt" else None,
@@ -93,6 +96,7 @@ envelope["signals"].update({
     "acted": acted,
     "delegated": delegated,
     "graded": {"delivery": graded.get("delivery"), "observation_id": graded.get("observation_id")},
+    "learning": {"feedback_ref": learn.result("example")},
 })
 envelope["evidence"].append("all-learn-verbs")
 envelope["status"] = "partial" if envelope["errors"] else "ok"

@@ -11,7 +11,7 @@
     {
       "id": "TTD-GRAPH-001",
       "title": "Live graph from scenario-dependency-analyzer",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "graph",
       "criticality": "P0",
@@ -24,8 +24,8 @@
       "validation": [
         {
           "type": "manual",
-          "status": "implemented",
-          "notes": "SDA source tests cover faked SDA mapping; graph service tests cover queries, export, and planned overlays."
+          "status": "planned",
+          "notes": "Historical 2026-06-14 declaration was complete, but no manual attestation exists. Reconciled to in_progress on 2026-09-09 per Business Health business_status_unearned:TTD-GRAPH-001. Existing mapping and graph tests do not constitute a logged live-source attestation; retain this obligation until owner evidence is earned."
         }
       ]
     },
@@ -53,7 +53,7 @@
     {
       "id": "TTD-ONTOLOGY-001",
       "title": "Capability ontology coverage layer",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "ontology",
       "criticality": "P1",
@@ -65,9 +65,9 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/ontology/service_test.go::TestCoverageClassifiesBuiltInflightGapsAndUnmappedScenarios",
+          "ref": "api/internal/ontology/service_test.go::TestServiceCoverageClassifiesBuiltInflightGapAndUnmapped",
           "status": "implemented",
-          "notes": "Covers four-state coverage classification."
+          "notes": "Covers four-state coverage classification. Historical complete assertion reconciled to in_progress on 2026-09-09 per business_status_unearned:TTD-ONTOLOGY-001: no requirements-sync snapshot exists. Corrected the stale function name; preserve coverage and earn completion through owner evidence sync."
         },
         {
           "type": "test",
@@ -77,9 +77,9 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/ontology/importtopology_test.go::TestMapTopologyFixture",
+          "ref": "api/internal/ontology/importtopology_test.go::TestParseTopologySeedCounts",
           "status": "implemented",
-          "notes": "Covers macro topology import mapping."
+          "notes": "Covers macro topology seed mapping, hierarchy and counts. Corrected the stale function reference on 2026-09-09; this is foundation coverage, not general proposal acceptance."
         }
       ]
     },
@@ -107,7 +107,7 @@
     {
       "id": "TTD-SDA-001",
       "title": "scenario-dependency-analyzer source",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-001",
       "category": "integration",
       "criticality": "P2",
@@ -121,7 +121,7 @@
           "type": "test",
           "ref": "api/internal/graph/sda_source_test.go::TestSDASourceGraphMapsInterfaceGraph",
           "status": "implemented",
-          "notes": "Covers SDA response mapping, including Go import evidence."
+          "notes": "Covers SDA response mapping, including Go import evidence. Historical complete assertion reconciled to in_progress on 2026-09-09 per business_status_unearned:TTD-SDA-001: no requirements-sync snapshot exists. Preserve the test and claim history; mock mapping does not qualify live-source behavior."
         }
       ]
     },

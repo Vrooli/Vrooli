@@ -1,5 +1,7 @@
 # CLI Commands
 
+Commands below describe existing behavior. General proposal create/revise/review/apply/recover operations are targets, not command names available today. Discover the installed owner surface before invoking it; do not use proto materialize as a generic artifact apply shortcut. See [target flows](../concepts/FLOWS.md) and [owner boundaries](../concepts/INTEGRATIONS.md).
+
 ## Global flags (provided by cli-core)
 
 The scenario CLI uses cli-core's standard application shell and installed command name `tech-tree-designer`.
@@ -12,48 +14,37 @@ tech-tree-designer status
 
 ## Scenario commands
 
-Implemented graph commands:
+The live CLI owns argument syntax. Read the selected group before choosing a
+mutation; the examples below are read-only and do not publish a proposal.
 
 ```bash
-tech-tree-designer graph describe [--scenarios a,b] [--stability stable]
-tech-tree-designer graph neighbors <scenario> [--depth 2] [--scenarios a,b]
-tech-tree-designer graph path <from> <to> [--scenarios a,b]
-tech-tree-designer graph ancestors <scenario> [--scenarios a,b]
-tech-tree-designer graph export [--format text|dot|json] [--scenarios a,b] [--stability stable]
+tech-tree-designer graph help
+tech-tree-designer graph neighbors tech-tree-designer --depth 1
 ```
 
-Implemented planning commands:
+| Group | Existing operations | Boundary |
+| --- | --- | --- |
+| graph | describe, neighbors, path, ancestors, export | Observed interface projection, not authored fulfillment |
+| plan | create, list, tree, add, rm, validate, materialize | Existing proto-only planning; mutation requires authority |
+| ontology | capabilities, capability, capability-upsert, capability-rm, edge-add, edge-rm, import, fulfill, unfulfill, fulfillments, coverage, focus, capability-scenarios, scenario, overlay | Authored ontology and mappings; no automatic verified fulfillment |
+
+Inspect planned proto inventory:
 
 ```bash
-tech-tree-designer plan create <slug> [--display-name "..."] [--sector engineering] [--tier foundation] [--stability experimental]
-tech-tree-designer plan list [--sector engineering] [--tier foundation]
-tech-tree-designer plan tree <slug> [path]
-tech-tree-designer plan add <slug> <path> [--from-file -|<file>]
-tech-tree-designer plan rm <slug> <path>
-tech-tree-designer plan validate <slug> [--json]
-tech-tree-designer plan materialize <slug>
+tech-tree-designer plan help
+tech-tree-designer plan list
 ```
 
-`plan add` stores or replaces file text. `plan tree <slug> <path>` prints one stored file; without `path` it lists the stored tree.
+`plan add` stores or replaces file text. `plan tree` prints a selected stored file
+or lists the plan's tree. `plan materialize` writes canonical proto files and runs
+generation. It is not a dry-run or the proposed general artifact apply operation.
 
-Implemented ontology commands:
+Inspect authored capability coverage:
 
 ```bash
-tech-tree-designer ontology capabilities [--parent <id>] [--kind sector|capability|component|capstone|simulation]
-tech-tree-designer ontology capability <slug>
-tech-tree-designer ontology capability-upsert <slug> [--name "..."] [--description "..."] [--kind capability] [--parent <id>] [--importance <number>]
-tech-tree-designer ontology capability-rm <slug>
-tech-tree-designer ontology edge-add <from> <to> [--type progression|decomposes|requires]
-tech-tree-designer ontology edge-rm <from> <to> [--type progression|decomposes|requires]
-tech-tree-designer ontology import --from-file data/seed/macro_topology.json
-tech-tree-designer ontology fulfill <capability-id> <scenario-slug> [--note "..."]
-tech-tree-designer ontology unfulfill <capability-id> <scenario-slug>
-tech-tree-designer ontology fulfillments [--capability <id>] [--scenario <slug>]
-tech-tree-designer ontology coverage [--subtree true|false]
-tech-tree-designer ontology focus [--limit 10]
-tech-tree-designer ontology capability-scenarios <slug> [--descendants true|false]
-tech-tree-designer ontology scenario <slug>
-tech-tree-designer ontology overlay [--implementation true|false] [--ontology true|false] [--fulfillment true|false]
+tech-tree-designer ontology help
+tech-tree-designer ontology coverage
+tech-tree-designer ontology focus --limit 10
 ```
 
 ## Output contracts

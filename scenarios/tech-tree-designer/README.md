@@ -1,6 +1,8 @@
 # Tech Tree Designer
 
-Tech Tree Designer is Vrooli's planning surface for scenario interfaces. It renders the actual cross-scenario interface graph and lets agents design future scenarios as proto contracts before implementation.
+Tech Tree Designer is Vrooli's ecosystem design environment. Its target combines source-derived observed software, a revisable intended capability horizon, and scoped proposal workspaces spanning scenarios, resources, shared packages and project artifacts.
+
+Current implementation is narrower: a scenario interface graph, planned proto editor/materializer, and capability ontology. Repository-wide design bundles, revision-bound review and recoverable owner-directed application are documented development targets, not available guarantees. Start with [the development entry point](docs/START-HERE.md).
 
 This scenario uses the current full-stack Vrooli layout. The old Gin/Postgres implementation was intentionally deleted; only product concepts carry forward.
 
@@ -46,8 +48,6 @@ tech-tree-designer ontology coverage
 tech-tree-designer ontology overlay
 ```
 
-## Key Documents
-
 ## Documentation Map
 
 - [PRD.md](PRD.md)
@@ -56,6 +56,10 @@ tech-tree-designer ontology overlay
 - [docs/internal/SEAMS.md](docs/internal/SEAMS.md)
 - [docs/internal/PROBLEMS.md](docs/internal/PROBLEMS.md)
 - [requirements/index.json](requirements/index.json)
+- [experience/README.md](experience/README.md) — draft page and journey contracts
+- [docs/concepts/FLOWS.md](docs/concepts/FLOWS.md) — documentation-first review and apply
+- [docs/internal/TESTING.md](docs/internal/TESTING.md) — planned qualification protocols
+- [docs/internal/PERFORMANCE.md](docs/internal/PERFORMANCE.md) — scale and resource obligations
 
 ## Customize Safely
 

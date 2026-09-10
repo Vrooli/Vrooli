@@ -484,7 +484,7 @@ func (r *SubprocessRunner) killProcess(sessionID string, p *kernelProcess) {
 }
 
 func allowlistedEnvironment() []string {
-	keys := []string{"PATH", "HOME", "LANG"}
+	keys := []string{"PATH", "HOME", "LANG", "PROGRAM_RUNTIME_LEARNING_STATE_DIR"}
 	env := make([]string, 0, len(keys))
 	for _, key := range keys {
 		if value, ok := os.LookupEnv(key); ok {

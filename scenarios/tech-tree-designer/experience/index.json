@@ -1,0 +1,68 @@
+{
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "tech-tree-designer",
+  "description": "Documentation-first target experiences; draft and unqualified, not current runtime evidence.",
+  "pages": [
+    {
+      "id": "overview",
+      "title": "Ecosystem overview",
+      "path": "pages/overview.json",
+      "status": "draft"
+    },
+    {
+      "id": "graph",
+      "title": "Observed ecosystem",
+      "path": "pages/graph.json",
+      "status": "draft"
+    },
+    {
+      "id": "ontology",
+      "title": "Intended capability horizon",
+      "path": "pages/ontology.json",
+      "status": "draft"
+    },
+    {
+      "id": "planning",
+      "title": "Proposal workspace and review",
+      "path": "pages/planning.json",
+      "status": "draft"
+    },
+    {
+      "id": "settings",
+      "title": "Design workspace settings",
+      "path": "pages/settings.json",
+      "status": "draft"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "bottom-up-design",
+      "title": "Bottom-up documentation-first proposal",
+      "path": "journeys/bottom-up-design.json",
+      "status": "draft"
+    },
+    {
+      "id": "top-down-learning",
+      "title": "Top-down refinement from implementation",
+      "path": "journeys/top-down-learning.json",
+      "status": "draft"
+    },
+    {
+      "id": "apply-and-recover",
+      "title": "Revision-bound apply and recovery",
+      "path": "journeys/apply-and-recover.json",
+      "status": "draft"
+    },
+    {
+      "id": "degraded-observation",
+      "title": "Useful bounded design with degraded sources",
+      "path": "journeys/degraded-observation.json",
+      "status": "draft"
+    }
+  ]
+}

@@ -50,3 +50,9 @@ Current UI seams are test utilities only. Future graph/planning UI should keep A
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md)
 - [`../concepts/DOMAINS.md`](../concepts/DOMAINS.md)
 - [`PROBLEMS.md`](PROBLEMS.md)
+
+## Target proposal seams — not implemented interfaces
+
+Extend existing planning/graph/ontology ownership rather than introducing a parallel planner. Required semantic seams are: source provenance and bounded queries; safe artifact selection and immutable revision retention; artifact-owner validation/application; external grant resolution; durable operation/entry receipts and recovery; authored ontology revisions; and qualified experiment/evidence references.
+
+These are responsibilities, not invented API signatures. Discover actual owner operations before designing adapters. Tests must inject owner outages, conflicts, replay and interrupted acknowledgement, then qualify the same path against real owners. No adapter may silently fall back to unsafe direct writes, source scanning or private runtime setup.

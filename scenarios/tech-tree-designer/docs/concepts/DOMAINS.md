@@ -8,12 +8,12 @@ Use this document to answer which bounded context owns each capability, data set
 
 ## Domain Inventory
 
-| Domain | Purpose | Owns Data | Surfaces | Source Paths | Status |
-|---|---|---|---|---|---|
-| health | Report runtime readiness and dependency reachability. | No product data. | API, UI, cli-core `status`. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/tech-tree-designer/v1/health/` | Implemented scaffold surface. |
-| graph | Build and query the scenario-centric interface graph. | Optional cache only. | Connect API, CLI, UI graph. | `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `ui/src/features/graph/`, `packages/proto/schemas/tech-tree-designer/v1/graph/` | Implemented. |
-| planning | Store planned scenarios as real planned proto files and validate/materialize them. | Planned scenarios and planned proto text. | Connect API, CLI, UI editor. | `api/internal/planning/`, `api/handlers/planning/`, `cli/domains/planning/`, `ui/src/features/planning/`, `packages/proto/schemas/tech-tree-designer/v1/planning/` | Implemented. |
-| ontology | Own the top-down capability tree, fulfillment links, coverage analytics, focus ranking, and overlay graph projection. | Capabilities, capability edges, fulfillment links, explicit coverage exclusions. | Connect API, CLI, UI ontology. | `api/internal/ontology/`, `api/handlers/ontology/`, `cli/domains/ontology/`, `ui/src/features/ontology/`, `packages/proto/schemas/tech-tree-designer/v1/ontology/` | Implemented. |
+| Domain | Responsibility | Primary Archetype | Owns Data | Surfaces | Source Paths | Status |
+|---|---|---|---|---|---|---|
+| health | Report runtime readiness and dependency reachability. | Read-only health projection | No product data. | API, UI, cli-core `status`. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/tech-tree-designer/v1/health/` | Implemented scaffold surface. |
+| graph | Build and query the scenario-centric interface graph. | Source-backed query projection | Optional cache only. | Connect API, CLI, UI graph. | `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `ui/src/features/graph/`, `packages/proto/schemas/tech-tree-designer/v1/graph/` | Implemented. |
+| planning | Store planned scenarios as real planned proto files and validate/materialize them. | Persistent aggregate with validation and owner effects | Planned scenarios and planned proto text. | Connect API, CLI, UI editor. | `api/internal/planning/`, `api/handlers/planning/`, `cli/domains/planning/`, `ui/src/features/planning/`, `packages/proto/schemas/tech-tree-designer/v1/planning/` | Implemented. |
+| ontology | Own the top-down capability tree, fulfillment links, coverage analytics, focus ranking, and overlay graph projection. | Authored graph aggregate with derived analytics | Capabilities, capability edges, fulfillment links, explicit coverage exclusions. | Connect API, CLI, UI ontology. | `api/internal/ontology/`, `api/handlers/ontology/`, `cli/domains/ontology/`, `ui/src/features/ontology/`, `packages/proto/schemas/tech-tree-designer/v1/ontology/` | Implemented. |
 
 ## health
 
@@ -49,6 +49,12 @@ Use this document to answer which bounded context owns each capability, data set
 - Paths: `api/internal/ontology/`, `api/handlers/ontology/`, `cli/domains/ontology/`, `ui/src/features/ontology/`, `packages/proto/schemas/tech-tree-designer/v1/ontology/`.
 
 ## Non-Domains
+
+### Target extension responsibilities
+
+The table above describes existing code, not generalized bundle readiness. Evolve planning to own proposal selection, immutable revision manifests, artifact references, validation aggregation and apply coordination. Keep artifact effects in their qualified owners. Graph owns bounded projections with provenance, never a second repository scanner. Ontology owns authored capability revisions and evidence-aware contribution/fulfillment semantics, not implementation truth.
+
+The API, CLI and UI expose the same identities, findings, limits and recovery states. Domain-owned repositories hide storage engines. Reuse workspace, authority and runtime services; do not turn TTD into Plan Manager, Swarm, Agent Manager or a sandbox implementation. See FLOWS.md and INTEGRATIONS.md before designing new interfaces.
 
 - `api/internal/server/` - HTTP composition substrate.
 - `api/internal/module/` - shared module and endpoint descriptor types.

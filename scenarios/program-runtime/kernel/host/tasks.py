@@ -82,6 +82,26 @@ class Tasks:
     def delivery_metrics(self):
         return self.handle([self._bridge("delivery_metrics")], "tasks.delivery_metrics")
 
+    def learning_findings(self, *, owner=""):
+        """Read bounded durable findings. Reading does not claim or repair them."""
+        return self.handle([self._bridge("learning_findings", owner=owner)], "tasks.learning_findings")
+
+    def learning_finding_transition(self, *, finding_id, owner, expected_state, next_state, evidence, claim_ref=""):
+        """Advance one owned finding with evidence and the worker's claim receipt."""
+        if next_state == "claimed" and not claim_ref:
+            claim_ref = "prt_claim_v1_" + secrets.token_hex(32)
+        try:
+            response = self._bridge("learning_finding_transition", finding_id=finding_id,
+                owner=owner, expected_state=expected_state, next_state=next_state,
+                evidence=evidence, claim_ref=claim_ref)
+        except Exception as exc:
+            # Preserve caller-generated authority after a lost response. Reusing
+            # it is idempotent; it does not authorize replay of the domain task.
+            response = {"status": "unavailable", "finding_id": finding_id, "claim_ref": claim_ref,
+                        "expected_state": expected_state, "next_state": next_state,
+                        "error": str(exc)[:240]}
+        return self.handle([response], "tasks.learning_finding_transition")
+
     def fragment_promote(self, *, step_key, min_verified=5, operation="", reviewed_by="", evidence=None,
                          fixtures=None, publish=False, expected_digest=""):
         """Prepare and optionally publish a reviewed baseline; retain learn.act in source."""

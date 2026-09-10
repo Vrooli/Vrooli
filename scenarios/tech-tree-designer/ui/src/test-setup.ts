@@ -1,3 +1,12 @@
+import { createElement } from "react";
+import { configureTestProviders } from "@vrooli/api-base/testing";
+import { I18nextProvider } from "react-i18next";
+import { Providers } from "./app/providers";
+
+// The canonical helper owns a fresh query client for each render. A second
+// provider here would shadow that client and leak pending queries across tests.
+configureTestProviders((children) => createElement(I18nextProvider, { i18n }, createElement(Providers, null, children)));
+
 /**
  * Vitest setup file
  *
@@ -60,3 +69,18 @@ afterEach(() => {
 // its own beforeEach and restore it on teardown — opt-in override
 // rather than process-wide unwiring.
 vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+
+Object.defineProperty(window, "matchMedia", {
+  configurable: true,
+  writable: true,
+  value: (media: string) => ({
+    media,
+    matches: media.includes("min-width"),
+    onchange: null,
+    addListener() {},
+    removeListener() {},
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent: () => false,
+  }),
+});

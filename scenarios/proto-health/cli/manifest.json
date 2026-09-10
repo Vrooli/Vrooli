@@ -51,7 +51,7 @@
             "run_eligible": true,
             "permissions": [
               "filesystem:read",
-              "process:execute"
+              "process:spawn"
             ]
           }
         }

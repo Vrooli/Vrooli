@@ -7,6 +7,7 @@ import (
 )
 
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "programs_learning_findings", Method: "POST", Path: programsconnect.ProgramServiceListLearningFindingsProcedure, Summary: "Read bounded unresolved learning findings with owner and evidence.", Category: "programs"},
 	{ID: "programs_submit", Method: "POST", Path: programsconnect.ProgramServiceSubmitProgramProcedure, Summary: "Execute a governed program.", Category: "programs"},
 	{ID: "programs_get", Method: "POST", Path: programsconnect.ProgramServiceGetProgramProcedure, Summary: "Read a submitted program.", Category: "programs"},
 	{ID: "programs_wait", Method: "POST", Path: programsconnect.ProgramServiceWaitForProgramProcedure, Summary: "Block until a program reaches a terminal state.", Category: "programs"},

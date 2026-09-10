@@ -60,10 +60,16 @@ type Contract struct {
 // learning surface declared by a contract. It is intentionally small: callers
 // need to know which verbs and note kinds are present, not duplicate source.
 type LearningSummary struct {
-	Verbs                    []string `json:"verbs,omitempty"`
-	UsesMemory               bool     `json:"uses_memory,omitempty"`
-	NoteKinds                []string `json:"note_kinds,omitempty"`
-	FreeTextInputsWithoutKey bool     `json:"free_text_inputs_without_key,omitempty"`
+	Verbs                    []string             `json:"verbs,omitempty"`
+	UsesMemory               bool                 `json:"uses_memory,omitempty"`
+	NoteKinds                []string             `json:"note_kinds,omitempty"`
+	FreeTextInputsWithoutKey bool                 `json:"free_text_inputs_without_key,omitempty"`
+	Capabilities             []LearningCapability `json:"capabilities,omitempty"`
+}
+
+type LearningCapability struct {
+	Scenario string   `json:"scenario"`
+	Effects  []string `json:"effects"`
 }
 
 type Memory struct {
@@ -384,7 +390,8 @@ func (i *Index) CoveredBy(bindingIDs []string) string {
 type rawContract struct {
 	LearningTask *LearningTask `json:"learning_task"`
 	Learning     struct {
-		NoteKinds map[string]json.RawMessage `json:"note_kinds"`
+		NoteKinds    map[string]json.RawMessage `json:"note_kinds"`
+		Capabilities []LearningCapability       `json:"capabilities"`
 	} `json:"learning"`
 	Memory      *Memory   `json:"memory"`
 	Verbs       []string  `json:"verbs"`
@@ -495,6 +502,7 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 	}
 	sort.Strings(c.InputNames)
 	c.Learning = learningSummary(c.Source, raw.Learning.NoteKinds, c.Inputs)
+	c.Learning.Capabilities = raw.Learning.Capabilities
 	if c.LearningTask != nil {
 		for _, field := range c.LearningTask.ContextFields {
 			if _, ok := c.Inputs[field]; !ok {

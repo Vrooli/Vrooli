@@ -9,9 +9,9 @@ metadata:
   tags: ["skill","program","python","session","binding","typed inference","governance","runtime","high arity","multi-scenario","cross-scenario","fan-out","bounded results","return bounded results","discard intermediates","discard intermediate data","tool-call compression","library","shape","nomination","delegation"]
   icon: "terminal"
   status: "active"
-  revision: 8
+  revision: 9
   createdAt: "2026-08-06T00:00:00Z"
-  updatedAt: "2026-09-07T05:00:00Z"
+  updatedAt: "2026-09-09T00:00:00Z"
   requires:
     scenarios: ["program-runtime", "prompt-manager", "vrooli-memory", "ai-gateway", "agent-manager"]
     commands: ["program-runtime bindings", "program-runtime sessions", "program-runtime programs", "program-runtime library", "program-runtime space", "vrooli-memory recall", "vrooli-memory journal", "prompt-manager skill read", "vrooli scenario"]
@@ -133,11 +133,67 @@ Use `learn.act` for a code hole that can be expressed as
 request for ambient access. Supply `verify` and `verifier_revision`; the verifier
 runs even on cache hits. Default reuse requires three verified attempts across
 two input digests, no contradictions, and recent compatible evidence. Reviewed
-`learning.baselines` assets can execute with `allow_ai=False`. Check
+`learning.baselines` assets can execute with `allow_ai=False`.
+
+Pass `key="<owner>/<subject>/v1"` whenever the section's correct code does not
+depend on the task. Without it the fragment inherits the task key, so a program
+keyed per session, prompt digest or URL restarts its cache every run and never
+reaches `min_verified`. Migrate an existing implementation by passing it as
+`fallback_fragment` rather than deleting it: resolution is cache → baseline →
+fallback → AI, so day one behaves exactly as before and costs no inference, and
+only real drift reaches the model. Fragments have no `type`, no imports and no
+lambdas; keep shape validation in ordinary code and hand the section clean inputs. Check
 `learn.choose` for `selected_id=None` before acting. Use `learn.infer(verify=...)`
 when its output should become a demonstration. Promotion is a separate reviewable `program-runtime.fragment-promote`
 operation. If Memory is unavailable, branch on the explicit unavailable or
 blocked receipt; do not fabricate a successful learning result.
+
+A learning-delivery outage degrades reuse, not the section: the unreviewed cache
+is withheld (`learning.cache_withheld` is true) while a reviewed baseline and
+bounded adaptation still run. Declare a `learning.baselines` asset for any section
+that must keep working on a machine with no Memory, no AI, or a cold journal —
+that asset is the whole portable story, and it travels in the contract JSON.
+
+### Adaptive results and later corrections
+
+Prefer `learn.act` for an unsettled implementation with an independent verifier.
+Supply `capabilities=["<intent>"]` and `allowed_effects=["read"]` when the exact
+binding is unknown; the runtime resolves only governed admitted contracts. An
+explicit `bindings` list remains available. Authors own objective, constraints,
+and verification; the runtime owns implementation generation and bounded repair.
+
+Preserve `feedback_ref` from act/choose, or `learn.result_ref(name)` after
+infer/delegate. Register exact external artifacts with `learn.result`; check
+`learn.result_status` before reuse. Send a later correction with
+`learn.feedback(ref, disposition, evidence, dimension=...)`, or run
+`program-runtime.learning-feedback`. Supported dimensions are execution,
+verification, usefulness, efficiency, and context. A correction records evidence;
+it never replays the original task. Keep feedback references out of published
+assets. See the construction guide's Adaptive authoring and delayed feedback
+section for attribution, outage, and owner-routing contracts.
+
+**Every learning program must emit its reference.** Put it in the envelope as
+`signals.learning.feedback_ref` and declare a `learning` output signal naming that
+field. Usefulness is usually discovered later than the run that earned it — the
+output looked fine and only a downstream consumer or the operator finds out it was
+not — so a program that drops its reference makes delayed feedback impossible and
+silently removes half the loop. `tests/test_learning_result_contract.py` in the
+kernel enforces this across every declared program.
+
+When you are the later caller and something a program produced turns out to be
+wrong, do not re-run the task. Name the reference the run handed back:
+
+```bash
+program-runtime library run program-runtime.learning-feedback \
+  --input feedback_ref=<signals.learning.feedback_ref> \
+  --input disposition=contradicted --input dimension=usefulness \
+  --input evidence='["operator:the extracted list was last week'"'"'s"]'
+```
+
+Use `usefulness` when the output did not meet the need, `context` when the
+requirements or environment moved, and `execution`/`verification` only for a
+confirmed code or postcondition defect — those two disqualify the exact
+implementation, the others do not.
 
 ### Commands where judgment applies
 

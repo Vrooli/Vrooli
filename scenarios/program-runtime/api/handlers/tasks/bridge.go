@@ -38,37 +38,55 @@ type Bridge struct {
 	RepoRoot      string
 }
 type request struct {
-	CacheHit          bool           `json:"cache_hit"`
-	Baseline          map[string]any `json:"baseline"`
-	ContextKey        string         `json:"context_key"`
-	InputDigest       string         `json:"input_digest"`
-	Compatibility     map[string]any `json:"compatibility"`
-	Evidence          []string       `json:"evidence"`
-	ResumeToken       string         `json:"resume_token"`
-	SessionID         string         `json:"session_id"`
-	ProgramID         string         `json:"program_id"`
-	Operation         string         `json:"operation"`
-	Scope             string         `json:"scope"`
-	Digest            string         `json:"digest"`
-	TaskID            string         `json:"task_id"`
-	AttemptID         string         `json:"attempt_id"`
-	Inputs            map[string]any `json:"inputs"`
-	Prepare           map[string]any `json:"prepare"`
-	Result            map[string]any `json:"result"`
-	FinishInputs      map[string]any `json:"finish_inputs"`
-	FinishDigest      string         `json:"finish_digest"`
-	Outcome           string         `json:"outcome"`
-	StepKey           string         `json:"step_key"`
-	Fragment          string         `json:"fragment"`
-	VerifiedDelta     int            `json:"verified_delta"`
-	ContradictedDelta int            `json:"contradicted_delta"`
-	Source            string         `json:"source"`
-	SourceProgramID   string         `json:"source_program_id"`
-	StepName          string         `json:"step_name"`
-	TraceInputs       map[string]any `json:"trace_inputs"`
-	TraceOutput       map[string]any `json:"trace_output"`
-	MinVerified       int            `json:"min_verified"`
-	PromoteName       string         `json:"promote_name"`
+	ClaimRef            string         `json:"claim_ref"`
+	FeedbackRef         string         `json:"feedback_ref"`
+	StepAttemptID       string         `json:"step_attempt_id"`
+	Verb                string         `json:"verb"`
+	Name                string         `json:"name"`
+	Artifact            map[string]any `json:"artifact"`
+	FragmentHash        string         `json:"fragment_hash"`
+	CompatibilityDigest string         `json:"compatibility_digest"`
+	ObservationID       string         `json:"observation_id"`
+	Disposition         string         `json:"disposition"`
+	Dimension           string         `json:"dimension"`
+	Correction          string         `json:"correction"`
+	Owner               string         `json:"owner"`
+	FindingID           string         `json:"finding_id"`
+	ExpectedState       string         `json:"expected_state"`
+	NextState           string         `json:"next_state"`
+	MinContexts         int            `json:"min_contexts"`
+	MaxAgeDays          float64        `json:"max_age_days"`
+	CacheHit            bool           `json:"cache_hit"`
+	Baseline            map[string]any `json:"baseline"`
+	ContextKey          string         `json:"context_key"`
+	InputDigest         string         `json:"input_digest"`
+	Compatibility       map[string]any `json:"compatibility"`
+	Evidence            []string       `json:"evidence"`
+	ResumeToken         string         `json:"resume_token"`
+	SessionID           string         `json:"session_id"`
+	ProgramID           string         `json:"program_id"`
+	Operation           string         `json:"operation"`
+	Scope               string         `json:"scope"`
+	Digest              string         `json:"digest"`
+	TaskID              string         `json:"task_id"`
+	AttemptID           string         `json:"attempt_id"`
+	Inputs              map[string]any `json:"inputs"`
+	Prepare             map[string]any `json:"prepare"`
+	Result              map[string]any `json:"result"`
+	FinishInputs        map[string]any `json:"finish_inputs"`
+	FinishDigest        string         `json:"finish_digest"`
+	Outcome             string         `json:"outcome"`
+	StepKey             string         `json:"step_key"`
+	Fragment            string         `json:"fragment"`
+	VerifiedDelta       int            `json:"verified_delta"`
+	ContradictedDelta   int            `json:"contradicted_delta"`
+	Source              string         `json:"source"`
+	SourceProgramID     string         `json:"source_program_id"`
+	StepName            string         `json:"step_name"`
+	TraceInputs         map[string]any `json:"trace_inputs"`
+	TraceOutput         map[string]any `json:"trace_output"`
+	MinVerified         int            `json:"min_verified"`
+	PromoteName         string         `json:"promote_name"`
 }
 
 func taskScope(c contracts.Contract, requested string) (string, error) {
@@ -120,6 +138,34 @@ func (b *Bridge) resolve(ctx context.Context, name, digest string) (contracts.Co
 	return c, b.Library.RetainDeclared(ctx, c)
 }
 
+// markPublishedBaselines flags each fragment its owning contract already declares as a reviewed
+// learning.baselines entry, so a promotion-candidate count excludes work that is already done.
+// Publication copies the verified fragment text verbatim, so an exact (step name, fragment) match
+// still identifies it after the program source is edited and fragment.Source no longer agrees.
+func markPublishedBaselines(declared []contracts.Contract, fragments []tasks.Fragment) {
+	published := map[[2]string]bool{}
+	for _, contract := range declared {
+		var declaration struct {
+			Learning struct {
+				Baselines map[string]struct {
+					Fragment string `json:"fragment"`
+				} `json:"baselines"`
+			} `json:"learning"`
+		}
+		if len(contract.Declaration) == 0 || json.Unmarshal(contract.Declaration, &declaration) != nil {
+			continue
+		}
+		for step, baseline := range declaration.Learning.Baselines {
+			if text := strings.TrimSpace(baseline.Fragment); text != "" {
+				published[[2]string{step, text}] = true
+			}
+		}
+	}
+	for i := range fragments {
+		fragments[i].Published = published[[2]string{fragments[i].StepName, strings.TrimSpace(fragments[i].Fragment)}]
+	}
+}
+
 func (b *Bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method != http.MethodPost {
@@ -143,17 +189,113 @@ func (b *Bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	action := strings.TrimPrefix(r.URL.Path, "/internal/program-runtime/tasks/")
+
+	provenance := strings.ToLower(strings.TrimPrefix(p.GetProvenance().String(), "PROVENANCE_"))
+	if action == "learning_result_put" {
+		rec, err := b.Store.Get(r.Context(), req.AttemptID)
+		if err != nil || (rec.ProgramID != req.ProgramID && rec.ResumeHash != receiptHash(req.ResumeToken)) || rec.TaskID != req.TaskID || !sameLearningCohort(rec.Provenance, provenance) || rec.Scope != req.Scope {
+			writeError(w, 403, errors.New("learning result must belong to admitting task"))
+			return
+		}
+		if req.StepKey != "" {
+			if err := b.Store.ClaimFragmentCohort(r.Context(), req.StepKey, provenance); err != nil {
+				writeError(w, 403, err)
+				return
+			}
+		}
+		owner := strings.TrimSuffix(req.Scope, "-usage")
+		if value, ok := req.Artifact["owner"].(string); ok && value != "" {
+			owner = value
+		}
+		if owner == "bas" {
+			owner = "browser-automation-studio"
+		}
+		if owner == "" || strings.ContainsAny(owner, "/\\.") {
+			owner = "program-runtime"
+		}
+		if b.RepoRoot != "" {
+			if info, err := os.Stat(filepath.Join(b.RepoRoot, "scenarios", owner)); err != nil || !info.IsDir() {
+				owner = "program-runtime"
+			}
+		}
+		err = b.Store.PutLearningResult(r.Context(), tasks.LearningResult{Owner: owner, FeedbackRef: req.FeedbackRef, TaskID: req.TaskID, AttemptID: req.AttemptID, StepAttemptID: req.StepAttemptID, Scope: req.Scope, Verb: req.Verb, Name: req.Name, Artifact: req.Artifact, StepKey: req.StepKey, FragmentHash: req.FragmentHash, StepName: req.StepName, CompatibilityDigest: req.CompatibilityDigest, Provenance: rec.Provenance})
+		if err != nil {
+			writeError(w, 400, err)
+			return
+		}
+		writeJSON(w, map[string]any{"stored": true, "feedback_ref": req.FeedbackRef})
+		return
+	}
+	if action == "learning_result_status" {
+		result, err := b.Store.LearningResultStatus(r.Context(), req.FeedbackRef, req.Artifact, provenance)
+		if err != nil {
+			writeError(w, 400, err)
+			return
+		}
+		writeJSON(w, result)
+		return
+	}
+	if action == "learning_feedback" {
+		finding, err := b.Store.ApplyFeedback(r.Context(), tasks.Feedback{ObservationID: req.ObservationID, FeedbackRef: req.FeedbackRef, Disposition: req.Disposition, Dimension: req.Dimension, Evidence: req.Evidence, Correction: req.Correction}, provenance)
+		if err != nil {
+			writeError(w, 409, err)
+			return
+		}
+		target, _ := b.Store.LearningResultStatus(r.Context(), req.FeedbackRef, nil, provenance)
+		writeJSON(w, map[string]any{"stored": true, "finding": finding, "target": target})
+		return
+	}
+	if action == "learning_findings" {
+		findings, err := b.Store.ListFindings(r.Context(), req.Owner)
+		if err != nil {
+			writeError(w, 500, err)
+			return
+		}
+		writeJSON(w, map[string]any{"findings": findings})
+		return
+	}
+	if action == "learning_finding_transition" {
+		finding, err := b.Store.TransitionFinding(r.Context(), req.FindingID, req.ExpectedState, req.NextState, req.Owner, req.ClaimRef, req.Evidence)
+		if err != nil {
+			writeError(w, 409, err)
+			return
+		}
+		writeJSON(w, map[string]any{"finding": finding})
+		return
+	}
+	if action == "fragment_rejection" {
+		if err := b.Store.ClaimFragmentCohort(r.Context(), req.StepKey, provenance); err != nil {
+			writeError(w, 403, err)
+			return
+		}
+		rejected, err := b.Store.FragmentRejected(r.Context(), req.StepKey, req.FragmentHash)
+		if err != nil {
+			writeError(w, 400, err)
+			return
+		}
+		writeJSON(w, map[string]any{"rejected": rejected})
+		return
+	}
 	if action == "fragment_get" {
-		fragment, err := b.Store.GetFragment(r.Context(), req.StepKey)
+		if err := b.Store.ClaimFragmentCohort(r.Context(), req.StepKey, provenance); err != nil {
+			writeError(w, 403, err)
+			return
+		}
+		rejected, rejectErr := b.Store.RejectedFragmentHashes(r.Context(), req.StepKey)
+		if rejectErr != nil {
+			writeError(w, 500, rejectErr)
+			return
+		}
+		fragment, err := b.Store.EligibleFragment(r.Context(), req.StepKey, req.MinVerified, req.MinContexts, req.MaxAgeDays)
 		if errors.Is(err, sql.ErrNoRows) {
-			writeJSON(w, map[string]any{"found": false})
+			writeJSON(w, map[string]any{"found": false, "rejected_hashes": rejected, "rejected_truncated": len(rejected) > 100})
 			return
 		}
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
-		writeJSON(w, map[string]any{"found": true, "fragment": fragment})
+		writeJSON(w, map[string]any{"found": true, "fragment": fragment, "rejected_hashes": rejected, "rejected_truncated": len(rejected) > 100})
 		return
 	}
 	if action == "fragment_list" {
@@ -161,6 +303,9 @@ func (b *Bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
+		}
+		if b.Contracts != nil {
+			markPublishedBaselines(b.Contracts.List(), fragments)
 		}
 		writeJSON(w, map[string]any{"fragments": fragments})
 		return
@@ -171,10 +316,26 @@ func (b *Bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
-		writeJSON(w, map[string]any{"blocked_deliveries_aged": count})
+		metrics, err := b.Store.FeedbackDeliveryMetrics(r.Context())
+		if err != nil {
+			writeError(w, 500, err)
+			return
+		}
+		metrics["blocked_deliveries_aged"] = count
+		writeJSON(w, metrics)
 		return
 	}
 	if action == "fragment_put" {
+		rec, err := b.Store.Get(r.Context(), req.AttemptID)
+		if err != nil || !sameLearningCohort(rec.Provenance, provenance) || (rec.ProgramID != req.ProgramID && (!validReceipt.MatchString(req.ResumeToken) || rec.ResumeHash != receiptHash(req.ResumeToken))) {
+			writeError(w, 403, errors.New("fragment evidence belongs to its admitting task"))
+			return
+		}
+		if err := b.Store.ClaimFragmentCohort(r.Context(), req.StepKey, provenance); err != nil {
+			writeError(w, 403, err)
+			return
+		}
+
 		fragment, err := b.Store.PutFragment(r.Context(), tasks.Fragment{StepKey: req.StepKey, Fragment: req.Fragment, Source: req.Source, SourceProgramID: req.SourceProgramID, StepName: req.StepName, TraceInputs: req.TraceInputs, TraceOutput: req.TraceOutput, AttemptID: req.AttemptID, InputDigest: req.InputDigest, Compatibility: req.Compatibility, Evidence: req.Evidence, CacheHit: req.CacheHit}, req.VerifiedDelta, req.ContradictedDelta)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err)
@@ -685,4 +846,8 @@ func validateCompletion(record *tasks.Record, c contracts.Contract, req request)
 		}
 	}
 	return nil
+}
+
+func sameLearningCohort(a, b string) bool {
+	return a == b || ((a == "agent" || a == "operator") && (b == "agent" || b == "operator"))
 }

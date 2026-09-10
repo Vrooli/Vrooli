@@ -17,13 +17,13 @@ Use this document to answer:
 ## Role In Vrooli
 
 - Direct product: deferred.
-- Internal capability: scenario-interface graph and contract-first planning surface.
+- Internal capability: ecosystem design and documentation-first proposals; current implementation remains scenario-interface/proto planning.
 - SKU/bundle candidate: deferred.
 - Revenue line: deferred.
 
 ## Customer / Buyer
 
-- Primary user: Vrooli operators and implementation agents planning scenario interfaces.
+- Primary user: Vrooli operators and agents designing changes across scenarios, resources, shared packages and project artifacts.
 - Buyer: not applicable for the current internal meta-capability.
 - Pain: scenario dependency drift and late interface design create avoidable rework across the fleet.
 - Existing alternatives: ad hoc diagrams, manual proto browsing, and scenario-specific planning notes.
@@ -48,12 +48,12 @@ Use this document to answer:
 
 - Demand signal needed: repeated operator use during scenario planning and evidence that early proto validation reduces implementation rework.
 - Channel: internal Vrooli planning workflows first; external packaging only after user-facing demand is explicit.
-- Success threshold: material percentage of new scenario plans start as validated proto contracts.
+- Success threshold: pending a baseline of review effort, author-to-executor information loss and safe multi-target application; do not invent a numeric adoption result.
 - Revisit trigger: TTD becomes part of a repeatable paid implementation or enterprise deployment workflow.
 
 ## Current Status
 
-`internal-meta-capability` — shipped for Vrooli's planning loop. No direct pricing hypothesis is active.
+`internal-meta-capability` — existing graph/proto/ontology surfaces, with broader design workflows still targeted. No direct pricing hypothesis or payment integration is active. Subscription and credits in the Audio Tools pilot are not a reason to add paid gates to TTD. Any optional model calls require explicit cost authority.
 
 ## Cross-References
 

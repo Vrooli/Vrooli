@@ -1,53 +1,31 @@
 # Go To Market — Tech Tree Designer
 
-This document records launch strategy, positioning, channels, and
-validation experiments for the scenario.
-
 ## Purpose Of This Document
 
-Use this document to answer:
-
-- Who should hear about this scenario?
-- Which channels can reach them?
-- What claim or offer will be tested?
-- What evidence changes the product or monetization plan?
+Qualify internal value before making external product claims.
 
 ## Audience And Positioning
 
-- Audience: define during PRD and monetization review.
-- Positioning: define after the first real domain proves value.
-- Main claim: deferred.
-- Proof needed: deferred.
+Vrooli operators and agents need a repository-wide ecosystem design environment: source-backed context, a revisable capability horizon and concrete documentation-first proposals. The immediate value hypothesis is less information loss between plan authoring, review and implementation.
 
 ## Channels
 
-| Channel | Hypothesis | Assets Needed | Validation Signal |
-|---|---|---|---|
-| None yet. | Generated scaffold. | n/a | Add when the scenario has a market-facing use case. |
+Internal Plan Manager/Swarm development workflows are the first adoption channel. External architecture tooling, enterprise packaging and services remain hypotheses without demand or pricing evidence.
 
 ## Launch Motion
 
-1. Complete scaffold orientation.
-2. Implement one real domain and remove template reference domains.
-3. Validate PRD requirements and scenario tests.
-4. Decide whether this is internal capability, direct product, bundle
-   component, or service accelerator.
-5. Add channel-specific assets only after the role is clear.
+Qualify the safe multi-target design slice, revision-bound review and recoverable application. Prove the approved autonomous-development path with TTD as the second target after Audio Tools. Expand adoption only with evidence of useful review and implementation outcomes.
 
 ## Messaging
 
-| Message | Audience | Evidence | Status |
-|---|---|---|---|
-| None yet. | n/a | n/a | deferred |
+Describe current proto planning separately from the target bundle system. Do not advertise exhaustive ecosystem coverage, civilization-scale implementation or autonomous execution based on documentation completion.
 
 ## Validation Experiments
 
-| Experiment | Channel | Threshold | Decision |
-|---|---|---|---|
-| None yet. | n/a | n/a | Add after monetization hypothesis exists. |
+Compare review effort, artifact re-authoring, conflict recovery and fresh-agent onboarding across representative approved work. Record cohort, baseline and outcome; numeric success thresholds require agreement. No public launch or paid campaign is authorized by this contract update.
 
 ## Cross-References
 
-- [`MONETIZATION.md`](MONETIZATION.md) — packaging and pricing hypothesis
-- [`../../PRD.md`](../../PRD.md) — product outcomes
-- [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md) — validation signals and telemetry
+- [Monetization](MONETIZATION.md)
+- [PRD](../../PRD.md)
+- [Observability](../operations/OBSERVABILITY.md)

@@ -20,7 +20,8 @@ class PrepareTests(unittest.TestCase):
         stream = io.StringIO()
         with contextlib.redirect_stdout(stream):
             exec(compile((ROOT / "prepare-operation.py").read_text(), "prepare-operation", "exec"), {
-                "inputs": {"name": "fixture.run"}, "program_runtime": NS(library=NS(get=get)), "prompt_manager": NS(skill=NS(read=read))})
+                "program": NS(inputs=lambda: {"name": "fixture.run"}),
+                "program_runtime": NS(library=NS(get=get)), "prompt_manager": NS(skill=NS(read=read))})
         return json.loads(stream.getvalue()), calls
 
     def test_one_program_one_owner_skill_with_input_names_and_identity(self):

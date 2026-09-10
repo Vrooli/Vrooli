@@ -438,3 +438,22 @@ func TestBaselinePublicationPreservesSourceAndRequiresCurrentOperatorReview(t *t
 	require.Equal(t, source, unchanged)
 	post(programsv1.Provenance_PROVENANCE_OPERATOR, http.StatusConflict)
 }
+
+// A promoted fragment must stop counting as a promotion candidate, or the setpoint row that
+// counts candidates stays red after the right action and a healthy fleet can never reach band.
+func TestMarkPublishedBaselinesFlagsOnlyTheDeclaredFragment(t *testing.T) {
+	declared := []contracts.Contract{
+		{ID: "demo.search", Declaration: []byte(`{"learning":{"baselines":{"row-normalization":{"fragment":"def step(inputs, bindings):\n    return {'ok': True}"}}}}`)},
+		{ID: "demo.unparseable", Declaration: []byte(`not json`)},
+		{ID: "demo.undeclared"},
+	}
+	fragments := []taskstore.Fragment{
+		{StepKey: "a", StepName: "row-normalization", Fragment: "def step(inputs, bindings):\n    return {'ok': True}"},
+		{StepKey: "b", StepName: "row-normalization", Fragment: "def step(inputs, bindings):\n    return {'ok': False}"},
+		{StepKey: "c", StepName: "other-step", Fragment: "def step(inputs, bindings):\n    return {'ok': True}"},
+	}
+	markPublishedBaselines(declared, fragments)
+	require.True(t, fragments[0].Published, "the exact declared fragment is published")
+	require.False(t, fragments[1].Published, "a different candidate for the same step is still promotable")
+	require.False(t, fragments[2].Published, "identical code under another step name is not this baseline")
+}

@@ -289,3 +289,11 @@ Respect reduced-motion preferences. Animations should clarify spatial change, su
 - Introduce a new product theme without updating the scenario's root `DESIGN.md`.
 - Leave users without visible feedback after they submit, save, generate, refresh, or delete something.
 - Use silent failure, blank panels, disabled controls without explanation, or toasts as the only record of a blocking error.
+
+## Tech Tree Designer product direction — September 2026
+
+Design for artifact-centered ecosystem planning: observed context, intended capability context and proposal-local changes remain visibly distinct. The graph is useful context, not the only way to navigate or review work.
+
+The primary review surface emphasizes exact revision, selected targets, material artifact/graph differences, validation limitations and external approval. Applying, partially applied, conflicted and recovering are distinct states with durable receipts and safe next actions. Never label approved or applied documentation as verified implementation.
+
+Use bounded progressive disclosure and asynchronous layout, keyboard/text alternatives to geometry, and compact layouts that retain authority warnings and recovery controls. Preserve the binding visual, accessibility, i18n and state contracts above. experience/index.json supplies draft page/journey intent; it does not assert implemented bindings or demand a full IDE.

@@ -69,7 +69,7 @@ func TestServiceNormalizesFulfillment(t *testing.T) {
 	}
 }
 
-func TestServiceCoverageClassifiesBuiltInflightGapAndUnmapped(t *testing.T) {
+func TestServiceCoverageClassifiesBuiltInflightGapAndUnmapped(t *testing.T) { // [REQ:TTD-ONTOLOGY-001]
 	ctx := context.Background()
 	database := db.NewSQLite(t)
 	if err := apicoredb.EnsureSchemas(ctx, database, apicoredb.SchemaProviderFunc(Schema)); err != nil {

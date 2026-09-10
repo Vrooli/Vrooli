@@ -9,9 +9,9 @@ metadata:
   tags: [orchestration, multi-agent, effort, continuity, recovery, planning]
   icon: network
   status: active
-  revision: 2
+  revision: 3
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-09-10T08:13:16Z"
+  updatedAt: "2026-09-10T16:37:12Z"
   requires:
     scenarios: [prompt-manager, plan-manager, agent-manager, program-runtime]
     commands: [prompt-manager skill read, plan-manager, agent-manager, program-runtime]
@@ -53,6 +53,8 @@ Exit: another agent can recover the full destination and authority without this 
 Entry: the destination is preserved.
 
 Perform one representative, low-impact check for each capability actually needed by the next work. A health response, help page or wrapper completion proves only that surface. Inspect relevant existing failure evidence. Avoid probing every service in the ecosystem.
+
+Before relying on subagents, qualify the selected dispatch and monitoring route. Verify requested versus effective runner/model, reasoning effort and supported goal/completion behavior, plus durable run identity, result/wait, cancellation and uncertain-start reconciliation. A health check or declared profile is insufficient. Extract missing core delegation into an upfront prerequisite when necessary; do not postpone it with the full recurring-supervision platform. Bootstrap that prerequisite through a directly supervised qualified session without circular dependence on unproven delegation. Independent work may continue only where its actual prerequisites are satisfied.
 
 Classify each dependency as observed usable, insufficient, unavailable, or unverified, with scope and evidence. Check a real output when the distinction matters. Apply the recovery policy before repairing a dependency.
 

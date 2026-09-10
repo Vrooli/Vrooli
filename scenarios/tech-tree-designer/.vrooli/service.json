@@ -1,6 +1,18 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "skills": {
+    "usage": {
+      "source": "skills/tech-tree-designer/SKILL.md",
+      "programs": ["tech-tree-designer.setpoint-read"]
+    },
+    "improve": {
+      "source": "skills/tech-tree-designer-improve/SKILL.md",
+      "programs": ["tech-tree-designer.setpoint-read"]
+    },
+    "feature": [],
+    "waivers": {}
+  },
   "storage": {
     "entries": {
       "data": {
@@ -111,6 +123,18 @@
   },
   "dependencies": {
     "scenarios": {
+      "prompt-manager": {
+        "required": false,
+        "startup_policy": "try_start",
+        "bundle_policy": "either",
+        "description": "Owns the nested skill-set diagnostic reader; absent registry evidence remains unknown."
+      },
+      "program-runtime": {
+        "required": false,
+        "startup_policy": "try_start",
+        "bundle_policy": "either",
+        "description": "Runs bounded development evidence composition; product use remains available without the development board."
+      },
       "scenario-dependency-analyzer": {
         "enabled": true,
         "required": true,

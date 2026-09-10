@@ -44,3 +44,37 @@ CREATE TABLE IF NOT EXISTS learning_fragment_evidence (
   created_at TEXT NOT NULL,
   PRIMARY KEY(step_key,fragment_hash,attempt_id,outcome)
 );
+
+CREATE TABLE IF NOT EXISTS learning_results (
+  feedback_ref TEXT PRIMARY KEY,
+  attempt_id TEXT NOT NULL,
+  provenance TEXT NOT NULL,
+  record TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS learning_feedback (
+  observation_id TEXT PRIMARY KEY,
+  feedback_ref TEXT NOT NULL,
+  record TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS learning_findings (
+  finding_id TEXT PRIMARY KEY,
+  owner TEXT NOT NULL,
+  state TEXT NOT NULL,
+  record TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS learning_findings_owner_state ON learning_findings(owner,state);
+CREATE TABLE IF NOT EXISTS learning_feedback_delivery (
+ observation_id TEXT PRIMARY KEY,
+ state TEXT NOT NULL DEFAULT 'pending',
+ attempts INTEGER NOT NULL DEFAULT 0,
+ next_attempt_at TEXT NOT NULL,
+ last_error TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS learning_feedback_target ON learning_feedback(feedback_ref,created_at);
+CREATE INDEX IF NOT EXISTS learning_results_artifact ON learning_results(json_extract(record,'$.artifact'),provenance);
+CREATE TABLE IF NOT EXISTS learning_fragment_cohorts (
+ step_key TEXT PRIMARY KEY,
+ cohort TEXT NOT NULL
+);

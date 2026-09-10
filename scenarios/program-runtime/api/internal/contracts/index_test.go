@@ -196,3 +196,33 @@ func TestResolveInputsAppliesDefaultsAndRejectsInvalidValues(t *testing.T) {
 	_, err = contract.ResolveInputs(map[string]any{"name": "fixture", "limit": 1.5})
 	require.EqualError(t, err, `input "limit" must have type integer`)
 }
+
+func TestLearningCapabilityPolicyRequiresExplicitOwnerAndEffects(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		policy map[string]any
+		valid  bool
+	}{
+		{"scoped read", map[string]any{"scenario": "browser-automation-studio", "effects": []string{"read"}}, true},
+		{"missing owner", map[string]any{"effects": []string{"read"}}, false},
+		{"unknown effect", map[string]any{"scenario": "browser-automation-studio", "effects": []string{"everything"}}, false},
+		{"no effects", map[string]any{"scenario": "browser-automation-studio", "effects": []string{}}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var document map[string]any
+			require.NoError(t, json.Unmarshal(validContractData(t), &document))
+			document["learning"] = map[string]any{"capabilities": []any{tc.policy}}
+			data, err := json.Marshal(document)
+			require.NoError(t, err)
+			path := filepath.Join(t.TempDir(), "scoped.json")
+			require.NoError(t, os.WriteFile(path, data, 0600))
+			got := readContract("demo", path, testSchema(t))
+			if tc.valid {
+				require.Empty(t, got.ValidationError)
+				require.Equal(t, []LearningCapability{{Scenario: "browser-automation-studio", Effects: []string{"read"}}}, got.Learning.Capabilities)
+			} else {
+				require.NotEmpty(t, got.ValidationError)
+			}
+		})
+	}
+}

@@ -46,9 +46,15 @@ def normalize(source):
 
 def wrap(fragment):
     normalized = normalize(fragment)
+    # `isinstance` and `set` are here because normalization fragments — the common
+    # Act shape — are defensive by nature. Without them a generated candidate that
+    # writes idiomatic Python fails at runtime with NameError, burning an attempt to
+    # rediscover the sandbox. Neither widens reach: the fragment can only name types
+    # already exposed here, and `type` remains a forbidden call.
     safe = {"__builtins__": {"len": len, "min": min, "max": max, "sum": sum, "str": str, "int": int,
                             "float": float, "bool": bool, "dict": dict, "list": list, "range": range,
-                            "sorted": sorted, "enumerate": enumerate, "any": any, "all": all}}
+                            "sorted": sorted, "enumerate": enumerate, "any": any, "all": all,
+                            "isinstance": isinstance, "set": set}}
     safe["StepFailed"] = StepFailed
     exec(compile(normalized, "<fragment>", "exec"), safe, safe)
     function = safe["step"]
@@ -143,3 +149,90 @@ class ReplayBindings:
     def assert_consumed(self):
         if self._state[0] != len(self._calls):
             raise ValueError("fixture binding calls were not consumed")
+
+
+def _learning_state_path(owner, provenance, partition_name):
+    import os
+    from pathlib import Path
+    from urllib.parse import urlsplit
+    endpoint = getattr(owner, "_bridge_url", "")
+    if not endpoint:
+        return None
+    root = Path(os.environ.get("PROGRAM_RUNTIME_LEARNING_STATE_DIR", "") or
+                str(Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local/state"))) / "program-runtime/learning"))
+    root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    address = urlsplit(endpoint.rsplit("/bindings/", 1)[0])
+    runtime_identity = [address.scheme, address.hostname, address.path]
+    cohort = "live" if provenance in ("agent", "operator") else provenance
+    path = root / (digest([runtime_identity, partition_name, cohort]) + ".sqlite3")
+    descriptor = os.open(path, os.O_CREAT | os.O_WRONLY, 0o600)
+    os.close(descriptor)
+    return path
+
+
+def learning_quarantine(owner, provenance, step_key, hashes=None):
+    """Known negative evidence survives backend outages and program boundaries."""
+    import sqlite3
+    path = _learning_state_path(owner, provenance, "artifact-quarantine")
+    if path is None:
+        return []
+    with sqlite3.connect(path, timeout=5) as db:
+        db.execute("CREATE TABLE IF NOT EXISTS rejected(step_key TEXT, hash TEXT, PRIMARY KEY(step_key,hash))")
+        if hashes:
+            db.executemany("INSERT OR IGNORE INTO rejected(step_key,hash) VALUES(?,?)", [(step_key, value.removeprefix("sha256:")) for value in hashes if isinstance(value, str) and len(value.removeprefix("sha256:")) == 64])
+        return [row[0] for row in db.execute("SELECT hash FROM rejected WHERE step_key=?", (step_key,))]
+
+
+def durable_learning_write(owner, context, provenance, action, request, send, program_name=""):
+    """Write-before-send journal: a lost bridge response is safely replayed later.
+
+    Journals are private to the runtime user and partitioned by endpoint, program
+    and provenance. Session credentials are never persisted. Server handlers must
+    make receipt/observation identities idempotent.
+    """
+    import sqlite3
+    db_path = _learning_state_path(owner, provenance, "delivery")
+    if db_path is None:
+        return {"delivery": "unavailable", "reason": "bridge_unavailable"}
+    payload = json.dumps(request, sort_keys=True, allow_nan=False)
+    if len(payload.encode()) > 256 * 1024:
+        raise ValueError("learning event exceeds 256 KiB")
+    event_id = digest([action, request])
+    with sqlite3.connect(db_path, timeout=5) as db:
+        db.execute("CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT UNIQUE, action TEXT NOT NULL, payload TEXT NOT NULL)")
+        db.execute("CREATE TABLE IF NOT EXISTS rejected_events(id TEXT PRIMARY KEY, action TEXT NOT NULL, payload TEXT NOT NULL, error TEXT NOT NULL)")
+        rejected = db.execute("SELECT error FROM rejected_events WHERE id=?", (event_id,)).fetchone()
+        if rejected:
+            return {"delivery": "rejected", "event_id": event_id, "last_error": rejected[0]}
+        count = db.execute("SELECT count(*) FROM events").fetchone()[0]
+        if action and count >= 4096 and not db.execute("SELECT 1 FROM events WHERE id=?", (event_id,)).fetchone():
+            raise RuntimeError("learning outbox full; evidence not discarded")
+        if action:
+            db.execute("INSERT OR IGNORE INTO events(id,action,payload) VALUES(?,?,?)", (event_id, action, payload))
+        db.commit()
+        result = {"delivery": "pending", "event_id": event_id}
+        for identity, verb, encoded in db.execute("SELECT id,action,payload FROM events ORDER BY seq LIMIT 128").fetchall():
+            try:
+                response = send(verb, **json.loads(encoded))
+            except Exception as exc:
+                error = str(exc)[:160]
+                status = getattr(getattr(exc, "__cause__", None), "code", None)
+                permanent = status in (400, 403) or (status == 409 and any(marker in str(exc) for marker in (
+                    "sql: no rows", "observation identity", "invalid feedback", "bounded feedback", "cohort mismatch")))
+                if permanent:
+                    # Preserve refused evidence for inspection without poisoning unrelated work.
+                    db.execute("INSERT OR REPLACE INTO rejected_events(id,action,payload,error) VALUES(?,?,?,?)", (identity, verb, encoded, error))
+                    db.execute("DELETE FROM events WHERE id=?", (identity,))
+                    db.commit()
+                    if identity == event_id:
+                        result = {"delivery": "rejected", "event_id": event_id, "last_error": error}
+                    continue
+                result["last_error"] = error
+                break
+            db.execute("DELETE FROM events WHERE id=?", (identity,))
+            db.commit()
+            if identity == event_id:
+                result = {**(response if isinstance(response, dict) else {}), "delivery": "delivered", "event_id": event_id}
+        if not action:
+            result["delivery"] = "pending" if db.execute("SELECT 1 FROM events LIMIT 1").fetchone() else "delivered"
+        return result

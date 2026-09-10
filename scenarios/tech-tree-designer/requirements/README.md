@@ -1,17 +1,11 @@
-# Requirements Registry
+# Tech Tree Designer requirements
 
-Organize requirement modules by PRD operational targets, keeping the filesystem structure aligned with the "what" articulated in the PRD. Create folders such as `01-<target-name>/` as needed (numbers preserve ordering but do **not** imply priority).
+Each operational target links to technical requirements through prd_ref. The index enables auto-sync: evidence-driven requirements synchronization owns completion updates. Each validation entry records its type, status and evidence reference or planned protocol.
 
-Generated scenarios start with `01-foundation/module.json` so Test Genie can validate the registry immediately. Replace that starter module with PRD-specific modules during `docs/START-HERE.md` Gate 2.
+The registry imports the historical foundation and the September 2026 expansion. Preserve stable IDs, historical statuses and evidence in 01-foundation; they describe the original graph/proto/ontology scope, not proof of the expanded product.
 
-## Lifecycle
-1. Operational targets in PRD map to folders here.
-2. `requirements/index.json` imports each module; tests auto-sync their status when they run.
-3. Coverage summaries live in `coverage/phase-results/` after each test phase.
+The must-ship, post-launch and future modules add behavioral obligations for the three-view, repository-wide design environment. Their planned manual references point to named protocols in [TESTING](../docs/internal/TESTING.md), not completed checks. Replace/supplement those references with real tagged tests and durable evidence as behavior is implemented.
 
-## Contributor Notes
-- Add folders/modules that match your scenario’s PRD targets (P0/P1/P2) instead of reusing other scenarios’ names.
-- Remove or replace `01-foundation/module.json` once real PRD-generated modules exist.
-- Tag tests with `[REQ:ID]` so auto-sync can update status.
-- Never add compatibility shims (duplicate folders or alias imports) during migrations—let things fail temporarily instead of adding debt.
-- Keep this README short. Use `scenarios/test-genie/docs/reference/requirement-schema.md` for schema details and `scenarios/test-genie/docs/phases/business/requirements-sync.md` for auto-sync behavior.
+PRD checkboxes are generated and evidence-managed. Do not hand-mark targets complete, force-sync a green snapshot or infer current readiness from historical completion. Draft experience claims likewise describe intended UX, not evidence.
+
+Read [START-HERE](../docs/START-HERE.md) for delivery sequence and [PERFORMANCE](../docs/internal/PERFORMANCE.md) for pending qualification decisions. Validate with `vrooli scenario requirements validate tech-tree-designer --json`.

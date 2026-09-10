@@ -37,16 +37,17 @@
   ],
   "bindings": [],
   "verbs": [
-    "learn.task",
-    "learn.step",
-    "learn.recall",
+    "learn.act",
     "learn.choose",
+    "learn.delegate",
+    "learn.feedback",
+    "learn.infer",
     "learn.note",
     "learn.outcome",
-    "learn.infer",
-    "learn.act",
-    "learn.delegate",
-    "learn.feedback"
+    "learn.recall",
+    "learn.result",
+    "learn.step",
+    "learn.task"
   ],
   "outputs": {
     "status": {
@@ -69,7 +70,8 @@
       "acted": "fragment result, source, and model-call count",
       "delegated": "verified or degraded delegated result",
       "identity": "stable task identity",
-      "mode": "Baseline, adaptive generation, or all verbs"
+      "mode": "Baseline, adaptive generation, or all verbs",
+      "learning": "Durable feedback_ref identifies this task or exact artifact; preserve it and send a later correction with program-runtime.learning-feedback or learn.feedback."
     },
     "errors": {
       "classes": [
