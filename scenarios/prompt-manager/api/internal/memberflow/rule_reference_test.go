@@ -3,18 +3,13 @@ package memberflow
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
 
 func repoDocsDir(t *testing.T) string {
 	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test filename")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", "..", "docs"))
+	return filepath.Join(requireRepositoryRoot(t), "docs")
 }
 
 // TestGeneratedRuleTablesMatchTheCatalog is the drift gate. Two hand-written

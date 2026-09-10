@@ -60,3 +60,18 @@ afterEach(() => {
 // its own beforeEach and restore it on teardown — opt-in override
 // rather than process-wide unwiring.
 vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+
+Object.defineProperty(window, "matchMedia", {
+  configurable: true,
+  writable: true,
+  value: (media: string) => ({
+    media,
+    matches: media.includes("min-width"),
+    onchange: null,
+    addListener() {},
+    removeListener() {},
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent: () => false,
+  }),
+});

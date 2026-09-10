@@ -202,6 +202,7 @@ func NewServer() (*Server, error) {
 	semanticRuntime, semanticConfigErr := conversationsearch.BuildSemanticRuntime(semanticCtx, conversationsearch.SemanticRuntimeOptions{
 		SearchFilePath: conversationSearchFile,
 		Source:         conversationSource, Projection: conversationRepository,
+		GenerationCatalog: conversationsearch.NewSQLiteQdrantCatalog(db),
 	})
 	semanticCancel()
 	if semanticConfigErr != nil {
@@ -354,6 +355,7 @@ func (s *Server) setupRoutes() {
 		WorkspaceSandbox:         s.workspaceSandbox,
 		ConversationSearch:       s.conversationSearch,
 		ConversationIndexer:      s.conversationIndexer,
+		ConversationSemantic:     s.conversationSemantic,
 		ConversationSearchFile:   s.conversationSearchFile,
 		ConversationControlToken: func() string { return s.conversationTokens.get(conversationsearch.ConversationSearchProviderID) },
 	})

@@ -315,7 +315,7 @@ func (s *Service) DocHealth(ctx context.Context, scenarioName string, opts DocHe
 				referenceRoot = filepath.Join(s.scenariosRoot, name)
 			}
 		}
-		refFindings, refSum := validateBidirectionalRefsWithRoot(ctx, target.root, referenceRoot, files, cfg, s.commandValidator)
+		refFindings, refSum := validateBidirectionalRefsWithRoot(ctx, target.root, referenceRoot, s.repoRoot(), files, cfg, s.commandValidator)
 		result.ReferenceFindings = append(result.ReferenceFindings, refFindings...)
 		result.Counts.CodeRefsFound = refSum.CodeRefsFound
 		result.Counts.CodeRefsBroken = refSum.CodeRefsBroken

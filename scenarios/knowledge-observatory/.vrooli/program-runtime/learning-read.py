@@ -1,9 +1,6 @@
 """Project shared Memory comparison rows into the established consumer envelope."""
 import json
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 envelope={"program":"knowledge-observatory.learning-read","version":"1","status":"failed","phase":"validate",
           "inputs":{},"signals":{},"errors":[],"evidence":[]}
 try:

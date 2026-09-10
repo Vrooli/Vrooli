@@ -260,24 +260,27 @@ Team: Review Squad
 
 ## Swarm Manager Integration: The Staging Layer
 
-Teams do not execute their plans directly. Instead, the member that found a signal files it once into the unified `swarm-manager` stream: raw observations use `swarm-manager captures create`, while shaped outcomes use `swarm-manager backlog create`. The operator disposition is read later with `swarm-manager backlog list --actor-id=<verified-profile-key>` and `swarm-manager backlog get`.
+Teams do not execute their plans directly. Instead, the member that found a signal files it once into the unified `swarm-manager` stream: raw observations use `swarm-manager captures create`, while shaped outcomes use `swarm-manager backlog create`. Material implementation work is then shaped through Plan Manager and receives one canonical `plan_ref`; the operator chooses phased execution or the `adaptive-improvement` strategy. The operator disposition is read later with `swarm-manager backlog list --actor-id=<verified-profile-key>` and `swarm-manager backlog get`.
 
 ```
 prompt-manager (teams analyze)          swarm-manager (staging/review)
 ┌──────────────────────────┐            ┌──────────────────────────────┐
-│  Feature Team  → idea    │──┐         │                              │
-│  QA Team       → fix     │──┼─ plans ▶│  Backlog (review all plans)  │
-│                          │──┘         │         ↓                    │
-│                          │            │  Idea Agent (refine plans)   │
-└──────────────────────────┘            │         ↓                    │
-                                        │  Generator / Improver        │
-                                        │  (build/iterate scenarios)   │
-                                        └──────────────────────────────┘
+│  Feature Team  → idea    │──┐         │ Backlog item + outcome       │
+│  QA Team       → fix     │──┼────────▶│          ↓                   │
+│  Other owner  → evidence │──┘         │ Plan Manager plan_ref        │
+└──────────────────────────┘            │          ↓                   │
+                                        │ Operator grant + strategy    │
+                                        │   ├ phased plan slices       │
+                                        │   └ adaptive improvements     │
+                                        └──────────┬───────────────────┘
+                                                   ↓
+                                        Agent Manager workflow + evidence
 ```
 
 **Why staging matters:**
 - Operators get a single place to review all agent-generated plans
-- The Idea Agent's clarify/suggest/enhance pipeline refines plans before execution
+- Goal and plan workflows shape intent and implementation separately; neither
+  approves or launches work automatically
 - Execution governance (manual/scheduled/yolo) controls when approved work runs
 - Plans are git-tracked, human-readable, and editable before committing to execution
 

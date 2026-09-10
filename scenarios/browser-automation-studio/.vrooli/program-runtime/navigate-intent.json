@@ -1,7 +1,7 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "browser-automation-studio.navigate-intent",
-  "version": "2",
+  "version": "4",
   "helpers": {
     "program": "1"
   },
@@ -44,6 +44,22 @@
       "type": "integer",
       "default": 0,
       "description": "Server-side bounded wait (0..300000) for a terminal status before the single read returns; the wait is the vision-navigation status binding's own, not a client loop."
+    },
+    "postconditions": {
+      "type": "array",
+      "description": "Independent typed BAS assertion parameters defining task success; no synthetic body-exists fallback."
+    },
+    "knowledge": {
+      "type": "string",
+      "description": "Bounded recalled task knowledge, advisory only."
+    },
+    "extraction": {
+      "type": "array",
+      "description": "At most 16 named final-page DOM extractions {name, selector, attribute?, limit?}; at most 32768 output bytes."
+    },
+    "effect_policy": {
+      "type": "string",
+      "description": "explicit uses existing task authority; read_only rejects navigator actions other than wait/done before execution."
     }
   },
   "assumptions": [
@@ -55,7 +71,7 @@
   "invariants": [
     "at most one navigation is started; a resume starts none; no abort, no retry",
     "status is read exactly once; the wait is server-side, there is no client polling loop",
-    "a candidate flow is emitted only from a completed navigation with recorded steps, in the V2 shape nodes[].action.type plus edges, ending in an assertion",
+    "a candidate flow is emitted only from a completed navigation with recorded steps, in the V2 shape nodes[].action.type plus edges; only caller postconditions become verification assertions",
     "the envelope is printed exactly once, on every path"
   ],
   "bindings": [
@@ -95,7 +111,12 @@
       "total_tokens": "tokens consumed at the read",
       "navigator_type": "navigator that took the session",
       "outcome": "reached | human_pause | budget | in_progress | failed | unknown",
-      "candidate_flow": "V2 flow {nodes[{id, action{type, <params>}}], edges[{source,target,type}]} rebuilt from the navigation's recorded steps; absent unless the navigation completed with replayable steps"
+      "candidate_flow": "V2 flow {nodes[{id, action{type, <params>}}], edges[{source,target,type}]} rebuilt from the navigation's recorded steps; absent unless the navigation completed with replayable steps",
+      "learning": "Durable feedback_ref identifies this task or exact artifact for later learn.feedback.",
+      "output": "Named arrays extracted from the final page; bounded to 32768 bytes.",
+      "qualification": "Recorded navigation flows remain candidate; task verification does not authorize replay.",
+      "candidate_flow_source": "Where the step mapping came from: cache | baseline | fallback | model | unavailable.",
+      "dropped_steps": "Recorded steps the mapping could not represent, each {index, kind, reason}; bounded to 16. Non-empty means the navigator emitted vocabulary this flow schema cannot replay."
     },
     "errors": {
       "classes": [
@@ -116,14 +137,16 @@
         "model_required",
         "navigation_pending",
         "remote_error",
-        "no_governed_binding"
+        "no_governed_binding",
+        "verification_required",
+        "verification_failed"
       ]
     },
     "evidence": "navigation:<id>"
   },
   "budget": {
     "wall_ms": 60000,
-    "inference_calls": 0,
+    "inference_calls": 2,
     "delegated_runs": 0,
     "materialize_limit": 0
   },
@@ -202,8 +225,10 @@
   "owner_skill": "browser-automation-studio",
   "verbs": [
     "learn.task",
+    "learn.act",
     "learn.note",
     "learn.outcome",
-    "lib"
+    "lib",
+    "learn.result"
   ]
 }

@@ -5,6 +5,7 @@
   "icon": "rocket",
   "id": "deployment-coordinator",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "practice"
   ],

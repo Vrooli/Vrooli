@@ -757,6 +757,18 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.DeniedPaths != nil {
 		cfg.DeniedPaths = req.DeniedPaths
 	}
+	if req.AllowedEffects != nil {
+		if err := validateEffectGrant(req.AllowedEffects); err != nil {
+			return nil, nil, domain.NewValidationError("allowedEffects", err.Error())
+		}
+		cfg.AllowedEffects = append([]string(nil), req.AllowedEffects...)
+		cfg.RequireEffectContainment = req.RequireEffectContainment || len(req.AllowedEffects) > 0
+		for _, effect := range req.AllowedEffects {
+			if paths := effectParameter(effect, "paths"); paths != "" && req.AllowedPaths == nil {
+				cfg.AllowedPaths = mergeUnique(cfg.AllowedPaths, []string{paths})
+			}
+		}
+	}
 	if req.ResultSpec != nil {
 		normalized, err := structuredresult.NormalizeSpec(req.ResultSpec)
 		if err != nil {
@@ -1551,6 +1563,12 @@ func (o *Orchestrator) RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverRe
 	}
 	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
 		return nil, importedRunLifecycleError("recover")
+	}
+	if run.Status.IsTerminal() && run.FinalizationStatus == domain.RunFinalizationStatusFailed {
+		return o.recoverFinalization(ctx, run)
+	}
+	if run.Status.IsTerminal() && run.FinalizationStatus == domain.RunFinalizationStatusSucceeded {
+		return &RecoverResult{Run: run, Idempotent: true, Message: "run execution and sandbox finalization are already complete"}, nil
 	}
 	if o.reconciler == nil {
 		return nil, domain.NewConfigMissingError("reconciler", "reconciler not configured", nil)

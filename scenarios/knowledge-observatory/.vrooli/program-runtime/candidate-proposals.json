@@ -2,8 +2,20 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "knowledge-observatory.candidate-proposals",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Turn bounded candidate observations into review-only disposition proposals.",
-  "inputs": {"candidates": {"type": "array", "required": true}, "reader_task": {"type": "string", "required": false}},
+  "inputs": {
+    "candidates": {
+      "type": "array",
+      "required": true
+    },
+    "reader_task": {
+      "type": "string",
+      "required": false
+    }
+  },
   "invariants": [
     "Every proposal remains proposed and requires owner authorization.",
     "Citations, source hashes, preservation obligations, uncertainty, and prompt-injection signals are retained.",
@@ -14,17 +26,67 @@
     "Proposal generation does not authorize any disposition or source edit."
   ],
   "bindings": [],
-  "outputs": {"status": {"enum": ["ok", "partial", "failed", "unavailable"]}, "phase": {"enum": ["validate", "collect", "report"]}, "signals": {"proposals": "Bounded review-only proposals and count."}, "errors": {"classes": ["invalid_input"]}},
-  "budget": {"wall_ms": 90000, "inference_calls": 1, "delegated_runs": 1, "materialize_limit": 100, "output_bytes": 65536},
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "proposals": "Bounded review-only proposals and count."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    }
+  },
+  "budget": {
+    "wall_ms": 90000,
+    "inference_calls": 1,
+    "delegated_runs": 1,
+    "materialize_limit": 100,
+    "output_bytes": 65536
+  },
   "rung": "S3",
   "owner_skill": "knowledge-observatory-maintenance",
-  "verbs": ["validate", "capture"],
+  "verbs": [
+    "validate",
+    "capture"
+  ],
   "fixtures": [
     {
       "id": "review-candidates",
-      "inputs": {"candidates": [{"path": "docs/example.md", "owner_hint": "knowledge-observatory", "evidence_standing": "unknown"}], "reader_task": "review bounded candidates"},
-      "expect": {"status": ["ok"]},
-      "requires": ["knowledge-observatory"]
+      "inputs": {
+        "candidates": [
+          {
+            "path": "docs/example.md",
+            "owner_hint": "knowledge-observatory",
+            "evidence_standing": "unknown"
+          }
+        ],
+        "reader_task": "review bounded candidates"
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "knowledge-observatory"
+      ]
     }
   ]
 }

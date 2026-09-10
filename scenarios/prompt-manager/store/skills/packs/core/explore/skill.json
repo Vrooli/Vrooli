@@ -5,6 +5,7 @@
   "icon": "compass",
   "id": "explore",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "explore"

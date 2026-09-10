@@ -10,6 +10,8 @@ import { cleanup, screen } from "@testing-library/react";
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { setLocale } from "../i18n";
 import { TestAppRouter } from "../app/routes";
+import { Providers } from "../app/providers";
+import { selectors } from "../consts/selectors";
 
 describe("AppShell accessibility", () => {
   beforeEach(async () => {
@@ -22,7 +24,7 @@ describe("AppShell accessibility", () => {
 
   it("renders the shell without axe violations in English", async () => {
     const { container } = renderWithProviders(
-      <TestAppRouter initialEntries={["/"]} />,
+      <Providers><TestAppRouter initialEntries={["/"]} /></Providers>,
       { withoutRouter: true },
     );
     await expectNoA11yViolations(container);
@@ -30,11 +32,11 @@ describe("AppShell accessibility", () => {
 
   it("exposes exactly one primary navigation landmark", () => {
     renderWithProviders(
-      <TestAppRouter initialEntries={["/"]} />,
+      <Providers><TestAppRouter initialEntries={["/"]} /></Providers>,
       { withoutRouter: true },
     );
 
-    expect(screen.getAllByRole("navigation", { name: "Primary navigation" })).toHaveLength(1);
-    expect(screen.getByRole("navigation", { name: "Mobile navigation" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Primary navigation" })).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-tabs`)).toBeInTheDocument();
   });
 });

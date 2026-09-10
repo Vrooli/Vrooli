@@ -549,3 +549,23 @@ func TestClampStatusWait(t *testing.T) {
 	require.Equal(t, maxStatusWait, clampStatusWait(300_000))
 	require.Equal(t, maxStatusWait, clampStatusWait(9_999_999))
 }
+
+func TestStartNavigationTaskContractRejectsUnsupportedNavigatorAndInvalidPolicy(t *testing.T) {
+	for _, policy := range []string{"read_only", "invalid"} {
+		nav := &fakeNavigator{navType: vision.NavigatorClaudeCode, available: true, clientSourcePolicy: vision.AllSourcesPolicy(), navigateID: "nav"}
+		client := newTestClient(t, Deps{Registry: newTestRegistry(t, nav)})
+		_, err := client.StartNavigation(context.Background(), connect.NewRequest(&aiv1.StartNavigationRequest{SessionId: "s", Prompt: "read", Model: "m", EffectPolicy: policy}))
+		require.Error(t, err)
+	}
+}
+func TestNavigationStatusCarriesIndependentVerificationAndOutput(t *testing.T) {
+	session := &vision.NavigationSession{NavigationID: "nav", Status: vision.StatusCompleted, VerifiedSuccess: true, ExtractedData: map[string]interface{}{"subjects": []interface{}{"hello"}}}
+	result := navigationStatusToProto(session)
+	require.True(t, result.VerifiedSuccess)
+	require.Equal(t, "hello", result.ExtractedData.AsMap()["subjects"].([]interface{})[0])
+	session.VerifiedSuccess = false
+	session.VerificationError = "postcondition_failed"
+	result = navigationStatusToProto(session)
+	require.False(t, result.VerifiedSuccess)
+	require.Equal(t, "postcondition_failed", result.VerificationError)
+}

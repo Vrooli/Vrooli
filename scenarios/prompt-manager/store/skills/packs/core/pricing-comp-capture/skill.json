@@ -5,6 +5,7 @@
   "icon": "currency-dollar",
   "id": "pricing-comp-capture",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "tools"
   ],

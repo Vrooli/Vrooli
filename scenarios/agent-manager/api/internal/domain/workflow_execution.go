@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,14 +40,17 @@ type WorkflowTerminalReason struct {
 }
 
 type WorkflowBudgetUsage struct {
-	Turns  int `json:"turns"`
-	Tokens int `json:"tokens"`
-	// ChargeMicroUSD is authoritative metered charge only. Unpriced usage and
-	// historical estimates cannot exhaust a monetary budget.
+	// AccountingComplete is false for legacy records or any child lacking a terminal receipt.
+	AccountingComplete bool `json:"accountingComplete"`
+	Turns              int  `json:"turns"`
+	Tokens             int  `json:"tokens"`
+	// ChargeMicroUSD is authoritative marginal charge. A verified subscription
+	// or local basis contributes zero; unpriced usage and historical estimates
+	// cannot exhaust a monetary budget.
 	ChargeMicroUSD int64 `json:"chargeMicroUsd"`
-	// ChargeMeasured is true only when the workflow's child-run billing basis
-	// was explicitly metered. It is persisted with the execution so the API
-	// can publish an honest receipt after restart.
+	// ChargeMeasured requires explicit child-run charge evidence: metered
+	// amounts, or zero subscription/local amounts matching the saved run basis.
+	// It is persisted so the API can publish an honest receipt after restart.
 	ChargeMeasured bool `json:"chargeMeasured"`
 	// CostUSD is retained for readable historical workflow records.
 	CostUSD      float64 `json:"costUsd"`
@@ -55,26 +59,72 @@ type WorkflowBudgetUsage struct {
 	Retries      int     `json:"retries"`
 }
 
+// WorkflowEngagementGrant is an owner-issued aggregate allowance attached to
+// one workflow execution. Zero leaves that dimension at the workflow's own
+// declared limit. A grant can only narrow a declaration and is persisted so
+// restart/recovery cannot silently restore a larger allowance.
+type WorkflowEngagementGrant struct {
+	MaxTurns           int   `json:"maxTurns,omitempty"`
+	MaxTokens          int   `json:"maxTokens,omitempty"`
+	MaxChargeMicroUSD  int64 `json:"maxChargeMicroUsd,omitempty"`
+	MaxWallTimeSeconds int   `json:"maxWallTimeSeconds,omitempty"`
+	MaxNodeAttempts    int   `json:"maxNodeAttempts,omitempty"`
+	MaxChildren        int   `json:"maxChildren,omitempty"`
+	MaxConcurrency     int   `json:"maxConcurrency,omitempty"`
+	MaxRecursion       int   `json:"maxRecursion,omitempty"`
+	MaxRetries         int   `json:"maxRetries,omitempty"`
+	// RetryLimitSet distinguishes an explicit exhausted allowance from legacy
+	// omitted zero, which inherits the workflow declaration.
+	RetryLimitSet  bool `json:"retryLimitSet,omitempty"`
+	MaxWaitSeconds int  `json:"maxWaitSeconds,omitempty"`
+	// AllowedEffects is an owner-issued ceiling inherited by every child run.
+	AllowedEffects []string `json:"allowedEffects,omitempty"`
+}
+
+func (g WorkflowEngagementGrant) Present() bool {
+	return g.MaxTurns > 0 || g.MaxTokens > 0 || g.MaxChargeMicroUSD > 0 || g.MaxWallTimeSeconds > 0 ||
+		g.MaxNodeAttempts > 0 || g.MaxChildren > 0 || g.MaxConcurrency > 0 || g.MaxRecursion > 0 ||
+		g.MaxRetries > 0 || g.MaxWaitSeconds > 0
+}
+
+func (g WorkflowEngagementGrant) Validate() error {
+	if !g.Present() || g.MaxTokens <= 0 || g.MaxWallTimeSeconds <= 0 {
+		return fmt.Errorf("engagement grant requires positive max tokens and wall time")
+	}
+	for _, v := range []int{g.MaxTurns, g.MaxTokens, g.MaxWallTimeSeconds, g.MaxNodeAttempts, g.MaxChildren, g.MaxConcurrency, g.MaxRecursion, g.MaxRetries, g.MaxWaitSeconds} {
+		if v < 0 {
+			return fmt.Errorf("engagement grant limits cannot be negative")
+		}
+	}
+	if g.MaxChargeMicroUSD < 0 {
+		return fmt.Errorf("engagement grant charge limit cannot be negative")
+	}
+	return nil
+}
+
 type WorkflowExecution struct {
-	ID                uuid.UUID               `json:"id"`
-	Owner             string                  `json:"owner"`
-	WorkflowKey       string                  `json:"workflowKey"`
-	DefinitionDigest  string                  `json:"definitionDigest"`
-	Status            WorkflowExecutionStatus `json:"status"`
-	CurrentNodeID     string                  `json:"currentNodeId"`
-	Input             json.RawMessage         `json:"input"`
-	Output            json.RawMessage         `json:"output,omitempty"`
-	TerminalReason    *WorkflowTerminalReason `json:"terminalReason,omitempty"`
-	BudgetUsage       WorkflowBudgetUsage     `json:"budgetUsage"`
-	EdgeTraversals    map[string]int          `json:"edgeTraversals"`
-	Version           int64                   `json:"version"`
-	IdempotencyKey    string                  `json:"idempotencyKey"`
-	ParentExecutionID *uuid.UUID              `json:"parentExecutionId,omitempty"`
-	ParentAttemptID   *uuid.UUID              `json:"parentAttemptId,omitempty"`
-	Depth             int                     `json:"depth"`
-	CreatedAt         time.Time               `json:"createdAt"`
-	UpdatedAt         time.Time               `json:"updatedAt"`
-	EndedAt           *time.Time              `json:"endedAt,omitempty"`
+	ID                uuid.UUID                `json:"id"`
+	Owner             string                   `json:"owner"`
+	WorkflowKey       string                   `json:"workflowKey"`
+	DefinitionDigest  string                   `json:"definitionDigest"`
+	Status            WorkflowExecutionStatus  `json:"status"`
+	CurrentNodeID     string                   `json:"currentNodeId"`
+	Input             json.RawMessage          `json:"input"`
+	Output            json.RawMessage          `json:"output,omitempty"`
+	TerminalReason    *WorkflowTerminalReason  `json:"terminalReason,omitempty"`
+	BudgetUsage       WorkflowBudgetUsage      `json:"budgetUsage"`
+	EngagementGrant   *WorkflowEngagementGrant `json:"engagementGrant,omitempty"`
+	EdgeTraversals    map[string]int           `json:"edgeTraversals"`
+	Version           int64                    `json:"version"`
+	IdempotencyKey    string                   `json:"idempotencyKey"`
+	ParentExecutionID *uuid.UUID               `json:"parentExecutionId,omitempty"`
+	ParentAttemptID   *uuid.UUID               `json:"parentAttemptId,omitempty"`
+	Depth             int                      `json:"depth"`
+	ApprovalDigest    string                   `json:"approvalDigest,omitempty"`
+	GrantDigest       string                   `json:"grantDigest,omitempty"`
+	CreatedAt         time.Time                `json:"createdAt"`
+	UpdatedAt         time.Time                `json:"updatedAt"`
+	EndedAt           *time.Time               `json:"endedAt,omitempty"`
 }
 
 type WorkflowAttemptStrategy string

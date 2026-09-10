@@ -191,15 +191,63 @@ func storageGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	writers := func(args []string) error {
 		top := "10"
 		for i := 0; i < len(args); i++ {
-			if args[i] == "--top" && i+1 < len(args) { top = args[i+1]; i++ }
-			if strings.HasPrefix(args[i], "--top=") { top = strings.TrimPrefix(args[i], "--top=") }
+			if args[i] == "--top" && i+1 < len(args) {
+				top = args[i+1]
+				i++
+			}
+			if strings.HasPrefix(args[i], "--top=") {
+				top = strings.TrimPrefix(args[i], "--top=")
+			}
 		}
 		req, err := http.NewRequest(http.MethodGet, base+"/api/v1/storage/writers?top="+url.QueryEscape(top), nil)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		resp, err := client.Do(req)
-		if err != nil { return fmt.Errorf("storage writers: %w", err) }
+		if err != nil {
+			return fmt.Errorf("storage writers: %w", err)
+		}
 		defer resp.Body.Close()
-		if resp.StatusCode >= http.StatusBadRequest { body, _ := io.ReadAll(resp.Body); return fmt.Errorf("storage writers: %s", string(body)) }
+		if resp.StatusCode >= http.StatusBadRequest {
+			body, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("storage writers: %s", string(body))
+		}
+		_, err = io.Copy(os.Stdout, resp.Body)
+		return err
+	}
+	qdrant := func(args []string) error {
+		query := url.Values{}
+		for i := 0; i < len(args); i++ {
+			switch {
+			case args[i] == "--limit" && i+1 < len(args):
+				query.Set("limit", args[i+1])
+				i++
+			case strings.HasPrefix(args[i], "--limit="):
+				query.Set("limit", strings.TrimPrefix(args[i], "--limit="))
+			case args[i] == "--state" && i+1 < len(args):
+				query.Set("state", args[i+1])
+				i++
+			case strings.HasPrefix(args[i], "--state="):
+				query.Set("state", strings.TrimPrefix(args[i], "--state="))
+			}
+		}
+		path := base + "/api/v1/storage/qdrant"
+		if encoded := query.Encode(); encoded != "" {
+			path += "?" + encoded
+		}
+		req, err := http.NewRequest(http.MethodGet, path, nil)
+		if err != nil {
+			return err
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			return fmt.Errorf("storage qdrant: %w", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode >= http.StatusBadRequest {
+			body, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("storage qdrant: %s", string(body))
+		}
 		_, err = io.Copy(os.Stdout, resp.Body)
 		return err
 	}
@@ -214,6 +262,7 @@ func storageGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		{Name: "adoption", Description: "Show declaration adoption coverage and suggestions", Run: func([]string) error { return adoption() }},
 		{Name: "infra-health", Description: "Show persisted storage infra-health signal", Run: func([]string) error { return infraHealth() }},
 		{Name: "writers", Description: "Rank persisted governed-root writer rates", Run: writers},
+		{Name: "qdrant", Description: "Show owner-managed Qdrant generation accounting", Run: qdrant},
 		{Name: "inventory", Description: "List every storage owner and declaration", Run: func([]string) error { return inventory() }},
 	}}
 }

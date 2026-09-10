@@ -8,6 +8,7 @@ import { useWorldStore } from '../WorldStoreContext'
 import { bodyOffset, type BodyPose } from './pose'
 import { POSE, POSE_STRIDE, readPose, usePoseBuffer } from './PoseBuffer'
 import { accessoryColors } from './accessoryColors'
+import { worldTextureProps } from '../materialTextures'
 
 /**
  * Equipment (by skill tier), status marks (failed lamp, working spinner,
@@ -30,7 +31,7 @@ export function ActorExtras({ tuning }: { tuning: ActorTuning }) {
   const ringGeometry = useMemo(() => new TorusGeometry(1, settings.ringThickness, settings.ringRadialSegments, settings.ringTubularSegments), [settings.ringThickness, settings.ringRadialSegments, settings.ringTubularSegments])
   const markGeometry = useMemo(() => new SphereGeometry(1, settings.markWidthSegments, settings.markHeightSegments), [settings.markWidthSegments, settings.markHeightSegments])
   const emoteGeometry = useMemo(() => new PlaneGeometry(1, 1), [])
-  const gearMaterial = useMemo(() => new MeshStandardMaterial({ roughness: settings.gearRoughness }), [settings.gearRoughness])
+  const gearMaterial = useMemo(() => new MeshStandardMaterial({ roughness: settings.gearRoughness, ...worldTextureProps('metal') }), [settings.gearRoughness])
   const glowMaterial = useMemo(() => new MeshBasicMaterial({ toneMapped: false }), [])
   const emoteMaterial = useMemo(() => new MeshBasicMaterial({ toneMapped: false, transparent: true, opacity: settings.emoteOpacity, depthWrite: false }), [settings.emoteOpacity])
   useEffect(() => () => gearGeometry.dispose(), [gearGeometry])

@@ -20,7 +20,11 @@ func TestValidateReportsPresentWaivedAndAbsentRoles(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "scenarios", scenario, "cli"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "scenarios", scenario, "cli", "manifest.json"), []byte(`{}`), 0o644); err != nil {
+	manifest, err := json.Marshal(map[string]any{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "scenarios", scenario, "cli", "manifest.json"), manifest, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(root, "scenarios", scenario, "skills", "usage.md"), []byte("---\nname: demo\nmetadata:\n  kind: tools\n  modes: [tools]\n---\nusage"), 0o644); err != nil {
@@ -54,7 +58,11 @@ func TestValidateReportsMissingDeclaredSource(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "scenarios", "demo", "cli"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "scenarios", "demo", "cli", "manifest.json"), []byte(`{}`), 0o644); err != nil {
+	manifest, err := json.Marshal(map[string]any{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "scenarios", "demo", "cli", "manifest.json"), manifest, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	service, err := json.Marshal(map[string]any{"skills": map[string]any{"usage": map[string]any{"source": "skills/missing.md"}}})

@@ -5,6 +5,7 @@
   "icon": "sliders",
   "id": "control-surface-tunable-levers-design",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "configuration"

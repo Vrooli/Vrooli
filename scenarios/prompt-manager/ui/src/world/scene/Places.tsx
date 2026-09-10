@@ -8,6 +8,7 @@ import { useWorldStore } from './WorldStoreContext'
 import { architecture } from '../config/architecture'
 import { spaceStructures } from '../sim/layout/spaces'
 import { SpaceDetails } from './SpaceDetails'
+import { worldTextureProps, type WorldTextureKind } from './materialTextures'
 
 interface Slab {
   key: string
@@ -18,16 +19,17 @@ interface Slab {
   color?: string
 }
 
-function SlabInstances({ slabs, color, roughness, glass = false, castShadow = false, onSelectSpace }: { slabs: Slab[]; color: string; roughness: number; glass?: boolean; castShadow?: boolean; onSelectSpace?: (id: string) => void }) {
+function SlabInstances({ slabs, color, roughness, textureKind, glass = false, castShadow = false, onSelectSpace }: { slabs: Slab[]; color: string; roughness: number; textureKind?: WorldTextureKind; glass?: boolean; castShadow?: boolean; onSelectSpace?: (id: string) => void }) {
   const instances = useMemo(() => slabs.map(slab => (
     <Instance key={slab.key} position={slab.position} rotation={[0, slab.rotation, 0]} scale={slab.scale} color={slab.color ?? color}
       onClick={slab.roomId && onSelectSpace ? event => { event.stopPropagation(); if (slab.roomId) onSelectSpace(slab.roomId) } : undefined} />
   )), [slabs, onSelectSpace, color])
   if (slabs.length === 0) return null
+  const texture = textureKind ? worldTextureProps(textureKind) : undefined
   return (
     <Instances key={slabs.length} limit={slabs.length} castShadow={castShadow} receiveShadow frustumCulled={false}>
       <boxGeometry args={[1, 1, 1]} userData={{ cameraObstacle: 'box' }} />
-      <meshStandardMaterial color="white" roughness={roughness} transparent={glass} opacity={glass ? .3 : 1} depthWrite={!glass} />
+      <meshStandardMaterial color="white" roughness={roughness} {...texture} envMapIntensity={0} transparent={glass} opacity={glass ? .3 : 1} depthWrite={!glass} />
       {instances}
     </Instances>
   )
@@ -89,15 +91,15 @@ export function Places({ scene, layout, walking = false, revealedSpaceId, onSele
   }, [state.placeOrder, state.places, state.terrain, corridorLift, floorThickness, scene.environment, scene.palette.roomFloor, scene.palette.roomWall, walking, revealedSpaceId, sector])
   return (
     <group name="places" userData={{ cameraSurface: true }}>
-      <SlabInstances slabs={walls} color={scene.environment === 'outdoor' ? architecture.palette.timber : scene.palette.roomWall} roughness={surfaces.wallRoughness} castShadow onSelectSpace={onSelectSpace} />
-      <SlabInstances slabs={floors} color={scene.palette.roomFloor} roughness={surfaces.floorRoughness} onSelectSpace={onSelectSpace} />
-      <SlabInstances slabs={corridors} color={scene.palette.path} roughness={surfaces.corridorRoughness} />
+      <SlabInstances slabs={walls} color={scene.environment === 'outdoor' ? architecture.palette.timber : scene.palette.roomWall} roughness={surfaces.wallRoughness} textureKind="wall" castShadow onSelectSpace={onSelectSpace} />
+      <SlabInstances slabs={floors} color={scene.palette.roomFloor} roughness={surfaces.floorRoughness} textureKind="floor" onSelectSpace={onSelectSpace} />
+      <SlabInstances slabs={corridors} color={scene.palette.path} roughness={surfaces.corridorRoughness} textureKind="path" />
       <SlabInstances slabs={windows} color={architecture.palette.glass} roughness={.2} glass onSelectSpace={onSelectSpace} />
       <SpaceDetails walking={walking} propScale={scene.propScale} revealedSpaceId={revealedSpaceId} onSelectSpace={onSelectSpace} />
       {commons && (
         <mesh position={[commons.position[0], heightAt(state.terrain, commons.position[0], commons.position[1]) + surfaces.commonsLift, commons.position[1]]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <circleGeometry args={[commons.size[0] / 2, surfaces.commonsSegments]} />
-          <meshStandardMaterial color={scene.palette.commons} roughness={surfaces.commonsRoughness} />
+          <meshStandardMaterial color={scene.palette.commons} roughness={surfaces.commonsRoughness} {...worldTextureProps('path')} />
         </mesh>
       )}
     </group>

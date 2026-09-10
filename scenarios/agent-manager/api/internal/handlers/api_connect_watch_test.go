@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"agent-manager/internal/eventlog"
@@ -48,6 +49,7 @@ func TestCohortWatchConnectCreateGetAndInspect(t *testing.T) { // [REQ:REQ-P2-00
 		t.Fatal(err)
 	}
 	service.SetPolicyStore(policies)
+	service.SetPolicyArtifactResolver(func(context.Context) (string, error) { return strings.Repeat("a", 64), nil })
 	service.SetActionService(supervision.NewActionService(supervision.NewRepository(db), nil))
 	handler := NewAgentManagerConnectHandler(nil, service)
 	handler.SetWatchActionAuthorizer(allowWatchAction{})

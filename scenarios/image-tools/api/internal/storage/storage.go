@@ -60,6 +60,16 @@ func NewWithBlobStore(bs blobstore.BlobStore, root string) *Store {
 // Root returns the absolute blob root (diagnostics only).
 func (s *Store) Root() string { return s.root }
 
+// PathForKey returns the filesystem path for a managed blob key. It is a
+// read-only diagnostics seam for the owner cleanup provider; deletion still
+// goes through Store.Delete so the blob-store abstraction remains authoritative.
+func (s *Store) PathForKey(key string) (string, error) {
+	if err := validateKey(key); err != nil {
+		return "", err
+	}
+	return filepath.Join(s.root, filepath.FromSlash(key)), nil
+}
+
 // Put stores bytes under key with the given MIME type.
 func (s *Store) Put(ctx context.Context, key string, r io.Reader, mime string) error {
 	if err := validateKey(key); err != nil {

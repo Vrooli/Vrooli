@@ -23,25 +23,28 @@ type workflowExecutionRepository struct {
 var _ repository.WorkflowExecutionRepository = (*workflowExecutionRepository)(nil)
 
 type workflowExecutionRow struct {
-	ID                 string         `db:"id"`
-	Owner              string         `db:"owner"`
-	WorkflowKey        string         `db:"workflow_key"`
-	DefinitionDigest   string         `db:"definition_digest"`
-	Status             string         `db:"status"`
-	CurrentNodeID      string         `db:"current_node_id"`
-	InputJSON          string         `db:"input_json"`
-	OutputJSON         sql.NullString `db:"output_json"`
-	TerminalReasonJSON sql.NullString `db:"terminal_reason_json"`
-	BudgetUsageJSON    string         `db:"budget_usage_json"`
-	EdgeTraversalsJSON string         `db:"edge_traversals_json"`
-	Version            int64          `db:"version"`
-	IdempotencyKey     string         `db:"idempotency_key"`
-	ParentExecutionID  sql.NullString `db:"parent_execution_id"`
-	ParentAttemptID    sql.NullString `db:"parent_attempt_id"`
-	Depth              int            `db:"depth"`
-	CreatedAt          SQLiteTime     `db:"created_at"`
-	UpdatedAt          SQLiteTime     `db:"updated_at"`
-	EndedAt            sql.NullString `db:"ended_at"`
+	ID                  string         `db:"id"`
+	Owner               string         `db:"owner"`
+	WorkflowKey         string         `db:"workflow_key"`
+	DefinitionDigest    string         `db:"definition_digest"`
+	Status              string         `db:"status"`
+	CurrentNodeID       string         `db:"current_node_id"`
+	InputJSON           string         `db:"input_json"`
+	OutputJSON          sql.NullString `db:"output_json"`
+	TerminalReasonJSON  sql.NullString `db:"terminal_reason_json"`
+	BudgetUsageJSON     string         `db:"budget_usage_json"`
+	EngagementGrantJSON sql.NullString `db:"engagement_grant_json"`
+	ApprovalDigest      string         `db:"approval_digest"`
+	GrantDigest         string         `db:"grant_digest"`
+	EdgeTraversalsJSON  string         `db:"edge_traversals_json"`
+	Version             int64          `db:"version"`
+	IdempotencyKey      string         `db:"idempotency_key"`
+	ParentExecutionID   sql.NullString `db:"parent_execution_id"`
+	ParentAttemptID     sql.NullString `db:"parent_attempt_id"`
+	Depth               int            `db:"depth"`
+	CreatedAt           SQLiteTime     `db:"created_at"`
+	UpdatedAt           SQLiteTime     `db:"updated_at"`
+	EndedAt             sql.NullString `db:"ended_at"`
 }
 
 func (r *workflowExecutionRepository) Create(ctx context.Context, e *domain.WorkflowExecution, initial *domain.WorkflowJournalEntry) error {
@@ -58,6 +61,7 @@ func (r *workflowExecutionRepository) Create(ctx context.Context, e *domain.Work
 
 func insertWorkflowExecution(ctx context.Context, tx *Tx, e *domain.WorkflowExecution) error {
 	budget, _ := json.Marshal(e.BudgetUsage)
+	grant, _ := json.Marshal(e.EngagementGrant)
 	edges, _ := json.Marshal(e.EdgeTraversals)
 	terminal, _ := json.Marshal(e.TerminalReason)
 	var output any
@@ -80,20 +84,24 @@ func insertWorkflowExecution(ctx context.Context, tx *Tx, e *domain.WorkflowExec
 	if e.ParentAttemptID != nil {
 		parentAttempt = e.ParentAttemptID.String()
 	}
-	_, err := tx.ExecContext(ctx, `INSERT INTO workflow_executions (id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, e.ID, e.Owner, e.WorkflowKey, e.DefinitionDigest, e.Status, e.CurrentNodeID, string(e.Input), output, terminalValue, string(budget), string(edges), e.Version, e.IdempotencyKey, parent, parentAttempt, e.Depth, SQLiteTime(e.CreatedAt), SQLiteTime(e.UpdatedAt), ended)
+	var grantValue any
+	if e.EngagementGrant != nil {
+		grantValue = string(grant)
+	}
+	_, err := tx.ExecContext(ctx, `INSERT INTO workflow_executions (id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,engagement_grant_json,approval_digest,grant_digest,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, e.ID, e.Owner, e.WorkflowKey, e.DefinitionDigest, e.Status, e.CurrentNodeID, string(e.Input), output, terminalValue, string(budget), grantValue, e.ApprovalDigest, e.GrantDigest, string(edges), e.Version, e.IdempotencyKey, parent, parentAttempt, e.Depth, SQLiteTime(e.CreatedAt), SQLiteTime(e.UpdatedAt), ended)
 	return err
 }
 
 func (r *workflowExecutionRepository) Get(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error) {
-	return r.get(ctx, `SELECT id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at FROM workflow_executions WHERE id=?`, id)
+	return r.get(ctx, `SELECT id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,engagement_grant_json,approval_digest,grant_digest,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at FROM workflow_executions WHERE id=?`, id)
 }
 
 func (r *workflowExecutionRepository) GetByIdempotencyKey(ctx context.Context, key string) (*domain.WorkflowExecution, error) {
-	return r.get(ctx, `SELECT id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at FROM workflow_executions WHERE idempotency_key=?`, key)
+	return r.get(ctx, `SELECT id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,engagement_grant_json,approval_digest,grant_digest,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at FROM workflow_executions WHERE idempotency_key=?`, key)
 }
 
 func (r *workflowExecutionRepository) List(ctx context.Context, filter repository.WorkflowExecutionListFilter) ([]*domain.WorkflowExecution, error) {
-	query := `SELECT id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at FROM workflow_executions`
+	query := `SELECT id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,engagement_grant_json,approval_digest,grant_digest,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at FROM workflow_executions`
 	clauses := make([]string, 0, 3)
 	args := make([]any, 0, 5)
 	if filter.Owner != "" {
@@ -148,7 +156,7 @@ func workflowExecutionFromRow(row workflowExecutionRow) (*domain.WorkflowExecuti
 	if err != nil {
 		return nil, err
 	}
-	e := &domain.WorkflowExecution{ID: id, Owner: row.Owner, WorkflowKey: row.WorkflowKey, DefinitionDigest: row.DefinitionDigest, Status: domain.WorkflowExecutionStatus(row.Status), CurrentNodeID: row.CurrentNodeID, Input: json.RawMessage(row.InputJSON), Version: row.Version, IdempotencyKey: row.IdempotencyKey, Depth: row.Depth, CreatedAt: row.CreatedAt.Time(), UpdatedAt: row.UpdatedAt.Time()}
+	e := &domain.WorkflowExecution{ID: id, Owner: row.Owner, WorkflowKey: row.WorkflowKey, DefinitionDigest: row.DefinitionDigest, ApprovalDigest: row.ApprovalDigest, GrantDigest: row.GrantDigest, Status: domain.WorkflowExecutionStatus(row.Status), CurrentNodeID: row.CurrentNodeID, Input: json.RawMessage(row.InputJSON), Version: row.Version, IdempotencyKey: row.IdempotencyKey, Depth: row.Depth, CreatedAt: row.CreatedAt.Time(), UpdatedAt: row.UpdatedAt.Time()}
 	if row.OutputJSON.Valid {
 		e.Output = json.RawMessage(row.OutputJSON.String)
 	}
@@ -161,6 +169,13 @@ func workflowExecutionFromRow(row workflowExecutionRow) (*domain.WorkflowExecuti
 	}
 	if err := json.Unmarshal([]byte(row.BudgetUsageJSON), &e.BudgetUsage); err != nil {
 		return nil, err
+	}
+	if row.EngagementGrantJSON.Valid && row.EngagementGrantJSON.String != "" && row.EngagementGrantJSON.String != "null" {
+		var grant domain.WorkflowEngagementGrant
+		if err := json.Unmarshal([]byte(row.EngagementGrantJSON.String), &grant); err != nil {
+			return nil, err
+		}
+		e.EngagementGrant = &grant
 	}
 	if err := json.Unmarshal([]byte(row.EdgeTraversalsJSON), &e.EdgeTraversals); err != nil {
 		return nil, err
@@ -198,6 +213,7 @@ func (r *workflowExecutionRepository) Commit(ctx context.Context, c repository.W
 	err := r.db.WithTransaction(ctx, func(tx *Tx) error {
 		e := c.Execution
 		budget, _ := json.Marshal(e.BudgetUsage)
+		grant, _ := json.Marshal(e.EngagementGrant)
 		edges, _ := json.Marshal(e.EdgeTraversals)
 		terminal, _ := json.Marshal(e.TerminalReason)
 		var output any
@@ -212,7 +228,11 @@ func (r *workflowExecutionRepository) Commit(ctx context.Context, c repository.W
 		if e.EndedAt != nil {
 			ended = SQLiteTime(*e.EndedAt)
 		}
-		res, err := tx.ExecContext(ctx, `UPDATE workflow_executions SET status=?,current_node_id=?,output_json=?,terminal_reason_json=?,budget_usage_json=?,edge_traversals_json=?,version=?,updated_at=?,ended_at=? WHERE id=? AND version=?`, e.Status, e.CurrentNodeID, output, terminalValue, string(budget), string(edges), e.Version, SQLiteTime(e.UpdatedAt), ended, e.ID, c.ExpectedVersion)
+		var grantValue any
+		if e.EngagementGrant != nil {
+			grantValue = string(grant)
+		}
+		res, err := tx.ExecContext(ctx, `UPDATE workflow_executions SET status=?,current_node_id=?,output_json=?,terminal_reason_json=?,budget_usage_json=?,engagement_grant_json=?,edge_traversals_json=?,version=?,updated_at=?,ended_at=? WHERE id=? AND version=?`, e.Status, e.CurrentNodeID, output, terminalValue, string(budget), grantValue, string(edges), e.Version, SQLiteTime(e.UpdatedAt), ended, e.ID, c.ExpectedVersion)
 		if err != nil {
 			return err
 		}
@@ -409,12 +429,14 @@ func (r *workflowExecutionRepository) ListJournal(ctx context.Context, id uuid.U
 func (r *workflowExecutionRepository) ListRecoverable(ctx context.Context, limit int) ([]*domain.WorkflowExecution, error) {
 	q := `SELECT e.id FROM workflow_executions e
 		WHERE e.status IN ('pending','running','waiting','cancelling')
-		   OR (e.status IN ('failed','budget_exhausted','cancelled') AND NOT EXISTS (
+		   OR (e.status = 'succeeded' AND COALESCE(json_extract(e.budget_usage_json, '$.accountingComplete'), 0) = 0)
+		   OR (e.status IN ('failed','budget_exhausted','cancelled') AND (
+			COALESCE(json_extract(e.budget_usage_json, '$.accountingComplete'), 0) = 0 OR NOT EXISTS (
 			SELECT 1 FROM workflow_journal j
 			WHERE j.execution_id=e.id
 			  AND j.kind='cleanup'
 			  AND COALESCE(json_extract(j.payload_json, '$.retry'), 0) = COALESCE(json_extract(e.budget_usage_json, '$.retries'), 0)
-		   ))
+		   )))
 		ORDER BY e.updated_at`
 	q, args := appendLimitOffset(q, limit, 0)
 	var ids []string

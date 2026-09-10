@@ -19,11 +19,11 @@ metadata:
 ---
 # Plan Author Workflow
 
-Author a Plan-Manager-compatible implementation plan for the authorized backlog item. Return the plan as a markdown candidate. The supplied entity and snapshot are the bounded planning source; no earlier transcript exists.
+Author a Plan-Manager-compatible implementation plan for the backlog work package. Return the plan as a markdown candidate. The supplied entity and snapshot are the bounded planning source; no earlier transcript exists. Every meaningful implementation item needs this canonical plan before execution or adaptive development approval.
 
 ## Method
 
-Run `prompt-manager skill read implementation-plan-authoring` and apply its **Candidate mode**. Follow its source inventory, placement map, and preservation audit before you return a result. Preserve material operator intent, workshop decisions, discovered facts, constraints, rationale, alternatives, diagrams, references, risks, validation expectations, and acceptance boundaries. Compress repetition, not the work type a fresh execution agent needs.
+Run `prompt-manager skill read implementation-plan-authoring` and apply its **Candidate mode**. Follow its source inventory, placement map, and preservation audit before you return a result. Preserve material operator intent, workshop decisions, discovered facts, constraints, rationale, alternatives, diagrams, references, risks, validation expectations, and acceptance boundaries. Compress repetition, not the work type a fresh execution agent needs. If the package names a Tech Tree Designer revision, reference that immutable design in the plan's relevant context and use it as the design source; do not copy the whole graph into the plan.
 
 ## Interpret the backlog kind
 

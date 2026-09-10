@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-09-02T00:00:00Z",
-  "description": "Author a scenario's improve skill as a control loop: setpoint rows from the scenario's own targets, sensors that exist, floors from golden corpora, curation and ladder routes, anti-gaming by id, evidence, and stop rules. Renders the scenario's setpoint-read program from the same table.",
+  "description": "Author scenario-specific improvement judgment: approved target references, truthful evidence, priorities, and authority-aware repair routes. Author a matching setpoint-read program when setup scope includes it.",
   "entry": "SKILL.md",
   "icon": "gauge",
   "id": "improve-skill-authoring",
@@ -17,10 +17,7 @@
     "commands": [
       "prompt-manager skill read",
       "measures-health validate scenario",
-      "program-runtime bindings describe",
-      "program-runtime sessions create",
-      "program-runtime programs submit",
-      "program-runtime sessions delete",
+      "program-runtime bindings unbound",
       "prompt-manager skill-set validate",
       "vrooli scenario test"
     ],
@@ -30,7 +27,7 @@
       "measures-health"
     ]
   },
-  "revision": 5,
+  "revision": 8,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -42,5 +39,5 @@
     "setpoint",
     "meta-optimization"
   ],
-  "updatedAt": "2026-09-06T04:00:00Z"
+  "updatedAt": "2026-09-08T00:00:00Z"
 }

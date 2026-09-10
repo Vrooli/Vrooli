@@ -108,7 +108,7 @@ export function TopHeader({ onMenuToggle }: TopHeaderProps): ReactNode {
         : "neutral";
 
   return (
-    <header
+    <div
       data-testid={selectors.nav.topHeader}
       className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-app-border bg-app-shell px-4 py-2"
     >
@@ -164,6 +164,6 @@ export function TopHeader({ onMenuToggle }: TopHeaderProps): ReactNode {
           <span className="text-app-muted-foreground">{healthLabel}</span>
         </span>
       </div>
-    </header>
+    </div>
   );
 }

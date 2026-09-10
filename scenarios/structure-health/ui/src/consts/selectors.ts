@@ -32,10 +32,6 @@ const literalSelectors = {
   },
   layout: {
     shell: "layout-shell",
-    topBar: "layout-top-bar",
-    sidebar: "layout-sidebar",
-    bottomNav: "layout-bottom-nav",
-    main: "layout-main",
   },
   theme: {
     switcher: "theme-switcher",
@@ -93,6 +89,28 @@ const literalSelectors = {
 // is a TypeScript error when "fr" isn't a supported locale. The runtime enum
 // validation in `normalizeParams` provides the same guarantee at call time.
 const dynamicSelectorDefinitions = {
+  fleet: {
+    profileRow: defineDynamicSelector({
+      description: "Fleet profile row by profile id",
+      testIdPattern: "fleet-profile-row-${profileId}",
+      params: { profileId: { type: "string" } },
+    }),
+    ruleRow: defineDynamicSelector({
+      description: "Fleet rule row by rule id",
+      testIdPattern: "fleet-rule-row-${code}",
+      params: { code: { type: "string" } },
+    }),
+    scenarioRow: defineDynamicSelector({
+      description: "Fleet scenario row by scenario id",
+      testIdPattern: "fleet-scenario-row-${scenario}",
+      params: { scenario: { type: "string" } },
+    }),
+    targetRow: defineDynamicSelector({
+      description: "Fleet target row by target id",
+      testIdPattern: "fleet-target-row-${kind}-${id}",
+      params: { kind: { type: "string" }, id: { type: "string" } },
+    }),
+  },
   locale: {
     toggle: defineDynamicSelector({
       description: "Locale toggle button by language code",
@@ -101,9 +119,9 @@ const dynamicSelectorDefinitions = {
     }),
   },
   layout: {
-    sidebarLink: defineDynamicSelector({
-      description: "Sidebar navigation link by canonical nav key",
-      testIdPattern: "layout-sidebar-link-${key}",
+    navLink: defineDynamicSelector({
+      description: "App shell navigation link by canonical nav key",
+      testIdPattern: "layout-nav-link-${key}",
       params: {
         key: {
           type: "enum",
@@ -111,47 +129,9 @@ const dynamicSelectorDefinitions = {
             "dashboard",
             "fleet",
             "validate",
-            "settings",
-          ] as const,
+            "settings",          ] as const,
         },
       },
-    }),
-    bottomNavLink: defineDynamicSelector({
-      description: "Bottom-nav link by canonical nav key",
-      testIdPattern: "layout-bottom-nav-link-${key}",
-      params: {
-        key: {
-          type: "enum",
-          values: [
-            "dashboard",
-            "fleet",
-            "validate",
-            "settings",
-          ] as const,
-        },
-      },
-    }),
-  },
-  fleet: {
-    targetRow: defineDynamicSelector({
-      description: "Typed fleet target row by kind and id",
-      testIdPattern: "fleet-target-row-${kind}-${id}",
-      params: { kind: { type: "string" }, id: { type: "string" } },
-    }),
-    scenarioRow: defineDynamicSelector({
-      description: "Scenario offenders table row by scenario slug",
-      testIdPattern: "fleet-scenario-row-${scenario}",
-      params: { scenario: { type: "string" } },
-    }),
-    ruleRow: defineDynamicSelector({
-      description: "Rule conformance table row by finding code",
-      testIdPattern: "fleet-rule-row-${code}",
-      params: { code: { type: "string" } },
-    }),
-    profileRow: defineDynamicSelector({
-      description: "Profile distribution row by profile id",
-      testIdPattern: "fleet-profile-row-${profileId}",
-      params: { profileId: { type: "string" } },
     }),
   },
   settingsPage: {

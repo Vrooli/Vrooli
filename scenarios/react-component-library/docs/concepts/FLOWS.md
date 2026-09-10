@@ -18,10 +18,29 @@ This document is the canonical workflow map for ordered behavior.
 | Assisted extract/adopt | workflows | CLI/API/UI `workflows start` | RCL records a scoped Agent Manager task/run and exposes honest queued/running/terminal status | Workflow service, handler, CLI tests |
 | Promotion readiness | workflows | CLI/API/UI `workflows promotion-readiness` | Read-only evidence report joins parity, examples, dependency closure, origin replacement, and drift | Workflow readiness service, handler, CLI, UI tests |
 | Refresh drift | adoptions | CLI/API/UI `adoptions refresh` | Adoption rows receive separate library-version and local-edit statuses | Service status matrix and UI tests |
+| Publish runtime artifact | package lifecycle | Governed package build after a selected release change | Candidate is validated, published immutably, selected atomically, and materialized through the existing `file:` facade | Artifact-store, lifecycle, and clean-bootstrap tests |
 | Reapply component | adoptions | CLI/API `adoptions reapply` | Adopted file is overwritten from a selected version; local edits require confirmation | Service and handler tests |
 | Diff versions/adoptions | versions | CLI/API/UI diff request | Server returns aligned line diff rows | Versions service and handler tests |
 | Graduate scenario component | components / experience | Scenario UI component becomes reusable | TSX, story contract, and experience-component claims land in the catalog as one versioned contract | Catalog conformance, preview e2e, experience phase |
 | Story workbench | preview | User selects a named story and varies generated Args or explicit environment fixtures | Exactly that iframe rerenders from validated effective story args; Reset/reload restores the named baseline | Component editor UI tests, preview harness tests, preview E2E, BAS workflow |
+
+## Runtime Artifact Publication
+
+1. Draft catalog work remains mutable and is never selected directly by a
+   consumer.
+2. The governed package build creates a disposable candidate and generates its
+   export map inside that candidate.
+3. The candidate is rejected unless its package metadata, exact export targets,
+   declarations, runtime output, provenance, and output digest agree.
+4. A complete candidate is stored under a content-addressed artifact identity;
+   the atomic `current.json` pointer changes only after verification.
+5. Existing `file:` consumers receive the selected snapshot through the
+   compatibility facade. A candidate failure may retain a compatible selected
+   artifact and reports `degraded`; missing, corrupt, or incompatible fallback
+   fails closed.
+6. The published artifact's exact changed-export closure is used by the
+   governed refresh planner to identify affected consumers. Unknown impact is
+   conservative and is never silently treated as unaffected.
 
 ## Link Component
 

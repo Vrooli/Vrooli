@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, renderWithProviders as render, screen } from '@/test-utils/renderWithProviders'
 import { afterEach, expect, it, vi } from 'vitest'
 import { DiagnosticsOverlay } from './Overlay'
 import { resetDiagnostics, updateDiagnostics } from './store'

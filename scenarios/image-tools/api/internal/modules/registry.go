@@ -33,6 +33,7 @@ import (
 	opsH "image-tools/handlers/ops"
 	safetyH "image-tools/handlers/safety"
 	selectionH "image-tools/handlers/selection"
+	internalcleanup "image-tools/internal/cleanup"
 	localdb "image-tools/internal/database"
 	internalmeasures "image-tools/internal/measures"
 
@@ -58,6 +59,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, adaptersH.Endpoints...)
 	out = append(out, aiH.Endpoints...)
 	out = append(out, analysisH.Endpoints...)
+	out = append(out, internalcleanup.Endpoints...)
 	out = append(out, diffH.Endpoints...)
 	out = append(out, jobsH.Endpoints...)
 	out = append(out, looksH.Endpoints...)

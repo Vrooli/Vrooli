@@ -121,6 +121,9 @@ type NavigationStepRecord struct {
 // the owning navigator's lock held; navigators hand out Snapshot copies to
 // readers so the live struct is never read without that lock.
 type NavigationSession struct {
+	VerifiedSuccess      bool
+	ExtractedData        map[string]interface{}
+	VerificationError    string
 	NavigationID         string
 	SessionID            string
 	UserID               string

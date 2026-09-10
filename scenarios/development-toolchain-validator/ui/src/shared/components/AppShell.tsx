@@ -1,96 +1,87 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { FileCog, PlayCircle, Settings as SettingsIcon, Target, Wrench } from "lucide-react";
+import type { ReactNode } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { AppShell as LibraryAppShell } from "@vrooli/react-component-library/AppShell/2";
+
 import { selectors } from "../../consts/selectors";
-import { useIsMobile, useAppViewport, useGlobalKeydown } from "../hooks";
-import { ROUTES } from "../../routes.generated";
-import { Sidebar } from "./Sidebar";
-import { TopHeader } from "./TopHeader";
-import { MobileBottomNav } from "./MobileBottomNav";
-import { Sheet } from "../ui/primitives/Sheet";
+import { strings } from "../../consts/strings";
+import { useTranslation } from "../../i18n";
+import { ROUTES, ROUTE_PATTERNS } from "../../routes.generated";
+import { useGlobalKeydown } from "../hooks";
 import { ErrorBoundary } from "../ui/composites/ErrorBoundary";
-import { cn } from "../lib/utils";
+import { TopHeader } from "./TopHeader";
 
-/**
- * Application shell.
- *
- * Desktop: persistent sidebar + sticky top header + scrollable outlet.
- * Mobile: sticky top header + scrollable outlet + fixed bottom nav + a
- * hamburger sheet revealing the same nav targets as the desktop sidebar.
- *
- * All shortcuts route through `useGlobalKeydown` per ui-health
- */
+type AppShellNavItem = {
+  id: string;
+  href: string;
+  patternPrefix: string;
+  label: string;
+  testId: string;
+  icon: typeof Target;
+};
+
 export function AppShell(): ReactNode {
-  const isMobile = useIsMobile();
-  useAppViewport();
+  const { t } = useTranslation();
+  const { pathname } = useLocation();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  // Close the mobile sheet whenever the route changes.
-  useEffect(() => {
-    setMobileNavOpen(false);
-  }, [location.pathname]);
-
-  // Global keyboard shortcuts (chord-based). One central registration per
-  // ui-health; surfaces do NOT register their own document
-  // keydown listeners.
   useGlobalKeydown((sequence, event) => {
-    // Ignore modified keys for navigation chords (cmd/ctrl/alt should not
-    // hijack browser behavior).
     if (event.metaKey || event.ctrlKey || event.altKey) return false;
-    switch (sequence) {
-      case "g g":
-        void navigate(ROUTES.goldensIndex);
-        return true;
-      case "g s":
-        void navigate(ROUTES.skillsIndex);
-        return true;
-      case "g m":
-        void navigate(ROUTES.manifestsIndex);
-        return true;
-      case "g .":
-        void navigate(ROUTES.settings);
-        return true;
-      default:
-        return false;
-    }
+    const destination: Record<string, string> = {
+      "g g": ROUTES.goldensIndex,
+      "g s": ROUTES.skillsIndex,
+      "g m": ROUTES.manifestsIndex,
+      "g .": ROUTES.settings,
+    };
+    const target = destination[sequence];
+    if (!target) return false;
+    void navigate(target);
+    return true;
   });
 
+  const items: readonly AppShellNavItem[] = [
+    { id: "goldens", href: ROUTES.goldensIndex, patternPrefix: ROUTE_PATTERNS.goldensIndex, label: t(strings.nav.goldensLabel), testId: selectors.nav.sidebarItemGoldens, icon: Target },
+    { id: "skills", href: ROUTES.skillsIndex, patternPrefix: ROUTE_PATTERNS.skillsIndex, label: t(strings.nav.skillsLabel), testId: selectors.nav.sidebarItemSkills, icon: Wrench },
+    { id: "manifests", href: ROUTES.manifestsIndex, patternPrefix: ROUTE_PATTERNS.manifestsIndex, label: t(strings.nav.manifestsLabel), testId: selectors.nav.sidebarItemManifests, icon: FileCog },
+    { id: "runs", href: ROUTES.runsIndex, patternPrefix: ROUTE_PATTERNS.runsIndex, label: t(strings.nav.runsLabel), testId: selectors.nav.sidebarItemRuns, icon: PlayCircle },
+    { id: "settings", href: ROUTES.settings, patternPrefix: ROUTE_PATTERNS.settings, label: t(strings.nav.settingsLabel), testId: selectors.nav.sidebarItemSettings, icon: SettingsIcon },
+  ];
+
   return (
-    <div
-      data-testid={selectors.nav.appShell}
-      data-viewport={isMobile ? "mobile" : "desktop"}
-      className="flex h-[var(--app-height,100vh)] w-full overflow-hidden bg-app-background text-app-foreground"
-    >
-      {/* Desktop sidebar */}
-      {isMobile ? null : <Sidebar />}
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopHeader onMenuToggle={isMobile ? () => setMobileNavOpen(true) : undefined} />
-        <main
-          className={cn(
-            "flex-1 overflow-auto px-4 py-4 sm:px-6",
-            isMobile ? "pb-24" : "pb-6",
-          )}
+    <LibraryAppShell
+      density="sidebar"
+      mobileNav="drawer"
+      mainMode="scroll"
+      brand={<span data-testid={selectors.nav.sidebarLogo}>{t(strings.app.eyebrow)}</span>}
+      brandHref={ROUTES.goldensIndex}
+      items={items.map(({ id, href, patternPrefix, label, testId, icon: Icon }) => ({
+        id,
+        href,
+        label,
+        icon: <Icon size={16} aria-hidden />,
+        current: patternPrefix === "/" ? pathname === "/" : pathname.startsWith(patternPrefix),
+        testId,
+      }))}
+      renderLink={(item, props) => (
+        <NavLink
+          to={props.href}
+          end={item.id === "goldens"}
+          aria-current={props["aria-current"]}
+          aria-disabled={props["aria-disabled"]}
+          data-testid={props["data-testid"]}
         >
-          <ErrorBoundary>
-            <Outlet />
-          </ErrorBoundary>
-        </main>
-      </div>
-
-      {/* Mobile bottom nav */}
-      {isMobile ? <MobileBottomNav /> : null}
-
-      {/* Mobile hamburger sheet — duplicates the sidebar nav for full-label
-          access (the bottom nav uses icons only above the safe-area). */}
-      {isMobile ? (
-        <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen} side="left">
-          <div className="-m-6">
-            <Sidebar />
-          </div>
-        </Sheet>
-      ) : null}
-    </div>
+          {props.children}
+        </NavLink>
+      )}
+      header={<TopHeader />}
+      menuLabel={t(strings.nav.menuToggle)}
+      closeLabel="Close navigation"
+      sidebarStorageKey="development-toolchain-validator.sidebar-width"
+      testId={selectors.nav.appShell}
+    >
+      <ErrorBoundary>
+        <Outlet />
+      </ErrorBoundary>
+    </LibraryAppShell>
   );
 }

@@ -6,6 +6,7 @@
   "icon": "minimize2",
   "id": "domain-clarity",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "abstraction",

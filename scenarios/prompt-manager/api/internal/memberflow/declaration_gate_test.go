@@ -2,7 +2,6 @@ package memberflow
 
 import (
 	"path/filepath"
-	"runtime"
 	"sort"
 	"testing"
 )
@@ -21,13 +20,8 @@ import (
 // introduce an arbitrary command. The effect the plan asked for is identical:
 // a declaration error fails the suite; a runtime finding never does.
 func TestLiveTreeHasNoDeclarationErrors(t *testing.T) {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test filename")
-	}
-	pkgDir := filepath.Dir(filename)
-	storeDir := filepath.Clean(filepath.Join(pkgDir, "..", "..", "..", "store"))
-	repoRoot := filepath.Clean(filepath.Join(pkgDir, "..", "..", "..", "..", ".."))
+	repoRoot := requireRepositoryRoot(t)
+	storeDir := filepath.Join(repoRoot, "scenarios", "prompt-manager", "store")
 
 	members, err := LoadAll(storeDir)
 	if err != nil {

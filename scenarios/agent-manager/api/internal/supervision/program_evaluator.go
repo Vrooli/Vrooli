@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math"
 	"net/http"
 	"sort"
 	"strings"
 	"time"
+
+	"agent-manager/internal/orchestration/obs"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
@@ -22,6 +25,25 @@ import (
 
 const supervisionProgramName = "agent-manager.supervision-evaluate"
 
+const (
+	// classificationRuntimeUnavailable marks a transient dependency failure:
+	// the runtime could not be reached or did not finish. Retried on backoff.
+	classificationRuntimeUnavailable = "program_runtime_unavailable"
+	// classificationExecutionUnavailable marks a program run that finished
+	// without succeeding. Retried on backoff.
+	classificationExecutionUnavailable = "program_execution_unavailable"
+	// classificationContractRejected marks a request the runtime rejected as
+	// malformed: unknown or mistyped inputs, a missing program, or a pinned
+	// artifact it no longer holds. Replaying the identical request cannot
+	// succeed, so the watch parks on a long interval.
+	classificationContractRejected = "program_contract_rejected"
+
+	unavailableBaseBackoff        = 30 * time.Second
+	unavailableMaxBackoff         = 15 * time.Minute
+	contractRejectedRetryInterval = time.Hour
+	failureDetailLimit            = 200
+)
+
 type declaredProgramRunner interface {
 	RunDeclaredProgram(context.Context, *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error)
 }
@@ -31,6 +53,7 @@ type ProgramRuntimeEvaluator struct {
 	client   *http.Client
 	runner   declaredProgramRunner
 	policies *PolicyStore
+	log      *slog.Logger
 }
 
 func NewProgramRuntimeEvaluator(policies ...*PolicyStore) *ProgramRuntimeEvaluator {
@@ -39,6 +62,7 @@ func NewProgramRuntimeEvaluator(policies ...*PolicyStore) *ProgramRuntimeEvaluat
 			return discovery.ResolveScenarioURLDefault(ctx, "program-runtime")
 		},
 		client: &http.Client{Timeout: 65 * time.Second},
+		log:    obs.Component("cohort-supervision"),
 	}
 	if len(policies) > 0 {
 		evaluator.policies = policies[0]
@@ -83,7 +107,7 @@ func (e *ProgramRuntimeEvaluator) Evaluate(ctx context.Context, input Evaluation
 	if runner == nil {
 		base, resolveErr := e.resolve(ctx)
 		if resolveErr != nil {
-			return unavailableProgramDecision(input, "program_runtime_unavailable"), nil
+			return e.transientDecision(input, classificationRuntimeUnavailable, fmt.Errorf("resolve program-runtime: %w", resolveErr)), nil
 		}
 		runner = libraryconnect.NewLibraryServiceClient(e.client, strings.TrimRight(base, "/"))
 	}
@@ -103,7 +127,7 @@ func (e *ProgramRuntimeEvaluator) Evaluate(ctx context.Context, input Evaluation
 			}
 			artifact, err := reader.GetLibrary(ctx, connect.NewRequest(&libraryv1.GetLibraryRequest{Name: supervisionProgramName}))
 			if err != nil {
-				return unavailableProgramDecision(input, "evaluator_identity_unavailable"), nil
+				return e.transientDecision(input, "evaluator_identity_unavailable", err), nil
 			}
 			expectedDigest = artifact.Msg.GetProgram().GetContentDigest()
 		}
@@ -114,11 +138,17 @@ func (e *ProgramRuntimeEvaluator) Evaluate(ctx context.Context, input Evaluation
 	response, err := runner.RunDeclaredProgram(ctx, connect.NewRequest(&libraryv1.RunDeclaredProgramRequest{
 		Name: supervisionProgramName, ExpectedDigest: expectedDigest, Inputs: structured, Provenance: programsv1.Provenance_PROVENANCE_AGENT,
 	}))
-	if err != nil || response.Msg.GetProgram() == nil || !response.Msg.GetTerminal() {
-		return unavailableProgramDecision(input, "program_runtime_unavailable"), nil
+	if err != nil {
+		if isContractRejection(err) {
+			return e.parkedDecision(input, classificationContractRejected+":"+boundedErrorText(err), err), nil
+		}
+		return e.transientDecision(input, classificationRuntimeUnavailable, err), nil
 	}
-	if response.Msg.GetProgram().GetStatus() != programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED {
-		return unavailableProgramDecision(input, "program_execution_unavailable"), nil
+	if response.Msg.GetProgram() == nil || !response.Msg.GetTerminal() {
+		return e.transientDecision(input, classificationRuntimeUnavailable, fmt.Errorf("program %s did not reach a terminal state", supervisionProgramName)), nil
+	}
+	if status := response.Msg.GetProgram().GetStatus(); status != programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED {
+		return e.transientDecision(input, classificationExecutionUnavailable, fmt.Errorf("program %s finished with status %s", supervisionProgramName, status)), nil
 	}
 	var envelope supervisionEnvelope
 	if err := json.Unmarshal([]byte(strings.TrimSpace(response.Msg.GetProgram().GetStdout())), &envelope); err != nil {
@@ -284,8 +314,81 @@ func validateProgramCursor(input EvaluationInput, envelope supervisionEnvelope) 
 	return nil
 }
 
+// unavailableProgramDecision is the transient outage shape: the cursor is
+// kept and the next wake backs off with the watch's consecutive failures.
 func unavailableProgramDecision(input EvaluationInput, classification string) *domainpb.WatchDecision {
-	return &domainpb.WatchDecision{Disposition: domainpb.WatchDisposition_WATCH_DISPOSITION_UNAVAILABLE, Classification: classification, RecommendedAction: domainpb.WatchActionKind_WATCH_ACTION_KIND_OBSERVE, NextWakeAt: timestamppb.New(input.Now.UTC().Add(30 * time.Second))}
+	return &domainpb.WatchDecision{Disposition: domainpb.WatchDisposition_WATCH_DISPOSITION_UNAVAILABLE, Classification: classification, RecommendedAction: domainpb.WatchActionKind_WATCH_ACTION_KIND_OBSERVE, NextWakeAt: timestamppb.New(input.Now.UTC().Add(unavailableBackoff(input.ConsecutiveFailures)))}
+}
+
+// parkedProgramDecision is the rejected-request shape: identical replays
+// cannot succeed, so the watch waits a long interval before trying again.
+func parkedProgramDecision(input EvaluationInput, classification string) *domainpb.WatchDecision {
+	return &domainpb.WatchDecision{Disposition: domainpb.WatchDisposition_WATCH_DISPOSITION_UNAVAILABLE, Classification: classification, RecommendedAction: domainpb.WatchActionKind_WATCH_ACTION_KIND_OBSERVE, NextWakeAt: timestamppb.New(input.Now.UTC().Add(contractRejectedRetryInterval))}
+}
+
+// unavailableBackoff doubles the base interval per consecutive failure and
+// caps it, so an outage costs at most four calls an hour per watch.
+func unavailableBackoff(consecutiveFailures int) time.Duration {
+	backoff := unavailableBaseBackoff
+	for i := 0; i < consecutiveFailures && backoff < unavailableMaxBackoff; i++ {
+		backoff *= 2
+	}
+	return min(backoff, unavailableMaxBackoff)
+}
+
+// isContractRejection reports whether the runtime refused the request itself
+// rather than failing to serve it. These codes come back for unknown or
+// mistyped inputs, a program that is not declared, and a pinned digest the
+// runtime cannot resolve; none of them clears by retrying the same request.
+func isContractRejection(err error) bool {
+	switch connect.CodeOf(err) {
+	case connect.CodeInvalidArgument, connect.CodeNotFound, connect.CodeFailedPrecondition, connect.CodeUnimplemented, connect.CodePermissionDenied, connect.CodeUnauthenticated:
+		return true
+	default:
+		return false
+	}
+}
+
+func boundedErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	text := strings.Join(strings.Fields(err.Error()), " ")
+	if len(text) > failureDetailLimit {
+		text = text[:failureDetailLimit]
+	}
+	return text
+}
+
+func (e *ProgramRuntimeEvaluator) transientDecision(input EvaluationInput, classification string, cause error) *domainpb.WatchDecision {
+	decision := unavailableProgramDecision(input, classification)
+	e.logFailure(input, decision, cause)
+	return decision
+}
+
+func (e *ProgramRuntimeEvaluator) parkedDecision(input EvaluationInput, classification string, cause error) *domainpb.WatchDecision {
+	decision := parkedProgramDecision(input, classification)
+	e.logFailure(input, decision, cause)
+	return decision
+}
+
+// logFailure warns when a failure reason first appears on a watch and demotes
+// the identical repeat to debug, so a parked watch does not flood the log on
+// every retry while the first occurrence still carries the runtime's message.
+func (e *ProgramRuntimeEvaluator) logFailure(input EvaluationInput, decision *domainpb.WatchDecision, cause error) {
+	if e.log == nil {
+		return
+	}
+	attrs := []any{
+		"watchID", input.Watch.GetWatchId(), "policyVersion", input.Watch.GetSpec().GetPolicyVersion(),
+		"classification", decision.GetClassification(), "consecutiveFailures", input.ConsecutiveFailures + 1,
+		"nextWakeAt", decision.GetNextWakeAt().AsTime().Format(time.RFC3339), obs.KeyError, boundedErrorText(cause),
+	}
+	if input.ConsecutiveFailures == 0 || input.LastFailureReason != decision.GetClassification() {
+		e.log.Warn("supervision evaluation unavailable", attrs...)
+		return
+	}
+	e.log.Debug("supervision evaluation still unavailable", attrs...)
 }
 
 func dispositionFromProgram(value string) domainpb.WatchDisposition {

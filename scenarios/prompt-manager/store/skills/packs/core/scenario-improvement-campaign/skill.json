@@ -1,13 +1,13 @@
 {
   "createdAt": "2026-05-29T00:00:00Z",
-  "description": "Drive a scenario to an operator-selected maturity target with provider-owned Test Genie evidence and an optional profile-ranked Architecture Cartographer campaign.",
+  "description": "Implement successive improvements toward an approved scenario contract or explicit maturity target within one engagement, using scenario improve judgment and provider evidence rather than per-repair backlog approvals.",
   "entry": "SKILL.md",
   "icon": "list-checks",
   "id": "scenario-improvement-campaign",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
-    "tools",
-    "audits"
+    "practice"
   ],
   "name": "Scenario Improvement Campaign",
   "origin": {
@@ -15,27 +15,24 @@
   },
   "requires": {
     "commands": [
-      "prompt-manager discover",
-      "prompt-manager skill",
       "prompt-manager skill read",
-      "swarm-manager",
-      "test-genie",
-      "test-genie execute",
-      "test-genie runs"
+      "test-genie runs",
+      "vrooli scenario test"
     ],
     "scenarios": [
       "prompt-manager",
-      "swarm-manager",
       "test-genie"
     ]
   },
-  "revision": 2,
+  "revision": 4,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
-    "skill",
-    "audit-technique"
+    "scenario",
+    "development",
+    "maturity",
+    "self-improvement"
   ],
   "targetToolId": "run-agent",
-  "updatedAt": "2026-07-26T00:00:00Z"
+  "updatedAt": "2026-09-08T00:00:00Z"
 }

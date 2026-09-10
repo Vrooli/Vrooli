@@ -157,6 +157,25 @@ func TestEnforceRefusesBudgetOverContractProtectedRuntimeHomeEntry(t *testing.T)
 	}
 }
 
+func TestProtectedRuntimeRootsIncludesPlanArtifactsContractEntry(t *testing.T) {
+	repoRoot := contractFixture(t)
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skipf("no home directory on this host: %v", err)
+	}
+	roots, err := protectedRuntimeRoots(repoRoot)
+	if err != nil {
+		t.Fatalf("protectedRuntimeRoots: %v", err)
+	}
+	want := filepath.Join(home, ".vrooli", "plan-artifacts")
+	for _, root := range roots {
+		if root == want {
+			return
+		}
+	}
+	t.Fatalf("protected roots = %v, want contract plan-artifacts root %q", roots, want)
+}
+
 // A cycle that cannot enumerate what it must not delete must delete nothing.
 // The previous implementation returned an empty protected set on every failure
 // path, which read at the call site as "this host has nothing to protect".

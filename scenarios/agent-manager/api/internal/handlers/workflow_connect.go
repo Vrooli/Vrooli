@@ -49,7 +49,8 @@ func (h *AgentManagerConnectHandler) StartWorkflowExecution(ctx context.Context,
 	if token != "" {
 		initiator = domain.WorkflowInitiatorAgent
 	}
-	e, err := h.h.svc.StartWorkflowExecution(ctx, orchestration.StartWorkflowExecutionRequest{Owner: req.Msg.Owner, WorkflowKey: req.Msg.WorkflowKey, DefinitionDigest: req.Msg.DefinitionDigest, Input: input, IdempotencyKey: req.Msg.IdempotencyKey, Initiator: initiator, IdentityToken: token})
+	grant := engagementGrantFromProto(req.Msg.EngagementGrant)
+	e, err := h.h.svc.StartWorkflowExecution(ctx, orchestration.StartWorkflowExecutionRequest{Owner: req.Msg.Owner, WorkflowKey: req.Msg.WorkflowKey, DefinitionDigest: req.Msg.DefinitionDigest, Input: input, IdempotencyKey: req.Msg.IdempotencyKey, Initiator: initiator, IdentityToken: token, EngagementGrant: grant, ApprovalDigest: req.Msg.ApprovalDigest, GrantDigest: req.Msg.GrantDigest})
 	if err != nil {
 		return nil, workflowConnectError(err)
 	}

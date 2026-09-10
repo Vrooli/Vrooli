@@ -94,6 +94,30 @@ mottled Milky Way with a dust lane. No new raster sky assets or dependencies
 were added. Sky meshes disable picking and release their geometry/materials
 on unmount; the reflection HDR remains in the existing asset pipeline.
 
+## Surface texture treatment
+
+The shipped Kenney GLBs include UVs and PBR colour factors, but no raster
+images. `scene/materialTextures.ts` supplies the missing surface channels from
+one deterministic, cached library: sRGB albedo variation, linear roughness,
+and restrained tangent-space micro-normal detail for wood, bark, fabric and
+stone, with stable albedo and roughness treatment for canvas, metal, ground,
+path, wall, floor and roof. `scene/propMaterials.ts`
+applies the treatment to imported props and vegetation without mutating the
+loader-owned materials. Authored architecture and terrain use the same
+channels, with world-space terrain UVs and roof UVs so they do not stretch when
+their geometry is instanced or scaled. Shared `DataTexture` instances keep the
+texture memory bounded and preserve instancing; no per-placement texture is
+created. Leaf source factors are hue-corrected from the kit's cyan values into
+natural greens while retaining their lightness variation. Roughness uses
+portable RGBA storage rather than a red-only texture, keeping WebGL1/mobile
+drivers from interpreting the channel as zero and producing mirror-like
+surfaces. Environment
+reflection is disabled on world surfaces so the sky remains atmosphere rather
+than a false material colour; highlights come from keyed lights and PBR
+channels. The material tests assert cache identity, colour-space, channel
+availability, source-name classification, vegetation hue and reflection
+limits.
+
 
 Imported seating now has an explicit modelling-axis convention in
 `engine/assets/placement.ts`: office chairs face along local -Z, while the park

@@ -337,6 +337,40 @@ func TestScannerEvidencePlanInvalidatesRelevantSourceToolAndAdvisoryEpoch(t *tes
 	}
 }
 
+func TestPnpmAuditEvidenceInvalidatesLockfileChanges(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "ui", "pnpm-lock.yaml"), "lockfileVersion: '9.0'\npackages:\n  brace-expansion@5.0.8: {}\n")
+	writeFile(t, filepath.Join(dir, "ui", "package.json"), `{"name":"demo","dependencies":{"brace-expansion":"5.0.8"}}`)
+	tool := filepath.Join(t.TempDir(), "pnpm")
+	if err := os.WriteFile(tool, []byte("pnpm-v1"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sub := Substrate{PnpmUI: true, PnpmLockDirs: []string{"ui"}}
+	cmd := pathCommander{path: tool}
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+
+	before, err := scannerEvidencePlan(context.Background(), cmd, "pnpm-audit", "pnpm", dir, sub, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(dir, "ui", "pnpm-lock.yaml"), "lockfileVersion: '9.0'\npackages:\n  brace-expansion@5.0.9: {}\n")
+	after, err := scannerEvidencePlan(context.Background(), cmd, "pnpm-audit", "pnpm", dir, sub, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Fingerprint == before.Fingerprint {
+		t.Fatal("pnpm lockfile change did not invalidate pnpm-audit evidence")
+	}
+	writeFile(t, filepath.Join(dir, "ui", "package.json"), `{"name":"demo","dependencies":{"brace-expansion":"5.0.9"}}`)
+	manifestChanged, err := scannerEvidencePlan(context.Background(), cmd, "pnpm-audit", "pnpm", dir, sub, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manifestChanged.Fingerprint == after.Fingerprint {
+		t.Fatal("pnpm package manifest change did not invalidate pnpm-audit evidence")
+	}
+}
+
 func TestGoScannerEvidenceStopsAtNestedModuleBoundaries(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module root\n")

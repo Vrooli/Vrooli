@@ -207,10 +207,13 @@ func (n *PlaywrightVisionNavigator) Navigate(ctx context.Context, req Navigation
 
 	// Forward to playwright-driver
 	driverReq := map[string]interface{}{
-		"prompt":       req.Prompt,
-		"model":        req.Model,
-		"max_steps":    maxSteps,
-		"callback_url": req.CallbackURL,
+		"prompt":         req.Prompt,
+		"effect_policy":  req.EffectPolicy,
+		"postconditions": req.Postconditions,
+		"extraction":     req.Extraction,
+		"model":          req.Model,
+		"max_steps":      maxSteps,
+		"callback_url":   req.CallbackURL,
 	}
 
 	driverURL := fmt.Sprintf("%s/session/%s/ai-navigate", n.driverBaseURL, req.SessionID)
@@ -413,6 +416,9 @@ func (n *PlaywrightVisionNavigator) HandleCompleteCallback(ctx context.Context, 
 	n.mu.Lock()
 	session := n.activeNavigations[result.NavigationID]
 	if session != nil {
+		session.VerifiedSuccess = result.VerifiedSuccess
+		session.ExtractedData = result.ExtractedData
+		session.VerificationError = result.VerificationError
 		session.SetStatus(result.Status)
 		session.StepCount = result.TotalSteps
 		session.TotalTokens = result.TotalTokens

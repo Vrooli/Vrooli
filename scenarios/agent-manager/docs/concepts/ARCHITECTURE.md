@@ -696,6 +696,51 @@ a malformed sibling cannot partially activate a catalog. Source files remain
 the sole desired-state writer. The catalog contains no command, callback, or
 consumer-domain action node.
 
+## Target: development-engagement continuity
+
+This contract extends, but does not claim implementation beyond, the existing run
+and workflow lifecycle. Swarm owns mandate authority and acceptance; Agent Manager
+owns capability resolution, dispatch, continuity, accounting, and stop propagation.
+See the [shared development contract](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
+
+Resolve native goal support from declared and exercised harness capabilities. If it
+is unavailable, select a qualified bounded workflow with the same target, grants,
+accounting, cancellation, and handoff obligations. Do not infer support from a model
+name. Native and fallback execution must report the mechanism actually selected and
+its limitations. Neither mechanism changes the product's completion policy.
+
+Carry one engagement identity across runs, children, recovery, and compaction.
+Checkpoints reference the approved target revision, current intervention, evidence,
+unmet outcomes, pending owner operations, and remaining limits. Retain skill-read
+content identities when available; report unobserved consumption explicitly.
+
+Aggregate allowances are not per-run allowances. Reserve before dispatch, settle
+actual usage once, and reconcile uncertain costs before granting replacements.
+Retries, interrupted children, native continuations, and fallback slices consume
+the same allowance. Unknown usage is not zero. Parent cancellation and revocation
+stop new child effects; late receipts still settle incurred costs. Budget exhaustion
+preserves a resumable checkpoint and cannot emit product-complete status.
+
+Metered cancellation records the provider observation cadence alongside the durable
+stop intent: sample count, first/last observation, mean interval, and maximum
+interval. The cadence is diagnostic evidence for expected cancellation lag, not a
+hard ceiling. A stop request is persisted before the owner call; a terminal
+provider reconciliation receipt is required before usage settles. If the provider
+does not supply terminal authority, the reservation remains retained and acceptance
+cannot proceed.
+
+The execution API now carries `WorkflowEngagementGrant` for this owner boundary.
+Agent Manager validates that each supplied dimension narrows the pinned
+declaration, persists the grant with the execution, reapplies it after reload,
+and exposes it in the operator projection. Swarm must still reserve and bind a
+development attempt before dispatch; until that coordinator is composed with a
+qualified native/fallback transition, development launch remains fail-closed.
+
+Qualification pairs native and fallback fixtures for scope, budget, crash/resume,
+duplicate result delivery, cancellation, and false harness completion. A live smoke
+requires explicit effect and spending limits under `docs/TESTING.md`; deterministic
+fixtures alone do not qualify a particular vendor harness or unattended operation.
+
 ## Related Documentation
 
 ## Friction investigation transport

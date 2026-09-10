@@ -16,6 +16,9 @@ var ErrNotFound = errors.New("conversation search projection not found")
 
 const coverageCacheTTL = time.Minute
 
+const generationMutationBatchSize = 1000
+const generationMutationPause = 10 * time.Millisecond
+
 type SQLiteRepository struct {
 	db              sqlcompat.DB
 	coverageMu      sync.Mutex
@@ -290,6 +293,28 @@ func (r *SQLiteRepository) LoadCheckpoint(ctx context.Context, sourceName string
 	return Checkpoint{SourceName: row.SourceName, SourceCursor: row.SourceCursor, SourceFingerprint: row.SourceFingerprint, UpdatedAt: updatedAt, LastErrorCode: row.LastErrorCode}, nil
 }
 
+// SetRecoveryError preserves the canonical cursor and fingerprint. Successful
+// recovery clears only its own diagnostic, including one from a prior process.
+func (r *SQLiteRepository) SetRecoveryError(ctx context.Context, diagnostic string, now time.Time) error {
+	if diagnostic == "" {
+		_, err := r.db.ExecContext(ctx, `UPDATE conversation_search_checkpoints SET last_error_code='', updated_at=?
+WHERE source_name='canonical' AND instr(last_error_code, ?)=1`, formatTime(now), ErrRecoveryPending.Error())
+		return err
+	}
+	_, err := r.db.ExecContext(ctx, `INSERT INTO conversation_search_checkpoints
+        (source_name, source_cursor, source_fingerprint, updated_at, last_error_code)
+        VALUES ('canonical', '', '', ?, ?)
+        ON CONFLICT(source_name) DO UPDATE SET updated_at=excluded.updated_at,
+        last_error_code=excluded.last_error_code`, formatTime(now), diagnostic)
+	return err
+}
+
+func (r *SQLiteRepository) HasActiveGeneration(ctx context.Context) (bool, error) {
+	var active bool
+	err := r.db.GetContext(ctx, &active, `SELECT EXISTS(SELECT 1 FROM conversation_search_generations WHERE state='active')`)
+	return active, err
+}
+
 func (r *SQLiteRepository) SaveGeneration(ctx context.Context, generation Generation) error {
 	if generation.GenerationID == "" || generation.State == "" || generation.RecipeVersion == "" || generation.CreatedAt.IsZero() || generation.UpdatedAt.IsZero() {
 		return errors.New("generation id, state, recipe version, and timestamps are required")
@@ -350,17 +375,45 @@ func (r *SQLiteRepository) BeginStagedGeneration(ctx context.Context, generation
 	if generationID == "" {
 		return errors.New("generation id is required")
 	}
-	_, err := r.db.ExecContext(ctx, `DELETE FROM conversation_search_generation_documents WHERE generation_id = ?`, generationID)
-	return err
+	return r.deleteGenerationBatches(ctx, generationID)
 }
 
-func (r *SQLiteRepository) BeginIncrementalGeneration(ctx context.Context, generationID string) error {
-	if err := r.BeginStagedGeneration(ctx, generationID); err != nil {
-		return err
+// Each statement commits independently. Whole-generation deletion previously
+// held SQLite's sole writer across hundreds of thousands of transcript chunks,
+// starving run events and heartbeats during interrupted-generation recovery.
+func (r *SQLiteRepository) deleteGenerationBatches(ctx context.Context, generationID string) error {
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		result, err := r.db.ExecContext(ctx, `DELETE FROM conversation_search_generation_documents
+WHERE rowid IN (SELECT rowid FROM conversation_search_generation_documents
+WHERE generation_id=? ORDER BY document_id LIMIT ?)`, generationID, generationMutationBatchSize)
+		if err != nil {
+			return err
+		}
+		removed, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if removed < int64(generationMutationBatchSize) {
+			return nil
+		}
+		if err := yieldGenerationWriter(ctx); err != nil {
+			return err
+		}
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO conversation_search_generation_documents (generation_id, `+projectionDocumentColumns+`)
-SELECT ?, `+projectionDocumentColumns+` FROM conversation_search_documents`, generationID)
-	return err
+}
+
+func yieldGenerationWriter(ctx context.Context) error {
+	timer := time.NewTimer(generationMutationPause)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (r *SQLiteRepository) DeleteStagedRun(ctx context.Context, generationID, runID string) error {
@@ -776,6 +829,53 @@ func (r *SQLiteRepository) ActivateGeneration(ctx context.Context, generationID 
 	return nil
 }
 
+// PruneRetiredGenerations deletes the staged document rows of retired
+// generations beyond the newest keep, at most limit generations per call so
+// the backlog drains a few generations per activation instead of in one
+// enormous transaction. The generation record stays retired (its state set is
+// schema-checked); a retired generation with no rows is simply already
+// pruned. ActivateGeneration only flips the previous serving generation to
+// retired; without this, every 15-minute full repair left its complete
+// document projection behind (340 retired generations of 847k rows each, a
+// 293 GB database, on 2026-09-09).
+func (r *SQLiteRepository) PruneRetiredGenerations(ctx context.Context, keep, limit int) ([]string, error) {
+	if keep < 0 {
+		keep = 0
+	}
+	if limit <= 0 {
+		return nil, nil
+	}
+	var ids []string
+	if err := r.db.SelectContext(ctx, &ids, `SELECT generation_id FROM conversation_search_generations
+        WHERE state='retired' ORDER BY created_at DESC`); err != nil {
+		return nil, fmt.Errorf("list retired conversation search generations: %w", err)
+	}
+	purged := make([]string, 0, limit)
+	for index, id := range ids {
+		if index < keep || len(purged) >= limit {
+			if len(purged) >= limit {
+				break
+			}
+			continue
+		}
+		if err := ctx.Err(); err != nil {
+			return purged, err
+		}
+		var populated bool
+		if err := r.db.GetContext(ctx, &populated, `SELECT EXISTS(SELECT 1 FROM conversation_search_generation_documents WHERE generation_id = ?)`, id); err != nil {
+			return purged, fmt.Errorf("inspect retired generation %q: %w", id, err)
+		}
+		if !populated {
+			continue
+		}
+		if err := r.deleteGenerationBatches(ctx, id); err != nil {
+			return purged, fmt.Errorf("purge retired generation %q: %w", id, err)
+		}
+		purged = append(purged, id)
+	}
+	return purged, nil
+}
+
 // PromoteStagedGeneration preserves the original one-call contract for tests
 // and non-semantic callers.
 func (r *SQLiteRepository) PromoteStagedGeneration(ctx context.Context, generationID string, expected uint64, now time.Time) error {
@@ -789,7 +889,7 @@ func (r *SQLiteRepository) RollbackStagedGeneration(ctx context.Context, generat
 	if state != "failed" && state != "cancelled" {
 		return errors.New("rollback state must be failed or cancelled")
 	}
-	if _, err := r.db.ExecContext(ctx, `DELETE FROM conversation_search_generation_documents WHERE generation_id = ?`, generationID); err != nil {
+	if err := r.deleteGenerationBatches(ctx, generationID); err != nil {
 		return err
 	}
 	_, err := r.db.ExecContext(ctx, `UPDATE conversation_search_generations SET state=?, updated_at=? WHERE generation_id=?`, state, formatTime(now), generationID)

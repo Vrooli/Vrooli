@@ -22,14 +22,14 @@ describe("App composition", () => {
     cleanup();
   });
 
-  it("renders the shell title (smoke: providers + routes wire up)", () => {
+  it("renders the shell title (smoke: providers + routes wire up)", async () => {
     renderWithProviders(
       <Providers>
         <TestAppRouter initialEntries={["/"]} />
       </Providers>,
       { withoutRouter: true },
     );
-    expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.app.title)).toBeInTheDocument();
   });
 
   it("mounts the production browser-router composition", async () => {

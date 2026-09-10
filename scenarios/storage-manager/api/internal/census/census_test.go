@@ -35,6 +35,24 @@ func TestScanReportsUnknownUnattributedBytesWhenCoverageIsUnreadable(t *testing.
 	}
 }
 
+func TestDispositionSeparatesProtectedManagedAndUnknownState(t *testing.T) {
+	if got := dispositionForClass(corestorage.ClassData); got != DispositionOwnedProtected {
+		t.Fatalf("data disposition = %q", got)
+	}
+	if got := dispositionForClass(corestorage.ClassCache); got != DispositionOwnedManaged {
+		t.Fatalf("cache disposition = %q", got)
+	}
+	for code, want := range map[string]Disposition{
+		"unreadable_path":          DispositionUnreadableUnknown,
+		"STORAGE_PATH_ORPHANED":    DispositionUnownedReadable,
+		"STORAGE_PATH_UNACCOUNTED": DispositionAggregateDrift,
+	} {
+		if got := dispositionForFinding(code); got != want {
+			t.Fatalf("finding %q disposition = %q, want %q", code, got, want)
+		}
+	}
+}
+
 func TestScanClosedIdentityAndAttribution(t *testing.T) {
 	root := t.TempDir()
 	mustWrite := func(name, value string) {
@@ -282,7 +300,9 @@ func TestSnapshotStoreRetainsDailyForensicSnapshotsAndExpiresOlderHistory(t *tes
 
 func TestSnapshotStoreLatestReturnsAgeAndStalenessWithoutRescanning(t *testing.T) {
 	database := apidb.NewFromPrimary(db.NewSQLite(t))
-	store := NewSnapshotStore(database)
+	// Staleness follows the scheduled interval: an hour-old snapshot is stale
+	// on a 30-minute schedule and current on the six-hour default.
+	store := NewSnapshotStore(database).WithFreshness(30 * time.Minute)
 	if _, err := database.ExecContext(context.Background(), censusSchemaSQL); err != nil {
 		t.Fatal(err)
 	}
@@ -305,5 +325,12 @@ func TestSnapshotStoreLatestReturnsAgeAndStalenessWithoutRescanning(t *testing.T
 	}
 	if !latest.UnattributedKnown || latest.UnattributedBytes != 17 {
 		t.Fatalf("latest unattributed total = known:%v bytes:%d, want known: true bytes:17", latest.UnattributedKnown, latest.UnattributedBytes)
+	}
+	current, err := NewSnapshotStore(database).Latest(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current == nil || current.StalenessVerdict != "current" {
+		t.Fatalf("an hour-old snapshot on the %s default schedule = %+v, want current", DefaultInterval, current)
 	}
 }

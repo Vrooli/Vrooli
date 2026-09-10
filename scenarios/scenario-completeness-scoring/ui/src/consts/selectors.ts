@@ -85,10 +85,6 @@ const literalSelectors = {
   },
   layout: {
     shell: "layout-shell",
-    topBar: "layout-top-bar",
-    sidebar: "layout-sidebar",
-    bottomNav: "layout-bottom-nav",
-    main: "layout-main",
   },
   theme: {
     switcher: "theme-switcher",
@@ -133,15 +129,17 @@ const dynamicSelectorDefinitions = {
     }),
   },
   layout: {
-    sidebarLink: defineDynamicSelector({
-      description: "Sidebar navigation link by canonical nav key",
-      testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "settings"] as const } },
-    }),
-    bottomNavLink: defineDynamicSelector({
-      description: "Bottom-nav link by canonical nav key",
-      testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "settings"] as const } },
+    navLink: defineDynamicSelector({
+      description: "App shell navigation link by canonical nav key",
+      testIdPattern: "layout-nav-link-${key}",
+      params: {
+        key: {
+          type: "enum",
+          values: [
+            "dashboard",
+            "settings",          ] as const,
+        },
+      },
     }),
   },
   settingsPage: {

@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "search-hub.research",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "One federated project-research call at a named effort level (fast, standard, deep), returning bounded ranked rows plus routing meta and a verdict the skill branches on.",
   "inputs": {
     "query": {
@@ -104,7 +107,9 @@
         "binding_error",
         "kernel_runtime",
         "degraded_leg",
-        "reranker_absent"
+        "reranker_absent",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "ranked hit ids"

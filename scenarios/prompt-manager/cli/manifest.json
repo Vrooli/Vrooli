@@ -352,6 +352,13 @@
           }
         },
         {
+          "name": "refresh",
+          "description": "Preview native skill freshness or apply an exact reviewed projection digest.",
+          "binding": { "kind": "connect-rpc", "service": "SkillsService", "method": "RefreshProjection" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "action" }
+        },
+        {
           "name": "import",
           "description": "Import pinned skill material into quarantine.",
           "binding": {

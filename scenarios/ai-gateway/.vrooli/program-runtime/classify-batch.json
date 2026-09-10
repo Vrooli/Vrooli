@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "ai-gateway.classify-batch",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Classify up to 32 texts using caller-owned instructions and labels, retaining ordered per-item failures, validated labels, provider identity and measured usage in one bounded batch.",
   "inputs": {
     "corpus": {
@@ -76,7 +79,9 @@
         "not_run_eligible",
         "inference_spend_exceeded",
         "binding_error",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Batch binding, role and request/item counts; provider identity and measured usage live in item evidence."

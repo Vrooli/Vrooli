@@ -10,6 +10,7 @@ import { cleanup, screen } from "@testing-library/react";
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { setLocale } from "../i18n";
 import { TestAppRouter } from "../app/routes";
+import { selectors } from "../consts/selectors";
 
 describe("AppShell accessibility", () => {
   let fetchSpy: { mockRestore: () => void } | undefined;
@@ -40,6 +41,6 @@ describe("AppShell accessibility", () => {
     );
 
     expect(screen.getAllByRole("navigation", { name: "Primary navigation" })).toHaveLength(1);
-    expect(screen.getByRole("navigation", { name: "Mobile navigation" })).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-tabs`)).toBeInTheDocument();
   });
 });

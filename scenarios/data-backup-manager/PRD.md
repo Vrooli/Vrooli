@@ -16,18 +16,18 @@
 ### 🔴 P0 – Must ship for viability
 - [x] OT-P0-001 | Self-registration of targets | Scenarios idempotently register/deregister backup targets (owner+name keyed); catalog is reconstructable from re-registration on boot
 - [x] OT-P0-002 | Six source kinds | Capture filesystem, SQLite, Postgres, Redis, Qdrant, and object-storage sources into consistent artifacts
-- [ ] OT-P0-003 | Multiple destinations | Configure multiple backup destinations (local filesystem, S3/MinIO) as kopia repositories
+- [x] OT-P0-003 | Multiple destinations | Configure multiple backup destinations (local filesystem, S3/MinIO) as kopia repositories
 - [x] OT-P0-004 | Backup plans | Many-to-many plans bind targets to destinations with per-plan schedule and retention
 - [x] OT-P0-005 | Scheduled + on-demand execution | In-process scheduler runs plans on cadence; operators and scenarios can trigger a run manually
 - [x] OT-P0-006 | Verified restore | Restore a target to a chosen location; a verify mode test-restores to scratch and checksums the result
 - [x] OT-P0-007 | Credential-authority-backed encryption | Every destination is encrypted by default; repository passphrases and backend access keys come from the credential authority, never config files or provider-specific secret services
 - [x] OT-P0-008 | Storage limits | Per-destination caps that are configurable and default to alert+block (no silent eviction of backups)
 - [x] OT-P0-009 | Catalog & run history | List targets, destinations, plans, and runs; show last-success per target and browse snapshot contents
-- [ ] OT-P0-010 | Health & observability | Health endpoint flags overdue/failed backups; backup outcomes are emitted as events for platform monitoring
-- [ ] OT-P0-011 | Three coordinated surfaces | API, CLI, and UI all expose the registration / destination / plan / run / restore model over the same Connect-RPC contract
+- [x] OT-P0-010 | Health & observability | Health endpoint flags overdue/failed backups; backup outcomes are emitted as events for platform monitoring
+- [x] OT-P0-011 | Three coordinated surfaces | API, CLI, and UI all expose the registration / destination / plan / run / restore model over the same Connect-RPC contract
 
-- [ ] OT-P0-012 | Workspace checkpoints | When a workspace checkpoint is requested, the system MUST preserve and verify its declared content and metadata profile, reject incomplete evidence, and disclose capture consistency limits.
-- [ ] OT-P0-013 | Isolated validation | The system MUST reject test requests at production effect boundaries and validate backup and restore behavior through fake engines and confined synthetic fixtures.
+- [x] OT-P0-012 | Workspace checkpoints | When a workspace checkpoint is requested, the system MUST preserve and verify its declared content and metadata profile, reject incomplete evidence, and disclose capture consistency limits.
+- [x] OT-P0-013 | Isolated validation | The system MUST reject test requests at production effect boundaries and validate backup and restore behavior through fake engines and confined synthetic fixtures.
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Quiesce hooks | Targets declare pre/post hooks so live databases get application-consistent snapshots

@@ -1,4 +1,5 @@
 import { strings } from "../consts/strings";
+import { Activity, Images, LayoutDashboard, ListChecks, Settings, Sparkles, Wand2, Workflow, type LucideIcon } from "lucide-react";
 
 /**
  * Canonical nav-item list shared by `Sidebar` and `BottomNav` so the two
@@ -17,15 +18,18 @@ export interface NavItem {
   end?: boolean;
   /** Translation key path. */
   labelKey: (typeof strings.layout.nav)[keyof typeof strings.layout.nav];
+  icon: LucideIcon;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "home", path: "/", end: true, labelKey: strings.layout.nav.home },
-  { key: "workspace", path: "/workspace", labelKey: strings.layout.nav.workspace },
-  { key: "library", path: "/library", labelKey: strings.layout.nav.library },
-  { key: "select", path: "/select", labelKey: strings.layout.nav.select },
-  { key: "compare", path: "/compare", labelKey: strings.layout.nav.compare },
-  { key: "activity", path: "/activity", labelKey: strings.layout.nav.activity },
-  { key: "models", path: "/models", labelKey: strings.layout.nav.models },
-  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
+  { key: "home", path: "/", end: true, labelKey: strings.layout.nav.home, icon: LayoutDashboard },
+  { key: "workspace", path: "/workspace", labelKey: strings.layout.nav.workspace, icon: Wand2 },
+  { key: "library", path: "/library", labelKey: strings.layout.nav.library, icon: Images },
+  { key: "select", path: "/select", labelKey: strings.layout.nav.select, icon: Sparkles },
+  { key: "compare", path: "/compare", labelKey: strings.layout.nav.compare, icon: ListChecks },
+  { key: "activity", path: "/activity", labelKey: strings.layout.nav.activity, icon: Activity },
+  { key: "models", path: "/models", labelKey: strings.layout.nav.models, icon: Workflow },
+  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: Settings },
 ];
+
+export const iconForItem = (item: NavItem) => item.icon;

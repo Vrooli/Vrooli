@@ -7,9 +7,9 @@ metadata:
   schemaVersion: 1
   tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
   status: "active"
-  revision: 6
+  revision: 7
   createdAt: "2026-07-18T03:05:27Z"
-  updatedAt: "2026-08-29T00:00:00Z"
+  updatedAt: "2026-09-10T00:00:00Z"
   modes: ["contract"]
   requires:
     scenarios: []
@@ -21,12 +21,14 @@ metadata:
 
 Review one slice handoff against the plan it claims to advance. Resolve the plan with `plan-manager plans render <plan_reference>` and compare the handoff's claims to the plan's expectations for that slice.
 
+Read cited owner receipts, outcome assessments, or retained test artifacts to check material claims. A narrated pass alone is insufficient. Apply the plan's completion policy: broad advisory findings do not override supported outcome evidence. Required product failures remain unmet.
+
 ## Decision table
 
 | Observable end state | `accepted` |
 | --- | --- |
-| The handoff shows the slice done per the plan, with verification quoted: the handoff states the commands run and their observed pass results. A terminal Plan Manager validation operation with its producer run id and verdict is valid evidence for the validation it governs; do not require a second literal command. | `true` |
-| The handoff shows an authored phase done and verified, then explicitly stops for operator approval before terminal DoD. | `true` — approval and terminal DoD are future workflow obligations, not evidence this pre-approval slice can already possess. |
+| The handoff shows a coherent intervention completed within the accepted plan, with applicable verification and remaining outcomes. For an adaptive mandate, the current phase may remain unfinished. | `true` — intervention acceptance permits another bounded repair; it does not mark the phase or product complete. |
+| The handoff shows an authored phase done and verified. It correctly distinguishes a routine phase boundary from a decision needing authority. | `true` — the accepted strategy and workflow own the next approval or continuation action. Do not demand per-phase human approval for adaptive work. |
 | The post-approval handoff shows fresh terminal Plan Manager validation, its producer run and verdict, and completed Plan Manager execution. | `true` — parent workflow success and Swarm consumer application happen only after this review accepts; never require those future effects as evidence from the slice. The parent owns proof that approval was signalled before dispatching this post-approval slice. |
 | A gap exists between the plan's expectations and the handoff's evidence: missing verification, skipped scope, or claims without support. A named command without its observed result is a claim without support. | `false` |
 

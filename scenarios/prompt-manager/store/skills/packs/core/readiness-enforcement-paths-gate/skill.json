@@ -1,16 +1,23 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
+  "createdAt": "2026-09-01T20:28:23Z",
+  "description": "Evaluate the deployment readiness check: Enforcement paths actually gate",
+  "entry": "SKILL.md",
   "id": "readiness-enforcement-paths-gate",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
   "name": "readiness-enforcement-paths-gate",
-  "description": "Deployment readiness check procedure",
+  "origin": {
+    "kind": "authored"
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "readiness-check",
     "deployment-manager"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-09-01T20:28:23Z",
   "updatedAt": "2026-09-01T20:28:23Z"
 }

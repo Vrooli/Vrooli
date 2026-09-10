@@ -2,6 +2,42 @@
 
 ## Open Issues
 
+### Swarm engagement budget qualification — 2026-09-08
+
+Prior evidence: Swarm's contract-development readiness review identified
+post-child token accounting as insufficient for approved aggregate ceilings
+(`scenarios/swarm-manager/docs/concepts/ARCHITECTURE.md`). This pass tested two
+competing causes: missing child usage versus admission paths ignoring known usage.
+
+Three deterministic regressions failed before the fix: an invalid structured
+result at the token limit scheduled a repair; a node with a 50-turn/1000-second
+allowance received it despite only 10 turns/10 seconds remaining; and an exact
+token-limit result could lead into another agent node. Directly supplying usage
+confirmed control-flow/admission gaps, not missing metering, in those cases.
+
+The sequential interpreter now checks known spend before new work and before
+repair, retains actual overrun usage, and clips supported child turn/time limits
+to the remaining workflow allowance. Valid exact-limit completion is distinct
+from permission to start more work. An owner-issued `WorkflowEngagementGrant`
+is now admitted only when it narrows the pinned declaration, persisted with the
+execution, reapplied after restart, and protected against idempotency mutation.
+The grant is exposed in the operator execution projection. The entire
+`internal/workflowruntime` package passes, including `-race`; see
+`engine_budget_admission_test.go` and `engagement_grant_test.go`.
+
+Still unqualified: hard in-flight token/charge ceilings, unknown/live usage,
+concurrent-child reservations, nested workflow allowance inheritance, Swarm
+per-engagement dispatch fencing, native-goal/fallback continuation, and
+provider-owned terminal evidence. The existing workflow revision budget is not
+by itself a Swarm engagement reservation. Do not enable contract-development
+launch based solely on this repair. These changes were not activated by
+restarting Agent Manager's shared live service.
+
+Scoped Test Genie unit run `20260909-002357-03cecc07` returned FAIL, reporting
+execution-readiness, architecture and coverage findings. This pass does not
+attribute those broader findings to the admission repair or claim a clean
+scenario certificate from the passing workflow-runtime tests.
+
 ### P-013: Some evidence planes are intentionally unavailable without runtime signals (2026-08-04)
 **Severity**: Medium
 **Description**: Transcript evidence is now fully governed and replayable, but

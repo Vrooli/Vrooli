@@ -223,6 +223,9 @@ func (n *ClaudeCodeVisionNavigator) ClientSourcePolicy() ClientSourcePolicy {
 
 // Navigate starts an AI navigation session using Claude Code CLI.
 func (n *ClaudeCodeVisionNavigator) Navigate(ctx context.Context, req NavigationRequest) (NavigationHandle, error) {
+	if req.EffectPolicy == "read_only" || len(req.Postconditions) > 0 || len(req.Extraction) > 0 {
+		return nil, fmt.Errorf("claude_code navigator does not support enforced task contracts")
+	}
 	// Verify availability
 	if !n.IsAvailable(ctx) {
 		reason := n.UnavailableReason(ctx)

@@ -8,13 +8,16 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
 	"storage-manager/internal/census"
 	"storage-manager/internal/httpx"
+	"storage-manager/internal/inventorycache"
 	"storage-manager/internal/modules"
 	"storage-manager/internal/orchestrator"
+	"storage-manager/internal/providers"
 	managerRetention "storage-manager/internal/retention"
 	"storage-manager/internal/server"
 
@@ -24,6 +27,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -91,9 +95,9 @@ func main() {
 	schedulerContext, stopScheduler := context.WithCancel(context.Background())
 	startCensusBackfill(schedulerContext, logger, db, repoRoot)
 	if repoRoot != "" {
-		snapshotStore := census.NewSnapshotStore(db)
+		snapshotStore := census.NewSnapshotStore(db).WithFreshness(censusInterval())
 		storageScheduler := census.NewScheduler(censusInterval(), func(ctx context.Context) error {
-			inventory, err := storage.LoadOwnerInventory(storage.InventoryOptions{RepoRoot: repoRoot, Platform: storage.Platform(runtime.GOOS)})
+			inventory, err := inventorycache.Load(repoRoot, storage.Platform(runtime.GOOS))
 			if err != nil {
 				return err
 			}
@@ -103,13 +107,17 @@ func main() {
 			}
 			_, err = snapshotStore.Save(ctx, report)
 			return err
-		}).WithObserver(func(cycle census.Cycle) {
+		}).WithDutyCycle(censusDutyCycle()).WithObserver(func(cycle census.Cycle) {
 			if cycle.Err != nil {
 				logger.Printf("census cycle failed after %s: %v", cycle.Duration.Round(time.Millisecond), cycle.Err)
 			}
+			// One line per pass. The scheduler already spaces passes so the
+			// walk stays under its duty-cycle cap; this records what it chose.
 			if cycle.Overran {
-				logger.Printf("census cycle took %s, at or beyond its %s interval; the next walk waits a full interval so the host is not left under a continuous metadata scan",
-					cycle.Duration.Round(time.Second), censusInterval())
+				logger.Printf("census cycle took %s, at or beyond its %s interval; the next walk starts after %s of idle time to keep census work under %.0f%% of wall time",
+					cycle.Duration.Round(time.Second), censusInterval(), cycle.IdleFor.Round(time.Second), censusDutyCycle()*100)
+			} else {
+				logger.Printf("census cycle took %s; next walk in %s", cycle.Duration.Round(time.Second), cycle.IdleFor.Round(time.Second))
 			}
 		})
 		storageScheduler.Start(schedulerContext)
@@ -137,6 +145,7 @@ func main() {
 			DB:              db,
 			OllamaInventory: storageH.NewOllamaInventoryFromEnvironment(),
 			OllamaModelRoot: storageH.DefaultOllamaModelRoot(),
+			QdrantReader:    providers.NewHTTPQdrantGenerationReader(discovery.ResolveScenarioURLDefault, http.DefaultClient, func() string { return os.Getenv("AGENT_MANAGER_SEARCH_CONTROL_TOKEN") }),
 		}),
 	)
 
@@ -232,16 +241,29 @@ func retentionInterval() time.Duration {
 }
 
 func censusInterval() time.Duration {
-	const defaultInterval = 30 * time.Minute
 	raw := strings.TrimSpace(os.Getenv("STORAGE_CENSUS_INTERVAL"))
 	if raw == "" {
-		return defaultInterval
+		return census.DefaultInterval
 	}
 	interval, err := time.ParseDuration(raw)
 	if err != nil || interval < time.Minute {
-		return defaultInterval
+		return census.DefaultInterval
 	}
 	return interval
+}
+
+// censusDutyCycle reads STORAGE_CENSUS_DUTY_CYCLE, the maximum fraction of
+// wall time the scheduled census may spend walking (0 < value <= 1).
+func censusDutyCycle() float64 {
+	raw := strings.TrimSpace(os.Getenv("STORAGE_CENSUS_DUTY_CYCLE"))
+	if raw == "" {
+		return census.DefaultDutyCycle
+	}
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil || value <= 0 || value > 1 {
+		return census.DefaultDutyCycle
+	}
+	return value
 }
 
 // openRetentionLedger resolves the removal ledger retention writes receipts to.
@@ -263,7 +285,7 @@ func startRetentionScheduler(ctx context.Context, logger *log.Logger, repoRoot s
 	budgetCycles := map[string]int{}
 	events := eventbus.NewDiscoveredClient(ctx)
 	managerRetention.NewScheduler(retentionInterval(), func(cycleCtx context.Context) error {
-		inventory, err := storage.LoadOwnerInventory(storage.InventoryOptions{RepoRoot: repoRoot, Platform: platform})
+		inventory, err := inventorycache.Load(repoRoot, platform)
 		if err != nil {
 			return err
 		}

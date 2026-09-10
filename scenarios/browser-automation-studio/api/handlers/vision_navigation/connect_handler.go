@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/sirupsen/logrus"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai"
@@ -114,7 +115,38 @@ func (s *service) StartNavigation(
 		userID = "anonymous"
 	}
 
+	if req.Msg.EffectPolicy != "" && req.Msg.EffectPolicy != "explicit" && req.Msg.EffectPolicy != "read_only" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported effect_policy"))
+	}
+	if len(req.Msg.Postconditions) > 16 || len(req.Msg.Extraction) > 16 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("at most 16 postconditions and extractions"))
+	}
+	if navigator.Type() != vision.NavigatorPlaywright && (req.Msg.EffectPolicy == "read_only" || len(req.Msg.Postconditions) > 0 || len(req.Msg.Extraction) > 0) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("selected navigator does not support enforced task contracts"))
+	}
+	conditions := make([]vision.NavigationPostcondition, 0, len(req.Msg.Postconditions))
+	for _, c := range req.Msg.Postconditions {
+		if c.Selector == "" || len(c.Selector) > 1024 || len(c.Expected) > 4096 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid postcondition"))
+		}
+		switch c.Mode {
+		case "exists", "text_equals", "text_contains", "count_equals", "ASSERTION_MODE_EXISTS":
+		default:
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported postcondition mode"))
+		}
+		conditions = append(conditions, vision.NavigationPostcondition{Selector: c.Selector, Mode: c.Mode, Expected: c.Expected})
+	}
+	extraction := make([]vision.NavigationExtraction, 0, len(req.Msg.Extraction))
+	names := map[string]bool{}
+	for _, e := range req.Msg.Extraction {
+		if e.Name == "" || names[e.Name] || len(e.Name) > 128 || e.Selector == "" || len(e.Selector) > 1024 || len(e.Attribute) > 128 || e.Limit < 0 || e.Limit > 100 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid extraction"))
+		}
+		names[e.Name] = true
+		extraction = append(extraction, vision.NavigationExtraction{Name: e.Name, Selector: e.Selector, Attribute: e.Attribute, Limit: int(e.Limit)})
+	}
 	navReq := vision.NavigationRequest{
+		EffectPolicy: req.Msg.EffectPolicy, Postconditions: conditions, Extraction: extraction,
 		SessionID:     sessionID,
 		Prompt:        prompt,
 		Model:         model,
@@ -227,7 +259,9 @@ func navigationStatusToProto(session *vision.NavigationSession) *aiv1.GetNavigat
 			At:          timestamppb.New(st.At),
 		})
 	}
+	data, _ := structpb.NewStruct(session.ExtractedData)
 	return &aiv1.GetNavigationStatusResponse{
+		VerifiedSuccess: session.VerifiedSuccess, ExtractedData: data, VerificationError: session.VerificationError,
 		NavigationId:  session.NavigationID,
 		SessionId:     session.SessionID,
 		Status:        string(session.Status),

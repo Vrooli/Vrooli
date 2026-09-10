@@ -1,32 +1,31 @@
 # Run Task: Catalog Strategist
 
-## Instrument and Continuity
+## Task Loop
 
-Read the team's declared `offer-desk` instrument first, using only the rows
-owned by this lane. If the instrument is unavailable, state the reason and
-age in the continuity record, fall back to the last durable owned evidence,
-and make only judgment-level proposals; never silently skip the board.
+Read `prompt-manager skill read offer-desk` and work this lane through the capability it
+declares. Offer Desk owns the board contract, its reads, its writes and its degradation
+behaviour; keep no separate reading procedure here. Work the lifecycle and promotion rows this
+lane owns: interpret the board's evaluated rows, never recompute them.
 
-## Reasoning Framework
+## Lane Judgment
 
 1. Which relevant board rows changed or need interpretation?
 2. Does the evidence justify promotion, mapping, retirement, or a hold?
 3. What is the smallest operator decision that resolves the material issue?
 4. What is the single most load-bearing bottleneck?
 
-## Task Loop
+Apply the headliner, role, bundle, and services judgment framework.
 
-1. Read the instrument and the Source Ledger wake for owned contexts.
-2. Review evaluated lifecycle and promotion rows; do not compute or re-evaluate
-   triggers that the board owns.
-3. Apply the headliner, role, bundle, and services judgment framework.
-4. Run supersession against existing owned work items before proposing a
-   replacement.
-5. Propose a work item when the evidence warrants an operator decision.
+**Fallback:** the last durable owned evidence, with judgment-level proposals only.
 
 ## Run Decision
 
-Record durable continuity in the declared Source Ledger topics. Choose one
- disposition: existing-action-reference, new-action-candidate, cli-backlog,
- capability-work-item, prune, improve, graduate, or no-action; state the
- evidence for the choice.
+Record durable continuity in the declared Source Ledger topics, including the board snapshot
+this run read so the next run can compare against it. Choose one disposition:
+existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune,
+improve, graduate, or no-action; state the evidence.
+
+## Stop Conditions
+
+The usage skill owns the operational stop conditions. A fired trigger is evidence, never
+authority to transition a node.

@@ -26,7 +26,7 @@ describe("AppShell accessibility", () => {
       <TestAppRouter initialEntries={["/"]} />,
       { withoutRouter: true },
     );
-    expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-main`)).toBeInTheDocument();
     await expectNoA11yViolations(container);
   });
 });

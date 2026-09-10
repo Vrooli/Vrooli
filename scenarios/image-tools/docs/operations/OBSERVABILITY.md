@@ -76,7 +76,7 @@ Known gaps:
 | BYOK cost dashboards / aggregate cost telemetry | Pre-op estimates exist, but no historical cost view; cannot evaluate hosted/SaaS unit economics. | Before managed/SaaS deployment or monetization review. |
 | Cross-vendor GPU metrics (AMD/Intel/Apple-Silicon) | VRAM/headroom metrics are reliable only for NVIDIA today. | When P2 GPU hardening lands in the platform `internal/hostinventory` collector (surfaced via the root CLI host-inventory contract). |
 | Product usage telemetry (per-op adoption) | Cannot validate adoption or value delivery. | Before public launch or monetization review. |
-| Retention / storage-growth metrics | Blob storage growth is not actively tracked. | Before any hosted tier or when disk pressure recurs. |
+| Retention / storage-growth metrics | Storage-manager now accounts for image-tools' separated model, adapter, input, output, runtime, and database entries; owner preview reports output bytes and item counts. Historical per-entry growth dashboards remain limited. | Before any hosted tier or when disk pressure recurs. |
 | Webhook delivery success/retry metrics | Best-effort callbacks are not yet instrumented. | When webhook callbacks (P1) ship. |
 
 ## Cross-References

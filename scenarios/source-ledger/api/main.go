@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"time"
 
 	"source-ledger/internal/capabilities"
 	"source-ledger/internal/facets"
@@ -193,7 +194,12 @@ func main() {
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 	rootMux.Handle("/", srv.Handler())
 	handler := apihttp.TestModeMiddleware(rootMux)
-	if err := apiserver.Run(apiserver.Config{Handler: handler, Cleanup: func(context.Context) error { return db.Close() }}); err != nil {
+	// Compaction and rebuild are server-owned passes that hold one unary RPC
+	// open for minutes (each cluster summary is a bounded model call). The
+	// shared server's 30 s WriteTimeout closed that connection mid-pass and
+	// every consumer saw "unexpected EOF" while the pass kept running; the
+	// write bound must cover vrooli-memory's 30 min CompactTimeout.
+	if err := apiserver.Run(apiserver.Config{Handler: handler, WriteTimeout: 35 * time.Minute, Cleanup: func(context.Context) error { return db.Close() }}); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }

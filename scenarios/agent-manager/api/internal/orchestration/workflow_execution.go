@@ -2,6 +2,7 @@
 package orchestration
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -74,6 +75,7 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 	create := CreateRunRequest{
 		TaskID: taskID, Prompt: req.Prompt, ResultSpec: req.ResultSpec, Until: req.Until, IdempotencyKey: req.IdempotencyKey, Tag: tag, Force: req.Force,
 		WorkloadKind: domain.WorkloadKindWorkflowNode, WorkloadKey: req.NodeID, WorkloadInstance: req.ExecutionID.String(),
+		AllowedEffects: append([]string(nil), req.AllowedEffects...),
 		Environment: map[string]string{
 			workflowExecutionEnv:  req.ExecutionID.String(),
 			workflowNodeEnv:       req.NodeID,
@@ -132,7 +134,13 @@ func (l workflowChildLauncher) Inspect(ctx context.Context, id uuid.UUID) (workf
 	if err != nil {
 		return workflowruntime.ChildState{}, err
 	}
-	return childStateFromRun(run), nil
+	state := childStateFromRun(run)
+	if state.Terminal {
+		// Default dispatch admission also needs authoritative terminal usage;
+		// reading the final receipt does not enable in-flight metering.
+		return l.InspectMetered(ctx, id)
+	}
+	return state, nil
 }
 
 func (l workflowChildLauncher) Stop(ctx context.Context, id uuid.UUID) error {
@@ -165,6 +173,9 @@ func childStateFromRun(run *domain.Run) workflowruntime.ChildState {
 	case domain.RunStatusFailed, domain.RunStatusCancelled:
 		state.Terminal = true
 		state.Failed = true
+	}
+	if domain.RequiredFinalizationPending(run) {
+		state.FinalizationPending = fmt.Sprintf("required sandbox finalization %s: %s", run.FinalizationStatus, run.FinalizationError)
 	}
 	return state
 }
@@ -207,6 +218,20 @@ func (l workflowSubworkflowLauncher) Inspect(ctx context.Context, id uuid.UUID) 
 	execution, err := l.o.driveWorkflowExecution(ctx, id)
 	if err != nil {
 		return workflowruntime.SubworkflowState{}, err
+	}
+	return subworkflowState(execution), nil
+}
+
+func (l workflowSubworkflowLauncher) InspectTerminalAccounting(ctx context.Context, id uuid.UUID) (workflowruntime.SubworkflowState, error) {
+	execution, err := l.o.workflowExecutions.Get(ctx, id)
+	if err != nil {
+		return workflowruntime.SubworkflowState{}, err
+	}
+	if execution != nil && execution.Status.Terminal() && !execution.BudgetUsage.AccountingComplete {
+		execution, err = l.o.workflowEngine.ReconcileTerminalAccounting(ctx, id)
+		if err != nil {
+			return workflowruntime.SubworkflowState{}, err
+		}
 	}
 	return subworkflowState(execution), nil
 }
@@ -264,7 +289,7 @@ func (o *Orchestrator) StartWorkflowExecution(ctx context.Context, req StartWork
 	if err := o.enforceWorkflowTrigger(ctx, revision, req); err != nil {
 		return nil, err
 	}
-	execution, err := o.workflowEngine.Start(ctx, revision, req.Input, strings.TrimSpace(req.IdempotencyKey))
+	execution, err := o.workflowEngine.StartWithGrant(ctx, revision, req.Input, strings.TrimSpace(req.IdempotencyKey), req.EngagementGrant, workflowruntime.ExecutionBinding{ApprovalDigest: req.ApprovalDigest, GrantDigest: req.GrantDigest})
 	if err != nil {
 		return nil, err
 	}
@@ -399,6 +424,22 @@ func (o *Orchestrator) GetWorkflowExecution(ctx context.Context, id uuid.UUID) (
 func (o *Orchestrator) ListWorkflowExecutions(ctx context.Context, req ListWorkflowExecutionsRequest) ([]*domain.WorkflowExecution, error) {
 	if o.workflowExecutions == nil {
 		return nil, domain.NewStateError("WorkflowExecution", "unavailable", "list", "workflow execution repository is not configured")
+	}
+	if key := strings.TrimSpace(req.IdempotencyKey); key != "" {
+		execution, err := o.workflowExecutions.GetByIdempotencyKey(ctx, key)
+		if err != nil || execution == nil {
+			return nil, err
+		}
+		if owner := strings.TrimSpace(req.Owner); owner != "" && execution.Owner != owner {
+			return nil, nil
+		}
+		if workflowKey := strings.TrimSpace(req.WorkflowKey); workflowKey != "" && execution.WorkflowKey != workflowKey {
+			return nil, nil
+		}
+		if req.Status != "" && execution.Status != req.Status {
+			return nil, nil
+		}
+		return []*domain.WorkflowExecution{execution}, nil
 	}
 	return o.workflowExecutions.List(ctx, repository.WorkflowExecutionListFilter{
 		ListFilter:  repository.ListFilter{Limit: req.Limit, Offset: req.Offset},
@@ -571,7 +612,7 @@ func (o *Orchestrator) CancelWorkflowExecution(ctx context.Context, req Workflow
 	if err != nil {
 		return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, err
 	}
-	if execution.Status == domain.WorkflowExecutionCancelled {
+	if execution.Status == domain.WorkflowExecutionCancelled && execution.BudgetUsage.AccountingComplete {
 		if err := o.cleanupPlanFamilyClaims(ctx, execution); err != nil {
 			return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, err
 		}
@@ -603,7 +644,7 @@ func (o *Orchestrator) cleanupWorkflowChildren(ctx context.Context, executionID 
 		var disposition struct {
 			Retry int `json:"retry"`
 		}
-		if json.Unmarshal(entry.Payload, &disposition) == nil && disposition.Retry == execution.BudgetUsage.Retries {
+		if json.Unmarshal(entry.Payload, &disposition) == nil && disposition.Retry == execution.BudgetUsage.Retries && execution.BudgetUsage.AccountingComplete {
 			return execution, o.cleanupPlanFamilyClaims(ctx, execution)
 		}
 	}
@@ -614,17 +655,35 @@ func (o *Orchestrator) cleanupWorkflowChildren(ctx context.Context, executionID 
 	stoppedRuns, stoppedWorkflows := 0, 0
 	var failures []string
 	for _, attempt := range attempts {
-		if attempt.ChildExecutionID != nil && attempt.Status != domain.WorkflowAttemptCompleted && attempt.Status != domain.WorkflowAttemptFailed {
-			if cancelErr := (workflowSubworkflowLauncher{o: o}).Cancel(ctx, *attempt.ChildExecutionID, reason); cancelErr != nil {
+		if attempt.RunID == nil && attempt.ChildExecutionID == nil {
+			stopped, recoverErr := o.recoverWorkflowCleanupAttempt(ctx, execution, attempt, attempts)
+			if stopped {
+				stoppedRuns++
+			}
+			if recoverErr != nil {
+				failures = append(failures, "attempt "+attempt.ID.String()+": "+recoverErr.Error())
+				continue
+			}
+		}
+		if attempt.ChildExecutionID != nil {
+			child, inspectErr := o.workflowExecutions.Get(ctx, *attempt.ChildExecutionID)
+			if inspectErr == nil && child != nil && child.Status.Terminal() {
+				continue
+			}
+			if cancelErr := o.workflowEngine.Subworkflows.Cancel(ctx, *attempt.ChildExecutionID, reason); cancelErr != nil {
 				failures = append(failures, "child workflow "+attempt.ChildExecutionID.String()+": "+cancelErr.Error())
 			} else {
 				stoppedWorkflows++
 			}
 		}
-		if attempt.RunID == nil || attempt.Status == domain.WorkflowAttemptCompleted || attempt.Status == domain.WorkflowAttemptFailed {
+		if attempt.RunID == nil {
 			continue
 		}
-		if stopErr := o.StopRun(ctx, *attempt.RunID); stopErr != nil {
+		state, inspectErr := o.workflowEngine.Children.Inspect(ctx, *attempt.RunID)
+		if inspectErr == nil && state.Terminal {
+			continue
+		}
+		if stopErr := o.workflowEngine.Children.Stop(ctx, *attempt.RunID); stopErr != nil {
 			failures = append(failures, "Run "+attempt.RunID.String()+": "+stopErr.Error())
 		} else {
 			stoppedRuns++
@@ -635,6 +694,122 @@ func (o *Orchestrator) cleanupWorkflowChildren(ctx context.Context, executionID 
 		return cleaned, err
 	}
 	return cleaned, o.cleanupPlanFamilyClaims(ctx, cleaned)
+}
+
+// Recover only already-persisted dispatches. A missing handle is not evidence
+// that dispatch never happened: the original call may still be completing.
+// Bind the original identity before stopping it so recovery and late accounting
+// use the same child after a process restart.
+func (o *Orchestrator) recoverWorkflowCleanupAttempt(ctx context.Context, execution *domain.WorkflowExecution, attempt *domain.WorkflowNodeAttempt, attempts []*domain.WorkflowNodeAttempt) (bool, error) {
+	recovered := *attempt
+	switch attempt.Strategy {
+	case domain.WorkflowAttemptFreshRun:
+		run, err := o.persistedWorkflowChild(ctx, execution.ID, attempt.ID)
+		if err != nil {
+			return false, err
+		}
+		if run == nil {
+			return false, fmt.Errorf("original run dispatch is unresolved")
+		}
+		if run.CustomEnv[workflowNodeEnv] != attempt.NodeID {
+			return false, fmt.Errorf("original run node binding mismatch")
+		}
+		recovered.RunID, recovered.ConversationID = &run.ID, run.ConversationID
+	case domain.WorkflowAttemptContinue:
+		var source *domain.WorkflowNodeAttempt
+		for _, candidate := range attempts {
+			if attempt.SourceAttemptID != nil && candidate.ID == *attempt.SourceAttemptID && candidate.ExecutionID == execution.ID {
+				source = candidate
+				break
+			}
+		}
+		if source == nil || source.RunID == nil || o.runs == nil || o.idempotency == nil {
+			return false, fmt.Errorf("original continuation dispatch is unresolved")
+		}
+		run, err := o.runs.Get(ctx, *source.RunID)
+		if err != nil {
+			return false, err
+		}
+		if run == nil || run.CustomEnv[workflowExecutionEnv] != execution.ID.String() {
+			return false, fmt.Errorf("original continuation source binding mismatch")
+		}
+		receipt, err := o.idempotency.Check(ctx, attempt.IdempotencyKey)
+		if err != nil {
+			return false, err
+		}
+		if receipt == nil || receipt.Status != domain.IdempotencyStatusComplete {
+			// ContinueRun resumes the same source run before completing its
+			// idempotency receipt. Stop that original active run, but do not
+			// bind a terminal source as proof that continuation has settled.
+			state, inspectErr := o.workflowEngine.Children.Inspect(ctx, run.ID)
+			if inspectErr != nil {
+				return false, inspectErr
+			}
+			if state.RunID != run.ID {
+				return false, fmt.Errorf("original continuation inspection binding mismatch")
+			}
+			if !state.Terminal {
+				if stopErr := o.workflowEngine.Children.Stop(ctx, run.ID); stopErr != nil {
+					return false, stopErr
+				}
+				return true, fmt.Errorf("original continuation acknowledgement is unresolved")
+			}
+			return false, fmt.Errorf("original continuation acknowledgement is unresolved")
+		}
+		if receipt.EntityID == nil || *receipt.EntityID != run.ID || receipt.EntityType != "Run" {
+			return false, fmt.Errorf("original continuation receipt binding mismatch")
+		}
+		recovered.RunID, recovered.ConversationID = &run.ID, run.ConversationID
+	case domain.WorkflowAttemptChild:
+		child, err := o.workflowExecutions.GetByIdempotencyKey(ctx, attempt.IdempotencyKey)
+		if err != nil {
+			return false, err
+		}
+		if child == nil {
+			return false, fmt.Errorf("original child workflow dispatch is unresolved")
+		}
+		if child.IdempotencyKey != attempt.IdempotencyKey || child.Owner != execution.Owner || child.ParentExecutionID == nil || *child.ParentExecutionID != execution.ID || child.ParentAttemptID == nil || *child.ParentAttemptID != attempt.ID || child.Depth != execution.Depth+1 || !bytes.Equal(child.Input, attempt.InputSnapshot) {
+			return false, fmt.Errorf("original child workflow parent or input binding mismatch")
+		}
+		if execution.EngagementGrant != nil && (child.EngagementGrant == nil || child.ApprovalDigest != execution.ApprovalDigest || child.GrantDigest == "") {
+			return false, fmt.Errorf("original child workflow grant binding mismatch")
+		}
+		parentRevision, err := o.workflows.GetByDigest(ctx, execution.DefinitionDigest)
+		if err != nil || parentRevision == nil {
+			return false, fmt.Errorf("original parent workflow revision unavailable: %v", err)
+		}
+		childRevision, err := o.workflows.GetByDigest(ctx, child.DefinitionDigest)
+		if err != nil || childRevision == nil {
+			return false, fmt.Errorf("original child workflow revision unavailable: %v", err)
+		}
+		matches := false
+		for _, node := range parentRevision.Definition.Nodes {
+			if node.ID == attempt.NodeID && node.Child != nil && node.Child.WorkflowKey == child.WorkflowKey && childRevision.Key == child.WorkflowKey && childRevision.Owner == child.Owner && (node.Child.Version == "" || node.Child.Version == childRevision.SemanticVersion) {
+				matches = true
+				break
+			}
+		}
+		if !matches {
+			return false, fmt.Errorf("original child workflow definition binding mismatch")
+		}
+		recovered.ChildExecutionID = &child.ID
+	default:
+		return false, fmt.Errorf("unsupported unresolved dispatch strategy %q", attempt.Strategy)
+	}
+	updated := *execution
+	updated.Version++
+	updated.UpdatedAt = o.now()
+	recovered.Version++
+	recovered.UpdatedAt = updated.UpdatedAt
+	ok, err := o.workflowExecutions.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: execution.Version, Execution: &updated, Attempt: &recovered})
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		return false, workflowruntime.ErrConcurrentAdvance
+	}
+	*execution, *attempt = updated, recovered
+	return false, nil
 }
 
 func (o *Orchestrator) RetryWorkflowExecution(ctx context.Context, req WorkflowExecutionOperationRequest) (*WorkflowExecutionOperationResult, error) {
@@ -909,6 +1084,9 @@ func (o *Orchestrator) driveWorkflowExecutionLoop(ctx context.Context, id uuid.U
 			return nil, domain.NewNotFoundError("WorkflowExecution", id)
 		}
 		if before.Status.Terminal() {
+			if before.Status == domain.WorkflowExecutionSucceeded && !before.BudgetUsage.AccountingComplete {
+				return o.workflowEngine.ReconcileTerminalAccounting(ctx, id)
+			}
 			if before.Status == domain.WorkflowExecutionFailed || before.Status == domain.WorkflowExecutionBudgetExhausted || before.Status == domain.WorkflowExecutionCancelled {
 				return o.cleanupWorkflowChildren(ctx, id, "parent workflow terminated")
 			}
@@ -925,7 +1103,7 @@ func (o *Orchestrator) driveWorkflowExecutionLoop(ctx context.Context, id uuid.U
 			return latest, err
 		}
 		o.broadcastWorkflowLifecycle(ctx, latest)
-		if latest.Status == domain.WorkflowExecutionFailed || latest.Status == domain.WorkflowExecutionBudgetExhausted || latest.Status == domain.WorkflowExecutionCancelled {
+		if latest.Status == domain.WorkflowExecutionCancelling || latest.Status == domain.WorkflowExecutionFailed || latest.Status == domain.WorkflowExecutionBudgetExhausted || latest.Status == domain.WorkflowExecutionCancelled {
 			return o.cleanupWorkflowChildren(ctx, id, "parent workflow terminated")
 		}
 		if latest.Status.Terminal() || latest.Version == before.Version {
@@ -980,7 +1158,9 @@ func (o *Orchestrator) RecoverWorkflowExecutions(ctx context.Context) error {
 	}
 	for _, execution := range executions {
 		var advanceErr error
-		if execution.Status == domain.WorkflowExecutionCancelling || execution.Status == domain.WorkflowExecutionFailed || execution.Status == domain.WorkflowExecutionBudgetExhausted || execution.Status == domain.WorkflowExecutionCancelled {
+		if execution.Status == domain.WorkflowExecutionSucceeded {
+			_, advanceErr = o.workflowEngine.ReconcileTerminalAccounting(ctx, execution.ID)
+		} else if execution.Status == domain.WorkflowExecutionCancelling || execution.Status == domain.WorkflowExecutionFailed || execution.Status == domain.WorkflowExecutionBudgetExhausted || execution.Status == domain.WorkflowExecutionCancelled {
 			_, advanceErr = o.cleanupWorkflowChildren(ctx, execution.ID, "workflow recovery cleanup")
 		} else {
 			_, advanceErr = o.driveWorkflowExecution(ctx, execution.ID)

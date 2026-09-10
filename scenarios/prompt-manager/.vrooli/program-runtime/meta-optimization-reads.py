@@ -8,10 +8,7 @@ unresolved names, discovery gaps, skill usage, and meta-optimization focus next.
 read through its own binding; a binding that fails leaves its row unavailable with the reason.
 """
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 window_seconds = int(inputs.get("window_seconds", 604800))
 focus_limit = int(inputs.get("focus_limit", 3))
 
@@ -30,37 +27,7 @@ SENSORS = {
 }
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
+fail = program.fail
 
 
 def row(name, reading, unavailable=False, reason=None, sensor=None, target=None, in_band=None):
@@ -103,7 +70,7 @@ def step_classify():  # CLASSIFY · bounded readings per row
     for name, h in handles.items():
         sensor = SENSORS[name][0]
         if isinstance(h, Exception):
-            status, klass = classify_transport(h)
+            status, klass = program.classify(h)
             envelope["errors"].append({"class": klass, "detail": str(h)[:240], "where": f"collect:{name}"})
             if name == "skill-usage" and klass == "binding_error":
                 reason = "unreliable:proto_drift_skill_usage"  # 500 on unknown proto field `projected` (2026-09-02)
@@ -137,12 +104,4 @@ def step_report():  # REPORT
 
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:  # the one catch that guarantees an envelope on every path
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

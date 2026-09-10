@@ -5,6 +5,7 @@
   "icon": "brain",
   "id": "cognitive-load-reduction",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "simplification"

@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "agent-manager.supervision-case-read",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Join one watch decision with pending evidence, action delivery and assessment gaps.",
   "inputs": {
     "watch_id": {
@@ -67,7 +70,9 @@
         "ambiguous_response",
         "deadline_exceeded",
         "binding_error",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "At most two owner identities"

@@ -2,7 +2,6 @@ package memberflow
 
 import (
 	"path/filepath"
-	goruntime "runtime"
 	"strings"
 	"testing"
 )
@@ -17,13 +16,8 @@ import (
 //
 //	go run ./cmd/gen-operating-graph <repo-root> --apply
 func TestCheckedInOperatingGraphsMatchTheGenerator(t *testing.T) {
-	_, filename, _, ok := goruntime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test filename")
-	}
-	pkgDir := filepath.Dir(filename)
-	repoRoot := filepath.Clean(filepath.Join(pkgDir, "..", "..", "..", "..", ".."))
-	storeDir := filepath.Clean(filepath.Join(pkgDir, "..", "..", "..", "store"))
+	repoRoot := requireRepositoryRoot(t)
+	storeDir := filepath.Join(repoRoot, "scenarios", "prompt-manager", "store")
 
 	members, err := LoadAll(storeDir)
 	if err != nil {

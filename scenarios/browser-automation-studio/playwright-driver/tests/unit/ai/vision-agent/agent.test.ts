@@ -6,6 +6,7 @@
 
 import {
   createVisionAgent,
+  observeTaskResult,
   createNoopLogger,
   createLoopDetector,
   createActionContext,
@@ -1075,5 +1076,35 @@ describe('serializeAction', () => {
   it('serializes type without element', () => {
     const result = serializeAction({ type: 'type', text: 'world' });
     expect(result).toBe('type:focused:world');
+  });
+});
+
+
+describe('independent task evidence', () => {
+  const pageWithText = (text: string): Page => {
+    const item = {textContent: async () => text, getAttribute: async () => 'https://example.test'};
+    return {locator: () => ({count: async () => 1, first: () => item, nth: () => item})} as unknown as Page;
+  };
+  it('does not treat model completion as verified success without postconditions', async () => {
+    expect((await observeTaskResult({page: pageWithText('hello')})).verifiedSuccess).toBe(false);
+  });
+  it('verifies caller conditions and extracts bounded results without executing actions', async () => {
+    const result = await observeTaskResult({page: pageWithText('hello'), postconditions: [{selector: '#subject', mode: 'text_equals', expected: 'hello'}], extraction: [{name: 'subjects', selector: '#subject'}]});
+    expect(result).toEqual({verifiedSuccess: true, extractedData: {subjects: ['hello']}});
+  });
+  it('rejects a wrong result and oversized extraction', async () => {
+    await expect(observeTaskResult({page: pageWithText('wrong'), postconditions: [{selector: '#subject', mode: 'text_equals', expected: 'hello'}]})).rejects.toThrow('postcondition_failed');
+    await expect(observeTaskResult({page: pageWithText('x'.repeat(32769)), extraction: [{name: 'subjects', selector: '#subject'}]})).rejects.toThrow('budget');
+  });
+  it('blocks a model-proposed click before the executor under read_only', async () => {
+    const visionClient = createMockVisionClient();
+    visionClient.queueResponse({action: {type: 'click', x: 1, y: 1}, goalAchieved: false});
+    const actionExecutor = createMockActionExecutor();
+    const execute = jest.spyOn(actionExecutor, 'execute');
+    const agent = createVisionAgent(createMockDeps({visionClient, actionExecutor}));
+    const result = await agent.navigate(createNavConfig({effectPolicy: 'read_only'}));
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('effect_policy');
+    expect(execute).not.toHaveBeenCalled();
   });
 });

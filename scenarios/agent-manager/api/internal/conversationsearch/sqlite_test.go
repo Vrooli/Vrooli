@@ -2,6 +2,7 @@ package conversationsearch
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -519,6 +520,211 @@ func TestIndexerStartupDoesNotReplaceHealthyActiveGeneration(t *testing.T) {
 		t.Fatal("startup launched a full canonical repair despite an active generation")
 	case <-time.After(50 * time.Millisecond):
 	}
+}
+
+type recoveryFaultDB struct {
+	*sqlx.DB
+	queryFragment string
+	failing       atomic.Bool
+}
+
+func (d *recoveryFaultDB) failure(query string) error {
+	if d.failing.Load() && strings.Contains(query, d.queryFragment) {
+		return errors.New("injected recovery storage failure")
+	}
+	return nil
+}
+
+func (d *recoveryFaultDB) SelectContext(ctx context.Context, target any, query string, args ...any) error {
+	if err := d.failure(query); err != nil {
+		return err
+	}
+	return d.DB.SelectContext(ctx, target, query, args...)
+}
+
+func (d *recoveryFaultDB) GetContext(ctx context.Context, target any, query string, args ...any) error {
+	if err := d.failure(query); err != nil {
+		return err
+	}
+	return d.DB.GetContext(ctx, target, query, args...)
+}
+
+func (d *recoveryFaultDB) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	if err := d.failure(query); err != nil {
+		return nil, err
+	}
+	return d.DB.ExecContext(ctx, query, args...)
+}
+
+func TestIndexerRecoveryFailurePausesAdmissionAndCanRetry(t *testing.T) {
+	for _, test := range []struct {
+		name, queryFragment string
+		cleaned             bool
+	}{
+		{"generation read", "WHERE state IN ('building','ready') ORDER BY created_at", false},
+		{"snapshot count", "SELECT COUNT(*) FROM conversation_search_generation_documents", false},
+		{"abandoned cleanup", "DELETE FROM conversation_search_generation_documents", false},
+		{"active generation read", "SELECT EXISTS(SELECT 1 FROM conversation_search_generations", true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			db := openProjectionTestDB(t)
+			applyProjectionSchema(t, db)
+			repository := NewSQLiteRepository(db)
+			now := time.Now().UTC()
+			for id, state := range map[string]string{"serving": "active", "abandoned": "building"} {
+				require.NoError(t, repository.SaveGeneration(t.Context(), Generation{GenerationID: id, State: state, RecipeVersion: DefaultRecipeVersion, CreatedAt: now, UpdatedAt: now}))
+			}
+			require.NoError(t, repository.StageDocument(t.Context(), "abandoned", testDocument()))
+			require.NoError(t, repository.SaveCheckpoint(t.Context(), Checkpoint{SourceName: "canonical", SourceCursor: "retained-cursor", SourceFingerprint: "retained-fingerprint", UpdatedAt: now}))
+			fault := &recoveryFaultDB{DB: db, queryFragment: test.queryFragment}
+			fault.failing.Store(true)
+			source := &blockingProjectionSource{started: make(chan struct{})}
+			indexer, err := NewIndexer(IndexerOptions{Source: source, Repository: NewSQLiteRepository(fault)})
+			require.NoError(t, err)
+			require.ErrorContains(t, indexer.launchInitial(t.Context()), "injected recovery storage failure")
+			require.Empty(t, indexer.SortedJobs(), "failed recovery must not launch or resume a writer")
+			_, err = indexer.Reindex(t.Context(), 0, "must-wait", false)
+			require.ErrorIs(t, err, ErrRecoveryPending, "explicit requests must honor the same recovery gate")
+			status, err := indexer.StatusSnapshot(t.Context())
+			require.NoError(t, err)
+			require.Contains(t, status.LastErrorCode, "recovery pending")
+			require.Contains(t, status.LastErrorCode, "injected recovery storage failure")
+			checkpoint, err := repository.LoadCheckpoint(t.Context(), "canonical")
+			require.NoError(t, err)
+			require.Contains(t, checkpoint.LastErrorCode, "recovery pending")
+			require.Equal(t, "retained-cursor", checkpoint.SourceCursor)
+			require.Equal(t, "retained-fingerprint", checkpoint.SourceFingerprint)
+			generation, err := repository.LoadGeneration(t.Context(), "abandoned")
+			require.NoError(t, err)
+			if test.cleaned {
+				require.Equal(t, "failed", generation.State)
+			} else {
+				require.Equal(t, "building", generation.State, "unfinished cleanup must remain discoverable")
+			}
+
+			fault.failing.Store(false)
+			require.NoError(t, indexer.launchInitial(t.Context()))
+			require.Empty(t, indexer.SortedJobs(), "retry preserves the existing healthy serving generation")
+			checkpoint, err = repository.LoadCheckpoint(t.Context(), "canonical")
+			require.NoError(t, err)
+			require.Empty(t, checkpoint.LastErrorCode)
+			job, err := indexer.Reindex(t.Context(), 0, "after-recovery", false)
+			require.NoError(t, err, "completed recovery reopens explicit admission")
+			select {
+			case <-source.started:
+			case <-time.After(time.Second):
+				t.Fatal("admitted repair did not start")
+			}
+			require.True(t, indexer.Cancel(job.ID))
+			require.Eventually(t, func() bool {
+				current, ok := indexer.Status(job.ID)
+				return ok && current.State == ReindexCancelled
+			}, time.Second, time.Millisecond)
+		})
+	}
+}
+
+func TestIndexerOwnerLoopRetriesRecoveryBeforeAdmittingKicks(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	now := time.Now().UTC()
+	require.NoError(t, repository.SaveGeneration(t.Context(), Generation{GenerationID: "serving", State: "active", RecipeVersion: DefaultRecipeVersion, CreatedAt: now, UpdatedAt: now}))
+	fault := &recoveryFaultDB{DB: db, queryFragment: "WHERE state IN ('building','ready') ORDER BY created_at"}
+	fault.failing.Store(true)
+	indexer, err := NewIndexer(IndexerOptions{Source: &mutableProjectionSource{}, Repository: NewSQLiteRepository(fault), RepairInterval: time.Hour})
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	finished := make(chan struct{})
+	go func() { defer close(finished); indexer.loop(ctx) }()
+	require.Eventually(t, func() bool {
+		checkpoint, err := repository.LoadCheckpoint(t.Context(), "canonical")
+		return err == nil && strings.Contains(checkpoint.LastErrorCode, "recovery pending")
+	}, time.Second, time.Millisecond)
+	indexer.Kick()
+	require.Empty(t, indexer.SortedJobs())
+	fault.failing.Store(false)
+	require.Eventually(t, func() bool {
+		indexer.mu.Lock()
+		defer indexer.mu.Unlock()
+		return !indexer.recoveryPending
+	}, initialRecoveryRetry+time.Second, 10*time.Millisecond)
+	require.Empty(t, indexer.SortedJobs())
+	cancel()
+	select {
+	case <-finished:
+	case <-time.After(time.Second):
+		t.Fatal("owner loop did not stop")
+	}
+}
+
+func TestIndexerSuccessfulRestartClearsOnlyRecoveryDiagnostic(t *testing.T) {
+	for _, diagnostic := range []string{ErrRecoveryPending.Error() + ": prior process cleanup failed", "semantic rebuild unavailable"} {
+		t.Run(diagnostic, func(t *testing.T) {
+			t.Parallel()
+			db := openProjectionTestDB(t)
+			applyProjectionSchema(t, db)
+			repository := NewSQLiteRepository(db)
+			now := time.Now().UTC()
+			require.NoError(t, repository.SaveGeneration(t.Context(), Generation{GenerationID: "serving", State: "active", RecipeVersion: DefaultRecipeVersion, CreatedAt: now, UpdatedAt: now}))
+			require.NoError(t, repository.SaveCheckpoint(t.Context(), Checkpoint{SourceName: "canonical", SourceCursor: "retained", LastErrorCode: diagnostic, UpdatedAt: now}))
+			indexer, err := NewIndexer(IndexerOptions{Source: &mutableProjectionSource{}, Repository: repository})
+			require.NoError(t, err)
+			require.NoError(t, indexer.launchInitial(t.Context()))
+			checkpoint, err := repository.LoadCheckpoint(t.Context(), "canonical")
+			require.NoError(t, err)
+			require.Equal(t, "retained", checkpoint.SourceCursor)
+			if strings.HasPrefix(diagnostic, ErrRecoveryPending.Error()) {
+				require.Empty(t, checkpoint.LastErrorCode)
+			} else {
+				require.Equal(t, diagnostic, checkpoint.LastErrorCode)
+			}
+		})
+	}
+}
+
+func TestIndexerResumedGenerationObservesOwnerCancellation(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	now := time.Now().UTC()
+	require.NoError(t, repository.SaveGeneration(t.Context(), Generation{GenerationID: "resumable", State: "building", RecipeVersion: DefaultRecipeVersion, PlannedDocuments: 1, ProcessedDocuments: 1, CreatedAt: now, UpdatedAt: now}))
+	require.NoError(t, repository.StageDocument(t.Context(), "resumable", testDocument()))
+	started, cancelled := make(chan struct{}), make(chan struct{})
+	indexer, err := NewIndexer(IndexerOptions{Source: &mutableProjectionSource{}, Repository: repository,
+		Semantic: semanticRebuilderFunc(func(ctx context.Context, _ string) error {
+			close(started)
+			<-ctx.Done()
+			close(cancelled)
+			return ctx.Err()
+		}),
+	})
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	resumed, err := indexer.recoverInterrupted(ctx)
+	require.NoError(t, err)
+	require.True(t, resumed)
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("resume did not reach semantic build")
+	}
+	cancel()
+	select {
+	case <-cancelled:
+	case <-time.After(time.Second):
+		t.Fatal("resumed writer ignored owner shutdown")
+	}
+	require.Eventually(t, func() bool {
+		indexer.mu.Lock()
+		defer indexer.mu.Unlock()
+		return !indexer.running
+	}, time.Second, time.Millisecond)
 }
 
 func TestIndexerStatusUsesReconciledSnapshotWithoutWalkingCanonicalCorpus(t *testing.T) {

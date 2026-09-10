@@ -1,0 +1,92 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": true,
+        "kind": "boolean",
+        "label": "Active",
+        "path": "active"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "hook",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "active": true
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Dismissed from outside pointer interaction"
+        }
+      ],
+      "id": "pointer",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Outside action",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Outside pointer",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "active": true
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Dismissed with Escape"
+        }
+      ],
+      "id": "escape",
+      "interactions": [
+        {
+          "kind": "key",
+          "text": "Escape"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Escape dismissal",
+      "role": "boundary"
+    }
+  ],
+  "title": "useOutsideInteraction"
+}

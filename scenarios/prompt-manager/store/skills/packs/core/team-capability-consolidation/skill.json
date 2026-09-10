@@ -5,6 +5,7 @@
   "icon": "git-merge",
   "id": "team-capability-consolidation",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "practice"
   ],

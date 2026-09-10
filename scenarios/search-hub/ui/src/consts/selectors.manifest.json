@@ -57,22 +57,6 @@
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
     },
-    "layout.topBar": {
-      "testId": "layout-top-bar",
-      "selector": "[data-testid=\"layout-top-bar\"]"
-    },
-    "layout.sidebar": {
-      "testId": "layout-sidebar",
-      "selector": "[data-testid=\"layout-sidebar\"]"
-    },
-    "layout.bottomNav": {
-      "testId": "layout-bottom-nav",
-      "selector": "[data-testid=\"layout-bottom-nav\"]"
-    },
-    "layout.main": {
-      "testId": "layout-main",
-      "selector": "[data-testid=\"layout-main\"]"
-    },
     "theme.switcher": {
       "testId": "theme-switcher",
       "selector": "[data-testid=\"theme-switcher\"]"
@@ -219,42 +203,8 @@
         }
       ]
     },
-    "layout.sidebarLink": {
-      "description": "Sidebar navigation link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
-      "testIdPattern": "layout-sidebar-link-${key}",
-      "params": [
-        {
-          "name": "key",
-          "type": "enum",
-          "values": [
-            "search",
-            "evals",
-            "dashboard",
-            "settings"
-          ]
-        }
-      ]
-    },
-    "layout.bottomNavLink": {
-      "description": "Bottom-nav link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
-      "testIdPattern": "layout-bottom-nav-link-${key}",
-      "params": [
-        {
-          "name": "key",
-          "type": "enum",
-          "values": [
-            "search",
-            "evals",
-            "dashboard",
-            "settings"
-          ]
-        }
-      ]
-    },
     "search.typeFacet": {
-      "description": "Type facet toggle on the search page, by leaf type token",
+      "description": "Search type facet by result type",
       "selectorPattern": "[data-testid=\"search-type-facet-${type}\"]",
       "testIdPattern": "search-type-facet-${type}",
       "params": [
@@ -265,7 +215,7 @@
       ]
     },
     "search.providerChip": {
-      "description": "Federation-status provider chip, by provider_id",
+      "description": "Search provider status chip by provider id",
       "selectorPattern": "[data-testid=\"search-provider-chip-${providerId}\"]",
       "testIdPattern": "search-provider-chip-${providerId}",
       "params": [
@@ -276,9 +226,9 @@
       ]
     },
     "evals.suiteItem": {
-      "description": "Eval suite list item, by suite_id",
-      "selectorPattern": "[data-testid=\"evals-suite-${suiteId}\"]",
-      "testIdPattern": "evals-suite-${suiteId}",
+      "description": "Evaluation suite item by suite id",
+      "selectorPattern": "[data-testid=\"evals-suite-item-${suiteId}\"]",
+      "testIdPattern": "evals-suite-item-${suiteId}",
       "params": [
         {
           "name": "suiteId",
@@ -287,9 +237,9 @@
       ]
     },
     "evals.runRow": {
-      "description": "Eval run-history row, by run_id",
-      "selectorPattern": "[data-testid=\"evals-run-${runId}\"]",
-      "testIdPattern": "evals-run-${runId}",
+      "description": "Evaluation run row by run id",
+      "selectorPattern": "[data-testid=\"evals-run-row-${runId}\"]",
+      "testIdPattern": "evals-run-row-${runId}",
       "params": [
         {
           "name": "runId",
@@ -298,13 +248,30 @@
       ]
     },
     "evals.runSelect": {
-      "description": "Eval run compare-select checkbox, by run_id",
+      "description": "Evaluation run selection control by run id",
       "selectorPattern": "[data-testid=\"evals-run-select-${runId}\"]",
       "testIdPattern": "evals-run-select-${runId}",
       "params": [
         {
           "name": "runId",
           "type": "string"
+        }
+      ]
+    },
+    "layout.navLink": {
+      "description": "App shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "search",
+            "evals",
+            "dashboard",
+            "settings"
+          ]
         }
       ]
     },
@@ -342,8 +309,8 @@
     }
   },
   "sources": {
-    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
-    "ui/src/consts/selectors.ts": "8e5a84fc6d8ea9f843b481ad5b1cfe58d18190d7f4a5f9110641d5223bfa0e41",
+    "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
+    "ui/src/consts/selectors.ts": "61bf34c1fffee1236a9f600a57781910bc91abe00fb9d8c33465af2c4c74cc3f",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

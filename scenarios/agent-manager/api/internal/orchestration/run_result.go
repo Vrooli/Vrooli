@@ -3,9 +3,11 @@ package orchestration
 
 import (
 	"context"
+	"time"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/invocationreadmodel"
 
 	"github.com/google/uuid"
 )
@@ -19,25 +21,17 @@ func resolvePersistedRunResult(ctx context.Context, store event.Store, runID uui
 	if err != nil {
 		return nil, nil, err
 	}
-	var turns, tokens, contextTokens int
-	var cost float64
+	var fallbackTurns int
 	for _, evt := range events {
-		switch data := evt.Data.(type) {
-		case *domain.MessageEventData:
-			if data.Role == "assistant" && data.Content != "" {
-				turns++
-			}
-		case *domain.UsageEventData:
-			tokens += data.InputTokens + data.OutputTokens + data.CacheReadTokens + data.CacheCreationTokens
-			contextTokens += data.InputTokens
-		case *domain.ChargeEventData:
-			if data.AmountMicroUSD != nil {
-				cost += float64(*data.AmountMicroUSD) / 1_000_000
-			}
+		if data, ok := messageEvent(evt); ok && data.Role == "assistant" && data.Content != "" && !data.EvidenceOnly {
+			fallbackTurns++
 		}
 	}
+	// Use the same owner projection as workflow accounting: terminal receipts
+	// supersede interim samples and provider turns outrank message counts.
+	fact := invocationreadmodel.ProjectRun(&domain.Run{ID: runID, Summary: &domain.RunSummary{TurnsUsed: fallbackTurns}}, events, time.Now())
 	result := domain.ResolveRunResult(latestTurnResultEvents(events), success, exitCode, terminalReason)
-	return result, domain.SummaryFromRunResult(result, turns, tokens, contextTokens, cost), nil
+	return result, domain.SummaryFromRunResult(result, int(fact.Turns), int(fact.TotalTokens), int(fact.InputTokens), fact.TotalCostUSD), nil
 }
 
 // latestTurnResultEvents prevents terminal outputs from earlier continuation

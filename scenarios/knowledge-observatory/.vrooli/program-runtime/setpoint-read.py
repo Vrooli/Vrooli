@@ -1,38 +1,7 @@
 import json
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 envelope = {"program": "knowledge-observatory.setpoint-read", "version": "1", "status": "failed", "phase": "validate", "inputs": {}, "signals": {"capture_required": True}, "errors": [], "evidence": []}
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
+fail = program.fail
 
 def document(handle):
     value = dict(handle.meta())
@@ -80,7 +49,7 @@ def step_collect():
                     row(name,{"run_id":data.get("runId"),"created_at":data.get("createdAt"),"tier":data.get("tier"),"met":stats.get("met",0),"graded":graded,"pass_rate":stats.get("passRate",0),"config":data.get("config",{})},None,None,reason or "unreliable:pending_comparable_baseline")
                     envelope["evidence"].append("search-hub:eval-run/"+inputs["eval_run_id"])
         except Exception as exc:
-            status,klass=classify_transport(exc)
+            status,klass=program.classify(exc)
             row(name,None,None,None,"scenario_unreachable" if klass=="scenario_unreachable" else "unreliable:"+klass)
             envelope["errors"].append({"class":klass,"detail":str(exc)[:160],"where":name})
     row("usage-learning",None,None,None,"read_elsewhere:knowledge-observatory.learning-read")
@@ -99,12 +68,4 @@ def step_report():
     return None
 STATES = {"validate": step_validate, "collect": step_collect, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

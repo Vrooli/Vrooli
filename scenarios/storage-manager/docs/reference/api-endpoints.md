@@ -132,6 +132,21 @@ never triggers a host scan.
 Returns the highest-rate persisted governed-root writer snapshots. The default
 is ten rows and the endpoint reads only the typed ledger.
 
+### `GET /api/v1/storage/qdrant`
+
+Reads the owner-managed Qdrant generation namespace from agent-manager. The
+response includes owner, namespace, alias target, lifecycle state, lease,
+logical bytes, cleanup eligibility, quarantine, and disposition totals. The
+default generation response is bounded to 100 records; use `limit=N` and
+`state=active|candidate|retired|failed|quarantined` for narrower views. If the
+agent-manager control token is unavailable, the endpoint reports an explicit
+unavailable result; it never falls back to filesystem accounting or deletion.
+
+The `owned_managed`, `owned_protected`, and `owned_unreadable` dispositions are
+accounting states, not permission to delete. Deletion remains an authenticated
+agent-manager owner operation with preview, lease, alias, revision, approval,
+and receipt checks.
+
 ### `GET /api/v1/recovery/runs?limit=N`
 
 Returns recent server-owned recovery runs, including trigger, target,

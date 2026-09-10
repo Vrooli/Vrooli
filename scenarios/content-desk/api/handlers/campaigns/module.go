@@ -5,6 +5,7 @@ package campaigns
 import (
 	"context"
 	"fmt"
+	"time"
 
 	internalcampaigns "content-desk/internal/campaigns"
 	"content-desk/internal/module"
@@ -15,9 +16,13 @@ import (
 	"github.com/vrooli/api-core/database"
 	campaignsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/campaigns"
 	campaignsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/campaigns/campaigns_v1connect"
+	readinessreporter "github.com/vrooli/vrooli/packages/proto/readinessreporter"
 )
 
-type handler struct{ repo internalcampaigns.Repository }
+type handler struct {
+	repo              internalcampaigns.Repository
+	readinessReporter *readinessreporter.Reporter
+}
 
 var _ campaignsconnect.CampaignsServiceHandler = handler{}
 
@@ -76,6 +81,15 @@ func (h handler) GetLaunchAssets(ctx context.Context, request *connect.Request[c
 	for _, slot := range slots {
 		response.Slots = append(response.Slots, &campaignsv1.LaunchAssetSlot{CampaignId: slot.CampaignID, CampaignName: slot.CampaignName, Channel: slot.Channel, Format: slot.Format, Capacity: int32(slot.Capacity), Reserved: int32(slot.Reserved), DraftCount: int32(slot.DraftCount)})
 	}
+	status := "passed"
+	if len(slots) == 0 {
+		status = "failed"
+	}
+	if h.readinessReporter != nil {
+		if err := h.readinessReporter.ReportStatus(ctx, request.Msg.GetScenarioName(), status, fmt.Sprintf("launch assets returned %d slot(s)", len(slots)), "content-desk:launch-assets:"+request.Msg.GetScenarioName(), time.Now().UTC()); err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
+	}
 	return connect.NewResponse(response), nil
 }
 
@@ -84,7 +98,11 @@ func campaignMessage(campaign internalcampaigns.Campaign) *campaignsv1.Campaign 
 }
 
 func Module(db *database.RoutedDB) module.Module {
-	path, h := campaignsconnect.NewCampaignsServiceHandler(handler{repo: internalcampaigns.NewSQLiteRepository(db)})
+	reporter, err := newReadinessReporter(context.Background())
+	if err != nil {
+		panic(fmt.Sprintf("configure content-desk readiness reporter: %v", err))
+	}
+	path, h := campaignsconnect.NewCampaignsServiceHandler(handler{repo: internalcampaigns.NewSQLiteRepository(db), readinessReporter: reporter})
 	return module.Module{Name: "campaigns", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h}) }, Endpoints: Endpoints}
 }
 func Schema() string { return internalcampaigns.Schema() }

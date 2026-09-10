@@ -57,22 +57,6 @@
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
     },
-    "layout.topBar": {
-      "testId": "layout-top-bar",
-      "selector": "[data-testid=\"layout-top-bar\"]"
-    },
-    "layout.sidebar": {
-      "testId": "layout-sidebar",
-      "selector": "[data-testid=\"layout-sidebar\"]"
-    },
-    "layout.bottomNav": {
-      "testId": "layout-bottom-nav",
-      "selector": "[data-testid=\"layout-bottom-nav\"]"
-    },
-    "layout.main": {
-      "testId": "layout-main",
-      "selector": "[data-testid=\"layout-main\"]"
-    },
     "theme.switcher": {
       "testId": "theme-switcher",
       "selector": "[data-testid=\"theme-switcher\"]"
@@ -215,6 +199,54 @@
     }
   },
   "dynamicSelectors": {
+    "fleet.profileRow": {
+      "description": "Fleet profile row by profile id",
+      "selectorPattern": "[data-testid=\"fleet-profile-row-${profileId}\"]",
+      "testIdPattern": "fleet-profile-row-${profileId}",
+      "params": [
+        {
+          "name": "profileId",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.ruleRow": {
+      "description": "Fleet rule row by rule id",
+      "selectorPattern": "[data-testid=\"fleet-rule-row-${code}\"]",
+      "testIdPattern": "fleet-rule-row-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.scenarioRow": {
+      "description": "Fleet scenario row by scenario id",
+      "selectorPattern": "[data-testid=\"fleet-scenario-row-${scenario}\"]",
+      "testIdPattern": "fleet-scenario-row-${scenario}",
+      "params": [
+        {
+          "name": "scenario",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.targetRow": {
+      "description": "Fleet target row by target id",
+      "selectorPattern": "[data-testid=\"fleet-target-row-${kind}-${id}\"]",
+      "testIdPattern": "fleet-target-row-${kind}-${id}",
+      "params": [
+        {
+          "name": "kind",
+          "type": "string"
+        },
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
     "locale.toggle": {
       "description": "Locale toggle button by language code",
       "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
@@ -231,10 +263,10 @@
         }
       ]
     },
-    "layout.sidebarLink": {
-      "description": "Sidebar navigation link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
-      "testIdPattern": "layout-sidebar-link-${key}",
+    "layout.navLink": {
+      "description": "App shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
       "params": [
         {
           "name": "key",
@@ -245,71 +277,6 @@
             "validate",
             "settings"
           ]
-        }
-      ]
-    },
-    "layout.bottomNavLink": {
-      "description": "Bottom-nav link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
-      "testIdPattern": "layout-bottom-nav-link-${key}",
-      "params": [
-        {
-          "name": "key",
-          "type": "enum",
-          "values": [
-            "dashboard",
-            "fleet",
-            "validate",
-            "settings"
-          ]
-        }
-      ]
-    },
-    "fleet.targetRow": {
-      "description": "Typed fleet target row by kind and id",
-      "selectorPattern": "[data-testid=\"fleet-target-row-${kind}-${id}\"]",
-      "testIdPattern": "fleet-target-row-${kind}-${id}",
-      "params": [
-        {
-          "name": "kind",
-          "type": "string"
-        },
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.scenarioRow": {
-      "description": "Scenario offenders table row by scenario slug",
-      "selectorPattern": "[data-testid=\"fleet-scenario-row-${scenario}\"]",
-      "testIdPattern": "fleet-scenario-row-${scenario}",
-      "params": [
-        {
-          "name": "scenario",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.ruleRow": {
-      "description": "Rule conformance table row by finding code",
-      "selectorPattern": "[data-testid=\"fleet-rule-row-${code}\"]",
-      "testIdPattern": "fleet-rule-row-${code}",
-      "params": [
-        {
-          "name": "code",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.profileRow": {
-      "description": "Profile distribution row by profile id",
-      "selectorPattern": "[data-testid=\"fleet-profile-row-${profileId}\"]",
-      "testIdPattern": "fleet-profile-row-${profileId}",
-      "params": [
-        {
-          "name": "profileId",
-          "type": "string"
         }
       ]
     },
@@ -347,8 +314,8 @@
     }
   },
   "sources": {
-    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
-    "ui/src/consts/selectors.ts": "707ba7668262929d1f1f59b6435f06309591e6f9b0e44997e6f764389ecb40d2",
+    "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
+    "ui/src/consts/selectors.ts": "fc0fbab8697fe09778216ac639e2764ee9014eae8225cced3cd7a4b33f3e2074",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

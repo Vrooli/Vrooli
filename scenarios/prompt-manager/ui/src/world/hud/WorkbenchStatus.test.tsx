@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, renderWithProviders as render, screen } from '@/test-utils/renderWithProviders'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WorkbenchStatus, type WorkbenchSnapshot } from './WorkbenchStatus'
 

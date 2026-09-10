@@ -6,6 +6,7 @@
   "icon": "bar-chart",
   "id": "measures-adoption",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer"
   ],

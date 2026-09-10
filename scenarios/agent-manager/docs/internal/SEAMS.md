@@ -1811,6 +1811,39 @@ signals or logs.
 - The handshake is idempotent command in, typed result out; neither side
   mirrors the other's lifecycle.
 
+## Opt-in workflow metering boundary
+
+`WorkflowBudgets.enforcement = "metered-cancellation"` enables live inspection
+for sequential fresh-run graphs. An omitted value preserves existing revision
+behavior. Catalog validation and engine admission share the same qualification
+check. Hard ceilings, nested children, parallel branches, reused-session
+continuations and automatic schema-repair continuations are not qualified and
+are rejected in this mode.
+
+`workflowChildLauncher.InspectMetered` uses retained provider metrics and the
+canonical invocation accounting projection. Cache reads and cache creation count
+toward tokens. Terminal reconciliation replaces per-turn readings according to
+the projection's existing rules; absent metrics are unknown, not zero. The event
+sink nudges the existing bounded workflow driver only after durable persistence.
+Periodic recovery covers lost nudges. Reporting/cancellation lag can overshoot;
+this mode makes no hard-ceiling claim.
+
+The interpreter persists a stop intent before calling the owner. Failed stops are
+retryable across restart. Neither a stop acknowledgement nor a reached meter
+settles an attempt. Terminal known usage is committed exactly once, including the
+tail. A terminal status plus live readings does not prove final usage: the meter
+requires a retained reconciliation-authority event before terminal settlement.
+Providers without that receipt remain unresolved, not zero-cost. Operator
+cancellation uses the same accounting barrier. Unbound dispatch
+intent remains unresolved during cleanup; it is not proof that no child started.
+
+Tests: `engine_metered_budget_test.go` covers stop failure, restart, overshoot,
+deadline, unknown final usage, cancellation and unsupported-path admission;
+`workflow_metering_test.go` covers live metrics, deduplication and terminal
+reconciliation. These are deterministic tests, not live provider qualification.
+Swarm per-engagement grants, provider capability qualification, native-goal parity
+and lost-dispatch fencing remain separate implementation work.
+
 ## Codec-pipe session-home seam
 
 `orchestration.PrepareCodecSessionHome` gives codec-pipe Codex and Grok runs a

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, renderWithProviders as render, screen } from '@/test-utils/renderWithProviders'
 import { describe, expect, it, vi } from 'vitest'
 import { WorldSettingsContent, type PeriodMode } from './SettingsPanel'
 import { WorldClock } from '../config/clock'

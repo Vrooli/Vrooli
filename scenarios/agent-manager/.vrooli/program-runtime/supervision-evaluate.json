@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "agent-manager.supervision-evaluate",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Turn one finite watch snapshot, friction slice, child-summary set, immutable policy, and decision history into a bounded typed supervision recommendation.",
   "inputs": {
     "watch_id": {
@@ -152,7 +155,9 @@
         "binding_error",
         "classifier_unavailable",
         "classifier_invalid",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "at most 20 stable event, friction, run, decision, and action IDs; never bodies"

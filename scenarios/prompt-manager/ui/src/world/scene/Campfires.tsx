@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { AdditiveBlending, DoubleSide, DodecahedronGeometry, Frustum, InstancedMesh, Matrix4, MeshStandardMaterial, Object3D, PlaneGeometry, ShaderMaterial, Sphere, Vector3 } from 'three'
 import type { WorldClock } from '../config/clock'
 import type { AnimationLeases } from '../engine/animationLeases'
+import { applyWorldTexture } from './materialTextures'
 import type { Placement } from './Props'
 
 /** Two crossed flame cards and one ember card per fire, in one instanced draw.
@@ -46,6 +47,7 @@ export function Campfires({ placements, flame, embers, clock, leases, reducedMot
     mesh.count = placements.length * 3
     const stoneGeometry = new DodecahedronGeometry(1, 0)
     const stoneMaterial = new MeshStandardMaterial({ color: '#716958', roughness: .95 })
+    applyWorldTexture(stoneMaterial, 'stone')
     const stones = new InstancedMesh(stoneGeometry, stoneMaterial, Math.max(1, placements.length * 10))
     stones.name = 'campfire-stones'; stones.frustumCulled = false; stones.castShadow = true; stones.receiveShadow = true
     for (const [index, placement] of placements.entries()) for (let rock = 0; rock < 10; rock++) {

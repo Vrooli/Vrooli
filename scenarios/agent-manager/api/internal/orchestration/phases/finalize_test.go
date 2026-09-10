@@ -107,6 +107,7 @@ func TestApplySandboxLifecycle_DeletesEvenWithCancelledCallerCtx(t *testing.T) {
 	stub := mocks.NewFakeSandboxProvider()
 	fx := newFinalizeFixture(t, sandboxedRunCfg(), stub)
 	fx.run.Status = domain.RunStatusComplete
+	fx.run.FinalizationStatus = domain.RunFinalizationStatusSucceeded // cleanup follows completed effects
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -151,6 +152,7 @@ func TestFinalize_DeletesSandboxOnSuccess(t *testing.T) {
 	stub := mocks.NewFakeSandboxProvider()
 	fx := newFinalizeFixture(t, sandboxedRunCfg(), stub)
 	fx.run.Status = domain.RunStatusComplete
+	fx.run.FinalizationStatus = domain.RunFinalizationStatusSucceeded // cleanup follows completed effects
 
 	Finalize(FinalizeInput{
 		Deps:      fx.deps,
@@ -171,6 +173,7 @@ func TestFinalize_DeletesSandboxOnFailure(t *testing.T) {
 	stub := mocks.NewFakeSandboxProvider()
 	fx := newFinalizeFixture(t, sandboxedRunCfg(), stub)
 	fx.run.Status = domain.RunStatusFailed
+	fx.run.FinalizationStatus = domain.RunFinalizationStatusSucceeded // cleanup follows completed effects
 
 	Finalize(FinalizeInput{
 		Deps:      fx.deps,
@@ -189,6 +192,7 @@ func TestFinalize_DeleteFailureDoesNotBlockPhaseAdvance(t *testing.T) {
 	stub.DeleteErr = errors.New("workspace-sandbox unreachable")
 	fx := newFinalizeFixture(t, sandboxedRunCfg(), stub)
 	fx.run.Status = domain.RunStatusComplete
+	fx.run.FinalizationStatus = domain.RunFinalizationStatusSucceeded // cleanup follows completed effects
 
 	Finalize(FinalizeInput{
 		Deps:      fx.deps,
@@ -248,6 +252,7 @@ func TestFinalize_StopsSandboxWhenLifecycleSaysStop(t *testing.T) {
 	stub := mocks.NewFakeSandboxProvider()
 	fx := newFinalizeFixture(t, cfg, stub)
 	fx.run.Status = domain.RunStatusComplete
+	fx.run.FinalizationStatus = domain.RunFinalizationStatusSucceeded // cleanup follows completed effects
 
 	Finalize(FinalizeInput{
 		Deps:      fx.deps,
@@ -633,6 +638,25 @@ func TestApplyAtRunEnd_FailurePreservesSandbox(t *testing.T) {
 	}
 }
 
+func TestApplyAtRunEnd_RejectsUnsuccessfulOwnerResult(t *testing.T) {
+	for _, checkpoint := range []bool{false, true} {
+		stub := mocks.NewFakeSandboxProvider()
+		stub.ApplyAtRunEndResult = &sandbox.ApplyAtRunEndResult{Success: false, ErrorMsg: "provenance refused"}
+		stub.TurnCheckpointFunc = func(context.Context, sandbox.TurnCheckpointRequest) (*sandbox.TurnCheckpointResult, error) {
+			return &sandbox.TurnCheckpointResult{Success: false, ErrorMsg: "provenance refused"}, nil
+		}
+		cfg := domain.DefaultSandboxConfig()
+		if checkpoint {
+			cfg.Lifecycle.CheckpointOn = []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTurnCompleted}
+		}
+		fx := newFinalizeFixture(t, cfg, stub)
+		fx.run.Status = domain.RunStatusComplete
+		if ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: stub, Outcome: domain.ContractRunOutcomeSuccess}) || fx.run.FinalizationStatus != domain.RunFinalizationStatusFailed {
+			t.Fatalf("checkpoint=%t: unsuccessful owner result became success: %+v", checkpoint, fx.run)
+		}
+	}
+}
+
 func TestApplyAtRunEnd_RetriesCheckpointAfterEnsuringWorkspaceSandbox(t *testing.T) {
 	stub := mocks.NewFakeSandboxProvider()
 	var calls int32
@@ -703,5 +727,28 @@ func TestApplyAtRunEnd_AutoApplyFalseSkipsApply(t *testing.T) {
 	}
 	if _, ok := fx.events.FindLogMessage("autoApply=false"); !ok {
 		t.Error("expected info event explaining the skip")
+	}
+}
+
+func TestFinalizePreservesSandboxUntilRequiredEffectsRecover(t *testing.T) {
+	for _, status := range []domain.RunFinalizationStatus{domain.RunFinalizationStatusPending, domain.RunFinalizationStatusRunning, domain.RunFinalizationStatusFailed} {
+		t.Run(string(status), func(t *testing.T) {
+			stub := mocks.NewFakeSandboxProvider()
+			fx := newFinalizeFixture(t, sandboxedRunCfg(), stub)
+			fx.run.Status = domain.RunStatusComplete
+			fx.run.FinalizationStatus = status
+			Finalize(FinalizeInput{Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: stub})
+			if stub.DeleteCallCount() != 0 || stub.StopCallCount() != 0 {
+				t.Fatal("unapplied sandbox destroyed before original-run recovery")
+			}
+			if fx.run.Status != domain.RunStatusComplete || fx.run.FinalizationStatus != status || fx.run.Phase != domain.RunPhaseCompleted {
+				t.Fatalf("runner evidence changed: %+v", fx.run)
+			}
+			fx.run.FinalizationStatus = domain.RunFinalizationStatusSucceeded
+			action := ApplySandboxLifecycle(context.Background(), ApplySandboxLifecycleInput{Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: stub, Event: domain.SandboxLifecycleRunCompleted, Reason: "finalization recovered"})
+			if action != "delete" || stub.DeleteCallCount() != 1 {
+				t.Fatalf("recovered sandbox not released: %s", action)
+			}
+		})
 	}
 }

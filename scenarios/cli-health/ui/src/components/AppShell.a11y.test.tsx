@@ -24,7 +24,7 @@ describe("AppShell accessibility", () => {
   it("renders the shell without axe violations in English", async () => {
     const { container } = renderWithProviders(
       <AppShell>
-        <main aria-label="Feature content">Stable feature slot</main>
+        <div aria-label="Feature content">Stable feature slot</div>
       </AppShell>,
     );
 

@@ -37,6 +37,11 @@ type CursorCheckpoint struct {
 	RowID               int64
 	RetentionGeneration int64
 	FilterDigest        string
+	// ConsecutiveFailures counts unavailable evaluations since the last
+	// completed one; LastFailureReason is the classification of the latest.
+	// Both are durable so wake backoff survives restart.
+	ConsecutiveFailures int
+	LastFailureReason   string
 }
 
 type Repository struct {
@@ -334,10 +339,39 @@ func (r *Repository) CommitDecision(ctx context.Context, watchID string, expecte
 		return nil, fmt.Errorf("insert watch decision: %w", err)
 	}
 	inserted, _ := result.RowsAffected()
+	unavailable := stored.GetDisposition() == domainpb.WatchDisposition_WATCH_DISPOSITION_UNAVAILABLE
 	if inserted == 0 {
-		_ = tx.Rollback()
+		if !unavailable {
+			_ = tx.Rollback()
+			watch, _, getErr := r.Get(ctx, watchID)
+			return watch, getErr
+		}
+		// A replayed unavailable evaluation keeps its cursor and its durable
+		// decision, but the wake must still move: leaving next_wake_at in the
+		// past makes the watch due on every scheduler pass and replays the same
+		// failing dependency call indefinitely.
+		if err := r.recordEvaluationFailure(ctx, tx, watchID, stored.GetClassification(), now); err != nil {
+			return nil, err
+		}
+		result, err = tx.ExecContext(ctx, `UPDATE cohort_watches SET next_wake_at=? WHERE watch_id=? AND revision=? AND cursor_token=? AND status=?`, formatTime(nextWake), watchID, expectedRevision, before.Token, int32(domainpb.WatchStatus_WATCH_STATUS_ACTIVE))
+		if err != nil {
+			return nil, fmt.Errorf("reschedule unavailable watch: %w", err)
+		}
+		if updated, _ := result.RowsAffected(); updated != 1 {
+			return nil, ErrConflict
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("commit watch reschedule: %w", err)
+		}
 		watch, _, getErr := r.Get(ctx, watchID)
 		return watch, getErr
+	}
+	if unavailable {
+		if err := r.recordEvaluationFailure(ctx, tx, watchID, stored.GetClassification(), now); err != nil {
+			return nil, err
+		}
+	} else if _, err := tx.ExecContext(ctx, `DELETE FROM cohort_watch_evaluation_failures WHERE watch_id=?`, watchID); err != nil {
+		return nil, fmt.Errorf("clear watch evaluation failures: %w", err)
 	}
 	if len(inputs) > 0 {
 		snapshot := inputs[0]
@@ -384,7 +418,19 @@ func (r *Repository) CommitDecision(ctx context.Context, watchID string, expecte
 	return watch, err
 }
 
-const watchSelect = `SELECT watch_id,revision,status,spec_json,cursor_token,cursor_version,cursor_rowid,retention_generation,filter_digest,next_wake_at,created_at,updated_at,COALESCE(terminal_at,''),COALESCE((SELECT decision_json FROM cohort_watch_decisions decision WHERE decision.watch_id=cohort_watches.watch_id ORDER BY created_at DESC,decision_id DESC LIMIT 1),'') FROM cohort_watches`
+// recordEvaluationFailure extends the watch's unavailable streak inside the
+// caller's transaction. The reason is the latest decision classification so an
+// operator can read why the watch is parked without searching logs.
+func (r *Repository) recordEvaluationFailure(ctx context.Context, tx *sql.Tx, watchID, reason string, now time.Time) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO cohort_watch_evaluation_failures(watch_id,failures,reason,first_failed_at,last_failed_at) VALUES (?,1,?,?,?)
+		ON CONFLICT(watch_id) DO UPDATE SET failures=failures+1,reason=excluded.reason,last_failed_at=excluded.last_failed_at`, watchID, reason, formatTime(now), formatTime(now))
+	if err != nil {
+		return fmt.Errorf("record watch evaluation failure: %w", err)
+	}
+	return nil
+}
+
+const watchSelect = `SELECT watch_id,revision,status,spec_json,cursor_token,cursor_version,cursor_rowid,retention_generation,filter_digest,next_wake_at,created_at,updated_at,COALESCE(terminal_at,''),COALESCE((SELECT decision_json FROM cohort_watch_decisions decision WHERE decision.watch_id=cohort_watches.watch_id ORDER BY created_at DESC,decision_id DESC LIMIT 1),''),COALESCE((SELECT failures FROM cohort_watch_evaluation_failures failure WHERE failure.watch_id=cohort_watches.watch_id),0),COALESCE((SELECT reason FROM cohort_watch_evaluation_failures failure WHERE failure.watch_id=cohort_watches.watch_id),'') FROM cohort_watches`
 
 type scanner interface{ Scan(...any) error }
 
@@ -393,12 +439,12 @@ func (r *Repository) getByIdempotencyKey(ctx context.Context, key string) (*doma
 }
 
 func (r *Repository) scanWatch(row scanner) (*domainpb.CohortWatch, CursorCheckpoint, error) {
-	var id, specJSON, token, digest, nextRaw, createdRaw, updatedRaw, terminalRaw, decisionJSON string
+	var id, specJSON, token, digest, nextRaw, createdRaw, updatedRaw, terminalRaw, decisionJSON, failureReason string
 	var revision uint64
 	var status int32
-	var version int
+	var version, failures int
 	var rowID, retention int64
-	if err := row.Scan(&id, &revision, &status, &specJSON, &token, &version, &rowID, &retention, &digest, &nextRaw, &createdRaw, &updatedRaw, &terminalRaw, &decisionJSON); err != nil {
+	if err := row.Scan(&id, &revision, &status, &specJSON, &token, &version, &rowID, &retention, &digest, &nextRaw, &createdRaw, &updatedRaw, &terminalRaw, &decisionJSON, &failures, &failureReason); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, CursorCheckpoint{}, ErrNotFound
 		}
@@ -434,7 +480,7 @@ func (r *Repository) scanWatch(row scanner) (*domainpb.CohortWatch, CursorCheckp
 			return nil, CursorCheckpoint{}, fmt.Errorf("decode watch decision: %w", err)
 		}
 	}
-	return watch, CursorCheckpoint{Token: token, Version: version, RowID: rowID, RetentionGeneration: retention, FilterDigest: digest}, nil
+	return watch, CursorCheckpoint{Token: token, Version: version, RowID: rowID, RetentionGeneration: retention, FilterDigest: digest, ConsecutiveFailures: failures, LastFailureReason: failureReason}, nil
 }
 
 func canonicalSpec(spec *domainpb.WatchSpec) (*domainpb.WatchSpec, string, error) {

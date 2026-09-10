@@ -423,6 +423,10 @@ func (c *Codex) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionM
 		metrics.TokensOutput += data.OutputTokens
 		metrics.CacheReadTokens += data.CacheReadTokens
 		metrics.CacheCreationTokens += data.CacheCreationTokens
+		if data.Turns > 0 {
+			// Commentary messages within one provider turn are not turns.
+			metrics.TurnsUsed = data.Turns
+		}
 	case *domain.ChargeEventData:
 		if data.AmountMicroUSD != nil {
 			metrics.CostEstimateUSD += float64(*data.AmountMicroUSD) / 1_000_000
@@ -488,6 +492,10 @@ func (p *codexTranscriptParser) SetTranscriptModel(model string) {
 }
 
 func (p *codexTranscriptParser) SetTranscriptRetention(retain bool) { p.state.retainUser = retain }
+
+func (p *codexTranscriptParser) SetTranscriptBilling(billing domain.BillingSnapshot) {
+	p.state.billing = billing
+}
 
 type codexTranscriptParser struct {
 	codec *Codex
@@ -856,11 +864,20 @@ func (c *Codex) parseCodexEvents(state *codexState, runID uuid.UUID, streamEvent
 			events = append(events, newProviderTerminalEvidence(runID, state.lastMessageEvent, "turn_completed", "turn.completed", "codex:turn.completed"))
 		}
 		if streamEvent.Usage != nil {
-			events = append(events, markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, c.pricingService, state.runModel, usageTokens{
-				InputTokens:     streamEvent.Usage.InputTokens,
-				OutputTokens:    streamEvent.Usage.OutputTokens,
-				CacheReadTokens: streamEvent.Usage.CachedInputTokens,
-			}, state.billing), state.turn)...)
+			// exec usage, like rollout totals, includes cached input in
+			// input_tokens. Persist disjoint components before pricing or
+			// aggregation, so the cached subset is consumed exactly once.
+			usageEvents := markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, c.pricingService, state.runModel,
+				codexUsageDelta(streamEvent.Usage.InputTokens, streamEvent.Usage.OutputTokens, streamEvent.Usage.CachedInputTokens, true), state.billing), state.turn)
+			for _, event := range usageEvents {
+				if usage, ok := event.Data.(*domain.UsageEventData); ok {
+					// exec --json reports this completed invocation's final
+					// usage here. A process stop alone has no such authority.
+					usage.ReconciliationAuthority = true
+					usage.Turns = state.turn
+				}
+			}
+			events = append(events, usageEvents...)
 		}
 		return events
 

@@ -126,6 +126,33 @@ func (s *store) list(ctx context.Context, limit int) ([]Job, error) {
 	return out, nil
 }
 
+// listRetentionCandidates returns the oldest terminal jobs whose managed
+// output is eligible for owner-side retention. The query deliberately requires
+// an out/ blob reference: inputs, conditioning assets, model-install paths,
+// and caller-owned absolute paths are not reclaimable through this owner.
+func (s *store) listRetentionCandidates(ctx context.Context, before time.Time, limit int) ([]Job, error) {
+	if limit <= 0 {
+		limit = 200
+	}
+	rows, err := s.db.QueryContext(ctx, "SELECT "+selectJobColumns+" FROM jobs WHERE state=? AND result_ref LIKE 'out/%' AND finished_at<>'' AND finished_at<? ORDER BY finished_at ASC LIMIT ?", string(StateSucceeded), before.Format(jobTimeFormat), limit)
+	if err != nil {
+		return nil, fmt.Errorf("jobs: list retention candidates: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Job
+	for rows.Next() {
+		j, err := scanJob(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, j)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("jobs: list retention candidates rows: %w", err)
+	}
+	return out, nil
+}
+
 // listNonTerminal returns jobs still queued/running (used at boot for recovery).
 func (s *store) listNonTerminal(ctx context.Context) ([]Job, error) {
 	rows, err := s.db.QueryContext(ctx, "SELECT "+selectJobColumns+" FROM jobs WHERE state IN (?, ?)", string(StateQueued), string(StateRunning))

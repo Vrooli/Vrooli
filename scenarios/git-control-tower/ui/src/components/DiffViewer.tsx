@@ -7,6 +7,7 @@ import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
 import { ViewModeSelector } from "./ViewModeSelector";
+import { FilePath } from "@vrooli/react-component-library/FilePath/1";
 import { ImagePreview } from "./ImagePreview";
 import { useIsMobile } from "../hooks";
 import {
@@ -23,7 +24,6 @@ import { buildImagePreviewSrc, getFileTypeInfo } from "../lib/fileTypes";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import { Popover } from "./ui/popover";
-import { formatPath } from "../lib/utils";
 
 const MonacoEditor = lazy(() => import("@monaco-editor/react"));
 const LazyMarkdownPreview = lazy(() =>
@@ -614,8 +614,6 @@ function DiffViewerImpl({
   const isMobile = useIsMobile();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const minimapRailRef = useRef<HTMLDivElement>(null);
-  const titleRowRef = useRef<HTMLDivElement>(null);
-  const [maxPathChars, setMaxPathChars] = useState(60);
   const { canScrollLeft, canScrollRight } = useScrollHints(scrollContainerRef);
   const [showBinary, setShowBinary] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -982,27 +980,6 @@ function DiffViewerImpl({
     }
   }, []);
 
-  // Dynamically compute max path chars based on available header width
-  useEffect(() => {
-    if (!titleRowRef.current || typeof ResizeObserver === "undefined") return;
-    const update = () => {
-      const width = titleRowRef.current?.clientWidth ?? 0;
-      // Account for: dot/badge (~30px), stats (~80px), overflow menu (~44px), gaps (~24px)
-      const usable = Math.max(0, width - 180);
-      const nextMax = Math.max(12, Math.min(100, Math.floor(usable / 7)));
-      setMaxPathChars(nextMax);
-    };
-    const rafId = requestAnimationFrame(update);
-    const observer = new ResizeObserver(update);
-    observer.observe(titleRowRef.current);
-    return () => {
-      cancelAnimationFrame(rafId);
-      observer.disconnect();
-    };
-  }, []);
-
-  const displayPath = selectedFile ? formatPath(selectedFile, maxPathChars) : null;
-
   const diffViewerStyle: CSSProperties & Record<"--code-font-size", string> = {
     "--code-font-size": `${codeFontSize}px`
   };
@@ -1011,57 +988,25 @@ function DiffViewerImpl({
     <Card className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50 rounded-none border-0 bg-slate-950" : "h-full"}`} style={diffViewerStyle} data-testid="diff-viewer-panel">
       <CardHeader className={`space-y-0 ${isFullscreen ? "py-2 px-3" : isMobile ? "py-3 px-4" : "py-3 flex-row items-center justify-between"}`}>
         {/* Row 1: Title + primary indicators */}
-        <div ref={titleRowRef} className={`flex items-center min-w-0 ${isMobile ? "gap-2" : "gap-3"}`}>
+        <div className={`flex w-full min-w-0 items-center ${isMobile ? "gap-2" : "gap-3"}`}>
           <div className={`flex items-center min-w-0 flex-1 ${isMobile ? "gap-2" : "gap-3"}`}>
             <CardTitle className={`flex items-center gap-2 min-w-0 ${isMobile ? "flex-1" : ""}`}>
               {!isMobile && (
                 <FileDiff className="flex-shrink-0 text-slate-500 h-4 w-4" />
               )}
               {selectedFile ? (
-                <Popover
-                  align="start"
-                  trigger={
-                    <span className="font-mono text-xs truncate cursor-pointer hover:text-blue-300 transition-colors">{displayPath}</span>
-                  }
-                >
-                  <div className="p-3 flex items-center gap-2 max-w-[90vw]">
-                    <span className="font-mono text-xs text-slate-200 break-all select-all flex-1">{absolutePath || selectedFile}</span>
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 h-7 w-7"
-                      onClick={handleCopyPath}
-                      title={copied ? "Copied" : "Copy path"}
-                      aria-label="Copy path"
-                    >
-                      {copied ? (
-                        <Check className="text-emerald-300 h-3.5 w-3.5" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" />
-                      )}
-                    </button>
-                  </div>
-                </Popover>
+                <FilePath
+                  path={absolutePath || selectedFile}
+                  showCopyButton={!isMobile && !isFullscreen}
+                  className="min-w-0 flex-1"
+                  testId="file-path-header"
+                  copyButtonTestId="copy-absolute-path"
+                />
               ) : (
                 <span className="text-xs">Diff Viewer</span>
               )}
             </CardTitle>
-            {/* Desktop-only: inline copy/related buttons (hidden in fullscreen) */}
-            {!isMobile && !isFullscreen && selectedFile && (
-              <button
-                type="button"
-                className="inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 h-7 w-7"
-                onClick={handleCopyPath}
-                title={copied ? "Copied" : "Copy absolute path"}
-                aria-label="Copy absolute path"
-                data-testid="copy-absolute-path"
-              >
-                {copied ? (
-                  <Check className="text-emerald-300 h-3.5 w-3.5" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-              </button>
-            )}
+            {/* Desktop-only related-file action remains adjacent to the shared path control. */}
             {!isMobile && !isFullscreen && selectedFile && onShowRelatedFiles && (
               <button
                 type="button"

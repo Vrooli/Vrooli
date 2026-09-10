@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -43,7 +44,8 @@ type Deps struct {
 	RepoRoot string
 	// Environment is the host CaptureEnvironment captured once at module init.
 	// nil is safe — the metrics collector backfills os/arch/num_cpu.
-	Environment *commonv1.CaptureEnvironment
+	Environment       *commonv1.CaptureEnvironment
+	ReadinessReporter ReadinessReporter
 }
 
 type connectHandler struct {
@@ -54,6 +56,9 @@ type connectHandler struct {
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
+	}
+	if d.ReadinessReporter == nil {
+		d.ReadinessReporter = newReadinessReporter(context.Background())
 	}
 	return &connectHandler{deps: d}
 }
@@ -83,6 +88,11 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	resp, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nativeDetail, execMetrics)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
+	}
+	if h.deps.ReadinessReporter != nil {
+		if err := h.deps.ReadinessReporter.Report(ctx, report.Scenario, resp, time.Now().UTC()); err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
 	}
 	return connect.NewResponse(resp), nil
 }

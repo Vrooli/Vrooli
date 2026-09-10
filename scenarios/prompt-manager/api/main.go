@@ -553,7 +553,16 @@ func main() {
 
 	// Variant and experiment handlers
 	variantHandlers := skills.NewVariantHandlers(fileStore.Variants(), fileStore.Skills())
-	skillsConnectPath, skillsConnectHandler := skills.NewConnectMount(skillHandlers, variantHandlers, fileStore.FileSkills())
+	refreshTargets := append([]projection.Target(nil), projectionTargets...)
+	if len(refreshTargets) == 0 {
+		if target := strings.TrimSpace(os.Getenv("VROOLI_SKILL_PROJECTION_DIR")); target != "" {
+			refreshTargets = []projection.Target{{Runtime: "configured", Path: target}}
+		}
+	}
+	projector := &projection.Service{SourceRoot: projectSource, Targets: refreshTargets, Resolve: resolveProjectionSource, LoadPack: func() (projection.BasePack, error) {
+		return projection.LoadBasePack(filepath.Join(roots.RepoRoot, "scenarios", "prompt-manager", "store", "skills", "_base-pack.json"))
+	}}
+	skillsConnectPath, skillsConnectHandler := skills.NewConnectMountWithProjection(skillHandlers, variantHandlers, fileStore.FileSkills(), projector)
 	experimentHandlers := skills.NewExperimentHandlers(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
 	experimentHandlers.SetWorkPublisher(skills.NewHTTPWorkPublisherFromEnv())
 	// Lifecycle/Secrets Manager writes a standard runtime config into the

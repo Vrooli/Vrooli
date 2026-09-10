@@ -32,10 +32,6 @@ const literalSelectors = {
   },
   layout: {
     shell: "layout-shell",
-    topBar: "layout-top-bar",
-    sidebar: "layout-sidebar",
-    bottomNav: "layout-bottom-nav",
-    main: "layout-main",
   },
   theme: {
     switcher: "theme-switcher",
@@ -97,45 +93,49 @@ const dynamicSelectorDefinitions = {
       params: { code: { type: "enum", values: LOCALE_CODES } },
     }),
   },
-  layout: {
-    sidebarLink: defineDynamicSelector({
-      description: "Sidebar navigation link by canonical nav key",
-      testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["search", "evals", "dashboard", "settings"] as const } },
-    }),
-    bottomNavLink: defineDynamicSelector({
-      description: "Bottom-nav link by canonical nav key",
-      testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["search", "evals", "dashboard", "settings"] as const } },
-    }),
-  },
   search: {
     typeFacet: defineDynamicSelector({
-      description: "Type facet toggle on the search page, by leaf type token",
+      description: "Search type facet by result type",
       testIdPattern: "search-type-facet-${type}",
       params: { type: { type: "string" } },
     }),
     providerChip: defineDynamicSelector({
-      description: "Federation-status provider chip, by provider_id",
+      description: "Search provider status chip by provider id",
       testIdPattern: "search-provider-chip-${providerId}",
       params: { providerId: { type: "string" } },
     }),
   },
   evals: {
     suiteItem: defineDynamicSelector({
-      description: "Eval suite list item, by suite_id",
-      testIdPattern: "evals-suite-${suiteId}",
+      description: "Evaluation suite item by suite id",
+      testIdPattern: "evals-suite-item-${suiteId}",
       params: { suiteId: { type: "string" } },
     }),
     runRow: defineDynamicSelector({
-      description: "Eval run-history row, by run_id",
-      testIdPattern: "evals-run-${runId}",
+      description: "Evaluation run row by run id",
+      testIdPattern: "evals-run-row-${runId}",
       params: { runId: { type: "string" } },
     }),
     runSelect: defineDynamicSelector({
-      description: "Eval run compare-select checkbox, by run_id",
+      description: "Evaluation run selection control by run id",
       testIdPattern: "evals-run-select-${runId}",
       params: { runId: { type: "string" } },
+    }),
+  },
+  layout: {
+    navLink: defineDynamicSelector({
+      description: "App shell navigation link by canonical nav key",
+      testIdPattern: "layout-nav-link-${key}",
+      params: {
+        key: {
+          type: "enum",
+          values: [
+            "search",
+            "evals",
+            "dashboard",
+            "settings",          ] as const,
+        },
+      },
     }),
   },
   settingsPage: {

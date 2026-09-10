@@ -11,6 +11,7 @@ import { hashString } from '../../sim/rng'
 import { runCooperatively } from '../../sim/cooperative'
 import { useWorldStore } from '../WorldStoreContext'
 import { bindAmbientWake } from './wake'
+import { worldTextureProps } from '../materialTextures'
 
 /** Original russet squirrel with a curved plume tail, pale belly and small ears.
  * Nearby tree routes occupy a fixed instance pool and never enter agent nav.
@@ -26,7 +27,7 @@ export function Squirrels({ clock, leases, enabled, reducedMotion, profileId, pr
     ? selection.routes.filter(route => hashString(`density:${route.treeId}`) / 0xffffffff <= profile.vegetationDensityScale) : [],
   [enabled, reducedMotion, selection, state.nav, state.decor, state.habitats, profile.vegetationDensityScale])
   const resources = useMemo(() => {
-    const geometry = new SphereGeometry(1, 8, 6), material = new MeshStandardMaterial({ roughness: 1, flatShading: true })
+    const geometry = new SphereGeometry(1, 8, 6), material = new MeshStandardMaterial({ roughness: 1, flatShading: true, ...worldTextureProps('bark') })
     const parts = [
       { p: [0,.22,0], s: [.14,.18,.24], color: '#ad6034' },
       { p: [0,.2,.12], s: [.1,.13,.14], color: '#ead5b7' },

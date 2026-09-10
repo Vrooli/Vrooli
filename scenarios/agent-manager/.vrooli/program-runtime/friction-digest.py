@@ -14,10 +14,7 @@ import datetime
 import json
 
 # ---- inputs: the caller binds a dict named `inputs` before this source; contract defaults otherwise
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 scenario = str(inputs.get("scenario", "")).strip()
 window_days = int(inputs.get("window_days", 7))
 run_limit = int(inputs.get("run_limit", 40))
@@ -50,33 +47,6 @@ def fail(status, klass, detail, where):
     envelope["status"] = status
     envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
     return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
 
 
 def parse_ts(value):
@@ -143,7 +113,7 @@ def step_collect():  # COLLECT · governed reads only; episodes fan out through 
         envelope["evidence"].append(f"agent-manager watch policy-outcomes --limit {outcome_limit}")
     except Exception as exc:
         try:
-            klass = classify_transport(exc)[1]
+            klass = program.classify(exc)[1]
         except Exception:
             klass = "kernel_runtime"
         envelope["errors"].append({"class": klass, "detail": str(exc)[:160], "where": "collect:supervision-outcomes"})
@@ -151,7 +121,7 @@ def step_collect():  # COLLECT · governed reads only; episodes fan out through 
         runs = agent_manager.run.list(limit=run_limit)
         rows = runs.head(run_limit)  # bounded by run_limit <= 200: the ids are needed for the episode reads
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         return fail(status, klass, exc, "collect")
     sig["runs_listed"] = len(rows)
     cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=window_days)
@@ -182,8 +152,8 @@ def step_collect():  # COLLECT · governed reads only; episodes fan out through 
             sig["episode_reads_failed"] += 1
             try:
                 raise result
-            except Exception as exc:  # classify_transport re-raises a missing kernel name; the driver labels it
-                klass = classify_transport(exc)[1]
+            except Exception as exc:  # program.classify re-raises a missing kernel name; the driver labels it
+                klass = program.classify(exc)[1]
             envelope["errors"].append({"class": klass, "detail": str(result)[:160], "where": f"collect:episodes:{run_id}"})
         else:
             handles["episodes"].append((run_id, result))
@@ -241,12 +211,4 @@ def step_report():  # REPORT · bounded, always
 
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:  # the one catch that guarantees an envelope on every path
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

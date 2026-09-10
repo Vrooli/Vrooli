@@ -192,7 +192,7 @@ func scannerEvidenceFiles(ctx context.Context, cmd Commander, scanner, scenarioD
 		files, err := cachedWalkModuleEvidenceFiles(ctx, scenarioDir, sub.GoModDirs)
 		return files, true, 3, err
 	case "pnpm-audit":
-		files, err := walkModuleEvidenceFiles(scenarioDir, sub.PnpmLockDirs)
+		files, err := pnpmEvidenceFiles(scenarioDir, sub.PnpmLockDirs)
 		return files, true, 2, err
 	case "osv-scanner":
 		files, err := osvEvidenceFiles(scenarioDir)
@@ -276,6 +276,33 @@ func walkModuleEvidenceFiles(root string, dirs []string) ([]string, error) {
 		}
 		for _, path := range files {
 			if goEvidenceFile(path) {
+				set[path] = struct{}{}
+			}
+		}
+	}
+	files := make([]string, 0, len(set))
+	for path := range set {
+		files = append(files, path)
+	}
+	sort.Strings(files)
+	return files, nil
+}
+
+// pnpmEvidenceFiles returns the files that can change the result of a
+// workspace-local `pnpm audit --ignore-workspace` invocation. Keep this
+// separate from walkModuleEvidenceFiles: that helper intentionally filters for
+// Go source and module files, which would otherwise omit pnpm-lock.yaml and
+// allow stale audit findings to survive a dependency repair.
+func pnpmEvidenceFiles(root string, dirs []string) ([]string, error) {
+	if len(dirs) == 0 {
+		dirs = []string{"ui"}
+	}
+	set := make(map[string]struct{}, len(dirs)*3)
+	for _, rel := range dirs {
+		moduleRoot := filepath.Join(root, rel)
+		for _, name := range []string{"pnpm-lock.yaml", "package.json", ".npmrc"} {
+			path := filepath.Join(moduleRoot, name)
+			if fileExists(path) {
 				set[path] = struct{}{}
 			}
 		}

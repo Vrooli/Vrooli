@@ -4,6 +4,19 @@
   "description": "Data Backup Manager CLI surface. Single source of truth for the scenario's domain commands: schema-validated against cli-manifest/v1 and cross-validated against each domain's proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
     {
+      "name": "space",
+      "flat": true,
+      "description": "Emit this scenario's coverage-space denominator.",
+      "commands": [
+        {
+          "name": "space",
+          "description": "Emit this scenario's coverage-space denominator as JSON.",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true }
+        }
+      ]
+    },
+    {
       "name": "targets",
       "description": "Register and inspect backup targets (scenarios self-register at lifecycle)",
       "commands": [
@@ -371,7 +384,9 @@
             },
             {
               "name": "device",
-              "description": "Device path (e.g. /dev/sda1) to address the destination volume directly; required once a remediation sequence has unmounted it"
+              "description": "Device path (e.g. /dev/sda1) to address the destination volume directly; required once a remediation sequence has unmounted it",
+              "local_only": true,
+              "bind_waiver": "The hand-written destination preparation handler nests this CLI-only scalar under expected_identity.device_path before invoking the typed RPC."
             },
             {
               "name": "uuid",
@@ -440,8 +455,8 @@
           "description": "Persist an identity-bound volume recovery journal without changing host state",
           "flags": [
             {"name": "location", "required": true, "description": "Requested mount root"},
-            {"name": "identity-json", "required": true, "description": "DestinationDeviceIdentity JSON from read-only inspection"},
-            {"name": "plans-json", "required": true, "description": "JSON array of separately planned remediation steps"}
+            {"name": "identity-json", "required": true, "description": "DestinationDeviceIdentity JSON from read-only inspection", "local_only": true, "bind_waiver": "The hand-written recovery handler decodes this CLI-only JSON into the typed identity message before invoking the RPC."},
+            {"name": "plans-json", "required": true, "description": "JSON array of separately planned remediation steps", "local_only": true, "bind_waiver": "The hand-written recovery handler decodes this CLI-only JSON array into typed plan messages before invoking the RPC."}
           ],
           "binding": {"kind": "connect-rpc", "service": "DestinationsService", "method": "StartVolumeRecovery"},
           "governance": {"effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}

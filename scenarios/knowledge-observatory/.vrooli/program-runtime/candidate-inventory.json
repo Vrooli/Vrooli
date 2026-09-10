@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "knowledge-observatory.candidate-inventory",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Produce bounded, provenance-aware documentation candidates for owner review without editing source files.",
   "inputs": {
     "paths": {
@@ -37,10 +40,33 @@
     }
   ],
   "outputs": {
-    "status": {"enum": ["ok", "partial", "failed", "unavailable"]},
-    "phase": {"enum": ["validate", "collect", "report"]},
-    "signals": {"candidates": "Bounded source candidates and owner hints."},
-    "errors": {"classes": ["invalid_input", "binding_error", "scenario_unreachable"]}
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "candidates": "Bounded source candidates and owner hints."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "binding_error",
+        "scenario_unreachable",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    }
   },
   "budget": {
     "wall_ms": 90000,

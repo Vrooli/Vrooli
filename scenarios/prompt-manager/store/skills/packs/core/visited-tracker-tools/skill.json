@@ -4,6 +4,7 @@
   "entry": "SKILL.md",
   "id": "visited-tracker-tools",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "tools"
   ],

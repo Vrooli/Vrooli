@@ -6,6 +6,7 @@
   "icon": "layout-template",
   "id": "experience-spec-authoring",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "practice"
   ],

@@ -1,3 +1,4 @@
+import { LayoutDashboard, Activity, ShieldCheck, Settings, type LucideIcon } from "lucide-react";
 import { strings } from "../consts/strings";
 
 /**
@@ -19,11 +20,12 @@ export interface NavItem {
   end?: boolean;
   /** Translation key path. */
   labelKey: (typeof strings.layout.nav)[keyof typeof strings.layout.nav];
+  icon: LucideIcon;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "fleet", path: "/fleet", labelKey: strings.layout.nav.fleet },
-  { key: "validate", path: "/validate", labelKey: strings.layout.nav.validate },
-  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
+  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard, icon: LayoutDashboard },
+  { key: "fleet", path: "/fleet", labelKey: strings.layout.nav.fleet, icon: Activity },
+  { key: "validate", path: "/validate", labelKey: strings.layout.nav.validate, icon: ShieldCheck },
+  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: Settings },
 ];

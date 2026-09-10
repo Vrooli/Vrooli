@@ -1,6 +1,7 @@
 package review
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,9 +11,24 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	repov1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo"
+	repoconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo/repo_v1connect"
+	reviewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/review"
+	reviewconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/review/review_v1connect"
 )
+
+var reviewClientFactory = func(core *cliapp.ScenarioApp) reviewconnect.ReviewServiceClient {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return reviewconnect.NewReviewServiceClient(httpClient, baseURL)
+}
+
+var repositoryClientFactory = func(core *cliapp.ScenarioApp) repoconnect.RepoServiceClient {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return repoconnect.NewRepoServiceClient(httpClient, baseURL)
+}
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{
@@ -73,21 +89,36 @@ func runRun(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("usage: review run <scenario> [--checks=LIST] [--details=N] [--no-wait] [--json]")
 	}
 	scenario := fs.Arg(0)
-	req := runRequest{ScenarioName: scenario, Details: *details}
+	checksValue := []string(nil)
 	if *checks != "" {
-		req.Checks = strings.Split(*checks, ",")
+		checksValue = strings.Split(*checks, ",")
 	}
-	body, err := core.Request("POST", "/review/run", nil, req)
+	active, err := repositoryClientFactory(core).GetActiveRepository(context.Background(), connect.NewRequest(&repov1.GetActiveRepositoryRequest{}))
 	if err != nil {
 		return err
 	}
-	var runResp runResponse
-	if err := json.Unmarshal(body, &runResp); err != nil {
-		cliutil.PrintJSON(body)
-		return nil
+	if active == nil || active.Msg == nil || active.Msg.GetRepo() == nil || active.Msg.GetRepo().GetId() <= 0 {
+		return fmt.Errorf("active repository is required to start a readiness review")
 	}
+	started, err := reviewClientFactory(core).Start(context.Background(), connect.NewRequest(&reviewv1.StartReviewRequest{
+		RepositoryId: active.Msg.GetRepo().GetId(),
+		ScenarioName: scenario,
+		Checks:       checksValue,
+		Details:      int32(*details),
+	}))
+	if err != nil {
+		return err
+	}
+	if started == nil || started.Msg == nil || strings.TrimSpace(started.Msg.GetJobId()) == "" {
+		return fmt.Errorf("readiness review admission returned no job id")
+	}
+	runResp := runResponse{JobID: started.Msg.GetJobId()}
 	if *noWait {
 		if *jsonOutput {
+			body, marshalErr := json.Marshal(runResp)
+			if marshalErr != nil {
+				return marshalErr
+			}
 			cliutil.PrintJSON(body)
 		} else {
 			fmt.Printf("Job started: %s\n", runResp.JobID)

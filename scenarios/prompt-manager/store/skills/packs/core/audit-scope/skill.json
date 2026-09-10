@@ -5,6 +5,7 @@
   "icon": "search",
   "id": "audit-scope",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "scope"
   ],

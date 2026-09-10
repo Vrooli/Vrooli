@@ -136,7 +136,7 @@
       "path": "/vrooli.cleanup_manager.v1.cleanup.CleanupService/ReportPressure",
       "method": "POST",
       "summary": "Report disk pressure",
-      "description": "Inbound disk-pressure signal from a safeguard. Warning records the observation; high runs estimate and preview without deleting; critical applies safe-tier providers with no operator present. Duplicate concurrent reports of the same partition and band collapse into one execution.",
+      "description": "Inbound disk-pressure signal from a safeguard. Warning, high, and critical apply only provably safe-tier providers with no operator present; owner, conditional, and forbidden providers remain withheld. Duplicate concurrent reports of the same partition and band collapse into one execution.",
       "category": "cleanup",
       "request": {
         "type": "object",
@@ -173,6 +173,267 @@
         "properties": {
           "events": "array<AuditEvent>"
         }
+      }
+    },
+    {
+      "id": "cleanup_recovery_start",
+      "path": "/vrooli.cleanup_manager.v1.cleanup.CleanupService/StartRecovery",
+      "method": "POST",
+      "summary": "Start recovery run",
+      "description": "Starts a server-owned recovery run and returns its id without waiting for filesystem work.",
+      "category": "cleanup"
+    },
+    {
+      "id": "cleanup_recovery_wait",
+      "path": "/vrooli.cleanup_manager.v1.cleanup.CleanupService/WaitRecovery",
+      "method": "POST",
+      "summary": "Wait for recovery run",
+      "description": "Waits for one server-owned recovery run to reach a terminal result.",
+      "category": "cleanup"
+    },
+    {
+      "id": "cleanup_recovery_history",
+      "path": "/vrooli.cleanup_manager.v1.cleanup.CleanupService/ListRecovery",
+      "method": "POST",
+      "summary": "List recovery history",
+      "description": "Lists recent server-owned recovery runs.",
+      "category": "cleanup"
+    },
+    {
+      "id": "cleanup_standing_approvals",
+      "path": "/api/v1/cleanup/approvals",
+      "method": "GET",
+      "summary": "List standing approvals",
+      "description": "Returns host-local approvals for conditional recovery providers.",
+      "category": "cleanup",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "fleet_scan_fleet",
+      "path": "/vrooli.storage_health.v1.fleet.FleetService/ScanFleet",
+      "method": "POST",
+      "summary": "Scan the fleet's storage inventory",
+      "description": "Classifies the requested scenarios (or every discovered scenario) by engine, isolation-readiness, namespace adoption, deploy stage, and backup readiness, persists the snapshot, and rolls up fleet-wide distributions + offender counts.",
+      "category": "fleet",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenarios": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "data_dir_over_budget_count": "int32",
+          "engine_distribution": "array<EngineCount>",
+          "entries": "array<FleetScenarioEntry>",
+          "errors": "array<FleetScanError>",
+          "finding_count": "int32",
+          "isolation_unready_count": "int32",
+          "no_backup_count": "int32",
+          "scanned_at": "string",
+          "scenario_count": "int32",
+          "stage_distribution": "array<StageCount>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Fleet scan failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Scan whole fleet",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.storage_health.v1.fleet.FleetService/ScanFleet -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "fleet_get_inventory",
+      "path": "/vrooli.storage_health.v1.fleet.FleetService/GetInventory",
+      "method": "POST",
+      "summary": "Read the latest persisted fleet snapshot",
+      "description": "Returns the most recent persisted fleet inventory snapshot without re-scanning. An empty snapshot (scenario_count 0) means ScanFleet has not run yet.",
+      "category": "fleet",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "entries": "array<FleetScenarioEntry>",
+          "scanned_at": "string",
+          "scenario_count": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Snapshot read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Read snapshot",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.storage_health.v1.fleet.FleetService/GetInventory -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "advisor_analyze_migrations",
+      "path": "/vrooli.storage_health.v1.advisor.AdvisorService/AnalyzeMigrations",
+      "method": "POST",
+      "summary": "Grade migration hygiene against deploy stage",
+      "description": "Analyzes each requested scenario's (or every discovered scenario's) migration posture against its deploy stage — greenfield expects schema-as-desired-state; brownfield expects idempotent, ALTER-free, per-domain schema with a forward-migration path — and returns per-scenario hygiene plus stage-aware debt notes.",
+      "category": "advisor",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenarios": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "debt_count": "int32",
+          "entries": "array<MigrationHygiene>",
+          "errors": "array<AdvisorScanError>",
+          "scenario_count": "int32",
+          "with_migrations_count": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Migration analysis failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Analyze fleet migrations",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.storage_health.v1.advisor.AdvisorService/AnalyzeMigrations -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "advisor_advise_engines",
+      "path": "/vrooli.storage_health.v1.advisor.AdvisorService/AdviseEngines",
+      "method": "POST",
+      "summary": "Rank Postgres→SQLite migration candidates",
+      "description": "Scores each requested scenario's (or every discovered scenario's) engine fitness and returns a ranked list of Postgres→SQLite migration candidates with rationale, fitness score, and any blockers. Vrooli is local-first; a single-node scenario carrying Postgres usually pays an external-service cost it does not need.",
+      "category": "advisor",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenarios": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "candidates": "array<EngineCandidate>",
+          "errors": "array<AdvisorScanError>",
+          "scenario_count": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Engine advisor failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Advise engine migrations",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.storage_health.v1.advisor.AdvisorService/AdviseEngines -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_validate_target",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateTarget",
+      "method": "POST",
+      "summary": "Validate a first-class repository target",
+      "description": "",
+      "category": "validation"
+    },
+    {
+      "id": "validation_validate_owner",
+      "path": "/api/v1/validation/validate/{kind}/{id}",
+      "method": "GET",
+      "summary": "Validate one storage owner",
+      "description": "Runs the shared storage validation report for a scenario, resource, tool, or safeguard on the requested platform.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "kind": "scenario|resource|tool|safeguard",
+          "platform": "linux|macos|windows"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "findings": "[]storage finding",
+          "owner_id": "string",
+          "owner_kind": "string",
+          "platform": "string",
+          "status": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown owner kind, invalid platform, or unresolved owner"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "validation_validate_fleet",
+      "path": "/api/v1/validation/validate/fleet",
+      "method": "GET",
+      "summary": "Validate every storage owner",
+      "description": "Runs the shared validation report for every selected scenario, resource, tool, and safeguard and returns per-code roll-up counts.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "kind": "repeatable owner-kind filter",
+          "platform": "linux|macos|windows"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "blocker_count": "int",
+          "counts_by_code": "map[string]int",
+          "error_count": "int",
+          "migration_allowlist_size": "int",
+          "platform": "string",
+          "reports": "[]storage validation report"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Owner inventory cannot be loaded or validated"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe"
       }
     },
     {
@@ -327,6 +588,17 @@
       }
     },
     {
+      "id": "storage_qdrant",
+      "path": "/api/v1/storage/qdrant",
+      "method": "GET",
+      "summary": "Read Qdrant generation accounting",
+      "description": "Reads the owner-managed Qdrant namespace with lifecycle, lease, byte, disposition, and cleanup eligibility fields.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
       "id": "storage_census",
       "path": "/api/v1/census",
       "method": "GET",
@@ -349,6 +621,17 @@
       }
     },
     {
+      "id": "storage_growth",
+      "path": "/api/v1/storage/growth",
+      "method": "GET",
+      "summary": "Rank storage growth",
+      "description": "Fits per-owner growth over persisted census samples and projects declared ceilings.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
       "id": "storage_retention_owners",
       "path": "/api/v1/retention/owners",
       "method": "GET",
@@ -360,11 +643,33 @@
       }
     },
     {
+      "id": "storage_budget_health",
+      "path": "/api/v1/storage/budget-health",
+      "method": "GET",
+      "summary": "Check aggregate storage budget health",
+      "description": "Sums declared byte ceilings and compares the reservation with the latest device capacity.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
       "id": "storage_placement_show",
       "path": "/api/v1/placement",
       "method": "GET",
       "summary": "Show resolved storage placement",
       "description": "Resolves portable owner declarations for a requested platform without changing host state.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_placement_verify",
+      "path": "/api/v1/placement/verify",
+      "method": "GET",
+      "summary": "Verify storage placement for a platform",
+      "description": "Resolves every declaration and distinguishes declared absence from an unresolvable path without moving bytes.",
       "category": "",
       "rest_exception": {
         "reason": "ops_probe"
@@ -415,11 +720,66 @@
       }
     },
     {
+      "id": "storage_declare_inspect",
+      "path": "/api/v1/declare/inspect",
+      "method": "GET",
+      "summary": "Inspect one declaration",
+      "description": "Shows declared entries beside measured bytes for one owner.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_declare_suggest",
+      "path": "/api/v1/declare/suggest",
+      "method": "GET",
+      "summary": "Suggest a storage declaration",
+      "description": "Emits a measured, schema-valid storage block for one owner.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_declare_check",
+      "path": "/api/v1/declare/check",
+      "method": "GET",
+      "summary": "Check declaration coverage",
+      "description": "Reports declared and budgeted coverage by owner kind.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
       "id": "storage_infra_health",
       "path": "/api/v1/infra-health/storage",
       "method": "GET",
       "summary": "Read storage infra-health signal",
       "description": "Publishes declared-ceiling coverage and the latest persisted census growth signal without rescanning.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_writers",
+      "path": "/api/v1/storage/writers",
+      "method": "GET",
+      "summary": "Rank writer snapshots",
+      "description": "Reads persisted governed-root growth observations without walking the filesystem.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_recovery_runs",
+      "path": "/api/v1/recovery/runs",
+      "method": "GET",
+      "summary": "List recovery runs",
+      "description": "Reads recent server-owned recovery runs from the durable ledger.",
       "category": "",
       "rest_exception": {
         "reason": "ops_probe"

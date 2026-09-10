@@ -14,9 +14,10 @@ import en from "../i18n/locales/en.json";
 import ja from "../i18n/locales/ja.json";
 import ar from "../i18n/locales/ar.json";
 import { TestAppRouter } from "../app/routes";
+import { Providers } from "../app/providers";
 
 const renderShell = () =>
-  renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
+  renderWithProviders(<Providers><TestAppRouter initialEntries={["/"]} /></Providers>, { withoutRouter: true });
 
 describe("AppShell structure (cimode)", () => {
   afterEach(() => {
@@ -26,10 +27,10 @@ describe("AppShell structure (cimode)", () => {
   it("renders the title, sidebar, bottom nav, and main outlet", () => {
     renderShell();
     expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.topBar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.sidebar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.bottomNav)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-header`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-sidebar`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-tabs`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-main`)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });
 
@@ -40,10 +41,10 @@ describe("AppShell structure (cimode)", () => {
   });
 
   it("renders the canonical nav links in both sidebar and bottom nav", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
+    renderWithProviders(<Providers><TestAppRouter initialEntries={["/settings"]} /></Providers>, { withoutRouter: true });
     for (const key of ["dashboard", "signals", "settings"] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
-      expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
+      expect(screen.getByTestId(`${selectors.layout.sidebarLink({ key })}-tab`)).toBeInTheDocument();
     }
   });
 });
@@ -67,7 +68,7 @@ describe("Locale switching through the shell (real locales)", () => {
 
   it("switches to Japanese when the 日本語 toggle is clicked", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
+    renderWithProviders(<Providers><TestAppRouter initialEntries={["/settings"]} /></Providers>, { withoutRouter: true });
     await user.click(screen.getByTestId(selectors.settingsPage.localeOption({ code: "ja" })));
 
     await waitFor(() => {
@@ -78,7 +79,7 @@ describe("Locale switching through the shell (real locales)", () => {
 
   it("flips <html dir> to rtl when an RTL locale (ar) is chosen", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
+    renderWithProviders(<Providers><TestAppRouter initialEntries={["/settings"]} /></Providers>, { withoutRouter: true });
     await user.click(screen.getByTestId(selectors.settingsPage.localeOption({ code: "ar" })));
 
     await waitFor(() => {

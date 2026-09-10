@@ -24,6 +24,7 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { createElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, vi } from "vitest";
 import { configureTestProviders } from "@vrooli/api-base/testing";
 import { i18n } from "./i18n";
@@ -32,7 +33,9 @@ import { Providers } from "./app/providers";
 // Keep the shared renderer generic while making Search Hub component tests
 // match the production provider graph (theme + i18n). The scenario adapter
 // supplies i18n; this registration supplies the scenario-owned context layer.
-configureTestProviders((children) => createElement(Providers, null, children));
+const queryClient = new QueryClient();
+
+configureTestProviders((children) => createElement(QueryClientProvider, { client: queryClient }, createElement(Providers, null, children)));
 
 let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;
@@ -68,3 +71,18 @@ afterEach(() => {
 // its own beforeEach and restore it on teardown — opt-in override
 // rather than process-wide unwiring.
 vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+
+Object.defineProperty(window, "matchMedia", {
+  configurable: true,
+  writable: true,
+  value: (media: string) => ({
+    media,
+    matches: media.includes("min-width"),
+    onchange: null,
+    addListener() {},
+    removeListener() {},
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent: () => false,
+  }),
+});

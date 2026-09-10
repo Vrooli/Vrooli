@@ -15,6 +15,7 @@ type fileMetadata struct {
 	device    uint64
 	bytes     int64
 	allocated int64
+	links     uint64
 }
 
 func inspectPathHost(path string) (fileMetadata, error) {

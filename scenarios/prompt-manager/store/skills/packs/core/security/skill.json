@@ -5,6 +5,7 @@
   "icon": "shield",
   "id": "security",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "security"

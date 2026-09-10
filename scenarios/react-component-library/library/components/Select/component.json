@@ -23,8 +23,5 @@
     "1.3.11"
   ],
   "latest": "1.3.13",
-  "libraryId": "react-component-library:Select",
-  "displayName": "Select",
-  "description": "The single-selection field with native-like semantics, keyboard navigation, option groups, descriptions, async option loading, and responsive popover or sheet presentation.",
-  "tags": []
+  "libraryId": "react-component-library:Select"
 }

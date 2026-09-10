@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -112,21 +113,47 @@ func (s *LauncherSelector) PickFor(ctx context.Context, runID uuid.UUID, cfg *do
 		return host
 	}
 	mode := cfg.SandboxConfig.Mode.Effective()
+	requiresContainment := cfg.RequireEffectContainment
 	if mode != domain.SandboxModeTracking && mode != domain.SandboxModeProtected {
+		if requiresContainment {
+			return newDeniedLauncher("effect-bearing run requires protected workspace containment")
+		}
 		return host
 	}
 	if factory == nil {
 		emitLauncherFallbackWarn(runID, sink, "no SandboxLauncherFactory configured for "+string(mode)+" mode")
+		if requiresContainment {
+			return newDeniedLauncher("effect-bearing run requires a workspace sandbox launcher")
+		}
 		return host
 	}
 	if sandboxID == nil {
 		emitLauncherFallbackWarn(runID, sink, "SandboxID is nil for "+string(mode)+" mode")
+		if requiresContainment {
+			return newDeniedLauncher("effect-bearing run requires a bound workspace sandbox")
+		}
 		return host
 	}
 	launcher := factory.LauncherFor(*sandboxID)
 	if launcher == nil {
 		emitLauncherFallbackWarn(runID, sink, "factory returned nil launcher")
+		if requiresContainment {
+			return newDeniedLauncher("effect-bearing run requires a workspace sandbox launcher")
+		}
 		return host
+	}
+	if requiresContainment {
+		reporter, ok := factory.(SandboxContainmentReporter)
+		if !ok {
+			return newDeniedLauncher("effect-bearing run requires a verifiable workspace containment report")
+		}
+		cont, ok := reporter.ContainmentFor(ctx, *sandboxID)
+		if !ok || cont == nil {
+			return newDeniedLauncher("effect-bearing run requires a workspace containment report")
+		}
+		if missing := cont.MissingProtectedEnforcements(); len(missing) > 0 {
+			return newDeniedLauncher("effect-bearing run requires protected containment; missing: " + strings.Join(missing, ", "))
+		}
 	}
 	// Capability honesty: protected-mode selection proceeds, but if the
 	// sandbox does not actually enforce the guarantees protected mode
@@ -135,6 +162,14 @@ func (s *LauncherSelector) PickFor(ctx context.Context, runID uuid.UUID, cfg *do
 	// gap so a degraded protected run is never silent.
 	emitContainmentGapWarn(ctx, factory, runID, *sandboxID, sink)
 	return launcher
+}
+
+type deniedLauncher struct{ reason string }
+
+func newDeniedLauncher(reason string) Launcher { return &deniedLauncher{reason: reason} }
+
+func (l *deniedLauncher) Launch(context.Context, LaunchRequest) (LaunchedProcess, error) {
+	return nil, fmt.Errorf("launch refused: %s", l.reason)
 }
 
 // emitContainmentGapWarn probes the selected sandbox's enforced containment

@@ -5,6 +5,7 @@
   "entry": "SKILL.md",
   "id": "cli-steer",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "architecture"

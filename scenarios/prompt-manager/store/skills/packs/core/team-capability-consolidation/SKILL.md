@@ -221,13 +221,25 @@ Row two is for a field the record *carries*, never for a segment the declaration
 
 **Actions, in this order:**
 1. Settle the scenario's CLI surface.
-2. Author its tool skill against that surface. Route to `team-tool-mapping`.
+2. Author its **skill set**, not just a tool skill. A team instrument owes the usage and
+   improve roles (`docs/agent-system/SKILL_AUTHORING.md` §"The three roles", the instrument
+   trigger); route to `skill-set-authoring`, which owns role selection, the program
+   inventory, and the `skills` block in the scenario's `.vrooli/service.json`. Use
+   `team-tool-mapping` for equipping members with the resulting skill, not for authoring it.
+   Verify with `prompt-manager skill-set validate <scenario>`.
 3. Run the state import. Verify counts per source file.
 4. Edit the team contract. Remove the absorbed declarations.
 5. Collapse the roster. A removed member is written on four surfaces; delete all four. `path:scenarios/prompt-manager/store/teams/<team>/members/<member>/`, `path:scenarios/prompt-manager/store/relations/team-member/<team>__<member>.json`, the member's entry in that team's `roles.json`, and `path:scenarios/prompt-manager/store/agents/<agent-id>/` when no other team binds that agent.
-6. Propose the canon edits by decision.
-7. Run the team's contract validators.
-8. Resume the team.
+6. Collapse the **retained** members' procedure. Removing members (step 5) does not by itself
+   move procedure off the ones that stay. Each surviving `HEARTBEAT.md` and
+   `RESPONSIBILITIES.md` keeps only its lane's judgment, its own fallback target, and its stop
+   conditions, and delegates reading and degradation to the usage skill. Procedure that
+   appears in two or more member files is deviation D11 and belongs to the instrument. This is
+   the step that makes the skill set load-bearing; skip it and both copies survive, which is
+   worse than either (`TARGET_MODEL.md` §5).
+7. Propose the canon edits by decision.
+8. Run the team's contract validators.
+9. Resume the team.
 
 **Exit criteria:** validators report findings only against documents that are queued for a canon decision.
 

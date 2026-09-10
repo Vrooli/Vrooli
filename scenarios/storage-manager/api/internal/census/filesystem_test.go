@@ -85,7 +85,13 @@ func TestCensusPlatformTiersUseTheSameSyntheticAccountingContract(t *testing.T) 
 			if err != nil {
 				t.Fatal(err)
 			}
-			report, err := scanWithPolicyUsing(hostRoot, ScanPolicy{Roots: []PolicyRoot{{Path: hostRoot}}, FloorBytes: 1}, []resolvedDeclaration{{owner: "owner", name: "data", path: filepath.Join(hostRoot, "owned"), kind: "dir"}}, []string{filepath.Join(hostRoot, "owned")}, nil, true, treeFileSystem{FS: tree, HostRoot: hostRoot}, tier.probe)
+			report, err := scanWithPolicyUsing(scanRequest{
+				displayRoot:  hostRoot,
+				policy:       ScanPolicy{Roots: []PolicyRoot{{Path: hostRoot}}, FloorBytes: 1},
+				declarations: []resolvedDeclaration{{owner: "owner", name: "data", path: filepath.Join(hostRoot, "owned"), kind: "dir"}},
+				ownerRoots:   []string{filepath.Join(hostRoot, "owned")},
+				deviceScoped: true,
+			}, treeFileSystem{FS: tree, HostRoot: hostRoot}, tier.probe)
 			if err != nil {
 				t.Fatal(err)
 			}

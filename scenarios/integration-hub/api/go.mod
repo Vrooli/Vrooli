@@ -5,7 +5,11 @@ go 1.25.0
 require (
 	connectrpc.com/connect v1.19.2
 	github.com/vrooli/vrooli/packages/proto v0.0.0
-	google.golang.org/protobuf v1.36.11
+)
+
+require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 )
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto

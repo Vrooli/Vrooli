@@ -23,10 +23,11 @@ const (
 )
 
 type SemanticRuntimeOptions struct {
-	SearchFilePath string
-	Source         SourceRepository
-	Projection     ProjectionRepository
-	Admission      *aisearch.WeightedAdmission
+	SearchFilePath    string
+	Source            SourceRepository
+	Projection        ProjectionRepository
+	Admission         *aisearch.WeightedAdmission
+	GenerationCatalog aisearch.GenerationCatalog
 }
 
 type SemanticRuntime struct {
@@ -107,7 +108,7 @@ func BuildSemanticRuntime(ctx context.Context, options SemanticRuntimeOptions) (
 		runtime.Retriever = unavailableSemanticRetriever{err: runtime.InitializationError}
 		return runtime, nil
 	}
-	generationStore, err := aisearch.NewQdrantGenerationStore(aisearch.QdrantGenerationOptions{BaseURL: operational.QdrantURL, APIKey: operational.QdrantAPIKey, Alias: collection, Spec: engine.Spec})
+	generationStore, err := aisearch.NewQdrantGenerationStore(aisearch.QdrantGenerationOptions{BaseURL: operational.QdrantURL, APIKey: operational.QdrantAPIKey, Alias: collection, Namespace: conversationCollectionDomain, Owner: ConversationSearchProviderID, Catalog: options.GenerationCatalog, Spec: engine.Spec})
 	if err != nil {
 		return SemanticRuntime{}, err
 	}
@@ -134,6 +135,41 @@ func BuildSemanticRuntime(ctx context.Context, options SemanticRuntimeOptions) (
 	}
 	runtime.Retriever = retriever
 	return runtime, nil
+}
+
+func (r *SemanticRuntime) generationOwner() (aisearch.GenerationLifecycleOwner, error) {
+	if r == nil || r.GenerationStore == nil {
+		return nil, errors.New("conversation search generation owner is unavailable")
+	}
+	owner, ok := r.GenerationStore.(aisearch.GenerationLifecycleOwner)
+	if !ok {
+		return nil, errors.New("conversation search generation store does not expose owner cleanup")
+	}
+	return owner, nil
+}
+
+func (r *SemanticRuntime) InspectGenerationLifecycle(ctx context.Context, policy aisearch.GenerationRetentionPolicy) (aisearch.GenerationInspection, error) {
+	owner, err := r.generationOwner()
+	if err != nil {
+		return aisearch.GenerationInspection{}, err
+	}
+	return owner.InspectGenerationLifecycle(ctx, policy)
+}
+
+func (r *SemanticRuntime) PreviewGenerationCleanup(ctx context.Context, policy aisearch.GenerationRetentionPolicy, planIdentity string) (aisearch.GenerationCleanupPlan, error) {
+	owner, err := r.generationOwner()
+	if err != nil {
+		return aisearch.GenerationCleanupPlan{}, err
+	}
+	return owner.PreviewGenerationCleanup(ctx, policy, planIdentity)
+}
+
+func (r *SemanticRuntime) ApplyGenerationCleanup(ctx context.Context, plan aisearch.GenerationCleanupPlan) (aisearch.GenerationCleanupReceipt, error) {
+	owner, err := r.generationOwner()
+	if err != nil {
+		return aisearch.GenerationCleanupReceipt{}, err
+	}
+	return owner.ApplyGenerationCleanup(ctx, plan)
 }
 
 func (r *SemanticRuntime) Rebuild(ctx context.Context, generationID string) error {
@@ -181,23 +217,13 @@ func (r *SemanticRuntime) RebuildChanges(ctx context.Context, generationID strin
 	}
 	binding := r.StreamingBinding
 	binding.BeforePromote = beforePromote
-	pageSize := binding.PageSize
-	if pageSize <= 0 {
-		pageSize = aisearch.DefaultSourcePageSize
-	}
-	for offset := 0; offset < len(changes); offset += pageSize {
-		end := offset + pageSize
-		if end > len(changes) {
-			end = len(changes)
-		}
-		batchID := fmt.Sprintf("%s-change-%06d", generationID, offset/pageSize)
-		if _, err := r.StreamingReconciler.RunChanges(ctx, binding, aisearch.GenerationMetadata{
-			ID: batchID, CreatedAt: time.Now().UTC(), Model: r.Engine.Spec.Model, ChunkPolicy: DefaultRecipeVersion,
-		}, aisearch.ChangeSet{Changes: changes[offset:end]}); err != nil {
-			return err
-		}
-	}
-	return nil
+	// One generation per incremental run. The reconciler pages the change set
+	// internally; splitting it into per-page generations here is what minted a
+	// full copy of the serving collection for every 250 changes (2026-09-09).
+	_, err := r.StreamingReconciler.RunChanges(ctx, binding, aisearch.GenerationMetadata{
+		ID: generationID, CreatedAt: time.Now().UTC(), Model: r.Engine.Spec.Model, ChunkPolicy: DefaultRecipeVersion,
+	}, aisearch.ChangeSet{Changes: changes})
+	return err
 }
 
 func (r *SemanticRuntime) SemanticStatus(ctx context.Context) (uint64, string, string, string, error) {

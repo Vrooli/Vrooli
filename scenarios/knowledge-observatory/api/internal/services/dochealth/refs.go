@@ -3,6 +3,7 @@ package dochealth
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,10 +59,10 @@ type refSummary struct {
 }
 
 func validateBidirectionalRefs(ctx context.Context, scenarioDir string, markdownFiles []string, cfg effective, commandValidator CommandReferenceValidator) ([]Finding, refSummary) {
-	return validateBidirectionalRefsWithRoot(ctx, scenarioDir, scenarioDir, markdownFiles, cfg, commandValidator)
+	return validateBidirectionalRefsWithRoot(ctx, scenarioDir, scenarioDir, scenarioDir, markdownFiles, cfg, commandValidator)
 }
 
-func validateBidirectionalRefsWithRoot(ctx context.Context, scenarioDir, referenceRoot string, markdownFiles []string, cfg effective, commandValidator CommandReferenceValidator) ([]Finding, refSummary) {
+func validateBidirectionalRefsWithRoot(ctx context.Context, scenarioDir, referenceRoot, repoRoot string, markdownFiles []string, cfg effective, commandValidator CommandReferenceValidator) ([]Finding, refSummary) {
 	var out []Finding
 	var summary refSummary
 
@@ -97,7 +98,14 @@ func validateBidirectionalRefsWithRoot(ctx context.Context, scenarioDir, referen
 		refs := extractMarkedRefs(file, string(content))
 		summary.MarkedRefsFound += len(refs)
 		for _, ref := range refs {
-			status, err := validateMarkedRef(ctx, referenceRoot, ref, commandValidator)
+			root := referenceRoot
+			// path: is repository-relative, including when the scanned target is
+			// a scenario or an individual skill. DOC relationships retain their
+			// existing scenario-relative navigation semantics.
+			if ref.Ref.Marker == markedrefs.MarkerPath {
+				root = repoRoot
+			}
+			status, err := validateMarkedRef(ctx, root, ref, commandValidator)
 			switch status {
 			case markedRefSkipped:
 				summary.MarkedRefsSkipped++
@@ -265,11 +273,25 @@ func validateMarkedRef(ctx context.Context, scenarioDir string, ref markedRefTar
 	if targetValue == "" {
 		return markedRefBroken, fmt.Errorf("empty reference target")
 	}
-	target, ok := resolveScenarioTarget(scenarioDir, targetValue)
-	if !ok {
-		return markedRefBroken, fmt.Errorf("target not found: %s", targetValue)
+	var info fs.FileInfo
+	var err error
+	if ref.Ref.Marker == markedrefs.MarkerPath {
+		if !fs.ValidPath(targetValue) || strings.Contains(targetValue, "\\") {
+			return markedRefBroken, fmt.Errorf("path must be repository-relative: %s", targetValue)
+		}
+		root, openErr := os.OpenRoot(scenarioDir)
+		if openErr != nil {
+			return markedRefBroken, fmt.Errorf("reference root unavailable")
+		}
+		defer root.Close()
+		info, err = root.Stat(targetValue)
+	} else {
+		target, ok := resolveScenarioTarget(scenarioDir, targetValue)
+		if !ok {
+			return markedRefBroken, fmt.Errorf("target not found: %s", targetValue)
+		}
+		info, err = os.Stat(target)
 	}
-	info, err := os.Stat(target)
 	if err != nil {
 		return markedRefBroken, fmt.Errorf("target not found: %s", targetValue)
 	}

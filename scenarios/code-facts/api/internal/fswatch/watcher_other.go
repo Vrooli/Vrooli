@@ -68,7 +68,15 @@ func metadataFingerprint(roots []string) string {
 	var latest time.Time
 	var count int
 	for _, root := range roots {
-		_ = filepath.Walk(root, func(_ string, info os.FileInfo, err error) error {
+		root = filepath.Clean(root)
+		base := filepath.Dir(root)
+		_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if err == nil && info != nil && path != root && Ignored(relativeTo(base, path)) {
+				if info.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
 			if err == nil && info != nil {
 				count++
 				if info.ModTime().After(latest) {
@@ -79,6 +87,14 @@ func metadataFingerprint(roots []string) string {
 		})
 	}
 	return latest.UTC().Format(time.RFC3339Nano) + ":" + strconv.Itoa(count)
+}
+
+func relativeTo(base, path string) string {
+	rel, err := filepath.Rel(base, path)
+	if err != nil {
+		return path
+	}
+	return rel
 }
 
 func (w *Watcher) Close() error {

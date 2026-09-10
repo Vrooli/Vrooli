@@ -1,6 +1,5 @@
 /**
- * AppShell tests — focus on the shell's structural contract (header + sidebar
- * + main + bottom nav) and the locale switcher seam. Page content is exercised
+ * AppShell tests — focus on the shell's structural contract and utility seam. Page content is exercised
  * in the per-page tests; this file only verifies the shell composes correctly.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -23,29 +22,19 @@ describe("AppShell structure (cimode)", () => {
     cleanup();
   });
 
-  it("renders the title, sidebar, bottom nav, and main outlet", () => {
+  it("renders the title, navigation, theme utility, and main outlet", async () => {
     renderShell();
-    expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.topBar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.sidebar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.bottomNav)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.layout.shell)).toBeInTheDocument();
+    expect(screen.getByRole("main")).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.theme.select)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });
 
-  it("renders the locale switcher with toggles for every supported locale", () => {
-    renderShell();
-    expect(screen.getByTestId(selectors.locale.switcher)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.locale.toggle({ code: "en" }))).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.locale.toggle({ code: "ja" }))).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.locale.toggle({ code: "ar" }))).toBeInTheDocument();
-  });
-
-  it("renders the canonical nav links in both sidebar and bottom nav", () => {
+  it("renders the canonical nav links in sidebar and mobile tabs", async () => {
     renderShell();
     for (const key of ["home", "workspace", "library", "select", "compare", "activity", "models", "settings"] as const) {
-      expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
-      expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
+      expect(await screen.findByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
+      expect(screen.getByTestId(`${selectors.layout.navLink({ key })}-tab`)).toBeInTheDocument();
     }
   });
 });
@@ -60,7 +49,7 @@ describe("Locale switching through the shell (real locales)", () => {
   });
 
   it("renders English copy by default and reflects it on <html>", async () => {
-    renderShell();
+    renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     // Sidebar + bottom-nav both render the label, so there will be ≥1 match.
     expect((await screen.findAllByText(en.layout.nav.home)).length).toBeGreaterThan(0);
     expect(document.documentElement.lang).toBe("en");
@@ -69,8 +58,8 @@ describe("Locale switching through the shell (real locales)", () => {
 
   it("switches to Japanese when the 日本語 toggle is clicked", async () => {
     const user = userEvent.setup();
-    renderShell();
-    await user.click(screen.getByTestId(selectors.locale.toggle({ code: "ja" })));
+    renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
+    await user.click(screen.getByTestId(selectors.settingsPage.localeOption({ code: "ja" })));
 
     await waitFor(() => {
       expect(screen.getAllByText(ja.layout.nav.home).length).toBeGreaterThan(0);
@@ -80,8 +69,8 @@ describe("Locale switching through the shell (real locales)", () => {
 
   it("flips <html dir> to rtl when an RTL locale (ar) is chosen", async () => {
     const user = userEvent.setup();
-    renderShell();
-    await user.click(screen.getByTestId(selectors.locale.toggle({ code: "ar" })));
+    renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
+    await user.click(screen.getByTestId(selectors.settingsPage.localeOption({ code: "ar" })));
 
     await waitFor(() => {
       expect(document.documentElement.dir).toBe("rtl");

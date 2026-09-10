@@ -512,9 +512,6 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 		})
 	}
 
-	// Extract and store handoff (best-effort, non-blocking)
-	e.extractAndStoreHandoff(cfgCtx, teamID, agentID, runID, endedAt)
-
 	// Write log file
 	logContent := fmt.Sprintf("Heartbeat execution for %s/%s\n", teamID, agentID)
 	logContent += fmt.Sprintf("Started: %s\n", startedAt.Format(time.RFC3339))
@@ -535,6 +532,12 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 	if e.OnComplete != nil {
 		e.OnComplete(teamID, agentID)
 	}
+
+	// Handoff resolution is optional post-processing. Notify the execution
+	// owner as soon as terminal run state is durable, then allow shutdown to
+	// cancel the bounded best-effort resolver instead of making completion wait
+	// on a projection that may not exist.
+	e.extractAndStoreHandoff(ctx, teamID, agentID, runID, endedAt)
 }
 
 // extractAndStoreHandoff fetches run events and extracts/stores the handoff (best-effort).

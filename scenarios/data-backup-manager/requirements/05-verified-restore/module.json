@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "verified-restore",
     "description": "Restore is first-class: restore to a location and verify by test-restoring to scratch and checksumming.",
+    "last_validated_at": "2026-09-09T22:55:07-04:00",
+    "module": "verified-restore",
     "prd_ref": "OT-P0-006",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -21,9 +22,9 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/restores/service_test.go::TestRestore_PerSourceKind",
           "phase": "integration",
           "status": "implemented",
-          "ref": "api/internal/restores/service_test.go::TestRestore_PerSourceKind",
           "notes": "For each source kind, backup then restore to a scratch location and assert equivalence."
         }
       ]
@@ -45,9 +46,9 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/restores/verify_test.go::TestVerify_RecordsLastVerified",
           "phase": "integration",
           "status": "implemented",
-          "ref": "api/internal/restores/verify_test.go::TestVerify_RecordsLastVerified",
           "notes": "Run verify; assert scratch is cleaned up, checksum matches source manifest, last_verified_at is set."
         }
       ]
@@ -59,7 +60,7 @@
       "prd_ref": "OT-P0-006",
       "category": "restore.audit",
       "criticality": "P0",
-      "description": "A scenario-agnostic audit restores a snapshot to scratch (proving recoverability), captures the live target to scratch (read-only on live), walks both trees with one generic filesystem walker, and compares them by generic signals only: file/dir/symlink counts, regular bytes, a path-list hash, a tree content hash, and per-SQLite-file integrity/schema/page facts. It distinguishes a true mismatch from explainable drift (live newer than the snapshot), persists each proof, and exposes it across API, CLI, and UI. DBM never encodes any scenario's domain objects; reports store relative paths, counts, and hashes only \u2014 never file contents or secrets.",
+      "description": "A scenario-agnostic audit restores a snapshot to scratch (proving recoverability), captures the live target to scratch (read-only on live), walks both trees with one generic filesystem walker, and compares them by generic signals only: file/dir/symlink counts, regular bytes, a path-list hash, a tree content hash, and per-SQLite-file integrity/schema/page facts. It distinguishes a true mismatch from explainable drift (live newer than the snapshot), persists each proof, and exposes it across API, CLI, and UI. DBM never encodes any scenario's domain objects; reports store relative paths, counts, and hashes only — never file contents or secrets.",
       "tags": [
         "restore",
         "audit",
@@ -73,16 +74,16 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/audits/service_test.go::TestRunAudit_ExactMatch",
           "phase": "integration",
           "status": "implemented",
-          "ref": "api/internal/audits/service_test.go::TestRunAudit_ExactMatch",
-          "notes": "Restore + live-capture identical trees \u2192 matches=true, restorable=true; mismatch and drift covered by TestRunAudit_ContentMismatch / TestRunAudit_LiveNewerSetsDrift; scratch cleanup by TestRunAudit_ScratchCleanedUp; walker/sqlite/comparator by inventory_test.go, dbcheck_test.go, comparator_test.go."
+          "notes": "Restore + live-capture identical trees → matches=true, restorable=true; mismatch and drift covered by TestRunAudit_ContentMismatch / TestRunAudit_LiveNewerSetsDrift; scratch cleanup by TestRunAudit_ScratchCleanedUp; walker/sqlite/comparator by inventory_test.go, dbcheck_test.go, comparator_test.go."
         },
         {
           "type": "test",
+          "ref": "ui/src/features/audits/AuditReport.test.tsx",
           "phase": "ui",
           "status": "implemented",
-          "ref": "ui/src/features/audits/AuditReport.test.tsx",
           "notes": "Audit report renders pass/diff/drift/failed verdicts, mismatches, generic inventory, and SQLite integrity; the restore flow audit action is covered in ui/src/pages/RestoresPage.test.tsx."
         }
       ]
@@ -90,7 +91,7 @@
     {
       "id": "DBM-WORKSPACE-FIDELITY",
       "title": "Workspace content and metadata preservation",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-012",
       "category": "recovery",
       "criticality": "P0",
@@ -98,16 +99,16 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/sources/checkpoint_test.go::TestCheckpointRoundTripAndTamper",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/internal/sources/checkpoint_test.go::TestCheckpointRoundTripAndTamper"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "DBM-WORKSPACE-VERIFY",
       "title": "Final workspace materialization verification",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-012",
       "category": "recovery",
       "criticality": "P0",
@@ -115,16 +116,16 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/restores/verify_test.go::TestVerify_WorkspaceRequiresFinalMaterialization",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/internal/restores/verify_test.go::TestVerify_WorkspaceRequiresFinalMaterialization"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "DBM-TEST-ISOLATION",
       "title": "Production effects refused in tests",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "recovery",
       "criticality": "P0",
@@ -132,16 +133,16 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/effectguard/guard_test.go::TestProductionRejectsTestRPCBeforeHandler",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/internal/effectguard/guard_test.go::TestProductionRejectsTestRPCBeforeHandler"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "DBM-DEST-DURABLE",
       "title": "Temporary destinations fail durable readiness",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "recovery",
       "criticality": "P0",
@@ -149,9 +150,9 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/preflight/preflight_test.go::TestTemporaryDestinationIsBlockedBeforeEngine",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/internal/preflight/preflight_test.go::TestTemporaryDestinationIsBlockedBeforeEngine"
+          "status": "implemented"
         }
       ]
     }

@@ -145,7 +145,7 @@ func Commands(ctx appctx.Context) []cliapp.CommandGroup {
 					Name:        "skill",
 					Aliases:     []string{"skills", "s"},
 					NeedsAPI:    true,
-					Description: "Manage skills (list|topology|show|read|add|update|delete|sync|rate|versions|revert|variants|import|review-import|import-staleness)",
+					Description: "Manage skills (list|topology|refresh|show|read|add|update|delete|sync|rate|versions|revert|variants|import|review-import|import-staleness)",
 					Usage:       "prompt-manager skill <subcommand> [args]",
 					HelpText:    usageText(),
 					Run: func(args []string) error {
@@ -171,6 +171,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdList(ctx, subArgs)
 	case "topology":
 		return cmdTopology(ctx, subArgs)
+	case "refresh":
+		return cmdRefresh(ctx, subArgs)
 	case "show", "get":
 		return cmdShow(ctx, subArgs)
 	case "read", "cat":
@@ -221,6 +223,7 @@ func usageText() string {
 Subcommands:
   list, ls              List all skills
   topology              Report each skill's pack and generated projection status
+  refresh               Preview native freshness; apply an exact reviewed digest
   show, get <id>        Show skill details
   read <identifier>...  Read skills (content or combined output)
   add, create <name>    Create a new skill

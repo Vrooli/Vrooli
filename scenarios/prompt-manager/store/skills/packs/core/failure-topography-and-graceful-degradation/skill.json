@@ -5,6 +5,7 @@
   "icon": "activity",
   "id": "failure-topography-and-graceful-degradation",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "reliability"

@@ -101,6 +101,31 @@ func TestEngine_AssignsArmedPromptAtAttemptCreation(t *testing.T) {
 	}
 }
 
+func TestEngine_InheritsOwnerEffectGrantIntoChildRequest(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "work", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.fast", PromptTemplate: "do work"}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.EntryNode = "work"
+	definition.Edges = []domain.WorkflowEdge{{From: "work", To: "done"}}
+	engine, _, children := testEngine(t, definition)
+	grant := &domain.WorkflowEngagementGrant{MaxTokens: 200, MaxWallTimeSeconds: 30, AllowedEffects: []string{"filesystem.write[paths=scenarios/example/**]"}}
+	execution, err := engine.StartWithGrant(context.Background(), revision(definition), json.RawMessage(`{}`), "effect-inheritance", grant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := engine.Advance(context.Background(), execution.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := engine.Advance(context.Background(), execution.ID); err != nil {
+		t.Fatal(err)
+	}
+	if len(children.requests) != 1 || len(children.requests[0].effects) != 1 || children.requests[0].effects[0] != grant.AllowedEffects[0] {
+		t.Fatalf("child effect grant=%+v, want=%v", children.requests, grant.AllowedEffects)
+	}
+}
+
 func TestEngineLoopCreatesDistinctFreshRunsAndTerminates(t *testing.T) { // [REQ:REQ-P2-001]
 	definition := baseDefinition()
 	definition.Nodes = []domain.WorkflowNode{{ID: "slice", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.fast", PromptTemplate: "Work {{.topic}}", Bindings: []domain.WorkflowInputBinding{inputBinding("topic", "$.topic")}}}, {ID: "more", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
@@ -680,7 +705,7 @@ func TestCancellationRemainsRecoverableUntilChildCleanupSucceeds(t *testing.T) {
 		t.Fatal("incomplete cleanup was accepted")
 	}
 	persisted, _ := store.Get(context.Background(), execution.ID)
-	if persisted.Status != domain.WorkflowExecutionCancelling || persisted.EndedAt != nil {
+	if persisted.Status != domain.WorkflowExecutionCancelling || persisted.EndedAt != nil || persisted.BudgetUsage.AccountingComplete {
 		t.Fatalf("incomplete cancellation became terminal: %#v", persisted)
 	}
 	completed, err := engine.RecordCleanupDisposition(context.Background(), execution.ID, 1, 0, nil)
@@ -1035,6 +1060,11 @@ func TestAuthoredPhasedPlanUsesReviewCorrectionAndCorrectedOutput(t *testing.T) 
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
+	// A final complete claim is still only a claim until independent review.
+	pending := mustAdvance(t, engine, execution.ID)
+	if pending.Status.Terminal() || pending.CurrentNodeID != "review" {
+		t.Fatalf("final complete slice bypassed independent review: %+v", pending)
+	}
 	completeLatestReview(t, reviews, true, "accepted")
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
@@ -1195,6 +1225,79 @@ func TestAuthoredPhasedPlanManualModeRestoresApprovalWait(t *testing.T) { // [RE
 	}
 	if state.CurrentNodeID != "approval" {
 		t.Fatalf("manual mode current node = %q, want approval", state.CurrentNodeID)
+	}
+}
+
+func TestAuthoredAdaptivePlanApprovalReasons(t *testing.T) { // [REQ:SWM-P0-015]
+	for _, tc := range []struct {
+		name, strategy, mode, reason string
+		wantFresh                    bool
+		falseApprovalFlag            bool
+	}{
+		{"adaptive phase", "adaptive-improvement", "manual", "phase-boundary", true, false},
+		{"ordinary phase", "phased-plan-drain", "manual", "phase-boundary", false, false},
+		{"missing strategy", "", "manual", "phase-boundary", false, false},
+		{"adaptive missing reason", "adaptive-improvement", "manual", "", false, false},
+		{"adaptive operator", "adaptive-improvement", "manual", "operator-decision", false, false},
+		{"adaptive operator with auto phases", "adaptive-improvement", "auto", "operator-decision", false, false},
+		{"ordinary operator with auto phases", "phased-plan-drain", "auto", "operator-decision", false, false},
+		{"operator reason overrides false flag", "adaptive-improvement", "auto", "operator-decision", false, true},
+		{"ordinary auto phase", "phased-plan-drain", "auto", "phase-boundary", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			definition := loadAuthoredPhasedPlanDefinition(t)
+			engine, _, children := testEngine(t, definition)
+			reviews := &fakeSubworkflows{states: map[uuid.UUID]SubworkflowState{}, byKey: map[string]uuid.UUID{}}
+			engine.Subworkflows = reviews
+			var input map[string]any
+			if err := json.Unmarshal(phasedPlanInput(2, tc.mode), &input); err != nil {
+				t.Fatal(err)
+			}
+			if tc.strategy != "" {
+				input["constraints"].(map[string]any)["executionStrategy"] = tc.strategy
+			}
+			raw, err := json.Marshal(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			execution, err := engine.Start(t.Context(), revision(definition), raw, "approval-reason-"+tc.name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mustAdvance(t, engine, execution.ID)
+			mustAdvance(t, engine, execution.ID)
+			result := map[string]any{"outcome": "continue", "handoff": "verified first repair", "correctionRequired": false, "approvalRequired": !tc.falseApprovalFlag}
+			if tc.reason != "" {
+				result["approvalReason"] = tc.reason
+			}
+			completeStructured(children, children.requests[0].runID, result)
+			for i := 0; i < 4; i++ {
+				mustAdvance(t, engine, execution.ID)
+			}
+			if len(children.requests) != 1 {
+				t.Fatal("next repair started before independent review completed")
+			}
+			completeLatestReview(t, reviews, true, "independent checks passed")
+			for i := 0; i < 5; i++ {
+				mustAdvance(t, engine, execution.ID)
+			}
+			state, err := engine.Store.Get(t.Context(), execution.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !tc.wantFresh {
+				if len(children.requests) != 1 || state.CurrentNodeID != "approval" {
+					t.Fatalf("operator boundary was bypassed: children=%d node=%s", len(children.requests), state.CurrentNodeID)
+				}
+				return
+			}
+			if len(children.requests) != 2 || children.requests[1].source != nil || children.requests[0].runID == children.requests[1].runID {
+				t.Fatalf("routine adaptive repair did not continue with fresh context: children=%d node=%s", len(children.requests), state.CurrentNodeID)
+			}
+			if !strings.Contains(children.requests[1].prompt, "verified first repair") {
+				t.Fatal("fresh context omitted the preceding verified repair handoff")
+			}
+		})
 	}
 }
 

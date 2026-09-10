@@ -15,6 +15,7 @@ import remarkGfm from "remark-gfm";
 import type { BundledLanguage, Highlighter } from "shiki";
 import { onProfilerRender } from "../lib/profiler";
 import { MermaidDiagram } from "./MermaidDiagram";
+import { ResizableMarkdownTable } from "@vrooli/react-component-library/markdown-renderer/0";
 
 interface MarkdownPreviewProps {
   content: string;
@@ -339,11 +340,7 @@ const MarkdownPreviewImpl = memo(function MarkdownPreviewImpl({
       ),
       // Tables
       table: ({ children }: { children?: ReactNode }) => (
-        <div className="overflow-x-auto mb-4">
-          <table className="min-w-full border border-slate-700 rounded">
-            {children}
-          </table>
-        </div>
+        <ResizableMarkdownTable>{children}</ResizableMarkdownTable>
       ),
       thead: ({ children }: { children?: ReactNode }) => (
         <thead className="bg-slate-800">{children}</thead>
@@ -352,8 +349,8 @@ const MarkdownPreviewImpl = memo(function MarkdownPreviewImpl({
         <tbody className="divide-y divide-slate-700">{children}</tbody>
       ),
       tr: ({ children }: { children?: ReactNode }) => <tr>{children}</tr>,
-      th: ({ children }: { children?: ReactNode }) => (
-        <th className="px-4 py-2 text-left text-sm font-semibold text-slate-200">
+      th: ({ children, ...props }: ComponentPropsWithoutRef<"th"> & { children?: ReactNode }) => (
+        <th {...props} className="px-4 py-2 text-left text-sm font-semibold text-slate-200">
           {children}
         </th>
       ),

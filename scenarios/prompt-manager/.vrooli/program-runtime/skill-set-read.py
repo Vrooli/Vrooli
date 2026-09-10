@@ -17,10 +17,7 @@ until the binding is repaired.
 
 import json
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 scenario = inputs["scenario"] if "scenario" in inputs else "program-runtime"
 usage_id = str(inputs.get("usage_id") or scenario).strip()
 improve_id = str(inputs.get("improve_id") or f"{scenario}-improve").strip()
@@ -38,37 +35,7 @@ PERMANENT = ("no_governed_binding", "kernel_invoke_budget", "read_elsewhere:", "
 counters = {"transient_unavailable": 0}
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
+fail = program.fail
 
 
 def row(name, reading, unavailable=False, reason=None, sensor=None, target=None, in_band=None):
@@ -99,17 +66,17 @@ def step_collect():  # COLLECT · registry list first; usage counts are optional
     try:
         handles["list"] = prompt_manager.skill.list()
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         return fail(status, klass, exc, "collect")
     try:
         handles["usage"] = prompt_manager.skill_usage.skill_usage(rows="rows")  # two repeated fields: rows, unread
     except Exception as exc:
-        classify_transport(exc)  # re-raises kernel_runtime; a transport/binding error is recorded per row
+        program.classify(exc)  # re-raises kernel_runtime; a transport/binding error is recorded per row
         handles["usage_error"] = str(exc)[:200]
     try:
         handles["programs"] = program_runtime.library.list()
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         handles["programs_error"] = str(exc)[:200]
         counters["transient_unavailable"] += 1
         envelope["errors"].append({"class": klass, "detail": str(exc)[:240], "where": "collect:programs"})
@@ -135,7 +102,7 @@ def step_classify():  # CLASSIFY · deterministic; in-kernel filters only
         row("set-token-size", {"total_tokens": meta.get("totalTokens"), "skill_count": meta.get("skillCount"), "missing": meta.get("missing")},
             sensor="prompt-manager skill read <usage> <improve>")
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         envelope["errors"].append({"class": klass, "detail": str(exc)[:240], "where": "classify:set-token-size"})
         row("set-token-size", None, unavailable=True, reason="scenario_unreachable" if klass == "scenario_unreachable" else f"unreliable:{klass}",
             sensor="prompt-manager skill read <usage> <improve>")
@@ -177,12 +144,4 @@ def step_report():  # REPORT
 
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:  # the one catch that guarantees an envelope on every path
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

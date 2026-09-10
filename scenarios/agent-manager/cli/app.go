@@ -182,7 +182,7 @@ func (a *App) runCommands() []cliapp.Command {
 		{"park", "Park a run", "agent-manager run park <id>", a.runPark},
 		{"wake", "Wake a parked run", "agent-manager run wake <id>", a.runWake},
 		{"await-result", "Read a run's awaited result", "agent-manager run await-result <id>", a.runAwaitResult},
-		{"recover", "Reconcile a run", "agent-manager run recover <id>", a.runRecover},
+		{"recover", "Reconcile execution or retry failed sandbox finalization", "agent-manager run recover <id>", a.runRecover},
 		{"investigate", "Create an investigation run", "agent-manager run investigate [options]", a.runInvestigate},
 		{"apply-investigation", "Apply investigation recommendations", "agent-manager run apply-investigation <id>", a.runApplyInvestigation},
 		{"sandbox-sync", "Sync run state from sandbox", "agent-manager run sandbox-sync <id>", a.runSandboxSync},

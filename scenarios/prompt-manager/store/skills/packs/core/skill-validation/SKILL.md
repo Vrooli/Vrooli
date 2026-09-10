@@ -9,9 +9,9 @@ metadata:
   tags: ["skill"]
   icon: "check-circle"
   status: "active"
-  revision: 47
+  revision: 49
   createdAt: "2026-01-30T11:19:51-05:00"
-  updatedAt: "2026-09-06T04:00:00Z"
+  updatedAt: "2026-09-08T00:00:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["prompt-manager skill", "prompt-manager skill read", "prompt-manager skill-set validate"]
@@ -218,10 +218,12 @@ Applies when {{SKILL}} is declared as a scenario role in `scenarios/<scenario>/.
 | The declared role matches the body: a `usage` role is a decision tree with rung-labeled leaves; an `improve` role has the eight sections `improve-skill-authoring` §2 names, in order | Role/body mismatch | Major |
 | Every `[S3]` leaf satisfies the S3 row of canon's rung table (the program exists under `scenarios/<scenario>/.vrooli/program-runtime/` or in the library; branching uses only the contract's declared vocabulary) | Program reference unresolved, or undeclared vocabulary | Major |
 | Every `[S1]` leaf names one command that exists (§3.6) | Rung label dishonest | Major |
-| When `metadata.learning.scope` is set: a recall step before the tree, a capture step after it, entry kinds named, mechanics cited to `vrooli-memory` not restated | Spine incomplete, or restated mechanics (C2) | Major / Minor |
-| Improve role: every setpoint row has a sensor that is a measure, a corpus with a floor, a `bindings condition` row, or a friction digest — or is marked `pending-telemetry`; no band equals the row's current reading | Invented sensor / dead-sensor band | Critical |
-| Improve role: the setpoint table and `setpoint-read.json` declare the same rows | Skill and program disagree | Major |
-| Improve role: routes never edit another scenario | Instrument acting as controller | Critical |
+| When learning is declared: use automatic program capture or the shared Memory skill's manual path, with scope and verification named | Missing learning path, duplicate automatic/manual capture, or restated mechanics (C2) | Major / Minor |
+| Improve role: targets reference approved intent; absent targets stay undecided; unavailable readings retain the Program Runtime row contract's actual reason | Invented target, fabricated sensor, or invalid band | Critical |
+| Improve role with a sensor program: skill rows and bands agree with the contract and exercised output; skill-only setup identifies an absent or untested program | Program disagreement or unsupported executable-readiness claim; disclosed setup remains incomplete, not a fabricated program | Major / Gap |
+| Improve role: dependency edits require the caller's grant and use the dependency owner; read-only calls never implement | Sensor evidence treated as mutation authority | Critical |
+| Development entry point implements successive in-scope repairs without requiring new work approval; target amendments remain protected | Per-repair filing replaces authorized execution, or execution silently changes its finish line | Major / Critical |
+| Required unavailable rows remain unmet even when the program reports success | Wrapper success or readable-only checks manufacture completion | Critical |
 
 Record findings under `Validation Findings` with the row name; hand rung-promotion candidates to `skill-improvement-suggestions` (E10).
 
@@ -275,7 +277,10 @@ This prevents validation reports from turning into opinionated rewrites.
 
 ### 6. Expansion Patches: Fix and Extend Without Rewriting
 
-Validation produces **targeted, copy-paste expansions** that close gaps with minimal disruption. High-leverage patch types: missing prerequisites section; missing verification section; missing failure mode table; missing work table ("when to use which approach"); missing output contract; missing "when NOT to use this" boundaries.
+Validation produces **targeted corrections** to the owning rule. Replace a false
+instruction or resolve its decision boundary before adding guidance. An expansion
+is warranted only when the contract lacks a necessary prerequisite, outcome,
+verification, or failure path; do not append an exception beneath a contradiction.
 
 **Patch style rules:**
 

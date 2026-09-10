@@ -5,6 +5,7 @@
   "icon": "navigation",
   "id": "navigation-integrity-audit",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "ux",

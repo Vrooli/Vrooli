@@ -1392,10 +1392,15 @@ type RunConfig struct {
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty"`
 
 	// Path restrictions
-	AllowedPaths      []string `json:"allowedPaths,omitempty"`
-	DeniedPaths       []string `json:"deniedPaths,omitempty"`
-	SkillPack         []string `json:"skillPack,omitempty"`
-	SkillExperimentID string   `json:"skillExperimentId,omitempty"`
+	AllowedPaths []string `json:"allowedPaths,omitempty"`
+	DeniedPaths  []string `json:"deniedPaths,omitempty"`
+	// AllowedEffects is the owner-issued effect ceiling for this run.
+	AllowedEffects []string `json:"allowedEffects,omitempty"`
+	// RequireEffectContainment prevents effect-bearing runs from silently
+	// downgrading to a host launcher when the workspace boundary is absent.
+	RequireEffectContainment bool     `json:"requireEffectContainment,omitempty"`
+	SkillPack                []string `json:"skillPack,omitempty"`
+	SkillExperimentID        string   `json:"skillExperimentId,omitempty"`
 }
 
 // ApplyProfile applies values from an AgentProfile as the base configuration.

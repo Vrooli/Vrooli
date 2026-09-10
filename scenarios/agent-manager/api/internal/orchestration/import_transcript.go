@@ -351,6 +351,9 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 	if setter, ok := parser.(runner.TranscriptModelSetter); ok {
 		setter.SetTranscriptModel(runTranscriptModel(run))
 	}
+	if setter, ok := parser.(runner.TranscriptBillingSetter); ok {
+		setter.SetTranscriptBilling(run.Billing)
+	}
 	if setter, ok := parser.(runner.TranscriptRetentionSetter); ok {
 		setter.SetTranscriptRetention(true)
 	}
@@ -697,6 +700,9 @@ func (o *Orchestrator) rehydrateImportedTranscript(ctx context.Context, run *dom
 	}
 	if setter, ok := parser.(runner.TranscriptModelSetter); ok {
 		setter.SetTranscriptModel(runTranscriptModel(run))
+	}
+	if setter, ok := parser.(runner.TranscriptBillingSetter); ok {
+		setter.SetTranscriptBilling(run.Billing)
 	}
 	if setter, ok := parser.(runner.TranscriptRetentionSetter); ok {
 		setter.SetTranscriptRetention(true)

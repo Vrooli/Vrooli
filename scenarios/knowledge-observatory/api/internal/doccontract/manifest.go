@@ -196,6 +196,23 @@ func Resolve(manifest *Manifest, manifestPath string) (*ResolvedContract, []Find
 			}
 		}
 	}
+	// Basenames are convenience aliases, not declarations. Add them only after
+	// explicit identifiers, and only when they identify one distinct path.
+	// Repeated README (or any other basename) must not invalidate a manifest.
+	basenames := map[string]Document{}
+	ambiguous := map[string]bool{}
+	for _, doc := range rc.Documents {
+		key := NormalizeIdentifier(path.Base(doc.ScenarioPath))
+		if existing, ok := basenames[key]; ok && existing.ScenarioPath != doc.ScenarioPath {
+			ambiguous[key] = true
+		}
+		basenames[key] = doc
+	}
+	for key, doc := range basenames {
+		if _, explicit := rc.byIdentifier[key]; key != "" && !explicit && !ambiguous[key] {
+			rc.byIdentifier[key] = doc
+		}
+	}
 	sort.Slice(rc.Documents, func(i, j int) bool {
 		return rc.Documents[i].ScenarioPath < rc.Documents[j].ScenarioPath
 	})
@@ -340,15 +357,7 @@ func NormalizeIdentifier(value string) string {
 }
 
 func docIdentifiers(doc Document) []string {
-	ids := []string{doc.DocType, doc.Title, path.Base(doc.ScenarioPath)}
-	// A scenario can legitimately have both the scenario-root README and the
-	// documentation hub at docs/README.md. Their basenames are identical, but
-	// they are different canonical documents; using the basename as an
-	// identifier for the docs-index creates a false duplicate and causes the
-	// validator to report one as misplaced.
-	if doc.DocType == "docs-index" {
-		ids = []string{doc.DocType, doc.Title}
-	}
+	ids := []string{doc.DocType, doc.Title}
 	ids = append(ids, doc.Aliases...)
 	return ids
 }

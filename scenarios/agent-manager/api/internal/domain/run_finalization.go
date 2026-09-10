@@ -52,3 +52,26 @@ func MarkFinalizationFailed(run *Run, err error, now time.Time) {
 	run.FinalizedAt = &now
 	run.UpdatedAt = now
 }
+
+// RequiredFinalizationPending separates runner termination from delivery of
+// automatic sandbox effects. Explicit manual-review/no-apply policies remain
+// valid terminal results. Missing config or an unrecorded required outcome is
+// unresolved, not evidence that accepted changes reached the workspace.
+func RequiredFinalizationPending(run *Run) bool {
+	if run == nil || run.RunMode != RunModeSandboxed || !run.Status.IsTerminal() {
+		return false
+	}
+	cfg := run.SandboxConfig
+	if cfg == nil && run.ResolvedConfig != nil {
+		cfg = run.ResolvedConfig.SandboxConfig
+	}
+	if cfg != nil {
+		if cfg.ManualReview || !cfg.GetAutoApply() {
+			return false
+		}
+		if (run.Status == RunStatusFailed || run.Status == RunStatusCancelled) && !cfg.GetApplyOnFailure() {
+			return false
+		}
+	}
+	return run.FinalizationStatus != RunFinalizationStatusSucceeded
+}

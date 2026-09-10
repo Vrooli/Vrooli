@@ -5,6 +5,7 @@
   "icon": "network",
   "id": "ecosystem-fit",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "practice"
   ],

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -488,6 +489,14 @@ func (m *Manager) Get(ctx context.Context, id string) (Job, error) {
 // List returns recent jobs, newest first.
 func (m *Manager) List(ctx context.Context, limit int) ([]Job, error) {
 	return m.st.list(ctx, limit)
+}
+
+// ListRetentionCandidates returns the oldest successful jobs with managed
+// output blobs older than before. It is intentionally separate from List so a
+// cleanup owner cannot accidentally treat arbitrary recent or caller-owned job
+// references as reclaimable.
+func (m *Manager) ListRetentionCandidates(ctx context.Context, before time.Time, limit int) ([]Job, error) {
+	return m.st.listRetentionCandidates(ctx, before, limit)
 }
 
 // Subscribe returns a channel of progress events for the job and an unsubscribe

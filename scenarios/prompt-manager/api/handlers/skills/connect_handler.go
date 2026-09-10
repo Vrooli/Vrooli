@@ -16,15 +16,39 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"prompt-manager/handlers/transportbridge"
+	"prompt-manager/internal/projection"
 	domain "prompt-manager/internal/skills"
 	"prompt-manager/internal/store"
 )
 
 type connectHandler struct {
 	skillsconnect.UnimplementedSkillsServiceHandler
-	legacy   *domain.Handlers
-	variants *domain.VariantHandlers
-	imports  domain.ImportService
+	legacy     *domain.Handlers
+	variants   *domain.VariantHandlers
+	imports    domain.ImportService
+	projection *projection.Service
+}
+
+func NewConnectMountWithProjection(legacy *domain.Handlers, variants *domain.VariantHandlers, imports domain.ImportService, projector *projection.Service) (string, http.Handler) {
+	return skillsconnect.NewSkillsServiceHandler(&connectHandler{legacy: legacy, variants: variants, imports: imports, projection: projector})
+}
+
+func (h *connectHandler) RefreshProjection(ctx context.Context, req *connect.Request[skillsv1.RefreshProjectionRequest]) (*connect.Response[skillsv1.RefreshProjectionResponse], error) {
+	if h.projection == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("projection is not configured"))
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	result, err := h.projection.Refresh(projection.RefreshRequest{Runtime: req.Msg.GetRuntime(), Skills: req.Msg.GetSkills(), Apply: req.Msg.GetApply(), ExpectedDigest: req.Msg.GetExpectedDigest(), AdoptLegacy: req.Msg.GetAdoptLegacy()})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	out := &skillsv1.RefreshProjectionResponse{Digest: result.Digest}
+	for _, row := range result.Rows {
+		out.Rows = append(out.Rows, &skillsv1.ProjectionRow{Runtime: row.Runtime, Skill: row.Skill, Status: row.Status, SourceHash: row.SourceHash, InstalledHash: row.InstalledHash, BaselineHash: row.BaselineHash, ReceiptHash: row.ReceiptHash, Error: row.Error, BackupPath: row.BackupPath, Applied: row.Applied})
+	}
+	return connect.NewResponse(out), nil
 }
 
 func NewConnectMount(legacy *domain.Handlers, variants *domain.VariantHandlers, imports ...domain.ImportService) (string, http.Handler) {

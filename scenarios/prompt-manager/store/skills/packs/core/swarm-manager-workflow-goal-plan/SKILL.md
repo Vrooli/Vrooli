@@ -47,6 +47,14 @@ goal's only definition of done — milestone review reads them, and close-out is
 gated on that review. Never restate the goal's own text as the criteria: the
 goal states what becomes true, the milestone states how you would prove it.
 
+When a proposal creates implementation work, make the item useful to the next
+planning step. Include the target scenario, bounded outcome, acceptance
+criteria, evidence source, likely change boundary, relevant usage and improve
+skills, and any special constraint or optional Tech Tree Designer design
+reference. `plan_ref` is added only after Plan Manager authors and validates the
+canonical plan. Swarm then presents plan review and plan acceptance as the next
+operator actions; this workflow does not auto-approve or launch the item.
+
 ## Variable legend
 
 | Variable | Meaning |

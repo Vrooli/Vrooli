@@ -10,6 +10,7 @@ import { runCooperatively } from '../../sim/cooperative'
 import { useWorldStore } from '../WorldStoreContext'
 import { PresentationPool } from './pool'
 import { bindAmbientWake } from './wake'
+import { worldTextureProps } from '../materialTextures'
 
 export function Fish({ clock, leases, enabled, reducedMotion, profileId }: {
   clock: WorldClock; leases: AnimationLeases; enabled: boolean; reducedMotion: boolean;
@@ -25,7 +26,7 @@ export function Fish({ clock, leases, enabled, reducedMotion, profileId }: {
   const resources = useMemo(() => {
     const bodyGeometry = new SphereGeometry(1, 8, 6)
     const ringGeometry = new RingGeometry(.88, 1, 32)
-    const fishMaterial = new MeshStandardMaterial({ color: '#bda479', roughness: .65, metalness: .15 })
+    const fishMaterial = new MeshStandardMaterial({ color: '#bda479', roughness: .65, metalness: .15, ...worldTextureProps('leaf') })
     const eyeMaterial = new MeshBasicMaterial({ color: '#181b1b' })
     const splashMaterial = new MeshBasicMaterial({ color: '#c5eced', transparent: true, opacity: .7, depthWrite: false })
     const slots = Array.from({ length: ambientPolicy.fish.maximumConcurrent }, (_, index) => {

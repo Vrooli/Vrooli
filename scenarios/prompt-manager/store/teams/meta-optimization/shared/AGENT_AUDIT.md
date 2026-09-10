@@ -8,10 +8,14 @@ Rolling audit of agent files (AGENTS.md, SOUL.md, TOOLS.md, agent.json) maintain
 - `Disposition` is the heartbeat's conclusion: `no-action`, `improve`, `prune`, or `restructure-implication`.
 
 ## Rotation state
-- Last visited: `bug-investigator` (scenario-qa, 2026-09-07)
-- Coverage: 9/22 unique graph/registry targets visited since audit start.
+- Last visited: `opportunity-scout` (monetization, 2026-09-09)
+- Coverage: 10/22 unique graph/registry targets visited since audit start.
 
 ## Recent entries
+
+| 2026-09-08 | catalog-strategist (monetization) | 0.72 | 3 | improve (loop contract) | The `offer-desk` instrument is available and the member has clear identity, ownership, PoR, and board-driven judgment. Capability architecture scores: Identity 3, Ownership 3, Plan of Record 3, Skill Surface 2, Intake 1, Collection 2, Analysis Method 2, Promotion/Routing 2, Feedback Loop 2; instrument 3. `topics.json` declares evidence consumption and a `monetization-canon/*` output, but no `loop_kind`; `prompt-manager graph topics --team monetization --json` reports the target-specific `loop_kind_missing` warning. The heartbeat's repeatable board-read and continuity loop therefore lacks machine-readable memory semantics. Filed `fix/declare-catalog-strategist-loop-kind`; no skill, scenario, or PoR rewrite proposed. Expected delta: target warning 1→0 while preserving the single offer-desk instrument and existing output destination. |
+
+| 2026-09-09 | opportunity-scout (monetization) | 0.72 | 4 | improve (consumer contract alignment) | The member has compact identity, clear ownership, explicit monetization PoR references, three paired skills (`signal-classifier`, `opportunity-pool-hygiene`, `systematic-exploration`), typed queue intake, required scan read, and explicit work-item routing. Capability architecture scores: Identity 3, Ownership 3, Plan of Record 3, Skill Surface 3, Intake 3, Collection 2, Analysis Method 3, Promotion/Routing 3, Feedback Loop 2; instrument 3. `prompt-manager graph topics --team monetization --json` reports one target-specific `orphan_output`: `monetization/opportunity/*` has no declared consumer, while the monetization operating model and CATALOG.md name catalog-strategist as the pool's consumer/judgment owner. Filed `fix/align-opportunity-pool-consumer-contract`; no skill, scenario, or canon rewrite proposed. Expected delta: orphan-output 1→0 with opportunity-inbox drain behavior preserved. |
 
 | 2026-09-07 | bug-investigator (scenario-qa) | 0.72 | 3 | improve (drain capacity and feedback) | Identity 3, Ownership 3, Plan of Record 3, Skill Surface 3, Intake 3, Collection 2, Analysis 3, Promotion/Routing 3, Feedback Loop 2; instrument 1 because scenario-qa's declared instrument is `none` with a dated gap marker. The queue declaration validates, but `prompt-manager graph topics --team scenario-qa` reports 250 unrouted `bug-inbox/*` entries and oldest age 707h, producing `piling_inbox` and `stalled_drain`. HEARTBEAT.md caps full investigations at one per heartbeat, so the queue cannot converge at current load. Filed `chore/scenario-qa-bug-investigator-drain-capacity`; preserve evidence rules and one-deep scientific debugging while adding bounded cheap triage plus queue-age/throughput measurements. No deprecation candidate. |
 

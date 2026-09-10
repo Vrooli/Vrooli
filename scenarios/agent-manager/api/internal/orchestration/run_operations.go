@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"agent-manager/internal/adapters/event"
@@ -254,6 +255,7 @@ func (o *Orchestrator) appendAndBroadcastEvents(ctx context.Context, runID uuid.
 		if evt == nil {
 			continue
 		}
+		o.nudgeWorkflowUsage(runID, evt)
 		switch evt.EventType {
 		case domain.EventTypeMessage, domain.EventTypeToolCall, domain.EventTypeToolResult:
 			o.notifyConversationSearch(ctx, "upsert_run", runID.String(), evt.ID.String())
@@ -270,16 +272,23 @@ func (o *Orchestrator) appendAndBroadcastEvents(ctx context.Context, runID uuid.
 
 // eventStoreAdapter adapts event.Store to runner.EventSink
 type eventStoreAdapter struct {
+	mu           sync.Mutex
 	store        event.Store
 	runID        uuid.UUID
 	lastSequence int64
+	afterPersist func(*domain.RunEvent)
 }
 
 func (e *eventStoreAdapter) Emit(evt *domain.RunEvent) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	if err := e.store.Append(context.Background(), e.runID, evt); err != nil {
 		return err
 	}
 	e.lastSequence = evt.Sequence
+	if e.afterPersist != nil {
+		e.afterPersist(evt)
+	}
 	return nil
 }
 
@@ -288,6 +297,8 @@ func (e *eventStoreAdapter) Close() error {
 }
 
 func (e *eventStoreAdapter) LastSequence() int64 {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	return e.lastSequence
 }
 
@@ -297,6 +308,7 @@ type broadcastingEventSink struct {
 	runID        uuid.UUID
 	broadcaster  EventBroadcaster
 	lastSequence int64
+	afterPersist func(*domain.RunEvent)
 }
 
 func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
@@ -311,6 +323,9 @@ func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
 		return err
 	}
 	b.lastSequence = evt.Sequence
+	if b.afterPersist != nil {
+		b.afterPersist(evt)
+	}
 
 	if b.broadcaster != nil {
 		// Also emit progress events for status changes
@@ -334,15 +349,17 @@ func (b *broadcastingEventSink) LastSequence() int64 {
 }
 
 func (o *Orchestrator) runEventSink(runID uuid.UUID) runner.EventSink {
+	afterPersist := func(evt *domain.RunEvent) { o.nudgeWorkflowUsage(runID, evt) }
 	switch {
 	case o.events != nil && o.broadcaster != nil:
 		return &broadcastingEventSink{
-			store:       o.events,
-			runID:       runID,
-			broadcaster: o.broadcaster,
+			store:        o.events,
+			runID:        runID,
+			broadcaster:  o.broadcaster,
+			afterPersist: afterPersist,
 		}
 	case o.events != nil:
-		return &eventStoreAdapter{store: o.events, runID: runID}
+		return &eventStoreAdapter{store: o.events, runID: runID, afterPersist: afterPersist}
 	default:
 		return &noOpEventSink{}
 	}

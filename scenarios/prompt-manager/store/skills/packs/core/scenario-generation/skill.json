@@ -4,6 +4,7 @@
   "entry": "SKILL.md",
   "id": "scenario-generation",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "tools"
   ],

@@ -6,6 +6,7 @@ import { hashString } from '../sim/rng'
 import { heightAt, type Place } from '../sim'
 import { useWorldStore } from './WorldStoreContext'
 import { propRecord, WORLD_ASSETS, worldAssetUrl } from '../engine/assets'
+import { worldTextureProps } from './materialTextures'
 
 const [DetailBoxes, DetailBox] = createInstances()
 const [SolidBoxes, SolidBox] = createInstances()
@@ -28,7 +29,7 @@ function Details({ room, walking, onSelectSpace }: { room: Place; walking: boole
     <group position={[space.entrance[0] - (camp ? 1.9 : 2), 0, space.entrance[1] + .2]}
       onClick={event => { event.stopPropagation(); onSelectSpace?.(room.id) }}>
       <Box position={[0, .8, 0]} size={[.12, 1.6, .12]} color={A.palette.timber} />
-      <mesh position={[0, A.signHeight, 0]} castShadow><boxGeometry args={[2.8, .65, .12]} /><meshStandardMaterial color={camp ? A.palette.roof : A.palette.accent} /></mesh>
+      <mesh position={[0, A.signHeight, 0]} castShadow><boxGeometry args={[2.8, .65, .12]} /><meshStandardMaterial color={camp ? A.palette.roof : A.palette.accent} {...worldTextureProps('wood')} /></mesh>
       <Text position={[0, A.signHeight, .07]} font={worldAssetUrl(WORLD_ASSETS.labelFont)} fontSize={.23} maxWidth={2.5} textAlign="center" anchorX="center" anchorY="middle" color="#fff2ce">{room.label}</Text>
     </group>
     {camp && space.shelters.map(shell => <group key={shell.id} name={shell.id} position={[shell.position[0], 0, shell.position[1]]}
@@ -100,15 +101,15 @@ export function SpaceDetails({ walking, propScale, revealedSpaceId, onSelectSpac
   const capacity = Math.max(1, stations.length * 12 + rooms.reduce((sum, room) => sum + 48 + (room.space?.shelters.length ?? 0) * 24, 16))
   return <group name="space-details">
     <DetailBoxes key={`detail:${capacity}`} limit={capacity} castShadow receiveShadow frustumCulled={false}>
-      <boxGeometry /><meshStandardMaterial roughness={.85} />
+      <boxGeometry /><meshStandardMaterial roughness={.85} {...worldTextureProps('wood')} />
     <SolidBoxes key={`solid:${capacity}`} limit={capacity} castShadow receiveShadow frustumCulled={false}>
-      <boxGeometry userData={{ cameraObstacle: 'box' }} /><meshStandardMaterial roughness={.85} />
+      <boxGeometry userData={{ cameraObstacle: 'box' }} /><meshStandardMaterial roughness={.85} {...worldTextureProps('wall')} />
     <Roofs key={`roof:${capacity}`} limit={capacity} geometry={roof} castShadow frustumCulled={false}>
-      <meshStandardMaterial roughness={.9} side={2} />
+      <meshStandardMaterial roughness={.9} side={2} {...worldTextureProps('roof')} />
     <TentRoofs key={`tent:${capacity}`} limit={capacity} geometry={tentRoof} castShadow frustumCulled={false}>
-      <meshStandardMaterial roughness={.9} side={2} />
+      <meshStandardMaterial roughness={.9} side={2} {...worldTextureProps('canvas')} />
     <Wheels key={`wheels:${capacity}`} limit={capacity} castShadow frustumCulled={false}>
-      <cylinderGeometry args={[.5, .5, 1, 12]} /><meshStandardMaterial roughness={.85} />
+      <cylinderGeometry args={[.5, .5, 1, 12]} /><meshStandardMaterial roughness={.85} {...worldTextureProps('metal')} />
     {rooms.map(room => <group key={room.id} position={[0, heightAt(state.terrain, ...room.position), 0]}>
       <Details room={room} walking={walking || room.space?.kind === 'campsite' && room.id !== revealedSpaceId} onSelectSpace={onSelectSpace} />
     </group>)}
@@ -133,7 +134,7 @@ export function SpaceDetails({ walking, propScale, revealedSpaceId, onSelectSpac
       <Box position={[0, .18, 0]} size={[1.6, .36, 1.6]} color={A.palette.trim} obstacle />
       <Box position={[0, 1.5, 0]} size={[.55, 3, .55]} color={A.palette.timber} obstacle />
       {[0, 1, 2].map(i => <mesh key={i} position={[0, 1.2 + i * .9, 0]} rotation={[0, i * Math.PI / 4, 0]} castShadow raycast={noopRaycast}>
-        <octahedronGeometry args={[.7, 0]} /><meshStandardMaterial color={[A.palette.roof, A.palette.canvas, A.palette.accent][i]} roughness={.85} />
+        <octahedronGeometry args={[.7, 0]} /><meshStandardMaterial color={[A.palette.roof, A.palette.canvas, A.palette.accent][i]} roughness={.85} {...worldTextureProps('wood')} />
       </mesh>)}
     </group>}
     </Wheels></TentRoofs></Roofs></SolidBoxes></DetailBoxes>

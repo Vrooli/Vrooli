@@ -117,6 +117,35 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_conversation_search_one_active_generation
 CREATE INDEX IF NOT EXISTS idx_conversation_search_generation_updated
     ON conversation_search_generations(updated_at, generation_id);
 
+-- Qdrant is an external derived store, but its generation ownership remains
+-- durable in the conversation-search domain. Unknown physical collections
+-- are intentionally absent here and therefore quarantined by the owner API.
+CREATE TABLE IF NOT EXISTS conversation_search_qdrant_generations (
+    generation_id TEXT PRIMARY KEY,
+    owner TEXT NOT NULL,
+    namespace TEXT NOT NULL,
+    alias_name TEXT NOT NULL,
+    collection_name TEXT NOT NULL UNIQUE,
+    content_identity TEXT NOT NULL DEFAULT '',
+    state TEXT NOT NULL CHECK (state IN ('building', 'candidate', 'active', 'retired', 'protected', 'expired', 'failed', 'quarantined', 'deleted')),
+    lease_id TEXT NOT NULL DEFAULT '',
+    lease_holder TEXT NOT NULL DEFAULT '',
+    lease_expires_at TEXT,
+    points INTEGER NOT NULL DEFAULT 0 CHECK (points >= 0),
+    bytes INTEGER NOT NULL DEFAULT 0 CHECK (bytes >= 0),
+    cleanup_outcome TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_conversation_search_qdrant_lifecycle
+    ON conversation_search_qdrant_generations(namespace, alias_name, state, created_at);
+
+CREATE TABLE IF NOT EXISTS conversation_search_qdrant_cleanup_receipts (
+    idempotency_key TEXT PRIMARY KEY,
+    receipt_json TEXT NOT NULL CHECK (json_valid(receipt_json)),
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS conversation_search_changes (
     sequence INTEGER PRIMARY KEY AUTOINCREMENT,
     operation TEXT NOT NULL CHECK (operation IN ('upsert_run', 'delete_event', 'delete_run', 'repair')),

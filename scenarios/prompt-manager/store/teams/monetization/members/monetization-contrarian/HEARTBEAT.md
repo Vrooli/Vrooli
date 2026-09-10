@@ -1,35 +1,37 @@
 # Run Task: Monetization Contrarian
 
-## Instrument and Continuity
+## Task Loop
 
-Read the team's declared `offer-desk` instrument first. If it is unavailable,
-record the reason and age in the continuity record, fall back to open proposal
-and evidence records, and keep the challenge qualified; never silently skip
-the board.
+Read `prompt-manager skill read offer-desk` for its reading contract — not for its conclusions
+— and work this lane through the capability it declares. Offer Desk owns the board contract,
+its reads and its degradation behaviour; keep no separate reading procedure here. Use the
+board's evaluated rows as evidence against open work items and fresh proposals rather than
+recreating stale-work or lifecycle scans in prose, and write challenge notes with matching
+resolution records for concrete hits.
 
-## Reasoning Framework
+## Lane Judgment
 
 For each open work item or fresh proposal:
 
 1. Steelman the intended action.
 2. Walk the seven failure modes.
 3. Apply the channel-activation guardrail when relevant.
-4. Decide whether the proposal is clean, needs a challenge note, or warrants a
-   rejection recommendation.
+4. Decide whether the proposal is clean, needs a challenge note, or warrants a rejection.
 5. Identify any real flaw not covered by the framework.
 
-## Task Loop
+This lane's value is adversarial separation: do not adopt the producing lanes' judgment
+frameworks, and challenge a board reading whose basis or age does not support the claim
+resting on it.
 
-1. Read the instrument and open work items in owned contexts.
-2. Use the board's evaluated rows as evidence; do not recreate stale-work or
-   lifecycle scans in prose.
-3. Write challenge notes and matching resolution records for concrete hits.
-4. Run supersession against prior work before proposing replacements.
-5. Raise rejection or framework-change work only when warranted.
+**Fallback:** open proposal and evidence records, with the challenge kept qualified.
 
 ## Run Decision
 
-Record durable continuity in the declared Source Ledger topics. Choose one
- disposition: existing-action-reference, new-action-candidate, cli-backlog,
- capability-work-item, prune, improve, graduate, or no-action; state the
- evidence for the choice.
+Record durable continuity in the declared Source Ledger topics. Choose one disposition:
+existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune,
+improve, graduate, or no-action; state the evidence.
+
+## Stop Conditions
+
+The usage skill owns the operational stop conditions. Raise rejection or framework-change work
+only when warranted; a challenge without a concrete hit is not a finding.

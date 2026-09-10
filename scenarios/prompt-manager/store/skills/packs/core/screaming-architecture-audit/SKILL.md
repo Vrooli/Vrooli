@@ -12,12 +12,12 @@ metadata:
   targetDimensions: ["structure","cycles"]
   targetToolId: "run-agent"
   programmaticHome: "test-genie:architecture"
-  revision: 46
+  revision: 47
   createdAt: "2025-01-15T00:00:00Z"
-  updatedAt: "2026-05-31T00:00:00Z"
+  updatedAt: "2026-09-08T00:00:00Z"
   requires:
     scenarios: ["prompt-manager", "test-genie"]
-    commands: ["prompt-manager skill", "prompt-manager skill read", "test-genie", "test-genie execute"]
+    commands: ["prompt-manager skill read"]
   origin:
     kind: "authored"
 ---
@@ -43,60 +43,30 @@ Optional context:
 
 ---
 
-### 0. Programmatic Validation — run this first
+### 0. Establish authority and validation scope
 
-Before the manual audit workflow below, take a **photograph** of the scenario's
-architecture with one command. This is the L5 ("programmatic drift checks") rung
-of the maturity model — let the substrate find the drift so your manual pass
-focuses on judgment, not discovery:
+Read `path:docs/agent-system/SCENARIO_DEVELOPMENT.md` before changing the
+scenario. An assessment request permits findings and recommendations, not code
+moves or campaign mutations. The repair workflow below applies only within an
+implementation grant.
 
-```bash
-test-genie execute {{TARGET}} --preset architecture-audit --json > audit.json
-```
+Use `path:docs/TESTING.md` to choose validation scope and attach to completed
+run evidence. For a broad architecture assessment, inspect the current
+`architecture-audit` preset. For a bounded repair, use relevant focused checks;
+a full battery is not a prerequisite for every move.
 
-The `architecture-audit` preset runs the per-surface conformance battery
-(`structure`, `contracts`, `ui-health`, `docs`, `standards`) **plus** the
-`architecture` phase, which delegates to architecture-cartographer for structural
-cohesion (import cycles, coupling, convergence drift, mislocated files). Every
-finding is normalized into one `ArchitectureFinding` shape with a stable id.
+The structural phase delegates detection to architecture-cartographer. Its
+finding tracker can preserve large refactors across re-audits. Load
+`scenario-improvement-campaign` when the caller authorizes that development
+engagement; do not create a second work item or duplicate its loop here.
+Audit recommendations and ranking profiles do not grant effects or redefine
+acceptance. A reported regression needs investigation; the label alone does not
+prove the current repair caused it.
 
-**When the audit nudges: open a tracked campaign.** When the finding load
-exceeds what one pass can responsibly fix, the audit output appends a campaign
-recommendation. Do not whack-a-mole a large refactor by hand — that is exactly
-the failure mode (the surface area outgrows what you can track). Hand it to the
-tracker, which sequences the work and reconciles each re-audit by stable id.
-For the full driving loop (including the `--profile` ordering knob), load the
-`scenario-improvement-campaign` skill; the short form is:
-
-```bash
-# Ingest the photograph
-architecture-cartographer campaign create {{TARGET}} --from-audit audit.json
-
-# Get the ranked worklist. --profile picks the ordering:
-#   balanced (default) = regressions → cycles → severity (legacy)
-#   fast               = cheapest path to a green suite (gating sources first)
-#   long-term          = structural root-causes before symptoms
-architecture-cartographer campaign next "<campaign-id>" --profile balanced
-
-# Fix an item, then mark it off (the agent fixes by hand; the tracker records it)
-architecture-cartographer campaign resolve "<campaign-id>" --finding "<afid>" --note "what you did"
-
-# Re-audit and reconcile: gone → validated, persists → open, (re)appeared → REGRESSION
-test-genie execute {{TARGET}} --preset architecture-audit --json > audit-2.json
-architecture-cartographer campaign reaudit "<campaign-id>" --from-audit audit-2.json
-
-# Repeat next→fix→reaudit until clean, then close
-architecture-cartographer campaign status "<campaign-id>"
-architecture-cartographer campaign close "<campaign-id>"
-```
-
-A re-audit that flags a **regression** means your fix introduced a new problem
-(or a "resolved" finding came back) — handle those first. The doctrine behind
-this loop — the four validation responsibilities and the test-genie↔cartographer
-seam — is in `docs/reference/architecture-validation-responsibilities.md`.
-
-The manual workflow below is how you reason about and execute each finding's fix;
-the audit + tracker are how you discover the work and never lose track of it.
+The ownership seam and stable finding identity are documented in
+`path:docs/reference/architecture-validation-responsibilities.md`. Keep
+operational command sequences in the owning contracts, not copied into this lens.
+The workflow below supplies architectural judgment within those boundaries.
 
 ---
 
@@ -336,7 +306,17 @@ Recommended seams addition:
 
 ---
 
-### **9. Output Expectations**
+### 9. Troubleshooting & Edge Cases
+
+| Situation | Response |
+| --- | --- |
+| The audit recommends repairs outside the grant. | Report the findings and required authority; do not expand the refactor. |
+| Validation or tracker evidence is unavailable. | Preserve that evidence gap; do not label an unverified resolution as passing. |
+
+### 10. Output Expectations
+
+For an assessment, report the observed structure, evidence, uncertainty, and
+recommended moves without applying them. For authorized development:
 
 By the end of this loop, the scenario should:
 - have a clearer product mental model in docs and code

@@ -5,6 +5,7 @@
   "icon": "shield",
   "id": "leader-triage-investigate-resolve",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "practice"
   ],

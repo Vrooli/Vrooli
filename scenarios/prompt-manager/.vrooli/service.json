@@ -77,7 +77,8 @@
         "field": "key-ring",
         "label": "Prompt Manager experiment receipt signing key ring",
         "description": "Versioned Ed25519 signing keys retained by the native Vrooli credential authority. The active private key is never stored in scenario files or environment variables.",
-        "required": false
+        "required": false,
+        "provisioning": "generated"
       }
     ]
   },

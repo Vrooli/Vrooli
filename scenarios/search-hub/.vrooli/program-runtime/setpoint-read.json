@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "search-hub.setpoint-read",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Read every row of search-hub's improve setpoint in one submission and report each as in band, out of band, or unavailable, without estimating.",
   "inputs": {
     "window_token": {
@@ -107,7 +110,9 @@
         "invalid_input",
         "deadline_exceeded",
         "binding_error",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "sensor command names and search-hub://eval-run/<run_id> references"

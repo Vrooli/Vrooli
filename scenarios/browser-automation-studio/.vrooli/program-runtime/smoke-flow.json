@@ -1,7 +1,7 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "browser-automation-studio.smoke-flow",
-  "version": "2",
+  "version": "3",
   "helpers": {
     "program": "1"
   },
@@ -19,6 +19,18 @@
     "parameters": {
       "type": "object",
       "description": "ExecutionParameters object passed to the execute binding (the CLI's --parameters-file reads the same message from a file). A file path is rejected as invalid_input. A session profile is applied only through this object; the execute binding has no profile argument."
+    },
+    "postconditions": {
+      "type": "array",
+      "description": "Typed assertions that must be present in the exact saved revision before execution."
+    },
+    "effect_policy": {
+      "type": "string",
+      "description": "read_only permits only observational typed actions; explicit uses existing caller authority."
+    },
+    "extraction": {
+      "type": "array",
+      "description": "Named outputs matched against saved extract nodes and returned from execution data, bounded to 32768 bytes."
     }
   },
   "assumptions": [
@@ -88,7 +100,9 @@
       "failed_action": "ACTION_TYPE_* of the failed entry, or null",
       "failed_error_code": "context.errorCode of the failed entry, or null",
       "timeline_entries": "count of timeline entries, or null when the timeline was not read",
-      "screenshot_count": "count of screenshots retained for the execution, or null when unreadable"
+      "screenshot_count": "count of screenshots retained for the execution, or null when unreadable",
+      "learning": "Durable feedback_ref identifies this task or exact artifact for later learn.feedback.",
+      "output": "Requested named execution data, bounded arrays."
     },
     "errors": {
       "classes": [
@@ -108,7 +122,11 @@
         "auth_required",
         "step_failed",
         "remote_error",
-        "no_governed_binding"
+        "no_governed_binding",
+        "effect_policy_unavailable",
+        "verification_required",
+        "version_conflict",
+        "learning_ineligible"
       ]
     },
     "evidence": "workflow:<id>, execution:<id>, node:<id> of the failed entry"
@@ -169,6 +187,8 @@
     "learn.task",
     "learn.note",
     "learn.outcome",
-    "lib"
+    "lib",
+    "learn.result",
+    "learn.result_status"
   ]
 }

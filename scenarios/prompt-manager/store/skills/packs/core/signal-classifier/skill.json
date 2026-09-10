@@ -5,6 +5,7 @@
   "icon": "search",
   "id": "signal-classifier",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "tools"
   ],

@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"testing"
 	"time"
 
@@ -192,6 +193,34 @@ func TestWorkflowExecutionRepositoryCASAndJournalSurviveReload(t *testing.T) {
 	}
 }
 
+func TestWorkflowExecutionRepositoryPersistsEngagementGrantAcrossReload(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	repo := &workflowExecutionRepository{db: db, log: logrus.New()}
+	now := time.Now().UTC()
+	catalog := &workflowRepository{db: db, log: logrus.New()}
+	if err := catalog.ActivateBatch(ctx, []*domain.WorkflowRevision{workflowRevision("owner/flow", "sha256:grant", "1.0.0")}); err != nil {
+		t.Fatal(err)
+	}
+	grant := &domain.WorkflowEngagementGrant{MaxTurns: 4, MaxTokens: 1200, MaxChargeMicroUSD: 75, MaxWallTimeSeconds: 90, MaxNodeAttempts: 5, MaxChildren: 2, MaxConcurrency: 1, MaxRecursion: 1, MaxRetries: 1, MaxWaitSeconds: 30}
+	execution := &domain.WorkflowExecution{ID: uuid.New(), Owner: "owner", WorkflowKey: "owner/flow", DefinitionDigest: "sha256:grant", ApprovalDigest: "sha256:approval", GrantDigest: "sha256:grant-binding", Status: domain.WorkflowExecutionRunning, CurrentNodeID: "start", Input: json.RawMessage(`{}`), EdgeTraversals: map[string]int{}, Version: 1, IdempotencyKey: "grant-reload", EngagementGrant: grant, CreatedAt: now, UpdatedAt: now}
+	initial := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 1, Kind: domain.WorkflowJournalInput, Payload: execution.Input, CreatedAt: now}
+	if err := repo.Create(ctx, execution, initial); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.Get(ctx, execution.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == nil || got.EngagementGrant == nil || !reflect.DeepEqual(*got.EngagementGrant, *grant) {
+		t.Fatalf("grant after reload=%+v, want %+v", got.EngagementGrant, grant)
+	}
+	if got.ApprovalDigest != execution.ApprovalDigest || got.GrantDigest != execution.GrantDigest {
+		t.Fatalf("binding after reload=%+v, want approval=%q grant=%q", got, execution.ApprovalDigest, execution.GrantDigest)
+	}
+}
+
 func TestWorkflowExecutionRepositoryListsLegacyAttemptWithNullOptionalFields(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
@@ -272,7 +301,7 @@ func TestWorkflowExecutionRepositoryRecoveryUsesCurrentCleanupGeneration(t *test
 	execution := &domain.WorkflowExecution{
 		ID: uuid.New(), Owner: "owner", WorkflowKey: "owner/flow", DefinitionDigest: revision.Digest,
 		Status: domain.WorkflowExecutionFailed, CurrentNodeID: "start", Input: json.RawMessage(`{}`),
-		BudgetUsage: domain.WorkflowBudgetUsage{Retries: 2}, EdgeTraversals: map[string]int{},
+		BudgetUsage: domain.WorkflowBudgetUsage{Retries: 2, AccountingComplete: true}, EdgeTraversals: map[string]int{},
 		Version: 1, IdempotencyKey: "cleanup-generation", CreatedAt: now, UpdatedAt: now, EndedAt: &now,
 	}
 	initial := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 1, Kind: domain.WorkflowJournalInput, Payload: json.RawMessage(`{}`), CreatedAt: now}

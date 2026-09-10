@@ -5,6 +5,7 @@
   "icon": "checkcircle",
   "id": "e2e-testing",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "test"

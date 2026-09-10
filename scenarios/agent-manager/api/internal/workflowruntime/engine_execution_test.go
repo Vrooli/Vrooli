@@ -3,6 +3,7 @@ package workflowruntime
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -46,6 +47,34 @@ func TestBindingPresentationVocabularyAndTruncationAreDeterministic(t *testing.T
 	}
 	if len(diagnostics) != 1 || diagnostics[0].Code != "binding_truncated" || diagnostics[0].DroppedBytes <= 0 {
 		t.Fatalf("truncation diagnostics=%+v", diagnostics)
+	}
+}
+
+func TestStartWithGrantPersistsAuthorityAndRejectsIdempotencyMutation(t *testing.T) {
+	e, store, _ := testEngine(t, baseDefinition())
+	grant := &domain.WorkflowEngagementGrant{MaxTokens: 200, MaxWallTimeSeconds: 30}
+	binding := ExecutionBinding{ApprovalDigest: "sha256:approval", GrantDigest: "sha256:grant"}
+	first, err := e.StartWithGrant(context.Background(), revision(baseDefinition()), json.RawMessage(`{}`), "grant-once", grant, binding)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.EngagementGrant == nil || !reflect.DeepEqual(first.EngagementGrant, grant) {
+		t.Fatalf("execution grant=%+v, want %+v", first.EngagementGrant, grant)
+	}
+	if first.ApprovalDigest != binding.ApprovalDigest || first.GrantDigest != binding.GrantDigest {
+		t.Fatalf("execution binding=%+v, want %+v", first, binding)
+	}
+	// The in-memory store clones through JSON, matching the persistence
+	// boundary used by the SQLite repository.
+	reloaded, err := store.Get(context.Background(), first.ID)
+	if err != nil || reloaded.EngagementGrant == nil || !reflect.DeepEqual(reloaded.EngagementGrant, grant) {
+		t.Fatalf("reloaded execution=%+v err=%v", reloaded, err)
+	}
+	if reloaded.ApprovalDigest != binding.ApprovalDigest || reloaded.GrantDigest != binding.GrantDigest {
+		t.Fatalf("reloaded execution binding=%+v", reloaded)
+	}
+	if _, err := e.StartWithGrant(context.Background(), revision(baseDefinition()), json.RawMessage(`{}`), "grant-once", &domain.WorkflowEngagementGrant{MaxTokens: 100, MaxWallTimeSeconds: 30}); err == nil {
+		t.Fatal("idempotency replay changed engagement grant")
 	}
 }
 
@@ -143,6 +172,7 @@ type (
 		scopePath string
 		maxTurns  int
 		timeout   time.Duration
+		effects   []string
 	}
 	fakeChildren struct {
 		requests []childCall
@@ -186,7 +216,7 @@ func (f *fakeChildren) launch(req ChildRequest) (ChildState, error) {
 	if !ok {
 		id = uuid.New()
 		f.byKey[req.IdempotencyKey] = id
-		f.requests = append(f.requests, childCall{runID: id, source: req.SourceRunID, prompt: req.Prompt, profile: req.ProfileKey, scopePath: req.ScopePath, maxTurns: req.MaxTurns, timeout: req.Timeout})
+		f.requests = append(f.requests, childCall{runID: id, source: req.SourceRunID, prompt: req.Prompt, profile: req.ProfileKey, scopePath: req.ScopePath, maxTurns: req.MaxTurns, timeout: req.Timeout, effects: append([]string(nil), req.AllowedEffects...)})
 	}
 	state := f.states[id]
 	state.RunID = id
@@ -392,4 +422,130 @@ func (s *memoryStore) ListJournal(_ context.Context, id uuid.UUID, after int64, 
 
 func (s *memoryStore) ListRecoverable(_ context.Context, _ int) ([]*domain.WorkflowExecution, error) {
 	return nil, nil
+}
+
+func TestEngineWaitsForOriginalChildFinalizationBeforeReview(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "work", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "implement"}},
+		{ID: "review", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "independent review"}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.EntryNode = "work"
+	definition.Edges = []domain.WorkflowEdge{{From: "work", To: "review"}, {From: "review", To: "done"}}
+	engine, store, children := testEngine(t, definition)
+	execution, err := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "finalization-recovery")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	id := children.requests[0].runID
+	children.states[id] = ChildState{RunID: id, Terminal: true, FinalizationPending: "failed: binary patch rejected", Tokens: 123, TokensKnown: true, ChargeMeasured: true, Turns: 1, Result: &domain.RunResult{FinalOutput: "phase complete"}}
+	for range 3 {
+		waiting := mustAdvance(t, engine, execution.ID)
+		if waiting.Status != domain.WorkflowExecutionWaiting || waiting.CurrentNodeID != "work" || waiting.BudgetUsage.Tokens != 123 || len(children.requests) != 1 {
+			t.Fatalf("advanced unresolved original effects: %+v launches=%d", waiting, len(children.requests))
+		}
+	}
+	attempts, _ := store.ListAttempts(context.Background(), execution.ID)
+	if len(attempts) != 1 || attempts[0].Status != domain.WorkflowAttemptDispatched || attempts[0].CompletedAt != nil || *attempts[0].RunID != id {
+		t.Fatalf("original attempt lost: %+v", attempts)
+	}
+	journal, _ := store.ListJournal(context.Background(), execution.ID, 0, 0)
+	for _, entry := range journal {
+		if entry.Kind == domain.WorkflowJournalRunResult || entry.Kind == domain.WorkflowJournalHandoff {
+			t.Fatal("unapplied changes became a workflow result")
+		}
+	}
+	// Recovering the original sandbox releases this attempt, without a retry launch.
+	state := children.states[id]
+	state.FinalizationPending = ""
+	children.states[id] = state
+	advanced := mustAdvance(t, engine, execution.ID)
+	if advanced.CurrentNodeID != "review" || advanced.BudgetUsage.Tokens != 123 || advanced.BudgetUsage.Children != 1 || len(children.requests) != 1 {
+		t.Fatalf("recovery changed identity/accounting: %+v", advanced)
+	}
+	attempts, _ = store.ListAttempts(context.Background(), execution.ID)
+	if attempts[0].Status != domain.WorkflowAttemptCompleted || *attempts[0].RunID != id {
+		t.Fatalf("recovery failed: %+v", attempts)
+	}
+}
+
+func TestParallelJoinWaitsForRequiredChildFinalization(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "fork", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{Parallel: true}},
+		{ID: "work", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "work"}},
+		{ID: "work2", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "work2"}},
+		{ID: "join", Kind: domain.WorkflowNodeJoin, Join: &domain.WorkflowJoinNode{Strategy: "all"}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.EntryNode = "fork"
+	definition.Edges = []domain.WorkflowEdge{{From: "fork", To: "work"}, {From: "fork", To: "work2"}, {From: "work", To: "join"}, {From: "work2", To: "join"}, {From: "join", To: "done"}}
+	engine, store, children := testEngine(t, definition)
+	execution, err := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "parallel-finalization")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	if len(children.requests) != 2 {
+		t.Fatalf("parallel dispatch: %+v", children.requests)
+	}
+	children.complete(children.requests[1].runID, "other branch ready")
+	id := children.requests[0].runID
+	children.states[id] = ChildState{RunID: id, Terminal: true, FinalizationPending: "failed", TokensKnown: true, ChargeMeasured: true}
+	for range 3 {
+		waiting := mustAdvance(t, engine, execution.ID)
+		if waiting.CurrentNodeID != "fork" || waiting.Status.Terminal() {
+			t.Fatalf("joined unapplied effects: %+v", waiting)
+		}
+	}
+	attempts, _ := store.ListAttempts(context.Background(), execution.ID)
+	if attempts[0].Status != domain.WorkflowAttemptDispatched {
+		t.Fatalf("attempt completed: %+v", attempts[0])
+	}
+	state := children.states[id]
+	state.FinalizationPending = ""
+	children.states[id] = state
+	for range 6 {
+		mustAdvance(t, engine, execution.ID)
+	}
+	final, _ := store.Get(context.Background(), execution.ID)
+	if final.Status != domain.WorkflowExecutionSucceeded || len(children.requests) != 2 {
+		t.Fatalf("original recovery did not finish: %+v", final)
+	}
+}
+
+func TestFinalizationRecoveryDoesNotResetExhaustedAllowance(t *testing.T) {
+	definition := baseDefinition()
+	definition.Budgets.MaxTokens = 100
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "work", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "work"}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.EntryNode = "work"
+	definition.Edges = []domain.WorkflowEdge{{From: "work", To: "done"}}
+	engine, _, children := testEngine(t, definition)
+	execution, err := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "finalization-budget")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	id := children.requests[0].runID
+	children.states[id] = ChildState{RunID: id, Terminal: true, FinalizationPending: "patch failed", Tokens: 123, TokensKnown: true, ChargeMeasured: true}
+	waiting := mustAdvance(t, engine, execution.ID)
+	if waiting.Status != domain.WorkflowExecutionWaiting || waiting.BudgetUsage.Tokens != 123 {
+		t.Fatalf("lost pending accounting: %+v", waiting)
+	}
+	state := children.states[id]
+	state.FinalizationPending = ""
+	children.states[id] = state
+	final := mustAdvance(t, engine, execution.ID)
+	if final.Status != domain.WorkflowExecutionBudgetExhausted || final.BudgetUsage.Tokens != 123 || final.TerminalReason.BudgetName != "tokens" || len(children.requests) != 1 {
+		t.Fatalf("recovery bypassed grant: %+v", final)
+	}
 }

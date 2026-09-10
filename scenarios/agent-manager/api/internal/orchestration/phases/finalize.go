@@ -3,7 +3,8 @@
 // most-load-bearing file because it pins the contract that prevented the
 // 2026-04-28 mount-leak incident:
 //
-//   - Sandbox teardown MUST run even when the caller's ctx is cancelled.
+//   - Authorized sandbox teardown MUST run even when the caller's ctx is cancelled.
+//     Required unresolved finalization retains its sandbox for original-run recovery.
 //     The teardown HTTP call uses a fresh context.Background()-derived
 //     deadline (Heartbeat.TeardownTimeout), so timing out the run does not
 //     orphan the fuse-overlayfs mount.
@@ -157,6 +158,13 @@ func ApplySandboxLifecycle(ctx context.Context, in ApplySandboxLifecycleInput) s
 		return ""
 	}
 
+	// Deletion or stopping would discard the active overlay needed to retry
+	// unapplied accepted changes. Preserve it under its original run identity.
+	if domain.RequiredFinalizationPending(in.Run) {
+		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn", "sandbox preserved: required finalization is unresolved; recover the original run before lifecycle cleanup")
+		return "preserve"
+	}
+
 	events := []domain.SandboxLifecycleEvent{in.Event}
 	if in.Event == domain.SandboxLifecycleRunCompleted ||
 		in.Event == domain.SandboxLifecycleRunFailed ||
@@ -239,6 +247,9 @@ func HasLifecycleEvent(events []domain.SandboxLifecycleEvent, candidates []domai
 // the failure path to log "sandbox preserved for inspection" before
 // finalize runs the actual teardown.
 func ShouldPreserveSandbox(run *domain.Run, event domain.SandboxLifecycleEvent) bool {
+	if domain.RequiredFinalizationPending(run) {
+		return true
+	}
 	cfg := EffectiveSandboxConfig(run)
 	if cfg == nil {
 		return true
@@ -404,7 +415,10 @@ func applyOrCheckpointTurn(ctx context.Context, cfg *domain.SandboxConfig, in Ap
 			return nil, err
 		}
 		if result == nil {
-			return nil, nil
+			return nil, fmt.Errorf("turn checkpoint returned no provenance result")
+		}
+		if !result.Success {
+			return nil, fmt.Errorf("turn checkpoint refused finalization: %s", result.ErrorMsg)
 		}
 		return &postTurnApplyResult{
 			Applied:        result.Applied,
@@ -432,7 +446,10 @@ func applyOrCheckpointTurn(ctx context.Context, cfg *domain.SandboxConfig, in Ap
 		return nil, err
 	}
 	if result == nil {
-		return nil, nil
+		return nil, fmt.Errorf("run-end apply returned no provenance result")
+	}
+	if !result.Success {
+		return nil, fmt.Errorf("run-end apply refused finalization: %s", result.ErrorMsg)
 	}
 	return &postTurnApplyResult{
 		Applied:        result.Applied,

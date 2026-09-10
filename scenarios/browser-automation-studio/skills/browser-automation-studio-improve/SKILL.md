@@ -72,6 +72,18 @@ author-flow. A failing saved workflow needs a candidate repair against its exact
 revision, retaining assertions and old versions. Run substantial implementation
 through the work ladder under the active task's authority; filing alone is not progress.
 
+Read `program-runtime.learning-maintain` with `action=list` and
+`owner=browser-automation-studio` each improvement cycle. Its durable findings
+include delayed outcome contradictions that execution metrics alone cannot see.
+Claim a routed finding through `action=advance` before repairing its exact
+artifact or owning program; retain the returned `claim_ref`. Advance it through
+`repaired`, `validated`, and `measured` with evidence at each transition. A repair
+or passing regression is not measured improvement: the final transition needs
+subsequent comparable task outcomes. Unavailable or truncated reads remain
+explicit gaps. This queue is also exposed to Meta Optimization focus reads;
+reading or routing it does not itself execute repairs. Existing worker scheduling
+and the active task's authority govern those changes.
+
 The usage skill's program share is an authoring diagnostic, not an outcome or speed metric. Measure actual task cohorts before claiming benefit.
 
 ### 3. Sensors

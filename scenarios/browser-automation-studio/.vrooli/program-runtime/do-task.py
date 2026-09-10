@@ -1,23 +1,14 @@
-"""browser-automation-studio.do-task v3 — route a browser task through learned choices, navigation, and verified flows.
+"""General browser task entry point: bounded authorized reuse or navigation.
 
-Contract: do-task.json.
-Skill:    browser-automation-studio (usage) — the [S3] entry point.
-
-Four routes, exactly one per run:
-  workflow_id + version   execute the selected revision through smoke-flow; grade an earlier
-                          recommendation when advice_attempt_id names it.
-  flow                    validate, run once, and save a typed candidate through author-flow.
-  session or navigation_id  bounded AI navigation through navigate-intent; a reached navigation is
-                          turned into a candidate flow, authored, and verified in the same run when
-                          wait_millis allows it, otherwise resume later with navigation_id.
-  (none)                  rank existing flows through find-flows and recommend one from memory;
-                          selection stays explicit (selection_required).
-
-Learning identity is site plus a digest of the normalized task text, so preferences for
-"open the workflows page" never pool with "delete a workflow" on the same site. Options and
-preference notes share one identity, `<workflow_id>@<version>`.
+Task identity includes site, normalized goal, profile, environment, and postconditions.
+Navigation verifies/extracts on the final page without replay. A recorded flow stays an
+unqualified candidate unless the caller authorizes qualification with `qualify=true`, which
+persists it and then independently verifies the persisted revision against the task's own
+postconditions. Only that second execution earns a preference, so the expensive AI navigation
+path converges into a cheap deterministic workflow instead of being rediscovered every run.
 """
 import hashlib
+import json
 
 inputs = program.inputs()
 task = str(inputs.get("task", "") or "").strip()
@@ -25,9 +16,9 @@ site = str(inputs.get("site", "") or inputs.get("url", "") or "").split("//")[-1
 site_key = site or str(inputs.get("scenario", "") or "unknown")
 task_digest = hashlib.sha256(" ".join(task.lower().split()).encode("utf-8")).hexdigest()[:16]
 identity = learn.task(scope="bas-usage", operation="browser-automation-studio.do-task",
-                      key={"site": site_key, "task": task_digest})
+                      key={"site": site_key, "task": task_digest, "profile": inputs.get("profile_id", ""), "environment": inputs.get("environment_revision", ""), "contract": hashlib.sha256(json.dumps({"postconditions": inputs.get("postconditions", []), "extraction": inputs.get("extraction", [])}, sort_keys=True).encode()).hexdigest()[:16]})
 
-envelope = {"program": "browser-automation-studio.do-task", "version": "3", "status": "failed",
+envelope = {"program": "browser-automation-studio.do-task", "version": "5", "status": "failed",
             "phase": "validate", "inputs": {}, "signals": {"result": None, "candidates": [],
             "reused_workflow": False, "outcome": "unknown", "learning": {"attempt_id": identity.get("attempt_id"),
             "task_id": identity.get("task_id"), "key": identity.get("key")}}, "errors": [], "evidence": []}
@@ -53,7 +44,7 @@ def option_id(workflow_id, version):
 def grade_advice(status):
     """Close the loop for a search-then-execute split: the run that executed the recommended
     revision grades the earlier run that recommended it."""
-    earlier = str(inputs.get("advice_attempt_id", "") or "").strip()
+    earlier = inputs.get("advice_feedback_ref") or str(inputs.get("advice_attempt_id", "") or "").strip()
     if not earlier or status not in ("verified_success", "failed"):
         return
     disposition = "supported" if status == "verified_success" else "contradicted"
@@ -86,6 +77,24 @@ def step_validate():
     wait = inputs.get("wait_millis", 0)
     if type(wait) is not int or not 0 <= wait <= 300000:
         return fail("failed", "invalid_input", "wait_millis must be an integer in 0..300000", "validate")
+    conditions = inputs.get("postconditions", [])
+    if not isinstance(conditions, list) or len(conditions) > 16 or any(not isinstance(a, dict) or not a.get("selector") or not a.get("mode") for a in conditions):
+        return fail("failed", "invalid_input", "postconditions must be bounded typed assertions", "validate")
+    extraction = inputs.get("extraction", [])
+    if not isinstance(extraction, list) or len(extraction) > 16 or any(not isinstance(e, dict) or not e.get("name") or not e.get("selector") or type(e.get("limit", 10)) is not int or not 0 <= e.get("limit", 10) <= 100 for e in extraction):
+        return fail("failed", "invalid_input", "extraction must contain bounded named selector specifications", "validate")
+    authorized = inputs.get("authorized_workflows", [])
+    if not isinstance(authorized, list) or len(authorized) > 100 or any(not isinstance(a, str) for a in authorized):
+        return fail("failed", "invalid_input", "authorized_workflows must be a bounded list of revision identities", "validate")
+    if inputs.get("effect_policy", "explicit") not in ("explicit", "read_only"):
+        return fail("failed", "invalid_input", "effect_policy must be explicit or read_only", "validate")
+    if inputs.get("auto_select") and (not inputs.get("authorized_workflows") or not inputs.get("postconditions")):
+        return fail("failed", "invalid_input", "auto_select requires authorized_workflows and task postconditions", "validate")
+    if "qualify" in inputs and type(inputs["qualify"]) is not bool:
+        return fail("failed", "invalid_input", "qualify must be a boolean", "validate")
+    if inputs.get("qualify") and not inputs.get("postconditions"):
+        # Qualification re-executes the task. Without an assertion it would buy nothing.
+        return fail("failed", "invalid_input", "qualify requires postconditions; an unasserted replay cannot verify anything", "validate")
     envelope["inputs"] = {"task": task[:160], "workflow_id": inputs.get("workflow_id"), "site": site[:160],
                           "navigation_id": inputs.get("navigation_id"), "advice_attempt_id": inputs.get("advice_attempt_id")}
     return "act"
@@ -105,16 +114,26 @@ def child_outcome(child):
 
 def adopt_child(child):
     envelope["signals"]["result"] = child.get("signals")
+    envelope["signals"]["output"] = (child.get("signals") or {}).get("output", {})
+    envelope["signals"]["learning"]["children"] = [((child.get("signals") or {}).get("learning") or {})]
     envelope["evidence"] = child.get("evidence", [])[:10]
     envelope["errors"] = child.get("errors", [])[:5]
     envelope["status"] = child.get("status", "failed")
 
 
+def workflow_eligible(workflow_id, version):
+    status = learn.result_status(artifact={"kind": "workflow", "owner": "browser-automation-studio", "id": str(workflow_id), "revision": str(version)})
+    return status.get("available") is True and status.get("eligible") is True
+
+
 def route_workflow():
     workflow_id, version = inputs["workflow_id"], inputs["version"]
+    if not workflow_eligible(workflow_id, version):
+        return fail("refused", "learning_ineligible", "Workflow revision is contradicted or its eligibility cannot be checked", "act")
     with learn.step("verify") as step:
         child = child_result(lib.browser_automation_studio.smoke_flow(
-            workflow_id=workflow_id, version=version, parameters=inputs.get("parameters", {})))
+            workflow_id=workflow_id, version=version, parameters=inputs.get("parameters", {}), postconditions=inputs.get("postconditions", []),
+            effect_policy=inputs.get("effect_policy", "explicit"), extraction=inputs.get("extraction", [])))
         step.outcome(child_outcome(child), child.get("evidence", []))
     adopt_child(child)
     envelope["signals"]["reused_workflow"] = verified_child(child)
@@ -143,6 +162,60 @@ def route_candidate():
     return finish(child_outcome(child), envelope["evidence"], reused=False)
 
 
+def qualify_candidate(candidate):
+    """Turn a reached navigation into a durable, independently verified workflow revision.
+
+    Navigation already executed the task's effects, and its own trace can never verify the
+    flow rebuilt from it. Qualification therefore costs one authored ad hoc run plus one
+    execution of the persisted revision, so the caller must authorize repeating the task
+    (`qualify=true`) and must declare postconditions, or the run proves nothing.
+
+    The persisted revision is graded by the same child and the same postconditions the reuse
+    path uses in route_workflow, so a preference note earned here is comparable to one earned
+    by reuse. Returns the qualified option id, or None with the reason recorded on the envelope.
+    """
+    with learn.step("qualify-author") as step:
+        authored = child_result(lib.browser_automation_studio.author_flow(
+            flow=candidate, project_id=inputs.get("project_id", ""),
+            name=inputs.get("name", "") or ("task-" + task_digest),
+            folder=inputs.get("folder", "candidates")))
+        step.outcome(child_outcome(authored), authored.get("evidence", []))
+    signals = authored.get("signals") or {}
+    workflow_id, version = signals.get("workflow_id"), signals.get("version")
+    if not verified_child(authored) or not workflow_id or not version:
+        envelope["errors"].append({"class": "qualification_failed", "detail": "Candidate did not persist as a verified revision", "where": "act"})
+        return None
+    envelope["signals"]["qualified_workflow"] = {"workflow_id": workflow_id, "version": version}
+    with learn.step("qualify-verify") as step:
+        verified = child_result(lib.browser_automation_studio.smoke_flow(
+            workflow_id=workflow_id, version=version, parameters=inputs.get("parameters", {}),
+            postconditions=inputs.get("postconditions", []), effect_policy=inputs.get("effect_policy", "explicit"),
+            extraction=inputs.get("extraction", [])))
+        step.outcome(child_outcome(verified), verified.get("evidence", []))
+    option = option_id(workflow_id, version)
+    if not verified_child(verified):
+        # The persisted revision is not reusable. Record why so the next run does not re-select it.
+        fingerprint = str(((verified.get("errors") or [{}])[0] or {}).get("class") or "qualification_failed")
+        learn.note("avoid", {"option_id": option, "fingerprint": fingerprint}, evidence=verified.get("evidence", [])[:5])
+        envelope["errors"].append({"class": "qualification_failed", "detail": "Persisted revision failed independent verification: " + fingerprint, "where": "act"})
+        return None
+    envelope["evidence"] = list(dict.fromkeys(envelope["evidence"] + verified.get("evidence", [])))[:10]
+    learn.note("preference", {"option_id": option}, evidence=verified.get("evidence", [])[:5])
+    learn.result("qualified-workflow", artifact={"kind": "workflow", "owner": "browser-automation-studio",
+                                                 "id": str(workflow_id), "revision": str(version)})
+    envelope["signals"]["qualification"] = "qualified"
+    return option
+
+
+def qualification_refusal(candidate):
+    """Explain why an available candidate was not qualified, without failing the task."""
+    if not inputs.get("qualify"):
+        return "verification_required", "Navigation completed; pass qualify=true with postconditions to persist and independently verify this candidate"
+    if not inputs.get("postconditions"):
+        return "qualification_unavailable", "qualify requires postconditions; an unasserted replay cannot verify anything"
+    return "", ""
+
+
 def route_navigation():
     resume = str(inputs.get("navigation_id", "") or "")
     if not resume and not inputs.get("model"):
@@ -155,6 +228,11 @@ def route_navigation():
     else:
         kwargs["session"] = inputs["session"]
         kwargs["model"] = inputs["model"]
+    kwargs["postconditions"] = inputs.get("postconditions", [])
+    kwargs["extraction"] = inputs.get("extraction", [])
+    kwargs["effect_policy"] = inputs.get("effect_policy", "explicit")
+    recalled = learn.recall(kinds=["target-note"], limit=5)
+    kwargs["knowledge"] = json.dumps(recalled.get("notes", {}), sort_keys=True)[:4000]
     with learn.step("navigate") as navigate:
         child = child_result(lib.browser_automation_studio.navigate_intent(**kwargs))
         navigate_status = child_outcome(child)
@@ -165,40 +243,43 @@ def route_navigation():
     if signals.get("outcome") == "failed":
         learn.note("avoid", {"fingerprint": "navigation:" + str(signals.get("status") or "failed")}, evidence=envelope["evidence"][:5])
         return finish("failed", envelope["evidence"], reused=False)
+    candidate = signals.get("candidate_flow")
+    has_candidate = isinstance(candidate, dict) and bool(candidate.get("nodes"))
+    can_qualify = bool(inputs.get("qualify")) and bool(inputs.get("postconditions"))
+    if signals.get("outcome") == "verified_success":
+        envelope["signals"]["output"] = signals.get("output", {})
+        envelope["signals"]["candidate_flow"] = candidate
+        envelope["signals"]["qualification"] = "candidate"
+        # The task already succeeded on the live page. Qualification only decides whether a
+        # durable revision is earned; a failure here must never downgrade a verified task.
+        if has_candidate and can_qualify:
+            qualify_candidate(candidate)
+        elif has_candidate:
+            klass, detail = qualification_refusal(candidate)
+            if klass:
+                envelope["errors"].append({"class": klass, "detail": detail, "where": "act"})
+        return finish("verified_success", envelope["evidence"], reused=False)
     if signals.get("outcome") != "reached":
         # in_progress, human_pause or budget: the caller resumes with navigation_id.
         return finish(navigate_status, envelope["evidence"], reused=False)
-    candidate = signals.get("candidate_flow")
-    if not isinstance(candidate, dict) or not candidate.get("nodes"):
+    if not has_candidate:
         envelope["status"] = "partial"
         envelope["errors"].append({"class": "no_candidates", "detail": "navigation reached its goal but recorded no replayable steps", "where": "act"})
         return finish("unknown", envelope["evidence"], reused=False)
-    with learn.step("author") as author:
-        authored = child_result(lib.browser_automation_studio.author_flow(
-            flow=candidate, project_id=inputs.get("project_id", ""), name=(inputs.get("name") or task[:60] or "candidate")))
-        author.outcome(child_outcome(authored), authored.get("evidence", []))
-    a = authored.get("signals") or {}
-    if not verified_child(authored) or not a.get("workflow_id") or not a.get("version"):
-        envelope["status"] = authored.get("status", "failed")
-        envelope["errors"] += authored.get("errors", [])[:5]
-        envelope["evidence"] = (envelope["evidence"] + authored.get("evidence", []))[:10]
-        return finish(child_outcome(authored), envelope["evidence"], reused=False)
-    with learn.step("verify") as verify:
-        smoked = child_result(lib.browser_automation_studio.smoke_flow(
-            workflow_id=a["workflow_id"], version=a["version"], parameters={}))
-        verify.outcome(child_outcome(smoked), smoked.get("evidence", []))
-    envelope["signals"]["result"] = smoked.get("signals")
-    envelope["signals"]["workflow_id"] = a["workflow_id"]
-    envelope["signals"]["version"] = a["version"]
-    envelope["errors"] += smoked.get("errors", [])[:5]
-    envelope["evidence"] = (envelope["evidence"] + authored.get("evidence", []) + smoked.get("evidence", []))[:10]
-    envelope["status"] = smoked.get("status", "failed")
-    envelope["signals"]["reused_workflow"] = False
-    if verified_child(smoked):
-        learn.note("preference", {"option_id": option_id(a["workflow_id"], a["version"])}, evidence=envelope["evidence"][:5])
-        learn.note("target-note", {"fact": "navigation for this task reached its goal in " + str(signals.get("step_count") or "?") + " steps and replays as " + option_id(a["workflow_id"], a["version"]), "ttl_days": 30})
+    envelope["signals"]["candidate_flow"] = candidate
+    envelope["signals"]["qualification"] = "candidate"
+    # Navigation reached its goal but proved nothing: its own trace can never verify the flow
+    # rebuilt from it. Only an authorized re-execution of the persisted revision verifies.
+    if can_qualify and qualify_candidate(candidate):
+        envelope["status"] = "ok"
+        envelope["signals"]["replay_eligible"] = True
         return finish("verified_success", envelope["evidence"], reused=False)
-    return finish(child_outcome(smoked), envelope["evidence"], reused=False)
+    envelope["signals"]["replay_eligible"] = False
+    envelope["status"] = "partial"
+    klass, detail = qualification_refusal(candidate)
+    if klass:
+        envelope["errors"].append({"class": klass, "detail": detail, "where": "act"})
+    return finish("unknown", envelope["evidence"], reused=False)
 
 
 def route_search():
@@ -209,6 +290,10 @@ def route_search():
     candidates = ((result.get("signals") or {}).get("candidates") or [])[:5]
     envelope["signals"]["candidates"] = candidates
     runnable = [c for c in candidates if c.get("runnable_by_id") and c.get("id") and c.get("version")]
+    if inputs.get("auto_select"):
+        authorized = inputs.get("authorized_workflows", [])
+        runnable = [c for c in runnable if option_id(c["id"], c["version"]) in authorized]
+    runnable = [c for c in runnable if workflow_eligible(c["id"], c["version"])]
     options = list(dict.fromkeys(option_id(c["id"], c["version"]) for c in runnable))
     if options:
         choice = learn.choose(options, options[0])
@@ -219,6 +304,11 @@ def route_search():
         envelope["signals"]["recommended_workflow"] = {"workflow_id": selected_id, "version": int(selected_version) if selected_version.isdigit() else selected_version,
                                                        "option_id": choice["selected_id"], "source": choice["source"], "why": choice.get("why", [])[:3]}
         envelope["signals"]["learning"]["advice"] = choice["learning"]["advice"][:10]
+        if inputs.get("auto_select"):
+            inputs["workflow_id"], inputs["version"] = selected_id, int(selected_version)
+            return route_workflow()
+    if inputs.get("session") and inputs.get("model"):
+        return route_navigation()
     envelope["status"] = "partial"
     envelope["errors"].append({"class": "selection_required", "detail": "Select a matching workflow UUID and version (pass advice_attempt_id to grade this recommendation), or supply a candidate/session", "where": "act"})
     return finish("unknown")
@@ -231,7 +321,7 @@ def step_act():
             return route_workflow()
         if inputs.get("flow"):
             return route_candidate()
-        if inputs.get("session") or inputs.get("navigation_id"):
+        if inputs.get("navigation_id") or (inputs.get("session") and not inputs.get("auto_select")):
             return route_navigation()
         return route_search()
     except Exception as exc:
@@ -243,6 +333,11 @@ def step_act():
 
 def step_report():
     envelope["phase"] = "report"
+    selected = inputs.get("workflow_id")
+    artifact = {"kind": "workflow", "owner": "browser-automation-studio", "id": selected, "revision": str(inputs["version"])} if selected else None
+    if not artifact and envelope["signals"].get("navigation_id"):
+        artifact = {"kind": "navigation", "owner": "browser-automation-studio", "id": envelope["signals"]["navigation_id"], "revision": "1"}
+    envelope["signals"]["learning"]["feedback_ref"] = learn.result("task", artifact=artifact)
     print(envelope)
     return None
 

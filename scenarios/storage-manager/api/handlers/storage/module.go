@@ -17,6 +17,7 @@ import (
 	"storage-manager/internal/budget"
 	"storage-manager/internal/census"
 	"storage-manager/internal/growth"
+	"storage-manager/internal/inventorycache"
 	"storage-manager/internal/module"
 	"storage-manager/internal/orchestrator"
 	"storage-manager/internal/placement"
@@ -33,6 +34,7 @@ type ModuleDeps struct {
 	DB              *database.RoutedDB
 	OllamaInventory providers.OllamaModelInventory
 	OllamaModelRoot string
+	QdrantReader    providers.QdrantGenerationReader
 }
 
 func Module(d ModuleDeps) module.Module {
@@ -52,7 +54,7 @@ func Module(d ModuleDeps) module.Module {
 		// Inventory is required by every operator read model. Load it before
 		// publishing the module so a healthy storage-manager never advertises a
 		// feed that can only return transient "warming" errors.
-		loaded, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+		loaded, err := inventorycache.Load(d.RepoRoot, corestorage.Platform(runtime.GOOS))
 		inventoryMu.Lock()
 		ownerInventory, ownerInventoryErr, inventoryReady = loaded, err, true
 		inventoryMu.Unlock()
@@ -68,7 +70,13 @@ func Module(d ModuleDeps) module.Module {
 				http.Error(w, "repository root is unavailable", http.StatusServiceUnavailable)
 				return
 			}
-			inventory, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+			// The inventory is served from a short-lived cache so a request
+			// storm cannot trigger a repository walk per request. A client that
+			// just edited a manifest asks for a fresh walk with Cache-Control.
+			if strings.Contains(strings.ToLower(req.Header.Get("Cache-Control")), "no-cache") {
+				inventorycache.Invalidate()
+			}
+			inventory, err := inventorycache.Load(d.RepoRoot, corestorage.Platform(runtime.GOOS))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -79,6 +87,47 @@ func Module(d ModuleDeps) module.Module {
 				modelInventory := buildOllamaStorageInventory(req.Context(), d.OllamaInventory, d.OllamaModelRoot, filepath.Join(d.RepoRoot, "resources", "ollama", "model-policy.json"))
 				out.OllamaModels = &modelInventory
 			}
+			_ = json.NewEncoder(w).Encode(out)
+		}).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/storage/qdrant", func(w http.ResponseWriter, req *http.Request) {
+			if d.QdrantReader == nil {
+				http.Error(w, "qdrant owner report is unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			started := time.Now()
+			inspection, err := d.QdrantReader.InspectQdrantGenerations(req.Context())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			dispositions := qdrantDispositionTotals(inspection)
+			aggregateDrift := qdrantAggregateDrift(inspection)
+			limit := 100
+			if raw := strings.TrimSpace(req.URL.Query().Get("limit")); raw != "" {
+				parsed, parseErr := strconv.Atoi(raw)
+				if parseErr != nil || parsed < 1 {
+					http.Error(w, "limit must be a positive integer", http.StatusBadRequest)
+					return
+				}
+				if parsed < limit {
+					limit = parsed
+				}
+			}
+			state := strings.TrimSpace(req.URL.Query().Get("state"))
+			if state != "" {
+				filtered := inspection.Generations[:0]
+				for _, generation := range inspection.Generations {
+					if generation.State == state {
+						filtered = append(filtered, generation)
+					}
+				}
+				inspection.Generations = filtered
+			}
+			if len(inspection.Generations) > limit {
+				inspection.Generations = inspection.Generations[:limit]
+			}
+			out := qdrantStorageReport{QdrantGenerationInspection: inspection, DispositionBytes: dispositions, AggregateDriftBytes: aggregateDrift, LatencyMilliseconds: time.Since(started).Milliseconds()}
+			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(out)
 		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/census", func(w http.ResponseWriter, req *http.Request) {
@@ -99,7 +148,7 @@ func Module(d ModuleDeps) module.Module {
 					return
 				}
 			}
-			inventory, inventoryErr := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+			inventory, inventoryErr := inventorycache.Load(d.RepoRoot, corestorage.Platform(runtime.GOOS))
 			if inventoryErr != nil {
 				http.Error(w, inventoryErr.Error(), http.StatusInternalServerError)
 				return
@@ -157,7 +206,7 @@ func Module(d ModuleDeps) module.Module {
 			}
 			ceilings := map[string]int64{}
 			if strings.TrimSpace(d.RepoRoot) != "" {
-				inventory, inventoryErr := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+				inventory, inventoryErr := inventorycache.Load(d.RepoRoot, corestorage.Platform(runtime.GOOS))
 				if inventoryErr != nil {
 					http.Error(w, inventoryErr.Error(), http.StatusInternalServerError)
 					return
@@ -218,7 +267,7 @@ func Module(d ModuleDeps) module.Module {
 			_ = json.NewEncoder(w).Encode(rows)
 		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/storage/budget-health", func(w http.ResponseWriter, req *http.Request) {
-			inventory, inventoryErr := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+			inventory, inventoryErr := inventorycache.Load(d.RepoRoot, corestorage.Platform(runtime.GOOS))
 			if inventoryErr != nil {
 				http.Error(w, inventoryErr.Error(), http.StatusInternalServerError)
 				return
@@ -390,7 +439,7 @@ func Module(d ModuleDeps) module.Module {
 				http.Error(w, "platform must be linux, macos, or windows", http.StatusBadRequest)
 				return
 			}
-			inventory, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: platform})
+			inventory, err := inventorycache.Load(d.RepoRoot, platform)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -429,7 +478,7 @@ func Module(d ModuleDeps) module.Module {
 				http.Error(w, "platform must be linux, macos, or windows", http.StatusBadRequest)
 				return
 			}
-			inventory, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: platform})
+			inventory, err := inventorycache.Load(d.RepoRoot, platform)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -479,7 +528,7 @@ func Module(d ModuleDeps) module.Module {
 			_ = json.NewEncoder(w).Encode(audit)
 		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/adoption", func(w http.ResponseWriter, req *http.Request) {
-			inventory, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+			inventory, err := inventorycache.Load(d.RepoRoot, corestorage.Platform(runtime.GOOS))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -544,7 +593,7 @@ func Module(d ModuleDeps) module.Module {
 			_ = json.NewEncoder(w).Encode(out)
 		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/declare/inspect", func(w http.ResponseWriter, req *http.Request) {
-			inventory, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+			inventory, err := inventorycache.Load(d.RepoRoot, corestorage.Platform(runtime.GOOS))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -559,7 +608,7 @@ func Module(d ModuleDeps) module.Module {
 			_ = json.NewEncoder(w).Encode(out)
 		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/declare/suggest", func(w http.ResponseWriter, req *http.Request) {
-			inventory, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+			inventory, err := inventorycache.Load(d.RepoRoot, corestorage.Platform(runtime.GOOS))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -574,7 +623,7 @@ func Module(d ModuleDeps) module.Module {
 			_ = json.NewEncoder(w).Encode(out)
 		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/declare/check", func(w http.ResponseWriter, req *http.Request) {
-			inventory, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+			inventory, err := inventorycache.Load(d.RepoRoot, corestorage.Platform(runtime.GOOS))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -708,6 +757,19 @@ func Module(d ModuleDeps) module.Module {
 				return
 			}
 			out := infraHealthReport{SchemaVersion: "2", OwnerCount: len(inventory.Owners), OwnersWithDeclaredCeiling: withCeiling, DeclaredCeilingCoverage: ratio(withCeiling, len(inventory.Owners)), DeclaredCeilingBytes: declaredCeilingBytes, SnapshotCount: snapshotCount, Confidence: "unknown"}
+			if d.QdrantReader != nil {
+				started := time.Now()
+				inspection, inspectErr := d.QdrantReader.InspectQdrantGenerations(req.Context())
+				qdrant := &qdrantStorageReport{LatencyMilliseconds: time.Since(started).Milliseconds()}
+				if inspectErr != nil {
+					qdrant.Error = inspectErr.Error()
+				} else {
+					qdrant.QdrantGenerationInspection = inspection
+					qdrant.DispositionBytes = qdrantDispositionTotals(inspection)
+					qdrant.AggregateDriftBytes = qdrantAggregateDrift(inspection)
+				}
+				out.Qdrant = qdrant
+			}
 			if d.DB != nil {
 				ledger := orchestrator.NewSQLiteStore(d.DB)
 				if writers, writerErr := ledger.ListWriterSnapshots(req.Context(), 10); writerErr == nil {
@@ -1112,6 +1174,57 @@ type infraHealthReport struct {
 	RecentRecoveryRuns                []recoveryRunSummary          `json:"recent_recovery_runs,omitempty"`
 	RecoveryEfficacy                  *float64                      `json:"recovery_efficacy,omitempty"`
 	BudgetTruth                       *float64                      `json:"budget_truth,omitempty"`
+	Qdrant                            *qdrantStorageReport          `json:"qdrant,omitempty"`
+}
+
+type qdrantStorageReport struct {
+	providers.QdrantGenerationInspection
+	DispositionBytes    map[census.Disposition]int64 `json:"disposition_bytes"`
+	AggregateDriftBytes int64                        `json:"aggregate_drift_bytes,omitempty"`
+	LatencyMilliseconds int64                        `json:"latency_ms"`
+	Error               string                       `json:"error,omitempty"`
+}
+
+func qdrantDispositionTotals(inspection providers.QdrantGenerationInspection) map[census.Disposition]int64 {
+	totals := map[census.Disposition]int64{}
+	protected := make(map[string]bool, len(inspection.Protected))
+	for _, name := range inspection.Protected {
+		protected[name] = true
+	}
+	quarantined := make(map[string]bool, len(inspection.Quarantined))
+	for _, name := range inspection.Quarantined {
+		quarantined[name] = true
+	}
+	eligible := make(map[string]bool, len(inspection.Eligible))
+	for _, name := range inspection.Eligible {
+		eligible[name] = true
+	}
+	for _, generation := range inspection.Generations {
+		disposition := census.DispositionOwnedManaged
+		switch {
+		case quarantined[generation.CollectionName]:
+			disposition = census.DispositionOwnedUnreadable
+		case protected[generation.CollectionName] || generation.CollectionName == inspection.ActiveCollection:
+			disposition = census.DispositionOwnedProtected
+		case eligible[generation.CollectionName]:
+			disposition = census.DispositionOwnedManaged
+		default:
+			disposition = census.DispositionOwnedProtected
+		}
+		totals[disposition] += generation.Bytes
+	}
+	return totals
+}
+
+func qdrantAggregateDrift(inspection providers.QdrantGenerationInspection) int64 {
+	var sum int64
+	for _, generation := range inspection.Generations {
+		sum += generation.Bytes
+	}
+	if inspection.LogicalBytes > sum {
+		return inspection.LogicalBytes - sum
+	}
+	return 0
 }
 
 // recoveryRunSummary is the read-only wire projection. RecoveryRun also owns
@@ -1213,6 +1326,7 @@ func ownerObservedBytes(owner corestorage.OwnerManifest) (int64, bool) {
 
 var Endpoints = []module.EndpointDescriptor{
 	{ID: "storage_inventory", Path: "/api/v1/storage/inventory", Method: http.MethodGet, Summary: "List storage owners and declarations", Description: "Deterministic owner-neutral inventory across scenarios, resources, tools, and safeguards.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
+	{ID: "storage_qdrant", Path: "/api/v1/storage/qdrant", Method: http.MethodGet, Summary: "Read Qdrant generation accounting", Description: "Reads the owner-managed Qdrant namespace with lifecycle, lease, byte, disposition, and cleanup eligibility fields.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_census", Path: "/api/v1/census", Method: http.MethodGet, Summary: "Measure declared and unattributed storage", Description: "Read-only closed accounting over the selected root.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_census_history", Path: "/api/v1/census/history", Method: http.MethodGet, Summary: "Read persisted census history", Description: "Returns immutable census snapshots and growth observations for the selected root.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_growth", Path: "/api/v1/storage/growth", Method: http.MethodGet, Summary: "Rank storage growth", Description: "Fits per-owner growth over persisted census samples and projects declared ceilings.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},

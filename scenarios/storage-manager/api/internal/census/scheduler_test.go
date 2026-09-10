@@ -63,6 +63,8 @@ func TestSchedulerYieldsAFullIntervalAfterAnOverrunningCycle(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// The duty-cycle cap is lifted so this test isolates the wait-from-end
+	// guarantee; TestSchedulerIdlesLongerAfterALongPass covers the cap.
 	scheduler := NewScheduler(interval, func(context.Context) error {
 		startedAt := time.Now()
 		time.Sleep(cycleLength)
@@ -74,7 +76,7 @@ func TestSchedulerYieldsAFullIntervalAfterAnOverrunningCycle(t *testing.T) {
 			close(done)
 		}
 		return nil
-	})
+	}).WithDutyCycle(1)
 	scheduler.Start(ctx)
 
 	select {
@@ -177,6 +179,92 @@ func TestSchedulerStopsWhenContextIsCancelledDuringACycle(t *testing.T) {
 	time.Sleep(20 * interval)
 	if got := calls.Load(); got != 1 {
 		t.Fatalf("calls = %d, want 1: cancellation during a cycle must stop the loop", got)
+	}
+}
+
+func TestIdleAfterKeepsCensusWorkUnderTheDutyCycleCap(t *testing.T) {
+	for _, tc := range []struct {
+		name               string
+		duration, interval time.Duration
+		duty               float64
+		want               time.Duration
+	}{
+		{name: "short pass waits one interval", duration: time.Minute, interval: 6 * time.Hour, duty: 0.1, want: 6 * time.Hour},
+		{name: "85 minute pass on a 30 minute interval idles 9x the pass", duration: 85 * time.Minute, interval: 30 * time.Minute, duty: 0.1, want: 765 * time.Minute},
+		{name: "cap of one is plain wait-from-end", duration: time.Hour, interval: 10 * time.Minute, duty: 1, want: 10 * time.Minute},
+		{name: "invalid cap falls back to the default", duration: time.Hour, interval: time.Minute, duty: -3, want: 9 * time.Hour},
+		{name: "zero duration waits one interval", duration: 0, interval: time.Minute, duty: 0.1, want: time.Minute},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := IdleAfter(tc.duration, tc.interval, tc.duty)
+			if got != tc.want {
+				t.Fatalf("IdleAfter(%s, %s, %v) = %s, want %s", tc.duration, tc.interval, tc.duty, got, tc.want)
+			}
+			if tc.duty > 0 && tc.duty <= 1 && tc.duration > 0 {
+				share := float64(tc.duration) / float64(tc.duration+got)
+				if share > tc.duty+1e-9 {
+					t.Fatalf("census share of wall time = %.3f, exceeds cap %.3f", share, tc.duty)
+				}
+			}
+		})
+	}
+}
+
+// A pass that would exceed the duty-cycle cap on a plain wait-from-end
+// schedule must push the next pass out until the cap holds, and the observer
+// must see the chosen idle gap once per pass.
+func TestSchedulerIdlesLongerAfterALongPass(t *testing.T) {
+	const (
+		interval = 10 * time.Millisecond
+		pass     = 50 * time.Millisecond
+		duty     = 0.2 // idle must be at least 4x the pass: 200ms
+	)
+	type span struct{ startedAt, endedAt time.Time }
+	var (
+		mu    sync.Mutex
+		spans []span
+	)
+	cycles := make(chan Cycle, 4)
+	done := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	scheduler := NewScheduler(interval, func(context.Context) error {
+		startedAt := time.Now()
+		time.Sleep(pass)
+		mu.Lock()
+		spans = append(spans, span{startedAt: startedAt, endedAt: time.Now()})
+		if len(spans) == 2 {
+			close(done)
+		}
+		mu.Unlock()
+		return nil
+	}).WithDutyCycle(duty).WithObserver(func(c Cycle) { cycles <- c })
+	scheduler.Start(ctx)
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("scheduler did not complete two cycles")
+	}
+	cancel()
+
+	first := <-cycles
+	if !first.Overran {
+		t.Fatalf("a %s pass on a %s interval must be reported as an overrun: %+v", pass, interval, first)
+	}
+	wantIdle := IdleAfter(first.Duration, interval, duty)
+	if first.IdleFor != wantIdle || first.IdleFor < 4*pass {
+		t.Fatalf("IdleFor = %s, want %s (at least 4x the %s pass)", first.IdleFor, wantIdle, pass)
+	}
+	mu.Lock()
+	gap := spans[1].startedAt.Sub(spans[0].endedAt)
+	mu.Unlock()
+	if gap < 4*pass-5*time.Millisecond {
+		t.Fatalf("second pass started %s after the first ended; the duty-cycle cap requires at least %s", gap, 4*pass)
+	}
+	if got := len(cycles); got > 1 {
+		t.Fatalf("observer saw %d extra cycles for two passes; the overrun must be reported once per pass", got)
 	}
 }
 

@@ -1,7 +1,21 @@
 package vision
 
 // NavigationRequest contains all parameters needed to start an AI navigation.
+type NavigationPostcondition struct {
+	Selector string `json:"selector"`
+	Mode     string `json:"mode"`
+	Expected string `json:"expected"`
+}
+type NavigationExtraction struct {
+	Name      string `json:"name"`
+	Selector  string `json:"selector"`
+	Attribute string `json:"attribute"`
+	Limit     int    `json:"limit"`
+}
 type NavigationRequest struct {
+	EffectPolicy   string                    `json:"effect_policy,omitempty"`
+	Postconditions []NavigationPostcondition `json:"postconditions,omitempty"`
+	Extraction     []NavigationExtraction    `json:"extraction,omitempty"`
 	// SessionID is the browser session to navigate.
 	SessionID string `json:"session_id"`
 
@@ -62,14 +76,17 @@ type TokenUsage struct {
 
 // NavigationResult represents the outcome of a completed navigation.
 type NavigationResult struct {
-	NavigationID    string           `json:"navigationId"`
-	Status          NavigationStatus `json:"status"`
-	TotalSteps      int              `json:"totalSteps"`
-	TotalTokens     int              `json:"totalTokens"`
-	TotalDurationMs int64            `json:"totalDurationMs"`
-	FinalURL        string           `json:"finalUrl"`
-	Error           string           `json:"error,omitempty"`
-	Summary         string           `json:"summary,omitempty"`
+	VerifiedSuccess   bool                   `json:"verifiedSuccess"`
+	ExtractedData     map[string]interface{} `json:"extractedData,omitempty"`
+	VerificationError string                 `json:"verificationError,omitempty"`
+	NavigationID      string                 `json:"navigationId"`
+	Status            NavigationStatus       `json:"status"`
+	TotalSteps        int                    `json:"totalSteps"`
+	TotalTokens       int                    `json:"totalTokens"`
+	TotalDurationMs   int64                  `json:"totalDurationMs"`
+	FinalURL          string                 `json:"finalUrl"`
+	Error             string                 `json:"error,omitempty"`
+	Summary           string                 `json:"summary,omitempty"`
 }
 
 // NavigatorInfo provides information about a navigator for the list endpoint.

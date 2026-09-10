@@ -9,6 +9,7 @@ import { cleanup, screen } from "@testing-library/react";
 import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
 import { TestAppRouter } from "./routes";
+import { Providers } from "./providers";
 
 describe("AppRouter", () => {
   afterEach(() => {
@@ -16,17 +17,17 @@ describe("AppRouter", () => {
   });
 
   it("renders the dashboard at /", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
+    renderWithProviders(<Providers><TestAppRouter initialEntries={["/"]} /></Providers>, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
   });
 
   it("renders the signals page at /signals", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/signals"]} />, { withoutRouter: true });
+    renderWithProviders(<Providers><TestAppRouter initialEntries={["/signals"]} /></Providers>, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.signals)).toBeInTheDocument();
   });
 
   it("renders the settings page at /settings", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
+    renderWithProviders(<Providers><TestAppRouter initialEntries={["/settings"]} /></Providers>, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
   });
 });

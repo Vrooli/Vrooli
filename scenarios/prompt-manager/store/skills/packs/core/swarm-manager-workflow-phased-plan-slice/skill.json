@@ -4,6 +4,7 @@
   "entry": "SKILL.md",
   "id": "swarm-manager-workflow-phased-plan-slice",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "contract"
   ],
@@ -21,7 +22,7 @@
       "swarm-manager"
     ]
   },
-  "revision": 3,
+  "revision": 12,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -30,5 +31,5 @@
     "workflow",
     "prompt-contract"
   ],
-  "updatedAt": "2026-07-27T00:00:00Z"
+  "updatedAt": "2026-08-29T00:00:00Z"
 }

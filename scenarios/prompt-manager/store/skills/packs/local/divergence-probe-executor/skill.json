@@ -4,6 +4,7 @@
   "entry": "SKILL.md",
   "id": "divergence-probe-executor",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "contract"
   ],

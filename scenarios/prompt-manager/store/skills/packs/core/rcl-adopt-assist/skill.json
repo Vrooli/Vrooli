@@ -4,6 +4,7 @@
   "icon": "package",
   "id": "rcl-adopt-assist",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "contract"
   ],

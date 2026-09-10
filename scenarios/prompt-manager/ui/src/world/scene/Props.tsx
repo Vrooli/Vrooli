@@ -71,6 +71,7 @@ export function PropInstances({ record, placements, scale, castShadow = true, em
 /** One draw per material part, with camera visibility owned by the CPU cull. */
 export function CulledPropInstances({ record, buffer }: { record: PropRecord; buffer: VegetationBuffer }) {
   const parts = usePropParts(record)
+  const materials = usePropMaterials(parts)
   const owners = useMemo(() => parts.map((_, index) => instanceOwner(mesh => {
     buffer.meshes[index] = mesh
     if (mesh) {
@@ -86,7 +87,7 @@ export function CulledPropInstances({ record, buffer }: { record: PropRecord; bu
       // attached to a reconciled mesh retaining the previous instanceColor.
       key={`${record.contentHash}:${index}:${buffer.capacity}`}
       ref={owners[index]}
-      args={[part.geometry, part.material, buffer.capacity]}
+      args={[part.geometry, materials[index] ?? part.material, buffer.capacity]}
       castShadow
       receiveShadow
       frustumCulled={false}

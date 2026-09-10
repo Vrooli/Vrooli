@@ -312,6 +312,28 @@ func (index *ProductionIndex) runBuild(ctx context.Context, job indexcontrol.Job
 	_ = index.jobs.Update(context.Background(), job)
 }
 
+const (
+	// watchDebounce is how long the loop waits after the last watcher event
+	// before it reconciles; a save burst from an editor or a build collapses
+	// into one refresh.
+	watchDebounce = 2 * time.Second
+	// watchMinInterval bounds how often a continuously dirty tree may shell
+	// out to git status: at most one dirty-path discovery per interval, with
+	// events that arrive during a run coalesced into a single follow-up run.
+	watchMinInterval = 10 * time.Second
+	// watchBackstop is the manifest audit period that repairs missed events.
+	watchBackstop = 5 * time.Minute
+)
+
+// watchLoopConfig holds the timing seams of the watch loop so tests can drive
+// the debounce and spacing rules with short intervals.
+type watchLoopConfig struct {
+	debounce    time.Duration
+	minInterval time.Duration
+	backstop    time.Duration
+	now         func() time.Time
+}
+
 func (index *ProductionIndex) watch(ctx context.Context) {
 	roots := []string{"scenarios", "packages", "cmd/vrooli", "internal", "resources"}
 	absoluteRoots := make([]string, 0, len(roots))
@@ -326,13 +348,6 @@ func (index *ProductionIndex) watch(ctx context.Context) {
 	if watcher != nil {
 		events = watcher.Events()
 	}
-	backstop := time.NewTimer(5 * time.Minute)
-	defer backstop.Stop()
-	debounce := time.NewTimer(time.Hour)
-	if !debounce.Stop() {
-		<-debounce.C
-	}
-	pending := false
 	refresh := func() {
 		paths, err := index.dirtyPaths(ctx)
 		if err == nil && len(paths) > 0 {
@@ -344,10 +359,38 @@ func (index *ProductionIndex) watch(ctx context.Context) {
 			}
 		}
 	}
-	// The watcher is started asynchronously by the service bootstrap. A source
-	// edit can race that startup window, so perform one bounded reconciliation
-	// after the native watches are installed; the event path handles all later
-	// edits and the five-minute audit covers missed events after that.
+	audit := func() { _ = index.auditManifest(ctx) }
+	runWatchLoop(ctx, events, watchLoopConfig{debounce: watchDebounce, minInterval: watchMinInterval, backstop: watchBackstop}, refresh, audit)
+}
+
+// runWatchLoop turns raw watcher wake-ups into bounded refresh runs.
+//
+//   - The first run happens immediately: the watcher is started
+//     asynchronously by the service bootstrap, so a source edit can race the
+//     startup window and one reconciliation after the native watches are
+//     installed closes it.
+//   - Events arm a single debounce timer; a burst becomes one run.
+//   - Consecutive runs are spaced at least minInterval apart, measured from
+//     the start of the previous run. Events that arrive while a run is in
+//     progress or inside the spacing window are coalesced into exactly one
+//     follow-up run at the end of the window.
+//   - The backstop audit repairs events the watcher missed.
+func runWatchLoop(ctx context.Context, events <-chan struct{}, config watchLoopConfig, refresh, audit func()) {
+	if config.now == nil {
+		config.now = time.Now
+	}
+	if config.backstop <= 0 {
+		config.backstop = watchBackstop
+	}
+	backstop := time.NewTimer(config.backstop)
+	defer backstop.Stop()
+	debounce := time.NewTimer(time.Hour)
+	if !debounce.Stop() {
+		<-debounce.C
+	}
+	defer debounce.Stop()
+	pending := false
+	lastRun := config.now()
 	refresh()
 	for {
 		select {
@@ -358,16 +401,22 @@ func (index *ProductionIndex) watch(ctx context.Context) {
 				events = nil
 				continue
 			}
-			if !pending {
-				pending = true
-				debounce.Reset(100 * time.Millisecond)
+			if pending {
+				continue
 			}
+			pending = true
+			wait := config.debounce
+			if remaining := config.minInterval - config.now().Sub(lastRun); remaining > wait {
+				wait = remaining
+			}
+			debounce.Reset(wait)
 		case <-debounce.C:
 			pending = false
+			lastRun = config.now()
 			refresh()
 		case <-backstop.C:
-			_ = index.auditManifest(ctx)
-			backstop.Reset(5 * time.Minute)
+			audit()
+			backstop.Reset(config.backstop)
 		}
 	}
 }

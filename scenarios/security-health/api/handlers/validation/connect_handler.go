@@ -10,6 +10,7 @@ import (
 	"log"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -47,7 +48,8 @@ type Deps struct {
 	// Environment is the host CaptureEnvironment captured once at module init
 	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
 	// backfills os/arch/num_cpu from the stdlib.
-	Environment *commonv1.CaptureEnvironment
+	Environment       *commonv1.CaptureEnvironment
+	ReadinessReporter ReadinessReporter
 }
 
 type connectHandler struct {
@@ -62,6 +64,9 @@ func NewConnectHandler(d Deps) *connectHandler {
 		if fixer, ok := d.Validator.(Fixer); ok {
 			d.Fixer = fixer
 		}
+	}
+	if d.ReadinessReporter == nil {
+		d.ReadinessReporter = newReadinessReporter(context.Background())
 	}
 	return &connectHandler{deps: d}
 }
@@ -85,6 +90,11 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	resp, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nil, execMetrics)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
+	}
+	if h.deps.ReadinessReporter != nil {
+		if err := h.deps.ReadinessReporter.Report(ctx, report.Scenario, resp, time.Now().UTC()); err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
 	}
 	return connect.NewResponse(resp), nil
 }

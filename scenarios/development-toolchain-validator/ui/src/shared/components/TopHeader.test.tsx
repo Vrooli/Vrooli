@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { create } from "@bufbuild/protobuf";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
 
 import {
   GoldenSchema,
@@ -25,6 +27,14 @@ import {
 import { selectors } from "../../consts/selectors";
 import { renderWithProviders } from "../../test-utils";
 import { TopHeader } from "./TopHeader";
+
+function renderHeader(ui: React.ReactElement) {
+  return renderWithProviders(
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 
 vi.mock("../../api/health", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/health")>();
@@ -89,7 +99,7 @@ describe("TopHeader", () => {
       create(ListStaleResponseSchema, { entries: [] }),
     );
 
-    renderWithProviders(<TopHeader />);
+    renderHeader(<TopHeader />);
 
     await waitFor(() => {
       expect(screen.getByTestId(selectors.nav.topHeaderHealth)).toHaveTextContent("healthy");
@@ -116,13 +126,13 @@ describe("TopHeader", () => {
           create(StaleEntrySchema, {
             skillId: "progress",
             goldenSlug: "reference-react-vite",
-            kind: StaleKind.SKILL_VERSION,
+            kind: StaleKind.SKILL_DRIFT,
           }),
         ],
       }),
     );
 
-    renderWithProviders(<TopHeader onMenuToggle={onMenuToggle} />);
+    renderHeader(<TopHeader onMenuToggle={onMenuToggle} />);
 
     screen.getByTestId(selectors.nav.topHeaderMenu).click();
     expect(onMenuToggle).toHaveBeenCalled();

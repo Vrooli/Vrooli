@@ -5,6 +5,7 @@
   "icon": "trendingup",
   "id": "scenario-maturity-ladder",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "practice"
   ],

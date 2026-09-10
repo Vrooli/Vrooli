@@ -1,16 +1,23 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
+  "createdAt": "2026-09-01T20:28:24Z",
+  "description": "Evaluate the deployment readiness check: Suite state is known",
+  "entry": "SKILL.md",
   "id": "readiness-suite-state-known",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
   "name": "readiness-suite-state-known",
-  "description": "Deployment readiness check procedure",
+  "origin": {
+    "kind": "authored"
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "readiness-check",
     "deployment-manager"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-09-01T20:28:24Z",
   "updatedAt": "2026-09-01T20:28:24Z"
 }

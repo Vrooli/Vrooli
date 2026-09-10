@@ -190,6 +190,17 @@ func validate(d *domain.WorkflowDefinition, lookup Lookup) []domain.WorkflowDiag
 		add("budget_ceiling", "budgets", "workflow budgets exceed an Agent Manager operator safety ceiling")
 	}
 	validateChargeBudget(d.Budgets, d.Metadata["fixture"] == "true", add)
+	if capacity := d.GrantCapacity; capacity != nil {
+		if !positiveBudgets(*capacity) || capacity.WallTimeSeconds > 604800 || capacity.MaxTurns > 100000 || capacity.MaxTokens > 2147483647 || capacity.MaxChargeMicroUSD > 1000000000000 || capacity.MaxNodeAttempts > 8192 || capacity.MaxChildren > 4096 || capacity.MaxConcurrency > MaxConcurrency || capacity.MaxRecursion > MaxRecursion || capacity.MaxRetries > 4096 || capacity.MaxWaitSeconds > MaxWaitSeconds {
+			add("grant_capacity", "grantCapacity", "grant capacity must contain finite positive limits within owner capacity bounds")
+		}
+		if capacity.Enforcement != "" {
+			add("grant_capacity", "grantCapacity.enforcement", "enforcement belongs to the workflow budget policy")
+		}
+	}
+	if err := domain.ValidateWorkflowBudgetPolicy(*d); err != nil {
+		add("budget_enforcement", "budgets.enforcement", err.Error())
+	}
 	validateTriggerPolicy(d.Trigger, add)
 
 	nodes := make(map[string]*domain.WorkflowNode, len(d.Nodes))

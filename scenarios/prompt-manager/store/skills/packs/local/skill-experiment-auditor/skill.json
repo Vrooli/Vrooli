@@ -4,6 +4,7 @@
   "entry": "SKILL.md",
   "id": "skill-experiment-auditor",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "name": "skill-experiment-auditor",
   "origin": {
     "kind": "authored"

@@ -796,6 +796,7 @@ func (r *Runner) executeWithDurableTranscript(
 	)
 	return r.runDurable(ctx, durableInputs{
 		runID:        req.RunID,
+		config:       req.GetConfig(),
 		sandboxID:    req.SandboxID,
 		sink:         req.EventSink,
 		transcript:   req.Transcript,
@@ -852,6 +853,7 @@ func (r *Runner) continueWithDurableTranscript(
 	)
 	result, err := r.runDurable(ctx, durableInputs{
 		runID:        req.RunID,
+		config:       req.GetConfig(),
 		sandboxID:    req.SandboxID,
 		sink:         req.EventSink,
 		transcript:   req.Transcript,
@@ -871,6 +873,7 @@ func (r *Runner) continueWithDurableTranscript(
 
 type durableInputs struct {
 	runID        uuid.UUID
+	config       *domain.RunConfig
 	sandboxID    *uuid.UUID
 	sink         runner.EventSink
 	transcript   *runner.TranscriptConfig
@@ -915,6 +918,19 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 			RunnerType: r.codec.Type(),
 			Operation:  "execute",
 			Cause:      errors.New("durable transcript stdout file is required"),
+		}
+	}
+	// Continuations append to the same durable transcript. The new parser
+	// owns only bytes written by this invocation, never earlier terminal
+	// evidence that happens to share the Run ID and file.
+	info, err := in.transcript.StdoutFile.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("inspect invocation transcript boundary: %w", err)
+	}
+	transcriptStart := info.Size()
+	if transcriptStart > 0 && in.transcript.OnAdvance != nil {
+		if err := in.transcript.OnAdvance(transcriptStart, 0); err != nil {
+			return nil, fmt.Errorf("persist invocation transcript boundary: %w", err)
 		}
 	}
 
@@ -1035,8 +1051,16 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	// Live tail: parses the transcript as it grows, dispatching events.
 	consumeCtx, cancelConsume := context.WithCancel(context.Background())
 	liveDone := make(chan struct{})
-	var liveCursor int64
+	liveCursor := transcriptStart
 	transcriptParser := r.codec.NewTranscriptParser()
+	if in.config != nil {
+		if setter, ok := transcriptParser.(runner.TranscriptModelSetter); ok {
+			setter.SetTranscriptModel(in.config.Model)
+		}
+		if setter, ok := transcriptParser.(runner.TranscriptBillingSetter); ok {
+			setter.SetTranscriptBilling(in.config.Billing)
+		}
+	}
 	go func() {
 		defer close(liveDone)
 		// The live consumer parses untrusted agent transcript output — the
@@ -1045,6 +1069,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		cursor, liveTerminal, consumeErr := runner.Consume(consumeCtx, runner.ConsumeArgs{
 			RunID:       in.runID,
 			Transcript:  in.transcript.TranscriptPath,
+			StartAt:     transcriptStart,
 			Live:        true,
 			ParseFn:     transcriptParser.ParseTranscriptLine,
 			EventSink:   in.sink,

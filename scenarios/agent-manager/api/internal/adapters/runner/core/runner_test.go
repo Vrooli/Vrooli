@@ -815,5 +815,61 @@ func TestExecute_DurableTranscriptReportsCursorPersistenceFailure(t *testing.T) 
 
 type fakeExitError struct{ code int }
 
+type availableTestCodec struct{ codecs.Codec }
+
+func (availableTestCodec) Available(context.Context) (bool, string) { return true, "fixture" }
+
+func TestDurableCodexPreservesBillingAndTerminalUsage(t *testing.T) {
+	for _, continuation := range []bool{false, true} {
+		t.Run(fmt.Sprintf("continue=%v", continuation), func(t *testing.T) {
+			codec := availableTestCodec{codecs.NewCodexForTest()}
+			launcher := &fakeLauncher{stdout: "{\"type\":\"turn.started\"}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":11,\"output_tokens\":3,\"cached_input_tokens\":2}}\n"}
+			r := newRunnerForTest(t, codec, launcher)
+			sink := &recordingSink{}
+			stdout, err := os.CreateTemp(t.TempDir(), "transcript-*.ndjson")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer stdout.Close()
+			if continuation {
+				if _, err := io.WriteString(stdout, "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":999}}\n"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			cfg := domain.DefaultRunConfig()
+			cfg.Model = "saved-model"
+			cfg.Billing = domain.BillingSnapshot{Basis: domain.ChargeBasisSubscription, Mode: domain.BillingModeSubscription, Source: "saved-owner-policy"}
+			transcript := &runner.TranscriptConfig{TranscriptPath: stdout.Name(), StdoutFile: stdout}
+			var result *runner.ExecuteResult
+			if continuation {
+				result, err = r.Continue(t.Context(), runner.ContinueRequest{RunID: uuid.New(), SessionID: "same-session", Prompt: "continue", EventSink: sink, ResolvedConfig: cfg, Transcript: transcript})
+			} else {
+				result, err = r.Execute(t.Context(), runner.ExecuteRequest{RunID: uuid.New(), Prompt: "fixture", EventSink: sink, ResolvedConfig: cfg, Transcript: transcript})
+			}
+			if err != nil || result == nil || !result.Success {
+				t.Fatalf("result=%+v err=%v", result, err)
+			}
+			usageCount, chargeCount := 0, 0
+			for _, event := range sink.snapshot() {
+				switch data := event.Data.(type) {
+				case *domain.UsageEventData:
+					usageCount++
+					if data.Model != "saved-model" || !data.ReconciliationAuthority || data.InputTokens != 11 || data.OutputTokens != 3 || data.CacheReadTokens != 2 || data.Turns != 1 {
+						t.Fatalf("lost terminal usage attribution: %+v", data)
+					}
+				case *domain.ChargeEventData:
+					chargeCount++
+					if data.Model != "saved-model" || data.Basis != domain.ChargeBasisSubscription || data.AmountMicroUSD == nil || *data.AmountMicroUSD != 0 {
+						t.Fatalf("lost authoritative zero charge: %+v", data)
+					}
+				}
+			}
+			if usageCount != 1 || chargeCount != 1 {
+				t.Fatalf("usage=%d charge=%d", usageCount, chargeCount)
+			}
+		})
+	}
+}
+
 func (e *fakeExitError) Error() string { return fmt.Sprintf("exit %d", e.code) }
 func (e *fakeExitError) ExitCode() int { return e.code }

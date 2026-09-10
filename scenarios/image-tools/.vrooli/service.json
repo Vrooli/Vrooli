@@ -3,19 +3,146 @@
   "version": "1.0.0",
   "storage": {
     "entries": {
-      "data": {
+      "database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "image-tools.db",
+        "rationale": "Scenario-owned SQLite database contains durable job, model-install, adapter-install, settings, and audit state; whole-file cleanup is forbidden.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable application state is alarm-only; reclaim requires domain migrations or explicit database maintenance."
+        }
+      },
+      "models": {
         "rung": "owned",
         "kind": "dir",
         "class": "data",
         "regenerable": false,
-        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "subpath": "models",
+        "rationale": "Downloaded model weights are expensive, user-selected durable assets and are never candidates for blob-output cleanup.",
         "budget": {
+          "max_bytes": "160GiB",
+          "rationale": "Observed model weights are approximately 88GiB; the ceiling allows catalog growth while surfacing runaway downloads without authorizing deletion."
+        }
+      },
+      "adapters": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "adapters",
+        "rationale": "Downloaded conditioning adapters are durable selected assets and are protected from retention cleanup.",
+        "budget": {
+          "max_bytes": "32GiB",
+          "rationale": "Observed adapters are approximately 8GiB; the ceiling bounds future growth without permitting automatic deletion."
+        }
+      },
+      "input_blobs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "blobs/input",
+        "rationale": "Uploaded source images are user-owned inputs and are not reproducible or cleanup candidates.",
+        "budget": {
+          "max_bytes": "32GiB",
+          "rationale": "Input retention is durable user work; the ceiling is alarm-only."
+        }
+      },
+      "conditioning_blobs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "blobs/cond",
+        "rationale": "Conditioning images are user-provided operation inputs and remain protected.",
+        "budget": {
+          "max_bytes": "8GiB",
+          "rationale": "Conditioning assets are durable inputs; the ceiling is alarm-only."
+        }
+      },
+      "auxiliary_blobs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "blobs/mask",
+        "rationale": "Mask and auxiliary blobs can be referenced by user operations and are protected from generic retention.",
+        "budget": {
+          "max_bytes": "8GiB",
+          "rationale": "Auxiliary operation inputs are alarm-only until their ownership model is explicit."
+        }
+      },
+      "job_outputs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "subpath": "blobs/out",
+        "rationale": "Managed output blobs are derived from terminal jobs. The owner provider deletes only reviewed, age-qualified output references.",
+        "budget": {
+          "max_age": "7d",
+          "max_bytes": "32GiB",
+          "rationale": "Seven days preserves recent result retrieval while bounding derived output growth; cleanup requires owner preview plus operator approval."
+        },
+        "reclaim": {
+          "pruner": "custom"
+        }
+      },
+      "python_runtime": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "subpath": "pyenv",
+        "rationale": "The private Python environment is lock-rebuilt runtime material, separate from model weights and user data.",
+        "budget": {
+          "max_age": "30d",
           "max_bytes": "12GiB",
-          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+          "rationale": "The environment is rebuilt from the committed lock; the ceiling detects failed or duplicated provisioning. Active runtime state must be protected before any pruner is added."
+        }
+      },
+      "sidecar_runtime": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "subpath": "sidecar",
+        "rationale": "The embedded Python sidecar is materialized runtime code and can be rebuilt from source.",
+        "budget": {
+          "max_age": "30d",
+          "max_bytes": "1GiB",
+          "rationale": "Sidecar materialization is small and reproducible; the ceiling catches duplicate copies without authorizing active-runtime deletion."
+        }
+      },
+      "deployment_state": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "regenerable": false,
+        "subpath": "deployment",
+        "rationale": "Deployment reports are operational state retained for diagnostics and are not owned by job-output cleanup.",
+        "budget": {
+          "max_bytes": "64MiB",
+          "rationale": "Deployment state is small and alarm-only."
         }
       }
     },
-    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+    "cleanup_providers": [
+      {
+        "id": "image-tools-job-blobs",
+        "name": "Image-tools terminal job-output blobs",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "operator",
+        "storage_entries": [
+          "job_outputs"
+        ]
+      }
+    ],
+    "rationale": "Image-tools declares each observed storage surface separately so model weights, adapters, inputs, derived outputs, runtime environments, and durable state cannot be conflated by a single parent data entry."
   },
   "service": {
     "parent": "vrooli",

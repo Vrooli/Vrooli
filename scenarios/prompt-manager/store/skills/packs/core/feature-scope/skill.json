@@ -5,6 +5,7 @@
   "icon": "plus-circle",
   "id": "feature-scope",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "scope"
   ],

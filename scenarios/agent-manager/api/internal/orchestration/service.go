@@ -148,8 +148,12 @@ type CreateRunRequest struct {
 	NetworkAccess        *domain.NetworkAccess   `json:"networkAccess,omitempty"`
 	AllowedPaths         []string                `json:"allowedPaths,omitempty"`
 	DeniedPaths          []string                `json:"deniedPaths,omitempty"`
-	ResultSpec           *domain.ResultSpec      `json:"resultSpec,omitempty"`
-	Until                string                  `json:"until,omitempty"`
+	// AllowedEffects is inherited from an owner-issued workflow grant. It is
+	// validated before a run is persisted and cannot be widened by a child.
+	AllowedEffects           []string           `json:"allowedEffects,omitempty"`
+	RequireEffectContainment bool               `json:"requireEffectContainment,omitempty"`
+	ResultSpec               *domain.ResultSpec `json:"resultSpec,omitempty"`
+	Until                    string             `json:"until,omitempty"`
 
 	// Sandbox behavior overrides (optional)
 	SandboxConfig *domain.SandboxConfig `json:"sandboxConfig,omitempty"`
@@ -389,14 +393,20 @@ type StartWorkflowExecutionRequest struct {
 	// handler. StartWorkflowExecution remains the only policy authority.
 	Initiator     domain.WorkflowInitiator `json:"-"`
 	IdentityToken string                   `json:"-"`
+	// EngagementGrant is an immutable owner-issued aggregate allowance. Agent
+	// Manager persists it with the execution and never widens catalog budgets.
+	EngagementGrant *domain.WorkflowEngagementGrant `json:"engagementGrant,omitempty"`
+	ApprovalDigest  string                          `json:"approvalDigest,omitempty"`
+	GrantDigest     string                          `json:"grantDigest,omitempty"`
 }
 
 type ListWorkflowExecutionsRequest struct {
-	Owner       string
-	WorkflowKey string
-	Status      domain.WorkflowExecutionStatus
-	Limit       int
-	Offset      int
+	Owner          string
+	WorkflowKey    string
+	IdempotencyKey string
+	Status         domain.WorkflowExecutionStatus
+	Limit          int
+	Offset         int
 }
 
 type WorkflowExecutionTrace struct {

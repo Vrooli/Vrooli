@@ -576,6 +576,42 @@
       }
     },
     {
+      "id": "cleanup_estimate",
+      "path": "/api/v1/cleanup/estimate",
+      "method": "GET",
+      "summary": "Estimate image-tools output cleanup",
+      "description": "Returns a bounded estimate of terminal managed job-output blobs older than the requested age.",
+      "category": "cleanup",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Controller-owned cleanup probe; binary deletion remains behind the owner contract."
+      }
+    },
+    {
+      "id": "cleanup_preview",
+      "path": "/api/v1/cleanup/preview",
+      "method": "POST",
+      "summary": "Preview image-tools output cleanup",
+      "description": "Recomputes the bounded owner cleanup candidate set before approval.",
+      "category": "cleanup",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Controller-owned cleanup preview."
+      }
+    },
+    {
+      "id": "cleanup_apply",
+      "path": "/api/v1/cleanup/apply",
+      "method": "POST",
+      "summary": "Apply image-tools output cleanup",
+      "description": "Deletes only reviewed terminal job-output blobs through image-tools' storage owner.",
+      "category": "cleanup",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Controller-owned cleanup apply with idempotency and shared recovery locking."
+      }
+    },
+    {
       "id": "diff_list_modes",
       "path": "/vrooli.image_tools.v1.diff.DiffService/ListDiffModes",
       "method": "POST",

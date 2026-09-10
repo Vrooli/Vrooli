@@ -5,6 +5,7 @@
   "icon": "zap",
   "id": "performance",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "performance"

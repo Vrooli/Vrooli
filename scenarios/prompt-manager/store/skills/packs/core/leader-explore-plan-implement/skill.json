@@ -5,6 +5,7 @@
   "icon": "git-branch",
   "id": "leader-explore-plan-implement",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "practice"
   ],

@@ -38,3 +38,15 @@ Usage-weighted priority audit of the skill library. Maintained by `skill-optimiz
 7. documentation-health — revisit in ~14 heartbeats or on drift
 8. cross-platform-readiness — revisit when deployment-manager CLI surface matures (conversion trigger) OR if a second consumer adopts the skill (split-vs-trim trigger)
 9. **(next)** Continue rotating into less-popular tier via `graph cliless-skills` / `graph orphaned-skills` / `graph health` for drift + size flags. Top of cliless-with-active-status pool: api-steer, audit-scope, boundary-of-responsibility-enforcement, change-axis-and-evolution-resilience-audit. Top of "oversized + low inbound" intersection: cross-platform-readiness (now visited).
+
+## 2026-09-08 Rotation Addendum
+
+| Skill | Inbound | Health | Rating | Last visited | Disposition | Notes |
+|-------|---------|--------|--------|--------------|-------------|-------|
+| audit-scope | 1 | 0.39 (low outbound connectivity) | mixed | 2026-09-08 | no-action | 460 tokens / 49 lines; pure session-boundary and audit-deliverable judgment (allowed read-only analysis, prohibited mutation, findings/severity/recommendations/evidence checklist). No deterministic CLI behavior to convert, no drift finding, and only one inbound consumer (`spec-sync`); low outbound connectivity is expected for a leaf scope constraint. Discovery found no exact Action; closest `agent-system.framework-health` is unrelated. Revisit on command drift, a second consumer, or a governed audit-scope operation. |
+
+## 2026-09-09 Rotation Addendum
+
+| Skill | Inbound | Health | Rating | Last visited | Disposition | Notes |
+|-------|---------|--------|--------|--------------|-------------|-------|
+| signal-and-feedback-surface-design | not reported | 0.39 (low inbound discoverability) | mixed | 2026-09-09 | capability-work-item | Board Guide G32 (Observability / telemetry wiring) is missing, although this active 6,532-character judgment skill is the closest reusable provider. Discovery found no exact Action or governed telemetry-wiring CLI. Backlog `chore/add-observability-telemetry-guide-capability` requests an owning Guide mapping or capability definition. Baseline: Guide 3% NOW (1/33), G32 missing; expected delta: G32 becomes in-reach with explicit owner and stable validation path. Measure via `coverage status`, `coverage explain-cell guide/G32`, skill graph health, and Action discovery/validation if a CLI owner is added. |

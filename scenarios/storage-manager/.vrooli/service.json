@@ -231,7 +231,7 @@
     }
   },
   "environment": {
-    "STORAGE_CENSUS_INTERVAL": "30m"
+    "STORAGE_CENSUS_INTERVAL": "6h"
   },
   "components": {
     "api": {

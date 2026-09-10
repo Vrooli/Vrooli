@@ -23,29 +23,30 @@ describe("AppShell structure (cimode)", () => {
     cleanup();
   });
 
-  it("renders the title, sidebar, bottom nav, and main outlet", () => {
+  it("renders the title, sidebar, bottom nav, and main outlet", async () => {
     renderShell();
-    expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.topBar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.sidebar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.bottomNav)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.layout.shell)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-header`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-sidebar`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-tabs`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-main`)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });
 
-  it("renders the locale switcher with toggles for every supported locale", () => {
+  it("renders the locale switcher with toggles for every supported locale", async () => {
     renderShell();
-    expect(screen.getByTestId(selectors.locale.switcher)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.locale.switcher)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.locale.toggle({ code: "en" }))).toBeInTheDocument();
     expect(screen.getByTestId(selectors.locale.toggle({ code: "ja" }))).toBeInTheDocument();
     expect(screen.getByTestId(selectors.locale.toggle({ code: "ar" }))).toBeInTheDocument();
   });
 
-  it("renders the canonical nav links in both sidebar and bottom nav", () => {
+  it("renders the canonical nav links in both sidebar and bottom nav", async () => {
     renderShell();
+    await screen.findByTestId(selectors.layout.sidebarLink({ key: "workbench" }));
     for (const key of ["workbench", "settings"] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
-      expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
+      expect(screen.getByTestId(`${selectors.layout.sidebarLink({ key })}-tab`)).toBeInTheDocument();
     }
   });
 });

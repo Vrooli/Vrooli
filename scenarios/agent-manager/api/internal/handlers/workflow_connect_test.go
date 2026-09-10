@@ -3,7 +3,10 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,10 +15,12 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -45,6 +50,73 @@ func (s *workflowConnectStub) CancelWorkflowExecution(_ context.Context, r orche
 	s.cancels = append(s.cancels, r)
 	return &orchestration.WorkflowExecutionOperationResult{Execution: s.execution, Idempotent: true}, nil
 }
+
+type delayedWorkflowWaitStub struct {
+	workflowConnectStub
+	delay time.Duration
+}
+
+func (s *delayedWorkflowWaitStub) WaitWorkflowExecution(ctx context.Context, _ uuid.UUID, _ time.Duration) (*orchestration.WaitWorkflowExecutionResult, error) {
+	select {
+	case <-time.After(s.delay):
+		return &orchestration.WaitWorkflowExecutionResult{Execution: s.execution}, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+func TestWorkflowWaitSurvivesServerWriteTimeout(t *testing.T) {
+	for _, protocol := range []string{"REST", "Connect"} {
+		t.Run(protocol, func(t *testing.T) {
+			id := uuid.New()
+			stub := &delayedWorkflowWaitStub{
+				workflowConnectStub: workflowConnectStub{execution: &domain.WorkflowExecution{ID: id, Status: domain.WorkflowExecutionSucceeded}},
+				delay:               150 * time.Millisecond,
+			}
+			h := New(orchestration.HandlerServices{WorkflowService: stub})
+			router := mux.NewRouter()
+			h.RegisterRoutes(router)
+			path, connectHandler := apiconnect.NewAgentManagerServiceHandler(NewAgentManagerConnectHandler(h))
+			router.Handle(apiconnect.AgentManagerServiceWaitWorkflowExecutionProcedure, WorkflowWaitResponse(connectHandler)).Methods(http.MethodPost)
+			router.PathPrefix(path).Handler(connectHandler)
+			router.HandleFunc("/ordinary", func(w http.ResponseWriter, _ *http.Request) {
+				time.Sleep(stub.delay)
+				_, _ = w.Write([]byte("ordinary response"))
+			})
+			server := httptest.NewUnstartedServer(router)
+			server.Config.WriteTimeout = 25 * time.Millisecond
+			server.Start()
+			defer server.Close()
+			client := server.Client()
+			client.Timeout = 2 * time.Second
+			if protocol == "REST" {
+				response, err := client.Post(server.URL+"/api/v1/workflow-executions/"+id.String()+"/wait", "application/json", strings.NewReader(`{"executionId":"`+id.String()+`","timeoutSeconds":1}`))
+				require.NoError(t, err)
+				defer response.Body.Close()
+				body, err := io.ReadAll(response.Body)
+				require.NoError(t, err)
+				require.Equal(t, http.StatusOK, response.StatusCode)
+				var result apipb.WaitWorkflowExecutionResponse
+				require.NoError(t, protojson.Unmarshal(body, &result))
+				require.Equal(t, id.String(), result.Execution.Id)
+				require.False(t, result.TimedOut)
+			} else {
+				c := apiconnect.NewAgentManagerServiceClient(client, server.URL)
+				result, err := c.WaitWorkflowExecution(context.Background(), connect.NewRequest(&apipb.WaitWorkflowExecutionRequest{ExecutionId: id.String(), TimeoutSeconds: 1}))
+				require.NoError(t, err)
+				require.Equal(t, id.String(), result.Msg.Execution.Id)
+				require.False(t, result.Msg.TimedOut)
+			}
+			require.Empty(t, stub.cancels, "waiting must not cancel the server-owned workflow")
+			response, err := client.Post(server.URL+"/ordinary", "text/plain", nil)
+			if response != nil {
+				response.Body.Close()
+			}
+			require.Error(t, err, "ordinary responses must retain the server write deadline")
+		})
+	}
+}
+
 func TestWorkflowConnectStartReadResultAndWait(t *testing.T) {
 	id := uuid.New()
 	s := &workflowConnectStub{execution: &domain.WorkflowExecution{ID: id, Owner: "web-search", WorkflowKey: "web-search/research", Status: domain.WorkflowExecutionRunning, Input: json.RawMessage(`{"query":"q"}`), Output: json.RawMessage(`{"result":{"summary":"evidence"}}`)}}

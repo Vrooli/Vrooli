@@ -5,6 +5,7 @@
   "icon": "sparkles",
   "id": "polish",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "polish"

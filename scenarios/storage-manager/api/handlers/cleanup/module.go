@@ -29,6 +29,7 @@ import (
 	"storage-manager/internal/module"
 	"storage-manager/internal/orchestrator"
 	"storage-manager/internal/providers"
+	managerRetention "storage-manager/internal/retention"
 
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
@@ -58,11 +59,11 @@ func Module(logger *log.Logger, db *database.RoutedDB, fileRoots *filerouting.Ro
 // lifetime. Request contexts still control how long callers wait, but do not
 // detach recovery work from orderly service shutdown.
 func ModuleWithContext(serviceContext context.Context, logger *log.Logger, db *database.RoutedDB, fileRoots *filerouting.RoutedRoots) module.Module {
+	if logger == nil {
+		logger = log.New(io.Discard, "", 0)
+	}
 	registry, err := defaultRegistry(fileRoots)
 	if err != nil {
-		if logger == nil {
-			logger = log.New(io.Discard, "", 0)
-		}
 		logger.Fatalf("cleanup registry: %v", err)
 	}
 
@@ -71,6 +72,23 @@ func ModuleWithContext(serviceContext context.Context, logger *log.Logger, db *d
 		store = orchestrator.NewSQLiteStore(db)
 	}
 	service := orchestrator.NewServiceWithContext(serviceContext, registry, store, nil)
+	// Provider-local file checks protect contract entries they own. Install the
+	// same contract-derived roots at the orchestration boundary as well, since
+	// owner providers return preview paths over HTTP and pressure recovery may
+	// otherwise trust a malformed safe-tier preview.
+	repoRoot, rootErr := repocontract.ResolveRepoRoot()
+	if rootErr != nil || strings.TrimSpace(repoRoot) == "" {
+		if strings.TrimSpace(repoRoot) == "" {
+			repoRoot, rootErr = os.Getwd()
+		}
+	}
+	if rootErr != nil {
+		logger.Fatalf("cleanup protected roots unavailable: %v", rootErr)
+	} else if protectedRoots, protectionErr := managerRetention.ProtectedRuntimeRoots(repoRoot); protectionErr != nil {
+		logger.Fatalf("cleanup protected roots unavailable: %v", protectionErr)
+	} else if protectionErr := service.SetProtectedRoots(protectedRoots); protectionErr != nil {
+		logger.Fatalf("cleanup protected roots invalid: %v", protectionErr)
+	}
 	if baseURL := strings.TrimSpace(os.Getenv("VROOLI_MEMORY_API_BASE")); baseURL != "" {
 		service.SetJournalAppender(orchestrator.NewJournalAppender(baseURL))
 	}
@@ -824,11 +842,12 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "cleanup",
 	},
 	{
-		ID:          "cleanup_standing_approvals",
-		Path:        "/api/v1/cleanup/approvals",
-		Method:      http.MethodGet,
-		Summary:     "List standing approvals",
-		Description: "Returns host-local approvals for conditional recovery providers.",
-		Category:    "cleanup",
+		ID:            "cleanup_standing_approvals",
+		Path:          "/api/v1/cleanup/approvals",
+		Method:        http.MethodGet,
+		Summary:       "List standing approvals",
+		Description:   "Returns host-local approvals for conditional recovery providers.",
+		Category:      "cleanup",
+		RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe},
 	},
 }

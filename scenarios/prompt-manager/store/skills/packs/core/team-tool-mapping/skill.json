@@ -5,6 +5,7 @@
   "icon": "link",
   "id": "team-tool-mapping",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "meta"
   ],

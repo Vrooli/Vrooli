@@ -5,6 +5,7 @@
   "icon": "broom",
   "id": "opportunity-pool-hygiene",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "tools"
   ],

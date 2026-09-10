@@ -59,6 +59,9 @@ func TestRuntimeHomeProviderConfigsRegisterOnlyContractEligibleEntries(t *testin
 		if cfg.ID == "runtime-home-backups" || cfg.ID == "runtime-home-secrets" || cfg.ID == "runtime-home-data" {
 			t.Fatalf("protected runtime-home entry registered for cleanup: %#v", cfg)
 		}
+		if cfg.ID == "runtime-home-plan_artifacts" {
+			t.Fatalf("plan-artifacts registered for generic cleanup: %#v", cfg)
+		}
 	}
 }
 

@@ -98,6 +98,25 @@ func TestLauncherSelectorPick_ProtectedWithFactoryAndIDPicksSandbox(t *testing.T
 	}
 }
 
+func TestLauncherSelectorPick_EffectGrantRefusesUnverifiableContainment(t *testing.T) {
+	host := mocks.NewFakeLauncher("host")
+	selector := adapterrunner.NewLauncherSelector(host, mocks.NewFakeSandboxLauncherFactory(mocks.NewFakeLauncher("sandbox")))
+	id := uuid.New()
+	picked := selector.Pick(context.Background(), adapterrunner.ExecuteRequest{
+		RunID: uuid.New(), SandboxID: &id,
+		ResolvedConfig: &domain.RunConfig{
+			RequireEffectContainment: true,
+			SandboxConfig:            &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+		},
+	})
+	if picked == host {
+		t.Fatal("effect-bearing run downgraded to host launcher")
+	}
+	if _, err := picked.Launch(context.Background(), adapterrunner.LaunchRequest{Command: "agent"}); err == nil || !strings.Contains(err.Error(), "containment") {
+		t.Fatalf("launch error=%v, want containment refusal", err)
+	}
+}
+
 func TestLauncherSelectorPick_ProtectedNoFactoryFallsBackWithWarning(t *testing.T) {
 	host := mocks.NewFakeLauncher("host")
 	selector := adapterrunner.NewLauncherSelector(host, nil) // no factory

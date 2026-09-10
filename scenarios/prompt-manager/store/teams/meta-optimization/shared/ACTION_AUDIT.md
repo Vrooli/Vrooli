@@ -29,3 +29,15 @@ Action health and adoption snapshot. Maintained by `skill-optimizer`.
 
 1. After four meta-optimization heartbeats, compare Action discoveries/runs against repeated manual operations.
 2. Continue adding seed Actions only when one stable Vrooli-controlled CLI command owns the operation.
+
+## 2026-09-08 Rotation Addendum
+
+| Operation | Status | Validation | Discoverability | Disposition | Notes |
+|-----------|--------|------------|-----------------|-------------|-------|
+| audit-scope session constraints | no exact Action | not applicable | Discovery returned no exact Action; closest `agent-system.framework-health` owns framework-health collection, not session scoping | no-action | The skill is a compact judgment/permission contract with no deterministic operation, stable CLI owner, or input/output contract. Do not propose an Action until a governed audit-scope operation exists. |
+
+## 2026-09-09 Rotation Addendum
+
+| Operation | Status | Validation | Discoverability | Disposition | Notes |
+|-----------|--------|------------|-----------------|-------------|-------|
+| observability / telemetry wiring guidance | no exact Action | blocked | `prompt-manager discover "observability telemetry wiring instrumentation" --type all` returned `signal-and-feedback-surface-design` and readiness skills, but no Action | capability-work-item | Existing `signal-and-feedback-surface-design` is judgment-only and has no stable single-command owner, input/output contract, or permission surface for an Action. Do not invent a wrapper. Guide G32 is tracked by backlog `chore/add-observability-telemetry-guide-capability`; reassess for an Action only after an owning CLI/program exists. |

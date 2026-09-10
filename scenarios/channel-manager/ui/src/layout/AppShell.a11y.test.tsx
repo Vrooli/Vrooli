@@ -10,6 +10,8 @@ import { cleanup, screen } from "@testing-library/react";
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { setLocale } from "../i18n";
 import { TestAppRouter } from "../app/routes";
+import { Providers } from "../app/providers";
+import { selectors } from "../consts/selectors";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
 vi.mock("../api/channelManager", () => ({
@@ -29,7 +31,7 @@ describe("AppShell accessibility", () => {
   // route composition and checked for detectable accessibility violations.
   it("renders the shell without axe violations in English", async () => {
     const { container } = renderWithProviders(
-      <TestAppRouter initialEntries={["/"]} />,
+      <Providers><TestAppRouter initialEntries={["/"]} /></Providers>,
       { withoutRouter: true },
     );
     await screen.findByText(/No identities yet/i);
@@ -40,7 +42,7 @@ describe("AppShell accessibility", () => {
   // semantic labels, landmarks, or focusable controls.
   it("renders the shell without axe violations in the dark theme", async () => {
     const { container } = renderWithProviders(
-      <TestAppRouter initialEntries={["/"]} />,
+      <Providers><TestAppRouter initialEntries={["/"]} /></Providers>,
       {
         withoutRouter: true,
         extraProviders: (children) => <ThemeProvider initialChoice="dark">{children}</ThemeProvider>,
@@ -52,12 +54,12 @@ describe("AppShell accessibility", () => {
 
   it("exposes exactly one primary navigation landmark", async () => {
     renderWithProviders(
-      <TestAppRouter initialEntries={["/"]} />,
+      <Providers><TestAppRouter initialEntries={["/"]} /></Providers>,
       { withoutRouter: true },
     );
 
     await screen.findByText(/No identities yet/i);
-    expect(screen.getAllByRole("navigation", { name: "Primary navigation" })).toHaveLength(1);
-    expect(screen.getByRole("navigation", { name: "Mobile navigation" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Primary navigation" })).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-tabs`)).toBeInTheDocument();
   });
 });

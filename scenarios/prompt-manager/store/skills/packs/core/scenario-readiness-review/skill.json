@@ -5,6 +5,7 @@
   "icon": "clipboard-check",
   "id": "scenario-readiness-review",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "tools"
   ],

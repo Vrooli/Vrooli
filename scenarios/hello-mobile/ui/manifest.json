@@ -11,6 +11,12 @@
     "design-tokens",
     "ui-provider"
   ],
+  "shell": {
+    "archetype": "navigated-console",
+    "asset": "AppShell",
+    "entry": "ui/src/layout/AppShell.tsx",
+    "export": "AppShell"
+  },
   "gates": [
     "types",
     "tokens",

@@ -16,7 +16,8 @@ Use this document to answer:
 
 ## Storage Overview
 
-image-tools has two distinct stores with a hard split:
+image-tools has two distinct stores with a hard split, and the outside-repo
+data root is declared by storage class rather than as one aggregate budget:
 
 - **Scenario metadata → embedded SQLite** through `modernc.org/sqlite`.
   The database path is resolved from the scenario id by `api-core/storage`, and the
@@ -25,10 +26,19 @@ image-tools has two distinct stores with a hard split:
   measures, and usage/cost records. None of these are image bytes.
 - **Image binaries → api-core storage/blobstore**, stored *outside the
   repo* by default. The save location is overridable per request, and
-  outputs are user-owned (copyable, movable, deletable anywhere). The
-  `storage` domain owns the consuming seam; api-core owns the
-  implementation. Opaque bytes never enter SQLite or proto payloads — the
-  metadata references blobs by handle.
+  outputs are user-owned (copyable, movable, deletable anywhere). Managed
+  terminal-job results under `blobs/out` have a separate derived-output budget;
+  the owner cleanup provider can delete only an approved, age-qualified result
+  whose job reference is still valid. Inputs, conditioning assets, and local
+  absolute outputs remain protected. The `storage` domain owns the consuming
+  seam; api-core owns the implementation. Opaque bytes never enter SQLite or
+  proto payloads — metadata references blobs by handle.
+
+The service declaration separates the SQLite database, model weights, adapters,
+input/conditioning/auxiliary blobs, derived job outputs, Python environment,
+sidecar, and deployment state. Model weights and adapters are durable install
+assets, not generic age-cleanup targets. Runtime directories are rebuildable
+but are protected from the job-output provider while active.
 
 This separation is deliberate: SQLite is the queryable proto-typed
 metadata plane; blobstore is the bulk binary plane. External storage
@@ -41,14 +51,14 @@ domain needs them. Document those decisions in
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| Job records (id, op, status, progress, ETA, tier, error) | jobs | SQLite | `api/internal/jobs/schema.sql` | Until completion + configured TTL, then pruned | Server-owned; survive client disconnect. |
+| Job records (id, op, status, progress, ETA, tier, error) | jobs | SQLite | `api/internal/jobs/schema.sql` | Durable metadata; output cleanup is independent | Server-owned; survive client disconnect. |
 | Recipe definitions (op-stack graphs) | recipes | SQLite | `api/internal/recipes/schema.sql` | Until user deletes | Unified UI op-stack / CLI pipeline representation. |
 | Model registry state (entries, enabled flag, install/local-path) | models | SQLite | `api/internal/models/schema.sql` | Until model removed | Declarative entries; weights live on disk via blobstore/local path, not in SQLite. |
 | Watch-folder / automation config | automation | SQLite | `api/internal/automation/schema.sql` | Until user deletes config | Debounce, output routing, callback URLs. |
 | Webhook callback delivery state | automation | SQLite | `api/internal/automation/schema.sql` | Until completion + retry window | Best-effort POST + retry; not an event bus. |
 | Measure samples + aggregates | measures | SQLite | `api/internal/measures/schema.sql` | Rolling window per measures policy | Latency p50/p95, throughput, queue-wait, fallback-tier usage, VRAM headroom. |
 | BYOK usage / cost records | models / backends | SQLite | usage schema (audio-tools cost-tracking pattern) | Rolling window | Cost estimate before op; keys are secrets, never stored with usage rows. |
-| Image inputs and outputs (bytes) | storage | api-core blobstore (outside repo) | BlobStore implementation behind the `storage` seam | Configurable TTL / user control; outputs user-owned | Overridable save location per request; opaque bytes, never in proto or SQLite. |
+| Image inputs and outputs (bytes) | storage | api-core blobstore (outside repo) | BlobStore implementation behind the `storage` seam | Inputs are protected; managed terminal outputs use owner preview/apply; local outputs are user-owned | Overridable save location per request; opaque bytes, never in proto or SQLite. |
 | Blob references + output-ownership metadata | storage | SQLite | `api/internal/storage/schema.sql` | Same lifecycle as referenced blob | Handle/id, owner, save-location resolution. |
 
 ## Schema Map
@@ -103,9 +113,10 @@ backfills, add a scenario-specific migration plan here and update
 
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
-| Image inputs (uploads) | Job completion or configured TTL | Not retained beyond configured TTL / user control | TTL policy to be finalized at implementation. |
-| Image outputs | User delete / move / copy | User-owned; retained until user removes | None — outputs are user-owned by design. |
-| Job records | TTL after terminal state | Pruned after retention window | Window value to be set per profile. |
+| Image inputs (uploads) | User delete / explicit domain policy | Protected from generic cleanup; user control | No generic TTL because references can be reused. |
+| Managed terminal job outputs (`blobs/out`) | Governed owner apply | Seven-day minimum age, oldest-first, 32 GiB cap, 200-item batches; provider disabled by default | Pinning remains an explicit future metadata surface; absent a pin, preview is the safety boundary. |
+| Local absolute outputs | User delete / move / copy | Never inspected or deleted by image-tools cleanup | User-owned path is intentionally outside the owner boundary. |
+| Job records | Domain lifecycle / database maintenance | Not deleted by the blob-output provider | Job rows remain the reference ledger for output eligibility. |
 | Measure samples | Rolling window | Aggregated then pruned | Window value to be set per measures policy. |
 | BYOK usage/cost records | Rolling window | Retained for cost reporting; keys never stored | None — keys handled as secrets only. |
 | Recipes / model registry / automation config | User delete | Retained until user removes | None. |

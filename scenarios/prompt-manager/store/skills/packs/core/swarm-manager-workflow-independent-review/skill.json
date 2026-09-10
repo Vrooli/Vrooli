@@ -4,6 +4,7 @@
   "entry": "SKILL.md",
   "id": "swarm-manager-workflow-independent-review",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "contract"
   ],
@@ -22,7 +23,7 @@
       "swarm-manager"
     ]
   },
-  "revision": 1,
+  "revision": 3,
   "schemaVersion": 1,
   "status": "active",
   "tags": [

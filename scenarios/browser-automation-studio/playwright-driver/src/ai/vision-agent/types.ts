@@ -14,7 +14,21 @@ import type { TokenUsage, ElementLabel } from '../vision-client/types';
 /**
  * Configuration for a navigation session.
  */
+export interface NavigationPostcondition {
+  selector: string;
+  mode: 'exists' | 'ASSERTION_MODE_EXISTS' | 'text_equals' | 'text_contains' | 'count_equals';
+  expected?: string;
+}
+export interface NavigationExtraction {
+  name: string;
+  selector: string;
+  attribute?: string;
+  limit?: number;
+}
 export interface NavigationConfig {
+  effectPolicy?: 'explicit' | 'read_only';
+  postconditions?: NavigationPostcondition[];
+  extraction?: NavigationExtraction[];
   /** User's goal prompt */
   prompt: string;
 
@@ -87,6 +101,9 @@ export interface NavigationStep {
  * Final result of a navigation session.
  */
 export interface NavigationResult {
+  verifiedSuccess?: boolean;
+  extractedData?: Record<string, string[]>;
+  verificationError?: string;
   navigationId: string;
   status: NavigationStatus;
   totalSteps: number;

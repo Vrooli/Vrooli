@@ -11,10 +11,7 @@ program-contracts.md; a row with a permanent reason (pending_telemetry, unreliab
 does not lower the status, only a transient scenario_unreachable row or a failed read does.
 """
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 window_token = str(inputs.get("window_token", "TIME_WINDOW_TOKEN_LAST_7D"))
 insights_window = str(inputs.get("insights_window", "7") or "7")
 routing_suite = str(inputs.get("routing_suite", "router.routing"))
@@ -32,37 +29,7 @@ WINDOWS = ("TIME_WINDOW_TOKEN_THIS_WEEK", "TIME_WINDOW_TOKEN_LAST_7D", "TIME_WIN
 PERMANENT_REASONS = ("no_governed_binding", "kernel_invoke_budget", "pending_telemetry", "read_elsewhere:", "unreliable:")
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
+fail = program.fail
 
 
 def row(name, reading, target, in_band, unavailable=False, reason=None, sensor=None):
@@ -91,7 +58,7 @@ def safe(fn):
 
 def read_error(err, where):
     """Record a failed governed read once and return the row reason for it."""
-    _, klass = classify_transport(err)
+    _, klass = program.classify(err)
     envelope["errors"].append({"class": klass, "detail": f"{where}: {str(err)[:140]}", "where": "collect"})
     return klass  # scenario_unreachable is transient; any other class is a failed read and also lowers the status
 
@@ -121,7 +88,7 @@ def step_collect():  # COLLECT · governed reads only, concurrent; each may fail
         handles[name] = h
         handles[name + "_err"] = err
     if all(handles[n] is None for n in names):
-        status, klass = classify_transport(handles["routing_err"])
+        status, klass = program.classify(handles["routing_err"])
         return fail(status, klass, handles["routing_err"], "collect")
     # newest run per suite for the eval-floors row (bounded: registered suites only, limit 1 each)
     if handles["suites"] is not None:
@@ -238,12 +205,4 @@ def step_report():  # REPORT
 
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:  # the one catch that guarantees an envelope on every path
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

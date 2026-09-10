@@ -9,7 +9,9 @@ describe("onProfilerRender", () => {
 
   it("emits a user-timing measure and swallows unsupported implementations", () => {
     const now = vi.spyOn(performance, "now").mockReturnValue(100);
-    const measure = vi.spyOn(performance, "measure").mockImplementation(() => undefined as PerformanceMeasure);
+    const measure = vi
+      .spyOn(performance, "measure")
+      .mockImplementation(() => undefined as unknown as PerformanceMeasure);
 
     onProfilerRender("Panel", "mount", 12, 0, 0, 0);
 

@@ -7,10 +7,7 @@ Phases: validate -> collect -> classify -> report. Read-only, deterministic, con
 import datetime
 import json
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 
 clues = inputs.get("clues", [])
 project_scope = str(inputs.get("project_scope", "")).strip()
@@ -53,33 +50,6 @@ def fail(status, klass, detail, where):
     # Never include exception text: a transport may echo a raw query.
     envelope["errors"].append({"class": klass, "detail": klass, "where": where})
     return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
 
 
 def parse_time(value):
@@ -230,7 +200,7 @@ def collect_context(candidates):
         stable_hit_id=item["stable_hit_id"], before=context_before, after=context_after) for item in selected])
     for candidate, result in zip(selected, results):
         if isinstance(result, Exception):
-            status, klass = classify_transport(result)
+            status, klass = program.classify(result)
             envelope["errors"].append({"class": klass, "detail": klass, "where": "collect:context"})
             continue
         meta = result.meta() or {}
@@ -255,7 +225,7 @@ def step_classify():
     for call, result in state_data["results"]:
         label = f"{call['surface']}:q{call['query_index'] + 1}:{call['mode']}"
         if isinstance(result, Exception):
-            status, klass = classify_transport(result)
+            status, klass = program.classify(result)
             envelope["signals"]["legs_failed"] += 1
             envelope["errors"].append({"class": klass, "detail": klass, "where": label})
             continue

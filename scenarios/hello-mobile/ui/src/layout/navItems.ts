@@ -1,4 +1,5 @@
 import { strings } from "../consts/strings";
+import { BarChart3, Home, Settings, type LucideIcon } from "lucide-react";
 
 /**
  * Canonical nav-item list shared by `Sidebar` and `BottomNav` so the two
@@ -18,10 +19,12 @@ export interface NavItem {
   end?: boolean;
   /** Translation key path. */
   labelKey: (typeof strings.layout.nav)[keyof typeof strings.layout.nav];
+  /** Library shell icon. */
+  icon: LucideIcon;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "notes", path: "/notes", labelKey: strings.layout.nav.notes }, // EXAMPLE-DOMAIN:notes
-  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
+  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard, icon: Home },
+  { key: "notes", path: "/notes", labelKey: strings.layout.nav.notes, icon: BarChart3 }, // EXAMPLE-DOMAIN:notes
+  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: Settings },
 ];

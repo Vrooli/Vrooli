@@ -12,6 +12,7 @@ import (
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/testutil"
@@ -22,6 +23,112 @@ import (
 )
 
 type pendingRunRecoveryStub struct{ ids []uuid.UUID }
+
+func TestRecoveredCodexTranscriptUsesSavedBillingReceipt(t *testing.T) {
+	reconciler, repos, eventStore := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	run.Billing = domain.BillingSnapshot{Basis: domain.ChargeBasisSubscription, Source: "original-owner-snapshot"}
+	run.ResolvedConfig.Model = "original-model"
+	// The row's immutable billing stamp is authoritative during recovery,
+	// even if a different config object would suggest another basis.
+	run.ResolvedConfig.Billing = domain.BillingSnapshot{Basis: domain.ChargeBasisMetered}
+	run.ID = uuid.New()
+	if err := repos.Runs.Create(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "transcript.ndjson")
+	if err := os.WriteFile(path, []byte("{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19,\"output_tokens\":4}}\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	terminal, err := reconciler.drainTranscript(t.Context(), saved, path, nil, codecs.NewCodexForTest())
+	if err != nil || terminal == nil || !terminal.Success {
+		t.Fatalf("recovered terminal=%+v err=%v", terminal, err)
+	}
+	events, err := eventStore.Get(t.Context(), run.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved.Status = domain.RunStatusComplete
+	state, err := meteredWorkflowChildState(saved, events, time.Now())
+	if err != nil || !state.TokensKnown || !state.ChargeMeasured || state.Tokens != 23 || state.ChargeMicroUSD != 0 {
+		t.Fatalf("saved receipt lost: %+v %v", state, err)
+	}
+	for _, evt := range events {
+		if usage, ok := evt.Data.(*domain.UsageEventData); ok && usage.Model != "original-model" {
+			t.Fatalf("recovered model changed: %+v", usage)
+		}
+	}
+}
+
+func TestContinuationTranscriptBoundarySurvivesOwnerRestart(t *testing.T) {
+	reconciler, repos, eventStore := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	root := t.TempDir()
+	o := New(nil, repos.Tasks, repos.Runs, WithRunStateRoot(root))
+	t.Cleanup(o.dispatcher.Close)
+	first, closeFirst, err := o.prepareRunTranscript(t.Context(), run, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":10}}\n"
+	if _, err := first.StdoutFile.WriteString(old); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.OnAdvance(int64(len(old)), 7); err != nil {
+		t.Fatal(err)
+	}
+	closeFirst()
+	saved, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, closeSecond, err := o.prepareRunTranscript(t.Context(), saved, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeSecond()
+	snapshot, err := runstate.Load(run.ID, root)
+	if err != nil || snapshot.Cursor.TranscriptCursor != int64(len(old)) || snapshot.Cursor.TranscriptLastSeq != 7 {
+		t.Fatalf("continuation reset retained cursor: %+v %v", snapshot, err)
+	}
+	reloaded, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.TranscriptCursor != int64(len(old)) || reloaded.TranscriptLastSeq != 7 {
+		t.Fatalf("durable owner cursor lost: %+v", reloaded)
+	}
+	// Recovery before the new provider emits anything must not see the
+	// original turn's success marker as completion of this continuation.
+	terminal, err := reconciler.drainTranscript(t.Context(), reloaded, second.TranscriptPath, nil, codecs.NewCodexForTest())
+	if err != nil || terminal != nil {
+		t.Fatalf("old completion replayed into correction: %+v %v", terminal, err)
+	}
+	if _, err := second.StdoutFile.WriteString("{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":5}}\n"); err != nil {
+		t.Fatal(err)
+	}
+	terminal, err = reconciler.drainTranscript(t.Context(), reloaded, second.TranscriptPath, nil, codecs.NewCodexForTest())
+	if err != nil || terminal == nil || !terminal.Success {
+		t.Fatalf("new terminal lost: %+v %v", terminal, err)
+	}
+	events, err := eventStore.Get(t.Context(), run.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokens := 0
+	for _, event := range events {
+		if usage, ok := event.Data.(*domain.UsageEventData); ok {
+			tokens += usage.InputTokens
+		}
+	}
+	if tokens != 5 {
+		t.Fatalf("recovery duplicated prior invocation: tokens=%d", tokens)
+	}
+}
 
 func (s *pendingRunRecoveryStub) ResumeRun(_ context.Context, id uuid.UUID) (*domain.Run, error) {
 	s.ids = append(s.ids, id)

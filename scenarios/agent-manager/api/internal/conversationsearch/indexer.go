@@ -13,13 +13,46 @@ import (
 )
 
 const (
-	defaultIndexPageSize   = 250
-	defaultRepairInterval  = 15 * time.Minute
-	initialRepairDelay     = 30 * time.Second
-	semanticRebuildTimeout = 10 * time.Second
+	defaultIndexPageSize  = 250
+	defaultRepairInterval = 15 * time.Minute
+	initialRepairDelay    = 30 * time.Second
+	initialRecoveryRetry  = 5 * time.Second
+	// A full or resumed semantic rebuild embeds every eligible document, so its
+	// budget scales with the planned corpus instead of a fixed wall clock. The
+	// fixed 10-second budget this replaces could never finish a corpus of more
+	// than a few hundred documents, which left semantic coverage at 7.6% on
+	// 2026-09-09 while every rebuild reported "context deadline exceeded".
+	// Measured 2026-09-09: nomic-embed-text embeds 18-36 documents/s one at a
+	// time and ~280/s batched, so 250 ms per document is a 5-70x margin that
+	// still bounds a wedged embedder.
+	semanticRebuildMinimumBudget = 2 * time.Minute
+	semanticRebuildPerDocument   = 250 * time.Millisecond
+	semanticRebuildMaximumBudget = 12 * time.Hour
+	// Retired lexical generations kept for an operator rollback, and how many
+	// older ones each activation purges (bounded so a backlog drains gradually).
+	retainedLexicalGenerations            = 2
+	purgedLexicalGenerationsPerActivation = 4
 )
 
+// semanticRebuildBudget returns the wall-clock budget for a full semantic
+// rebuild of planned documents, clamped to [minimum, maximum].
+func semanticRebuildBudget(planned uint64) time.Duration {
+	budget := semanticRebuildMinimumBudget
+	if planned > 0 {
+		perDocument := time.Duration(planned) * semanticRebuildPerDocument
+		if perDocument > budget {
+			budget = perDocument
+		}
+	}
+	if budget > semanticRebuildMaximumBudget {
+		budget = semanticRebuildMaximumBudget
+	}
+	return budget
+}
+
 var errCanonicalDeletionDuringSemanticBuild = errors.New("canonical deletion arrived during semantic build")
+
+var ErrRecoveryPending = errors.New("conversation index recovery pending; new generations are paused")
 
 type ReindexState string
 
@@ -89,12 +122,14 @@ type Indexer struct {
 	pageSize   int
 	clock      func() time.Time
 
-	kick        chan struct{}
-	stop        context.CancelFunc
-	mu          sync.Mutex
-	running     bool
-	jobs        map[string]*indexJob
-	idempotency map[string]string
+	kick            chan struct{}
+	stop            context.CancelFunc
+	mu              sync.Mutex
+	running         bool
+	recoveryPending bool
+	recoveryError   string
+	jobs            map[string]*indexJob
+	idempotency     map[string]string
 }
 
 type indexJob struct {
@@ -137,6 +172,7 @@ func (i *Indexer) Start(parent context.Context) {
 	}
 	ctx, cancel := context.WithCancel(parent)
 	i.stop = cancel
+	i.recoveryPending = true
 	i.mu.Unlock()
 	go func() {
 		timer := time.NewTimer(initialRepairDelay)
@@ -146,59 +182,108 @@ func (i *Indexer) Start(parent context.Context) {
 			return
 		case <-timer.C:
 		}
-		go i.loop(ctx)
-		i.launchInitial(ctx)
+		// Recovery must admit or drain abandoned generations before kicks can
+		// launch another writer against the same SQLite projection.
+		i.loop(ctx)
 	}()
 }
 
-func (i *Indexer) launchInitial(ctx context.Context) {
-	if i.recoverInterrupted(ctx) {
-		return
+func (i *Indexer) launchInitial(ctx context.Context) error {
+	i.mu.Lock()
+	i.recoveryPending = true
+	i.mu.Unlock()
+	resumed, err := i.recoverInterrupted(ctx)
+	var active bool
+	if err == nil && !resumed {
+		// Admission needs an authoritative read; observational status tolerates
+		// missing metadata and must not turn a database failure into a fresh build.
+		active, err = i.repository.HasActiveGeneration(ctx)
 	}
-	status, err := i.repository.ProjectionStatus(ctx)
-	if err == nil && status.ActiveGeneration != "" {
+	if err == nil {
+		err = ctx.Err()
+	}
+	if err != nil {
+		diagnostic := fmt.Sprintf("%v: %v", ErrRecoveryPending, err)
+		i.mu.Lock()
+		i.recoveryError = diagnostic
+		i.mu.Unlock()
+		diagnosticCtx, cancel := context.WithTimeout(ctx, time.Second)
+		defer cancel()
+		_ = i.repository.SetRecoveryError(diagnosticCtx, diagnostic, i.clock().UTC())
+		return err
+	}
+	i.mu.Lock()
+	i.recoveryPending, i.recoveryError = false, ""
+	i.mu.Unlock()
+	diagnosticCtx, cancel := context.WithTimeout(ctx, time.Second)
+	_ = i.repository.SetRecoveryError(diagnosticCtx, "", i.clock().UTC())
+	cancel()
+	if resumed {
+		return nil
+	}
+	if active {
 		i.launchChanges(ctx)
-		return
+		return nil
 	}
 	i.launchRepair(ctx)
+	return nil
 }
 
-func (i *Indexer) recoverInterrupted(ctx context.Context) bool {
+func (i *Indexer) recoverInterrupted(ctx context.Context) (bool, error) {
 	generations, err := i.repository.BuildingGenerations(ctx)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("read interrupted generations: %w", err)
 	}
 	resumeIndex := -1
 	var resumeCount uint64
 	for index, generation := range generations {
 		staged, countErr := i.repository.CountStagedGeneration(ctx, generation.GenerationID)
-		completeSnapshot := countErr == nil && generation.RecipeVersion == DefaultRecipeVersion && generation.PlannedDocuments > 0 && generation.ProcessedDocuments == generation.PlannedDocuments && staged == generation.PlannedDocuments
+		if countErr != nil {
+			return false, fmt.Errorf("inspect interrupted generation %s: %w", generation.GenerationID, countErr)
+		}
+		completeSnapshot := generation.RecipeVersion == DefaultRecipeVersion && generation.PlannedDocuments > 0 && generation.ProcessedDocuments == generation.PlannedDocuments && staged == generation.PlannedDocuments
 		if completeSnapshot && staged > resumeCount {
 			resumeIndex, resumeCount = index, staged
 		}
 	}
 	for index, generation := range generations {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
 		if index == resumeIndex {
-			staged := resumeCount
-			jobCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-			job := &indexJob{ReindexJob: ReindexJob{
-				ID: generation.GenerationID, State: ReindexQueued, PlannedDocuments: staged,
-				ProcessedDocuments: staged, UpsertedDocuments: staged, SourceCheckpoint: generation.SourceCheckpoint,
-				ShadowGeneration: generation.GenerationID, StartedAt: generation.CreatedAt, UpdatedAt: i.clock().UTC(),
-			}, cancel: cancel}
-			i.mu.Lock()
-			i.jobs[generation.GenerationID] = job
-			i.running = true
-			i.mu.Unlock()
-			go i.resume(jobCtx, generation, staged)
 			continue
 		}
 		if semantic, ok := i.semantic.(SemanticRollback); ok {
-			_ = semantic.Rollback(ctx, generation.GenerationID)
+			if err := semantic.Rollback(ctx, generation.GenerationID); err != nil {
+				return false, fmt.Errorf("rollback semantic generation %s: %w", generation.GenerationID, err)
+			}
 		}
-		_ = i.repository.RollbackStagedGeneration(ctx, generation.GenerationID, "failed", i.clock().UTC())
+		if err := i.repository.RollbackStagedGeneration(ctx, generation.GenerationID, "failed", i.clock().UTC()); err != nil {
+			return false, fmt.Errorf("cleanup interrupted generation %s: %w", generation.GenerationID, err)
+		}
 	}
-	return resumeIndex >= 0
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if resumeIndex < 0 {
+		return false, nil
+	}
+	// Resume publication only after abandoned-shadow cleanup has yielded its
+	// writer; otherwise bootstrap and recovery compete with each other.
+	generation := generations[resumeIndex]
+	jobCtx, cancel := context.WithCancel(ctx)
+	job := &indexJob{ReindexJob: ReindexJob{
+		ID: generation.GenerationID, State: ReindexQueued, PlannedDocuments: resumeCount,
+		ProcessedDocuments: resumeCount, UpsertedDocuments: resumeCount, SourceCheckpoint: generation.SourceCheckpoint,
+		ShadowGeneration: generation.GenerationID, StartedAt: generation.CreatedAt, UpdatedAt: i.clock().UTC(),
+	}, cancel: cancel}
+	i.mu.Lock()
+	i.jobs[generation.GenerationID] = job
+	i.running = true
+	i.mu.Unlock()
+	go i.resume(jobCtx, generation, resumeCount)
+
+	return true, nil
 }
 
 func (i *Indexer) resume(ctx context.Context, generation Generation, staged uint64) {
@@ -221,7 +306,7 @@ func (i *Indexer) resume(ctx context.Context, generation Generation, staged uint
 	// The interrupted process may have died at any point after its original
 	// watermark. Keeping all queued changes is conservative; deletion safety is
 	// checked across the entire remaining queue before vector alias promotion.
-	semanticCtx, cancelSemantic := context.WithTimeout(ctx, semanticRebuildTimeout)
+	semanticCtx, cancelSemantic := context.WithTimeout(ctx, semanticRebuildBudget(staged))
 	semanticErr := i.rebuildSemantic(semanticCtx, id, 0)
 	cancelSemantic()
 	if semanticErr != nil {
@@ -239,6 +324,7 @@ func (i *Indexer) resume(ctx context.Context, generation Generation, staged uint
 		i.rollback(id, err, ctx)
 		return
 	}
+	i.pruneRetiredGenerations(ctx)
 	i.update(id, func(job *indexJob) {
 		job.State, job.ActiveGeneration, job.UpdatedAt = ReindexComplete, id, i.clock().UTC()
 	})
@@ -293,6 +379,21 @@ func (i *Indexer) Notify(ctx context.Context, operation ChangeOperation, runID, 
 }
 
 func (i *Indexer) loop(ctx context.Context) {
+	// Keep recovery in the same owner loop as normal work. Read or cleanup
+	// failure retains the admission gate; neither kicks nor the repair ticker
+	// can create a competing generation while this retry is pending.
+	for {
+		if err := i.launchInitial(ctx); err == nil {
+			break
+		}
+		timer := time.NewTimer(initialRecoveryRetry)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+		}
+	}
 	ticker := time.NewTicker(i.interval)
 	defer ticker.Stop()
 	for {
@@ -369,6 +470,10 @@ func (i *Indexer) reindex(parent context.Context, maxDocuments uint64, idempoten
 			i.mu.Unlock()
 			return job, nil
 		}
+	}
+	if i.recoveryPending {
+		i.mu.Unlock()
+		return nil, ErrRecoveryPending
 	}
 	if i.running {
 		for _, existing := range i.jobs {
@@ -503,7 +608,7 @@ func (i *Indexer) run(ctx context.Context, id string, maxDocuments uint64, incre
 	}
 	_ = i.repository.MarkChangesProcessed(context.WithoutCancel(ctx), changeWatermark, i.clock().UTC())
 	_ = i.repository.SaveCheckpoint(context.WithoutCancel(ctx), Checkpoint{SourceName: "canonical", SourceCursor: checkpoint, SourceFingerprint: digest, UpdatedAt: i.clock().UTC()})
-	semanticCtx, cancelSemantic := context.WithTimeout(ctx, semanticRebuildTimeout)
+	semanticCtx, cancelSemantic := context.WithTimeout(ctx, semanticRebuildBudget(count))
 	semanticErr := i.rebuildSemantic(semanticCtx, id, changeWatermark)
 	cancelSemantic()
 	if semanticErr != nil {
@@ -537,6 +642,7 @@ func (i *Indexer) run(ctx context.Context, id string, maxDocuments uint64, incre
 		i.rollback(id, err, ctx)
 		return
 	}
+	i.pruneRetiredGenerations(ctx)
 	i.update(id, func(j *indexJob) { j.State = ReindexComplete; j.ActiveGeneration = id; j.UpdatedAt = i.clock().UTC() })
 }
 
@@ -665,6 +771,7 @@ func (i *Indexer) runIncremental(ctx context.Context, id string, gen Generation)
 		i.rollback(id, err, ctx)
 		return
 	}
+	i.pruneRetiredGenerations(ctx)
 	i.update(id, func(j *indexJob) { j.State, j.ActiveGeneration = ReindexComplete, id })
 }
 
@@ -796,7 +903,12 @@ func (i *Indexer) rollback(id string, cause error, ctx context.Context) {
 	if errors.Is(cause, context.Canceled) {
 		state, jobState = "cancelled", ReindexCancelled
 	}
-	_ = i.repository.RollbackStagedGeneration(context.WithoutCancel(ctx), id, state, i.clock().UTC())
+	cleanupCtx, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	cleanupErr := i.repository.RollbackStagedGeneration(cleanupCtx, id, state, i.clock().UTC())
+	cancelCleanup()
+	if cleanupErr != nil {
+		cause = errors.Join(cause, fmt.Errorf("generation cleanup incomplete; retained for recovery: %w", cleanupErr))
+	}
 	_ = i.repository.SaveCheckpoint(context.WithoutCancel(ctx), Checkpoint{SourceName: "canonical", UpdatedAt: i.clock().UTC(), LastErrorCode: cause.Error()})
 	i.update(id, func(j *indexJob) { j.State = jobState; j.FailedDocuments++; j.ErrorCode = cause.Error() })
 }
@@ -831,6 +943,7 @@ func (i *Indexer) activateLexicalAfterSemanticFailure(id string, cause error, ct
 		i.failPublishedSemantic(id, fmt.Errorf("activate lexical snapshot after semantic failure: %w", err), ctx)
 		return false
 	}
+	i.pruneRetiredGenerations(ctx)
 	if generation, err := i.repository.LoadGeneration(context.WithoutCancel(ctx), id); err == nil {
 		generation.State = "active"
 		generation.FailedDocuments++
@@ -916,6 +1029,16 @@ func (i *Indexer) StatusSnapshot(ctx context.Context) (ProjectionStatus, error) 
 	if err != nil {
 		return ProjectionStatus{}, err
 	}
+	i.mu.Lock()
+	pending, recoveryError := i.recoveryPending, i.recoveryError
+	i.mu.Unlock()
+	if pending {
+		if recoveryError == "" {
+			recoveryError = ErrRecoveryPending.Error()
+		}
+		status.LastErrorCode = recoveryError
+		status.DegradedDependencies = append(status.DegradedDependencies, "canonical-projection: "+recoveryError)
+	}
 	// Counts describe the last reconciled authoritative snapshot. Full source
 	// comparison and orphan repair belong to the background index lifecycle;
 	// repeating that O(corpus) work in a status request made observability block
@@ -933,4 +1056,12 @@ func (i *Indexer) StatusSnapshot(ctx context.Context) (ProjectionStatus, error) 
 		}
 	}
 	return status, nil
+}
+
+// pruneRetiredGenerations is best-effort housekeeping after an activation: a
+// purge failure must not undo a promotion that already serves.
+func (i *Indexer) pruneRetiredGenerations(ctx context.Context) {
+	pruneCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Minute)
+	defer cancel()
+	_, _ = i.repository.PruneRetiredGenerations(pruneCtx, retainedLexicalGenerations, purgedLexicalGenerationsPerActivation)
 }

@@ -27,7 +27,7 @@ func TestProjectRejectsQuarantinedImportedSkill(t *testing.T) {
 	}
 }
 
-func TestProjectIsScopedIdempotentAndReapsGeneratedSkills(t *testing.T) {
+func TestProjectIsScopedIdempotentAndPreservesUnselectedSkills(t *testing.T) {
 	source, target := t.TempDir(), t.TempDir()
 	for _, id := range []string{"alpha", "beta"} {
 		dir := filepath.Join(source, id)
@@ -51,12 +51,12 @@ func TestProjectIsScopedIdempotentAndReapsGeneratedSkills(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := Project(source, target, BasePack{Skills: []string{"alpha"}, MaxSkills: 8, MaxTokens: 1000})
+	_, err = Project(source, target, BasePack{Skills: []string{"alpha"}, MaxSkills: 8, MaxTokens: 1000})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(second.Removed) != 1 || second.Removed[0] != "beta" {
-		t.Fatalf("expected beta reap, got %#v", second.Removed)
+	if _, err := os.Stat(filepath.Join(target, "beta", "SKILL.md")); err != nil {
+		t.Fatalf("unselected skill must survive: %v", err)
 	}
 	after, err := os.ReadFile(filepath.Join(target, "alpha", "SKILL.md"))
 	if err != nil {

@@ -279,6 +279,14 @@ func protectedRuntimeRoots(repoRoot string) ([]string, error) {
 	return coreRetention.NormalizeProtectedRoots(roots)
 }
 
+// ProtectedRuntimeRoots exposes the repository-contract protection set to
+// other storage-manager orchestration boundaries. Retention and cleanup plans
+// must share one contract-derived set; otherwise a provider preview could
+// surface a path that the retention adapter correctly refuses later.
+func ProtectedRuntimeRoots(repoRoot string) ([]string, error) {
+	return protectedRuntimeRoots(repoRoot)
+}
+
 func addResult(results map[string]Result, ownerID string, entryResult Result) {
 	rollup, exists := results[ownerID]
 	if !exists {

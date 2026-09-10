@@ -5,6 +5,7 @@
   "icon": "clock",
   "id": "temporal-flow-audit",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "audits"

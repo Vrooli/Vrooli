@@ -5,6 +5,7 @@
   "entry": "SKILL.md",
   "id": "platform-package-hardening",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "platform",
     "hardening"

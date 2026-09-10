@@ -5,6 +5,7 @@
   "icon": "wrench",
   "id": "skill-authoring-tools",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "meta",
     "tools"
@@ -17,12 +18,12 @@
     "commands": [],
     "scenarios": []
   },
-  "revision": 44,
+  "revision": 45,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
     "skill",
     "authoring"
   ],
-  "updatedAt": "2026-09-02T00:00:00Z"
+  "updatedAt": "2026-09-02T20:00:00Z"
 }

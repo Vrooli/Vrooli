@@ -23,9 +23,14 @@
  * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
+import { createElement } from "react";
+import { configureTestProviders } from "@vrooli/api-base/testing";
 import { afterEach, beforeEach, vi } from "vitest";
 import { initSpatialNav, type SpatialNavController } from "@vrooli/iframe-bridge/spatial";
 import { i18n } from "./i18n";
+import { Providers } from "./app/providers";
+
+configureTestProviders((children) => createElement(Providers, null, children));
 
 let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;
@@ -77,6 +82,21 @@ class ResizeObserverStub {
   disconnect(): void {}
 }
 globalThis.ResizeObserver = ResizeObserverStub;
+
+Object.defineProperty(window, "matchMedia", {
+  configurable: true,
+  writable: true,
+  value: (media: string) => ({
+    media,
+    matches: media.includes("min-width"),
+    onchange: null,
+    addListener() {},
+    removeListener() {},
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent: () => false,
+  }),
+});
 
 // jsdom has no URL.createObjectURL/revokeObjectURL — the Smart-Select surface
 // (and any future image-loading feature) creates an object URL to preview the

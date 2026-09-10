@@ -1,16 +1,23 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
+  "createdAt": "2026-09-01T20:28:24Z",
+  "description": "Evaluate the deployment readiness check: Ramp evidence exists for every target",
+  "entry": "SKILL.md",
   "id": "readiness-ramp-evidence-complete",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
   "name": "readiness-ramp-evidence-complete",
-  "description": "Deployment readiness check procedure",
+  "origin": {
+    "kind": "authored"
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "readiness-check",
     "deployment-manager"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-09-01T20:28:24Z",
   "updatedAt": "2026-09-01T20:28:24Z"
 }

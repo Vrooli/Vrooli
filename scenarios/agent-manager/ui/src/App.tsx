@@ -1,13 +1,15 @@
 import { lazy, Profiler, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
+import { Activity, BarChart3, Binoculars, ClipboardList, GitBranch, HeartPulse, Play, Search, Settings2, Upload } from "lucide-react";
+import { AppShell, type AppShellNavItem } from "@vrooli/react-component-library/AppShell/2";
 import { useHealth, useRolePolicyCatalog, useProfiles, useRuns, useTasks, useRunStatusCounts } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
 import { useRunEventStore } from "./hooks/useRunEventStore";
-import type { Run, RunEvent } from "./types";
-import { useIsMobile } from "./hooks/useViewportSize";
+import { HealthStatus, type Run, type RunEvent } from "./types";
 import { QueryProvider } from "./providers/QueryProvider";
-import { AppHeader } from "./components/layout/AppHeader";
-import { SideNav, type NavSection } from "./components/layout/SideNav";
+import type { NavSection } from "./components/layout/SideNav";
+import { Button } from "./components/ui/button";
+import { Badge } from "./components/ui/badge";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { jsonValueToPlain } from "./lib/utils";
 import { onProfilerRender } from "./lib/profiler";
@@ -27,6 +29,20 @@ const StatusDialog = lazy(async () => ({ default: (await import("./components/di
 const SettingsDialog = lazy(async () => ({ default: (await import("./components/dialogs/SettingsDialog")).SettingsDialog }));
 const QuickRunDialog = lazy(async () => ({ default: (await import("./components/QuickRunDialog")).QuickRunDialog }));
 
+const shellNavigation: Array<{ id: NavSection; label: string; href: string; icon: ReactNode }> = [
+  { id: "dashboard", label: "Dashboard", href: "/", icon: <Activity aria-hidden="true" /> },
+  { id: "tasks", label: "Tasks", href: "/tasks", icon: <ClipboardList aria-hidden="true" /> },
+  { id: "runs", label: "Runs", href: "/runs", icon: <Play aria-hidden="true" /> },
+  { id: "workflows", label: "Flows", href: "/workflows", icon: <GitBranch aria-hidden="true" /> },
+  { id: "watches", label: "Watches", href: "/watches", icon: <Binoculars aria-hidden="true" /> },
+  { id: "investigations", label: "Investigations", href: "/investigations", icon: <Search aria-hidden="true" /> },
+  { id: "findings", label: "Findings", href: "/findings", icon: <ClipboardList aria-hidden="true" /> },
+  { id: "stats", label: "Stats", href: "/stats", icon: <BarChart3 aria-hidden="true" /> },
+  { id: "profiles", label: "Profiles", href: "/profiles", icon: <Settings2 aria-hidden="true" /> },
+  { id: "health", label: "Health", href: "/observability", icon: <HeartPulse aria-hidden="true" /> },
+  { id: "import", label: "Import", href: "/import", icon: <Upload aria-hidden="true" /> },
+];
+
 // AI_CHECK: AGENT_MANAGER_RENDER_PERF=2 | LAST: 2026-05-04
 function ProfiledPage({ id, children }: { id: string; children: ReactNode }) {
   return (
@@ -36,13 +52,12 @@ function ProfiledPage({ id, children }: { id: string; children: ReactNode }) {
   );
 }
 
-export default function App() {
+export function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const [statusOpen, setStatusOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [quickRunOpen, setQuickRunOpen] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const path = location.pathname;
   const isDashboardRoute = path === "/";
@@ -57,7 +72,6 @@ export default function App() {
   const runs = useRuns({ limit: runsLimit });
   const runStatusCounts = useRunStatusCounts({ enabled: isDashboardRoute });
 	const modelPolicy = useRolePolicyCatalog({ enabled: needsRunnerData });
-  const isMobile = useIsMobile();
   const runEventStore = useRunEventStore();
   const reconciliationInFlightRef = useRef<Set<string>>(new Set());
 
@@ -90,6 +104,12 @@ export default function App() {
   }, [location.pathname]);
 
   const activeSection = getActiveSection();
+
+  const shellItems: AppShellNavItem[] = shellNavigation.map((item) => ({
+    ...item,
+    current: item.id === activeSection,
+    testId: `agent-manager-nav-${item.id}`,
+  }));
 
   const handleWebSocketMessage = useCallback(
     (message: WebSocketMessage) => {
@@ -215,20 +235,50 @@ export default function App() {
 
   return (
     <QueryProvider>
-      <div className="h-full bg-transparent text-foreground flex overflow-hidden">
-        <SideNav activeSection={activeSection} onSectionChange={handleSectionChange} onSettingsClick={() => setSettingsOpen(true)} mobileOpen={mobileNavOpen} onMobileOpenChange={setMobileNavOpen} />
-        <div className="min-w-0 flex flex-1 flex-col">
-        <AppHeader
-          health={health.data}
-          wsStatus={ws.status}
-          activeSection={activeSection}
-          isMobile={isMobile}
-          onSectionChange={handleSectionChange}
-          onStatusClick={() => setStatusOpen(true)}
-          onSettingsClick={() => setSettingsOpen(true)}
-          onQuickRunClick={() => setQuickRunOpen(true)}
-          onNavigationClick={() => setMobileNavOpen(true)}
-        />
+      <AppShell
+        brand="Agent Manager"
+        brandMark={<Activity aria-hidden="true" />}
+        items={shellItems}
+        density="sidebar"
+        mobileNav="tabs"
+        mainMode="scroll"
+        onNavigate={(item) => handleSectionChange(item.id as NavSection)}
+        renderLink={(item, props) => <a {...props} href={item.href} />}
+        header={
+          <div className="flex min-h-12 items-center justify-between gap-4 border-b border-border bg-background/95 px-4 py-2 sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="truncate text-sm font-semibold sm:text-base">Agent Manager</span>
+              <Badge
+                variant={!health.data || health.data.status !== HealthStatus.HEALTHY || ws.status === "error" || ws.status === "disconnected" ? "destructive" : ws.status === "connecting" ? "secondary" : "success"}
+                className="cursor-pointer gap-1 text-xs"
+                onClick={() => setStatusOpen(true)}
+                role="button"
+                tabIndex={0}
+                aria-label="Open status details"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setStatusOpen(true);
+                  }
+                }}
+              >
+                {health.data?.status === HealthStatus.HEALTHY ? "Healthy" : "Degraded"} · {ws.status === "connected" ? "Live" : ws.status === "connecting" ? "Connecting" : ws.status === "error" ? "Error" : "Offline"}
+              </Badge>
+            </div>
+            <Button type="button" size="sm" onClick={() => setQuickRunOpen(true)}>
+              <Play aria-hidden="true" className="h-4 w-4" />
+              <span className="hidden sm:inline">Quick Run</span>
+            </Button>
+          </div>
+        }
+        utility={
+          <Button type="button" variant="ghost" size="sm" className="w-full justify-start" onClick={() => setSettingsOpen(true)}>
+            <Settings2 aria-hidden="true" className="h-4 w-4" />
+            Settings
+          </Button>
+        }
+        testId="agent-manager-shell"
+      >
 
         {statusOpen ? (
           <Suspense fallback={null}>
@@ -282,9 +332,7 @@ export default function App() {
         ) : null}
 
         {/* Main Content */}
-        <main
-          className={`flex-1 min-h-0 overflow-hidden ${isMobile ? "pb-16" : ""}`}
-        >
+        <div className="min-h-0 h-full overflow-hidden">
           <ErrorBoundary section="Application">
             <Routes>
             <Route
@@ -444,10 +492,10 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ErrorBoundary>
-        </main>
-
         </div>
-      </div>
+      </AppShell>
     </QueryProvider>
   );
 }
+
+export default App;

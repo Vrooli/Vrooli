@@ -5,6 +5,7 @@
   "icon": "search",
   "id": "systematic-exploration",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "practice"
   ],

@@ -5,6 +5,7 @@
   "icon": "lightbulb",
   "id": "idea-workshop",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "practice"
   ],

@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { renderWithProviders as render } from '@/test-utils/renderWithProviders'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { tuning } from '../config'
 import { FrameDriver } from './frameDriver'

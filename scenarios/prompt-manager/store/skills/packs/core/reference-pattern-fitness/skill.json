@@ -5,6 +5,7 @@
   "icon": "git-branch",
   "id": "reference-pattern-fitness",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "meta-optimization",

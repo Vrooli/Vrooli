@@ -416,6 +416,7 @@ providerLoop:
 				providerCancel()
 				break
 			}
+			preview, _ = s.filterProtectedPreview(preview)
 			if len(preview.Items) == 0 {
 				s.audit(ctx, AuditEvent{Type: "recovery.provider_skipped", PlanID: out.PlanID, ProviderID: meta.ID, Message: "preview reported no items"})
 				providerCancel()

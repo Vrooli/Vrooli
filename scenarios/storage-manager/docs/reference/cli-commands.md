@@ -225,6 +225,12 @@ storage-manager recovery chaos --root "$VROOLI_HOME/tmp/recovery-chaos" --rate 2
 Rank persisted per-owner storage velocity and project declared ceilings. The
 command reads the indexed census sample table and does not scan the filesystem.
 
+### `storage-manager storage qdrant [--limit N] [--state STATE]`
+
+Reads the bounded agent-manager Qdrant generation accounting report. This is a
+read-only inspection command. It does not delete collections and does not
+classify quarantined or unreadable generations as reclaimable.
+
 ```bash
 storage-manager storage growth
 storage-manager storage growth --window 7d --json

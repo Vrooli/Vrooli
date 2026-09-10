@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -111,7 +112,7 @@ func (h *Handler) StartWorkflowExecution(w http.ResponseWriter, r *http.Request)
 	if r.Header.Get(cliutil.HeaderAgentIdentityToken) != "" {
 		initiator = domain.WorkflowInitiatorAgent
 	}
-	execution, err := h.svc.StartWorkflowExecution(r.Context(), orchestration.StartWorkflowExecutionRequest{Owner: req.Owner, WorkflowKey: req.WorkflowKey, DefinitionDigest: req.DefinitionDigest, Input: input, IdempotencyKey: req.IdempotencyKey, Initiator: initiator, IdentityToken: r.Header.Get(cliutil.HeaderAgentIdentityToken)})
+	execution, err := h.svc.StartWorkflowExecution(r.Context(), orchestration.StartWorkflowExecutionRequest{Owner: req.Owner, WorkflowKey: req.WorkflowKey, DefinitionDigest: req.DefinitionDigest, Input: input, IdempotencyKey: req.IdempotencyKey, Initiator: initiator, IdentityToken: r.Header.Get(cliutil.HeaderAgentIdentityToken), EngagementGrant: engagementGrantFromProto(req.EngagementGrant), ApprovalDigest: req.ApprovalDigest, GrantDigest: req.GrantDigest})
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -119,15 +120,30 @@ func (h *Handler) StartWorkflowExecution(w http.ResponseWriter, r *http.Request)
 	writeProtoJSON(w, http.StatusAccepted, &apipb.WorkflowExecutionResponse{Execution: workflowExecutionToProto(execution, false)})
 }
 
+func engagementGrantFromProto(grant *domainpb.WorkflowEngagementGrant) *domain.WorkflowEngagementGrant {
+	if grant == nil {
+		return nil
+	}
+	return &domain.WorkflowEngagementGrant{
+		MaxTurns: int(grant.MaxTurns), MaxTokens: int(grant.MaxTokens),
+		MaxChargeMicroUSD: grant.MaxChargeMicroUsd, MaxWallTimeSeconds: int(grant.MaxWallTimeSeconds),
+		MaxNodeAttempts: int(grant.MaxNodeAttempts), MaxChildren: int(grant.MaxChildren),
+		MaxConcurrency: int(grant.MaxConcurrency), MaxRecursion: int(grant.MaxRecursion),
+		MaxRetries: int(grant.GetMaxRetries()), RetryLimitSet: grant.MaxRetries != nil, MaxWaitSeconds: int(grant.MaxWaitSeconds),
+		AllowedEffects: append([]string(nil), grant.AllowedEffects...),
+	}
+}
+
 func (h *Handler) ListWorkflowExecutions(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	items, err := h.svc.ListWorkflowExecutions(r.Context(), orchestration.ListWorkflowExecutionsRequest{
-		Owner:       r.URL.Query().Get("owner"),
-		WorkflowKey: r.URL.Query().Get("workflow_key"),
-		Status:      domain.WorkflowExecutionStatus(r.URL.Query().Get("status")),
-		Limit:       limit,
-		Offset:      offset,
+		Owner:          r.URL.Query().Get("owner"),
+		WorkflowKey:    r.URL.Query().Get("workflow_key"),
+		IdempotencyKey: r.URL.Query().Get("idempotency_key"),
+		Status:         domain.WorkflowExecutionStatus(r.URL.Query().Get("status")),
+		Limit:          limit,
+		Offset:         offset,
 	})
 	if err != nil {
 		writeError(w, r, err)
@@ -174,6 +190,23 @@ func (h *Handler) GetWorkflowExecutionResult(w http.ResponseWriter, r *http.Requ
 
 func (h *Handler) AdvanceWorkflowExecution(w http.ResponseWriter, r *http.Request) {
 	h.workflowExecutionByID(w, r, true)
+}
+
+// WorkflowWaitResponse lets the wait operation's timeout and request context
+// govern its lifetime. The ordinary server write deadline would otherwise expire
+// while the handler awaits an execution, losing the eventual terminal response.
+// Register this wrapper only on the REST and Connect workflow wait routes.
+func WorkflowWaitResponse(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := http.NewResponseController(w).SetWriteDeadline(time.Time{})
+		// Writers without a transport (such as ResponseRecorder) have no socket
+		// deadline. The production server wrappers expose Unwrap for this call.
+		if err != nil && !errors.Is(err, http.ErrNotSupported) {
+			writeError(w, r, fmt.Errorf("configure workflow wait response deadline: %w", err))
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (h *Handler) WaitWorkflowExecution(w http.ResponseWriter, r *http.Request) {
@@ -457,16 +490,29 @@ func workflowExecutionToProto(x *domain.WorkflowExecution, includePayloads bool)
 	for key, value := range x.EdgeTraversals {
 		edges[key] = int32(value)
 	}
-	out := &domainpb.WorkflowExecution{Id: x.ID.String(), Owner: x.Owner, WorkflowKey: x.WorkflowKey, DefinitionDigest: x.DefinitionDigest, Status: status, CurrentNodeId: x.CurrentNodeID, BudgetUsage: &domainpb.WorkflowBudgetUsage{Turns: int32(x.BudgetUsage.Turns), Tokens: int32(x.BudgetUsage.Tokens), CostUsd: x.BudgetUsage.CostUSD, NodeAttempts: int32(x.BudgetUsage.NodeAttempts), Children: int32(x.BudgetUsage.Children), Retries: int32(x.BudgetUsage.Retries)}, EdgeTraversals: edges, Version: x.Version, IdempotencyKey: x.IdempotencyKey, Depth: int32(x.Depth), CreatedAt: timestamppb.New(x.CreatedAt), UpdatedAt: timestamppb.New(x.UpdatedAt)}
+	out := &domainpb.WorkflowExecution{Id: x.ID.String(), Owner: x.Owner, WorkflowKey: x.WorkflowKey, DefinitionDigest: x.DefinitionDigest, ApprovalDigest: x.ApprovalDigest, GrantDigest: x.GrantDigest, Status: status, CurrentNodeId: x.CurrentNodeID, BudgetUsage: &domainpb.WorkflowBudgetUsage{AccountingComplete: x.BudgetUsage.AccountingComplete, Turns: int32(x.BudgetUsage.Turns), Tokens: int32(x.BudgetUsage.Tokens), CostUsd: x.BudgetUsage.CostUSD, NodeAttempts: int32(x.BudgetUsage.NodeAttempts), Children: int32(x.BudgetUsage.Children), Retries: int32(x.BudgetUsage.Retries)}, EdgeTraversals: edges, Version: x.Version, IdempotencyKey: x.IdempotencyKey, Depth: int32(x.Depth), CreatedAt: timestamppb.New(x.CreatedAt), UpdatedAt: timestamppb.New(x.UpdatedAt)}
+	if x.EngagementGrant != nil {
+		out.EngagementGrant = &domainpb.WorkflowEngagementGrant{
+			MaxTurns: int32(x.EngagementGrant.MaxTurns), MaxTokens: int32(x.EngagementGrant.MaxTokens),
+			MaxChargeMicroUsd: x.EngagementGrant.MaxChargeMicroUSD, MaxWallTimeSeconds: int32(x.EngagementGrant.MaxWallTimeSeconds),
+			MaxNodeAttempts: int32(x.EngagementGrant.MaxNodeAttempts), MaxChildren: int32(x.EngagementGrant.MaxChildren),
+			MaxConcurrency: int32(x.EngagementGrant.MaxConcurrency), MaxRecursion: int32(x.EngagementGrant.MaxRecursion),
+			MaxWaitSeconds: int32(x.EngagementGrant.MaxWaitSeconds),
+			AllowedEffects: append([]string(nil), x.EngagementGrant.AllowedEffects...),
+		}
+		if x.EngagementGrant.RetryLimitSet || x.EngagementGrant.MaxRetries > 0 {
+			out.EngagementGrant.MaxRetries = proto.Int32(int32(x.EngagementGrant.MaxRetries))
+		}
+	}
 	if x.Status.Terminal() {
-		receipt := &domainpb.ChargeReceipt{Currency: "USD", MeteringBasis: "agent-manager.run.billing.metered_charge_micro_usd", Measured: x.BudgetUsage.ChargeMeasured}
-		if x.BudgetUsage.ChargeMeasured {
+		receipt := &domainpb.ChargeReceipt{Currency: "USD", MeteringBasis: "agent-manager.run.billing.marginal_charge_micro_usd", Measured: x.BudgetUsage.ChargeMeasured && x.BudgetUsage.AccountingComplete}
+		if receipt.Measured {
 			amount := x.BudgetUsage.ChargeMicroUSD
 			receipt.AmountMicroUsd = &amount
-			receipt.Note = "per-execution metered charge from child-run billing"
+			receipt.Note = "per-execution child-run billing; explicit subscription/local zero is verified against each run's saved billing basis"
 		} else {
 			receipt.MeteringBasis = "unmeasured"
-			receipt.Note = "agent-manager could not attribute a metered charge to this execution"
+			receipt.Note = "agent-manager could not attribute a complete marginal charge to this execution"
 		}
 		out.ChargeReceipt = receipt
 	}

@@ -5,6 +5,7 @@
   "icon": "sparkles",
   "id": "x-scenario-spotlight",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "tools"
   ],

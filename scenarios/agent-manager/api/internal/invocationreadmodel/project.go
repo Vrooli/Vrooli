@@ -12,6 +12,17 @@ import (
 	"agent-manager/internal/tokenaccounting"
 )
 
+// BeginsRunInvocation identifies the durable owner status boundary emitted
+// before a fresh execution or continuation starts consuming provider work.
+// Consecutive start events before usage describe the same empty interval.
+func BeginsRunInvocation(event *domain.RunEvent) bool {
+	if event == nil {
+		return false
+	}
+	status, ok := event.Data.(*domain.StatusEventData)
+	return ok && status.NewStatus == string(domain.RunStatusRunning)
+}
+
 // DeriveRunSubject turns bounded invocation dimensions into a stable, human
 // readable subject. It consumes only recorded tool-call facts; raw command
 // arguments and agent-authored completion fields are excluded.
@@ -449,19 +460,27 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 	// (live capture plus terminal recovery). Deduplicate identical snapshots so
 	// replay remains idempotent while distinct usage facts are still additive.
 	type usageIdentity struct {
+		invocation                                              int
 		input, output, cacheCreate, cacheRead, turns, turnIndex int
 		authority                                               bool
 		model, runner, tier                                     string
 		webSearch, serverTool                                   int
 	}
 	seenUsage := map[usageIdentity]struct{}{}
-	terminalUsage := false
-	for _, event := range events {
+	terminalUsage := map[int]bool{}
+	providerTurns := map[int]int{}
+	invocations := make([]int, len(events))
+	invocation := 0
+	for index, event := range events {
 		if event == nil {
 			continue
 		}
+		if BeginsRunInvocation(event) {
+			invocation++
+		}
+		invocations[index] = invocation
 		if usage, ok := event.Data.(*domain.UsageEventData); ok && usage.ReconciliationAuthority {
-			terminalUsage = true
+			terminalUsage[invocation] = true
 		}
 	}
 	incurredByCall, noPrecedingToolCallTokens, hasEligibleUsage := attributeIncurred(events, preambleInjectedTokens, preambleFixedTokens)
@@ -507,21 +526,21 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 			cacheCreationCost += float64(*charge.CacheCreateMicroUSD) / 1_000_000
 		}
 	}
-	for _, event := range events {
+	for index, event := range events {
 		if event == nil {
 			continue
 		}
 		if usage, ok := event.Data.(*domain.UsageEventData); ok {
-			if terminalUsage && !usage.ReconciliationAuthority {
+			if terminalUsage[invocations[index]] && !usage.ReconciliationAuthority {
 				continue
 			}
-			identity := usageIdentity{input: usage.InputTokens, output: usage.OutputTokens, cacheCreate: usage.CacheCreationTokens, cacheRead: usage.CacheReadTokens, turns: usage.Turns, turnIndex: usage.TurnIndex, authority: usage.ReconciliationAuthority, model: usage.Model, runner: usage.RunnerType, tier: usage.ServiceTier, webSearch: usage.WebSearchRequests, serverTool: usage.ServerToolUseRequests}
+			identity := usageIdentity{invocation: invocations[index], input: usage.InputTokens, output: usage.OutputTokens, cacheCreate: usage.CacheCreationTokens, cacheRead: usage.CacheReadTokens, turns: usage.Turns, turnIndex: usage.TurnIndex, authority: usage.ReconciliationAuthority, model: usage.Model, runner: usage.RunnerType, tier: usage.ServiceTier, webSearch: usage.WebSearchRequests, serverTool: usage.ServerToolUseRequests}
 			if _, duplicate := seenUsage[identity]; duplicate {
 				continue
 			}
 			seenUsage[identity] = struct{}{}
-			if int64(usage.Turns) > turns {
-				turns = int64(usage.Turns)
+			if usage.Turns > providerTurns[invocations[index]] {
+				providerTurns[invocations[index]] = usage.Turns
 			}
 			tokens += int64(usage.InputTokens + usage.OutputTokens + usage.CacheCreationTokens + usage.CacheReadTokens)
 			inputTokens += int64(usage.InputTokens)
@@ -544,7 +563,12 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 			}
 		}
 	}
-	if run.Summary != nil {
+	for _, count := range providerTurns {
+		turns += int64(count)
+	}
+	// A compatibility summary can count assistant commentary messages. Use it
+	// only when the provider supplied no invocation turn accounting.
+	if turns == 0 && run.Summary != nil {
 		turns = int64(run.Summary.TurnsUsed)
 	}
 	if unpriced {

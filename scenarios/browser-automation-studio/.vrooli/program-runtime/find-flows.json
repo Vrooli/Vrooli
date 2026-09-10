@@ -1,30 +1,81 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
-  "name": "browser-automation-studio.find-flows",
-  "version": "2",
-  "helpers": {
-    "program": "1"
-  },
-  "purpose": "Rank persisted workflows, scenario bas/ assets, and search-hub hits against a task with a deterministic fit label; one ai.classify call breaks a k-boundary tie or judges names on a lexical miss.",
-  "inputs": {
-    "task": {
-      "type": "string",
-      "required": true,
-      "description": "The browser task in plain words."
-    },
-    "scenario": {
-      "type": "string",
-      "description": "Scenario whose bas/ assets workflow-health should search; without it that source is skipped."
-    },
-    "k": {
-      "type": "integer",
-      "default": 5,
-      "description": "Maximum candidates returned (1..20)."
-    }
-  },
   "assumptions": [
     "browser-automation-studio and workflow-health are running; a stopped owner marks its own source unavailable rather than emptying the candidate list"
   ],
+  "bindings": [
+    {
+      "effect": "read",
+      "id": "browser-automation-studio/workflows/list"
+    },
+    {
+      "effect": "read",
+      "id": "workflow-health/workflows/search",
+      "optional": true
+    },
+    {
+      "effect": "read",
+      "id": "search-hub/query/query",
+      "note": "Called with rows=\"ranked\" (the response has four repeated fields).",
+      "optional": true
+    }
+  ],
+  "budget": {
+    "delegated_runs": 0,
+    "inference_calls": 3,
+    "materialize_limit": 100,
+    "wall_ms": 60000
+  },
+  "fixtures": [
+    {
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "id": "no-task",
+      "inputs": {},
+      "requires": [
+        "browser-automation-studio"
+      ]
+    },
+    {
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "id": "smoke",
+      "inputs": {
+        "k": 3,
+        "scenario": "browser-automation-studio",
+        "task": "demo smoke workflow"
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
+    }
+  ],
+  "helpers": {
+    "program": "1"
+  },
+  "inputs": {
+    "k": {
+      "default": 5,
+      "description": "Maximum candidates returned (1..20).",
+      "type": "integer"
+    },
+    "scenario": {
+      "description": "Scenario whose bas/ assets workflow-health should search; without it that source is skipped.",
+      "type": "string"
+    },
+    "task": {
+      "description": "The browser task in plain words.",
+      "required": true,
+      "type": "string"
+    }
+  },
   "invariants": [
     "no binding with effect write or destructive is called",
     "at most k candidates are returned; no row set above 100 is materialized",
@@ -32,49 +83,256 @@
     "the envelope is printed exactly once, on every path",
     "No memory I/O: this is an S3 step; the usage skill owns recall and capture in bas-usage."
   ],
-  "bindings": [
-    {
-      "id": "browser-automation-studio/workflows/list",
-      "effect": "read"
-    },
-    {
-      "id": "workflow-health/workflows/search",
-      "effect": "read",
-      "optional": true
-    },
-    {
-      "id": "search-hub/query/query",
-      "effect": "read",
-      "optional": true,
-      "note": "Called with rows=\"ranked\" (the response has four repeated fields)."
+  "learning": {
+    "baselines": {
+      "row-normalization": {
+        "compatibility": {
+          "binding_contracts": [
+            {
+              "command": "list",
+              "contract_digest": "sha256:ec937f5d2795960c91d0bbc17b53b2d33791a9938b768e13da807b717524b8c9",
+              "effect": "read",
+              "group": "workflows",
+              "id": "browser-automation-studio/workflows/list",
+              "meta_fields": [
+                "hasMore",
+                "total"
+              ],
+              "namespace": "browser_automation_studio",
+              "rows_field": "workflows",
+              "scenario": "browser-automation-studio",
+              "signature": "WorkflowsService.ListWorkflows(browser_automation_studio.v1.ListWorkflowsRequest) -\u003e browser_automation_studio.v1.ListWorkflowsResponse"
+            },
+            {
+              "command": "query",
+              "contract_digest": "sha256:68a9bf6c0e0fa3ad961f77162574b477188adbe0e7d3ac0daf976ad461b3af70",
+              "effect": "read",
+              "group": "query",
+              "id": "search-hub/query/query",
+              "meta_fields": [
+                "corporaSearched",
+                "degraded",
+                "groups",
+                "latencyMs",
+                "orderedBy",
+                "partial",
+                "pendingProviders",
+                "ranked",
+                "reranked",
+                "rerankerLeg",
+                "routingDegradeReason",
+                "routingExplanation",
+                "routingTrace",
+                "selectorLeg"
+              ],
+              "namespace": "search_hub",
+              "row_field_candidates": [
+                "corporaSearched",
+                "groups",
+                "ranked",
+                "routingExplanation"
+              ],
+              "scenario": "search-hub",
+              "signature": "RoutingService.Query(vrooli.search_hub.v1.routing.QueryRequest) -\u003e vrooli.search_hub.v1.routing.QueryResponse"
+            },
+            {
+              "command": "search",
+              "contract_digest": "sha256:14414e4811a9e9e08cd4453015e28e1a1c5538a8d110bd011ead931f158444fd",
+              "effect": "read",
+              "group": "workflows",
+              "id": "workflow-health/workflows/search",
+              "meta_fields": [
+                "query",
+                "scenario",
+                "total"
+              ],
+              "namespace": "workflow_health",
+              "rows_field": "results",
+              "scenario": "workflow-health",
+              "signature": "WorkflowSearchService.SearchWorkflows(vrooli.workflow_health.v1.workflows.SearchWorkflowsRequest) -\u003e vrooli.workflow_health.v1.workflows.SearchWorkflowsResponse"
+            }
+          ],
+          "bindings": [
+            "browser-automation-studio/workflows/list",
+            "search-hub/query/query",
+            "workflow-health/workflows/search"
+          ],
+          "environment": {},
+          "intent": "Extract the identity, name, folder, snippet and version each owner's row carries.",
+          "schema": {
+            "additionalProperties": false,
+            "properties": {
+              "normalized": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "folder": {
+                      "maxLength": 512,
+                      "type": "string"
+                    },
+                    "id": {
+                      "maxLength": 512,
+                      "type": "string"
+                    },
+                    "index": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "maxLength": 512,
+                      "type": "string"
+                    },
+                    "snippet": {
+                      "maxLength": 2048,
+                      "type": "string"
+                    },
+                    "version": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "id",
+                    "name",
+                    "folder",
+                    "snippet",
+                    "version"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 200,
+                "type": "array"
+              }
+            },
+            "required": [
+              "normalized"
+            ],
+            "type": "object"
+          },
+          "verifier_revision": "row-fields/v1",
+          "version": 2
+        },
+        "digest": "460f77798bbb39b8fe70d5e3852ee67d82695799f2790869e6d2f9431dfdcbb5",
+        "evidence": [
+          "live find-flows runs 2026-09-10: 3 verified fallback executions across distinct search-hub row sets, then durable cache reuse on run 4",
+          "verifier row-fields/v1: per-row accounting, id present in the source row, non-empty name whenever the row carries text, version matches for workflows rows",
+          "unit: test_find_flows_normalizes_all_three_owner_shapes, test_find_flows_refuses_a_renamed_field_instead_of_ranking_nameless_candidates, test_find_flows_verifier_rejects_invented_identity",
+          "fixtures replay both mapping branches and the absent-optional-field case; the section calls no bindings, so replay records no calls"
+        ],
+        "fixtures": [
+          {
+            "expected": {
+              "normalized": [
+                {
+                  "folder": "ops",
+                  "id": "w1",
+                  "index": 0,
+                  "name": "Billing export",
+                  "snippet": "",
+                  "version": 3
+                }
+              ]
+            },
+            "inputs": {
+              "rows": [
+                {
+                  "index": 0,
+                  "row": {
+                    "folderPath": "ops",
+                    "id": "w1",
+                    "name": "Billing export",
+                    "version": 3
+                  },
+                  "source": "workflows"
+                }
+              ]
+            }
+          },
+          {
+            "expected": {
+              "normalized": [
+                {
+                  "folder": "bas/ops",
+                  "id": "h1",
+                  "index": 0,
+                  "name": "Billing export check",
+                  "snippet": "export",
+                  "version": 0
+                },
+                {
+                  "folder": "frag/billing",
+                  "id": "s1",
+                  "index": 1,
+                  "name": "Billing fragment",
+                  "snippet": "billing",
+                  "version": 0
+                }
+              ]
+            },
+            "inputs": {
+              "rows": [
+                {
+                  "index": 0,
+                  "row": {
+                    "id": "h1",
+                    "leafType": "flow",
+                    "mutating": false,
+                    "path": "bas/ops",
+                    "snippet": "export",
+                    "title": "Billing export check"
+                  },
+                  "source": "workflow-health"
+                },
+                {
+                  "index": 1,
+                  "row": {
+                    "id": "s1",
+                    "path": "frag/billing",
+                    "providerId": "sh",
+                    "snippet": "billing",
+                    "title": "Billing fragment"
+                  },
+                  "source": "search-hub"
+                }
+              ]
+            }
+          },
+          {
+            "expected": {
+              "normalized": [
+                {
+                  "folder": "",
+                  "id": "w2",
+                  "index": 0,
+                  "name": "No folder",
+                  "snippet": "",
+                  "version": 0
+                }
+              ]
+            },
+            "inputs": {
+              "rows": [
+                {
+                  "index": 0,
+                  "row": {
+                    "id": "w2",
+                    "name": "No folder"
+                  },
+                  "source": "workflows"
+                }
+              ]
+            }
+          }
+        ],
+        "fragment": "def step(inputs, bindings):\n    out = []\n    for item in inputs['rows']:\n        row = item['row']\n        if item['source'] == 'workflows':\n            name = str(row.get('name') or '')\n            folder = str(row.get('folderPath') or '')\n            snippet = ''\n            version = int(row.get('version') or 0)\n        else:\n            name = str(row.get('title') or '')\n            folder = str(row.get('path') or '')\n            snippet = str(row.get('snippet') or '')\n            version = 0\n        out.append({'index': item['index'], 'id': str(row.get('id') or ''), 'name': name, 'folder': folder, 'snippet': snippet, 'version': version})\n    return {'normalized': out}",
+        "reviewed_by": "matthalloran8",
+        "version": 1
+      }
     }
-  ],
-  "verbs": [
-    "ai.classify"
-  ],
+  },
+  "name": "browser-automation-studio.find-flows",
   "outputs": {
-    "status": {
-      "enum": [
-        "ok",
-        "partial",
-        "unavailable",
-        "refused",
-        "failed"
-      ]
-    },
-    "phase": {
-      "enum": [
-        "validate",
-        "collect",
-        "classify",
-        "report"
-      ]
-    },
-    "signals": {
-      "candidates": "up to k of {source, id, version?, name, folder, overlap, fit(strong|weak|judged), runnable_by_id, mutating?, leaf_type?, ai?} sorted by overlap desc; version is present for persisted workflows so a caller can form <id>@<version>",
-      "sources": "row counts per source: workflows_list, workflow_health (null when no scenario was given), search_hub; null when that source failed",
-      "tie_broken_by_ai": "true when ai.classify ran (tie break or lexical-miss fallback)"
-    },
     "errors": {
       "classes": [
         "scenario_unreachable",
@@ -92,45 +350,41 @@
         "no_governed_binding"
       ]
     },
-    "evidence": "candidate ids in rank order"
-  },
-  "budget": {
-    "wall_ms": 60000,
-    "inference_calls": 1,
-    "delegated_runs": 0,
-    "materialize_limit": 100
-  },
-  "fixtures": [
-    {
-      "id": "no-task",
-      "inputs": {},
-      "expect": {
-        "status": [
-          "failed"
-        ]
-      },
-      "requires": [
-        "browser-automation-studio"
+    "evidence": "candidate ids in rank order",
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
       ]
     },
-    {
-      "id": "smoke",
-      "inputs": {
-        "task": "demo smoke workflow",
-        "scenario": "browser-automation-studio",
-        "k": 3
-      },
-      "expect": {
-        "status": [
-          "ok",
-          "partial"
-        ]
-      },
-      "requires": [
-        "browser-automation-studio"
+    "signals": {
+      "candidates": "up to k of {source, id, version?, name, folder, overlap, fit(strong|weak|judged), runnable_by_id, mutating?, leaf_type?, ai?} sorted by overlap desc; version is present for persisted workflows so a caller can form \u003cid\u003e@\u003cversion\u003e",
+      "learning": "Durable feedback_ref identifying this search; a caller that later finds the candidate set was wrong grades it with learn.feedback without repeating any read.",
+      "normalization_source": "Where the row mapping came from: cache | baseline | fallback | model | unavailable. Absent when no owner returned rows.",
+      "sources": "row counts per source: workflows_list, workflow_health (null when no scenario was given), search_hub; null when that source failed",
+      "tie_broken_by_ai": "true when ai.classify ran (tie break or lexical-miss fallback)"
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
       ]
     }
-  ],
+  },
+  "owner_skill": "browser-automation-studio",
+  "purpose": "Rank persisted workflows, scenario bas/ assets, and search-hub hits against a task with a deterministic fit label; one ai.classify call breaks a k-boundary tie or judges names on a lexical miss.",
   "rung": "S3",
-  "owner_skill": "browser-automation-studio"
+  "verbs": [
+    "learn.task",
+    "learn.act",
+    "learn.outcome",
+    "learn.result",
+    "ai.classify"
+  ],
+  "version": "3"
 }

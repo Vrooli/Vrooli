@@ -5,6 +5,7 @@
   "icon": "package",
   "id": "skill-authoring-platform",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "meta",
     "platform"

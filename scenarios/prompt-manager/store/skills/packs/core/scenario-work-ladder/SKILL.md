@@ -9,12 +9,12 @@ metadata:
   tags: ["practice","scenario","ladder","contract","prd","requirements","routing","methodology"]
   icon: "layers"
   status: "active"
-  revision: 3
+  revision: 5
   createdAt: "2026-07-27T00:00:00Z"
-  updatedAt: "2026-09-06T00:00:00Z"
+  updatedAt: "2026-09-08T00:00:00Z"
   requires:
-    scenarios: ["prompt-manager", "swarm-manager", "vrooli"]
-    commands: ["prompt-manager skill", "prompt-manager skill read", "swarm-manager", "swarm-manager goals", "vrooli scenario"]
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill read", "vrooli scenario"]
   origin:
     kind: "authored"
 ---
@@ -50,7 +50,7 @@ Every rung has a gate. W1, W2, and W3 are gated by a command. W0 is gated by a c
 
 | Rung | Satisfied when | Gate | Owning skill |
 |---|---|---|---|
-| **W0** | Every P0 operational target agrees with the approved goal, **and** every capability the goal names has a P0 operational target | Read the goal, then read `PRD.md`, then compare in both directions (§3) | `prompt-manager skill read prd-authoring` |
+| **W0** | Operational targets agree with applicable governing outcomes and their explicit priority | Compare the approved contract, operator instruction, and incorporated constraints with `PRD.md` (§3) | `prompt-manager skill read prd-authoring` |
 | **W1** | The contract validates and every requirement links to a PRD target | `business-health validate scenario <name>` | `prompt-manager skill read prd-authoring` |
 | **W2** | Every status other than `planned` carries a passing validation ref | `vrooli scenario requirements validate <name>` | `prompt-manager skill read requirements-traceability-steer` |
 | **W3** | The affected behavior holds under the declared validation scope | Scoped Test Genie phases under `path:docs/TESTING.md` §"Ordinary iteration versus certification" | Local defects: scientific-debugging when the cause is unknown; full maturity reviews: scenario-maturity-ladder |
@@ -61,43 +61,38 @@ Every rung has a gate. W1, W2, and W3 are gated by a command. W0 is gated by a c
 
 ### **3. The W0 gate**
 
-W0 is the rung no other skill owns, so its gate is stated here in full.
+Read `path:docs/agent-system/SCENARIO_DEVELOPMENT.md`
+§"Authorization and change classification" for governing-target applicability.
+A separate Swarm goal is not required. A name match discovers context, not authority.
 
-1. Find every goal that names the scenario. Search names, titles, **and** descriptions — a name match does not end the search, because a second goal can name the scenario only in its description:
+1. Read the supplied approved contract or operator instruction and its incorporated artifacts.
+2. Read referenced governing goals and accepted decisions when the work context requires them.
+3. For a full readiness review, inspect additional goals naming the scenario with `swarm-manager goals list`.
+   Read candidate details with `swarm-manager goals get --name <goal>`.
+   Use JSON when the human view omits names, descriptions, or status needed for this comparison.
+4. Establish each candidate's applicability and explicit supersession before treating it as a constraint.
+5. Read the scenario's `PRD.md` targets at every priority and its maintained decisions document.
+   Prefer `docs/internal/DECISIONS.md`; follow the scenario's documentation map for other locations.
+6. Compare the applicable governing target and PRD in both directions.
 
-   ```
-   swarm-manager goals list --json \
-     | jq -r --arg s "<name>" '.goals[].goal
-         | select((.name + " " + .title + " " + .description) | test($s))
-         | .name'
-   ```
+| Condition | W0 disposition |
+| --- | --- |
+| An applicable directive requires a capability the PRD omits or contradicts. | Report the missing or conflicting outcome. |
+| The PRD priority contradicts the directive's explicit release obligation. | Report the priority conflict. A request alone does not imply P0. |
+| An accepted decision supersedes a target that still states the old position. | Report the stale target with the supersession evidence. |
+| A matching goal is historical, proposed, or unrelated to this engagement. | Retain it as context; check incorporated standing constraints before treating it as governing. |
+| Two applicable sources conflict without a recorded resolution. | Request a decision; do not choose by recency or convenience. |
+| No governing target is supplied or discoverable. | Report W0 as unverifiable; do not create a goal to make it pass. |
+| A required owner read is unavailable. | Preserve the unverified constraint; do not claim the full gate passed. |
 
-   Run this even when `swarm-manager goals list` already shows a goal named after the scenario. A plain `grep` over this output is unreliable: the payload is a `{"goals":[{"goal":{…}}]}` envelope whose descriptions sit on single long lines, so a grep that returns nothing means a failed pattern more often than it means a missing goal.
+When W0 fails, stop this dependency chain. Route authorized contract repair through
+`prd-authoring`; a target amendment still requires approval. Independent authorized
+work can continue. A scoped repair does not require unrelated goal discovery.
 
-   **This filter is the whole search. Do not widen it.** A goal that constrains the scenario without naming it anywhere is invisible here, and that is accepted: an open-ended semantic sweep across every goal has no stopping rule, so two agents would do different amounts of work and reach different verdicts. The named-mention search is the deterministic floor. When you believe an unnamed goal constrains the scenario, that is a finding for the problems document, not a reason to keep searching.
-2. Read each goal the search returned: `swarm-manager goals get --name <goal>`.
-
-   The default output carries the description, the targets, the status, and the scope counts. Read it directly; `--json` adds nothing this gate needs.
-3. Read every operational target in `scenarios/<name>/PRD.md`, at all three priorities.
-4. Read the reversals in the scenario's decisions document: `docs/internal/SWARM_MANAGER_WORK.md` when it exists, otherwise `docs/SWARM_MANAGER_WORK.md`. Skip this step when neither exists.
-5. Compare in both directions. W0 **fails** when any row below is true.
-
-| Condition | Example |
-|---|---|
-| A P0 target names a capability that a goal directs you to remove | Goal says "drop Huginn entirely"; `OT-P0-002` promises multi-platform scraping |
-| A goal directs you to add a capability that no **P0** target names | Goal says "manual paste-first entry"; no operational target covers manual entry |
-| A goal directs you to add a capability that the PRD names only at P1 or P2 | Goal makes ideation extraction the v0; the PRD carries it as `OT-P2-00N` |
-| A decision record supersedes a P0 target and the target still states the superseded position | `D-00N` retires an approach; the target still promises it |
-
-Row 3 is why step 3 reads all three priorities. A capability the goal makes load-bearing, parked at P2, is a contract that disagrees with the goal about what must ship. Demotion is a contract defect, not a prioritization detail.
-
-6. When W0 fails, stop. Run no gate under W0. Repair the contract through `prd-authoring`.
-
-**W0 evidence is the compared quotations**, not a command's stdout. Record the goal sentence and the operational-target line that contradict each other, in the shape shown in §6. W0 is the one rung whose gate is a comparison rather than a command.
-
-**No goal means W0 is unverifiable.** Record the gap (§6). A review stops with that limitation; authoring a goal requires the corresponding user authority. Missing goal evidence does not establish contract truth.
-
-**A stale goal fails W0 too.** When the goal, not the PRD, is the artifact you suspect, the contradiction still stands and the ladder still stops. Raise the conflict with the operator. Do not pick a side without a decision.
+**W0 evidence is the compared quotations and their applicability**, not a successful
+list command. Record the directive, corresponding target or omission, and any
+supersession reference under §6. A stale applicable goal remains a conflict until
+resolved; archived status alone neither grants work nor erases a standing constraint.
 
 ---
 
@@ -168,6 +163,10 @@ affected gates. Contract changes reopen dependent obligations and evidence.
 
 ### **6. Memory loop**
 
+For read-only reviews, return the rung and evidence in the report. Do not mutate
+the problems document, work ledger, or runtime. The writes below apply only to
+authorized repair/documentation work; reuse the active workflow's record when present.
+
 **The problems document is one file per scenario.** Use `scenarios/<name>/docs/internal/PROBLEMS.md` when it exists. Otherwise use `scenarios/<name>/docs/PROBLEMS.md`. Read that file at session start and write the rung record to the same file. Never create a second problems document — a forked problem log hides the rung from the next session, which is the failure this loop exists to prevent.
 
 Reuse an active workflow's durable rung and evidence record when it already
@@ -194,7 +193,7 @@ A rung record without its evidence is not a rung record. The next session re-run
 | Anti-pattern | Why it fails | Better approach |
 |---|---|---|
 | Ladder-on-a-lie — climbing R0–R4 against a PRD that contradicts the approved goal | The rungs measure conformance to a false target, so closing them builds the capability the operator directed you to remove | Resolve the contract contradiction at W0 before relying on downstream conformance |
-| Conformance as truth — treating `business-health validate` `PASSED` as W0 evidence | That command checks structure and linkage. It never reads the goal | Run the W0 gate. It is the only gate that reads the goal |
+| Conformance as truth — treating `business-health validate` `PASSED` as W0 evidence | That command checks structure and linkage, not agreement with governing intent | Compare applicable directives and targets through W0 |
 | Contract editing to match code — rewriting a P0 target so drifted code validates | The contract stops describing the product and starts describing the implementation, so nothing can contradict the code again | Decide which side is wrong. `requirements-traceability-steer` owns drift, and its anti-gaming bans apply |
 | Rung inversion — writing tests to close W2 while W1 is open | The evidence attaches to obligations that do not link to the contract, so the evidence is discarded when W1 is repaired | Repair W1 first, then re-measure |
 | Gate skipping by reading — declaring a rung satisfied from a document that describes it | Documents state intent. Gates measure state | Run the rung's gate and record its evidence: command stdout for W1–W3, the compared quotations for W0 |
@@ -204,8 +203,8 @@ A rung record without its evidence is not a rung record. The next session re-run
 
 ### **8. Output expectations**
 
-During layer selection, record the rung and evidence in the scenario's existing
-problems document (§6). The subsequent authorized repair may change affected
+During layer selection, retain the rung and evidence in the report for read-only
+work, or the existing authorized record under §6. The subsequent repair may change affected
 implementation, tests, and documentation. A review request alone does not
 authorize that repair.
 
@@ -230,13 +229,13 @@ You must NOT:
 
 | Situation | Cause | Response |
 |---|---|---|
-| `goals get` prints a title and an empty `Results:` block | A `swarm-manager` build from before 2026-07-27, when `goals get` rendered the title only | Restart the scenario: `vrooli scenario restart swarm-manager`. Read the goal with `--json` until it is back |
-| The §3 step 1 search returns nothing | A failed pattern, or no goal exists | Re-run the `jq` filter exactly as written before you conclude the scenario has no goal. Empty output from a hand-rolled `grep` over the JSON envelope is the common cause |
+| `goals get` prints a title and empty `Results:` | The human view may omit goal content | Read the goal with `--json`; restart through the lifecycle only when authorized and evidence identifies stale runtime behavior. |
+| A goal listing omits descriptions or status | The human view is insufficient for the full-review search | Inspect the JSON response; distinguish an empty result from a failed read. |
 | A goal's description defers to another document ("see `orchestration-summary.md`") | The goal is a pointer, not the whole directive | Read the referenced document and compare against it too. The goal text plus what it incorporates is the contract side of the comparison |
-| The scenario has no goal | No governing goal was found | Report W0 as unverifiable. Create a goal only within authorized authoring work. |
+| The scenario has no goal | No separate goal was found | Compare the supplied approved item contract or operator instruction; without any governing target, report W0 as unverifiable. |
 | The scenario has no `PRD.md` | Contract never authored | Report the missing contract. Route authorized authoring to `prd-authoring`; a review stops with the finding. |
 | `business-health validate` passes on a starter-template PRD | Template text is conformant and says nothing real | W1 passes, W0 fails. §3 catches it; the P0 targets name no capability the goal names |
-| Several goals touch one scenario | Overlapping initiatives | Compare against every one. A contradiction in any single goal fails W0 |
+| Several goals touch one scenario | Overlapping initiatives | Establish applicability under §3; unresolved conflicts between governing sources fail W0. |
 | A gate command does not exist for the scenario's shape | Scenario predates the contract tooling | Record the gap in the problems document (§6) and treat the rung as failing, not passing |
 
 **Compression target.** The W0 gate is prose because its rules are still settling. `business-health phase` is specified and unbuilt, and it is the destination that owns this computation. Promote per `path:docs/agent-system/PROMOTION_LADDER.md` when the W0 rules stop changing.

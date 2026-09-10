@@ -186,6 +186,7 @@
         "label": "OpenRouter API key",
         "description": "User-provisioned OpenRouter credential used by the gateway-backed vision navigator. The value is never returned or stored in browser local storage.",
         "required": false,
+        "provisioning": "operator",
         "obtain_url": "https://openrouter.ai/keys",
         "tiers": [
           "tier-1-local"
@@ -197,6 +198,7 @@
         "label": "Claude Code Anthropic API key",
         "description": "Credential used by the Claude Code navigator through resource-claude-code. The value is never returned or stored in browser local storage.",
         "required": false,
+        "provisioning": "operator",
         "obtain_url": "https://console.anthropic.com/settings/keys"
       },
       {
@@ -204,7 +206,9 @@
         "field": "refresh-token",
         "label": "Vrooli subscription session",
         "description": "Device-scoped refresh credential shared by bundled scenarios. Access tokens remain in memory only.",
-        "required": false
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/landing-page-business-suite/docs/guides/CONFIGURATION_GUIDE.md"
       }
     ]
   },

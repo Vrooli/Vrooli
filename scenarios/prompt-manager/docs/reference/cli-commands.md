@@ -76,6 +76,23 @@ coverage warnings.
 
 [CODE: cli/skills/skills.go]
 
+### prompt-manager skill refresh
+
+Preview selected native projections, then apply an exact reviewed digest:
+
+```bash
+prompt-manager skill refresh --runtime codex --skills scenario-work-ladder --json
+prompt-manager skill refresh --runtime codex --skills scenario-work-ladder --apply --expected-digest '<digest>' --json
+```
+
+`--adopt-legacy` is an explicit migration policy for reviewed generated files with
+no baseline; use it in both preview and apply. It does not override tracked local
+edits. Empty scope selects configured targets/the base pack. Partial apply returns
+per-row evidence and a nonzero CLI exit. The API owns the operation; the CLI does
+not write native files. See the shared
+[refresh and recovery contract](../../../../docs/reference/cli-commands.md#editing-projected-skills)
+for statuses, backups, startup behavior, and consumption-evidence limits.
+
 ### prompt-manager skill list
 
 List all skills with optional filtering.

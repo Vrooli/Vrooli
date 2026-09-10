@@ -27,7 +27,7 @@ func TestWorkflowExecutionProjectionRedactsPayloadsByDefault(t *testing.T) {
 	execution := &domain.WorkflowExecution{
 		ID: uuid.New(), Owner: "example", WorkflowKey: "example/review", DefinitionDigest: "sha256:test",
 		Status: domain.WorkflowExecutionSucceeded, Input: json.RawMessage(`{"secret":"prompt"}`), Output: json.RawMessage(`{"secret":"result"}`),
-		BudgetUsage:    domain.WorkflowBudgetUsage{ChargeMicroUSD: 42, ChargeMeasured: true},
+		BudgetUsage:    domain.WorkflowBudgetUsage{ChargeMicroUSD: 42, ChargeMeasured: true, AccountingComplete: true},
 		EdgeTraversals: map[string]int{}, CreatedAt: time.Now(), UpdatedAt: time.Now(),
 	}
 	redacted := workflowExecutionToProto(execution, false)
@@ -48,6 +48,14 @@ func TestWorkflowExecutionProjectionPublishesUnmeasuredChargeReceipt(t *testing.
 	receipt := workflowExecutionToProto(execution, false).GetChargeReceipt()
 	if receipt == nil || receipt.GetMeasured() || receipt.AmountMicroUsd != nil || receipt.GetMeteringBasis() != "unmeasured" {
 		t.Fatalf("unmeasured receipt=%v", receipt)
+	}
+}
+
+func TestWorkflowExecutionProjectionDoesNotPresentPartialChargeAsMeasuredTotal(t *testing.T) {
+	execution := &domain.WorkflowExecution{ID: uuid.New(), Status: domain.WorkflowExecutionSucceeded, BudgetUsage: domain.WorkflowBudgetUsage{Tokens: 100, ChargeMicroUSD: 42, ChargeMeasured: true}, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	projected := workflowExecutionToProto(execution, false)
+	if projected.BudgetUsage.AccountingComplete || projected.ChargeReceipt.Measured || projected.ChargeReceipt.AmountMicroUsd != nil {
+		t.Fatalf("one known child concealed incomplete aggregate accounting: %+v", projected)
 	}
 }
 
@@ -205,6 +213,36 @@ func TestWorkflowExecutionReadHandlersServeRedactedAndAuthorizedViews(t *testing
 	decodeProtoJSON(t, trace.Body.Bytes(), &traced)
 	if len(traced.GetJournal()) != 1 || traced.GetExecution().GetInput() != nil {
 		t.Fatalf("trace=%+v", &traced)
+	}
+}
+
+func TestWorkflowExecutionProjectionRetainsEngagementGrant(t *testing.T) {
+	grant := &domain.WorkflowEngagementGrant{MaxTokens: 200, MaxWallTimeSeconds: 30}
+	execution := &domain.WorkflowExecution{ID: uuid.New(), Status: domain.WorkflowExecutionRunning, ApprovalDigest: "sha256:approval", GrantDigest: "sha256:grant", EngagementGrant: grant, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	projected := workflowExecutionToProto(execution, false)
+	if projected.GetEngagementGrant() == nil || projected.GetEngagementGrant().GetMaxTokens() != 200 || projected.GetEngagementGrant().GetMaxWallTimeSeconds() != 30 {
+		t.Fatalf("projected grant=%+v", projected.GetEngagementGrant())
+	}
+	if projected.GetApprovalDigest() != "sha256:approval" || projected.GetGrantDigest() != "sha256:grant" {
+		t.Fatalf("projected binding=%+v", projected)
+	}
+}
+
+func TestWorkflowGrantPreservesExplicitZeroRetryLimitAcrossAPI(t *testing.T) {
+	for _, explicit := range []bool{false, true} {
+		wire := &domainpb.WorkflowEngagementGrant{MaxTokens: 200, MaxWallTimeSeconds: 30}
+		if explicit {
+			wire.MaxRetries = proto.Int32(0)
+		}
+		grant := engagementGrantFromProto(wire)
+		if grant.RetryLimitSet != explicit || grant.MaxRetries != 0 {
+			t.Fatalf("decoded grant=%+v explicit=%t", grant, explicit)
+		}
+		execution := &domain.WorkflowExecution{ID: uuid.New(), Status: domain.WorkflowExecutionRunning, EngagementGrant: grant, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+		projected := workflowExecutionToProto(execution, false).GetEngagementGrant()
+		if (projected.MaxRetries != nil) != explicit || projected.GetMaxRetries() != 0 {
+			t.Fatalf("projected retry presence=%+v explicit=%t", projected, explicit)
+		}
 	}
 }
 

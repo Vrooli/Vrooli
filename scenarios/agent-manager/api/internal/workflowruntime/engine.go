@@ -20,6 +20,14 @@ var (
 	errEmptyPromptTemplate = errors.New("empty_prompt_template")
 )
 
+// ExecutionBinding carries owner-issued identities alongside the executable
+// workflow revision. They are persisted together so idempotent replay cannot
+// silently attach one engagement to another.
+type ExecutionBinding struct {
+	ApprovalDigest string
+	GrantDigest    string
+}
+
 type (
 	Catalog interface {
 		GetByDigest(context.Context, string) (*domain.WorkflowRevision, error)
@@ -43,6 +51,7 @@ type (
 		ExperimentID   string
 		VariantID      string
 		PromptHash     string
+		AllowedEffects []string
 	}
 	ChildState struct {
 		RunID          uuid.UUID
@@ -50,17 +59,39 @@ type (
 		Terminal       bool
 		Failed         bool
 		Result         *domain.RunResult
-		Turns          int
-		Tokens         int
-		CostUSD        float64
-		ChargeMicroUSD int64
-		ChargeMeasured bool
+		// FinalizationPending retains a terminal run until its required sandbox effects succeed.
+		// Terminal remains true so owner accounting can reconcile without dispatching work.
+		FinalizationPending string
+		Turns               int
+		Tokens              int
+		TokensKnown         bool
+		CostUSD             float64
+		ChargeMicroUSD      int64
+		ChargeMeasured      bool
+		// MeterCadence describes the durable provider observations used to
+		// decide whether a metered stop should be requested. It is evidence,
+		// not a hard-ceiling guarantee.
+		MeterCadence MeterCadence
+		// TerminalObservedAt is the owner-reported end boundary used to
+		// measure the latency after a durable stop intent.
+		TerminalObservedAt time.Time
+	}
+	MeterCadence struct {
+		Samples             int
+		FirstObservedAt     time.Time
+		LastObservedAt      time.Time
+		MeanIntervalSeconds float64
+		MaxIntervalSeconds  float64
+		TerminalAuthority   bool
 	}
 	ChildLauncher interface {
 		StartFresh(context.Context, ChildRequest) (ChildState, error)
 		Continue(context.Context, ChildRequest) (ChildState, error)
 		Inspect(context.Context, uuid.UUID) (ChildState, error)
 		Stop(context.Context, uuid.UUID) error
+	}
+	MeteredChildLauncher interface {
+		InspectMetered(context.Context, uuid.UUID) (ChildState, error)
 	}
 	// PromptResolution is the immutable treatment selected for one workflow
 	// attempt. It is committed with dispatch_pending before a child run starts.
@@ -106,6 +137,34 @@ type (
 	Clock func() time.Time
 )
 
+// MeterCadenceFromObservations summarizes provider metric observations in
+// event order. The values disclose expected metered-cancellation lag; they do
+// not establish a hard token ceiling.
+func MeterCadenceFromObservations(observations []time.Time) MeterCadence {
+	result := MeterCadence{Samples: len(observations)}
+	if len(observations) == 0 {
+		return result
+	}
+	result.FirstObservedAt = observations[0]
+	result.LastObservedAt = observations[len(observations)-1]
+	if len(observations) == 1 {
+		return result
+	}
+	var total time.Duration
+	for i := 1; i < len(observations); i++ {
+		interval := observations[i].Sub(observations[i-1])
+		if interval < 0 {
+			interval = 0
+		}
+		total += interval
+		if seconds := interval.Seconds(); seconds > result.MaxIntervalSeconds {
+			result.MaxIntervalSeconds = seconds
+		}
+	}
+	result.MeanIntervalSeconds = total.Seconds() / float64(len(observations)-1)
+	return result
+}
+
 type Engine struct {
 	Store          repository.WorkflowExecutionRepository
 	Catalog        Catalog
@@ -117,31 +176,100 @@ type Engine struct {
 }
 
 func (e *Engine) Start(ctx context.Context, revision *domain.WorkflowRevision, input json.RawMessage, idempotencyKey string) (*domain.WorkflowExecution, error) {
-	return e.start(ctx, revision, input, idempotencyKey, nil, nil, 0)
+	return e.start(ctx, revision, input, idempotencyKey, nil, nil, 0, nil)
+}
+
+// StartWithGrant admits one owner-issued aggregate allowance. The grant is
+// persisted with the execution and applied again on every advancement, so a
+// restart cannot fall back to the larger catalog budget.
+func (e *Engine) StartWithGrant(ctx context.Context, revision *domain.WorkflowRevision, input json.RawMessage, idempotencyKey string, grant *domain.WorkflowEngagementGrant, binding ...ExecutionBinding) (*domain.WorkflowExecution, error) {
+	return e.start(ctx, revision, input, idempotencyKey, nil, nil, 0, grant, binding...)
 }
 
 func (e *Engine) StartChild(ctx context.Context, revision *domain.WorkflowRevision, input json.RawMessage, idempotencyKey string, parentExecutionID, parentAttemptID uuid.UUID, depth int) (*domain.WorkflowExecution, error) {
-	return e.start(ctx, revision, input, idempotencyKey, &parentExecutionID, &parentAttemptID, depth)
+	parent, err := e.Store.Get(ctx, parentExecutionID)
+	if err != nil {
+		return nil, err
+	}
+	if parent == nil || parent.EngagementGrant == nil {
+		return e.start(ctx, revision, input, idempotencyKey, &parentExecutionID, &parentAttemptID, depth, nil)
+	}
+	// Lost launch responses replay the already-persisted child reservation;
+	// elapsed parent time must not manufacture a different idempotent grant.
+	if existing, err := e.Store.GetByIdempotencyKey(ctx, idempotencyKey); err != nil {
+		return nil, err
+	} else if existing != nil {
+		if existing.ParentExecutionID == nil || *existing.ParentExecutionID != parentExecutionID || existing.ParentAttemptID == nil || *existing.ParentAttemptID != parentAttemptID || existing.DefinitionDigest != revision.Digest || existing.EngagementGrant == nil {
+			return nil, fmt.Errorf("child idempotency key is bound to a different parent or grant")
+		}
+		return existing, nil
+	}
+	grant, err := e.inheritedChildGrant(ctx, parent, revision)
+	if err != nil {
+		return nil, err
+	}
+	return e.start(ctx, revision, input, idempotencyKey, &parentExecutionID, &parentAttemptID, depth, grant, ExecutionBinding{ApprovalDigest: parent.ApprovalDigest, GrantDigest: inheritedGrantDigest(parentExecutionID, parentAttemptID, grant)})
 }
 
-func (e *Engine) start(ctx context.Context, revision *domain.WorkflowRevision, input json.RawMessage, idempotencyKey string, parentExecutionID, parentAttemptID *uuid.UUID, depth int) (*domain.WorkflowExecution, error) {
+func (e *Engine) start(ctx context.Context, revision *domain.WorkflowRevision, input json.RawMessage, idempotencyKey string, parentExecutionID, parentAttemptID *uuid.UUID, depth int, grant *domain.WorkflowEngagementGrant, binding ...ExecutionBinding) (*domain.WorkflowExecution, error) {
 	if e.Store == nil || revision == nil {
 		return nil, errors.New("workflow store and revision are required")
 	}
 	if strings.TrimSpace(idempotencyKey) == "" {
 		return nil, errors.New("idempotency key is required")
 	}
-	if existing, err := e.Store.GetByIdempotencyKey(ctx, idempotencyKey); err != nil || existing != nil {
-		return existing, err
+	if grant != nil {
+		if err := grant.Validate(); err != nil {
+			return nil, err
+		}
+		ceiling := revision.Definition.Budgets
+		if revision.Definition.GrantCapacity != nil {
+			ceiling = *revision.Definition.GrantCapacity
+			if len(binding) == 0 || binding[0].ApprovalDigest == "" || binding[0].GrantDigest == "" {
+				return nil, errors.New("grant capacity requires an explicit owner approval and grant binding")
+			}
+		}
+		if err := validateEngagementGrant(*grant, ceiling); err != nil {
+			return nil, err
+		}
+	}
+	if err := domain.ValidateWorkflowBudgetPolicy(revision.Definition); err != nil {
+		return nil, err
+	}
+	if revision.Definition.Budgets.Enforcement == domain.WorkflowBudgetMeteredCancellation {
+		if _, ok := e.Children.(MeteredChildLauncher); !ok {
+			return nil, errors.New("execution owner does not support live usage inspection")
+		}
+	}
+	if existing, err := e.Store.GetByIdempotencyKey(ctx, idempotencyKey); err != nil {
+		return nil, err
+	} else if existing != nil {
+		if !sameGrant(existing.EngagementGrant, grant) {
+			return nil, errors.New("idempotency key is already bound to a different engagement grant")
+		}
+		if !sameExecutionBinding(existing, binding) {
+			return nil, errors.New("idempotency key is already bound to a different execution identity")
+		}
+		return existing, nil
 	}
 	if err := structuredresult.ValidateValue(revision.Definition.InputSchema, input); err != nil {
 		return nil, fmt.Errorf("workflow input: %w", err)
 	}
 	now := e.now()
-	execution := &domain.WorkflowExecution{ID: uuid.New(), Owner: revision.Owner, WorkflowKey: revision.Key, DefinitionDigest: revision.Digest, Status: domain.WorkflowExecutionRunning, CurrentNodeID: revision.Definition.EntryNode, Input: append(json.RawMessage(nil), input...), EdgeTraversals: map[string]int{}, Version: 1, IdempotencyKey: idempotencyKey, ParentExecutionID: parentExecutionID, ParentAttemptID: parentAttemptID, Depth: depth, CreatedAt: now, UpdatedAt: now}
+	execution := &domain.WorkflowExecution{ID: uuid.New(), Owner: revision.Owner, WorkflowKey: revision.Key, DefinitionDigest: revision.Digest, Status: domain.WorkflowExecutionRunning, CurrentNodeID: revision.Definition.EntryNode, Input: append(json.RawMessage(nil), input...), EdgeTraversals: map[string]int{}, Version: 1, IdempotencyKey: idempotencyKey, ParentExecutionID: parentExecutionID, ParentAttemptID: parentAttemptID, Depth: depth, EngagementGrant: cloneGrant(grant), BudgetUsage: domain.WorkflowBudgetUsage{AccountingComplete: true}, CreatedAt: now, UpdatedAt: now}
+	if len(binding) > 0 {
+		execution.ApprovalDigest = strings.TrimSpace(binding[0].ApprovalDigest)
+		execution.GrantDigest = strings.TrimSpace(binding[0].GrantDigest)
+	}
 	entry := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 1, Kind: domain.WorkflowJournalInput, Payload: append(json.RawMessage(nil), input...), CreatedAt: now}
 	if err := e.Store.Create(ctx, execution, entry); err != nil {
 		if existing, getErr := e.Store.GetByIdempotencyKey(ctx, idempotencyKey); getErr == nil && existing != nil {
+			if !sameGrant(existing.EngagementGrant, grant) {
+				return nil, errors.New("idempotency key is already bound to a different engagement grant")
+			}
+			if !sameExecutionBinding(existing, binding) {
+				return nil, errors.New("idempotency key is already bound to a different execution identity")
+			}
 			return existing, nil
 		}
 		return nil, err
@@ -158,15 +286,19 @@ func (e *Engine) Advance(ctx context.Context, id uuid.UUID) (*domain.WorkflowExe
 	if err != nil || revision == nil {
 		return e.fail(ctx, execution, "definition_missing", "pinned workflow revision is unavailable")
 	}
+	revision = applyEngagementGrant(revision, execution.EngagementGrant)
 	journal, err := e.Store.ListJournal(ctx, execution.ID, 0, 0)
 	if err != nil {
 		return nil, err
 	}
 	now := e.now()
-	if now.Sub(execution.CreatedAt)-waitedDuration(journal, now) > time.Duration(revision.Definition.Budgets.WallTimeSeconds)*time.Second {
+	node := findNode(revision.Definition.Nodes, execution.CurrentNodeID)
+	// Metered runs retain their active attempt until cancellation and final
+	// accounting reconcile. An early terminal transition would skip that tail.
+	meteredRun := revision.Definition.Budgets.Enforcement == domain.WorkflowBudgetMeteredCancellation && node != nil && node.Kind == domain.WorkflowNodeRun
+	if !meteredRun && now.Sub(execution.CreatedAt)-waitedDuration(journal, now) > time.Duration(revision.Definition.Budgets.WallTimeSeconds)*time.Second {
 		return e.exhaust(ctx, execution, "wall_time")
 	}
-	node := findNode(revision.Definition.Nodes, execution.CurrentNodeID)
 	if node == nil {
 		return e.fail(ctx, execution, "node_missing", "current node is absent from pinned definition")
 	}
@@ -520,6 +652,10 @@ func (e *Engine) Retry(ctx context.Context, id uuid.UUID, idempotencyKey string,
 	if err != nil || revision == nil {
 		return x, false, fmt.Errorf("pinned workflow revision is unavailable")
 	}
+	revision = applyEngagementGrant(revision, x.EngagementGrant)
+	if x.EngagementGrant != nil && !x.BudgetUsage.AccountingComplete {
+		return x, false, fmt.Errorf("workflow retry requires complete terminal usage; the prior reservation remains held")
+	}
 	if x.BudgetUsage.Retries >= revision.Definition.Budgets.MaxRetries {
 		return x, false, fmt.Errorf("workflow retry budget exhausted")
 	}
@@ -587,21 +723,34 @@ func (e *Engine) RecordCleanupDisposition(ctx context.Context, id uuid.UUID, sto
 	if err != nil {
 		return nil, err
 	}
+	if len(failures) > 0 {
+		return e.recordIncompleteCleanup(ctx, x, fmt.Errorf("child cleanup incomplete: %s", strings.Join(failures, "; ")))
+	}
+	priorCleanup := false
 	for _, entry := range journal {
 		if entry.Kind == domain.WorkflowJournalCleanup {
 			var prior struct {
 				Retry int `json:"retry"`
 			}
 			if json.Unmarshal(entry.Payload, &prior) == nil && prior.Retry == x.BudgetUsage.Retries {
-				return x, nil
+				priorCleanup = true
+				if x.BudgetUsage.AccountingComplete {
+					return x, nil
+				}
 			}
 		}
 	}
-	if len(failures) > 0 {
-		return x, fmt.Errorf("child cleanup incomplete: %s", strings.Join(failures, "; "))
+	priorUsage := x.BudgetUsage
+	settledAttempts, settlements, err := e.reconcileMeteredCleanup(ctx, x, journal)
+	if err != nil {
+		x.BudgetUsage = priorUsage
+		return e.recordIncompleteCleanup(ctx, x, err)
+	}
+	if priorCleanup && len(settledAttempts) == 0 && x.BudgetUsage == priorUsage {
+		return x, nil
 	}
 	now := e.now()
-	payload, _ := json.Marshal(map[string]any{"retry": x.BudgetUsage.Retries, "stoppedRuns": stoppedRuns, "stoppedWorkflows": stoppedWorkflows, "failures": failures})
+	payload, _ := json.Marshal(map[string]any{"retry": x.BudgetUsage.Retries, "stoppedRuns": stoppedRuns, "stoppedWorkflows": stoppedWorkflows, "failures": failures, "settlements": settlements})
 	entry := nextJournal(x.ID, journal, domain.WorkflowJournalCleanup, x.CurrentNodeID, nil, payload, now)
 	if x.Status == domain.WorkflowExecutionCancelling {
 		x.Status = domain.WorkflowExecutionCancelled
@@ -609,7 +758,7 @@ func (e *Engine) RecordCleanupDisposition(ctx context.Context, id uuid.UUID, sto
 	}
 	x.UpdatedAt = now
 	x.Version++
-	if ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Journal: []*domain.WorkflowJournalEntry{entry}}); commitErr != nil {
+	if ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempts: settledAttempts, Journal: []*domain.WorkflowJournalEntry{entry}}); commitErr != nil {
 		return nil, commitErr
 	} else if !ok {
 		return nil, ErrConcurrentAdvance
@@ -652,6 +801,12 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		return nil, err
 	}
 	if active == nil {
+		if x.EngagementGrant != nil && !x.BudgetUsage.AccountingComplete {
+			return e.fail(ctx, x, "accounting_unknown", "prior child usage is unresolved; no further work is authorized")
+		}
+		if budget := exhaustedAgentBudget(x.BudgetUsage, r.Definition.Budgets); budget != "" {
+			return e.exhaust(ctx, x, budget)
+		}
 		if x.BudgetUsage.NodeAttempts >= r.Definition.Budgets.MaxNodeAttempts {
 			return e.exhaust(ctx, x, "node_attempts")
 		}
@@ -688,11 +843,17 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		_ = spec
 		return x, nil
 	}
-	request, err := e.childRequest(node, x, active, attempts, journal)
-	if err != nil {
-		return e.fail(ctx, x, "dispatch_invalid", err.Error())
-	}
 	if active.Status == domain.WorkflowAttemptDispatchPending {
+		if budget := exhaustedAgentBudget(x.BudgetUsage, r.Definition.Budgets); budget != "" {
+			return e.exhaust(ctx, x, budget)
+		}
+		request, requestErr := e.childRequest(node, x, active, attempts, journal)
+		if requestErr != nil {
+			return e.fail(ctx, x, "dispatch_invalid", requestErr.Error())
+		}
+		if budget := e.boundAgentRequest(&request, x, r.Definition.Budgets, journal); budget != "" {
+			return e.exhaust(ctx, x, budget)
+		}
 		var state ChildState
 		if active.Strategy == domain.WorkflowAttemptFreshRun {
 			state, err = e.Children.StartFresh(ctx, request)
@@ -722,13 +883,36 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 	if active.RunID == nil {
 		return e.fail(ctx, x, "child_identity_missing", "dispatched attempt has no Run id")
 	}
-	state, err := e.Children.Inspect(ctx, *active.RunID)
+	var state ChildState
+	if r.Definition.Budgets.Enforcement == domain.WorkflowBudgetMeteredCancellation {
+		meter, ok := e.Children.(MeteredChildLauncher)
+		if !ok {
+			return x, errors.New("execution owner does not support live usage inspection")
+		}
+		state, err = meter.InspectMetered(ctx, *active.RunID)
+	} else {
+		state, err = e.Children.Inspect(ctx, *active.RunID)
+	}
 	if err != nil {
 		return x, err
 	}
 	if !state.Terminal {
+		if r.Definition.Budgets.Enforcement == domain.WorkflowBudgetMeteredCancellation {
+			return e.meterActiveChild(ctx, x, r, active, state, journal)
+		}
 		return x, nil
 	}
+	if state.FinalizationPending != "" {
+		return e.retainChildFinalization(ctx, x, active, state, journal, attempts, r.Definition.Budgets.Enforcement != domain.WorkflowBudgetMeteredCancellation)
+	}
+	if active.ErrorCode == "child_finalization_pending" {
+		active.ErrorCode, active.ValidationError = "", ""
+	}
+	if r.Definition.Budgets.Enforcement == domain.WorkflowBudgetMeteredCancellation && !state.TokensKnown {
+		return x, errors.New("terminal child usage is unknown; retain attempt for accounting reconciliation")
+	}
+	stopBudget := strings.TrimPrefix(active.ErrorCode, meteredStopPrefix)
+	budgetStopped := strings.HasPrefix(active.ErrorCode, meteredStopPrefix)
 	now := e.now()
 	active.Status = domain.WorkflowAttemptCompleted
 	if state.Failed {
@@ -738,10 +922,17 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 	active.Version++
 	active.UpdatedAt = now
 	active.CompletedAt = &now
-	x.BudgetUsage.Turns += state.Turns
-	x.BudgetUsage.Tokens += state.Tokens
-	x.BudgetUsage.ChargeMicroUSD += state.ChargeMicroUSD
-	x.BudgetUsage.ChargeMeasured = x.BudgetUsage.ChargeMeasured || state.ChargeMeasured
+	if r.Definition.Budgets.Enforcement != domain.WorkflowBudgetMeteredCancellation {
+		if _, _, err := e.rebuildOrdinaryUsage(ctx, x, journal, attempts, false); err != nil {
+			return x, err
+		}
+	} else {
+		x.BudgetUsage.Turns += state.Turns
+		x.BudgetUsage.Tokens += state.Tokens
+		x.BudgetUsage.ChargeMicroUSD += state.ChargeMicroUSD
+		x.BudgetUsage.ChargeMeasured = x.BudgetUsage.ChargeMeasured || state.ChargeMeasured
+		x.BudgetUsage.AccountingComplete = x.BudgetUsage.AccountingComplete && state.TokensKnown && state.ChargeMeasured
+	}
 	entries := []*domain.WorkflowJournalEntry{}
 	if state.Result != nil {
 		active.RawOutput = state.Result.FinalOutput
@@ -756,6 +947,12 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 			entries = append(entries, nextJournal(x.ID, append(journal, entries...), domain.WorkflowJournalHandoff, node.ID, &active.ID, payload, now))
 		}
 	}
+	if budget := exceededBudgetName(x.BudgetUsage, r.Definition.Budgets); budget != "" {
+		return e.commitExhaust(ctx, x, active, entries, budget)
+	}
+	if budgetStopped {
+		return e.commitExhaust(ctx, x, active, entries, stopBudget)
+	}
 	if state.Failed {
 		return e.commitFailure(ctx, x, active, entries, "child_failed", "child Run failed")
 	}
@@ -763,6 +960,9 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		active.Status = domain.WorkflowAttemptFailed
 		active.ErrorCode = "structured_result_invalid"
 		active.ValidationError = validationError
+		if budget := exhaustedAgentBudget(x.BudgetUsage, r.Definition.Budgets); budget != "" {
+			return e.commitExhaust(ctx, x, active, entries, budget)
+		}
 		// A repair is a continuation of the existing child session, not a new
 		// child. It is bounded by the explicit node-attempt budget but must not
 		// be denied merely because the original run consumed MaxChildren.
@@ -783,15 +983,6 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 			return x, nil
 		}
 		return e.commitFailure(ctx, x, active, entries, "structured_result_invalid", validationError)
-	}
-	if x.BudgetUsage.Turns > r.Definition.Budgets.MaxTurns {
-		return e.commitExhaust(ctx, x, active, entries, "turns")
-	}
-	if x.BudgetUsage.Tokens > r.Definition.Budgets.MaxTokens {
-		return e.commitExhaust(ctx, x, active, entries, "tokens")
-	}
-	if x.BudgetUsage.ChargeMicroUSD > r.Definition.Budgets.MaxChargeMicroUSD {
-		return e.commitExhaust(ctx, x, active, entries, "charge")
 	}
 	next, err := selectUnconditionalEdge(r.Definition.Edges, node.ID)
 	if err != nil {
@@ -910,6 +1101,9 @@ func (e *Engine) advanceChild(ctx context.Context, x *domain.WorkflowExecution, 
 		}
 	}
 	if active == nil {
+		if x.EngagementGrant != nil && !x.BudgetUsage.AccountingComplete {
+			return e.fail(ctx, x, "accounting_unknown", "prior child usage is unresolved; no descendant work is authorized")
+		}
 		if x.BudgetUsage.NodeAttempts >= r.Definition.Budgets.MaxNodeAttempts {
 			return e.exhaust(ctx, x, "node_attempts")
 		}
@@ -941,6 +1135,10 @@ func (e *Engine) advanceChild(ctx context.Context, x *domain.WorkflowExecution, 
 	if active.Status == domain.WorkflowAttemptDispatchPending {
 		state, launchErr := e.Subworkflows.Start(ctx, SubworkflowRequest{ParentExecutionID: x.ID, ParentAttemptID: active.ID, Owner: x.Owner, WorkflowKey: node.Child.WorkflowKey, Version: node.Child.Version, Input: active.InputSnapshot, IdempotencyKey: active.IdempotencyKey, Depth: x.Depth + 1})
 		if launchErr != nil {
+			var exhausted *inheritedBudgetExhausted
+			if errors.As(launchErr, &exhausted) {
+				return e.exhaust(ctx, x, exhausted.dimension)
+			}
 			return x, launchErr
 		}
 		now := e.now()
@@ -989,6 +1187,7 @@ func (e *Engine) advanceChild(ctx context.Context, x *domain.WorkflowExecution, 
 	x.BudgetUsage.Tokens += state.BudgetUsage.Tokens
 	x.BudgetUsage.ChargeMicroUSD += state.BudgetUsage.ChargeMicroUSD
 	x.BudgetUsage.ChargeMeasured = x.BudgetUsage.ChargeMeasured || state.BudgetUsage.ChargeMeasured
+	x.BudgetUsage.AccountingComplete = x.BudgetUsage.AccountingComplete && state.BudgetUsage.AccountingComplete
 	x.BudgetUsage.NodeAttempts += state.BudgetUsage.NodeAttempts
 	x.BudgetUsage.Children += state.BudgetUsage.Children
 	x.BudgetUsage.Retries += state.BudgetUsage.Retries
@@ -1103,6 +1302,9 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 		spec = node.Continue.ResultSpec
 	}
 	request := ChildRequest{ExecutionID: x.ID, AttemptID: a.ID, NodeID: node.ID, IdempotencyKey: a.IdempotencyKey, Prompt: prompt, ResultSpec: spec, ExperimentID: a.ExperimentID, VariantID: a.VariantID, PromptHash: a.PromptHash}
+	if x.EngagementGrant != nil {
+		request.AllowedEffects = append([]string(nil), x.EngagementGrant.AllowedEffects...)
+	}
 	if node.Run != nil {
 		request.ProfileKey = node.Run.ProfileKey
 		request.RoleRef = node.Run.RoleRef
@@ -1147,4 +1349,35 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 		}
 	}
 	return request, nil
+}
+
+// retainChildFinalization keeps the dispatched identity and never publishes an
+// unapplied result as a handoff. Reinspection after owner recovery consumes the
+// same attempt. Ordinary terminal usage is visible while effects wait, and is
+// rebuilt (not added twice) when the attempt becomes ready.
+func (e *Engine) retainChildFinalization(ctx context.Context, x *domain.WorkflowExecution, active *domain.WorkflowNodeAttempt, state ChildState, journal []*domain.WorkflowJournalEntry, attempts []*domain.WorkflowNodeAttempt, accountOrdinary bool) (*domain.WorkflowExecution, error) {
+	previousUsage := x.BudgetUsage
+	if accountOrdinary {
+		if _, _, err := e.rebuildOrdinaryUsage(ctx, x, journal, attempts, false); err != nil {
+			return x, err
+		}
+	}
+	if active.ValidationError == state.FinalizationPending && x.Status == domain.WorkflowExecutionWaiting && previousUsage == x.BudgetUsage {
+		return x, nil
+	}
+	now := e.now()
+	if !strings.HasPrefix(active.ErrorCode, meteredStopPrefix) {
+		active.ErrorCode = "child_finalization_pending"
+	}
+	active.ValidationError = state.FinalizationPending
+	active.UpdatedAt, active.Version = now, active.Version+1
+	x.Status, x.UpdatedAt, x.Version = domain.WorkflowExecutionWaiting, now, x.Version+1
+	payload, _ := json.Marshal(map[string]any{"code": "child_finalization_pending", "runId": state.RunID, "message": state.FinalizationPending, "recovery": "recover original run finalization; do not redispatch"})
+	entry := nextJournal(x.ID, journal, domain.WorkflowJournalDiagnostic, active.NodeID, &active.ID, payload, now)
+	if ok, err := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempt: active, Journal: []*domain.WorkflowJournalEntry{entry}}); err != nil {
+		return nil, err
+	} else if !ok {
+		return nil, ErrConcurrentAdvance
+	}
+	return x, nil
 }

@@ -6,6 +6,7 @@
   "icon": "users",
   "id": "ux",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "ux"

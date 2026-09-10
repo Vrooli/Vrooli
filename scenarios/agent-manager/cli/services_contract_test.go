@@ -3,7 +3,10 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	clitest "agent-manager/cli/internal/testutil"
 
@@ -12,6 +15,44 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+func TestWorkflowWaitOutlivesOrdinaryHTTPTimeoutWithoutChangingOtherCalls(t *testing.T) {
+	for _, timeoutSeconds := range []int{0, 30} {
+		t.Run((time.Duration(timeoutSeconds) * time.Second).String(), func(t *testing.T) {
+			var calls atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				if r.Method != http.MethodPost || r.URL.Path != "/api/v1/workflow-executions/execution-1/wait" || r.Header.Get("Authorization") != "Bearer saved-token" || r.Header.Get(cliutil.HeaderInvocationCommand) != "workflow execution-wait" {
+					t.Errorf("lost wait request contract: %s %s %+v", r.Method, r.URL.Path, r.Header)
+				}
+				var request apipb.WaitWorkflowExecutionRequest
+				if err := json.NewDecoder(r.Body).Decode(&request); err != nil || request.ExecutionId != "execution-1" || request.TimeoutSeconds != int32(timeoutSeconds) {
+					t.Errorf("changed server wait bound: %+v %v", request, err)
+				}
+				select {
+				case <-time.After(60 * time.Millisecond):
+				case <-r.Context().Done():
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"execution":{"id":"execution-1","status":"WORKFLOW_EXECUTION_STATUS_SUCCEEDED"}}`))
+			}))
+			defer server.Close()
+			base := cliutil.NewHTTPClient(cliutil.HTTPClientOptions{Timeout: 10 * time.Millisecond})
+			base.SetInvocationHeaderSource(func() map[string]string {
+				return map[string]string{cliutil.HeaderInvocationCommand: "workflow execution-wait"}
+			})
+			api := cliutil.NewAPIClient(base, func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} }, func() string { return "saved-token" })
+			_, response, err := NewServices(api).Workflows.Wait("execution-1", timeoutSeconds)
+			if err != nil || response == nil || response.Execution.GetId() != "execution-1" || response.Execution.GetStatus() != domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED || response.TimedOut {
+				t.Fatalf("server-owned wait inherited ordinary deadline: %+v %v", response, err)
+			}
+			if calls.Load() != 1 || base.Timeout() != 10*time.Millisecond {
+				t.Fatalf("wait repeated or changed ordinary request timeout: calls=%d timeout=%s", calls.Load(), base.Timeout())
+			}
+		})
+	}
+}
 
 func newContractServices(t *testing.T) (*Services, *clitest.RecordingServer) {
 	t.Helper()

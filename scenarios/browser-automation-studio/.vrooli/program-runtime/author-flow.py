@@ -10,12 +10,12 @@ name = str(inputs.get("name", "") or "candidate").strip()
 folder = str(inputs.get("folder", "") or "candidates").strip()
 
 envelope = {
-    "program": "browser-automation-studio.author-flow", "version": "3",
+    "program": "browser-automation-studio.author-flow", "version": "4",
     "status": "failed", "phase": "validate",
     "inputs": {"flow_nodes": len((flow or {}).get("nodes", [])) if isinstance(flow, dict) else None,
                "name": name, "folder": folder},
     "signals": {"valid": None, "validation_errors": None, "validation_warnings": None, "node_count": None,
-                "execution_id": None, "execution_status": None, "outcome": "unknown", "persistable": False,
+                "execution_id": None, "execution_status": None, "outcome": "unknown", "persistable": False, "qualification": "candidate",
                 "workflow_id": None, "version": None},
     "errors": [], "evidence": [],
 }
@@ -122,7 +122,12 @@ def step_act():  # ACT · one ad hoc execution with wait
     except Exception as exc:
         status, klass = program.classify(exc)
         envelope["errors"].append({"class":klass,"detail":"Assertion evidence unavailable","where":"act:verify"})
+    if not assertions_verified or envelope["errors"]:
+        envelope["status"] = "partial"
+        envelope["errors"].append({"class": "verification_required", "detail": "Candidate retained by caller; no qualified workflow persisted without complete assertion evidence", "where": "act:verify"})
+        return "report"
     envelope["signals"]["persistable"] = True
+    envelope["signals"]["qualification"] = "qualified"
     try:
         if workflow_id:
             old = handles["previous"]
@@ -156,6 +161,7 @@ def step_report():
     learn.outcome(status if status in ("verified_success", "failed", "unavailable", "unknown") else "unknown",
                   envelope["evidence"] if status == "verified_success" else [],
                   measurements={"reused_workflow": False})
+    envelope["signals"]["learning"] = {"feedback_ref": learn.result("workflow", artifact={"kind": "workflow", "owner": "browser-automation-studio", "id": envelope["signals"].get("workflow_id") or "candidate", "revision": str(envelope["signals"].get("version") or 0)})}
     print(envelope)
     return None
 

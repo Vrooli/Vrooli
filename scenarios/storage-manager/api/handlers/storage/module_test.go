@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"storage-manager/internal/census"
 	"storage-manager/internal/providers"
 
 	"github.com/gorilla/mux"
@@ -75,6 +76,43 @@ func ownerByID(owners []corestorage.OwnerManifest, id string) *corestorage.Owner
 
 type fakeOllamaInventory struct {
 	models []providers.OllamaModel
+}
+
+type fakeQdrantReader struct {
+	inspection providers.QdrantGenerationInspection
+	err        error
+}
+
+func (f fakeQdrantReader) InspectQdrantGenerations(context.Context) (providers.QdrantGenerationInspection, error) {
+	return f.inspection, f.err
+}
+
+func TestQdrantEndpointBoundsAndClassifiesOwnerGenerations(t *testing.T) {
+	router := mux.NewRouter()
+	Module(ModuleDeps{RepoRoot: t.TempDir(), QdrantReader: fakeQdrantReader{inspection: providers.QdrantGenerationInspection{
+		Owner: "agent-manager.runs", Namespace: "conversation-search", Alias: "agent-manager_conversation-search", ActiveCollection: "active",
+		Generations: []providers.QdrantGeneration{
+			{CollectionName: "active", State: "active", Bytes: 10},
+			{CollectionName: "old", State: "retired", Bytes: 20},
+			{CollectionName: "unknown", State: "quarantined", Bytes: 30},
+		},
+		Protected: []string{"active"}, Quarantined: []string{"unknown"}, Eligible: []string{"old"},
+	}}}).Mount(router)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/api/v1/storage/qdrant?state=retired&limit=1", nil))
+	if res.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", res.Code, res.Body.String())
+	}
+	var out qdrantStorageReport
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Generations) != 1 || out.Generations[0].CollectionName != "old" {
+		t.Fatalf("generations = %+v", out.Generations)
+	}
+	if out.DispositionBytes[census.DispositionOwnedManaged] != 20 {
+		t.Fatalf("dispositions = %+v", out.DispositionBytes)
+	}
 }
 
 func (f fakeOllamaInventory) ListModels(context.Context) ([]providers.OllamaModel, error) {

@@ -4,6 +4,7 @@
   "entry": "SKILL.md",
   "id": "swarm-manager-meta-orchestrator",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "tools",
     "conversation"

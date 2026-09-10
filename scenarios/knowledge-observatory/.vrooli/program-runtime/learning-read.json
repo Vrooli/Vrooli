@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "knowledge-observatory.learning-read",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Read comparable knowledge-task outcomes and effort from the existing Memory learning projection.",
   "inputs": {
     "from": {
@@ -71,7 +74,9 @@
         "invalid_response",
         "capability_gap",
         "flow_failed",
-        "scope_unprovisioned"
+        "scope_unprovisioned",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Typed Memory and binding-condition sensor references"

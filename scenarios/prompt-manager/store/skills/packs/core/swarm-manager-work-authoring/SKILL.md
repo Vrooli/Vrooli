@@ -48,6 +48,24 @@ project state. The durable item contract is `spec.json`, with optional
 execution context under `handoff/`, keep research evidence supplemental, and
 use `plan_ref` as the canonical implementation-plan reference.
 
+## Scenario development work packages
+
+When the outcome is material scenario development, shape one work package with
+these parts: the goal states why the world should change; the backlog item
+states the bounded outcome; Plan Manager owns the canonical implementation plan;
+and Swarm owns operator approval, effects, budget, checkpoint, and final
+disposition. A plan reference is required before development authority is
+approved. The plan may point to a reviewed Tech Tree Designer revision when a
+design graph helps, but that revision does not replace the plan.
+
+Use the same work package for phased execution and successive improvement. The
+latter is the `adaptive-improvement` strategy and may run
+`scenario-improvement-campaign` across several repairs under one approved
+grant. Do not create a separate planless contract item for ordinary scenario
+development. Include the target scenario's usage and improve skills, expected
+evidence, acceptance boundary, special instructions, and a proposed strategy
+so the later plan author and operator have the information needed to review it.
+
 ### Shape
 
 ```

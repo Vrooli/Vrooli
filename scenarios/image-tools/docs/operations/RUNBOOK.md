@@ -56,7 +56,7 @@ Vrooli scenario backup substrate (data-backup-manager).
 |---|---|---|
 | SQLite metadata (jobs, recipes, model registry state, measures) | Snapshot the scenario database via data-backup-manager scenario backup. | Restore the snapshot, then `make restart`. |
 | Image binaries (api-core storage / blobstore) | Backed up as the scenario's storage namespace via data-backup-manager. | Restore the storage namespace, then `make restart`. |
-| Opt-in model weights | Not backed up (reproducible via the model registry). | Re-install on demand with `image-tools model install <id>`. |
+| Opt-in model weights and adapters | Not backed up (reproducible via the model registry/catalog). | Re-install on demand with the governed model/adapter install command. |
 
 ## Maintenance Tasks
 
@@ -64,8 +64,10 @@ Vrooli scenario backup substrate (data-backup-manager).
 |---|---|---|
 | Validate tests | before handoff | `make test` |
 | Inspect logs | as needed | `make logs` |
-| Prune old job outputs | per retention policy | Remove expired job outputs from blobstore per configured retention; verify with `image-tools jobs list`. |
-| Update / garbage-collect model weights | as models mature / when disk-pressured | `image-tools model list`, then `install`/`remove`/`enable`/`disable` to prune unused or stale weights. |
+| Inspect storage ownership | during disk-pressure triage | `storage-manager storage inventory --json` and `storage-manager cleanup providers --json`; image-tools exposes separate model, adapter, input, output, runtime, and database entries. |
+| Preview old job outputs | per retention policy | Storage-manager invokes image-tools' owner contract: preview `image-tools-job-blobs` with the recovery-only header. The provider is disabled by default and never scans models, adapters, inputs, or caller-owned paths. |
+| Apply old job-output cleanup | after operator approval | Apply only the exact owner preview through storage-manager's governed cleanup plan. Do not delete files directly from the image-tools data directory. |
+| Update / garbage-collect model weights or adapters | as models mature / when disk-pressured | Use the image-tools model/adapter catalog commands to inspect and remove explicitly selected assets; blob-output retention never removes them. |
 | Refresh BYOK provider rates | when provider pricing changes | Update the configured per-provider rate table so pre-op cost estimates stay accurate. |
 | Regenerate endpoints | after API endpoint changes | `make endpoints` |
 | Regenerate UI strings | after i18n changes | `cd ui && pnpm strings:gen` |

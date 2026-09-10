@@ -84,11 +84,8 @@ func buildCostEvents(runID uuid.UUID, runnerType domain.RunnerType, pricing Pric
 	usageEvent := &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeMetric, Timestamp: time.Now(), Data: usageData}
 	events := []*domain.RunEvent{usageEvent}
 
-	if pricing == nil {
-		return events
-	}
 	basis := domain.ChargeBasisMetered
-	if len(billing) > 0 && billing[0].Mode != "" {
+	if len(billing) > 0 && (billing[0].Mode != "" || billing[0].Basis != "") {
 		basis = billing[0].EffectiveBasis()
 	}
 	if basis == domain.ChargeBasisSubscription || basis == domain.ChargeBasisLocal {
@@ -97,6 +94,9 @@ func buildCostEvents(runID uuid.UUID, runnerType domain.RunnerType, pricing Pric
 	}
 	if basis != domain.ChargeBasisMetered {
 		return append(events, &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeMetric, Timestamp: time.Now(), Data: &domain.ChargeEventData{PayloadKind: domain.PayloadKindCharge, Basis: basis, Currency: "USD", Model: model, RunnerType: string(runnerType), ChargeReason: "billing_basis_unknown"}})
+	}
+	if pricing == nil {
+		return events
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), config.DefaultLevers().Runners.ProbeTimeout)

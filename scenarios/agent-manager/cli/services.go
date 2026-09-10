@@ -466,7 +466,9 @@ func (s *WorkflowService) Wait(id string, timeoutSeconds int) ([]byte, *apipb.Wa
 	if err != nil {
 		return nil, nil, err
 	}
-	body, err := s.api.Request("POST", "/api/v1/workflow-executions/"+id+"/wait", nil, payload)
+	// This endpoint owns both finite and indefinite waits. An ordinary CLI
+	// transport deadline must not detach before the requested server bound.
+	body, err := s.api.WithoutTimeout().Request("POST", "/api/v1/workflow-executions/"+id+"/wait", nil, payload)
 	if err != nil {
 		return body, nil, err
 	}

@@ -233,8 +233,57 @@
           "max_bytes": "6GiB",
           "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
         }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Shared storage retention enforcement writes the latest compact receipt under Agent Manager's state namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The receipt is bounded regenerable operational state and is replaced on each enforcement run."
+        }
+      },
+      "run_state": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "runs",
+        "regenerable": false,
+        "rationale": "Per-run transcripts, scratchpads, and recovery metadata are agent-manager-owned operational evidence. Active runs and leased recovery state are protected; terminal directories are owner-pruned after the configured review window.",
+        "budget": {
+          "max_age": "7d",
+          "max_bytes": "32GiB",
+          "rationale": "The reconciler removes terminal run state after the seven-day recovery window; the byte ceiling is an alarm-only guard because run evidence is durable and must not be reclaimed by a generic sweep."
+        }
+      },
+      "conversation_search_qdrant": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "8GiB",
+          "max_age": "72h",
+          "rationale": "Variant-isolated Qdrant generations are owned by the conversation-search provider. Active and rollback generations are protected; failed or expired generations require preview and approval before Qdrant API deletion."
+        },
+        "rationale": "Qdrant is an external derived store. Physical allocation is measured by storage-manager; lifecycle state and deletion authorization remain in the agent-manager generation catalog."
       }
     },
+    "cleanup_providers": [
+      {
+        "id": "conversation-search-qdrant",
+        "name": "Conversation-search Qdrant generation owner",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "enabled",
+        "default_approval": "operator",
+        "storage_entries": ["conversation_search_qdrant"]
+      }
+    ],
     "rationale": "Canonical state is physically non-regenerable. Conversation-search catalog, FTS, checkpoint, generation, and content-free bounded telemetry tables are logical projections inside that protected SQLite file; they may be rebuilt or reclaimed only through domain-owned operations, and whole-file cleanup remains forbidden. The governed optional Qdrant dependency owns variant-isolated semantic generations under storage.Collection(\"conversation-search\"); failed shadows roll back and successful retired generations remain for reviewed rollback."
   },
   "runtime": {

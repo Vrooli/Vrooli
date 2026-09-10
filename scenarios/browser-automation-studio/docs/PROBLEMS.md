@@ -412,3 +412,10 @@ Live verification: browser and desktop health returned HTTP 200/healthy; storage
 ## 2026-09-07 — Shared selector consolidation
 
 W3 implementation review under the existing selector contract; no W0–W2 maturity promotion is claimed. Shared selector resolution now uses api-core/uiselectors and explicit project UI manifests. Deferred parameters validate after strict interpolation; quoted expressions receive JavaScript escaping. Recordings adopt only unambiguous selectors on the project origin. Focused compiler, executor, validator, handler and CLI workflow tests pass. Unit run 20260907-213021-8ea867d2 remains FAIL for UI role discovery and the existing 85% coverage floor (observed statements 28.41%). Shared evidence and limitations: `packages/ui-selectors/README.md`.
+
+## Work ladder — adaptive browser programs (2026-09-09)
+
+- Rung: W3, scoped implementation under the user's approved shared learning proposal.
+- Evidence: navigation previously synthesized a body-exists assertion and do-task replayed completed navigation twice; author-flow persisted without complete assertion evidence.
+- Repair: final-page caller postconditions/extraction, enforced action policy, candidate-only recorded traces, evidence-gated persistence, context-scoped selection and durable feedback references.
+- Validation: Python program contract regressions, driver vision-agent regressions and TypeScript checking, focused Go navigation/workflow owner tests. Full scenario certification is not claimed.

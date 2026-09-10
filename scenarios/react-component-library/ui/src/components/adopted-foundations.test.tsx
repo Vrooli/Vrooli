@@ -3,7 +3,7 @@ import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { useEffect, useRef, useState } from "react";
 import { describe, expect, it } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
@@ -57,6 +57,47 @@ function DelayedFocusTrapFixture() {
       <button type="button">Last delayed action</button>
     </div>
   ) : null;
+}
+
+function ExpandableDrawerFixture() {
+  const [open, setOpen] = useState(true);
+  return (
+    <FullPageDrawer
+      open={open}
+      onOpenChange={setOpen}
+      title="Expandable drawer"
+      closeLabel="Close drawer"
+      dismissAffordance="grabber"
+      expandable
+    >
+      Drawer content
+    </FullPageDrawer>
+  );
+}
+
+function swipeGrabber(grabber: HTMLElement, startY: number, endY: number, pointerId: number) {
+  fireEvent.pointerDown(grabber, {
+    pointerId,
+    pointerType: "touch",
+    button: 0,
+    clientX: 16,
+    clientY: startY,
+    timeStamp: 0,
+  });
+  fireEvent.pointerMove(window, {
+    pointerId,
+    pointerType: "touch",
+    clientX: 16,
+    clientY: endY,
+    timeStamp: 400,
+  });
+  fireEvent.pointerUp(window, {
+    pointerId,
+    pointerType: "touch",
+    clientX: 16,
+    clientY: endY,
+    timeStamp: 400,
+  });
 }
 
 describe("adopted foundation entry points", () => {
@@ -123,6 +164,24 @@ describe("adopted foundation entry points", () => {
     // checks that the sibling composition remains mounted without pretending it
     // should be exposed in the accessibility tree while the drawer is open.
     expect(screen.getByText("Create")).toBeInTheDocument();
+  });
+
+  it("collapses an expanded drawer before a second downward swipe dismisses it", async () => {
+    renderWithProviders(<ExpandableDrawerFixture />);
+    const grabber = screen.getByTestId("overlays.full-page-drawer.grabber");
+    const root = screen.getByTestId("overlays.full-page-drawer").parentElement;
+
+    swipeGrabber(grabber, 600, 480, 1);
+    await waitFor(() => expect(root).toHaveAttribute("data-expanded", "true"));
+
+    swipeGrabber(grabber, 88, 120, 2);
+    await waitFor(() => expect(root).toHaveAttribute("data-expanded", "false"));
+    expect(screen.getByRole("dialog", { name: "Expandable drawer" })).toBeInTheDocument();
+
+    swipeGrabber(grabber, 0, 120, 3);
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Expandable drawer" })).not.toBeInTheDocument(),
+    );
   });
 });
 

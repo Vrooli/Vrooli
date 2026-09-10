@@ -1017,6 +1017,13 @@ func callDiscovery(ctx context.Context, client discoveryconnect.DiscoveryService
 
 func callSkills(ctx context.Context, client skillsconnect.SkillsServiceClient, method string, s []string, query url.Values, payload any) ([]byte, bool, error) {
 	switch {
+	case method == "POST" && len(s) == 2 && s[1] == "refresh":
+		req := &skillsv1.RefreshProjectionRequest{}
+		if err := unmarshalPayload(payload, req); err != nil {
+			return nil, true, err
+		}
+		resp, err := client.RefreshProjection(ctx, connect.NewRequest(req))
+		return rpcBody(resp, "", true, err)
 	case method == "GET" && len(s) == 1:
 		resp, err := client.ListSkills(ctx, connect.NewRequest(&skillsv1.ListSkillsRequest{Folder: query.Get("folder"), Tag: query.Get("tag"), Modes: splitCSV(query.Get("modes")), WithoutProgrammaticHome: query.Get("withoutProgrammaticHome") == "true"}))
 		return rpcBody(resp, "skills", true, err)

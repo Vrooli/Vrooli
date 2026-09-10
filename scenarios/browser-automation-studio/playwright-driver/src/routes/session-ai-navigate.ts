@@ -57,6 +57,9 @@ interface AINavigateRequest {
   model: string;
   max_steps?: number;
   callback_url: string;
+  effect_policy?: NavigationConfig['effectPolicy'];
+  postconditions?: NavigationConfig['postconditions'];
+  extraction?: NavigationConfig['extraction'];
 }
 
 /**
@@ -151,6 +154,15 @@ export async function handleSessionAINavigate(
   }
 
   // Validate max_steps
+  if (body.effect_policy && !['explicit', 'read_only'].includes(body.effect_policy)) {
+    sendJson(res, 400, {error: 'bad_request', message: 'Unsupported effect_policy'});
+    return;
+  }
+  if ((body.postconditions && (!Array.isArray(body.postconditions) || body.postconditions.length > 16)) ||
+      (body.extraction && (!Array.isArray(body.extraction) || body.extraction.length > 16))) {
+    sendJson(res, 400, {error: 'bad_request', message: 'Task contract must contain bounded observation lists'});
+    return;
+  }
   const maxSteps = body.max_steps ?? 20;
   if (maxSteps < 1 || maxSteps > 100) {
     sendJson(res, 400, { error: 'bad_request', message: 'max_steps must be between 1 and 100' });
@@ -218,6 +230,9 @@ export async function handleSessionAINavigate(
 
   // Navigation config
   const navConfig: NavigationConfig = {
+    effectPolicy: body.effect_policy,
+    postconditions: body.postconditions,
+    extraction: body.extraction,
     prompt: body.prompt,
     page: session.page,
     maxSteps,
@@ -279,6 +294,9 @@ export async function handleSessionAINavigate(
         finalUrl: result.finalUrl,
         error: result.error,
         summary: result.summary,
+        verifiedSuccess: result.verifiedSuccess,
+        extractedData: result.extractedData,
+        verificationError: result.verificationError,
       };
       emitNavigationComplete(body.callback_url, completeEvent).catch((err) => {
         logger.warn('Failed to emit navigation complete', {

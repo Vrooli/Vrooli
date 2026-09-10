@@ -20,13 +20,16 @@ import (
 // by the test. It records whether Apply ran, which is the only thing the tier
 // boundary tests actually need to observe.
 type tierProvider struct {
-	id          string
-	tier        cleanup.SafetyTier
-	approval    cleanup.ApprovalMode
-	applyErr    error
-	ownerBudget bool
-	zeroReclaim bool
-	oneShot     bool
+	id            string
+	tier          cleanup.SafetyTier
+	approval      cleanup.ApprovalMode
+	previewPath   string
+	estimateBytes int64
+	estimateItems int
+	applyErr      error
+	ownerBudget   bool
+	zeroReclaim   bool
+	oneShot       bool
 
 	mu          sync.Mutex
 	applied     bool
@@ -106,7 +109,15 @@ func (p *tierProvider) Estimate(ctx context.Context, _ cleanup.EstimateRequest) 
 			return cleanup.Estimate{ProviderID: p.id, ProviderVersion: "v1"}, nil
 		}
 	}
-	return cleanup.Estimate{ProviderID: p.id, ProviderVersion: "v1", EstimatedBytes: 1000, ItemCount: 1}, nil
+	estimateBytes := p.estimateBytes
+	if estimateBytes == 0 {
+		estimateBytes = 1000
+	}
+	estimateItems := p.estimateItems
+	if estimateItems == 0 {
+		estimateItems = 1
+	}
+	return cleanup.Estimate{ProviderID: p.id, ProviderVersion: "v1", EstimatedBytes: estimateBytes, ItemCount: estimateItems}, nil
 }
 
 func TestRecoveryUsesServiceLifetimeInsteadOfCallerContext(t *testing.T) {
@@ -137,13 +148,187 @@ func TestRecoveryUsesServiceLifetimeInsteadOfCallerContext(t *testing.T) {
 }
 
 func (p *tierProvider) Preview(context.Context, cleanup.PreviewRequest) (cleanup.Preview, error) {
+	path := p.previewPath
+	if path == "" {
+		path = "/tmp/item"
+	}
 	return cleanup.Preview{
 		ProviderID:      p.id,
 		ProviderVersion: "v1",
 		Items: []cleanup.PreviewItem{{
-			ID: p.id + "/item", Path: "/tmp/item", Bytes: 1000, Action: "remove", SafetyTier: p.tier,
+			ID: p.id + "/item", Path: path, Bytes: 1000, Action: "remove", SafetyTier: p.tier,
 		}},
 	}, nil
+}
+
+func TestPlanFiltersContractProtectedPreviewItems(t *testing.T) {
+	protectedRoot := filepath.Join(t.TempDir(), "plan-artifacts")
+	provider := &tierProvider{id: "safe-provider", tier: cleanup.SafetyTierSafe, approval: cleanup.ApprovalModeNone, previewPath: filepath.Join(protectedRoot, "intent.md")}
+	svc := newPressureService(t, provider)
+	if err := svc.SetProtectedRoots([]string{protectedRoot}); err != nil {
+		t.Fatalf("SetProtectedRoots: %v", err)
+	}
+
+	plan, err := svc.planSync(context.Background(), "census-protected", cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatalf("planSync: %v", err)
+	}
+	if len(plan.Providers) != 1 || len(plan.Providers[0].Preview.Items) != 0 {
+		t.Fatalf("plan providers = %#v, want protected item omitted", plan.Providers)
+	}
+	if plan.Providers[0].Estimate.EstimatedBytes != 0 || plan.Providers[0].Estimate.ItemCount != 0 || plan.TotalBytes != 0 || plan.TotalItems != 0 {
+		t.Fatalf("plan totals = provider=%+v total=%d/%d, want zero after filtering", plan.Providers[0].Estimate, plan.TotalBytes, plan.TotalItems)
+	}
+	if len(plan.Providers[0].Preview.Warnings) == 0 {
+		t.Fatal("protected preview omission should be visible as a warning")
+	}
+}
+
+func symlinkedProtectedPreviewPath(t *testing.T) (string, string) {
+	t.Helper()
+	protectedRoot := filepath.Join(t.TempDir(), "plan-artifacts")
+	if err := os.MkdirAll(protectedRoot, 0o755); err != nil {
+		t.Fatalf("MkdirAll protected root: %v", err)
+	}
+	protectedFile := filepath.Join(protectedRoot, "intent.md")
+	if err := os.WriteFile(protectedFile, []byte("irreplaceable intent\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile protected item: %v", err)
+	}
+	aliasDir := filepath.Join(t.TempDir(), "owner-alias")
+	if err := os.Symlink(protectedRoot, aliasDir); err != nil {
+		t.Fatalf("Symlink owner alias: %v", err)
+	}
+	return protectedRoot, filepath.Join(aliasDir, "intent.md")
+}
+
+func TestPlanFiltersSymlinkAliasToContractProtectedPreviewItem(t *testing.T) {
+	protectedRoot, aliasPath := symlinkedProtectedPreviewPath(t)
+	provider := &tierProvider{id: "safe-provider", tier: cleanup.SafetyTierSafe, approval: cleanup.ApprovalModeNone, previewPath: aliasPath}
+	svc := newPressureService(t, provider)
+	if err := svc.SetProtectedRoots([]string{protectedRoot}); err != nil {
+		t.Fatalf("SetProtectedRoots: %v", err)
+	}
+
+	plan, err := svc.planSync(context.Background(), "census-protected-symlink", cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatalf("planSync: %v", err)
+	}
+	if len(plan.Providers) != 1 || len(plan.Providers[0].Preview.Items) != 0 {
+		t.Fatalf("plan providers = %#v, want symlinked protected item omitted", plan.Providers)
+	}
+}
+
+func TestPlanFiltersSymlinkAliasWithMissingPreviewLeaf(t *testing.T) {
+	protectedRoot, aliasPath := symlinkedProtectedPreviewPath(t)
+	missingAliasPath := filepath.Join(filepath.Dir(aliasPath), "not-created.md")
+	provider := &tierProvider{id: "safe-provider", tier: cleanup.SafetyTierSafe, approval: cleanup.ApprovalModeNone, previewPath: missingAliasPath}
+	svc := newPressureService(t, provider)
+	if err := svc.SetProtectedRoots([]string{protectedRoot}); err != nil {
+		t.Fatalf("SetProtectedRoots: %v", err)
+	}
+
+	plan, err := svc.planSync(context.Background(), "census-protected-symlink-missing-leaf", cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatalf("planSync: %v", err)
+	}
+	if len(plan.Providers) != 1 || len(plan.Providers[0].Preview.Items) != 0 {
+		t.Fatalf("plan providers = %#v, want missing symlinked protected item omitted", plan.Providers)
+	}
+}
+
+func TestPlanPreservesProviderEstimateWhenPreviewIsUnfiltered(t *testing.T) {
+	provider := &tierProvider{id: "coarse-provider", tier: cleanup.SafetyTierSafe, approval: cleanup.ApprovalModeNone, estimateBytes: 5000, estimateItems: 7}
+	svc := newPressureService(t, provider)
+	if err := svc.SetProtectedRoots([]string{filepath.Join(t.TempDir(), "unrelated-protected-root")}); err != nil {
+		t.Fatalf("SetProtectedRoots: %v", err)
+	}
+
+	plan, err := svc.planSync(context.Background(), "census-coarse-estimate", cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatalf("planSync: %v", err)
+	}
+	estimate := plan.Providers[0].Estimate
+	if estimate.EstimatedBytes != 5000 || estimate.ItemCount != 7 || plan.TotalBytes != 5000 || plan.TotalItems != 7 {
+		t.Fatalf("plan estimate = %+v totals=%d/%d, want provider estimate preserved", estimate, plan.TotalBytes, plan.TotalItems)
+	}
+}
+
+func TestPressureRecoveryNeverAppliesContractProtectedPreviewItems(t *testing.T) {
+	protectedRoot := filepath.Join(t.TempDir(), "plan-artifacts")
+	provider := &tierProvider{id: "safe-provider", tier: cleanup.SafetyTierSafe, approval: cleanup.ApprovalModeNone, previewPath: filepath.Join(protectedRoot, "intent.md")}
+	svc := newPressureService(t, provider)
+	if err := svc.SetProtectedRoots([]string{protectedRoot}); err != nil {
+		t.Fatalf("SetProtectedRoots: %v", err)
+	}
+
+	run, err := svc.StartRecovery(context.Background(), "PRESSURE_TRIGGER_BAND", "/", 96, 1024, 0, false)
+	if err != nil {
+		t.Fatalf("StartRecovery: %v", err)
+	}
+	completed, err := svc.WaitRecovery(context.Background(), run.ID)
+	if err != nil {
+		t.Fatalf("WaitRecovery: %v", err)
+	}
+	if provider.didApply() {
+		t.Fatal("pressure recovery applied a contract-protected preview item")
+	}
+	if completed.ReclaimedBytes != 0 {
+		t.Fatalf("recovery reclaimed %d bytes from a protected preview, want zero", completed.ReclaimedBytes)
+	}
+}
+
+func TestApplyRechecksContractProtectedPreviewItemsFromStoredPlan(t *testing.T) {
+	protectedRoot := filepath.Join(t.TempDir(), "plan-artifacts")
+	provider := &tierProvider{id: "safe-provider", tier: cleanup.SafetyTierSafe, approval: cleanup.ApprovalModeNone, previewPath: filepath.Join(protectedRoot, "intent.md")}
+	svc := newPressureService(t, provider)
+	if err := svc.SetProtectedRoots([]string{protectedRoot}); err != nil {
+		t.Fatalf("SetProtectedRoots: %v", err)
+	}
+	unsafe := Plan{
+		ID: "stored-unsafe-plan", PolicyVersion: "policy-test",
+		Providers: []ProviderPlan{{
+			ProviderID: provider.id, ProviderVersion: "v1",
+			Preview: cleanup.Preview{ProviderID: provider.id, ProviderVersion: "v1", Items: []cleanup.PreviewItem{{ID: "protected", Path: provider.previewPath, Bytes: 1000, SafetyTier: cleanup.SafetyTierSafe}}},
+			Policy:  cleanup.ProviderPolicy{Enabled: true, ApprovalMode: cleanup.ApprovalModeNone},
+		}},
+	}
+	if err := svc.store.SavePlan(context.Background(), unsafe); err != nil {
+		t.Fatalf("SavePlan: %v", err)
+	}
+	report, err := svc.Apply(context.Background(), ApplyInput{PlanID: unsafe.ID, PolicyVersion: unsafe.PolicyVersion, ApprovalMode: cleanup.ApprovalModeNone, IdempotencyKey: "stored-unsafe-apply"})
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if provider.didApply() || report.ReclaimedBytes != 0 {
+		t.Fatalf("Apply report = %+v, provider applied=%v; protected stored item must be skipped", report, provider.didApply())
+	}
+}
+
+func TestApplyRechecksSymlinkAliasToContractProtectedPreviewItem(t *testing.T) {
+	protectedRoot, aliasPath := symlinkedProtectedPreviewPath(t)
+	provider := &tierProvider{id: "safe-provider", tier: cleanup.SafetyTierSafe, approval: cleanup.ApprovalModeNone, previewPath: aliasPath}
+	svc := newPressureService(t, provider)
+	if err := svc.SetProtectedRoots([]string{protectedRoot}); err != nil {
+		t.Fatalf("SetProtectedRoots: %v", err)
+	}
+	unsafe := Plan{
+		ID: "stored-unsafe-symlink-plan", PolicyVersion: "policy-test",
+		Providers: []ProviderPlan{{
+			ProviderID: provider.id, ProviderVersion: "v1",
+			Preview: cleanup.Preview{ProviderID: provider.id, ProviderVersion: "v1", Items: []cleanup.PreviewItem{{ID: "protected", Path: aliasPath, Bytes: 1000, SafetyTier: cleanup.SafetyTierSafe}}},
+			Policy:  cleanup.ProviderPolicy{Enabled: true, ApprovalMode: cleanup.ApprovalModeNone},
+		}},
+	}
+	if err := svc.store.SavePlan(context.Background(), unsafe); err != nil {
+		t.Fatalf("SavePlan: %v", err)
+	}
+	report, err := svc.Apply(context.Background(), ApplyInput{PlanID: unsafe.ID, PolicyVersion: unsafe.PolicyVersion, ApprovalMode: cleanup.ApprovalModeNone, IdempotencyKey: "stored-unsafe-symlink-apply"})
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if provider.didApply() || report.ReclaimedBytes != 0 {
+		t.Fatalf("Apply report = %+v, provider applied=%v; symlinked protected item must be skipped", report, provider.didApply())
+	}
 }
 
 func (p *tierProvider) Apply(context.Context, cleanup.ApplyRequest) (cleanup.ApplyResult, error) {

@@ -9,9 +9,9 @@ metadata:
   tags: ["writing","style","standards","ste100","ears","authoring"]
   icon: "pen-line"
   status: "active"
-  revision: 1
+  revision: 2
   createdAt: "2026-07-21T00:00:00Z"
-  updatedAt: "2026-07-21T00:00:00Z"
+  updatedAt: "2026-09-08T00:00:00Z"
   requires:
     scenarios: ["swarm-manager", "test-genie"]
     commands: ["swarm-manager", "test-genie"]
@@ -32,6 +32,7 @@ holds the placement map only; each owning skill carries the applied detail.
 | Artifact | Standard | Applied detail lives in |
 |---|---|---|
 | Plan procedural content (steps, validation, acceptance, boundaries) | ASD-STE100 Simplified Technical English | `implementation-plan-authoring` §3 |
+| Development contract and draft review | Use each constituent artifact's standard below; plain-language rationale and explicit desired/observed/evidenced states | `docs/agent-system/SCENARIO_DEVELOPMENT.md` |
 | Plan flows with 3+ actors/steps | Mermaid diagram (fenced block), not prose arrow chains | `implementation-plan-authoring` §0 |
 | Requirement `title`/`description` | EARS templates + RFC 2119 keywords | `requirements-traceability-steer` §5; `scenarios/test-genie/docs/reference/requirement-schema.md` |
 | PRD operational-target one-liners | EARS shape; tier ↔ RFC 2119 (P0=MUST, P1=SHOULD, P2=MAY) | `prd-authoring` "Writing Standard" |

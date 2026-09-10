@@ -5,6 +5,7 @@
   "icon": "gitbranch",
   "id": "change-axis-and-evolution-resilience-audit",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "audits"

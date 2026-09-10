@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "knowledge-observatory.verify-change",
   "version": "2",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Verify documentation cleanup, consolidation, moves and retirement: intended revisions, absent paths, preserved excerpts with editorial evidence, retrieval expectations and reference regressions.",
   "inputs": {
     "expectations": {
@@ -101,7 +104,9 @@
         "verification_failed",
         "revision_changed",
         "output_bound",
-        "editorial_review_pending"
+        "editorial_review_pending",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Repository-relative paths and source revisions or owner run IDs; no private corpus dump."

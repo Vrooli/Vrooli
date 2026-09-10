@@ -5,6 +5,7 @@
   "entry": "SKILL.md",
   "id": "platform-package-consumption-audit",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "platform",
     "audit"

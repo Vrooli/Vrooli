@@ -6,6 +6,7 @@ import type { TerrainMeshInput, TerrainMeshData } from '../sim/terrain/mesh'
 import { beginTerrainPreparation, updateDiagnostics } from '../engine/diagnostics/store'
 import { useThree } from '@react-three/fiber'
 import { useWorldStore } from './WorldStoreContext'
+import { worldTextureProps } from './materialTextures'
 import { useOwnedResource } from '../engine/assets/useOwnedResource'
 import { terrainMaterialSettings } from './terrainAppearance'
 
@@ -46,7 +47,9 @@ export function Terrain({ scene, tuning, profile, weather, visual, prepareMesh }
     if (scene.environment === 'indoor' && !scene.centre) {
       const half = field.radius
       const result = new BufferGeometry()
-      result.setAttribute('position', new BufferAttribute(new Float32Array([-half, 0, -half, -half, 0, half, half, 0, -half, half, 0, half]), 3))
+      const positions = new Float32Array([-half, 0, -half, -half, 0, half, half, 0, -half, half, 0, half])
+      result.setAttribute('position', new BufferAttribute(positions, 3))
+      result.setAttribute('uv', new BufferAttribute(new Float32Array([-half / 8, -half / 8, -half / 8, half / 8, half / 8, -half / 8, half / 8, half / 8]), 2))
       result.setAttribute('normal', new BufferAttribute(new Float32Array([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]), 3))
       const ground = new Color(scene.palette.ground)
       result.setAttribute('color', new BufferAttribute(new Float32Array([ground.r, ground.g, ground.b, ground.r, ground.g, ground.b, ground.r, ground.g, ground.b, ground.r, ground.g, ground.b]), 3))
@@ -58,6 +61,12 @@ export function Terrain({ scene, tuning, profile, weather, visual, prepareMesh }
     const { vertices, normals, colours, indices, sphere } = prepared.mesh
     const result = new BufferGeometry()
     result.setAttribute('position', new BufferAttribute(vertices, 3))
+    const uvs = new Float32Array(vertices.length / 3 * 2)
+    for (let vertex = 0; vertex < vertices.length / 3; vertex += 1) {
+      uvs[vertex * 2] = (vertices[vertex * 3] ?? 0) / 8
+      uvs[vertex * 2 + 1] = (vertices[vertex * 3 + 2] ?? 0) / 8
+    }
+    result.setAttribute('uv', new BufferAttribute(uvs, 2))
     result.setAttribute('normal', new BufferAttribute(normals, 3))
     result.setAttribute('color', new BufferAttribute(colours, 3))
     result.setIndex(new BufferAttribute(indices, 1))
@@ -76,7 +85,7 @@ export function Terrain({ scene, tuning, profile, weather, visual, prepareMesh }
   return (
     <Bvh key={geometry.uuid} name="terrain" indirect>
       <mesh userData={{ cameraSurface: true }} geometry={geometry} receiveShadow>
-        <meshStandardMaterial vertexColors {...terrainMaterialSettings(weather.wetness, visual)} metalness={0} />
+        <meshStandardMaterial vertexColors {...terrainMaterialSettings(weather.wetness, visual)} {...worldTextureProps('grass')} metalness={0} />
       </mesh>
     </Bvh>
   )

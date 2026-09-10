@@ -25,49 +25,67 @@ import (
 var censusSchemaSQL string
 
 type Entry struct {
-	Owner    string `json:"owner"`
-	Kind     string `json:"kind,omitempty"`
-	Name     string `json:"name"`
-	Path     string `json:"path"`
-	Bytes    int64  `json:"bytes"`
-	Declared bool   `json:"declared"`
+	Owner       string      `json:"owner"`
+	Kind        string      `json:"kind,omitempty"`
+	Name        string      `json:"name"`
+	Path        string      `json:"path"`
+	Bytes       int64       `json:"bytes"`
+	Declared    bool        `json:"declared"`
+	Disposition Disposition `json:"disposition"`
 }
 
 type Finding struct {
-	Code     string `json:"code"`
-	Severity string `json:"severity"`
-	Owner    string `json:"owner,omitempty"`
-	Kind     string `json:"kind,omitempty"`
-	Path     string `json:"path,omitempty"`
-	Message  string `json:"message"`
+	Code        string      `json:"code"`
+	Severity    string      `json:"severity"`
+	Owner       string      `json:"owner,omitempty"`
+	Kind        string      `json:"kind,omitempty"`
+	Path        string      `json:"path,omitempty"`
+	Message     string      `json:"message"`
+	Disposition Disposition `json:"disposition"`
 }
 
+// Disposition is the accounting state of bytes or an observation. Unknown
+// and inaccessible data is deliberately non-reclaimable until an owner proves
+// otherwise.
+type Disposition string
+
+const (
+	DispositionOwnedManaged      Disposition = "owned_managed"
+	DispositionOwnedProtected    Disposition = "owned_protected"
+	DispositionOwnedUnreadable   Disposition = "owned_unreadable"
+	DispositionDeclaredExternal  Disposition = "declared_external"
+	DispositionUnownedReadable   Disposition = "unowned_readable"
+	DispositionUnreadableUnknown Disposition = "unreadable_unknown"
+	DispositionAggregateDrift    Disposition = "aggregate_drift"
+)
+
 type Report struct {
-	SnapshotID               string         `json:"snapshot_id,omitempty"`
-	ObservedAt               time.Time      `json:"observed_at,omitempty"`
-	Root                     string         `json:"root"`
-	MeasuredBytes            int64          `json:"measured_bytes"`
-	AttributedBytes          int64          `json:"attributed_bytes"`
-	DriftBytes               int64          `json:"drift_bytes"`
-	UnattributedBytes        int64          `json:"unattributed_bytes"`
-	UnattributedKnown        bool           `json:"-"`
-	UnattributedRoots        []RootTotal    `json:"unattributed_roots,omitempty"`
-	AccountingResidualBytes  int64          `json:"accounting_residual_bytes,omitempty"`
-	AccountingToleranceBytes int64          `json:"accounting_tolerance_bytes"`
-	UnreadableBytes          int64          `json:"unreadable_bytes,omitempty"`
-	Closed                   bool           `json:"closed"`
-	AccountingIdentity       bool           `json:"accounting_identity"`
-	Confidence               string         `json:"confidence"`
-	ScanCoverage             ScanCoverage   `json:"scan_coverage"`
-	GrowthSlopeBytesPerHour  *float64       `json:"growth_slope_bytes_per_hour,omitempty"`
-	OwnerCounts              map[string]int `json:"owner_counts,omitempty"`
-	UnreadablePaths          []string       `json:"unreadable_paths,omitempty"`
-	Findings                 []Finding      `json:"findings,omitempty"`
-	Entries                  []Entry        `json:"entries"`
-	FrameworkRoots           []string       `json:"framework_roots,omitempty"`
-	ScanPolicy               ScanPolicy     `json:"scan_policy"`
-	SnapshotAgeSeconds       *float64       `json:"snapshot_age_seconds,omitempty"`
-	StalenessVerdict         string         `json:"staleness_verdict,omitempty"`
+	SnapshotID               string                `json:"snapshot_id,omitempty"`
+	ObservedAt               time.Time             `json:"observed_at,omitempty"`
+	Root                     string                `json:"root"`
+	MeasuredBytes            int64                 `json:"measured_bytes"`
+	AttributedBytes          int64                 `json:"attributed_bytes"`
+	DriftBytes               int64                 `json:"drift_bytes"`
+	UnattributedBytes        int64                 `json:"unattributed_bytes"`
+	UnattributedKnown        bool                  `json:"-"`
+	UnattributedRoots        []RootTotal           `json:"unattributed_roots,omitempty"`
+	AccountingResidualBytes  int64                 `json:"accounting_residual_bytes,omitempty"`
+	AccountingToleranceBytes int64                 `json:"accounting_tolerance_bytes"`
+	UnreadableBytes          int64                 `json:"unreadable_bytes,omitempty"`
+	Closed                   bool                  `json:"closed"`
+	AccountingIdentity       bool                  `json:"accounting_identity"`
+	Confidence               string                `json:"confidence"`
+	ScanCoverage             ScanCoverage          `json:"scan_coverage"`
+	GrowthSlopeBytesPerHour  *float64              `json:"growth_slope_bytes_per_hour,omitempty"`
+	OwnerCounts              map[string]int        `json:"owner_counts,omitempty"`
+	UnreadablePaths          []string              `json:"unreadable_paths,omitempty"`
+	Findings                 []Finding             `json:"findings,omitempty"`
+	Entries                  []Entry               `json:"entries"`
+	DispositionBytes         map[Disposition]int64 `json:"disposition_bytes,omitempty"`
+	FrameworkRoots           []string              `json:"framework_roots,omitempty"`
+	ScanPolicy               ScanPolicy            `json:"scan_policy"`
+	SnapshotAgeSeconds       *float64              `json:"snapshot_age_seconds,omitempty"`
+	StalenessVerdict         string                `json:"staleness_verdict,omitempty"`
 }
 
 // RootTotal is one independently actionable part of the unattributed
@@ -88,10 +106,21 @@ type ScanPolicy struct {
 type PolicyRoot struct {
 	Path   string `json:"path"`
 	Reason string `json:"reason,omitempty"`
+	// Optional roots are skipped silently when absent. The default class
+	// roots are optional because a host that never used a class has no
+	// directory for it, and that is not a finding.
+	Optional bool `json:"optional,omitempty"`
 }
 
+// PolicyExclusion removes a subtree from the walk. Path excludes one absolute
+// location; Name excludes every directory with that base name wherever it
+// appears (for example node_modules). Both need a reason. Excluded bytes are
+// still measured by statfs and stay in the unscanned remainder at the device
+// root; the report counts which name exclusions were hit so the remainder is
+// explainable.
 type PolicyExclusion struct {
-	Path   string `json:"path"`
+	Path   string `json:"path,omitempty"`
+	Name   string `json:"name,omitempty"`
 	Reason string `json:"reason"`
 }
 
@@ -106,6 +135,15 @@ type ScanCoverage struct {
 	MeasuredByDevice bool   `json:"measured_by_device"`
 	PrivilegeLevel   string `json:"privilege_level,omitempty"`
 	DegradedReason   string `json:"degraded_reason,omitempty"`
+	// ScannedRoots are the trees the walk actually descended into. Bytes on
+	// the device outside them are measured by statfs only and reported as the
+	// remainder at the device root.
+	ScannedRoots []string `json:"scanned_roots,omitempty"`
+	// PrunedDirectories counts subtrees skipped by name exclusions, keyed by
+	// the excluded name, so an operator can explain the unscanned remainder.
+	PrunedDirectories map[string]int `json:"pruned_directories,omitempty"`
+	// FilesScanned is the number of regular files whose bytes were counted.
+	FilesScanned int64 `json:"files_scanned,omitempty"`
 }
 
 func (r Report) MarshalJSON() ([]byte, error) {
@@ -161,7 +199,7 @@ func Scan(root string, manifests map[string][]Declaration) (Report, error) {
 	sort.Strings(owners)
 	for _, owner := range owners {
 		for _, declaration := range manifests[owner] {
-			declarations = append(declarations, resolvedDeclaration{owner: owner, name: declaration.Name, path: declaration.Path})
+			declarations = append(declarations, resolvedDeclaration{owner: owner, name: declaration.Name, path: declaration.Path, class: corestorage.ClassCache})
 		}
 	}
 	return scan(root, declarations, nil)
@@ -175,6 +213,25 @@ func ScanInventory(root string, inventory corestorage.OwnerInventory) (Report, e
 	if err != nil {
 		return Report{}, fmt.Errorf("census: resolve root: %w", err)
 	}
+	policy, err := LoadPolicy(root)
+	if err != nil {
+		return Report{}, err
+	}
+	return scanInventory(root, inventory, policy, true, hostFileSystem{}, NewDeviceProbe())
+}
+
+// ScanInventoryWithPolicy is the deterministic seam used by acceptance tests
+// and by operators who need a one-off policy. Production callers should use
+// ScanInventory so the checked-in policy and device root are authoritative.
+func ScanInventoryWithPolicy(root string, inventory corestorage.OwnerInventory, policy ScanPolicy) (Report, error) {
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return Report{}, fmt.Errorf("census: resolve root: %w", err)
+	}
+	return scanInventory(root, inventory, policy, false, hostFileSystem{}, NewDeviceProbe())
+}
+
+func scanInventory(root string, inventory corestorage.OwnerInventory, policy ScanPolicy, deviceScoped bool, filesystem FileSystem, probe DeviceProbe) (Report, error) {
 	declarations := make([]resolvedDeclaration, 0)
 	ownerRoots := make([]string, 0)
 	counts := map[string]int{}
@@ -191,18 +248,20 @@ func ScanInventory(root string, inventory corestorage.OwnerInventory) (Report, e
 				findings = append(findings, Finding{Code: "unresolvable_storage_path", Severity: "error", Owner: owner.ID, Kind: kind, Path: owner.ManifestPath, Message: declaration.Name + ": " + resolveErr.Error()})
 				continue
 			}
-			declarations = append(declarations, resolvedDeclaration{owner: owner.ID, kind: kind, name: declaration.Name, path: path})
+			declarations = append(declarations, resolvedDeclaration{owner: owner.ID, kind: kind, name: declaration.Name, path: path, class: declaration.Class})
 		}
 		ownerRoots = append(ownerRoots, ownerStorageRoots(root, owner)...)
 	}
-	for _, orphan := range orphanScenarioRoots(root, inventory, hostFileSystem{}) {
-		findings = append(findings, Finding{Code: "STORAGE_PATH_ORPHANED", Severity: "warning", Kind: string(corestorage.OwnerScenario), Path: orphan.Path, Message: fmt.Sprintf("scenario directory has no canonical .vrooli/service.json; %d bytes are outside the owner inventory", orphan.Bytes)})
-	}
-	policy, err := LoadPolicy(root)
-	if err != nil {
-		return Report{}, err
-	}
-	report, err := scanWithPolicy(root, policy, declarations, ownerRoots, findings, true)
+	orphans := orphanScenarioRoots(root, inventory, filesystem)
+	report, err := scanWithPolicyUsing(scanRequest{
+		displayRoot:  root,
+		policy:       policy,
+		declarations: declarations,
+		ownerRoots:   ownerRoots,
+		orphanRoots:  orphans,
+		findings:     findings,
+		deviceScoped: deviceScoped,
+	}, filesystem, probe)
 	if err != nil {
 		return Report{}, err
 	}
@@ -211,43 +270,12 @@ func ScanInventory(root string, inventory corestorage.OwnerInventory) (Report, e
 	return report, nil
 }
 
-// ScanInventoryWithPolicy is the deterministic seam used by acceptance tests
-// and by operators who need a one-off policy. Production callers should use
-// ScanInventory so the checked-in policy and device root are authoritative.
-func ScanInventoryWithPolicy(root string, inventory corestorage.OwnerInventory, policy ScanPolicy) (Report, error) {
-	declarations := make([]resolvedDeclaration, 0)
-	ownerRoots := make([]string, 0)
-	counts := map[string]int{}
-	findings := make([]Finding, 0, len(inventory.Findings))
-	for _, finding := range inventory.Findings {
-		findings = append(findings, Finding{Code: finding.Code, Severity: finding.Severity, Owner: finding.OwnerID, Kind: string(finding.OwnerKind), Path: finding.ManifestPath, Message: finding.Message})
-	}
-	for _, owner := range inventory.Owners {
-		counts[string(owner.Kind)]++
-		ownerRoots = append(ownerRoots, ownerStorageRoots(root, owner)...)
-		for _, declaration := range owner.StorageEntries {
-			path, err := corestorage.ResolveOwnerStoragePath(root, owner, declaration, corestorage.Platform(runtime.GOOS), corestorage.PlatformSeams{})
-			if err != nil {
-				continue
-			}
-			declarations = append(declarations, resolvedDeclaration{owner: owner.ID, kind: string(owner.Kind), name: declaration.Name, path: path})
-		}
-	}
-	report, err := scanWithPolicy(root, policy, declarations, ownerRoots, findings, false)
-	if err != nil {
-		return Report{}, err
-	}
-	report.OwnerCounts = counts
-	report.FrameworkRoots = existingRoots(ownerRoots)
-	return report, nil
-}
-
-type orphanRoot struct {
-	Path  string
-	Bytes int64
-}
-
-func orphanScenarioRoots(repoRoot string, inventory corestorage.OwnerInventory, filesystem FileSystem) []orphanRoot {
+// orphanScenarioRoots lists scenarios/<name> directories that no owner claims
+// and that carry no canonical manifest. Their bytes are summed by the main
+// census walk (they are inside the repository root) rather than by a second
+// recursive walk of each directory, which used to re-read every orphaned
+// node_modules tree on every census.
+func orphanScenarioRoots(repoRoot string, inventory corestorage.OwnerInventory, filesystem FileSystem) []string {
 	base := filepath.Join(repoRoot, "scenarios")
 	owned := make(map[string]bool, len(inventory.Owners))
 	for _, owner := range inventory.Owners {
@@ -255,7 +283,7 @@ func orphanScenarioRoots(repoRoot string, inventory corestorage.OwnerInventory, 
 			owned[owner.ID] = true
 		}
 	}
-	var out []orphanRoot
+	var out []string
 	_ = filesystem.WalkDir(base, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -273,28 +301,11 @@ func orphanScenarioRoots(repoRoot string, inventory corestorage.OwnerInventory, 
 		if _, statErr := filesystem.Stat(filepath.Join(path, ".vrooli", "service.json")); statErr == nil {
 			return fs.SkipDir
 		}
-		bytes := directoryBytesWith(filesystem, path)
-		if bytes > 0 {
-			out = append(out, orphanRoot{Path: path, Bytes: bytes})
-		}
+		out = append(out, filepath.Clean(path))
 		return fs.SkipDir
 	})
-	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	sort.Strings(out)
 	return out
-}
-
-func directoryBytesWith(filesystem FileSystem, root string) int64 {
-	var total int64
-	_ = filesystem.WalkDir(root, func(_ string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
-			return nil
-		}
-		if info, statErr := entry.Info(); statErr == nil {
-			total += info.Size()
-		}
-		return nil
-	})
-	return total
 }
 
 type resolvedDeclaration struct {
@@ -302,6 +313,7 @@ type resolvedDeclaration struct {
 	kind  string
 	name  string
 	path  string
+	class corestorage.Class
 }
 
 func scan(root string, declarations []resolvedDeclaration, initialFindings []Finding) (Report, error) {
@@ -309,7 +321,7 @@ func scan(root string, declarations []resolvedDeclaration, initialFindings []Fin
 	if err != nil {
 		return Report{}, err
 	}
-	return scanWithPolicy(root, ScanPolicy{Roots: []PolicyRoot{{Path: root}}, FloorBytes: defaultCensusFloorBytes}, declarations, nil, initialFindings, false)
+	return scanWithPolicyUsing(scanRequest{displayRoot: root, policy: ScanPolicy{Roots: []PolicyRoot{{Path: root}}, FloorBytes: defaultCensusFloorBytes}, declarations: declarations, findings: initialFindings}, hostFileSystem{}, NewDeviceProbe())
 }
 
 // ScanWithFileSystem is the deterministic census seam used by platform and
@@ -327,30 +339,71 @@ func ScanWithFileSystem(root string, manifests map[string][]Declaration, fs File
 			if !filepath.IsAbs(path) {
 				path = filepath.Join(absRoot, filepath.FromSlash(strings.TrimPrefix(filepath.ToSlash(path), filepath.ToSlash(root)+"/")))
 			}
-			declarations = append(declarations, resolvedDeclaration{owner: owner, name: entry.Name, path: path})
+			declarations = append(declarations, resolvedDeclaration{owner: owner, name: entry.Name, path: path, class: corestorage.ClassCache})
 		}
 	}
-	return scanWithPolicyUsing(absRoot, ScanPolicy{Roots: []PolicyRoot{{Path: absRoot}}, FloorBytes: defaultCensusFloorBytes}, declarations, nil, nil, false, fs, probe)
+	return scanWithPolicyUsing(scanRequest{displayRoot: absRoot, policy: ScanPolicy{Roots: []PolicyRoot{{Path: absRoot}}, FloorBytes: defaultCensusFloorBytes}, declarations: declarations}, fs, probe)
 }
 
-func scanWithPolicy(displayRoot string, policy ScanPolicy, declarations []resolvedDeclaration, ownerRoots []string, initialFindings []Finding, deviceScoped bool) (Report, error) {
-	return scanWithPolicyUsing(displayRoot, policy, declarations, ownerRoots, initialFindings, deviceScoped, hostFileSystem{}, NewDeviceProbe())
+// scanRequest carries one census's inputs. Declarations are attributed,
+// ownerRoots turn undeclared bytes into drift, orphanRoots are summed for the
+// STORAGE_PATH_ORPHANED finding, and deviceScoped switches the denominator to
+// statfs with the mount point as accounting root.
+type scanRequest struct {
+	displayRoot  string
+	policy       ScanPolicy
+	declarations []resolvedDeclaration
+	ownerRoots   []string
+	orphanRoots  []string
+	findings     []Finding
+	deviceScoped bool
 }
 
-func scanWithPolicyUsing(displayRoot string, policy ScanPolicy, declarations []resolvedDeclaration, ownerRoots []string, initialFindings []Finding, deviceScoped bool, filesystem FileSystem, probe DeviceProbe) (Report, error) {
-	displayRoot, err := filepath.Abs(displayRoot)
+func scanWithPolicyUsing(request scanRequest, filesystem FileSystem, probe DeviceProbe) (Report, error) {
+	displayRoot, err := filepath.Abs(request.displayRoot)
 	if err != nil {
 		return Report{}, err
 	}
+	declarations, ownerRoots, initialFindings, deviceScoped := request.declarations, request.ownerRoots, request.findings, request.deviceScoped
 	unreadable := make([]string, 0)
-	policy, scanRoots, exclusions, err := resolvePolicy(displayRoot, policy, deviceScoped, filesystem)
+	resolved, err := resolvePolicy(displayRoot, request.policy, deviceScoped, filesystem)
 	if err != nil {
 		return Report{}, err
+	}
+	policy, scanRoots, exclusions := resolved.policy, resolved.roots, resolved.exclusions
+	optionalRoots := make(map[string]bool, len(policy.Roots))
+	for _, root := range policy.Roots {
+		if root.Optional {
+			optionalRoots[filepath.Clean(root.Path)] = true
+		}
+	}
+	// A declaration outside every policy root must still be measured or its
+	// owner would read as empty. Add such paths as extra roots rather than
+	// widening the policy to the device.
+	if deviceScoped {
+		for _, declaration := range declarations {
+			path := filepath.Clean(declaration.path)
+			if underAny(path, scanRoots) || containsRoot(scanRoots, path) || excluded(path, exclusions) {
+				continue
+			}
+			if _, statErr := filesystem.Stat(path); statErr != nil {
+				continue
+			}
+			scanRoots = append(scanRoots, path)
+		}
+		scanRoots = outermostRoots(scanRoots)
 	}
 	accountingRoot := displayRoot
-	if deviceScoped && len(scanRoots) == 1 {
-		accountingRoot = scanRoots[0]
+	if deviceScoped {
+		accountingRoot = resolved.deviceRoot
 	}
+	orphanRoots := make([]string, 0, len(request.orphanRoots))
+	orphanBytes := make(map[string]int64, len(request.orphanRoots))
+	for _, root := range request.orphanRoots {
+		orphanRoots = append(orphanRoots, filepath.Clean(root))
+	}
+	prunedNames := make(map[string]int)
+	var filesScanned int64
 	seenRoots := make(map[string]struct{}, len(scanRoots))
 	// Partitioning by device keeps the hot inode key to one uint64 while still
 	// representing the required (device,inode) pair exactly.
@@ -372,9 +425,10 @@ func scanWithPolicyUsing(displayRoot string, policy ScanPolicy, declarations []r
 	}
 	entries := make([]Entry, len(declarations))
 	for i, declaration := range declarations {
-		entries[i] = Entry{Owner: declaration.owner, Kind: declaration.kind, Name: declaration.name, Path: declaration.path, Declared: true}
+		entries[i] = Entry{Owner: declaration.owner, Kind: declaration.kind, Name: declaration.name, Path: declaration.path, Declared: true, Disposition: dispositionForClass(declaration.class)}
 	}
 	var scanned, attributed, drift int64
+	walked := make([]string, 0, len(scanRoots))
 	unattributedTree := &unattributedNode{path: accountingRoot, buckets: map[string]int64{}}
 	for _, rawRoot := range scanRoots {
 		root, absErr := filepath.Abs(rawRoot)
@@ -388,7 +442,9 @@ func scanWithPolicyUsing(displayRoot string, policy ScanPolicy, declarations []r
 		seenRoots[root] = struct{}{}
 		if _, statErr := filesystem.Stat(root); statErr != nil {
 			if errors.Is(statErr, fs.ErrNotExist) {
-				findings = append(findings, Finding{Code: "missing_scan_root", Severity: "warning", Path: root, Message: "declared or candidate storage root does not exist"})
+				if !optionalRoots[root] {
+					findings = append(findings, Finding{Code: "missing_scan_root", Severity: "warning", Path: root, Message: "declared or candidate storage root does not exist"})
+				}
 				continue
 			}
 			findings = append(findings, Finding{Code: "unreadable_path", Severity: "error", Path: root, Message: statErr.Error()})
@@ -401,6 +457,7 @@ func scanWithPolicyUsing(displayRoot string, policy ScanPolicy, declarations []r
 			unreadable = append(unreadable, root)
 			continue
 		}
+		walked = append(walked, root)
 		walkErr := filesystem.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				unreadable = append(unreadable, path)
@@ -420,12 +477,21 @@ func scanWithPolicyUsing(displayRoot string, policy ScanPolicy, declarations []r
 				}
 				return nil
 			}
+			if d.IsDir() && path != root {
+				if name := d.Name(); policy.prunesName(name) {
+					prunedNames[name]++
+					return fs.SkipDir
+				}
+			}
 			if d.Type()&fs.ModeSymlink != 0 {
 				if d.IsDir() {
 					return fs.SkipDir
 				}
 				return nil
 			}
+			// DirEntry carries the name and type only; size, allocation,
+			// device, and inode need one lstat per entry, which is the
+			// minimum for a byte census. d.Info() would issue the same call.
 			metadata, metaErr := inspectPathWith(filesystem, path)
 			if metaErr != nil {
 				unreadable = append(unreadable, path)
@@ -443,7 +509,10 @@ func scanWithPolicyUsing(displayRoot string, policy ScanPolicy, declarations []r
 			if d.IsDir() {
 				return nil
 			}
-			if metadata.identity.valid {
+			// Only a multiply-linked inode can be reached twice. Remembering
+			// every inode made the seen set proportional to the file count of
+			// the device (gigabytes of resident memory on a 13M-inode host).
+			if metadata.identity.valid && metadata.links > 1 {
 				inodes := seenInodes[metadata.identity.device]
 				if inodes == nil {
 					inodes = make(map[uint64]struct{})
@@ -460,6 +529,7 @@ func scanWithPolicyUsing(displayRoot string, policy ScanPolicy, declarations []r
 			}
 			matches := declarationMatches(path, declarationByPath)
 			scanned += bytes
+			filesScanned++
 			if len(matches) > 0 {
 				chosen := matches[0]
 				entries[chosen].Bytes += bytes
@@ -475,15 +545,31 @@ func scanWithPolicyUsing(displayRoot string, policy ScanPolicy, declarations []r
 				drift += bytes
 				return nil
 			}
-			recordUnattributed(unattributedTree, accountingRoot, filepath.Dir(path), bytes)
+			for _, orphan := range orphanRoots {
+				if isWithin(path, orphan) {
+					orphanBytes[orphan] += bytes
+					break
+				}
+			}
+			recordUnattributed(unattributedTree, root, filepath.Dir(path), bytes)
 			return nil
 		})
 		if walkErr != nil {
 			return Report{}, fmt.Errorf("scan %s: %w", root, walkErr)
 		}
 	}
+	for _, orphan := range orphanRoots {
+		if bytes := orphanBytes[orphan]; bytes > 0 {
+			findings = append(findings, Finding{Code: "STORAGE_PATH_ORPHANED", Severity: "warning", Kind: string(corestorage.OwnerScenario), Path: orphan, Message: fmt.Sprintf("scenario directory has no canonical .vrooli/service.json; %d bytes are outside the owner inventory", bytes)})
+		}
+	}
 	for _, path := range unreadable {
 		findings = append(findings, Finding{Code: "unreadable_path", Severity: "error", Path: path, Message: "census could not read this path"})
+	}
+	for i := range findings {
+		if findings[i].Disposition == "" {
+			findings[i].Disposition = dispositionForFinding(findings[i].Code)
+		}
 	}
 	sort.Slice(entries, func(i, j int) bool {
 		if entries[i].Owner != entries[j].Owner {
@@ -508,6 +594,11 @@ func scanWithPolicyUsing(displayRoot string, policy ScanPolicy, declarations []r
 	}
 	coverage.ScannedBytes = scanned
 	coverage.MeasuredBytes = measured
+	coverage.ScannedRoots = sortedStrings(walked)
+	coverage.FilesScanned = filesScanned
+	if len(prunedNames) > 0 {
+		coverage.PrunedDirectories = prunedNames
+	}
 	unattributed := measured - attributed - drift
 	deviceResidual := measured - scanned
 	// statfs gives a device-wide denominator even when an individual subtree is
@@ -536,7 +627,44 @@ func scanWithPolicyUsing(displayRoot string, policy ScanPolicy, declarations []r
 	if identity {
 		confidence = "full"
 	}
-	return Report{Root: accountingRoot, MeasuredBytes: measured, AttributedBytes: attributed, DriftBytes: drift, UnattributedBytes: unattributed, UnattributedKnown: known, UnattributedRoots: rootTotals, AccountingResidualBytes: identityResidual, AccountingToleranceBytes: tolerance, UnreadableBytes: unreadableBytes, Closed: identity, AccountingIdentity: identity, Confidence: confidence, ScanCoverage: coverage, UnreadablePaths: sortedStrings(unreadable), Findings: findings, Entries: entries, ScanPolicy: policy}, nil
+	dispositions := make(map[Disposition]int64)
+	for _, entry := range entries {
+		dispositions[entry.Disposition] += entry.Bytes
+	}
+	if drift > 0 {
+		dispositions[DispositionAggregateDrift] += drift
+	}
+	if unattributed > 0 && known {
+		dispositions[DispositionUnownedReadable] += unattributed
+	}
+	if unreadableBytes > 0 {
+		dispositions[DispositionUnreadableUnknown] += unreadableBytes
+	}
+	return Report{Root: accountingRoot, MeasuredBytes: measured, AttributedBytes: attributed, DriftBytes: drift, UnattributedBytes: unattributed, UnattributedKnown: known, UnattributedRoots: rootTotals, AccountingResidualBytes: identityResidual, AccountingToleranceBytes: tolerance, UnreadableBytes: unreadableBytes, Closed: identity, AccountingIdentity: identity, Confidence: confidence, ScanCoverage: coverage, UnreadablePaths: sortedStrings(unreadable), Findings: findings, Entries: entries, DispositionBytes: dispositions, ScanPolicy: policy}, nil
+}
+
+func dispositionForClass(class corestorage.Class) Disposition {
+	switch class {
+	case corestorage.ClassData, corestorage.ClassConfig, corestorage.ClassState:
+		return DispositionOwnedProtected
+	case corestorage.ClassCache, corestorage.ClassLogs, corestorage.ClassTestRuns:
+		return DispositionOwnedManaged
+	default:
+		return DispositionOwnedManaged
+	}
+}
+
+func dispositionForFinding(code string) Disposition {
+	switch code {
+	case "unreadable_path", "unresolvable_storage_path":
+		return DispositionUnreadableUnknown
+	case "STORAGE_PATH_ORPHANED":
+		return DispositionUnownedReadable
+	case "STORAGE_PATH_UNACCOUNTED", "overlap":
+		return DispositionAggregateDrift
+	default:
+		return DispositionUnownedReadable
+	}
 }
 
 func mergeRootTotals(input []RootTotal) []RootTotal {
@@ -721,6 +849,26 @@ func ownerStorageRoots(repoRoot string, owner corestorage.OwnerManifest) []strin
 	return result
 }
 
+func containsRoot(roots []string, path string) bool {
+	for _, root := range roots {
+		if filepath.Clean(root) == filepath.Clean(path) {
+			return true
+		}
+	}
+	return false
+}
+
+// prunesName reports whether a policy name exclusion matches a directory
+// base name.
+func (p ScanPolicy) prunesName(name string) bool {
+	for _, exclusion := range p.Exclusions {
+		if exclusion.Name != "" && exclusion.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 func underAny(path string, roots []string) bool {
 	for _, root := range roots {
 		if isWithin(path, root) {
@@ -764,13 +912,27 @@ func declarationMatches(path string, byPath map[string][]int) []int {
 // Snapshot persistence is intentionally a small per-domain seam. The JSON
 // payload keeps history forward-compatible while the indexed columns make
 // the operator's common trend query cheap.
-type SnapshotStore struct{ db *database.RoutedDB }
+type SnapshotStore struct {
+	db *database.RoutedDB
+	// freshness is the age at which Latest turns a snapshot from "current"
+	// to "stale". It follows the scheduled interval so a longer schedule does
+	// not report every snapshot as stale.
+	freshness time.Duration
+}
 
 func NewSnapshotStore(db *database.RoutedDB) *SnapshotStore {
 	if db == nil {
 		return nil
 	}
-	return &SnapshotStore{db: db}
+	return &SnapshotStore{db: db, freshness: DefaultInterval}
+}
+
+// WithFreshness sets the age beyond which Latest reports a snapshot stale.
+func (s *SnapshotStore) WithFreshness(window time.Duration) *SnapshotStore {
+	if s != nil && window > 0 {
+		s.freshness = window
+	}
+	return s
 }
 
 func (s *SnapshotStore) Save(ctx context.Context, report Report) (Report, error) {
@@ -986,7 +1148,11 @@ func (s *SnapshotStore) Latest(ctx context.Context, root string) (*Report, error
 		age = 0
 	}
 	report.SnapshotAgeSeconds = &age
-	if age <= (30 * time.Minute).Seconds() {
+	freshness := s.freshness
+	if freshness <= 0 {
+		freshness = DefaultInterval
+	}
+	if age <= freshness.Seconds() {
 		report.StalenessVerdict = "current"
 	} else {
 		report.StalenessVerdict = "stale"

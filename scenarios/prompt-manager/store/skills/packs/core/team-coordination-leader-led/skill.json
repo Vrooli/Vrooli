@@ -3,6 +3,7 @@
   "entry": "SKILL.md",
   "id": "team-coordination-leader-led",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "agent"
   ],

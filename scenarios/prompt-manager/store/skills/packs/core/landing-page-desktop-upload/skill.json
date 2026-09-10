@@ -5,6 +5,7 @@
   "icon": "upload",
   "id": "landing-page-desktop-upload",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "tools"
   ],

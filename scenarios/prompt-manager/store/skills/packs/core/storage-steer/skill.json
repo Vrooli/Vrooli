@@ -5,6 +5,7 @@
   "entry": "SKILL.md",
   "id": "storage-steer",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer"
   ],

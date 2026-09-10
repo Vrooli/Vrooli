@@ -26,6 +26,52 @@ func validBudgets() domain.WorkflowBudgets {
 	return domain.WorkflowBudgets{WallTimeSeconds: 60, MaxTurns: 4, MaxTokens: 1000, MaxChargeMicroUSD: 1, MaxNodeAttempts: 3, MaxChildren: 2, MaxConcurrency: 2, MaxRecursion: 2, MaxRetries: 2, MaxWaitSeconds: 30}
 }
 
+func TestGrantCapacityDoesNotIncreaseDefaultsAndRejectsUnboundedCapacity(t *testing.T) {
+	d := validDefinition()
+	defaults := d.Budgets
+	capacity := defaults
+	capacity.WallTimeSeconds = 604800
+	capacity.MaxTurns = 10000
+	d.GrantCapacity = &capacity
+	result, err := Validate(d, nil)
+	if err != nil || result.Digest == "" || d.Budgets != defaults {
+		t.Fatalf("finite explicit capacity rejected or defaults changed: %+v %v", result, err)
+	}
+	for _, invalid := range []int{0, 604801} {
+		d.GrantCapacity.WallTimeSeconds = invalid
+		result, err := Validate(d, nil)
+		if err != nil || result.Digest != "" {
+			t.Fatalf("invalid capacity %d admitted: %+v %v", invalid, result, err)
+		}
+	}
+}
+
+func TestMeteredPolicyIsPinnedAndUnsupportedEnforcementWithholdsDigest(t *testing.T) {
+	d := validDefinition()
+	legacy, err := Validate(d, nil)
+	if err != nil || legacy.Digest == "" {
+		t.Fatalf("legacy fixture: %+v %v", legacy, err)
+	}
+	d.Budgets.Enforcement = domain.WorkflowBudgetMeteredCancellation
+	metered, err := Validate(d, nil)
+	if err != nil || metered.Digest == "" || metered.Digest == legacy.Digest {
+		t.Fatalf("metered revision: %+v %v", metered, err)
+	}
+	for _, mode := range []string{"hard-ceiling", "unknown"} {
+		d.Budgets.Enforcement = mode
+		result, err := Validate(d, nil)
+		if err != nil || result.Digest != "" {
+			t.Fatalf("unqualified %s: %+v %v", mode, result, err)
+		}
+	}
+	d.Budgets.Enforcement = domain.WorkflowBudgetMeteredCancellation
+	d.Nodes[0].Run.ResultSpec = &domain.ResultSpec{Kind: domain.ResultSpecKindJSONSchema, Schema: json.RawMessage(`{"type":"object"}`)}
+	result, err := Validate(d, nil)
+	if err != nil || result.Digest != "" {
+		t.Fatalf("implicit continuation admitted: %+v %v", result, err)
+	}
+}
+
 // singleRunSugar is the shorthand form: one run node, no entryNode, no edges,
 // no end node.
 func singleRunSugar() domain.WorkflowDefinition {

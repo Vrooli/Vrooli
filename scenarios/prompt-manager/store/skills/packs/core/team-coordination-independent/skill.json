@@ -4,6 +4,7 @@
   "entry": "SKILL.md",
   "id": "team-coordination-independent",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "agent"
   ],

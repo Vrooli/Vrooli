@@ -9,6 +9,7 @@ import { nextRabbitBoundary, rabbitPose, rabbitRouteSteps, type RabbitRoute } fr
 import { runCooperatively } from '../../sim/cooperative'
 import { useWorldStore } from '../WorldStoreContext'
 import { bindAmbientWake } from './wake'
+import { worldTextureProps } from '../materialTextures'
 
 /** Original low-poly rabbit, assembled from one pooled primitive geometry. */
 export function Rabbits({ clock, leases, enabled, reducedMotion, profileId }: {
@@ -24,7 +25,7 @@ export function Rabbits({ clock, leases, enabled, reducedMotion, profileId }: {
     ? selection.routes.slice(0, ambientPolicy.rabbits.maximumVisible[profileId]) : [], [enabled, reducedMotion, selection, state.nav, state.habitats, profileId])
   const resources = useMemo(() => {
     const geometry = new SphereGeometry(1, 8, 6)
-    const material = new MeshStandardMaterial({ roughness: 1, flatShading: true })
+    const material = new MeshStandardMaterial({ roughness: 1, flatShading: true, ...worldTextureProps('fabric') })
     const parts = [
       { p: [0,.23,0], s: [.18,.21,.27], color: '#9b8068' },
       { p: [0,.38,.21], s: [.13,.14,.13], color: '#ae9174' , head: true },

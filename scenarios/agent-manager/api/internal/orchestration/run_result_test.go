@@ -4,9 +4,27 @@ import (
 	"testing"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/testutil/mocks"
 
 	"github.com/google/uuid"
 )
+
+func TestPersistedRunSummaryUsesProviderReceiptInsteadOfAssistantMessageCount(t *testing.T) {
+	runID := uuid.New()
+	store := mocks.NewFakeEventStore()
+	var events []*domain.RunEvent
+	for i := 0; i < 6; i++ {
+		events = append(events, domain.NewProviderMessageEvent(runID, "assistant", "progress", domain.MessageEventData{TurnID: "original:turn-1", ProviderOrigin: "codex"}))
+	}
+	events = append(events, &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{InputTokens: 89765, CacheReadTokens: 1108224, OutputTokens: 7080, Turns: 1, ReconciliationAuthority: true}})
+	if err := store.Append(t.Context(), runID, events...); err != nil {
+		t.Fatal(err)
+	}
+	_, summary, err := resolvePersistedRunResult(t.Context(), store, runID, true, 0, "completed")
+	if err != nil || summary.TurnsUsed != 1 || summary.TokensUsed != 1205069 {
+		t.Fatalf("persisted summary inflated provider usage: %+v %v", summary, err)
+	}
+}
 
 func TestLatestTurnResultEventsExcludesEarlierContinuationHandoff(t *testing.T) {
 	runID := uuid.New()

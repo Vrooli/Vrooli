@@ -5,6 +5,7 @@
   "icon": "lightbulb",
   "id": "conversation-friction-analysis",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "meta"
   ],

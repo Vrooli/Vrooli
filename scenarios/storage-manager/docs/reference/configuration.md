@@ -9,6 +9,12 @@ running a binary by hand or when a scenario adds a new variable.
 
 ## Environment variables
 
+During a release qualification run, the optional
+`STORAGE_MANAGER_DEPLOYMENT_MANAGER_READINESS_*` variables configure the
+authenticated owner callback for `storage-architecture-clean`. Once the token
+is set, the exact candidate identity is required; migration upgrade evidence
+continues to require a predecessor database and a separate upgrade receipt.
+
 ### Required at runtime (set by the lifecycle)
 
 | Variable | Range / format | Purpose |

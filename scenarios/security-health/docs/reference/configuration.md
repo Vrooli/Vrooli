@@ -9,6 +9,12 @@ running a binary by hand or when a scenario adds a new variable.
 
 ## Environment variables
 
+During a release qualification run, the optional
+`SECURITY_HEALTH_DEPLOYMENT_MANAGER_READINESS_*` variables configure the
+authenticated owner callbacks for `security-secrets-clean` and
+`enforcement-paths-gate`. Once the token is set, the exact candidate identity
+is required; incomplete or mismatched identity fails the validation response.
+
 ### Required at runtime (set by the lifecycle)
 
 | Variable | Range / format | Purpose |

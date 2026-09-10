@@ -1,18 +1,5 @@
 {
-  "libraryId": "react-component-library:TargetSwitcher",
-  "displayName": "Target Switcher",
-  "description": "A compact target identity control with an anchored fleet menu, presence details, keyboard navigation, and an optional target-linking action.",
-  "kind": "control",
-  "tags": [
-    "navigation",
-    "target",
-    "fleet",
-    "overlay"
-  ],
-  "slot": "ui-pattern",
-  "category": "uncategorized",
-  "entry": "TargetSwitcher.tsx",
-  "latest": "0.1.4",
+  "catalogId": "react-component-library:TargetSwitcher",
   "deprecatedVersions": [],
   "designStyles": [
     {
@@ -21,5 +8,8 @@
       "reason": "token-native operational-console baseline"
     }
   ],
-  "draft": ""
+  "draft": "",
+  "entry": "TargetSwitcher.tsx",
+  "latest": "0.1.4",
+  "libraryId": "react-component-library:TargetSwitcher"
 }

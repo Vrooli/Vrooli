@@ -9,10 +9,7 @@ one bounded table (one row per provider), so the improve skill can name the prov
 and the measure that proves the defect in one filing.
 """
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 raw_window = inputs.get("insights_window", "7")
 raw_group = inputs.get("provider_group", "")
 raw_max_rows = inputs.get("max_rows", 5)
@@ -34,37 +31,7 @@ handles = {}
 DEGRADED_BAND = 0.20  # the declared degraded_rate_max every provider descriptor carries
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
+fail = program.fail
 
 
 def safe(fn):
@@ -97,7 +64,7 @@ def step_collect():  # COLLECT · four reads concurrently, then one newest-run r
             lambda: search_hub.evals.list(),
         )
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         return fail(status, klass, exc, "collect")
     handles.update(ins=ins, prov=prov, fed=fed, suites=suites)
     # select() raises on an omitted key; map with .get so a suite without providerId cannot kill the program
@@ -108,7 +75,7 @@ def step_collect():  # COLLECT · four reads concurrently, then one newest-run r
     calls = [(lambda sid=s.get("suiteId"): safe(lambda: search_hub.evals.runs(suite_id=sid, limit=1))) for s in suite_rows]
     handles["runs"] = list(gather(*calls)) if calls else []
     for _, err in handles["runs"]:
-        if err is not None and classify_transport(err)[0] == "unavailable":
+        if err is not None and program.classify(err)[0] == "unavailable":
             return fail("unavailable", "scenario_unreachable", err, "collect")  # search-hub went away mid-collect: nothing is known
     return "classify"
 
@@ -133,7 +100,7 @@ def step_classify():  # CLASSIFY · one join keyed by providerId; deterministic 
         sid = s.get("suiteId")
         pid = s.get("providerId")
         if err is not None:
-            _, klass = classify_transport(err)
+            _, klass = program.classify(err)
             envelope["errors"].append({"class": klass, "detail": f"evals runs {sid}: {str(err)[:160]}", "where": "collect"})
             continue
         rows = run.head(1)
@@ -201,12 +168,4 @@ def step_report():  # REPORT · bounded: every list carries a count beside a fiv
 
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:  # the one catch that guarantees an envelope on every path
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

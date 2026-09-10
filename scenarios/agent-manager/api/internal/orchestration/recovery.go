@@ -215,6 +215,9 @@ func (r *Reconciler) drainTranscript(ctx context.Context, run *domain.Run, trans
 	if setter, ok := transcriptParser.(runner.TranscriptModelSetter); ok {
 		setter.SetTranscriptModel(runTranscriptModel(run))
 	}
+	if setter, ok := transcriptParser.(runner.TranscriptBillingSetter); ok {
+		setter.SetTranscriptBilling(run.Billing)
+	}
 	_, terminal, err := runner.Consume(ctx, runner.ConsumeArgs{
 		RunID:      run.ID,
 		Transcript: transcriptPath,

@@ -12,10 +12,7 @@ pending_telemetry) never lowers the status. Every reading is a value the sensor 
 # ---- inputs: the caller binds a dict named `inputs` before this source; contract defaults otherwise
 import json
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 window_token = str(inputs.get("window_token", "TIME_WINDOW_TOKEN_LAST_7D"))
 recent_runs = int(inputs.get("recent_runs", 25))
 attribution_band = float(inputs.get("attribution_band", 0.90))
@@ -44,33 +41,6 @@ def fail(status, klass, detail, where):
     envelope["status"] = status
     envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
     return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
 
 
 def row(name, reading, target, in_band, reason=None):
@@ -151,7 +121,7 @@ def step_collect():  # COLLECT · governed reads only, concurrent
     _dead = {}
     for _n, (_h, _e) in zip(_names, _results):
         if _e is not None:
-            _dead[_n] = classify_transport(_e)
+            _dead[_n] = program.classify(_e)
             envelope["errors"].append({"class": _dead[_n][1], "detail": f"{_n}: {str(_e)[:110]}", "where": "collect"})
     runs, inv, ext, retry, toolfail, repeat, success = [h for h, _ in _results]
     handles["dead"] = _dead
@@ -194,8 +164,8 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count, head(
             if len(envelope["errors"]) < 3:  # bounded: the count is in detail, the first three carry text
                 try:
                     raise result
-                except Exception as exc:  # classify_transport re-raises a missing kernel name; the driver labels it
-                    klass = classify_transport(exc)[1]
+                except Exception as exc:  # program.classify re-raises a missing kernel name; the driver labels it
+                    klass = program.classify(exc)[1]
                 envelope["errors"].append({"class": klass, "detail": str(result)[:120], "where": f"collect:episodes:{run_id}"})
             continue
         # ownerConfidence may be omitted by protojson on an unknown-owner episode: map with .get, then group_by
@@ -261,12 +231,4 @@ def step_report():  # REPORT · bounded, always
 
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:  # the one catch that guarantees an envelope on every path
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

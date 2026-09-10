@@ -10,6 +10,38 @@ Durable lessons extracted from agent-manager runs by `run-introspector`. One run
 
 ## Lessons
 
+### 2026-09-09 · `f7e42896-62eb-4a8a-b6bd-e75b15dbf10c` · `heartbeat-meta-optimization/skill-optimizer` · errored
+
+**Lesson.** This run is infrastructure-contaminated evidence, not a skill-optimizer lesson. The agent began its heartbeat and completed initial board reads, then agent-manager failed during transcript drain and final persistence with `database error during begin_immediate_transaction: database is locked (5) (SQLITE_BUSY)`. Cleanup also failed to persist final state, while the result surface exposed two non-terminal candidates as `FINAL_OUTPUT_SELECTION_STATUS_AMBIGUOUS`.
+
+**Implicated.** Primary: agent-manager run persistence/finalization and result-provenance reporting. This refines the existing `agent-manager-launch-prerequisite-integrity` backlog handoff; no duplicate and no Action candidate. Run-introspector should exclude this run from skill or agent-behavior scoring. Secondary observation: the CLI attempted a read-only rebuild because its binary fingerprint was stale, which is tooling friction but not enough evidence for a separate Action.
+
+**Action decision.** `capability-work-item` via the existing agent-manager owner handoff. The owner should preserve one typed persistence/environmental terminal cause, suppress ambiguous candidate selection when final persistence fails, and retain the last valid run evidence.
+
+**Measurement plan.** Baseline: 1 run with 2 turns, 8 project-owned tool calls (6 successful, 2 unresolved), 1 available receipt, `SQLITE_BUSY` during final persistence, cleanup persistence failure, and 2 non-terminal final candidates. Over the next 7 heartbeats, count database-lock finalization signatures; target a typed terminal cause, zero ambiguous candidates for persistence failures, and zero attribution to agent behavior. Friction receipt: `knw-1788994035566990762` (`friction-inbox/run-execution/ambiguous-result-after-db-lock`).
+
+**Program-runtime ratchet.** Governed share was `8592/8621 = 0.9966361210996404` over `604800s` (`2026-09-02T22:46:40.587204817Z`–`2026-09-09T22:46:40.587204817Z`). Repeated unresolved names were `inputs` (20, last seen `2026-09-04T07:25:53.6662514Z`), `vrooli_memory` (3, last seen `2026-09-09T20:36:07.160645155Z`), and `bindings` (2 in unresolved-shape mining; last seen `2026-09-04T07:36:06.218170755Z`); `test_geni` remains 6 in the unresolved-shape inventory. Existing backlog items cover `inputs`, `test_geni`, `bindings`, and the `vrooli_memory` typo (`vrooli-memory-unresolved-rules-lsit-20260907`); no duplicate filed.
+
+**Discovery gaps.** `prompt-manager discovery-gaps --since 7d` returned 25 clusters. The only repeated unmet queries were `install qdrant resource dependency in scenario service manifest` (2) and `writing standards for plans` (2), both already covered by existing handoffs; the remaining clusters were singleton-only, so no new discovery-gap item was justified.
+
+**Status.** pending (existing agent-manager owner handoff; no implementation in this lane).
+
+### 2026-09-08 · `a1938e39-7cc8-4f83-9d34-966864c9e65c` · `heartbeat-monetization/...` · errored
+
+**Lesson.** This run is a new corroboration of the existing agent-manager launch-integrity failure class, not evidence about the dispatched agent. Editor-lease persistence failed with `attempt to write a readonly database (8)`, uncontained systemd dispatch then failed because `DBUS_SESSION_BUS_ADDRESS` and `XDG_RUNTIME_DIR` were undefined, and the run finalized as ambiguous despite no trustworthy work product. The report shows 2 turns, 4,121,109 tokens, 50 Bash calls (49 unresolved and 1 failed), 0 diff bytes, and 1 available receipt. A diagnostic attempt inside the run also failed when `jq` tried to render heterogeneous event objects as CSV (`object ... is not valid in a csv row`).
+
+**Implicated.** Primary: `agent-manager` launch preflight and result-integrity reporting; existing backlog `agent-manager-launch-prerequisite-integrity` is the owner handoff. Secondary: the run-investigation/reporting surface needs a schema-safe event export or documented JSONL path; the failed CSV projection is investigation friction, not an Action opportunity unless it recurs. No deterministic manual CLI sequence or existing Action would repair the host launch prerequisites.
+
+**Action decision.** `capability-work-item`, via the existing launch-prerequisite backlog; no duplicate filing and no Action candidate. The CSV projection is `no-action` pending recurrence because one failed diagnostic call is insufficient evidence for a new surface.
+
+**Measurement plan.** Baseline: this run adds 1 schema/lease/DBUS launch failure with 2 turns, 4,121,109 tokens, 50 Bash calls, 49 unresolved calls, 0 diff bytes, 0 trustworthy work product, 2 launch errors, and 2 final candidates. Over the next 7 heartbeats, count the signature; target a typed prerequisite failure, no ambiguous result candidates, and no attribution to agent behavior. Separately count heterogeneous-event CSV failures; promote only if repeated.
+
+**Program-runtime ratchet.** Governed share was `7897/7923 = 0.9967184147418907` over the 604800-second window `2026-09-01T22:45:21.778084591Z`–`2026-09-08T22:45:21.778084591Z`; observed calls were 26. Repeated unresolved names were `inputs` (20, last seen `2026-09-04T07:25:53.6662514Z`) and `bindings` (2, last seen `2026-09-04T07:36:06.218170755Z`); existing queue items cover `inputs`, while the contrarian challenge identifies `bindings` as the same bare-fragment caller shape, so no duplicate item was filed.
+
+**Discovery gaps.** Repeated unmet queries were `install qdrant resource dependency in scenario service manifest` (2) and `writing standards for plans` (2); existing handoffs `action-candidate-scenario-dependency-install-discovery` and `improve-writing-standards-plan-discovery` cover them. Remaining clusters are singleton-only; no new work item is justified.
+
+**Status.** pending (existing agent-manager owner handoff; no implementation in this lane).
+
 ### 2026-09-07 · `6f2c874d-ad83-46c7-8de8-42f911e216ac` · `heartbeat-meta-optimization-meta-contrarian-2026-09-06T23-00-00Z` · errored
 
 **Lesson.** This run independently corroborates the existing launch-integrity failure class. Agent-manager reported a schema-skewed control-plane binary (`runtime registry schema_version 10 > supported 9`), then failed the uncontained Claude launch because `DBUS_SESSION_BUS_ADDRESS` and `XDG_RUNTIME_DIR` were undefined. The run nevertheless accumulated 3 apparent turns, 6,023,744 reported tokens, 51 unresolved Bash calls, and an ambiguous three-candidate result. It produced no diff and no verified receipts, so it is zero-trust environmental evidence rather than a prompt, skill, or agent-behavior signal.

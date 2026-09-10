@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "search-hub.provider-quality-read",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Join insights, providers list, federation status, and the newest eval run per suite into one bounded per-provider table with the out-of-band lists the improve skill files against provider owners.",
   "inputs": {
     "insights_window": {
@@ -99,7 +102,9 @@
         "invalid_input",
         "deadline_exceeded",
         "binding_error",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "search-hub://eval-run/<run_id> references, at most 4"

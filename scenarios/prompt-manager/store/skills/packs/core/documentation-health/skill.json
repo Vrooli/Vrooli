@@ -1,48 +1,49 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "documentation-health",
-  "name": "Documentation Health",
+  "createdAt": "2026-01-24T00:00:00Z",
+  "defaultScope": "architecture-scope",
   "description": "Ensure documentation quality, consistency, and bidirectional traceability between code and docs. Includes audit checklist and reference format standards.",
+  "entry": "SKILL.md",
+  "icon": "filetext",
+  "id": "documentation-health",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "documentation",
     "audits"
   ],
-  "tags": [
-    "skill"
-  ],
-  "icon": "filetext",
-  "status": "active",
-  "entry": "SKILL.md",
-  "defaultScope": "architecture-scope",
-  "targetDimensions": [
-    "docs"
-  ],
+  "name": "Documentation Health",
+  "origin": {
+    "checksum": "",
+    "commit": "",
+    "importedAt": "",
+    "importedBy": "",
+    "kind": "authored",
+    "license": "",
+    "review": {
+      "verdict": ""
+    },
+    "sourceUrl": ""
+  },
   "requires": {
-    "scenarios": [
-      "prompt-manager",
-      "test-genie"
-    ],
     "commands": [
       "prompt-manager skill",
       "prompt-manager skill read",
       "test-genie docs"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "test-genie"
     ]
   },
-  "origin": {
-    "kind": "authored",
-    "sourceUrl": "",
-    "commit": "",
-    "license": "",
-    "checksum": "",
-    "importedBy": "",
-    "importedAt": "",
-    "review": {
-      "verdict": ""
-    }
-  },
   "revision": 49,
-  "createdAt": "2026-01-24T00:00:00Z",
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "skill"
+  ],
+  "targetDimensions": [
+    "docs"
+  ],
   "updatedAt": "2026-09-06T13:42:36Z"
 }

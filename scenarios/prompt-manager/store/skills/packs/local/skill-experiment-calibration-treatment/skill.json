@@ -4,6 +4,7 @@
   "entry": "SKILL.md",
   "id": "skill-experiment-calibration-treatment",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "name": "skill-experiment-calibration-treatment",
   "origin": {
     "kind": "authored"

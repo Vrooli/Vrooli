@@ -6,7 +6,7 @@ import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { useScenarioPath } from "../hooks/useScenarioPath";
 import { useRecentTargets } from "../features/targets/hooks/useRecentTargets";
-import { WorkspaceSubNav } from "../layout/WorkspaceSubNav";
+import { WorkspaceSubNav } from "../features/targets/WorkspaceSubNav";
 
 /**
  * TargetWorkspacePage — shell for everything that operates against a single

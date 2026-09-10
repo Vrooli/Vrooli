@@ -267,6 +267,17 @@ observable.
 
 ## Post-run sandbox finalization
 
+`agent-manager run recover <id>` retries failed finalization for a terminal
+sandboxed run under its persisted apply policy. It uses the original run and
+sandbox IDs; it does not launch an agent or rewrite execution end time, output,
+or token accounting. A successful retry is idempotent. The warning remains
+until workspace-sandbox supplies successful provenance evidence. For a deleted
+sandbox with a complete retained archive, the workspace owner can reconcile
+provenance only while every accepted archived file still matches the canonical
+file (or an archived deletion remains absent). Missing bytes, changed content,
+wrong origin, or files requiring review produce an error without applying
+archive content. Run recovery does not grant new approval authority.
+
 Runner turn status and sandbox finalization are separate temporal flows. A runner can finish and emit several assistant messages before process exit; assistant messages are not terminal. The terminal signal is the runner result/process completion path. After that, sandbox apply/checkpoint runs as post-turn finalization and records one of:
 
 - `none` / `skipped`: no sandbox finalization was needed or policy deferred it.

@@ -2694,29 +2694,39 @@
             {
               "name": "wait-for",
               "description": "CSS selector that must exist before the DOM snapshot",
-              "bind": { "field": "wait_for" }
+              "bind": {
+                "field": "wait_for"
+              }
             },
             {
               "name": "wait-until",
               "description": "Navigation readiness: load|domcontentloaded|networkidle",
-              "bind": { "field": "wait_until" }
+              "bind": {
+                "field": "wait_until"
+              }
             },
             {
               "name": "settle-ms",
               "description": "Fixed delay after readiness (0-15000 ms)",
-              "bind": { "field": "settle_ms" }
+              "bind": {
+                "field": "settle_ms"
+              }
             },
             {
               "name": "computed",
               "description": "Include computed styles and geometry (default true)",
               "default": "true",
-              "bind": { "field": "computed" }
+              "bind": {
+                "field": "computed"
+              }
             },
             {
               "name": "max-nodes",
               "description": "Maximum DOM element nodes to return (1-4000)",
               "default": "4000",
-              "bind": { "field": "max_nodes" }
+              "bind": {
+                "field": "max_nodes"
+              }
             }
           ],
           "binding": {
@@ -2796,6 +2806,20 @@
             {
               "name": "api-key",
               "description": "BYOK API key (bypasses credit charging subject to navigator policy)"
+            },
+            {
+              "name": "effect-policy",
+              "description": "explicit or read_only; enforced before every action"
+            },
+            {
+              "name": "postconditions",
+              "bind": {"field": "postconditions", "kind": "json_inline"},
+              "description": "Bounded independent final-page postconditions"
+            },
+            {
+              "name": "extraction",
+              "bind": {"field": "extraction", "kind": "json_inline"},
+              "description": "Named final-page DOM extractions, without replay"
             }
           ],
           "binding": {

@@ -5,6 +5,7 @@
   "icon": "search",
   "id": "skill-authoring-search",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "meta",
     "search"

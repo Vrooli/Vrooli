@@ -5,6 +5,7 @@
   "icon": "checkcircle",
   "id": "improvement-do-and-dont",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "practice"
   ],

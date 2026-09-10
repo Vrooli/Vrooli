@@ -5,6 +5,7 @@
   "icon": "alert-triangle",
   "id": "triage-methodology",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "practice"
   ],

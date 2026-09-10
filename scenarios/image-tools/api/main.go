@@ -18,6 +18,7 @@ import (
 	internalanalysis "image-tools/internal/analysis"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
+	internalcleanup "image-tools/internal/cleanup"
 	"image-tools/internal/fetch"
 	internalhosttool "image-tools/internal/hosttool"
 	"image-tools/internal/jobrunner"
@@ -508,6 +509,7 @@ func main() {
 		}, log.Default()),
 		aiH.Module(aiEngine, registry, blobStore, jobManager, safetyGate, log.Default()),
 		analysisH.Module(analysisService, blobStore, jobManager, log.Default()),
+		internalcleanup.Module(internalcleanup.Deps{Jobs: jobManager, Store: blobStore}),
 		diffH.Module(blobStore, jobManager, log.Default()),
 		jobsH.Module(jobManager, log.Default()),
 		looksH.Module(db, blobStore, log.Default()),

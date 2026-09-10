@@ -7,10 +7,7 @@ The program recommends an action; Agent Manager alone authorizes and applies it.
 
 import json
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 
 raw = inputs if isinstance(inputs, dict) else {}
 watch_id = raw.get("watch_id", "")
@@ -43,37 +40,7 @@ envelope = {
 work = {"ambiguous": False, "classifier": None, "actions": []}
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
+fail = program.fail
 
 
 def remember(value):
@@ -209,7 +176,7 @@ def step_collect():  # COLLECT · optional bounded read bindings
             for action in work["actions"]:
                 remember(action.get("actionId"))
         except Exception as exc:
-            status, klass = classify_transport(exc)
+            status, klass = program.classify(exc)
             set_decision("unavailable", "dependency_unavailable", None, True, "observe", current_cursor, "after", policy["quiet_seconds"])
             return fail(status, klass, exc, "collect")
     envelope["signals"]["event_count"] = len(events)
@@ -329,7 +296,7 @@ def step_classify():  # CLASSIFY · deterministic predicates before at most one 
             return fail("failed", "classifier_invalid", "classifier result violated the closed output vocabulary", "classify")
         work["classifier"] = {"classification": classification, "confidence": float(confidence), "abstained": abstained, "action": action}
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         classification = "budget_exhausted" if klass == "inference_spend_exceeded" else "dependency_unavailable"
         set_decision("unavailable", classification, None, True, safe_action, current_cursor, "after", policy["quiet_seconds"])
         envelope["errors"].append({"class": "classifier_unavailable", "detail": str(exc)[:240], "where": "classify"})
@@ -365,12 +332,4 @@ def step_report():  # REPORT · one bounded envelope
 
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify, "decide": step_decide, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

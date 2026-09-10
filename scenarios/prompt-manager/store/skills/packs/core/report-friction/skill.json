@@ -5,6 +5,7 @@
   "icon": "alert-triangle",
   "id": "report-friction",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "tools"
   ],

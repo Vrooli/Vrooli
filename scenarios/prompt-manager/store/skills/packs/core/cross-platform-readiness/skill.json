@@ -4,6 +4,7 @@
   "entry": "SKILL.md",
   "id": "cross-platform-readiness",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer"
   ],

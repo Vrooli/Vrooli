@@ -1,0 +1,166 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "hook",
+  "title": "useDrag",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Keyboard drag",
+      "role": "anatomy",
+      "mode": "live",
+      "description": "Space picks the target up, arrows move it by the declared pixel step, Enter drops it.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "group",
+            "name": "Drag target"
+          },
+          "text": " "
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "group",
+            "name": "Drag target"
+          },
+          "text": "ArrowRight"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "group",
+            "name": "Drag target"
+          },
+          "text": "ArrowRight"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-drag']",
+          "attribute": "data-dragging",
+          "value": "true"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-drag']",
+          "attribute": "data-offset-x",
+          "value": "16"
+        }
+      ]
+    },
+    {
+      "id": "cancelled",
+      "name": "Escape cancels",
+      "role": "boundary",
+      "mode": "live",
+      "description": "Escape ends the drag and reports cancellation rather than a drop.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Cancelled"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "group",
+            "name": "Drag target"
+          },
+          "text": " "
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "group",
+            "name": "Drag target"
+          },
+          "text": "ArrowRight"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "group",
+            "name": "Drag target"
+          },
+          "text": "Escape"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-drag']",
+          "attribute": "data-dragging",
+          "value": "false"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-drag']",
+          "attribute": "data-cancelled",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "id": "disabled",
+      "name": "Disabled",
+      "role": "boundary",
+      "states": [
+        "disabled"
+      ],
+      "mode": "live",
+      "description": "A disabled controller ignores both pointer and keyboard entry points.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Disabled"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "group",
+            "name": "Drag target"
+          },
+          "text": " "
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-drag']",
+          "attribute": "data-dragging",
+          "value": "false"
+        }
+      ]
+    }
+  ]
+}

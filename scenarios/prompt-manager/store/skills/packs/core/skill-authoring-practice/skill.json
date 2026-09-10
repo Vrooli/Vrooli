@@ -5,6 +5,7 @@
   "icon": "wrench",
   "id": "skill-authoring-practice",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "meta",
     "practice"

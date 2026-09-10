@@ -73,6 +73,7 @@ type RouteDependencies struct {
 	TranscriptImporter       *orchestration.TranscriptImportScheduler
 	ConversationSearch       *conversationsearch.Service
 	ConversationIndexer      *conversationsearch.Indexer
+	ConversationSemantic     *conversationsearch.SemanticRuntime
 	ConversationSearchFile   string
 	ConversationControlToken func() string
 	WorkspaceSandbox         interface {
@@ -89,6 +90,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 
 	healthHandler := health.New().
 		Version("1.0.0").
+		BuildIdentity(os.Getenv("VROOLI_BUILD_IDENTITY")).
 		Check(health.Func("database", func(ctx context.Context) error {
 			if deps.DB == nil {
 				return fmt.Errorf("database is not configured")
@@ -136,6 +138,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	connectHandler := handlers.NewAgentManagerConnectHandler(handler, deps.SupervisionService)
 	connectHandler.SetWatchActionAuthorizer(deps.WatchActionAuthorizer)
 	apiPath, apiHandler := apiconnect.NewAgentManagerServiceHandler(connectHandler)
+	router.Handle(apiconnect.AgentManagerServiceWaitWorkflowExecutionProcedure, handlers.WorkflowWaitResponse(apiHandler)).Methods(http.MethodPost)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: apiPath, Handler: apiHandler})
 	episodesPath, episodesHandler := domainconnect.NewEpisodesServiceHandler(handler)
 	router.PathPrefix(strings.TrimRight(episodesPath, "/")).Handler(episodesHandler)
@@ -159,6 +162,9 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 			handlers.NewConversationSearchSharedControl(controlOptions),
 		)
 		connectx.RegisterServices(router, connectx.ServiceMount{Path: controlPath, Handler: controlHandler})
+	}
+	if deps.ConversationSemantic != nil {
+		handlers.NewConversationSearchGenerationHandler(deps.ConversationSemantic, deps.ConversationControlToken).RegisterRoutes(router)
 	}
 	router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
 	secret := strings.TrimSpace(os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET"))

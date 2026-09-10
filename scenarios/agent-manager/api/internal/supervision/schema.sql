@@ -19,6 +19,18 @@ CREATE TABLE IF NOT EXISTS cohort_watches (
     terminal_at TEXT
 );
 
+-- One row per active watch whose latest evaluation could not be completed.
+-- The streak drives wake backoff and the reason tells an operator why the
+-- watch is parked. Any completed evaluation deletes the row.
+CREATE TABLE IF NOT EXISTS cohort_watch_evaluation_failures (
+    watch_id TEXT PRIMARY KEY,
+    failures INTEGER NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    first_failed_at TEXT NOT NULL,
+    last_failed_at TEXT NOT NULL,
+    FOREIGN KEY (watch_id) REFERENCES cohort_watches(watch_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS cohort_watch_subjects (
     watch_id TEXT NOT NULL,
     family_execution_id TEXT NOT NULL,

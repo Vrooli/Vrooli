@@ -5,6 +5,7 @@
   "icon": "bug",
   "id": "bugfix-scope",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "scope"
   ],

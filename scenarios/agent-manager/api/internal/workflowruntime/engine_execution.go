@@ -167,8 +167,14 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 			if inspectErr != nil {
 				return x, inspectErr
 			}
+			if state.Terminal && state.FinalizationPending != "" {
+				return e.retainChildFinalization(ctx, x, attempt, state, journal, attempts, false)
+			}
+			if attempt.ErrorCode == "child_finalization_pending" {
+				attempt.ErrorCode, attempt.ValidationError = "", ""
+			}
 			terminal, failed, result = state.Terminal, state.Failed, state.Result
-			usage = domain.WorkflowBudgetUsage{Turns: state.Turns, Tokens: state.Tokens, ChargeMicroUSD: state.ChargeMicroUSD, ChargeMeasured: state.ChargeMeasured}
+			usage = domain.WorkflowBudgetUsage{Turns: state.Turns, Tokens: state.Tokens, ChargeMicroUSD: state.ChargeMicroUSD, ChargeMeasured: state.ChargeMeasured, AccountingComplete: state.TokensKnown && state.ChargeMeasured}
 		}
 		if !terminal {
 			continue
@@ -184,6 +190,7 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 		x.BudgetUsage.Tokens += usage.Tokens
 		x.BudgetUsage.ChargeMicroUSD += usage.ChargeMicroUSD
 		x.BudgetUsage.ChargeMeasured = x.BudgetUsage.ChargeMeasured || usage.ChargeMeasured
+		x.BudgetUsage.AccountingComplete = x.BudgetUsage.AccountingComplete && usage.AccountingComplete
 		x.BudgetUsage.NodeAttempts += usage.NodeAttempts
 		x.BudgetUsage.Children += usage.Children
 		x.BudgetUsage.Retries += usage.Retries
@@ -536,6 +543,7 @@ func (e *Engine) advanceEnd(ctx context.Context, x *domain.WorkflowExecution, r 
 }
 
 func (e *Engine) fail(ctx context.Context, x *domain.WorkflowExecution, code, message string) (*domain.WorkflowExecution, error) {
+	x.BudgetUsage.AccountingComplete = false // Abnormal active-child accounting requires owner reconciliation.
 	now := e.now()
 	x.Status = domain.WorkflowExecutionFailed
 	x.TerminalReason = &domain.WorkflowTerminalReason{Code: code, Message: message}
@@ -546,6 +554,7 @@ func (e *Engine) fail(ctx context.Context, x *domain.WorkflowExecution, code, me
 }
 
 func (e *Engine) exhaust(ctx context.Context, x *domain.WorkflowExecution, budget string) (*domain.WorkflowExecution, error) {
+	x.BudgetUsage.AccountingComplete = false // Abnormal active-child accounting requires owner reconciliation.
 	now := e.now()
 	x.Status = domain.WorkflowExecutionBudgetExhausted
 	x.TerminalReason = &domain.WorkflowTerminalReason{Code: "budget_exhausted", BudgetName: budget}

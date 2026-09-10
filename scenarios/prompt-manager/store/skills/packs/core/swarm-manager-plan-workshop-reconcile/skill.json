@@ -4,6 +4,7 @@
   "entry": "SKILL.md",
   "id": "swarm-manager-plan-workshop-reconcile",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "contract"
   ],

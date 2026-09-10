@@ -149,6 +149,23 @@ func TestProjectRunUsesTerminalAuthorityWithoutDoubleCountingPerTurnUsage(t *tes
 	}
 }
 
+func TestProjectRunProviderTurnsOverrideMessageCountAndAccumulateContinuations(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), Summary: &domain.RunSummary{TurnsUsed: 6}}
+	events := []*domain.RunEvent{
+		{Data: &domain.StatusEventData{NewStatus: "running"}},
+		{Data: &domain.UsageEventData{InputTokens: 89765, CacheReadTokens: 1108224, OutputTokens: 7080, Turns: 1, ReconciliationAuthority: true}},
+	}
+	first := ProjectRun(run, events, time.Now().UTC())
+	if first.Turns != 1 || first.TotalTokens != 1205069 {
+		t.Fatalf("summary displaced provider authority: %+v", first)
+	}
+	events = append(events, &domain.RunEvent{Data: &domain.StatusEventData{NewStatus: "running"}}, &domain.RunEvent{Data: &domain.UsageEventData{InputTokens: 10, OutputTokens: 5, Turns: 1, ReconciliationAuthority: true}})
+	continued := ProjectRun(run, events, time.Now().UTC())
+	if continued.Turns != 2 || continued.TotalTokens != 1205084 {
+		t.Fatalf("continuation invocation counts were reset or inflated: %+v", continued)
+	}
+}
+
 func TestProjectAttributesPerTurnUsageAndConservesAgainstTerminalTotal(t *testing.T) {
 	run := &domain.Run{ID: uuid.New(), CreatedAt: time.Now().UTC(), Status: domain.RunStatusComplete, ResolvedConfig: &domain.RunConfig{
 		PreambleInjectedTokens: 10,
@@ -191,6 +208,24 @@ func TestProjectRunTerminalOnlyUsageIsUnattributedWithReason(t *testing.T) {
 	fact := ProjectRun(run, []*domain.RunEvent{{Data: &domain.UsageEventData{InputTokens: 30, OutputTokens: 5, ReconciliationAuthority: true}}}, time.Now().UTC())
 	if fact.TotalTokens != 35 || fact.UnattributedTokens != 35 || fact.UnattributedReason == "" {
 		t.Fatalf("terminal-only attribution=%+v", fact)
+	}
+}
+
+func TestProjectRunReconcilesEachContinuationWithinItsOwnInvocation(t *testing.T) {
+	id := uuid.New()
+	run := &domain.Run{ID: id, Status: domain.RunStatusComplete}
+	events := []*domain.RunEvent{
+		domain.NewStatusEvent(id, "starting", "running", "execute"),
+		{Data: &domain.UsageEventData{InputTokens: 3}},
+		{Data: &domain.UsageEventData{InputTokens: 10, ReconciliationAuthority: true}},
+		domain.NewStatusEvent(id, "complete", "running", "Continuation requested"),
+		domain.NewStatusEvent(id, "running", "running", "Codex continuation started"),
+		{Data: &domain.UsageEventData{InputTokens: 4}},
+		{Data: &domain.UsageEventData{InputTokens: 10, ReconciliationAuthority: true}},
+		{Data: &domain.UsageEventData{InputTokens: 10, ReconciliationAuthority: true}},
+	}
+	if got := ProjectRun(run, events, time.Now()); got.TotalTokens != 20 {
+		t.Fatalf("distinct equal-cost invocations collapsed or intermediate/replayed usage counted: %+v", got)
 	}
 }
 

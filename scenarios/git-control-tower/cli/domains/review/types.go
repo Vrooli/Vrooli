@@ -82,12 +82,6 @@ type provenanceDimension struct {
 	UntracedFiles []string `json:"untracedFiles,omitempty"`
 }
 
-type runRequest struct {
-	ScenarioName string   `json:"scenarioName"`
-	Checks       []string `json:"checks,omitempty"`
-	Details      int      `json:"details,omitempty"`
-}
-
 type runResponse struct {
 	JobID string `json:"jobId"`
 }

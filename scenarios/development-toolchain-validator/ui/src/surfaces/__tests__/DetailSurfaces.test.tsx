@@ -4,12 +4,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { create } from "@bufbuild/protobuf";
 
 import {
+  DeleteGoldenResponseSchema,
   GoldenSchema,
   ListGoldensResponseSchema,
+  RegenerateGoldenResponseSchema,
 } from "@vrooli/proto-types/development-toolchain-validator/v1/golden/golden_pb";
 import {
   GetGoldenSummaryResponseSchema,
@@ -156,8 +159,10 @@ beforeEach(() => {
   vi.mocked(goldenClient.listGoldens).mockResolvedValue(
     create(ListGoldensResponseSchema, { goldens: [golden()] }),
   );
-  vi.mocked(goldenClient.regenerateGolden).mockResolvedValue({ golden: golden() });
-  vi.mocked(goldenClient.deleteGolden).mockResolvedValue({});
+  vi.mocked(goldenClient.regenerateGolden).mockResolvedValue(
+    create(RegenerateGoldenResponseSchema, { golden: golden() }),
+  );
+  vi.mocked(goldenClient.deleteGolden).mockResolvedValue(create(DeleteGoldenResponseSchema, {}));
   vi.mocked(reportClient.getGoldenSummary).mockResolvedValue(
     create(GetGoldenSummaryResponseSchema, {
       summary: create(GoldenSummarySchema, {
@@ -192,9 +197,9 @@ beforeEach(() => {
             goldenSlug: slug,
             tupleKind: TupleKind.SKILL,
             verdict: Verdict.PASS,
-            durationMs: 42,
-            tokensUsed: 100,
-            costUsdMicro: 20,
+            durationMs: 42n,
+            tokensUsed: 100n,
+            costUsdMicro: 20n,
             diffHash: "diff-123",
             agentManagerRunId: "agent-run-1",
           }),
@@ -248,14 +253,23 @@ afterEach(() => {
 
 const routeRender = (pattern: string, entry: string, element: JSX.Element) =>
   renderWithProviders(
-    <Routes>
-      <Route path={pattern} element={element} />
-      <Route path={ROUTE_PATTERNS.runDetail} element={<div data-testid="run-detail-target" />} />
-      <Route path={ROUTE_PATTERNS.goldensIndex} element={<div data-testid="goldens-index-target" />} />
-      <Route path={ROUTE_PATTERNS.manifestsIndex} element={<div data-testid="manifests-index-target" />} />
-      <Route path={ROUTE_PATTERNS.skillsIndex} element={<div data-testid="skills-index-target" />} />
-    </Routes>,
-    { routerEntries: [entry] },
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: { queries: { retry: false } },
+        })
+      }
+    >
+      <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+          <Route path={pattern} element={element} />
+          <Route path={ROUTE_PATTERNS.runDetail} element={<div data-testid="run-detail-target" />} />
+          <Route path={ROUTE_PATTERNS.goldensIndex} element={<div data-testid="goldens-index-target" />} />
+          <Route path={ROUTE_PATTERNS.manifestsIndex} element={<div data-testid="manifests-index-target" />} />
+          <Route path={ROUTE_PATTERNS.skillsIndex} element={<div data-testid="skills-index-target" />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 
 describe("detail surfaces", () => {
@@ -386,18 +400,26 @@ describe("detail surfaces", () => {
   });
 
   it("renders manifest and skill index rows plus skill detail", async () => {
-    routeRender(ROUTE_PATTERNS.manifestsIndex, "/manifests", <ManifestsIndex />);
+    const manifestsRender = routeRender(
+      ROUTE_PATTERNS.manifestsIndex,
+      "/manifests",
+      <ManifestsIndex />,
+    );
     await waitFor(() => {
       expect(screen.getByTestId(selectors.manifests.row)).toBeInTheDocument();
     });
 
-    cleanup();
-    routeRender(ROUTE_PATTERNS.skillsIndex, "/skills", <SkillsIndex />);
+    manifestsRender.unmount();
+    const skillsRender = routeRender(
+      ROUTE_PATTERNS.skillsIndex,
+      "/skills",
+      <SkillsIndex />,
+    );
     await waitFor(() => {
       expect(screen.getByTestId(selectors.skills.row)).toBeInTheDocument();
     });
 
-    cleanup();
+    skillsRender.unmount();
     routeRender(ROUTE_PATTERNS.skillDetail, `/skills/${skillId}`, <SkillDetail />);
     await waitFor(() => {
       expect(screen.getByTestId(selectors.skills.detail)).toBeInTheDocument();
@@ -409,21 +431,29 @@ describe("detail surfaces", () => {
     vi.mocked(goldenClient.listGoldens).mockResolvedValueOnce(
       create(ListGoldensResponseSchema, { goldens: [] }),
     );
-    routeRender(ROUTE_PATTERNS.goldenDetail, "/goldens/missing", <GoldenDetail />);
+    const goldenRender = routeRender(
+      ROUTE_PATTERNS.goldenDetail,
+      "/goldens/missing",
+      <GoldenDetail />,
+    );
     await waitFor(() => {
       expect(screen.getByTestId(selectors.goldens.empty)).toBeInTheDocument();
     });
 
-    cleanup();
+    goldenRender.unmount();
     vi.mocked(skillCatalogClient.getSkill).mockResolvedValueOnce(
       create(GetSkillResponseSchema, {}),
     );
-    routeRender(ROUTE_PATTERNS.skillDetail, `/skills/${skillId}`, <SkillDetail />);
+    const skillRender = routeRender(
+      ROUTE_PATTERNS.skillDetail,
+      `/skills/${skillId}`,
+      <SkillDetail />,
+    );
     await waitFor(() => {
       expect(screen.getByTestId(selectors.skills.empty)).toBeInTheDocument();
     });
 
-    cleanup();
+    skillRender.unmount();
     vi.mocked(skillCatalogClient.listSkills).mockRejectedValueOnce(new Error("boom"));
     routeRender(ROUTE_PATTERNS.skillsIndex, "/skills", <SkillsIndex />);
     await waitFor(() => {

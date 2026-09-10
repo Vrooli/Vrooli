@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -22,7 +21,6 @@ type Result struct {
 	Target         string
 	Skills         []string
 	ResidentTokens int
-	Removed        []string
 }
 
 // LoadBasePack reads the governed startup tier. It rejects a pack larger than
@@ -46,75 +44,34 @@ func LoadBasePack(path string) (BasePack, error) {
 	return pack, nil
 }
 
-// Project writes only the named skills from one pack. Every file is generated
-// and marked, and stale generated directories are removed while operator
-// files are left untouched.
+// Project uses the same conflict-safe path as explicit refresh. Startup never
+// adopts unknown legacy differences and never deletes unselected directories.
 func Project(sourceRoot, target string, pack BasePack, resolvers ...func(string) (string, error)) (Result, error) {
-	if filepath.Clean(target) == filepath.Clean(sourceRoot) || strings.HasPrefix(filepath.Clean(target), filepath.Clean(sourceRoot)+string(filepath.Separator)) {
-		return Result{}, fmt.Errorf("projection target must not be inside skill source root: %s", target)
+	service := &Service{SourceRoot: sourceRoot, Targets: []Target{{Runtime: "startup", Path: target}}, LoadPack: func() (BasePack, error) { return pack, nil }}
+	if len(resolvers) > 0 {
+		service.Resolve = resolvers[0]
 	}
-	if pack.MaxSkills > 0 && len(pack.Skills) > pack.MaxSkills {
-		return Result{}, fmt.Errorf("base pack contains %d skills, ceiling is %d", len(pack.Skills), pack.MaxSkills)
-	}
-	if err := os.MkdirAll(target, 0o755); err != nil {
-		return Result{}, err
-	}
-	result := Result{Target: target, Skills: append([]string(nil), pack.Skills...)}
-	sort.Strings(result.Skills)
-	prepared := make(map[string]string, len(result.Skills))
-	for _, id := range result.Skills {
-		resolve := func(id string) (string, error) { return resolveSkillDir(sourceRoot, id) }
-		if len(resolvers) > 0 {
-			resolve = resolvers[0]
-		}
-		skillDir, err := resolve(id)
-		if err != nil {
-			return Result{}, err
-		}
-		if err := validateProjectionEligibility(skillDir); err != nil {
-			return Result{}, fmt.Errorf("skill %s: %w", id, err)
-		}
-		content, err := os.ReadFile(filepath.Join(skillDir, "SKILL.md"))
-		if err != nil {
-			return Result{}, fmt.Errorf("read skill %s: %w", id, err)
-		}
-		if !hasFrontmatter(string(content)) {
-			return Result{}, fmt.Errorf("skill %s has no valid frontmatter", id)
-		}
-		projected := ensureMarker(string(content))
-		prepared[id] = projected
-		result.ResidentTokens += estimateResidentTokens(projected)
-	}
-	if pack.MaxTokens > 0 && result.ResidentTokens > pack.MaxTokens {
-		return Result{}, fmt.Errorf("projected base pack costs %d tokens, ceiling is %d", result.ResidentTokens, pack.MaxTokens)
-	}
-	generated := map[string]bool{}
-	for _, id := range result.Skills {
-		if err := os.MkdirAll(filepath.Join(target, id), 0o755); err != nil {
-			return Result{}, err
-		}
-		if err := os.WriteFile(filepath.Join(target, id, "SKILL.md"), []byte(prepared[id]), 0o644); err != nil {
-			return Result{}, err
-		}
-		generated[id] = true
-	}
-	entries, err := os.ReadDir(target)
+	preview, err := service.Refresh(RefreshRequest{})
 	if err != nil {
 		return Result{}, err
 	}
-	for _, entry := range entries {
-		if !entry.IsDir() || generated[entry.Name()] {
-			continue
-		}
-		candidate := filepath.Join(target, entry.Name(), "SKILL.md")
-		if fileHasMarker(candidate) {
-			if err := os.RemoveAll(filepath.Join(target, entry.Name())); err != nil {
-				return Result{}, err
-			}
-			result.Removed = append(result.Removed, entry.Name())
+	applied, err := service.Refresh(RefreshRequest{Apply: true, ExpectedDigest: preview.Digest})
+	if err != nil {
+		return Result{}, err
+	}
+	result := Result{Target: target}
+	var problems []string
+	for _, row := range applied.Rows {
+		if row.Applied {
+			result.Skills = append(result.Skills, row.Skill)
+			result.ResidentTokens += estimateResidentTokens(string(row.body))
+		} else {
+			problems = append(problems, row.Skill+": "+row.Status+" "+row.Error)
 		}
 	}
-	sort.Strings(result.Removed)
+	if len(problems) > 0 {
+		return result, fmt.Errorf("projection requires review: %s", strings.Join(problems, "; "))
+	}
 	return result, nil
 }
 
@@ -207,11 +164,6 @@ func ensureMarker(content string) string {
 	}
 	idx += len("\n---")
 	return content[:idx] + "\n" + generatedMarker + content[idx:]
-}
-
-func fileHasMarker(path string) bool {
-	data, err := os.ReadFile(path)
-	return err == nil && strings.Contains(string(data), generatedMarker)
 }
 
 // estimateResidentTokens models what native runtimes retain before activation:

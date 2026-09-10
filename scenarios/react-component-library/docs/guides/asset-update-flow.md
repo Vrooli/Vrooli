@@ -44,7 +44,7 @@ Resolve reported draft failures and retry the owning operation. A published succ
 Run these steps from the repository root after publishing a library change:
 
 ```bash
-(cd packages/react-component-library && node tooling/build.mjs)
+(cd packages/react-component-library && pnpm build --runtime --strict)
 (cd scenarios/react-component-library/ui && node scripts/design-token-generate.mjs)
 (cd scenarios/react-component-library/ui && node scripts/library-pins-check.mjs)
 (cd scenarios/react-component-library/ui && node scripts/experience-routes-check.mjs)
@@ -52,7 +52,13 @@ Run these steps from the repository root after publishing a library change:
 react-component-library page inspect react-component-library / --wait-selector '[data-testid="catalog-asset"]' --json
 ```
 
-The package build compiles source and declarations into consumer exports. The Vite build then replaces the bundle served by the running production UI server. A browser refresh alone performs neither build. For a stopped or stale API/CLI, use `make start` from the scenario directory. Inspect the returned `screenshot_path` and DOM/source report; do not infer appearance from a successful build.
+The strict package build compiles source and declarations into a disposable
+candidate, publishes a verified immutable artifact, and materializes the
+compatibility facade only after validation. The Vite build then replaces the
+bundle served by the running production UI server. A browser refresh alone
+performs neither build. For a stopped or stale API/CLI, use `make start` from
+the scenario directory. Inspect the returned `screenshot_path` and DOM/source
+report; do not infer appearance from a successful build.
 
 The package build measured 11.809 seconds on 2026-09-08 (a dated observation, not a budget). It reported no broken version imports. Measure it again on another machine rather than treating that cost as a guarantee.
 

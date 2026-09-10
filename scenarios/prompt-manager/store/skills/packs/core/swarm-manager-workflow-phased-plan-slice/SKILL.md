@@ -7,9 +7,9 @@ metadata:
   schemaVersion: 1
   tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
   status: "active"
-  revision: 12
+  revision: 13
   createdAt: "2026-07-18T03:05:26Z"
-  updatedAt: "2026-08-29T00:00:00Z"
+  updatedAt: "2026-09-10T00:00:00Z"
   modes: ["contract"]
   requires:
     scenarios: ["prompt-manager", "swarm-manager"]
@@ -20,6 +20,14 @@ metadata:
 # Phased Plan Slice Workflow
 
 Execute exactly one coherent slice of the accepted plan. This is a fresh conversation: your only context is the plan itself and the compact handoffs below. Never infer an earlier transcript.
+
+When `constraints.executionStrategy` is `adaptive-improvement`, the accepted plan is
+the campaign mandate. Read `scenario-improvement-campaign` and the target scenario's
+`<scenario>-improve` skill, then choose the next falsifiable, in-scope improvement
+from the plan and retained evidence. Do not create a second backlog item or approval
+for an individual repair. The same plan frontier, write scope, aggregate budget,
+checkpoint, and terminal evidence rules still apply. `phased-plan-drain` follows the
+ordinary phase-by-phase procedure below.
 
 ## Procedure
 
@@ -42,13 +50,21 @@ Execute exactly one coherent slice of the accepted plan. This is a fresh convers
    Hash the compact line printed by that command, not its trailing newline.
 3. Read the execution's next required action from Plan Manager.
 4. When an unfinished phase exists, select it from the execution state. Do not select it from handoffs. Read its `relevant_context`; when it declares no skill item, run `prompt-manager discover "<phase intent>" --type skill` and read what it returns.
-5. When the bound execution reports `freshen_status: baseline_required`, treat baseline capture as this slice even if no unfinished phase exists. Run the exact `capture_argv`, the exact one-shot `wait_argv`, and the exact `sync_argv` from execution status, then return `continue`. Never substitute validation evidence from another execution.
-6. Execute exactly the selected phase. Write only inside the write scope. Run its validation commands, and mark it complete through `plan-manager exec` only after validation passes.
-7. When every phase is done and Plan Manager reports `final_dod_required`, treat the terminal Definition-of-Done validation as this slice. The same rule applies when status says `execution_complete` but `plan-manager exec complete <plan_execution_id>` explicitly refuses because the required terminal Definition-of-Done validation result is absent; that refusal is authoritative evidence of the missing validation state, not a blocker. Create the full-inventory ticket with `plan-manager validate start <plan_reference> --execution <plan_execution_id>`, run the exact producer action and one native wait, synchronize it, then run `plan-manager exec complete <plan_execution_id>`. Do not require an unfinished phase in this state.
-8. When the bound Plan Manager execution is already complete, verify its terminal validation operation and producer verdict from authoritative status, then return `complete`; do not rerun validation or require a resume point.
+5. Follow the bound execution's current owner action for required validation, synchronization, or an outcome assessment. Use the returned receipt identity and one producer wait. Client cancellation does not abort producer work. Missing historical evidence remains unknown unless the approved completion policy requires capture.
+6. Implement one coherent intervention within the selected phase and write scope. Follow `docs/TESTING.md` for focused verification. Record evidence and remaining outcomes through Plan Manager. Complete a phase only when its acceptance holds. An adaptive intervention may return `continue` while that phase still has unmet outcomes.
+7. When no unfinished phase remains, follow Plan Manager's terminal action. Assess the complete mandate against every required outcome and cohort. Obtain any evidence required by its completion policy. Broad advisory failures retain their disposition; they do not create new product requirements.
+8. Return `complete` only after the owner records completion and every required mandate outcome has applicable evidence. Verify the retained assessment and limitations. A completed phase list or successful wrapper alone does not prove the target. Do not repeat unchanged validation merely to create another green result.
 9. Write a handoff with local nuance for the next slice.
 
-Set `approvalRequired: true` when `outcome` is `continue` because an authored phase was completed in this slice. Set it to `false` for baseline-only setup and other non-phase preparation. This is the contract that routes each reviewed phase boundary through the declared operator approval wait; do not silently continue from one completed phase to the next.
+Classify each approval request so the workflow can preserve the accepted strategy:
+
+| Situation on `continue` | Result fields |
+| --- | --- |
+| An authored phase is complete and no new authority is needed. | `approvalRequired: true`, `approvalReason: "phase-boundary"` |
+| A target amendment, ungranted effect, destructive operation, or explicit operator pause needs a decision. | `approvalRequired: true`, `approvalReason: "operator-decision"` |
+| An in-scope intervention, baseline setup, or other preparation leaves work within the current phase. | `approvalRequired: false`; omit `approvalReason` |
+
+The accepted `adaptive-improvement` strategy continues past routine phase boundaries after independent review. Ordinary phased execution retains its configured phase approval policy. An `operator-decision` always waits; neither strategy nor a global automatic phase policy supplies missing authority. If both reasons apply, use `operator-decision`. State the required decision in the handoff before the affected action.
 
 When the plan's item kind is `research`, execute the slice as investigation work. A valid slice may
 produce a proposal, a goal, an answer, or evidence that the item should be resolved as `dropped`;
@@ -61,13 +77,13 @@ the same way the slice would use any other scenario CLI.
 | --- | --- |
 | This slice is done and verified, and unfinished plan work remains. Phase verification does not replace Plan Manager's separately reported `final_dod_required` action. | `continue` |
 | This slice is done and verified, and it was the plan's last remaining work, including any terminal validation phase the plan authors. | `complete` |
-| An obstacle outside your authority stops the slice: a missing dependency, a failing precondition, a scope conflict. Fill `blocker` with a stable code, a plain summary, and whether a retry could succeed. | `blocked` |
+| Required authority or external access is absent, and no permitted intervention remains. Fill `blocker` with the missing decision or access, stable code, and retry disposition. In-scope repairable defects remain work. | `blocked` |
 | You cannot safely start: the plan is unreadable, the digest does not match the rendered content, or the handoffs contradict the repository state. | `abstained` |
 
 Flag rules on `continue`:
 
 - `correctionRequired`: true only when you finished the slice but found defects in it you could not fix within this run. True routes this result into a bounded correction turn instead of onward review.
-- `approvalRequired`: true whenever this slice completed an authored phase, as required above. It may also be true for a destructive step, irreversible migration, or explicit pause. True parks the workflow at a human approval gate; baseline-only and terminal-DoD slices leave it false.
+- `approvalRequired` and `approvalReason`: use the decision table above. Preserve real authority requests through correction and review. Never label a target or grant amendment as a routine phase boundary.
 
 Frontier rule: Plan Manager execution state is the frontier authority. Handoffs are only intra-slice nuance and must never override a completed or unfinished phase in execution state.
 

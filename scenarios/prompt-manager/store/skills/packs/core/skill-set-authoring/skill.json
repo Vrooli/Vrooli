@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-09-02T00:00:00Z",
-  "description": "Derive the skills a scenario owes (usage, feature, improve), inventory the sensors and programs those skills can cite, orchestrate authoring through the per-role guides, and write the service.json skills declaration. Refuses to invent a sensor.",
+  "description": "Determine owed and requested scenario skill roles, inventory real evidence and programs, author through per-role guides, and declare the selected skill set. Optional feature roles are not fleet obligations.",
   "entry": "SKILL.md",
   "icon": "layers",
   "id": "skill-set-authoring",
@@ -21,11 +21,8 @@
       "business-health matrix show",
       "program-runtime bindings condition",
       "program-runtime library search",
-      "program-runtime programs submit",
-      "swarm-manager backlog create",
       "cli-health search query",
       "vrooli scenario status",
-      "vrooli-memory journal note",
       "prompt-manager skill-set validate"
     ],
     "scenarios": [
@@ -34,7 +31,7 @@
       "program-runtime"
     ]
   },
-  "revision": 5,
+  "revision": 9,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -45,5 +42,5 @@
     "self-improvement",
     "meta-optimization"
   ],
-  "updatedAt": "2026-09-06T04:00:00Z"
+  "updatedAt": "2026-09-08T00:00:00Z"
 }

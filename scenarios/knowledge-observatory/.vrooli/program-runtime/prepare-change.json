@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "knowledge-observatory.prepare-change",
   "version": "2",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Prepare documentation maintenance: cleanup, consolidation, reorganization and artifact promotion with source dispositions, preservation obligations, revision preconditions and a scoped reference baseline.",
   "inputs": {
     "paths": {
@@ -88,7 +91,9 @@
         "no_match",
         "verification_failed",
         "revision_changed",
-        "output_bound"
+        "output_bound",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Repository-relative paths and source revisions or owner run IDs; no private corpus dump."

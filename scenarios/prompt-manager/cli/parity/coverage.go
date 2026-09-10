@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // CoverageEntry describes how a single API route is exposed (or
@@ -35,11 +36,11 @@ const (
 
 // LoadCoverage reads coverage.json from the package directory.
 func LoadCoverage() (map[string]CoverageEntry, error) {
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		return nil, fmt.Errorf("cannot resolve parity package path")
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		return nil, fmt.Errorf("resolve parity repository: %w", err)
 	}
-	path := filepath.Join(filepath.Dir(thisFile), "coverage.json")
+	path := filepath.Join(root, "scenarios", "prompt-manager", "cli", "parity", "coverage.json")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read coverage.json: %w", err)
@@ -67,14 +68,12 @@ func LoadCoverage() (map[string]CoverageEntry, error) {
 	return out, nil
 }
 
-// APIMainPath returns the absolute path to the API's main.go from this
-// package's location, allowing tests to find the source without depending on
-// the caller's working directory.
+// APIMainPath uses the repository contract, not compiler debug paths (which
+// become module-relative under Test Genie's -trimpath builds).
 func APIMainPath() (string, error) {
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", fmt.Errorf("cannot resolve parity package path")
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		return "", fmt.Errorf("resolve parity repository: %w", err)
 	}
-	// scenarios/prompt-manager/cli/parity → scenarios/prompt-manager/api
-	return filepath.Join(filepath.Dir(thisFile), "..", "..", "api", "main.go"), nil
+	return filepath.Join(root, "scenarios", "prompt-manager", "api", "main.go"), nil
 }

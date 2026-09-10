@@ -780,6 +780,16 @@
             "run_eligible": true,
             "permissions": ["network:internal"]
           }
+        },
+        {
+          "name": "qdrant",
+          "description": "Show owner-managed Qdrant generation accounting",
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
         }
       ]
     }
@@ -815,6 +825,11 @@
     }
   ],
   "omitted": [
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateTarget",
+      "reason": "Target validation is consumed by the shared validation surface; the CLI exposes scenario validation and owner passthrough commands instead."
+    },
     {
       "service": "ScenarioValidationService",
       "method": "DescribeProvider",

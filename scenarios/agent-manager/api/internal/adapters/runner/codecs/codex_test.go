@@ -339,7 +339,7 @@ func TestCodex_DecodeStreamLine_TurnCompleted_BuildsCostEvent(t *testing.T) {
 		t.Fatalf("got %d events", len(events))
 	}
 	usage := events[0].Data.(*domain.UsageEventData)
-	if usage.InputTokens != 12810 || usage.OutputTokens != 83 {
+	if usage.InputTokens != 394 || usage.OutputTokens != 83 {
 		t.Errorf("tokens in/out=%d/%d", usage.InputTokens, usage.OutputTokens)
 	}
 	charge := events[1].Data.(*domain.ChargeEventData)
@@ -361,11 +361,43 @@ func TestCodex_DecodeStreamLine_TurnCompleted_NoPricingSvcGivesZeroCost(t *testi
 	c := NewCodexForTest()
 	events := codexDecodeOne(t, c, codexSamples["turn.completed"], "gpt-5.1-codex-mini")
 	usage := events[0].Data.(*domain.UsageEventData)
-	if usage.InputTokens != 12810 {
+	if usage.InputTokens != 394 {
 		t.Errorf("tokens=%d", usage.InputTokens)
 	}
 	if len(events) != 1 {
 		t.Fatalf("expected usage-only event without pricing, got %d events", len(events))
+	}
+}
+
+func TestCodexCompletedUsageCountsCachedInputOnceAndUsesProviderTurns(t *testing.T) {
+	c := NewCodexForTest()
+	state := c.NewState()
+	runID := uuid.New()
+	metrics, last := runner.ExecutionMetrics{}, ""
+	lines := []string{`{"type":"turn.started"}`}
+	for i := 0; i < 6; i++ {
+		lines = append(lines, codexSamples["agent_message"])
+	}
+	// Exact usage shape from the first corrected ordinary qualification run.
+	lines = append(lines, `{"type":"turn.completed","usage":{"input_tokens":1197989,"cached_input_tokens":1108224,"cache_write_input_tokens":0,"output_tokens":7080,"reasoning_output_tokens":2467}}`)
+	var finalUsage *domain.UsageEventData
+	for _, line := range lines {
+		events, err := c.DecodeStreamLine(state, runID, line)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, event := range events {
+			c.UpdateMetrics(event, &metrics, &last)
+			if usage, ok := event.Data.(*domain.UsageEventData); ok {
+				finalUsage = usage
+			}
+		}
+	}
+	if finalUsage == nil || finalUsage.InputTokens != 89765 || finalUsage.CacheReadTokens != 1108224 || finalUsage.OutputTokens != 7080 || !finalUsage.ReconciliationAuthority || finalUsage.Turns != 1 {
+		t.Fatalf("provider receipt not normalized into disjoint usage: %+v", finalUsage)
+	}
+	if runner.TotalTokens(metrics) != 1205069 || metrics.TurnsUsed != 1 {
+		t.Fatalf("cached input or assistant messages inflated invocation usage: %+v", metrics)
 	}
 }
 
@@ -544,7 +576,7 @@ func TestCodex_UpdateMetrics(t *testing.T) {
 		events := codexDecodeOne(t, c2, codexSamples["turn.completed"], "gpt-5.1-codex-mini")
 		c2.UpdateMetrics(events[0], &metrics, &last)
 		c2.UpdateMetrics(events[1], &metrics, &last)
-		if metrics.TokensInput != 12810 {
+		if metrics.TokensInput != 394 {
 			t.Errorf("TokensInput=%d", metrics.TokensInput)
 		}
 		if metrics.TokensOutput != 83 {
@@ -812,7 +844,7 @@ func TestCodex_FullStream(t *testing.T) {
 	if metrics.ToolCallCount != 1 {
 		t.Errorf("toolcalls=%d", metrics.ToolCallCount)
 	}
-	if metrics.TokensInput != 12810 || metrics.TokensOutput != 83 {
+	if metrics.TokensInput != 394 || metrics.TokensOutput != 83 {
 		t.Errorf("tokens in/out=%d/%d", metrics.TokensInput, metrics.TokensOutput)
 	}
 }

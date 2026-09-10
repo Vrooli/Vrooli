@@ -56,6 +56,32 @@ curl "http://localhost:${API_PORT}/health"
 The proto type lives at `packages/proto/schemas/image-tools/v1/health/health.proto`
 and mirrors `api-core/health.Response` field-for-field.
 
+## Owner cleanup (controller-only)
+
+Image-tools owns deletion of derived job outputs. Storage-manager may call the
+shared owner contract below with `X-Vrooli-Recovery-Only: true`; apply also
+requires `X-Vrooli-Recovery-Lock: held-by-storage-manager` and a fresh reviewed
+preview. The provider is disabled by default and uses a seven-day minimum age.
+Only successful terminal jobs whose result reference is an `out/` managed blob
+are eligible. Model weights, adapters, inputs, conditioning assets, and local
+absolute output paths are never eligible.
+
+### `GET /api/v1/cleanup/estimate`
+
+Returns bounded candidate count and bytes. Query parameters are
+`min_age_seconds`, `keep_count`, and `max_bytes`.
+
+### `POST /api/v1/cleanup/preview`
+
+Recomputes the candidate list from an estimate. The body is
+`{"estimate": { ... }}`.
+
+### `POST /api/v1/cleanup/apply`
+
+Deletes only IDs and blob keys carried by the reviewed preview. The body
+contains `provider_id`, `preview`, `idempotency_key`, and `approval_mode`.
+Repeated idempotency keys return the original result.
+
 ---
 
 ## Jobs (durable async lifecycle)

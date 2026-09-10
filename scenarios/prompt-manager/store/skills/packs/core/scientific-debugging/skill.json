@@ -5,6 +5,7 @@
   "icon": "bug",
   "id": "scientific-debugging",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "practice"
   ],
@@ -27,7 +28,7 @@
       "swarm-manager"
     ]
   },
-  "revision": 28,
+  "revision": 29,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -37,5 +38,5 @@
     "methodology",
     "investigation-technique"
   ],
-  "updatedAt": "2026-02-04T13:13:54Z"
+  "updatedAt": "2026-09-06T00:00:00Z"
 }

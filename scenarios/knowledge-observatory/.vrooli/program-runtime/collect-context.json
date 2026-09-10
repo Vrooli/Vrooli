@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "knowledge-observatory.collect-context",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Retrieve and inspect bounded task context with source revisions, applicability, and explicit evidence gaps.",
   "inputs": {
     "query": {
@@ -95,7 +98,9 @@
         "no_match",
         "verification_failed",
         "revision_changed",
-        "output_bound"
+        "output_bound",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Repository-relative paths and source revisions or owner run IDs; no private corpus dump."

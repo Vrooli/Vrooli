@@ -34,6 +34,18 @@
       "kopia"
     ]
   },
+  "credentials": {
+    "consumers": [
+      {
+        "address_pattern": "vrooli/kopia/{repository}:repository-passphrase",
+        "kind": "backup",
+        "consumer": "resource-kopia repository engine",
+        "source_ref": "api/internal/engine/kopia.go:232",
+        "required": false,
+        "reason": "Repository passphrases are generated per configured backup destination."
+      }
+    ]
+  },
   "generation": {
     "template": {
       "id": "react-vite",

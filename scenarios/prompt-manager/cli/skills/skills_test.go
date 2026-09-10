@@ -18,6 +18,29 @@ func TestProjectionDirsAcceptsMultiTargetEnvironment(t *testing.T) {
 	}
 }
 
+func TestRefreshRequiresPreviewBeforeApply(t *testing.T) {
+	ctx := clitest.NewContext(t)
+	if err := cmdRefresh(ctx, []string{"--apply"}); err == nil {
+		t.Fatal("apply without preview accepted")
+	}
+	ctx.RequireNoRequests()
+}
+
+func TestRefreshSendsScopeAndReportsPartialFailure(t *testing.T) {
+	ctx := clitest.NewContext(t)
+	ctx.Respond("POST", "/skills/refresh", map[string]any{"digest": "sha256:review", "rows": []map[string]any{{"runtime": "codex", "skill": "alpha", "status": "modified", "error": "local edits", "applied": false}}})
+	out, _, err := clitest.Output(t, func() error {
+		return cmdRefresh(ctx, []string{"--runtime=codex", "--skills=alpha", "--apply", "--expected-digest=sha256:review", "--json"})
+	})
+	if err == nil || !strings.Contains(out, "local edits") {
+		t.Fatalf("partial result hidden: %s %v", out, err)
+	}
+	payload := ctx.LastRequest().Payload.(map[string]any)
+	if payload["runtime"] != "codex" || payload["expectedDigest"] != "sha256:review" {
+		t.Fatalf("request: %#v", payload)
+	}
+}
+
 func TestResidentProjectionTokensIgnoreSkillBody(t *testing.T) {
 	content := []byte("---\nname: short\ndescription: compact description\n---\n\n" + strings.Repeat("body ", 1000))
 	if got := residentProjectionTokens(content); got >= len(content)/4 {

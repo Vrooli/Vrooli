@@ -5,6 +5,7 @@
   "icon": "clock",
   "id": "benchmark-staleness-sweep",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "tools"
   ],

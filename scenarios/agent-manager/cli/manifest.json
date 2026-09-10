@@ -8,10 +8,10 @@
       "description": "Run bounded caller-neutral investigations",
       "commands": [
         {"name": "start", "description": "Start or reattach a typed investigation", "flags": [{"name": "file", "required": true, "description": "InvestigationRequest JSON file", "bind": {"field": "request", "kind": "json_file"}}], "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "StartInvestigation"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_mutation"}},
-        {"name": "get", "description": "Get a typed investigation", "flags": [{"name": "investigation-id", "positional": true, "required": true, "description": "Investigation identifier"}], "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "GetInvestigation"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_list"}},
+        {"name": "get", "description": "Get a typed investigation", "positionals": [{"name": "investigation-id", "required": true, "description": "Investigation identifier"}], "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "GetInvestigation"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_list"}},
         {"name": "list", "description": "List typed investigations", "flags": [{"name": "operation-status", "aliases": ["status"], "description": "Operation status filter"}, {"name": "limit", "description": "Maximum investigations"}], "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "ListInvestigations"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_list"}},
-        {"name": "wait", "description": "Wait for a typed investigation", "flags": [{"name": "investigation-id", "positional": true, "required": true, "description": "Investigation identifier"}, {"name": "timeout-seconds", "description": "One bounded wait duration"}], "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "WaitInvestigation"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_list"}},
-        {"name": "cancel", "description": "Cancel a typed investigation", "flags": [{"name": "investigation-id", "positional": true, "required": true, "description": "Investigation identifier"}], "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "CancelInvestigation"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_mutation"}}
+        {"name": "wait", "description": "Wait for a typed investigation", "positionals": [{"name": "investigation-id", "required": true, "description": "Investigation identifier"}], "flags": [{"name": "timeout-seconds", "description": "One bounded wait duration"}], "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "WaitInvestigation"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_list"}},
+        {"name": "cancel", "description": "Cancel a typed investigation", "positionals": [{"name": "investigation-id", "required": true, "description": "Investigation identifier"}], "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "CancelInvestigation"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_mutation"}}
       ]
     },
     {
@@ -593,7 +593,7 @@
           "flags": [
             {
               "name": "disabled",
-              "type": "bool",
+              "bool": true,
               "description": "Disable supervision"
             },
             {
@@ -3842,7 +3842,7 @@
         },
         {
           "name": "recover",
-          "description": "Recover a run",
+          "description": "Reconcile execution or retry failed sandbox finalization",
           "binding": {
             "kind": "local"
           },

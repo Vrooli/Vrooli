@@ -385,6 +385,41 @@ func TestScanCodeFilesForDocRefs_SkipsNodeModules(t *testing.T) {
 	}
 }
 
+func TestMarkedPathsUseRepositoryRootAndDocRefsRetainScenarioRoot(t *testing.T) {
+	root := t.TempDir()
+	scenario := filepath.Join(root, "scenarios", "demo")
+	doc := filepath.Join(scenario, "skills", "demo", "SKILL.md")
+	writeTestFile(t, filepath.Join(root, "docs", "TESTING.md"), "# Testing")
+	writeTestFile(t, filepath.Join(scenario, "docs", "START-HERE.md"), "# Start")
+	writeTestFile(t, doc, "`path:docs/TESTING.md`\n`path:scenarios/demo/docs/START-HERE.md#start`\n`doc:docs/START-HERE.md`\n[CODE: api/main.go]\n`path:missing.md`\n")
+	writeTestFile(t, filepath.Join(scenario, "api", "main.go"), "// DOC: docs/START-HERE.md\n")
+	for _, scanRoot := range []string{scenario, filepath.Dir(doc)} {
+		findings, summary := validateBidirectionalRefsWithRoot(context.Background(), scanRoot, scenario, root, []string{doc}, newCfg(), nil)
+		if summary.MarkedRefsFound != 4 || summary.MarkedRefsBroken != 1 || summary.CodeRefsBroken != 0 || summary.DocRefsBroken != 0 {
+			t.Fatalf("wrong reference roots for %s: %+v, %+v", scanRoot, summary, findings)
+		}
+		if len(findings) != 1 || !strings.Contains(findings[0].Message, "missing.md") {
+			t.Fatalf("missing path must remain a failure: %+v", findings)
+		}
+	}
+}
+
+func TestMarkedPathsCannotEscapeRepository(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "repo")
+	outside := filepath.Join(parent, "outside.md")
+	writeTestFile(t, outside, "Outside repository")
+	doc := filepath.Join(root, "docs", "README.md")
+	writeTestFile(t, doc, "`path:../outside.md`\n`path:"+outside+"`\n`path:escape.md`\n")
+	if err := os.Symlink(outside, filepath.Join(root, "escape.md")); err != nil {
+		t.Fatal(err)
+	}
+	_, summary := validateBidirectionalRefsWithRoot(context.Background(), root, root, root, []string{doc}, newCfg(), nil)
+	if summary.MarkedRefsBroken != 3 {
+		t.Fatalf("escaping paths accepted: %+v", summary)
+	}
+}
+
 func TestValidateBidirectionalRefs_ValidatesCLIRefsThroughCLIHealth(t *testing.T) {
 	dir := t.TempDir()
 	doc := filepath.Join(dir, "docs", "commands.md")

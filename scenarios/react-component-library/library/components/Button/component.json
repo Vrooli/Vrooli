@@ -33,8 +33,5 @@
     "2.2.8"
   ],
   "latest": "2.2.12",
-  "libraryId": "react-component-library:Button",
-  "displayName": "Button",
-  "description": "The primary action control: a labelled, token-bound button that acknowledges activation immediately, expresses intent through semantic variants, and keeps stable dimensions while it moves through pending, success, and failure.",
-  "tags": []
+  "libraryId": "react-component-library:Button"
 }

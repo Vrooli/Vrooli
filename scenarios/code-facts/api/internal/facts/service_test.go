@@ -837,6 +837,85 @@ func TestSourceFingerprintChangesWhenContentChanges(t *testing.T) {
 	}
 }
 
+func TestSourceFingerprintStatTierSkipsContentReadsWhenUnchanged(t *testing.T) {
+	sourceFileHashMemo = newFileHashMemo(sourceFileHashMemoCapacity)
+	sourceSignatureMemo = newFileHashMemo(sourceSignatureMemoCapacity)
+	root := t.TempDir()
+	paths := make([]string, 0, 20)
+	for i := 0; i < 20; i++ {
+		path := filepath.Join(root, fmt.Sprintf("file_%02d.go", i))
+		writeFile(t, path, fmt.Sprintf("package demo\n\nfunc F%d() {}\n", i))
+		paths = append(paths, path)
+	}
+	before := sourceFileReads.Load()
+	first := fileStatSignature(root, paths)
+	if reads := sourceFileReads.Load() - before; reads != int64(len(paths)) {
+		t.Fatalf("cold signature read %d files, want %d", reads, len(paths))
+	}
+
+	// Unchanged stat state: no file may be opened.
+	before = sourceFileReads.Load()
+	second := fileStatSignature(root, paths)
+	if second != first {
+		t.Fatalf("stat-tier signature %s differs from cold signature %s", second, first)
+	}
+	if reads := sourceFileReads.Load() - before; reads != 0 {
+		t.Fatalf("unchanged file set read %d files, want 0", reads)
+	}
+
+	// A content change with a new mtime must miss both tiers, read only the
+	// changed file, and produce a different signature.
+	changed := paths[3]
+	writeFile(t, changed, "package demo\n\nfunc Changed() {}\n")
+	future := time.Now().Add(time.Hour)
+	if err := os.Chtimes(changed, future, future); err != nil {
+		t.Fatal(err)
+	}
+	before = sourceFileReads.Load()
+	third := fileStatSignature(root, paths)
+	if third == first {
+		t.Fatalf("signature did not change after content edit: %s", third)
+	}
+	if reads := sourceFileReads.Load() - before; reads != 1 {
+		t.Fatalf("edited file set read %d files, want 1", reads)
+	}
+
+	// An mtime-only touch misses the stat tier but must re-read only that file
+	// and land on the previous signature, preserving the mtime-churn contract.
+	later := time.Now().Add(2 * time.Hour)
+	if err := os.Chtimes(changed, later, later); err != nil {
+		t.Fatal(err)
+	}
+	before = sourceFileReads.Load()
+	fourth := fileStatSignature(root, paths)
+	if fourth != third {
+		t.Fatalf("signature changed after mtime-only touch: %s != %s", fourth, third)
+	}
+	if reads := sourceFileReads.Load() - before; reads != 1 {
+		t.Fatalf("touched file set read %d files, want 1", reads)
+	}
+
+	// Removing a file changes the stat digest and the signature.
+	if err := os.Remove(paths[7]); err != nil {
+		t.Fatal(err)
+	}
+	fifth := fileStatSignature(root, paths)
+	if fifth == fourth {
+		t.Fatalf("signature did not change after file removal: %s", fifth)
+	}
+
+	// The stat tier must answer without the per-file memo: a fleet pass that
+	// evicted every per-file entry still costs zero reads for unchanged sets.
+	sourceFileHashMemo = newFileHashMemo(sourceFileHashMemoCapacity)
+	before = sourceFileReads.Load()
+	if sixth := fileStatSignature(root, paths); sixth != fifth {
+		t.Fatalf("stat-tier signature %s differs after per-file memo eviction: %s", sixth, fifth)
+	}
+	if reads := sourceFileReads.Load() - before; reads != 0 {
+		t.Fatalf("unchanged file set read %d files after memo eviction, want 0", reads)
+	}
+}
+
 func TestCacheSupersedeOnPutMemory(t *testing.T) {
 	exerciseCacheSupersedeOnPut(t, NewMemoryCacheRepository())
 }
@@ -2458,14 +2537,16 @@ func BenchmarkSourceFingerprint(b *testing.B) {
 		paths = append(paths, path)
 	}
 	b.Run("cold", func(b *testing.B) {
-		sourceFileHashMemo = newFileHashMemo(8192)
+		sourceFileHashMemo = newFileHashMemo(sourceFileHashMemoCapacity)
+		sourceSignatureMemo = newFileHashMemo(sourceSignatureMemoCapacity)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_ = fileStatSignature(root, paths)
 		}
 	})
 	b.Run("warm", func(b *testing.B) {
-		sourceFileHashMemo = newFileHashMemo(8192)
+		sourceFileHashMemo = newFileHashMemo(sourceFileHashMemoCapacity)
+		sourceSignatureMemo = newFileHashMemo(sourceSignatureMemoCapacity)
 		_ = fileStatSignature(root, paths)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {

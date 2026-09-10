@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { MeshStandardMaterial, type Material } from 'three'
 import type { LightingPeriod, Scene } from '../config'
+import { applyWorldTexture, worldTextureKind } from './materialTextures'
 
 export interface Emissive {
   color: string
@@ -19,11 +20,14 @@ export function usePropMaterials(parts: readonly { material: Material }[], emiss
   const color = emissive?.color
   const intensity = emissive?.intensity ?? 0
   const materials = useMemo(() => parts.map(({ material }) => {
-    if (!color || intensity <= 0 || !(material instanceof MeshStandardMaterial)) return material
+    if (!(material instanceof MeshStandardMaterial)) return material
     const copy = material.clone()
-    copy.emissive.set(color)
-    copy.emissiveIntensity = intensity
-    copy.toneMapped = intensity < BLOOM_THRESHOLD
+    applyWorldTexture(copy, worldTextureKind(copy.name))
+    if (color && intensity > 0) {
+      copy.emissive.set(color)
+      copy.emissiveIntensity = intensity
+      copy.toneMapped = intensity < BLOOM_THRESHOLD
+    }
     return copy
   }), [parts, color, intensity])
   useEffect(() => () => {

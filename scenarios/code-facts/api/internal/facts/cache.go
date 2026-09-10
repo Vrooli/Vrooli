@@ -1158,36 +1158,87 @@ func isSourceFile(path string) bool {
 	}
 }
 
+// fileStatSignature returns the content fingerprint of paths relative to
+// root: a digest over each file's relative path and SHA-256 content hash, so
+// mtime-only churn (a touch, a checkout that rewrites identical bytes) does
+// not change it while any byte change does.
+//
+// Hashing every file on every Describe call is the dominant cost of a fleet
+// pass, so the walk is split in two tiers that trust the same evidence. The
+// stat tier digests (path, size, mtime) for the whole file set; when that
+// digest was seen before, the previously computed content signature is
+// returned without opening a file. Only a set whose stat digest is new falls
+// through to the per-file tier, which reads and hashes just the files whose
+// own (path, size, mtime) key is not memoized. Both tiers key on exactly the
+// metadata the per-file memo already relied on, so the fast path can never
+// return a signature the slow path would not have produced.
 func fileStatSignature(root string, paths []string) string {
 	sort.Strings(paths)
-	h := sha256.New()
-	for _, path := range paths {
+	infos := make([]os.FileInfo, len(paths))
+	rels := make([]string, len(paths))
+	statDigest := sha256.New()
+	_, _ = fmt.Fprintf(statDigest, "root:%s\n", filepath.ToSlash(root))
+	for i, path := range paths {
 		rel, err := filepath.Rel(root, path)
 		if err != nil || strings.HasPrefix(rel, "..") {
 			rel = path
 		}
+		rels[i] = filepath.ToSlash(rel)
 		info, err := os.Stat(path)
 		if err != nil {
-			_, _ = fmt.Fprintf(h, "missing:%s\n", filepath.ToSlash(rel))
+			_, _ = fmt.Fprintf(statDigest, "missing:%s\n", rels[i])
 			continue
 		}
-		contentHash, err := sourceFileContentHash(path, info)
-		if err != nil {
-			_, _ = fmt.Fprintf(h, "missing:%s\n", filepath.ToSlash(rel))
-			continue
-		}
-		_, _ = fmt.Fprintf(h, "%s:%s\n", filepath.ToSlash(rel), contentHash)
+		infos[i] = info
+		_, _ = fmt.Fprintf(statDigest, "%s:%d:%d\n", rels[i], info.Size(), info.ModTime().UnixNano())
 	}
-	return hex.EncodeToString(h.Sum(nil))
+	statKey := hex.EncodeToString(statDigest.Sum(nil))
+	if signature, ok := sourceSignatureMemo.get(statKey); ok {
+		return signature
+	}
+	h := sha256.New()
+	for i, path := range paths {
+		if infos[i] == nil {
+			_, _ = fmt.Fprintf(h, "missing:%s\n", rels[i])
+			continue
+		}
+		contentHash, err := sourceFileContentHash(path, infos[i])
+		if err != nil {
+			_, _ = fmt.Fprintf(h, "missing:%s\n", rels[i])
+			continue
+		}
+		_, _ = fmt.Fprintf(h, "%s:%s\n", rels[i], contentHash)
+	}
+	signature := hex.EncodeToString(h.Sum(nil))
+	sourceSignatureMemo.put(statKey, signature)
+	return signature
 }
 
-var sourceFileHashMemo = newFileHashMemo(8192)
+// sourceFileHashMemoCapacity is sized to the fleet: the governed roots hold
+// roughly forty thousand source files, and a fleet-wide DescribeFleetImports
+// touches every one of them. A memo smaller than the fleet evicts entries
+// mid-pass and re-hashes unchanged files on every call.
+const sourceFileHashMemoCapacity = 65536
+
+// sourceSignatureMemoCapacity bounds the stat-tier memo: one entry per
+// distinct (root, file set, stat state), so a scenario contributes a handful
+// of entries across its parse units and revisions.
+const sourceSignatureMemoCapacity = 4096
+
+var (
+	sourceFileHashMemo  = newFileHashMemo(sourceFileHashMemoCapacity)
+	sourceSignatureMemo = newFileHashMemo(sourceSignatureMemoCapacity)
+	// sourceFileReads counts content reads performed by sourceFileContentHash
+	// so tests can prove the stat tier avoided them.
+	sourceFileReads atomic.Int64
+)
 
 func sourceFileContentHash(path string, info os.FileInfo) (string, error) {
 	key := fileHashMemoKey(path, info)
 	if hash, ok := sourceFileHashMemo.get(key); ok {
 		return hash, nil
 	}
+	sourceFileReads.Add(1)
 	payload, err := os.ReadFile(path) // #nosec G304 -- paths come from the caller-selected source tree and are hashed, not executed.
 	if err != nil {
 		return "", err

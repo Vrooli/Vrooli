@@ -5,6 +5,7 @@
   "icon": "network",
   "id": "team-member-capability-architecture-audit",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "practice"
   ],

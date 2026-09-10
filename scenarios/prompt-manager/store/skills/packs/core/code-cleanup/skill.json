@@ -6,6 +6,7 @@
   "icon": "trash2",
   "id": "code-cleanup",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "cleanup"

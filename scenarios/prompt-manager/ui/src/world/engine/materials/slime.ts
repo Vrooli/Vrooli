@@ -32,6 +32,9 @@ export function createSlimeMaterial(actor: SlimeSettings, wobbleEnabled: boolean
     color: new Color(actor.material.color),
     roughness: actor.material.roughness,
     metalness: 0,
+    // Keep the HDR sky as atmosphere; the stylized body highlight comes from
+    // the keyed lights and clearcoat rather than reflecting the backdrop.
+    envMapIntensity: 0,
     clearcoat: actor.material.clearcoat,
     clearcoatRoughness: actor.material.clearcoatRoughness,
     sheen: actor.material.sheen,

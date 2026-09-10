@@ -14,7 +14,7 @@ JSON. The API mounts these generated services:
 
 | Domain | Service | RPCs | Responsibility |
 |---|---|---:|---|
-| skills | `SkillsService` | 16 | Skill CRUD, reads, sync, history, variants, ratings |
+| skills | `SkillsService` | 20 | Skill CRUD, reads, sync, history, variants, ratings, import/review/staleness, native projection refresh |
 | experiments | `ExperimentsService` | 14 | Experiment lifecycle, assignments, evidence, outcomes, promotion |
 | actions | `ActionsService` | 7 | Action authoring, validation, CRUD, governed execution |
 | tags | `TagsService` | 2 | Persisted tag taxonomy |
@@ -36,6 +36,15 @@ Stable identifiers and method inputs are typed. Heartbeat/memberflow payloads
 whose upstream catalogs intentionally evolve are carried as
 `google.protobuf.Value` behind typed method and identity boundaries; consumers
 must still use the generated clients rather than reconstructing JSON routes.
+
+`SkillsService.RefreshProjection` defaults to a read-only preview. Apply binds
+the caller's `expected_digest` to the selected runtime/skills, adoption policy,
+configured destinations, source/installed content, and receipt identities. A
+stale or absent digest returns failed-precondition. A valid apply can return a
+mixture of applied and conflicted rows: consumers must inspect every row, not
+equate RPC success with all-target success. Recovery copies are local to the
+server's configured target. See
+[skill refresh](cli-commands.md#prompt-manager-skill-refresh) for operator usage.
 
 ## Measures substrate
 

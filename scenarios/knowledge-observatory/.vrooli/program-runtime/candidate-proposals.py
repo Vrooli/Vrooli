@@ -1,9 +1,6 @@
 import json
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 
 envelope = {
     "program": "knowledge-observatory.candidate-proposals",

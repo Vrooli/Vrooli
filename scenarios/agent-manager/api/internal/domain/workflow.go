@@ -58,6 +58,9 @@ type WorkflowDefinition struct {
 	Nodes         []WorkflowNode  `json:"nodes"`
 	Edges         []WorkflowEdge  `json:"edges"`
 	Budgets       WorkflowBudgets `json:"budgets"`
+	// GrantCapacity is the optional technical maximum for an explicitly bound
+	// owner grant. It never changes Budgets for ungranted executions.
+	GrantCapacity *WorkflowBudgets `json:"grantCapacity,omitempty"`
 	// ExperimentEvaluator is mandatory for a workflow that arms a skill
 	// experiment. It names an independent downstream evaluator rather than
 	// inferring quality from treatment-run completion.
@@ -269,16 +272,19 @@ type WorkflowEdge struct {
 }
 
 type WorkflowBudgets struct {
-	WallTimeSeconds   int   `json:"wallTimeSeconds"`
-	MaxTurns          int   `json:"maxTurns"`
-	MaxTokens         int   `json:"maxTokens"`
-	MaxChargeMicroUSD int64 `json:"maxChargeMicroUsd"`
-	MaxNodeAttempts   int   `json:"maxNodeAttempts"`
-	MaxChildren       int   `json:"maxChildren"`
-	MaxConcurrency    int   `json:"maxConcurrency"`
-	MaxRecursion      int   `json:"maxRecursion"`
-	MaxRetries        int   `json:"maxRetries"`
-	MaxWaitSeconds    int   `json:"maxWaitSeconds"`
+	// Empty preserves existing admission-only semantics. Metered cancellation
+	// is opt-in and requires a supported graph; it never promises a hard cap.
+	Enforcement       string `json:"enforcement,omitempty"`
+	WallTimeSeconds   int    `json:"wallTimeSeconds"`
+	MaxTurns          int    `json:"maxTurns"`
+	MaxTokens         int    `json:"maxTokens"`
+	MaxChargeMicroUSD int64  `json:"maxChargeMicroUsd"`
+	MaxNodeAttempts   int    `json:"maxNodeAttempts"`
+	MaxChildren       int    `json:"maxChildren"`
+	MaxConcurrency    int    `json:"maxConcurrency"`
+	MaxRecursion      int    `json:"maxRecursion"`
+	MaxRetries        int    `json:"maxRetries"`
+	MaxWaitSeconds    int    `json:"maxWaitSeconds"`
 }
 
 // WorkflowRevision is Agent Manager's immutable runtime projection of one

@@ -115,6 +115,10 @@ type EvaluationInput struct {
 	ResetFrom      int64
 	ResetTo        int64
 	ProposedCursor string
+	// ConsecutiveFailures and LastFailureReason describe the unavailable streak
+	// recorded for this watch so an evaluator can back off and log once.
+	ConsecutiveFailures int    `json:",omitempty"`
+	LastFailureReason   string `json:",omitempty"`
 }
 
 type Evaluator interface {
@@ -220,7 +224,7 @@ func (p *Processor) Process(ctx context.Context, watchID string) (*domainpb.Coho
 			return nil, err
 		}
 	}
-	input := EvaluationInput{Watch: watch, Subjects: summaries, Now: p.now().UTC(), Reset: retention.Generation != before.RetentionGeneration, ResetFrom: before.RetentionGeneration, ResetTo: retention.Generation}
+	input := EvaluationInput{Watch: watch, Subjects: summaries, Now: p.now().UTC(), Reset: retention.Generation != before.RetentionGeneration, ResetFrom: before.RetentionGeneration, ResetTo: retention.Generation, ConsecutiveFailures: before.ConsecutiveFailures, LastFailureReason: before.LastFailureReason}
 	after := before
 	if input.Reset {
 		after.RowID, after.RetentionGeneration = retention.HighRowID, retention.Generation
@@ -259,10 +263,15 @@ func (p *Processor) Process(ctx context.Context, watchID string) (*domainpb.Coho
 	}
 	// Dependency outages and explicit abstention must not consume evidence. The
 	// same durable cursor will be replayed when evaluation becomes available.
+	// The repository still advances the wake for a replayed unavailable
+	// decision, so the replay happens on the evaluator's backoff, not every tick.
+	decision.IdempotencyKey = decisionKey(watchID, before.Token, after.RowID, decision.GetDisposition())
 	if decision.GetDisposition() == domainpb.WatchDisposition_WATCH_DISPOSITION_UNAVAILABLE {
 		after = before
+		// A changed reason (transport outage, then contract rejection) is a new
+		// durable decision so the watch shows why it is currently parked.
+		decision.IdempotencyKey = decisionKey(watchID, before.Token, after.RowID, decision.GetDisposition(), decision.GetClassification())
 	}
-	decision.IdempotencyKey = decisionKey(watchID, before.Token, after.RowID, decision.GetDisposition())
 	updated, err := p.service.watches.CommitDecision(ctx, watchID, watch.GetRevision(), before, decision, after, input)
 	if err == nil {
 		p.service.notify(watchID)
@@ -305,8 +314,8 @@ func subjectRunIDs(subjects []*domainpb.WatchSubject) ([]uuid.UUID, error) {
 	return ids, nil
 }
 
-func decisionKey(watchID, cursor string, rowID int64, disposition domainpb.WatchDisposition) string {
-	parts := []string{watchID, cursor, fmt.Sprint(rowID), fmt.Sprint(int32(disposition))}
+func decisionKey(watchID, cursor string, rowID int64, disposition domainpb.WatchDisposition, extra ...string) string {
+	parts := append([]string{watchID, cursor, fmt.Sprint(rowID), fmt.Sprint(int32(disposition))}, extra...)
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
 	return "watch-decision:" + hex.EncodeToString(sum[:])
 }

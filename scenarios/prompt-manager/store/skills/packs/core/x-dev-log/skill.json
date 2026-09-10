@@ -5,6 +5,7 @@
   "icon": "messagecircle",
   "id": "x-dev-log",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "tools"
   ],

@@ -509,6 +509,12 @@ type TranscriptModelSetter interface {
 	SetTranscriptModel(string)
 }
 
+// TranscriptBillingSetter supplies the immutable billing context stamped for
+// the run. Replay must never infer billing from current resource policy.
+type TranscriptBillingSetter interface {
+	SetTranscriptBilling(domain.BillingSnapshot)
+}
+
 // TranscriptRetentionSetter selects whether echoed user/operator turns are
 // retained during a durable transcript import. Live execution keeps the
 // historical suppression behavior; imported evidence opts into redacted,

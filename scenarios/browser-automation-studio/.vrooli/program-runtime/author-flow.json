@@ -1,7 +1,7 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "browser-automation-studio.author-flow",
-  "version": "3",
+  "version": "4",
   "helpers": {
     "program": "1"
   },
@@ -41,7 +41,8 @@
     "One execution; persist only after completed execution with an evidence ID",
     "Repair preserves assertions, settings and metadata; update uses expected_version",
     "A pending or failed candidate never replaces a saved workflow",
-    "One bounded envelope on every path"
+    "One bounded envelope on every path",
+    "Incomplete or missing assertion evidence prevents persistence and qualification."
   ],
   "bindings": [
     {
@@ -99,7 +100,8 @@
       "outcome": "verified_success only for completed execution with a complete bounded timeline of successful assertions; otherwise unknown or explicit failure",
       "persistable": "true only when validation passed and the ad hoc run completed",
       "workflow_id": "Persisted workflow UUID, or null",
-      "version": "Saved immutable revision, or null"
+      "version": "Saved immutable revision, or null",
+      "learning": "Durable feedback_ref identifies this task or exact artifact for later learn.feedback."
     },
     "errors": {
       "classes": [
@@ -122,7 +124,8 @@
         "version_conflict",
         "execution_pending",
         "remote_error",
-        "no_governed_binding"
+        "no_governed_binding",
+        "verification_required"
       ]
     },
     "evidence": "execution:<id>"
@@ -197,6 +200,7 @@
     "learn.task",
     "learn.note",
     "learn.outcome",
-    "lib"
+    "lib",
+    "learn.result"
   ]
 }

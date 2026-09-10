@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/eventbus"
+	coreRetention "github.com/vrooli/api-core/retention"
 	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal"
 	journalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal/journal_v1connect"
 	"storage-manager/internal/cleanup"
@@ -177,6 +179,8 @@ type Service struct {
 	recoveryGate     sync.Mutex
 	recoveryBusy     bool
 	recoveryLockPath string
+	protectionMu     sync.RWMutex
+	protectedRoots   []string
 	events           eventPublisher
 	journal          journalAppender
 }
@@ -264,6 +268,87 @@ func (c journalClient) AppendRecovery(ctx context.Context, run RecoveryRun) erro
 func (s *Service) SetEventPublisher(p eventPublisher) { s.events = p }
 
 func (s *Service) SetJournalAppender(a journalAppender) { s.journal = a }
+
+// SetProtectedRoots installs the contract-derived roots that no cleanup
+// provider may surface or apply. This is an orchestration boundary in addition
+// to provider-local checks: owner providers return paths over HTTP, and a
+// malformed or stale provider must not make a protected plan-artifacts tree
+// look like a safe pressure target.
+func (s *Service) SetProtectedRoots(roots []string) error {
+	normalized, err := coreRetention.NormalizeProtectedRoots(roots)
+	if err != nil {
+		return err
+	}
+	s.protectionMu.Lock()
+	s.protectedRoots = append([]string(nil), normalized...)
+	s.protectionMu.Unlock()
+	return nil
+}
+
+func protectedPreviewPathOverlap(candidate string, protectedRoots []string) bool {
+	if coreRetention.ProtectedPathOverlap(candidate, protectedRoots) {
+		return true
+	}
+	// Provider paths are filesystem paths only when they are absolute. Relative
+	// and URI-like values are provider-owned identifiers; leave those opaque.
+	// For an absolute path, resolve existing symlink components so an owner
+	// provider cannot make a protected tree look safe through an external alias.
+	if !filepath.IsAbs(candidate) {
+		return false
+	}
+	resolved, ok := resolveExistingPreviewPath(candidate)
+	return ok && coreRetention.ProtectedPathOverlap(resolved, protectedRoots)
+}
+
+// resolveExistingPreviewPath resolves every existing component of an
+// absolute provider path and appends any missing suffix. Providers can preview
+// a path that disappeared between measurement and preview; a missing leaf
+// must not hide an alias through a symlinked parent.
+func resolveExistingPreviewPath(candidate string) (string, bool) {
+	current := filepath.Clean(candidate)
+	suffix := make([]string, 0)
+	for {
+		if _, err := os.Lstat(current); err == nil {
+			resolved, err := filepath.EvalSymlinks(current)
+			if err != nil {
+				return "", false
+			}
+			for index := len(suffix) - 1; index >= 0; index-- {
+				resolved = filepath.Join(resolved, suffix[index])
+			}
+			return resolved, true
+		} else if !os.IsNotExist(err) {
+			return "", false
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", false
+		}
+		suffix = append(suffix, filepath.Base(current))
+		current = parent
+	}
+}
+
+func (s *Service) filterProtectedPreview(preview cleanup.Preview) (cleanup.Preview, bool) {
+	s.protectionMu.RLock()
+	roots := append([]string(nil), s.protectedRoots...)
+	s.protectionMu.RUnlock()
+	if len(roots) == 0 || len(preview.Items) == 0 {
+		return preview, false
+	}
+	out := preview.Clone()
+	out.Items = out.Items[:0]
+	filtered := false
+	for _, item := range preview.Items {
+		if protectedPreviewPathOverlap(item.Path, roots) {
+			filtered = true
+			out.Warnings = append(out.Warnings, "protected contract path excluded from cleanup preview")
+			continue
+		}
+		out.Items = append(out.Items, item)
+	}
+	return out, filtered
+}
 
 // SetWarningDependencies wires the read-only growth projection and the
 // report-bug transport used by warning pressure. It is a production seam so
@@ -489,6 +574,17 @@ func (s *Service) planSync(ctx context.Context, censusID string, scope cleanup.O
 		if err != nil {
 			return Plan{}, fmt.Errorf("preview %s: %w", meta.ID, err)
 		}
+		var filtered bool
+		preview, filtered = s.filterProtectedPreview(preview)
+		if filtered {
+			// Estimate and preview are one checkpoint after contract-protected
+			// items are removed, so a protected path is neither offered as
+			// reclaimable bytes nor counted in the plan total. Preserve provider
+			// estimate semantics when no item was filtered: providers may report
+			// bounded or coarse estimates that intentionally differ from preview.
+			estimate.EstimatedBytes = sumRecoveryPreviewBytes(preview.Items)
+			estimate.ItemCount = len(preview.Items)
+		}
 		providerPlans = append(providerPlans, ProviderPlan{
 			ProviderID:      meta.ID,
 			ProviderVersion: meta.Version,
@@ -574,6 +670,7 @@ func (s *Service) Apply(ctx context.Context, input ApplyInput) (ApplyReport, err
 }
 
 func (s *Service) applyProvider(ctx context.Context, plan Plan, pp ProviderPlan, input ApplyInput) (cleanup.ApplyResult, bool, error) {
+	pp.Preview, _ = s.filterProtectedPreview(pp.Preview)
 	provider, err := s.providerForPlan(pp)
 	if err != nil {
 		return cleanup.ApplyResult{}, false, err

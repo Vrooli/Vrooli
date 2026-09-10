@@ -512,8 +512,19 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 
 	snap := state.Snapshot()
 	run.TranscriptPath = snap.TranscriptPath
-	run.TranscriptCursor = snap.Cursor.TranscriptCursor
-	run.TranscriptLastSeq = snap.Cursor.TranscriptLastSeq
+	// This owner prepares a new continuation, whose stdout appends to the
+	// original transcript. Persist the old file boundary before dispatch so
+	// restart recovery cannot treat an earlier terminal marker as its result.
+	info, err := state.TranscriptWriter().Stat()
+	if err != nil {
+		_ = state.Close()
+		return nil, nil, err
+	}
+	run.TranscriptCursor = info.Size()
+	if err := state.PersistCursor(run.TranscriptCursor, run.TranscriptLastSeq); err != nil {
+		_ = state.Close()
+		return nil, nil, err
+	}
 	if err := o.runs.Update(ctx, run); err != nil {
 		_ = state.Close()
 		return nil, nil, err

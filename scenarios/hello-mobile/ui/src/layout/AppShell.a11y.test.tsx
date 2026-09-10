@@ -6,6 +6,7 @@
  */
 import { afterEach, beforeEach, describe, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
+import { selectors } from "../consts/selectors";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { setLocale } from "../i18n";
@@ -35,6 +36,6 @@ describe("AppShell accessibility", () => {
     );
 
     expect(screen.getAllByRole("navigation", { name: "Primary navigation" })).toHaveLength(1);
-    expect(screen.getByRole("navigation", { name: "Mobile navigation" })).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.navLink({ key: "dashboard" })}-tab`)).toBeInTheDocument();
   });
 });

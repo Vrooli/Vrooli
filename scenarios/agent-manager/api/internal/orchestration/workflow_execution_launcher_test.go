@@ -13,11 +13,216 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/testutil/mocks"
+	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/workflowruntime"
 
 	"github.com/google/uuid"
 )
+
+type cleanupOnlyWorkflowLauncher struct {
+	*fakeRunLauncher
+	dispatches int
+	stops      []uuid.UUID
+}
+
+func (l *cleanupOnlyWorkflowLauncher) StartFresh(context.Context, workflowruntime.ChildRequest) (workflowruntime.ChildState, error) {
+	l.dispatches++
+	return workflowruntime.ChildState{}, errors.New("cleanup must not dispatch")
+}
+
+func (l *cleanupOnlyWorkflowLauncher) Continue(context.Context, workflowruntime.ChildRequest) (workflowruntime.ChildState, error) {
+	l.dispatches++
+	return workflowruntime.ChildState{}, errors.New("cleanup must not continue")
+}
+
+func (l *cleanupOnlyWorkflowLauncher) Stop(ctx context.Context, id uuid.UUID) error {
+	l.stops = append(l.stops, id)
+	return l.fakeRunLauncher.Stop(ctx, id)
+}
+
+func persistUnacknowledgedWorkflowRun(t *testing.T, repos *database.Repositories, attempt *domain.WorkflowNodeAttempt, runID uuid.UUID) {
+	t.Helper()
+	task := &domain.Task{ID: uuid.NewSHA1(attempt.ID, []byte("workflow-node-task")), Title: "original workflow dispatch", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(t.Context(), task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: runID, TaskID: task.ID, ConversationID: "original-conversation", Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, CreatedAt: time.Now().UTC(), CustomEnv: map[string]string{
+		workflowExecutionEnv: attempt.ExecutionID.String(), workflowAttemptEnv: attempt.ID.String(), workflowNodeEnv: attempt.NodeID,
+	}}
+	if err := repos.Runs.Create(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func removeWorkflowDispatchAcknowledgement(t *testing.T, repos *database.Repositories, executionID uuid.UUID) *domain.WorkflowNodeAttempt {
+	t.Helper()
+	x, err := repos.WorkflowExecutions.Get(t.Context(), executionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attempts, err := repos.WorkflowExecutions.ListAttempts(t.Context(), executionID)
+	if err != nil || len(attempts) != 1 {
+		t.Fatalf("fixture attempts: %+v %v", attempts, err)
+	}
+	a := attempts[0]
+	a.RunID, a.ChildExecutionID, a.ConversationID = nil, nil, ""
+	a.Status, a.Version = domain.WorkflowAttemptDispatchPending, a.Version+1
+	x.Version++
+	x.BudgetUsage.Children = 0
+	if ok, err := repos.WorkflowExecutions.Commit(t.Context(), repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempt: a}); err != nil || !ok {
+		t.Fatalf("remove dispatch acknowledgement: %t %v", ok, err)
+	}
+	return a
+}
+
+func TestWorkflowCancellationRecoversOriginalUnboundRunWithoutDispatch(t *testing.T) {
+	for _, late := range []bool{false, true} {
+		t.Run(map[bool]string{false: "already persisted", true: "late original dispatch"}[late], func(t *testing.T) {
+			fake := newFakeRunLauncher()
+			o, repos := newRelayOrchestrator(t, fake)
+			if err := repos.Workflows.ActivateBatch(t.Context(), []*domain.WorkflowRevision{relayDefinition()}); err != nil {
+				t.Fatal(err)
+			}
+			x, err := o.StartWorkflowExecution(t.Context(), StartWorkflowExecutionRequest{Owner: "owner", WorkflowKey: "owner/relay", Input: json.RawMessage(`{}`), IdempotencyKey: "lost-run-ack"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			runID := runIDForNode(t, repos.WorkflowExecutions, x.ID, "a")
+			a := removeWorkflowDispatchAcknowledgement(t, repos, x.ID)
+			if !late {
+				persistUnacknowledgedWorkflowRun(t, repos, a, runID)
+			}
+			restarted, _ := reopenRelayOrchestrator(t, repos, fake)
+			guard := &cleanupOnlyWorkflowLauncher{fakeRunLauncher: fake}
+			restarted.workflowEngine.Children = guard
+			_, _ = restarted.CancelWorkflowExecution(t.Context(), WorkflowExecutionOperationRequest{ExecutionID: x.ID, IdempotencyKey: "stop-original", Reason: "operator"})
+			if late {
+				pending, _ := repos.WorkflowExecutions.Get(t.Context(), x.ID)
+				if pending.Status != domain.WorkflowExecutionCancelling || pending.BudgetUsage.AccountingComplete || len(guard.stops) != 0 {
+					t.Fatalf("absence released or fabricated dispatch: %+v stops=%v", pending, guard.stops)
+				}
+				persistUnacknowledgedWorkflowRun(t, repos, a, runID)
+				if err := restarted.RecoverWorkflowExecutions(t.Context()); err != nil {
+					t.Fatal(err)
+				}
+			}
+			attempts, _ := repos.WorkflowExecutions.ListAttempts(t.Context(), x.ID)
+			pending, _ := repos.WorkflowExecutions.Get(t.Context(), x.ID)
+			if attempts[0].RunID == nil || *attempts[0].RunID != runID || attempts[0].ConversationID != "original-conversation" || len(guard.stops) != 1 || guard.stops[0] != runID || guard.dispatches != 0 || len(fake.byKey) != 1 {
+				t.Fatalf("original handle not recovered/stopped: %+v stops=%v dispatches=%d", attempts[0], guard.stops, guard.dispatches)
+			}
+			if pending.Status != domain.WorkflowExecutionCancelling || pending.BudgetUsage.AccountingComplete {
+				t.Fatalf("missing terminal receipt was replaced with zero: %+v", pending)
+			}
+		})
+	}
+}
+
+func TestWorkflowCancellationRecoversOriginalUnboundNestedWorkflow(t *testing.T) {
+	fake := newFakeRunLauncher()
+	o, repos := newRelayOrchestrator(t, fake)
+	child := relayDefinition()
+	child.Key, child.Definition.Key, child.Digest = "owner/child", "owner/child", "sha256:child"
+	parent := relayDefinition()
+	parent.Definition.EntryNode = "review"
+	parent.Definition.Nodes = []domain.WorkflowNode{{ID: "review", Kind: domain.WorkflowNodeChild, Child: &domain.WorkflowChildNode{WorkflowKey: "owner/child", Version: "1.0.0", MaxDepth: 2}}}
+	parent.Definition.Edges = nil
+	if err := repos.Workflows.ActivateBatch(t.Context(), []*domain.WorkflowRevision{child, parent}); err != nil {
+		t.Fatal(err)
+	}
+	o.workflowEngine.Subworkflows = workflowSubworkflowLauncher{o: o}
+	x, err := o.StartWorkflowExecution(t.Context(), StartWorkflowExecutionRequest{Owner: "owner", WorkflowKey: "owner/relay", Input: json.RawMessage(`{}`), IdempotencyKey: "lost-nested-ack"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	attempts, _ := repos.WorkflowExecutions.ListAttempts(t.Context(), x.ID)
+	childID := *attempts[0].ChildExecutionID
+	runID := runIDForNode(t, repos.WorkflowExecutions, childID, "a")
+	removeWorkflowDispatchAcknowledgement(t, repos, x.ID)
+	restarted, _ := reopenRelayOrchestrator(t, repos, fake)
+	guard := &cleanupOnlyWorkflowLauncher{fakeRunLauncher: fake}
+	restarted.workflowEngine.Children = guard
+	restarted.workflowEngine.Subworkflows = workflowSubworkflowLauncher{o: restarted}
+	_, _ = restarted.CancelWorkflowExecution(t.Context(), WorkflowExecutionOperationRequest{ExecutionID: x.ID, IdempotencyKey: "stop-original", Reason: "operator"})
+	attempts, _ = repos.WorkflowExecutions.ListAttempts(t.Context(), x.ID)
+	if attempts[0].ChildExecutionID == nil || *attempts[0].ChildExecutionID != childID || len(guard.stops) != 1 || guard.stops[0] != runID || guard.dispatches != 0 || len(fake.byKey) != 1 {
+		t.Fatalf("nested original not recovered/stopped: %+v stops=%v dispatches=%d", attempts[0], guard.stops, guard.dispatches)
+	}
+}
+
+func TestWorkflowCancellationRejectsUnboundRunWithDifferentProvenance(t *testing.T) {
+	fake := newFakeRunLauncher()
+	o, repos := newRelayOrchestrator(t, fake)
+	if err := repos.Workflows.ActivateBatch(t.Context(), []*domain.WorkflowRevision{relayDefinition()}); err != nil {
+		t.Fatal(err)
+	}
+	x, err := o.StartWorkflowExecution(t.Context(), StartWorkflowExecutionRequest{Owner: "owner", WorkflowKey: "owner/relay", Input: json.RawMessage(`{}`), IdempotencyKey: "wrong-run-binding"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runID := runIDForNode(t, repos.WorkflowExecutions, x.ID, "a")
+	a := removeWorkflowDispatchAcknowledgement(t, repos, x.ID)
+	persistUnacknowledgedWorkflowRun(t, repos, a, runID)
+	run, _ := repos.Runs.Get(t.Context(), runID)
+	run.CustomEnv[workflowExecutionEnv] = uuid.NewString()
+	if err := repos.Runs.Update(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	guard := &cleanupOnlyWorkflowLauncher{fakeRunLauncher: fake}
+	o.workflowEngine.Children = guard
+	_, _ = o.CancelWorkflowExecution(t.Context(), WorkflowExecutionOperationRequest{ExecutionID: x.ID, IdempotencyKey: "stop-original", Reason: "operator"})
+	attempts, _ := repos.WorkflowExecutions.ListAttempts(t.Context(), x.ID)
+	pending, _ := repos.WorkflowExecutions.Get(t.Context(), x.ID)
+	if attempts[0].RunID != nil || len(guard.stops) != 0 || guard.dispatches != 0 || pending.Status != domain.WorkflowExecutionCancelling {
+		t.Fatalf("different owner's run was bound/stopped: %+v stops=%v dispatches=%d", attempts[0], guard.stops, guard.dispatches)
+	}
+}
+
+func TestWorkflowCancellationStopsUnacknowledgedContinuationAndWaitsForOriginalReceipt(t *testing.T) {
+	fake := newFakeRunLauncher()
+	o, repos := newRelayOrchestrator(t, fake)
+	if err := repos.Workflows.ActivateBatch(t.Context(), []*domain.WorkflowRevision{relayDefinition()}); err != nil {
+		t.Fatal(err)
+	}
+	x, err := o.StartWorkflowExecution(t.Context(), StartWorkflowExecutionRequest{Owner: "owner", WorkflowKey: "owner/relay", Input: json.RawMessage(`{}`), IdempotencyKey: "lost-continuation-ack"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	attempts, _ := repos.WorkflowExecutions.ListAttempts(t.Context(), x.ID)
+	source := attempts[0]
+	runID := *source.RunID
+	persistUnacknowledgedWorkflowRun(t, repos, source, runID)
+	source.Status, source.Version = domain.WorkflowAttemptCompleted, source.Version+1
+	continuation := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: "b", Ordinal: 1, Strategy: domain.WorkflowAttemptContinue, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: "original-continuation", SourceAttemptID: &source.ID, InputSnapshot: json.RawMessage(`{}`), Version: 1, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+	x.Version++
+	if ok, err := repos.WorkflowExecutions.Commit(t.Context(), repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempts: []*domain.WorkflowNodeAttempt{source, continuation}}); err != nil || !ok {
+		t.Fatalf("continuation fixture: %t %v", ok, err)
+	}
+	if _, err := repos.Idempotency.Reserve(t.Context(), continuation.IdempotencyKey, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	restarted, _ := reopenRelayOrchestrator(t, repos, fake)
+	WithIdempotency(repos.Idempotency)(restarted)
+	guard := &cleanupOnlyWorkflowLauncher{fakeRunLauncher: fake}
+	restarted.workflowEngine.Children = guard
+	_, _ = restarted.CancelWorkflowExecution(t.Context(), WorkflowExecutionOperationRequest{ExecutionID: x.ID, IdempotencyKey: "stop-original", Reason: "operator"})
+	pending, _ := repos.WorkflowExecutions.Get(t.Context(), x.ID)
+	stored, _ := repos.WorkflowExecutions.GetAttemptByIdempotencyKey(t.Context(), continuation.IdempotencyKey)
+	if len(guard.stops) != 1 || guard.stops[0] != runID || stored.RunID != nil || pending.Status != domain.WorkflowExecutionCancelling || pending.BudgetUsage.AccountingComplete {
+		t.Fatalf("pending continuation was ignored or prematurely settled: %+v %+v stops=%v", stored, pending, guard.stops)
+	}
+	if err := repos.Idempotency.Complete(t.Context(), continuation.IdempotencyKey, runID, "Run", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.RecoverWorkflowExecutions(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	stored, _ = repos.WorkflowExecutions.GetAttemptByIdempotencyKey(t.Context(), continuation.IdempotencyKey)
+	if stored.RunID == nil || *stored.RunID != runID || guard.dispatches != 0 || len(fake.byKey) != 1 {
+		t.Fatalf("original continuation receipt not bound without redispatch: %+v dispatches=%d", stored, guard.dispatches)
+	}
+}
 
 type workflowLauncherRoleResolver struct{}
 
@@ -165,6 +370,7 @@ func TestWorkflowChildLauncherStartsRoleBasedRunWithWorkflowProvenance(t *testin
 func TestWorkflowChildLauncherInspectsStopsParkedAndRejectsMissingContinuationSource(t *testing.T) {
 	ctx := context.Background()
 	o, repos := newRelayOrchestrator(t, newFakeRunLauncher())
+	WithEvents(mocks.NewFakeEventStore())(o)
 	launcher := workflowChildLauncher{o: o}
 	task := &domain.Task{ID: uuid.New(), Title: "parked workflow child", ScopePath: ".", Status: domain.TaskStatusQueued}
 	if err := repos.Tasks.Create(ctx, task); err != nil {
@@ -216,17 +422,18 @@ func TestWorkflowSubworkflowLauncherResolvesVersionsDrivesAndCancels(t *testing.
 	if err != nil || inspected.ExecutionID != state.ExecutionID || inspected.Terminal {
 		t.Fatalf("inspect state=%+v err=%v", inspected, err)
 	}
-	// Cancellation performs durable child cleanup through the production run
-	// service. The relay engine intentionally uses an in-memory launcher, so
-	// materialize its dispatched child as the real run that cleanup must stop.
+	// A stop acknowledgement retains cancellation until the same original
+	// child supplies its terminal accounting receipt.
 	childID := runIDForNode(t, repos.WorkflowExecutions, state.ExecutionID, "a")
-	task := &domain.Task{ID: uuid.New(), Title: "workflow child", ScopePath: ".", Status: domain.TaskStatusQueued}
-	if err := repos.Tasks.Create(ctx, task); err != nil {
-		t.Fatalf("create child task: %v", err)
+	if err := sub.Cancel(ctx, state.ExecutionID, "parent cancelled"); err == nil {
+		t.Fatal("stop acknowledgement substituted for terminal accounting")
 	}
-	if err := repos.Runs.Create(ctx, &domain.Run{ID: childID, TaskID: task.ID, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting}); err != nil {
-		t.Fatalf("create child run: %v", err)
-	}
+	launcher.mu.Lock()
+	childState := launcher.states[childID]
+	childState.TokensKnown, childState.ChargeMeasured = true, true
+	childState.Tokens, childState.Turns = 23, 2
+	launcher.states[childID] = childState
+	launcher.mu.Unlock()
 	if err := sub.Cancel(ctx, state.ExecutionID, "parent cancelled"); err != nil {
 		t.Fatalf("cancel subworkflow: %v", err)
 	}
@@ -278,5 +485,45 @@ func TestWorkflowVerdictTraversalAndOutcomeStatusFailClosed(t *testing.T) {
 	}
 	if !containsWorkflowNode([]string{"one", "two"}, "two") || containsWorkflowNode([]string{"one"}, "two") {
 		t.Fatal("treatment-node membership is incorrect")
+	}
+}
+
+func TestChildStateFromRunRetainsRequiredFinalization(t *testing.T) {
+	for _, status := range []domain.RunFinalizationStatus{"", domain.RunFinalizationStatusNone, domain.RunFinalizationStatusPending, domain.RunFinalizationStatusRunning, domain.RunFinalizationStatusFailed, domain.RunFinalizationStatusSkipped, domain.RunFinalizationStatusSucceeded} {
+		t.Run(string(status), func(t *testing.T) {
+			run := &domain.Run{ID: uuid.New(), RunMode: domain.RunModeSandboxed, Status: domain.RunStatusComplete, SandboxConfig: &domain.SandboxConfig{}, FinalizationStatus: status, FinalizationError: "patch failed", Result: &domain.RunResult{FinalOutput: "done"}, Summary: &domain.RunSummary{TokensUsed: 123}}
+			state := childStateFromRun(run)
+			wantPending := status != domain.RunFinalizationStatusSucceeded
+			if (state.FinalizationPending != "") != wantPending || !state.Terminal || state.Tokens != 123 || state.Result != run.Result {
+				t.Fatalf("state=%+v pending=%t", state, wantPending)
+			}
+			run.SandboxConfig.ManualReview = true
+			if childStateFromRun(run).FinalizationPending != "" {
+				t.Fatal("manual review incorrectly gated")
+			}
+		})
+	}
+}
+
+func TestChildFinalizationGateHonorsPersistedApplyPolicy(t *testing.T) {
+	disabled := false
+	for _, test := range []struct {
+		name    string
+		run     *domain.Run
+		pending bool
+	}{
+		{"missing sandbox config", &domain.Run{RunMode: domain.RunModeSandboxed, Status: domain.RunStatusComplete}, true},
+		{"resolved sandbox config", &domain.Run{RunMode: domain.RunModeSandboxed, Status: domain.RunStatusComplete, ResolvedConfig: &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{}}}, true},
+		{"in place", &domain.Run{RunMode: domain.RunModeInPlace, Status: domain.RunStatusComplete, FinalizationStatus: domain.RunFinalizationStatusSkipped}, false},
+		{"explicit no apply", &domain.Run{RunMode: domain.RunModeSandboxed, Status: domain.RunStatusComplete, SandboxConfig: &domain.SandboxConfig{AutoApply: &disabled}, FinalizationStatus: domain.RunFinalizationStatusSkipped}, false},
+		{"failed no apply", &domain.Run{RunMode: domain.RunModeSandboxed, Status: domain.RunStatusFailed, SandboxConfig: &domain.SandboxConfig{ApplyOnFailure: &disabled}, FinalizationStatus: domain.RunFinalizationStatusSkipped}, false},
+		{"cancelled required apply", &domain.Run{RunMode: domain.RunModeSandboxed, Status: domain.RunStatusCancelled, SandboxConfig: &domain.SandboxConfig{}, FinalizationStatus: domain.RunFinalizationStatusFailed}, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			state := childStateFromRun(test.run)
+			if (state.FinalizationPending != "") != test.pending {
+				t.Fatalf("gate changed saved policy: %+v", state)
+			}
+		})
 	}
 }

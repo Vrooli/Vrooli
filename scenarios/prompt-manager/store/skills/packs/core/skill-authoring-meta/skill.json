@@ -5,6 +5,7 @@
   "icon": "settings",
   "id": "skill-authoring-meta",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "meta"
   ],
