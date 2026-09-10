@@ -128,6 +128,12 @@ func TestLoad_ProvisionHelperDoesNotRequireRunnerStatePermissions(t *testing.T) 
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
+func TestLoad_ProvisionClientPrincipal(t *testing.T) {
+	cfg, err := Load([]string{"--state-dir", filepath.Join(t.TempDir(), "state"), "--provision-client-user", `MYHOST\vrooli-agent`})
+	require.NoError(t, err)
+	require.Equal(t, `MYHOST\vrooli-agent`, cfg.ProvisionClientPrincipal)
+}
+
 func TestLoad_ProvisionHelperRequiresRunnerUID(t *testing.T) {
 	_, err := Load([]string{
 		"--state-dir", filepath.Join(t.TempDir(), "state"),

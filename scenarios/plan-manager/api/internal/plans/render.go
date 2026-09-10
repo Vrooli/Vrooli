@@ -307,21 +307,23 @@ func renderExecutionFeedback(p Plan) string {
 	b.WriteString("Log typed work products as they happen. Example:\n\n")
 	b.WriteString("```bash\nplan-manager log decision-add <execution-id> --phase <phase-id> --title \"...\" --detail \"...\"\n```\n\n")
 	b.WriteString("Other variants: `finding-add`, `bug-add`, `record-add`, `note-add`. When the handle is an execution id, omitting `--phase` uses that execution's current phase; `--phase` also accepts a phase id or 1-based ordinal. If the computed scope is wrong, run `plan-manager log reassign <entry-id> --phase <phase-id-or-ordinal>`.\n\n")
-	b.WriteString("On completion, write the learning-loop record — copy, fill the `<...>` placeholders, run:\n\n")
+	b.WriteString("On completion, capture the work record through this plan's execution handle. Plan Manager forwards it and retains the downstream disposition. Fill the `<...>` placeholders:\n\n")
 
 	scenario := "<scenario>"
 	if affected := p.ChangeBoundary.AffectedScenarios(); len(affected) > 0 {
 		scenario = affected[0]
 	}
 	trigger := "<one-line goal>"
-	if title := strings.TrimSpace(strings.ReplaceAll(p.Title, "'", "")); title != "" {
+	if title := strings.TrimSpace(p.Title); title != "" {
 		trigger = title + ": <one-line goal>"
 	}
-	fmt.Fprintf(&b, "```bash\nswarm-manager records create --kind execute --scenario %s \\\n"+
-		"  --trigger '%s' \\\n"+
+	quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'" }
+	fmt.Fprintf(&b, "```bash\nplan-manager log record-add <execution-id> --kind execute --scenario %s \\\n"+
+		"  --title %s \\\n"+
+		"  --trigger %s \\\n"+
 		"  --approach '<what was built + key decisions>' \\\n"+
-		"  --evidence '<suites/baselines/live checks that prove it>' \\\n"+
-		"  --outcome shipped\n```\n", scenario, trigger)
+		"  --record-evidence '<suites/baselines/live checks that prove it>' \\\n"+
+		"  --outcome shipped\n```\n", quote(scenario), quote("Completion: "+p.Title), quote(trigger))
 	return b.String()
 }
 

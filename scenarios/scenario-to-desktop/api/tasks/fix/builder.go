@@ -118,7 +118,7 @@ func buildIterationPrompt(input shared.TaskInput) string {
 	sb.WriteString("# Check for expected outputs (dmg, exe, AppImage)\n")
 	sb.WriteString("find <desktop-output-dir>/dist -name '*.dmg' -o -name '*.exe' -o -name '*.AppImage'\n\n")
 	sb.WriteString("# Run smoke test if available\n")
-	sb.WriteString(fmt.Sprintf("curl -X POST %s/api/v1/smoketest/run -H 'Content-Type: application/json' -d '{\"desktop_path\": \"<desktop-output-dir>\"}'\n", input.PipelineAPIURL))
+	sb.WriteString(fmt.Sprintf("scenario-to-desktop pipeline run %s --stages smoketest\n", input.Pipeline.ScenarioName))
 	sb.WriteString("```\n\n")
 
 	// Required output format

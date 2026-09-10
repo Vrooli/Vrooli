@@ -119,8 +119,8 @@ type Client struct {
 	localSessions      LocalSessionStore
 }
 
-// Config configures the production Client.
-type Config struct {
+// ClientConfig configures the production Client.
+type ClientConfig struct {
 	Resolver            URLResolver
 	Doer                httpc.Doer
 	AuthScenario        string
@@ -139,7 +139,7 @@ type Config struct {
 // authenticator can never pin a request open (fail-closed includes failing
 // fast). A nil Resolver makes the client fail closed (it can never obtain the
 // signing key).
-func NewClient(cfg Config) *Client {
+func NewClient(cfg ClientConfig) *Client {
 	doer := cfg.Doer
 	if doer == nil {
 		doer = &http.Client{Timeout: 10 * time.Second}

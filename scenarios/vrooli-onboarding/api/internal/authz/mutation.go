@@ -77,6 +77,8 @@ var operationEffects = map[string]OperationEffect{
 	sessionconnect.SessionServiceGetDraftProcedure:                            OperationEffectRead,
 	sessionconnect.SessionServiceSaveDraftProcedure:                           OperationEffectMutation,
 	sessionconnect.SessionServiceDiscardDraftProcedure:                        OperationEffectMutation,
+	sessionconnect.SessionServiceGetProfileSessionProcedure:                   OperationEffectRead,
+	sessionconnect.SessionServiceSaveProfileSessionProcedure:                  OperationEffectMutation,
 	glossaryconnect.GlossaryServiceSearchGlossaryProcedure:                    OperationEffectRead,
 	glossaryconnect.GlossaryServiceSearchConfigurationProcedure:               OperationEffectRead,
 }

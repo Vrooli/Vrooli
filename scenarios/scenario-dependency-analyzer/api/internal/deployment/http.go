@@ -59,7 +59,7 @@ func (h *HTTPHandler) ExportDAG(c *gin.Context) {
 		return
 	}
 
-	report, err := h.reporter.GetDeploymentReport(scenarioName, parseRefresh(c))
+	report, err := h.deploymentReport(scenarioName, parseRefresh(c), c.DefaultQuery("include_program_bindings", "false") == "true")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -82,6 +82,17 @@ func (h *HTTPHandler) ExportDAG(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+func (h *HTTPHandler) deploymentReport(scenario string, refresh, includeProgramBindings bool) (*types.DeploymentAnalysisReport, error) {
+	if includeProgramBindings {
+		if reporter, ok := h.reporter.(interface {
+			GetDeploymentReportWithOptions(string, bool, bool) (*types.DeploymentAnalysisReport, error)
+		}); ok {
+			return reporter.GetDeploymentReportWithOptions(scenario, refresh, true)
+		}
+	}
+	return h.reporter.GetDeploymentReport(scenario, refresh)
 }
 
 // ExportTargetDAG is the target-aware form of the DAG export. The legacy

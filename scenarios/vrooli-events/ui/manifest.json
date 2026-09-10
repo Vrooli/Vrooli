@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "Vrooli Events UI manifest",
+  "description": "Declares the governed navigated-console shell for Vrooli Events.",
+  "shell": { "archetype": "navigated-console", "asset": "AppShell", "entry": "ui/src/components/Layout.tsx", "export": "Layout" },
+  "contract": { "kind": "scenario-ui", "schema": "scenario-ui-manifest/v2", "template": "legacy-react" },
+  "slots": { "layout-shell": { "dir": "ui/src/components" } }
+}

@@ -51,6 +51,7 @@ type FirstTouchParams struct {
 type RunParams struct {
 	Conn        Conn
 	RemotePath  string
+	Platform    NodePlatform
 	Args        []string
 	PairingCode []byte
 	// SetupPassphrase follows PairingCode on the same stdin channel and is
@@ -84,10 +85,11 @@ type BootstrapResult struct {
 // untracked-non-ignored); the transport must preserve names with spaces/newlines
 // (it uses the tar archive format, not shell word-splitting).
 type SyncParams struct {
-	Conn    Conn
-	RepoDir string
-	Files   []string
-	DestDir string
+	Conn     Conn
+	Platform NodePlatform
+	RepoDir  string
+	Files    []string
+	DestDir  string
 }
 
 // SyncResult is the outcome of a working-tree ship.
@@ -178,9 +180,9 @@ type SSHDriver interface {
 	// than only the initial key copy.
 	VerifyKey(ctx context.Context, conn Conn) (Conn, error)
 
-	// PushScript copies the bootstrap script to the node and returns the remote
-	// path it landed at.
-	PushScript(ctx context.Context, conn Conn) (remotePath string, err error)
+	// PushScript copies the platform-appropriate bootstrap script to the node
+	// and returns the remote path it landed at.
+	PushScript(ctx context.Context, conn Conn, target NodePlatform) (remotePath string, err error)
 
 	// SyncTree ships the control plane's working tree to the node's DestDir over
 	// the established SSH channel (tar-over-ssh). Only called in working-tree

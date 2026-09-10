@@ -12,14 +12,14 @@ Bridge has two distinct deployable units:
   trusted node as an OS-native background service. The node-agent dials
   **out** to the control plane and holds a persistent channel; nodes
   expose **no inbound ports** (NAT/firewall-proof, like Tailscale or
-  GitHub Actions runners). A node is a full Vrooli install plus the
-  agent, because a node is a real build/test environment, not a thin
-  runner.
+  GitHub Actions runners). A node is a complete Vrooli install or a
+  verified selective closure plus the agent, because a node is a real
+  build/test environment, not a thin runner.
 
 > The control plane, the cross-compiled node-agent, the OS-native
 > service install, and the one-shot onboarding path are **built and
 > tested**. Deployment mechanics below note where a step is real versus
-> where a convenience (installer wrappers, code-signing, automated
+> where a convenience (code-signing, automated
 > backup wiring) is still intended-but-unimplemented.
 
 ## Purpose Of This Document
@@ -37,9 +37,9 @@ Use this document to answer:
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
 | Local Vrooli stack (control plane on Linux) | supported | Vrooli lifecycle, Go, Node/pnpm, SQLite path; owner token (cli-core `configure token` or `VROOLI_BRIDGE_API_TOKEN`) | Built and running as an ordinary Vrooli scenario. |
-| Per-node agent service (Linux) | supported | Full Vrooli install with `vrooli` CLI on the node; node-agent installed as a systemd user service (requires linger) | Cross-compiled agent + `vrooli-bridge-agent service install` + one-shot onboarding are built and tested. Per-OS installer wrappers and code-signing are still convenience gaps. |
+| Per-node agent service (Linux) | supported | Full Vrooli install with `vrooli` CLI on the node; node-agent installed as a systemd user service (requires linger) | Cross-compiled agent + `vrooli-bridge-agent service install` + one-shot onboarding are built and tested. Code-signing is still a convenience gap. |
 | Per-node agent service (macOS) | build-verified | Full Vrooli install with `vrooli` CLI on the node; node-agent installed as a launchd LaunchAgent (requires a logged-in user) | Darwin builds and Linux-runnable launchd contract tests pass. Real-Mac lifecycle, reconnect, and onboarding evidence are required before support can be claimed; see the [platform support matrix](../../../../docs/reference/platform-support.md). |
-| Per-node agent service (Windows) | gated | Full Vrooli install with `vrooli` CLI on the node; node-agent installed as a Windows Service | Service unit is render-only (`sc.exe create` argv); live install/onboarding on Windows is not yet exercised. |
+| Per-node agent service (Windows) | gated | Full Vrooli install with `vrooli` CLI on the node; node-agent installed as a Windows Service | The typed `sc.exe` manager, service dispatcher, principal-bound named-pipe IPC path, and native PowerShell onboarding path are implemented and cross-built; native Windows install, onboarding, reboot, removal, and clean-host evidence are still required. |
 | Control plane on macOS | build-verified | Vrooli-the-platform installable/runnable on macOS | Real-Mac qualification is still required; Bridge does not add a separate platform gate. See the [platform support matrix](../../../../docs/reference/platform-support.md). |
 | Control plane on Windows | gated P2 | Vrooli-the-platform installable/runnable on Windows | Native Windows full-project lifecycle remains outside the current qualification. |
 
@@ -58,6 +58,24 @@ Today's deployment tier is the **Tier 1 local stack** described in the
 [Deployment Hub](../../../../docs/deployment/README.md): the control
 plane runs as an ordinary Vrooli scenario, and each node runs a full
 Vrooli install plus the node-agent service.
+
+### Installation footprint contract
+
+Bridge supports two explicit host installation modes:
+
+| Mode | Source of truth | Activation rule | Current evidence status |
+|---|---|---|---|
+| Complete | The target's canonical onboarding selection expanded to the complete platform closure | The signed shipment manifest and content digest must match before activation | Contract and focused closure tests exist; clean-target native certification remains required |
+| Selective | The same onboarding selection authority, expanded to the union of requested scenarios, resources, tools, safeguards, and shared runtime inputs | Unrelated repository content is excluded; a changed or incomplete digest refuses activation and preserves the previous generation | Bridge/onboarding integration is under qualification; no selective mode is certified from cross-compilation alone |
+
+Selective mode is not a second configuration system. Presets and operator choices
+are rendered into the same versioned onboarding document, and onboarding owns the
+applied configuration. Bridge retains the target-addressed intent, shipment
+reference, and activation receipt. The receipt must identify the target, closure
+digest, artifact/item references, destination generation, and terminal outcome;
+it must not contain credential values. A failed transfer, path escape, symlink
+escape, platform mismatch, or digest mismatch must leave the previous active
+generation untouched so the operator can resume or roll back safely.
 
 ## Runtime Requirements
 
@@ -88,16 +106,19 @@ control-plane API still needs TCP `API_PORT` from the node.
   narrow rule in ufw).
 - macOS: approve the local-network/app-firewall prompt for the Bridge or
   installed agent when the operating system presents it.
-- Windows: the node-agent service and terminal-free LAN join are not a
-  supported target in this release; its service renderer remains build-only.
+- Windows: the node-agent service and terminal-free LAN join remain a gated
+  target in this release. The SCM lifecycle and PowerShell onboarding path are
+  implemented behind the typed manager, but native Windows install/onboarding
+  and IPC ACL evidence are not yet available.
 
 If multicast or the firewall permission is unavailable, use the documented
 manual control-plane URL. mDNS is never required for off-LAN bootstrap.
 
 ### Node
 
-- A full Vrooli install with the root `vrooli` CLI present (bootstrap can
-  install this as part of provisioning).
+- A complete Vrooli install, or a verified selective closure for the requested
+  capabilities, with the root `vrooli` CLI present (bootstrap can install this
+  as part of provisioning).
 - The node-agent service, plus an **outbound** path to the control plane
   (direct on LAN, or via the control plane's tunnel URL off-LAN). No
   inbound ports are opened on the node.
@@ -113,7 +134,7 @@ manual control-plane URL. mDNS is never required for off-LAN bootstrap.
 | Control-plane UI | Vite production bundle served by `ui/server.js`. |
 | Control-plane CLI | Go CLI installed through scenario manifest install hooks; full headless parity with the UI. |
 | Proto | Wire contracts for control-plane↔CLI and control-plane↔node live under `packages/proto/schemas/vrooli-bridge/`; generated clients are shared artifacts. The node↔control-plane protocol is proto-versioned with a `DiscardUnknown` backward-compat policy. |
-| Node-agent | One Go codebase cross-compiled `CGO_ENABLED=0` for `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64`, and `windows/arm64`. Cross-compilation is **built** (`agent/Makefile` `matrix` target + the `agent/build/crosscompile_test.sh` gate, all six targets green). Each build registers as the platform-native service via the rendered unit (see Node-agent below). Per-OS installer wrappers and code-signing are not yet implemented. |
+| Node-agent | One Go codebase cross-compiled `CGO_ENABLED=0` for `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64`, and `windows/arm64`. Cross-compilation is **built** (`agent/Makefile` `matrix` target + the `agent/build/crosscompile_test.sh` gate, all six targets green). Each build registers as the platform-native service via the rendered unit (see Node-agent below). Code-signing is not yet implemented. |
 
 Onboarding a fresh node is one durable, control-plane-driven operation —
 there is **no manual per-node installer to run**. Two equivalent surfaces
@@ -167,6 +188,12 @@ through the **structurally separate privileged helper** (`internal/privsep`) —
 two distinct OS principals, never one flagged process (DECISIONS.md two trust
 tiers).
 
+The runner keeps cancellation bounded to the launched job tree: Unix uses a
+dedicated process group, while Windows uses a kill-on-close Job Object. This
+prevents a cancelled allowlisted command from leaving child processes behind;
+the Windows path is cross-built and unit-covered, while native Windows
+execution evidence remains part of the gated host qualification.
+
 **Service install (built — `agent/internal/service`).** The agent both renders
 and installs its own platform-native background-service unit. The rendered unit
 and the installed unit share one `serviceDefinition`, so the running service argv
@@ -189,8 +216,12 @@ byte-matches what `--print-service-unit` prints.
     `/Library/LaunchDaemons`, so auto-login is not required. A GUI-domain
     session may use a LaunchAgent under `~/Library/LaunchAgents`; that mode
     retains macOS's auto-login prerequisite (see [`RUNBOOK.md`](RUNBOOK.md#mac-mini-onboarding)).
-  - **Windows** → render-only today (`sc.exe create … binPath= … start= auto`
-    argv); live install is not yet exercised.
+  - **Windows** → the typed manager drives `sc.exe create/config/start/queryex/
+    qc/stop/delete`, verifies the configured binary path and service principal
+    during status, the binary enters the SCM dispatcher when launched as a
+    service, and the helper uses a principal-bound named pipe; live install,
+    onboarding, reboot, and removal are not yet exercised on a native Windows
+    host.
 - The two trust tiers install as distinct OS principals: the non-privileged
   runner as its service user, and the **privileged provisioning helper** as its
   own separately-installed unit.

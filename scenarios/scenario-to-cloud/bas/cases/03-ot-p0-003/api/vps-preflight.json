@@ -1,0 +1,66 @@
+{
+  "metadata": {
+    "name": "Preflight requirements policy",
+    "description": "Preflight publishes the supported OS identity, recommended version and actionable unsupported/compatibility behaviour before any artifact is copied.",
+    "tags": [
+      "e2e",
+      "api",
+      "preflight"
+    ],
+    "requirements": [
+      "STC-P0-003",
+      "STC-P0-009"
+    ],
+    "labels": {
+      "safety": "observer",
+      "mutates_target": "false",
+      "mutates_repository": "false",
+      "requirements_json": "[\"STC-P0-003\", \"STC-P0-009\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer"
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "requirements",
+      "type": "http_request",
+      "data": {
+        "label": "GET /api/v1/preflight/requirements",
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/preflight/requirements",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {
+            "type": "status_code",
+            "expected": 200
+          },
+          {
+            "type": "json_path",
+            "path": "$.vps.os.required_family",
+            "expected": "ubuntu-lts"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.vps.os.recommended_version"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.vps.os.unsupported_behavior"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.vps.os.compatibility_behavior"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.vps.disk.min_disk_free_kb"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": []
+}

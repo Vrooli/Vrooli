@@ -8,6 +8,7 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -22,6 +23,7 @@ import (
 const (
 	serviceParameterE = 404
 	serviceParameterF = 409
+	statusWorkerCount = 8
 )
 
 const (
@@ -138,21 +140,42 @@ func (s *Service) ListStatusesReport(fast bool, onlyEnabled bool) (StatusReport,
 		}
 	}
 
-	statuses := make([]Status, 0, len(items))
+	selected := make([]catalog.Resource, 0, len(items))
 	for _, item := range items {
-		if onlyEnabled && !item.Enabled {
-			continue
+		if !onlyEnabled || item.Enabled {
+			selected = append(selected, item)
 		}
-		status, statusErr := s.StatusForResource(item, fast)
-		if statusErr != nil {
-			status = Status{
-				Resource:  item,
-				Installed: item.Exists,
-				Message:   statusErr.Error(),
-			}
-		}
-		statuses = append(statuses, status)
 	}
+	statuses := make([]Status, len(selected))
+	if len(selected) == 0 {
+		return StatusReport{Items: statuses, Failures: failures}, nil
+	}
+	jobs := make(chan int)
+	workers := min(statusWorkerCount, len(selected))
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for range workers {
+		go func() {
+			defer wg.Done()
+			for index := range jobs {
+				item := selected[index]
+				status, statusErr := s.StatusForResource(item, fast)
+				if statusErr != nil {
+					status = Status{
+						Resource:  item,
+						Installed: item.Exists,
+						Message:   statusErr.Error(),
+					}
+				}
+				statuses[index] = status
+			}
+		}()
+	}
+	for index := range selected {
+		jobs <- index
+	}
+	close(jobs)
+	wg.Wait()
 	return StatusReport{Items: statuses, Failures: failures}, nil
 }
 

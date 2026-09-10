@@ -53,22 +53,6 @@
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
     },
-    "layout.topBar": {
-      "testId": "layout-top-bar",
-      "selector": "[data-testid=\"layout-top-bar\"]"
-    },
-    "layout.sidebar": {
-      "testId": "layout-sidebar",
-      "selector": "[data-testid=\"layout-sidebar\"]"
-    },
-    "layout.bottomNav": {
-      "testId": "layout-bottom-nav",
-      "selector": "[data-testid=\"layout-bottom-nav\"]"
-    },
-    "layout.main": {
-      "testId": "layout-main",
-      "selector": "[data-testid=\"layout-main\"]"
-    },
     "theme.switcher": {
       "testId": "theme-switcher",
       "selector": "[data-testid=\"theme-switcher\"]"
@@ -519,26 +503,10 @@
     }
   },
   "dynamicSelectors": {
-    "layout.sidebarLink": {
-      "description": "Sidebar navigation link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
-      "testIdPattern": "layout-sidebar-link-${key}",
-      "params": [
-        {
-          "name": "key",
-          "type": "enum",
-          "values": [
-            "dashboard",
-            "offers",
-            "settings"
-          ]
-        }
-      ]
-    },
-    "layout.bottomNavLink": {
-      "description": "Bottom-nav link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
-      "testIdPattern": "layout-bottom-nav-link-${key}",
+    "layout.navLink": {
+      "description": "App shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
       "params": [
         {
           "name": "key",
@@ -585,8 +553,8 @@
     }
   },
   "sources": {
-    "ui/src/consts/selectors.library.ts": "5a5571e388da1f7ef532a9e9d1f5dabffd2e881d1e99bc8667ac89a8c5a20064",
-    "ui/src/consts/selectors.ts": "1a95b6c492713a034a6544749d1749a794652109655c120244dd253a07df048c",
+    "ui/src/consts/selectors.library.ts": "d1707c27c1b768c08bff6165f66e4c6a65543cdadb852dd021994c0dadcdeaf5",
+    "ui/src/consts/selectors.ts": "8d69b1f57d49f228ae7adc661793248ebfd0c562bb539af6d6e795d05d9e2369",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

@@ -113,8 +113,11 @@ func Apply(push *channelv1.CredentialPush, nodeID string, private *ecdh.PrivateK
 	if !ok {
 		return reject("address is not granted to this node")
 	}
-	if push.GetGeneration() < grant.Generation {
-		return reject("credential generation is older than the local grant")
+	if grant.NodeID != nodeID || push.GetGrantId() != grant.ID {
+		return reject("credential grant identity does not match local consent")
+	}
+	if push.GetGeneration() != grant.Generation {
+		return reject("credential generation does not match the local grant")
 	}
 	if push.GetRetention() != grant.Retention {
 		return reject("credential retention does not match the local grant")

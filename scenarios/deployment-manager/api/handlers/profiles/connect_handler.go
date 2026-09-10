@@ -25,14 +25,54 @@ import (
 // structs are used at the transport boundary.
 type ConnectHandler struct {
 	profilesconnect.UnimplementedProfilesServiceHandler
-	repo profilesdomain.Repository
+	repo      profilesdomain.Repository
+	authorize func(context.Context) error
+	readAuth  func(context.Context) error
 }
 
 func NewConnectHandler(repo profilesdomain.Repository) *ConnectHandler {
 	return &ConnectHandler{repo: repo}
 }
 
+// WithAuthorization installs the domain mutation boundary. Authentication
+// middleware only attaches identity; this hook decides whether a verified
+// principal may change profile state.
+func (h *ConnectHandler) WithAuthorization(authorize func(context.Context) error) *ConnectHandler {
+	h.authorize = authorize
+	return h
+}
+
+// WithReadAuthorization installs the authenticated profile reader boundary.
+// Profile responses can contain deployment settings and secret references.
+func (h *ConnectHandler) WithReadAuthorization(authorize func(context.Context) error) *ConnectHandler {
+	h.readAuth = authorize
+	return h
+}
+
+func (h *ConnectHandler) requireReadAuthorization(ctx context.Context) error {
+	if h.readAuth == nil {
+		return connect.NewError(connect.CodeUnauthenticated, errors.New("profile read authorization is not configured"))
+	}
+	if err := h.readAuth(ctx); err != nil {
+		return connect.NewError(connect.CodePermissionDenied, errors.New("verified profile reader is required"))
+	}
+	return nil
+}
+
+func (h *ConnectHandler) requireAuthorization(ctx context.Context) error {
+	if h.authorize == nil {
+		return connect.NewError(connect.CodeUnauthenticated, errors.New("profile authorization is not configured"))
+	}
+	if err := h.authorize(ctx); err != nil {
+		return connect.NewError(connect.CodeUnauthenticated, errors.New("verified profile operator identity required"))
+	}
+	return nil
+}
+
 func (h *ConnectHandler) ListProfiles(ctx context.Context, req *connect.Request[profilesv1.ListProfilesRequest]) (*connect.Response[profilesv1.ListProfilesResponse], error) {
+	if err := h.requireReadAuthorization(ctx); err != nil {
+		return nil, err
+	}
 	profiles, err := h.repo.List(ctx)
 	if err != nil {
 		return nil, internalError("list profiles", err)
@@ -59,6 +99,9 @@ func (h *ConnectHandler) ListProfiles(ctx context.Context, req *connect.Request[
 }
 
 func (h *ConnectHandler) GetProfile(ctx context.Context, req *connect.Request[profilesv1.GetProfileRequest]) (*connect.Response[profilesv1.GetProfileResponse], error) {
+	if err := h.requireReadAuthorization(ctx); err != nil {
+		return nil, err
+	}
 	id, err := requiredID(req, func(r *profilesv1.GetProfileRequest) string { return r.GetProfileId() })
 	if err != nil {
 		return nil, err
@@ -74,6 +117,9 @@ func (h *ConnectHandler) GetProfile(ctx context.Context, req *connect.Request[pr
 }
 
 func (h *ConnectHandler) CreateProfile(ctx context.Context, req *connect.Request[profilesv1.CreateProfileRequest]) (*connect.Response[profilesv1.CreateProfileResponse], error) {
+	if err := h.requireAuthorization(ctx); err != nil {
+		return nil, err
+	}
 	if req == nil || req.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
 	}
@@ -109,6 +155,9 @@ func (h *ConnectHandler) CreateProfile(ctx context.Context, req *connect.Request
 }
 
 func (h *ConnectHandler) UpdateProfile(ctx context.Context, req *connect.Request[profilesv1.UpdateProfileRequest]) (*connect.Response[profilesv1.UpdateProfileResponse], error) {
+	if err := h.requireAuthorization(ctx); err != nil {
+		return nil, err
+	}
 	id, err := requiredID(req, func(r *profilesv1.UpdateProfileRequest) string { return r.GetProfileId() })
 	if err != nil {
 		return nil, err
@@ -143,6 +192,9 @@ func (h *ConnectHandler) UpdateProfile(ctx context.Context, req *connect.Request
 }
 
 func (h *ConnectHandler) DeleteProfile(ctx context.Context, req *connect.Request[profilesv1.DeleteProfileRequest]) (*connect.Response[profilesv1.DeleteProfileResponse], error) {
+	if err := h.requireAuthorization(ctx); err != nil {
+		return nil, err
+	}
 	id, err := requiredID(req, func(r *profilesv1.DeleteProfileRequest) string { return r.GetProfileId() })
 	if err != nil {
 		return nil, err
@@ -158,6 +210,9 @@ func (h *ConnectHandler) DeleteProfile(ctx context.Context, req *connect.Request
 }
 
 func (h *ConnectHandler) ListProfileVersions(ctx context.Context, req *connect.Request[profilesv1.ListProfileVersionsRequest]) (*connect.Response[profilesv1.ListProfileVersionsResponse], error) {
+	if err := h.requireReadAuthorization(ctx); err != nil {
+		return nil, err
+	}
 	id, err := requiredID(req, func(r *profilesv1.ListProfileVersionsRequest) string { return r.GetProfileId() })
 	if err != nil {
 		return nil, err

@@ -45,6 +45,20 @@ func TestDeploymentManagerGeneratorExportsRequestAndWritesReturnedManifest(t *te
 	}
 }
 
+func TestDeploymentManagerGeneratorSendsProvisionedServiceCredential(t *testing.T) {
+	t.Setenv("DEPLOYMENT_MANAGER_SERVICE_TOKEN", "owner-token")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer owner-token" {
+			t.Errorf("authorization = %q, want bearer token", got)
+		}
+		_ = json.NewEncoder(w).Encode(bundleExportResponse{Manifest: map[string]any{"scenario": "hello"}})
+	}))
+	defer server.Close()
+	if _, err := localManifestGenerator(server.URL).GenerateManifest(context.Background(), "hello", t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDeploymentManagerGeneratorUsesProvidedPathAndReportsFailures(t *testing.T) {
 	t.Run("provided manifest path", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

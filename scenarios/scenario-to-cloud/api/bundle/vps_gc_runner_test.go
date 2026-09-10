@@ -2,160 +2,186 @@ package bundle
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"strconv"
+	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/identity"
+	"scenario-to-cloud/reach"
 )
 
-type fakeRemoteBundles struct {
-	files map[string]struct {
-		size int64
-		mt   int64
+// fakeOwner is an in-memory target owner: it answers `release list` from its
+// store and honours `release prune` the way the real owner does (active and
+// previous are refused whatever the request names). It records every verb
+// so tests can prove nothing but typed verbs reached the target.
+type fakeOwner struct {
+	releases map[string]TargetRelease
+	active   string
+	previous string
+	verbs    []string
+	prunes   int
+}
+
+var _ reach.Reach = (*fakeOwner)(nil)
+
+func (f *fakeOwner) Exec(_ context.Context, _ identity.TargetRef, cmd reach.Command) (reach.Result, error) {
+	if err := reach.ValidateCommand(cmd); err != nil {
+		return reach.Result{}, err
 	}
-	rmCalls int
-}
-
-type runnerFunc func(context.Context, ssh.ConnectionConfig, string, ssh.RunOptions) (ssh.Result, error)
-
-func (f runnerFunc) Run(ctx context.Context, cfg ssh.ConnectionConfig, cmd string, opts ssh.RunOptions) (ssh.Result, error) {
-	return f(ctx, cfg, cmd, opts)
-}
-
-func (r *fakeRemoteBundles) runner() ssh.Runner {
-	return runnerFunc(func(_ context.Context, _ ssh.ConnectionConfig, cmd string, _ ssh.RunOptions) (ssh.Result, error) {
-		if strings.Contains(cmd, "stat --printf") {
-			var b strings.Builder
-			for name, meta := range r.files {
-				b.WriteString(strconv.FormatInt(meta.size, 10))
-				b.WriteByte('\t')
-				b.WriteString(name)
-				b.WriteByte('\t')
-				b.WriteString(strconv.FormatInt(meta.mt, 10))
-				b.WriteByte('\n')
-			}
-			return ssh.Result{Stdout: b.String(), ExitCode: 0}, nil
+	f.verbs = append(f.verbs, strings.Join(cmd.Argv(), " "))
+	switch cmd.Verb {
+	case "cloud-target release list":
+		listing := TargetReleaseListing{DeploymentID: "dep"}
+		if f.active != "" {
+			listing.Active = &struct {
+				ActiveRelease   string `json:"active_release"`
+				PreviousRelease string `json:"previous_release"`
+			}{ActiveRelease: f.active, PreviousRelease: f.previous}
 		}
-
-		if strings.Contains(cmd, " rm -f -- ") {
-			r.rmCalls++
-			fields := strings.Fields(cmd)
-			for i := 0; i < len(fields); i++ {
-				if fields[i] != "--" {
-					continue
-				}
-				for j := i + 1; j < len(fields); j++ {
-					fn := strings.Trim(fields[j], "'")
-					delete(r.files, fn)
-				}
-				break
+		for _, rel := range f.releases {
+			rel.Role = "staged"
+			switch rel.Digest {
+			case f.active:
+				rel.Role = "active"
+			case f.previous:
+				rel.Role = "previous"
 			}
-			return ssh.Result{Stdout: "", ExitCode: 0}, nil
+			listing.Releases = append(listing.Releases, rel)
 		}
-
-		return ssh.Result{Stdout: "", ExitCode: 0}, nil
-	})
-}
-
-func TestGCVPSBundles_DryRunReturnsPlanAndDoesNotDelete(t *testing.T) {
-	r := &fakeRemoteBundles{
-		files: map[string]struct {
-			size int64
-			mt   int64
-		}{
-			"mini-vrooli_app_" + strings.Repeat("a", 64) + ".tar.gz": {size: 100, mt: 1000},
-			"mini-vrooli_app_" + strings.Repeat("b", 64) + ".tar.gz": {size: 200, mt: 2000},
-			"mini-vrooli_app_" + strings.Repeat("c", 64) + ".tar.gz": {size: 300, mt: 3000},
-		},
+		sort.Slice(listing.Releases, func(i, j int) bool { return listing.Releases[i].Digest < listing.Releases[j].Digest })
+		raw, _ := json.Marshal(listing)
+		return reach.Result{Stdout: string(raw)}, nil
+	case "cloud-target release prune":
+		if !cmd.Effectful {
+			return reach.Result{}, fmt.Errorf("prune must be effectful")
+		}
+		f.prunes++
+		report := PruneReport{Deleted: []string{}, Refused: map[string]string{}}
+		for i, a := range cmd.Args {
+			if a != "--release" || i+1 >= len(cmd.Args) {
+				continue
+			}
+			d := cmd.Args[i+1]
+			switch d {
+			case f.active:
+				report.Refused[d] = "active"
+			case f.previous:
+				report.Refused[d] = "previous"
+			default:
+				if rel, ok := f.releases[d]; ok {
+					report.ReclaimedBytes += rel.SizeBytes
+					delete(f.releases, d)
+				}
+				report.Deleted = append(report.Deleted, d)
+			}
+		}
+		raw, _ := json.Marshal(map[string]any{"report": report})
+		return reach.Result{Stdout: string(raw)}, nil
 	}
+	return reach.Result{ExitCode: 2, Stdout: `{"error":{"code":"unknown_verb","message":"` + cmd.Verb + `"}}`}, nil
+}
 
-	cfg := ssh.NewConfig("example.com", 22, "root", "/tmp/key")
-	resp := GCVPSBundles(context.Background(), r.runner(), cfg, "/root/Vrooli", domain.VPSBundleGCRequest{
-		ScenarioID: "app",
-		KeepLatest: 2,
-		DryRun:     true,
-	})
+func (f *fakeOwner) Deliver(context.Context, identity.TargetRef, reach.Delivery) (reach.DeliveryReceipt, error) {
+	return reach.DeliveryReceipt{}, nil
+}
 
+func (f *fakeOwner) Negotiate(context.Context, identity.TargetRef) (reach.Capabilities, error) {
+	return reach.Capabilities{Online: true, NativeCLI: true}, nil
+}
+
+func digestN(n int) string { return fmt.Sprintf("%064x", n) }
+
+func ownerWith(n int) *fakeOwner {
+	f := &fakeOwner{releases: map[string]TargetRelease{}}
+	for i := 0; i < n; i++ {
+		d := digestN(i)
+		f.releases[d] = TargetRelease{Digest: d, State: "complete", SizeBytes: 10, ModTime: fmt.Sprintf("2026-02-%02dT03:00:00Z", i+1), BundleSHA256: fmt.Sprintf("%064x", 1000+i)}
+	}
+	return f
+}
+
+func gcTarget() identity.TargetRef {
+	return identity.TargetRef{Transport: identity.TransportSSH, Locator: identity.TargetLocator{Host: "203.0.113.10", Workdir: "/root/Vrooli"}}
+}
+
+// [REQ:STC-P0-026] A dry run reads the owner's listing, reports the plan and
+// asks the owner to prune nothing.
+func TestGCTargetReleases_DryRunReturnsPlanAndDoesNotPrune(t *testing.T) {
+	owner := ownerWith(3)
+	resp := GCTargetReleases(context.Background(), owner, gcTarget(), "dep", "app", domain.VPSBundleGCRequest{ScenarioID: "app", KeepLatest: 2, DryRun: true})
 	if !resp.OK || !resp.DryRun {
 		t.Fatalf("expected ok dry-run, got ok=%v dry=%v err=%q", resp.OK, resp.DryRun, resp.Error)
 	}
-	if resp.DeletedCount != 1 {
-		t.Fatalf("expected 1 planned deletion, got %d", resp.DeletedCount)
+	if resp.DeletedCount != 1 || owner.prunes != 0 || len(owner.releases) != 3 {
+		t.Fatalf("dry run must plan one deletion and prune nothing: count=%d prunes=%d releases=%d", resp.DeletedCount, owner.prunes, len(owner.releases))
 	}
-	if r.rmCalls != 0 {
-		t.Fatalf("expected no rm calls in dry-run, got %d", r.rmCalls)
-	}
-	if len(r.files) != 3 {
-		t.Fatalf("expected no deletion, got %d files", len(r.files))
+	for _, v := range owner.verbs {
+		if !strings.HasPrefix(v, "vrooli cloud-target release list") {
+			t.Fatalf("dry run issued a non-list verb: %s", v)
+		}
 	}
 }
 
-func TestGCVPSBundles_ExecDeletesInBatches(t *testing.T) {
-	files := make(map[string]struct {
-		size int64
-		mt   int64
-	})
-	now := time.Now().Unix()
-	for i := 0; i < 120; i++ {
-		sha := fmt.Sprintf("%064x", i)
-		name := "mini-vrooli_app_" + sha + ".tar.gz"
-		files[name] = struct {
-			size int64
-			mt   int64
-		}{size: 10, mt: now + int64(i)}
-	}
-	r := &fakeRemoteBundles{files: files}
-
-	cfg := ssh.NewConfig("example.com", 22, "root", "/tmp/key")
-	resp := GCVPSBundles(context.Background(), r.runner(), cfg, "/root/Vrooli", domain.VPSBundleGCRequest{
-		ScenarioID: "app",
-		KeepLatest: 2,
-		DryRun:     false,
-	})
+// [REQ:STC-P0-026] Execution prunes only the digests the plan named, in
+// one typed verb, and the owner keeps active and previous even when the
+// cloud names them.
+func TestGCTargetReleases_PrunesThroughTheOwnerAndHonoursOwnerRefusals(t *testing.T) {
+	owner := ownerWith(120)
+	resp := GCTargetReleases(context.Background(), owner, gcTarget(), "dep", "app", domain.VPSBundleGCRequest{ScenarioID: "app", KeepLatest: 2})
 	if !resp.OK {
 		t.Fatalf("expected ok, got %q", resp.Error)
 	}
-	if resp.DeletedCount != 118 {
-		t.Fatalf("expected 118 deleted, got %d", resp.DeletedCount)
+	if resp.DeletedCount != 118 || len(owner.releases) != 2 || owner.prunes != 1 {
+		t.Fatalf("deleted=%d remaining=%d prunes=%d", resp.DeletedCount, len(owner.releases), owner.prunes)
 	}
-	// 118 deletions with batch size 50 => 3 rm calls.
-	if r.rmCalls != 3 {
-		t.Fatalf("expected 3 rm calls (batching), got %d", r.rmCalls)
+	if resp.DeletedBytes != 1180 {
+		t.Fatalf("reclaimed bytes must come from the owner's report, got %d", resp.DeletedBytes)
 	}
-	if len(r.files) != 2 {
-		t.Fatalf("expected 2 files kept, got %d", len(r.files))
+
+	// Active and previous survive even a keep_latest=1 plan that would name
+	// them by age: the planner keeps them by role and the owner refuses them
+	// if ever asked.
+	owner = ownerWith(4)
+	owner.active = digestN(0)
+	owner.previous = digestN(1)
+	resp = GCTargetReleases(context.Background(), owner, gcTarget(), "dep", "app", domain.VPSBundleGCRequest{ScenarioID: "app", KeepLatest: 1})
+	if !resp.OK {
+		t.Fatalf("expected ok, got %q", resp.Error)
+	}
+	if _, ok := owner.releases[digestN(0)]; !ok {
+		t.Fatal("active release was pruned")
+	}
+	if _, ok := owner.releases[digestN(1)]; !ok {
+		t.Fatal("previous release was pruned")
+	}
+	if len(owner.releases) != 3 || resp.DeletedCount != 1 {
+		t.Fatalf("expected one staged release pruned, remaining=%d deleted=%d", len(owner.releases), resp.DeletedCount)
+	}
+
+	// An owner refusal is reported, not hidden.
+	owner = ownerWith(3)
+	owner.active = digestN(0)
+	kept, deleted, _ := PlanVPSBundleGC([]domain.VPSBundleInfo{{Filename: digestN(0), ScenarioID: "app", ModTime: "2026-01-01T00:00:00Z"}, {Filename: digestN(1), ScenarioID: "app", ModTime: "2026-01-02T00:00:00Z"}, {Filename: digestN(2), ScenarioID: "app", ModTime: "2026-01-03T00:00:00Z"}}, "app", 1, nil)
+	if len(kept) != 1 || len(deleted) != 2 {
+		t.Fatalf("planner without roles: kept=%d deleted=%d", len(kept), len(deleted))
+	}
+	report, err := PruneTargetReleases(context.Background(), owner, gcTarget(), "dep", []string{digestN(0), digestN(1)})
+	if err != nil || report.Refused[digestN(0)] != "active" || len(report.Deleted) != 1 {
+		t.Fatalf("owner refusal must surface: %+v err=%v", report, err)
 	}
 }
 
-func TestGCVPSBundles_RefusesUnsafeFilenames(t *testing.T) {
-	unsafeSHA := strings.Repeat("a", 62) + ".." // 64 chars, includes ".." => refused by isSafeBundleFilename
-	r := &fakeRemoteBundles{
-		files: map[string]struct {
-			size int64
-			mt   int64
-		}{
-			"mini-vrooli_app_" + strings.Repeat("a", 64) + ".tar.gz": {size: 100, mt: 2000}, // keep
-			"mini-vrooli_app_" + unsafeSHA + ".tar.gz":               {size: 100, mt: 1000}, // should be selected for deletion (older) but refused
-		},
+// [REQ:STC-P0-024] Only well-formed digests reach the owner: the cloud
+// refuses to compose a prune with anything else, before any transport call.
+func TestPruneTargetReleasesRefusesMalformedDigests(t *testing.T) {
+	owner := ownerWith(1)
+	if _, err := PruneTargetReleases(context.Background(), owner, gcTarget(), "dep", []string{"../etc/passwd"}); err == nil {
+		t.Fatal("malformed digest must be refused")
 	}
-
-	cfg := ssh.NewConfig("example.com", 22, "root", "/tmp/key")
-	resp := GCVPSBundles(context.Background(), r.runner(), cfg, "/root/Vrooli", domain.VPSBundleGCRequest{
-		ScenarioID: "app",
-		KeepLatest: 1,
-		DryRun:     false,
-	})
-	if resp.OK {
-		t.Fatalf("expected refusal due to unsafe filename, got ok=true")
-	}
-	if !strings.Contains(resp.Error, "unsafe filename") {
-		t.Fatalf("expected unsafe filename error, got %q", resp.Error)
-	}
-	if r.rmCalls != 0 {
-		t.Fatalf("expected no rm calls, got %d", r.rmCalls)
+	if len(owner.verbs) != 0 {
+		t.Fatalf("refused prune reached the target: %v", owner.verbs)
 	}
 }

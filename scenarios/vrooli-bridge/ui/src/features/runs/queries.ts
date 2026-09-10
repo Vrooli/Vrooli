@@ -8,9 +8,14 @@ export const RUNS_QUERY_KEY = ["runs", "list"] as const;
 /** react-query key for a single run's detail (run + persisted event history). */
 export const runDetailKey = (id: string) => ["runs", "detail", id] as const;
 
-/** A run is in-flight (not yet terminal) when it is QUEUED or RUNNING. */
+/** A run is in-flight (not yet terminal) until cancellation is confirmed too. */
 export function isRunActive(status: RunStatus): boolean {
-  return status === RunStatus.QUEUED || status === RunStatus.RUNNING;
+  return (
+    status === RunStatus.QUEUED ||
+    status === RunStatus.RUNNING ||
+    status === RunStatus.CANCEL_REQUESTED ||
+    status === RunStatus.UNCERTAIN
+  );
 }
 
 /**

@@ -443,11 +443,11 @@ Monitoring, alerts, or pipeline improvements to catch this earlier.`)
 // buildVPSConnectionAttachment creates the VPS connection details.
 func buildVPSConnectionAttachment(vps *domain.ManifestVPS, sshUser string, sshPort int, m *domain.CloudManifest) *domainpb.ContextAttachment {
 	var content strings.Builder
-	content.WriteString(fmt.Sprintf("ssh -i %s -p %d %s@%s \"<command>\"\n\n", vps.KeyPath, sshPort, sshUser, vps.Host))
+	content.WriteString(fmt.Sprintf("ssh -p %d %s@%s \"<command>\"\n\n", sshPort, sshUser, vps.Host))
 	content.WriteString(fmt.Sprintf("host: %s\n", vps.Host))
 	content.WriteString(fmt.Sprintf("user: %s\n", sshUser))
 	content.WriteString(fmt.Sprintf("port: %d\n", sshPort))
-	content.WriteString(fmt.Sprintf("key_path: %s\n", vps.KeyPath))
+	content.WriteString("identity: credential binding vrooli/scenario-to-cloud:ssh-key, or the operator's ambient SSH identity\n")
 	if vps.Workdir != "" {
 		content.WriteString(fmt.Sprintf("workdir: %s\n", vps.Workdir))
 	}
@@ -720,14 +720,14 @@ func buildFixPrompt(
 	sb.WriteString("## VPS Connection\n")
 	sb.WriteString("To apply fixes on the VPS, use SSH commands:\n")
 	sb.WriteString("```bash\n")
-	sb.WriteString(fmt.Sprintf("ssh -i %s -p %d %s@%s \"<command>\"\n", vps.KeyPath, sshPort, sshUser, vps.Host))
+	sb.WriteString(fmt.Sprintf("ssh -p %d %s@%s \"<command>\"\n", sshPort, sshUser, vps.Host))
 	sb.WriteString("```\n\n")
 
 	sb.WriteString("## Deployment Configuration\n")
 	sb.WriteString(fmt.Sprintf("- VPS Host: %s\n", vps.Host))
 	sb.WriteString(fmt.Sprintf("- SSH User: %s\n", sshUser))
 	sb.WriteString(fmt.Sprintf("- SSH Port: %d\n", sshPort))
-	sb.WriteString(fmt.Sprintf("- SSH Key Path: %s\n", vps.KeyPath))
+	sb.WriteString("- SSH identity: credential binding vrooli/scenario-to-cloud:ssh-key (or ambient)\n")
 	if vps.Workdir != "" {
 		sb.WriteString(fmt.Sprintf("- VPS Workdir: %s\n", vps.Workdir))
 	}

@@ -28,6 +28,7 @@
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "@vrooli/ui-selectors": "file:../../../packages/ui-selectors",
     "axe-core": "4.11.4",
     "class-variance-authority": "^0.7.0",

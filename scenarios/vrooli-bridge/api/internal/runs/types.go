@@ -25,15 +25,15 @@ import (
 	"time"
 )
 
-// RunStatus is a run's lifecycle state. QUEUED/RUNNING are non-terminal;
-// PASSED/FAILED/ABORTED are terminal.
+// RunStatus is a run's lifecycle state. QUEUED/RUNNING/CANCEL_REQUESTED/
+// UNCERTAIN are non-terminal; PASSED/FAILED/ABORTED are terminal.
 type RunStatus int
 
 const (
 	// StatusUnspecified is the zero value; a persisted run never holds it.
 	StatusUnspecified RunStatus = 0
-	// StatusQueued — the run record exists and the JobPush has been delivered,
-	// but the node has not yet reported it started.
+	// StatusQueued — the run record exists and is waiting for a delivery slot;
+	// the node has not yet reported it started.
 	StatusQueued RunStatus = 1
 	// StatusRunning — the node reported the job is executing.
 	StatusRunning RunStatus = 2
@@ -49,6 +49,11 @@ const (
 	StatusAcked RunStatus = 7
 	// StatusFailedDelivery — terminal: delivery could not be established.
 	StatusFailedDelivery RunStatus = 8
+	// StatusCancelRequested — cancellation was requested; remote termination is
+	// not yet confirmed.
+	StatusCancelRequested RunStatus = 9
+	// StatusUncertain — available evidence cannot prove the remote outcome.
+	StatusUncertain RunStatus = 10
 )
 
 // Terminal reports whether the status is a terminal one. WaitRun returns once a
@@ -82,6 +87,10 @@ func (s RunStatus) String() string {
 		return "acked"
 	case StatusFailedDelivery:
 		return "failed_delivery"
+	case StatusCancelRequested:
+		return "cancel_requested"
+	case StatusUncertain:
+		return "uncertain"
 	default:
 		return "unspecified"
 	}
@@ -127,6 +136,9 @@ type Run struct {
 	DeliveryAttempts       int
 	LastDeliveryError      string
 	DeliveryLeaseExpiresAt time.Time
+	CancelRequestedAt      time.Time
+	CancellationConfirmed  bool
+	StatusReason           string
 }
 
 // RunEvent is one entry in a run's append-only event history.

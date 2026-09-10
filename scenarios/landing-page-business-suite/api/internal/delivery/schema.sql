@@ -7,3 +7,49 @@ CREATE TABLE IF NOT EXISTS download_assets (id SERIAL PRIMARY KEY, bundle_key VA
 CREATE UNIQUE INDEX IF NOT EXISTS idx_download_assets_bundle_app_platform_variant ON download_assets(bundle_key, app_key, platform, variant_key); CREATE INDEX IF NOT EXISTS idx_download_assets_artifact_id ON download_assets(artifact_id);
 CREATE TABLE IF NOT EXISTS download_storage_settings (id SERIAL PRIMARY KEY, bundle_key VARCHAR(100) UNIQUE NOT NULL, provider VARCHAR(50) NOT NULL DEFAULT 's3', bucket TEXT, region TEXT, endpoint TEXT, force_path_style BOOLEAN DEFAULT FALSE, default_prefix TEXT, signed_url_ttl_seconds INTEGER DEFAULT 900, public_base_url TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
 CREATE INDEX IF NOT EXISTS idx_download_storage_settings_bundle ON download_storage_settings(bundle_key);
+
+-- Channel heads are the only mutable visibility pointer. Every promoted
+-- artifact set is retained as an immutable revision so stale publishers can be
+-- rejected by predecessor revision and operators can reconcile the history.
+CREATE TABLE IF NOT EXISTS download_channel_revisions (
+    id BIGSERIAL PRIMARY KEY,
+    bundle_key VARCHAR(100) NOT NULL,
+    app_key VARCHAR(100) NOT NULL,
+    variant_key VARCHAR(50) NOT NULL,
+    revision BIGINT NOT NULL,
+    predecessor_revision BIGINT NOT NULL,
+    artifact_set JSONB NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE (bundle_key, app_key, variant_key, revision),
+    CONSTRAINT fk_channel_revision_app FOREIGN KEY (bundle_key, app_key)
+        REFERENCES download_apps(bundle_key, app_key) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_download_channel_revisions_lookup
+    ON download_channel_revisions(bundle_key, app_key, variant_key, revision DESC);
+
+CREATE TABLE IF NOT EXISTS download_channel_heads (
+    bundle_key VARCHAR(100) NOT NULL,
+    app_key VARCHAR(100) NOT NULL,
+    variant_key VARCHAR(50) NOT NULL,
+    current_revision BIGINT NOT NULL,
+    artifact_set JSONB NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (bundle_key, app_key, variant_key),
+    CONSTRAINT fk_channel_head_app FOREIGN KEY (bundle_key, app_key)
+        REFERENCES download_apps(bundle_key, app_key) ON DELETE CASCADE
+);
+
+-- A halt is a durable offer gate. It does not mutate installed clients or
+-- delete immutable revisions; it only prevents future feed and download use.
+CREATE TABLE IF NOT EXISTS download_channel_halts (
+    bundle_key VARCHAR(100) NOT NULL,
+    app_key VARCHAR(100) NOT NULL,
+    variant_key VARCHAR(50) NOT NULL,
+    revision BIGINT NOT NULL,
+    halted BOOLEAN NOT NULL DEFAULT TRUE,
+    reason TEXT NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (bundle_key, app_key, variant_key),
+    CONSTRAINT fk_channel_halt_app FOREIGN KEY (bundle_key, app_key)
+        REFERENCES download_apps(bundle_key, app_key) ON DELETE CASCADE
+);

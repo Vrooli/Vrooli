@@ -1,7 +1,5 @@
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
+learn.task(operation="device-control.replay-flow", key={"device": inputs.get("device_id", ""), "context_key": inputs.get("context_key", "")})
 envelope={"program":"device-control.replay-flow","version":"1","status":"failed","phase":"validate","inputs":{},
  "signals":{},"errors":[],"evidence":[]}
 handles={}
@@ -15,32 +13,6 @@ def fail(status,klass,detail,where):
         envelope["signals"].setdefault("outcome", "unknown")
     envelope["errors"].append({"class":klass,"detail":str(detail)[:160],"where":where})
     return "report"
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
-
 
 
 def step_validate():
@@ -61,7 +33,7 @@ def step_collect():
         if saved.get("id")!=inputs["flow_id"] or saved.get("version")!=inputs["version"] or saved.get("deviceId")!=inputs["device_id"] or saved.get("contextKey")!=inputs["context_key"]:
             return fail("failed","identity_mismatch","Saved flow differs from requested identity","collect")
     except Exception as exc:
-        status,klass=classify_transport(exc)
+        status,klass=program.classify(exc)
         return fail(status,klass,klass,"collect")
     return "act"
 def step_act():
@@ -80,13 +52,20 @@ def step_act():
             return fail("failed","flow_failed","Saved flow did not pass; no alternate action started","act")
         envelope["status"]="ok"
         envelope["signals"]["outcome"]="verified_success"
+        learn.note("preference", {"option_id": inputs["flow_id"] + "@" + str(inputs["version"])})
     except Exception as exc:
-        status,klass=classify_transport(exc)
+        status,klass=program.classify(exc)
         return fail(status,klass,klass,"act")
     return "report"
 
 def step_report():
     envelope["phase"]="report"
+    status = envelope["signals"].get("outcome", "unknown")
+    # The replayed revision is the exact artifact a later correction should name.
+    artifact = {"kind": "flow", "owner": "device-control", "id": str(inputs["flow_id"]), "revision": str(inputs["version"])} if inputs.get("flow_id") and inputs.get("version") else None
+    envelope["signals"]["learning"] = {"feedback_ref": learn.result("replay", artifact=artifact)}
+    learn.outcome(status if status in ("verified_success", "failed", "unavailable", "unknown") else "unknown",
+                  envelope["evidence"] if status == "verified_success" else [])
     print(envelope)
     return None
 STATES={"validate":step_validate,"collect":step_collect,"act":step_act,"report":step_report}

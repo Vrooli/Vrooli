@@ -110,10 +110,7 @@ EOF
 - [ ] Generate and publish the PRD:
 
 ```bash
-business-health wizard start  # (was: prd generate) vrooli-bridge \
-  --context-file /tmp/prd_context_vrooli-bridge.md \
-  --publish \
-  --json
+business-health wizard start vrooli-bridge --json
 ```
 
 - [ ] Validate the PRD:
@@ -165,9 +162,7 @@ EOF
 - [ ] Generate requirements:
 
 ```bash
-business-health wizard apply  # (was: requirements generate) vrooli-bridge \
-  --context-file /tmp/requirements_context_vrooli-bridge.md \
-  --json
+business-health wizard apply vrooli-bridge --json
 ```
 
 - [ ] Validate requirements:
@@ -381,11 +376,11 @@ this tree and the tree has to be real first.
       experience spec already declares. Never edit a released version
       directory:
 
-```bash
-react-component-library components draft-begin <component>
+```text
+react-component-library components draft-begin "<component>"
 # add the stories/states your experience spec declares
-react-component-library components test <component-id>
-react-component-library components draft-publish <component>
+react-component-library components test "<component-id>"
+react-component-library components draft-publish "<component>"
 ```
 
       A raised component improves every scenario already consuming it, which a
@@ -393,33 +388,30 @@ react-component-library components draft-publish <component>
 - [ ] Promote a scenario-local component, carrying its experience contract with
       it so the canon inherits the claims rather than losing them:
 
-```bash
-react-component-library components ingest vrooli-bridge <tsx-path> <slug> \
-  --experience-contract experience/components/<component>.json \
-  --display-name "<Name>" --slot <slot>
+```text
+react-component-library components ingest vrooli-bridge "<source-file>" "<slug>" --experience-contract "experience/components/<component>.json" --display-name "<Name>" --slot "<slot>"
 ```
 
 - [ ] Validate before calling anything canonical:
 
-```bash
-react-component-library components test <component-id>
-react-component-library components style-fit <component-id> vrooli-bridge
-react-component-library catalog evidence capture <asset-id>
+```text
+react-component-library components test "<component-id>"
+react-component-library components style-fit "<component-id>" vrooli-bridge
+react-component-library catalog evidence capture "<asset-id>"
 ```
 
 - [ ] Read the promotion gate. It requires parity, examples, dependency
       closure, drift evidence, and a clean replacement adoption in the origin
       scenario:
 
-```bash
-react-component-library workflows promotion-readiness <asset-id> \
-  --origin-scenario vrooli-bridge
+```text
+react-component-library workflows promotion-readiness "<asset-id>" --origin-scenario vrooli-bridge
 ```
 
 - [ ] Adopt the published version back, then delete the local original:
 
-```bash
-react-component-library adoptions apply <component-id> vrooli-bridge <adopted-path>
+```text
+react-component-library adoptions apply "<component-id>" vrooli-bridge "<adopted-path>"
 ```
 
       Promotion is not finished while this scenario still runs its own copy.

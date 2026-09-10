@@ -27,6 +27,8 @@ vi.mock("./api/session", () => ({
   }),
   fetchSession: vi.fn().mockResolvedValue({ firstUnsatisfiedStep: -1 }),
   advanceSessionStep: vi.fn().mockResolvedValue({}),
+  fetchProfileSession: vi.fn().mockResolvedValue(null),
+  saveProfileSession: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock("./api/operatorstate", () => ({
@@ -152,7 +154,24 @@ describe("App - View Navigation", () => {
     const nav = screen.getByTestId("app-nav");
     expect(nav).toBeInTheDocument();
     expect(nav.querySelector(".app-brand__mark")).toHaveAttribute("src", "/public/logo.webp");
-    expect(nav.querySelector(".app-tab")).toHaveClass("gap-3");
+    expect(nav.querySelector(".app-tab [data-control-slot=\"icon\"]")).toBeInTheDocument();
+    expect(screen.getByTestId("nav-dashboard")).toHaveAttribute("aria-label", "Health Dashboard");
+    expect(screen.getByTestId("setup-target-trigger")).toHaveTextContent("Local");
+  });
+
+  it("opens the available target menu from the status control", async () => {
+    await renderApp();
+    const trigger = screen.getByTestId("setup-target-trigger");
+
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(trigger);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    const dialog = screen.getByRole("dialog", { name: "Setup target" });
+    expect(dialog).toHaveTextContent("Available setup targets");
+    expect(dialog).toHaveTextContent("Link another machine");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
   it("shows wizard view by default", async () => {

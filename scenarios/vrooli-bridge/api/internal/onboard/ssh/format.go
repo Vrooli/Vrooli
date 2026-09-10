@@ -7,7 +7,7 @@ import (
 
 // FormatCommandForLog renders an SSH command for logging with the key path
 // redacted so no key material or paths leak into logs.
-func FormatCommandForLog(cfg Config, cmd string) string {
+func FormatCommandForLog(cfg ConnectionConfig, cmd string) string {
 	redactedCfg := cfg
 	redactedCfg.KeyPath = ""
 	parts := append([]string{"ssh"}, buildSSHArgs(redactedCfg, DefaultRunOptions())...)

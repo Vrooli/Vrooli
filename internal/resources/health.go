@@ -38,7 +38,10 @@ type HealthResult struct {
 }
 
 func (c *Controller) runResourceHealthChecks(ctx context.Context, manifest ResourceManifest) (HealthResult, error) {
-	env := resourceEnvForResource(c.Root, c.Home, manifest.Name)
+	env, err := resourceEnvForManifest(c.Root, c.Home, manifest)
+	if err != nil {
+		return HealthResult{}, err
+	}
 	for _, port := range manifest.Ports {
 		if port.Host > 0 {
 			env = values.SetEnv(env, managedServicePortEnvName(port.Name), fmt.Sprintf("%d", port.Host))

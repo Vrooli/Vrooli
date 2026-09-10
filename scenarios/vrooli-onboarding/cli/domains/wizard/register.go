@@ -445,11 +445,16 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 			if err := resolvePendingOperatorInputs(core, strings.TrimSpace(*target), func(_ int, prompt string) (string, error) { return read("credentials", prompt) }, func(_ int, prompt string) (string, error) { return readSecret("credentials", prompt) }); err != nil {
 				return err
 			}
+			readinessResponse := &readinessv1.GetReadinessResponse{}
+			if err := requestOperator(core, readinessGetProcedure, &readinessv1.GetReadinessRequest{Target: strings.TrimSpace(*target)}, readinessResponse); err != nil {
+				return fmt.Errorf("check credential readiness: %w", err)
+			}
+			readinessStatuses := credentialReadinessStatuses(readinessResponse)
 			if _, err := read("credentials", "credentials are listed by the API; provision values with credentials provision, then press enter"); err != nil {
 				return err
 			}
 			for _, credential := range credentialResponse.GetCredentials() {
-				if credential.GetStatus() == "configured" {
+				if credentialIsConfigured(credential, readinessStatuses) {
 					continue
 				}
 				label := credential.GetLabel()
@@ -613,6 +618,29 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 		}
 	}
 	return nil
+}
+
+func credentialReadinessStatuses(response *readinessv1.GetReadinessResponse) map[string]string {
+	statuses := make(map[string]string, len(response.GetCredentials()))
+	for _, credential := range response.GetCredentials() {
+		status := strings.TrimSpace(credential.GetLegacyStatus())
+		if status == "" && credential.GetStatus() == readinessv1.ReadinessState_READINESS_STATE_READY {
+			status = "configured"
+		}
+		statuses[credentialKey(credential.GetLogicalId(), credential.GetField())] = status
+	}
+	return statuses
+}
+
+func credentialIsConfigured(credential *credentialsv1.Credential, readinessStatuses map[string]string) bool {
+	if status, ok := readinessStatuses[credentialKey(credential.GetLogicalId(), credential.GetField())]; ok {
+		return status == "configured"
+	}
+	return strings.TrimSpace(credential.GetStatus()) == "configured"
+}
+
+func credentialKey(logicalID, field string) string {
+	return strings.TrimSpace(logicalID) + "\x00" + strings.TrimSpace(field)
 }
 
 type coreSetView = selectionv1.GetCoreSetResponse

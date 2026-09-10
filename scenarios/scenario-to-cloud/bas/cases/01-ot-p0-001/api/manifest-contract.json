@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "name": "Manifest contract template",
+    "description": "Validate the manifest template the API returns carries the contract fields a deployment-manager export must satisfy (target, scenario, dependencies, bundle, ports).",
+    "tags": [
+      "e2e",
+      "api",
+      "manifest"
+    ],
+    "requirements": [
+      "STC-P0-001"
+    ],
+    "labels": {
+      "safety": "observer",
+      "mutates_target": "false",
+      "mutates_repository": "false",
+      "requirements_json": "[\"STC-P0-001\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer"
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "template",
+      "type": "http_request",
+      "data": {
+        "label": "GET /api/v1/manifest/template",
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/manifest/template",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {
+            "type": "status_code",
+            "expected": 200
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.manifest.version"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.manifest.target"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.manifest.scenario"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.manifest.dependencies"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.manifest.bundle"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.manifest.ports"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": []
+}

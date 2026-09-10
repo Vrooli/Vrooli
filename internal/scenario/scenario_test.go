@@ -243,6 +243,35 @@ func TestReadServiceRejectsDuplicateCredentialDescriptors(t *testing.T) {
 	}
 }
 
+func TestReadServiceAcceptsCredentialConsumerProvenance(t *testing.T) {
+	servicePath := filepath.Join(t.TempDir(), ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
+		t.Fatalf("mkdir service directory: %v", err)
+	}
+	if err := os.WriteFile(servicePath, []byte(`{"version":"1.0.0","service":{"name":"alpha"},"credentials":{"descriptors":[{"logical_id":"vrooli/demo","field":"token"}],"consumers":[{"logical_id":"vrooli/demo","field":"token"}]}}`), 0o600); err != nil {
+		t.Fatalf("write service manifest: %v", err)
+	}
+
+	if _, err := ReadService(servicePath); err != nil {
+		t.Fatalf("ReadService rejected consumer provenance: %v", err)
+	}
+}
+
+func TestReadServiceAcceptsMultipleTunnelManagerCredentialConsumers(t *testing.T) {
+	servicePath := filepath.Join(t.TempDir(), ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
+		t.Fatalf("mkdir service directory: %v", err)
+	}
+	manifest := `{"version":"1.0.0","service":{"name":"tunnel-manager"},"credentials":{"descriptors":[{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-account-id"},{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-tunnel-id"},{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-api-token"},{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-connector-token"}],"consumers":[{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-api-token"},{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-account-id"},{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-tunnel-id"},{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-connector-token"}]}}`
+	if err := os.WriteFile(servicePath, []byte(manifest), 0o600); err != nil {
+		t.Fatalf("write service manifest: %v", err)
+	}
+
+	if _, err := ReadService(servicePath); err != nil {
+		t.Fatalf("ReadService rejected tunnel-manager credential provenance: %v", err)
+	}
+}
+
 func TestReadServiceAcceptsGoModuleCLIContract(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, ".vrooli", "service.json")
@@ -593,7 +622,7 @@ func TestAuthenticationProfileRuntimeEnvironmentSelectsDesktopModeProviders(t *t
 	profile := AuthenticationProfile{
 		Profile: "hybrid", DefaultMode: "personal_local",
 		SupportedModes: []string{"personal_local", "local_multi_user", "remote_vrooli", "shared_provider"},
-		Provider: "cloudflare-access", TeamDomain: "https://team.example.test", Audience: "cloudflare-audience",
+		Provider:       "cloudflare-access", TeamDomain: "https://team.example.test", Audience: "cloudflare-audience",
 		ScenarioAudience: "scenario-authenticator:demo", Owner: "tunnel-manager",
 	}
 	for _, tc := range []struct {

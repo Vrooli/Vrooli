@@ -12,8 +12,8 @@ and untracked non-ignored files), and transfers all three binaries plus their
 `.fp` sidecars. A raw node therefore reaches ONLINE with no preinstalled Go and
 without pulling a release artifact or GitHub clone. One run:
 
-1. **detect-os** — identify platform (`linux`/`darwin`; Windows uses the
-   PowerShell installer).
+1. **detect-os** — identify platform (`linux`/`darwin`/`windows`). POSIX nodes
+   use `bootstrap.sh`; Windows nodes use the native `bootstrap.ps1` path.
 2. **prebuilt-artifacts** — verify the three transferred executables and their
    shared source fingerprint.
 3. **prereqs** — skipped for a pre-synced tree with a complete prebuilt bundle;
@@ -37,11 +37,12 @@ without pulling a release artifact or GitHub clone. One run:
    (`SECURITY.md` boundary 2).
 10. **pin-verify** — assert the pinned key is present.
 11. **service-install** — install + start the platform-native background service
-    (systemd `--user` unit on Linux; launchd on macOS).
+    (systemd `--user` unit on Linux; launchd on macOS; Windows Service Control
+    Manager on Windows).
 12. **autostart** — enable headless auto-start (`loginctl enable-linger` on
-    Linux; launchd `KeepAlive` on macOS). SSH-only macOS sessions select a
-    machine-wide LaunchDaemon and need no GUI login; a GUI-domain LaunchAgent
-    retains macOS's auto-login prerequisite.
+    Linux; launchd `KeepAlive` on macOS; SCM `start=auto` on Windows). SSH-only
+    macOS sessions select a machine-wide LaunchDaemon and need no GUI login; a
+    GUI-domain LaunchAgent retains macOS's auto-login prerequisite.
 13. **verify-online** — wait (bounded) for the agent to report a live dial-out
     channel.
 
@@ -62,6 +63,15 @@ BRIDGE_PAIRING_CODE="$(vrooli-bridge pair issue --name web-01 --json | jq -r .co
 ./bootstrap.sh --control-plane-url https://cp.example.com --node-name web-01 --revision <git-sha>
 ```
 
+The Windows path is selected by the Bridge onboarding transport after a native
+platform probe. It stages `bootstrap.ps1` in the OpenSSH user's home directory,
+reads the pairing code from stdin, verifies transferred `.exe`/`.fp` bundles when
+present, and installs the agent through the Windows Service Control Manager via
+the agent's service command. The remote account must be permitted to create and
+start Windows services; `--service-user` remains the SCM service principal.
+Native Windows setup/build fallback requires Git and Go when a complete prebuilt
+bundle is not provided.
+
 ### Options
 
 | Flag | Env | Default | Meaning |
@@ -78,7 +88,7 @@ BRIDGE_PAIRING_CODE="$(vrooli-bridge pair issue --name web-01 --json | jq -r .co
 | `--work-dir` | `BRIDGE_WORK_DIR` | checkout dir | Dir the agent runs jobs in. |
 | `--service-user` | `BRIDGE_SERVICE_USER` | current user | OS principal the service runs as. |
 | `--provision-service-user` | `BRIDGE_PROVISION_SERVICE_USER` | unset | Separate OS principal for the privileged provisioning helper. When set, the bootstrap requires non-interactive elevation and installs a machine-wide `vrooli-bridge-provisioner` unit. |
-| `--provision-socket` | `BRIDGE_PROVISION_SOCKET` | Linux: `/run/vrooli-bridge/provision.sock`; macOS: `$XDG_STATE_HOME/vrooli-bridge-agent/provision.sock` | Absolute local IPC socket shared by the runner and provisioner. Linux peer credentials authorize the runner UID; macOS keeps the socket in the existing per-user agent state directory because `/run` is not writable there. |
+| `--provision-socket` | `BRIDGE_PROVISION_SOCKET` | Linux: `/run/vrooli-bridge/provision.sock`; macOS: `$XDG_STATE_HOME/vrooli-bridge-agent/provision.sock`; Windows: named pipe derived from the supplied absolute value | Local IPC endpoint shared by the runner and provisioner. Linux and macOS authorize the runner with peer credentials; Windows uses a named-pipe ACL bound to `--provision-client-user`. |
 | `--capabilities` | `BRIDGE_CAPABILITIES` | *(none)* | Comma-separated verb namespaces to self-report. When supplied by Bridge onboarding, it also opts the agent into typed control frames; the registry's approved execution scopes remain the authorization source. |
 | `--verify-timeout` | `BRIDGE_VERIFY_TIMEOUT` | `120` | Dial-out verification budget (seconds). |
 | `--setup-environment` | `BRIDGE_SETUP_ENVIRONMENT` | *(node default)* | Node-side `vrooli setup --environment`: `development` \| `production` \| `minimal`. |

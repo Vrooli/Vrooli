@@ -33,6 +33,31 @@ func TestBundleSchemaRejectsInvalidManifest(t *testing.T) {
 	}
 }
 
+func TestBundleSchemaAcceptsAllocatorIPCPort(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "docs", "examples", "manifests", "desktop-happy.json"))
+	if err != nil {
+		t.Fatalf("failed to read valid bundle sample: %v", err)
+	}
+
+	var manifest map[string]interface{}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("failed to decode valid bundle sample: %v", err)
+	}
+	ipc, ok := manifest["ipc"].(map[string]interface{})
+	if !ok {
+		t.Fatal("valid bundle sample omitted ipc object")
+	}
+	ipc["port"] = 0
+	data, err = json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("failed to encode allocator-port manifest: %v", err)
+	}
+
+	if err := ValidateManifestBytes(data); err != nil {
+		t.Fatalf("allocator input port 0 should be valid: %v", err)
+	}
+}
+
 func TestBundleValidationCoversSecretAndServiceRules(t *testing.T) {
 	validSecret := ManifestSecret{ID: "token", Class: "user_prompt", Target: SecretTarget{Type: "env", Name: "TOKEN"}}
 	if err := validateSecret(validSecret); err != nil {

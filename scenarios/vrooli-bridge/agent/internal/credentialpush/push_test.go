@@ -62,6 +62,31 @@ func TestApplyPreservesStoreRefusalInReceipt(t *testing.T) {
 	require.Contains(t, result.Receipt.GetReason(), "credential backend locked")
 }
 
+func TestApplyRejectsGrantIdentityAndGenerationDrift(t *testing.T) {
+	grant := credentialgrant.Grant{ID: "g1", NodeID: "node-1", LogicalID: "vrooli/test", Field: "api-key", Class: credentialgrant.ClassUserPrompt, Retention: credentialgrant.RetentionDurable, Generation: 3}
+	grants := credentialgrant.NewMemoryStore(grant)
+
+	for _, test := range []struct {
+		name       string
+		grantID    string
+		generation int64
+	}{
+		{name: "different grant", grantID: "g2", generation: 3},
+		{name: "future generation", grantID: "g1", generation: 4},
+		{name: "stale generation", grantID: "g1", generation: 2},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := Apply(&channelv1.CredentialPush{
+				GrantId: test.grantID, NodeId: "node-1", LogicalId: "vrooli/test", Field: "api-key",
+				Generation: test.generation, Retention: credentialgrant.RetentionDurable,
+			}, "node-1", nil, grants, nil)
+			require.NoError(t, err)
+			require.True(t, result.Rejected)
+			require.Contains(t, result.Receipt.GetReason(), "local")
+		})
+	}
+}
+
 func TestApplyEphemeralReturnsBufferAndCallerCanZeroIt(t *testing.T) {
 	private, err := ecdh.X25519().GenerateKey(rand.Reader)
 	require.NoError(t, err)

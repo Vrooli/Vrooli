@@ -17,7 +17,8 @@ func TestDiscoverAndQueueCapabilitiesPersistsOnlyMetadata(t *testing.T) {
 	t.Cleanup(func() { _ = operatorcapability.Replace(nil) })
 
 	descriptor := operatorcapability.Descriptor{
-		Version: operatorcapability.ContractVersion, ID: "test-escrow", Owner: "test-owner", Title: "Test escrow",
+		Version: operatorcapability.ContractVersion, ID: "test-escrow", Owner: "test-owner", Scope: "test host", Purpose: "test typed escrow", Sensitivity: operatorcapability.SensitivitySecret, Disposition: operatorcapability.DispositionConfigurable,
+		Provenance: operatorcapability.PermissionProvenance{Requester: "test operator", Scope: "test host", GrantSource: "test consent", RevocationLimit: "test owner revokes"}, Lifecycle: operatorcapability.Lifecycle{Preview: true, Apply: true, Verify: true}, Title: "Test escrow",
 		Inputs: []operatorcapability.InputDescriptor{
 			{ID: "sink", Kind: operatorcapability.KindPath, Label: "Sink", Required: true},
 			{ID: "passphrase", Kind: operatorcapability.KindSecret, Label: "Passphrase", Required: true},

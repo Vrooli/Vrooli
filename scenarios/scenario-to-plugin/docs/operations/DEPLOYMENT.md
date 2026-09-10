@@ -113,3 +113,17 @@ also prove what it refuses.
 - [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — dependency contracts and failure modes
 - [`../internal/SECURITY.md`](../internal/SECURITY.md) — credential handling and threat model
 - [`../reference/configuration.md`](../reference/configuration.md) — environment variables
+
+### Portable program implementations
+
+Composition includes regular `.vrooli/program-runtime/*.py` sources and `*.json`
+contracts/schema assets from the scenario in the plugin archive. Reviewed learning
+baselines live inside those contracts and travel with the source in Git. Composition
+does not read Memory, export runtime databases, or choose a learned implementation.
+It rejects symlinks and bounds the asset count and bytes.
+
+A recipient still needs Program Runtime and any domain capabilities invoked by the
+program. A compatible reviewed baseline can execute without AI or Memory when the
+remaining program permits it. The `learn.act` boundary and independent verifier
+remain active so later drift can be detected. Publish reviewed assets through
+`program-runtime.fragment-promote`, then review and commit the declaration normally.

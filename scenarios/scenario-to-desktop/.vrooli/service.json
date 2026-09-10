@@ -132,6 +132,19 @@
         ]
       },
       {
+        "logical_id": "vrooli/deployment-manager",
+        "field": "service-token",
+        "env": "DEPLOYMENT_MANAGER_SERVICE_TOKEN",
+        "label": "Deployment Manager owner service token",
+        "description": "Short-lived scenario-to-desktop service credential with only the Deployment Manager preparation, readiness-evidence, and client-receipt scopes.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/deployment-manager/docs",
+        "tiers": [
+          "tier-1-local"
+        ]
+      },
+      {
         "logical_id": "vrooli/scenario-to-desktop",
         "field": "windows-cert-password",
         "env": "CSC_KEY_PASSWORD",
@@ -139,6 +152,19 @@
         "description": "Optional password consumed by electron-builder for Windows code signing.",
         "required": false,
         "provisioning": "operator",
+        "obtain_url": "https://www.electron.build/configuration/win",
+        "tiers": [
+          "tier-1-local"
+        ]
+      },
+      {
+        "logical_id": "vrooli/scenario-to-desktop",
+        "field": "windows-certificate-file",
+        "label": "Windows signing certificate",
+        "description": "Operator-managed PFX/P12 certificate path used by electron-builder for Windows code signing; the private certificate material is never bundled.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://www.electron.build/configuration/win",
         "tiers": [
           "tier-1-local"
         ]
@@ -151,6 +177,7 @@
         "description": "Optional Apple account consumed by electron-builder for notarization.",
         "required": false,
         "provisioning": "operator",
+        "obtain_url": "https://appleid.apple.com/",
         "tiers": [
           "tier-1-local"
         ]
@@ -163,6 +190,7 @@
         "description": "Optional Apple app-specific password consumed by electron-builder for notarization.",
         "required": false,
         "provisioning": "operator",
+        "obtain_url": "https://support.apple.com/en-us/102654",
         "tiers": [
           "tier-1-local"
         ]
@@ -175,10 +203,74 @@
         "description": "Optional Apple API key file consumed by electron-builder for notarization.",
         "required": false,
         "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/documentation/appstoreconnectapi/creating-api-keys-for-app-store-connect-api",
+        "tiers": [
+          "tier-1-local"
+        ]
+      },
+      {
+        "logical_id": "vrooli/scenario-to-desktop",
+        "field": "apple-api-key-id",
+        "env": "APPLE_API_KEY_ID",
+        "label": "Apple API key ID",
+        "description": "Public App Store Connect API key identifier paired with the private .p8 key file for notarization.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/documentation/appstoreconnectapi/creating-api-keys-for-app-store-connect-api",
+        "tiers": [
+          "tier-1-local"
+        ]
+      },
+      {
+        "logical_id": "vrooli/scenario-to-desktop",
+        "field": "apple-api-issuer-id",
+        "env": "APPLE_API_ISSUER_ID",
+        "label": "Apple API issuer ID",
+        "description": "Public App Store Connect issuer identifier paired with the private .p8 key file for notarization.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/documentation/appstoreconnectapi/creating-api-keys-for-app-store-connect-api",
+        "tiers": [
+          "tier-1-local"
+        ]
+      },
+      {
+        "logical_id": "vrooli/scenario-to-desktop",
+        "field": "linux-gpg-key-id",
+        "label": "Linux GPG signing key",
+        "description": "GPG secret-key identity or fingerprint selected for Linux package signing on the signing host.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/scenario-to-desktop/docs/guides/code-signing.md",
+        "tiers": [
+          "tier-1-local"
+        ]
+      },
+      {
+        "logical_id": "vrooli/scenario-to-desktop",
+        "field": "linux-gpg-passphrase",
+        "label": "Linux GPG passphrase",
+        "description": "Optional passphrase for the selected GPG signing key, supplied through the operator-selected environment variable and never stored in signing configuration.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/scenario-to-desktop/docs/guides/code-signing.md",
         "tiers": [
           "tier-1-local"
         ]
       }
+    ],
+    "consumers": [
+      {"logical_id":"vrooli/landing-page-business-suite","field":"service-secret","kind":"authority","consumer":"LPBS deployment client","source_ref":"api/shared/env/secrets.go:46","required":true},
+      {"logical_id":"vrooli/deployment-manager","field":"service-token","kind":"environment","consumer":"Deployment Manager client","source_ref":"api/shared/auth/service_token.go:17","required":false},
+      {"logical_id":"vrooli/scenario-to-desktop","field":"windows-cert-password","kind":"environment","consumer":"Electron Windows signer","source_ref":"api/signing/generation/electron_builder.go:23","required":false},
+      {"logical_id":"vrooli/scenario-to-desktop","field":"windows-certificate-file","kind":"external","consumer":"Electron Windows signer","source_ref":"api/signing/generation/electron_builder.go:21","required":false},
+      {"logical_id":"vrooli/scenario-to-desktop","field":"apple-id","kind":"environment","consumer":"Electron macOS notarizer","source_ref":"api/signing/generation/notarize_script.go:139","required":false},
+      {"logical_id":"vrooli/scenario-to-desktop","field":"apple-app-password","kind":"environment","consumer":"Electron macOS notarizer","source_ref":"api/signing/generation/notarize_script.go:144","required":false},
+      {"logical_id":"vrooli/scenario-to-desktop","field":"apple-api-key-p8","kind":"environment","consumer":"Electron macOS API-key notarizer","source_ref":"api/signing/generation/notarize_script.go:121","required":false},
+      {"logical_id":"vrooli/scenario-to-desktop","field":"apple-api-key-id","kind":"environment","consumer":"Electron macOS API-key notarizer","source_ref":"api/signing/generation/notarize_script.go:120","required":false},
+      {"logical_id":"vrooli/scenario-to-desktop","field":"apple-api-issuer-id","kind":"environment","consumer":"Electron macOS API-key notarizer","source_ref":"api/signing/generation/notarize_script.go:122","required":false},
+      {"logical_id":"vrooli/scenario-to-desktop","field":"linux-gpg-key-id","kind":"external","consumer":"Linux signing validation","source_ref":"api/signing/validation/validator.go:261","required":false},
+      {"logical_id":"vrooli/scenario-to-desktop","field":"linux-gpg-passphrase","kind":"environment","consumer":"Linux signing validation","source_ref":"api/signing/validation/prerequisites_platform.go:234","required":false}
     ]
   },
   "generation": {

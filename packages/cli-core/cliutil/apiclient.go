@@ -34,6 +34,22 @@ func (c *APIClient) WithTimeout(timeout time.Duration) *APIClient {
 	return &clone
 }
 
+// WithoutTimeout creates an explicit server-owned wait attachment. It keeps
+// base resolution, authentication, provenance and transport configuration,
+// without changing the ordinary client's deadline or retrying the request.
+func (c *APIClient) WithoutTimeout() *APIClient {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	client := c.client
+	if client == nil {
+		client = NewHTTPClient(HTTPClientOptions{})
+	}
+	clone.client = client.CloneWithoutTimeout()
+	return &clone
+}
+
 func (c *APIClient) Get(path string, query url.Values) ([]byte, error) {
 	return c.Request("GET", path, query, nil)
 }

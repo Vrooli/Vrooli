@@ -1,6 +1,7 @@
 package health_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -112,4 +113,30 @@ func TestHealthHandler(t *testing.T) {
 			require.Equal(t, int64(1), pinger.Calls.Load(), "Pinger.PingContext call count")
 		})
 	}
+}
+
+func TestHealthHandlerReportsLifecycleBuildIdentity(t *testing.T) {
+	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:test-build")
+	h := health.NewHandler(health.Deps{
+		Pinger:  &mocks.FakePinger{},
+		Service: "vrooli-bridge-api",
+		Version: "1.0.0",
+	})
+	mod := module.Module{
+		Name: "health",
+		Mount: func(r *mux.Router) {
+			r.HandleFunc("/health", h).Methods(http.MethodGet)
+		},
+	}
+	srv := server.New(
+		server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
+		mod,
+	)
+	live := httpx.NewLiveServer(t, srv)
+	_, body := live.Do(t, http.MethodGet, "/health", nil)
+	var got struct {
+		BuildIdentity string `json:"build_identity"`
+	}
+	require.NoError(t, json.Unmarshal(body, &got))
+	require.Equal(t, "sha256:test-build", got.BuildIdentity, "response.build_identity")
 }

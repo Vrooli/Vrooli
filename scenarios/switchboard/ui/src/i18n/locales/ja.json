@@ -186,7 +186,9 @@
       "reviewContacts": "連絡先を確認",
       "sayHello": "挨拶してみましょう。メッセージはオーナー階層でエージェントに届きます。",
       "threadNotFound": "この ID のスレッドはありません",
-      "threadNotFoundDetail": "削除されたか、リンクが古い可能性があります。一覧からスレッドを選んでください。"
+      "threadNotFoundDetail": "削除されたか、リンクが古い可能性があります。一覧からスレッドを選んでください。",
+      "callAgent": "{{name}} に通話",
+      "peopleCount": "{{count}} 人"
     },
     "agents": {
       "title": "エージェント",
@@ -326,7 +328,9 @@
       "description": "ライブ通話の文字起こしと操作。",
       "unavailableTitle": "このリリースでは通話モードは利用できません",
       "unavailableDetail": "音声・ビデオ通話は今後の目標です。会話そのものはここにあります。",
-      "backToThread": "会話に戻る"
+      "backToThread": "会話に戻る",
+      "signInTitle": "通話モードを使うにはサインインしてください。",
+      "signInDetail": "通話はあなたとして実行されるため、オーナーセッションが必要です。"
     }
   },
   "pages": {

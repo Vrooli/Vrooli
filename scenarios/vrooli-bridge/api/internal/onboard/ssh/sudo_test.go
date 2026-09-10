@@ -26,7 +26,7 @@ type fakeStreamer struct {
 	onWrite func() (Result, error) // `sudo -S ...`
 }
 
-func (f *fakeStreamer) stream(_ context.Context, _ Config, command string, opts StreamOptions) (Result, error) {
+func (f *fakeStreamer) stream(_ context.Context, _ ConnectionConfig, command string, opts StreamOptions) (Result, error) {
 	f.execs = append(f.execs, recordedExec{command: command, stdin: append([]byte(nil), opts.Stdin...)})
 	if strings.Contains(command, "sudo -n true") {
 		if f.onProbe != nil {

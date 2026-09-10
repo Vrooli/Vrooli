@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
+	"scenario-to-cloud/apierrors"
+	"scenario-to-cloud/credentials"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/identity"
 	"scenario-to-cloud/internal/httputil"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/reach"
 
 	"github.com/gorilla/mux"
 )
@@ -23,10 +24,14 @@ type DeploymentRepository interface {
 	GetDeployment(ctx context.Context, id string) (*domain.Deployment, error)
 }
 
-// ManagementDeps holds dependencies for secrets management handlers.
+// ManagementDeps holds dependencies for secrets management handlers. The
+// routes run on the credential binding model: Lifecycle binds one
+// deployment's lifecycle; when nil, the default is bound through Reach
+// from Repo (which must also be the credential ledger).
 type ManagementDeps struct {
 	Repo      DeploymentRepository
-	SSHRunner ssh.Runner
+	Reach     reach.Reach
+	Lifecycle func(ctx context.Context, deploymentID string) (BindingLifecycle, error)
 }
 
 // secretKeyRegex validates secret keys (uppercase + underscore format).
@@ -53,502 +58,278 @@ func validateSecretKey(key string) error {
 
 // validateSecretValue validates that a value is acceptable.
 func validateSecretValue(value string) error {
-	if value == "" {
-		return fmt.Errorf("value is required")
-	}
-	if len(value) > domain.MaxSecretValueLength {
-		return fmt.Errorf("value exceeds maximum length of %d bytes", domain.MaxSecretValueLength)
-	}
-	if strings.ContainsRune(value, 0) {
-		return fmt.Errorf("value contains null bytes")
-	}
-	return nil
+	return credentials.ShapeProbe(context.Background(), value)
 }
 
-// getDeploymentContext extracts deployment and SSH config from request.
-func getDeploymentContext(
-	ctx context.Context,
-	repo DeploymentRepository,
-	deploymentID string,
-) (*domain.Deployment, domain.CloudManifest, ssh.ConnectionConfig, string, error) {
-	dep, err := repo.GetDeployment(ctx, deploymentID)
+// lifecycleFor resolves the binding lifecycle for a deployment.
+func (d ManagementDeps) lifecycleFor(ctx context.Context, deploymentID string) (BindingLifecycle, error) {
+	if d.Lifecycle != nil {
+		return d.Lifecycle(ctx, deploymentID)
+	}
+	store, ok := d.Repo.(credentials.Store)
+	if !ok || d.Repo == nil {
+		return nil, apierrors.New(apierrors.CodeInternal, "secrets management needs the credential ledger")
+	}
+	dep, err := d.Repo.GetDeployment(ctx, deploymentID)
 	if err != nil {
-		return nil, domain.CloudManifest{}, ssh.ConnectionConfig{}, "", fmt.Errorf("get deployment: %w", err)
+		return nil, apierrors.Internal("get deployment", err)
 	}
 	if dep == nil {
-		return nil, domain.CloudManifest{}, ssh.ConnectionConfig{}, "", fmt.Errorf("deployment not found")
+		return nil, apierrors.New(apierrors.CodeDeploymentNotFound, "deployment not found").WithDetail("deployment_id", deploymentID)
 	}
-
 	var m domain.CloudManifest
 	if err := json.Unmarshal(dep.Manifest, &m); err != nil {
-		return nil, domain.CloudManifest{}, ssh.ConnectionConfig{}, "", fmt.Errorf("parse manifest: %w", err)
+		return nil, apierrors.Internal("parse manifest", err)
 	}
-
 	if m.Target.VPS == nil {
-		return nil, domain.CloudManifest{}, ssh.ConnectionConfig{}, "", fmt.Errorf("deployment has no VPS target")
+		return nil, apierrors.New(apierrors.CodeUnsupportedCapability, "deployment has no VPS target")
 	}
-
-	cfg := ssh.ConfigFromManifest(m)
-	workdir := m.Target.VPS.Workdir
-
-	return dep, m, cfg, workdir, nil
+	target := credentials.Target{DeploymentID: dep.ID, Ref: dep.Target, Fence: dep.Fence}
+	if strings.TrimSpace(target.Ref.Transport) == "" {
+		target.Ref.Transport = identity.TransportSSH
+	}
+	if target.Ref.Locator.Host == "" {
+		target.Ref.Locator = domain.TargetRefFromManifest(m).Locator
+	}
+	service, err := credentials.BindReach(credentials.BindOptions{Store: store}, d.Reach, target.Ref)
+	if err != nil {
+		return nil, apierrors.Internal("bind credential lifecycle", err)
+	}
+	return NewBindingLifecycle(service, target, m), nil
 }
 
-// restartScenarioOnVPS restarts the scenario on the VPS after a secret change.
-func restartScenarioOnVPS(
-	ctx context.Context,
-	sshRunner ssh.Runner,
-	cfg ssh.ConnectionConfig,
-	workdir string,
-	scenarioID string,
-) error {
-	// Stop then start the scenario
-	stopCmd := shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario stop %s", shellutil.QuoteSingle(scenarioID)))
-	if _, err := sshRunner.Run(ctx, cfg, stopCmd, ssh.DefaultRunOptions()); err != nil {
-		return fmt.Errorf("stop scenario: %w", err)
+func writeManagementError(w http.ResponseWriter, err error) {
+	if typed := apierrors.As(err); typed != nil {
+		apierrors.Write(w, typed)
+		return
 	}
-
-	// Small delay to allow resources to release
-	time.Sleep(2 * time.Second)
-
-	startCmd := shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario start %s", shellutil.QuoteSingle(scenarioID)))
-	if _, err := sshRunner.Run(ctx, cfg, startCmd, ssh.DefaultRunOptions()); err != nil {
-		return fmt.Errorf("start scenario: %w", err)
-	}
-
-	return nil
+	apierrors.Write(w, apierrors.Internal("secrets management failed", err))
 }
 
-// HandleListVPSSecrets returns an HTTP handler that lists declared credential
-// metadata on a deployed VPS. Values are never returned.
+func requireDeploymentID(w http.ResponseWriter, r *http.Request) (string, bool) {
+	id := mux.Vars(r)["id"]
+	if id == "" {
+		apierrors.Write(w, apierrors.New(apierrors.CodeInvalidRequest, "Deployment ID is required"))
+		return "", false
+	}
+	return id, true
+}
+
+// HandleListVPSSecrets lists the deployment's credential bindings as secret
+// entries. Values are never returned.
 //
 // GET /api/v1/deployments/{id}/secrets
-//
-// Response:
-//
-//	{
-//	  "secrets": [{"key": "...", "masked": true, "source": "..."}],
-//	  "metadata": {...},
-//	  "timestamp": "..."
-//	}
 func HandleListVPSSecrets(deps ManagementDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		deploymentID := mux.Vars(r)["id"]
-		if deploymentID == "" {
-			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-				Code:    "missing_deployment_id",
-				Message: "Deployment ID is required",
-			})
+		deploymentID, ok := requireDeploymentID(w, r)
+		if !ok {
 			return
 		}
-
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
-
-		_, m, cfg, _, err := getDeploymentContext(ctx, deps.Repo, deploymentID)
+		lifecycle, err := deps.lifecycleFor(ctx, deploymentID)
 		if err != nil {
-			status := http.StatusInternalServerError
-			if strings.Contains(err.Error(), "not found") {
-				status = http.StatusNotFound
-			}
-			httputil.WriteAPIError(w, status, httputil.APIError{
-				Code:    "deployment_context_error",
-				Message: err.Error(),
-			})
+			writeManagementError(w, err)
 			return
 		}
-
-		client, err := newRemoteCredentialClient(deps.SSHRunner, cfg)
+		entries, err := lifecycle.List(ctx)
 		if err != nil {
-			httputil.WriteAPIError(w, http.StatusBadGateway, httputil.APIError{
-				Code:    "read_secrets_failed",
-				Message: "Failed to read secrets from VPS",
-				Hint:    err.Error(),
-			})
+			writeManagementError(w, err)
 			return
 		}
-
-		refs, err := listRemoteCredentials(ctx, client, m.Scenario.ID)
-		if err != nil {
-			httputil.WriteAPIError(w, http.StatusBadGateway, httputil.APIError{Code: "read_credentials_failed", Message: "Failed to read credentials from VPS", Hint: err.Error()})
-			return
-		}
-		secrets := make([]domain.VPSSecretEntry, 0, len(refs))
-		for _, ref := range refs {
-			secrets = append(secrets, domain.VPSSecretEntry{
-				Key:    ref.Field,
-				Masked: true,
-				Source: "credential-authority",
-			})
-		}
-
-		// Sort by key for consistent ordering
-		sort.Slice(secrets, func(i, j int) bool {
-			return secrets[i].Key < secrets[j].Key
+		now := time.Now().UTC().Format(time.RFC3339)
+		httputil.WriteJSON(w, http.StatusOK, domain.ListVPSSecretsResponse{
+			Secrets:   entries,
+			Metadata:  domain.VPSSecretsMetadata{Environment: "credential-binding", LastUpdated: now, ScenarioID: scenarioOf(lifecycle), GeneratedBy: "scenario-to-cloud"},
+			Timestamp: now,
 		})
-
-		response := domain.ListVPSSecretsResponse{
-			Secrets:   secrets,
-			Metadata:  domain.VPSSecretsMetadata{Environment: "credential-authority", LastUpdated: time.Now().UTC().Format(time.RFC3339), ScenarioID: m.Scenario.ID, GeneratedBy: "scenario-to-cloud"},
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		}
-
-		httputil.WriteJSON(w, http.StatusOK, response)
 	}
 }
 
-// HandleGetVPSSecret returns an HTTP handler that gets metadata for a single
-// credential on the VPS. Values are never returned, including when reveal is
-// requested.
+func scenarioOf(lifecycle BindingLifecycle) string {
+	if l, ok := lifecycle.(*bindingLifecycle); ok {
+		return l.manifest.Scenario.ID
+	}
+	return ""
+}
+
+// HandleGetVPSSecret returns one binding's metadata. Values are never
+// returned, including when reveal is requested.
 //
-// GET /api/v1/deployments/{id}/secrets/{key}?reveal=true
-//
-// Query params:
-//   - reveal: rejected; credential values are not a management API surface
+// GET /api/v1/deployments/{id}/secrets/{key}
 func HandleGetVPSSecret(deps ManagementDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		deploymentID := vars["id"]
-		secretKey := vars["key"]
-
-		if deploymentID == "" || secretKey == "" {
-			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-				Code:    "missing_parameters",
-				Message: "Deployment ID and secret key are required",
-			})
+		deploymentID, ok := requireDeploymentID(w, r)
+		if !ok {
 			return
 		}
-
+		key := mux.Vars(r)["key"]
+		if key == "" {
+			apierrors.Write(w, apierrors.New(apierrors.CodeInvalidRequest, "Secret key is required"))
+			return
+		}
+		if r.URL.Query().Get("reveal") == "true" {
+			apierrors.Write(w, apierrors.New(apierrors.CodeForbiddenScope, "Credential values cannot be revealed through the management API").WithDetail("key", key))
+			return
+		}
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
-
-		_, m, cfg, _, err := getDeploymentContext(ctx, deps.Repo, deploymentID)
+		lifecycle, err := deps.lifecycleFor(ctx, deploymentID)
 		if err != nil {
-			status := http.StatusInternalServerError
-			if strings.Contains(err.Error(), "not found") {
-				status = http.StatusNotFound
-			}
-			httputil.WriteAPIError(w, status, httputil.APIError{
-				Code:    "deployment_context_error",
-				Message: err.Error(),
-			})
+			writeManagementError(w, err)
 			return
 		}
-
-		client, err := newRemoteCredentialClient(deps.SSHRunner, cfg)
+		entry, err := lifecycle.Get(ctx, key)
 		if err != nil {
-			httputil.WriteAPIError(w, http.StatusBadGateway, httputil.APIError{
-				Code:    "read_secrets_failed",
-				Message: "Failed to read secrets from VPS",
-				Hint:    err.Error(),
-			})
+			writeManagementError(w, err)
 			return
 		}
-
-		status, err := client.Status(ctx, "vrooli/"+m.Scenario.ID, CredentialField(secretKey))
-		if err != nil {
-			httputil.WriteAPIError(w, http.StatusBadGateway, httputil.APIError{Code: "read_credential_failed", Message: "Failed to read credential status from VPS", Hint: err.Error()})
-			return
-		}
-		if !status.Configured {
-			httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
-				Code:    "secret_not_found",
-				Message: fmt.Sprintf("Secret %q not found", secretKey),
-			})
-			return
-		}
-
-		if r.URL.Query().Get("reveal") == "true" {
-			httputil.WriteAPIError(w, http.StatusForbidden, httputil.APIError{Code: "credential_reveal_forbidden", Message: "Credential values cannot be revealed through the management API"})
-			return
-		}
-		entry := domain.VPSSecretEntry{
-			Key:    secretKey,
-			Masked: true,
-			Source: "credential-authority",
-		}
-
-		httputil.WriteJSON(w, http.StatusOK, domain.GetVPSSecretResponse{
-			Secret:    entry,
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		})
+		httputil.WriteJSON(w, http.StatusOK, domain.GetVPSSecretResponse{Secret: *entry, Timestamp: time.Now().UTC().Format(time.RFC3339)})
 	}
 }
 
-// HandleCreateVPSSecret returns an HTTP handler that creates a new secret on the VPS.
+// HandleCreateVPSSecret binds a new key and materialises its first version
+// from the operator value.
 //
 // POST /api/v1/deployments/{id}/secrets
-//
-// Request body:
-//
-//	{
-//	  "key": "MY_API_KEY",
-//	  "value": "secret-value",
-//	  "restart_scenario": false
-//	}
 func HandleCreateVPSSecret(deps ManagementDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		deploymentID := mux.Vars(r)["id"]
-		if deploymentID == "" {
-			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-				Code:    "missing_deployment_id",
-				Message: "Deployment ID is required",
-			})
+		deploymentID, ok := requireDeploymentID(w, r)
+		if !ok {
 			return
 		}
-
 		var req domain.CreateSecretRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-				Code:    "invalid_json",
-				Message: "Invalid request body",
-				Hint:    err.Error(),
-			})
+		if !httputil.DecodeRequestBody(w, r, &req) {
 			return
 		}
-
-		// Validate key
 		if err := validateSecretKey(req.Key); err != nil {
-			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-				Code:    "invalid_key",
-				Message: err.Error(),
-			})
+			apierrors.Write(w, apierrors.New(apierrors.CodeInvalidRequest, err.Error()).WithDetail("field", "key"))
 			return
 		}
-
-		// Validate value
 		if err := validateSecretValue(req.Value); err != nil {
-			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-				Code:    "invalid_value",
-				Message: err.Error(),
-			})
+			apierrors.Write(w, apierrors.New(apierrors.CodeInvalidRequest, "invalid value: "+err.Error()).WithDetail("field", "value"))
 			return
 		}
-
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 		defer cancel()
-
-		_, m, cfg, workdir, err := getDeploymentContext(ctx, deps.Repo, deploymentID)
+		lifecycle, err := deps.lifecycleFor(ctx, deploymentID)
 		if err != nil {
-			status := http.StatusInternalServerError
-			if strings.Contains(err.Error(), "not found") {
-				status = http.StatusNotFound
-			}
-			httputil.WriteAPIError(w, status, httputil.APIError{
-				Code:    "deployment_context_error",
-				Message: err.Error(),
-			})
+			writeManagementError(w, err)
 			return
 		}
-
-		// Add the secret
-		if err := AddSecretToVPS(ctx, deps.SSHRunner, cfg, workdir, req.Key, req.Value, m.Scenario.ID); err != nil {
-			status := http.StatusInternalServerError
-			if strings.Contains(err.Error(), "already exists") {
-				status = http.StatusConflict
-			}
-			httputil.WriteAPIError(w, status, httputil.APIError{
-				Code:    "create_secret_failed",
-				Message: "Failed to create secret",
-				Hint:    err.Error(),
-			})
+		binding, err := lifecycle.Create(ctx, req.Key, req.Value)
+		if err != nil {
+			writeManagementError(w, err)
 			return
 		}
-
-		response := domain.NewSecretOperationResponse(true, req.Key, "created", "Secret created successfully")
-
-		// Optionally restart the scenario
-		if req.RestartScenario {
-			if err := restartScenarioOnVPS(ctx, deps.SSHRunner, cfg, workdir, m.Scenario.ID); err != nil {
-				// Secret was created but restart failed - report partial success
-				response.Message = fmt.Sprintf("Secret created but scenario restart failed: %v", err)
-				response.ScenarioRestart = false
-			} else {
-				response.ScenarioRestart = true
-				response.Message = "Secret created and scenario restarted"
-			}
-		}
-
-		httputil.WriteJSON(w, http.StatusCreated, response)
+		response := domain.NewSecretOperationResponse(true, req.Key, "created", "Credential version "+fmt.Sprint(binding.Version.Number)+" materialised")
+		response.BindingID = binding.ID
+		response.Version = binding.Version.Number
+		finishWithRestart(ctx, w, lifecycle, req.RestartScenario, response, http.StatusCreated)
 	}
 }
 
-// HandleUpdateVPSSecret returns an HTTP handler that updates an existing secret on the VPS.
+// HandleUpdateVPSSecret rotates the key to the operator value.
 //
 // PUT /api/v1/deployments/{id}/secrets/{key}
-//
-// Request body:
-//
-//	{
-//	  "value": "new-secret-value",
-//	  "restart_scenario": false
-//	}
 func HandleUpdateVPSSecret(deps ManagementDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		deploymentID := vars["id"]
-		secretKey := vars["key"]
-
-		if deploymentID == "" || secretKey == "" {
-			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-				Code:    "missing_parameters",
-				Message: "Deployment ID and secret key are required",
-			})
+		deploymentID, ok := requireDeploymentID(w, r)
+		if !ok {
 			return
 		}
-
+		key := mux.Vars(r)["key"]
 		var req domain.UpdateSecretRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-				Code:    "invalid_json",
-				Message: "Invalid request body",
-				Hint:    err.Error(),
-			})
+		if !httputil.DecodeRequestBody(w, r, &req) {
 			return
 		}
-
-		// Validate value
 		if err := validateSecretValue(req.Value); err != nil {
-			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-				Code:    "invalid_value",
-				Message: err.Error(),
-			})
+			apierrors.Write(w, apierrors.New(apierrors.CodeInvalidRequest, "invalid value: "+err.Error()).WithDetail("field", "value"))
 			return
 		}
-
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 		defer cancel()
-
-		_, m, cfg, workdir, err := getDeploymentContext(ctx, deps.Repo, deploymentID)
+		lifecycle, err := deps.lifecycleFor(ctx, deploymentID)
 		if err != nil {
-			status := http.StatusInternalServerError
-			if strings.Contains(err.Error(), "not found") {
-				status = http.StatusNotFound
-			}
-			httputil.WriteAPIError(w, status, httputil.APIError{
-				Code:    "deployment_context_error",
-				Message: err.Error(),
-			})
+			writeManagementError(w, err)
 			return
 		}
-
-		// Update the secret
-		if err := UpdateSecretOnVPS(ctx, deps.SSHRunner, cfg, workdir, secretKey, req.Value, m.Scenario.ID); err != nil {
-			status := http.StatusInternalServerError
-			if strings.Contains(err.Error(), "not found") {
-				status = http.StatusNotFound
-			}
-			httputil.WriteAPIError(w, status, httputil.APIError{
-				Code:    "update_secret_failed",
-				Message: "Failed to update secret",
-				Hint:    err.Error(),
-			})
+		rotation, err := lifecycle.Replace(ctx, key, req.Value)
+		if err != nil {
+			writeOperationError(w, err, rotation)
 			return
 		}
-
-		response := domain.NewSecretOperationResponse(true, secretKey, "updated", "Secret updated successfully")
-
-		// Optionally restart the scenario
-		if req.RestartScenario {
-			if err := restartScenarioOnVPS(ctx, deps.SSHRunner, cfg, workdir, m.Scenario.ID); err != nil {
-				response.Message = fmt.Sprintf("Secret updated but scenario restart failed: %v", err)
-				response.ScenarioRestart = false
-			} else {
-				response.ScenarioRestart = true
-				response.Message = "Secret updated and scenario restarted"
-			}
+		response := domain.NewSecretOperationResponse(true, key, "updated", "Rotation "+rotation.ID+" is "+string(rotation.State))
+		response.BindingID = rotation.BindingID
+		response.Version = rotation.ToVersion
+		response.RotationID = rotation.ID
+		response.OperationState = string(rotation.State)
+		status := http.StatusOK
+		if rotation.Incomplete() {
+			status = http.StatusAccepted
 		}
-
-		httputil.WriteJSON(w, http.StatusOK, response)
+		finishWithRestart(ctx, w, lifecycle, req.RestartScenario, response, status)
 	}
 }
 
-// HandleDeleteVPSSecret returns an HTTP handler that deletes a secret from the VPS.
+// HandleDeleteVPSSecret revokes the key's active version.
 //
 // DELETE /api/v1/deployments/{id}/secrets/{key}
-//
-// Request body:
-//
-//	{
-//	  "confirmation": "DELETE",
-//	  "restart_scenario": false
-//	}
 func HandleDeleteVPSSecret(deps ManagementDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		deploymentID := vars["id"]
-		secretKey := vars["key"]
-
-		if deploymentID == "" || secretKey == "" {
-			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-				Code:    "missing_parameters",
-				Message: "Deployment ID and secret key are required",
-			})
+		deploymentID, ok := requireDeploymentID(w, r)
+		if !ok {
 			return
 		}
-
+		key := mux.Vars(r)["key"]
 		var req domain.DeleteSecretRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-				Code:    "invalid_json",
-				Message: "Invalid request body",
-				Hint:    err.Error(),
-			})
+		if !httputil.DecodeRequestBody(w, r, &req) {
 			return
 		}
-
-		// Validate confirmation
 		if req.Confirmation != "DELETE" {
-			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-				Code:    "invalid_confirmation",
-				Message: "Confirmation must be exactly 'DELETE'",
-			})
+			apierrors.Write(w, apierrors.New(apierrors.CodeInvalidRequest, "Confirmation must be exactly 'DELETE'").WithDetail("field", "confirmation"))
 			return
 		}
-
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 		defer cancel()
-
-		_, m, cfg, workdir, err := getDeploymentContext(ctx, deps.Repo, deploymentID)
+		lifecycle, err := deps.lifecycleFor(ctx, deploymentID)
 		if err != nil {
-			status := http.StatusInternalServerError
-			if strings.Contains(err.Error(), "not found") {
-				status = http.StatusNotFound
-			}
-			httputil.WriteAPIError(w, status, httputil.APIError{
-				Code:    "deployment_context_error",
-				Message: err.Error(),
-			})
+			writeManagementError(w, err)
 			return
 		}
-
-		// Delete the secret
-		if err := DeleteSecretFromVPS(ctx, deps.SSHRunner, cfg, workdir, secretKey, m.Scenario.ID); err != nil {
-			status := http.StatusInternalServerError
-			if strings.Contains(err.Error(), "not found") {
-				status = http.StatusNotFound
-			}
-			httputil.WriteAPIError(w, status, httputil.APIError{
-				Code:    "delete_secret_failed",
-				Message: "Failed to delete secret",
-				Hint:    err.Error(),
-			})
+		rotation, err := lifecycle.Delete(ctx, key)
+		if err != nil {
+			writeOperationError(w, err, rotation)
 			return
 		}
-
-		response := domain.NewSecretOperationResponse(true, secretKey, "deleted", "Secret deleted successfully")
-
-		// Optionally restart the scenario
-		if req.RestartScenario {
-			if err := restartScenarioOnVPS(ctx, deps.SSHRunner, cfg, workdir, m.Scenario.ID); err != nil {
-				response.Message = fmt.Sprintf("Secret deleted but scenario restart failed: %v", err)
-				response.ScenarioRestart = false
-			} else {
-				response.ScenarioRestart = true
-				response.Message = "Secret deleted and scenario restarted"
-			}
-		}
-
-		httputil.WriteJSON(w, http.StatusOK, response)
+		response := domain.NewSecretOperationResponse(true, key, "deleted", "Revocation "+rotation.ID+" is "+string(rotation.State))
+		response.BindingID = rotation.BindingID
+		response.RotationID = rotation.ID
+		response.OperationState = string(rotation.State)
+		finishWithRestart(ctx, w, lifecycle, req.RestartScenario, response, http.StatusOK)
 	}
+}
+
+func writeOperationError(w http.ResponseWriter, err error, rotation *domain.CredentialRotation) {
+	typed := apierrors.As(err)
+	if typed == nil {
+		typed = apierrors.Internal("credential lifecycle failed", err)
+	}
+	if rotation != nil {
+		typed = typed.WithDetail("operation", rotation)
+	}
+	apierrors.Write(w, typed)
+}
+
+func finishWithRestart(ctx context.Context, w http.ResponseWriter, lifecycle BindingLifecycle, restart bool, response domain.SecretOperationResponse, status int) {
+	if restart {
+		if err := lifecycle.Restart(ctx); err != nil {
+			response.Message += "; scenario restart failed: " + err.Error()
+			response.ScenarioRestart = false
+		} else {
+			response.ScenarioRestart = true
+			response.Message += "; scenario restarted"
+		}
+	}
+	httputil.WriteJSON(w, status, response)
 }

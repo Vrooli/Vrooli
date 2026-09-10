@@ -402,6 +402,26 @@ describe("registerAuthHandlers", () => {
         expect(result).toBe("mock-access-token");
     });
 
+    it("serves the local session only to a trusted loopback renderer", async () => {
+        const getLocalSessionToken = vi.fn(async () => "runtime-session-token");
+        registerAuthHandlers(ipcMain, { ...deps, getLocalSessionToken });
+        const handler = ipcMain._handlers.get(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN);
+        if (!handler) throw new Error("local-session handler was not registered");
+
+        const trustedEvent = {
+            senderFrame: { url: "http://127.0.0.1:22000/" },
+            sender: { getURL: () => "http://127.0.0.1:22000/" },
+        };
+        await expect(handler(trustedEvent)).resolves.toBe("runtime-session-token");
+
+        const remoteEvent = {
+            senderFrame: { url: "https://attacker.example/" },
+            sender: { getURL: () => "https://attacker.example/" },
+        };
+        await expect(handler(remoteEvent)).resolves.toBeNull();
+        expect(getLocalSessionToken).toHaveBeenCalledTimes(1);
+    });
+
     it("auth:is-authenticated returns boolean", async () => {
         registerAuthHandlers(ipcMain, deps);
 

@@ -133,6 +133,15 @@ func (f *FakeRepository) Update(_ context.Context, r runs.Run) (runs.Run, error)
 	existing.StartedAt = r.StartedAt
 	existing.FinishedAt = r.FinishedAt
 	existing.ArtifactRefs = r.ArtifactRefs
+	existing.QueuedSince = r.QueuedSince
+	existing.PushedAt = r.PushedAt
+	existing.AckedAt = r.AckedAt
+	existing.DeliveryAttempts = r.DeliveryAttempts
+	existing.LastDeliveryError = r.LastDeliveryError
+	existing.DeliveryLeaseExpiresAt = r.DeliveryLeaseExpiresAt
+	existing.CancelRequestedAt = r.CancelRequestedAt
+	existing.CancellationConfirmed = r.CancellationConfirmed
+	existing.StatusReason = r.StatusReason
 	f.runs[r.ID] = existing
 	return existing, nil
 }

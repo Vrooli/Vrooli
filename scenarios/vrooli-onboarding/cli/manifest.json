@@ -785,6 +785,13 @@
               "description": "Purpose answers as a JSON object",
               "bind": {"field": "answers", "kind": "json_inline"},
               "bind_waiver": "Answers is a protobuf map of struct values and must be decoded from one JSON object."
+            },
+            {
+              "name": "manual-decisions",
+              "description": "Recommendation keys to explicitly include or remove as a JSON object",
+              "required": false,
+              "bind": {"field": "manual_decisions", "kind": "json_inline"},
+              "bind_waiver": "Manual decisions is a protobuf map of booleans and must be decoded from one JSON object."
             }
           ],
           "binding": {"kind": "connect-rpc", "service": "ProfileService", "method": "EvaluateProfile"},
@@ -834,6 +841,34 @@
           "name": "discard-draft",
           "description": "Discard the server-owned onboarding draft",
           "binding": {"kind": "connect-rpc", "service": "SessionService", "method": "DiscardDraft"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "profile-session",
+          "description": "Read the durable guided/manual purpose-selection session",
+          "flags": [
+            {"name": "target", "description": "Explicit onboarding target"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "SessionService", "method": "GetProfileSession"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "save-profile-session",
+          "description": "Persist bounded non-secret profile answers and manual provenance",
+          "flags": [
+            {"name": "target", "description": "Explicit onboarding target"},
+            {"name": "expected-revision", "description": "Operator-state revision observed by the caller"},
+            {
+              "name": "session",
+              "required": true,
+              "description": "Profile session JSON object; credential values are rejected",
+              "bind": {"field": "session", "kind": "json_inline"},
+              "bind_waiver": "The profile session is a generated protobuf message and must be decoded from one JSON object."
+            }
+          ],
+          "binding": {"kind": "connect-rpc", "service": "SessionService", "method": "SaveProfileSession"},
           "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"]},
           "architecture": {"primitive": "proto_mutation"}
         },

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	internalEvidence "deployment-manager/internal/evidence"
+	"deployment-manager/internal/evidence/conformance"
 	"deployment-manager/readiness"
 	"deployment-manager/releases"
 	"deployment-manager/shared"
@@ -266,6 +267,13 @@ func (r *SQLApprovalsRepository) CheckReleaseGate(ctx context.Context, profileID
 				if verdict.Target == nil || !sameTarget(target, verdict.Target) {
 					continue
 				}
+				if verdict.Disposition == commonv1.Disposition_DISPOSITION_PASSED {
+					if violations := conformance.Validate(verdict); len(violations) > 0 {
+						targetStatus.EvidenceDisposition = "invalid"
+						targetStatus.EvidenceRunID = verdict.RunId
+						break
+					}
+				}
 				targetStatus.EvidenceDisposition = verdict.Disposition.String()
 				targetStatus.EvidenceRunID = verdict.RunId
 				break
@@ -278,6 +286,9 @@ func (r *SQLApprovalsRepository) CheckReleaseGate(ctx context.Context, profileID
 		if targetStatus.EvidenceDisposition == commonv1.Disposition_DISPOSITION_FAILED.String() && !readinessBlocked {
 			gate.Ready = false
 			gate.Reason = "target_evidence_failed"
+		} else if targetStatus.EvidenceDisposition == "invalid" && !readinessBlocked {
+			gate.Ready = false
+			gate.Reason = "target_evidence_invalid"
 		} else if targetStatus.EvidenceDisposition != commonv1.Disposition_DISPOSITION_PASSED.String() && !readinessBlocked {
 			gate.Ready = false
 			gate.Reason = "target_evidence_missing"

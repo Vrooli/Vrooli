@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"net/http"
 
 	downloadhttp "landing-page-business-suite-api/handlers/delivery"
@@ -29,6 +30,7 @@ type updateVerifyArtifactResolver interface {
 	GetArtifact(context.Context, string, int64) (*delivery.Artifact, error)
 	PresignGetArtifact(context.Context, string, delivery.Artifact) (string, error)
 	HeadArtifact(context.Context, string, delivery.Artifact) error
+	ReadArtifact(context.Context, string, delivery.Artifact) (io.ReadCloser, int64, string, error)
 }
 type channelDiscoveryLookup interface {
 	ListChannels(bundleKey, appKey string) ([]delivery.ChannelInfo, error)

@@ -21,7 +21,7 @@ func watchdog(t *testing.T, entry queue.DurableEntry, aborter *fakeAborter) (*qu
 	require.NoError(t, err)
 	w := queue.NewWatchdog(store, scheduler, aborter, clk, queue.WatchdogConfig{
 		DeliveryLease: time.Second, Interval: time.Second, MaxAttempts: 3,
-		StartDeadline: 10 * time.Second, DeadlineGrace: time.Second,
+		StartDeadline: 10 * time.Second, DeadlineGrace: time.Second, CancellationGrace: time.Second,
 	}, nil)
 	return w, store, scheduler, now
 }
@@ -64,7 +64,7 @@ func TestWatchdog_AckWithoutStartTerminalizesNoStart(t *testing.T) {
 	require.Empty(t, scheduler.Snapshot("n1"))
 }
 
-func TestWatchdog_ExecutionDeadlineAbortsNodeAndRemovesSlot(t *testing.T) {
+func TestWatchdog_ExecutionDeadlineRequestsCancellationAndRetainsSlot(t *testing.T) {
 	aborter := &fakeAborter{}
 	w, store, scheduler, _ := watchdog(t, queue.DurableEntry{
 		Job: queue.Job{RunID: "deadline", NodeID: "n1", TimeoutSeconds: 10}, State: queue.StateRunning,
@@ -73,5 +73,35 @@ func TestWatchdog_ExecutionDeadlineAbortsNodeAndRemovesSlot(t *testing.T) {
 	require.NoError(t, w.Sweep(context.Background()))
 	require.Equal(t, []string{"deadline"}, aborter.abortedRuns())
 	require.Empty(t, store.failed)
+	require.Len(t, scheduler.Snapshot("n1"), 1, "the slot remains occupied until node EXIT evidence")
+}
+
+func TestWatchdog_QueuedDeadlineTerminalizesStrandedWork(t *testing.T) {
+	aborter := &fakeAborter{}
+	now := time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)
+	w, store, scheduler, _ := watchdog(t, queue.DurableEntry{
+		Job:        queue.Job{RunID: "queued-deadline", NodeID: "n1", TimeoutSeconds: 10},
+		State:      queue.StateQueued,
+		EnqueuedAt: now.Add(-12 * time.Second),
+	}, aborter)
+
+	require.NoError(t, w.Sweep(context.Background()))
+	require.Equal(t, []string{"queued-deadline"}, store.failed)
 	require.Empty(t, scheduler.Snapshot("n1"))
+	require.Empty(t, aborter.abortedRuns(), "deadline cleanup does not require a second abort")
+}
+
+func TestWatchdog_UnconfirmedCancellationRetainsSchedulerSlot(t *testing.T) {
+	aborter := &fakeAborter{}
+	now := time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)
+	w, store, scheduler, _ := watchdog(t, queue.DurableEntry{
+		Job: queue.Job{RunID: "cancel-uncertain", NodeID: "n1"}, State: queue.StateRunning,
+		CancelRequestedAt: now.Add(-2 * time.Second),
+	}, aborter)
+
+	require.NoError(t, w.Sweep(context.Background()))
+	require.Equal(t, []string{"cancel-uncertain"}, store.uncertain)
+	require.Empty(t, store.failed)
+	require.Empty(t, aborter.abortedRuns())
+	require.Len(t, scheduler.Snapshot("n1"), 1, "uncertain cancellation still owns the execution slot")
 }

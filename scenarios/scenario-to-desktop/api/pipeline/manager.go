@@ -474,6 +474,8 @@ func (m *Manager) buildConfig(scenarioName string, userConfig *PipelineConfig) *
 		config.Sign = userConfig.Sign
 		config.Publish = userConfig.Publish
 		config.DeployConfig = userConfig.DeployConfig
+		config.ArtifactTrustMode = userConfig.ArtifactTrustMode
+		config.ArtifactManifestDigest = userConfig.ArtifactManifestDigest
 		config.Version = userConfig.Version
 		config.setVersionRollback(userConfig.versionRollback)
 		config.PreflightTimeoutSeconds = userConfig.PreflightTimeoutSeconds

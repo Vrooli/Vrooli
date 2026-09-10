@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/experimentation"
 	"landing-page-business-suite-api/internal/logx"
 	domainmetrics "landing-page-business-suite-api/internal/metrics"
@@ -49,13 +50,23 @@ type EmailServiceOptions struct {
 	SendGridConfig *SendGridConfig
 	HTTPClient     *http.Client
 	SMTPSender     SMTPSenderFunc
+	// SMTPPasswordResolver supplies the authority-owned SMTP secret. The
+	// branding model deliberately cannot provide this value.
+	SMTPPasswordResolver func() (string, error)
+	// AllowUnconfiguredDelivery is a development-only seam. It never logs or
+	// returns a magic-link URL; production composition leaves it false so a
+	// missing provider is an explicit delivery failure.
+	AllowUnconfiguredDelivery bool
 }
 
-// EmailService handles sending emails using config from branding or SendGrid
+// EmailService handles sending emails using public branding settings plus
+// authority-owned provider credentials.
 type EmailService struct {
-	sendGridConfig *SendGridConfig
-	httpClient     *http.Client
-	smtpSender     SMTPSenderFunc
+	sendGridConfig            *SendGridConfig
+	httpClient                *http.Client
+	smtpSender                SMTPSenderFunc
+	smtpPasswordResolver      func() (string, error)
+	allowUnconfiguredDelivery bool
 }
 
 // NewEmailService creates a new email service
@@ -86,7 +97,7 @@ func NewEmailService() *EmailService {
 	} else {
 		logx.Info("sendgrid_not_configured", map[string]interface{}{
 			"level":   "warn",
-			"message": "SENDGRID_API_KEY not set; magic link emails will be logged only",
+			"message": "SENDGRID_API_KEY not set; magic-link delivery is unavailable",
 		})
 	}
 
@@ -95,7 +106,9 @@ func NewEmailService() *EmailService {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		smtpSender: smtp.SendMail,
+		smtpSender:                smtp.SendMail,
+		smtpPasswordResolver:      func() (string, error) { return administration.ResolveAuthorityCredential("SMTP_PASSWORD") },
+		allowUnconfiguredDelivery: !isProductionSecurityEnvironment(),
 	}
 }
 
@@ -105,6 +118,10 @@ func NewEmailServiceWithOptions(opts EmailServiceOptions) *EmailService {
 	if sender == nil {
 		sender = smtp.SendMail
 	}
+	passwordResolver := opts.SMTPPasswordResolver
+	if passwordResolver == nil {
+		passwordResolver = func() (string, error) { return administration.ResolveAuthorityCredential("SMTP_PASSWORD") }
+	}
 
 	httpClient := opts.HTTPClient
 	if httpClient == nil {
@@ -112,9 +129,11 @@ func NewEmailServiceWithOptions(opts EmailServiceOptions) *EmailService {
 	}
 
 	return &EmailService{
-		sendGridConfig: opts.SendGridConfig,
-		httpClient:     httpClient,
-		smtpSender:     sender,
+		sendGridConfig:            opts.SendGridConfig,
+		httpClient:                httpClient,
+		smtpSender:                sender,
+		smtpPasswordResolver:      passwordResolver,
+		allowUnconfiguredDelivery: opts.AllowUnconfiguredDelivery,
 	}
 }
 
@@ -175,8 +194,10 @@ func (s *EmailService) extractSMTPConfig(branding *experimentation.SiteBranding)
 	if branding.SMTPUsername != nil {
 		config.Username = *branding.SMTPUsername
 	}
-	if branding.SMTPPassword != nil {
-		config.Password = *branding.SMTPPassword
+	if s.smtpPasswordResolver != nil {
+		if password, err := s.smtpPasswordResolver(); err == nil {
+			config.Password = password
+		}
 	}
 	if branding.SMTPFrom != nil && *branding.SMTPFrom != "" {
 		config.From = *branding.SMTPFrom
@@ -234,8 +255,8 @@ func feedbackTypeLabel(t string) string {
 	}
 }
 
-// SendMagicLink sends a magic link email via SendGrid.
-// If SendGrid is not configured, it logs the link for development purposes.
+// SendMagicLink sends a magic link email via SendGrid. A missing provider is
+// never a successful delivery and the bearer URL is never logged.
 func (s *EmailService) SendMagicLink(to, magicLink, appName string) error {
 	if appName == "" {
 		appName = "App"
@@ -245,15 +266,17 @@ func (s *EmailService) SendMagicLink(to, magicLink, appName string) error {
 	htmlContent := buildMagicLinkHTML(magicLink, appName)
 	textContent := buildMagicLinkText(magicLink, appName)
 
-	// If SendGrid is not configured, log the link for development
 	if !s.IsSendGridConfigured() {
-		logx.Info("magic_link_dev_mode", map[string]interface{}{
-			"level":      "info",
-			"to":         to,
-			"magic_link": magicLink,
-			"message":    "SendGrid not configured - magic link logged for development",
-		})
-		return nil
+		if s.allowUnconfiguredDelivery {
+			logx.Info("magic_link_delivery_disabled", map[string]interface{}{
+				"level":    "warn",
+				"to":       to,
+				"provider": "sendgrid",
+				"message":  "magic-link delivery is disabled in the non-production test/development composition",
+			})
+			return nil
+		}
+		return fmt.Errorf("magic-link email provider is not configured")
 	}
 
 	return s.sendViaSendGrid(to, subject, textContent, htmlContent)

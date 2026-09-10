@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/sha512"
 	"database/sql"
+	"encoding/base64"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +26,8 @@ type mockDownloadStorage struct {
 	headSize          int64
 	headContentType   string
 	headErr           error
+	readBody          []byte
+	readErr           error
 }
 
 func (m *mockDownloadStorage) TestConnection(ctx context.Context, bucket string) error {
@@ -39,6 +44,13 @@ func (m *mockDownloadStorage) PresignPut(ctx context.Context, bucket, key string
 
 func (m *mockDownloadStorage) HeadObject(ctx context.Context, bucket, key string) (etag string, size int64, contentType string, err error) {
 	return m.headEtag, m.headSize, m.headContentType, m.headErr
+}
+
+func (m *mockDownloadStorage) ReadObject(ctx context.Context, bucket, key string) (io.ReadCloser, int64, string, error) {
+	if m.readErr != nil {
+		return nil, 0, "", m.readErr
+	}
+	return io.NopCloser(strings.NewReader(string(m.readBody))), int64(len(m.readBody)), m.headContentType, nil
 }
 
 // mockStorageProvider implements DownloadStorageProvider for testing
@@ -594,6 +606,11 @@ func TestDownloadHostingService_CommitArtifact_ReleaseID(t *testing.T) {
 	}
 
 	releaseID := "550e8400-e29b-41d4-a716-446655440000"
+	payload := []byte("release artifact bytes")
+	digest := sha512.Sum512(payload)
+	mockStorage.headSize = int64(len(payload))
+	mockStorage.readBody = payload
+	digestText := base64.StdEncoding.EncodeToString(digest[:])
 	req := CommitArtifactRequest{
 		Bucket:           "test-bucket",
 		ObjectKey:        "artifacts/relid-app/1.0.0/app.zip",
@@ -602,6 +619,7 @@ func TestDownloadHostingService_CommitArtifact_ReleaseID(t *testing.T) {
 		Platform:         "linux",
 		ReleaseVersion:   "1.0.0",
 		ReleaseID:        releaseID,
+		SHA512:           digestText,
 	}
 
 	artifact, err := service.CommitArtifact(ctx, "release_id_test", req)
@@ -638,7 +656,45 @@ func TestDownloadHostingService_CommitArtifact_ReleaseID(t *testing.T) {
 	}
 }
 
-func TestDownloadHostingService_CommitArtifact_Upsert(t *testing.T) {
+func TestDownloadHostingService_CommitArtifact_RejectsDownloadedByteMismatch(t *testing.T) {
+	db := setupTestDB(t)
+	cleanupDownloadStorageSettings(t, db)
+	cleanupDownloadArtifacts(t, db)
+
+	actualPayload := []byte("actual object bytes")
+	expectedPayload := []byte("reviewed artifact bytes")
+	expectedDigest := sha512.Sum512(expectedPayload)
+	mockStorage := &mockDownloadStorage{
+		headEtag:        "mismatch-etag",
+		headSize:        int64(len(actualPayload)),
+		headContentType: "application/octet-stream",
+		readBody:        actualPayload,
+	}
+	service := NewDownloadHostingService(db, &mockStorageProvider{storage: mockStorage})
+	if _, err := db.Exec(`
+		INSERT INTO download_storage_settings (bundle_key, provider, bucket, region, signed_url_ttl_seconds)
+		VALUES ('commit_byte_mismatch', 's3', 'test-bucket', 'us-east-1', 900)
+	`); err != nil {
+		t.Fatalf("insert storage settings: %v", err)
+	}
+
+	_, err := service.CommitArtifact(context.Background(), "commit_byte_mismatch", CommitArtifactRequest{
+		Bucket: "test-bucket", ObjectKey: "artifacts/mismatch/app.zip", ReleaseID: "release-mismatch",
+		ReleaseVersion: "1.0.0", SHA512: base64.StdEncoding.EncodeToString(expectedDigest[:]),
+	})
+	if err == nil || !strings.Contains(err.Error(), "verify uploaded artifact bytes") {
+		t.Fatalf("expected downloaded-byte verification failure, got %v", err)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM download_artifacts WHERE bundle_key = 'commit_byte_mismatch'`).Scan(&count); err != nil {
+		t.Fatalf("count rejected artifacts: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("byte-mismatched artifact was persisted: %d rows", count)
+	}
+}
+
+func TestDownloadHostingService_CommitArtifact_RejectsImmutableObjectReplacement(t *testing.T) {
 	db := setupTestDB(t)
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
@@ -672,20 +728,21 @@ func TestDownloadHostingService_CommitArtifact_Upsert(t *testing.T) {
 		t.Fatalf("First CommitArtifact failed: %v", err)
 	}
 
-	// Update version
+	// A reused object key with different observed bytes is a publication
+	// conflict. The existing artifact remains authoritative.
 	mockStorage.headEtag = "def456"
 	req.ReleaseVersion = "2.0.0"
 
-	artifact2, err := service.CommitArtifact(ctx, "upsert_test", req)
-	if err != nil {
-		t.Fatalf("Second CommitArtifact failed: %v", err)
+	if _, err := service.CommitArtifact(ctx, "upsert_test", req); !errors.Is(err, delivery.ErrImmutableArtifactConflict) {
+		t.Fatalf("expected immutable artifact conflict, got %v", err)
 	}
 
-	if artifact1.ID != artifact2.ID {
-		t.Errorf("Expected same ID on upsert, got %d and %d", artifact1.ID, artifact2.ID)
+	artifactAfter, err := service.GetArtifact(ctx, "upsert_test", artifact1.ID)
+	if err != nil {
+		t.Fatalf("GetArtifact after rejected replacement failed: %v", err)
 	}
-	if artifact2.ReleaseVersion != "2.0.0" {
-		t.Errorf("Expected updated version '2.0.0', got '%s'", artifact2.ReleaseVersion)
+	if artifactAfter.ReleaseVersion != "1.0.0" {
+		t.Errorf("rejected replacement changed release version to %q", artifactAfter.ReleaseVersion)
 	}
 }
 

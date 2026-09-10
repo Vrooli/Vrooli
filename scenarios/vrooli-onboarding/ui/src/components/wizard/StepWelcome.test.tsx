@@ -1,8 +1,15 @@
 // [REQ:REQ-P0-003] Welcome Step Component
 import { cleanup, renderWithProviders, screen } from "../../test-utils";
-import { afterEach } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 // provider-free-exception: StepWelcome is static wizard content with no provider dependency.
 import { StepWelcome } from "./StepWelcome";
+
+const hostApi = vi.hoisted(() => ({ fetchHostFacts: vi.fn() }));
+vi.mock("../../api/host", () => hostApi);
+
+beforeEach(() => {
+  hostApi.fetchHostFacts.mockResolvedValue({ available: false });
+});
 
 afterEach(cleanup);
 
@@ -40,5 +47,38 @@ describe("StepWelcome", () => {
     renderWithProviders(<StepWelcome />);
     const description = screen.getByText(/nothing is written until you approve it/i);
     expect(description.className).toContain("welcome-screen__lede");
+  });
+
+  it("renders available host facts with safe fallbacks", async () => {
+    hostApi.fetchHostFacts.mockResolvedValueOnce({
+      available: true,
+      memory_total_bytes: 1024,
+      disk_free_bytes: 1024 * 1024 * 12.5,
+      gpus: [],
+    });
+    renderWithProviders(<StepWelcome />);
+
+    const facts = await screen.findByTestId("host-facts");
+    expect(facts).toHaveTextContent("1.0 KiB");
+    expect(facts).toHaveTextContent("13 MiB");
+    expect(facts).toHaveTextContent("None detected");
+    expect(facts).toHaveTextContent("Unknown");
+  });
+
+  it("renders host facts returned with a platform and GPU", async () => {
+    hostApi.fetchHostFacts.mockResolvedValueOnce({
+      available: true,
+      memory_total_bytes: 16 * 1024 * 1024 * 1024,
+      disk_free_bytes: 0,
+      gpus: ["NVIDIA RTX"],
+      platform: "linux",
+    });
+    renderWithProviders(<StepWelcome />);
+
+    const facts = await screen.findByTestId("host-facts");
+    expect(facts).toHaveTextContent("16 GiB");
+    expect(facts).toHaveTextContent("—");
+    expect(facts).toHaveTextContent("NVIDIA RTX");
+    expect(facts).toHaveTextContent("linux");
   });
 });

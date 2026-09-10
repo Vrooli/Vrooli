@@ -1,14 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-
-const { loadEnrollment, mintSession } = vi.hoisted(() => ({
-  loadEnrollment: vi.fn(),
-  mintSession: vi.fn(),
-}));
-
-vi.mock("./browser_session", () => ({
-  loadBrowserEnrollment: loadEnrollment,
-  mintBrowserSession: mintSession,
-}));
+import * as browserSession from "./browser_session";
 
 import {
   clearSession,
@@ -71,10 +62,21 @@ describe("session store", () => {
   });
 
   it("restores a local session from enrollment and handles mint failures", async () => {
-    loadEnrollment.mockResolvedValue({ operatorId: "operator-1" });
-    mintSession.mockResolvedValue("OS1.restored");
+    const loadEnrollment = vi.spyOn(browserSession, "loadBrowserEnrollment").mockReturnValue({
+      operatorId: "operator-1",
+      identityProvider: "test",
+      mode: "test",
+      reference: "enrollment-1",
+      enrolledAt: "",
+      scopeCeiling: [],
+      privateKeyPkcs8: "private-key",
+    });
+    const mintSession = vi.spyOn(browserSession, "mintBrowserSession").mockResolvedValue("OS1.restored");
     window.localStorage.setItem("vrooli-bridge.operator-session", "enrolled");
-    await expect(restoreLocalSession()).resolves.toMatchObject({ ownerToken: "OS1.restored" });
+    const restored = await restoreLocalSession();
+    expect(loadEnrollment).toHaveBeenCalledTimes(1);
+    expect(mintSession).toHaveBeenCalledTimes(1);
+    expect(restored).toMatchObject({ ownerToken: "OS1.restored" });
 
     clearSession();
     mintSession.mockRejectedValue(new Error("unsupported browser"));
@@ -82,7 +84,7 @@ describe("session store", () => {
   });
 
   it("returns null when no enrollment is available or a session is already live", async () => {
-    loadEnrollment.mockResolvedValue(null);
+    vi.spyOn(browserSession, "loadBrowserEnrollment").mockReturnValue(null);
     await expect(restoreLocalSession()).resolves.toBeNull();
 
     saveSession({ ownerToken: "already-live", ownerEmail: null });

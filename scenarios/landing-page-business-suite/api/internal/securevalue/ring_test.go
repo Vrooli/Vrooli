@@ -2,6 +2,7 @@ package securevalue
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -57,6 +58,35 @@ func TestRingReadsLegacyCiphertext(t *testing.T) {
 	got, err := DecryptRing(ring, legacy)
 	if err != nil || got != "legacy" {
 		t.Fatalf("legacy decrypt = %q, %v", got, err)
+	}
+}
+
+func TestDecryptRingDoesNotMistakeLegacyBase64ForVersionPrefix(t *testing.T) {
+	ring, err := NewRing()
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := ring.ActiveKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var legacy string
+	for i := 0; i < 10000; i++ {
+		candidate, err := Encrypt(key, "legacy")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.HasPrefix(candidate, "v") && !strings.Contains(candidate, ":") {
+			legacy = candidate
+			break
+		}
+	}
+	if legacy == "" {
+		t.Fatal("failed to generate a legacy ciphertext beginning with v")
+	}
+	got, err := DecryptRing(ring, legacy)
+	if err != nil || got != "legacy" {
+		t.Fatalf("legacy ciphertext beginning with v decrypted as %q: %v", got, err)
 	}
 }
 

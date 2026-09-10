@@ -51,6 +51,25 @@ Unavailable capabilities are never omitted. A declaration includes the
 capability with `status: unavailable` and a reason or next action. This lets an
 operator distinguish “not supported by this transport” from “not probed yet”.
 
+## Learning loop for device operations
+
+Device intent carries an explicit device and operation key. The learning trace
+records the selected transport and verified outcome so later runs can recall
+the decision or replay a cached fragment without hiding unavailable capability
+state.
+
+```mermaid
+flowchart LR
+    I[Device intent + operation key] --> N[learn.task]
+    N --> R[learn.recall / learn.choose]
+    R --> A[Author or actuate]
+    A --> V[Verified outcome + trace]
+    V --> M[(vrooli-memory)]
+    M --> R
+    V --> P[Replay / cached fragment]
+    P --> V
+```
+
 ```mermaid
 flowchart TB
     FLOOR[ID + Describe]

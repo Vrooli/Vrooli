@@ -115,10 +115,12 @@ Preflight verifies your VPS is ready:
 - Required tools
 - Port availability
 
-Before deploy, validate SSH access path:
+Target access is either a Bridge enrollment (`vrooli-bridge onboard`) or an
+SSH credential binding; see [VPS Setup](guides/vps-setup.md) "Target Access".
+Then run preflight against the manifest:
 
 ```bash
-scenario-to-cloud ssh bootstrap your-server.com --user root --non-interactive
+scenario-to-cloud preflight run scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
 ```
 
 ## Step 7: Resolve + Deploy If Needed
@@ -135,8 +137,10 @@ scenario-to-cloud manifest init \
   --out scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
 
 scenario-to-cloud manifest validate scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
-scenario-to-cloud redeploy scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json --if-needed --preflight --wait
+scenario-to-cloud redeploy scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
 ```
+
+`redeploy` creates or updates the deployment record, compiles the executable plan, prints the review (plan digest, changes, data effects, downtime, recovery strategy), applies exactly that digest and waits once on the admitted operation. Exit `0` is done (or `no change`), `3` means input is required (the printed handoff is the next step), `124` means the wait bound elapsed: reattach with the printed `scenario-to-cloud operation wait <operation-id>`. See [CLI Commands](reference/cli-commands.md) for every command, selector form and exit code.
 
 This typically takes 2-5 minutes when deployment is required.
 
@@ -146,4 +150,5 @@ Once complete, your scenario will be live at `https://your-domain.com`!
 
 - [Manifest Reference](guides/manifest-reference.md) - Full configuration options
 - [Troubleshooting](guides/troubleshooting.md) - Common issues and fixes
-- [Deployment Lifecycle](reference/deployment-lifecycle.md) - Understanding status transitions
+- [Operation Lifecycle](reference/operation-lifecycle.md) - Durable operations and the deployment status projection
+- [Operator Runbooks](guides/runbooks/README.md) - Deploy, update, rotate, restore, incident, retire

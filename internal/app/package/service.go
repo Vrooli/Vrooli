@@ -47,10 +47,12 @@ type RunResponse struct {
 }
 
 type RefreshRequest struct {
-	PackageName string
-	Target      string
-	NoRestart   bool
-	Interactive bool
+	PackageName    string
+	Target         string
+	NoRestart      bool
+	Interactive    bool
+	ChangedExports []string
+	DryRun         bool
 }
 
 type RefreshItem struct {
@@ -62,8 +64,9 @@ type RefreshItem struct {
 }
 
 type RefreshResponse struct {
-	PackageName string        `json:"package_name"`
-	Items       []RefreshItem `json:"items"`
+	PackageName string                     `json:"package_name"`
+	Items       []RefreshItem              `json:"items"`
+	Impacts     []packagegov.RefreshImpact `json:"impacts,omitempty"`
 }
 
 func (s Service) List() ([]packagegov.Package, []packagegov.ValidationIssue, error) {
@@ -122,26 +125,50 @@ func (s Service) Refresh(req RefreshRequest) (RefreshResponse, error) {
 		return RefreshResponse{}, err
 	}
 
-	if item.Manifest.Package.Refresh.Strategy == packagegov.RefreshGenerateThenSetup {
-		if err := packagegov.RunCommands(item.RootPath, item.Manifest.Package.Lifecycle.Generate, s.Stdout, s.Stderr); err != nil {
+	// An artifact-change request represents a candidate that has already been
+	// published and selected. Legacy refresh callers omit ChangedExports and
+	// retain the historical generate/build behavior.
+	if req.ChangedExports == nil && item.Manifest.Package.Refresh.Strategy == packagegov.RefreshGenerateThenSetup && !req.DryRun {
+		scenario := req.Target
+		if strings.EqualFold(strings.TrimSpace(scenario), "all") {
+			scenario = ""
+		}
+		if err := packagegov.RunCommandsWithOptions(item.RootPath, item.Manifest.Package.Lifecycle.Generate, s.Stdout, s.Stderr, packagegov.CommandOptions{Scenario: scenario}); err != nil {
 			return RefreshResponse{}, err
 		}
 	}
-	if err := packagegov.RunCommands(item.RootPath, item.Manifest.Package.Lifecycle.Build, s.Stdout, s.Stderr); err != nil {
-		return RefreshResponse{}, err
+	if req.ChangedExports == nil && !req.DryRun {
+		if err := packagegov.RunCommands(item.RootPath, item.Manifest.Package.Lifecycle.Build, s.Stdout, s.Stderr); err != nil {
+			return RefreshResponse{}, err
+		}
 	}
 
 	discovery, err := packagegov.DiscoverDependents(s.Root, item)
 	if err != nil {
 		return RefreshResponse{}, err
 	}
-	actions := packagegov.PlanRefresh(item, discovery.Dependents, req.Target)
-	resp := RefreshResponse{PackageName: item.Name}
+	var actions []packagegov.RefreshAction
+	var impacts []packagegov.RefreshImpact
+	if req.ChangedExports != nil {
+		artifactPlan, planErr := packagegov.PlanRefreshForArtifact(s.Root, item, discovery.Dependents, req.Target, req.ChangedExports)
+		if planErr != nil {
+			return RefreshResponse{}, planErr
+		}
+		actions = artifactPlan.Actions
+		impacts = artifactPlan.Impacts
+	} else {
+		actions = packagegov.PlanRefresh(item, discovery.Dependents, req.Target)
+	}
+	resp := RefreshResponse{PackageName: item.Name, Impacts: impacts}
 	runtime := refreshRuntime{owner: s, item: item, noRestart: noRestart}
 	for _, action := range actions {
-		status, err := runtime.execute(action)
-		if err != nil {
-			return RefreshResponse{}, err
+		status := "planned"
+		if !req.DryRun {
+			var err error
+			status, err = runtime.execute(action)
+			if err != nil {
+				return RefreshResponse{}, err
+			}
 		}
 
 		resp.Items = append(resp.Items, RefreshItem{

@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "device-control.volume",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Turn down, lower, or make one selected TV/device quieter using current inventory and declared transport capabilities; no room, model, or class is assumed.",
   "inputs": {
     "device": {
@@ -81,7 +84,8 @@
     "signals": {
       "operation_id": "Stable semantic operation id",
       "verification_class": "typed verification strength",
-      "result": "Bounded operation result"
+      "result": "Bounded operation result",
+      "learning": "Durable feedback_ref identifies this task or exact artifact; preserve it and send a later correction with program-runtime.learning-feedback or learn.feedback."
     },
     "errors": {
       "classes": [
@@ -91,7 +95,9 @@
         "transport_unavailable",
         "device_unavailable",
         "binding_error",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Operation and state observation references"
@@ -134,28 +140,11 @@
   ],
   "rung": "S3",
   "owner_skill": "device-control",
-  "learning_task": {
-    "scope": "device-control-usage",
-    "operation": "device-control.volume",
-    "context_fields": [
-      "device"
-    ],
-    "outcome": {
-      "status_path": "signals.outcome",
-      "mapping": {
-        "verified_success": "verified_success",
-        "failed": "failed",
-        "unavailable": "unavailable",
-        "unknown": "unknown"
-      },
-      "evidence_paths": [
-        "evidence"
-      ]
-    }
-  },
   "verbs": [
-    "lib",
-    "tasks.get",
-    "validate"
+    "learn.note",
+    "learn.outcome",
+    "learn.result",
+    "learn.task",
+    "lib"
   ]
 }

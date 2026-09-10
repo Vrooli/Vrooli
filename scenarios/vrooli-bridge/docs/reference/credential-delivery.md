@@ -35,6 +35,6 @@ onboarding question endpoint.
 
 Implementation references:
 
-* [CODE: scenarios/vrooli-bridge/api/handlers/credentialgrant/module.go#deliverGrant]
-* [CODE: scenarios/vrooli-bridge/agent/internal/channel/channel.go]
-* [CODE: scenarios/vrooli-bridge/api/internal/onboarding/client.go]
+* [CODE: api/handlers/credentialgrant/module.go#deliverGrant]
+* [CODE: agent/internal/channel/channel.go]
+* [CODE: api/internal/onboarding/client.go]

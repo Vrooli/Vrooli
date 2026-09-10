@@ -102,6 +102,19 @@ describe("FleetPanel", () => {
     expect(row).toHaveTextContent(strings.fleet.readiness.ready);
   });
 
+  it("explains when a blocked candidate cannot be remediated by the firewall broker", async () => {
+    listNodes.mockResolvedValue({ nodes: [] });
+    fetchBridgeReadiness.mockResolvedValue({
+      status: "candidate_blocked", endpoint: "http://bridge.test:18767", port: 18767, endpoint_source: "configured", reachability_mode: "lan", local_api: true,
+      last_candidate: { host: "mini", endpoint: "http://bridge.test:18767", mode: "lan", state: "failed", source_ip: "192.168.1.176" },
+      firewall: { available: true, inspectable: true, active: true, rule_found: false, privileged: false, broker_available: false, broker_status: "unavailable" },
+    });
+    renderWithProviders(<FleetPanel />);
+
+    expect(await screen.findByText(strings.fleet.bridgeReadinessBrokerUnavailable)).toBeInTheDocument();
+    expect(screen.queryByText(strings.fleet.bridgeReadinessPreview)).not.toBeInTheDocument();
+  });
+
   it("renders configuration outcome separately from transport readiness", async () => {
     listNodes.mockResolvedValue({ nodes: [makeNode({ id: "configured-1", configurationState: "paired", configurationUnmet: ["resource:opencode"] })] });
     renderWithProviders(<FleetPanel />);

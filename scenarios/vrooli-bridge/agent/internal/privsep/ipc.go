@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"path/filepath"
 	"sync"
 
@@ -62,9 +61,11 @@ func ValidateOperationName(name string) error {
 	return nil
 }
 
-// Serve starts the privileged helper on a local Unix socket and blocks until
-// ctx is cancelled. The listener is removed only when it is the socket this
-// process created; an existing non-socket path is never overwritten.
+// Serve starts the privileged helper on the platform-native local IPC
+// endpoint and blocks until ctx is cancelled. Unix uses a socket; Windows uses
+// a named pipe with an account ACL. The endpoint is removed only when it is the
+// endpoint this process created; an existing non-socket path is never
+// overwritten.
 func Serve(ctx context.Context, socket, vrooliBin, workDir string, allowedClientUID int, stateDirs ...string) error {
 	return ServeWithShutdown(ctx, socket, vrooliBin, workDir, allowedClientUID, nil, stateDirs...)
 }
@@ -75,26 +76,31 @@ func Serve(ctx context.Context, socket, vrooliBin, workDir string, allowedClient
 // control-plane operation. A nil callback preserves the ordinary test/daemon
 // behavior.
 func ServeWithShutdown(ctx context.Context, socket, vrooliBin, workDir string, allowedClientUID int, shutdown func(), stateDirs ...string) error {
+	return serveWithShutdown(ctx, socket, vrooliBin, workDir, allowedClientUID, "", shutdown, stateDirs...)
+}
+
+// ServeWithShutdownPrincipal is the Windows-aware variant of
+// ServeWithShutdown. Unix callers continue to use the numeric peer UID; the
+// Windows endpoint uses an account principal to construct the named-pipe ACL.
+func ServeWithShutdownPrincipal(ctx context.Context, socket, vrooliBin, workDir string, allowedClientUID int, allowedClientPrincipal string, shutdown func(), stateDirs ...string) error {
+	return serveWithShutdown(ctx, socket, vrooliBin, workDir, allowedClientUID, allowedClientPrincipal, shutdown, stateDirs...)
+}
+
+func serveWithShutdown(ctx context.Context, socket, vrooliBin, workDir string, allowedClientUID int, allowedClientPrincipal string, shutdown func(), stateDirs ...string) error {
 	if !filepath.IsAbs(socket) {
 		return fmt.Errorf("provision IPC socket must be absolute: %q", socket)
 	}
 	if err := prepareSocketPath(socket); err != nil {
 		return err
 	}
-	listener, err := net.Listen("unix", socket)
+	listener, err := listenIPC(socket, allowedClientPrincipal)
 	if err != nil {
 		return fmt.Errorf("listen on provisioning IPC socket: %w", err)
 	}
 	defer func() {
 		_ = listener.Close()
-		_ = os.Remove(socket)
+		_ = removeIPC(socket)
 	}()
-	// The peer credential check is the authorization boundary. The mode permits
-	// the separately-owned runner to connect; callers are still rejected by
-	// peer UID on Linux and macOS before a command is decoded.
-	if err := os.Chmod(socket, 0o666); err != nil { // #nosec G302 -- Linux peer credentials, not mode bits, authorize the runner; mode permits the distinct service user to connect.
-		return fmt.Errorf("secure provisioning IPC socket: %w", err)
-	}
 
 	var provisionMu sync.Mutex
 	go func() {
@@ -118,21 +124,7 @@ func ServeWithShutdown(ctx context.Context, socket, vrooliBin, workDir string, a
 }
 
 func prepareSocketPath(socket string) error {
-	if err := os.MkdirAll(filepath.Dir(socket), 0o750); err != nil {
-		return fmt.Errorf("create provisioning IPC directory: %w", err)
-	}
-	info, err := os.Lstat(socket)
-	if err == nil {
-		if info.Mode()&os.ModeSocket == 0 {
-			return fmt.Errorf("refusing to replace non-socket provisioning IPC path %q", socket)
-		}
-		if err := os.Remove(socket); err != nil {
-			return fmt.Errorf("remove stale provisioning IPC socket: %w", err)
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("inspect provisioning IPC path: %w", err)
-	}
-	return nil
+	return prepareIPCPath(socket)
 }
 
 func serveConn(ctx context.Context, conn net.Conn, vrooliBin, workDir string, allowedClientUID int, stateDir string, provisionMu *sync.Mutex, shutdown func()) {
@@ -223,7 +215,7 @@ func Run(ctx context.Context, socket string, expectedHelperUID int, command *cha
 	if !filepath.IsAbs(socket) {
 		return fmt.Errorf("provision IPC socket must be absolute: %q", socket)
 	}
-	conn, err := (&net.Dialer{}).DialContext(ctx, "unix", socket)
+	conn, err := dialIPC(ctx, socket)
 	if err != nil {
 		return fmt.Errorf("connect to provisioning helper: %w", err)
 	}

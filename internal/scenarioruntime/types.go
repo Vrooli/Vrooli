@@ -16,7 +16,7 @@ const (
 	// shape and schemaMigrations carries additive upgrades for local registries.
 	// A version bump must update both the greenfield schema and its migration
 	// rung; destructive conversions remain operator-owned.
-	SchemaVersion = 12
+	SchemaVersion = 13
 
 	StatusStarting = "starting"
 	StatusRunning  = "running"
@@ -146,6 +146,9 @@ func IsDiscoverablePortClaimStatus(status string) bool {
 type Instance struct {
 	InstanceID string
 	Scenario   string
+	// BuildIdentity is the authored source identity the managed process must
+	// serve. Empty preserves compatibility with pre-identity registry rows.
+	BuildIdentity string
 	// Variant names which instance of the scenario this is ("live" for the
 	// canonical primary, "shadow" etc. for alternates). Empty is normalized to
 	// DefaultVariant on create, so pre-variant callers address the live instance.
@@ -261,6 +264,7 @@ type HealthSnapshot struct {
 	Error         string
 	ResponseJSON  string
 	SchemaValid   *bool
+	BuildIdentity string
 }
 
 type ProcessRef struct {
@@ -395,6 +399,7 @@ type LifecycleRepository interface {
 	ExpireStaleLeases(ctx context.Context, at time.Time) ([]Instance, error)
 	StopLease(ctx context.Context, instanceID string, generation int64, reason string) (Instance, error)
 	UpdateInstanceStatus(ctx context.Context, instanceID string, generation int64, status string, phase string) (Instance, error)
+	UpdateInstanceBuildIdentity(ctx context.Context, instanceID string, generation int64, identity string) (Instance, error)
 	GetInstance(ctx context.Context, instanceID string) (Instance, error)
 	ListInstances(ctx context.Context, filter InstanceFilter) ([]Instance, error)
 	// AttachLiveSupervision hands the instance to the live supervisor session

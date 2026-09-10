@@ -25,6 +25,19 @@ type orchestratorApprovalsRepo struct {
 	err  error
 }
 
+type orchestratorPublishedVersionsRepo struct{ calls int }
+
+func (f *orchestratorPublishedVersionsRepo) RecordPublish(context.Context, *PublishedVersion) error {
+	f.calls++
+	return nil
+}
+func (f *orchestratorPublishedVersionsRepo) GetLatestByProfile(context.Context, string) ([]PublishedVersion, error) {
+	return nil, nil
+}
+func (f *orchestratorPublishedVersionsRepo) GetHistory(context.Context, string, string, int) ([]PublishedVersion, error) {
+	return nil, nil
+}
+
 func (f *orchestratorApprovalsRepo) Create(context.Context, *DeploymentApproval) error { return nil }
 func (f *orchestratorApprovalsRepo) Get(context.Context, string) (*DeploymentApproval, error) {
 	return nil, nil
@@ -171,6 +184,16 @@ func TestDeployLoadProfileReportsReleaseGateOutcomes(t *testing.T) {
 	}
 }
 
+func TestDeployLoadProfileUsesCanonicalReleaseAuthorizationBoundary(t *testing.T) {
+	o := newCoreOrchestrator(&orchestratorProfileRepo{profile: &profiles.Profile{ID: "p1", Scenario: "demo"}})
+	o.approvalsRepo = &orchestratorApprovalsRepo{gate: &ReleaseGateStatus{Ready: false, Platforms: []PlatformGateStatus{{Platform: "linux", Status: ApprovalStatusPending}}}}
+	ds := newDeployState("p1", "", "", "commit", nil)
+	ds.req.AuthorizationCheck = func(context.Context) error { return nil }
+	if status := o.deployLoadProfile(ds); status != 0 {
+		t.Fatalf("canonical release authorization was blocked by legacy gate: status=%d response=%+v", status, ds.response)
+	}
+}
+
 func TestDeployValidateAndBuildSkipPaths(t *testing.T) {
 	o := newCoreOrchestrator(&orchestratorProfileRepo{profile: &profiles.Profile{ID: "p1", Scenario: "demo"}})
 	ds := newDeployState("p1", "", "", "", nil)
@@ -272,5 +295,34 @@ func TestOrchestrationStepAndFinalizeHelpers(t *testing.T) {
 	o.deployFinalizeAndPublish(ds)
 	if ds.response.Status != "failed" {
 		t.Fatalf("failed response status = %q", ds.response.Status)
+	}
+}
+
+func TestDeploymentResponseHTTPStatusReflectsStanding(t *testing.T) {
+	for status, want := range map[string]int{
+		"success":       http.StatusOK,
+		"blocked":       http.StatusPreconditionFailed,
+		"failed":        http.StatusBadGateway,
+		"verify_failed": http.StatusBadGateway,
+		"ambiguous":     http.StatusConflict,
+	} {
+		if got := deploymentResponseHTTPStatus(&DeployDesktopResponse{Status: status}); got != want {
+			t.Fatalf("status %q mapped to HTTP %d, want %d", status, got, want)
+		}
+	}
+	if got := deploymentResponseHTTPStatus(nil); got != http.StatusInternalServerError {
+		t.Fatalf("nil response mapped to HTTP %d, want %d", got, http.StatusInternalServerError)
+	}
+}
+
+func TestFinalizeRefusesPublicationWithoutCanonicalAuthorization(t *testing.T) {
+	published := &orchestratorPublishedVersionsRepo{}
+	o := newCoreOrchestrator(nil)
+	o.publishedVersionsRepo = published
+	ds := newDeployState("p1", "", "", "commit", nil)
+	ds.profile = &profiles.Profile{Scenario: "demo"}
+	o.deployFinalizeAndPublish(ds)
+	if ds.response.Status != "blocked" || published.calls != 0 {
+		t.Fatalf("publication without canonical authorization was not refused: response=%+v calls=%d", ds.response, published.calls)
 	}
 }

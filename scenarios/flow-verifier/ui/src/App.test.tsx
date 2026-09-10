@@ -8,8 +8,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { renderWithProviders } from "./test-utils";
+import { ThemeProvider } from "./components/theme/ThemeProvider";
 
 vi.mock("./api/inventory", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./api/inventory")>();
@@ -57,29 +60,41 @@ vi.mock("./features/flow-detail/StateGraph", () => ({
 
 import App from "./App";
 
+function renderApp(entry = "/") {
+  return renderWithProviders(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <MemoryRouter initialEntries={[entry]}>
+        <ThemeProvider><App /></ThemeProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
 describe("App composition", () => {
   afterEach(() => {
     cleanup();
   });
 
   it("mounts the operational shell with brand", async () => {
-    renderWithProviders(<App />);
-    expect(await screen.findByTestId("app-shell")).toBeInTheDocument();
-    expect(screen.getByTestId("app-brand")).toBeInTheDocument();
+    renderApp();
+    expect(await screen.findByTestId("flow-verifier-app-shell")).toBeInTheDocument();
+    expect(screen.getByTestId("flow-verifier-app-shell-brand")).toBeInTheDocument();
   });
 
   it("lands on the Dashboard at /", async () => {
-    renderWithProviders(<App />, { routerEntries: ["/"] });
+    renderApp();
     expect(await screen.findByTestId("dashboard-page", undefined, { timeout: 2000 })).toBeInTheDocument();
   });
 
   it("resolves /flows to the Inventory page", async () => {
-    renderWithProviders(<App />, { routerEntries: ["/flows"] });
+    renderApp("/flows");
     expect(await screen.findByTestId("inventory-page", undefined, { timeout: 2000 })).toBeInTheDocument();
   });
 
   it("resolves /flows/:flowId to FlowDetailPage and surfaces the flowId", async () => {
-    renderWithProviders(<App />, { routerEntries: ["/flows/example.workflow.api"] });
+    renderApp("/flows/example.workflow.api");
     expect(
       await screen.findByTestId("flow-detail-page", undefined, { timeout: 2000 }),
     ).toBeInTheDocument();
@@ -87,7 +102,7 @@ describe("App composition", () => {
   });
 
   it("resolves /runs/:runId to RunDetailPage and surfaces the runId", async () => {
-    renderWithProviders(<App />, { routerEntries: ["/runs/abc-123"] });
+    renderApp("/runs/abc-123");
     expect(
       await screen.findByTestId("run-detail-page", undefined, { timeout: 2000 }),
     ).toBeInTheDocument();
@@ -95,12 +110,12 @@ describe("App composition", () => {
   });
 
   it("resolves /settings to the Settings page", async () => {
-    renderWithProviders(<App />, { routerEntries: ["/settings"] });
+    renderApp("/settings");
     expect(await screen.findByTestId("settings-page", undefined, { timeout: 2000 })).toBeInTheDocument();
   });
 
   it("resolves an unknown path to the NotFound page", async () => {
-    renderWithProviders(<App />, { routerEntries: ["/totally-not-a-route"] });
+    renderApp("/totally-not-a-route");
     expect(await screen.findByTestId("not-found-page", undefined, { timeout: 2000 })).toBeInTheDocument();
   });
 });
@@ -112,7 +127,7 @@ describe("App nav navigation", () => {
 
   it("clicking the Flows nav link navigates to /flows without remounting the shell", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<App />, { routerEntries: ["/"] });
+    renderApp();
     expect(await screen.findByTestId("dashboard-page", undefined, { timeout: 2000 })).toBeInTheDocument();
 
     await user.click(screen.getByTestId("nav-flows"));
@@ -120,7 +135,7 @@ describe("App nav navigation", () => {
     await waitFor(() => expect(screen.getByTestId("inventory-page")).toBeInTheDocument());
     expect(screen.queryByTestId("dashboard-page")).not.toBeInTheDocument();
     // Shell + brand persist across navigation.
-    expect(screen.getByTestId("app-shell")).toBeInTheDocument();
-    expect(screen.getByTestId("app-brand")).toBeInTheDocument();
+    expect(screen.getByTestId("flow-verifier-app-shell")).toBeInTheDocument();
+    expect(screen.getByTestId("flow-verifier-app-shell-brand")).toBeInTheDocument();
   });
 });

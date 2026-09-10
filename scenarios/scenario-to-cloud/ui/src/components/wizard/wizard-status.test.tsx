@@ -5,12 +5,10 @@ import { vi } from "vitest";
 import { AutoFixPanel } from "./AutoFixPanel";
 import { InvestigationProgress } from "./InvestigationProgress";
 import { InvestigationReport } from "./InvestigationReport";
-import { DeploymentProgressView, getStepStatusFromProgress } from "./DeploymentProgress";
 import { ValidationSummary } from "./ValidationSummary";
 import type { Investigation } from "../../types/investigation";
 import type { DeploymentManifest } from "../../types/deployment";
 import type { ValidationIssue } from "../../lib/api";
-import type { DeploymentProgress } from "../../types/progress";
 
 // provider-free-exception: these wizard status views accept all state via props.
 describe("wizard status views", () => {
@@ -90,29 +88,6 @@ describe("wizard status views", () => {
     expect(screen.getByText(/Investigation failed without details/)).toBeInTheDocument();
     rerender(<InvestigationProgress investigation={{ ...investigation("cancelled"), progress: 20 }} />);
     expect(screen.getByText("Investigation cancelled")).toBeInTheDocument();
-  });
-
-  it("renders deployment progress errors, connectivity, and completion", () => {
-    const progress: DeploymentProgress = {
-      currentStep: "upload",
-      currentStepTitle: "Uploading bundle",
-      progress: 42,
-      steps: [
-        { id: "bundle_build", title: "Building bundle", status: "completed" },
-        { id: "upload", title: "Uploading bundle", status: "running" },
-        { id: "extract", title: "Extracting bundle", status: "failed" },
-      ],
-      error: "Upload failed",
-      isComplete: false,
-    };
-    render(<DeploymentProgressView progress={progress} isConnected={false} connectionError="Connection lost" />);
-    expect(screen.getByText("Deployment Failed")).toBeInTheDocument();
-    expect(screen.getByText("Connection lost")).toBeInTheDocument();
-    expect(screen.getByText("Reconnecting...")).toBeInTheDocument();
-    expect(getStepStatusFromProgress(progress, "upload")).toBe("running");
-    expect(getStepStatusFromProgress(null, "upload")).toBe("pending");
-    const complete: DeploymentProgress = { ...progress, error: undefined, progress: 100, isComplete: true };
-    render(<DeploymentProgressView progress={complete} isConnected connectionError={null} />);
   });
 
   it("copies findings and submits selected fix permissions from a report", async () => {

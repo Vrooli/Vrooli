@@ -21,7 +21,6 @@ type ManifestInitRequest struct {
 	Domain     string `json:"domain,omitempty"`
 	User       string `json:"user,omitempty"`
 	Port       int    `json:"port,omitempty"`
-	KeyPath    string `json:"key_path,omitempty"`
 	Workdir    string `json:"workdir,omitempty"`
 	CaddyEmail string `json:"caddy_email,omitempty"`
 }
@@ -221,9 +220,6 @@ func (s *Server) buildInitManifest(ctx context.Context, req ManifestInitRequest)
 	if req.Port > 0 {
 		m.Target.VPS.Port = req.Port
 	}
-	if strings.TrimSpace(req.KeyPath) != "" {
-		m.Target.VPS.KeyPath = strings.TrimSpace(req.KeyPath)
-	}
 	if strings.TrimSpace(req.Workdir) != "" {
 		m.Target.VPS.Workdir = strings.TrimSpace(req.Workdir)
 	}
@@ -364,7 +360,6 @@ func defaultTemplateManifest() domain.CloudManifest {
 
 func fullTemplateManifest() domain.CloudManifest {
 	m := defaultTemplateManifest()
-	m.Target.VPS.KeyPath = "~/.ssh/id_ed25519"
 	m.Target.VPS.Workdir = domain.DefaultVPSWorkdir
 	m.Target.VPS.PreservePaths = []string{}
 	m.Dependencies.Analyzer.Tool = "scenario-dependency-analyzer"

@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // Work-posture derivation. The Greenfield/Brownfield stance of a plan is
@@ -173,8 +175,8 @@ func PostureBlock(posture WorkPosture) string {
 type fsMaturityReader struct{}
 
 // NewFilesystemMaturityReader returns the production MaturityReader. It locates
-// the monorepo root by walking up from the working directory until it finds a
-// `scenarios/` directory, then reads `scenarios/<name>/.vrooli/service.json`.
+// the monorepo root through its declared repository contract, then reads
+// `scenarios/<name>/.vrooli/service.json`.
 func NewFilesystemMaturityReader() MaturityReader { return fsMaturityReader{} }
 
 func (fsMaturityReader) Maturity(_ context.Context, scenario string) (string, bool, error) {
@@ -229,21 +231,9 @@ func parseMaturity(raw []byte) (string, bool, error) {
 	}
 }
 
-// findScenariosRoot walks up from cwd to the nearest ancestor containing a
-// `scenarios/` directory (the monorepo root).
+// A nested scenarios/ directory can contain drafts or fixtures. Only the
+// repository owner's markers and source-root selection identify the repo.
 func findScenariosRoot() (string, bool) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", false
-	}
-	for {
-		if info, err := os.Stat(filepath.Join(dir, "scenarios")); err == nil && info.IsDir() {
-			return dir, true
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", false
-		}
-		dir = parent
-	}
+	root, err := repocontract.ResolveRepoRoot()
+	return root, err == nil
 }

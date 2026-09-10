@@ -11,10 +11,23 @@ import (
 	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
+// DependencyBuildOptions controls additive evidence included in the dependency DAG.
+type DependencyBuildOptions struct {
+	IncludeProgramBindings bool
+	ProgramBindings        ProgramBindingSource
+}
+
 // BuildDependencyNodeList recursively builds a list of dependency nodes (resources + scenarios)
 // from a scenario's service.json configuration. The visited map prevents infinite recursion
-// when circular dependencies exist.
+// when circular dependencies exist. It preserves the historical manifest-only output.
 func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.Manifest, visited map[string]struct{}) []types.DeploymentDependencyNode {
+	return BuildDependencyNodeListWithOptions(scenariosDir, scenarioName, cfg, visited, DependencyBuildOptions{})
+}
+
+// BuildDependencyNodeListWithOptions adds program-binding evidence when
+// requested. Manifest nodes remain the lifecycle authority and retain source
+// "declared" even when a program independently attests the same edge.
+func BuildDependencyNodeListWithOptions(scenariosDir, scenarioName string, cfg *types.Manifest, visited map[string]struct{}, options DependencyBuildOptions) []types.DeploymentDependencyNode {
 	nodes := []types.DeploymentDependencyNode{}
 	if cfg == nil {
 		return nodes
@@ -64,13 +77,18 @@ func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.Manif
 					meta = &copyMeta
 				}
 			}
-			node := buildScenarioDependencyNode(scenariosDir, depName, meta, visited)
+			node := buildScenarioDependencyNode(scenariosDir, depName, meta, visited, options)
 			required := depSpec.Required
 			enabled := depSpec.Enabled
 			node.Required = &required
 			node.Enabled = &enabled
 			node.Source = "declared"
 			nodes = append(nodes, node)
+		}
+	}
+	if options.IncludeProgramBindings && options.ProgramBindings != nil {
+		if targets, _, err := options.ProgramBindings.ProgramBindingTargets(scenarioName); err == nil {
+			nodes = mergeProgramBindingNodes(scenariosDir, scenarioName, nodes, targets, visited, options)
 		}
 	}
 
@@ -82,6 +100,52 @@ func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.Manif
 	})
 
 	return nodes
+}
+
+func mergeProgramBindingNodes(scenariosDir, scenarioName string, nodes []types.DeploymentDependencyNode, targets []types.ProgramBindingTarget, visited map[string]struct{}, options DependencyBuildOptions) []types.DeploymentDependencyNode {
+	byScenario := map[string]int{}
+	for i := range nodes {
+		if nodes[i].Type == "scenario" {
+			byScenario[config.NormalizeName(nodes[i].Name)] = i
+		}
+	}
+	for _, target := range targets {
+		name := strings.TrimSpace(target.Scenario)
+		if name == "" || config.NormalizeName(name) == config.NormalizeName(scenarioName) || config.NormalizeName(name) == "program-runtime" {
+			continue
+		}
+		index, exists := byScenario[config.NormalizeName(name)]
+		if !exists {
+			node := buildScenarioDependencyNode(scenariosDir, name, nil, visited, options)
+			required := false
+			enabled := false
+			node.Required = &required
+			node.Enabled = &enabled
+			node.Source = "program-binding"
+			nodes = append(nodes, node)
+			index = len(nodes) - 1
+			byScenario[config.NormalizeName(name)] = index
+		}
+		if nodes[index].Metadata == nil {
+			nodes[index].Metadata = map[string]interface{}{}
+		}
+		appendMetadataString(nodes[index].Metadata, "program_bindings", target.BindingID)
+		appendMetadataString(nodes[index].Metadata, "programs", target.Program)
+	}
+	return nodes
+}
+
+func appendMetadataString(metadata map[string]interface{}, key, value string) {
+	if strings.TrimSpace(value) == "" {
+		return
+	}
+	values, _ := metadata[key].([]string)
+	for _, existing := range values {
+		if existing == value {
+			return
+		}
+	}
+	metadata[key] = append(values, value)
 }
 
 // buildResourceDependencyNode creates a deployment node for a single resource dependency
@@ -124,7 +188,7 @@ func buildResourceDependencyNode(repoRoot, name string, meta *types.DeploymentDe
 
 // buildScenarioDependencyNode creates a deployment node for a scenario dependency,
 // recursively loading the scenario's own dependencies to build a complete dependency tree.
-func buildScenarioDependencyNode(scenariosDir, scenarioName string, parentMeta *types.DeploymentDependency, visited map[string]struct{}) types.DeploymentDependencyNode {
+func buildScenarioDependencyNode(scenariosDir, scenarioName string, parentMeta *types.DeploymentDependency, visited map[string]struct{}, options DependencyBuildOptions) types.DeploymentDependencyNode {
 	node := types.DeploymentDependencyNode{
 		Name: scenarioName,
 		Type: "scenario",
@@ -176,7 +240,7 @@ func buildScenarioDependencyNode(scenariosDir, scenarioName string, parentMeta *
 	}
 	node.TierSupport = mergeTierSupportMaps(scenarioTierSupport, fallbackSupport)
 	node.Alternatives = dedupeStrings(node.Alternatives)
-	node.Children = BuildDependencyNodeList(scenariosDir, scenarioName, cfg, visited)
+	node.Children = BuildDependencyNodeListWithOptions(scenariosDir, scenarioName, cfg, visited, options)
 	return node
 }
 

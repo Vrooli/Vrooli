@@ -1,8 +1,12 @@
 package pipeline
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -22,7 +26,7 @@ func fixtureRoot(t *testing.T, plugin bool) string {
 	t.Helper()
 	root := t.TempDir()
 	scenario := filepath.Join(root, "scenarios", "fixture")
-	if err := os.MkdirAll(filepath.Join(scenario, ".vrooli", "skills", "hello"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(scenario, ".vrooli", "skills", "hello"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	m := map[string]any{"service": map[string]string{"name": "fixture", "version": "1.0.0"}}
@@ -30,16 +34,16 @@ func fixtureRoot(t *testing.T, plugin bool) string {
 		m["plugin"] = map[string]any{"slug": "fixture", "skills": []any{map[string]any{"name": "hello", "source": "skills/hello/SKILL.md", "command_groups": []string{"hello"}}}, "standalone": map[string]any{"install_script": "cli/install.sh", "runtime_binaries": []string{"cli/fixture"}, "resources": []string{}}}
 	}
 	b, _ := json.Marshal(m)
-	if err := os.WriteFile(filepath.Join(scenario, ".vrooli", "service.json"), b, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(scenario, ".vrooli", "service.json"), b, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if plugin {
-		if err := os.MkdirAll(filepath.Join(scenario, "skills", "hello", "..", "..", "cli"), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Join(scenario, "skills", "hello", "..", "..", "cli"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		for _, rel := range []string{"skills/hello/SKILL.md", "cli/install.sh", "cli/fixture"} {
 			p := filepath.Join(scenario, rel)
-			if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 				t.Fatal(err)
 			}
 			content := "#!/bin/sh\n"
@@ -49,12 +53,12 @@ func fixtureRoot(t *testing.T, plugin bool) string {
 			if rel == "cli/install.sh" {
 				content = "#!/bin/sh\nmkdir -p \"${FIXTURE_PREFIX:-$HOME/.local/bin}\"\n"
 			}
-			if err := os.WriteFile(p, []byte(content), 0755); err != nil {
+			if err := os.WriteFile(p, []byte(content), 0o755); err != nil {
 				t.Fatal(err)
 			}
 		}
 		manifest := []byte(`{"groups":[{"name":"hello","commands":[{"name":"hello"}]}]}`)
-		if err := os.WriteFile(filepath.Join(scenario, "cli", "manifest.json"), manifest, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(scenario, "cli", "manifest.json"), manifest, 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -112,7 +116,7 @@ func TestConformanceAcceptsNFCTextAndRejectsDecomposedText(t *testing.T) {
 	root := fixtureRoot(t, true)
 	skill := filepath.Join(root, "scenarios", "fixture", "skills", "hello", "SKILL.md")
 	composed := "---\nname: hello\ndescription: Fixture skill.\n---\n\nRun café.\n```bash\nfixture hello\n```\n"
-	if err := os.WriteFile(skill, []byte(composed), 0644); err != nil {
+	if err := os.WriteFile(skill, []byte(composed), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	h := &handler{root: root, packages: map[string]packageRecord{}}
@@ -125,7 +129,7 @@ func TestConformanceAcceptsNFCTextAndRejectsDecomposedText(t *testing.T) {
 		t.Fatalf("composed NFC skill was rejected: err=%v findings=%+v", err, check.Msg.Findings)
 	}
 	decomposed := strings.Replace(composed, "é", "e\u0301", 1)
-	if err := os.WriteFile(skill, []byte(decomposed), 0644); err != nil {
+	if err := os.WriteFile(skill, []byte(decomposed), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	resp, err = h.Compose(context.Background(), connect.NewRequest(&comp.ComposeRequest{Scenario: "fixture", SourceRevision: "nfc-negative"}))
@@ -163,7 +167,7 @@ func TestCompositionEmitsCanonicalMCPConfigurationAndAuthPosture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(manifestPath, b, 0644); err != nil {
+	if err := os.WriteFile(manifestPath, b, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -298,7 +302,7 @@ func TestManagedAttestationRejectsSecretsBeforePublication(t *testing.T) {
 		if name == "bom.json" {
 			body = []byte(`{"components":[{"name":"sk-leaked-secret"}]}`)
 		}
-		if err := os.WriteFile(filepath.Join(managed, name), body, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(managed, name), body, 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -328,7 +332,7 @@ func TestManagedAttestationRequiresDigestBoundEvidence(t *testing.T) {
 		"bom.json":               []byte(`{"bomFormat":"CycloneDX","specVersion":"1.6","components":[]}`),
 	}
 	for name, body := range evidence {
-		if err := os.WriteFile(filepath.Join(managed, name), body, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(managed, name), body, 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -374,7 +378,7 @@ func TestPermanentConformanceFixturesFailWithNamedReasons(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := os.WriteFile(filepath.Join(root, "scenarios", "fixture", "skills", "hello", "SKILL.md"), body, 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(root, "scenarios", "fixture", "skills", "hello", "SKILL.md"), body, 0o644); err != nil {
 				t.Fatal(err)
 			}
 			h := &handler{root: root, packages: map[string]packageRecord{}}
@@ -406,7 +410,7 @@ func TestPermanentConformanceFixturesFailWithNamedReasons(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := os.WriteFile(filepath.Join(root, "scenarios", "fixture", "cli", "install.sh"), body, 0755); err != nil {
+			if err := os.WriteFile(filepath.Join(root, "scenarios", "fixture", "cli", "install.sh"), body, 0o755); err != nil {
 				t.Fatal(err)
 			}
 			h := &handler{root: root, packages: map[string]packageRecord{}}
@@ -450,3 +454,56 @@ func hasAttestationFinding(findings []*att.Finding, code string) bool {
 }
 
 var _ = decl.Readiness{}
+
+// [REQ:PLG-COMPOSE-001] Program declarations and reviewed baselines travel as ordinary assets.
+func TestPackageCarriesPortableProgramAssetsWithoutRuntimeState(t *testing.T) {
+	root := fixtureRoot(t, true)
+	scenario := filepath.Join(root, "scenarios", "fixture")
+	dir := filepath.Join(scenario, ".vrooli", "program-runtime")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	declaration := []byte(`{"name":"fixture.echo","learning":{"baselines":{"echo":{"reviewed_by":"fixture"}}}}`)
+	for name, body := range map[string][]byte{"echo.json": declaration, "echo.py": []byte("result = learn.act('echo')"), "runtime.sqlite": []byte("private")} {
+		if err := os.WriteFile(filepath.Join(dir, name), body, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h := &handler{root: root, packages: map[string]packageRecord{}}
+	response, err := h.Compose(context.Background(), connect.NewRequest(&comp.ComposeRequest{Scenario: "fixture"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(response.Msg.Package.ArtifactRoot) })
+	archive, _, err := packageArchive(response.Msg.Package.ArtifactRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gz, err := gzip.NewReader(bytes.NewReader(archive))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gz.Close()
+	reader := tar.NewReader(gz)
+	files := map[string][]byte{}
+	for {
+		header, err := reader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files[header.Name] = body
+	}
+	if !bytes.Equal(files[".vrooli/program-runtime/echo.json"], declaration) || len(files[".vrooli/program-runtime/echo.py"]) == 0 {
+		t.Fatal("portable program assets missing")
+	}
+	if _, ok := files[".vrooli/program-runtime/runtime.sqlite"]; ok {
+		t.Fatal("runtime state must not be packaged")
+	}
+}

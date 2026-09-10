@@ -56,10 +56,11 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 	resumeFromStage := config.GetResumeFromStage()
 	reachedResumeStage := resumeFromStage == "" // If not resuming, consider it reached
 
-	// Filter stages if specific stages were requested
-	stagesToRun := o.stages
+	// Filter stages if specific stages were requested. A release-bound deploy
+	// run is a publication of an already qualified candidate; it must not
+	// expand into a source rebuild through deploy's normal stage dependencies.
+	stagesToRun := o.stagesForConfig(config)
 	if requestedStages := config.GetStages(); len(requestedStages) > 0 {
-		stagesToRun = o.filterStages(requestedStages)
 		o.logger.Info("Filtered stages for execution",
 			"pipeline_id", pipelineID,
 			"requested", requestedStages,
@@ -370,4 +371,19 @@ func (o *DefaultOrchestrator) filterStages(requested []string) []Stage {
 		}
 	}
 	return filtered
+}
+
+func (o *DefaultOrchestrator) stagesForConfig(config *PipelineConfig) []Stage {
+	if config != nil && config.ArtifactManifestDigest != "" && config.DeployConfig != nil && config.DeployConfig.ReleaseID != "" && len(config.GetStages()) == 1 && config.GetStages()[0] == StageDeploy {
+		for _, stage := range o.stages {
+			if stage.Name() == StageDeploy {
+				return []Stage{stage}
+			}
+		}
+		return nil
+	}
+	if requested := config.GetStages(); len(requested) > 0 {
+		return o.filterStages(requested)
+	}
+	return o.stages
 }

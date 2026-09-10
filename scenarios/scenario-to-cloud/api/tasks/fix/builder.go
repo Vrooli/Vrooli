@@ -136,8 +136,8 @@ func buildIterationPrompt(input shared.TaskInput) string {
 		shellutil.VrooliCommand(vps.Workdir, "vrooli scenario stop "+shellutil.QuoteSingle(input.Manifest.Scenario.ID)),
 		shellutil.VrooliCommand(vps.Workdir, "vrooli scenario start "+shellutil.QuoteSingle(input.Manifest.Scenario.ID)),
 	}, " && ")
-	sb.WriteString(fmt.Sprintf("ssh -i %s -p %d %s@%s bash -lc %s\n",
-		shellutil.QuoteSingle(vps.KeyPath), sshPort, sshUser, vps.Host, shellutil.QuoteSingle(quickRestartCmd)))
+	sb.WriteString(fmt.Sprintf("ssh -p %d %s@%s bash -lc %s\n",
+		sshPort, sshUser, vps.Host, shellutil.QuoteSingle(quickRestartCmd)))
 	sb.WriteString("```\n\n")
 
 	// Verification
@@ -151,8 +151,8 @@ func buildIterationPrompt(input shared.TaskInput) string {
 		"systemctl status caddy --no-pager",
 		shellutil.VrooliCommand(vps.Workdir, "vrooli scenario status "+shellutil.QuoteSingle(input.Manifest.Scenario.ID)),
 	}, " && ")
-	sb.WriteString(fmt.Sprintf("# Service status via SSH\nssh -i %s -p %d %s@%s bash -lc %s\n",
-		shellutil.QuoteSingle(vps.KeyPath), sshPort, sshUser, vps.Host, shellutil.QuoteSingle(verifyCmd)))
+	sb.WriteString(fmt.Sprintf("# Service status via SSH\nssh -p %d %s@%s bash -lc %s\n",
+		sshPort, sshUser, vps.Host, shellutil.QuoteSingle(verifyCmd)))
 	sb.WriteString("```\n\n")
 
 	// Required output format

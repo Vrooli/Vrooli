@@ -38,6 +38,46 @@ func TestHTTPStoreWritesAndReadsWorkspaceSandboxShape(t *testing.T) {
 	require.Len(t, got, 1)
 }
 
+func TestHTTPStoreHonorsReadFiltersAndWriteValidation(t *testing.T) {
+	var records []audit.Record
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			var record audit.Record
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&record))
+			record.ID = uuid.NewString()
+			records = append(records, record)
+			require.NoError(t, json.NewEncoder(w).Encode(record))
+		case http.MethodGet:
+			require.NoError(t, json.NewEncoder(w).Encode(records))
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	store := &audit.HTTPStore{Endpoint: server.URL}
+	_, err := store.Append(context.Background(), audit.Record{NodeID: "node-1"})
+	require.ErrorAs(t, err, &audit.ErrInvalidRecord{})
+	_, err = store.Append(context.Background(), audit.Record{Actor: "owner"})
+	require.ErrorAs(t, err, &audit.ErrInvalidRecord{})
+
+	for _, record := range []audit.Record{
+		{Actor: "owner", NodeID: "node-1", RunID: "run-1"},
+		{Actor: "owner", NodeID: "node-1", RunID: "run-2"},
+		{Actor: "owner", NodeID: "node-2", RunID: "run-1"},
+	} {
+		_, err = store.Append(context.Background(), record)
+		require.NoError(t, err)
+	}
+
+	got, err := store.List(context.Background(), audit.ListFilter{NodeID: "node-1", RunID: "run-1", Limit: 1})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "run-1", got[0].RunID)
+	require.Equal(t, "node-1", got[0].NodeID)
+}
+
 // sandboxSubstrate is a stand-in for the workspace-sandbox accountability
 // substrate. The point of the audit domain's Sink seam is that the operations
 // being audited (dispatch/provision) route records to "the accountability

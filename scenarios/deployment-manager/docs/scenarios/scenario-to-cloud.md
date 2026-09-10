@@ -10,7 +10,7 @@ Translate deployment-manager bundle manifests into runnable cloud environments (
 2. **Artifact Building** — Build/push Docker images (or native binaries) as needed.
 3. **Manifest Rendering** — Output Terraform, Helm, Ansible, or plain shell scripts depending on provider.
 4. **Secret Wiring** — Create provider-specific secrets (AWS Secrets Manager, DO App Platform vars, Kubernetes secrets) using metadata from secrets-manager.
-5. **Health Verification** — Run smoke tests after provisioning and report status back to deployment-manager.
+5. **Health Verification** — Serve a typed health observation (deployment id, target, observed release, observed_at, status, freshness) that deployment-manager reads fail-closed; HTTP 200 alone is never health.
 
 ## Inputs
 

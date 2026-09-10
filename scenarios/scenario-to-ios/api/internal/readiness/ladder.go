@@ -80,7 +80,7 @@ func FromProbeContext(ctx context.Context, probe Probe) Ladder {
 	}
 	return Ladder{Rungs: []Rung{
 		rung("developer-program", "Apple Developer Program", probe.DeveloperProgram, "operator", false, "enroll the Apple Developer Program", "apple-developer-program"),
-		rung("verified-identity", "Verified developer identity", probe.VerifiedIdentity, "operator", false, "complete Apple developer identity verification", "apple-developer-identity"),
+		rung("verified-identity", "Verified developer identity", probe.VerifiedIdentity, "operator", false, "complete Apple developer identity verification", "apple-verified-identity"),
 		rung("macos-build-host", "macOS build host", probe.MacOSBuildHost, "operator", false, "register an online macOS bridge node with Xcode", "macos-bridge-node"),
 		rung("signing-reference", "Signing identity reference", probe.SigningReference && probe.DeveloperProgram, "operator", false, "provision an App Store signing identity through secrets-manager", "apple-signing-identity"),
 		rung("testflight-access", "TestFlight access", probe.TestFlightAccess && probe.SigningReference, "operator", false, "enable TestFlight for the enrolled app", "testflight-access"),

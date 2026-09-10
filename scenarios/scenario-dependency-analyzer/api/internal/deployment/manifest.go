@@ -209,11 +209,54 @@ func buildDesktopBundleSkeleton(scenarioName, scenarioPath string, cfg *types.Ma
 	}
 
 	skeleton.Swaps = deriveSwaps(nodes)
+	skeleton.ProgramBindingPeers = deriveProgramBindingPeers(cfg, nodes)
 	skeleton.Peers = derivePeers(cfg)
+	if len(skeleton.ProgramBindingPeers) > 0 {
+		programPeerNames := make(map[string]struct{}, len(skeleton.ProgramBindingPeers))
+		for _, peer := range skeleton.ProgramBindingPeers {
+			programPeerNames[peer.Scenario] = struct{}{}
+		}
+		filtered := skeleton.Peers[:0]
+		for _, peer := range skeleton.Peers {
+			if _, programPeer := programPeerNames[peer.Scenario]; !programPeer {
+				filtered = append(filtered, peer)
+			}
+		}
+		skeleton.Peers = filtered
+	}
 	skeleton.Services = buildSkeletonServices(cfg)
 	skeleton.Services = embedPeerServices(skeleton.Services, cfg, nodes)
 
 	return skeleton
+}
+
+func deriveProgramBindingPeers(cfg *types.Manifest, nodes []types.DeploymentDependencyNode) []types.BundleSkeletonPeer {
+	if cfg == nil {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	peers := make([]types.BundleSkeletonPeer, 0)
+	var walk func([]types.DeploymentDependencyNode)
+	walk = func(current []types.DeploymentDependencyNode) {
+		for _, node := range current {
+			if node.Type == "scenario" && (node.Source == "program-binding" || node.Metadata["program_bindings"] != nil) {
+				name := node.Name
+				if _, ok := seen[name]; !ok {
+					seen[name] = struct{}{}
+					dependency := cfg.Dependencies.Scenarios[name]
+					bundlePolicy := dependency.BundlePolicy
+					if bundlePolicy == "" {
+						bundlePolicy = "discover"
+					}
+					peers = append(peers, types.BundleSkeletonPeer{Scenario: name, BundlePolicy: bundlePolicy, StartupPolicy: dependency.StartupPolicy, DegradedBehavior: dependency.DegradedBehavior})
+				}
+			}
+			walk(node.Children)
+		}
+	}
+	walk(nodes)
+	sort.Slice(peers, func(i, j int) bool { return peers[i].Scenario < peers[j].Scenario })
+	return peers
 }
 
 func embedPeerServices(root []types.BundleSkeletonService, cfg *types.Manifest, nodes []types.DeploymentDependencyNode) []types.BundleSkeletonService {

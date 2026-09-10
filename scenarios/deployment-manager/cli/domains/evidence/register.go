@@ -20,17 +20,37 @@ import (
 
 const GroupName = "evidence"
 
+var processDependencies = struct {
+	getenv      func(string) string
+	now         func() time.Time
+	userHomeDir func() (string, error)
+}{
+	getenv:      os.Getenv,
+	now:         time.Now,
+	userHomeDir: os.UserHomeDir,
+}
+
 type handlers struct {
 	client      evidenceconnect.EvidenceServiceClient
 	offerClient offersconnect.GatesServiceClient
+	getenv      func(string) string
+	now         func() time.Time
+	userHomeDir func() (string, error)
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	return newHandlersWithDependencies(core, processDependencies.getenv, processDependencies.now, processDependencies.userHomeDir)
+}
+
+func newHandlersWithDependencies(core *cliapp.ScenarioApp, getenv func(string) string, now func() time.Time, userHomeDir func() (string, error)) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	offerBaseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("OFFER_DESK_API_BASE_URL")), "/")
+	offerBaseURL := strings.TrimRight(strings.TrimSpace(getenv("OFFER_DESK_API_BASE_URL")), "/")
 	return &handlers{
 		client:      evidenceconnect.NewEvidenceServiceClient(httpClient, baseURL),
 		offerClient: offersconnect.NewGatesServiceClient(httpClient, offerBaseURL),
+		getenv:      getenv,
+		now:         now,
+		userHomeDir: userHomeDir,
 	}
 }
 
@@ -81,11 +101,11 @@ type deploymentReport struct {
 	GeneratedAt string `json:"generated_at"`
 }
 
-func defaultReportPath() string {
-	if configured := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_REPORT_PATH")); configured != "" {
+func defaultReportPath(getenv func(string) string, userHomeDir func() (string, error)) string {
+	if configured := strings.TrimSpace(getenv("DEPLOYMENT_MANAGER_REPORT_PATH")); configured != "" {
 		return configured
 	}
-	home, err := os.UserHomeDir()
+	home, err := userHomeDir()
 	if err != nil {
 		return filepath.Join(".vrooli", "data", "vrooli", "deployment-manager", "deployment", "deployment-report.json")
 	}
@@ -121,7 +141,7 @@ func readReportFact(path string, now time.Time, staleAfter time.Duration) (*offe
 }
 
 func (h *handlers) publishReportFact(ctx cliapp.OperationContext) (*offersv1.AddFactResponse, error) {
-	if h.offerClient == nil || strings.TrimSpace(os.Getenv("OFFER_DESK_API_BASE_URL")) == "" {
+	if h.offerClient == nil || strings.TrimSpace(h.getenv("OFFER_DESK_API_BASE_URL")) == "" {
 		return nil, fmt.Errorf("offer-desk is unavailable; deployment report fact was not published")
 	}
 	staleDays := 30
@@ -135,9 +155,9 @@ func (h *handlers) publishReportFact(ctx cliapp.OperationContext) (*offersv1.Add
 	}
 	reportPath := strings.TrimSpace(ctx.Flag("report-path"))
 	if reportPath == "" {
-		reportPath = defaultReportPath()
+		reportPath = defaultReportPath(h.getenv, h.userHomeDir)
 	}
-	fact, err := readReportFact(reportPath, time.Now().UTC(), time.Duration(staleDays)*24*time.Hour)
+	fact, err := readReportFact(reportPath, h.now().UTC(), time.Duration(staleDays)*24*time.Hour)
 	if err != nil {
 		return nil, err
 	}

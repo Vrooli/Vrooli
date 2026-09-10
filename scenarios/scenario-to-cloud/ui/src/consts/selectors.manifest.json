@@ -133,6 +133,142 @@
       "testId": "deploy-live-link",
       "selector": "[data-testid=\"deploy-live-link\"]"
     },
+    "console.identity": {
+      "testId": "console-identity",
+      "selector": "[data-testid=\"console-identity\"]"
+    },
+    "console.identityEnvironment": {
+      "testId": "console-identity-environment",
+      "selector": "[data-testid=\"console-identity-environment\"]"
+    },
+    "console.identityTarget": {
+      "testId": "console-identity-target",
+      "selector": "[data-testid=\"console-identity-target\"]"
+    },
+    "console.identityTransport": {
+      "testId": "console-identity-transport",
+      "selector": "[data-testid=\"console-identity-transport\"]"
+    },
+    "console.identityId": {
+      "testId": "console-identity-id",
+      "selector": "[data-testid=\"console-identity-id\"]"
+    },
+    "console.release": {
+      "testId": "console-release",
+      "selector": "[data-testid=\"console-release\"]"
+    },
+    "console.releaseDesired": {
+      "testId": "console-release-desired",
+      "selector": "[data-testid=\"console-release-desired\"]"
+    },
+    "console.releaseObserved": {
+      "testId": "console-release-observed",
+      "selector": "[data-testid=\"console-release-observed\"]"
+    },
+    "console.health": {
+      "testId": "console-health",
+      "selector": "[data-testid=\"console-health\"]"
+    },
+    "console.healthStatus": {
+      "testId": "console-health-status",
+      "selector": "[data-testid=\"console-health-status\"]"
+    },
+    "console.healthFreshness": {
+      "testId": "console-health-freshness",
+      "selector": "[data-testid=\"console-health-freshness\"]"
+    },
+    "console.healthObservedAt": {
+      "testId": "console-health-observed-at",
+      "selector": "[data-testid=\"console-health-observed-at\"]"
+    },
+    "console.healthProducer": {
+      "testId": "console-health-producer",
+      "selector": "[data-testid=\"console-health-producer\"]"
+    },
+    "console.operation": {
+      "testId": "console-operation",
+      "selector": "[data-testid=\"console-operation\"]"
+    },
+    "console.operationState": {
+      "testId": "console-operation-state",
+      "selector": "[data-testid=\"console-operation-state\"]"
+    },
+    "console.operationSteps": {
+      "testId": "console-operation-steps",
+      "selector": "[data-testid=\"console-operation-steps\"]"
+    },
+    "console.operationNextAction": {
+      "testId": "console-operation-next-action",
+      "selector": "[data-testid=\"console-operation-next-action\"]"
+    },
+    "console.operationReattach": {
+      "testId": "console-operation-reattach",
+      "selector": "[data-testid=\"console-operation-reattach\"]"
+    },
+    "console.operationCancel": {
+      "testId": "console-operation-cancel",
+      "selector": "[data-testid=\"console-operation-cancel\"]"
+    },
+    "console.recovery": {
+      "testId": "console-recovery",
+      "selector": "[data-testid=\"console-recovery\"]"
+    },
+    "console.recoveryPoints": {
+      "testId": "console-recovery-points",
+      "selector": "[data-testid=\"console-recovery-points\"]"
+    },
+    "console.recoveryRestore": {
+      "testId": "console-recovery-restore",
+      "selector": "[data-testid=\"console-recovery-restore\"]"
+    },
+    "console.review": {
+      "testId": "console-review",
+      "selector": "[data-testid=\"console-review\"]"
+    },
+    "console.reviewOpen": {
+      "testId": "console-review-open",
+      "selector": "[data-testid=\"console-review-open\"]"
+    },
+    "console.reviewApply": {
+      "testId": "console-review-apply",
+      "selector": "[data-testid=\"console-review-apply\"]"
+    },
+    "console.reviewChanges": {
+      "testId": "console-review-changes",
+      "selector": "[data-testid=\"console-review-changes\"]"
+    },
+    "console.reviewDataEffects": {
+      "testId": "console-review-data-effects",
+      "selector": "[data-testid=\"console-review-data-effects\"]"
+    },
+    "console.reviewHandoffLink": {
+      "testId": "console-review-handoff-link",
+      "selector": "[data-testid=\"console-review-handoff-link\"]"
+    },
+    "console.destructiveDialog": {
+      "testId": "console-destructive-dialog",
+      "selector": "[data-testid=\"console-destructive-dialog\"]"
+    },
+    "console.destructiveConfirmInput": {
+      "testId": "console-destructive-confirm-input",
+      "selector": "[data-testid=\"console-destructive-confirm-input\"]"
+    },
+    "console.destructiveConfirm": {
+      "testId": "console-destructive-confirm",
+      "selector": "[data-testid=\"console-destructive-confirm\"]"
+    },
+    "console.destructiveCancel": {
+      "testId": "console-destructive-cancel",
+      "selector": "[data-testid=\"console-destructive-cancel\"]"
+    },
+    "console.advancedToggle": {
+      "testId": "console-advanced-toggle",
+      "selector": "[data-testid=\"console-advanced-toggle\"]"
+    },
+    "console.denied": {
+      "testId": "console-denied",
+      "selector": "[data-testid=\"console-denied\"]"
+    },
     "docs.sidebar": {
       "testId": "docs-sidebar",
       "selector": "[data-testid=\"docs-sidebar\"]"
@@ -193,6 +329,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
-    "ui/src/consts/selectors.ts": "57fa75d9546a68347ff80bbc951ffbcf476d284f86b62e83bf3015353a9df08c"
+    "ui/src/consts/selectors.ts": "21552c009528d78e54263750db87e77c670206fe496115620e359ed328dcac86"
   }
 }

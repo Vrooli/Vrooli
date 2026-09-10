@@ -7,11 +7,18 @@ import (
 	"syscall"
 )
 
-func prepareCommand(cmd *exec.Cmd) {
+type processController struct{}
+
+func prepareCommand(cmd *exec.Cmd) (processController, error) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	return processController{}, nil
 }
 
-func terminateCommand(cmd *exec.Cmd) {
+func (processController) attach(*exec.Cmd) error { return nil }
+
+func (processController) close() {}
+
+func (processController) terminate(cmd *exec.Cmd) {
 	if cmd.Process == nil {
 		return
 	}

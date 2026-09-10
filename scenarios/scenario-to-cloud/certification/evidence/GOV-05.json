@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "case_id": "GOV-05",
+  "verdict": "passed",
+  "lane": "api",
+  "requirement_refs": [
+    "STC-P0-035"
+  ],
+  "candidate": {
+    "release_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "configuration_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "closure_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "target": {
+    "machine_id": "fixture-host-203.0.113.10",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "operation_refs": [],
+  "validation_receipt_ref": "go-test:scenarios/scenario-to-cloud/api/handlers_publication_test.go#TestPublicationRecordsTheTargetReceiptAndReconcilesLostReplies",
+  "artifact_refs": [
+    "scenarios/scenario-to-cloud/api/handlers_publication_test.go#TestPublicationRecordsTheTargetReceiptAndReconcilesLostReplies",
+    "scenarios/scenario-to-cloud/api/evidence/evidence_test.go#TestRecordActivationUsesTheTargetReceipt",
+    "scenarios/deployment-manager/api/deployments/cloud_governance_test.go#TestDeployCloudRecordsTheActivatedReleaseAndPredecessor"
+  ],
+  "assertions": [
+    "the published release and predecessor are the target's own active-release pointer; a pointer naming another release fails the publication",
+    "Deployment Manager records the activated release, predecessor, review key and evidence reference"
+  ],
+  "observed_at": "2026-09-09T15:00:00Z",
+  "limitations": [
+    "package/api lane only: proven against fakes (fake governance owner, fake target pointer reader, in-memory SQLite) inside the scenario test suites",
+    "real publication lane pending EXT-01 (real VPS target with the native control plane); workflow and real_vps lanes hold no receipt and stay missing"
+  ]
+}

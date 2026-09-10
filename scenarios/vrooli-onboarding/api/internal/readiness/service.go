@@ -7,21 +7,85 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/vrooli/vrooli/internal/credentialspec"
 	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/servicecall"
 )
 
 type Credential struct {
-	Resource     string `json:"resource"`
-	LogicalID    string `json:"logical_id"`
-	Field        string `json:"field"`
-	Label        string `json:"label"`
-	Description  string `json:"description,omitempty"`
-	ObtainURL    string `json:"obtain_url,omitempty"`
-	Provisioning string `json:"provisioning,omitempty"`
-	DerivedFrom  string `json:"derived_from,omitempty"`
-	Required     bool   `json:"required"`
-	Status       string `json:"status"`
-	Detail       string `json:"detail,omitempty"`
+	Version              string                               `json:"version,omitempty"`
+	Resource             string                               `json:"resource"`
+	LogicalID            string                               `json:"logical_id"`
+	Field                string                               `json:"field"`
+	Owner                string                               `json:"owner,omitempty"`
+	SourceRef            string                               `json:"source_ref,omitempty"`
+	Kind                 string                               `json:"kind,omitempty"`
+	Provider             string                               `json:"provider,omitempty"`
+	AppliesWhen          *credentialspec.Applicability        `json:"applies_when,omitempty"`
+	RequirementGroup     string                               `json:"requirement_group,omitempty"`
+	ConsumerRefs         []string                             `json:"consumer_refs,omitempty"`
+	CompanionSettings    []string                             `json:"companion_settings,omitempty"`
+	CompanionCredentials []string                             `json:"companion_credentials,omitempty"`
+	AcquisitionRef       string                               `json:"acquisition_ref,omitempty"`
+	VerificationRef      string                               `json:"verification_ref,omitempty"`
+	RecoveryRef          string                               `json:"recovery_ref,omitempty"`
+	HelpRef              string                               `json:"help_ref,omitempty"`
+	EvidencePolicy       string                               `json:"evidence_policy,omitempty"`
+	ProviderVersion      string                               `json:"provider_version,omitempty"`
+	MigrationDiagnostics []credentialspec.MigrationDiagnostic `json:"migration_diagnostics,omitempty"`
+	Provenance           []CredentialProvenance               `json:"provenance,omitempty"`
+	Label                string                               `json:"label"`
+	Description          string                               `json:"description,omitempty"`
+	ObtainURL            string                               `json:"obtain_url,omitempty"`
+	Provisioning         string                               `json:"provisioning,omitempty"`
+	DerivedFrom          string                               `json:"derived_from,omitempty"`
+	Required             bool                                 `json:"required"`
+	Status               string                               `json:"status"`
+	Detail               string                               `json:"detail,omitempty"`
+	// EvidenceStatus is deliberately separate from Status. Status answers
+	// whether the value is present in the configured store; evidence answers
+	// whether the owning provider has actually exercised and verified it.
+	// A stored value must never be presented as exercised readiness.
+	EvidenceStatus string `json:"evidence_status,omitempty"`
+	EvidenceDetail string `json:"evidence_detail,omitempty"`
+}
+
+type CredentialProvenance struct {
+	Version              string                         `json:"version,omitempty"`
+	Owner                string                         `json:"owner"`
+	SourceRef            string                         `json:"source_ref"`
+	Kind                 string                         `json:"kind,omitempty"`
+	Provider             string                         `json:"provider,omitempty"`
+	AppliesWhen          *credentialspec.Applicability  `json:"applies_when,omitempty"`
+	RequirementGroup     string                         `json:"requirement_group,omitempty"`
+	ConsumerRefs         []string                       `json:"consumer_refs,omitempty"`
+	CompanionSettings    []string                       `json:"companion_settings,omitempty"`
+	CompanionCredentials []string                       `json:"companion_credentials,omitempty"`
+	AcquisitionRef       string                         `json:"acquisition_ref,omitempty"`
+	VerificationRef      string                         `json:"verification_ref,omitempty"`
+	RecoveryRef          string                         `json:"recovery_ref,omitempty"`
+	HelpRef              string                         `json:"help_ref,omitempty"`
+	EvidencePolicy       string                         `json:"evidence_policy,omitempty"`
+	ProviderVersion      string                         `json:"provider_version,omitempty"`
+	Env                  string                         `json:"env,omitempty"`
+	Label                string                         `json:"label,omitempty"`
+	Description          string                         `json:"description,omitempty"`
+	ObtainURL            string                         `json:"obtain_url,omitempty"`
+	Provisioning         string                         `json:"provisioning,omitempty"`
+	DerivedFrom          string                         `json:"derived_from,omitempty"`
+	Required             bool                           `json:"required"`
+	Consumers            []CredentialConsumerProvenance `json:"consumers,omitempty"`
+}
+
+type CredentialConsumerProvenance struct {
+	LogicalID      string   `json:"logical_id,omitempty"`
+	AddressPattern string   `json:"address_pattern,omitempty"`
+	Field          string   `json:"field,omitempty"`
+	Kind           string   `json:"kind"`
+	Consumer       string   `json:"consumer"`
+	SourceRef      string   `json:"source_ref"`
+	Required       bool     `json:"required"`
+	Reason         string   `json:"reason,omitempty"`
+	Tiers          []string `json:"tiers,omitempty"`
 }
 
 type Item struct {

@@ -20,7 +20,7 @@ func TestGetReadinessProjectsTheRichTypedVerdict(t *testing.T) {
 	handler := NewConnectHandler(internalreadiness.Service{Evaluate: func(context.Context, string) (internalreadiness.Response, error) {
 		return internalreadiness.Response{
 			Status: "missing", Scenarios: []string{"alpha"},
-			Credentials: []internalreadiness.Credential{{LogicalID: "vrooli/demo", Field: "token", Status: "unconfigured", Required: true}},
+			Credentials: []internalreadiness.Credential{{LogicalID: "vrooli/demo", Field: "token", Status: "unconfigured", EvidenceStatus: "unavailable", EvidenceDetail: "No stored value is available to verify.", Required: true}},
 			Blockers:    []internalreadiness.CompletionBlocker{{Kind: "credential", Name: "vrooli/demo:token", Reason: "missing", Remediation: "configure it"}},
 		}, nil
 	}})
@@ -33,6 +33,34 @@ func TestGetReadinessProjectsTheRichTypedVerdict(t *testing.T) {
 	}
 	if response.Msg.GetCredentials()[0].GetLegacyStatus() != "unconfigured" {
 		t.Fatalf("credential status was not preserved: %+v", response.Msg.GetCredentials()[0])
+	}
+	if response.Msg.GetCredentials()[0].GetEvidenceStatus() != "unavailable" || response.Msg.GetCredentials()[0].GetEvidenceDetail() == "" {
+		t.Fatalf("credential evidence was not preserved: %+v", response.Msg.GetCredentials()[0])
+	}
+}
+
+func TestGetReadinessPreservesCredentialProvenance(t *testing.T) {
+	handler := NewConnectHandler(internalreadiness.Service{Evaluate: func(context.Context, string) (internalreadiness.Response, error) {
+		return internalreadiness.Response{
+			Credentials: []internalreadiness.Credential{{
+				LogicalID: "vrooli/shared", Field: "token", Owner: "alpha", SourceRef: "/repo/alpha/.vrooli/service.json", Kind: "authority", ConsumerRefs: []string{"alpha broker"},
+				Provenance: []internalreadiness.CredentialProvenance{{
+					Owner: "alpha", SourceRef: "/repo/alpha/.vrooli/service.json",
+					Consumers: []internalreadiness.CredentialConsumerProvenance{{Kind: "delegated", Consumer: "alpha broker", SourceRef: "/repo/alpha/api/client.go:7", Required: true}},
+				}},
+			}},
+		}, nil
+	}})
+	response, err := handler.GetReadiness(context.Background(), connect.NewRequest(&readinessv1.GetReadinessRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	credential := response.Msg.GetCredentials()[0]
+	if credential.GetOwner() != "alpha" || credential.GetSourceRef() == "" || len(credential.GetConsumerRefs()) != 1 || len(credential.GetProvenance()) != 1 || len(credential.GetProvenance()[0].GetConsumers()) != 1 {
+		t.Fatalf("credential provenance = %+v", credential)
+	}
+	if credential.GetProvenance()[0].GetConsumers()[0].GetSourceRef() != "/repo/alpha/api/client.go:7" {
+		t.Fatalf("consumer provenance = %+v", credential.GetProvenance()[0].GetConsumers()[0])
 	}
 }
 

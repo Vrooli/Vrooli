@@ -973,6 +973,29 @@
           }
         },
         {
+          "path": "reference/credential-delivery.md",
+          "docType": "reference",
+          "title": "Credential Delivery",
+          "aliases": [
+            "credentials",
+            "credential-delivery"
+          ],
+          "description": "Consent, sealing, delivery, receipt, and revocation behavior for node-bound credentials",
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "credential-delivery"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
           "path": "reference/ui-manifest.md",
           "docType": "ui-manifest-reference",
           "title": "UI Manifest",

@@ -16,15 +16,18 @@ import (
 )
 
 type handlers struct {
-	core   *cliapp.ScenarioApp
-	client gateconnect.GateServiceClient
+	core       *cliapp.ScenarioApp
+	client     gateconnect.GateServiceClient
+	waitClient gateconnect.GateServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := session.NewConnectHTTPClient(core)
+	waitHTTPClient, waitBaseURL := session.NewConnectHTTPClientWithTimeout(core, 2*time.Hour)
 	return &handlers{
-		core:   core,
-		client: gateconnect.NewGateServiceClient(httpClient, baseURL),
+		core:       core,
+		client:     gateconnect.NewGateServiceClient(httpClient, baseURL),
+		waitClient: gateconnect.NewGateServiceClient(waitHTTPClient, waitBaseURL),
 	}
 }
 
@@ -93,7 +96,7 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 // target OS passed — so a deployment-manager / CI caller can gate on the code.
 func (h *handlers) wait(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
-	resp, err := h.client.WaitGate(context.Background(), connect.NewRequest(&gatev1.WaitGateRequest{
+	resp, err := h.waitClient.WaitGate(context.Background(), connect.NewRequest(&gatev1.WaitGateRequest{
 		Id:             id,
 		TimeoutSeconds: parseInt64(ctx.Flag("timeout")),
 	}))

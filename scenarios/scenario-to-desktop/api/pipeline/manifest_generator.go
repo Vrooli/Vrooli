@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	serviceauth "scenario-to-desktop-api/shared/auth"
 	sharedpath "scenario-to-desktop-api/shared/path"
 )
 
@@ -127,6 +128,9 @@ func (g *DeploymentManagerGenerator) GenerateManifest(ctx context.Context, scena
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	if token := serviceauth.DeploymentManagerServiceToken(); token != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	resp, err := g.client.Do(httpReq)
 	if err != nil {

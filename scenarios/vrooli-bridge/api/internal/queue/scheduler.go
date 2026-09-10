@@ -71,7 +71,7 @@ func newScheduler(pusher Pusher, aborter Aborter, clk schedule.Clock, limit int,
 		running:       make(map[string]map[string]Entry),
 		queued:        make(map[string][]Entry),
 		promoting:     make(map[string]bool),
-		deliveryLease: 10 * time.Second,
+		deliveryLease: DefaultDeliveryLease,
 	}
 	for _, opt := range opts {
 		opt(s)

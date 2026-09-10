@@ -1,16 +1,19 @@
 package main
 
 import (
+	"context"
 	"strings"
 	"testing"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/execplan"
 	"scenario-to-cloud/vps"
 )
 
-func TestBuildDeployPlanIncludesCaddyAndScenarioStart(t *testing.T) {
+func TestBuildDeployPlanRoutesThroughTargetOwnerVerbs(t *testing.T) {
 	// [REQ:STC-P0-005] Start resources + scenario and verify HTTPS
 	// [REQ:STC-P0-011] Caddy + Let's Encrypt configured and verified
+	// [REQ:STC-P0-028] Activation and routing are target owner verbs
 	manifest := domain.CloudManifest{
 		Version: "1.0.0",
 		Target: domain.ManifestTarget{
@@ -37,78 +40,48 @@ func TestBuildDeployPlanIncludesCaddyAndScenarioStart(t *testing.T) {
 		t.Fatalf("vps.BuildDeployPlan: %v", err)
 	}
 
-	var hasCaddy, hasTargetStart, hasExportedPorts, hasHTTPS bool
+	got := map[string]domain.VPSPlanStep{}
 	for _, step := range plan {
-		if step.ID == "caddy_install" || step.ID == "caddy_config" {
-			hasCaddy = true
-		}
-		if step.ID == "scenario_start_target" {
-			// Check that ports are properly exported (not just set inline)
-			if strings.Contains(step.Command, "export API_PORT=3001 METRICS_PORT=3002 UI_PORT=3000") {
-				hasExportedPorts = true
-			}
-			// Implementation now uses "restart" to ensure code is rebuilt
-			if strings.Contains(step.Command, "vrooli scenario restart") {
-				hasTargetStart = true
-			}
-		}
-		if step.ID == "verify_https" && strings.Contains(step.Command, "https://example.com/health") {
-			hasHTTPS = true
+		got[step.ID] = step
+	}
+	for _, id := range []string{execplan.OpRuntimeStartDeps, execplan.OpWorkloadStop, execplan.OpReleaseActivate, execplan.OpEdgeRouteApply, execplan.OpVerifyReadiness} {
+		if _, ok := got[id]; !ok {
+			t.Fatalf("expected action %s in runtime plan: %+v", id, plan)
 		}
 	}
-	if !hasCaddy {
-		t.Fatalf("expected caddy steps in plan")
+	if _, ok := got[execplan.OpWorkloadStart]; ok {
+		t.Fatalf("runtime plan activates through the target owner; workload.start belongs to the start scope: %+v", plan)
 	}
-	if !hasTargetStart {
-		t.Fatalf("expected scenario_start_target step with vrooli scenario start")
+	if cmd := got[execplan.OpEdgeRouteApply].Command; !strings.Contains(cmd, "route-apply") || !strings.Contains(cmd, "--spec") || !strings.Contains(cmd, "b64:") {
+		t.Fatalf("edge routing must be the target owner's route-apply verb with a typed spec: %s", cmd)
 	}
-	if !hasExportedPorts {
-		t.Fatalf("expected port environment variables to be exported (not just inline)")
+	// An ad hoc runtime plan has no built release beside it: the activation
+	// preview renders the owner's refusal instead of a shell overlay, and the
+	// typed inputs still pin the listener ports for the owner verb.
+	if cmd := got[execplan.OpReleaseActivate].Command; !strings.Contains(cmd, "not part of a built release") || strings.Contains(cmd, "export ") {
+		t.Fatalf("activation preview without a built release must render the refusal, never an exported environment: %s", cmd)
 	}
-	if !hasHTTPS {
-		t.Fatalf("expected verify_https step")
+	executable, err := vps.BuildDeployExecutablePlan(context.Background(), manifest, execplan.ScopeRuntime)
+	if err != nil {
+		t.Fatalf("BuildDeployExecutablePlan: %v", err)
 	}
-}
-
-func TestBuildPortEnvVars(t *testing.T) {
-	tests := []struct {
-		name     string
-		ports    domain.ManifestPorts
-		expected string
-	}{
-		{
-			name:     "empty ports",
-			ports:    domain.ManifestPorts{},
-			expected: "",
-		},
-		{
-			name:     "single port",
-			ports:    domain.ManifestPorts{"api": 8080},
-			expected: "export API_PORT=8080 &&",
-		},
-		{
-			name:     "multiple ports sorted",
-			ports:    domain.ManifestPorts{"ui": 3000, "api": 8080, "metrics": 9000},
-			expected: "export API_PORT=8080 METRICS_PORT=9000 UI_PORT=3000 &&",
-		},
+	if activate := executable.Action(execplan.OpReleaseActivate); activate == nil || activate.Inputs["ports"] != "api=3001,metrics=3002,ui=3000" || activate.Inputs["strategy"] != execplan.StrategyMaintenance {
+		t.Fatalf("activation must carry the pinned ports and the selected strategy: %+v", executable.Action(execplan.OpReleaseActivate))
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := vps.BuildPortEnvVars(tt.ports)
-			if result != tt.expected {
-				t.Errorf("BuildPortEnvVars(%v) = %q, want %q", tt.ports, result, tt.expected)
+	if cmd := got[execplan.OpWorkloadStop].Command; !strings.Contains(cmd, "process.stop.scoped") || strings.Contains(cmd, "pkill") {
+		t.Fatalf("workload.stop must be the scoped lifecycle stop: %s", cmd)
+	}
+	if cmd := got[execplan.OpRuntimeStartDeps].Command; !strings.Contains(cmd, "resource") || !strings.Contains(cmd, "postgres") {
+		t.Fatalf("dependencies must start through the resource owner: %s", cmd)
+	}
+	if cmd := got[execplan.OpVerifyReadiness].Command; !strings.Contains(cmd, "https://example.com/health") || !strings.Contains(cmd, "release") || !strings.Contains(cmd, "list") {
+		t.Fatalf("readiness must prove the active pointer and the public path: %s", cmd)
+	}
+	for _, step := range plan {
+		for _, fragment := range []string{"&& rm", "pkill", "kill -9", "ufw allow", "apt-get"} {
+			if strings.Contains(step.Command, fragment) {
+				t.Fatalf("step %s preview carries a private shell path %q: %s", step.ID, fragment, step.Command)
 			}
-		})
-	}
-}
-
-func TestBuildWaitForPortScriptUsesHomeEnv(t *testing.T) {
-	script := vps.BuildWaitForPortScript("127.0.0.1", 35000, 10, "UI")
-	if strings.Contains(script, "~/.vrooli") {
-		t.Fatalf("expected wait script to avoid ~ expansion in logs path")
-	}
-	if !strings.Contains(script, "$HOME/.vrooli") {
-		t.Fatalf("expected wait script to use $HOME for logs path")
+		}
 	}
 }

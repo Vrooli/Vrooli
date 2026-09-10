@@ -224,7 +224,7 @@ func TestPurposeProfileJourneyUsesGeneratedAPIAndCLI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !evaluated.Msg.GetValid() || !containsString(evaluated.Msg.GetScenarios(), "scenario-to-ios") || !containsString(evaluated.Msg.GetScenarios(), "scenario-to-cloud") {
+	if !evaluated.Msg.GetValid() || evaluated.Msg.GetDigest() == "" || len(evaluated.Msg.GetExplanations()) == 0 || !containsString(evaluated.Msg.GetScenarios(), "scenario-to-ios") || !containsString(evaluated.Msg.GetScenarios(), "scenario-to-cloud") {
 		t.Fatalf("generated API profile evaluation did not produce publishing closure: %+v", evaluated.Msg)
 	}
 	customerAnswers, err := structpb.NewStruct(map[string]any{

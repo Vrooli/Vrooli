@@ -105,7 +105,7 @@ func statusToProto(status operatorcapability.Status) *capabilitiesv1.CapabilityS
 func descriptorToProto(descriptor operatorcapability.Descriptor) *capabilitiesv1.CapabilityDescriptor {
 	inputs := make([]*capabilitiesv1.CapabilityInputDescriptor, 0, len(descriptor.Inputs))
 	for _, input := range descriptor.Inputs {
-		inputs = append(inputs, &capabilitiesv1.CapabilityInputDescriptor{Id: input.ID, Kind: string(input.Kind), Label: input.Label, Description: input.Description, Required: input.Required, Declinable: input.Declinable, Options: input.Options, DefaultValue: input.Default, Candidates: candidatesToProto(input.Candidates), Validation: input.Validation, Constraints: &capabilitiesv1.CapabilityInputConstraints{MinLength: int32(input.Constraints.MinLength), MaxLength: int32(input.Constraints.MaxLength), MinDuration: input.Constraints.MinDuration, MaxDuration: input.Constraints.MaxDuration}})
+		inputs = append(inputs, &capabilitiesv1.CapabilityInputDescriptor{Id: input.ID, Kind: string(input.Kind), Label: input.Label, Description: input.Description, Required: input.Required, Declinable: input.Declinable, Options: input.Options, DefaultValue: input.Default, Candidates: candidatesToProto(input.Candidates), Validation: input.Validation, Constraints: &capabilitiesv1.CapabilityInputConstraints{MinLength: int32(input.Constraints.MinLength), MaxLength: int32(input.Constraints.MaxLength), MinDuration: input.Constraints.MinDuration, MaxDuration: input.Constraints.MaxDuration}, CredentialLogicalId: input.CredentialLogicalID, CredentialField: input.CredentialField, Provider: input.Provider, RequirementGroup: input.RequirementGroup, ConsumerRefs: input.ConsumerRefs, CompanionSettings: input.CompanionSettings, AcquisitionRef: input.AcquisitionRef, VerificationRef: input.VerificationRef, RecoveryRef: input.RecoveryRef, HelpRef: input.HelpRef, EvidencePolicy: input.EvidencePolicy})
 	}
 	return &capabilitiesv1.CapabilityDescriptor{
 		Version: descriptor.Version, Id: descriptor.ID, Owner: descriptor.Owner, Title: descriptor.Title, Description: descriptor.Description, Risk: descriptor.Risk,
@@ -130,7 +130,11 @@ func candidatesToProto(candidates []operatorcapability.Candidate) []*capabilitie
 func evidenceToProto(evidence []operatorcapability.EvidenceReference) []*capabilitiesv1.CapabilityEvidence {
 	result := make([]*capabilitiesv1.CapabilityEvidence, 0, len(evidence))
 	for _, item := range evidence {
-		result = append(result, &capabilitiesv1.CapabilityEvidence{Kind: item.Kind, ArtifactIdentity: item.ArtifactIdentity, SourceGeneration: item.SourceGeneration, Checksum: item.Checksum, Coverage: item.Coverage, ObservedAt: timestamp(item.ObservedAt), Verified: item.Verified, Remediation: item.Remediation})
+		var credentialRef *capabilitiesv1.CredentialEvidenceRef
+		if item.CredentialRef != nil {
+			credentialRef = &capabilitiesv1.CredentialEvidenceRef{LogicalId: item.CredentialRef.LogicalID, Field: item.CredentialRef.Field, Version: item.CredentialRef.Version}
+		}
+		result = append(result, &capabilitiesv1.CapabilityEvidence{Kind: item.Kind, ArtifactIdentity: item.ArtifactIdentity, SourceGeneration: item.SourceGeneration, Checksum: item.Checksum, Coverage: item.Coverage, ObservedAt: timestamp(item.ObservedAt), Verified: item.Verified, Remediation: item.Remediation, SchemaVersion: item.SchemaVersion, CapabilityId: item.CapabilityID, CredentialRef: credentialRef, TargetId: item.TargetID, Environment: item.Environment, AccountIdentity: item.AccountIdentity, Operation: item.Operation, Status: item.Status, ExpiresAt: timestamp(item.ExpiresAt), ArtifactRefs: item.ArtifactRefs, Limitations: item.Limitations, NextAction: item.NextAction, EffectClass: item.EffectClass, EffectsUsed: int32(item.EffectsUsed), CleanupCompleted: item.CleanupCompleted})
 	}
 	return result
 }

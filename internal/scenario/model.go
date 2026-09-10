@@ -713,6 +713,11 @@ func ReadService(path string) (ServiceManifest, error) {
 	if err := hostreqspec.ValidateDeclarations(hostreqspec.KindSafeguard, manifest.HostSafeguards); err != nil {
 		return ServiceManifest{}, fmt.Errorf("validate hostSafeguards in %s: %w", path, err)
 	}
+	for _, capability := range manifest.Capabilities {
+		if err := capability.Validate(); err != nil {
+			return ServiceManifest{}, fmt.Errorf("validate operator capability %q: %w", capability.CapabilityID, err)
+		}
+	}
 	if err := manifest.Dependencies.Validate(); err != nil {
 		return ServiceManifest{}, fmt.Errorf("validate dependencies in %s: %w", path, err)
 	}

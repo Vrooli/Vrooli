@@ -2,6 +2,12 @@
 
 Commands for validating, packaging, deploying, and monitoring scenarios.
 
+The legacy command details below are retained as historical reference. In the
+current production CLI registry, `build`, `logs`, `validate`, and
+`estimate-cost` return retirement guidance because their REST handlers are no
+longer mounted. Use typed release preparation, readiness/evidence, operation
+standing, and destination review commands for the governed commercial path.
+
 ---
 
 ## Command Implementation Status
@@ -24,18 +30,18 @@ or missing the native evidence required for promotion.
 | Command | Status | Notes |
 |---------|--------|-------|
 | `deploy-desktop` | **Working** | Implemented desktop deployment pipeline; release claims remain evidence-gated |
-| `build` | **Working** | Cross-compile service binaries for all platforms |
-| `validate` | **Working** | Full pre-flight validation |
+| `build` | **Retired** | Use typed release preparation and candidate operations |
+| `validate` | **Retired** | Use readiness review and evidence operations |
 | `deploy` | **Stub** | Generic deploy (use `deploy-desktop` for tier 2) |
 | `deployment status` | **Stub** | Returns mock data |
 | `package` | **Stub** | Deprecated shim; prints guidance to use `deploy-desktop` |
 | `packagers list` | **Stub** | Deprecated; returns static packager hints |
 | `packagers discover` | **Stub** | Same static output; no discovery performed |
-| `logs` | **Working** | Full telemetry filtering |
-| `estimate-cost` | **Partial** | AWS only; basic estimates |
-| `bundle assemble` | **Working** | Assemble bundle manifest from scenario |
+| `logs` | **Retired** | Use operation standing and owner receipts |
+| `estimate-cost` | **Retired** | Use typed release and destination review surfaces |
+| `bundle assemble` | **Retired** | Use typed release preparation and candidate operations |
 | `bundle export` | **Working** | Export release-candidate manifest with checksum |
-| `bundle validate` | **Working** | Validate bundle.json against schema |
+| `bundle validate` | **Retired** | Use readiness review and evidence operations |
 
 > **Recommended for Desktop Deployment**: Use `deploy-desktop` - it orchestrates the entire pipeline (manifest, binaries, Electron wrapper, installers) in a single command.
 

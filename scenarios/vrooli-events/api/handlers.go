@@ -23,6 +23,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -158,6 +159,29 @@ func validateEnvelope(env *domain.EventEnvelope) *envelopeValidationError {
 			return &envelopeValidationError{Field: r.field, Message: r.message}
 		}
 	}
+	for i, reference := range env.WorkReferences {
+		if reference == nil {
+			return &envelopeValidationError{Field: fmt.Sprintf("workReferences[%d]", i), Message: "work reference must not be null"}
+		}
+		if reference.Visibility == domain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_UNSPECIFIED {
+			reference.Visibility = domain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC
+		}
+		if reference.State == domain.WorkReferenceState_WORK_REFERENCE_STATE_UNSPECIFIED {
+			reference.State = domain.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE
+		}
+		if reference.SourceEventId == "" {
+			reference.SourceEventId = env.EventId
+		}
+		if reference.SourceRunId == "" && env.Correlation != nil {
+			reference.SourceRunId = env.Correlation.AgentRunId
+		}
+		if reference.State != domain.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE && strings.TrimSpace(reference.UnavailableReason) == "" {
+			return &envelopeValidationError{Field: fmt.Sprintf("workReferences[%d].unavailableReason", i), Message: "non-active work references require unavailable_reason"}
+		}
+		if reference.State == domain.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE && (strings.TrimSpace(reference.Kind) == "" || strings.TrimSpace(reference.Id) == "" || strings.TrimSpace(reference.Relationship) == "") {
+			return &envelopeValidationError{Field: fmt.Sprintf("workReferences[%d]", i), Message: "active work reference kind, id, and relationship are required"}
+		}
+	}
 	return nil
 }
 
@@ -176,6 +200,10 @@ func parseQueryFilters(q map[string][]string) (store.QueryFilters, *paramError) 
 		Source:        get("source"),
 		Target:        get("target"),
 		CorrelationID: get("correlation_id"),
+		EventID:       get("event_id"),
+		WorkKind:      get("work_kind"),
+		WorkID:        get("work_id"),
+		Visibility:    get("visibility"),
 	}
 	// agent_run_id is the canonical receipt correlation query. The storage
 	// index intentionally reuses the correlation column for this one universal
@@ -198,6 +226,9 @@ func parseQueryFilters(q map[string][]string) (store.QueryFilters, *paramError) 
 			return filters, &paramError{Param: "limit", Message: "limit must be an integer"}
 		}
 		filters.Limit = n
+	}
+	if visibility := get("visibility"); visibility != "" && visibility != "public" && visibility != "private" {
+		return filters, &paramError{Param: "visibility", Message: "visibility must be public or private"}
 	}
 
 	return filters, nil
@@ -332,9 +363,6 @@ func filterCanonicalEvents(events []store.Event, query map[string][]string) []st
 		return ""
 	}
 	workflow, node, task := get("workflow_execution_id"), get("workflow_node_id"), get("task_id")
-	if workflow == "" && node == "" && task == "" {
-		return events
-	}
 	filtered := make([]store.Event, 0, len(events))
 	for _, event := range events {
 		env, err := convert.EventToEnvelope(event)
@@ -342,11 +370,73 @@ func filterCanonicalEvents(events []store.Event, query map[string][]string) []st
 			continue
 		}
 		correlation := env.GetCorrelation()
-		if (workflow == "" || correlation.GetWorkflowExecutionId() == workflow) && (node == "" || correlation.GetWorkflowNodeId() == node) && (task == "" || correlation.GetTaskId() == task) {
-			filtered = append(filtered, event)
+		if workflow != "" && correlation.GetWorkflowExecutionId() != workflow {
+			continue
 		}
+		if node != "" && correlation.GetWorkflowNodeId() != node {
+			continue
+		}
+		if task != "" && correlation.GetTaskId() != task {
+			continue
+		}
+		matchedReference := false
+		workKind, workID, visibility := get("work_kind"), get("work_id"), get("visibility")
+		for _, reference := range env.WorkReferences {
+			if workKind != "" && reference.GetKind() != workKind {
+				continue
+			}
+			if workID != "" && reference.GetId() != workID {
+				continue
+			}
+			if visibility != "" && workReferenceVisibilityName(reference.GetVisibility()) != visibility {
+				continue
+			}
+			matchedReference = workKind != "" || workID != "" || visibility != ""
+			break
+		}
+		if (workKind != "" || workID != "" || visibility != "") && !matchedReference {
+			continue
+		}
+		if sanitizePrivateReferences(env) {
+			payload, marshalErr := proto.Marshal(env)
+			if marshalErr != nil {
+				continue
+			}
+			event.Payload = payload
+		}
+		filtered = append(filtered, event)
 	}
 	return filtered
+}
+
+func workReferenceVisibilityName(visibility domain.WorkReferenceVisibility) string {
+	if visibility == domain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PRIVATE {
+		return "private"
+	}
+	return "public"
+}
+
+// sanitizePrivateReferences keeps the existence of withheld evidence visible
+// without returning private work identifiers to an unauthenticated query.
+func sanitizePrivateReferences(env *domain.EventEnvelope) bool {
+	changed := false
+	for _, reference := range env.WorkReferences {
+		if reference.GetVisibility() != domain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PRIVATE {
+			continue
+		}
+		reference.Kind = ""
+		reference.Id = ""
+		reference.Revision = ""
+		reference.Relationship = ""
+		reference.SourceEventId = ""
+		reference.SourceRunId = ""
+		reference.EvidenceDigest = ""
+		reference.Verified = false
+		reference.State = domain.WorkReferenceState_WORK_REFERENCE_STATE_UNAVAILABLE
+		reference.UnavailableReason = "private work-reference evidence withheld"
+		changed = true
+	}
+	return changed
 }
 
 // writeEventList serializes a slice of store.Event as a JSON array of proto EventEnvelopes.

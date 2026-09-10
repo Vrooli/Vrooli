@@ -160,6 +160,22 @@ func TestManagerStartActivePipelineBlockingStartsIdleAndReplacesTerminalPipeline
 	})
 }
 
+func TestManagerBuildConfigPreservesGovernedArtifactBinding(t *testing.T) {
+	manager := &Manager{}
+	config := manager.buildConfig("demo", &PipelineConfig{
+		ArtifactTrustMode:       "production",
+		ArtifactManifestDigest:  "sha256:manifest",
+		ExpectedArtifactDigests: map[string]string{"linux-x64": "sha512:artifact"},
+	})
+
+	if config.ArtifactTrustMode != "production" || config.ArtifactManifestDigest != "sha256:manifest" {
+		t.Fatalf("governed artifact identity was dropped: %#v", config)
+	}
+	if config.ExpectedArtifactDigests["linux-x64"] != "sha512:artifact" {
+		t.Fatalf("expected target digest was dropped: %#v", config.ExpectedArtifactDigests)
+	}
+}
+
 type orchestratorOnly struct{ mockOrchestrator *mockOrchestrator }
 
 func (o *orchestratorOnly) RunPipeline(ctx context.Context, config *PipelineConfig) (*Status, error) {

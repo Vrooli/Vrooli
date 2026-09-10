@@ -43,3 +43,27 @@ func TestReviewIdentityKeyIncludesEveryIdentityDimension(t *testing.T) {
 		}
 	}
 }
+
+func TestReleaseBindingDimensionsAreOptionalForLegacyReviewsButKeyedWhenPresent(t *testing.T) {
+	legacy := ReviewIdentity{Scenario: "demo", ProfileID: "p1", CandidateCommit: "abc", ArtifactDigest: "sha256:one", Targets: []string{"linux"}, Channel: "stable", PolicyVersion: 2}
+	bound := legacy
+	bound.CandidateID = "candidate-1"
+	bound.DestinationRevisionID = "destination-1"
+	bound.AuthorizationEpoch = 1
+	legacyKey, err := legacy.Key()
+	if err != nil {
+		t.Fatal(err)
+	}
+	boundKey, err := bound.Key()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacyKey == boundKey {
+		t.Fatal("release binding did not change the review key")
+	}
+	invalid := bound
+	invalid.AuthorizationEpoch = 0
+	if _, err := invalid.Key(); err == nil {
+		t.Fatal("incomplete release binding was accepted")
+	}
+}

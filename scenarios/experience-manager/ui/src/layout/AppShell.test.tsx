@@ -25,29 +25,31 @@ describe("AppShell structure (cimode)", () => {
     cleanup();
   });
 
-  it("renders the title, sidebar, bottom nav, and main outlet", () => {
+  it("renders the title, sidebar, bottom nav, and main outlet", async () => {
     renderShell();
-    expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.topBar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.sidebar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.bottomNav)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.layout.shell)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-header`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-sidebar`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-tabs`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-main`)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });
 
-  it("keeps locale controls on Settings instead of the top bar", () => {
+  it("keeps locale controls on Settings instead of the top bar", async () => {
     renderShell(["/settings"]);
+    await screen.findByTestId(selectors.settingsPage.localeOption({ code: "en" }));
     expect(screen.queryByTestId(selectors.locale.switcher)).not.toBeInTheDocument();
     expect(screen.getByTestId(selectors.settingsPage.localeOption({ code: "en" }))).toBeInTheDocument();
     expect(screen.getByTestId(selectors.settingsPage.localeOption({ code: "ja" }))).toBeInTheDocument();
     expect(screen.getByTestId(selectors.settingsPage.localeOption({ code: "ar" }))).toBeInTheDocument();
   });
 
-  it("renders the canonical nav links in both sidebar and bottom nav", () => {
+  it("renders the canonical nav links in both sidebar and bottom nav", async () => {
     renderShell();
+    await screen.findByTestId(selectors.layout.sidebarLink({ key: "fleet" }));
     for (const { key } of NAV_ITEMS) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
-      expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
+      expect(screen.getByTestId(`${selectors.layout.sidebarLink({ key })}-tab`)).toBeInTheDocument();
     }
   });
 });

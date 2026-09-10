@@ -40,6 +40,8 @@ export interface ReadinessResponse {
     derived_from?: string;
     status: string;
     detail?: string;
+    evidence_status?: string;
+    evidence_detail?: string;
   }>;
   hosts: ReadinessItem[];
   integrations: ReadinessItem[];
@@ -73,12 +75,19 @@ function toReadinessResponse(response: GetReadinessResponse): ReadinessResponse 
     status: stateName(response.status),
     scenarios: response.scenarios,
     resources: response.resources,
-    credentials: response.credentials.map((item) => ({
+    credentials: response.credentials.map((item) => {
+      // Keep compatibility with an already-installed generated proto package
+      // while the workspace package is refreshed. New builds expose these
+      // fields directly; an absent field is safely treated as unverified.
+      const evidence = item as typeof item & { evidenceStatus?: string; evidenceDetail?: string };
+      return {
       resource: item.resource, logical_id: item.logicalId, field: item.field, label: item.label,
       description: item.description, obtain_url: item.obtainUrl, required: item.required,
       provisioning: item.provisioning, derived_from: item.derivedFrom,
       status: item.legacyStatus || stateName(item.status), detail: item.detail,
-    })),
+      evidence_status: evidence.evidenceStatus, evidence_detail: evidence.evidenceDetail,
+      };
+    }),
     hosts: response.hosts.map((host) => itemFromProto(host.item, host.kind, host.required)),
     integrations: response.integrations.map((item) => itemFromProto(item)),
     checked_at: response.checkedAt ? timestampDate(response.checkedAt).toISOString() : "",

@@ -49,6 +49,13 @@ func TestSQLiteStoreCreatesUpdatesAndQueriesInstance(t *testing.T) {
 	if updated.Status != StatusRunning || updated.Phase != "ready" {
 		t.Fatalf("updated = status %q phase %q, want running/ready", updated.Status, updated.Phase)
 	}
+	identityUpdated, err := store.UpdateInstanceBuildIdentity(ctx, created.InstanceID, created.Generation, "sha256:alpha")
+	if err != nil {
+		t.Fatalf("UpdateInstanceBuildIdentity() error = %v", err)
+	}
+	if identityUpdated.BuildIdentity != "sha256:alpha" {
+		t.Fatalf("updated.BuildIdentity = %q, want sha256:alpha", identityUpdated.BuildIdentity)
+	}
 	if !updated.UpdatedAt.After(created.UpdatedAt) {
 		t.Fatalf("updated.UpdatedAt = %s, want after %s", updated.UpdatedAt, created.UpdatedAt)
 	}
@@ -864,6 +871,7 @@ func TestSQLiteStoreHealthSnapshotRoundTrip(t *testing.T) {
 		Error:         "dependency degraded",
 		ResponseJSON:  `{"status":"degraded"}`,
 		SchemaValid:   &schemaValid,
+		BuildIdentity: "sha256:alpha",
 	}); err != nil {
 		t.Fatalf("UpsertHealthSnapshot() error = %v", err)
 	}
@@ -874,6 +882,9 @@ func TestSQLiteStoreHealthSnapshotRoundTrip(t *testing.T) {
 	}
 	if snapshot.Status != HealthStatusDegraded {
 		t.Fatalf("snapshot.Status = %q, want %q", snapshot.Status, HealthStatusDegraded)
+	}
+	if snapshot.BuildIdentity != "sha256:alpha" {
+		t.Fatalf("snapshot.BuildIdentity = %q, want sha256:alpha", snapshot.BuildIdentity)
 	}
 	if snapshot.Readiness == nil || *snapshot.Readiness != ready {
 		t.Fatalf("snapshot.Readiness = %#v, want true", snapshot.Readiness)

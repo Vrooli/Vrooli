@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "scenario-to-repository.source-export-preflight",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Gather a bounded source closure and exact artifact readiness without publication.",
   "inputs": {
     "scenario": {
@@ -70,7 +73,9 @@
         "verification_failed",
         "publication_not_authorized",
         "deadline_exceeded",
-        "binding_error"
+        "binding_error",
+        "remote_error",
+        "no_governed_binding"
       ]
     }
   },

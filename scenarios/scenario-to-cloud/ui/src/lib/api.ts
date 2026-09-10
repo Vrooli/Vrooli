@@ -39,7 +39,6 @@ export type ManifestInitRequest = {
   domain?: string;
   user?: string;
   port?: number;
-  key_path?: string;
   workdir?: string;
   caddy_email?: string;
 };
@@ -479,12 +478,23 @@ export type DeploymentSummary = {
   last_deployed_at?: string;
 };
 
+export type DeploymentTargetRef = {
+  machine_id?: string;
+  node_id?: string;
+  enrollment_generation?: number;
+  transport?: "bridge" | "ssh" | string;
+  locator?: { host?: string; port?: number; user?: string; workdir?: string };
+};
+
 export type Deployment = {
   id: string;
   name: string;
   scenario_id: string;
   status: DeploymentStatus;
-  run_id?: string;
+  /** Canonical identity (api/identity): environment, target binding and fence. */
+  environment?: string;
+  target?: DeploymentTargetRef;
+  fence?: number;
   manifest: unknown;
   bundle_path?: string;
   bundle_sha256?: string;
@@ -524,13 +534,19 @@ export type DeploymentResponse = {
   timestamp: string;
 };
 
-// Execute deployment is now non-blocking - it returns immediately
-// and the actual progress is tracked via SSE on /deployments/{id}/progress
+// Execute admits a durable operation (202) and returns immediately; the
+// standing is read from /operations/{id} and progress streams on
+// /deployments/{id}/progress?operation_id=.
 export type ExecuteDeploymentResponse = {
-  deployment: Deployment;
-  run_id: string;
-  message: string;
+  schema_version?: string;
+  operation_id?: string;
+  plan_digest: string;
+  state: string;
+  replayed?: boolean;
+  wait?: string;
+  message?: string;
   timestamp: string;
+  deployment?: Deployment;
 };
 
 export type InspectDeploymentResponse = {
@@ -680,7 +696,7 @@ export async function stopDeployment(id: string): Promise<{ success: boolean; er
   return res.json();
 }
 
-export async function startDeployment(id: string): Promise<{ deployment_id: string; run_id: string; message: string; timestamp: string }> {
+export async function startDeployment(id: string): Promise<ExecuteDeploymentResponse> {
   const url = buildApiUrl(`/deployments/${encodeURIComponent(id)}/start`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
@@ -720,145 +736,28 @@ export async function deleteDeployment(
 // SSH Key Management Types & Functions
 // ============================================================================
 
-// Re-export types from types/ssh.ts for convenience
-export type {
-  SSHKeyInfo,
-  SSHKeyType,
-  SSHConnectionStatus,
-  ListSSHKeysResponse,
-  GenerateSSHKeyRequest,
-  GenerateSSHKeyResponse,
-  GetPublicKeyRequest,
-  GetPublicKeyResponse,
-  TestSSHConnectionRequest,
-  TestSSHConnectionResponse,
-  CopySSHKeyRequest,
-  CopySSHKeyResponse,
-  CopySSHKeyStatus,
-} from "../types/ssh";
-
-import type {
-  ListSSHKeysResponse,
-  GenerateSSHKeyRequest,
-  GenerateSSHKeyResponse,
-  GetPublicKeyResponse,
-  TestSSHConnectionRequest,
-  TestSSHConnectionResponse,
-  CopySSHKeyRequest,
-  CopySSHKeyResponse,
-  DeleteSSHKeyRequest,
-  DeleteSSHKeyResponse,
-} from "../types/ssh";
 
 /**
- * List available SSH keys from ~/.ssh/
+ * Connection standing the wizard tracks for a target. Key custody moved to
+ * the credential binding / Bridge onboarding; the wizard no longer probes a
+ * key through the API, so the value only ever leaves "untested" through a
+ * preflight run.
  */
-export async function listSSHKeys(): Promise<ListSSHKeysResponse> {
-  const url = buildApiUrl("/ssh/keys", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to list SSH keys: ${res.status} ${text}`);
-  }
-  return res.json() as Promise<ListSSHKeysResponse>;
-}
-
-/**
- * Generate a new SSH key pair
- */
-export async function generateSSHKey(
-  request: GenerateSSHKeyRequest
-): Promise<GenerateSSHKeyResponse> {
-  const url = buildApiUrl("/ssh/keys/generate", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to generate SSH key: ${res.status} ${text}`);
-  }
-  return res.json() as Promise<GenerateSSHKeyResponse>;
-}
-
-/**
- * Get public key content for display/copying
- */
-export async function getPublicKey(keyPath: string): Promise<GetPublicKeyResponse> {
-  const url = buildApiUrl("/ssh/keys/public", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ key_path: keyPath }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to get public key: ${res.status} ${text}`);
-  }
-  return res.json() as Promise<GetPublicKeyResponse>;
-}
-
-/**
- * Test SSH connection to a host using key authentication
- */
-export async function testSSHConnection(
-  request: TestSSHConnectionRequest
-): Promise<TestSSHConnectionResponse> {
-  const url = buildApiUrl("/ssh/test", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to test SSH connection: ${res.status} ${text}`);
-  }
-  return res.json() as Promise<TestSSHConnectionResponse>;
-}
-
-/**
- * Copy SSH public key to remote host (ssh-copy-id equivalent)
- * Requires password authentication to copy the key
- */
-export async function copySSHKey(
-  request: CopySSHKeyRequest
-): Promise<CopySSHKeyResponse> {
-  const url = buildApiUrl("/ssh/copy-key", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to copy SSH key: ${res.status} ${text}`);
-  }
-  return res.json() as Promise<CopySSHKeyResponse>;
-}
-
-/**
- * Delete an SSH key pair (private and public key files)
- */
-export async function deleteSSHKey(
-  request: DeleteSSHKeyRequest
-): Promise<DeleteSSHKeyResponse> {
-  const url = buildApiUrl("/ssh/keys", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to delete SSH key: ${res.status} ${text}`);
-  }
-  return res.json() as Promise<DeleteSSHKeyResponse>;
-}
+export type SSHConnectionStatus =
+  | "untested"
+  | "testing"
+  | "success"
+  | "auth_failed"
+  | "host_unreachable"
+  | "timeout"
+  | "not_found"
+  | "ipv6_unavailable"
+  | "host_key_changed"
+  | "key_error"
+  | "dns_failed"
+  | "disk_full"
+  | "error"
+  | "unknown_error";
 
 // ============================================================================
 // Preflight Fix Actions
@@ -868,7 +767,6 @@ export interface StopPortServicesRequest {
   host: string;
   port?: number;
   user?: string;
-  key_path: string;
   ports?: number[];
   pids?: number[];
   services?: string[];
@@ -887,7 +785,6 @@ export interface DiskUsageRequest {
   host: string;
   port?: number;
   user?: string;
-  key_path: string;
 }
 
 export interface DiskUsageEntry {
@@ -911,7 +808,6 @@ export interface DiskCleanupRequest {
   host: string;
   port?: number;
   user?: string;
-  key_path: string;
   actions?: string[];
 }
 
@@ -937,7 +833,6 @@ export interface FirewallFixRequest {
   host: string;
   port?: number;
   user?: string;
-  key_path: string;
   ports?: number[];
 }
 
@@ -1029,7 +924,6 @@ export interface StopScenarioProcessesRequest {
   host: string;
   port?: number;
   user?: string;
-  key_path: string;
   workdir: string;
   scenario_id?: string; // If empty, stops all vrooli processes
 }
@@ -1334,6 +1228,62 @@ export type VPSActionResponse = {
   output?: string;
   timestamp: string;
 };
+
+// Typed health observation (vrooli.scenario_to_cloud.v1.health). JSON uses
+// proto field names and enum names; see docs/reference/health-contract.md.
+export type HealthStatusName =
+  | "HEALTH_STATUS_UNSPECIFIED"
+  | "HEALTH_STATUS_HEALTHY"
+  | "HEALTH_STATUS_DEGRADED"
+  | "HEALTH_STATUS_UNHEALTHY"
+  | "HEALTH_STATUS_UNKNOWN";
+
+export type FreshnessName = "FRESHNESS_UNSPECIFIED" | "FRESHNESS_CURRENT" | "FRESHNESS_STALE" | "FRESHNESS_UNKNOWN";
+
+export type HealthCheckObservation = {
+  id: string;
+  status: string;
+  reason_code?: string;
+  detail?: string;
+};
+
+export type HealthObservation = {
+  deployment_id?: string;
+  target_id?: string;
+  observed_release_digest?: string;
+  observed_configuration_digest?: string;
+  observed_at?: string;
+  status?: HealthStatusName;
+  checks?: HealthCheckObservation[];
+  freshness?: FreshnessName;
+  producer_ref?: string;
+  partial?: boolean;
+  missing_dependencies?: string[];
+  next_actions?: Array<{ owner?: string; kind?: string; reference?: string; label?: string }>;
+};
+
+export type HealthObservationResponse = {
+  schema_version: string;
+  observation: HealthObservation;
+};
+
+/**
+ * Fetch the typed health observation for a deployment. HTTP 200 means the
+ * observation was produced; the verdict is observation.status together with
+ * observation.freshness.
+ */
+export async function getHealthObservation(deploymentId: string): Promise<HealthObservationResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/health/observation`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get health observation: ${res.status} ${text}`);
+  }
+  return (await res.json()) as HealthObservationResponse;
+}
 
 /**
  * Fetch live state from VPS (processes, ports, system info, caddy)

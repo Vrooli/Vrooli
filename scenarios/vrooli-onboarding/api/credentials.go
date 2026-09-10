@@ -35,7 +35,7 @@ func listCredentials(context.Context) ([]credentialdomain.Credential, error) {
 	if err != nil {
 		return nil, err
 	}
-	return credentialReadinessInventory(closure)
+	return credentialMetadataInventory(closure)
 }
 
 func provisionCredential(ctx context.Context, logicalID, field, value string) error {

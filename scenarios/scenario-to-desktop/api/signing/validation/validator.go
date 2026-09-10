@@ -232,7 +232,7 @@ func (v *DefaultValidator) validateMacOS(config *types.MacOSSigningConfig, resul
 
 	// Notarization requires credentials
 	if config.Notarize {
-		hasAPIKey := config.AppleAPIKeyID != "" && config.AppleAPIKeyFile != ""
+		hasAPIKey := config.AppleAPIKeyID != "" && config.AppleAPIKeyFile != "" && config.AppleAPIIssuerID != ""
 		hasAppPassword := config.AppleIDEnv != "" && config.AppleIDPasswordEnv != ""
 
 		if !hasAPIKey && !hasAppPassword {
@@ -240,7 +240,7 @@ func (v *DefaultValidator) validateMacOS(config *types.MacOSSigningConfig, resul
 				Code:        "MACOS_NOTARIZE_CREDS_MISSING",
 				Platform:    types.PlatformMacOS,
 				Message:     "Notarization requires either API Key credentials or Apple ID app-specific password",
-				Remediation: "Set apple_api_key_id + apple_api_key_file OR apple_id_env + apple_id_password_env",
+				Remediation: "Set apple_api_key_id + apple_api_key_file + apple_api_issuer_id OR apple_id_env + apple_id_password_env",
 			})
 			pv.Errors = append(pv.Errors, "Notarization credentials missing")
 		}

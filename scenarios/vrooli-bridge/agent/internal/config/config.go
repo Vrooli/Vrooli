@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -102,14 +103,18 @@ type Config struct {
 	ProvisionHelper bool
 
 	// ProvisionSocket is the local IPC endpoint shared by the runner and the
-	// provisioning helper. An installer can place it in a root-owned,
-	// group-readable runtime directory.
+	// provisioning helper. Unix uses a socket path; Windows accepts a named-pipe
+	// path (or derives one from the supplied absolute value).
 	ProvisionSocket string
 
 	// ProvisionClientUID restricts the Unix IPC server to the runner's OS uid.
 	// A negative value disables the optional peer check on platforms without a
 	// portable peer-credential API.
 	ProvisionClientUID int
+
+	// ProvisionClientPrincipal restricts the Windows named-pipe IPC server to
+	// the runner's account. Windows uses the pipe ACL rather than a Unix uid.
+	ProvisionClientPrincipal string
 
 	// ProvisionHelperUID lets the runner verify that it connected to the
 	// provisioner principal rather than an arbitrary process that replaced the
@@ -133,6 +138,16 @@ type Config struct {
 	// DesktopOwnerSocket is the explicit local Device Control owner IPC path
 	// used by the optional remote-desktop adapter.
 	DesktopOwnerSocket string
+
+	// DeviceSyncURL is the device-sync-hub API base used by the target node to
+	// pull directed artifact items. It is optional until artifact placement is
+	// enabled on a node.
+	DeviceSyncURL string
+
+	// DeviceSyncToken is the target node's own device-sync-hub token. It is
+	// never logged or sent to the control plane; it authenticates only the
+	// node-local artifact download.
+	DeviceSyncToken string
 }
 
 // Paired reports whether the agent has the minimum configuration to hold a
@@ -165,11 +180,14 @@ func Load(args []string) (Config, error) {
 		provisionHelper  = fs.Bool("provision-helper", envBoolOr("BRIDGE_PROVISION_HELPER", false), "Run the privileged provisioning IPC helper instead of the node agent")
 		provisionSocket  = fs.String("provision-socket", envOr("BRIDGE_PROVISION_SOCKET", ""), "Local IPC socket shared by the runner and provisioning helper")
 		clientUID        = fs.Int("provision-client-uid", envIntOr("BRIDGE_PROVISION_CLIENT_UID", -1), "Unix uid permitted to call the provisioning helper")
+		clientPrincipal  = fs.String("provision-client-user", envOr("BRIDGE_PROVISION_CLIENT_USER", ""), "Windows account permitted to call the provisioning helper named pipe")
 		helperUID        = fs.Int("provision-helper-uid", envIntOr("BRIDGE_PROVISION_HELPER_UID", -1), "Unix uid expected for the provisioning helper")
 		clientHome       = fs.String("provision-client-home", envOr("BRIDGE_PROVISION_CLIENT_HOME", ""), "Home directory of the runner principal for privileged child commands")
 		systemService    = fs.Bool("system-service", envBoolOr("BRIDGE_SYSTEM_SERVICE", false), "Install a machine-wide native service (privileged helper only)")
 		cleanupStdin     = fs.Bool("cleanup-stdin", false, "Run one typed cleanup command from protobuf JSON on stdin")
 		desktopSocket    = fs.String("desktop-owner-socket", envOr("BRIDGE_DESKTOP_OWNER_SOCKET", ""), "Explicit local device-control desktop owner Unix socket")
+		deviceSyncURL    = fs.String("device-sync-url", envOr("BRIDGE_DEVICE_SYNC_URL", ""), "Device Sync Hub API base used for target artifact placement")
+		deviceSyncToken  = fs.String("device-sync-token", envOr("BRIDGE_DEVICE_SYNC_DEVICE_TOKEN", ""), "Target node's Device Sync Hub device token")
 	)
 
 	if err := fs.Parse(args); err != nil {
@@ -198,36 +216,45 @@ func Load(args []string) (Config, error) {
 	if *heartbeat <= 0 {
 		return Config{}, errors.New("heartbeat-interval must be positive")
 	}
-	if *provisionHelper && *clientUID < 0 {
-		return Config{}, errors.New("provision helper requires --provision-client-uid")
+	if *provisionHelper {
+		if runtime.GOOS == "windows" {
+			if strings.TrimSpace(*clientPrincipal) == "" {
+				return Config{}, errors.New("provision helper requires --provision-client-user on Windows")
+			}
+		} else if *clientUID < 0 {
+			return Config{}, errors.New("provision helper requires --provision-client-uid")
+		}
 	}
 	if *systemService && !*provisionHelper {
 		return Config{}, errors.New("--system-service is reserved for --provision-helper")
 	}
 
 	return Config{
-		ControlPlaneURL:     strings.TrimSpace(*controlPlaneURL),
-		NodeID:              resolvedNodeID,
-		StateDir:            stateDir,
-		CredentialPath:      filepath.Join(stateDir, credentialFileName),
-		ControlPlaneKeyPath: filepath.Join(stateDir, controlPlaneKeyFileName),
-		HeartbeatInterval:   *heartbeat,
-		Capabilities:        splitCapabilities(*capabilities),
-		WorkDir:             strings.TrimSpace(*workDir),
-		VrooliBin:           strings.TrimSpace(*vrooliBin),
-		PrintPublicKey:      *printPublicKey,
-		PrintServiceUnit:    *printServiceUnit,
-		ServiceUser:         strings.TrimSpace(*serviceUser),
-		Discover:            *discover,
-		PresenceOnly:        *presenceOnly,
-		ProvisionHelper:     *provisionHelper,
-		ProvisionSocket:     strings.TrimSpace(*provisionSocket),
-		ProvisionClientUID:  *clientUID,
-		ProvisionHelperUID:  *helperUID,
-		ProvisionClientHome: strings.TrimSpace(*clientHome),
-		SystemService:       *systemService,
-		CleanupStdin:        *cleanupStdin,
-		DesktopOwnerSocket:  strings.TrimSpace(*desktopSocket),
+		ControlPlaneURL:          strings.TrimSpace(*controlPlaneURL),
+		NodeID:                   resolvedNodeID,
+		StateDir:                 stateDir,
+		CredentialPath:           filepath.Join(stateDir, credentialFileName),
+		ControlPlaneKeyPath:      filepath.Join(stateDir, controlPlaneKeyFileName),
+		HeartbeatInterval:        *heartbeat,
+		Capabilities:             splitCapabilities(*capabilities),
+		WorkDir:                  strings.TrimSpace(*workDir),
+		VrooliBin:                strings.TrimSpace(*vrooliBin),
+		PrintPublicKey:           *printPublicKey,
+		PrintServiceUnit:         *printServiceUnit,
+		ServiceUser:              strings.TrimSpace(*serviceUser),
+		Discover:                 *discover,
+		PresenceOnly:             *presenceOnly,
+		ProvisionHelper:          *provisionHelper,
+		ProvisionSocket:          strings.TrimSpace(*provisionSocket),
+		ProvisionClientUID:       *clientUID,
+		ProvisionClientPrincipal: strings.TrimSpace(*clientPrincipal),
+		ProvisionHelperUID:       *helperUID,
+		ProvisionClientHome:      strings.TrimSpace(*clientHome),
+		SystemService:            *systemService,
+		CleanupStdin:             *cleanupStdin,
+		DesktopOwnerSocket:       strings.TrimSpace(*desktopSocket),
+		DeviceSyncURL:            strings.TrimRight(strings.TrimSpace(*deviceSyncURL), "/"),
+		DeviceSyncToken:          strings.TrimSpace(*deviceSyncToken),
 	}, nil
 }
 

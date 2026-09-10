@@ -87,6 +87,30 @@ func TestAndroidPairJoinsDistinctTransportsUnderOneDevice(t *testing.T) {
 	require.Equal(t, second.Transports, items[0].Transports)
 }
 
+func TestPairRejectsStableIdentityMovingAcrossHosts(t *testing.T) {
+	svc := NewService()
+	first, err := svc.Pair(context.Background(), PairInput{HostNodeID: "node-1", Kind: "android", Serial: "serial-replaced", HostNodeOnline: true})
+	require.NoError(t, err)
+	_, err = svc.Pair(context.Background(), PairInput{HostNodeID: "node-2", Kind: "android", Serial: "serial-replaced", HostNodeOnline: true})
+	require.ErrorIs(t, err, ErrIdentityConflict)
+	current, err := svc.Get(context.Background(), first.ID)
+	require.NoError(t, err)
+	require.Equal(t, "node-1", current.HostNodeID)
+}
+
+func TestPairDoesNotReactivateRevokedIdentity(t *testing.T) {
+	svc := NewService()
+	first, err := svc.Pair(context.Background(), PairInput{HostNodeID: "node-1", Kind: "android", Serial: "serial-revoked", HostNodeOnline: true})
+	require.NoError(t, err)
+	_, err = svc.Revoke(context.Background(), first.ID)
+	require.NoError(t, err)
+	_, err = svc.Pair(context.Background(), PairInput{HostNodeID: "node-1", Kind: "android", Serial: "serial-revoked", HostNodeOnline: true})
+	require.ErrorIs(t, err, ErrIdentityConflict)
+	current, err := svc.Get(context.Background(), first.ID)
+	require.NoError(t, err)
+	require.Equal(t, "revoked", current.TrustState)
+}
+
 type presenceStub struct{ online map[string]bool }
 
 func (p presenceStub) IsOnline(nodeID string) bool { return p.online[nodeID] }

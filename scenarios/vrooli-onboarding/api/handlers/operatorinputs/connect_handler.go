@@ -91,6 +91,9 @@ func requestToProto(request operatorcapability.Request) *setupv1.OperatorInputRe
 		DefaultValue: request.Default, Options: request.Options, Candidates: candidates,
 		Remediation: request.Remediation, Unblocks: request.Unblocks, Validation: request.Validation,
 		Required: request.Required, Declinable: request.Declinable, Decision: request.Decision,
+		CredentialLogicalId: request.CredentialLogicalID, CredentialField: request.CredentialField, Provider: request.Provider, RequirementGroup: request.RequirementGroup,
+		ConsumerRefs: request.ConsumerRefs, CompanionSettings: request.CompanionSettings, AcquisitionRef: request.AcquisitionRef, VerificationRef: request.VerificationRef,
+		RecoveryRef: request.RecoveryRef, HelpRef: request.HelpRef, EvidencePolicy: request.EvidencePolicy,
 	}
 }
 

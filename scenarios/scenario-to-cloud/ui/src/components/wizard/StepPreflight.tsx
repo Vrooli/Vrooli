@@ -361,14 +361,6 @@ export function DiskUsageModal({ usage, loading, onClose, onCleanup, cleanupLoad
               <h4 className="text-sm font-medium text-slate-300 mb-2">Quick Cleanup</h4>
               <div className="flex flex-wrap gap-2">
                 <ActionButton
-                  onClick={() => onCleanup(["apt_clean"])}
-                  loading={cleanupLoading}
-                  icon={Trash2}
-                  variant="secondary"
-                >
-                  Clean apt cache
-                </ActionButton>
-                <ActionButton
                   onClick={() => onCleanup(["journal_vacuum"])}
                   loading={cleanupLoading}
                   icon={Trash2}
@@ -385,7 +377,15 @@ export function DiskUsageModal({ usage, loading, onClose, onCleanup, cleanupLoad
                   Prune Docker
                 </ActionButton>
                 <ActionButton
-                  onClick={() => onCleanup(["apt_clean", "journal_vacuum", "docker_prune", "tmp_clean"])}
+                  onClick={() => onCleanup(["docker_prune_volumes"])}
+                  loading={cleanupLoading}
+                  icon={Trash2}
+                  variant="secondary"
+                >
+                  Prune Docker volumes
+                </ActionButton>
+                <ActionButton
+                  onClick={() => onCleanup(["journal_vacuum", "docker_prune", "docker_prune_volumes"])}
                   loading={cleanupLoading}
                   icon={Zap}
                 >
@@ -726,19 +726,17 @@ function CheckItem({
 
 type PreflightManifest = {
   scenario?: { id?: string };
-  target?: { vps?: { host?: string; port?: number; user?: string; key_path?: string; workdir?: string } };
+  target?: { vps?: { host?: string; port?: number; user?: string; workdir?: string } };
 };
 
 export interface UsePreflightActionsOptions {
   manifest: PreflightManifest | null;
-  sshKeyPath?: string | null;
   preflightChecks: PreflightCheck[] | null;
   onRecheck?: () => Promise<void> | void;
 }
 
 export function usePreflightActions({
   manifest,
-  sshKeyPath,
   preflightChecks,
   onRecheck,
 }: UsePreflightActionsOptions) {
@@ -764,16 +762,15 @@ export function usePreflightActions({
       host: vps?.host || "",
       port: vps?.port || 22,
       user: vps?.user || "root",
-      key_path: vps?.key_path || sshKeyPath || "",
       workdir: vps?.workdir || DEFAULT_VPS_WORKDIR,
     };
-  }, [manifest, sshKeyPath]);
+  }, [manifest]);
 
   const handleAction = useCallback(async (checkId: string, action: string) => {
     setActionError(null);
     const sshConfig = getSSHConfig();
-    if (!sshConfig.host || !sshConfig.key_path) {
-      setActionError("Missing SSH configuration. Please configure VPS host and SSH key in the Manifest step.");
+    if (!sshConfig.host) {
+      setActionError("Missing target host. Configure the VPS host in the Manifest step.");
       return;
     }
 
@@ -790,7 +787,6 @@ export function usePreflightActions({
           host: sshConfig.host,
           port: sshConfig.port,
           user: sshConfig.user,
-          key_path: sshConfig.key_path,
           ports: [80, 443],
         });
         if (result.ok) {
@@ -805,7 +801,6 @@ export function usePreflightActions({
           host: sshConfig.host,
           port: sshConfig.port,
           user: sshConfig.user,
-          key_path: sshConfig.key_path,
         });
         setDiskUsage(usage);
         setShowDiskModal(true);
@@ -817,7 +812,6 @@ export function usePreflightActions({
           host: sshConfig.host,
           port: sshConfig.port,
           user: sshConfig.user,
-          key_path: sshConfig.key_path,
           workdir: sshConfig.workdir,
           scenario_id: scenarioId,
         });
@@ -837,8 +831,8 @@ export function usePreflightActions({
 
   const handlePortStop = useCallback(async () => {
     const sshConfig = getSSHConfig();
-    if (!sshConfig.host || !sshConfig.key_path) {
-      setActionError("Missing SSH configuration. Please configure VPS host and SSH key in the Manifest step.");
+    if (!sshConfig.host) {
+      setActionError("Missing target host. Configure the VPS host in the Manifest step.");
       return;
     }
 
@@ -860,7 +854,6 @@ export function usePreflightActions({
         host: sshConfig.host,
         port: sshConfig.port,
         user: sshConfig.user,
-        key_path: sshConfig.key_path,
         services,
         pids,
         prefer_service_stop: true,
@@ -901,7 +894,7 @@ export function usePreflightActions({
 
   const handleCleanup = useCallback(async (actions: string[]) => {
     const sshConfig = getSSHConfig();
-    if (!sshConfig.host || !sshConfig.key_path) return;
+    if (!sshConfig.host) return;
 
     setCleanupLoading(true);
     try {
@@ -909,14 +902,12 @@ export function usePreflightActions({
         host: sshConfig.host,
         port: sshConfig.port,
         user: sshConfig.user,
-        key_path: sshConfig.key_path,
         actions,
       });
       const usage = await getDiskUsage({
         host: sshConfig.host,
         port: sshConfig.port,
         user: sshConfig.user,
-        key_path: sshConfig.key_path,
       });
       setDiskUsage(usage);
       await onRecheck?.();
@@ -999,7 +990,6 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
     setPreflightOverride,
     runPreflight,
     parsedManifest,
-    sshKeyPath,
   } = deployment;
 
   // Get manifest from parsed result
@@ -1025,7 +1015,6 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
     handleCleanup,
   } = usePreflightActions({
     manifest,
-    sshKeyPath,
     preflightChecks,
     onRecheck: runPreflight,
   });

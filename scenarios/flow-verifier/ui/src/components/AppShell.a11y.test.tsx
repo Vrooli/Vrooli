@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import { Route, Routes } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 
 import { expectNoA11yViolations, renderWithProviders, makeHealthResponse } from "../test-utils";
 
@@ -14,6 +17,17 @@ vi.mock("../api/health", async (importOriginal) => {
 });
 
 import { AppShell } from "./AppShell";
+import { ThemeProvider } from "./theme/ThemeProvider";
+
+function renderShell(ui: ReactNode) {
+  return renderWithProviders(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <MemoryRouter initialEntries={["/"]}><ThemeProvider>{ui}</ThemeProvider></MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 
 describe("AppShell accessibility", () => {
   beforeEach(async () => {
@@ -25,13 +39,12 @@ describe("AppShell accessibility", () => {
   afterEach(() => cleanup());
 
   it("renders without axe violations", async () => {
-    const { container } = renderWithProviders(
+    const { container } = renderShell(
       <Routes>
         <Route element={<AppShell />}>
           <Route path="/" element={<section aria-label="content">page</section>} />
         </Route>
       </Routes>,
-      { routerEntries: ["/"] },
     );
     await waitFor(() =>
       expect(screen.getByTestId("health-pill")).toHaveTextContent(/ok/i),

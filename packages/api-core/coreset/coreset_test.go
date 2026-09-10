@@ -88,6 +88,34 @@ func TestTrustedBaseIsSubsetOfSeed(t *testing.T) {
 	}
 }
 
+func TestNormalizeOperationalAuthorityAddsRecoveryPlane(t *testing.T) {
+	authority := NormalizeOperationalAuthority(Authority{
+		Seed:        []string{"writer", "agent-manager"},
+		TrustedBase: []string{"writer"},
+	})
+
+	for _, name := range RequiredOperationalScenarios {
+		if !containsStringTest(authority.Seed, name) {
+			t.Errorf("required operational scenario %q missing from seed: %v", name, authority.Seed)
+		}
+		if !containsStringTest(authority.TrustedBase, name) {
+			t.Errorf("required operational scenario %q missing from trusted base: %v", name, authority.TrustedBase)
+		}
+	}
+	if !containsStringTest(authority.Seed, "writer") || !containsStringTest(authority.TrustedBase, "writer") {
+		t.Fatalf("existing authority was not preserved: %+v", authority)
+	}
+}
+
+func containsStringTest(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestIsCoreSeedAndTrustedBasePredicates(t *testing.T) {
 	cases := []struct {
 		name        string

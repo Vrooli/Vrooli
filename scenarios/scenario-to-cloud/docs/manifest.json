@@ -8,8 +8,23 @@
     "kind": "scenario-docs",
     "template": "react-vite",
     "schema": "scenario-docs-manifest/v2",
-    "maturityValues": ["missing", "stub", "draft", "active", "not-applicable", "deferred", "retired"],
-    "stages": ["generated", "oriented", "implemented", "validated", "deployable", "monetizable"],
+    "maturityValues": [
+      "missing",
+      "stub",
+      "draft",
+      "active",
+      "not-applicable",
+      "deferred",
+      "retired"
+    ],
+    "stages": [
+      "generated",
+      "oriented",
+      "implemented",
+      "validated",
+      "deployable",
+      "monetizable"
+    ],
     "extensionRule": "Register every durable scenario document here. Keep concepts in docs/concepts, procedures in docs/guides, stable lookup material in docs/reference, and engineering memory in docs/internal."
   },
   "sections": [
@@ -18,8 +33,28 @@
       "title": "Getting Started",
       "icon": "rocket",
       "documents": [
-        { "path": "QUICKSTART.md", "docType": "quickstart", "title": "Quick Start", "description": "Get up and running with Scenario-to-Cloud", "maturity": "active", "requiredBy": ["generated"], "completion": "required" },
-        { "path": "concepts/GLOSSARY.md", "docType": "glossary", "title": "Glossary", "description": "Key terms and concepts", "maturity": "active", "requiredBy": ["oriented"], "completion": "required" }
+        {
+          "path": "QUICKSTART.md",
+          "docType": "quickstart",
+          "title": "Quick Start",
+          "description": "Get up and running with Scenario-to-Cloud",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/GLOSSARY.md",
+          "docType": "glossary",
+          "title": "Glossary",
+          "description": "Key terms and concepts",
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -28,10 +63,149 @@
       "icon": "book",
       "description": "Step-by-step deployment guides",
       "documents": [
-        { "path": "guides/manifest-reference.md", "docType": "manifest-reference", "title": "Manifest Reference", "description": "Complete manifest configuration guide", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
-        { "path": "guides/dns-setup.md", "docType": "dns-guide", "title": "DNS Setup", "description": "DNS patterns for VPS deployments (with or without OG Worker)", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
-        { "path": "guides/vps-setup.md", "docType": "vps-guide", "title": "VPS Setup", "description": "Prepare your VPS for deployments", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
-        { "path": "guides/troubleshooting.md", "docType": "troubleshooting", "title": "Troubleshooting", "description": "Common issues and solutions", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" }
+        {
+          "path": "guides/manifest-reference.md",
+          "docType": "manifest-reference",
+          "title": "Manifest Reference",
+          "description": "Complete manifest configuration guide",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/dns-setup.md",
+          "docType": "dns-guide",
+          "title": "DNS Setup",
+          "description": "DNS patterns for VPS deployments (with or without OG Worker)",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/vps-setup.md",
+          "docType": "vps-guide",
+          "title": "VPS Setup",
+          "description": "Prepare your VPS for deployments",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/troubleshooting.md",
+          "docType": "troubleshooting",
+          "title": "Troubleshooting",
+          "description": "Common issues and solutions",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/incident-runbook.md",
+          "docType": "guide",
+          "title": "Incident Runbook",
+          "description": "Diagnose, contain, recover, verify and record a deployment incident using only supported CLI/API operations (health and edge observations, operation cancel/reconcile, start, governed rollback, recovery-point restore)",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/next-scenario-onboarding.md",
+          "docType": "guide",
+          "title": "Next-Scenario Onboarding",
+          "description": "Exact declarations (service.json deployment block, resource artifacts, credentials) and operator configuration a new scenario needs to use the cloud ramp without any cloud code edit; how closure and plan preview explain gaps",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/runbooks/README.md",
+          "docType": "runbook-index",
+          "title": "Operator Runbooks",
+          "description": "Index of the six operator runbooks and the conventions they share (one identity, preview is apply, wait once, exit codes, no shell on the target)",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/runbooks/deploy.md",
+          "docType": "runbook",
+          "title": "Runbook: Deploy",
+          "description": "First deployment of a scenario onto a prepared target: manifest, preflight, create, plan review, apply, verify",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/runbooks/update.md",
+          "docType": "runbook",
+          "title": "Runbook: Update",
+          "description": "New release onto an existing deployment: recovery point, plan review with rollback eligibility, apply, verify, governed rollback or restore",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/runbooks/rotate.md",
+          "docType": "runbook",
+          "title": "Runbook: Rotate",
+          "description": "Credential rotation, resume of parked rotations, revocation and credential-store recovery with values only on standard input",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/runbooks/restore.md",
+          "docType": "runbook",
+          "title": "Runbook: Restore",
+          "description": "Verify and restore a recovery point onto the same or a replacement host with measured RTO/RPO",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/runbooks/incident.md",
+          "docType": "runbook",
+          "title": "Runbook: Incident",
+          "description": "First ten minutes of an incident: diagnose, contain, recover, verify, record",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/runbooks/retire.md",
+          "docType": "runbook",
+          "title": "Runbook: Retire",
+          "description": "Retire a deployment through the retire plan/apply routes with an explicit retention policy",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -40,9 +214,171 @@
       "icon": "code",
       "description": "Technical reference documentation",
       "documents": [
-        { "path": "reference/api-endpoints.md", "docType": "api-reference", "title": "API Reference", "description": "REST API endpoint documentation", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
-        { "path": "reference/deployment-lifecycle.md", "docType": "deployment-lifecycle", "title": "Deployment Lifecycle", "description": "Stages and status transitions", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
-        { "path": "reference/configuration.md", "docType": "configuration-reference", "title": "SSH Configuration", "description": "SSH options, presets, error categories, and step configuration", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" }
+        {
+          "path": "reference/api-endpoints.md",
+          "docType": "api-reference",
+          "title": "API Reference",
+          "description": "REST API endpoint documentation",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/identity-and-selectors.md",
+          "docType": "api-reference",
+          "title": "Identity and Selectors",
+          "description": "Stable deployment, target, release and operation identities; selector forms; schema version negotiation; typed error codes",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/credential-lifecycle.md",
+          "docType": "api-reference",
+          "title": "Credential Lifecycle",
+          "description": "Descriptor-exact credential bindings, versioned rotation state machine, provider hooks per class, grant-aware distribution, target ingest/acknowledge/revoke verbs, revocation semantics, recovery and break-glass",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/activation-and-reconciliation.md",
+          "docType": "api-reference",
+          "title": "Activation and Reconciliation",
+          "description": "Typed target verbs per action, release identity on the target, activation strategies and declared downtime, recoverable runtime->pointer->route ordering, predecessor retention and rollback eligibility, persistent data and legacy conversion, the desired/observed reconciliation model, desired-state contract for autoheal, retirement order and protected cleanup",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/health-contract.md",
+          "docType": "api-reference",
+          "title": "Health Contract",
+          "description": "HTTP transport semantics versus deployment health semantics; the typed HealthObservation (identity, release, observed_at, status, freshness, checks) and the fail-closed consumer rules",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/configuration.md",
+          "docType": "configuration-reference",
+          "title": "SSH Configuration",
+          "description": "SSH options, presets, error categories, and step configuration",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/closure.md",
+          "docType": "closure-reference",
+          "title": "Deployment Closure",
+          "description": "Declaration-derived closure with reasons, digests, unsupported entries and the setup/v1 selection handoff",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/executable-plan.md",
+          "docType": "api-reference",
+          "title": "Executable Plan",
+          "description": "One typed action graph for preview, policy and apply: envelope, semantic digest, action vocabulary, outcomes, endpoints",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/operation-lifecycle.md",
+          "docType": "api-reference",
+          "title": "Operation Lifecycle",
+          "description": "Durable, fenced, recoverable cloud operations: state vocabulary and transitions, fence/lease ownership, step receipts and unknown effects, timeouts, startup reconciliation, wait/cancel/attach contract",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/governance-binding.md",
+          "docType": "governance-reference",
+          "title": "Governance Binding",
+          "description": "Capability profile cloud-launch-v1, append-only evidence records, exact review identity digest, publication request/apply/reconcile against Deployment Manager, receipt binding and signature, recovery preview binding",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/release-identity.md",
+          "docType": "release-reference",
+          "title": "Release Identity",
+          "description": "One release digest over bundle, native control plane, closure and nonsecret configuration; inputs.json record, trust modes and provenance, verification codes, delivery and lease-protected retention",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/authorization-matrix.md",
+          "docType": "api-reference",
+          "title": "Authorization Matrix",
+          "description": "Generated route/effect/scope/target table enforced by the management boundary; served at GET /api/v1/authz/matrix",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "docType": "cli-reference",
+          "title": "CLI Commands",
+          "description": "Generated from cli/manifest.json: every command group with governance effect, binding, selector grammar, exit codes and usage examples",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/service-objectives.md",
+          "docType": "api-reference",
+          "title": "Service Objectives",
+          "description": "Frozen phase-23 SLOs from certification/budgets.json: latency/error/resource budgets per fixture profile, management-process ceilings, queue/retry/timeout bounds, retention windows, alert conditions and the scenario-to-cloud.deployment.alert.v1 delivery contract",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "RELEASE-NOTES.md",
+          "docType": "release-notes",
+          "title": "Release Notes",
+          "description": "Source-backed release notes for the cloud delivery ramp: what shipped per phase with evidence, explicit limitations, supported platform matrix",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -51,8 +387,28 @@
       "icon": "lightbulb",
       "description": "Architecture and design concepts",
       "documents": [
-        { "path": "concepts/architecture.md", "docType": "architecture", "title": "Architecture", "description": "System design and components", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
-        { "path": "concepts/bundle-system.md", "docType": "bundle-system", "title": "Bundle System", "description": "How mini-Vrooli bundles work", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" }
+        {
+          "path": "concepts/architecture.md",
+          "docType": "architecture",
+          "title": "Architecture",
+          "description": "System design and components",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/bundle-system.md",
+          "docType": "bundle-system",
+          "title": "Bundle System",
+          "description": "How mini-Vrooli bundles work",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -62,10 +418,50 @@
       "visibility": "developers-only",
       "description": "Internal development documentation",
       "documents": [
-        { "path": "internal/SEAMS.md", "docType": "seams", "title": "Architectural Seams", "description": "Responsibility boundaries and testability seams", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
-        { "path": "internal/PROBLEMS.md", "docType": "problems", "title": "Problems & Risks", "description": "Open issues and deferred items", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
-        { "path": "internal/PROGRESS.md", "docType": "progress", "title": "Progress Log", "description": "Development progress tracking", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
-        { "path": "internal/RESEARCH.md", "docType": "research", "title": "Research", "description": "Research notes and findings", "maturity": "active", "requiredBy": ["oriented"], "completion": "required" }
+        {
+          "path": "internal/SEAMS.md",
+          "docType": "seams",
+          "title": "Architectural Seams",
+          "description": "Responsibility boundaries and testability seams",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "docType": "problems",
+          "title": "Problems & Risks",
+          "description": "Open issues and deferred items",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "docType": "progress",
+          "title": "Progress Log",
+          "description": "Development progress tracking",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/RESEARCH.md",
+          "docType": "research",
+          "title": "Research",
+          "description": "Research notes and findings",
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -78,7 +474,15 @@
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "guides", "reference"],
-    "secondary": ["concepts", "internal", "plans"]
+    "primary": [
+      "getting-started",
+      "guides",
+      "reference"
+    ],
+    "secondary": [
+      "concepts",
+      "internal",
+      "plans"
+    ]
   }
 }

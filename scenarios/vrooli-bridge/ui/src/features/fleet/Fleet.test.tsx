@@ -182,6 +182,82 @@ describe("[REQ:BRG-P1-005] Fleet dashboard", () => {
       }));
     });
 
+    it("renders sparse requests and catalog labels, then approves the selected full-control preset", async () => {
+      const user = userEvent.setup();
+      listPairingRequests.mockResolvedValue({
+        requests: [{ id: "req-sparse", name: "", os: "", arch: "", endpoint: "", confirmationWords: [] }],
+        presets: [
+          { name: "full-control", description: "All permitted operations", scopes: [], withholds: [] },
+          { name: "custom", description: "Catalog extension", scopes: [], withholds: [] },
+        ],
+      });
+      approvePairing.mockResolvedValue({ status: 2, nodeId: "node-sparse" });
+      renderWithProviders(<PendingPairingPanel />);
+
+      const row = await screen.findByTestId(selectors.fleet.pairingRequests.row({ id: "req-sparse" }));
+      expect(row).toHaveTextContent("req-sparse");
+      expect(row).toHaveTextContent("unknown / unknown");
+      expect(within(row).getByTestId(selectors.fleet.pairingRequests.words({ id: "req-sparse" }))).toHaveTextContent("—");
+      expect(within(row).getByTestId(selectors.fleet.pairingRequests.preset({ id: "req-sparse" }))).toHaveValue("full-control");
+      expect(row).toHaveTextContent("none");
+
+      await user.selectOptions(within(row).getByTestId(selectors.fleet.pairingRequests.preset({ id: "req-sparse" })), "custom");
+      await user.click(within(row).getByTestId(selectors.fleet.pairingRequests.wordsMatch({ id: "req-sparse" })));
+      await user.click(within(row).getByTestId(selectors.fleet.pairingRequests.approve({ id: "req-sparse" })));
+
+      await waitFor(() => expect(approvePairing).toHaveBeenCalledWith({
+        requestId: "req-sparse",
+        approve: true,
+        scopes: [],
+        confirmationWords: [],
+      }));
+    });
+
+    it("keeps a request visible but prevents approval when the catalog has no presets", async () => {
+      listPairingRequests.mockResolvedValue({
+        requests: [{ id: "req-no-catalog", name: "unconfigured-node", confirmationWords: ["one", "two"] }],
+      });
+      renderWithProviders(<PendingPairingPanel />);
+
+      const row = await screen.findByTestId(selectors.fleet.pairingRequests.row({ id: "req-no-catalog" }));
+      expect(within(row).getByTestId(selectors.fleet.pairingRequests.preset({ id: "req-no-catalog" })).children).toHaveLength(0);
+      expect(within(row).getByTestId(selectors.fleet.pairingRequests.approve({ id: "req-no-catalog" }))).toBeDisabled();
+    });
+
+    it("surfaces approval failures and disables both actions while approval is pending", async () => {
+      const user = userEvent.setup();
+      listPairingRequests.mockResolvedValue({
+        requests: [{ id: "req-error", name: "error-node", confirmationWords: ["one"] }],
+        presets: [{ name: "read-only", description: "Read only", scopes: ["vrooli:read"], withholds: [] }],
+      });
+      approvePairing.mockRejectedValueOnce(new ConnectError("approval denied", Code.PermissionDenied));
+      renderWithProviders(<PendingPairingPanel />);
+
+      const row = await screen.findByTestId(selectors.fleet.pairingRequests.row({ id: "req-error" }));
+      await user.click(within(row).getByTestId(selectors.fleet.pairingRequests.wordsMatch({ id: "req-error" })));
+      await user.click(within(row).getByTestId(selectors.fleet.pairingRequests.approve({ id: "req-error" })));
+      expect(await screen.findByTestId(selectors.fleet.pairingRequests.error({ id: "req-error" }))).toBeInTheDocument();
+
+      let resolveApproval!: (value: unknown) => void;
+      approvePairing.mockReturnValueOnce(new Promise((resolve) => { resolveApproval = resolve; }));
+      await user.click(within(row).getByTestId(selectors.fleet.pairingRequests.reject({ id: "req-error" })));
+      await waitFor(() => expect(within(row).getByTestId(selectors.fleet.pairingRequests.approve({ id: "req-error" }))).toBeDisabled());
+      expect(within(row).getByTestId(selectors.fleet.pairingRequests.reject({ id: "req-error" }))).toBeDisabled();
+      resolveApproval({ status: 2, nodeId: "node-error" });
+    });
+
+    it("does not render while pairing requests are loading or empty", async () => {
+      listPairingRequests.mockReturnValueOnce(new Promise(() => {}));
+      const { unmount } = renderWithProviders(<PendingPairingPanel />);
+      expect(screen.queryByTestId(selectors.fleet.pairingRequests.panel)).not.toBeInTheDocument();
+      unmount();
+      cleanup();
+
+      listPairingRequests.mockResolvedValueOnce({ requests: [], presets: [] });
+      renderWithProviders(<PendingPairingPanel />);
+      await waitFor(() => expect(screen.queryByTestId(selectors.fleet.pairingRequests.panel)).not.toBeInTheDocument());
+    });
+
     it("starts with no result (empty), then surfaces the minted code on success", async () => {
       const user = userEvent.setup();
       listNodes.mockResolvedValue({ nodes: [] });

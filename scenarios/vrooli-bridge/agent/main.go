@@ -59,12 +59,24 @@ import (
 )
 
 func main() {
+	if handled, err := runWindowsService(os.Args[1:]); handled {
+		if err != nil {
+			log.Fatalf("vrooli-bridge-agent Windows service: %v", err)
+		}
+		return
+	}
 	if err := run(os.Args[1:]); err != nil {
 		log.Fatalf("vrooli-bridge-agent: %v", err)
 	}
 }
 
 func run(args []string) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return runWithContext(ctx, args)
+}
+
+func runWithContext(ctx context.Context, args []string) error {
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 
 	// `service install|status|uninstall` is the OS-service management surface the
@@ -106,9 +118,15 @@ func run(args []string) error {
 		if strings.TrimSpace(cfg.ProvisionSocket) == "" {
 			return fmt.Errorf("provision helper requires --provision-socket")
 		}
-		helperCtx, stopHelper := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		helperCtx, stopHelper := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 		defer stopHelper()
 		logger.Printf("provisioning helper socket=%s", cfg.ProvisionSocket)
+		if cfg.ProvisionClientPrincipal != "" {
+			if err := privsep.ServeWithShutdownPrincipal(helperCtx, cfg.ProvisionSocket, cfg.VrooliBin, cfg.WorkDir, cfg.ProvisionClientUID, cfg.ProvisionClientPrincipal, stopHelper, cfg.StateDir); err != nil {
+				return fmt.Errorf("provisioning helper: %w", err)
+			}
+			return nil
+		}
 		if err := privsep.ServeWithShutdown(helperCtx, cfg.ProvisionSocket, cfg.VrooliBin, cfg.WorkDir, cfg.ProvisionClientUID, stopHelper, cfg.StateDir); err != nil {
 			return fmt.Errorf("provisioning helper: %w", err)
 		}
@@ -139,7 +157,7 @@ func run(args []string) error {
 		return nil
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	// LAN auto-discovery (OT-P1-006): when no control-plane URL is configured and
@@ -456,6 +474,9 @@ func serviceDefinition(cfg config.Config) (service.Definition, error) {
 		if cfg.ProvisionClientUID >= 0 {
 			args = append(args, "--provision-client-uid", strconv.Itoa(cfg.ProvisionClientUID))
 		}
+		if cfg.ProvisionClientPrincipal != "" {
+			args = append(args, "--provision-client-user", cfg.ProvisionClientPrincipal)
+		}
 		if cfg.ProvisionClientHome != "" {
 			args = append(args, "--provision-client-home", cfg.ProvisionClientHome)
 		}
@@ -550,11 +571,15 @@ func runService(args []string) error {
 				return jerr
 			}
 		} else {
-			fmt.Printf("%s (%s)\n  unit:      %s\n  installed: %t\n  enabled:   %t\n  running:   %t\n  pid:       %d\n  detail:    %s\n",
-				res.UnitName, res.Kind, res.UnitPath, res.Installed, res.Enabled, res.Running, res.PID, res.Detail)
+			fmt.Printf("%s (%s)\n  unit:       %s\n  installed:  %t\n  configured: %t\n  enabled:    %t\n  running:    %t\n  pid:        %d\n  detail:     %s\n",
+				res.UnitName, res.Kind, res.UnitPath, res.Installed, res.Configured, res.Enabled, res.Running, res.PID, res.Detail)
 		}
-		// Exit non-zero when not running so a caller (bootstrap script) can gate on
+		// Exit non-zero when the service is not running or its native definition
+		// has been tampered with so a caller (bootstrap script) can gate on
 		// `service status` without parsing output.
+		if !res.Configured {
+			return errServiceNotConfigured
+		}
 		if !res.Running {
 			return errServiceNotRunning
 		}
@@ -578,6 +603,8 @@ func runService(args []string) error {
 // errServiceNotRunning is returned by `service status` when the service is not
 // active, so the process exits non-zero for scripted gating.
 var errServiceNotRunning = errors.New("service is not running")
+
+var errServiceNotConfigured = errors.New("service definition does not match the requested configuration")
 
 // extractJSONFlag removes a --json / -json token from args, returning the
 // remaining args and whether the flag was present. The service verbs hand the

@@ -40,6 +40,6 @@ describe("AppShell accessibility", () => {
     );
     await screen.findByTestId(selectors.pages.dashboard);
     expect(screen.getAllByRole("navigation", { name: "Primary navigation" })).toHaveLength(1);
-    expect(screen.getByRole("navigation", { name: "Mobile navigation" })).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-tabs`)).toBeInTheDocument();
   });
 });

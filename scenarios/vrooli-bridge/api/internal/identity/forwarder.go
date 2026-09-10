@@ -81,15 +81,15 @@ type Forwarder struct {
 	scenario string
 }
 
-// Config configures the Forwarder.
-type Config struct {
+// ForwarderConfig configures the Forwarder.
+type ForwarderConfig struct {
 	Resolver     URLResolver
 	Doer         httpc.Doer
 	AuthScenario string
 }
 
 // NewForwarder constructs a Forwarder, defaulting the HTTP client and scenario.
-func NewForwarder(cfg Config) *Forwarder {
+func NewForwarder(cfg ForwarderConfig) *Forwarder {
 	doer := cfg.Doer
 	if doer == nil {
 		doer = newDefaultDoer()

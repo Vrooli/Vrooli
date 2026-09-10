@@ -3,6 +3,7 @@ package bundles
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -35,6 +36,16 @@ func TestPopulateAssetMetadataAndExpandUIAssets(t *testing.T) {
 	}
 	if _, _, err := hashFile(filepath.Join(root, "missing")); err == nil {
 		t.Fatal("missing file hash should fail")
+	}
+}
+
+func TestPopulateAssetMetadataRefusesMissingAsset(t *testing.T) {
+	root := t.TempDir()
+	manifest := &Manifest{Services: []ServiceEntry{{Assets: []Asset{{Path: "assets/missing.txt", SHA256: "pending"}}}}}
+
+	err := populateAssetMetadata(manifest, root)
+	if err == nil || !strings.Contains(err.Error(), `stat asset "assets/missing.txt"`) {
+		t.Fatalf("populateAssetMetadata() error = %v, want missing-asset refusal", err)
 	}
 }
 

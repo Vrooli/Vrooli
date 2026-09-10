@@ -22,6 +22,10 @@ func downloadAdminDependencies(hosting *delivery.Service, plans *commerce.PlanSe
 
 func downloadAdminAssetDependencies(downloads *delivery.CatalogService, hosting *delivery.Service, plans *commerce.PlanService) downloadhttp.AdminDependencies {
 	deps := downloadAdminDependencies(hosting, plans)
+	deps.PromoteChannel = downloads.PromoteChannel
+	deps.GetChannelHead = downloads.GetChannelHead
+	deps.SetChannelHalt = downloads.SetChannelHalt
+	deps.RecoverChannel = downloads.RecoverChannel
 	deps.GetManagedAsset = func(bundleKey, appKey, platform string) (*downloadhttp.ManagedAsset, error) {
 		asset, err := downloads.GetAsset(bundleKey, appKey, platform)
 		if asset == nil || err != nil {

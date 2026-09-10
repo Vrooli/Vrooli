@@ -15,8 +15,8 @@ Common issues and how to resolve them.
 - Wrong SSH user
 
 **Solutions**:
-1. Run agent-safe check first: `scenario-to-cloud ssh bootstrap <host> --user root --non-interactive`
-2. If instructed, ask a human to run interactive bootstrap: `scenario-to-cloud ssh bootstrap <host> --user root`
+1. Run the reachability check: `scenario-to-cloud preflight run <manifest.json>` (the `target_reachability` check carries the typed reach refusal: `target_offline`, `enrollment_revoked`, `reach_unavailable`)
+2. Repair access through its owner: `vrooli-bridge onboard` on the host, or authorise the operator key (`ssh-copy-id -i ~/.ssh/id_ed25519.pub root@host`) when the transport is ssh
 3. Verify port 22 is open: `nc -zv host 22`
 4. Try with verbose output: `ssh -v user@host`
 

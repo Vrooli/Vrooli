@@ -1,0 +1,7 @@
+method,path,expected_status,public
+GET,/api/v1/health,200,true
+GET,/api/v1/items,200,true
+GET,/api/v1/items/1,200,true
+GET,/api/v1/items/999,404,true
+POST,/api/v1/items,401,true
+GET,/internal/debug,0,false

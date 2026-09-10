@@ -108,7 +108,7 @@ var _ profilesdomain.Repository = (*fakeProfileRepository)(nil)
 
 func TestConnectProfilesCRUD(t *testing.T) {
 	repo := &fakeProfileRepository{profiles: make(map[string]*profilesdomain.Profile)}
-	handler := NewConnectHandler(repo)
+	handler := NewConnectHandler(repo).WithAuthorization(func(context.Context) error { return nil }).WithReadAuthorization(func(context.Context) error { return nil })
 
 	created, err := handler.CreateProfile(context.Background(), connect.NewRequest(&profilesv1.CreateProfileRequest{
 		Name: "Desktop", Scenario: "demo", Tiers: []int32{1, 2},
@@ -149,7 +149,7 @@ func TestConnectProfilesCRUD(t *testing.T) {
 }
 
 func TestConnectProfilesValidationAndRepositoryErrors(t *testing.T) {
-	handler := NewConnectHandler(&fakeProfileRepository{profiles: make(map[string]*profilesdomain.Profile), err: errors.New("database unavailable")})
+	handler := NewConnectHandler(&fakeProfileRepository{profiles: make(map[string]*profilesdomain.Profile), err: errors.New("database unavailable")}).WithAuthorization(func(context.Context) error { return nil }).WithReadAuthorization(func(context.Context) error { return nil })
 	if _, err := handler.ListProfiles(context.Background(), connect.NewRequest(&profilesv1.ListProfilesRequest{})); connect.CodeOf(err) != connect.CodeInternal {
 		t.Fatalf("expected internal list error, got %v", err)
 	}
@@ -158,6 +158,37 @@ func TestConnectProfilesValidationAndRepositoryErrors(t *testing.T) {
 	}
 	if _, err := handler.GetProfile(context.Background(), nil); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("expected nil request validation, got %v", err)
+	}
+}
+
+func TestConnectProfileMutationsFailClosedWithoutAuthorization(t *testing.T) {
+	repo := &fakeProfileRepository{profiles: make(map[string]*profilesdomain.Profile)}
+	if _, err := NewConnectHandler(repo).CreateProfile(context.Background(), connect.NewRequest(&profilesv1.CreateProfileRequest{Name: "Desktop", Scenario: "demo"})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unconfigured profile authorization code=%v err=%v", connect.CodeOf(err), err)
+	}
+	if len(repo.profiles) != 0 {
+		t.Fatal("unconfigured profile mutation reached repository")
+	}
+}
+
+func TestConnectProfileReadsFailClosedWithoutReadAuthorization(t *testing.T) {
+	repo := &fakeProfileRepository{profiles: make(map[string]*profilesdomain.Profile)}
+	if _, err := NewConnectHandler(repo).ListProfiles(context.Background(), connect.NewRequest(&profilesv1.ListProfilesRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unconfigured profile read code=%v err=%v", connect.CodeOf(err), err)
+	}
+}
+
+func TestConnectProfileMutationsRequireConfiguredAuthorization(t *testing.T) {
+	repo := &fakeProfileRepository{profiles: make(map[string]*profilesdomain.Profile)}
+	handler := NewConnectHandler(repo).WithAuthorization(func(context.Context) error {
+		return errors.New("missing verified principal")
+	})
+
+	if _, err := handler.CreateProfile(context.Background(), connect.NewRequest(&profilesv1.CreateProfileRequest{Name: "Desktop", Scenario: "demo"})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("create error code = %s, want unauthenticated", connect.CodeOf(err))
+	}
+	if len(repo.profiles) != 0 {
+		t.Fatal("unauthorized profile mutation reached repository")
 	}
 }
 
@@ -177,7 +208,7 @@ func TestConnectProfilesPaginationAndConversionBranches(t *testing.T) {
 		},
 		versions: []profilesdomain.Version{{ProfileID: "p1", Version: 1, Name: "one", Scenario: "demo", Tiers: []interface{}{1}, CreatedAt: now}, {ProfileID: "p1", Version: 2, Name: "two", Scenario: "demo", Tiers: []interface{}{2}, CreatedAt: now}},
 	}
-	h := NewConnectHandler(repo)
+	h := NewConnectHandler(repo).WithAuthorization(func(context.Context) error { return nil }).WithReadAuthorization(func(context.Context) error { return nil })
 	listed, err := h.ListProfiles(context.Background(), connect.NewRequest(&profilesv1.ListProfilesRequest{PageSize: 1}))
 	if err != nil || len(listed.Msg.Profiles) != 1 || listed.Msg.NextPageToken != "1" {
 		t.Fatalf("paged list = %#v, %v", listed, err)

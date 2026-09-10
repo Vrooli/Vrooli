@@ -126,6 +126,14 @@ func (r *Runner) isRegistryRuntimeHealthy(item scenario.Scenario, view registryR
 			logx.AttrScenario, item.Slug, "owner_pid", *pid)
 		return false
 	}
+	if view.Instance.BuildIdentity != "" {
+		current, err := scenarioBuildIdentity(item)
+		if err != nil || !buildIdentityMatches(view.Instance.BuildIdentity, current) {
+			r.logWarn("Registry runtime build identity is stale; refusing healthy reuse", logx.AttrScenario, item.Slug,
+				"served_build_identity", view.Instance.BuildIdentity, "current_build_identity", current)
+			return false
+		}
+	}
 	health := item.Manifest.HealthConfig()
 	if health == nil || len(health.Checks) == 0 {
 		return true

@@ -66,19 +66,19 @@ export function HostedLoginPage() {
 
   if (signedInEmail) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-app-background px-4 text-app-foreground">
+      <div className="flex min-h-full items-center justify-center bg-app-background px-4 text-app-foreground">
         <section className="w-full max-w-md rounded-panel border border-app-border bg-app-surface p-8 shadow-sm" data-testid="hosted-login-success">
           <h1 className="text-2xl font-semibold">{t(strings.auth.signedInHeading)}</h1>
           <p className="mt-2 text-app-muted-foreground">{t(strings.auth.signedInAs, { email: signedInEmail })}</p>
           <p className="mt-4 text-sm text-app-muted-foreground">{t(strings.auth.returnToApplication)}</p>
           <Button className="mt-6" onClick={() => navigate("/")} type="button">{t(strings.app.title)}</Button>
         </section>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-app-background px-4 text-app-foreground">
+    <div className="flex min-h-full items-center justify-center bg-app-background px-4 text-app-foreground">
       <section className="w-full max-w-md rounded-panel border border-app-border bg-app-surface p-8 shadow-sm" data-testid="hosted-login-page">
         <p className="text-xs uppercase tracking-wide text-app-muted-foreground">{t(strings.app.title)}</p>
         <h1 className="mt-2 text-2xl font-semibold">{t(strings.auth.signIn)}</h1>
@@ -99,6 +99,6 @@ export function HostedLoginPage() {
           <Button className="w-full" data-testid="auth-read-only" onClick={() => navigate("/")} type="button" variant="secondary">{t(strings.auth.viewReadOnly)}</Button>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

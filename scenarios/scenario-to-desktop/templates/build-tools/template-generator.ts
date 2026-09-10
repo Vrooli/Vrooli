@@ -770,7 +770,10 @@ exports.default = async function notarizing(context) {
         appBundleId: '${this.config.app_id}',
         appPath: \`\${appOutDir}/\${appName}.app\`,
         appleId: process.env.APPLE_ID,
-        appleIdPassword: process.env.APPLE_ID_PASSWORD,
+        // Keep the template generator aligned with the shared desktop
+        // credential declaration. The API generator accepts a custom env
+        // binding, while this legacy template uses the canonical default.
+        appleIdPassword: process.env.APPLE_APP_SPECIFIC_PASSWORD,
         teamId: process.env.APPLE_TEAM_ID,
     });
 };`;

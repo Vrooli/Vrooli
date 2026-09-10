@@ -183,6 +183,52 @@ func TestOperationReadinessUsesOneRevokedGrantDecisionAcrossOperations(t *testin
 	}
 }
 
+func TestAttachedTargetOperationReadinessRequiresFreshAdapterFacts(t *testing.T) {
+	now := time.Date(2026, 9, 9, 23, 0, 0, 0, time.UTC)
+	target := Target{
+		ID: "android-phone", OS: "Android", DeviceKind: "attached", Available: true,
+		LastSeenAt:   now.Add(-time.Second),
+		Transport:    Transport{Kind: TransportBridge, ID: "phone-serial", Available: true},
+		Capabilities: []string{"device-control", "screen-recording"},
+	}
+	device := EvaluateOperationReadiness(target, OperationDeviceOperation, now)
+	if !device.Ready || device.State != ReadinessReady {
+		t.Fatalf("attached device readiness = %+v, want ready", device)
+	}
+	visual := EvaluateOperationReadiness(target, OperationVisualValidation, now)
+	if !visual.Ready || visual.State != ReadinessReady {
+		t.Fatalf("attached visual readiness = %+v, want ready", visual)
+	}
+
+	target.Reason, target.Transport.Available = "device is locked", false
+	locked := EvaluateOperationReadiness(target, OperationDeviceOperation, now)
+	if locked.Ready || locked.ReasonCode != "device_locked" || locked.RecoveryAction == "" {
+		t.Fatalf("locked readiness = %+v, want actionable refusal", locked)
+	}
+
+	target.Reason, target.Transport.Available = "device disconnected", false
+	disconnected := EvaluateOperationReadiness(target, OperationDeviceOperation, now)
+	if disconnected.Ready || disconnected.ReasonCode != "device_disconnected" {
+		t.Fatalf("disconnected readiness = %+v, want disconnected refusal", disconnected)
+	}
+
+	target.Available, target.Transport.Available, target.Reason = true, true, ""
+	target.LastSeenAt = now.Add(-DefaultReadinessStaleAfter - time.Second)
+	stale := EvaluateOperationReadiness(target, OperationDeviceOperation, now)
+	if stale.Ready || stale.State != ReadinessUnknown || stale.ReasonCode != "heartbeat_stale" {
+		t.Fatalf("stale readiness = %+v, want unknown stale refusal", stale)
+	}
+}
+
+func TestAttachedTargetDoesNotClaimUnsupportedOperations(t *testing.T) {
+	now := time.Date(2026, 9, 9, 23, 0, 0, 0, time.UTC)
+	target := Target{ID: "android-phone", Platform: "android", DeviceKind: "attached", Available: true, LastSeenAt: now, Transport: Transport{Kind: TransportBridge, Available: true}, Capabilities: []string{"device-control"}}
+	decision := EvaluateOperationReadiness(target, OperationHeadlessExecution, now)
+	if decision.Ready || decision.State != ReadinessNotApplicable || decision.ReasonCode != "operation_not_applicable" {
+		t.Fatalf("headless readiness = %+v, want not applicable", decision)
+	}
+}
+
 func TestSelectCanRequireAnOperationWithoutBlockingHeadlessTargetsOnGUI(t *testing.T) {
 	target := Target{
 		ID: "mac", Label: "Mac", OS: "darwin", DeviceKind: "bridge-node", Available: true,

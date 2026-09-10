@@ -1,6 +1,7 @@
 package approvals
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -11,18 +12,47 @@ import (
 
 	"deployment-manager/cli/cmdutil"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	approvalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/approvals/approvalsv1connect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // Commands provides CLI commands for deployment approval gating.
 type Commands struct {
-	api *cliutil.APIClient
+	api           *cliutil.APIClient
+	connectClient approvalconnect.ApprovalsServiceClient
 }
 
 // New creates a new approvals command set.
 func New(api *cliutil.APIClient) *Commands {
 	return &Commands{api: api}
+}
+
+// NewWithConnectClient binds approval operations to the generated service.
+// New remains available for focused compatibility fixtures and commands that
+// do not yet have a typed contract.
+func NewWithConnectClient(api *cliutil.APIClient, client approvalconnect.ApprovalsServiceClient) *Commands {
+	return &Commands{api: api, connectClient: client}
+}
+
+type approvalCall func(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error)
+
+func (c *Commands) typedRequest(payload map[string]interface{}, call approvalCall) ([]byte, error) {
+	request, err := structpb.NewValue(payload)
+	if err != nil {
+		return nil, fmt.Errorf("encode approval request: %w", err)
+	}
+	response, err := call(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("approval operation", err, nil)
+	}
+	if response == nil || response.Msg == nil {
+		return nil, errors.New("typed approval response was empty")
+	}
+	return protojson.MarshalOptions{UseProtoNames: true}.Marshal(response.Msg)
 }
 
 // Run dispatches approval subcommands.
@@ -72,7 +102,17 @@ func (c *Commands) list(args []string) error {
 		q.Set("commit", *commit)
 	}
 
-	body, err := c.api.Get("/api/v1/profiles/"+profileID+"/approvals", q)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		payload := map[string]interface{}{"profile_id": profileID}
+		if *commit != "" {
+			payload["git_commit_hash"] = *commit
+		}
+		body, err = c.typedRequest(payload, c.connectClient.List)
+	} else {
+		body, err = c.api.Get("/api/v1/profiles/"+profileID+"/approvals", q)
+	}
 	if err != nil {
 		return err
 	}
@@ -122,7 +162,13 @@ func (c *Commands) get(args []string) error {
 		return errors.New("approval ID is required")
 	}
 
-	body, err := c.api.Get("/api/v1/approvals/"+remaining[0], nil)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		body, err = c.typedRequest(map[string]interface{}{"id": remaining[0]}, c.connectClient.Get)
+	} else {
+		body, err = c.api.Get("/api/v1/approvals/"+remaining[0], nil)
+	}
 	if err != nil {
 		return err
 	}
@@ -195,7 +241,14 @@ func (c *Commands) create(args []string) error {
 		payload["validation_id"] = *validationID
 	}
 
-	body, err := c.api.Request("POST", "/api/v1/profiles/"+remaining[0]+"/approvals", nil, payload)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		payload["profile_id"] = remaining[0]
+		body, err = c.typedRequest(payload, c.connectClient.Create)
+	} else {
+		body, err = c.api.Request("POST", "/api/v1/profiles/"+remaining[0]+"/approvals", nil, payload)
+	}
 	if err != nil {
 		return err
 	}
@@ -260,7 +313,14 @@ func (c *Commands) decide(args []string) error {
 		payload["notes"] = *notes
 	}
 
-	body, err := c.api.Request("POST", "/api/v1/approvals/"+remaining[0]+"/decide", nil, payload)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		payload["id"] = remaining[0]
+		body, err = c.typedRequest(payload, c.connectClient.Decide)
+	} else {
+		body, err = c.api.Request("POST", "/api/v1/approvals/"+remaining[0]+"/decide", nil, payload)
+	}
 	if err != nil {
 		return err
 	}
@@ -313,7 +373,13 @@ func (c *Commands) gate(args []string) error {
 	q := url.Values{}
 	q.Set("commit", *commit)
 
-	body, err := c.api.Get("/api/v1/profiles/"+remaining[0]+"/release-gate", q)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		body, err = c.typedRequest(map[string]interface{}{"profile_id": remaining[0], "git_commit_hash": *commit}, c.connectClient.CheckReleaseGate)
+	} else {
+		body, err = c.api.Get("/api/v1/profiles/"+remaining[0]+"/release-gate", q)
+	}
 	if err != nil {
 		return err
 	}
@@ -417,7 +483,14 @@ func (c *Commands) platformsSet(args []string) error {
 		"platforms": platList,
 	}
 
-	body, err := c.api.Request("PUT", "/api/v1/profiles/"+remaining[0]+"/required-platforms", nil, payload)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		payload["profile_id"] = remaining[0]
+		body, err = c.typedRequest(payload, c.connectClient.SetRequiredPlatforms)
+	} else {
+		body, err = c.api.Request("PUT", "/api/v1/profiles/"+remaining[0]+"/required-platforms", nil, payload)
+	}
 	if err != nil {
 		return err
 	}
@@ -452,7 +525,13 @@ func (c *Commands) platformsGet(args []string) error {
 		return errors.New("profile ID is required")
 	}
 
-	body, err := c.api.Get("/api/v1/profiles/"+remaining[0]+"/required-platforms", nil)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		body, err = c.typedRequest(map[string]interface{}{"profile_id": remaining[0]}, c.connectClient.GetRequiredPlatforms)
+	} else {
+		body, err = c.api.Get("/api/v1/profiles/"+remaining[0]+"/required-platforms", nil)
+	}
 	if err != nil {
 		return err
 	}

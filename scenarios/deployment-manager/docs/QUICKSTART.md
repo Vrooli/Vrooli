@@ -30,8 +30,8 @@ deployment-manager fitness my-scenario --tier 2
 deployment-manager swaps list my-scenario
 deployment-manager swaps apply <profile-id> postgres sqlite
 
-# Validate and build the primary Linux target
-deployment-manager validate my-profile --verbose
+# Prepare the release review and build the primary Linux target
+deployment-manager readiness prepare <scenario> <profile-id> <commit> <artifact-digest> stable linux
 deployment-manager deploy-desktop \
   --profile my-profile \
   --platforms linux \
@@ -80,9 +80,7 @@ Authentication contract](../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
 ## Troubleshooting
 
 ```bash
-deployment-manager logs <profile-id> --level error
-deployment-manager secrets identify <profile-id>
-deployment-manager secrets validate <profile-id>
+deployment-manager releases health <release-id>
 ```
 
 For target-specific failures, continue with the [desktop workflow](workflows/desktop-deployment.md),

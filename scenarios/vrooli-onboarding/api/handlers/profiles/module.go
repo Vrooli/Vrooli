@@ -2,6 +2,7 @@ package profiles
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"connectrpc.com/connect"
@@ -9,6 +10,7 @@ import (
 	profilesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/profiles/profilesv1connect"
 	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/module"
 	profilesdomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/profiles"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type ModuleService struct{ Profiles profilesdomain.Service }
@@ -49,16 +51,23 @@ func (h *connectHandler) EvaluateProfile(ctx context.Context, request *connect.R
 	if request.Msg.GetTargetContext() != nil {
 		targetContext = request.Msg.GetTargetContext().AsMap()
 	}
-	result, err := h.service.Evaluate(ctx, request.Msg.GetProfileId(), answers, targetContext)
+	manualDecisions := make(map[string]bool, len(request.Msg.GetManualDecisions()))
+	for key, selected := range request.Msg.GetManualDecisions() {
+		manualDecisions[key] = selected
+	}
+	result, err := h.service.EvaluateWithManualDecisions(ctx, request.Msg.GetProfileId(), answers, targetContext, manualDecisions)
 	if err != nil {
 		return nil, profilesError(err)
 	}
-	response := &profilesv1.EvaluateProfileResponse{Profile: toProtoProfile(result.Profile), Scenarios: result.Scenarios, Resources: result.Resources, Valid: result.Valid}
+	response := &profilesv1.EvaluateProfileResponse{Profile: toProtoProfile(result.Profile), Scenarios: result.Scenarios, Resources: result.Resources, Valid: result.Valid, Digest: result.Digest}
 	for _, question := range result.Questions {
 		response.Questions = append(response.Questions, toProtoQuestion(question))
 	}
 	for _, recommendation := range result.Recommendations {
-		response.Recommendations = append(response.Recommendations, &profilesv1.ProfileRecommendation{CapabilityRef: recommendation.CapabilityRef, ScenarioRefs: recommendation.ScenarioRefs, ReasonKey: recommendation.ReasonKey})
+		response.Recommendations = append(response.Recommendations, &profilesv1.ProfileRecommendation{CapabilityRef: recommendation.CapabilityRef, ScenarioRefs: recommendation.ScenarioRefs, ReasonKey: recommendation.ReasonKey, RuleId: recommendation.RuleID, Key: recommendation.Key, Selected: recommendation.Selected, Required: recommendation.Required})
+	}
+	for _, explanation := range result.Explanations {
+		response.Explanations = append(response.Explanations, &profilesv1.ProfileExplanation{RuleId: explanation.RuleID, CapabilityRef: explanation.CapabilityRef, ScenarioRefs: explanation.ScenarioRefs, ReasonKey: explanation.ReasonKey, Selected: explanation.Selected})
 	}
 	for _, issue := range result.Issues {
 		response.Issues = append(response.Issues, &profilesv1.ProfileValidationIssue{Field: issue.Field, Code: issue.Code, Message: issue.Message})
@@ -67,10 +76,18 @@ func (h *connectHandler) EvaluateProfile(ctx context.Context, request *connect.R
 }
 
 func toProtoProfile(item profilesdomain.ProfileSummary) *profilesv1.Profile {
-	return &profilesv1.Profile{Id: item.ID, Version: item.Version, TitleKey: item.TitleKey, DescriptionKey: item.DescriptionKey, Owner: item.Owner, ProvenanceSource: item.ProvenanceSource, ProvenanceRevision: item.ProvenanceRevision}
+	return &profilesv1.Profile{Id: item.ID, Version: item.Version, Default: item.Default, TitleKey: item.TitleKey, DescriptionKey: item.DescriptionKey, Owner: item.Owner, ProvenanceSource: item.ProvenanceSource, ProvenanceRevision: item.ProvenanceRevision, SchemaVersion: item.SchemaVersion, CompatibleCatalogMajor: int32(item.CompatibleCatalogMajor), ManualSelectionAvailable: item.ManualSelectionAvailable}
 }
 func toProtoQuestion(item profilesdomain.QuestionView) *profilesv1.ProfileQuestion {
 	result := &profilesv1.ProfileQuestion{Id: item.ID, Type: item.Type, PromptKey: item.PromptKey, Required: item.Required, MinSelections: int32(item.MinSelections), MaxSelections: int32(item.MaxSelections), Visible: item.Visible}
+	if len(item.Default) > 0 {
+		var value any
+		if err := json.Unmarshal(item.Default, &value); err == nil {
+			if converted, err := structpb.NewValue(value); err == nil {
+				result.DefaultValue = converted
+			}
+		}
+	}
 	for _, option := range item.Options {
 		result.Options = append(result.Options, &profilesv1.ProfileOption{Id: option.ID, LabelKey: option.LabelKey})
 	}

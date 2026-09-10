@@ -2,10 +2,10 @@
 
 Organize requirement modules by PRD operational targets, keeping the filesystem structure aligned with the "what" articulated in the PRD. Create folders such as `01-<target-name>/` as needed (numbers preserve ordering but do **not** imply priority).
 
-This registry has been generated from `PRD.md`: there is one numbered module per operational target, each linked back to its target via `prd_ref`. The bridge already has 20 modules; the identity/delegation plan changes the authorization input of module 04 without changing the typed-job boundary.
+This registry has been generated from `PRD.md`: there is one numbered module per operational target, each linked back to its target via `prd_ref`. The bridge currently has 22 modules; module 22 records the deployment-foundation contract for complete and selective footprint activation.
 
 ## Operational Targets
-Every module's `prd_ref` points at the operational target it covers (e.g. `"prd_ref": "OT-P0-001"`); criticality (P0/P1/P2) is derived from that id. All 18 PRD targets are linked to at least one requirement. Each requirement carries a `validation` array describing the planned unit / integration / business / performance strategy and the test `ref` where it will live. Requirements start `planned` because this is the documentation-first foundation — no product code exists yet.
+Every module's `prd_ref` points at the operational target it covers (e.g. `"prd_ref": "OT-P0-001"`); criticality (P0/P1/P2) is derived from that id. All current PRD targets are linked to at least one requirement. Each requirement carries a `validation` array describing the planned unit / integration / business / performance strategy and the test `ref` where it will live. Requirements retain their earned status; module 22 remains `planned` until its closure and activation evidence exists.
 
 ## Lifecycle
 1. Operational targets in PRD map to folders here.

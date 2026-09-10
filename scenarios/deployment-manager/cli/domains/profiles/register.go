@@ -4,20 +4,17 @@ import (
 	"errors"
 	"fmt"
 
-	profilecmd "deployment-manager/cli/profiles"
-
 	"github.com/vrooli/cli-core/cliapp"
 )
 
 const GroupName = "profiles"
 
 func Register(app *cliapp.ScenarioApp) cliapp.CommandGroup {
-	commands := profilecmd.New(app.APIClient)
 	connectCommands := newConnectCommands(app)
 	return cliapp.CommandGroup{
 		Title: "Profiles",
 		Commands: []cliapp.Command{
-			{Name: "profile", NeedsAPI: true, Description: "Profile management commands", Run: route(commands, connectCommands)},
+			{Name: "profile", NeedsAPI: true, Description: "Profile management commands", Run: route(connectCommands)},
 		},
 	}
 }
@@ -34,7 +31,7 @@ func RegisterConnect(app *cliapp.ScenarioApp, manifest []byte) (cliapp.Subcomman
 	})
 }
 
-func route(commands *profilecmd.Commands, connectCommands *connectCommands) func([]string) error {
+func route(connectCommands *connectCommands) func([]string) error {
 	return func(args []string) error {
 		if len(args) == 0 {
 			return errors.New("profile subcommand is required")
@@ -51,25 +48,25 @@ func route(commands *profilecmd.Commands, connectCommands *connectCommands) func
 		case "delete":
 			return connectCommands.delete(rest)
 		case "export":
-			return commands.Export(rest)
+			return connectCommands.export(rest)
 		case "import":
-			return commands.Import(rest)
+			return connectCommands.importProfile(rest)
 		case "update":
-			return commands.Update(rest)
+			return connectCommands.update(rest)
 		case "set":
-			return commands.Set(rest)
+			return errors.New("profile set is retired; use profile update with --name, --scenario, or --tier")
 		case "swap":
-			return commands.Swap(rest)
+			return errors.New("profile swap is retired; use swaps apply <profile-id> <from> <to>")
 		case "versions":
 			return connectCommands.versions(rest)
 		case "analyze":
-			return commands.Analyze(rest)
+			return errors.New("profile analyze is retired; use analyze <scenario>")
 		case "save":
-			return commands.Save(rest)
+			return errors.New("profile save is retired; typed profile mutations create the durable version")
 		case "diff":
-			return commands.Diff(rest)
+			return errors.New("profile diff is unavailable in the typed profile contract; use profile versions")
 		case "rollback":
-			return commands.Rollback(rest)
+			return errors.New("profile rollback is unavailable in the typed profile contract; use a new profile update")
 		default:
 			return fmt.Errorf("unknown profile subcommand: %s", sub)
 		}

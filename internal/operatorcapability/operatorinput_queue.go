@@ -22,22 +22,35 @@ import (
 type Kind = InputKind
 
 type Request struct {
-	ID              string      `json:"id"`
-	Kind            Kind        `json:"kind"`
-	ContractVersion string      `json:"contract_version,omitempty"`
-	Owner           string      `json:"owner,omitempty"`
-	CapabilityID    string      `json:"capability_id,omitempty"`
-	ActionID        string      `json:"action_id,omitempty"`
-	InputID         string      `json:"input_id,omitempty"`
-	Title           string      `json:"title"`
-	Description     string      `json:"description,omitempty"`
-	Default         string      `json:"default,omitempty"`
-	Options         []string    `json:"options,omitempty"`
-	Candidates      []Candidate `json:"candidates,omitempty"`
-	Remediation     string      `json:"remediation,omitempty"`
-	Unblocks        []string    `json:"unblocks,omitempty"`
-	Validation      string      `json:"validation,omitempty"`
-	Required        bool        `json:"required"`
+	ID                  string      `json:"id"`
+	Kind                Kind        `json:"kind"`
+	ContractVersion     string      `json:"contract_version,omitempty"`
+	Owner               string      `json:"owner,omitempty"`
+	CapabilityID        string      `json:"capability_id,omitempty"`
+	ActionID            string      `json:"action_id,omitempty"`
+	InputID             string      `json:"input_id,omitempty"`
+	Title               string      `json:"title"`
+	Description         string      `json:"description,omitempty"`
+	Default             string      `json:"default,omitempty"`
+	Options             []string    `json:"options,omitempty"`
+	Candidates          []Candidate `json:"candidates,omitempty"`
+	Remediation         string      `json:"remediation,omitempty"`
+	Unblocks            []string    `json:"unblocks,omitempty"`
+	Validation          string      `json:"validation,omitempty"`
+	Required            bool        `json:"required"`
+	Declinable          bool        `json:"declinable,omitempty"`
+	Decision            string      `json:"decision,omitempty"`
+	CredentialLogicalID string      `json:"credential_logical_id,omitempty"`
+	CredentialField     string      `json:"credential_field,omitempty"`
+	Provider            string      `json:"provider,omitempty"`
+	RequirementGroup    string      `json:"requirement_group,omitempty"`
+	ConsumerRefs        []string    `json:"consumer_refs,omitempty"`
+	CompanionSettings   []string    `json:"companion_settings,omitempty"`
+	AcquisitionRef      string      `json:"acquisition_ref,omitempty"`
+	VerificationRef     string      `json:"verification_ref,omitempty"`
+	RecoveryRef         string      `json:"recovery_ref,omitempty"`
+	HelpRef             string      `json:"help_ref,omitempty"`
+	EvidencePolicy      string      `json:"evidence_policy,omitempty"`
 }
 
 type Pending struct {
@@ -49,7 +62,13 @@ type Pending struct {
 type Answer struct {
 	RequestID string `json:"request_id"`
 	Value     string `json:"value"`
+	Declined  bool   `json:"declined,omitempty"`
 }
+
+const (
+	DecisionPending  = "pending"
+	DecisionDeclined = "declined"
+)
 
 var (
 	mu          sync.Mutex
@@ -74,6 +93,12 @@ func Validate(request Request) error {
 	}
 	if (request.Kind == KindConfirm || request.Kind == KindConfirmation) && !request.Required {
 		return fmt.Errorf("operator input %q confirmation must be required", request.ID)
+	}
+	if request.Declinable && request.Required {
+		return fmt.Errorf("operator input %q required input cannot be declined", request.ID)
+	}
+	if request.Decision != "" && request.Decision != DecisionPending && request.Decision != DecisionDeclined {
+		return fmt.Errorf("operator input %q has unknown decision %q", request.ID, request.Decision)
 	}
 	return nil
 }
@@ -181,7 +206,7 @@ func ResolveWith(answers []Answer, apply func(map[string]string) error) (map[str
 	if err != nil {
 		return nil, err
 	}
-	byID := make(map[string]string, len(answers))
+	byID := make(map[string]Answer, len(answers))
 	for _, answer := range answers {
 		if strings.TrimSpace(answer.RequestID) == "" {
 			return nil, errors.New("operator input answer request_id is required")
@@ -189,13 +214,27 @@ func ResolveWith(answers []Answer, apply func(map[string]string) error) (map[str
 		if _, exists := byID[answer.RequestID]; exists {
 			return nil, fmt.Errorf("operator input %q was answered more than once", answer.RequestID)
 		}
-		byID[answer.RequestID] = answer.Value
+		byID[answer.RequestID] = answer
 	}
 	known := make(map[string]struct{}, len(queue.Requests))
 	values := make(map[string]string, len(queue.Requests))
+	remaining := make([]Request, 0, len(queue.Requests))
 	for _, request := range queue.Requests {
 		known[request.ID] = struct{}{}
-		value, ok := byID[request.ID]
+		answer, ok := byID[request.ID]
+		if request.Decision == DecisionDeclined && !ok {
+			remaining = append(remaining, request)
+			continue
+		}
+		if ok && answer.Declined {
+			if !request.Declinable {
+				return nil, fmt.Errorf("operator input %q cannot be declined", request.ID)
+			}
+			request.Decision = DecisionDeclined
+			remaining = append(remaining, request)
+			continue
+		}
+		value := answer.Value
 		if !ok {
 			value = request.Default
 		}
@@ -223,12 +262,12 @@ func ResolveWith(answers []Answer, apply func(map[string]string) error) (map[str
 			return nil, fmt.Errorf("operator input %q is not pending", id)
 		}
 	}
-	if apply != nil {
+	if apply != nil && len(values) > 0 {
 		if err := apply(values); err != nil {
 			return nil, err
 		}
 	}
-	if err := Replace(nil); err != nil {
+	if err := Replace(remaining); err != nil {
 		return nil, err
 	}
 	// Values are returned only for backwards-compatible callers that need the

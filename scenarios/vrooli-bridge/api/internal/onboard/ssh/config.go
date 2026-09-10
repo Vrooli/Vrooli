@@ -11,11 +11,11 @@ const (
 	DefaultUser = "root"
 )
 
-// Config holds SSH connection parameters. KnownHostsFile is the bridge-owned
+// ConnectionConfig holds SSH connection parameters. KnownHostsFile is the bridge-owned
 // known_hosts path threaded into the system ssh/scp invocations so their TOFU
 // state lives in the same file the x/crypto key-copy path writes — one coherent
 // host-key store under the bridge state dir, never the operator's ~/.ssh.
-type Config struct {
+type ConnectionConfig struct {
 	Host           string
 	Port           int
 	User           string
@@ -23,15 +23,15 @@ type Config struct {
 	KnownHostsFile string
 }
 
-// NewConfig creates a Config with defaults applied for missing values.
-func NewConfig(host string, port int, user, keyPath, knownHostsFile string) Config {
+// NewConfig creates a ConnectionConfig with defaults applied for missing values.
+func NewConfig(host string, port int, user, keyPath, knownHostsFile string) ConnectionConfig {
 	if port == 0 {
 		port = DefaultPort
 	}
 	if user == "" {
 		user = DefaultUser
 	}
-	return Config{
+	return ConnectionConfig{
 		Host:           host,
 		Port:           port,
 		User:           user,

@@ -356,6 +356,10 @@ func registerCommerceAdminRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/download-artifacts/{artifact_id}/presign-get", s.requireAdmin(downloadhttp.PresignGet(downloadAdminDependencies))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/download-assets/apply", s.requireAdminOrService(downloadhttp.ApplyArtifact(downloadAdminAssetDependencies))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/download-assets/set-current", s.requireAdmin(downloadhttp.SetArtifactCurrent(downloadAdminAssetDependencies))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-channels/promote", s.requireAdminOrService(downloadhttp.PromoteChannel(downloadAdminAssetDependencies))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-channels/head", s.requireAdminOrService(downloadhttp.GetChannelHead(downloadAdminAssetDependencies))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/download-channels/halt", s.requireAdminOrService(downloadhttp.SetChannelHalt(downloadAdminAssetDependencies))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-channels/recover", s.requireAdminOrService(downloadhttp.RecoverChannel(downloadAdminAssetDependencies))).Methods("POST")
 
 	// Bundles + pricing
 	registerBundleAdminConnectRoutes(s.router, s.planService, s.stripeService, s.requireAdmin)

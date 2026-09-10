@@ -1,6 +1,7 @@
 package overview
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -11,16 +12,44 @@ import (
 
 	"deployment-manager/cli/cmdutil"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	dependenciesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/dependencies/dependenciesv1connect"
+	fitnessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/fitness/fitnessv1connect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type Commands struct {
-	api *cliutil.APIClient
+	api          *cliutil.APIClient
+	dependencies dependenciesconnect.DependenciesServiceClient
+	fitness      fitnessconnect.FitnessServiceClient
 }
 
 func New(api *cliutil.APIClient) *Commands {
 	return &Commands{api: api}
+}
+
+// NewWithConnectClients binds overview operations to the generated services.
+// New remains available for focused compatibility fixtures.
+func NewWithConnectClients(api *cliutil.APIClient, dependencies dependenciesconnect.DependenciesServiceClient, fitness fitnessconnect.FitnessServiceClient) *Commands {
+	return &Commands{api: api, dependencies: dependencies, fitness: fitness}
+}
+
+func typedOverviewValue(payload map[string]interface{}, call func(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error)) ([]byte, error) {
+	request, err := structpb.NewValue(payload)
+	if err != nil {
+		return nil, fmt.Errorf("encode overview request: %w", err)
+	}
+	response, err := call(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("overview operation", err, nil)
+	}
+	if response == nil || response.Msg == nil {
+		return nil, errors.New("typed overview response was empty")
+	}
+	return protojson.MarshalOptions{UseProtoNames: true}.Marshal(response.Msg)
 }
 
 func (c *Commands) Analyze(args []string) error {
@@ -34,7 +63,13 @@ func (c *Commands) Analyze(args []string) error {
 		return errors.New("scenario is required")
 	}
 	scenario := remaining[0]
-	body, err := c.api.Get("/api/v1/dependencies/analyze/"+scenario, nil)
+	var body []byte
+	var err error
+	if c.dependencies != nil {
+		body, err = typedOverviewValue(map[string]interface{}{"scenario": scenario}, c.dependencies.Analyze)
+	} else {
+		body, err = c.api.Get("/api/v1/dependencies/analyze/"+scenario, nil)
+	}
 	if err != nil {
 		return err
 	}
@@ -60,9 +95,15 @@ func (c *Commands) Fitness(args []string) error {
 	tierNum := cmdutil.TierToNumber(*tier)
 	payload := map[string]interface{}{
 		"scenario": scenario,
-		"tiers":    []int{tierNum},
+		"tiers":    []interface{}{tierNum},
 	}
-	body, err := c.api.Request("POST", "/api/v1/fitness/score", nil, payload)
+	var body []byte
+	var err error
+	if c.fitness != nil {
+		body, err = typedOverviewValue(payload, c.fitness.Score)
+	} else {
+		body, err = c.api.Request("POST", "/api/v1/fitness/score", nil, payload)
+	}
 	if err != nil {
 		return err
 	}

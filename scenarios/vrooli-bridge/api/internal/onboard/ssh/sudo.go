@@ -83,7 +83,7 @@ type SudoProvisioner interface {
 // streamFunc is the remote-exec-with-stdin seam the production provisioner drives
 // (Service.RunStreaming). Naming it lets the provisioner be constructed over the
 // service's streaming capability while staying trivially unit-testable.
-type streamFunc func(ctx context.Context, cfg Config, command string, opts StreamOptions) (Result, error)
+type streamFunc func(ctx context.Context, cfg ConnectionConfig, command string, opts StreamOptions) (Result, error)
 
 // execSudoProvisioner is the production SudoProvisioner. It runs the sudo
 // pre-check and the drop-in write over the bridge key connection, handing the
@@ -144,7 +144,7 @@ func (p *execSudoProvisioner) Provision(ctx context.Context, req ProvisionSudoRe
 
 // runOptions returns the run options for a short, single sudo command over the
 // bridge key: offer only that key (IdentitiesOnly), pin the bridge known_hosts
-// (set on the Config), and no ControlMaster (a lone short exec gains nothing from
+// (set on the ConnectionConfig), and no ControlMaster (a lone short exec gains nothing from
 // multiplexing and must not wait on a persisted master).
 func (p *execSudoProvisioner) runOptions(timeout time.Duration) RunOptions {
 	return RunOptions{

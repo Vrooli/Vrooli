@@ -147,6 +147,14 @@ func (b *Broker) dispatch(ctx context.Context, req Request) Result {
 		return b.config.RuntimeHomeRepair(ctx, *req.RuntimeHome)
 	case ActionLogRotateForce, ActionJournaldVacuum, ActionDockerPruneUnusedImages, ActionDockerPruneUnusedVolumes:
 		return executeStorageAction(ctx, b.config.Executor, req)
+	case ActionAptPackagesEnsure:
+		return executeApt(ctx, b.config.Executor, req)
+	case ActionEdgeUFWAllow:
+		return executeEdgeUFW(ctx, b.config.Executor, req)
+	case ActionProcessStopScoped:
+		return executeProcessStop(ctx, b.config.Executor, req)
+	case ActionEdgeCaddyValidate, ActionEdgeCaddyReload:
+		return executeCaddy(ctx, b.config.Executor, req)
 	default:
 		return executeUFW(ctx, b.config.Executor, req)
 	}

@@ -6,7 +6,6 @@ import {
   buildBundle,
   runPreflight as runPreflightApi,
   createDeployment,
-  executeDeployment,
   getDeployment,
   findInProgressDeployment,
   fetchSecretsManifest,
@@ -42,8 +41,14 @@ type SavedDeployment = {
   timestamp: number;
   sshKeyPath?: string | null;
   deploymentId?: string | null;
-  deploymentStatus?: "idle" | "deploying" | "success" | "failed" | null;
+  deploymentStatus?: WizardDeploymentStatus | null;
 };
+
+/**
+ * review: the deployment record exists and the compiled plan is being
+ * reviewed; deploying: a durable operation was admitted and is attached.
+ */
+export type WizardDeploymentStatus = "idle" | "review" | "deploying" | "success" | "failed";
 
 function loadSavedDeployment(): SavedDeployment | null {
   try {
@@ -102,9 +107,7 @@ export function useDeployment() {
   const [preflightOverride, setPreflightOverride] = useState(false);
 
   // Deploy state - initialize from saved state if available
-  const [deploymentStatus, setDeploymentStatus] = useState<"idle" | "deploying" | "success" | "failed">(
-    saved?.deploymentStatus ?? "idle"
-  );
+  const [deploymentStatus, setDeploymentStatus] = useState<WizardDeploymentStatus>(saved?.deploymentStatus ?? "idle");
   const [deploymentError, setDeploymentError] = useState<string | null>(null);
   const [deploymentId, setDeploymentId] = useState<string | null>(saved?.deploymentId ?? null);
   const [isReconnecting, setIsReconnecting] = useState(false);
@@ -541,49 +544,54 @@ export function useDeployment() {
     return merged;
   }, [providedSecrets, customSecrets]);
 
+  // Step 1 of the reviewed path: create (or reuse) the deployment record with
+  // the bundle and provided secrets, then hand over to the plan review. The
+  // plan is compiled and applied by the deploy step through the console
+  // (POST /plan, POST /plan/apply); this hook never executes anything.
   const deploy = useCallback(async () => {
-    setDeploymentStatus("deploying");
     setDeploymentError(null);
-    setDeploymentId(null);
-
     try {
       if (!parsedManifest.ok) {
         throw new Error(`Invalid manifest: ${parsedManifest.error}`);
       }
-
-      // Step 1: Create or get existing deployment record with bundle info
       const createRes = await createDeployment(parsedManifest.value, {
         bundlePath: bundleArtifact?.path,
         bundleSha256: bundleArtifact?.sha256,
         bundleSizeBytes: bundleArtifact?.size_bytes,
+        providedSecrets: mergedProvidedSecrets,
       });
       const newDeploymentId = createRes.deployment.id;
       setDeploymentId(newDeploymentId);
-
-      // Save deployment ID to localStorage for reconnection on refresh
+      setDeploymentStatus("review");
       saveDeployment({
         manifestJson,
         currentStep: currentStepIndex,
         timestamp: Date.now(),
         sshKeyPath,
         deploymentId: newDeploymentId,
-        deploymentStatus: "deploying",
+        deploymentStatus: "review",
       });
-
-      // Step 2: Execute deployment (setup + deploy)
-      // This is now non-blocking - it returns immediately.
-      // Progress is tracked via SSE on /deployments/{id}/progress
-      // and status updates come via the onDeploymentComplete callback
-      await executeDeployment(newDeploymentId, { providedSecrets: mergedProvidedSecrets });
-
-      // Status remains "deploying" - will be updated via SSE progress events
     } catch (e) {
       setDeploymentError(e instanceof Error ? e.message : String(e));
       setDeploymentStatus("failed");
     }
   }, [parsedManifest, manifestJson, currentStepIndex, sshKeyPath, bundleArtifact, mergedProvidedSecrets]);
 
-  // Called when SSE progress stream reports completion or error
+  // Step 2: a durable operation was admitted for the reviewed plan.
+  const onOperationAdmitted = useCallback(() => {
+    setDeploymentStatus("deploying");
+    setDeploymentError(null);
+    saveDeployment({
+      manifestJson,
+      currentStep: currentStepIndex,
+      timestamp: Date.now(),
+      sshKeyPath,
+      deploymentId,
+      deploymentStatus: "deploying",
+    });
+  }, [manifestJson, currentStepIndex, sshKeyPath, deploymentId]);
+
+  // Called when the attached operation reaches a terminal state.
   const onDeploymentComplete = useCallback((success: boolean, error?: string) => {
     const newStatus = success ? "success" : "failed";
     if (success) {
@@ -807,6 +815,7 @@ export function useDeployment() {
     deploymentError,
     deploymentId,
     deploy,
+    onOperationAdmitted,
     onDeploymentComplete,
     isReconnecting,
 

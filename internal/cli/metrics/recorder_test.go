@@ -114,6 +114,49 @@ func TestRecorderNonFatalOnIOError(t *testing.T) {
 	}
 }
 
+func TestRecorderRotatesWhenSizeLimitWouldBeExceeded(t *testing.T) {
+	home := t.TempDir()
+	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+	r := NewWithPolicy(home, nil, RotationPolicy{MaxBytes: 100, MaxAge: 365 * 24 * time.Hour, MaxBackups: 3, Now: func() time.Time { return now }})
+	r.Record(Event{Command: "first", Args: []string{"x"}})
+	path := r.Path()
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Record(Event{Command: "second", Args: []string{strings.Repeat("x", 90)}})
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) == string(before) || !strings.Contains(string(after), `"cmd":"second"`) {
+		t.Fatalf("active timings file was not replaced: %q", after)
+	}
+	backups, err := filepath.Glob(path + ".*")
+	if err != nil || len(backups) != 1 {
+		t.Fatalf("backups = %v, err=%v; want one rotated file", backups, err)
+	}
+}
+
+func TestRecorderRotatesWhenAgeLimitExpires(t *testing.T) {
+	home := t.TempDir()
+	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+	r := NewWithPolicy(home, nil, RotationPolicy{MaxBytes: 1024 * 1024, MaxAge: time.Hour, MaxBackups: 3, Now: func() time.Time { return now }})
+	r.Record(Event{Command: "old"})
+	old := now.Add(-2 * time.Hour)
+	if err := os.Chtimes(r.Path(), old, old); err != nil {
+		t.Fatal(err)
+	}
+	r.Record(Event{Command: "fresh"})
+	data, err := os.ReadFile(r.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), `"cmd":"old"`) || !strings.Contains(string(data), `"cmd":"fresh"`) {
+		t.Fatalf("age rotation did not replace active file: %q", data)
+	}
+}
+
 func TestRecorderNilSafe(t *testing.T) {
 	var r *Recorder
 	r.Record(Event{Command: "scenario"}) // must not panic

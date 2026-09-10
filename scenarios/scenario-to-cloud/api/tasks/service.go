@@ -115,7 +115,7 @@ func (s *Service) TriggerTask(ctx context.Context, req domain.CreateTaskRequest)
 	inv := &domain.Investigation{
 		ID:              uuid.New().String(),
 		DeploymentID:    req.DeploymentID,
-		DeploymentRunID: deployment.RunID,
+		DeploymentRunID: nil, // run_id retired (DL-05): operations own execution identity
 		Status:          domain.InvestigationStatusPending,
 		Progress:        0,
 		CreatedAt:       now,

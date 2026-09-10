@@ -3,6 +3,8 @@ package profiles
 import (
 	"context"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -55,6 +57,15 @@ func TestConnectCommandsUseGeneratedProfilesService(t *testing.T) {
 		{"list", func() error { return commands.list(nil) }},
 		{"create", func() error { return commands.create([]string{"demo", "example", "--tier", "3"}) }},
 		{"show", func() error { return commands.show([]string{"p1"}) }},
+		{"export", func() error { return commands.export([]string{"p1", "--format", "json"}) }},
+		{"import", func() error {
+			path := filepath.Join(t.TempDir(), "profile.json")
+			if err := os.WriteFile(path, []byte(`{"name":"imported","scenario":"example","tiers":[2]}`), 0o600); err != nil {
+				return err
+			}
+			return commands.importProfile([]string{path, "--format", "json"})
+		}},
+		{"update", func() error { return commands.update([]string{"p1", "--name", "updated"}) }},
 		{"delete", func() error { return commands.delete([]string{"p1"}) }},
 		{"versions", func() error { return commands.versions([]string{"p1"}) }},
 	} {

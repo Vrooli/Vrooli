@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/vrooli/internal/operatorstate"
 	catalogpkg "github.com/vrooli/vrooli/internal/resources/catalog"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
+	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -354,7 +355,19 @@ func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd,
 		// context as lifecycle operations. In particular, a managed-service
 		// client must not fall back to a legacy Docker adapter simply because it
 		// was invoked through `vrooli resource` rather than by the supervisor.
-		if manifest, err := c.LoadManifest(filepath.Join(c.Root, "resources", name, "resource.json")); err == nil && manifest.ManagedService != nil {
+		if manifest, err := c.LoadManifest(filepath.Join(c.Root, "resources", name, "resource.json")); err == nil {
+			env, err = resourceEnvForManifest(c.Root, c.Home, manifest)
+			if err != nil {
+				return nil, err
+			}
+			if manifest.ManagedService == nil {
+				return shell.Command(shell.Spec{
+					Name: path,
+					Args: args,
+					Dir:  c.Root,
+					Env:  env,
+				}), nil
+			}
 			for _, port := range manifest.Ports {
 				if port.Host > 0 {
 					env = values.SetEnv(env, managedServicePortEnvName(port.Name), fmt.Sprintf("%d", port.Host))
@@ -392,6 +405,18 @@ func resourceEnv(root, home string) []string {
 		env = values.SetEnv(env, "HOME", home)
 	}
 	return env
+}
+
+func resourceEnvForManifest(root, home string, manifest ResourceManifest) ([]string, error) {
+	env := resourceEnvForResource(root, home, manifest.Name)
+	report, err := resourceenv.ResolveResource(root, home, manifest.Name, resourceenv.ResolveOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range report.Values {
+		env = values.SetEnv(env, key, value)
+	}
+	return env, nil
 }
 
 func resourceEnvForResource(root, home, resourceName string) []string {

@@ -75,7 +75,7 @@ func TestRequestMagicLinkDoesNotExposeServiceFailure(t *testing.T) {
 	deps.Service = userAuthStub{request: func(context.Context, string, string, string) error { return errors.New("mail provider unavailable") }}
 	recorder := httptest.NewRecorder()
 	RequestMagicLink(deps).ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/auth/magic-link", strings.NewReader(`{"email":"USER@example.test"}`)))
-	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "Check your email") {
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "sign-in request was processed") {
 		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
 }

@@ -77,6 +77,15 @@ func (h *Handlers) Ensure(args []string) error {
 	if err != nil {
 		return err
 	}
+	if key != "" {
+		changedAuth, err := secrets.SyncOpenRouterAuth(authPath(getenv), key)
+		if err != nil {
+			return err
+		}
+		if changedAuth {
+			fmt.Fprintf(h.Stdout, "Updated OpenCode auth at %s\n", authPath(getenv))
+		}
+	}
 	if !changed {
 		fmt.Fprintln(h.Stdout, "opencode.json already current")
 	}
@@ -92,5 +101,23 @@ func xdgConfigHome(getenv func(string) string) string {
 }
 
 func configPath(getenv func(string) string) string {
+	if dir := getenv("OPENCODE_CONFIG_DIR"); dir != "" {
+		return filepath.Join(dir, "opencode.json")
+	}
 	return filepath.Join(xdgConfigHome(getenv), "opencode", "opencode.json")
+}
+
+func authPath(getenv func(string) string) string {
+	if dataHome := getenv("OPENCODE_XDG_DATA_HOME"); dataHome != "" {
+		return filepath.Join(dataHome, "opencode", "auth.json")
+	}
+	dataHome := getenv("XDG_DATA_HOME")
+	if dataHome == "" {
+		home := getenv("HOME")
+		if home == "" {
+			home, _ = os.UserHomeDir()
+		}
+		dataHome = filepath.Join(home, ".local", "share")
+	}
+	return filepath.Join(dataHome, "opencode", "auth.json")
 }

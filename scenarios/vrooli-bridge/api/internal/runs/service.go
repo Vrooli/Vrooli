@@ -3,6 +3,7 @@ package runs
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -48,8 +49,10 @@ type Service interface {
 	// elapsed first (the returned Run is the latest non-terminal snapshot).
 	Wait(ctx context.Context, id string, timeout time.Duration) (run Run, timedOut bool, err error)
 
-	// Abort marks a non-terminal run ABORTED, wakes waiters, and returns the
-	// run. Idempotent on an already-terminal run (returns it unchanged).
+	// Abort records a cancellation request and returns the run. It remains
+	// CANCEL_REQUESTED until the node reports termination, or becomes UNCERTAIN
+	// when the cancel delivery cannot be established. Idempotent on an already-
+	// terminal run (returns it unchanged).
 	Abort(ctx context.Context, id, reason string) (Run, error)
 
 	// Subscribe registers a live event subscriber for the run, returning a
@@ -74,17 +77,16 @@ type service struct {
 }
 
 // TerminalHook is invoked (best-effort) whenever a run reaches a terminal status
-// — a node-reported EXIT or an operator/queue Abort. The per-node job scheduler
-// (queue domain) wires it to free the run's slot and promote the next queued
-// job. It must not block (it runs on the ingest/abort path).
+// — a node-reported EXIT or a cancellation of queued work. The per-node job
+// scheduler (queue domain) wires it to free the run's slot and promote the next
+// queued job. It must not block (it runs on the ingest/abort path).
 type TerminalHook func(ctx context.Context, run Run)
 
 // Canceller is the channel-push seam used to tell a node to STOP an in-flight
-// run when it is aborted (the AbortJob frame). Without it an AbortRun marks the
-// run terminal server-side but the node runs to completion as an ignored stale
-// completion (the pre-Phase-5 behaviour).
+// run when cancellation is requested (the AbortJob frame). Its delivery count
+// is part of the evidence: without a confirmed push the run remains uncertain.
 type Canceller interface {
-	CancelJob(ctx context.Context, nodeID, runID, reason string) error
+	CancelJob(ctx context.Context, nodeID, runID, reason string) (delivered int, err error)
 }
 
 // Option customises the service.
@@ -161,17 +163,20 @@ func (s *service) List(ctx context.Context, filter ListFilter) ([]Run, error) {
 }
 
 func (s *service) RecordDeliveryAck(ctx context.Context, ack DeliveryAck) error {
-	if err := s.repo.RecordDeliveryAck(ctx, ack); err != nil {
-		return err
-	}
 	if ack.RunID == "" {
-		return nil
+		return s.repo.RecordDeliveryAck(ctx, ack)
 	}
 	run, err := s.repo.Get(ctx, ack.RunID)
 	if err != nil {
 		return err
 	}
-	if run.Status.Terminal() {
+	if run.NodeID != ack.NodeID {
+		return fmt.Errorf("delivery acknowledgement node %q does not own run %q", ack.NodeID, ack.RunID)
+	}
+	if err := s.repo.RecordDeliveryAck(ctx, ack); err != nil {
+		return err
+	}
+	if run.Status.Terminal() || !run.CancelRequestedAt.IsZero() {
 		return nil
 	}
 	run.Status = StatusAcked
@@ -181,6 +186,7 @@ func (s *service) RecordDeliveryAck(ctx context.Context, ack DeliveryAck) error 
 	}
 	run.LastDeliveryError = ""
 	run.DeliveryLeaseExpiresAt = time.Time{}
+	run.StatusReason = "delivery acknowledged"
 	_, err = s.repo.Update(ctx, run)
 	return err
 }
@@ -192,6 +198,9 @@ func (s *service) MarkDeliveryState(ctx context.Context, runID string, status Ru
 	}
 	if at.IsZero() {
 		at = s.clock.Now().UTC()
+	}
+	if run.Status.Terminal() || (!run.CancelRequestedAt.IsZero() && status != StatusUncertain && status != StatusCancelRequested) {
+		return nil
 	}
 	run.Status = status
 	switch status {
@@ -209,8 +218,17 @@ func (s *service) MarkDeliveryState(ctx context.Context, runID string, status Ru
 		run.DeliveryLeaseExpiresAt = time.Time{}
 	case StatusFailedDelivery:
 		run.FinishedAt = at
+	case StatusCancelRequested:
+		run.CancelRequestedAt = at
+		run.CancellationConfirmed = false
+	case StatusUncertain:
+		// Uncertain is deliberately non-terminal: the scheduler retains the
+		// slot until a later node event proves whether the process stopped.
 	}
 	run.LastDeliveryError = detail
+	if detail != "" {
+		run.StatusReason = detail
+	}
 	_, err = s.repo.Update(ctx, run)
 	return err
 }
@@ -259,6 +277,12 @@ func (s *service) AppendEvent(ctx context.Context, ev RunEvent) (bool, error) {
 			run.Status = StatusRunning
 			run.StartedAt = now
 			changed = true
+		} else if (run.Status == StatusCancelRequested || run.Status == StatusUncertain) && strings.EqualFold(strings.TrimSpace(ev.Status), "running") && run.StartedAt.IsZero() {
+			// The node may have started before the cancel reached it. Preserve the
+			// cancellation state until an EXIT confirms termination; do not let a
+			// late running event make an uncertain operation look healthy.
+			run.StartedAt = now
+			changed = true
 		}
 	case EventExit:
 		if run.StartedAt.IsZero() {
@@ -266,7 +290,11 @@ func (s *service) AppendEvent(ctx context.Context, ev RunEvent) (bool, error) {
 		}
 		run.FinishedAt = now
 		run.ExitCode = ev.ExitCode
-		if ev.ExitCode == 0 {
+		if !run.CancelRequestedAt.IsZero() || run.Status == StatusCancelRequested || run.Status == StatusUncertain {
+			run.Status = StatusAborted
+			run.CancellationConfirmed = true
+			run.StatusReason = "remote termination confirmed"
+		} else if ev.ExitCode == 0 {
 			run.Status = StatusPassed
 		} else {
 			run.Status = StatusFailed
@@ -347,34 +375,76 @@ func (s *service) Abort(ctx context.Context, id, reason string) (Run, error) {
 	if run.Status.Terminal() {
 		return run, nil
 	}
-	now := s.clock.Now().UTC()
-	run.Status = StatusAborted
-	run.FinishedAt = now
-	if run.StartedAt.IsZero() {
-		run.StartedAt = now
+	if run.Status == StatusCancelRequested {
+		return run, nil
 	}
+	now := s.clock.Now().UTC()
+	label := "cancellation requested"
+	if r := strings.TrimSpace(reason); r != "" {
+		label = "cancellation requested: " + r
+	}
+	// A queued run has not crossed the node boundary, so cancellation is
+	// immediately confirmed and its scheduler slot may be released. Once a
+	// delivery has been pushed, the server must wait for node termination
+	// evidence instead of claiming ABORTED optimistically.
+	if run.Status == StatusQueued {
+		run.Status = StatusAborted
+		run.FinishedAt = now
+		run.CancelRequestedAt = now
+		run.CancellationConfirmed = true
+		run.StatusReason = label
+		run, err = s.repo.Update(ctx, run)
+		if err != nil {
+			return Run{}, err
+		}
+		status := "aborted"
+		if r := strings.TrimSpace(reason); r != "" {
+			status += ": " + r
+		}
+		ev := RunEvent{RunID: id, Kind: EventStatus, Sequence: s.coord.nextAbortSeq(id), Status: status, EmittedAt: now}
+		_ = s.repo.AppendEvent(ctx, ev)
+		s.coord.publish(ev)
+		s.coord.signalTerminal(id)
+		s.fireTerminal(ctx, run)
+		return run, nil
+	}
+
+	run.Status = StatusCancelRequested
+	run.CancelRequestedAt = now
+	run.CancellationConfirmed = false
+	run.StatusReason = label
 	run, err = s.repo.Update(ctx, run)
 	if err != nil {
 		return Run{}, err
 	}
-
-	// Record the abort as a terminal status event so GetRun/follow show why the
-	// run ended, then wake waiters.
-	label := "aborted"
-	if r := strings.TrimSpace(reason); r != "" {
-		label = "aborted: " + r
-	}
 	ev := RunEvent{RunID: id, Kind: EventStatus, Sequence: s.coord.nextAbortSeq(id), Status: label, EmittedAt: now}
 	_ = s.repo.AppendEvent(ctx, ev)
 	s.coord.publish(ev)
-	s.coord.signalTerminal(id)
 
-	// Tell the node to STOP the run (the AbortJob frame) so it does not run to
-	// completion as an ignored stale completion, then free its queue slot.
-	if s.canceller != nil {
-		_ = s.canceller.CancelJob(ctx, run.NodeID, id, reason)
+	// Tell the node to STOP the run (the AbortJob frame). A zero delivery count
+	// or transport error is explicit uncertainty: the remote process may still
+	// be running, so the scheduler slot remains occupied.
+	delivered := 0
+	var cancelErr error
+	if s.canceller == nil {
+		cancelErr = errors.New("cancellation transport is unavailable")
+	} else {
+		delivered, cancelErr = s.canceller.CancelJob(ctx, run.NodeID, id, reason)
 	}
-	s.fireTerminal(ctx, run)
+	if cancelErr != nil || delivered == 0 {
+		run.Status = StatusUncertain
+		run.StatusReason = "cancellation delivery unconfirmed"
+		if cancelErr != nil {
+			run.StatusReason += ": " + cancelErr.Error()
+		}
+		run, err = s.repo.Update(ctx, run)
+		if err != nil {
+			return Run{}, err
+		}
+		uncertainEvent := RunEvent{RunID: id, Kind: EventStatus, Sequence: s.coord.nextAbortSeq(id), Status: "uncertain: " + run.StatusReason, EmittedAt: now}
+		_ = s.repo.AppendEvent(ctx, uncertainEvent)
+		s.coord.publish(uncertainEvent)
+	}
 	return run, nil
 }
 

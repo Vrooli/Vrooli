@@ -3,8 +3,6 @@ package server
 import (
 	"net/http"
 
-	"deployment-manager/readiness"
-
 	"github.com/gorilla/mux"
 )
 
@@ -14,10 +12,9 @@ func registerBundleExportCompatibilityRoute(router *mux.Router, handler http.Han
 	}
 }
 
-// setupRoutes mounts the generated Connect services and the single retained
-// REST health probe. Product operations are intentionally absent from the
-// Gorilla/mux surface: the proto descriptors and generated handlers are the
-// source of truth for every domain operation.
+// setupRoutes mounts the generated Connect services and the narrow REST
+// compatibility routes that still have external owner consumers. New product
+// operations belong in the proto descriptors and generated handlers.
 func (s *Server) setupRoutes() {
 	s.Router.Use(func(next http.Handler) http.Handler {
 		return LoggingMiddlewareWithLogger(s.Logger, next)
@@ -38,6 +35,12 @@ func (s *Server) setupRoutes() {
 	if s.BundlesHandler != nil {
 		registerBundleExportCompatibilityRoute(s.Router, s.BundlesHandler.ExportBundle)
 	}
-	s.Router.Path("/api/v1/readiness/verdict").Handler(readiness.Handler(readiness.DefaultChecklist())).Methods(http.MethodPost)
+	if s.ReleasesHandler != nil {
+		s.Router.HandleFunc("/api/v1/release-operations/{operation_id}", s.ReleasesHandler.GetOperation).Methods(http.MethodGet)
+		s.Router.HandleFunc("/api/v1/releases/{release_id}/recover", s.ReleasesHandler.Recover).Methods(http.MethodPost)
+		s.Router.HandleFunc("/api/v1/releases/{release_id}/reconcile", s.ReleasesHandler.Reconcile).Methods(http.MethodPost)
+		s.Router.HandleFunc("/api/v1/releases/{release_id}/dossier", s.ReleasesHandler.Dossier).Methods(http.MethodGet)
+		s.Router.HandleFunc("/api/v1/releases/{release_id}/health", s.ReleasesHandler.Health).Methods(http.MethodGet)
+	}
 	s.Router.HandleFunc("/health", s.HealthHandler.Health).Methods("GET")
 }

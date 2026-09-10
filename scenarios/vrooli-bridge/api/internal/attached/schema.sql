@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS bridge_attached_devices (
   host_node_id TEXT NOT NULL,
   kind TEXT NOT NULL,
   transport TEXT NOT NULL DEFAULT '',
+  transports_json TEXT NOT NULL DEFAULT '[]',
   serial TEXT NOT NULL DEFAULT '',
   os_version TEXT NOT NULL DEFAULT '',
   trust_state TEXT NOT NULL,

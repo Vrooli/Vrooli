@@ -1,4 +1,6 @@
 import { createClient } from "@connectrpc/connect";
+import { create } from "@bufbuild/protobuf";
+import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";
 import { onboardingTransport } from "./base";
 import {
   OperatorStateService,
@@ -54,7 +56,7 @@ export async function saveOperatorState(patch: OperatorStatePatch, target = "loc
   const request = {
     target,
     state: patch,
-    updateMask: { paths: Object.keys(patch) },
+    updateMask: create(FieldMaskSchema, { paths: Object.keys(patch) }),
   } as unknown as PatchOperatorStateRequest;
   const response = await client.patchOperatorState(request) as unknown as PatchOperatorStateResponse;
   return (response.state ?? {}) as OperatorState;
@@ -68,7 +70,7 @@ export async function saveOperatorStateAtRevision(
   const request = {
     target,
     state: patch,
-    updateMask: { paths: Object.keys(patch) },
+    updateMask: create(FieldMaskSchema, { paths: Object.keys(patch) }),
     expectedRevision,
   } as unknown as PatchOperatorStateRequest;
   const response = await client.patchOperatorState(request) as unknown as PatchOperatorStateResponse;

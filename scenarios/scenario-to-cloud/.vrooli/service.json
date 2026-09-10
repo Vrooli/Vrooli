@@ -65,6 +65,47 @@
       "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
+  "authentication": {
+    "version": 1,
+    "profile": "scenario_authenticator",
+    "default_mode": "personal_local",
+    "supported_modes": [
+      "personal_local",
+      "shared_provider"
+    ],
+    "human_sign_in": "optional",
+    "provider": "scenario-authenticator",
+    "resource": "scenario-to-cloud",
+    "scenario_audience": "scenario-authenticator:scenario-to-cloud",
+    "offline": true,
+    "public_routes": [
+      "/health",
+      "/api/v1/health"
+    ],
+    "protected_routes": [
+      "/api",
+      "/vrooli.scenario_to_cloud.v1.deployments.DeploymentsService",
+      "/vrooli.scenario_to_cloud.v1.health.HealthService"
+    ],
+    "capabilities": [
+      {
+        "id": "scenario-to-cloud:read",
+        "effect": "read",
+        "agent_eligible": true
+      },
+      {
+        "id": "scenario-to-cloud:write",
+        "effect": "write",
+        "agent_eligible": false
+      },
+      {
+        "id": "scenario-to-cloud:destructive",
+        "effect": "destructive",
+        "agent_eligible": true
+      }
+    ],
+    "policy_mode": "operator_managed"
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -208,7 +249,34 @@
         "label": "Secrets Manager deployment service token",
         "description": "Scoped service credential used to retrieve deployment manifest metadata from Secrets Manager.",
         "required": false,
-        "provisioning": "operator"
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/scenario-to-cloud/docs/reference/credential-lifecycle.md"
+      }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/scenario-to-cloud",
+        "field": "lpbs-vps-ssh-key",
+        "kind": "dynamic",
+        "consumer": "deployment-specific VPS SSH identity resolver",
+        "source_ref": "api/vps/deploy.go:195",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/secrets-manager/deployment",
+        "field": "service-token",
+        "kind": "authority",
+        "consumer": "Secrets Manager deployment client",
+        "source_ref": "api/secrets/client.go:210",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/secrets-manager/deployment",
+        "field": "service-token",
+        "kind": "environment",
+        "consumer": "Secrets Manager deployment compatibility environment",
+        "source_ref": "api/secrets/client.go:92",
+        "required": false
       }
     ]
   },

@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-04T03:17:18-04:00"
+    "last_validated_at": "2026-09-08T20:40:00-04:00"
   },
   "requirements": [
     {
@@ -19,8 +19,8 @@
           "type": "test",
           "ref": "api/internal/evidence/conformance/conformance_test.go",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Conformance tests reject artifact paths and invalid reference fields while accepting producer-shaped verdicts."
+          "status": "passing",
+          "notes": "Conformance tests reject artifact paths and invalid reference fields while accepting producer-shaped verdicts; the remaining requirement work is producer and retention qualification."
         }
       ]
     },
@@ -40,8 +40,8 @@
           "type": "test",
           "ref": "api/deployments/release_gate_evidence_test.go",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Release-gate evidence tests cover missing, failed, commit-mismatched, and fully satisfied evidence decisions."
+          "status": "passing",
+          "notes": "Release-gate evidence tests cover missing, failed, commit-mismatched, and fully satisfied evidence decisions; native target receipts remain an external qualification obligation."
         }
       ]
     }

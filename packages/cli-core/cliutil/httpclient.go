@@ -242,6 +242,20 @@ func (h *HTTPClient) CloneWithTimeout(timeout time.Duration) *HTTPClient {
 	if h == nil || timeout <= 0 {
 		return h
 	}
+	return h.cloneWithTimeout(timeout)
+}
+
+// CloneWithoutTimeout explicitly delegates the response deadline to the
+// server (or request context), as required for durable blocking waits.
+// Ordinary CloneWithTimeout callers retain their existing default behavior.
+func (h *HTTPClient) CloneWithoutTimeout() *HTTPClient {
+	if h == nil {
+		return nil
+	}
+	return h.cloneWithTimeout(0)
+}
+
+func (h *HTTPClient) cloneWithTimeout(timeout time.Duration) *HTTPClient {
 	clone := *h
 	clone.client = &http.Client{Timeout: timeout}
 	if h.client != nil {

@@ -33,6 +33,16 @@ const (
 	DefaultTimestampServerGlobalSign = "http://timestamp.globalsign.com/tsa/r6advanced1"
 )
 
+// Default notarization environment bindings are public names only; the
+// corresponding values remain in the operator environment or authority.
+const (
+	DefaultAppleIDEnv          = "APPLE_ID"
+	DefaultAppleIDPasswordEnv  = "APPLE_APP_SPECIFIC_PASSWORD"
+	DefaultAppleAPIKeyIDEnv    = "APPLE_API_KEY_ID"
+	DefaultAppleAPIKeyFileEnv  = "APPLE_API_KEY_FILE"
+	DefaultAppleAPIIssuerIDEnv = "APPLE_API_ISSUER_ID"
+)
+
 // SchemaVersion is the current config schema version
 const SchemaVersion = "1.0"
 

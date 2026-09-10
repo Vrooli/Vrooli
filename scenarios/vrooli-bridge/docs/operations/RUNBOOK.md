@@ -117,6 +117,33 @@ service manager (`systemctl`, `launchctl`, or the Windows Service
 control panel) only for local recovery; routine fleet operations go
 through the control plane.
 
+### Attached Android and iOS devices
+
+Bridge stores the host-bound trust and reachability record for a peripheral;
+device-control remains the owner of platform verbs and leases. Inspect the
+inventory before selecting a device:
+
+```bash
+vrooli-bridge attached list
+vrooli-bridge attached pair --host-node-id <node-id> --kind <android|ios> \
+  --serial <device-serial> --transport <transport> --host-node-online true
+vrooli-bridge attached revoke <attached-device-id>
+```
+
+The target projection exposes operation-specific readiness. A locked,
+unauthorized, disconnected, stale, or missing adapter is an actionable
+refusal, not a selectable target. A stable Android identity cannot move to a
+different host or be reactivated after revocation; revoke and re-enroll only
+after the operator has verified the replacement identity. Device-control
+re-reads Bridge trust at the lease input boundary, so a revoked peripheral
+cannot actuate through an already-held lease.
+
+Physical install, launch, semantic assertion, capture, and stop evidence must
+come from the platform owner on the attached device. A simulator or emulator
+may provide repeatable fault-injection coverage, but it does not satisfy the
+physical-device certification cell. If no controlled Android or iOS hardware
+is available, leave that cell explicitly unmet.
+
 ## Onboarding A Node (one-shot)
 
 Onboarding turns a raw, SSH-reachable host into a paired, ONLINE,
@@ -145,9 +172,7 @@ use the explicit recovery command. It uses the same opaque authorization JSON
 contract as the standalone cleanup protection command:
 
 ```bash
-vrooli-bridge onboard complete-protection \
-  --onboarding-op-id <onboarding-op-id> --machine <machine-id> \
-  --node <node-id> --target mini-01.local --scope all < authorization.json
+cat "authorization.json" | vrooli-bridge onboard complete-protection --onboarding-op-id "<onboarding-op-id>" --machine "<machine-id>" --node "<node-id>" --target mini-01.local --scope all
 ```
 
 The `onboard status` event history shows the `break-glass-provision` step as
@@ -199,7 +224,7 @@ read -rs SSH_PW && printf '%s' "$SSH_PW" | vrooli-bridge onboard start \
   --host mini-01.local --user admin --password-stdin && unset SSH_PW
 
 # Shape the node's setup with an explicit profile (else its own defaults apply):
-vrooli-bridge onboard start --host mini-01.local --user admin --prompt-password --setup-environment production --setup-resources enabled
+vrooli-bridge onboard start --host mini-01.local --user admin --prompt-password --preset production
 
 # Block ONCE on the terminal outcome (never poll); exits non-zero on failure:
 vrooli-bridge onboard watch "<op-id>"
@@ -352,12 +377,7 @@ The passphrase is not accepted from an environment variable, argv, or a file.
 ```bash
 read -r -s -p 'Break-glass passphrase: ' BRIDGE_BREAK_GLASS_PASSPHRASE
 printf '\n'
-jq -n --arg passphrase "$BRIDGE_BREAK_GLASS_PASSPHRASE" '{passphrase:$passphrase}' |
-vrooli-bridge cleanup provision-break-glass \
-  --machine "<machine-id>" \
-  --node "<node-id>" \
-  --target "<target-hostname>" \
-  --scope "vrooli:uninstall"
+jq -n --arg passphrase "$BRIDGE_BREAK_GLASS_PASSPHRASE" '{passphrase:$passphrase}' | vrooli-bridge cleanup provision-break-glass --machine "<machine-id>" --node "<node-id>" --target "<target-hostname>" --scope "vrooli:uninstall"
 unset BRIDGE_BREAK_GLASS_PASSPHRASE
 ```
 
@@ -419,9 +439,9 @@ To repair a host in place, reuse the durable identity and let Bridge drive the
 normal SSH/key/bootstrap flow:
 
 ```bash
-vrooli-bridge machines repair <machine-id>
-vrooli-bridge onboard watch <onboarding-op-id>
-vrooli-bridge machines get <machine-id>
+vrooli-bridge machines repair "<machine-id>"
+vrooli-bridge onboard watch "<onboarding-op-id>"
+vrooli-bridge machines get "<machine-id>"
 ```
 
 Repair is safe to retry. Each invocation creates a distinct attempt linked to
@@ -449,7 +469,7 @@ Machine to bypass this invariant.
 | Control plane does not start | `make status`, `make logs` | `make restart`, then inspect lifecycle logs | Record recurring failures in [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md). |
 | Node shows offline / dial-out channel dropped | Node presence in `nodes list`; on the node, agent service status (`systemctl`/`launchctl`/Service mgr) and its logs; control-plane reachability (LAN direct, or tunnel-manager URL off-LAN) | Restart the agent service on the node; confirm outbound path to the control plane; if off-LAN, verify tunnel-manager tunnel is up | If a node repeatedly drops, suspect tunnel or network; check tunnel-manager and `../internal/PROBLEMS.md`. |
 | Provision fails (sync to revision R) | Provisioning audit entry, node toolchain/disk headroom, `vrooli setup` output captured back at the control plane | Re-run provisioning (idempotent); the tier auto-rolls the node back to its prior revision on setup failure | If setup fails repeatedly on one OS, capture logs and escalate; review `../internal/SECURITY.md` for the privileged tier's expectations. |
-| Job stuck / not completing | Job status in the control plane; the durable run is server-owned and re-attachable by id — block once with the wait verb, do **not** poll | Re-attach by run id; if genuinely wedged, abort the job (abort ≠ cancel) and inspect node-side run logs | Mirror test-genie discipline: one job per node at a time; a thrashing node points to scheduling/health issues. |
+| Job stuck / not completing | Job status in the control plane; the durable run is server-owned and re-attachable by id — block once with the wait verb, do **not** poll | Re-attach by run id; if genuinely wedged, request cancellation and inspect node-side run logs. `CANCEL_REQUESTED`/`UNCERTAIN` remain active until a node `EXIT` confirms termination. | Mirror test-genie discipline: one job per node at a time; a thrashing node points to scheduling/health issues. |
 | Version drift across fleet | Per-node Vrooli revision in `nodes list`; protocol-compatibility flags | Pin the fleet to target revision R and re-provision drifted nodes; nodes on an incompatible agent are flagged "needs update" and excluded from incompatible work | If drift recurs, evaluate self-healing re-provisioning (OT-P2-004, not yet implemented). |
 | Job rejected by node | Node's transport and `<namespace>:<effect>` catalog grants vs the dispatched `{scenario, verb}` | Expected behavior — Bridge runs only manifest-derived typed verbs; grant the named missing catalog scope deliberately if the verb should be permitted | Never work around the allowlist with raw shell; see `../internal/SECURITY.md`. |
 

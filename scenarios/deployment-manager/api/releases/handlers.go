@@ -5,15 +5,19 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"deployment-manager/profiles"
 	"deployment-manager/shared"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/identity"
 )
 
 // newReleaseID returns a hex-encoded 16-byte random string. Collisions are
@@ -37,13 +41,86 @@ type Orchestrator interface {
 // start. It mirrors the fields that POST /deploy-desktop consumes, plus the
 // fresh release_id and channel that DM now owns.
 type DeployRequest struct {
-	ProfileID      string
-	ReleaseID      string
-	Channel        string
-	Platforms      []string
-	GitCommitHash  string
-	ReleaseVersion string
-	ReleaseNotes   string
+	ProfileID             string
+	ReleaseID             string
+	Channel               string
+	Platforms             []string
+	GitCommitHash         string
+	ArtifactDigest        string
+	ReleaseVersion        string
+	ReleaseNotes          string
+	CandidateID           string
+	DestinationRevisionID string
+	AuthorizationEpoch    uint64
+	IdempotencyKey        string
+	ReadinessReviewKey    string                      `json:"-"`
+	AuthorizationCheck    func(context.Context) error `json:"-"`
+	CloudManifest         json.RawMessage
+	CloudDeploymentName   string
+	CloudBundlePath       string
+	CloudBundleSHA256     string
+	CloudBundleSizeBytes  int64
+	CloudRunPreflight     bool
+}
+
+// durableDeployRequest is the restart-safe subset of DeployRequest. Function
+// values and other process-local execution hooks are restored by the handler
+// after decoding this snapshot.
+type durableDeployRequest struct {
+	ProfileID             string          `json:"profile_id"`
+	ReleaseID             string          `json:"release_id"`
+	Channel               string          `json:"channel"`
+	Platforms             []string        `json:"platforms"`
+	GitCommitHash         string          `json:"git_commit_hash"`
+	ArtifactDigest        string          `json:"artifact_digest"`
+	ReleaseVersion        string          `json:"release_version"`
+	ReleaseNotes          string          `json:"release_notes,omitempty"`
+	CandidateID           string          `json:"candidate_id,omitempty"`
+	DestinationRevisionID string          `json:"destination_revision_id,omitempty"`
+	AuthorizationEpoch    uint64          `json:"authorization_epoch,omitempty"`
+	IdempotencyKey        string          `json:"idempotency_key,omitempty"`
+	ReadinessReviewKey    string          `json:"readiness_review_key,omitempty"`
+	CloudManifest         json.RawMessage `json:"cloud_manifest,omitempty"`
+	CloudDeploymentName   string          `json:"cloud_deployment_name,omitempty"`
+	CloudBundlePath       string          `json:"cloud_bundle_path,omitempty"`
+	CloudBundleSHA256     string          `json:"cloud_bundle_sha256,omitempty"`
+	CloudBundleSizeBytes  int64           `json:"cloud_bundle_size_bytes,omitempty"`
+	CloudRunPreflight     bool            `json:"cloud_run_preflight,omitempty"`
+}
+
+func snapshotForDeployRequest(request DeployRequest) (json.RawMessage, error) {
+	return json.Marshal(durableDeployRequest{
+		ProfileID: request.ProfileID, ReleaseID: request.ReleaseID, Channel: request.Channel,
+		Platforms: append([]string(nil), request.Platforms...), GitCommitHash: request.GitCommitHash,
+		ArtifactDigest: request.ArtifactDigest, ReleaseVersion: request.ReleaseVersion,
+		ReleaseNotes: request.ReleaseNotes, CandidateID: request.CandidateID,
+		DestinationRevisionID: request.DestinationRevisionID, AuthorizationEpoch: request.AuthorizationEpoch,
+		IdempotencyKey: request.IdempotencyKey, ReadinessReviewKey: request.ReadinessReviewKey, CloudManifest: append(json.RawMessage(nil), request.CloudManifest...),
+		CloudDeploymentName: request.CloudDeploymentName, CloudBundlePath: request.CloudBundlePath,
+		CloudBundleSHA256: request.CloudBundleSHA256, CloudBundleSizeBytes: request.CloudBundleSizeBytes,
+		CloudRunPreflight: request.CloudRunPreflight,
+	})
+}
+
+func deployRequestFromSnapshot(snapshot json.RawMessage, authorize func(context.Context) error) (DeployRequest, error) {
+	var durable durableDeployRequest
+	if len(snapshot) == 0 {
+		return DeployRequest{}, fmt.Errorf("durable execution request snapshot is missing")
+	}
+	if err := json.Unmarshal(snapshot, &durable); err != nil {
+		return DeployRequest{}, fmt.Errorf("decode durable execution request snapshot: %w", err)
+	}
+	return DeployRequest{
+		ProfileID: durable.ProfileID, ReleaseID: durable.ReleaseID, Channel: durable.Channel,
+		Platforms: append([]string(nil), durable.Platforms...), GitCommitHash: durable.GitCommitHash,
+		ArtifactDigest: durable.ArtifactDigest, ReleaseVersion: durable.ReleaseVersion,
+		ReleaseNotes: durable.ReleaseNotes, CandidateID: durable.CandidateID,
+		DestinationRevisionID: durable.DestinationRevisionID, AuthorizationEpoch: durable.AuthorizationEpoch,
+		IdempotencyKey: durable.IdempotencyKey, ReadinessReviewKey: durable.ReadinessReviewKey, AuthorizationCheck: authorize,
+		CloudManifest: append(json.RawMessage(nil), durable.CloudManifest...), CloudDeploymentName: durable.CloudDeploymentName,
+		CloudBundlePath: durable.CloudBundlePath, CloudBundleSHA256: durable.CloudBundleSHA256,
+		CloudBundleSizeBytes: durable.CloudBundleSizeBytes, CloudRunPreflight: durable.CloudRunPreflight,
+	}, nil
 }
 
 // DeployResult is the minimal response surface the release handler needs
@@ -52,6 +129,7 @@ type DeployResult struct {
 	Status            string
 	Steps             []Step
 	ReleaseID         string
+	CloudDeploymentID string
 	PublishedVersions []PublishedVersionRef
 	VerifyEvidence    []VerificationItem
 }
@@ -77,12 +155,27 @@ type LPBSVerifier interface {
 	Verify(ctx context.Context, req *VerifyCall) (*VerifyOutcome, error)
 }
 
+// AlertPublisher is the durable event boundary for health alerts. The
+// publisher is optional so a missing events service cannot make the canonical
+// health projection unavailable.
+type AlertPublisher interface {
+	PublishDomainEvent(context.Context, eventbus.DomainEvent) error
+}
+
+// SigningExpiryLookup observes the owner-controlled signing certificate for a
+// release target. A missing observation is distinct from an expired one; the
+// owner remains responsible for certificate discovery and custody.
+type SigningExpiryLookup interface {
+	LookupSigningExpiry(context.Context, string, string) (*SigningExpiry, error)
+}
+
 // VerifyCall is the input to LPBSVerifier.Verify.
 type VerifyCall struct {
 	AppKey          string
 	Channel         string
 	Platform        string
 	ExpectedVersion string
+	ExpectedSHA512  string
 	Deep            bool
 }
 
@@ -100,26 +193,22 @@ type VerifyOutcome struct {
 
 // Handler serves the release-lifecycle HTTP routes.
 type Handler struct {
-	repo       Repository
-	lpbsConfig profiles.LPBSReleaseConfigRepository
-	verifier   LPBSVerifier
-	orch       Orchestrator
-	log        func(string, map[string]interface{})
-	readiness  func(context.Context, string) (*ReadinessApproval, error)
-	promoted   func(context.Context, string, time.Time) error
-}
-
-type ReadinessApproval struct {
-	Key             string
-	Scenario        string
-	ProfileID       string
-	CandidateCommit string
-	ArtifactDigest  string
-	Targets         []string
-	Channel         string
-	PolicyVersion   int
-	Status          string
-	ApprovedAt      *time.Time
+	repo              Repository
+	lpbsConfig        profiles.LPBSReleaseConfigRepository
+	verifier          LPBSVerifier
+	orch              Orchestrator
+	log               func(string, map[string]interface{})
+	readiness         func(context.Context, string) (*ReadinessApproval, error)
+	identity          IdentityRepository
+	promoted          func(context.Context, string, time.Time) error
+	authorize         func(context.Context) error
+	readAuthorize     func(context.Context) error
+	actor             func(context.Context) (string, error)
+	recoveryAuthorize func(context.Context) error
+	recovery          RecoveryExecutor
+	alerts            AlertPublisher
+	signing           SigningExpiryLookup
+	durable           bool
 }
 
 // WithReadinessLookup enables the exact candidate/artifact/target/channel
@@ -129,11 +218,122 @@ func (h *Handler) WithReadinessLookup(lookup func(context.Context, string) (*Rea
 	return h
 }
 
+// WithIdentityRepository enables the durable candidate, destination, and
+// review binding gate. Production wiring must provide this repository so
+// request-owned IDs cannot authorize a release by themselves.
+func (h *Handler) WithIdentityRepository(repository IdentityRepository) *Handler {
+	h.identity = repository
+	return h
+}
+
 // WithReadinessPromoter records the terminal lifecycle transition only after
 // the release repository confirms publication.
 func (h *Handler) WithReadinessPromoter(promote func(context.Context, string, time.Time) error) *Handler {
 	h.promoted = promote
 	return h
+}
+
+// WithAuthorization installs the domain mutation authorization boundary. The
+// transport middleware authenticates the request; this hook decides whether
+// the verified principal may mutate release state.
+func (h *Handler) WithAuthorization(authorize func(context.Context) error) *Handler {
+	h.authorize = authorize
+	return h
+}
+
+// WithReadAuthorization installs the verified read boundary for the REST
+// compatibility projections. Typed Connect reads have their own transport
+// hook, but the mounted compatibility routes must enforce the same policy.
+func (h *Handler) WithReadAuthorization(authorize func(context.Context) error) *Handler {
+	h.readAuthorize = authorize
+	return h
+}
+
+// WithRecoveryAuthorization installs the stronger capability boundary for
+// recovery effects. Dry-run previews use the same boundary so an unprivileged
+// caller cannot use recovery validation as an authorization oracle.
+func (h *Handler) WithRecoveryAuthorization(authorize func(context.Context) error) *Handler {
+	h.recoveryAuthorize = authorize
+	return h
+}
+
+// WithActorResolver binds persisted release attribution to the verified
+// principal at the transport boundary. Request actor fields remain display
+// metadata only when this resolver is configured.
+func (h *Handler) WithActorResolver(resolve func(context.Context) (string, error)) *Handler {
+	h.actor = resolve
+	return h
+}
+
+// WithDurableOperations moves the long-running release execution to the
+// server-owned operation worker. It is enabled by the production server and
+// left disabled for small direct handler tests.
+func (h *Handler) WithDurableOperations(enabled bool) *Handler {
+	h.durable = enabled
+	return h
+}
+
+func (h *Handler) WithRecoveryExecutor(executor RecoveryExecutor) *Handler {
+	h.recovery = executor
+	return h
+}
+
+// WithAlertPublisher connects health observations to the signed event bus.
+// Health remains a pull-based source of truth when this integration is not
+// configured or the event bus is temporarily unavailable.
+func (h *Handler) WithAlertPublisher(publisher AlertPublisher) *Handler {
+	h.alerts = publisher
+	return h
+}
+
+func (h *Handler) WithSigningExpiryLookup(lookup SigningExpiryLookup) *Handler {
+	h.signing = lookup
+	return h
+}
+
+func (h *Handler) requireAuthorization(w http.ResponseWriter, r *http.Request) bool {
+	if h.authorize == nil {
+		shared.JSONError(w, "release authorization is not configured", http.StatusUnauthorized)
+		return false
+	}
+	if err := h.authorize(r.Context()); err != nil {
+		status, message := authorizationFailure(r.Context(), "verified release operator identity required", "deployment-manager release capability required")
+		shared.JSONError(w, message, status)
+		return false
+	}
+	return true
+}
+
+func (h *Handler) requireReadAuthorization(w http.ResponseWriter, r *http.Request) bool {
+	if h.readAuthorize == nil {
+		shared.JSONError(w, "release read authorization is not configured", http.StatusUnauthorized)
+		return false
+	}
+	if err := h.readAuthorize(r.Context()); err != nil {
+		status, message := authorizationFailure(r.Context(), "verified release reader identity required", "deployment-manager read capability required")
+		shared.JSONError(w, message, status)
+		return false
+	}
+	return true
+}
+
+func (h *Handler) requireRecoveryAuthorization(w http.ResponseWriter, r *http.Request) bool {
+	if h.recoveryAuthorize == nil {
+		return h.requireAuthorization(w, r)
+	}
+	if err := h.recoveryAuthorize(r.Context()); err != nil {
+		status, message := authorizationFailure(r.Context(), "verified release recovery operator identity required", "deployment-manager destructive capability required")
+		shared.JSONError(w, message, status)
+		return false
+	}
+	return true
+}
+
+func authorizationFailure(ctx context.Context, unauthenticatedMessage, forbiddenMessage string) (int, string) {
+	if principal, ok := identity.PrincipalFromContext(ctx); ok && principal.Verified {
+		return http.StatusForbidden, forbiddenMessage
+	}
+	return http.StatusUnauthorized, unauthenticatedMessage
 }
 
 // NewHandler wires a new releases handler. The verifier and orchestrator may
@@ -147,6 +347,9 @@ func NewHandler(repo Repository, lpbsConfig profiles.LPBSReleaseConfigRepository
 
 // ListByProfile handles GET /api/v1/profiles/{id}/releases.
 func (h *Handler) ListByProfile(w http.ResponseWriter, r *http.Request) {
+	if !h.requireReadAuthorization(w, r) {
+		return
+	}
 	profileID := mux.Vars(r)["id"]
 	limit := 50
 	if raw := r.URL.Query().Get("limit"); raw != "" {
@@ -159,23 +362,489 @@ func (h *Handler) ListByProfile(w http.ResponseWriter, r *http.Request) {
 		shared.JSONError(w, fmt.Sprintf("list releases: %v", err), http.StatusInternalServerError)
 		return
 	}
+	if receipts, ok := h.repo.(ClientUpdateReceiptRepository); ok {
+		for _, release := range rows {
+			release.ClientUpdateReceipts, err = receipts.ListClientUpdateReceipts(r.Context(), release.ID)
+			if err != nil {
+				shared.JSONError(w, fmt.Sprintf("list client update receipts: %v", err), http.StatusInternalServerError)
+				return
+			}
+		}
+	}
 	shared.JSONOK(w, map[string]interface{}{"releases": rows})
 }
 
 // Get handles GET /api/v1/releases/{release_id}.
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
+	if !h.requireReadAuthorization(w, r) {
+		return
+	}
 	id := mux.Vars(r)["release_id"]
 	rel, err := h.repo.Get(r.Context(), id)
 	if err != nil {
 		shared.JSONError(w, fmt.Sprintf("get release: %v", err), http.StatusNotFound)
 		return
 	}
+	if receipts, ok := h.repo.(RecoveryReceiptRepository); ok {
+		stored, err := receipts.ListRecoveryReceipts(r.Context(), id)
+		if err != nil {
+			shared.JSONError(w, fmt.Sprintf("list recovery receipts: %v", err), http.StatusInternalServerError)
+			return
+		}
+		rel.RecoveryReceipts = stored
+	}
+	if receipts, ok := h.repo.(ClientUpdateReceiptRepository); ok {
+		stored, err := receipts.ListClientUpdateReceipts(r.Context(), id)
+		if err != nil {
+			shared.JSONError(w, fmt.Sprintf("list client update receipts: %v", err), http.StatusInternalServerError)
+			return
+		}
+		rel.ClientUpdateReceipts = stored
+	}
 	shared.JSONOK(w, rel)
+}
+
+// GetOperation handles GET /api/v1/release-operations/{operation_id}.
+// Operation standing has its own identity and read model; it must not be
+// inferred by routing an operation ID through release lookup.
+func (h *Handler) GetOperation(w http.ResponseWriter, r *http.Request) {
+	if !h.requireReadAuthorization(w, r) {
+		return
+	}
+	id := mux.Vars(r)["operation_id"]
+	operation, err := h.repo.GetOperation(r.Context(), id)
+	if err != nil {
+		shared.JSONError(w, fmt.Sprintf("get operation: %v", err), http.StatusNotFound)
+		return
+	}
+	shared.JSONOK(w, operation)
+}
+
+// Dossier handles GET /api/v1/releases/{release_id}/dossier. It is the
+// canonical read model for independent review and handoff; it never grants a
+// release effect and reports absent identity proof explicitly.
+func (h *Handler) Dossier(w http.ResponseWriter, r *http.Request) {
+	if !h.requireReadAuthorization(w, r) {
+		return
+	}
+	id := strings.TrimSpace(mux.Vars(r)["release_id"])
+	release, err := h.repo.Get(r.Context(), id)
+	if err != nil || release == nil {
+		shared.JSONError(w, "release was not found", http.StatusNotFound)
+		return
+	}
+	if receipts, ok := h.repo.(PublicationReceiptRepository); ok {
+		release.PublicationReceipts, err = receipts.ListPublicationReceipts(r.Context(), id)
+		if err != nil {
+			shared.JSONError(w, fmt.Sprintf("list publication receipts: %v", err), http.StatusInternalServerError)
+			return
+		}
+	}
+	if receipts, ok := h.repo.(RecoveryReceiptRepository); ok {
+		release.RecoveryReceipts, err = receipts.ListRecoveryReceipts(r.Context(), id)
+		if err != nil {
+			shared.JSONError(w, fmt.Sprintf("list recovery receipts: %v", err), http.StatusInternalServerError)
+			return
+		}
+	}
+	if receipts, ok := h.repo.(ClientUpdateReceiptRepository); ok {
+		release.ClientUpdateReceipts, err = receipts.ListClientUpdateReceipts(r.Context(), id)
+		if err != nil {
+			shared.JSONError(w, fmt.Sprintf("list client update receipts: %v", err), http.StatusInternalServerError)
+			return
+		}
+	}
+	now := time.Now().UTC()
+	dossier := ReleaseDossier{SchemaVersion: 1, GeneratedAt: now, Release: release, Health: AssessHealth(release, now)}
+	h.applyRecoveryControls(r.Context(), release, &dossier.Health)
+	h.addHealthDurationMeasurements(r.Context(), release, &dossier.Health)
+	h.appendSigningExpiryAlerts(r.Context(), release, &dossier.Health, now)
+	if identity := h.identity; identity != nil {
+		if release.CandidateID != "" {
+			dossier.Candidate, err = identity.GetCandidate(r.Context(), release.CandidateID)
+			if err != nil || dossier.Candidate == nil {
+				dossier.MissingProof = append(dossier.MissingProof, "candidate")
+			}
+		} else {
+			dossier.MissingProof = append(dossier.MissingProof, "candidate")
+		}
+		if release.DestinationRevisionID != "" {
+			dossier.Destination, err = identity.GetDestinationRevision(r.Context(), release.DestinationRevisionID)
+			if err != nil || dossier.Destination == nil {
+				dossier.MissingProof = append(dossier.MissingProof, "destination")
+			}
+		} else {
+			dossier.MissingProof = append(dossier.MissingProof, "destination")
+		}
+		if release.ReadinessReviewKey != "" {
+			dossier.Review, err = identity.GetReview(r.Context(), release.ReadinessReviewKey)
+			if err != nil || dossier.Review == nil {
+				dossier.MissingProof = append(dossier.MissingProof, "review")
+			}
+		} else {
+			dossier.MissingProof = append(dossier.MissingProof, "review")
+		}
+	} else {
+		dossier.MissingProof = append(dossier.MissingProof, "identity_repository", "candidate", "destination", "review")
+	}
+	shared.JSONOK(w, dossier)
+}
+
+// Health handles GET /api/v1/releases/{release_id}/health.
+func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
+	if !h.requireReadAuthorization(w, r) {
+		return
+	}
+	id := strings.TrimSpace(mux.Vars(r)["release_id"])
+	release, err := h.repo.Get(r.Context(), id)
+	if err != nil || release == nil {
+		shared.JSONError(w, "release was not found", http.StatusNotFound)
+		return
+	}
+	if receipts, ok := h.repo.(PublicationReceiptRepository); ok {
+		release.PublicationReceipts, err = receipts.ListPublicationReceipts(r.Context(), id)
+		if err != nil {
+			shared.JSONError(w, fmt.Sprintf("list publication receipts: %v", err), http.StatusInternalServerError)
+			return
+		}
+	}
+	if receipts, ok := h.repo.(RecoveryReceiptRepository); ok {
+		release.RecoveryReceipts, err = receipts.ListRecoveryReceipts(r.Context(), id)
+		if err != nil {
+			shared.JSONError(w, fmt.Sprintf("list recovery receipts: %v", err), http.StatusInternalServerError)
+			return
+		}
+	}
+	if receipts, ok := h.repo.(ClientUpdateReceiptRepository); ok {
+		release.ClientUpdateReceipts, err = receipts.ListClientUpdateReceipts(r.Context(), id)
+		if err != nil {
+			shared.JSONError(w, fmt.Sprintf("list client update receipts: %v", err), http.StatusInternalServerError)
+			return
+		}
+	}
+	now := time.Now().UTC()
+	health := AssessHealth(release, now)
+	h.applyRecoveryControls(r.Context(), release, &health)
+	h.addHealthDurationMeasurements(r.Context(), release, &health)
+	h.appendSigningExpiryAlerts(r.Context(), release, &health, now)
+	h.publishHealthAlerts(r.Context(), health)
+	shared.JSONOK(w, health)
+}
+
+func (h *Handler) applyRecoveryControls(ctx context.Context, release *Release, health *ReleaseHealth) {
+	if h == nil || h.recovery == nil || release == nil || health == nil || strings.TrimSpace(release.DestinationRevisionID) == "" {
+		return
+	}
+	provider, ok := h.recovery.(RecoveryControlProvider)
+	if !ok {
+		return
+	}
+	controls, err := provider.RecoveryControls(ctx, release.DestinationRevisionID)
+	if err != nil {
+		if h.log != nil {
+			h.log("release recovery controls unavailable", map[string]interface{}{
+				"release_id":              release.ID,
+				"destination_revision_id": release.DestinationRevisionID,
+				"error":                   err.Error(),
+			})
+		}
+		return
+	}
+	health.SupportedControls = append([]string(nil), controls...)
+	if len(health.UnsupportedControls) == 0 {
+		health.UnsupportedControls = []string{"cohort_rollout"}
+	}
+}
+
+func (h *Handler) addHealthDurationMeasurements(ctx context.Context, release *Release, health *ReleaseHealth) {
+	if release == nil || health == nil {
+		return
+	}
+	if h.readiness != nil && release.ReadinessReviewKey != "" {
+		approval, err := h.readiness(ctx, release.ReadinessReviewKey)
+		if err != nil {
+			h.log("release readiness timing unavailable", map[string]interface{}{
+				"release_id": release.ID,
+				"review_key": release.ReadinessReviewKey,
+				"error":      err.Error(),
+			})
+		} else if approval != nil && approval.ApprovedAt != nil {
+			addDuration(health.KnownDurationsMillis, "prepare_to_reviewed", release.CreatedAt, *approval.ApprovedAt)
+		}
+	}
+	if health.PublicationVerified {
+		var latestPublication time.Time
+		for _, receipt := range release.PublicationReceipts {
+			if !receipt.TrustedPublication() || !matchesReleasePublication(release, receipt) || receipt.ObservedAt.Before(latestPublication) {
+				continue
+			}
+			latestPublication = receipt.ObservedAt
+		}
+		if release.PublishedAt != nil {
+			addDuration(health.KnownDurationsMillis, "promote_to_publicly_verified", *release.PublishedAt, latestPublication)
+		}
+		if health.ClientUpdatesHealthy {
+			var latestHealthyEvidence time.Time
+			for _, evidence := range release.VerificationEvidence {
+				if evidence.Match && evidence.SHA512Match && evidence.CheckedAt.After(latestHealthyEvidence) {
+					latestHealthyEvidence = evidence.CheckedAt
+				}
+			}
+			if release.PublishedAt != nil {
+				addDuration(health.KnownDurationsMillis, "update_to_healthy", *release.PublishedAt, latestHealthyEvidence)
+			}
+		}
+	}
+	if release.PublishedAt != nil && len(release.RecoveryReceipts) > 0 {
+		last := release.RecoveryReceipts[len(release.RecoveryReceipts)-1]
+		addDuration(health.KnownDurationsMillis, "publication_to_recovery", *release.PublishedAt, last.ObservedAt)
+	}
+}
+
+func (h *Handler) appendSigningExpiryAlerts(ctx context.Context, release *Release, health *ReleaseHealth, now time.Time) {
+	if h.signing == nil || release == nil || health == nil || !health.PublicationVerified {
+		return
+	}
+	for _, platform := range release.Platforms {
+		observation, err := h.signing.LookupSigningExpiry(ctx, release.ProfileID, platform.Platform)
+		if err != nil {
+			h.log("release signing expiry unavailable", map[string]interface{}{
+				"release_id": release.ID,
+				"platform":   platform.Platform,
+				"error":      err.Error(),
+			})
+			continue
+		}
+		if observation == nil || observation.ExpiresAt.IsZero() {
+			continue
+		}
+		days := observation.DaysToExpiry(now)
+		severity := ""
+		if observation.ExpiresAt.Before(now) || days <= 7 {
+			severity = "critical"
+		} else if days <= 30 {
+			severity = "high"
+		}
+		if severity == "" {
+			continue
+		}
+		message := fmt.Sprintf("The %s signing credential expires in %d days.", platform.Platform, days)
+		if observation.ExpiresAt.Before(now) {
+			message = fmt.Sprintf("The %s signing credential has expired.", platform.Platform)
+		}
+		health.Status = "attention"
+		health.Alerts = append(health.Alerts, ReleaseAlert{
+			Code: "signing_expiry", Severity: severity, Target: platform.Platform,
+			Message:    message,
+			NextAction: "Renew the owner-controlled signing credential before publishing or repairing this target.",
+		})
+	}
+}
+
+func (h *Handler) publishHealthAlerts(ctx context.Context, health ReleaseHealth) {
+	if h.alerts == nil {
+		return
+	}
+	for _, alert := range health.Alerts {
+		message := strings.TrimSpace(alert.Message)
+		if nextAction := strings.TrimSpace(alert.NextAction); nextAction != "" {
+			message = strings.TrimSpace(message + " Next action: " + nextAction)
+		}
+		if err := h.alerts.PublishDomainEvent(ctx, eventbus.DomainEvent{
+			Source:    "deployment-manager",
+			EventType: "deployment-manager.release.alert.v1",
+			Payload: map[string]any{
+				"check_id":   alert.Code,
+				"severity":   alert.Severity,
+				"status":     health.Status,
+				"message":    message,
+				"reason":     alert.Message,
+				"release_id": health.ReleaseID,
+				"target":     alert.Target,
+			},
+		}); err != nil {
+			h.log("release health alert event unavailable", map[string]interface{}{
+				"release_id": health.ReleaseID,
+				"alert_code": alert.Code,
+				"error":      err.Error(),
+			})
+		}
+	}
+}
+
+// Recover performs one exact, owner-routed recovery action. The release,
+// review, candidate, destination, and deployment identities are all checked
+// before the owner is called; a preview never creates an effect receipt.
+func (h *Handler) Recover(w http.ResponseWriter, r *http.Request) {
+	if !h.requireRecoveryAuthorization(w, r) {
+		return
+	}
+	if h.recovery == nil {
+		shared.JSONError(w, "release recovery owner is unavailable", http.StatusNotImplemented)
+		return
+	}
+	releaseID := strings.TrimSpace(mux.Vars(r)["release_id"])
+	if releaseID == "" {
+		shared.JSONError(w, "release ID is required", http.StatusBadRequest)
+		return
+	}
+	var request RecoveryRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&request); err != nil {
+		shared.JSONError(w, fmt.Sprintf("decode recovery request: %v", err), http.StatusBadRequest)
+		return
+	}
+	request.ReleaseID = releaseID
+	request.ReviewKey = strings.TrimSpace(request.ReviewKey)
+	request.CandidateID = strings.TrimSpace(request.CandidateID)
+	request.DestinationRevisionID = strings.TrimSpace(request.DestinationRevisionID)
+	request.Action = strings.TrimSpace(request.Action)
+	if request.ReviewKey == "" || request.CandidateID == "" || request.DestinationRevisionID == "" || request.Action == "" {
+		shared.JSONError(w, "review_key, candidate_id, destination_revision_id, and action are required", http.StatusPreconditionFailed)
+		return
+	}
+	if !request.DryRun && strings.TrimSpace(request.Confirmation) == "" {
+		shared.JSONError(w, "recovery execution requires explicit confirmation", http.StatusPreconditionFailed)
+		return
+	}
+	release, err := h.repo.Get(r.Context(), releaseID)
+	if err != nil || release == nil {
+		shared.JSONError(w, "release was not found", http.StatusNotFound)
+		return
+	}
+	if receipts, ok := h.repo.(PublicationReceiptRepository); ok {
+		release.PublicationReceipts, err = receipts.ListPublicationReceipts(r.Context(), releaseID)
+		if err != nil {
+			shared.JSONError(w, fmt.Sprintf("list publication receipts: %v", err), http.StatusInternalServerError)
+			return
+		}
+	}
+	if receipts, ok := h.repo.(RecoveryReceiptRepository); ok {
+		release.RecoveryReceipts, err = receipts.ListRecoveryReceipts(r.Context(), releaseID)
+		if err != nil {
+			shared.JSONError(w, fmt.Sprintf("list recovery receipts: %v", err), http.StatusInternalServerError)
+			return
+		}
+	}
+	request.ProfileID = release.ProfileID
+	request.Channel = release.Channel
+	if h.identity == nil {
+		shared.JSONError(w, "release recovery identity store is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	destination, destinationErr := h.identity.GetDestinationRevision(r.Context(), request.DestinationRevisionID)
+	if destinationErr != nil || destination == nil || destination.ID != request.DestinationRevisionID {
+		shared.JSONError(w, "recovery destination revision is not currently registered", http.StatusPreconditionFailed)
+		return
+	}
+	recoveryDeploymentID := strings.TrimSpace(release.DeploymentID)
+	if recoveryDeploymentID == "" && strings.EqualFold(destination.Revision.Kind, "lpbs") {
+		recoveryDeploymentID = strings.TrimSpace(destination.Revision.DestinationID)
+	}
+	if release.ReadinessReviewKey != request.ReviewKey || release.CandidateID != request.CandidateID || release.DestinationRevisionID != request.DestinationRevisionID || recoveryDeploymentID == "" {
+		shared.JSONError(w, "recovery identity does not match the durable release", http.StatusPreconditionFailed)
+		return
+	}
+	if !strings.EqualFold(destination.Revision.Kind, "lpbs") && request.Action != "halt" && !hasCloudBundleIdentity(release) {
+		shared.JSONError(w, "cloud recovery requires a durable published bundle identity", http.StatusPreconditionFailed)
+		return
+	}
+	review, err := h.identity.GetReview(r.Context(), request.ReviewKey)
+	if err != nil || review == nil || review.Status != "approved" && review.Status != "promoted" || review.Binding.CandidateID != request.CandidateID || review.Binding.DestinationRevisionID != request.DestinationRevisionID {
+		shared.JSONError(w, "recovery review binding is not currently authorized", http.StatusPreconditionFailed)
+		return
+	}
+	if !request.DryRun {
+		authorize := h.recoveryAuthorize
+		if authorize == nil {
+			authorize = h.authorize
+		}
+		if authorize == nil {
+			shared.JSONError(w, "release recovery authorization is not configured", http.StatusUnauthorized)
+			return
+		}
+		if err := authorize(r.Context()); err != nil {
+			status, message := authorizationFailure(r.Context(), "verified release recovery operator identity required", "deployment-manager destructive capability required")
+			shared.JSONError(w, message, status)
+			return
+		}
+	}
+	receipt, err := h.recovery.Recover(r.Context(), &request, recoveryDeploymentID, recoveryExpectedBundleSHA(release))
+	if err != nil {
+		shared.JSONError(w, fmt.Sprintf("owner recovery failed: %v", err), http.StatusConflict)
+		return
+	}
+	if receipt == nil || receipt.ReleaseID != releaseID || receipt.CandidateID != request.CandidateID || receipt.DestinationRevisionID != request.DestinationRevisionID || receipt.DeploymentID != recoveryDeploymentID || receipt.Action != request.Action || (!request.DryRun && !receipt.Valid()) {
+		shared.JSONError(w, "owner recovery returned an incomplete or mismatched receipt", http.StatusConflict)
+		return
+	}
+	if !request.DryRun {
+		store, ok := h.repo.(RecoveryReceiptRepository)
+		if !ok {
+			shared.JSONError(w, "release recovery receipt store is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if err := store.RecordRecoveryReceipt(r.Context(), *receipt); err != nil {
+			if statusErr := h.repo.UpdateStatus(context.WithoutCancel(r.Context()), releaseID, StatusAmbiguous); statusErr != nil && h.log != nil {
+				h.log("error", map[string]interface{}{"msg": "could not persist ambiguous recovery status", "release_id": releaseID, "error": statusErr.Error()})
+			}
+			shared.JSONError(w, fmt.Sprintf("persist recovery receipt: %v", err), http.StatusServiceUnavailable)
+			return
+		}
+		if h.durable {
+			if err := h.repo.UpdateOperation(context.WithoutCancel(r.Context()), operationIDForRelease(releaseID), OperationComplete, "recover", "owner recovery receipt recorded"); err != nil {
+				shared.JSONError(w, fmt.Sprintf("complete recovery operation: %v", err), http.StatusServiceUnavailable)
+				return
+			}
+		}
+	}
+	shared.JSONOK(w, map[string]interface{}{"receipt": receipt, "release_id": releaseID, "dry_run": request.DryRun})
+}
+
+// recoveryExpectedBundleSHA resolves the owner identity from durable effect
+// evidence. Cloud artifact bundles are recorded in publication receipts and
+// later recovery receipts; the release's reviewed artifact digest is only a
+// fallback for legacy or non-cloud releases.
+func recoveryExpectedBundleSHA(release *Release) string {
+	if release == nil {
+		return ""
+	}
+	for i := len(release.RecoveryReceipts) - 1; i >= 0; i-- {
+		receipt := release.RecoveryReceipts[i]
+		if receipt.DeploymentID == release.DeploymentID && strings.TrimSpace(receipt.BundleSHA256) != "" {
+			return receipt.BundleSHA256
+		}
+	}
+	for i := len(release.PublicationReceipts) - 1; i >= 0; i-- {
+		receipt := release.PublicationReceipts[i]
+		if (strings.HasPrefix(receipt.TargetID, "cloud:") || receipt.Producer == "scenario-to-cloud") && strings.TrimSpace(receipt.ArtifactDigest) != "" {
+			return receipt.ArtifactDigest
+		}
+	}
+	return release.ArtifactDigest
+}
+
+func hasCloudBundleIdentity(release *Release) bool {
+	if release == nil {
+		return false
+	}
+	for _, receipt := range release.PublicationReceipts {
+		if receipt.TrustedPublication() && matchesReleasePublication(release, receipt) && (strings.HasPrefix(receipt.TargetID, "cloud:") || receipt.Producer == "scenario-to-cloud") && strings.TrimSpace(receipt.ArtifactDigest) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // Verify handles POST /api/v1/releases/{release_id}/verify. Re-runs the
 // verify call for every platform row and persists the outcome on the release.
 func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAuthorization(w, r) {
+		return
+	}
+	h.verifyAuthorized(w, r)
+}
+
+func (h *Handler) verifyAuthorized(w http.ResponseWriter, r *http.Request) {
 	if h.verifier == nil {
 		shared.JSONError(w, "lpbs verify client not configured", http.StatusServiceUnavailable)
 		return
@@ -191,15 +860,39 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 		shared.JSONError(w, "lpbs release config missing app_key for profile", http.StatusPreconditionFailed)
 		return
 	}
+	expectedDigests := make(map[string]string, len(rel.Platforms))
+	identityBound := strings.TrimSpace(rel.CandidateID) != "" || strings.TrimSpace(rel.DestinationRevisionID) != ""
+	if identityBound {
+		publicationStore, ok := h.repo.(PublicationReceiptRepository)
+		if !ok {
+			shared.JSONError(w, "publication receipt store is unavailable for identity-bound verification", http.StatusServiceUnavailable)
+			return
+		}
+		publications, listErr := publicationStore.ListPublicationReceipts(r.Context(), rel.ID)
+		if listErr != nil {
+			shared.JSONError(w, fmt.Sprintf("list publication receipts: %v", listErr), http.StatusServiceUnavailable)
+			return
+		}
+		for _, receipt := range publications {
+			if receipt.TrustedPublication() && matchesReleasePublication(rel, receipt) {
+				digest := strings.TrimSpace(strings.TrimPrefix(receipt.ArtifactDigest, "sha512:"))
+				if digest != "" {
+					expectedDigests[receipt.TargetID] = digest
+				}
+			}
+		}
+	}
 
 	var evidence []VerificationItem
 	allMatch := true
 	for _, p := range rel.Platforms {
+		expectedSHA512 := expectedDigests[p.Platform]
 		out, verr := h.verifier.Verify(r.Context(), &VerifyCall{
 			AppKey:          cfg.LPBSAppKey,
 			Channel:         rel.Channel,
 			Platform:        p.Platform,
 			ExpectedVersion: rel.ReleaseVersion,
+			ExpectedSHA512:  expectedSHA512,
 			Deep:            r.URL.Query().Get("deep") == "true",
 		})
 		item := VerificationItem{
@@ -208,19 +901,25 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 			ExpectedVersion: rel.ReleaseVersion,
 			CheckedAt:       time.Now().UTC(),
 		}
-		if verr != nil {
+		if identityBound && expectedSHA512 == "" {
+			item.Error = "trusted publication digest is missing for target"
+			allMatch = false
+		} else if verr != nil {
 			item.Error = verr.Error()
 			allMatch = false
 		} else if out != nil {
 			item.ObservedVersion = out.ObservedVersion
 			item.Match = out.Match
 			item.SHA512Match = out.SHA512Match
-			if !out.Match {
+			if !out.Match || !out.SHA512Match || out.ObservedVersion != rel.ReleaseVersion {
 				allMatch = false
 			}
 			if out.Error != "" {
 				item.Error = out.Error
 			}
+		} else {
+			item.Error = "verification returned no result"
+			allMatch = false
 		}
 		evidence = append(evidence, item)
 	}
@@ -231,13 +930,94 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 
 	status := StatusVerifyFailed
 	if allMatch {
-		status = StatusPublished
+		// An owner observation proves what is currently installed. It cannot
+		// replace a missing publication receipt or clear an ambiguous effect.
+		status = rel.Status
+		if status == "" {
+			status = StatusPending
+		}
 	}
-	_ = h.repo.UpdateStatus(r.Context(), rel.ID, status)
+	if err := h.repo.UpdateStatus(r.Context(), rel.ID, status); err != nil {
+		shared.JSONError(w, fmt.Sprintf("persist verification status: %v", err), http.StatusServiceUnavailable)
+		return
+	}
 
 	rel.Status = status
 	rel.VerificationEvidence = evidence
 	shared.JSONOK(w, rel)
+}
+
+// Reconcile performs the owner observation used to resolve an uncertain
+// release. It shares the verified observation path with reverify; the durable
+// release status is preserved when the observation cannot prove publication.
+func (h *Handler) Reconcile(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAuthorization(w, r) {
+		return
+	}
+	if h.identity != nil {
+		releaseID := strings.TrimSpace(mux.Vars(r)["release_id"])
+		release, err := h.repo.Get(r.Context(), releaseID)
+		if err == nil && release != nil {
+			destination, destinationErr := h.identity.GetDestinationRevision(r.Context(), release.DestinationRevisionID)
+			if destinationErr == nil && destination != nil && !strings.EqualFold(destination.Revision.Kind, "lpbs") {
+				h.reconcileOwnerObservation(w, r, release)
+				return
+			}
+		}
+	}
+	h.verifyAuthorized(w, r)
+}
+
+func (h *Handler) reconcileOwnerObservation(w http.ResponseWriter, r *http.Request, release *Release) {
+	provider, ok := h.orch.(ReleaseObservationProvider)
+	if !ok {
+		shared.JSONError(w, "release observation owner is unavailable", http.StatusNotImplemented)
+		return
+	}
+	if receipts, receiptStore := h.repo.(PublicationReceiptRepository); receiptStore {
+		publicationReceipts, err := receipts.ListPublicationReceipts(r.Context(), release.ID)
+		if err != nil {
+			shared.JSONError(w, fmt.Sprintf("list publication receipts: %v", err), http.StatusServiceUnavailable)
+			return
+		}
+		release.PublicationReceipts = publicationReceipts
+	}
+	observation, err := provider.ObserveRelease(r.Context(), release)
+	if err != nil || observation == nil {
+		if err == nil {
+			err = errors.New("owner returned no observation")
+		}
+		shared.JSONError(w, fmt.Sprintf("owner observation failed: %v", err), http.StatusConflict)
+		return
+	}
+	expected := strings.TrimSpace(observation.ExpectedReleaseDigest)
+	observed := strings.TrimSpace(observation.ObservedReleaseDigest)
+	digestMatch := expected != "" && observed != "" && strings.EqualFold(strings.TrimPrefix(observed, "sha256:"), strings.TrimPrefix(expected, "sha256:"))
+	item := VerificationItem{Platform: observation.TargetID, Channel: release.Channel, ExpectedVersion: release.ReleaseVersion, ObservedVersion: release.ReleaseVersion, Match: observation.Healthy && digestMatch, SHA512Match: digestMatch, CheckedAt: observation.ObservedAt}
+	if item.CheckedAt.IsZero() {
+		item.CheckedAt = time.Now().UTC()
+	}
+	if !item.Match {
+		item.Error = observation.Detail
+		if item.Error == "" {
+			item.Error = "owner observation is unhealthy or has a mismatched release digest"
+		}
+	}
+	if err := h.repo.SetVerificationEvidence(r.Context(), release.ID, []VerificationItem{item}); err != nil {
+		shared.JSONError(w, fmt.Sprintf("persist owner observation: %v", err), http.StatusServiceUnavailable)
+		return
+	}
+	status := release.Status
+	if !item.Match && status != StatusAmbiguous {
+		status = StatusVerifyFailed
+	}
+	if err := h.repo.UpdateStatus(r.Context(), release.ID, status); err != nil {
+		shared.JSONError(w, fmt.Sprintf("persist observation status: %v", err), http.StatusServiceUnavailable)
+		return
+	}
+	release.VerificationEvidence = []VerificationItem{item}
+	release.Status = status
+	shared.JSONOK(w, release)
 }
 
 // Start handles POST /api/v1/profiles/{id}/releases/start. Allocates a
@@ -245,6 +1025,9 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 // then drives the underlying orchestrator to completion. Returns 409 if a
 // release is already in flight for the profile.
 func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAuthorization(w, r) {
+		return
+	}
 	profileID := mux.Vars(r)["id"]
 	if h.orch == nil {
 		shared.JSONError(w, "orchestrator not configured", http.StatusServiceUnavailable)
@@ -264,7 +1047,15 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg, _ := h.lpbsConfig.Get(r.Context(), profileID)
+	if h.lpbsConfig == nil {
+		shared.JSONError(w, "release configuration repository is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	cfg, configErr := h.lpbsConfig.Get(r.Context(), profileID)
+	if configErr != nil {
+		shared.JSONError(w, fmt.Sprintf("load release configuration: %v", configErr), http.StatusServiceUnavailable)
+		return
+	}
 	channel := body.Channel
 	if channel == "" {
 		if cfg != nil && cfg.DefaultChannel != "" {
@@ -294,9 +1085,48 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 	if len(platforms) == 0 {
 		platforms = []string{"linux-x64", "darwin-arm64", "win-x64"}
 	}
+	if body.IdempotencyKey != "" {
+		existing, lookupErr := h.repo.GetByIdempotencyKey(r.Context(), profileID, body.IdempotencyKey)
+		if lookupErr != nil {
+			shared.JSONError(w, fmt.Sprintf("lookup idempotent release: %v", lookupErr), http.StatusInternalServerError)
+			return
+		}
+		if existing != nil {
+			if !sameReleaseRequest(existing, body, channel, platforms) {
+				shared.JSONError(w, "idempotency_key is already bound to a different release identity", http.StatusConflict)
+				return
+			}
+			response := map[string]interface{}{"release": existing, "idempotent_replay": true}
+			if h.durable {
+				response["operation_id"] = operationIDForRelease(existing.ID)
+			}
+			shared.JSONOK(w, response)
+			return
+		}
+	}
+	if h.durable {
+		operations, listErr := h.repo.ListActiveOperations(r.Context())
+		if listErr != nil {
+			shared.JSONError(w, fmt.Sprintf("list active release operations: %v", listErr), http.StatusServiceUnavailable)
+			return
+		}
+		for _, operation := range operations {
+			if operation != nil && operation.ProfileID == profileID {
+				shared.JSONErrorCode(w, http.StatusConflict, map[string]interface{}{
+					"error":        "release_in_flight",
+					"profile_id":   profileID,
+					"release_id":   operation.ReleaseID,
+					"operation_id": operation.ID,
+					"message":      "a queued, running, or ambiguous release operation must finish or reconcile before another release starts",
+				})
+				return
+			}
+		}
+	}
+	var approvedReadiness *ReadinessApproval
 	if h.readiness != nil {
-		if body.ArtifactDigest == "" || body.ReadinessReviewKey == "" {
-			shared.JSONError(w, "artifact_digest and readiness_review_key are required", http.StatusPreconditionFailed)
+		if body.ArtifactDigest == "" || body.ReadinessReviewKey == "" || body.CandidateID == "" || body.DestinationRevisionID == "" || body.AuthorizationEpoch == 0 {
+			shared.JSONError(w, "artifact_digest, candidate_id, destination_revision_id, authorization_epoch, and readiness_review_key are required", http.StatusPreconditionFailed)
 			return
 		}
 		review, reviewErr := h.readiness(r.Context(), body.ReadinessReviewKey)
@@ -308,53 +1138,133 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 			shared.JSONError(w, "release identity does not have an exact approved readiness review", http.StatusPreconditionFailed)
 			return
 		}
+		if h.identity != nil && (review.CandidateID != body.CandidateID || review.DestinationRevisionID != body.DestinationRevisionID || review.AuthorizationEpoch != body.AuthorizationEpoch) {
+			shared.JSONError(w, "approved readiness review is not bound to the requested durable release identity", http.StatusPreconditionFailed)
+			return
+		}
+		approvedReadiness = review
+	}
+	if h.identity != nil {
+		if approvedReadiness != nil {
+			binding, err := approvedReadiness.ReleaseBinding()
+			if err != nil {
+				shared.JSONError(w, fmt.Sprintf("approved readiness binding is incomplete: %v", err), http.StatusPreconditionFailed)
+				return
+			}
+			if _, err := h.identity.RegisterReview(r.Context(), approvedReadiness.Key, binding, "approved", approvedReadiness.ApprovedAt); err != nil {
+				shared.JSONError(w, fmt.Sprintf("persist approved readiness binding: %v", err), http.StatusPreconditionFailed)
+				return
+			}
+		}
+		if err := h.validateDurableIdentity(r.Context(), body, channel, platforms); err != nil {
+			shared.JSONError(w, err.Error(), http.StatusPreconditionFailed)
+			return
+		}
+	}
+	releasedBy := body.ReleasedBy
+	if h.actor != nil {
+		actor, actorErr := h.actor(r.Context())
+		if actorErr != nil || strings.TrimSpace(actor) == "" {
+			shared.JSONError(w, "verified release actor identity is required", http.StatusForbidden)
+			return
+		}
+		releasedBy = actor
 	}
 
 	releaseID := newReleaseID()
 	rel := &Release{
-		ID:                 releaseID,
-		ProfileID:          profileID,
-		GitCommitHash:      body.GitCommitHash,
-		ArtifactDigest:     body.ArtifactDigest,
-		ReadinessReviewKey: body.ReadinessReviewKey,
-		ReleaseVersion:     body.ReleaseVersion,
-		Channel:            channel,
-		Status:             StatusPending,
-		ReleaseNotes:       body.ReleaseNotes,
-		ReleasedBy:         body.ReleasedBy,
+		ID:                    releaseID,
+		ProfileID:             profileID,
+		GitCommitHash:         body.GitCommitHash,
+		ArtifactDigest:        body.ArtifactDigest,
+		CandidateID:           body.CandidateID,
+		DestinationRevisionID: body.DestinationRevisionID,
+		AuthorizationEpoch:    body.AuthorizationEpoch,
+		IdempotencyKey:        body.IdempotencyKey,
+		ReadinessReviewKey:    body.ReadinessReviewKey,
+		ReleaseVersion:        body.ReleaseVersion,
+		Channel:               channel,
+		Status:                StatusPending,
+		ReleaseNotes:          body.ReleaseNotes,
+		ReleasedBy:            releasedBy,
 	}
 	for _, p := range platforms {
 		rel.Platforms = append(rel.Platforms, ReleasePlatform{Platform: p, Status: PlatformStatusPending})
+	}
+	request := DeployRequest{
+		ProfileID: profileID, ReleaseID: releaseID, Channel: channel, Platforms: platforms,
+		GitCommitHash: body.GitCommitHash, ArtifactDigest: body.ArtifactDigest, ReleaseVersion: body.ReleaseVersion, ReleaseNotes: body.ReleaseNotes,
+		CandidateID: body.CandidateID, DestinationRevisionID: body.DestinationRevisionID,
+		AuthorizationEpoch: body.AuthorizationEpoch, IdempotencyKey: body.IdempotencyKey, ReadinessReviewKey: body.ReadinessReviewKey,
+		AuthorizationCheck: h.releaseAuthorizationCheck(releaseID), CloudManifest: body.CloudManifest,
+		CloudDeploymentName: body.CloudDeploymentName, CloudBundlePath: body.CloudBundlePath,
+		CloudBundleSHA256: body.CloudBundleSHA256, CloudBundleSizeBytes: body.CloudBundleSizeBytes,
+		CloudRunPreflight: body.CloudRunPreflight,
+	}
+	requestSnapshot, snapshotErr := snapshotForDeployRequest(request)
+	if snapshotErr != nil {
+		shared.JSONError(w, fmt.Sprintf("snapshot release operation request: %v", snapshotErr), http.StatusBadRequest)
+		return
 	}
 	if err := h.repo.Insert(r.Context(), rel); err != nil {
 		shared.JSONError(w, fmt.Sprintf("insert release: %v", err), http.StatusInternalServerError)
 		return
 	}
+	if h.durable {
+		operationID := operationIDForRelease(releaseID)
+		if err := h.repo.InsertOperation(r.Context(), &Operation{
+			ID: operationID, ReleaseID: releaseID, ProfileID: profileID,
+			IdempotencyKey: body.IdempotencyKey, RequestSnapshot: requestSnapshot, Status: OperationQueued,
+		}); err != nil {
+			statusCtx := context.WithoutCancel(r.Context())
+			if statusErr := h.repo.UpdateStatus(statusCtx, releaseID, StatusFailed); statusErr != nil {
+				if ambiguousErr := h.repo.UpdateStatus(statusCtx, releaseID, StatusAmbiguous); ambiguousErr != nil && h.log != nil {
+					h.log("error", map[string]interface{}{"msg": "could not persist ambiguous release status", "release_id": releaseID, "error": ambiguousErr.Error()})
+				}
+				shared.JSONError(w, fmt.Sprintf("insert release operation failed and release state is ambiguous: %v (status persistence: %v)", err, statusErr), http.StatusServiceUnavailable)
+				return
+			}
+			shared.JSONError(w, fmt.Sprintf("insert release operation: %v", err), http.StatusInternalServerError)
+			return
+		}
+		go h.executeRelease(context.WithoutCancel(r.Context()), operationID, releaseID, body.ReadinessReviewKey, request)
+		shared.JSONOK(w, map[string]interface{}{
+			"operation_id": operationID, "release_id": releaseID, "status": OperationQueued,
+		})
+		return
+	}
 
-	result, derr := h.orch.RunDeploy(r.Context(), DeployRequest{
-		ProfileID:      profileID,
-		ReleaseID:      releaseID,
-		Channel:        channel,
-		Platforms:      platforms,
-		GitCommitHash:  body.GitCommitHash,
-		ReleaseVersion: body.ReleaseVersion,
-		ReleaseNotes:   body.ReleaseNotes,
-	})
+	result, derr := h.orch.RunDeploy(r.Context(), request)
 	if derr != nil {
-		_ = h.repo.UpdateStatus(context.WithoutCancel(r.Context()), releaseID, StatusFailed)
+		statusCtx := context.WithoutCancel(r.Context())
+		if statusErr := h.repo.UpdateStatus(statusCtx, releaseID, StatusFailed); statusErr != nil {
+			if ambiguousErr := h.repo.UpdateStatus(statusCtx, releaseID, StatusAmbiguous); ambiguousErr != nil && h.log != nil {
+				h.log("error", map[string]interface{}{"msg": "could not persist ambiguous release status", "release_id": releaseID, "error": ambiguousErr.Error()})
+			}
+			shared.JSONError(w, fmt.Sprintf("orchestrator failed and release state is ambiguous: %v (status persistence: %v)", derr, statusErr), http.StatusServiceUnavailable)
+			return
+		}
 		shared.JSONError(w, fmt.Sprintf("orchestrator failed: %v", derr), http.StatusInternalServerError)
+		return
+	}
+	if result == nil {
+		statusCtx := context.WithoutCancel(r.Context())
+		if statusErr := h.repo.UpdateStatus(statusCtx, releaseID, StatusAmbiguous); statusErr != nil && h.log != nil {
+			h.log("error", map[string]interface{}{"msg": "could not persist ambiguous release status", "release_id": releaseID, "error": statusErr.Error()})
+		}
+		shared.JSONError(w, "orchestrator returned no result; release state is ambiguous", http.StatusServiceUnavailable)
 		return
 	}
 
 	// Re-read and return the final release record so the caller sees
 	// verification evidence, platform rows, and the terminal status.
-	final, _ := h.repo.Get(r.Context(), releaseID)
+	final, getErr := h.repo.Get(r.Context(), releaseID)
+	if getErr != nil {
+		shared.JSONError(w, fmt.Sprintf("load final release state: %v", getErr), http.StatusServiceUnavailable)
+		return
+	}
 	if final == nil {
-		shared.JSONOK(w, map[string]interface{}{
-			"release_id": releaseID,
-			"status":     result.Status,
-			"steps":      result.Steps,
-		})
+		shared.JSONError(w, "final release state is unavailable after orchestration", http.StatusServiceUnavailable)
 		return
 	}
 	if final.Status == StatusPublished && h.promoted != nil {
@@ -367,6 +1277,259 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		"release": final,
 		"steps":   result.Steps,
 	})
+}
+
+func (h *Handler) validateDurableIdentity(ctx context.Context, body StartRequest, channel string, platforms []string) error {
+	candidate, err := h.identity.GetCandidate(ctx, body.CandidateID)
+	if err != nil || candidate == nil {
+		return fmt.Errorf("candidate %q is not registered", body.CandidateID)
+	}
+	if candidate.Candidate.SourceRevision != body.GitCommitHash {
+		return fmt.Errorf("candidate %q is bound to a different source revision", body.CandidateID)
+	}
+	manifestDigest, err := candidate.Candidate.ArtifactManifestDigest()
+	if err != nil || manifestDigest != body.ArtifactDigest || manifestDigest != candidate.ArtifactManifestDigest {
+		return fmt.Errorf("candidate %q is not bound to the requested artifact manifest", body.CandidateID)
+	}
+
+	destination, err := h.identity.GetDestinationRevision(ctx, body.DestinationRevisionID)
+	if err != nil || destination == nil {
+		return fmt.Errorf("destination revision %q is not registered", body.DestinationRevisionID)
+	}
+	if destination.ID != body.DestinationRevisionID || destination.Revision.Channel != channel {
+		return fmt.Errorf("destination revision %q is not bound to channel %q", body.DestinationRevisionID, channel)
+	}
+
+	review, err := h.identity.GetReview(ctx, body.ReadinessReviewKey)
+	if err != nil || review == nil {
+		return fmt.Errorf("review binding %q is not registered", body.ReadinessReviewKey)
+	}
+	binding := review.Binding
+	if review.Status != "approved" || review.ApprovedAt == nil || review.RevokedAt != nil {
+		return fmt.Errorf("review binding %q is not currently approved", body.ReadinessReviewKey)
+	}
+	if binding.CandidateID != body.CandidateID || binding.DestinationRevisionID != body.DestinationRevisionID || binding.Channel != channel || binding.AuthorizationEpoch != body.AuthorizationEpoch || !sameStringSet(binding.Targets, platforms) {
+		return fmt.Errorf("review binding %q does not cover the requested release identity", body.ReadinessReviewKey)
+	}
+	if binding.CandidateID != candidate.ID || binding.DestinationRevisionID != destination.ID {
+		return fmt.Errorf("review binding %q references a different durable identity", body.ReadinessReviewKey)
+	}
+	if h.readiness != nil {
+		approval, err := h.readiness(ctx, body.ReadinessReviewKey)
+		if err != nil || approval == nil {
+			return fmt.Errorf("current readiness standing for %q is unavailable", body.ReadinessReviewKey)
+		}
+		if binding.EvidenceSetDigest == "" || binding.EvidenceSetDigest != approval.EvidenceSetDigest {
+			return fmt.Errorf("review binding %q evidence digest is no longer current", body.ReadinessReviewKey)
+		}
+		if binding.PolicyDigest == "" || binding.PolicyDigest != approval.PolicyDigest {
+			return fmt.Errorf("review binding %q policy digest is no longer current", body.ReadinessReviewKey)
+		}
+	}
+	return nil
+}
+
+func operationIDForRelease(releaseID string) string {
+	return "release-op-" + releaseID
+}
+
+func (h *Handler) releaseAuthorizationCheck(releaseID string) func(context.Context) error {
+	return func(ctx context.Context) error {
+		release, err := h.repo.Get(ctx, releaseID)
+		if err != nil || release == nil {
+			return fmt.Errorf("release snapshot is unavailable")
+		}
+		platforms := releasePlatforms(release)
+		if h.readiness != nil {
+			approval, lookupErr := h.readiness(ctx, release.ReadinessReviewKey)
+			if lookupErr != nil || approval == nil || approval.Status != "approved" || approval.ApprovedAt == nil || approval.Key != release.ReadinessReviewKey || approval.ProfileID != release.ProfileID || approval.CandidateCommit != release.GitCommitHash || approval.ArtifactDigest != release.ArtifactDigest || approval.Channel != release.Channel || !sameStringSet(approval.Targets, platforms) || approval.CandidateID != release.CandidateID || approval.DestinationRevisionID != release.DestinationRevisionID || approval.AuthorizationEpoch != release.AuthorizationEpoch {
+				return fmt.Errorf("approved readiness is no longer current for the release")
+			}
+		}
+		if h.identity != nil {
+			if err := h.validateDurableIdentity(ctx, StartRequest{
+				GitCommitHash: release.GitCommitHash, ArtifactDigest: release.ArtifactDigest,
+				CandidateID: release.CandidateID, DestinationRevisionID: release.DestinationRevisionID,
+				AuthorizationEpoch: release.AuthorizationEpoch, ReadinessReviewKey: release.ReadinessReviewKey,
+			}, release.Channel, platforms); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
+func (h *Handler) executeRelease(ctx context.Context, operationID, releaseID, readinessReviewKey string, request DeployRequest) {
+	leaseCtx := context.WithoutCancel(ctx)
+	var lease *OperationLease
+	if fenced, ok := h.repo.(FencedOperationRepository); ok {
+		acquired, acquiredOK, err := fenced.AcquireOperationLease(leaseCtx, operationID, newOperationWorkerID(), 30*time.Minute)
+		if err != nil || !acquiredOK {
+			return
+		}
+		lease = acquired
+		leaseCtx = WithOperationLease(leaseCtx, operationID, lease.Owner, lease.Fence)
+		defer func() {
+			if err := fenced.ReleaseOperationLease(context.WithoutCancel(leaseCtx), lease); err != nil && h.log != nil {
+				h.log("error", map[string]interface{}{"msg": "release operation lease release failed", "operation_id": operationID, "error": err.Error()})
+			}
+		}()
+	}
+	if err := h.updateOperation(leaseCtx, operationID, lease, OperationRunning, "orchestrate", ""); err != nil {
+		h.logExecutionPersistenceFailure(operationID, releaseID, "mark operation running", err)
+		return
+	}
+	result, err := h.orch.RunDeploy(leaseCtx, request)
+	if err != nil {
+		operationStatus, releaseStatus, stage := OperationFailed, StatusFailed, "orchestrate"
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			operationStatus, releaseStatus, stage = OperationAmbiguous, StatusAmbiguous, "reconcile"
+		}
+		h.persistExecutionOutcome(leaseCtx, operationID, releaseID, lease, releaseStatus, operationStatus, stage, err.Error())
+		return
+	}
+	if result == nil || result.Status == "failed" || result.Status == "verify_failed" || result.Status == "blocked" {
+		message := "release execution did not reach a successful terminal state"
+		if result != nil && result.Status != "" {
+			message = "release execution ended with status " + result.Status
+		}
+		h.persistExecutionOutcome(leaseCtx, operationID, releaseID, lease, StatusFailed, OperationFailed, "orchestrate", message)
+		return
+	}
+	final, getErr := h.repo.Get(leaseCtx, releaseID)
+	if getErr != nil || final == nil {
+		message := "final release state is unavailable after successful orchestration"
+		if getErr != nil {
+			message = fmt.Sprintf("load final release state: %v", getErr)
+		}
+		h.persistExecutionOutcome(leaseCtx, operationID, releaseID, lease, StatusAmbiguous, OperationAmbiguous, "reconcile", message)
+		return
+	}
+	if final.Status != StatusPublished {
+		h.persistExecutionOutcome(leaseCtx, operationID, releaseID, lease, StatusAmbiguous, OperationAmbiguous, "reconcile", fmt.Sprintf("orchestration returned success but durable release status is %q", final.Status))
+		return
+	}
+	if h.promoted != nil {
+		if err := h.promoted(leaseCtx, readinessReviewKey, time.Now().UTC()); err != nil {
+			h.persistExecutionOutcome(leaseCtx, operationID, releaseID, lease, StatusPublished, OperationFailed, "promote-readiness", err.Error())
+			return
+		}
+	}
+	if err := h.updateOperation(leaseCtx, operationID, lease, OperationComplete, "complete", ""); err != nil {
+		h.logExecutionPersistenceFailure(operationID, releaseID, "mark operation complete", err)
+		if statusErr := h.repo.UpdateStatus(leaseCtx, releaseID, StatusAmbiguous); statusErr != nil && h.log != nil {
+			h.log("error", map[string]interface{}{"msg": "could not downgrade release after operation completion persistence failure", "release_id": releaseID, "operation_id": operationID, "error": statusErr.Error()})
+		}
+	}
+}
+
+// persistExecutionOutcome records both sides of an asynchronous terminal
+// outcome. If either write fails, the side that did persist is downgraded to
+// ambiguous so a remote effect cannot appear durably failed or complete while
+// its companion operation state is unknown.
+func (h *Handler) persistExecutionOutcome(ctx context.Context, operationID, releaseID string, lease *OperationLease, releaseStatus, operationStatus, stage, message string) {
+	releaseErr := h.repo.UpdateStatus(ctx, releaseID, releaseStatus)
+	operationErr := h.updateOperation(ctx, operationID, lease, operationStatus, stage, message)
+	if releaseErr == nil && operationErr == nil {
+		return
+	}
+	if releaseErr == nil {
+		if err := h.repo.UpdateStatus(ctx, releaseID, StatusAmbiguous); err != nil {
+			releaseErr = fmt.Errorf("mark release ambiguous: %w", err)
+		}
+	}
+	if operationErr == nil {
+		if err := h.updateOperation(ctx, operationID, lease, OperationAmbiguous, "reconcile", message); err != nil {
+			operationErr = fmt.Errorf("mark operation ambiguous: %w", err)
+		}
+	}
+	if h.log != nil {
+		h.log("error", map[string]interface{}{
+			"msg":        "persist release execution outcome failed",
+			"release_id": releaseID, "operation_id": operationID,
+			"release_error": errorString(releaseErr), "operation_error": errorString(operationErr),
+		})
+	}
+}
+
+func (h *Handler) logExecutionPersistenceFailure(operationID, releaseID, action string, err error) {
+	if h.log != nil {
+		h.log("error", map[string]interface{}{"msg": "release execution persistence failed", "action": action, "release_id": releaseID, "operation_id": operationID, "error": err.Error()})
+	}
+}
+
+func errorString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+func (h *Handler) updateOperation(ctx context.Context, operationID string, lease *OperationLease, status, stage, message string) error {
+	if fenced, ok := h.repo.(FencedOperationRepository); ok && lease != nil {
+		if err := fenced.UpdateOperationFenced(ctx, lease, status, stage, message); err != nil {
+			return err
+		}
+		return fenced.AppendOperationEvent(ctx, lease, status, stage, message)
+	}
+	return h.repo.UpdateOperation(ctx, operationID, status, stage, message)
+}
+
+// ResumeOperations reattaches queued operations after a server restart. A
+// running operation may have crossed an external-effect boundary before the
+// process stopped, so it is downgraded to ambiguous and left for explicit
+// reconciliation instead of being retried automatically.
+func (h *Handler) ResumeOperations(ctx context.Context) error {
+	if !h.durable {
+		return nil
+	}
+	operations, err := h.repo.ListActiveOperations(ctx)
+	if err != nil {
+		return err
+	}
+	var resumeErr error
+	markAmbiguous := func(operation *Operation, message string) {
+		if operation == nil {
+			return
+		}
+		if err := h.repo.UpdateOperation(context.WithoutCancel(ctx), operation.ID, OperationAmbiguous, "reconcile", message); err != nil && resumeErr == nil {
+			resumeErr = fmt.Errorf("mark operation %q ambiguous after restart: %w", operation.ID, err)
+		}
+		if err := h.repo.UpdateStatus(context.WithoutCancel(ctx), operation.ReleaseID, StatusAmbiguous); err != nil && resumeErr == nil {
+			resumeErr = fmt.Errorf("mark release %q ambiguous after restart: %w", operation.ReleaseID, err)
+		}
+	}
+	for _, operation := range operations {
+		if operation == nil || operation.Status == OperationAmbiguous {
+			continue
+		}
+		if operation.Status == OperationRunning {
+			markAmbiguous(operation, "server restart interrupted an in-flight operation; reconcile the owner effect before retrying")
+			continue
+		}
+		if operation.Status != OperationQueued {
+			continue
+		}
+		request, err := deployRequestFromSnapshot(operation.RequestSnapshot, h.releaseAuthorizationCheck(operation.ReleaseID))
+		if err != nil {
+			markAmbiguous(operation, err.Error())
+			continue
+		}
+		if request.ReleaseID != operation.ReleaseID || request.ProfileID != operation.ProfileID {
+			markAmbiguous(operation, "durable execution request snapshot does not match operation identity")
+			continue
+		}
+		go h.executeRelease(context.WithoutCancel(ctx), operation.ID, request.ReleaseID, request.ReadinessReviewKey, request)
+	}
+	return resumeErr
+}
+
+func releasePlatforms(release *Release) []string {
+	platforms := make([]string, 0, len(release.Platforms))
+	for _, platform := range release.Platforms {
+		platforms = append(platforms, platform.Platform)
+	}
+	return platforms
 }
 
 func sameStringSet(left, right []string) bool {
@@ -384,4 +1547,25 @@ func sameStringSet(left, right []string) bool {
 		counts[value]--
 	}
 	return true
+}
+
+func sameReleaseRequest(existing *Release, body StartRequest, channel string, platforms []string) bool {
+	if existing == nil {
+		return false
+	}
+	if existing.ProfileID == "" || existing.GitCommitHash != body.GitCommitHash || existing.ArtifactDigest != body.ArtifactDigest || existing.CandidateID != body.CandidateID || existing.DestinationRevisionID != body.DestinationRevisionID || existing.ReleaseVersion != body.ReleaseVersion || existing.Channel != channel || existing.ReleaseNotes != body.ReleaseNotes {
+		return false
+	}
+	if body.AuthorizationEpoch != 0 && existing.AuthorizationEpoch != body.AuthorizationEpoch {
+		return false
+	}
+	return sameReleasePlatforms(existing.Platforms, platforms)
+}
+
+func sameReleasePlatforms(existing []ReleasePlatform, requested []string) bool {
+	actual := make([]string, 0, len(existing))
+	for _, platform := range existing {
+		actual = append(actual, platform.Platform)
+	}
+	return sameStringSet(actual, requested)
 }

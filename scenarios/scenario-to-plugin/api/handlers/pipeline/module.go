@@ -151,6 +151,7 @@ func writeJSON(w http.ResponseWriter, value any, status int) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
 }
+
 func (h *handler) composeREST(w http.ResponseWriter, req *http.Request) {
 	var in comp.ComposeRequest
 	if json.NewDecoder(req.Body).Decode(&in) != nil {
@@ -164,6 +165,7 @@ func (h *handler) composeREST(w http.ResponseWriter, req *http.Request) {
 	}
 	writeJSON(w, resp.Msg, http.StatusOK)
 }
+
 func (h *handler) packageREST(w http.ResponseWriter, req *http.Request) {
 	resp, err := h.GetPackage(req.Context(), connect.NewRequest(&comp.GetPackageRequest{PackageId: mux.Vars(req)["id"]}))
 	if err != nil {
@@ -172,6 +174,7 @@ func (h *handler) packageREST(w http.ResponseWriter, req *http.Request) {
 	}
 	writeJSON(w, resp.Msg, http.StatusOK)
 }
+
 func (h *handler) publishREST(w http.ResponseWriter, req *http.Request) {
 	var in dist.PublishRequest
 	if json.NewDecoder(req.Body).Decode(&in) != nil {
@@ -256,6 +259,7 @@ func (h *handler) GetDeclaration(_ context.Context, req *connect.Request[decl.Ge
 	}
 	return connect.NewResponse(&decl.GetDeclarationResponse{Declaration: d, Readiness: r}), nil
 }
+
 func (h *handler) ListReadiness(_ context.Context, req *connect.Request[decl.ListReadinessRequest]) (*connect.Response[decl.ListReadinessResponse], error) {
 	names := req.Msg.Scenarios
 	if len(names) == 0 {
@@ -319,10 +323,10 @@ func (h *handler) Compose(_ context.Context, req *connect.Request[comp.ComposeRe
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("%s: %w", s.Source, e))
 		}
 		dst := filepath.Join(root, s.Source)
-		if e = os.MkdirAll(filepath.Dir(dst), 0755); e != nil {
+		if e = os.MkdirAll(filepath.Dir(dst), 0o755); e != nil {
 			return nil, e
 		}
-		if e = os.WriteFile(dst, body, 0644); e != nil {
+		if e = os.WriteFile(dst, body, 0o644); e != nil {
 			return nil, e
 		}
 	}
@@ -335,14 +339,14 @@ func (h *handler) Compose(_ context.Context, req *connect.Request[comp.ComposeRe
 			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("PLG-COMPOSE-MCP: bundled command must be plugin-relative"))
 		}
 		mcp := map[string]any{"$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", "mcpServers": map[string]any{m.Plugin.MCP.Name: server}}
-		if err := os.WriteFile(filepath.Join(root, "mcp.json"), mustJSON(mcp), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(root, "mcp.json"), mustJSON(mcp), 0o644); err != nil {
 			return nil, err
 		}
 	}
 	if err := validatePluginManifest(manifest); err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "plugin.json"), mustJSON(manifest), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "plugin.json"), mustJSON(manifest), 0o644); err != nil {
 		return nil, err
 	}
 	for _, rel := range append([]string{m.Plugin.Standalone.InstallScript}, m.Plugin.Standalone.RuntimeBinaries...) {
@@ -352,18 +356,21 @@ func (h *handler) Compose(_ context.Context, req *connect.Request[comp.ComposeRe
 		if e != nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("standalone artifact %s: %w", rel, e))
 		}
-		if e = os.MkdirAll(filepath.Dir(dst), 0755); e != nil {
+		if e = os.MkdirAll(filepath.Dir(dst), 0o755); e != nil {
 			return nil, e
 		}
-		if e = os.WriteFile(dst, b, 0755); e != nil {
+		if e = os.WriteFile(dst, b, 0o755); e != nil {
 			return nil, e
 		}
+	}
+	if err := copyProgramAssets(scenarioRoot, root); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	artifact, artifactDigest, err := packageArchive(root)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("archive package: %w", err))
 	}
-	if err := os.WriteFile(filepath.Join(root, ".agent-plugin.tar.gz"), artifact, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".agent-plugin.tar.gz"), artifact, 0o644); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	posture := ""
@@ -443,6 +450,7 @@ func packageArchive(root string) ([]byte, string, error) {
 	digest := sha256.Sum256(out.Bytes())
 	return out.Bytes(), "sha256:" + hex.EncodeToString(digest[:]), nil
 }
+
 func (h *handler) GetPackage(_ context.Context, req *connect.Request[comp.GetPackageRequest]) (*connect.Response[comp.GetPackageResponse], error) {
 	h.mu.RLock()
 	p, ok := h.packages[req.Msg.PackageId]
@@ -482,6 +490,7 @@ func (h *handler) Check(_ context.Context, req *connect.Request[conf.CheckReques
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (h *handler) Attest(_ context.Context, req *connect.Request[att.AttestRequest]) (*connect.Response[att.AttestResponse], error) {
 	h.mu.RLock()
 	p, ok := h.packages[req.Msg.PackageId]
@@ -527,7 +536,7 @@ func (h *handler) Attest(_ context.Context, req *connect.Request[att.AttestReque
 			if validationErr := validateManagedEvidence(name, b, p.Package.Digest); validationErr != nil {
 				return connect.NewResponse(&att.AttestResponse{Passed: false, ArtifactDigest: p.Package.Digest, Findings: []*att.Finding{{Code: "PLG-ATTEST-TOOLING", Message: validationErr.Error()}}}), nil
 			}
-			if writeErr := os.WriteFile(filepath.Join(p.Root, name), b, 0644); writeErr != nil {
+			if writeErr := os.WriteFile(filepath.Join(p.Root, name), b, 0o644); writeErr != nil {
 				return nil, connect.NewError(connect.CodeInternal, writeErr)
 			}
 		}
@@ -553,7 +562,7 @@ func (h *handler) Attest(_ context.Context, req *connect.Request[att.AttestReque
 			continue
 		}
 		b, _ := json.MarshalIndent(ref.value, "", "  ")
-		if err := os.WriteFile(filepath.Join(p.Root, ref.name), b, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(p.Root, ref.name), b, 0o644); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		evidence = append(evidence, &att.Evidence{Kind: ref.kind, Digest: p.Package.Digest, Reference: "artifact://" + ref.name})
@@ -627,6 +636,7 @@ func validateManagedEvidence(name string, body []byte, artifactDigest string) er
 	}
 	return nil
 }
+
 func (h *handler) Run(_ context.Context, req *connect.Request[reh.RunRequest]) (*connect.Response[reh.RunResponse], error) {
 	h.mu.RLock()
 	p, ok := h.packages[req.Msg.PackageId]
@@ -664,7 +674,7 @@ func (h *handler) Run(_ context.Context, req *connect.Request[reh.RunRequest]) (
 	for i := 0; i < 2; i++ {
 		cmd := exec.Command("sh", script)
 		cmd.Env = []string{"HELLO_PLUGIN_PREFIX=" + prefix, "WORKSPACE_SANDBOX_PREFIX=" + prefix, "XDG_BIN_HOME=" + prefix, "HOME=" + filepath.Join(prefix, "home"), "PATH=" + prefix + ":/usr/bin:/bin", "WORKSPACE_SANDBOX_STANDALONE_PORT=" + rehearsalPort}
-		_ = os.MkdirAll(filepath.Join(prefix, "home"), 0700)
+		_ = os.MkdirAll(filepath.Join(prefix, "home"), 0o700)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return connect.NewResponse(&reh.RunResponse{Passed: false, Findings: []*reh.Finding{{Code: "PLG-REHEARSE-IDEMPOTENT", Message: string(out)}}}), nil
 		}
@@ -838,6 +848,7 @@ func redact(value string) string {
 	}
 	return value
 }
+
 func (h *handler) Publish(ctx context.Context, req *connect.Request[dist.PublishRequest]) (*connect.Response[dist.PublishResponse], error) {
 	h.mu.RLock()
 	p, ok := h.packages[req.Msg.PackageId]
@@ -909,6 +920,7 @@ func (h *handler) deploymentManagerGate(ctx context.Context, sourceRevision stri
 	ready := response.Msg.GetStructValue().GetFields()["ready"]
 	return ready != nil && ready.GetBoolValue(), nil
 }
+
 func (h *handler) Revoke(_ context.Context, req *connect.Request[dist.RevokeRequest]) (*connect.Response[dist.RevokeResponse], error) {
 	h.mu.RLock()
 	_, ok := h.packages[req.Msg.PackageId]
@@ -972,4 +984,61 @@ func validPluginName(name string) bool {
 		}
 	}
 	return true
+}
+
+// copyProgramAssets transports ordinary declared source/data. Learning selection and
+// baseline validation belong to Program Runtime, never to the distribution ramp.
+func copyProgramAssets(scenarioRoot, packageRoot string) error {
+	rel := filepath.Join(".vrooli", "program-runtime")
+	dir := filepath.Join(scenarioRoot, rel)
+	info, err := os.Lstat(dir)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("program assets must be a regular directory")
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	if len(entries) > 512 {
+		return fmt.Errorf("program asset count exceeds 512")
+	}
+	var total int64
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		ext := filepath.Ext(entry.Name())
+		if ext != ".py" && ext != ".json" {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("program asset %s must be a regular file", entry.Name())
+		}
+		total += info.Size()
+		if info.Size() > 1024*1024 || total > 16*1024*1024 {
+			return fmt.Errorf("program assets exceed package bound")
+		}
+		body, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			return err
+		}
+		destination := filepath.Join(packageRoot, rel, entry.Name())
+		if err = os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+			return err
+		}
+		if err = os.WriteFile(destination, body, 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
 }

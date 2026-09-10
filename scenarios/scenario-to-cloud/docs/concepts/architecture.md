@@ -136,138 +136,49 @@ CREATE TABLE deployments (
 - Automatic certificate management
 - No sensitive data in logs
 
-## SSH Subsystem
+## Target Reach and the SSH Adapter
 
-The SSH subsystem (`ssh/` package) is the primary integration layer between the local API and remote VPS hosts. It provides four core interfaces, a structured error pipeline, key management, and parallel command execution.
+> [CODE: api/reach/reach.go]
+> [CODE: api/reach/sshadapter/adapter.go]
+> [CODE: api/reach/bridge/adapter.go]
 
-### SSH Interface Seams
-
-The SSH package exposes four interfaces that serve as testability seams:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                     ssh/ package                         │
-│                                                          │
-│  ┌─────────────────┐    ┌──────────────────┐            │
-│  │   Runner         │    │   SCPRunner       │            │
-│  │   (runner.go)    │    │   (runner.go)     │            │
-│  │                  │    │                   │            │
-│  │  Run(ctx, cfg,   │    │  Copy(ctx, cfg,   │            │
-│  │    cmd, opts)    │    │    local, remote,  │            │
-│  │  -> Result, err  │    │    opts) -> err    │            │
-│  └────────┬─────────┘    └────────┬──────────┘            │
-│           │                       │                       │
-│  Impls:   │ ExecRunner            │ ExecSCPRunner         │
-│  Fakes:   │ FakeSSHRunner         │ FakeSCPRunner         │
-│           │                       │                       │
-│  ┌────────┴─────────┐    ┌───────┴──────────┐            │
-│  │  CommandRunner    │    │   KeyCopier       │            │
-│  │  (command.go)     │    │   (keys_copy.go)  │            │
-│  │                   │    │                   │            │
-│  │  Run(ctx, name,   │    │  CopyKey(ctx,     │            │
-│  │    args...)       │    │    req) -> resp    │            │
-│  │  -> out, err      │    │                   │            │
-│  └───────────────────┘    └───────────────────┘            │
-│                                                          │
-│  Impls: ExecCommandRunner     ExecKeyCopier              │
-│  Used by: KeyService          HandleCopyKey handler      │
-└─────────────────────────────────────────────────────────┘
-```
-
-- **`Runner`** -- Executes SSH commands on remote hosts. Used by VPS setup, deploy, inspect, stop, and live state operations.
-- **`SCPRunner`** -- Transfers files to remote hosts via SCP. Used for bundle uploads.
-- **`CommandRunner`** -- Executes local commands (e.g., `ssh-keygen`). Used by `KeyService` for key generation and fingerprinting.
-- **`KeyCopier`** -- Copies SSH public keys to remote servers via password authentication. Used by the `HandleCopyKey` HTTP handler.
-
-### Deployment Pipeline Flow
-
-The deployment pipeline executes a series of SSH operations in sequence, with per-step timeouts and error classification:
+The cloud touches a target only through `reach.Reach`: a typed command (`{verb, argv[]}` or a read-only observation program) dispatched on the transport the deployment's target binding names. There is no shell-string seam and no implicit transport; a revoked enrollment or an unconfigured transport is a typed refusal (`reach_unavailable`, `enrollment_revoked`), never a fallback.
 
 ```
-Manifest ──▶ Preflight ──▶ Bundle ──▶ Transfer ──▶ Setup ──▶ Deploy ──▶ Verify
-                │                       │            │          │          │
-                │ SSH: connectivity,     │ SCP:       │ SSH:     │ SSH:     │ SSH:
-                │ disk, DNS, ports       │ bundle     │ extract, │ caddy,   │ health
-                │                       │ upload     │ scripts  │ start    │ checks
-                ▼                       ▼            ▼          ▼          ▼
-           preflight.Run          SCPRunner.Copy   Runner.Run  Runner.Run  Runner.Run
-                                                     │
-                                                     ▼
-                                              StepConfig per step:
-                                              - CommandTimeout
-                                              - MaxRetries
-                                              - RetryDelay
+┌──────────────────────────────────────────────────────────────┐
+│                        reach.Router                           │
+│   target_binding.transport ──▶ "bridge" │ "ssh"               │
+│                                   │        │                  │
+│              ┌────────────────────┘        └──────────────┐   │
+│              ▼                                            ▼   │
+│   reach/bridge.Adapter                       reach/sshadapter │
+│   nodereach Dispatch/Wait/Call               .Adapter          │
+│   (durable runs, signed relay)               Runner / SCPRunner│
+│                                              (ExecRunner,      │
+│                                               ExecSCPRunner;   │
+│                                               FakeSSHRunner in │
+│                                               tests)           │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-Each step reports progress via SSE through the `deployment.Hub`. On failure, errors flow through `ClassifyError` to produce structured `ErrorInfo` with category, hint, and retryability.
+### The bounded SSH adapter
 
-### Error Classification Pipeline
+`reach/sshadapter` is a policy-equivalent adapter, not a private connection plane:
 
-SSH errors are classified into sentinel categories that determine retryability and provide actionable hints:
+- it accepts only validated argv (`reach.ValidateCommand`: no shell syntax, no empty or oversized arguments) and joins it with one quoting rule (`RemoteCommand`, `ObservationCommand`);
+- a verb runs the bound workdir's `vrooli` binary; an observation program (`reach.ObservationPrograms`: `cat`, `df`, `du`, `find`, `grep`, `journalctl`, `ls`, `pgrep`, `ps`, `ss`, `stat`, `uname`, `head`) runs outside it and can never change host state;
+- stdin never enters the command string (a credential value travels on `Command.Stdin`);
+- failures are classified by exit code only: `255` is `target_offline`, `127` is `reach_protocol_unsupported`, a deadline is `transport_failure`, and every other non-zero exit is the target's own typed answer;
+- artifacts are placed by `Deliver` (scp into the parent directory, remote sha256 verified against the local bytes, mode applied);
+- the interactive terminal is `OpenSession` (a PTY over `golang.org/x/crypto/ssh`) behind the `reach.SessionOpener` seam.
 
-```
-SSH command fails
-       │
-       ▼
-  exitCode(err) ──▶ exit code extracted from exec.ExitError
-       │
-       ▼
-  ClassifyError(stderr, host, defaultHint)
-       │
-       ├─── matches "Permission denied"?     ──▶ SSHError{Category: ErrAuth}
-       ├─── matches "host key"?               ──▶ SSHError{Category: ErrHostKey}
-       ├─── matches "timed out"?              ──▶ SSHError{Category: ErrTimeout, Retryable: true}
-       ├─── matches "Connection refused"?     ──▶ SSHError{Category: ErrUnreachable, Retryable: true}
-       ├─── matches "No space left"?          ──▶ SSHError{Category: ErrDiskSpace}
-       ├─── matches "resolve hostname"?       ──▶ SSHError{Category: ErrDNS}
-       ├─── matches "invalid format"?         ──▶ SSHError{Category: ErrKeyFormat}
-       ├─── IsIPv6(host) + network error?     ──▶ SSHError{Category: ErrIPv6, Retryable: true}
-       └─── fallback                          ──▶ SSHError{Category: ErrCommand}
-       │
-       ▼
-  ErrorInfoFromSSHError(*SSHError)
-       │
-       ▼
-  domain.ErrorInfo{Category, Hint, Retryable, ExitCode}
-       │
-       ├──▶ VPSSetupResult.ErrorInfo / VPSDeployResult.ErrorInfo  (JSON API)
-       └──▶ deployment.Event.ErrorCategory / .Retryable / .Hint   (SSE)
-```
+### Connection resolution and key custody
 
-Callers use `errors.Is(err, ssh.ErrTimeout)` for category matching and `sshErr.Retryable` for retry decisions.
+`ConnectionConfig` is resolved per target by the server (`sshConfigForTarget`): the locator from the target binding, the key file from the credential binding `vrooli/scenario-to-cloud:ssh-key` (class `machine_enrollment_credential`, file target = operator-held path, no bytes). A target without a binding is reached with the operator's ambient identity. Host keys are trusted on first use into the scenario's `known_hosts` through `packages/ssh-core`. The manifest carries no key: a legacy row's `target.vps.key_path` is converted into the binding at API start (`persistence.convertLegacyKeyPathBindings`).
 
-### Key Management Lifecycle
+### Preflight on a bare host
 
-The `KeyService` manages SSH keys through a complete lifecycle:
-
-```
-┌──────────────┐     ┌───────────────┐     ┌──────────────┐
-│   Discover   │────▶│   Generate    │────▶│     Copy     │
-│              │     │               │     │              │
-│ DiscoverKeys │     │ GenerateKey   │     │ ExecKeyCopier│
-│ (keys.go)    │     │ (keys_gen.go) │     │ (keys_copy)  │
-│              │     │               │     │              │
-│ Scans ~/.ssh │     │ ssh-keygen    │     │ golang.org/x │
-│ for key files│     │ via           │     │ /crypto/ssh  │
-│              │     │ CommandRunner │     │ password auth│
-└──────────────┘     └───────────────┘     └──────┬───────┘
-                                                   │
-                     ┌───────────────┐     ┌───────┴──────┐
-                     │    Delete     │     │     Test     │
-                     │               │◀────│              │
-                     │ DeleteKey     │     │ TestConnection│
-                     │ (keys.go)     │     │ (connect.go) │
-                     │               │     │              │
-                     │ Removes key   │     │ Runner.Run   │
-                     │ pair from disk│     │ "echo ok"    │
-                     └───────────────┘     └──────────────┘
-```
-
-1. **Discover**: Scans `~/.ssh/` for existing key pairs, parses type and fingerprint
-2. **Generate**: Creates new key via `ssh-keygen` (uses `CommandRunner` seam)
-3. **Copy**: Transfers public key to remote `authorized_keys` via password auth (uses `KeyCopier` seam)
-4. **Test**: Verifies key-based SSH connectivity with `echo ok` command
-5. **Delete**: Removes key pair files from disk
+Preflight runs before the target owner exists, so every host fact is an observation program through reach (`vps/preflight/observe.go`): OS release and firewall state from their files, sockets from `ss`, disk and memory from `df`/`grep`, tools from one `find`, stale processes from `pgrep`. Outbound reachability is not observable through the read-only set and is reported as `warn`; `host.prepare` surfaces a blocked egress at apply time.
 
 ### Live State Parallel Inspection
 
@@ -303,7 +214,7 @@ The live state collector runs 15 SSH commands in parallel to gather comprehensiv
                     Parse + assemble VPSLiveState
 ```
 
-All 15 commands execute through the `ssh.Runner` seam, enabling complete test control without SSH connections.
+Every command is a `reach.Command` through the bound transport (`vps.Prober`), so tests script answers by argv with `reachtest.Scripted` and never open a connection.
 
 ## Edge/TLS Management
 

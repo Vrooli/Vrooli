@@ -42,6 +42,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/cliresolve"
 
+	"vrooli-bridge/agent/internal/artifactdelivery"
 	"vrooli-bridge/agent/internal/buildinfo"
 	"vrooli-bridge/agent/internal/config"
 	"vrooli-bridge/agent/internal/cpverify"
@@ -567,7 +568,7 @@ func (c *Client) handleServerFrame(payload string) {
 		c.logger.Printf("channel: rejected unverified server frame (%v); total rejected=%d", err, n)
 		return
 	}
-	if frame.GetJob() != nil || frame.GetProvision() != nil || frame.GetCleanup() != nil || frame.GetAbort() != nil {
+	if frame.GetJob() != nil || frame.GetProvision() != nil || frame.GetCleanup() != nil || frame.GetAbort() != nil || frame.GetArtifactDelivery() != nil {
 		c.sendDeliveryAck(frame)
 	}
 	if session := frame.GetSession(); session != nil {
@@ -600,6 +601,14 @@ func (c *Client) handleServerFrame(payload string) {
 		}
 		c.logger.Printf("channel: received scenario request correlation_id=%q scenario=%q service=%q method=%q", request.GetCorrelationId(), request.GetScenario(), request.GetService(), request.GetMethod())
 		go c.runScenarioRequest(request)
+	}
+	if delivery := frame.GetArtifactDelivery(); delivery != nil {
+		if c.cfg.PresenceOnly {
+			c.logger.Printf("channel: rejecting artifact delivery item_id=%q because agent is in presence-only posture", delivery.GetItemId())
+			return
+		}
+		c.logger.Printf("channel: received artifact delivery item_id=%q destination=%q", delivery.GetItemId(), delivery.GetDestinationPath())
+		go c.runArtifactDelivery(delivery)
 	}
 	if relayRequest := frame.GetRelay(); relayRequest != nil {
 		if c.cfg.PresenceOnly {
@@ -925,6 +934,51 @@ func (c *Client) runJob(job *channelv1.JobPush) {
 	}
 }
 
+// runArtifactDelivery pulls one directed device-sync-hub item and places it at
+// the signed target path. The transfer runs on the node, so the control plane
+// never receives or stores the artifact bytes. The target device token remains
+// node-local and is never included in a server frame or log message.
+func (c *Client) runArtifactDelivery(delivery *channelv1.ArtifactDelivery) {
+	if delivery == nil {
+		return
+	}
+	result, err := artifactdelivery.Deliver(c.baseCtxOrBackground(), c.httpClient, artifactdelivery.Config{
+		BaseURL: c.cfg.DeviceSyncURL, DeviceToken: c.cfg.DeviceSyncToken, WorkDir: c.cfg.WorkDir,
+	}, artifactdelivery.Request{
+		ItemID: delivery.GetItemId(), Name: delivery.GetName(), DestinationPath: delivery.GetDestinationPath(),
+	})
+	if err != nil {
+		c.logger.Printf("channel: artifact delivery distribution_id=%q item_id=%q failed: %v", delivery.GetDistributionId(), delivery.GetItemId(), err)
+		c.reportArtifactReceipt(&sharedv1.ArtifactReceipt{
+			DistributionId: delivery.GetDistributionId(), NodeId: c.cfg.NodeID, ItemId: delivery.GetItemId(),
+			DestinationPath: delivery.GetDestinationPath(), Accepted: false, Reason: err.Error(),
+		})
+		return
+	}
+	c.logger.Printf("channel: artifact delivery distribution_id=%q item_id=%q placed path=%q bytes=%d sha256=%s", delivery.GetDistributionId(), delivery.GetItemId(), result.Path, result.SizeBytes, result.SHA256)
+	c.reportArtifactReceipt(&sharedv1.ArtifactReceipt{
+		DistributionId: delivery.GetDistributionId(), NodeId: c.cfg.NodeID, ItemId: delivery.GetItemId(),
+		DestinationPath: result.Path, Accepted: true, Sha256: result.SHA256, SizeBytes: result.SizeBytes,
+	})
+}
+
+func (c *Client) reportArtifactReceipt(receipt *sharedv1.ArtifactReceipt) {
+	if receipt == nil || c.rpc == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.baseCtxOrBackground(), 10*time.Second)
+	defer cancel()
+	req := connect.NewRequest(&presencev1.ReportArtifactReceiptRequest{Receipt: receipt})
+	if c.cred != nil {
+		for key, value := range c.cred.Headers(c.cfg.NodeID, c.now().UTC()) {
+			req.Header().Set(key, value)
+		}
+	}
+	if _, err := c.rpc.ReportArtifactReceipt(ctx, req); err != nil {
+		c.logger.Printf("channel: artifact receipt distribution_id=%q item_id=%q failed: %v", receipt.GetDistributionId(), receipt.GetItemId(), err)
+	}
+}
+
 const (
 	defaultScenarioRequestTimeout = 30 * time.Second
 	maxScenarioRequestTimeout     = 5 * time.Minute
@@ -948,7 +1002,7 @@ func (c *Client) runScenarioRequest(request *channelv1.ScenarioRequest) {
 	}
 	ctx, cancel := context.WithTimeout(base, timeout)
 	defer cancel()
-	response := &channelv1.ScenarioResponse{CorrelationId: request.GetCorrelationId()}
+	response := &sharedv1.ScenarioResponse{CorrelationId: request.GetCorrelationId()}
 	port, err := c.resolveScenarioPort(ctx, request.GetScenario())
 	if err == nil {
 		maxBytes := request.GetMaxResponseBytes()
@@ -1023,7 +1077,7 @@ func (c *Client) resolveScenarioPort(ctx context.Context, scenario string) (int,
 	return port, nil
 }
 
-func (c *Client) reportScenarioResponse(response *channelv1.ScenarioResponse) {
+func (c *Client) reportScenarioResponse(response *sharedv1.ScenarioResponse) {
 	if c.scenarioRPC == nil || response == nil {
 		return
 	}

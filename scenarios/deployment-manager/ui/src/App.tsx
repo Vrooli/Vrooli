@@ -11,6 +11,7 @@ import { BundleTelemetry } from "./features/telemetry/BundleTelemetry";
 import { Approvals } from "./features/releases/Approvals";
 import { Releases } from "./features/releases/Releases";
 import { EvidenceReview } from "./features/evidence/EvidenceReview";
+import { ReleaseDetail } from "./features/releases/ReleaseDetail";
 
 function getRouterBasename(): string {
   const proxyInfo = getProxyInfo();
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/deployments/:id" element={<Deployments />} />
           <Route path="/approvals" element={<Approvals />} />
           <Route path="/releases" element={<Releases />} />
+          <Route path="/releases/:id" element={<ReleaseDetail />} />
           <Route path="/evidence" element={<EvidenceReview />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

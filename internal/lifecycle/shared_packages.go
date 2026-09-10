@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -69,10 +70,51 @@ type sharedPackageDependency struct {
 }
 
 type sharedPackageProvisionOptions struct {
-	Context context.Context
-	Home    string
-	Env     []string
-	Stdin   io.Reader
+	Context  context.Context
+	Home     string
+	Env      []string
+	Stdin    io.Reader
+	Scenario string
+}
+
+// sharedPackageRuntimeEvidenceWriter preserves the package command output and
+// additionally promotes RCL's machine-readable runtime result into a stable
+// lifecycle log event. The package owns the artifact decision; lifecycle owns
+// the startup record that operators inspect when a dependency is degraded.
+type sharedPackageRuntimeEvidenceWriter struct {
+	writer      io.Writer
+	logWriter   io.Writer
+	packageName string
+	line        []byte
+}
+
+func (w *sharedPackageRuntimeEvidenceWriter) Write(data []byte) (int, error) {
+	n, err := w.writer.Write(data)
+	if err != nil {
+		return n, err
+	}
+	w.line = append(w.line, data[:n]...)
+	for {
+		index := bytes.IndexByte(w.line, '\n')
+		if index < 0 {
+			break
+		}
+		line := strings.TrimSpace(string(w.line[:index]))
+		w.line = append([]byte(nil), w.line[index+1:]...)
+		var evidence struct {
+			Built         string `json:"built"`
+			Status        string `json:"status"`
+			Reason        string `json:"reason"`
+			Candidate     string `json:"candidate"`
+			Selected      string `json:"selectedArtifact"`
+			Compatibility string `json:"compatibility"`
+		}
+		if json.Unmarshal([]byte(line), &evidence) != nil || evidence.Built != "@vrooli/react-component-library" || evidence.Status == "" {
+			continue
+		}
+		_, _ = fmt.Fprintf(w.logWriter, "shared-package-runtime event=status package=%q status=%q candidate=%q selected_artifact=%q compatibility=%q reason=%q\n", w.packageName, evidence.Status, evidence.Candidate, evidence.Selected, evidence.Compatibility, evidence.Reason)
+	}
+	return n, nil
 }
 
 // ProvisionGeneratedPackages ensures repository-level generated packages are
@@ -167,10 +209,11 @@ func (r *Runner) provisionSharedPackages(ctx context.Context, item scenario.Scen
 
 	_, _ = fmt.Fprintf(logWriter, "provision-shared-packages: %d package(s) before install-ui-deps\n", len(dependencies))
 	commandOptions := sharedPackageProvisionOptions{
-		Context: ctx,
-		Home:    r.Home,
-		Env:     lifecycleStepEnv("setup", env),
-		Stdin:   strings.NewReader(""),
+		Context:  ctx,
+		Home:     r.Home,
+		Env:      lifecycleStepEnv("setup", env),
+		Stdin:    strings.NewReader(""),
+		Scenario: item.Slug,
 	}
 	for _, dependency := range dependencies {
 		if err := provisionSharedPackageWithOptions(dependency, childWriter, logWriter, commandOptions); err != nil {
@@ -305,7 +348,7 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 				Reason:      "declares no build outputs",
 			}
 		}
-		fresh, err := sharedPackageOutputsFresh(options.Home, dependency.Root, command.Name, command.Outputs, command.Inputs, command.Ignore)
+		fresh, err := sharedPackageOutputsFresh(options.Home, dependency.Root, command.Name, command.Outputs, command.Inputs, command.Ignore, []string{command.ArtifactSelection})
 		if err != nil {
 			return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: commandText, Reason: "could not inspect declared outputs", Err: err}
 		}
@@ -316,9 +359,11 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 
 		startedAt := time.Now()
 		_, _ = fmt.Fprintf(logWriter, "shared-package-command event=start package=%q command=%q root=%q pid=%d\n", dependency.Name, commandText, dependency.Root, os.Getpid())
-		err = packagegov.RunCommandsWithOptions(dependency.Root, []packagegov.CommandSpec{command}, stdout, stdout, packagegov.CommandOptions{
-			Env:   options.Env,
-			Stdin: options.Stdin,
+		evidenceWriter := &sharedPackageRuntimeEvidenceWriter{writer: stdout, logWriter: logWriter, packageName: dependency.Name}
+		err = packagegov.RunCommandsWithOptions(dependency.Root, []packagegov.CommandSpec{command}, evidenceWriter, evidenceWriter, packagegov.CommandOptions{
+			Env:      options.Env,
+			Stdin:    options.Stdin,
+			Scenario: options.Scenario,
 		})
 		_, _ = fmt.Fprintf(logWriter, "shared-package-command event=end package=%q command=%q root=%q pid=%d duration_ms=%d status=%q\n", dependency.Name, commandText, dependency.Root, os.Getpid(), time.Since(startedAt).Milliseconds(), commandStatus(err))
 		if err != nil {
@@ -410,7 +455,7 @@ func sharedPackageOutputsFresh(home, root, commandName string, patterns []string
 	if sharedPackageOutputsListDigest(root, outputs) != stamp.OutputsDigest {
 		return false, nil
 	}
-	digest, err := sharedPackageSourceDigest(root, patterns, declared...)
+	digest, err := sharedPackageSourceDigestWithHome(home, root, patterns, declared...)
 	if err != nil {
 		return false, err
 	}
@@ -509,12 +554,24 @@ func sharedPackageOutputDirectoriesFresh(root string, directories []sharedPackag
 // change, and WalkDir's lexical order makes the result stable across runs and
 // machines.
 func sharedPackageSourceDigest(root string, outputPatterns []string, declared ...[]string) (string, error) {
+	return sharedPackageSourceDigestWithHome("", root, outputPatterns, declared...)
+}
+
+// sharedPackageSourceDigestWithHome adds optional control-plane identities to
+// the package-root source digest. An artifact selection is intentionally not a
+// filesystem input: it is the immutable runtime pointer that tells lifecycle
+// whether the compatibility facade is behind the selected verified artifact.
+func sharedPackageSourceDigestWithHome(home, root string, outputPatterns []string, declared ...[]string) (string, error) {
 	var inputPatterns, ignorePatterns []string
+	artifactSelection := ""
 	if len(declared) > 0 && len(declared[0]) > 0 {
 		inputPatterns = declared[0]
 	}
 	if len(declared) > 1 {
 		ignorePatterns = declared[1]
+	}
+	if len(declared) > 2 && len(declared[2]) > 0 {
+		artifactSelection = declared[2][0]
 	}
 	hash := sha256.New()
 	err := filepath.WalkDir(root, func(filePath string, entry fs.DirEntry, err error) error {
@@ -545,7 +602,34 @@ func sharedPackageSourceDigest(root string, outputPatterns []string, declared ..
 	if err != nil {
 		return "", err
 	}
+	if artifactSelection != "" {
+		selectionDigest, digestErr := sharedPackageArtifactSelectionDigest(home, artifactSelection)
+		if digestErr != nil {
+			return "", digestErr
+		}
+		_, _ = fmt.Fprintf(hash, "artifact-selection:%s\x00%s\x00", artifactSelection, selectionDigest)
+	}
 	return fmt.Sprintf("sha256:%x", hash.Sum(nil)), nil
+}
+
+func sharedPackageArtifactSelectionDigest(home, packageName string) (string, error) {
+	if strings.TrimSpace(home) == "" {
+		return "missing-runtime-home", nil
+	}
+	artifactRoot := os.Getenv("VROOLI_RCL_ARTIFACT_ROOT")
+	if strings.TrimSpace(artifactRoot) == "" {
+		artifactRoot = filepath.Join(home, ".vrooli", "artifacts", "react-component-library")
+	}
+	selectionPath := filepath.Join(artifactRoot, "current.json")
+	data, err := os.ReadFile(selectionPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return "missing-selection", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	hash := sha256.Sum256(append([]byte(packageName+"\x00"), data...))
+	return fmt.Sprintf("sha256:%x", hash[:]), nil
 }
 
 func sharedPackageInputMatch(root, filePath string, inputs, ignores []string) bool {
@@ -653,7 +737,7 @@ func recordSharedPackageStamp(home string, dependency sharedPackageDependency, c
 	if stampPath == "" {
 		return fmt.Errorf("no runtime home is configured, so freshness cannot be cached")
 	}
-	digest, err := sharedPackageSourceDigest(dependency.Root, command.Outputs, command.Inputs, command.Ignore)
+	digest, err := sharedPackageSourceDigestWithHome(home, dependency.Root, command.Outputs, command.Inputs, command.Ignore, []string{command.ArtifactSelection})
 	if err != nil {
 		return fmt.Errorf("hash sources: %w", err)
 	}

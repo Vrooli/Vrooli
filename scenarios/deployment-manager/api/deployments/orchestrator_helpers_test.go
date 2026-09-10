@@ -88,6 +88,18 @@ func TestAssetMetadataAndUIExpansion(t *testing.T) {
 	}
 }
 
+func TestPopulateAssetMetadataRefusesUnreadableUIBundle(t *testing.T) {
+	root := t.TempDir()
+	manifest := &bundles.Manifest{Services: []bundles.ServiceEntry{{ID: "ui", Type: "ui-bundle"}}}
+
+	if err := populateAssetMetadata(manifest, root); err == nil || !strings.Contains(err.Error(), "read ui dist") {
+		t.Fatalf("missing UI bundle error = %v, want read ui dist failure", err)
+	}
+	if len(manifest.Services[0].Assets) != 0 {
+		t.Fatalf("incomplete UI assets were retained: %#v", manifest.Services[0].Assets)
+	}
+}
+
 func TestBundleBinaryCopyAndInstallerDiscovery(t *testing.T) {
 	root := t.TempDir()
 	manifestDir := filepath.Join(root, "manifest")
@@ -174,6 +186,38 @@ func TestCLIServicePruningAndCommandLogging(t *testing.T) {
 	}
 }
 
+type recordingCommandRunner struct {
+	args   []string
+	dir    string
+	output []byte
+	err    error
+}
+
+func (r *recordingCommandRunner) Run(_ context.Context, bin string, args []string, dir string) ([]byte, error) {
+	r.args = append([]string{bin}, args...)
+	r.dir = dir
+	return r.output, r.err
+}
+
+func TestOrchestratorCommandRunnerIsInjectable(t *testing.T) {
+	runner := &recordingCommandRunner{output: []byte("fake output")}
+	logs := 0
+	o := &Orchestrator{
+		commandRunner: runner,
+		log:           func(string, map[string]interface{}) { logs++ },
+	}
+
+	if err := o.runCommandLogged(context.Background(), "package-manager", []string{"run", "dist:linux"}, "/tmp/work"); err != nil {
+		t.Fatalf("injected command runner returned error: %v", err)
+	}
+	if got, want := strings.Join(runner.args, " "), "package-manager run dist:linux"; got != want {
+		t.Fatalf("command args = %q, want %q", got, want)
+	}
+	if runner.dir != "/tmp/work" || logs != 1 {
+		t.Fatalf("runner state = dir %q logs %d, want /tmp/work and one log", runner.dir, logs)
+	}
+}
+
 func TestUpdateManifestBinaryPathsAndCrossPlatformBuildDetection(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "rust-cli"), 0o755); err != nil {
@@ -209,5 +253,38 @@ func TestUpdateManifestBinaryPathsAndCrossPlatformBuildDetection(t *testing.T) {
 	}
 	if isCrossPlatformCLIBuild(bundles.ServiceEntry{Build: &bundles.BuildConfig{Type: "python", SourceDir: "rust-cli"}}, root) {
 		t.Fatal("unknown CLI build type should not be cross-platform")
+	}
+}
+
+func TestExactArtifactTargetSet(t *testing.T) {
+	tests := map[string]struct {
+		requested []string
+		artifacts []PipelineDeployArtifact
+		want      bool
+	}{
+		"exact": {
+			requested: []string{"linux-x64", "darwin-arm64"},
+			artifacts: []PipelineDeployArtifact{{Platform: "linux-x64"}, {Platform: "darwin-arm64"}},
+			want:      true,
+		},
+		"partial": {
+			requested: []string{"linux-x64", "darwin-arm64"},
+			artifacts: []PipelineDeployArtifact{{Platform: "linux-x64"}},
+		},
+		"extra": {
+			requested: []string{"linux-x64"},
+			artifacts: []PipelineDeployArtifact{{Platform: "linux-x64"}, {Platform: "windows-x64"}},
+		},
+		"duplicate request": {
+			requested: []string{"linux-x64", "linux-x64"},
+			artifacts: []PipelineDeployArtifact{{Platform: "linux-x64"}, {Platform: "linux-x64"}},
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got := exactArtifactTargetSet(test.requested, test.artifacts); got != test.want {
+				t.Fatalf("exactArtifactTargetSet() = %v, want %v", got, test.want)
+			}
+		})
 	}
 }

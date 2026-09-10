@@ -24,6 +24,7 @@
       "sampling_support": {
         "temperature": "honored"
       },
+      "max_tokens": 512,
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -45,6 +46,7 @@
       "sampling_support": {
         "temperature": "honored"
       },
+      "max_tokens": 2048,
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -62,6 +64,7 @@
       "sampling_support": {
         "temperature": "honored"
       },
+      "max_tokens": 1024,
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -79,6 +82,7 @@
       "sampling_support": {
         "temperature": "honored"
       },
+      "max_tokens": 256,
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -96,6 +100,7 @@
       "sampling_support": {
         "temperature": "honored"
       },
+      "max_tokens": 256,
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -118,6 +123,7 @@
       "sampling_support": {
         "temperature": "honored"
       },
+      "max_tokens": 4096,
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -157,6 +163,7 @@
       "sampling_support": {
         "temperature": "honored"
       },
+      "max_tokens": 512,
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -633,7 +640,7 @@
     "minimum_host_memory_headroom_percent": 20,
     "minimum_host_disk_headroom_gb": 20,
     "max_loaded_models_policy": 3,
-    "default_parallel_requests": 4,
+    "default_parallel_requests": 2,
     "role_preference_order": [
       "embedding.default",
       "chat.small",

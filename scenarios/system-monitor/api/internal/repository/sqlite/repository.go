@@ -28,7 +28,12 @@ CREATE TABLE IF NOT EXISTS metrics (
 	observed_at DATETIME NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_metrics_observed_at ON metrics(observed_at);
-CREATE INDEX IF NOT EXISTS idx_metrics_collector ON metrics(collector_name);
+-- (collector_name, observed_at) serves "latest row for one collector" as a
+-- single index seek. The old single-column collector index forced a temp
+-- B-tree sort over every row of that collector on each read (the 2026-09-09
+-- idle-CPU burn), and it is a strict prefix of this one, so it is dropped.
+CREATE INDEX IF NOT EXISTS idx_metrics_collector_observed_at ON metrics(collector_name, observed_at);
+DROP INDEX IF EXISTS idx_metrics_collector;
 CREATE INDEX IF NOT EXISTS idx_metrics_cycle ON metrics(cycle_id, observed_at);
 
 CREATE TABLE IF NOT EXISTS investigations (
@@ -260,28 +265,86 @@ func (r *Repository) SaveMetricCycle(ctx context.Context, cycleID string, observ
 	return tx.Commit()
 }
 
+// Hot-path SQL. Every statement here runs on a timer (the CPU threshold source
+// calls GetLatestMetrics every 20 s) against a table that reaches gigabytes
+// between retention passes, so each one must be served by an index and must
+// never touch more rows than it returns. TestMetricsHotQueriesUseIndexes pins
+// the query plans.
+const (
+	// latestMetricForCollectorSQL is one index seek on
+	// idx_metrics_collector_observed_at; the id tie-break is the index rowid.
+	latestMetricForCollectorSQL = "SELECT cycle_id, observed_at, metric_data FROM metrics WHERE collector_name = ? ORDER BY observed_at DESC, id DESC LIMIT 1"
+	// anyMetricExistsSQL answers "is the table empty" from the first row of
+	// the primary key instead of counting every row.
+	anyMetricExistsSQL = "SELECT EXISTS(SELECT 1 FROM metrics)"
+	// earliestMetricSQL is the first entry of idx_metrics_observed_at. MIN
+	// over a text expression loses the column affinity, so it is scanned as
+	// text and parsed; a NULL result means the table is empty.
+	earliestMetricSQL = "SELECT MIN(observed_at) FROM metrics"
+)
+
+// metricsWhere renders the filter's WHERE clause. observed_at is stored as a
+// fixed-width UTC string, so text comparison is chronological comparison and
+// both idx_metrics_observed_at and idx_metrics_collector_observed_at serve the
+// range directly.
+func metricsWhere(filter repository.MetricsFilter) (string, []interface{}) {
+	where := " WHERE 1=1"
+	args := []interface{}{}
+	if filter.CollectorName != "" {
+		where += " AND collector_name = ?"
+		args = append(args, filter.CollectorName)
+	}
+	if !filter.TimeRange.StartTime.IsZero() {
+		where += " AND observed_at >= ?"
+		args = append(args, filter.TimeRange.StartTime.UTC())
+	}
+	if !filter.TimeRange.EndTime.IsZero() {
+		where += " AND observed_at <= ?"
+		args = append(args, filter.TimeRange.EndTime.UTC())
+	}
+	return where, args
+}
+
+// metricsCutoffSQL finds the observation time of the Nth newest cycle that
+// matches the filter. All rows of a cycle share one observed_at (SaveMetricCycle
+// writes them with a single timestamp), so grouping on observed_at walks the
+// index backwards and stops after N distinct cycles. No row returned means the
+// filter matches fewer than N cycles and no cutoff is needed.
+func metricsCutoffSQL(where string) string {
+	return "SELECT observed_at FROM metrics" + where + " GROUP BY observed_at ORDER BY observed_at DESC LIMIT 1 OFFSET ?"
+}
+
+// metricsSelectSQL reads every row of the cycles selected by the cutoff.
+func metricsSelectSQL(where string) string {
+	return "SELECT cycle_id, collector_name, metric_data, observed_at FROM metrics" + where + " ORDER BY observed_at ASC"
+}
+
 func (r *Repository) GetMetrics(ctx context.Context, filter repository.MetricsFilter) ([]*models.MetricsResponse, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	query := "SELECT cycle_id, collector_name, metric_data, observed_at FROM metrics WHERE 1=1"
-	args := []interface{}{}
+	where, args := metricsWhere(filter)
+	limit := filter.EffectiveLimit()
 
-	if filter.CollectorName != "" {
-		query += " AND collector_name = ?"
-		args = append(args, filter.CollectorName)
+	// Bound the read in SQL, not after loading every matching row: keep only
+	// the newest `limit` cycles by locating the oldest one to include.
+	var cutoff sql.NullString
+	cutoffArgs := append(append([]interface{}{}, args...), limit-1)
+	if err := r.db.QueryRowContext(ctx, metricsCutoffSQL(where), cutoffArgs...).Scan(&cutoff); err != nil && err != sql.ErrNoRows {
+		return nil, err
 	}
-	if !filter.TimeRange.StartTime.IsZero() {
-		query += " AND observed_at >= ?"
-		args = append(args, filter.TimeRange.StartTime.UTC())
+	if cutoff.Valid {
+		// Bind the cutoff as a time so the driver renders it in the stored
+		// text layout; the scanned string is RFC3339 and would not compare.
+		cutoffAt, err := parseTime(cutoff.String)
+		if err != nil {
+			return nil, fmt.Errorf("parse metrics cutoff %q: %w", cutoff.String, err)
+		}
+		where += " AND observed_at >= ?"
+		args = append(args, cutoffAt.UTC())
 	}
-	if !filter.TimeRange.EndTime.IsZero() {
-		query += " AND observed_at <= ?"
-		args = append(args, filter.TimeRange.EndTime.UTC())
-	}
-	query += " ORDER BY observed_at ASC"
 
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := r.db.QueryContext(ctx, metricsSelectSQL(where), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -332,8 +395,10 @@ func (r *Repository) GetMetrics(ctx context.Context, filter repository.MetricsFi
 		return results[i].Timestamp.Before(results[j].Timestamp)
 	})
 
-	if filter.Limit > 0 && len(results) > filter.Limit {
-		results = results[len(results)-filter.Limit:]
+	// The cutoff already bounded the rows; this only guards the degenerate case
+	// of two cycles sharing an observation time.
+	if len(results) > limit {
+		results = results[len(results)-limit:]
 	}
 	return results, nil
 }
@@ -346,10 +411,7 @@ func (r *Repository) GetLatestMetrics(ctx context.Context) (*models.MetricsRespo
 	seen := false
 
 	for _, collector := range []string{"cpu", "memory", "network", "gpu", "disk"} {
-		row := r.db.QueryRowContext(ctx,
-			"SELECT cycle_id, observed_at, metric_data FROM metrics WHERE collector_name = ? ORDER BY observed_at DESC, id DESC LIMIT 1",
-			collector,
-		)
+		row := r.db.QueryRowContext(ctx, latestMetricForCollectorSQL, collector)
 		var data string
 		var cycleID string
 		var observedAt time.Time
@@ -366,10 +428,14 @@ func (r *Repository) GetLatestMetrics(ctx context.Context) (*models.MetricsRespo
 		hydrateMetricsResponse(resp, cycleID, observedAt, collector, values)
 	}
 
-	// Check if we got any data at all.
-	var count int
-	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM metrics").Scan(&count); err != nil || count == 0 {
-		return nil, apierrors.NotFound("metrics", "latest")
+	// Only an empty table is "not found"; a table holding just collectors
+	// outside the list above still yields an (empty) latest response. That
+	// question is answered by the first primary-key row, never by a count.
+	if !seen {
+		var exists bool
+		if err := r.db.QueryRowContext(ctx, anyMetricExistsSQL).Scan(&exists); err != nil || !exists {
+			return nil, apierrors.NotFound("metrics", "latest")
+		}
 	}
 	if resp.Timestamp.IsZero() {
 		resp.Timestamp = time.Now().UTC()
@@ -429,14 +495,10 @@ func (r *Repository) GetEarliestMetricTime(ctx context.Context) (time.Time, erro
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	// Check count first to distinguish empty table from parse issues.
-	var count int
-	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM metrics").Scan(&count); err != nil || count == 0 {
-		return time.Time{}, apierrors.NotFound("metrics", "earliest")
-	}
-
+	// MIN on an indexed column is one index seek; an empty table yields NULL,
+	// which is the not-found case. No count is needed to tell them apart.
 	var raw sql.NullString
-	err := r.db.QueryRowContext(ctx, "SELECT MIN(observed_at) FROM metrics").Scan(&raw)
+	err := r.db.QueryRowContext(ctx, earliestMetricSQL).Scan(&raw)
 	if err != nil || !raw.Valid || raw.String == "" {
 		return time.Time{}, apierrors.NotFound("metrics", "earliest")
 	}

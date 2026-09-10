@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-04T03:23:45-04:00"
+    "last_validated_at": "2026-09-10T03:14:51-04:00"
   },
   "requirements": [
     {
@@ -21,7 +21,7 @@
           "ref": "requirements/08-p1-targets/module.json",
           "phase": "business",
           "status": "implemented",
-          "notes": "Scaffold only: requirement exists to keep PRD linkage explicit; implementation planned in P1."
+          "notes": "Scaffold only: requirement exists to keep PRD linkage explicit; implementation planned in P1. Demoted 2026-09-09: no requirements-sync snapshot earned completion."
         }
       ]
     },
@@ -43,7 +43,7 @@
           "ref": "requirements/08-p1-targets/module.json",
           "phase": "business",
           "status": "implemented",
-          "notes": "Scaffold only: requirement exists to keep PRD linkage explicit; implementation planned in P1."
+          "notes": "Scaffold only: requirement exists to keep PRD linkage explicit; implementation planned in P1. Demoted 2026-09-09: no requirements-sync snapshot earned completion."
         }
       ]
     }

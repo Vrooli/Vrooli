@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS published_versions (
     profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     platform TEXT NOT NULL,
     version TEXT NOT NULL,
+    sha512 TEXT,
     git_commit_hash TEXT,
     artifact_id INTEGER,
     deployment_id TEXT,

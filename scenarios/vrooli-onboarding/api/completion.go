@@ -40,11 +40,23 @@ const (
 // exists, so the answer cannot differ from what the wizard displays. Passing a
 // nil run asks the same question before any apply has been started.
 func assessCompletion(readiness readinessResponse, run *applyRun) completionAssessment {
-	assessment := completionAssessment{Blockers: []completionBlocker{}, Degraded: []completionBlocker{}}
+	// Readiness may contribute blockers from diagnostics that do not have a
+	// credential or host row of their own, such as an unresolved required
+	// consumer binding. Preserve those blockers while deriving the normal
+	// credential/host/recovery verdicts from the same response.
+	assessment := completionAssessment{
+		Blockers: append([]completionBlocker(nil), readiness.Blockers...),
+		Degraded: []completionBlocker{},
+	}
+	credentialStatusPending := false
 	for _, credential := range readiness.Credentials {
 		// A derived or generated value is written by its declaring component.
 		// The operator cannot supply it, so its absence is never a reason to
 		// withhold completion from them.
+		if credential.Status == "pending" {
+			credentialStatusPending = true
+			continue
+		}
 		if credential.Status == "configured" || !operatorSuppliedCredential(credential) {
 			continue
 		}
@@ -59,6 +71,14 @@ func assessCompletion(readiness readinessResponse, run *applyRun) completionAsse
 			continue
 		}
 		assessment.Degraded = append(assessment.Degraded, blocker)
+	}
+	if credentialStatusPending {
+		assessment.Blockers = append(assessment.Blockers, completionBlocker{
+			Kind:        "readiness",
+			Name:        "credential-status",
+			Reason:      "one or more credential status probes are still pending",
+			Remediation: "retry readiness before applying the selection",
+		})
 	}
 	for _, host := range readiness.Hosts {
 		if host.Status != "missing" && host.Status != "unsupported" {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, HardDrive, ShieldCheck, Undo2 } from "lucide-react";
 import { fetchHostFacts, type HostFacts } from "../../api/host";
 import { StatCard } from "@vrooli/react-component-library/StatCard/1";
@@ -10,24 +10,33 @@ import { Button } from "@vrooli/react-component-library/Button/2";
 import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
 import { Input } from "@vrooli/react-component-library/Input/1";
 import { Select } from "@vrooli/react-component-library/Select/1";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1";
+import type { WizardProfileSession, WizardProfileSessionSaveRequest } from "../../api/session";
 
 type WelcomeProps = {
+  target?: string;
   onAccept?: (profile?: string, scenarios?: string[]) => Promise<void>;
   onAdjust?: () => void;
+  profileSession?: WizardProfileSession | null;
+  profileSessionBaseRevision?: string;
+  onProfileSessionChange?: (draft: Omit<WizardProfileSessionSaveRequest, "expectedRevision">) => void;
+  profileSessionError?: string | null;
+  profileSessionSaveState?: "idle" | "saving" | "saved" | "failed" | "conflict";
+  onRetryProfileSessionSave?: () => void;
 };
 
-export function StepWelcome({ onAccept, onAdjust }: WelcomeProps = {}) {
+export function StepWelcome({ target = "local", onAccept, onAdjust, profileSession, profileSessionBaseRevision = "", onProfileSessionChange, profileSessionError, profileSessionSaveState = "idle", onRetryProfileSessionSave }: WelcomeProps = {}) {
   const [hostFacts, setHostFacts] = useState<HostFacts | null>(null);
 
   useEffect(() => {
     let active = true;
-    fetchHostFacts().then((facts) => {
+    fetchHostFacts(target).then((facts) => {
       if (active) setHostFacts(facts);
     }).catch(() => {
       if (active) setHostFacts({ available: false });
     });
     return () => { active = false; };
-  }, []);
+  }, [target]);
 
   return (
     <div className="welcome-screen" data-testid="step-welcome">
@@ -50,44 +59,80 @@ export function StepWelcome({ onAccept, onAdjust }: WelcomeProps = {}) {
         <StatCard label={i18n.t("onboarding.welcome.platform")} value={hostFacts.platform ?? i18n.t("onboarding.welcome.unknown")} />
         </div>
       </section>}
-      {onAccept && onAdjust && <PurposeProfile onAccept={onAccept} onAdjust={onAdjust} />}
+      {onAccept && onAdjust && <PurposeProfile target={target} onAccept={onAccept} onAdjust={onAdjust} profileSession={profileSession} profileSessionBaseRevision={profileSessionBaseRevision} onProfileSessionChange={onProfileSessionChange} profileSessionError={profileSessionError} profileSessionSaveState={profileSessionSaveState} onRetryProfileSessionSave={onRetryProfileSessionSave} />}
     </div>
   );
 }
 
-function PurposeProfile({ onAccept, onAdjust }: { onAccept: WelcomeProps["onAccept"]; onAdjust: () => void }) {
+function PurposeProfile({ target = "local", onAccept, onAdjust, profileSession, profileSessionBaseRevision = "", onProfileSessionChange, profileSessionError, profileSessionSaveState = "idle", onRetryProfileSessionSave }: { target?: string; onAccept: WelcomeProps["onAccept"]; onAdjust: () => void; profileSession?: WizardProfileSession | null; profileSessionBaseRevision?: string; onProfileSessionChange?: WelcomeProps["onProfileSessionChange"]; profileSessionError?: string | null; profileSessionSaveState?: WelcomeProps["profileSessionSaveState"]; onRetryProfileSessionSave?: () => void }) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [profileId, setProfileId] = useState("");
-  const [answers, setAnswers] = useState<Record<string, unknown>>({});
+	const [profileId, setProfileId] = useState("");
+	const [answers, setAnswers] = useState<Record<string, unknown>>({});
+	const [manualDecisions, setManualDecisions] = useState<Record<string, boolean>>({});
   const [evaluation, setEvaluation] = useState<EvaluateProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [evaluating, setEvaluating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [profilesInitialized, setProfilesInitialized] = useState(false);
+  const appliedSessionMarkerRef = useRef<string | null>(null);
   const selectedProfile = useMemo(() => profiles.find((profile) => profile.id === profileId), [profiles, profileId]);
 
   useEffect(() => {
     let active = true;
-    fetchProfiles()
+    fetchProfiles(target)
       .then((response) => {
         if (!active) return;
         setProfiles(response.profiles);
-        setProfileId(response.profiles[0]?.id ?? "");
+        setProfilesInitialized(true);
       })
       .catch(() => active && setError(i18n.t("onboarding.profile.loadError")))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, []);
+  }, [target]);
+
+  useEffect(() => {
+    if (!profilesInitialized || profiles.length === 0) return;
+    const sessionMarker = profileSession?.revision || profileSession?.updatedAt?.toString() || "none";
+    if (appliedSessionMarkerRef.current === sessionMarker) return;
+    const savedProfile = profileSession?.reconciliationState === "profile_revoked"
+      ? ""
+      : profileSession?.profileId && profiles.some((profile) => profile.id === profileSession.profileId)
+      ? profileSession.profileId
+      : profiles.find((profile) => profile.default)?.id ?? profiles[0]?.id ?? "";
+    setProfileId(savedProfile);
+	const nextAnswers = profileSession?.answers ?? {};
+	setAnswers((current) => JSON.stringify(current) === JSON.stringify(nextAnswers) ? current : nextAnswers);
+	const nextManualDecisions = profileSession?.manualDecisions ?? {};
+	setManualDecisions((current) => JSON.stringify(current) === JSON.stringify(nextManualDecisions) ? current : nextManualDecisions);
+    appliedSessionMarkerRef.current = sessionMarker;
+  }, [profilesInitialized, profiles, profileSession]);
 
   useEffect(() => {
     if (!profileId) return;
     let active = true;
     setEvaluating(true);
-    evaluateProfile(profileId, answers)
+	  evaluateProfile(profileId, answers, target, manualDecisions)
       .then((result) => active && setEvaluation(result))
       .catch(() => active && setError(i18n.t("onboarding.profile.evaluateError")))
       .finally(() => active && setEvaluating(false));
     return () => { active = false; };
-  }, [answers, profileId]);
+	}, [answers, manualDecisions, profileId, target]);
+
+  useEffect(() => {
+    if (!onProfileSessionChange || !profileId || !selectedProfile || !profilesInitialized) return;
+    const timer = window.setTimeout(() => onProfileSessionChange({
+      target,
+      mode: "guided",
+      profileId,
+      profileVersion: selectedProfile.version,
+      catalogRevision: profileSession?.catalogRevision,
+      baseRevision: profileSession?.baseRevision || profileSessionBaseRevision,
+      answers,
+	      manualDecisions,
+      targetContext: profileSession?.targetContext ?? {},
+    }), 250);
+    return () => window.clearTimeout(timer);
+	}, [answers, manualDecisions, profileId, profileSession?.baseRevision, profileSession?.catalogRevision, JSON.stringify(profileSession?.targetContext ?? {}), profileSessionBaseRevision, onProfileSessionChange, profilesInitialized, selectedProfile, target]);
 
   const updateAnswer = (question: ProfileQuestion, value: unknown) => {
     setError(null);
@@ -95,36 +140,87 @@ function PurposeProfile({ onAccept, onAdjust }: { onAccept: WelcomeProps["onAcce
   };
 
   if (loading) return <section className="welcome-plan" data-testid="profile-surface"><p role="status">{i18n.t("onboarding.profile.loading")}</p></section>;
-  if (error && profiles.length === 0) return <section className="welcome-plan" data-testid="profile-surface"><p role="alert">{error}</p><StepPlan onAccept={onAccept ?? (() => Promise.resolve())} onAdjust={onAdjust} /></section>;
+  if (error && profiles.length === 0) return <section className="welcome-plan" data-testid="profile-surface"><p role="alert">{error}</p><StepPlan target={target} onAccept={onAccept ?? (() => Promise.resolve())} onAdjust={onAdjust} /></section>;
 
   const questions = evaluation?.questions ?? [];
   const recommended = evaluation?.scenarios ?? [];
+  const recommendations = evaluation?.recommendations ?? [];
+  const resources = evaluation?.resources ?? [];
+  const chooseManual = () => {
+    onProfileSessionChange?.({
+      target,
+      mode: "manual",
+      profileId,
+      profileVersion: selectedProfile?.version,
+      catalogRevision: profileSession?.catalogRevision,
+      baseRevision: profileSession?.baseRevision || profileSessionBaseRevision,
+      answers,
+	      manualDecisions,
+      targetContext: profileSession?.targetContext ?? {},
+    });
+    onAdjust();
+  };
+
+  const profileNeedsReview = profileSession?.reconciliationState === "review_required"
+    || profileSession?.reconciliationState === "profile_revoked"
+    || profileSession?.reconciliationState === "unavailable";
+
   return <section className="welcome-plan" data-testid="profile-surface">
     <div className="section-divider"><span>{i18n.t("onboarding.profile.eyebrow")}</span></div>
     <h2>{i18n.t("onboarding.profile.heading")}</h2>
     <p>{i18n.t("onboarding.profile.description")}</p>
-    <label className="block text-sm">
-      {i18n.t("onboarding.profile.select")}
+    <div className="block text-sm">
+      <span className="block">{i18n.t("onboarding.profile.select")}</span>
       <Select
         aria-label={i18n.t("onboarding.profile.select")}
         data-testid="purpose-profile-select"
         className="mt-1"
         value={profileId}
-        onValueChange={(value) => { setProfileId(value); setAnswers({}); setEvaluation(null); }}
+	        onValueChange={(value) => { setProfileId(value); setAnswers({}); setManualDecisions({}); setEvaluation(null); }}
         options={profiles.map((profile) => ({ value: profile.id, label: profileText(profile.titleKey, profile.id) }))}
       />
-    </label>
+    </div>
     {selectedProfile && <p>{profileText(selectedProfile.descriptionKey, selectedProfile.id)}</p>}
     {selectedProfile?.provenanceSource && <p>{i18n.t("onboarding.profile.provenance", { source: selectedProfile.provenanceSource, revision: selectedProfile.provenanceRevision || "unspecified" })}</p>}
+    {error && <p role="alert" data-testid="purpose-profile-error">{error}</p>}
+    {profileNeedsReview && <div className="profile-session-reconciliation" role="status" data-testid="profile-session-reconciliation">
+      <strong>{i18n.t("onboarding.profile.reviewRequired")}</strong>
+      <p>{profileSession?.reconciliationReasons?.join(" ") || i18n.t("onboarding.profile.reviewDescription")}</p>
+    </div>}
     {questions.map((question) => <ProfileQuestionInput key={question.id} question={question} value={answers[question.id]} onChange={(value) => updateAnswer(question, value)} />)}
     {evaluating && <p role="status">{i18n.t("onboarding.profile.evaluating")}</p>}
     {evaluation?.issues.map((issue) => <p role="alert" key={`${issue.field}-${issue.code}`}>{issue.message}</p>)}
-    {recommended.length > 0 && <p>{i18n.t("onboarding.profile.recommended", { scenarios: recommended.join(", ") })}</p>}
+    {evaluation?.valid && (recommendations.length > 0 || recommended.length > 0 || resources.length > 0) && <Card className="profile-recommendation-card" data-testid="profile-recommendation-summary">
+      <CardHeader>
+        <CardTitle as="h3">{i18n.t("onboarding.profile.recommendationHeading")}</CardTitle>
+        <CardDescription>{i18n.t("onboarding.profile.recommended", { scenarios: recommended.join(", ") || i18n.t("onboarding.profile.noScenarios") })}</CardDescription>
+      </CardHeader>
+      <CardContent className="profile-recommendation-card__content">
+	        {recommendations.length > 0 && <ul className="profile-recommendation-list" aria-label={i18n.t("onboarding.profile.recommendationsLabel")}>
+	          {recommendations.map((recommendation) => <li key={recommendation.key || `${recommendation.capabilityRef}-${recommendation.ruleId}`} className="profile-recommendation-list__item">
+	            {selectedProfile?.manualSelectionAvailable && <Checkbox
+	              checked={recommendation.selected}
+	              data-testid={`profile-recommendation-${recommendation.key}`}
+	              disabled={recommendation.required}
+	              onCheckedChange={(checked) => setManualDecisions((current) => ({ ...current, [recommendation.key]: checked }))}
+	              label={i18n.t("onboarding.profile.includeRecommendation", { defaultValue: "Include this recommendation" })}
+	            />}
+            <strong>{recommendation.capabilityRef}</strong>
+            <p>{profileText(recommendation.reasonKey, i18n.t("onboarding.profile.reasonUnavailable"))}</p>
+            {recommendation.scenarioRefs.length > 0 && <span>{i18n.t("onboarding.profile.supports", { scenarios: recommendation.scenarioRefs.join(", ") })}</span>}
+          </li>)}
+        </ul>}
+        {resources.length > 0 && <p className="profile-recommendation-card__resources"><strong>{i18n.t("onboarding.profile.resources")}</strong> {resources.join(", ")}</p>}
+      </CardContent>
+    </Card>}
+    {profileSessionSaveState !== "idle" && <div className={`profile-session-status profile-session-status--${profileSessionSaveState}`} role={profileSessionError ? "alert" : "status"} data-testid="profile-session-status">
+      <span>{profileSessionError ?? (profileSessionSaveState === "saving" ? i18n.t("onboarding.profile.saving") : profileSessionSaveState === "saved" ? i18n.t("onboarding.profile.saved") : i18n.t("onboarding.profile.unsaved"))}</span>
+      {(profileSessionSaveState === "failed" || profileSessionSaveState === "conflict") && onRetryProfileSessionSave && <Button type="button" variant="secondary" size="sm" onClick={onRetryProfileSessionSave}>{i18n.t("onboarding.profile.retry")}</Button>}
+    </div>}
     <div className="welcome-plan__actions">
       <Button type="button" disabled={!evaluation?.valid || evaluating} onClick={() => { void onAccept?.(profileId, recommended); }} data-testid="purpose-profile-accept">{i18n.t("onboarding.profile.use")}</Button>
-      <Button type="button" variant="secondary" onClick={onAdjust} data-testid="purpose-profile-manual">{i18n.t("onboarding.profile.manual")}</Button>
+      <Button type="button" variant="secondary" onClick={chooseManual} data-testid="purpose-profile-manual">{i18n.t("onboarding.profile.manual")}</Button>
     </div>
-    <StepPlan onAccept={onAccept ?? (() => Promise.resolve())} onAdjust={onAdjust} />
   </section>;
 }
 
@@ -134,7 +230,7 @@ function ProfileQuestionInput({ question, value, onChange }: { question: Profile
     const selected = Array.isArray(value) ? value as string[] : [];
     return <fieldset><legend>{profileText(question.promptKey, question.id)}</legend>{question.options.map((option) => <Checkbox key={option.id} data-testid={`profile-question-${question.id}-${option.id}`} checked={selected.includes(option.id)} onCheckedChange={(checked) => onChange(checked ? [...selected, option.id] : selected.filter((item) => item !== option.id))} label={profileText(option.labelKey, option.id)} />)}</fieldset>;
   }
-  if (question.type === "single-select") return <label className="block text-sm">{profileText(question.promptKey, question.id)}<Select data-testid={`profile-question-${question.id}`} aria-label={profileText(question.promptKey, question.id)} className="mt-1" value={typeof value === "string" ? value : ""} onValueChange={onChange as (value: string) => void} options={question.options.map((option) => ({ value: option.id, label: profileText(option.labelKey, option.id) }))} placeholder={i18n.t("onboarding.profile.choose")} /></label>;
+  if (question.type === "single-select") return <div className="block text-sm"><span className="block">{profileText(question.promptKey, question.id)}</span><Select data-testid={`profile-question-${question.id}`} aria-label={profileText(question.promptKey, question.id)} className="mt-1" value={typeof value === "string" ? value : ""} onValueChange={onChange as (value: string) => void} options={question.options.map((option) => ({ value: option.id, label: profileText(option.labelKey, option.id) }))} placeholder={i18n.t("onboarding.profile.choose")} /></div>;
   if (question.type === "boolean") return <Checkbox data-testid={`profile-question-${question.id}`} checked={value === true} onCheckedChange={onChange} label={profileText(question.promptKey, question.id)} />;
   return <label className="block text-sm">{profileText(question.promptKey, question.id)}<Input data-testid={`profile-question-${question.id}`} className="mt-1" value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)} /></label>;
 }

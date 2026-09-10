@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 var ErrUnknownKeyVersion = errors.New("encryption key version is not present in the key ring")
@@ -121,14 +123,16 @@ func EncryptRing(ring Ring, plaintext string) (string, error) {
 func DecryptRing(ring Ring, ciphertext string) (string, error) {
 	version := 1
 	payload := ciphertext
-	if len(ciphertext) > 2 && ciphertext[0] == 'v' {
-		var parsed int
-		if _, err := fmt.Sscanf(ciphertext, "v%d:", &parsed); err != nil || parsed <= 0 {
-			return "", fmt.Errorf("invalid encryption ciphertext version")
+	if strings.HasPrefix(ciphertext, "v") {
+		colon := strings.IndexByte(ciphertext, ':')
+		if colon > 1 {
+			parsed, err := strconv.Atoi(ciphertext[1:colon])
+			if err != nil || parsed <= 0 {
+				return "", fmt.Errorf("invalid encryption ciphertext version")
+			}
+			version = parsed
+			payload = ciphertext[colon+1:]
 		}
-		version = parsed
-		prefix := fmt.Sprintf("v%d:", version)
-		payload = ciphertext[len(prefix):]
 	}
 	key, err := ring.Get(version)
 	if err != nil {

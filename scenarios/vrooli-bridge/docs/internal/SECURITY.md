@@ -133,8 +133,10 @@ opaque `bridge://run/<run>/<name>` reference in the run event stream. The owner
 retrieves bytes only through the owner-gated `ArtifactsService.GetRunArtifact`
 RPC (for example, `vrooli-bridge artifacts get-run`); arbitrary filesystem
 paths and arbitrary output flags never cross the dispatch boundary. The
-distribution path remains metadata-only and delegates inbound byte transport
-to device-sync-hub.
+distribution path remains metadata-only in Bridge: it delegates inbound byte
+transport to device-sync-hub and sends only a signed destination-path
+instruction to the target agent. The agent's separate node-local device token
+authorizes the pull, and placement uses a temporary file plus atomic rename.
 
 ## Secrets
 

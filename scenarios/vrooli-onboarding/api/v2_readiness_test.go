@@ -9,7 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
+
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 )
 
 func doReadiness(t *testing.T) *httptest.ResponseRecorder {
@@ -62,6 +66,61 @@ func TestV2ReadinessReportsOnlyMetadata(t *testing.T) {
 	}
 	if body := w.Body.String(); !strings.Contains(body, `"status":"ready"`) || !strings.Contains(body, `"logical_id":"vrooli/demo"`) || !strings.Contains(body, `"name":"release-authority"`) || strings.Contains(body, "secret-value") {
 		t.Fatalf("readiness response = %s", body)
+	}
+}
+
+func TestCredentialReadinessInventoryMergesSharedAddressProvenance(t *testing.T) {
+	root := newV2Root(t)
+	for _, name := range []string{"alpha", "gamma"} {
+		if err := os.MkdirAll(filepath.Join(root, "scenarios", name, ".vrooli"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), []byte(`{
+  "service":{"name":"alpha"},
+  "credentials":{"descriptors":[{"logical_id":"vrooli/shared","field":"token","required":true}],"consumers":[{"logical_id":"vrooli/shared","field":"token","kind":"delegated","consumer":"alpha broker","source_ref":"api/alpha.go:7"}]}
+}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "scenarios", "gamma", ".vrooli", "service.json"), []byte(`{
+  "service":{"name":"gamma"},
+  "credentials":{"descriptors":[{"logical_id":"vrooli/shared","field":"token","required":false}],"consumers":[{"logical_id":"vrooli/shared","field":"token","kind":"external","consumer":"gamma provider","source_ref":"api/gamma.go:9"}]}
+}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	previous := credentialStatusCommand
+	credentialStatusCommand = func(context.Context, string, string) ([]byte, error) { return []byte(`{"configured":true}`), nil }
+	t.Cleanup(func() { credentialStatusCommand = previous })
+	items, err := credentialReadinessInventoryContext(context.Background(), closureResult{
+		Scenarios: []closureMember{{Name: "alpha"}, {Name: "gamma"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].LogicalID != "vrooli/shared" || !items[0].Required || items[0].Status != "configured" {
+		t.Fatalf("shared readiness items = %+v, want one configured aggregate", items)
+	}
+	if items[0].EvidenceStatus != credentialEvidenceUnverified || items[0].EvidenceDetail == "" {
+		t.Fatalf("configured credential evidence = %q/%q, want explicit unverified state", items[0].EvidenceStatus, items[0].EvidenceDetail)
+	}
+	if len(items[0].Provenance) != 2 || len(items[0].Provenance[0].Consumers) != 1 || len(items[0].Provenance[1].Consumers) != 1 {
+		t.Fatalf("shared readiness provenance = %+v, want both consumer declarations", items[0].Provenance)
+	}
+}
+
+func TestCredentialReadinessDoesNotClaimEvidenceForStoredValue(t *testing.T) {
+	previous := credentialStatusCommand
+	credentialStatusCommand = func(context.Context, string, string) ([]byte, error) {
+		return []byte(`{"configured":true}`), nil
+	}
+	t.Cleanup(func() { credentialStatusCommand = previous })
+
+	items := credentialReadinessForRefs(context.Background(), []credentialclient.CredentialRef{{Resource: "demo", LogicalID: "vrooli/demo", Field: "token", Required: true}}, true)
+	if len(items) != 1 || items[0].Status != "configured" {
+		t.Fatalf("readiness items = %+v, want configured storage state", items)
+	}
+	if items[0].EvidenceStatus == "verified" || items[0].EvidenceStatus != credentialEvidenceUnverified {
+		t.Fatalf("stored value was presented as exercised evidence: %+v", items[0])
 	}
 }
 
@@ -195,12 +254,56 @@ func TestCredentialReadinessCarriesProvisioningMetadataGenerically(t *testing.T)
 	}
 	t.Cleanup(func() { credentialStatusCommand = previous })
 
-	items := credentialReadinessForDescriptors("demo", []readinessCredentialDescriptor{
-		{LogicalID: "vrooli/demo", Field: "operator-key", Required: true, Provisioning: "operator"},
-		{LogicalID: "vrooli/demo", Field: "derived-key", Required: true, Provisioning: "derived", DerivedFrom: "operator-key"},
-	})
+	items := credentialReadinessForRefs(context.Background(), []credentialclient.CredentialRef{
+		{Resource: "demo", LogicalID: "vrooli/demo", Field: "operator-key", Required: true, Provisioning: "operator"},
+		{Resource: "demo", LogicalID: "vrooli/demo", Field: "derived-key", Required: true, Provisioning: "derived", DerivedFrom: "operator-key"},
+	}, true)
 	if len(items) != 2 || items[1].Provisioning != "derived" || items[1].DerivedFrom != "operator-key" {
 		t.Fatalf("readiness items = %+v", items)
+	}
+}
+
+func TestCredentialReadinessProbesIndependentDescriptorsConcurrently(t *testing.T) {
+	previous := credentialStatusCommand
+	t.Cleanup(func() { credentialStatusCommand = previous })
+
+	const descriptorCount = 4
+	started := make(chan struct{}, descriptorCount)
+	release := make(chan struct{})
+	var calls atomic.Int32
+	credentialStatusCommand = func(context.Context, string, string) ([]byte, error) {
+		calls.Add(1)
+		started <- struct{}{}
+		<-release
+		return []byte(`{"configured":false}`), nil
+	}
+
+	refs := make([]credentialclient.CredentialRef, descriptorCount)
+	for index := range refs {
+		refs[index] = credentialclient.CredentialRef{Resource: "demo", LogicalID: fmt.Sprintf("vrooli/demo-%d", index), Field: "key", Required: true}
+	}
+	done := make(chan []credentialReadiness, 1)
+	go func() { done <- credentialReadinessForRefs(context.Background(), refs, true) }()
+
+	deadline := time.NewTimer(time.Second)
+	defer deadline.Stop()
+	for range refs {
+		select {
+		case <-started:
+		case <-deadline.C:
+			close(release)
+			t.Fatal("credential readiness probes did not start concurrently")
+		}
+	}
+	close(release)
+
+	select {
+	case items := <-done:
+		if len(items) != descriptorCount || calls.Load() != descriptorCount {
+			t.Fatalf("credential readiness items = %d, calls = %d", len(items), calls.Load())
+		}
+	case <-time.After(time.Second):
+		t.Fatal("credential readiness probes did not complete")
 	}
 }
 

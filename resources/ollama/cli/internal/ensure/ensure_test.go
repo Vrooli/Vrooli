@@ -311,7 +311,7 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		_ = json.NewEncoder(w).Encode(GenerateResponse{Response: "ok", Done: true, EvalCount: 42})
+		_ = json.NewEncoder(w).Encode(GenerateResponse{Response: "ok", Done: true, EvalCount: 42, TotalDuration: 100, LoadDuration: 20, PromptEvalCount: 3, PromptEvalDuration: 30, EvalDuration: 40})
 	}))
 	defer srv.Close()
 
@@ -319,6 +319,9 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 	temperature := 0.25
 	think := false
 	numGPU := 0
+	numCtx := 4096
+	numThread := 2
+	numBatch := 256
 	client := &Client{BaseURL: srv.URL, HTTP: http.DefaultClient}
 	resp, err := client.Generate(context.Background(), GenerateRequest{
 		Model:       "llama3.2:1b",
@@ -328,12 +331,18 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 		NumGPU:      &numGPU,
 		NumPredict:  &maxTokens,
 		Temperature: &temperature,
+		NumCtx:      &numCtx,
+		NumThread:   &numThread,
+		NumBatch:    &numBatch,
 	})
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
 	if resp.Response != "ok" || resp.EvalCount != 42 {
 		t.Fatalf("response = %+v, want response ok with eval_count 42", resp)
+	}
+	if resp.TotalDuration != 100 || resp.LoadDuration != 20 || resp.PromptEvalCount != 3 || resp.PromptEvalDuration != 30 || resp.EvalDuration != 40 {
+		t.Fatalf("timing response = %+v", resp)
 	}
 	if got.Model != "llama3.2:1b" || got.Prompt != "hello" || got.Stream {
 		t.Fatalf("request body = %+v", got)
@@ -352,6 +361,9 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 	}
 	if got.Options["num_gpu"] != float64(0) {
 		t.Fatalf("num_gpu = %#v, want 0", got.Options["num_gpu"])
+	}
+	if got.Options["num_ctx"] != float64(4096) || got.Options["num_thread"] != float64(2) || got.Options["num_batch"] != float64(256) {
+		t.Fatalf("runtime options = %#v", got.Options)
 	}
 }
 
@@ -379,9 +391,14 @@ func TestChatSendsMessagesOptionsAndThink(t *testing.T) {
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"message":     map[string]string{"content": "summary"},
-			"done_reason": "stop",
-			"eval_count":  17,
+			"message":              map[string]string{"content": "summary"},
+			"done_reason":          "stop",
+			"eval_count":           17,
+			"total_duration":       100,
+			"load_duration":        20,
+			"prompt_eval_count":    3,
+			"prompt_eval_duration": 30,
+			"eval_duration":        40,
 		})
 	}))
 	defer srv.Close()
@@ -399,12 +416,18 @@ func TestChatSendsMessagesOptionsAndThink(t *testing.T) {
 		NumPredict:  &maxTokens,
 		Temperature: &temperature,
 		Think:       &think,
+		NumCtx:      func() *int { v := 4096; return &v }(),
+		NumThread:   func() *int { v := 2; return &v }(),
+		NumBatch:    func() *int { v := 256; return &v }(),
 	})
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
 	if resp.Message.Content != "summary" || resp.DoneReason != "stop" || resp.EvalCount != 17 {
 		t.Fatalf("response = %+v", resp)
+	}
+	if resp.TotalDuration != 100 || resp.LoadDuration != 20 || resp.PromptEvalCount != 3 || resp.PromptEvalDuration != 30 || resp.EvalDuration != 40 {
+		t.Fatalf("timing response = %+v", resp)
 	}
 	if got.Model != "chat-model" || got.Stream {
 		t.Fatalf("request model/stream = %q/%v", got.Model, got.Stream)
@@ -420,6 +443,9 @@ func TestChatSendsMessagesOptionsAndThink(t *testing.T) {
 	}
 	if got.Options["temperature"] != 0.25 {
 		t.Fatalf("temperature = %#v, want 0.25", got.Options["temperature"])
+	}
+	if got.Options["num_ctx"] != float64(4096) || got.Options["num_thread"] != float64(2) || got.Options["num_batch"] != float64(256) {
+		t.Fatalf("runtime options = %#v", got.Options)
 	}
 }
 

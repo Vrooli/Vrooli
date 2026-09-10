@@ -50,31 +50,39 @@ func FindCredentialDescriptorDuplicates(data []byte) ([]CredentialDescriptorDupl
 				walk(child, path+"/"+fmt.Sprintf("%d", index))
 			}
 		case map[string]any:
-			if logicalID, ok := typed["logical_id"].(string); ok && strings.TrimSpace(logicalID) != "" {
-				field := DefaultCredentialField
-				if rawField, present := typed["field"]; present {
-					fieldValue, ok := rawField.(string)
-					if !ok {
-						// Manifest-shape validation owns the malformed-type error;
-						// this check only reports duplicate declarations.
-						fieldValue = ""
+			// Consumer registrations live beside descriptors and intentionally
+			// repeat their logical address. They are runtime provenance, not a
+			// second declaration of the credential itself.
+			// Match the complete JSON-pointer segment so only registrations under
+			// the manifest's credentials.consumers collection are excluded.
+			isConsumerRegistration := strings.Contains(path, "/credentials/consumers/")
+			if !isConsumerRegistration {
+				if logicalID, ok := typed["logical_id"].(string); ok && strings.TrimSpace(logicalID) != "" {
+					field := DefaultCredentialField
+					if rawField, present := typed["field"]; present {
+						fieldValue, ok := rawField.(string)
+						if !ok {
+							// Manifest-shape validation owns the malformed-type error;
+							// this check only reports duplicate declarations.
+							fieldValue = ""
+						}
+						if strings.TrimSpace(fieldValue) != "" {
+							field = strings.TrimSpace(fieldValue)
+						}
 					}
-					if strings.TrimSpace(fieldValue) != "" {
-						field = strings.TrimSpace(fieldValue)
+					logicalID = strings.TrimSpace(logicalID)
+					key := logicalID + "\x00" + field
+					if prior, exists := first[key]; exists {
+						duplicates = append(duplicates, CredentialDescriptorDuplicate{
+							LogicalID: logicalID, Field: field, FirstPath: prior.path, DuplicatePath: path,
+						})
+					} else {
+						first[key] = struct {
+							logicalID string
+							field     string
+							path      string
+						}{logicalID: logicalID, field: field, path: path}
 					}
-				}
-				logicalID = strings.TrimSpace(logicalID)
-				key := logicalID + "\x00" + field
-				if prior, exists := first[key]; exists {
-					duplicates = append(duplicates, CredentialDescriptorDuplicate{
-						LogicalID: logicalID, Field: field, FirstPath: prior.path, DuplicatePath: path,
-					})
-				} else {
-					first[key] = struct {
-						logicalID string
-						field     string
-						path      string
-					}{logicalID: logicalID, field: field, path: path}
 				}
 			}
 

@@ -25,6 +25,7 @@
     "18-self-healing/module.json",
     "19-host-readiness/module.json",
     "20-machine-enrollment-recovery/module.json",
-    "21-desktop-transport/module.json"
+    "21-desktop-transport/module.json",
+    "22-selective-footprint/module.json"
   ]
 }

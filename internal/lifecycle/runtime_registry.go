@@ -79,8 +79,14 @@ func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Sc
 	if demandManaged {
 		policy = scenarioruntime.SupervisionPolicyDemand
 	}
+	buildIdentity, err := scenarioBuildIdentity(item)
+	if err != nil {
+		_ = store.Close()
+		return runtimeRegistrySession{}, fmt.Errorf("compute scenario build identity: %w", err)
+	}
 	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
 		Scenario:          item.Slug,
+		BuildIdentity:     buildIdentity,
 		Variant:           item.Variant,
 		Status:            scenarioruntime.StatusStarting,
 		Phase:             "planning",
@@ -351,6 +357,9 @@ func (s runtimeRegistrySession) injectEnv(env map[string]string) {
 	}
 	env[runtimeRegistryInstanceEnv] = s.instance.InstanceID
 	env[runtimeRegistryGenerationEnv] = strconv.FormatInt(s.instance.Generation, 10)
+	if s.instance.BuildIdentity != "" {
+		env[buildIdentityEnv] = s.instance.BuildIdentity
+	}
 }
 
 func (s runtimeRegistrySession) recordHealth(ctx context.Context, item scenario.Scenario, env ports.Environment, healthStatus string) error {
@@ -358,10 +367,11 @@ func (s runtimeRegistrySession) recordHealth(ctx context.Context, item scenario.
 		return nil
 	}
 	snapshot := scenarioruntime.HealthProbe{}.Probe(ctx, scenarioruntime.HealthProbeInput{
-		InstanceID:   s.instance.InstanceID,
-		Scenario:     item.Slug,
-		HealthConfig: item.Manifest.HealthConfig(),
-		Ports:        healthPortsFromEnv(item.Manifest, env.EnvVars),
+		InstanceID:            s.instance.InstanceID,
+		Scenario:              item.Slug,
+		HealthConfig:          item.Manifest.HealthConfig(),
+		Ports:                 healthPortsFromEnv(item.Manifest, env.EnvVars),
+		ExpectedBuildIdentity: s.instance.BuildIdentity,
 	})
 	lifecycleStatus := runtimeHealthStatus(healthStatus)
 	if lifecycleStatus != scenarioruntime.HealthStatusUnknown && shouldPreferLifecycleHealthStatus(snapshot) {
@@ -371,6 +381,10 @@ func (s runtimeRegistrySession) recordHealth(ctx context.Context, item scenario.
 	}
 	if _, err := s.store.UpsertHealthSnapshot(ctx, snapshot); err != nil {
 		return fmt.Errorf("write scenario runtime health snapshot: %w", err)
+	}
+	if health := item.Manifest.HealthConfig(); health != nil && len(health.Checks) > 0 &&
+		!buildIdentityMatches(s.instance.BuildIdentity, snapshot.BuildIdentity) {
+		return fmt.Errorf("scenario %q served build identity %q, expected %q", item.Slug, snapshot.BuildIdentity, s.instance.BuildIdentity)
 	}
 	return nil
 }

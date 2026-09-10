@@ -95,6 +95,7 @@ import {
     createNodeStoragePathUtils,
 } from "./storage";
 import {
+    classifyUpdateRecovery,
     clearUpdateIntent,
     markUpdateIntentApplying,
     readUpdateIntent,
@@ -502,12 +503,19 @@ async function persistUpdateReceipt(receipt: InstalledUpdateReceipt): Promise<bo
     try {
         await writeInstalledUpdateReceipt(createUpdateRecoveryFileSystem(fs.promises), getUpdateReceiptPath(), receipt);
         await recordTelemetry("update_receipt", receipt, receipt.health === "passed" ? "info" : "warn");
-        if (receipt.outcome === "applied" && receipt.health === "passed") await reportClientUpdateReceipt(receipt);
-        return true;
     } catch (error) {
         await recordTelemetry("update_receipt_persist_failed", { error: String(error), outcome: receipt.outcome }, "error");
         return false;
     }
+    if (receipt.outcome === "applied" && receipt.health === "passed") {
+        try {
+            await reportClientUpdateReceipt(receipt);
+        } catch (error) {
+            await recordTelemetry("update_receipt_report_failed", { error: String(error), outcome: receipt.outcome }, "error");
+            return false;
+        }
+    }
+    return true;
 }
 
 async function reportClientUpdateReceipt(receipt: InstalledUpdateReceipt): Promise<void> {
@@ -515,19 +523,24 @@ async function reportClientUpdateReceipt(receipt: InstalledUpdateReceipt): Promi
     const releaseID = String(process.env.DEPLOYMENT_MANAGER_RELEASE_ID || "").trim();
     const candidateID = String(process.env.DEPLOYMENT_MANAGER_CANDIDATE_ID || "").trim();
     const targetID = String(process.env.DEPLOYMENT_MANAGER_TARGET_ID || "").trim();
-    const authToken = String(process.env.DEPLOYMENT_MANAGER_AUTH_TOKEN || "").trim();
-    if (!baseURL || !releaseID || !candidateID || !targetID || !authToken || !receipt.fromArtifactRef || !receipt.toArtifactRef) {
+    const receiptToken = String(process.env.DEPLOYMENT_MANAGER_RECEIPT_TOKEN || "").trim();
+    const releaseBindingPresent = Boolean(baseURL || releaseID || candidateID || targetID || receiptToken);
+    if (!releaseBindingPresent) {
+        // Standalone/local updates have no Deployment Manager release to report.
+        return;
+    }
+    if (!baseURL || !releaseID || !candidateID || !targetID || !receiptToken || !receipt.fromArtifactRef || !receipt.toArtifactRef) {
         await recordTelemetry("update_receipt_report_skipped", {
-            reason: "owner receipt route is not fully configured or artifact identity is incomplete",
+            reason: "release-bound owner receipt route is incomplete; update remains recoverable",
             release_id: releaseID || undefined, target_id: targetID || undefined,
         }, "warn");
-        return;
+        throw new Error("release-bound client update receipt configuration is incomplete");
     }
     const endpoint = new URL("/vrooli.deployment_manager.v1.releases.ReleasesService/RecordClientUpdateReceipt", baseURL).toString();
     const externalReceipt = `update:${APP_CONFIG.APP_ID}:${receipt.fromVersion}:${receipt.toVersion}:${targetID}`;
     const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${receiptToken}` },
         body: JSON.stringify({
             releaseId: releaseID,
             receipt: {
@@ -571,9 +584,7 @@ async function recoverUpdateIntent(): Promise<void> {
         await recordTelemetry("update_recovery_corrupt", {}, "warn");
         return;
     }
-    const disposition = APP_CONFIG.APP_VERSION === intent.toVersion
-        ? "applied"
-        : APP_CONFIG.APP_VERSION === intent.fromVersion ? "interrupted" : "unknown";
+    const disposition = classifyUpdateRecovery(intent, APP_CONFIG.APP_VERSION);
     await recordTelemetry(`update_recovery_${disposition}`, {
         from_version: intent.fromVersion,
         to_version: intent.toVersion,
@@ -595,6 +606,11 @@ async function recoverUpdateIntent(): Promise<void> {
         });
         return;
     }
+    const recoveryReason = disposition === "interrupted"
+        ? "successor did not relaunch"
+        : APP_CONFIG.APP_VERSION === intent.toVersion && !intent.toArtifactRef
+            ? "successor artifact identity was missing"
+            : "installed version did not match update intent";
     await persistUpdateState(disposition === "interrupted" ? "recovering" : "failed", {
         applicationId: intent.applicationId,
         channel: intent.channel,
@@ -603,7 +619,7 @@ async function recoverUpdateIntent(): Promise<void> {
         fromVersion: intent.fromVersion,
         toVersion: intent.toVersion,
         artifactRef: intent.toArtifactRef,
-        reason: disposition === "interrupted" ? "successor did not relaunch" : "installed version did not match update intent",
+        reason: recoveryReason,
     });
     const persisted = await persistUpdateReceipt({
         schemaVersion: 1,
@@ -620,7 +636,7 @@ async function recoverUpdateIntent(): Promise<void> {
         installedExecutableDigest: await installedExecutableDigest(),
         health: "failed",
         observedAt: new Date().toISOString(),
-        reason: disposition === "interrupted" ? "successor did not relaunch" : "installed version did not match update intent",
+        reason: recoveryReason,
     });
     if (persisted) await clearUpdateIntent(recoveryFS, markerPath);
 }
@@ -725,6 +741,17 @@ async function resolveRuntimeTokenPath(): Promise<string | null> {
     if (!app.isReady()) await app.whenReady();
     const rel = BUNDLED_RUNTIME.TOKEN_REL || "runtime/auth-token";
     return path.join(app.getPath("userData"), rel);
+}
+
+async function getLocalSessionToken(): Promise<string | null> {
+    const tokenPath = await resolveRuntimeTokenPath();
+    if (!tokenPath) return null;
+    try {
+        const token = (await fs.promises.readFile(tokenPath, "utf8")).trim();
+        return token || null;
+    } catch {
+        return null;
+    }
 }
 
 async function initializeRuntimeControlClient(): Promise<void> {
@@ -1551,6 +1578,11 @@ function setupAutoUpdater(): void {
         console.log("[Desktop App] Update downloaded:", info.version);
         const rawDigest = (info as { sha512?: unknown }).sha512;
         const toArtifactRef = typeof rawDigest === "string" && rawDigest.trim() ? `sha512:${rawDigest.trim()}` : undefined;
+        if (!toArtifactRef) {
+            void persistUpdateState("failed", { applicationId: APP_CONFIG.APP_ID, channel: UPDATE_CONFIG.CHANNEL, platform: process.platform, arch: process.arch, toVersion: String(info.version), reason: "successor artifact digest is missing" });
+            void recordTelemetry("update_rejected", { version: info.version, channel: UPDATE_CONFIG.CHANNEL, reason: "successor artifact digest is missing" }, "error");
+            return;
+        }
         const binding = updateBindingMatches(info);
         if (!binding.ok) {
             void persistUpdateState("failed", { applicationId: APP_CONFIG.APP_ID, channel: UPDATE_CONFIG.CHANNEL, platform: process.platform, arch: process.arch, toVersion: String(info.version), reason: binding.reason });
@@ -1801,7 +1833,7 @@ app.whenReady().then(async () => {
         // Register IPC handlers
         ipcRegistration = registerAllHandlers({
             ipcMain, dialog, fs: { writeFile: (p: string, d: string) => fs.promises.writeFile(p, d), readFile: (p: string, e: "utf-8") => fs.promises.readFile(p, e) },
-            storage: appStorage!, authManager: authManager!, getMainWindow: () => mainWindow,
+            storage: appStorage!, authManager: authManager!, getLocalSessionToken, getMainWindow: () => mainWindow,
             systemInfo: { platform: process.platform, arch: process.arch, version: APP_CONFIG.APP_VERSION },
         });
 

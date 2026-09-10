@@ -249,15 +249,18 @@ func (s *UserAuthService) RequestMagicLink(ctx context.Context, email, ipAddress
 		s.onMagicLinkGenerated(email, token, magicLink)
 	}
 
-	// Send email
-	if s.emailService != nil {
-		if err := s.emailService.SendMagicLink(email, magicLink, s.appName); err != nil {
-			s.logError("send_magic_link_failed", map[string]interface{}{
-				"error": err.Error(),
-				"email": email,
-			})
-		}
-		// Don't return error to user (don't reveal email existence)
+	// Send email. The transport may still return a generic response to avoid
+	// account enumeration, but this service must not report a successful
+	// request when the delivery authority rejected the message.
+	if s.emailService == nil {
+		return errors.New("magic-link email provider is unavailable")
+	}
+	if err := s.emailService.SendMagicLink(email, magicLink, s.appName); err != nil {
+		s.logError("send_magic_link_failed", map[string]interface{}{
+			"error": err.Error(),
+			"email": email,
+		})
+		return fmt.Errorf("send magic link: %w", err)
 	}
 
 	s.log("magic_link_requested", map[string]interface{}{

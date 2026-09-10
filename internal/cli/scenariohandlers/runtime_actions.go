@@ -202,14 +202,15 @@ func toCLIInfoOutput(resp scenarioapp.InfoOutput) InfoOutput {
 			Generation:       resp.Scenario.Generation,
 		},
 		Runtime: InfoRuntimeData{
-			Status:      resp.Runtime.Status,
-			Processes:   resp.Runtime.Processes,
-			Runtime:     resp.Runtime.Runtime,
-			StartedAt:   resp.Runtime.StartedAt,
-			Ports:       scenarioapp.CopyIntMap(resp.Runtime.Ports),
-			ProcessInfo: scenarioapp.CopyProcessRecords(resp.Runtime.ProcessInfo),
-			ListPorts:   toCLIListPorts(resp.Runtime.ListPorts),
-			HealthError: resp.Runtime.HealthError,
+			Status:        resp.Runtime.Status,
+			Processes:     resp.Runtime.Processes,
+			Runtime:       resp.Runtime.Runtime,
+			StartedAt:     resp.Runtime.StartedAt,
+			Ports:         scenarioapp.CopyIntMap(resp.Runtime.Ports),
+			ProcessInfo:   scenarioapp.CopyProcessRecords(resp.Runtime.ProcessInfo),
+			ListPorts:     toCLIListPorts(resp.Runtime.ListPorts),
+			HealthError:   resp.Runtime.HealthError,
+			BuildIdentity: resp.Runtime.BuildIdentity,
 		},
 	}
 }
@@ -228,6 +229,7 @@ func toCLIStatusItem(item scenarioapp.StatusItemOutput) StatusItemOutput {
 		PortBindings:   toCLIListPorts(item.PortBindings),
 		Health:         item.Health,
 		HealthError:    item.HealthError,
+		BuildIdentity:  item.BuildIdentity,
 		StartOperation: item.StartOperation,
 	}
 }

@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
+	"deployment-manager/internal/authz"
 	"deployment-manager/readiness"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/identity"
 	readinessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/readiness"
 	readinessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/readiness/readinessv1connect"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -23,28 +26,73 @@ type goalReader interface {
 
 type ConnectHandler struct {
 	readinessconnect.UnimplementedReadinessServiceHandler
-	preparer *readiness.Preparer
-	repo     readiness.ReviewRepository
-	goals    goalReader
-	policy   readiness.Checklist
-	now      func() time.Time
+	preparer                 *readiness.Preparer
+	repo                     readiness.ReviewRepository
+	goals                    goalReader
+	policy                   readiness.Checklist
+	now                      func() time.Time
+	evidenceAuthorize        func(context.Context) error
+	evidenceBindingAuthorize func(context.Context, string) error
 }
+
+const maxOwnerObservationFutureSkew = 5 * time.Minute
 
 func NewConnectHandler(preparer *readiness.Preparer, repo readiness.ReviewRepository, goals goalReader) *ConnectHandler {
 	return &ConnectHandler{preparer: preparer, repo: repo, goals: goals, policy: readiness.DefaultChecklist(), now: time.Now}
 }
 
+// WithEvidenceAuthorization installs the service boundary for owner-reported
+// readiness observations. Direct domain tests may omit it; production wiring
+// must provide the shared verified-identity check.
+func (h *ConnectHandler) WithEvidenceAuthorization(authorize func(context.Context) error) *ConnectHandler {
+	h.evidenceAuthorize = authorize
+	return h
+}
+
+// WithEvidenceBindingAuthorization installs the owner-specific authorization
+// boundary for readiness observations. The binding is policy-derived after
+// criterion validation; callers cannot use it to select an arbitrary owner.
+func (h *ConnectHandler) WithEvidenceBindingAuthorization(authorize func(context.Context, string) error) *ConnectHandler {
+	h.evidenceBindingAuthorize = authorize
+	return h
+}
+
 func (h *ConnectHandler) ReportEvidence(ctx context.Context, req *connect.Request[readinessv1.ReportEvidenceRequest]) (*connect.Response[readinessv1.ReportEvidenceResponse], error) {
-	if req == nil || req.Msg == nil || req.Msg.ObservedAt == nil || !req.Msg.ObservedAt.IsValid() {
+	if req == nil || req.Msg == nil || req.Msg.ObservedAt == nil || !req.Msg.ObservedAt.IsValid() || strings.TrimSpace(req.Msg.Status) == "" || strings.TrimSpace(req.Msg.EvidenceReference) == "" {
 		return nil, invalid(errors.New("identity, criterion, producer binding, status, observation time, and evidence reference are required"))
 	}
-	identity, err := (readiness.ReviewIdentity{Scenario: req.Msg.Scenario, ProfileID: req.Msg.ProfileId, CandidateCommit: req.Msg.CandidateCommit, ArtifactDigest: req.Msg.ArtifactDigest, Targets: req.Msg.Targets, Channel: req.Msg.Channel, PolicyVersion: int(req.Msg.PolicyVersion)}).Canonical()
+	now := time.Now().UTC()
+	if h.now != nil {
+		now = h.now().UTC()
+	}
+	observedAt := req.Msg.ObservedAt.AsTime().UTC()
+	if observedAt.After(now.Add(maxOwnerObservationFutureSkew)) {
+		return nil, invalid(errors.New("observation time is too far in the future"))
+	}
+	switch readiness.SignalStatus(strings.TrimSpace(req.Msg.Status)) {
+	case readiness.SignalPassed, readiness.SignalFailed, readiness.SignalUnknown, readiness.SignalUnavailable:
+	default:
+		return nil, invalid(fmt.Errorf("producer observation status %q is not supported", req.Msg.Status))
+	}
+	identity, err := (readiness.ReviewIdentity{Scenario: req.Msg.Scenario, ProfileID: req.Msg.ProfileId, CandidateCommit: req.Msg.CandidateCommit, ArtifactDigest: req.Msg.ArtifactDigest, Targets: req.Msg.Targets, Channel: req.Msg.Channel, PolicyVersion: int(req.Msg.PolicyVersion), CandidateID: req.Msg.CandidateId, DestinationRevisionID: req.Msg.DestinationRevisionId, AuthorizationEpoch: req.Msg.AuthorizationEpoch}).Canonical()
 	if err != nil {
 		return nil, invalid(err)
 	}
 	criterion, ok := policyItem(h.policy, req.Msg.CriterionId)
 	if !ok || criterion.ProducerBinding() == "" || criterion.ProducerBinding() != req.Msg.ProducerBinding {
 		return nil, failed(errors.New("criterion and producer binding do not match the active readiness policy"))
+	}
+	if h.evidenceBindingAuthorize == nil && h.evidenceAuthorize == nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("readiness evidence authorization is not configured"))
+	}
+	if h.evidenceBindingAuthorize != nil {
+		if err := h.evidenceBindingAuthorize(ctx, criterion.ProducerBinding()); err != nil {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("verified readiness evidence owner service is required for the declared producer binding"))
+		}
+	} else if h.evidenceAuthorize != nil {
+		if err := h.evidenceAuthorize(ctx); err != nil {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("verified readiness evidence owner service is required"))
+		}
 	}
 	key, err := identity.Key()
 	if err != nil {
@@ -57,7 +105,7 @@ func (h *ConnectHandler) ReportEvidence(ctx context.Context, req *connect.Reques
 			Producer: criterion.Owner, ProducerVersion: req.Msg.ProducerVersion,
 			CandidateCommit: identity.CandidateCommit, ArtifactDigest: identity.ArtifactDigest,
 			Target: strings.Join(identity.Targets, ","), Environment: identity.Channel,
-			PolicyVersion: identity.PolicyVersion, ObservedAt: req.Msg.ObservedAt.AsTime().UTC(),
+			PolicyVersion: identity.PolicyVersion, ObservedAt: observedAt,
 			Reference: req.Msg.EvidenceReference, Detail: req.Msg.Detail,
 		},
 	}
@@ -68,11 +116,14 @@ func (h *ConnectHandler) ReportEvidence(ctx context.Context, req *connect.Reques
 }
 
 func (h *ConnectHandler) PrepareReview(ctx context.Context, req *connect.Request[readinessv1.PrepareReviewRequest]) (*connect.Response[readinessv1.ReviewResponse], error) {
+	if err := requireVerifiedReviewerMutation(ctx); err != nil {
+		return nil, err
+	}
 	if req == nil || req.Msg == nil {
 		return nil, invalid(errors.New("request is required"))
 	}
 	decision, err := h.preparer.Prepare(ctx, readiness.PrepareRequest{
-		Identity: readiness.ReviewIdentity{Scenario: req.Msg.Scenario, ProfileID: req.Msg.ProfileId, CandidateCommit: req.Msg.CandidateCommit, ArtifactDigest: req.Msg.ArtifactDigest, Targets: req.Msg.Targets, Channel: req.Msg.Channel, PolicyVersion: int(req.Msg.PolicyVersion)}, Facts: req.Msg.Facts, Deliverable: req.Msg.Deliverable, Trigger: req.Msg.Trigger,
+		Identity: readiness.ReviewIdentity{Scenario: req.Msg.Scenario, ProfileID: req.Msg.ProfileId, CandidateCommit: req.Msg.CandidateCommit, ArtifactDigest: req.Msg.ArtifactDigest, Targets: req.Msg.Targets, Channel: req.Msg.Channel, PolicyVersion: int(req.Msg.PolicyVersion), CandidateID: req.Msg.CandidateId, DestinationRevisionID: req.Msg.DestinationRevisionId, AuthorizationEpoch: req.Msg.AuthorizationEpoch}, Facts: req.Msg.Facts, Deliverable: req.Msg.Deliverable, Trigger: req.Msg.Trigger,
 	})
 	if err != nil {
 		return nil, failed(err)
@@ -85,6 +136,9 @@ func (h *ConnectHandler) PrepareReview(ctx context.Context, req *connect.Request
 }
 
 func (h *ConnectHandler) GetReview(ctx context.Context, req *connect.Request[readinessv1.GetReviewRequest]) (*connect.Response[readinessv1.ReviewResponse], error) {
+	if err := requireRead(ctx); err != nil {
+		return nil, err
+	}
 	if req == nil || req.Msg == nil || req.Msg.ReviewKey == "" {
 		return nil, invalid(errors.New("review_key is required"))
 	}
@@ -92,6 +146,9 @@ func (h *ConnectHandler) GetReview(ctx context.Context, req *connect.Request[rea
 }
 
 func (h *ConnectHandler) ListReviews(ctx context.Context, req *connect.Request[readinessv1.ListReviewsRequest]) (*connect.Response[readinessv1.ListReviewsResponse], error) {
+	if err := requireRead(ctx); err != nil {
+		return nil, err
+	}
 	if req == nil || req.Msg == nil {
 		return nil, invalid(errors.New("request is required"))
 	}
@@ -105,12 +162,15 @@ func (h *ConnectHandler) ListReviews(ctx context.Context, req *connect.Request[r
 		if err != nil {
 			return nil, internal(err)
 		}
-		result.Reviews = append(result.Reviews, toResponse(&reviews[index], evidence, findings, nil, false))
+		result.Reviews = append(result.Reviews, toResponse(&reviews[index], evidence, findings, nextActions(h.policy, findings), false))
 	}
 	return connect.NewResponse(result), nil
 }
 
 func (h *ConnectHandler) ListReviewWaivers(ctx context.Context, req *connect.Request[readinessv1.ListReviewWaiversRequest]) (*connect.Response[readinessv1.ListReviewWaiversResponse], error) {
+	if err := requireRead(ctx); err != nil {
+		return nil, err
+	}
 	if req == nil || req.Msg == nil {
 		return nil, invalid(errors.New("request is required"))
 	}
@@ -126,6 +186,9 @@ func (h *ConnectHandler) ListReviewWaivers(ctx context.Context, req *connect.Req
 }
 
 func (h *ConnectHandler) SynchronizeGoalClosure(ctx context.Context, req *connect.Request[readinessv1.SynchronizeGoalClosureRequest]) (*connect.Response[readinessv1.ReviewResponse], error) {
+	if _, err := requireVerifiedReviewer(ctx); err != nil {
+		return nil, err
+	}
 	if req == nil || req.Msg == nil || req.Msg.ReviewKey == "" {
 		return nil, invalid(errors.New("review_key is required"))
 	}
@@ -152,8 +215,12 @@ func (h *ConnectHandler) SynchronizeGoalClosure(ctx context.Context, req *connec
 }
 
 func (h *ConnectHandler) ApproveReview(ctx context.Context, req *connect.Request[readinessv1.ApproveReviewRequest]) (*connect.Response[readinessv1.ReviewResponse], error) {
-	if req == nil || req.Msg == nil || req.Msg.Identity == nil || req.Msg.ReviewKey == "" || req.Msg.Actor == "" {
-		return nil, invalid(errors.New("review_key, identity, and actor are required"))
+	actor, authErr := requireVerifiedReviewer(ctx)
+	if authErr != nil {
+		return nil, authErr
+	}
+	if req == nil || req.Msg == nil || req.Msg.Identity == nil || req.Msg.ReviewKey == "" {
+		return nil, invalid(errors.New("review_key and identity are required"))
 	}
 	review, err := h.repo.Get(ctx, req.Msg.ReviewKey)
 	if err != nil {
@@ -168,15 +235,19 @@ func (h *ConnectHandler) ApproveReview(ctx context.Context, req *connect.Request
 	if err := h.revalidate(ctx, review); err != nil {
 		return nil, failed(err)
 	}
-	if err := h.repo.Approve(ctx, review.Key, canonical, req.Msg.Actor, h.now().UTC()); err != nil {
+	if err := h.repo.Approve(ctx, review.Key, canonical, actor, h.now().UTC()); err != nil {
 		return nil, failed(err)
 	}
 	return h.response(ctx, review.Key)
 }
 
 func (h *ConnectHandler) CreateWaiver(ctx context.Context, req *connect.Request[readinessv1.CreateWaiverRequest]) (*connect.Response[readinessv1.ReviewResponse], error) {
-	if req == nil || req.Msg == nil || req.Msg.ExpiresAt == nil || !req.Msg.ExpiresAt.IsValid() {
-		return nil, invalid(errors.New("review, criterion, actor, reason, and valid expiry are required"))
+	actor, authErr := requireVerifiedReviewer(ctx)
+	if authErr != nil {
+		return nil, authErr
+	}
+	if req == nil || req.Msg == nil || req.Msg.ExpiresAt == nil || !req.Msg.ExpiresAt.IsValid() || strings.TrimSpace(req.Msg.ReviewKey) == "" || strings.TrimSpace(req.Msg.CriterionId) == "" || strings.TrimSpace(req.Msg.Reason) == "" {
+		return nil, invalid(errors.New("review, criterion, reason, and valid expiry are required"))
 	}
 	criterion, ok := policyItem(h.policy, req.Msg.CriterionId)
 	if !ok || !criterion.Waiver.Eligible {
@@ -184,30 +255,69 @@ func (h *ConnectHandler) CreateWaiver(ctx context.Context, req *connect.Request[
 	}
 	now := h.now().UTC()
 	expires := req.Msg.ExpiresAt.AsTime().UTC()
+	if !expires.After(now) {
+		return nil, failed(errors.New("waiver expiry must be in the future"))
+	}
 	if criterion.Waiver.MaxAgeSeconds > 0 && expires.After(now.Add(time.Duration(criterion.Waiver.MaxAgeSeconds)*time.Second)) {
 		return nil, failed(errors.New("waiver expiry exceeds the criterion policy maximum"))
 	}
-	if err := h.repo.SaveWaiver(ctx, readiness.ReviewWaiver{ReviewKey: req.Msg.ReviewKey, CriterionID: req.Msg.CriterionId, Actor: req.Msg.Actor, Reason: req.Msg.Reason, ExpiresAt: expires, Trigger: req.Msg.InvalidationTrigger, CreatedAt: now}); err != nil {
+	if err := h.repo.SaveWaiver(ctx, readiness.ReviewWaiver{ReviewKey: req.Msg.ReviewKey, CriterionID: req.Msg.CriterionId, Actor: actor, Reason: req.Msg.Reason, ExpiresAt: expires, Trigger: req.Msg.InvalidationTrigger, CreatedAt: now}); err != nil {
 		return nil, failed(err)
 	}
 	return h.response(ctx, req.Msg.ReviewKey)
 }
 
 func (h *ConnectHandler) RecordHumanCheck(ctx context.Context, req *connect.Request[readinessv1.RecordHumanCheckRequest]) (*connect.Response[readinessv1.ReviewResponse], error) {
-	if req == nil || req.Msg == nil || req.Msg.ReviewedAt == nil || !req.Msg.ReviewedAt.IsValid() {
-		return nil, invalid(errors.New("review, human criterion, verdict, actor, evidence reference, and review time are required"))
+	actor, authErr := requireVerifiedReviewer(ctx)
+	if authErr != nil {
+		return nil, authErr
+	}
+	if req == nil || req.Msg == nil || req.Msg.ReviewedAt == nil || !req.Msg.ReviewedAt.IsValid() || strings.TrimSpace(req.Msg.ReviewKey) == "" || strings.TrimSpace(req.Msg.CriterionId) == "" || strings.TrimSpace(req.Msg.Verdict) == "" || strings.TrimSpace(req.Msg.EvidenceReference) == "" {
+		return nil, invalid(errors.New("review, human criterion, verdict, evidence reference, and review time are required"))
+	}
+	verdict := strings.TrimSpace(req.Msg.Verdict)
+	if verdict != "passed" && verdict != "failed" {
+		return nil, invalid(errors.New("human verdict must be passed or failed"))
 	}
 	criterion, ok := policyItem(h.policy, req.Msg.CriterionId)
 	if !ok || criterion.HumanReview == nil {
 		return nil, failed(errors.New("criterion is not an independent human review criterion"))
 	}
-	if err := h.repo.SaveHumanCheck(ctx, readiness.HumanCheck{ReviewKey: req.Msg.ReviewKey, CriterionID: req.Msg.CriterionId, Verdict: req.Msg.Verdict, Actor: req.Msg.Actor, EvidenceReference: req.Msg.EvidenceReference, ReviewedAt: req.Msg.ReviewedAt.AsTime().UTC()}); err != nil {
+	if err := h.repo.SaveHumanCheck(ctx, readiness.HumanCheck{ReviewKey: req.Msg.ReviewKey, CriterionID: req.Msg.CriterionId, Verdict: verdict, Actor: actor, EvidenceReference: req.Msg.EvidenceReference, ReviewedAt: req.Msg.ReviewedAt.AsTime().UTC()}); err != nil {
 		return nil, failed(err)
 	}
 	return h.response(ctx, req.Msg.ReviewKey)
 }
 
-func (h *ConnectHandler) CheckPolicyProjection(_ context.Context, req *connect.Request[readinessv1.CheckPolicyProjectionRequest]) (*connect.Response[readinessv1.CheckPolicyProjectionResponse], error) {
+func requireVerifiedReviewer(ctx context.Context) (string, error) {
+	if err := authz.RequireWrite(ctx); err != nil {
+		return "", failed(errors.New("verified human reviewer with deployment-manager write capability is required"))
+	}
+	principal, ok := identity.PrincipalFromContext(ctx)
+	if !ok || !principal.IsHuman() {
+		return "", failed(errors.New("verified human reviewer identity is required"))
+	}
+	return principal.Subject, nil
+}
+
+func requireVerifiedReviewerMutation(ctx context.Context) error {
+	if _, err := requireVerifiedReviewer(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func requireRead(ctx context.Context) error {
+	if err := authz.RequireRead(ctx); err != nil {
+		return connect.NewError(connect.CodePermissionDenied, errors.New("verified deployment-manager read access is required"))
+	}
+	return nil
+}
+
+func (h *ConnectHandler) CheckPolicyProjection(ctx context.Context, req *connect.Request[readinessv1.CheckPolicyProjectionRequest]) (*connect.Response[readinessv1.CheckPolicyProjectionResponse], error) {
+	if err := requireRead(ctx); err != nil {
+		return nil, err
+	}
 	candidate := readiness.BuiltInPolicyJSON()
 	if req != nil && req.Msg != nil && len(req.Msg.PolicyJson) > 0 {
 		candidate = req.Msg.PolicyJson
@@ -220,59 +330,24 @@ func (h *ConnectHandler) CheckPolicyProjection(_ context.Context, req *connect.R
 
 func (h *ConnectHandler) revalidate(ctx context.Context, review *readiness.Review) error {
 	if review.GoalClosedAt == nil {
-		return errors.New("independent goal closure has not been synchronized")
+		if review.GoalRef != "" {
+			return errors.New("independent goal closure has not been synchronized")
+		}
 	}
 	evidence, _, err := h.repo.ListEvaluation(ctx, review.Key)
 	if err != nil {
 		return err
-	}
-	if len(evidence) != len(h.policy.Items) {
-		return errors.New("required evidence set is incomplete")
-	}
-	items := make(map[string]readiness.Item, len(h.policy.Items))
-	for _, item := range h.policy.Items {
-		items[item.ID] = item
 	}
 	now := h.now().UTC()
 	activeWaivers, err := h.repo.ListActiveWaivers(ctx, review.Key, now)
 	if err != nil {
 		return err
 	}
-	waived := make(map[string]struct{}, len(activeWaivers))
-	for _, waiver := range activeWaivers {
-		waived[waiver.CriterionID] = struct{}{}
-	}
 	humanChecks, err := h.repo.ListHumanChecks(ctx, review.Key)
 	if err != nil {
 		return err
 	}
-	humanPassed := make(map[string]bool, len(humanChecks))
-	for _, check := range humanChecks {
-		humanPassed[check.CriterionID] = check.Verdict == "passed"
-	}
-	for _, item := range evidence {
-		criterion, ok := items[item.CriterionID]
-		if !ok || item.CandidateCommit != review.Identity.CandidateCommit || item.ArtifactDigest != review.Identity.ArtifactDigest || item.PolicyVersion != review.Identity.PolicyVersion {
-			return fmt.Errorf("evidence %q no longer matches the review identity", item.CriterionID)
-		}
-		if criterion.Freshness.Basis == "max_age" && now.Sub(item.ObservedAt) > time.Duration(criterion.Freshness.MaxAgeSeconds)*time.Second {
-			return fmt.Errorf("evidence %q is stale", item.CriterionID)
-		}
-		switch item.Status {
-		case readiness.SignalPassed, readiness.SignalNotApplicable:
-		case readiness.SignalWaived:
-			if _, ok := waived[item.CriterionID]; !ok {
-				return fmt.Errorf("evidence %q no longer has an active waiver", item.CriterionID)
-			}
-		case readiness.SignalUnknown:
-			if criterion.HumanReview == nil || !humanPassed[item.CriterionID] {
-				return fmt.Errorf("evidence %q has no passed independent human check", item.CriterionID)
-			}
-		default:
-			return fmt.Errorf("evidence %q has blocking disposition %q", item.CriterionID, item.Status)
-		}
-	}
-	return nil
+	return readiness.ValidateCurrentEvidence(h.policy, *review, evidence, activeWaivers, humanChecks, now)
 }
 
 func (h *ConnectHandler) response(ctx context.Context, key string) (*connect.Response[readinessv1.ReviewResponse], error) {
@@ -284,15 +359,15 @@ func (h *ConnectHandler) response(ctx context.Context, key string) (*connect.Res
 	if err != nil {
 		return nil, internal(err)
 	}
-	return connect.NewResponse(toResponse(review, evidence, findings, nil, false)), nil
+	return connect.NewResponse(toResponse(review, evidence, findings, nextActions(h.policy, findings), false)), nil
 }
 
 func toDomainIdentity(value *readinessv1.ReviewIdentity) readiness.ReviewIdentity {
-	return readiness.ReviewIdentity{Scenario: value.Scenario, ProfileID: value.ProfileId, CandidateCommit: value.CandidateCommit, ArtifactDigest: value.ArtifactDigest, Targets: value.Targets, Channel: value.Channel, PolicyVersion: int(value.PolicyVersion)}
+	return readiness.ReviewIdentity{Scenario: value.Scenario, ProfileID: value.ProfileId, CandidateCommit: value.CandidateCommit, ArtifactDigest: value.ArtifactDigest, Targets: value.Targets, Channel: value.Channel, PolicyVersion: int(value.PolicyVersion), CandidateID: value.CandidateId, DestinationRevisionID: value.DestinationRevisionId, AuthorizationEpoch: value.AuthorizationEpoch}
 }
 
 func toProtoIdentity(value readiness.ReviewIdentity) *readinessv1.ReviewIdentity {
-	return &readinessv1.ReviewIdentity{Scenario: value.Scenario, ProfileId: value.ProfileID, CandidateCommit: value.CandidateCommit, ArtifactDigest: value.ArtifactDigest, Targets: value.Targets, Channel: value.Channel, PolicyVersion: int32(value.PolicyVersion)}
+	return &readinessv1.ReviewIdentity{Scenario: value.Scenario, ProfileId: value.ProfileID, CandidateCommit: value.CandidateCommit, ArtifactDigest: value.ArtifactDigest, Targets: value.Targets, Channel: value.Channel, PolicyVersion: int32(value.PolicyVersion), CandidateId: value.CandidateID, DestinationRevisionId: value.DestinationRevisionID, AuthorizationEpoch: value.AuthorizationEpoch}
 }
 
 func toResponse(review *readiness.Review, evidence []readiness.EvidenceItem, findings []readiness.ReviewFinding, next []string, deduped bool) *readinessv1.ReviewResponse {
@@ -327,6 +402,22 @@ func policyItem(policy readiness.Checklist, id string) (readiness.Item, bool) {
 		}
 	}
 	return readiness.Item{}, false
+}
+
+func nextActions(policy readiness.Checklist, findings []readiness.ReviewFinding) []string {
+	if len(findings) == 0 {
+		return nil
+	}
+	actions := make([]string, 0, len(findings))
+	for _, finding := range findings {
+		criterion, ok := policyItem(policy, finding.CriterionID)
+		if !ok {
+			continue
+		}
+		actions = append(actions, readiness.ActionForFinding(criterion, finding.CriterionID, finding.Message))
+	}
+	sort.Strings(actions)
+	return actions
 }
 
 func invalid(err error) error     { return connect.NewError(connect.CodeInvalidArgument, err) }

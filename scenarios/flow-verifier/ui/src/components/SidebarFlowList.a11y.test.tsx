@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 
@@ -9,6 +11,16 @@ vi.mock("../api/inventory", async (importOriginal) => {
 });
 
 import { SidebarFlowList } from "./SidebarFlowList";
+
+function renderFlowList() {
+  return renderWithProviders(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <MemoryRouter initialEntries={["/"]}><SidebarFlowList /></MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 
 describe("SidebarFlowList accessibility", () => {
   beforeEach(async () => {
@@ -20,7 +32,7 @@ describe("SidebarFlowList accessibility", () => {
   afterEach(() => cleanup());
 
   it("renders without axe violations", async () => {
-    const { container } = renderWithProviders(<SidebarFlowList />);
+    const { container } = renderFlowList();
     await waitFor(() =>
       expect(screen.getByTestId("sidebar-flow-alpha.flow")).toBeInTheDocument(),
     );

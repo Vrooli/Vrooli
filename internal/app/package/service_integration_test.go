@@ -263,6 +263,42 @@ func TestRefreshTargetFiltersAffectedScenario(t *testing.T) {
 	}
 }
 
+func TestRefreshArtifactDryRunUsesExactExportImpact(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	testresource.WritePortRegistry(t, fixture.Root, nil)
+	testpackage.WritePackageManifest(t, fixture.Root, "react-component-library", testpackage.PackageManifest(
+		"react-component-library",
+		testpackage.WithPackageDisplayName("@vrooli/react-component-library"),
+		testpackage.WithPackageModuleIdentifiers("@vrooli/react-component-library"),
+		testpackage.WithPackageRefresh(packagegov.RefreshScenarioSetup, false),
+	))
+	for _, name := range []string{"affected", "unaffected"} {
+		testscenario.WriteScenarioService(t, fixture.Root, name, testscenario.ScenarioServiceManifest(name))
+		testpackage.WriteScenarioUIPackageManifest(t, fixture.Root, name, testpackage.NodePackageManifest{
+			Dependencies: map[string]string{"@vrooli/react-component-library": "file:../../../packages/react-component-library"},
+		})
+	}
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "affected", "ui", "src", "App.tsx"), `import { Button } from "@vrooli/react-component-library/Button/1.0.0"; export const App = Button;`)
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "unaffected", "ui", "src", "App.tsx"), `import { Card } from "@vrooli/react-component-library/Card/1.0.0"; export const App = Card;`)
+
+	resp, err := newIntegrationPackageService(fixture, false).Refresh(RefreshRequest{
+		PackageName: "react-component-library", Target: "all", ChangedExports: []string{"./Button/1.0.0"}, DryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("Refresh dry run: %v", err)
+	}
+	if len(resp.Items) != 1 || resp.Items[0].Consumer != "affected" || resp.Items[0].Status != "planned" {
+		t.Fatalf("planned items = %#v", resp.Items)
+	}
+	if len(resp.Impacts) != 2 || resp.Impacts[0].Status != packagegov.ImpactAffected || resp.Impacts[1].Status != packagegov.ImpactUnaffected {
+		t.Fatalf("impact report = %#v", resp.Impacts)
+	}
+	if _, err := os.Stat(filepath.Join(fixture.Root, "scenarios", "affected", "build")); !os.IsNotExist(err) {
+		t.Fatalf("dry run mutated affected scenario, err=%v", err)
+	}
+}
+
 func TestRefreshIncludesTemplateConsumersExplicitly(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)

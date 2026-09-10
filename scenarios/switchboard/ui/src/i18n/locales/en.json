@@ -75,6 +75,8 @@
     "call": {
       "backToThread": "Back to the conversation",
       "description": "Live call transcript and controls.",
+      "signInDetail": "A call runs as you, so it needs an owner session.",
+      "signInTitle": "Sign in to use call mode.",
       "title": "Call",
       "unavailableDetail": "Voice and video calls are a later target. The conversation itself is still here.",
       "unavailableTitle": "Call mode is not available in this release"
@@ -175,6 +177,7 @@
       "allChannels": "All channels",
       "attachFile": "Attach a file",
       "attachmentOnly": "Attachment",
+      "callAgent": "Call {{name}}",
       "connecting": "Connecting to the in-app channel…",
       "description": "Every thread across every channel, governed before a turn starts.",
       "emptyDescription": "Start one here, or attach an agent to a channel and message it from your phone.",
@@ -186,6 +189,7 @@
       "message": "Message",
       "noMatches": "No threads match.",
       "noMessagesYet": "No messages yet",
+      "peopleCount": "{{count}} people",
       "pickThread": "Pick a thread to read it here.",
       "removeAttachment": "Remove attachment",
       "repliesLiveOn": "This conversation lives on {{channel}}. Replies happen there, not here.",

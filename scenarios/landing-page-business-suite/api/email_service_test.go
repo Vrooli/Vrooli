@@ -194,10 +194,12 @@ func TestSendMagicLink_DevModeFallback(t *testing.T) {
 		SendGridConfig: nil, // Not configured
 	})
 
-	// Should succeed in dev mode (logs the link)
+	// An unconfigured provider is an explicit delivery failure. Development
+	// composition uses NewEmailService, which supplies a non-delivery seam for
+	// local tests without logging the bearer URL.
 	err := svc.SendMagicLink("to@example.com", "http://example.com/magic", "TestApp")
-	if err != nil {
-		t.Errorf("expected no error in dev mode, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "not configured") {
+		t.Errorf("expected an explicit missing-provider error, got: %v", err)
 	}
 }
 
@@ -208,8 +210,8 @@ func TestSendMagicLink_DefaultAppName(t *testing.T) {
 
 	// Empty app name should default to "App"
 	err := svc.SendMagicLink("to@example.com", "http://example.com/magic", "")
-	if err != nil {
-		t.Errorf("expected no error, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "not configured") {
+		t.Errorf("expected an explicit missing-provider error, got: %v", err)
 	}
 }
 
@@ -379,7 +381,9 @@ func TestExtractSMTPConfig_AllFields(t *testing.T) {
 		SMTPFrom:     &from,
 	}
 
-	svc := NewEmailServiceWithOptions(EmailServiceOptions{})
+	svc := NewEmailServiceWithOptions(EmailServiceOptions{
+		SMTPPasswordResolver: func() (string, error) { return smtpPassphrase, nil },
+	})
 	config := svc.extractSMTPConfig(branding)
 
 	if config.Host != host {
@@ -396,6 +400,23 @@ func TestExtractSMTPConfig_AllFields(t *testing.T) {
 	}
 	if config.From != from {
 		t.Errorf("expected from '%s', got '%s'", from, config.From)
+	}
+}
+
+func TestExtractSMTPConfigDoesNotReadBrandingPassword(t *testing.T) {
+	host, username, legacyPassword := "smtp.test.com", "testuser", "legacy-file-password"
+	branding := &experimentation.SiteBranding{
+		SMTPHost:     &host,
+		SMTPUsername: &username,
+		SMTPPassword: &legacyPassword,
+	}
+	svc := NewEmailServiceWithOptions(EmailServiceOptions{
+		SMTPPasswordResolver: func() (string, error) { return "", errors.New("authority unavailable") },
+	})
+
+	config := svc.extractSMTPConfig(branding)
+	if config.Password != "" {
+		t.Fatalf("password = %q, want empty when authority cannot resolve it", config.Password)
 	}
 }
 
@@ -489,6 +510,7 @@ func TestSendFeedbackNotification_NoSupportEmail(t *testing.T) {
 		SMTPSender: func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 			return nil
 		},
+		SMTPPasswordResolver: func() (string, error) { return password, nil },
 	})
 
 	branding := &experimentation.SiteBranding{
@@ -523,6 +545,7 @@ func TestSendFeedbackNotification_Success(t *testing.T) {
 			capturedTo = to
 			return nil
 		},
+		SMTPPasswordResolver: func() (string, error) { return password, nil },
 	})
 
 	branding := &experimentation.SiteBranding{
@@ -563,6 +586,7 @@ func TestSendFeedbackNotification_WithOrderID(t *testing.T) {
 			capturedMsg = msg
 			return nil
 		},
+		SMTPPasswordResolver: func() (string, error) { return password, nil },
 	})
 
 	branding := &experimentation.SiteBranding{
@@ -682,7 +706,9 @@ func TestExtractSMTPConfig_PartialConfiguration(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailServiceWithOptions(EmailServiceOptions{})
+	svc := NewEmailServiceWithOptions(EmailServiceOptions{
+		SMTPPasswordResolver: func() (string, error) { return "secret", nil },
+	})
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

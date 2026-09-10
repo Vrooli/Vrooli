@@ -11,6 +11,33 @@ Scenario-to-Cloud is a deployment orchestrator that:
 4. Transfers bundles and executes VPS setup
 5. Deploys and monitors scenarios on remote VPS targets
 
+## Domain owners added by the VPS delivery certification (2026-09)
+
+The zones below supersede the older "handlers → vps → ssh" picture for every
+deployment effect. Each is the single owner of its invariant; the older
+packages listed under Responsibility Zones remain only where the deletion
+ledger (plan artifacts `ledgers/deletion-ledger.md`) still shows an open row.
+
+| Owner | Package | Invariant it owns | Consumes |
+|---|---|---|---|
+| Identity | `identity/`, `persistence/identity.go` | Deployment, target, release and operation references; selector resolution; `(scenario, environment, target_key)` uniqueness | — |
+| Errors | `apierrors/` | Stable codes → HTTP status → CLI exit codes; wire envelope | — |
+| Authority | `authz/` | Default-deny route table, shared authn, target binding, revocation recheck, origin/host/websocket policy | api-core `authn`, `scopecatalog` |
+| Closure | `closure/` | Declaration-derived component closure with reasons, digest, listeners, persistent data, unsupported entries; setup/v1 Selection parity | analyzer, hostreq, service.json |
+| Executable plan | `execplan/`, `vps/plan.go` | One typed action graph; semantic digest; preview = apply; stale/no-op/needs-input outcomes | closure, release, identity |
+| Operations | `operations/`, `persistence/operation.go` | Durable fenced execution, leases, startup reconciliation, wait/cancel, receipts before replay | operationcoord, target receipts |
+| Executor | `vps/execute.go`, `deployment/operation_runner.go` | Runs a compiled plan action by action through reach; every transport call attributed to an action | reach, target owner |
+| Reach | `reach/`, `reach/bridge`, `reach/sshadapter` | Typed argv commands; explicit transport from the target binding; revocation refusal; no fallback | api-core `nodereach`, `ssh` runner |
+| Target owner | `internal/cloudtarget` (`vrooli cloud-target`) | Fenced idempotent receipts; release verify/stage/activate/rollback; data inventory/backup/restore; edge snippets; host repair via privilegebroker | privilegebroker, cloudrelease |
+| Release | `release/`, `packages/cloudrelease` | One artifact-set identity (bundle + native CLI + closure + configuration), provenance, `.complete` staging, lease-aware GC | bundle, release authority |
+| Data | `backup/`, `persistence/backup.go` | Recovery points, consistency providers, schema-aware rollback admission, protected retention | data-backup-manager, target verbs |
+| Credentials | `credentials/`, `secrets/` | Bindings, versions, rotation/revocation/recovery, canary scanning | credential authority, Bridge grants |
+| Edge | `edge/`, `edgesvc/` | Listener policy, per-deployment Caddy snippet, DNS/TLS lifecycle, ACME authority | dns, tlsinfo |
+| Health | `health/` | Typed observation with identity and freshness; unknown never healthy | vps live state |
+| Evidence & governance | `evidence/`, `ramp/`, `certification/` | Matrix cells and dispositions, exact review identity, signed bound receipts, publication apply re-check, readiness gate | delivery-ramp-go, deployment-manager |
+
+Test-only seams that must not leak into production: `faultinject/` (armed only under routed test mode) and `fixtures/` (declaration-only workloads with deterministic oracles).
+
 ## Responsibility Zones
 
 ### 1. Entry/Presentation Layer
@@ -119,20 +146,11 @@ The `ssh/` package provides SSH and SCP execution infrastructure for VPS operati
 
 | File | Responsibility |
 |------|---------------|
-| `ssh/doc.go` | Package documentation |
-| `ssh/config.go` | SSH connection config, defaults (port 22, user "root"), `Result` type, `nowTimestamp()` |
-| `ssh/options.go` | SSH/SCP option structs (`RunOptions`, `SCPOptions`, `HandlerOptions`), argument assembly (`BuildSSHArgs`, `BuildSCPArgs`) |
-| `ssh/runner.go` | `Runner` and `SCPRunner` interfaces, `ExecRunner`/`ExecSCPRunner` impls, `runSSH` helper, `boundedBuffer` |
-| `ssh/connect.go` | Connection testing (`TestConnection`), `IsIPv6` |
-| `ssh/errors.go` | SSH error classification (`ClassifyError`, `newCommandError`), `ErrorInfoFromSSHError` bridge to domain types |
-| `ssh/keys.go` | `KeyService` struct + methods: `DiscoverKeys`, `ReadPublicKey`, `DeleteKey`, `parseKeyFile`, `getKeyFingerprint` |
-| `ssh/keys_generate.go` | `KeyService.GenerateKey` method via `ssh-keygen` |
-| `ssh/keys_copy.go` | `KeyCopier` interface, `ExecKeyCopier` impl via `golang.org/x/crypto/ssh` password auth |
-| `ssh/command.go` | `CommandRunner` interface + `ExecCommandRunner` impl for local command abstraction |
-| `ssh/handlers.go` | HTTP handler factories — all accept explicit dependencies (`*KeyService`, `KeyCopier`, `Runner`) |
-| `ssh/types.go` | Domain types: `KeyType`, `KeyInfo` |
-| `ssh/dto.go` | HTTP request/response DTOs |
-| `ssh/path.go` | Path utilities: `GetSSHDir`, `ValidateSSHPath`, `ValidateKeyFilename`, `ExpandPath` |
+| `reach/sshadapter/runner.go` | `ConnectionConfig`, `RunOptions`, `SCPOptions`, `Runner`/`SCPRunner` interfaces, `ExecRunner`/`ExecSCPRunner`, argument assembly, `ExpandPath` |
+| `reach/sshadapter/adapter.go` | The bounded reach adapter: one quoting policy, exit-code classification into reach kinds, artifact delivery with digest verification |
+| `reach/sshadapter/session.go` | Interactive PTY session (`OpenSession`) over the resolved connection |
+| `reach/sshadapter/hostkey.go` | Trust-on-first-use host keys through `packages/ssh-core` in the scenario's `known_hosts` |
+| `reach/sshadapter/preview.go` | Display-only `ssh`/`scp` command rendering for plan previews (locator only, never a key) |
 | `ssh/format.go` | Command formatting for display/logging (uses `shellutil.QuoteSingle`) |
 
 ### 7. Cross-Cutting Concerns
@@ -176,19 +194,9 @@ sshFake := &FakeSSHRunner{Responses: map[string]ssh.Result{
 
 **Usage in tests:** Pass a fake `CommandRunner` to `ssh.NewKeyService(fake, tmpDir)`:
 
-```go
-keySvc := ssh.NewKeyService(myFake, t.TempDir())
-```
+### Key custody
 
-### Key Copying
-
-**Location:** `ssh/keys_copy.go`
-
-| Interface | Implementation | Purpose |
-|-----------|---------------|---------|
-| `ssh.KeyCopier` | `ssh.ExecKeyCopier` | Copy SSH public key to remote server via password auth |
-
-**Usage in tests:** Implement `KeyCopier` to return test responses without network calls.
+Key material is never handled by the cloud. The credential binding `vrooli/scenario-to-cloud:ssh-key` (`api/credentials/sshkey.go`) names the operator-held key file; `main.go`'s `sshConfigForTarget` resolves it per target and the adapter passes the path to `ssh -i`. Enrollment through `vrooli-bridge onboard` replaces SSH entirely for bridge-bound deployments.
 
 ### DNS Resolution
 
@@ -538,34 +546,6 @@ type AnalyzerClient interface {
 `bundle/builder.go` (~1070 lines) could be split:
 - `bundle/builder.go` - Core bundling logic
 - `bundle/cleanup.go` - Stats, cleanup, retention logic
-
-### SSH Subsystem Refactoring (2026-02)
-
-**Shell utility extraction:**
-- Moved `QuoteSingle`, `VrooliCommand`, `SafeRemoteJoin`, `ValidateTildeExpansion` from `ssh/shell.go` to `internal/shellutil/shell.go`
-- 15+ consumer files now import `shellutil` directly instead of `ssh` for string quoting
-- Deleted `ssh/shell.go` and `ssh/shell_test.go`
-
-**KeyService struct:**
-- Replaced package-level functions + global `defaultCommandRunner` with `KeyService` struct
-- `NewKeyService(cmd, sshDir)` accepts explicit `CommandRunner` and SSH directory for testing
-- All key operations (`DiscoverKeys`, `GenerateKey`, `ReadPublicKey`, `DeleteKey`) are now methods
-- Removed `SetCommandRunner` global state (test-race hazard eliminated)
-
-**KeyCopier interface:**
-- Added `KeyCopier` interface and `ExecKeyCopier` implementation in `ssh/keys_copy.go`
-- `HandleCopyKey` now accepts `KeyCopier` dependency
-
-**Handler DI consistency:**
-- All SSH handlers now accept explicit dependencies: `HandleListKeys(ks)`, `HandleGenerateKey(ks)`, `HandleGetPublicKey(ks)`, `HandleDeleteKey(ks)`, `HandleCopyKey(copier)`, `HandleTestConnection(runner)`
-
-**Error handling consolidation:**
-- `ssh/errors.go` contains `ClassifyError` (exported) for SSH error classification and `ErrorInfoFromSSHError` for bridging to domain types
-- `ssh/runner.go` contains `Runner`/`SCPRunner` interfaces, `ExecRunner`/`ExecSCPRunner` implementations, and `boundedBuffer`
-
-**New tests:**
-- `ValidateSSHPath` table-driven tests in `ssh/path_test.go`
-- `boundedBuffer` and `exitCode` tests in `ssh/runner_test.go`
 
 ## SSH Identity Seams (2026-02)
 

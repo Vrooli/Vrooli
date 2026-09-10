@@ -2,141 +2,108 @@ package vps
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/apierrors"
+	"scenario-to-cloud/execplan"
+	"scenario-to-cloud/identity"
 )
 
-// testSSHRunner implements ssh.Runner for vps package tests.
-type testSSHRunner struct {
-	responses map[string]ssh.Result
-	errs      map[string]error
-	calls     []string
+type identityTargetRef = identity.TargetRef
+
+func writeFile(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
 }
 
-func (r *testSSHRunner) Run(_ context.Context, _ ssh.ConnectionConfig, command string, _ ssh.RunOptions) (ssh.Result, error) {
-	r.calls = append(r.calls, command)
-
-	if err, ok := r.errs[command]; ok {
-		return ssh.Result{ExitCode: 255}, err
+// [REQ:STC-P0-028] workload.stop is one scoped lifecycle stop through the
+// privilege broker: the argv names exactly one scenario and its workdir and
+// carries no process pattern or port; the same inputs build the same
+// invocation on every attempt (a replayed stop is a receipt replay).
+func TestWorkloadStopIsAScopedLifecycleStop(t *testing.T) {
+	cc := edgeContext("", "")
+	action := execplan.Action{ID: execplan.OpWorkloadStop, OwnerOperation: execplan.OpWorkloadStop, Inputs: map[string]string{"workdir": "/root/Vrooli", "scenario": "app", "ports": "api=3001,ui=3000"}}
+	first, err := ActionCommands(action, cc)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if res, ok := r.responses[command]; ok {
-		return res, nil
+	second, _ := ActionCommands(action, cc)
+	if strings.Join(first[0].Command.Argv(), " ") != strings.Join(second[0].Command.Argv(), " ") {
+		t.Fatal("the stop invocation must be deterministic across attempts")
 	}
-	// Try prefix matching for commands with dynamic content
-	for pattern, res := range r.responses {
-		if strings.Contains(command, pattern) {
-			return res, nil
+	argv := strings.Join(first[0].Command.Argv(), " ")
+	if !strings.Contains(argv, "--action process.stop.scoped") || !strings.Contains(argv, "--step workload.stop") {
+		t.Fatalf("argv = %s", argv)
+	}
+	for _, forbidden := range []string{"pkill", "kill", "3000", "3001", "ss -"} {
+		if strings.Contains(argv, forbidden) {
+			t.Fatalf("stop must not carry %q: %s", forbidden, argv)
 		}
 	}
-	return ssh.Result{ExitCode: 0}, nil
-}
-
-func TestStopExistingScenario_Success(t *testing.T) {
-	t.Parallel()
-
-	runner := &testSSHRunner{
-		responses: map[string]ssh.Result{
-			"test -x":       {Stdout: "found", ExitCode: 0},
-			"scenario stop": {ExitCode: 0},
-			"pkill":         {ExitCode: 0},
-		},
-	}
-
-	cfg := ssh.ConnectionConfig{Host: "test", User: "root", Port: 22}
-	result := StopExistingScenario(context.Background(), runner, cfg, "/opt/vrooli", "my-app", []int{35000})
-
-	if !result.OK {
-		t.Errorf("expected OK, got error: %s", result.Error)
-	}
-	if !result.ScenarioStop {
-		t.Error("expected ScenarioStop = true")
-	}
-}
-
-func TestStopExistingScenario_StopFails_StillKills(t *testing.T) {
-	t.Parallel()
-
-	runner := &testSSHRunner{
-		responses: map[string]ssh.Result{
-			// vrooli CLI exists but stop fails
-			"test -x":       {Stdout: "found", ExitCode: 0},
-			"scenario stop": {ExitCode: 1, Stderr: "scenario not running"},
-			"pkill":         {ExitCode: 0},
-		},
-	}
-
-	cfg := ssh.ConnectionConfig{Host: "test", User: "root", Port: 22}
-	result := StopExistingScenario(context.Background(), runner, cfg, "/opt/vrooli", "my-app", nil)
-
-	if !result.OK {
-		t.Errorf("expected OK even when stop fails, got error: %s", result.Error)
-	}
-	// ScenarioStop should be false since stop returned non-zero
-	if result.ScenarioStop {
-		t.Error("expected ScenarioStop = false when stop command fails")
-	}
-}
-
-func TestStopExistingScenarioUsesDeploymentLocalCLIPath(t *testing.T) {
-	t.Parallel()
-
-	runner := &testSSHRunner{
-		responses: map[string]ssh.Result{
-			"test -x":       {Stdout: "found", ExitCode: 0},
-			"scenario stop": {ExitCode: 0},
-			"pkill":         {ExitCode: 0},
-		},
-	}
-
-	workdir := "/opt/vrooli deployment"
-	cfg := ssh.ConnectionConfig{Host: "test", User: "root", Port: 22}
-	StopExistingScenario(context.Background(), runner, cfg, workdir, "my-app", nil)
-
-	var foundCheck, foundStop bool
-	for _, call := range runner.calls {
-		if strings.Contains(call, "test -x") && strings.Contains(call, shellutil.QuotedRemoteVrooliPath(workdir)) {
-			foundCheck = true
-		}
-		if strings.Contains(call, "scenario stop") {
-			foundStop = true
-			if !strings.Contains(call, shellutil.QuotedRemoteVrooliPath(workdir)) {
-				t.Fatalf("expected scenario stop to use deployment-local binary, got %q", call)
-			}
-			if strings.Contains(call, " ~/.vrooli/bin/vrooli ") {
-				t.Fatalf("expected no global vrooli path fallback, got %q", call)
-			}
+	var subject string
+	for i, a := range first[0].Command.Args {
+		if a == "--subject" {
+			subject = first[0].Command.Args[i+1]
 		}
 	}
-	if !foundCheck {
-		t.Fatalf("expected CLI existence check to use deployment-local binary path, calls=%v", runner.calls)
-	}
-	if !foundStop {
-		t.Fatalf("expected stop command to run, calls=%v", runner.calls)
+	raw, _ := DecodeJSONArg(subject)
+	if string(raw) != `{"process":{"scenario":"app","workdir":"/root/Vrooli"}}` {
+		t.Fatalf("subject = %s", raw)
 	}
 }
 
-func TestStopExistingScenarioSkipsCLIStopWhenDeploymentLocalBinaryMissing(t *testing.T) {
-	t.Parallel()
-
-	runner := &testSSHRunner{
-		responses: map[string]ssh.Result{
-			"test -x '/opt/vrooli/.vrooli/bin/vrooli' && echo found || echo notfound": {Stdout: "notfound", ExitCode: 0},
-			"pkill": {ExitCode: 0},
-		},
+// [REQ:STC-P0-028] Retirement runs in owner order (route, runtime, grants,
+// data, artifacts); an irreversible data disposition is refused with the
+// missing owner and the retained disposition leaves every binding in place;
+// active and previous artifacts are reported as retained.
+func TestRetireOrderAndDataDisposition(t *testing.T) {
+	stubHealth(t)
+	target := newFakeTarget()
+	w := loadFixtures(t).Workloads["sql-uploads"]
+	h := newHarness(t, target, w, "v1")
+	if _, execErr := h.execute(context.Background(), h.compile(execplan.ScopeFull, execplan.Observations{}), Identity{OperationID: "op-1", Fence: 1}); execErr != nil {
+		t.Fatalf("deploy: %v", execErr)
 	}
-
-	cfg := ssh.ConnectionConfig{Host: "test", User: "root", Port: 22}
-	result := StopExistingScenario(context.Background(), runner, cfg, "/opt/vrooli", "my-app", nil)
-
-	if !result.OK {
-		t.Fatalf("expected OK, got %s", result.Error)
+	if _, err := CompilePlan(context.Background(), PlanRequest{Manifest: h.manifest, BundlePath: h.bundle, Closure: h.closure, Scope: execplan.ScopeRetire}); err == nil || !apierrors.Is(err, apierrors.CodeInvalidRequest) {
+		t.Fatalf("retire with persistent data and no retention policy must be refused: %v", err)
 	}
-	for _, call := range runner.calls {
-		if strings.Contains(call, "scenario stop") {
-			t.Fatalf("did not expect scenario stop when deployment-local CLI is missing, calls=%v", runner.calls)
-		}
+	deleting, err := CompilePlan(context.Background(), PlanRequest{Manifest: h.manifest, BundlePath: h.bundle, Closure: h.closure, Scope: execplan.ScopeRetire, Policy: execplan.Policy{RetentionPolicy: execplan.RetentionDelete}, Deployment: ptr(domain0(h))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ids := strings.Join(deleting.ActionIDs(), ","); ids != strings.Join([]string{execplan.OpEdgeRouteRetire, execplan.OpWorkloadStop, execplan.OpGrantsRevoke, execplan.OpDataRetire, execplan.OpArtifactsRetire}, ",") {
+		t.Fatalf("retire order = %s", ids)
+	}
+	if deleting.Action(execplan.OpDataRetire).Effect != execplan.EffectDataWrite {
+		t.Fatal("an irreversible disposition is a data write")
+	}
+	_, execErr := h.execute(context.Background(), deleting, Identity{OperationID: "op-2", Fence: 2})
+	if execErr == nil || execErr.ActionID != execplan.OpDataRetire || !apierrors.Is(execErr.Err, apierrors.CodeUnsupportedCapability) {
+		t.Fatalf("delete disposition must be refused by the missing owner, got %v", execErr)
+	}
+	if len(target.persistent["uploads"]) == 0 && target.persistent["uploads"] == nil {
+		t.Fatal("persistent data must survive a refused deletion")
+	}
+	if target.running[h.manifest.Scenario.ID] || target.routes[h.manifest.Edge.Domain] != 0 {
+		t.Fatalf("route and runtime must be retired before the data step: running=%v routes=%v", target.running, target.routes)
+	}
+	retaining, err := CompilePlan(context.Background(), PlanRequest{Manifest: h.manifest, BundlePath: h.bundle, Closure: h.closure, Scope: execplan.ScopeRetire, Policy: execplan.Policy{RetentionPolicy: execplan.RetentionRetain}, Deployment: ptr(domain0(h))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	trace, execErr := h.execute(context.Background(), retaining, Identity{OperationID: "op-3", Fence: 3})
+	if execErr != nil {
+		t.Fatalf("retain: %v (%s)", execErr, execErr.ActionID)
+	}
+	last := trace.Actions[len(trace.Actions)-1]
+	if last.ID != execplan.OpArtifactsRetire || !strings.Contains(last.Detail, "retained 1 ("+h.release) {
+		t.Fatalf("artifact retirement must report the active release as retained: %+v", last)
+	}
+	if !strings.Contains(retaining.Presentation.RecoveryNote, "retain") {
+		t.Fatalf("preview must state the data disposition: %q", retaining.Presentation.RecoveryNote)
 	}
 }

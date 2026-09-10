@@ -132,6 +132,9 @@ func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Co
 		if err != nil {
 			return Result{}, err
 		}
+		for name, value := range check.Headers {
+			req.Header.Set(name, renderTarget(value, cfg.Env))
+		}
 		resp, err := client.Do(req)
 		if err != nil {
 			return Result{Message: fmt.Sprintf("http check failed for %s", target)}, nil

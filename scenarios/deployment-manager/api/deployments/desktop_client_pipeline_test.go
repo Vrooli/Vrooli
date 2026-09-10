@@ -5,78 +5,52 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
+
+	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
+	"google.golang.org/protobuf/proto"
 )
 
-func TestDesktopPackagerPipelineClientOperations(t *testing.T) {
+func TestRunPublishPipelineConnectRequestsDeployOnly(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		switch r.URL.Path {
-		case "/api/v1/pipeline/run":
-			if r.Method == http.MethodPost {
-				body, _ := io.ReadAll(r.Body)
-				if strings.Contains(string(body), "recording") {
-					_, _ = w.Write([]byte(`{"smoke_test_id":"smoke-1","status":"passed","screen_recording":{"recorded":true}}`))
-				} else {
-					_, _ = w.Write([]byte(`{"pipeline_id":"pipe-1","status":"running"}`))
-				}
-				return
-			}
-		case "/api/v1/smoketest/smoke-1":
-			_, _ = w.Write([]byte(`{"smoke_test_id":"smoke-1","status":"passed","screen_recording":{"recorded":true}}`))
-			return
-		case "/api/v1/smoketest/smoke-1/video":
-			_, _ = w.Write([]byte("video"))
-			return
-		case "/api/v1/pipeline/pipe-1":
-			_, _ = w.Write([]byte(`{"current_state":"completed","stages":{"deploy":{"details":{"artifacts":[]}}}}`))
-			return
-		case "/api/v1/signing/demo":
-			w.WriteHeader(http.StatusCreated)
-			return
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request: %v", err)
 		}
-		http.NotFound(w, r)
+		envelope := &pipelinev1.PipelineRunRequest{}
+		if err := proto.Unmarshal(body, envelope); err != nil {
+			t.Fatalf("decode Connect request: %v", err)
+		}
+		if len(envelope.GetConfig().GetStages()) != 1 || envelope.GetConfig().GetStages()[0].String() != "STAGE_NAME_DEPLOY" {
+			t.Fatalf("requested stages = %v, want [STAGE_NAME_DEPLOY]", envelope.GetConfig().GetStages())
+		}
+		deploy := envelope.GetConfig().GetDeploy()
+		if deploy == nil || deploy.GetCandidateId() != "candidate-1" || deploy.GetDestinationRevisionId() != "destination-1" || deploy.GetAuthorizationEpoch() != 7 || deploy.GetReadinessReviewKey() != "review-1" {
+			t.Fatalf("release identity = %+v", deploy)
+		}
+		w.Header().Set("Content-Type", "application/proto")
+		response, err := proto.Marshal(&pipelinev1.PipelineRunResponse{PipelineId: "pipe-1"})
+		if err != nil {
+			t.Fatalf("encode Connect response: %v", err)
+		}
+		_, _ = w.Write(response)
 	}))
 	defer server.Close()
-	client := &DesktopPackagerClient{httpClient: server.Client(), baseURL: server.URL, log: func(string, map[string]interface{}) {}}
-	ctx := context.Background()
-	smoke, err := client.RunSmokeTest(ctx, &SmokeTestRequest{ScenarioName: "demo", Platform: "linux", Recording: &ScreenRecordingConfig{Enabled: true}})
-	if err != nil || smoke.Status != "passed" {
-		t.Fatalf("smoke = %#v, %v", smoke, err)
-	}
-	if status, err := client.GetSmokeTestStatus(ctx, "smoke-1"); err != nil || status.Status != "passed" {
-		t.Fatalf("smoke status = %#v, %v", status, err)
-	}
-	video := filepath.Join(t.TempDir(), "smoke.mp4")
-	if err := client.DownloadVideo(ctx, "smoke-1", video); err != nil {
-		t.Fatal(err)
-	}
-	if data, err := os.ReadFile(video); err != nil || string(data) != "video" {
-		t.Fatalf("video = %q, %v", data, err)
-	}
-	pipeline, err := client.RunPublishPipeline(ctx, &PublishPipelineRequest{ScenarioName: "demo", Publish: true})
-	if err != nil || pipeline.PipelineID != "pipe-1" {
-		t.Fatalf("pipeline = %#v, %v", pipeline, err)
-	}
-	if status, err := client.GetPipelineStatus(ctx, "pipe-1"); err != nil || status.CurrentState != "completed" {
-		t.Fatalf("pipeline status = %#v, %v", status, err)
-	}
-	if err := client.SetSigningConfig(ctx, "demo", map[string]interface{}{"platform": "linux"}); err != nil {
-		t.Fatal(err)
-	}
-}
 
-func TestDesktopPackagerPipelineCancellationAndHTTPFailures(t *testing.T) {
-	client := &DesktopPackagerClient{httpClient: http.DefaultClient, baseURL: "http://127.0.0.1:1", log: func(string, map[string]interface{}) {}}
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	if _, err := client.WaitForSmokeTest(ctx, "smoke", 1); err == nil {
-		t.Fatal("cancelled smoke wait returned nil error")
+	client := &DesktopPackagerClient{httpClient: server.Client(), baseURL: server.URL, log: func(string, map[string]interface{}) {}}
+	response, err := client.RunPublishPipelineConnect(context.Background(), &PublishPipelineRequest{
+		ScenarioName:            "qualified-app",
+		Platforms:               []string{"linux-x64"},
+		ArtifactDigest:          "sha256:manifest",
+		ExpectedArtifactDigests: map[string]string{"linux-x64": "sha256:artifact"},
+		ReleaseVersion:          "1.2.3",
+		CandidateID:             "candidate-1", DestinationRevisionID: "destination-1", AuthorizationEpoch: 7, ReadinessReviewKey: "review-1",
+		DeployConfig: &PublishDeployConfig{AppKey: "qualified-app", ReleaseID: "release-1", Channel: "stable", CandidateID: "candidate-1", DestinationRevisionID: "destination-1", AuthorizationEpoch: 7, ReadinessReviewKey: "review-1"},
+	})
+	if err != nil {
+		t.Fatalf("RunPublishPipelineConnect() error = %v", err)
 	}
-	if _, err := client.WaitForPipeline(ctx, "pipeline"); err == nil {
-		t.Fatal("cancelled pipeline wait returned nil error")
+	if response.PipelineID != "pipe-1" {
+		t.Fatalf("pipeline id = %q, want pipe-1", response.PipelineID)
 	}
 }

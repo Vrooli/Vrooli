@@ -56,6 +56,80 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-09-09 — Clean Linux lifecycle evidence remains pending
+
+**Symptom:** The Linux node-agent lifecycle is covered by static rendering,
+service-manager argv, privilege-boundary, bootstrap convergence, and recovery
+fixtures, but this execution does not yet contain the required clean-host
+install, reboot, update/rollback, unauthorized-IPC, and ownership-safe removal
+receipts.
+
+**Root cause:** The current workspace host is a shared development machine, not
+a disposable certification target. Its user systemd manager and linger state
+are observable, but using the host for destructive lifecycle certification
+would not provide clean restoration evidence.
+
+**Workaround:** Treat the focused agent tests, `bootstrap_test.sh`, static
+Linux build, and Bridge API validation as implementation evidence only. Keep
+Phase 12 unfinished and do not promote these fixtures to native M01 evidence.
+
+**Real fix:** Run the supported bootstrap and service lifecycle on a recorded,
+disposable Linux target, capture process principals before/after reboot,
+exercise failed readiness and rollback, test a different local IPC caller, and
+verify that removal leaves unrelated data intact.
+
+**Owner:** Bridge deployment validation / operator-provided Linux target.
+
+**Refs:** `agent/internal/service/`, `agent/internal/privsep/`,
+`bootstrap/bootstrap.sh`, Phase 12 execution `7c154c06-2692-4679-b5dd-a1e0d4155ff5`,
+Bridge API run `20260910-023332-26fa3be5`.
+
+### 2026-09-09 — Certification collection is incomplete and traceability is provisional
+
+**Symptom:** The prospective Plan Manager collection baseline has 11 ready
+members, 2 failed members, and 4 pending members. The Bridge member is retained
+as a ready baseline artifact, but the collection is not complete.
+
+**Root cause:** Android baseline execution exceeded its deadline, desktop
+admission was saturated, and autoheal, emulator, onboarding, web-console, and
+workspace-sandbox had not terminalized when the collection was read.
+
+**Workaround:** Keep those cells failed or pending in the evidence index. Use
+the Bridge-owned focused receipts and the bounded qualification program for
+controlled admission work; do not use the collection as certification evidence.
+
+**Real fix:** Reconcile each failed or pending member through Git Control Tower
+after its owner is available, then run the final captured collection again
+against the exact release candidate.
+
+**Owner:** Plan Manager / Git Control Tower with each affected scenario owner.
+
+**Refs:** Collection `vrooli-bridge-deployment-foundation-certification-baseline`,
+generation 1; Bridge run `20260909-201241-f694f841`.
+
+### 2026-09-09 — Requirements traceability remains below findings-clean
+
+**Symptom:** The requirements registry is structurally valid and the latest
+focused business/docs run passes, but full business sync and live evidence do
+not yet prove all P0 requirements.
+
+**Root cause:** Several existing requirements intentionally retain planned or
+failing validation references while native, security, and release work is
+unfinished. The new selective-footprint requirement is planned until its
+closure and activation tests land.
+
+**Workaround:** Treat the ledger as an honest skeleton/evidence map. Do not
+flip requirement statuses or PRD checkboxes from the focused run.
+
+**Real fix:** Add desired-behavior tests at the owning seams, tag them with
+their requirement IDs, run the complete requirements sync, and re-grade the
+business dimension.
+
+**Owner:** Bridge requirement owners.
+
+**Refs:** `requirements/22-selective-footprint/module.json`,
+`docs/internal/TESTING.md`, focused run `20260909-200637-268743d5`.
+
 ### 2026-09-01 — Reference-node end-to-end proof remains pending
 
 **Symptom:** The repository now exposes target-aware configuration, credential,
@@ -498,3 +572,187 @@ Current identity/delegation work remains on the typed Mode-A ladder:
    desktop-bound observe/act/stop calls to Device Control's private owner RPC;
    live paired-node and network-fault evidence remains outstanding. Updated
    2026-09-08.
+
+### 2026-09-09 — Deployment-foundation W0 reconciliation
+
+The contract mismatch identified on 2026-09-07 is resolved at the PRD layer:
+OT-P0-010 now makes complete and selective footprint activation an explicit
+must-ship outcome, and the deployment document defines both modes against the
+same onboarding-owned closure. This resolves the W0 omission; it does not claim
+that the selective shipment, clean-target native matrix, or release evidence
+has passed. Those remain the implementation and certification work in phases
+10–29 of the deployment-foundation plan.
+
+The current shared worktree also contains a separate root CLI-manifest drift:
+two commands use `process:spawn`, while `.vrooli/schemas/cli-manifest.schema.json`
+does not admit that permission. Bridge dispatch tests therefore fail during
+catalog construction before exercising their intended assertions. This is
+retained as an external/concurrent finding; it is not silently “fixed” by
+weakening Bridge admission or by replacing the operator's manifest changes.
+
+### 2026-09-09 — Phase 3 target identity and typed-contract receipt
+
+Phase 3 completed with a fresh Plan Manager validation receipt:
+`60e1b951-58fa-43c0-9ccb-7895dbf59f49` (`PASS`, `FRESH`). The required owner
+children succeeded for `vrooli-bridge` (`20260909-223624-e11da5b8`) and
+`web-console` (`20260909-223659-dbd4fe85`) under the narrowed `contracts`
+scope. Direct evidence also includes `go run -mod=mod ./cmd/protogen verify`,
+generated Bridge package tests, api-core target-model tests, focused Bridge
+projection/attached/gate/onboarding tests, focused Web Console target tests,
+and Bridge unit-health static validation with zero blocking findings.
+
+The implementation now uses durable target identity for exact selection,
+rejects ambiguous duplicate IDs, preserves unavailable exact targets for
+discovery, and places shared channel response/receipt messages in the
+canonical proto shared domain. This is source and focused-contract evidence;
+it is not native target/device deployment proof.
+
+The Web Console proto owner run `20260909-222351-414b6da4` remains a retained
+limitation because its eight REST payload declarations and API-to-CLI endpoint
+registry drift are outside the target projection change. Its focused target
+tests and scoped contracts receipt pass. Bridge UI coverage also retains three
+baseline failures in untouched session, locale, and onboarding-form tests
+(`177/180` passing). Neither limitation is upgraded to a Bridge defect or
+silently removed from the evidence ledger.
+
+### 2026-09-09 — Phase 4 operation-specific readiness receipt
+
+Phase 4 completed with fresh Plan Manager validation receipt
+`03198d19-38a4-4bc5-bb33-75bb3644cf5c` (`PASS`, `FRESH`, execution
+`7c154c06-2692-4679-b5dd-a1e0d4155ff5`, scope generation `1`). The required
+owner API receipts also passed: Bridge
+`20260909-230051-ef807921`, Onboarding `20260909-230058-9e6c5dcf`, and Web
+Console `20260909-230110-d4aa5b53`. Direct evidence covers the shared
+operation evaluator, headless-versus-visual prerequisite separation, stale
+heartbeat freshness windows, revoked-grant refusal, operation-aware selection,
+proto generation, Web Console target projection, and remote-session admission.
+
+The maintained owner phase is `api`; the historical `integration` phase is no
+longer in the live Test Genie catalog. Broad `unit api` runs retain unrelated
+unit/UI/API-workspace and unit-policy baseline failures, while their `api`
+phases pass. Full proto verification also retains pre-existing generated drift
+in `gen/descriptor/image.binpb` and untracked `gen/manifests/zzprobe.lock.json`.
+The first Phase 4 validation attempt was stale because scoped test artifacts
+changed during execution; it is retained as historical evidence, and the fresh
+retry above is the authoritative receipt. No native real-target or physical
+device proof is claimed here.
+
+### 2026-09-09 — Phase 5 pairing and identity-recovery receipt
+
+Phase 5 completed with fresh Plan Manager validation receipt
+`2c02219b-57a4-4cd4-9f8c-aac29c8ea922` (`PASS`, `FRESH`, execution
+`7c154c06-2692-4679-b5dd-a1e0d4155ff5`). The owner child
+`20260909-232448-b06073b8` passed the maintained `api` phase. Focused direct
+tests pass for correlated concurrent replay, single-use redemption, failed
+credential-write recovery through the durable enrollment saga, immutable
+attempt retry lineage, stable machine identity resolution, conflict-safe node
+lineage, and explicit merge behavior.
+
+The broader owner run `20260909-232019-567eb2ed` passed `api` but failed the
+generic security-health phase with four errors and 351 warnings. The findings
+are retained because they cover artifact delivery, SSH/toolchain dependency,
+and other surfaces outside this phase's pairing/machine boundary; they are not
+promoted to a Phase 5 defect. Its failed validation attempt
+`81801106-28f5-449b-b390-6fa544e8d612` is likewise retained; the corrected
+`api`-only receipt above is authoritative. The full pairing package also
+encounters concurrent `proto-health` CLI manifest permission drift before its
+intended assertions. No native target proof is claimed.
+
+### 2026-09-09 — Phase 6 authorization, replay, and revocation receipt
+
+Phase 6 completed with Plan Manager validation operation
+`34adf641-0c82-497e-ac43-b58f14e68634` (`PASS`, terminal, fresh scoped
+validation). The required owner receipts were Bridge
+`20260909-233232-855de38a` and scenario-authenticator
+`20260909-233427-49fae3cd`. The maintained `api` owner phase passed for both
+scenarios; scenario-authenticator's `security` phase also passed.
+
+Focused direct evidence covers grant denial without a durable run or push,
+fresh Ed25519 node proof validation, cross-node and stale-proof replay
+rejection, default presence-only agent posture, procedure-based proxy
+admission, owner break-glass scope ceilings, durable revocation ordering, and
+rejection of a delayed relay result after node revocation. The new delayed
+result regression is in `api/handlers/channel/heartbeat_handler_test.go`.
+Focused agent channel/cpverify/config/credential-grant tests, api-core
+trustposture tests, and scenario-authenticator account/auth/authorization
+tests pass.
+
+The retained broad Bridge receipt failed its generic security and proto phases.
+Its security findings are artifact-delivery hardcoded-secret findings and SSH
+dependency vulnerabilities; its proto findings are descriptor/domain/health
+baseline drift. These are outside the Phase 6 authorization boundary and are
+retained as attribution evidence. Direct broad Bridge package tests also
+encounter concurrent proto-health manifest permission drift. No native
+real-target, physical-device, or independent adversarial-review proof is
+claimed by this phase.
+
+### 2026-09-09 — Phase 7 privileged host-action boundary receipt
+
+Phase 7 completed with Plan Manager validation operation
+`9a49e731-5973-48b8-91b7-24aebfb9f6f2` (`PASS`, terminal, targeted). Its fresh
+Bridge owner child `20260909-235034-5d93a96d` passed the maintained `api`
+phase. Direct package evidence also passes for the typed privileged IPC,
+kernel peer-UID admission, closed helper-operation vocabulary, fixed-argv
+no-shell execution, native service definitions, configuration guards,
+fail-closed audit ordering, rollback, and unavailable-helper reporting.
+
+Two initial Bridge owner attempts (`20260909-234450-030928be` and
+`20260909-234722-4629d6cc`) could not acquire `api-health` ownership and are
+retained as provider-unavailable infrastructure receipts. The successful
+producer validation and fresh child are authoritative. Phase 7 made no
+implementation changes; the live two-principal runner/helper process-owner
+proof remains an explicit real-host obligation for phases 12–14. No native
+process-owner proof is claimed here.
+
+### 2026-09-10 — Phase 8 target-addressed resumable onboarding receipt
+
+Phase 8 implementation evidence covers the typed onboarding path across CLI,
+Web Console, and API. Operator-input answers now carry the target and the
+configuration revision observed by the caller; stale submissions fail with
+Connect `aborted` before capability application, preserving newer desired
+state. CLI selection, session, operator-state, readiness, apply-plan/review,
+consent, run recovery, and support export paths preserve the same target axis.
+Web Console re-apply now obtains and reviews the target's current plan before
+starting a consented durable run with stable idempotency.
+
+Focused native tests pass:
+
+* `cd scenarios/vrooli-onboarding/api && go test ./internal/operatorinputs ./handlers/operatorinputs ./internal/targetproxy ./handlers/readiness ./handlers/apply`
+* `cd scenarios/vrooli-onboarding/cli && go test ./domains/wizard ./domains/selection`
+* `cd scenarios/web-console/api && go test . -run '^$'`
+
+Fresh maintained owner API receipts pass for vrooli-onboarding
+`20260910-001356-772ea770`, vrooli-bridge `20260910-001411-5f8d542c`, and
+web-console `20260910-001419-4e2c74f1`. Bridge and Web Console retain their
+existing API-health warning findings; those are not Phase 8 regressions.
+Plan Manager validation operations `57224871-3a96-4e5d-a431-c494bfa750be`
+and `95e16508-9e9b-4d47-a2e6-fa8f50e22d2a` are retained as stale/unknown
+because the shared worktree's relevant source identity changed during
+producer validation. No real-target or physical-device proof is claimed.
+
+### 2026-09-10 — Minimouse configuration RPC compatibility remains open
+
+**Symptom:** Web Console lists the registered `minimouse` node as reachable,
+but its Configuration tab cannot load operator questions. The live path ends
+with Web Console HTTP 503 and Bridge HTTP 502.
+
+**Root cause:** The target is reachable and dispatchable, but its remote
+`vrooli-onboarding` service returns HTTP 404 for the current
+`OperatorInputsService/ListOperatorInputs` route. The local onboarding service
+answers the same request with HTTP 200, so the local Bridge/Web Console route
+is not the failing layer.
+
+**Workaround:** Inspect the technical detail and target onboarding health. Do
+not treat Re-apply as a repair for a missing remote route; use the local
+focused tests and preserve the target as unqualified.
+
+**Real fix:** Refresh or redeploy the target-side onboarding service/profile
+through an authorized target operation, then repeat the configuration,
+readiness, answer, and re-apply journey with independent remote evidence.
+
+**Owner:** Bridge deployment validation / authorized minimouse target owner.
+
+**Refs:** `local:web-console/minimouse-get-configuration-20260910`,
+`vrooli-bridge://minimouse/6a43fa2a-5749-4c79-a4b2-c464cb8bfc02`,
+scenario-qa bug `knw-1789036207323889110`, and the certification index under
+`/home/matthalloran8/.vrooli/plan-artifacts/vrooli-bridge-deployment-foundation-certification/evidence/`.

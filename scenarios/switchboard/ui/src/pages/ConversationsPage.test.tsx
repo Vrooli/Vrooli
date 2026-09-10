@@ -116,10 +116,20 @@ describe("ConversationsPage edge states", () => {
     expect(screen.getByTestId("conversations-transcript-region")).toHaveAttribute("data-experience-state", "empty");
   });
 
-  it("shows the phone-width thread strip beside an open thread", async () => {
+  it("gives an open thread the whole screen instead of keeping a list beside it", async () => {
     stubConsoleFetch(defaultRoutes());
     renderAt("/conversations/thread-1");
-    expect(await screen.findByTestId("conversations-thread-strip")).toBeInTheDocument();
+    await screen.findByTestId("conversations-transcript-region");
+    // EXPERIENCE.md: "list and detail are separate screens". No phone-width
+    // switcher may survive beside an open thread.
+    expect(screen.queryByTestId("conversations-thread-strip")).not.toBeInTheDocument();
+    expect(screen.getByTestId("conversations-thread-list-region").className).toContain("hidden");
+  });
+
+  it("offers call mode from an open thread", async () => {
+    stubConsoleFetch(defaultRoutes());
+    renderAt("/conversations/thread-1");
+    expect(await screen.findByTestId("conversations-call")).toHaveAttribute("href", "/call/thread-1");
   });
 
   it("treats an unknown thread as an empty transcript, not an error", async () => {

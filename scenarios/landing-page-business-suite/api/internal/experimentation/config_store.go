@@ -59,13 +59,14 @@ var _ ConfigStorer = (*ConfigStore)(nil)
 // loaded from JSON files. It serves as the single source of truth for config,
 // replacing the previous database-backed variant/branding storage.
 type ConfigStore struct {
-	mu           sync.RWMutex
-	variants     map[string]*VariantSnapshot // slug -> full variant with sections
-	branding     *SiteBranding
-	variantsDir  string
-	brandingPath string
-	space        *VariantSpace
-	log          func(event string, fields map[string]interface{})
+	mu                sync.RWMutex
+	variants          map[string]*VariantSnapshot // slug -> full variant with sections
+	branding          *SiteBranding
+	variantsDir       string
+	brandingPath      string
+	space             *VariantSpace
+	log               func(event string, fields map[string]interface{})
+	migrateCredential func(key, value string) error
 }
 
 // NewConfigStore creates a new ConfigStore with paths to the JSON files.
@@ -83,6 +84,10 @@ type ConfigStoreOptions struct {
 	BrandingPath string
 	Space        *VariantSpace
 	Log          func(event string, fields map[string]interface{})
+	// MigrateCredential is used once for legacy protected values found in the
+	// JSON settings file. Production composition supplies the credential
+	// authority; tests can provide an isolated recorder.
+	MigrateCredential func(key, value string) error
 }
 
 func NewConfigStoreWithOptions(opts ConfigStoreOptions) *ConfigStore {
@@ -91,11 +96,12 @@ func NewConfigStoreWithOptions(opts ConfigStoreOptions) *ConfigStore {
 		space = DefaultVariantSpace()
 	}
 	return &ConfigStore{
-		variants:     make(map[string]*VariantSnapshot),
-		variantsDir:  opts.VariantsDir,
-		brandingPath: opts.BrandingPath,
-		space:        space,
-		log:          opts.Log,
+		variants:          make(map[string]*VariantSnapshot),
+		variantsDir:       opts.VariantsDir,
+		brandingPath:      opts.BrandingPath,
+		space:             space,
+		log:               opts.Log,
+		migrateCredential: opts.MigrateCredential,
 	}
 }
 
@@ -144,6 +150,22 @@ func (cs *ConfigStore) loadBrandingLocked() error {
 	if err := json.Unmarshal(data, &branding); err != nil {
 		return fmt.Errorf("parse branding JSON: %w", err)
 	}
+	// SMTP passwords from pre-authority branding files must be migrated before
+	// they are removed from the runtime model. Silently discarding a legacy
+	// password would turn a recoverable migration into an unexplained outage.
+	if branding.SMTPPassword != nil && strings.TrimSpace(*branding.SMTPPassword) != "" {
+		if cs.migrateCredential == nil {
+			return fmt.Errorf("legacy smtp_password requires a credential authority migration")
+		}
+		if err := cs.migrateCredential("SMTP_PASSWORD", *branding.SMTPPassword); err != nil {
+			return fmt.Errorf("migrate legacy smtp_password: %w", err)
+		}
+		if err := removeLegacySMTPPassword(cs.brandingPath); err != nil {
+			return fmt.Errorf("remove legacy smtp_password: %w", err)
+		}
+		cs.logEvent("legacy_smtp_password_migrated", map[string]interface{}{"path": cs.brandingPath})
+	}
+	branding.SMTPPassword = nil
 
 	// Set defaults for required fields
 	if branding.SiteName == "" {
@@ -158,6 +180,26 @@ func (cs *ConfigStore) loadBrandingLocked() error {
 		"path":      cs.brandingPath,
 		"site_name": branding.SiteName,
 	})
+	return nil
+}
+
+func removeLegacySMTPPassword(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var values map[string]json.RawMessage
+	if err := json.Unmarshal(data, &values); err != nil {
+		return fmt.Errorf("parse branding JSON for migration: %w", err)
+	}
+	delete(values, "smtp_password")
+	clean, err := json.MarshalIndent(values, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal migrated branding JSON: %w", err)
+	}
+	if err := os.WriteFile(path, clean, 0o600); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -443,6 +485,10 @@ func (cs *ConfigStore) GetBranding() *SiteBranding {
 func (cs *ConfigStore) SaveBranding(branding *SiteBranding) error {
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
+	// Protected SMTP material belongs to the credential authority, not the
+	// branding cache or its JSON representation. Callers that receive a
+	// password from the settings boundary must persist it through that owner.
+	branding.SMTPPassword = nil
 
 	if branding.SiteName == "" {
 		return errors.New("site_name is required")
@@ -506,9 +552,6 @@ func (cs *ConfigStore) SaveBranding(branding *SiteBranding) error {
 	}
 	if branding.SMTPUsername != nil {
 		fileData["smtp_username"] = *branding.SMTPUsername
-	}
-	if branding.SMTPPassword != nil {
-		fileData["smtp_password"] = *branding.SMTPPassword
 	}
 	if branding.SMTPFrom != nil {
 		fileData["smtp_from"] = *branding.SMTPFrom
@@ -608,9 +651,6 @@ func (cs *ConfigStore) UpdateBranding(req *BrandingUpdateRequest) (*SiteBranding
 	}
 	if req.SMTPUsername != nil {
 		current.SMTPUsername = req.SMTPUsername
-	}
-	if req.SMTPPassword != nil {
-		current.SMTPPassword = req.SMTPPassword
 	}
 	if req.SMTPFrom != nil {
 		current.SMTPFrom = req.SMTPFrom
@@ -759,9 +799,6 @@ func (cs *ConfigStore) saveBrandingLocked() error {
 	}
 	if cs.branding.SMTPUsername != nil {
 		fileData["smtp_username"] = *cs.branding.SMTPUsername
-	}
-	if cs.branding.SMTPPassword != nil {
-		fileData["smtp_password"] = *cs.branding.SMTPPassword
 	}
 	if cs.branding.SMTPFrom != nil {
 		fileData["smtp_from"] = *cs.branding.SMTPFrom

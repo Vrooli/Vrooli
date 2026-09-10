@@ -10,9 +10,11 @@ import (
 	"testing"
 	"time"
 
+	internalartifacts "vrooli-bridge/internal/artifacts"
 	auditmocks "vrooli-bridge/internal/audit/mocks"
 	"vrooli-bridge/internal/nodeauth"
 	"vrooli-bridge/internal/presence"
+	"vrooli-bridge/internal/relay"
 	"vrooli-bridge/internal/runs"
 
 	"github.com/vrooli/api-core/scheduletest"
@@ -32,8 +34,26 @@ type fakeLastSeen struct {
 
 type fakeDeliveryAckRecorder struct{ acks []runs.DeliveryAck }
 
+type fakeArtifactReceiptRecorder struct {
+	receipts []internalartifacts.DeliveryReceipt
+}
+
+type fakeRelayResponseSink struct {
+	responses []relay.Response
+}
+
+func (f *fakeRelayResponseSink) Deliver(_ context.Context, _ string, response relay.Response) error {
+	f.responses = append(f.responses, response)
+	return nil
+}
+
 func (f *fakeDeliveryAckRecorder) RecordDeliveryAck(_ context.Context, ack runs.DeliveryAck) error {
 	f.acks = append(f.acks, ack)
+	return nil
+}
+
+func (f *fakeArtifactReceiptRecorder) RecordDeliveryReceipt(_ context.Context, receipt internalartifacts.DeliveryReceipt) error {
+	f.receipts = append(f.receipts, receipt)
 	return nil
 }
 
@@ -78,9 +98,15 @@ func TestReportHeartbeat_MissingNodeIDRejected(t *testing.T) {
 }
 
 // fakeCredStore satisfies nodeauth.CredentialStore for enforcement tests.
-type fakeCredStore struct{ keys map[string]ed25519.PublicKey }
+type fakeCredStore struct {
+	keys    map[string]ed25519.PublicKey
+	revoked map[string]bool
+}
 
 func (f fakeCredStore) ActivePublicKey(_ context.Context, nodeID string) (ed25519.PublicKey, bool, error) {
+	if f.revoked[nodeID] {
+		return nil, false, nil
+	}
 	pub, ok := f.keys[nodeID]
 	return pub, ok, nil
 }
@@ -181,4 +207,49 @@ func TestReportDeliveryAckRejectsCrossNodeForge(t *testing.T) {
 	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
 	require.Empty(t, hub.DeliveryAcks())
 	require.Len(t, auditSink.Appended(), 1)
+}
+
+func TestReportArtifactReceiptBindsToAuthenticatedNode(t *testing.T) {
+	recorder := &fakeArtifactReceiptRecorder{}
+	h := NewHeartbeatHandler(HeartbeatDeps{Hub: newHub(), ArtifactReceipts: recorder})
+	req := connect.NewRequest(&presencev1.ReportArtifactReceiptRequest{Receipt: &sharedv1.ArtifactReceipt{
+		DistributionId: "dist-1", NodeId: "n1", ItemId: "item-1", DestinationPath: "/opt/app/setup.exe",
+		Accepted: true, Sha256: "abc123", SizeBytes: 42,
+	}})
+	req.Header().Set(nodeauth.HeaderNode, "n1")
+	resp, err := h.ReportArtifactReceipt(context.Background(), req)
+	require.NoError(t, err)
+	require.True(t, resp.Msg.Accepted)
+	require.Len(t, recorder.receipts, 1)
+	require.Equal(t, "dist-1", recorder.receipts[0].DistributionID)
+	require.Equal(t, "n1", recorder.receipts[0].NodeID)
+	require.True(t, recorder.receipts[0].Accepted)
+}
+
+// [REQ:BRG-P1-004] A relay response signed before revocation is still refused
+// after the node credential is revoked. A delayed frame therefore cannot
+// replace an existing result in the relay broker.
+func TestReportRelayResponse_RevokedNodeCannotDeliverDelayedResult(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	now := time.Unix(1_700_000_000, 0)
+	store := &fakeCredStore{keys: map[string]ed25519.PublicKey{"n1": pub}}
+	verifier := nodeauth.NewVerifier(store, nodeauth.WithClock(func() time.Time { return now }))
+	sink := &fakeRelayResponseSink{}
+	h := NewHeartbeatHandler(HeartbeatDeps{Hub: newHub(), Verifier: verifier, RelayResponses: sink})
+
+	// The signature is valid when created, but the frame is delayed until after
+	// the durable credential is revoked.
+	req := connect.NewRequest(&presencev1.ReportRelayResponseRequest{Response: &sharedv1.RelayResponse{
+		CorrelationId: "relay-1",
+		Kind:          sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_COMPLETED,
+	}})
+	req.Header().Set(nodeauth.HeaderNode, "n1")
+	req.Header().Set(nodeauth.HeaderTS, strconv.FormatInt(now.Unix(), 10))
+	req.Header().Set(nodeauth.HeaderSig, base64.StdEncoding.EncodeToString(ed25519.Sign(priv, nodeauth.SigningPayload("n1", now))))
+	store.revoked = map[string]bool{"n1": true}
+
+	_, err = h.ReportRelayResponse(context.Background(), req)
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Empty(t, sink.responses, "revocation must prevent a delayed result from reaching the broker")
 }

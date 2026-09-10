@@ -5,10 +5,6 @@ export const selectors = {
   },
   layout: {
     shell: "sda-layout-shell",
-    topBar: "sda-layout-topbar",
-    sidebar: "sda-layout-sidebar",
-    bottomNav: "sda-layout-bottom-nav",
-    main: "sda-layout-main",
     navLink: (route: string) => `sda-nav-${route}`
   },
   errorBoundary: {

@@ -35,6 +35,13 @@ func VerdictFromBridge(result crossosgate.OSResult, ramp, platform, runID string
 	default:
 		return nil, fmt.Errorf("unsupported bridge disposition %q", result.Disposition)
 	}
+	// Bridge's current OS result contains execution identity, but it does not
+	// carry a producer-owned artifact locator and checksum. A bridge gate pass
+	// therefore cannot satisfy the shared evidence contract. Refuse it here so
+	// callers cannot mistake a transport-level success for promotable proof.
+	if disposition == commonv1.Disposition_DISPOSITION_PASSED {
+		return nil, fmt.Errorf("bridge passed result lacks an attributable evidence reference")
+	}
 	target := &commonv1.EvidenceTarget{
 		Ramp: ramp, Platform: platform, Os: result.OS,
 		DeviceKind: commonv1.DeviceKind_DEVICE_KIND_HOST,

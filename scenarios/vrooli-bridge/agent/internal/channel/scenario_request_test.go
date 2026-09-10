@@ -14,10 +14,11 @@ import (
 	"connectrpc.com/connect"
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 )
 
 type scenarioResponseCollector struct {
-	response chan *channelv1.ScenarioResponse
+	response chan *sharedv1.ScenarioResponse
 }
 
 func (c scenarioResponseCollector) ReportScenarioResponse(_ context.Context, request *connect.Request[presencev1.ReportScenarioResponseRequest]) (*connect.Response[presencev1.ReportScenarioResponseResponse], error) {
@@ -40,7 +41,7 @@ func TestRunScenarioRequestUsesBoundedNodeLocalHTTP(t *testing.T) {
 
 	port := 0
 	_, _ = fmt.Sscanf(server.URL, "http://127.0.0.1:%d", &port)
-	collector := scenarioResponseCollector{response: make(chan *channelv1.ScenarioResponse, 1)}
+	collector := scenarioResponseCollector{response: make(chan *sharedv1.ScenarioResponse, 1)}
 	client := NewClient(config.Config{NodeID: "node-1"}, WithHTTPClient(server.Client()), WithScenarioPortResolver(func(context.Context, string) (int, error) { return port, nil }), WithScenarioResponseReporter(collector))
 	client.baseCtx = context.Background()
 	client.runScenarioRequest(&channelv1.ScenarioRequest{CorrelationId: "corr-1", Scenario: "demo", Service: "demo.Service", Method: "Get", Request: []byte("request"), MaxResponseBytes: 32})
@@ -65,7 +66,7 @@ func TestRunScenarioRequestUsesDeclaredHTTPMethod(t *testing.T) {
 	defer server.Close()
 	port := 0
 	_, _ = fmt.Sscanf(server.URL, "http://127.0.0.1:%d", &port)
-	collector := scenarioResponseCollector{response: make(chan *channelv1.ScenarioResponse, 1)}
+	collector := scenarioResponseCollector{response: make(chan *sharedv1.ScenarioResponse, 1)}
 	client := NewClient(config.Config{NodeID: "node-1"}, WithHTTPClient(server.Client()), WithScenarioPortResolver(func(context.Context, string) (int, error) { return port, nil }), WithScenarioResponseReporter(collector))
 	client.baseCtx = context.Background()
 	client.runScenarioRequest(&channelv1.ScenarioRequest{CorrelationId: "corr-get", Scenario: "demo", Service: "api", Method: "v2/readiness", HttpMethod: http.MethodGet, MaxResponseBytes: 32})

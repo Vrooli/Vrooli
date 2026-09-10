@@ -3,24 +3,30 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchCoreSet, fetchScenarios } from "../../api/selection";
 import { NavigationTree } from "@vrooli/react-component-library/NavigationTree/1";
 import { i18n } from "../../i18n";
-import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
+import { CardShell } from "@vrooli/react-component-library/CardShell/1";
 
 interface Props {
+  target?: string;
   seed: Set<string>;
   trustedBase: Set<string>;
   onChange: (seed: string[]) => void;
 }
 
-export function StepCoreSet({ seed, trustedBase, onChange }: Props) {
-  const committed = Array.from(seed).sort();
+export function StepCoreSet({ seed, trustedBase, onChange, target = "local" }: Props) {
+  const scenarios = useQuery({ queryKey: ["selection-scenarios", target], queryFn: () => fetchScenarios(target) });
+  const requiredNames = useMemo(() => new Set(
+    (scenarios.data?.scenarios ?? [])
+      .map((scenario) => scenario.name)
+      .filter((name) => ["agent-manager", "prompt-manager", "web-console", "vrooli-autoheal"].includes(name)),
+  ), [scenarios.data]);
+  const committed = Array.from(new Set([...seed, ...requiredNames])).sort();
   const committedKey = committed.join("\u0000");
   const [draftSeed, setDraftSeed] = useState(committed);
   useEffect(() => setDraftSeed(committedKey ? committedKey.split("\u0000") : []), [committedKey]);
   const draft = useMemo(() => new Set(draftSeed), [draftSeed]);
-  const scenarios = useQuery({ queryKey: ["selection-scenarios"], queryFn: () => fetchScenarios() });
   const preview = useQuery({
-    queryKey: ["selection-core-set", draftSeed],
-    queryFn: () => fetchCoreSet(draftSeed),
+    queryKey: ["selection-core-set", target, draftSeed],
+    queryFn: () => fetchCoreSet(draftSeed, target),
   });
   const toggle = (name: string) => {
     const next = new Set(draft);
@@ -37,11 +43,27 @@ export function StepCoreSet({ seed, trustedBase, onChange }: Props) {
     <NavigationTree title={i18n.t("onboarding.core.tree")}>
       <ul className="mt-5 grid gap-2 sm:grid-cols-2" data-rcl-navigation-tree-list>
       {(scenarios.data?.scenarios ?? []).map((scenario) => {
-        const trusted = trustedBase.has(scenario.name);
-        return <li key={scenario.name} data-rcl-navigation-tree-item><label className="flex min-h-11 items-center gap-3 rounded-lg border border-muted p-3">
-          <Checkbox checked={draft.has(scenario.name)} disabled={trusted} onCheckedChange={() => toggle(scenario.name)} aria-label={i18n.t("onboarding.core.supervise", { name: scenario.name })} data-testid="core-set-toggle" />
-          <span><span className="block font-medium">{scenario.name}</span>{trusted && <span className="block text-xs text-muted">{i18n.t("onboarding.core.trusted")}</span>}</span>
-        </label></li>;
+        const trusted = trustedBase.has(scenario.name) || requiredNames.has(scenario.name);
+        return <li key={scenario.name} data-rcl-navigation-tree-item>
+          <CardShell
+            className="scenario-choice-card scenario-choice-card--compact"
+            testId="core-set-toggle"
+            interactive={!trusted}
+            selectLabel={i18n.t("onboarding.core.supervise", { name: scenario.name })}
+            selection={{
+              selectionMode: true,
+              selected: draft.has(scenario.name),
+              disabled: trusted,
+              disabledReason: trusted ? i18n.t("onboarding.core.trusted") : undefined,
+              onToggleSelect: () => toggle(scenario.name),
+            }}
+          >
+            <div className="scenario-choice-card__body">
+              <span className="scenario-choice-card__name">{scenario.name}</span>
+              {trusted && <span className="scenario-choice-card__supporting">{i18n.t("onboarding.core.trusted")}</span>}
+            </div>
+          </CardShell>
+        </li>;
       })}
       </ul>
     </NavigationTree>

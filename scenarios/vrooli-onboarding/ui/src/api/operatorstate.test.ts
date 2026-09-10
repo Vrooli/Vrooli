@@ -25,6 +25,7 @@ describe("typed operator-state client", () => {
     calls.patch.mockResolvedValueOnce({ state: { version: "1.0.0", scenarios: { alpha: { enabled: true } } } });
     const patch = { scenarios: { alpha: { enabled: true } } };
     await saveOperatorState(patch);
-    expect(calls.patch).toHaveBeenCalledWith({ target: "local", state: patch, updateMask: { paths: ["scenarios"] } });
+    expect(calls.patch).toHaveBeenCalledWith(expect.objectContaining({ target: "local", state: patch }));
+    expect(calls.patch.mock.calls[0]?.[0]?.updateMask?.paths).toEqual(["scenarios"]);
   });
 });

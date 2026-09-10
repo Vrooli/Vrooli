@@ -24,6 +24,20 @@ type fakeReporter struct {
 	events []*sharedv1.RunEvent
 }
 
+type cancellationSafeReporter struct {
+	exitReported chan struct{}
+}
+
+func (r *cancellationSafeReporter) Report(ctx context.Context, ev *sharedv1.RunEvent) error {
+	if ev.GetKind() == sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		close(r.exitReported)
+	}
+	return nil
+}
+
 func (f *fakeReporter) Report(_ context.Context, ev *sharedv1.RunEvent) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -91,6 +105,16 @@ func (f *fakeCommand) Run(_ context.Context, argv []string, dir string, onLog fu
 		onLog(l)
 	}
 	return f.exit, nil
+}
+
+type cancelOnContextCommand struct {
+	started chan struct{}
+}
+
+func (f *cancelOnContextCommand) Run(ctx context.Context, _ []string, _ string, _ func(string)) (int, error) {
+	close(f.started)
+	<-ctx.Done()
+	return 143, ctx.Err()
 }
 
 // [REQ:BRG-P0-004] BuildArgv constructs a typed argv — [bin] + verb tokens +
@@ -252,6 +276,28 @@ func TestExecute_NonZeroExitReported(t *testing.T) {
 	last := rep.events[len(rep.events)-1]
 	require.Equal(t, sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT, last.Kind)
 	require.Equal(t, int32(2), last.ExitCode)
+}
+
+func TestExecute_ReportsExitAfterExecutionContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	command := &cancelOnContextCommand{started: make(chan struct{})}
+	reporter := &cancellationSafeReporter{exitReported: make(chan struct{})}
+	runner := exec.NewRunner("vrooli", "", reporter, exec.WithCommandRunner(command))
+
+	done := make(chan error, 1)
+	go func() {
+		done <- runner.Execute(ctx, &channelv1.JobPush{RunId: "cancelled-run", Verb: "scenario test"})
+	}()
+	<-command.started
+	cancel()
+
+	select {
+	case <-reporter.exitReported:
+	case <-time.After(time.Second):
+		t.Fatal("cancelled execution did not report its terminal EXIT")
+	}
+	require.NoError(t, <-done)
 }
 
 func TestExecute_InjectsEphemeralCredentialOnlyIntoChildEnvironment(t *testing.T) {

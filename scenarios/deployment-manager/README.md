@@ -23,7 +23,13 @@ deployment-manager is one of four planes. See [Deployment Hub](../../docs/deploy
 
 **Direction of control**: a ramp calls deployment-manager. deployment-manager does not drive a ramp's pipeline. `scenario-to-desktop` calls three endpoints — create an approval, read the release gate, and generate a bundle manifest — and publishes only when the gate allows it.
 
-**Not implemented yet**: the generic deploy endpoints (`POST /api/v1/deploy/{profile_id}` and `GET /api/v1/deployments/{deployment_id}`) do not orchestrate or track anything. Use the ramp directly. Cross-tier evidence review is design direction, not a current capability.
+The generic deploy endpoints (`POST /api/v1/deploy/{profile_id}` and
+`GET /api/v1/deployments/{deployment_id}`) remain compatibility and local
+deployment surfaces; they do not establish a commercial release. Use the typed
+`releases` lifecycle for candidate-bound, readiness-approved publication. The
+standalone `deploy-desktop` workflow may prepare local artifacts, but a
+commercial effect requires a release identity, exact destination, and current
+authorization through the release service.
 
 ## Key Features (See PRD.md for full operational targets)
 
@@ -57,7 +63,7 @@ Deploy any scenario as a standalone Windows/macOS/Linux desktop app:
 # 1. Create a deployment profile for your scenario
 deployment-manager profile create my-profile my-scenario --tier 2
 
-# 2. Build everything (manifest, binaries, Electron wrapper, installers)
+# 2. Prepare local artifacts (not commercial publication)
 deployment-manager deploy-desktop --profile my-profile
 
 # Output: installers in scenarios/<scenario>/platforms/electron/dist-electron/
@@ -94,10 +100,11 @@ make test  # All phases: dependencies, structure, CLI, API, UI
 ## CLI cheat sheet (agent-friendly)
 - Global output: prefix any command with `--json` or `--format table` (consumed once, applies to nested commands).
 - Discovery: `deployment-manager status`, `deployment-manager analyze <scenario>`, `deployment-manager fitness <scenario> --tier 3`.
-- Profiles: `profiles` (list), `profile create <name> <scenario> --tier <n>`, `profile export <id> --output /path`, `profile diff <id>`, `profile rollback <id> --version <n>`.
+- Profiles: `profiles` (list), `profile create <name> <scenario> --tier <n>`, `profile export <id> --output /path`, `profile import <file>`, and `profile update <id>`.
 - Swaps: `swaps list <scenario>`, `swaps analyze <from> <to>`, `swaps apply <profile> <from> <to> --show-fitness`.
-- Deployments: `deploy <profile> --dry-run`, `deploy-desktop --profile <id> --dry-run`, `validate <profile> --verbose`, `estimate-cost <profile> --verbose`, `package <profile> --packager <scenario-to-*>` (legacy stub), `logs <profile> --level error --format table`.
-- Secrets: `secrets identify <profile>`, `secrets template <profile> --format env`, `secrets validate <profile>`.
+- Deployments: `deploy <profile> --dry-run`, `deploy-desktop --profile <id> --dry-run`, and the typed `releases` lifecycle. Legacy build, logs, profile-validation, and cost-estimate commands remain discoverable but return retirement guidance because their REST handlers are no longer mounted.
+- Release review: `readiness prepare ...`, `readiness get ...`, `releases dossier <release-id>`, and `releases health <release-id>`.
+- Secrets, signing, and visual-validation commands are retired from Deployment Manager; use their owning scenarios or the typed readiness/evidence surfaces.
 ```
 
 ## Deployment Workflows

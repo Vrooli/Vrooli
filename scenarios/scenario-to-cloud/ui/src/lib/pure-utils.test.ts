@@ -121,17 +121,17 @@ describe("deployment progress utilities", () => {
 
   it("updates a matching step while preserving unrelated steps", () => {
     const initial = getInitialSteps();
-    const updated = updateStepStatus(initial, "upload", "completed");
+    const updated = updateStepStatus(initial, "release.deliver", "completed");
 
-    expect(updated.find((step) => step.id === "upload")?.status).toBe("completed");
-    expect(updated.find((step) => step.id === "extract")?.status).toBe("pending");
-    expect(initial.find((step) => step.id === "upload")?.status).toBe("pending");
+    expect(updated.find((step) => step.id === "release.deliver")?.status).toBe("completed");
+    expect(updated.find((step) => step.id === "release.stage")?.status).toBe("pending");
+    expect(initial.find((step) => step.id === "release.deliver")?.status).toBe("pending");
   });
 
   it("initializes steps when an event arrives before state exists", () => {
-    const steps = updateStepStatus(undefined, "setup", "running");
+    const steps = updateStepStatus(undefined, "config.apply", "running");
 
-    expect(steps.find((step) => step.id === "setup")?.status).toBe("running");
+    expect(steps.find((step) => step.id === "config.apply")?.status).toBe("running");
     expect(steps.filter((step) => step.status === "pending")).not.toHaveLength(0);
   });
 });

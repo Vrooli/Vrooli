@@ -283,7 +283,14 @@ func TestBuildSysctlContentIncludesAllParams(t *testing.T) {
 
 func TestBuildJournaldContentHasRateLimit(t *testing.T) {
 	content := buildJournaldContent()
-	for _, want := range []string{"[Journal]", "RateLimitIntervalSec=30s", "RateLimitBurst=10000"} {
+	for _, want := range []string{
+		"[Journal]",
+		"RateLimitIntervalSec=30s",
+		"RateLimitBurst=10000",
+		"SystemMaxUse=" + journaldSystemMaxUse,
+		"RuntimeMaxUse=" + journaldRuntimeMaxUse,
+		"MaxRetentionSec=" + journaldMaxRetention,
+	} {
 		if !strings.Contains(content, want) {
 			t.Errorf("missing %q", want)
 		}

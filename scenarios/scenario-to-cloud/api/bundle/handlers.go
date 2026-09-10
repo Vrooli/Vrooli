@@ -1,16 +1,14 @@
 package bundle
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
 )
 
 // HandleListBundles returns a handler that lists all stored bundles.
@@ -89,16 +87,21 @@ func HandleDeleteBundle() http.HandlerFunc {
 	}
 }
 
-// HandleBundleCleanup returns a handler that removes old bundles from local storage and optionally from VPS.
+// HandleBundleCleanup returns a handler that removes old bundles from the
+// local store. Target release retention is the deployment-scoped GC through
+// the target owner; a clean_vps request is refused with that next action.
 // POST /api/v1/bundles/cleanup
-func HandleBundleCleanup(sshRunner ssh.Runner) http.HandlerFunc {
+func HandleBundleCleanup() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req domain.BundleCleanupRequest
 		if !httputil.DecodeRequestBody(w, r, &req) {
 			return
 		}
-
-		// Apply defaults
+		if req.CleanVPS {
+			apierrors.Write(w, apierrors.New(apierrors.CodeUnsupportedCapability, "target release retention runs through the deployment's target owner, not a host-named bundle sweep").
+				WithNextAction(apierrors.NextAction{Owner: "scenario-to-cloud", Kind: "gc", Reference: "/api/v1/deployments/{id}/bundles/vps/gc", Label: "Garbage-collect the deployment's target release store"}))
+			return
+		}
 		ApplyBundleCleanupDefaults(&req)
 
 		bundlesDir, err := GetLocalBundlesDir()
@@ -113,159 +116,14 @@ func HandleBundleCleanup(sshRunner ssh.Runner) http.HandlerFunc {
 			return
 		}
 
-		resp := domain.BundleCleanupResponse{
+		httputil.WriteJSON(w, http.StatusOK, domain.BundleCleanupResponse{
 			OK:              true,
 			LocalDeleted:    deleted,
 			LocalFreedBytes: freedBytes,
+			Message:         BuildCleanupMessage(deleted, freedBytes),
 			Timestamp:       time.Now().UTC().Format(time.RFC3339),
-		}
-
-		// VPS cleanup (if requested and SSH config provided)
-		if req.CleanVPS && req.Host != "" && req.KeyPath != "" && req.Workdir != "" {
-			vpsDeleted, vpsFreed, vpsErr := CleanupVPSBundles(r.Context(), sshRunner, req)
-			resp.VPSDeleted = vpsDeleted
-			resp.VPSFreedBytes = vpsFreed
-			if vpsErr != nil {
-				resp.VPSError = vpsErr.Error()
-				resp.OK = false // Partial failure
-			}
-		}
-
-		resp.Message = BuildCleanupMessage(deleted, freedBytes, resp.VPSDeleted, resp.VPSFreedBytes)
-		httputil.WriteJSON(w, http.StatusOK, resp)
-	}
-}
-
-// HandleListVPSBundles returns a handler that lists bundles stored on the VPS.
-// POST /api/v1/bundles/vps/list
-func HandleListVPSBundles(sshRunner ssh.Runner) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req domain.VPSBundleListRequest
-		if !httputil.DecodeRequestBody(w, r, &req) {
-			return
-		}
-
-		if !ValidateVPSBundleRequest(w, req.Host, req.KeyPath, req.Workdir) {
-			return
-		}
-
-		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-		defer cancel()
-
-		cfg := ssh.NewConfig(req.Host, req.Port, req.User, req.KeyPath)
-		bundlesPath := shellutil.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
-		bundles, totalSize, err := listVPSBundlesByPath(ctx, sshRunner, cfg, bundlesPath)
-		if err != nil {
-			httputil.WriteJSON(w, http.StatusOK, domain.VPSBundleListResponse{
-				OK:        false,
-				Bundles:   []domain.VPSBundleInfo{},
-				Error:     fmt.Sprintf("Failed to connect or list bundles: %v", err),
-				Timestamp: time.Now().UTC().Format(time.RFC3339),
-			})
-			return
-		}
-
-		httputil.WriteJSON(w, http.StatusOK, domain.VPSBundleListResponse{
-			OK:             true,
-			Bundles:        bundles,
-			TotalSizeBytes: totalSize,
-			Timestamp:      time.Now().UTC().Format(time.RFC3339),
 		})
 	}
-}
-
-// HandleDeleteVPSBundle returns a handler that deletes a single bundle from the VPS.
-// POST /api/v1/bundles/vps/delete
-func HandleDeleteVPSBundle(sshRunner ssh.Runner) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req domain.VPSBundleDeleteRequest
-		if !httputil.DecodeRequestBody(w, r, &req) {
-			return
-		}
-
-		// Validate required fields
-		if req.Host == "" || req.KeyPath == "" || req.Workdir == "" || req.Filename == "" {
-			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-				Code:    "missing_fields",
-				Message: "host, key_path, workdir, and filename are required",
-			})
-			return
-		}
-
-		// Validate filename format to prevent path traversal
-		if !strings.HasPrefix(req.Filename, "mini-vrooli_") || !strings.HasSuffix(req.Filename, ".tar.gz") {
-			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-				Code:    "invalid_filename",
-				Message: "Invalid bundle filename format",
-			})
-			return
-		}
-
-		cfg := ssh.NewConfig(req.Host, req.Port, req.User, req.KeyPath)
-
-		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-		defer cancel()
-
-		bundlePath := shellutil.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles", req.Filename)
-
-		// Get file size before deleting
-		sizeCmd := fmt.Sprintf("stat -c %%s %s 2>/dev/null || echo 0", shellutil.QuoteSingle(bundlePath))
-		sizeRes, _ := sshRunner.Run(ctx, cfg, sizeCmd, ssh.DefaultRunOptions())
-		sizeBytes := ParseBytes(strings.TrimSpace(sizeRes.Stdout))
-
-		// Delete the file
-		deleteCmd := fmt.Sprintf("rm -f %s", shellutil.QuoteSingle(bundlePath))
-		_, err := sshRunner.Run(ctx, cfg, deleteCmd, ssh.DefaultRunOptions())
-		if err != nil {
-			httputil.WriteJSON(w, http.StatusOK, domain.VPSBundleDeleteResponse{
-				OK:        false,
-				Error:     fmt.Sprintf("Failed to delete bundle: %v", err),
-				Timestamp: time.Now().UTC().Format(time.RFC3339),
-			})
-			return
-		}
-
-		var message string
-		if sizeBytes > 0 {
-			message = fmt.Sprintf("Deleted %s, freed %s", req.Filename, FormatBytes(sizeBytes/1024))
-		} else {
-			message = "Bundle not found or already deleted"
-		}
-
-		httputil.WriteJSON(w, http.StatusOK, domain.VPSBundleDeleteResponse{
-			OK:         true,
-			FreedBytes: sizeBytes,
-			Message:    message,
-			Timestamp:  time.Now().UTC().Format(time.RFC3339),
-		})
-	}
-}
-
-// ValidateVPSBundleRequest validates common required fields for VPS bundle operations.
-// Returns false and writes an error response if validation fails.
-func ValidateVPSBundleRequest(w http.ResponseWriter, host, keyPath, workdir string) bool {
-	if host == "" {
-		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-			Code:    "missing_host",
-			Message: "Host is required",
-		})
-		return false
-	}
-	if keyPath == "" {
-		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-			Code:    "missing_key_path",
-			Message: "SSH key path is required",
-		})
-		return false
-	}
-	if workdir == "" {
-		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-			Code:    "missing_workdir",
-			Message: "Working directory is required",
-		})
-		return false
-	}
-	return true
 }
 
 // ValidateSHA256Hash validates the SHA256 hash format.
@@ -295,12 +153,6 @@ func ApplyBundleCleanupDefaults(req *domain.BundleCleanupRequest) {
 	if req.KeepLatest <= 0 {
 		req.KeepLatest = 3
 	}
-	if req.Port == 0 {
-		req.Port = 22
-	}
-	if req.User == "" {
-		req.User = "root"
-	}
 }
 
 // CleanupLocalBundles deletes old bundles from the local filesystem.
@@ -311,86 +163,12 @@ func CleanupLocalBundles(bundlesDir, scenarioID string, keepLatest int) ([]domai
 	return DeleteAllOldBundles(bundlesDir, keepLatest)
 }
 
-// BuildCleanupMessage creates a human-readable summary of cleanup operations.
-func BuildCleanupMessage(localDeleted []domain.BundleInfo, localFreed int64, vpsDeleted int, vpsFreed int64) string {
-	var parts []string
-	if len(localDeleted) > 0 {
-		parts = append(parts, fmt.Sprintf("Deleted %d local bundles (%s)", len(localDeleted), FormatBytes(localFreed/1024)))
-	}
-	if vpsDeleted > 0 {
-		parts = append(parts, fmt.Sprintf("Deleted %d VPS bundles (%s)", vpsDeleted, FormatBytes(vpsFreed/1024)))
-	}
-	if len(parts) == 0 {
+// BuildCleanupMessage creates a human-readable summary of the local cleanup.
+func BuildCleanupMessage(localDeleted []domain.BundleInfo, localFreed int64) string {
+	if len(localDeleted) == 0 {
 		return "No bundles needed cleanup"
 	}
-	return strings.Join(parts, "; ")
-}
-
-// CleanupVPSBundles removes old bundles from the VPS.
-// Returns count of deleted bundles, freed bytes, and any error.
-func CleanupVPSBundles(ctx context.Context, sshRunner ssh.Runner, req domain.BundleCleanupRequest) (int, int64, error) {
-	cfg := ssh.NewConfig(req.Host, req.Port, req.User, req.KeyPath)
-
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
-
-	bundlesPath := shellutil.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
-
-	// Get initial disk usage
-	beforeCmd := fmt.Sprintf("du -sb %s 2>/dev/null | cut -f1 || echo 0", shellutil.QuoteSingle(bundlesPath))
-	beforeRes, _ := sshRunner.Run(ctx, cfg, beforeCmd, ssh.DefaultRunOptions())
-	beforeBytes := ParseBytes(strings.TrimSpace(beforeRes.Stdout))
-
-	// Build cleanup command based on options
-	var cleanupCmd string
-	if req.ScenarioID != "" {
-		// Clean specific scenario, keep N newest
-		pattern := fmt.Sprintf("mini-vrooli_%s_*.tar.gz", req.ScenarioID)
-		cleanupCmd = fmt.Sprintf(
-			`cd %s && ls -t %s 2>/dev/null | tail -n +%d | xargs -r rm -f && ls %s 2>/dev/null | wc -l`,
-			shellutil.QuoteSingle(bundlesPath),
-			shellutil.QuoteSingle(pattern),
-			req.KeepLatest+1,
-			shellutil.QuoteSingle(pattern),
-		)
-	} else {
-		// Clean all scenarios, keep N newest per scenario
-		// This is more complex - we need to group by scenario and keep N per group
-		cleanupCmd = fmt.Sprintf(`
-			cd %s 2>/dev/null || exit 0
-			for scenario in $(ls mini-vrooli_*.tar.gz 2>/dev/null | sed 's/mini-vrooli_\([^_]*\)_.*/\1/' | sort -u); do
-				ls -t mini-vrooli_${scenario}_*.tar.gz 2>/dev/null | tail -n +%d | xargs -r rm -f
-			done
-			ls mini-vrooli_*.tar.gz 2>/dev/null | wc -l || echo 0
-		`, shellutil.QuoteSingle(bundlesPath), req.KeepLatest+1)
-	}
-
-	// Run cleanup
-	_, err := sshRunner.Run(ctx, cfg, cleanupCmd, ssh.DefaultRunOptions())
-	if err != nil {
-		return 0, 0, fmt.Errorf("cleanup command failed: %w", err)
-	}
-
-	// Get final disk usage
-	afterRes, _ := sshRunner.Run(ctx, cfg, beforeCmd, ssh.DefaultRunOptions())
-	afterBytes := ParseBytes(strings.TrimSpace(afterRes.Stdout))
-
-	freedBytes := beforeBytes - afterBytes
-	if freedBytes < 0 {
-		freedBytes = 0
-	}
-
-	// Estimate count based on average bundle size (rough estimate)
-	deletedCount := 0
-	if freedBytes > 0 {
-		avgBundleSize := int64(50 * 1024 * 1024) // 50MB estimate
-		deletedCount = int(freedBytes / avgBundleSize)
-		if deletedCount == 0 && freedBytes > 0 {
-			deletedCount = 1
-		}
-	}
-
-	return deletedCount, freedBytes, nil
+	return fmt.Sprintf("Deleted %d local bundles (%s)", len(localDeleted), FormatBytes(localFreed/1024))
 }
 
 // FormatBytes formats a byte count (in KB) as a human-readable string.

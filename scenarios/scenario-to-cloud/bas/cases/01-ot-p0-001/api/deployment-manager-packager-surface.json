@@ -1,0 +1,102 @@
+{
+  "metadata": {
+    "name": "Packager surface for deployment-manager",
+    "description": "Confirm scenario-to-cloud exposes the stable packager endpoints deployment-manager orchestration reads: manifest schema, manifest template and preflight requirements.",
+    "tags": [
+      "e2e",
+      "api",
+      "manifest",
+      "packager"
+    ],
+    "requirements": [
+      "STC-P0-001",
+      "STC-P0-007"
+    ],
+    "labels": {
+      "safety": "observer",
+      "mutates_target": "false",
+      "mutates_repository": "false",
+      "requirements_json": "[\"STC-P0-001\", \"STC-P0-007\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer"
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "schema",
+      "type": "http_request",
+      "data": {
+        "label": "GET /api/v1/manifest/schema",
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/manifest/schema",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {
+            "type": "status_code",
+            "expected": 200
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.schema"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.timestamp"
+          }
+        ]
+      }
+    },
+    {
+      "id": "template",
+      "type": "http_request",
+      "data": {
+        "label": "GET /api/v1/manifest/template",
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/manifest/template",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {
+            "type": "status_code",
+            "expected": 200
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.manifest"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.variant"
+          }
+        ]
+      }
+    },
+    {
+      "id": "requirements",
+      "type": "http_request",
+      "data": {
+        "label": "GET /api/v1/preflight/requirements",
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/preflight/requirements",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {
+            "type": "status_code",
+            "expected": 200
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.vps.os.required_id"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": []
+}

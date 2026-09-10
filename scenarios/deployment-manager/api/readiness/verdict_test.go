@@ -40,6 +40,14 @@ func TestAggregateMarksOlderCommitSignalsStale(t *testing.T) {
 	}
 }
 
+func TestAggregateRejectsPassedSignalWithoutReference(t *testing.T) {
+	checked := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	checklist := Checklist{Version: ChecklistVersion, Items: []Item{validTestItem("check", Required, CapabilityGap, "must pass")}}
+	if _, err := Aggregate("demo", "abc", checklist, []Signal{{ItemID: "check", Status: SignalPassed, Source: "test-genie", ObservedAt: checked}}, checked); err == nil {
+		t.Fatal("bare passed signal was accepted")
+	}
+}
+
 func TestAggregateRejectsUnknownAndDuplicateSignals(t *testing.T) {
 	checked := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
 	checklist := Checklist{Version: ChecklistVersion, Items: []Item{validTestItem("check", Required, CapabilityGap, "must pass")}}

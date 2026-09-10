@@ -26,25 +26,12 @@ type FixResponse struct {
 	Timestamp string   `json:"timestamp"`
 }
 
-// FixPortsRequest represents the request for fixing port conflicts.
-type FixPortsRequest struct {
-	Host              string   `json:"host"`
-	Port              int      `json:"port,omitempty"`
-	User              string   `json:"user,omitempty"`
-	KeyPath           string   `json:"key_path"`
-	Ports             []int    `json:"ports,omitempty"`               // Specific ports to fix, empty = all conflicting
-	PIDs              []int    `json:"pids,omitempty"`                // Optional explicit PIDs to stop
-	Services          []string `json:"services,omitempty"`            // Optional explicit services to stop
-	PreferServiceStop *bool    `json:"prefer_service_stop,omitempty"` // Prefer stopping owning systemd service first
-}
-
 // FixFirewallRequest represents the request for fixing firewall rules.
 type FixFirewallRequest struct {
-	Host    string `json:"host"`
-	Port    int    `json:"port,omitempty"`
-	User    string `json:"user,omitempty"`
-	KeyPath string `json:"key_path"`
-	Ports   []int  `json:"ports,omitempty"` // Specific ports to open
+	Host  string `json:"host"`
+	Port  int    `json:"port,omitempty"`
+	User  string `json:"user,omitempty"`
+	Ports []int  `json:"ports,omitempty"` // Specific ports to open
 }
 
 // FixFirewallResponse represents firewall rule update results.
@@ -61,7 +48,6 @@ type FixProcessesRequest struct {
 	Host       string `json:"host"`
 	Port       int    `json:"port,omitempty"`
 	User       string `json:"user,omitempty"`
-	KeyPath    string `json:"key_path"`
 	Workdir    string `json:"workdir"`
 	ScenarioID string `json:"scenario_id,omitempty"`
 }
@@ -96,10 +82,9 @@ type DiskUsageEntry struct {
 
 // DiskUsageRequest represents the request for disk usage.
 type DiskUsageRequest struct {
-	Host    string `json:"host"`
-	Port    int    `json:"port,omitempty"`
-	User    string `json:"user,omitempty"`
-	KeyPath string `json:"key_path"`
+	Host string `json:"host"`
+	Port int    `json:"port,omitempty"`
+	User string `json:"user,omitempty"`
 }
 
 // DiskCleanupRequest represents the request for disk cleanup.
@@ -107,7 +92,6 @@ type DiskCleanupRequest struct {
 	Host    string   `json:"host"`
 	Port    int      `json:"port,omitempty"`
 	User    string   `json:"user,omitempty"`
-	KeyPath string   `json:"key_path"`
 	Actions []string `json:"actions,omitempty"` // apt_clean, journal_vacuum, docker_prune, tmp_clean
 }
 

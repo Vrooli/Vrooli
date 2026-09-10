@@ -48,15 +48,15 @@ import (
 	"landing-page-business-suite-api/internal/securevalue"
 )
 
-// Config holds minimal runtime configuration
-type Config struct {
+// RuntimeConfig holds minimal runtime configuration.
+type RuntimeConfig struct {
 	Port        string
 	DatabaseURL string
 }
 
 // Server wires the HTTP router and database connection
 type Server struct {
-	config               *Config
+	config               *RuntimeConfig
 	db                   StartupStore
 	routedDB             *database.RoutedDB
 	fileRoots            *filerouting.RoutedRoots
@@ -215,7 +215,12 @@ func NewServer() (*Server, error) {
 	variantsDir := resolveVariantsDir()
 	brandingPath := resolveBrandingPath()
 	variantSpace := experimentation.DefaultVariantSpace()
-	configStore := experimentation.NewConfigStore(variantsDir, brandingPath, variantSpace)
+	configStore := experimentation.NewConfigStoreWithOptions(experimentation.ConfigStoreOptions{
+		VariantsDir:       variantsDir,
+		BrandingPath:      brandingPath,
+		Space:             variantSpace,
+		MigrateCredential: administration.PutAuthorityCredential,
+	})
 	if err := configStore.LoadAll(); err != nil {
 		return nil, fmt.Errorf("failed to load config from JSON files: %w", err)
 	}
@@ -381,7 +386,7 @@ func NewServer() (*Server, error) {
 	meteredInferenceHandler := aihandler.New(meteredInferenceDeps)
 
 	srv := &Server{
-		config:               &Config{},
+		config:               &RuntimeConfig{},
 		db:                   db,
 		routedDB:             routedDB,
 		fileRoots:            fileRoots,

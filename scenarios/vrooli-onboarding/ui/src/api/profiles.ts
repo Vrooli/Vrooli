@@ -18,6 +18,7 @@ export function evaluateProfile(
   profileId: string,
   answers: Record<string, unknown>,
   target = "local",
+  manualDecisions: Record<string, boolean> = {},
 ): Promise<EvaluateProfileResponse> {
   const encodedAnswers = Object.fromEntries(
     Object.entries(answers).map(([key, value]) => [key, fromJson(ValueSchema, value as never)]),
@@ -26,5 +27,6 @@ export function evaluateProfile(
     target,
     profileId,
     answers: encodedAnswers,
+    manualDecisions,
   }) as unknown as Promise<EvaluateProfileResponse>;
 }

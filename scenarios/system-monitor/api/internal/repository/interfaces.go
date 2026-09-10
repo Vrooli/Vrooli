@@ -246,13 +246,41 @@ type AnomalyRepository interface {
 
 // Filter types
 
+// Metrics queries are always bounded. A zero Limit means "the default", never
+// "everything": the metrics table grows without bound between retention passes
+// (4 GB on the 2026-09-09 host) and an unbounded read is a full table scan
+// that the API would then hold in memory.
+const (
+	// DefaultMetricsLimit is the number of most-recent cycles returned when the
+	// caller does not ask for a specific limit.
+	DefaultMetricsLimit = 1000
+	// MaxMetricsLimit caps any caller-supplied limit.
+	MaxMetricsLimit = 10000
+)
+
 // MetricsFilter defines filtering options for metrics queries
 type MetricsFilter struct {
 	CollectorName string
 	MetricNames   []string
 	TimeRange     TimeRange
-	Limit         int
-	Offset        int
+	// Limit is the maximum number of collection cycles returned, newest kept.
+	// Zero or negative selects DefaultMetricsLimit; values above
+	// MaxMetricsLimit are clamped. See EffectiveLimit.
+	Limit  int
+	Offset int
+}
+
+// EffectiveLimit returns the cycle cap a repository must apply for this
+// filter: the default when unset, clamped to the maximum otherwise.
+func (f MetricsFilter) EffectiveLimit() int {
+	switch {
+	case f.Limit <= 0:
+		return DefaultMetricsLimit
+	case f.Limit > MaxMetricsLimit:
+		return MaxMetricsLimit
+	default:
+		return f.Limit
+	}
 }
 
 // InvestigationFilter defines filtering options for investigation queries

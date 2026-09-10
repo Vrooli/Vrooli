@@ -193,8 +193,13 @@ func (p *DirectoryPruner) Delete(ctx context.Context, candidates Candidates, bat
 			return receipt, fmt.Errorf("refusing to remove protected path pattern: %s", candidate.Path)
 		}
 		resolved, resolveErr := filepath.EvalSymlinks(candidate.Path)
-		if resolveErr == nil && !PathContains(p.cfg.Path, resolved) {
-			return receipt, fmt.Errorf("refusing to remove path that resolves outside directory target: %s", candidate.Path)
+		if resolveErr == nil {
+			if !PathContains(p.cfg.Path, resolved) {
+				return receipt, fmt.Errorf("refusing to remove path that resolves outside directory target: %s", candidate.Path)
+			}
+			if ProtectedPathOverlap(resolved, p.protectedRoots) {
+				return receipt, fmt.Errorf("refusing to remove path that resolves to a protected root: %s", candidate.Path)
+			}
 		}
 		if resolveErr != nil && !os.IsNotExist(resolveErr) {
 			return receipt, fmt.Errorf("resolve deletion candidate %s: %w", candidate.Path, resolveErr)

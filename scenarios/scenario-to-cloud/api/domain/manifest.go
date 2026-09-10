@@ -1,6 +1,30 @@
 // Package domain defines the core domain types for the scenario-to-cloud scenario.
 package domain
 
+import "scenario-to-cloud/identity"
+
+// TargetRefFromManifest derives the target binding from a manifest's VPS
+// block. The manifest is the SSH transport configuration, so the derived
+// binding is always SSH with an empty machine identity; Bridge enrollment sets
+// MachineID/NodeID through UpdateTargetBinding. The SSH key is not part of
+// the manifest or the binding: the credential binding
+// vrooli/scenario-to-cloud:ssh-key names the operator-held key file.
+func TargetRefFromManifest(m CloudManifest) identity.TargetRef {
+	vps := m.Target.VPS
+	if vps == nil {
+		return identity.TargetRef{}
+	}
+	return identity.TargetRef{
+		Transport: identity.TransportSSH,
+		Locator: identity.TargetLocator{
+			Host:    vps.Host,
+			Port:    vps.Port,
+			User:    vps.User,
+			Workdir: vps.Workdir,
+		},
+	}
+}
+
 // DefaultVPSWorkdir is the default directory where Vrooli is installed on the VPS.
 // This is the single source of truth for this value - do not hardcode "/root/Vrooli" elsewhere.
 const DefaultVPSWorkdir = "/root/Vrooli"
@@ -33,7 +57,6 @@ type ManifestVPS struct {
 	Host          string   `json:"host"`
 	Port          int      `json:"port,omitempty"`
 	User          string   `json:"user,omitempty"`
-	KeyPath       string   `json:"key_path,omitempty"`
 	Workdir       string   `json:"workdir,omitempty"`
 	PreservePaths []string `json:"preserve_paths,omitempty"`
 }
@@ -46,9 +69,13 @@ type ManifestScenario struct {
 
 // ManifestDependencies captures the dependency snapshot from scenario-dependency-analyzer.
 type ManifestDependencies struct {
-	Scenarios []string `json:"scenarios,omitempty"`
-	Resources []string `json:"resources,omitempty"`
-	Analyzer  struct {
+	Scenarios           []string `json:"scenarios,omitempty"`
+	Resources           []string `json:"resources,omitempty"`
+	ProgramBindingPeers []string `json:"program_binding_peers,omitempty"`
+	// ClosureDigest binds the dependency snapshot to the closure it was
+	// derived from (closure.Digest); plans bind to it in turn.
+	ClosureDigest string `json:"closure_digest,omitempty"`
+	Analyzer      struct {
 		Tool        string `json:"tool,omitempty"`
 		Fingerprint string `json:"fingerprint,omitempty"`
 		GeneratedAt string `json:"generated_at,omitempty"`
@@ -73,6 +100,10 @@ type ManifestEdge struct {
 	Domain    string        `json:"domain"`
 	DNSPolicy DNSPolicy     `json:"dns_policy,omitempty"`
 	Caddy     ManifestCaddy `json:"caddy"`
+	// ACMEEnvironment requests "staging" or "production" issuance. Empty
+	// derives it: production for the production environment, staging
+	// otherwise (production elsewhere needs the EXT-04 authority).
+	ACMEEnvironment string `json:"acme_environment,omitempty"`
 }
 
 // ManifestCaddy configures Caddy reverse proxy and TLS.

@@ -1,12 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, MessagesSquare, Plus, Users, VolumeX } from "lucide-react";
+import { ArrowLeft, MessagesSquare, Phone, Plus, Users, VolumeX } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 
-import { ConsoleApiError, consoleApi, consoleKeys, type Agent, type Message, type Thread, type ThreadDetail } from "../api/console";
+import { ConsoleApiError, consoleApi, consoleKeys, type Agent, type Message, type ThreadDetail } from "../api/console";
 import { AgentMark } from "../components/console/AgentMark";
 import { AttentionPill } from "../components/console/AttentionPill";
 import { BudgetMeter, budgetPressure } from "../components/console/BudgetMeter";
@@ -29,7 +29,10 @@ const SELF_ADDRESS = "owner";
 
 /**
  * Conversations: every thread across every channel in one list, with one
- * thread open beside it. On mobile the list and the thread are two screens.
+ * thread open beside it. On mobile the list and the thread are two screens --
+ * opening a thread replaces the list entirely and the page chrome goes with
+ * it, because EXPERIENCE.md requires the detail pane to be the largest thing
+ * on screen and forbids squeezing both panes into a phone width.
  */
 export function ConversationsPage() {
   const { t } = useTranslation();
@@ -50,6 +53,7 @@ export function ConversationsPage() {
       title={t(strings.console.conversations.title)}
       description={t(strings.console.conversations.description)}
       layout="fill"
+      mobileBleed={Boolean(threadId)}
       actions={
         <>
         <AttentionPill />
@@ -60,12 +64,12 @@ export function ConversationsPage() {
         </>
       }
     >
-      <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 gap-0 md:gap-4 md:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
         <Region
           surfaceId="thread-list-region"
           testId="conversations-thread-list-region"
           state={listState}
-          className="min-h-0"
+          className={showListOnMobile ? "min-h-0" : "hidden min-h-0 md:flex md:flex-col"}
           errorDetail={threads.error instanceof Error ? threads.error.message : undefined}
           onRetry={() => void threads.refetch()}
           skeletonRows={6}
@@ -82,12 +86,9 @@ export function ConversationsPage() {
             />
           }
         >
-          <div className={showListOnMobile ? "flex min-h-0 flex-1 flex-col" : "hidden min-h-0 flex-1 md:flex md:flex-col"}>
+          <div className="flex min-h-0 flex-1 flex-col">
             <ThreadList threads={threads.data ?? []} agents={agents} selectedId={threadId} />
           </div>
-          {showListOnMobile ? null : (
-            <ThreadStrip threads={threads.data ?? []} agents={agents} selectedId={threadId} />
-          )}
         </Region>
 
         <div className="flex min-h-0 min-w-0 flex-col">
@@ -104,33 +105,6 @@ export function ConversationsPage() {
       </div>
       {starting ? <StartConversationDialog open onClose={() => setStarting(false)} /> : null}
     </Page>
-  );
-}
-
-/** Phone-width thread switcher shown above an open thread, so the list region stays present without a second screen. */
-function ThreadStrip({ threads, agents, selectedId }: { threads: Thread[]; agents: Record<string, Agent>; selectedId?: string }) {
-  const { t } = useTranslation();
-  return (
-    <div role="list" aria-label={t(strings.console.conversations.threads)} data-testid="conversations-thread-strip" className="flex gap-2 overflow-x-auto pb-1 md:hidden">
-      {threads.map((thread) => {
-        const agent = agents[thread.agent_id];
-        const name = agent?.display_name || thread.agent_display_name || thread.agent_id;
-        const selected = thread.id === selectedId;
-        return (
-          <Link
-            key={thread.id}
-            role="listitem"
-            to={`/conversations/${thread.id}`}
-            aria-current={selected ? "page" : undefined}
-            className={["inline-flex min-h-11 shrink-0 items-center gap-2 rounded-pill border py-1 pl-1 pr-3 text-xs font-medium", selected ? "border-app-primary bg-app-primary/10 text-app-primary" : "border-app-border text-app-foreground"].join(" ")}
-          >
-            <AgentMark name={name} appearance={agent?.appearance} size="sm" />
-            <span className="max-w-[9rem] truncate">{thread.is_group ? thread.thread_key : name}</span>
-            <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: thread.channel_accent ?? "var(--color-accent)" }} />
-          </Link>
-        );
-      })}
-    </div>
   );
 }
 
@@ -202,7 +176,7 @@ function ThreadPane({ threadId, agents }: { threadId: string; agents: Record<str
   else if (isInApp && socket.state !== "open") composerReason = t(strings.console.conversations.connecting);
 
   return (
-    <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-0">
+    <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-0 max-md:rounded-none max-md:border-x-0 max-md:border-t-0">
       <header className="flex shrink-0 flex-col gap-2 border-b border-app-border px-3 py-2.5 md:px-4">
         <div className="flex items-center gap-3">
           <Link to="/conversations" aria-label={t(strings.console.common.back)} className="grid h-11 w-11 shrink-0 place-items-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted md:hidden">
@@ -222,12 +196,21 @@ function ThreadPane({ threadId, agents }: { threadId: string; agents: Record<str
                     </span>
                   ) : null}
                 </div>
-                <p className="truncate font-mono text-[11px] text-app-muted-foreground">{thread.thread_key}</p>
+                <p className="hidden truncate font-mono text-[11px] text-app-muted-foreground md:block">{thread.thread_key}</p>
               </div>
-              <div className="hidden shrink-0 items-center gap-2 sm:flex">
-                <StatusBadge tone={ceilingBlocksAll ? "danger" : tone === "danger" ? "danger" : "success"} data-testid="conversations-permission">
+              <div className="flex shrink-0 items-center gap-2">
+                <StatusBadge className="hidden sm:inline-flex" tone={ceilingBlocksAll ? "danger" : tone === "danger" ? "danger" : "success"} data-testid="conversations-permission">
                   {ceilingBlocksAll ? t(strings.console.conversations.agentRefusing) : tone === "danger" ? t(strings.console.conversations.agentSilenced) : t(strings.console.conversations.agentPermitted)}
                 </StatusBadge>
+                <Link
+                  to={`/call/${encodeURIComponent(threadId)}`}
+                  data-testid="conversations-call"
+                  aria-label={t(strings.console.conversations.callAgent, { name: agentName })}
+                  title={t(strings.console.conversations.callAgent, { name: agentName })}
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground md:h-9 md:w-9"
+                >
+                  <Phone aria-hidden="true" className="h-4 w-4" />
+                </Link>
               </div>
             </>
           ) : (
@@ -235,7 +218,7 @@ function ThreadPane({ threadId, agents }: { threadId: string; agents: Record<str
           )}
         </div>
         {thread && (data.participants.length > 0 || thread.is_group) ? (
-          <div data-testid="conversations-roster" role="group" aria-label={t(strings.console.conversations.roster)} className="flex flex-wrap items-center gap-2 text-xs">
+          <div data-testid="conversations-roster" role="group" aria-label={t(strings.console.conversations.roster)} className="hidden flex-wrap items-center gap-2 text-xs md:flex">
             <Users aria-hidden="true" className="h-3.5 w-3.5 text-app-muted-foreground" />
             {data.participants.map((participant) => (
               <Link key={participant.contact_id} to={`/contacts/${participant.contact_id}`} className="inline-flex items-center gap-1.5 rounded-pill border border-app-border py-0.5 pl-0.5 pr-2 hover:bg-app-surface-muted">
@@ -250,6 +233,14 @@ function ThreadPane({ threadId, agents }: { threadId: string; agents: Record<str
               {t(strings.console.conversations.roomCeiling)} <TierBadge tier={thread.ceiling_tier} testId="conversations-ceiling" />
             </span>
           </div>
+        ) : null}
+        {thread && (data.participants.length > 0 || thread.is_group) ? (
+          <p data-testid="conversations-roster-summary" className="flex items-center gap-1.5 text-xs text-app-muted-foreground md:hidden">
+            <Users aria-hidden="true" className="h-3.5 w-3.5" />
+            {t(strings.console.conversations.peopleCount, { count: data.participants.length })}
+            <span aria-hidden="true">&middot;</span>
+            {t(strings.console.conversations.roomCeiling)} <TierBadge tier={thread.ceiling_tier} />
+          </p>
         ) : null}
       </header>
 

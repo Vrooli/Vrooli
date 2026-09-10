@@ -96,7 +96,10 @@
             {"name": "producer-version"},
             {"name": "observed-at", "required": true},
             {"name": "evidence-reference", "required": true},
-            {"name": "detail"}
+            {"name": "detail"},
+            {"name": "candidate-id"},
+            {"name": "destination-revision-id"},
+            {"name": "authorization-epoch"}
           ],
           "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "ReportEvidence"},
           "architecture": {"primitive": "proto_mutation"},
@@ -115,7 +118,11 @@
           ],
           "flags": [
             {"name": "deliverable"},
-            {"name": "trigger"}
+            {"name": "trigger"},
+            {"name": "fact", "description": "Applicability fact as key=value; repeat for each declared release-shape fact", "repeated": true, "bind": {"field": "facts"}, "bind_waiver": "The CLI parses each repeated fact key=value argument into the PrepareReviewRequest.facts map before the Connect RPC call."},
+            {"name": "candidate-id"},
+            {"name": "destination-revision-id"},
+            {"name": "authorization-epoch"}
           ],
           "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "PrepareReview"},
           "architecture": {"primitive": "proto_mutation"},
@@ -163,6 +170,11 @@
             {"name": "channel", "required": true},
             {"name": "actor", "required": true},
             {"name": "targets", "required": true, "repeated": true}
+          ],
+          "flags": [
+            {"name": "candidate-id"},
+            {"name": "destination-revision-id"},
+            {"name": "authorization-epoch"}
           ],
           "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "ApproveReview"},
           "architecture": {"primitive": "proto_mutation"},
@@ -461,7 +473,7 @@
         },
         {
           "name": "build",
-          "description": "Cross-compile service binaries",
+          "description": "Retired: use typed release preparation and candidate operations",
           "binding": {
             "kind": "local"
           },
@@ -475,7 +487,7 @@
         },
         {
           "name": "bundle",
-          "description": "Manage bundle manifests",
+          "description": "Export bundle manifests through the owner compatibility route",
           "binding": {
             "kind": "local"
           },
@@ -578,7 +590,7 @@
         },
         {
           "name": "estimate-cost",
-          "description": "Estimate deployment costs",
+          "description": "Retired: use typed release and destination review surfaces",
           "binding": {
             "kind": "local"
           },
@@ -624,7 +636,7 @@
         },
         {
           "name": "logs",
-          "description": "Fetch deployment logs",
+          "description": "Retired: use operation standing and owner receipts",
           "binding": {
             "kind": "local"
           },
@@ -689,7 +701,7 @@
         },
         {
           "name": "secrets",
-          "description": "Inspect secret templates",
+          "description": "Retired: use the owning secrets-manager service",
           "binding": {
             "kind": "local"
           },
@@ -703,7 +715,7 @@
         },
         {
           "name": "signing",
-          "description": "Configure code signing",
+          "description": "Retired: configure signing through scenario-to-desktop",
           "binding": {
             "kind": "local"
           },
@@ -731,7 +743,7 @@
         },
         {
           "name": "validate",
-          "description": "Validate a deployment profile",
+          "description": "Retired: use readiness review and evidence operations",
           "binding": {
             "kind": "local"
           },
@@ -745,7 +757,7 @@
         },
         {
           "name": "validations",
-          "description": "Run visual validation workflows",
+          "description": "Retired: use release readiness and evidence operations",
           "binding": {
             "kind": "local"
           },
@@ -889,22 +901,57 @@
     {
       "service": "ReleasesService",
       "method": "List",
-      "reason": "The current operator command remains local while the generated client migration is completed."
+      "reason": "The composite releases command dispatches list through the generated ReleasesService client; the manifest represents its nested operation grammar as one command."
     },
     {
       "service": "ReleasesService",
       "method": "Get",
-      "reason": "The current operator command remains local while the generated client migration is completed."
+      "reason": "The composite releases command dispatches get through the generated ReleasesService client; the manifest represents its nested operation grammar as one command."
+    },
+    {
+      "service": "ReleasesService",
+      "method": "GetOperation",
+      "reason": "The composite releases command dispatches operation standing through the generated ReleasesService client; the manifest represents its nested operation grammar as one command."
+    },
+    {
+      "service": "ReleasesService",
+      "method": "Dossier",
+      "reason": "The composite releases command dispatches dossier through the generated ReleasesService client; the manifest represents its nested operation grammar as one command."
     },
     {
       "service": "ReleasesService",
       "method": "Reverify",
-      "reason": "The current operator command remains local while the generated client migration is completed."
+      "reason": "The composite releases command dispatches verify through the generated ReleasesService client; the manifest represents its nested operation grammar as one command."
+    },
+    {
+      "service": "ReleasesService",
+      "method": "Reconcile",
+      "reason": "The composite releases command dispatches reconcile through the generated ReleasesService client; the manifest represents its nested operation grammar as one command."
+    },
+    {
+      "service": "ReleasesService",
+      "method": "Recover",
+      "reason": "The composite releases command dispatches recover through the generated ReleasesService client; the manifest represents its nested operation grammar as one command."
     },
     {
       "service": "ReleasesService",
       "method": "Start",
-      "reason": "The current operator command remains local while the generated client migration is completed."
+      "reason": "The composite releases command dispatches start through the generated ReleasesService client; the manifest represents its nested operation grammar as one command."
+    },
+    {
+      "service": "ReleasesService",
+      "method": "RegisterCandidate",
+      "reason": "Candidate registration is a UI and owner workflow; no separate operator CLI command exposes this API operation."
+    },
+    {
+      "service": "ReleasesService",
+      "method": "RegisterDestinationRevision",
+      "reason": "Destination revision registration is a UI and owner workflow; no separate operator CLI command exposes this API operation."
+    },
+    {
+      "service": "ReleasesService",
+      "method": "RecordClientUpdateReceipt",
+      "reason": "Installed owners report client update receipts through the API; this producer operation is not an operator CLI command."
     }
   ],
   "measures": {

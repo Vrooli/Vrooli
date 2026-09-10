@@ -65,6 +65,12 @@ const (
 	journaldDir  = "/etc/systemd/journald.conf.d"
 	journaldPath = journaldDir + "/99-vrooli-ratelimit.conf"
 
+	// Keep journald's disk budget explicit instead of inheriting a
+	// distribution-specific default.
+	journaldSystemMaxUse  = "500M"
+	journaldRuntimeMaxUse = "100M"
+	journaldMaxRetention  = "30d"
+
 	// kexecCrashLoadedPath is the kernel's own statement that a crash kernel is
 	// loaded and will run on panic. It is a more direct answer than parsing
 	// `kdump-config status`: this file is what the panic path actually consults.
@@ -330,11 +336,15 @@ func buildSysctlContent(p policy) string {
 }
 
 func buildJournaldContent() string {
-	return `# Managed by Vrooli -- do not edit manually
-# Raise rate-limit so UFW BLOCK floods don't drown kernel-priority panic info.
+	return fmt.Sprintf(`# Managed by Vrooli -- do not edit manually
+# Raise rate-limit so UFW BLOCK floods don't drown kernel-priority panic info;
+# bound persistent and runtime journals so defaults cannot consume the disk.
 # See internal/safeguards/host-hardening/handler.go for rationale.
 [Journal]
 RateLimitIntervalSec=30s
 RateLimitBurst=10000
-`
+SystemMaxUse=%s
+RuntimeMaxUse=%s
+MaxRetentionSec=%s
+`, journaldSystemMaxUse, journaldRuntimeMaxUse, journaldMaxRetention)
 }

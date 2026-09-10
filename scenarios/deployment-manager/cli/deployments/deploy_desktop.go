@@ -1,6 +1,7 @@
 package deployments
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -12,8 +13,10 @@ import (
 
 	"deployment-manager/cli/cmdutil"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // OrchestrationStep mirrors the API response.
@@ -85,6 +88,18 @@ func (c *Commands) DeployDesktop(args []string) error {
 		payload["signing_config"] = signingPayload
 	}
 
+	if c.connectClient != nil {
+		request, err := structpb.NewValue(payload)
+		if err != nil {
+			return fmt.Errorf("encode desktop deployment request: %w", err)
+		}
+		response, err := c.connectClient.DeployDesktop(context.Background(), connect.NewRequest(request))
+		if err != nil {
+			c.printFallbackArtifacts(*profileID)
+			return cliapp.WrapAPIError("deploy desktop", err, nil)
+		}
+		return printConnectValue(*format, response)
+	}
 	body, err := c.api.Request("POST", "/api/v1/deploy-desktop", nil, payload)
 	if err != nil {
 		c.printFallbackArtifacts(*profileID)

@@ -26,3 +26,15 @@ func DiscoverCapabilities(ctx context.Context, root, home string) ([]operatorcap
 	}
 	return registry.Discover(ctx)
 }
+
+// DiscoverCapabilityInventory produces the deterministic descriptor inventory
+// used by catalogs and search. Registration remains local to this composition
+// root; callers cannot inject an executable provider through the inventory
+// surface.
+func DiscoverCapabilityInventory(ctx context.Context, root, home string) (operatorcapability.Inventory, error) {
+	registry, err := NewCapabilityRegistry(root, home)
+	if err != nil {
+		return operatorcapability.Inventory{}, err
+	}
+	return registry.Inventory(ctx)
+}

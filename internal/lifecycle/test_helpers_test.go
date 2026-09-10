@@ -111,7 +111,9 @@ import (
  "os"
 )
 func main() {
- http.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) { _, _ = fmt.Fprint(w, "ok") })
+ http.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+  _, _ = fmt.Fprintf(w, "{\"status\":\"healthy\",\"service\":\"fixture\",\"timestamp\":\"2026-05-08T12:00:00Z\",\"readiness\":true,\"build_identity\":\"%s\"}", os.Getenv("VROOLI_BUILD_IDENTITY"))
+ })
  _ = http.ListenAndServe("127.0.0.1:"+os.Getenv("API_PORT"), nil)
 }
 `

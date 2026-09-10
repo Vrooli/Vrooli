@@ -9,6 +9,12 @@ interface PageProps {
   children: ReactNode;
   /** `fill` pins the header and lets the body own scrolling (conversation layouts). */
   layout?: "scroll" | "fill";
+  /**
+   * Phone-width full-bleed: drops page padding and hides the title row, so a
+   * detail pane owns the whole viewport the way a messaging app does.
+   * `EXPERIENCE.md` — "the detail pane is the largest thing on screen".
+   */
+  mobileBleed?: boolean;
   testId?: string;
   headingId?: string;
 }
@@ -18,14 +24,23 @@ interface PageProps {
  * body below. Unframed by design — cards are for repeated records, not for
  * wrapping whole page sections.
  */
-export function Page({ title, description, eyebrow, actions, children, layout = "scroll", testId, headingId = "page-heading" }: PageProps) {
+export function Page({ title, description, eyebrow, actions, children, layout = "scroll", testId, headingId = "page-heading", mobileBleed = false }: PageProps) {
   return (
     <section
       data-testid={testId}
       aria-labelledby={headingId}
-      className={["flex min-w-0 flex-1 flex-col p-4 md:p-6", layout === "fill" ? "h-full min-h-0" : "min-h-0 gap-5 overflow-auto"].join(" ")}
+      aria-label={mobileBleed ? title : undefined}
+      className={[
+        "flex min-w-0 flex-1 flex-col",
+        mobileBleed ? "p-0 md:p-6" : "p-4 md:p-6",
+        layout === "fill" ? "h-full min-h-0" : "min-h-0 gap-5 overflow-auto",
+      ].join(" ")}
     >
-      <header className={["flex flex-wrap items-start justify-between gap-3", layout === "fill" ? "mb-4 shrink-0" : ""].join(" ")}>
+      <header className={[
+        mobileBleed ? "hidden md:flex" : "flex",
+        "flex-wrap items-start justify-between gap-3",
+        layout === "fill" ? "mb-4 shrink-0" : "",
+      ].join(" ")}>
         <div className="min-w-0">
           {eyebrow ? <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-app-muted-foreground">{eyebrow}</div> : null}
           <h2 id={headingId} className="text-xl font-semibold leading-tight text-app-foreground md:text-2xl">

@@ -1,6 +1,24 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "authentication": {
+    "version": 1,
+    "profile": "scenario_authenticator",
+    "default_mode": "local_multi_user",
+    "supported_modes": ["local_multi_user", "remote_vrooli"],
+    "human_sign_in": "required",
+    "provider": "scenario-authenticator",
+    "resource": "deployment-manager",
+    "audience": "scenario-authenticator:deployment-manager",
+    "offline": false,
+    "protected_routes": ["/api"],
+    "capabilities": [
+      {"id": "deployment-manager:read", "effect": "read", "agent_eligible": true},
+      {"id": "deployment-manager:write", "effect": "write", "agent_eligible": false},
+      {"id": "deployment-manager:destructive", "effect": "destructive", "agent_eligible": false}
+    ],
+    "requires_authenticator": true
+  },
   "storage": {
     "entries": {
       "data": {
@@ -183,6 +201,15 @@
       }
     },
     "scenarios": {
+      "scenario-authenticator": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Deployment Manager fails closed for authenticated operator and release operations when the authenticator is unavailable.",
+        "description": "Owner identity and token validation for Deployment Manager's protected control-plane surface.",
+        "supervision_precedence": "required"
+      },
       "scenario-dependency-analyzer": {
         "required": true,
         "version": "1.0.0",
@@ -260,7 +287,8 @@
         "label": "Secrets Manager deployment service token",
         "description": "Scoped service credential used to retrieve deployment manifest metadata from Secrets Manager.",
         "required": false,
-        "provisioning": "operator"
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/deployment-manager/docs/workflows/saas-deployment.md"
       }
     ]
   },

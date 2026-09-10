@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"landing-page-business-suite-api/internal/delivery"
 )
@@ -23,6 +24,10 @@ type AdminDependencies struct {
 	CommitArtifact     func(context.Context, string, delivery.CommitArtifactRequest) (*delivery.Artifact, error)
 	GetArtifact        func(context.Context, string, int64) (*delivery.Artifact, error)
 	PresignGetArtifact func(context.Context, string, delivery.Artifact) (string, error)
+	PromoteChannel     func(context.Context, delivery.ChannelPromotionRequest) (*delivery.ChannelRevision, error)
+	GetChannelHead     func(string, string, string) (*delivery.ChannelHead, error)
+	SetChannelHalt     func(context.Context, delivery.ChannelHaltRequest) (*delivery.ChannelHalt, error)
+	RecoverChannel     func(context.Context, delivery.ChannelRecoveryRequest) (*delivery.ChannelRecovery, error)
 	DecodeJSON         func(http.ResponseWriter, *http.Request, any) bool
 	PathInt64          func(http.ResponseWriter, *http.Request, string) (int64, bool)
 	WriteSuccessData   func(http.ResponseWriter, any)
@@ -302,9 +307,159 @@ func SetArtifactCurrent(deps AdminDependencies) http.HandlerFunc {
 	}
 }
 
+// PromoteChannel makes one complete immutable artifact set visible using the
+// caller-provided predecessor revision. It is the publication boundary for
+// update feeds; applying an asset row alone never advances this head.
+func PromoteChannel(deps AdminDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var payload delivery.ChannelPromotionRequest
+		if !deps.DecodeJSON(w, r, &payload) {
+			return
+		}
+		payload.BundleKey = deps.BundleKey()
+		if strings.TrimSpace(payload.AppKey) == "" || len(payload.ArtifactIDs) == 0 {
+			deps.WriteError(w, http.StatusBadRequest, "app_key and artifact_ids are required", "validation")
+			return
+		}
+		if deps.PromoteChannel == nil {
+			deps.WriteError(w, http.StatusServiceUnavailable, "channel promotion is not configured", "server_error")
+			return
+		}
+		revision, err := deps.PromoteChannel(r.Context(), payload)
+		if err != nil {
+			status, kind := storageError(err)
+			if errors.Is(err, delivery.ErrChannelRevisionConflict) {
+				status, kind = http.StatusConflict, "conflict"
+			}
+			deps.WriteError(w, status, err.Error(), kind)
+			return
+		}
+		deps.WriteSuccessData(w, revision)
+	}
+}
+
+func GetChannelHead(deps AdminDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		appKey := strings.TrimSpace(r.URL.Query().Get("app_key"))
+		variantKey := strings.TrimSpace(r.URL.Query().Get("variant_key"))
+		if appKey == "" || variantKey == "" {
+			deps.WriteError(w, http.StatusBadRequest, "app_key and variant_key are required", "validation")
+			return
+		}
+		if deps.GetChannelHead == nil {
+			deps.WriteError(w, http.StatusServiceUnavailable, "channel head lookup is not configured", "server_error")
+			return
+		}
+		head, err := deps.GetChannelHead(deps.BundleKey(), appKey, variantKey)
+		if err != nil {
+			deps.WriteError(w, http.StatusInternalServerError, err.Error(), "server_error")
+			return
+		}
+		if head == nil {
+			deps.WriteError(w, http.StatusNotFound, "channel head not found", "not_found")
+			return
+		}
+		deps.WriteSuccessData(w, head)
+	}
+}
+
+func SetChannelHalt(deps AdminDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if deps.SetChannelHalt == nil {
+			deps.WriteError(w, http.StatusNotImplemented, "channel halt is not configured", "unavailable")
+			return
+		}
+		var payload delivery.ChannelHaltRequest
+		if !deps.DecodeJSON(w, r, &payload) {
+			return
+		}
+		payload.BundleKey = deps.BundleKey()
+		if strings.TrimSpace(payload.AppKey) == "" || payload.ExpectedRevision < 0 {
+			deps.WriteError(w, http.StatusBadRequest, "app_key and non-negative expected_revision are required", "validation")
+			return
+		}
+		if payload.DryRun {
+			head, err := deps.GetChannelHead(payload.BundleKey, payload.AppKey, payload.VariantKey)
+			if err != nil {
+				deps.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("read channel head: %v", err), "server_error")
+				return
+			}
+			current := int64(0)
+			if head != nil {
+				current = head.Revision
+			}
+			if current != payload.ExpectedRevision {
+				deps.WriteError(w, http.StatusConflict, fmt.Sprintf("channel revision conflict: expected %d, current %d", payload.ExpectedRevision, current), "conflict")
+				return
+			}
+			now := time.Now().UTC()
+			deps.WriteSuccessData(w, &delivery.ChannelHalt{BundleKey: payload.BundleKey, AppKey: payload.AppKey, VariantKey: payload.VariantKey, Revision: current, Halted: payload.Halted, Reason: payload.Reason, Outcome: "preview", Health: "unknown", DryRun: true, UpdatedAt: now, ObservedAt: now})
+			return
+		}
+		halt, err := deps.SetChannelHalt(r.Context(), payload)
+		if err != nil {
+			status, kind := http.StatusConflict, "conflict"
+			if strings.Contains(err.Error(), "required") {
+				status, kind = http.StatusBadRequest, "validation"
+			}
+			deps.WriteError(w, status, err.Error(), kind)
+			return
+		}
+		deps.WriteSuccessData(w, halt)
+	}
+}
+
+// RecoverChannel exposes owner-specific withdrawal, predecessor-bound
+// rollback, and compatibility-qualified forward repair. The owner returns a
+// receipt describing the channel effect; installed clients remain a separate
+// observation.
+func RecoverChannel(deps AdminDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if deps.RecoverChannel == nil {
+			deps.WriteError(w, http.StatusNotImplemented, "channel recovery is not configured", "unavailable")
+			return
+		}
+		var payload delivery.ChannelRecoveryRequest
+		if !deps.DecodeJSON(w, r, &payload) {
+			return
+		}
+		payload.BundleKey = deps.BundleKey()
+		if strings.TrimSpace(payload.AppKey) == "" || payload.ExpectedRevision < 0 || strings.TrimSpace(payload.Action) == "" {
+			deps.WriteError(w, http.StatusBadRequest, "app_key, action, and non-negative expected_revision are required", "validation")
+			return
+		}
+		if !payload.DryRun && strings.TrimSpace(payload.Reason) == "" {
+			deps.WriteError(w, http.StatusPreconditionFailed, "reason is required for channel recovery", "confirmation_required")
+			return
+		}
+		if payload.DryRun {
+			receipt, err := deps.RecoverChannel(r.Context(), payload)
+			if err != nil {
+				deps.WriteError(w, http.StatusConflict, err.Error(), "conflict")
+				return
+			}
+			deps.WriteSuccessData(w, receipt)
+			return
+		}
+		receipt, err := deps.RecoverChannel(r.Context(), payload)
+		if err != nil {
+			status, kind := http.StatusConflict, "conflict"
+			if strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "requires") || strings.Contains(err.Error(), "unsupported") {
+				status, kind = http.StatusBadRequest, "validation"
+			}
+			deps.WriteError(w, status, err.Error(), kind)
+			return
+		}
+		deps.WriteSuccessData(w, receipt)
+	}
+}
+
 func storageError(err error) (int, string) {
 	if errors.Is(err, delivery.ErrStorageNotConfigured) {
 		return http.StatusConflict, "server_error"
+	}
+	if errors.Is(err, delivery.ErrImmutableArtifactConflict) || errors.Is(err, delivery.ErrChannelRevisionConflict) {
+		return http.StatusConflict, "conflict"
 	}
 	return http.StatusBadRequest, "validation"
 }

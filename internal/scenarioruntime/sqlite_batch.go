@@ -71,7 +71,7 @@ func (s *SQLiteStore) GetHealthSnapshots(ctx context.Context, instanceIDs []stri
 	out := make(map[string]HealthSnapshot, len(instanceIDs))
 	for _, chunk := range chunkIDs(values.UniqueStringsOrdered(instanceIDs), batchIDChunkSize) {
 		query := `
-SELECT instance_id, scenario, status, readiness, checked_at, latency_ms, error, response_json, schema_valid
+SELECT instance_id, scenario, build_identity, status, readiness, checked_at, latency_ms, error, response_json, schema_valid
 FROM runtime_health_snapshots
 WHERE instance_id IN (` + placeholders(len(chunk)) + `)`
 		rows, err := s.db.QueryContext(ctx, query, idArgs(chunk)...)

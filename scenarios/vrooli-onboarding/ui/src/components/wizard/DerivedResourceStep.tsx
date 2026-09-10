@@ -3,10 +3,10 @@ import { Loader2 } from "lucide-react";
 import { fetchDerivedResources } from "../../api/resources";
 import type { OperatorState } from "../../api/operatorstate";
 import { i18n } from "../../i18n";
-import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
+import { CardShell } from "@vrooli/react-component-library/CardShell/1";
 
-export function DerivedResourceStep({ selected, operatorState, onToggle }: { selected: Set<string>; operatorState: OperatorState | null; onToggle: (name: string, enabled: boolean) => void }) {
-  const { data, isLoading, error } = useQuery({ queryKey: ["selection-resources", Array.from(selected).sort().join(",")], queryFn: () => fetchDerivedResources() });
+export function DerivedResourceStep({ selected, operatorState, onToggle, target = "local" }: { selected: Set<string>; operatorState: OperatorState | null; onToggle: (name: string, enabled: boolean) => void; target?: string }) {
+  const { data, isLoading, error } = useQuery({ queryKey: ["selection-resources", target, Array.from(selected).sort().join(",")], queryFn: () => fetchDerivedResources(target) });
   const required = data?.required ?? [];
   const optional = data?.optional ?? [];
   const standalone = data?.standalone ?? [];
@@ -27,6 +27,18 @@ export function DerivedResourceStep({ selected, operatorState, onToggle }: { sel
 function ResourceGroup({ title, items, locked = false, operatorState, onToggle }: { title: string; items: { name: string; description?: string; category?: string; enabled?: boolean }[]; locked?: boolean; operatorState: OperatorState | null; onToggle: (name: string, enabled: boolean) => void }) {
   return <section aria-labelledby={`resource-group-${title.toLowerCase()}`} data-testid={`resources-${title.toLowerCase()}`} role="group">
     <h2 id={`resource-group-${title.toLowerCase()}`} className="text-sm font-semibold uppercase tracking-wide text-muted">{title}{locked && ` · ${i18n.t("onboarding.resources.alwaysIncluded")}`}</h2>
-    {items.length === 0 ? <p className="mt-2 text-sm text-muted">{i18n.t("onboarding.resources.noResources", { group: title.toLowerCase() })}</p> : <ul className="mt-2 grid gap-2 sm:grid-cols-2">{items.map((resource) => { const checked = locked || operatorState?.resources?.[resource.name]?.enabled === true || resource.enabled === true; return <li key={resource.name} className="rounded-lg border border-muted bg-surface-muted px-3 py-2 text-sm"><Checkbox data-testid="resource-entry" checked={checked} disabled={locked} onCheckedChange={(enabled) => onToggle(resource.name, enabled)} label={<><span className="font-medium text-foreground">{resource.name}</span>{resource.category && <span className="ml-2 text-xs text-muted">{resource.category}</span>}{resource.description && <span className="mt-1 block text-xs text-muted">{resource.description}</span>}{locked && <span className="mt-1 block text-xs text-primary-soft" data-testid="required-reason" role="note">{i18n.t("onboarding.resources.requiredByClosure")}</span>}</>} /></li>; })}</ul>}
+    {items.length === 0 ? <p className="mt-2 text-sm text-muted">{i18n.t("onboarding.resources.noResources", { group: title.toLowerCase() })}</p> : <ul className="mt-2 grid gap-3 sm:grid-cols-2">{items.map((resource) => { const checked = locked || operatorState?.resources?.[resource.name]?.enabled === true || resource.enabled === true; return <li key={resource.name}><CardShell
+      className="scenario-choice-card"
+      testId="resource-entry"
+      interactive={!locked}
+      selectLabel={`${i18n.t("onboarding.resources.enable")} ${resource.name}`}
+      selection={{ selectionMode: true, selected: checked, disabled: locked, disabledReason: locked ? i18n.t("onboarding.resources.requiredByClosure") : undefined, onToggleSelect: () => onToggle(resource.name, !checked) }}
+    >
+      <div className="scenario-choice-card__body">
+        <div className="scenario-choice-card__heading"><span className="scenario-choice-card__name">{resource.name}</span>{resource.category && <span className="scenario-choice-card__badge">{resource.category}</span>}</div>
+        {resource.description && <p className="scenario-choice-card__description">{resource.description}</p>}
+        {locked && <span className="scenario-choice-card__supporting" data-testid="required-reason" role="note">{i18n.t("onboarding.resources.requiredByClosure")}</span>}
+      </div>
+    </CardShell></li>; })}</ul>}
   </section>;
 }

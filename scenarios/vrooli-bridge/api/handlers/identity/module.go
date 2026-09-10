@@ -19,7 +19,7 @@ import (
 // API URL by name (api-core/discovery in production); the forwarder relays
 // Login/Register to it. No persistence — this domain owns no tables.
 func Module(resolver internalidentity.URLResolver, logger *log.Logger, stores ...internaloperatorsession.Store) module.Module {
-	fwd := internalidentity.NewForwarder(internalidentity.Config{Resolver: resolver})
+	fwd := internalidentity.NewForwarder(internalidentity.ForwarderConfig{Resolver: resolver})
 	var store internaloperatorsession.Store
 	if len(stores) > 0 {
 		store = stores[0]

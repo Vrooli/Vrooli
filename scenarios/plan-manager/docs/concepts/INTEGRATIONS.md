@@ -128,14 +128,15 @@ be told to run an external scenario CLI** (`scenario-qa`, `swarm-manager`, or a
 bug-filing skill) from the plan workflow — it records the entry through
 `plan-manager log bug-add` / `log record-add`, and Plan Manager forwards it.
 
-Production wires live local HTTP adapters behind those seams. Bug reports are
-translated into Prompt Manager knowledge writes for `team:scenario-qa` under
-`bug-inbox/code-defect/<slug>`, with report-bug attribution and Plan Manager
-provenance in the payload. Records are translated into Swarm Manager
-`/api/v1/records` creates with a deterministic `[planlog-entry:<id>]` marker in
-the trigger and Plan Manager provenance in the narrative fields. Both adapters
-lookup by deterministic provenance before creating, so `plan-manager log sync
-<id>` can retry without duplicating downstream artifacts.
+Production wires owner capture adapters behind those seams. Bug reports use
+Prompt Manager's generated `HeartbeatService.CaptureBug` client for
+`team:scenario-qa`, with report-bug attribution and the supplied signal type,
+severity, reproduction, context, and honesty flags. Records use Swarm Manager's
+`/api/v1/records/capture` endpoint and preserve the supplied work classification
+and evidence. Both pass the durable plan-log entry ID as the idempotency key,
+so `plan-manager log sync <id>` retries the same observation without creating
+duplicate downstream artifacts. Each owner returns a published or private draft
+disposition; incomplete input remains reviewable with its repair instructions.
 
 Downstream failure is **never fatal**: discovery/network/5xx unavailability
 leaves the local entry `pending`, downstream rejection leaves it `sync_failed`,

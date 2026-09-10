@@ -433,6 +433,11 @@ func (s *service) ExtendChangeBoundary(ctx context.Context, planID string, works
 	}
 	boundary.AcceptanceAllow = append(boundary.AcceptanceAllow, added...)
 	p.ChangeBoundary = boundary.Normalized()
+	// The baseline-set intent is a deterministic projection of the change
+	// boundary. Keep the two synchronized when the sanctioned execution-time
+	// widening changes the boundary; otherwise the persisted plan becomes
+	// invalid on the next execution resume.
+	planmodel.EnsureCurrentBaselineSet(&p)
 	sort.Strings(added)
 	updated, err := s.saveRecomputed(ctx, p)
 	if err != nil {

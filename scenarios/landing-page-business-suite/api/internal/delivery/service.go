@@ -2,10 +2,15 @@ package delivery
 
 import (
 	"context"
+	"crypto/sha512"
+	"crypto/subtle"
 	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 )
@@ -50,6 +55,8 @@ func NewService(db Store, providers ...StorageProvider) *Service {
 }
 
 var ErrStorageNotConfigured = errors.New("download storage not configured")
+
+var ErrImmutableArtifactConflict = errors.New("immutable artifact conflict")
 
 func normalizeOptionalString(value *string) *string {
 	if value == nil {
@@ -318,10 +325,18 @@ func (s *Service) CommitArtifact(ctx context.Context, bundleKey string, req Comm
 	if strings.TrimSpace(bucket) == "" || strings.TrimSpace(req.ObjectKey) == "" {
 		return nil, fmt.Errorf("bucket and object_key are required")
 	}
+	if strings.TrimSpace(req.ReleaseID) != "" && strings.TrimSpace(req.SHA512) == "" {
+		return nil, fmt.Errorf("sha512 is required for release-bound artifact commits")
+	}
 
 	etag, size, headContentType, err := storage.HeadObject(ctx, bucket, req.ObjectKey)
 	if err != nil {
 		return nil, err
+	}
+	if strings.TrimSpace(req.SHA512) != "" {
+		if err := verifyStoredObjectBytes(ctx, storage, bucket, req.ObjectKey, size, req.SHA512); err != nil {
+			return nil, fmt.Errorf("verify uploaded artifact bytes: %w", err)
+		}
 	}
 
 	metadataBytes, err := json.Marshal(req.Metadata)
@@ -341,20 +356,7 @@ func (s *Service) CommitArtifact(ctx context.Context, bundleKey string, req Comm
 			bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha256, sha512,
 			release_id, git_commit_hash, content_type, original_filename, platform, release_version, metadata, updated_at
 		) VALUES ($1,$2,'s3',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, NOW())
-		ON CONFLICT (bundle_key, bucket, object_key) DO UPDATE SET
-			app_key = COALESCE(EXCLUDED.app_key, download_artifacts.app_key),
-			etag = EXCLUDED.etag,
-			size_bytes = EXCLUDED.size_bytes,
-			sha256 = EXCLUDED.sha256,
-			sha512 = EXCLUDED.sha512,
-			release_id = COALESCE(EXCLUDED.release_id, download_artifacts.release_id),
-			git_commit_hash = EXCLUDED.git_commit_hash,
-			content_type = EXCLUDED.content_type,
-			original_filename = EXCLUDED.original_filename,
-			platform = EXCLUDED.platform,
-			release_version = EXCLUDED.release_version,
-			metadata = EXCLUDED.metadata,
-			updated_at = NOW()
+		ON CONFLICT (bundle_key, bucket, object_key) DO NOTHING
 		RETURNING id, bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha256, sha512,
 		          release_id, git_commit_hash, content_type, original_filename, platform, release_version, metadata, created_at, updated_at
 	`
@@ -378,11 +380,107 @@ func (s *Service) CommitArtifact(ctx context.Context, bundleKey string, req Comm
 	)
 
 	var t ArtifactScanTargets
-	if err := row.Scan(t.ScanDest()...); err != nil {
+	if err := row.Scan(t.ScanDest()...); err == sql.ErrNoRows {
+		// A retry for the same immutable object is safe only when its observed
+		// bytes and declared identity are exactly the same. The existing row is
+		// returned unchanged; no release metadata is overwritten.
+		existing, lookupErr := s.getArtifactByObject(ctx, bundleKey, bucket, strings.TrimSpace(req.ObjectKey))
+		if lookupErr != nil {
+			return nil, lookupErr
+		}
+		if existing == nil || !sameImmutableObject(*existing, size, req.SHA256, req.SHA512, etag) {
+			return nil, fmt.Errorf("%w: %s/%s", ErrImmutableArtifactConflict, bucket, req.ObjectKey)
+		}
+		return existing, nil
+	} else if err != nil {
 		return nil, err
 	}
 	artifact := t.Hydrate()
 
+	return &artifact, nil
+}
+
+func verifyStoredObjectBytes(ctx context.Context, storage Storage, bucket, objectKey string, expectedSize int64, expectedSHA512 string) error {
+	reader, ok := storage.(ObjectReader)
+	if !ok {
+		return fmt.Errorf("storage provider does not support byte reads")
+	}
+	body, declaredSize, _, err := reader.ReadObject(ctx, bucket, objectKey)
+	if err != nil {
+		return err
+	}
+	if body == nil {
+		return fmt.Errorf("storage provider returned an empty object reader")
+	}
+	defer body.Close()
+
+	hash := sha512.New()
+	count, err := io.Copy(hash, body)
+	if err != nil {
+		return err
+	}
+	if expectedSize > 0 && count != expectedSize {
+		return fmt.Errorf("object size %d differs from HEAD size %d", count, expectedSize)
+	}
+	if declaredSize > 0 && count != declaredSize {
+		return fmt.Errorf("object size %d differs from GET content length %d", count, declaredSize)
+	}
+	actual := base64.StdEncoding.EncodeToString(hash.Sum(nil))
+	if !digestEqual(actual, expectedSHA512) {
+		return fmt.Errorf("object SHA512 %q does not match expected digest", actual)
+	}
+	return nil
+}
+
+func digestEqual(actual, expected string) bool {
+	actual = strings.TrimSpace(actual)
+	expected = strings.TrimSpace(expected)
+	if actual == "" || expected == "" {
+		return false
+	}
+	if subtle.ConstantTimeCompare([]byte(actual), []byte(expected)) == 1 {
+		return true
+	}
+	actualBytes, actualErr := decodeDigest(actual)
+	expectedBytes, expectedErr := decodeDigest(expected)
+	return actualErr == nil && expectedErr == nil && subtle.ConstantTimeCompare(actualBytes, expectedBytes) == 1
+}
+
+func decodeDigest(value string) ([]byte, error) {
+	value = strings.TrimSpace(strings.TrimPrefix(value, "sha512:"))
+	if decoded, err := base64.StdEncoding.DecodeString(value); err == nil {
+		return decoded, nil
+	}
+	if decoded, err := base64.RawStdEncoding.DecodeString(value); err == nil {
+		return decoded, nil
+	}
+	return hex.DecodeString(value)
+}
+
+func sameImmutableObject(existing Artifact, observedSize int64, sha256, sha512, etag string) bool {
+	if existing.SizeBytes != observedSize || strings.TrimSpace(existing.ETag) != strings.TrimSpace(etag) {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(existing.SHA256), strings.TrimSpace(sha256)) &&
+		strings.EqualFold(strings.TrimSpace(existing.SHA512), strings.TrimSpace(sha512))
+}
+
+func (s *Service) getArtifactByObject(ctx context.Context, bundleKey, bucket, objectKey string) (*Artifact, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT id, bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha256, sha512,
+		       release_id, git_commit_hash, content_type, original_filename, platform, release_version, metadata, created_at, updated_at
+		FROM download_artifacts
+		WHERE bundle_key = $1 AND bucket = $2 AND object_key = $3
+		LIMIT 1
+	`, bundleKey, bucket, objectKey)
+	var t ArtifactScanTargets
+	if err := row.Scan(t.ScanDest()...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	artifact := t.Hydrate()
 	return &artifact, nil
 }
 
@@ -615,4 +713,22 @@ func (s *Service) HeadArtifact(ctx context.Context, bundleKey string, artifact A
 	}
 	_, _, _, err = storage.HeadObject(ctx, artifact.Bucket, artifact.ObjectKey)
 	return err
+}
+
+// ReadArtifact opens the provider object for byte-level verification. Callers
+// own and must close the returned body.
+func (s *Service) ReadArtifact(ctx context.Context, bundleKey string, artifact Artifact) (io.ReadCloser, int64, string, error) {
+	settings, err := s.requireConfiguredSettings(ctx, bundleKey)
+	if err != nil {
+		return nil, 0, "", err
+	}
+	storage, err := s.resolveStorage(ctx, *settings)
+	if err != nil {
+		return nil, 0, "", err
+	}
+	reader, ok := storage.(ObjectReader)
+	if !ok {
+		return nil, 0, "", fmt.Errorf("storage provider %q does not support byte reads", settings.Provider)
+	}
+	return reader.ReadObject(ctx, artifact.Bucket, artifact.ObjectKey)
 }

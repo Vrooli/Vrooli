@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Wand2, Activity, BookOpen, Search, ChevronDown } from "lucide-react";
+import { Wand2, Activity, BookOpen, Search } from "lucide-react";
 import { WizardShell } from "./components/wizard/WizardShell";
 import { HealthDashboard } from "./components/dashboard/HealthDashboard";
 import { GlossaryPanel } from "./components/glossary/GlossaryPanel";
@@ -7,7 +7,7 @@ import { useGlobalKeyboardShortcuts } from "./hooks/useGlobalKeyboardShortcuts";
 import { useWizardState } from "./hooks/useWizardState";
 import { cn } from "./lib/utils";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Select } from "@vrooli/react-component-library/Select/1";
+import { TargetSwitcher, type TargetSwitcherOption } from "@vrooli/react-component-library/TargetSwitcher/0";
 import { AppShell } from "./components/layout/AppShell";
 import { stepRegistry } from "./components/wizard/stepRegistry";
 import { fetchTargets } from "./api/host";
@@ -59,6 +59,11 @@ const NAV_ITEMS: {
 
 const VIEW_IDS = NAV_ITEMS.map((item) => item.id);
 
+function capitalizeLabel(value: string): string {
+  const trimmed = value.trim();
+  return trimmed ? `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}` : value;
+}
+
 export default function App() {
   const [view, setView] = useState<AppView>(() =>
     initialViewForPath(window.location.pathname),
@@ -96,8 +101,13 @@ export default function App() {
     operatorStateError,
     operatorStateSaveState,
     retryOperatorStateSave,
+    profileSession,
+    profileSessionError,
+    profileSessionSaveState,
+    persistProfileSession,
+    retryProfileSessionSave,
     acceptRecommendation,
-  } = useWizardState();
+  } = useWizardState(target);
 
   // WAI-ARIA tablist keyboard navigation: Left/Right arrows, Home/End
   const handleTabKeyDown = useCallback(
@@ -150,6 +160,12 @@ export default function App() {
     target,
     acceptRecommendation,
     onAdjustRecommendation: () => goToStep(1),
+    profileSession,
+    profileSessionBaseRevision: operatorState?.updatedAt ?? operatorState?.version ?? "",
+    onProfileSessionChange: persistProfileSession,
+    profileSessionError,
+    profileSessionSaveState,
+    onRetryProfileSessionSave: () => { void retryProfileSessionSave(); },
   });
 
   const openConfiguration = (descriptor: ConfigurationDescriptor) => {
@@ -162,6 +178,30 @@ export default function App() {
     setView("wizard");
     tabRefs.current[0]?.focus();
     window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
+  const selectedTarget = targetOptions.find((option) => option.id === target);
+  const selectedTargetStatus = capitalizeLabel(selectedTarget?.status ?? (target === "local" ? "local" : "ready"));
+  const selectedTargetUnavailable = selectedTarget?.available === false || selectedTarget?.online === false;
+  const targetTone = (option: OnboardingTarget): TargetSwitcherOption["statusTone"] => {
+    if (option.id === "local") return "local";
+    if (option.available === false || option.online === false) return "warning";
+    return "success";
+  };
+  const targetSwitcherOptions: TargetSwitcherOption[] = targetOptions.map((option) => ({
+    id: option.id,
+    label: option.id === "local" ? i18n.t("onboarding.app.local") : capitalizeLabel(option.name ?? option.id),
+    meta: [option.os, option.architecture, option.kind].filter(Boolean).map((value) => capitalizeLabel(value as string)).join(" · ") || undefined,
+    description: option.reason,
+    status: option.available === false || option.online === false ? i18n.t("onboarding.app.targetUnavailable") : capitalizeLabel(option.status ?? (option.id === "local" ? "local" : "ready")),
+    statusTone: targetTone(option),
+    badge: option.kind ? capitalizeLabel(option.kind) : undefined,
+  }));
+  const selectTarget = (nextTarget: string) => {
+    setTarget(nextTarget);
+    const params = new URLSearchParams(window.location.search);
+    params.set("target", nextTarget);
+    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
   };
 
   return (
@@ -196,6 +236,7 @@ export default function App() {
           {NAV_ITEMS.map((item, idx) => (
             <Button
               variant="ghost"
+              icon={item.icon}
               key={item.id}
               ref={(el) => {
                 tabRefs.current[idx] = el;
@@ -208,51 +249,53 @@ export default function App() {
               aria-selected={view === item.id}
               aria-controls={`tabpanel-${item.id}`}
               id={`tab-${item.id}`}
+              aria-label={item.label}
+              title={item.label}
               tabIndex={view === item.id ? 0 : -1}
               className={cn(
-                "app-tab min-h-11 inline-flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors sm:gap-3 sm:px-3",
+                "app-tab min-h-11 inline-flex items-center rounded-lg px-2.5 py-2 text-sm font-medium transition-colors sm:px-3",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/50",
                 view === item.id
                   ? "bg-surface-subtle text-foreground"
                   : "text-muted hover:bg-surface-muted hover:text-foreground",
               )}
             >
-              {item.icon}
-              <span className="hidden sm:inline">{item.label}</span>
-              <span className="text-xs sm:hidden">
-                {item.label.split(" ")[0]}
-              </span>
-              <kbd
-                className="hidden lg:inline-flex ml-1 h-4 min-w-4 items-center justify-center rounded bg-surface-muted px-1 text-[9px] font-mono text-muted/60"
-                aria-hidden="true"
-              >
-                Alt+{idx + 1}
-              </kbd>
-              {item.id === "wizard" && selectedScenarios.size > 0 && (
-                <span
-                  className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/20 px-1 text-[10px] font-medium text-primary"
-                  aria-label={i18n.t("onboarding.app.selected", { count: selectedScenarios.size })}
-                  data-testid="nav-wizard-badge"
+              <span className="app-tab__content">
+                <span className="app-tab__label">{item.label}</span>
+                <kbd
+                  className="hidden lg:inline-flex h-4 min-w-4 items-center justify-center rounded bg-surface-muted px-1 text-[9px] font-mono text-muted/60"
+                  aria-hidden="true"
                 >
-                  {selectedScenarios.size}
-                </span>
-              )}
+                  Alt+{idx + 1}
+                </kbd>
+                {item.id === "wizard" && selectedScenarios.size > 0 && (
+                  <span
+                    className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/20 px-1 text-[10px] font-medium text-primary"
+                    aria-label={i18n.t("onboarding.app.selected", { count: selectedScenarios.size })}
+                    data-testid="nav-wizard-badge"
+                  >
+                    {selectedScenarios.size}
+                  </span>
+                )}
+              </span>
             </Button>
           ))}
           </div>
-          <label className="target-chip" data-interactive={targetOptions.length > 1 ? "true" : "false"}>
-            <span className="target-chip__dot" aria-hidden="true" />
-            <span className="sr-only">{i18n.t("onboarding.app.setupTarget")}</span>
-            {targetOptions.length > 1 ? <>
-              <Select
-                value={target}
-                onValueChange={setTarget}
-                aria-label={i18n.t("onboarding.app.setupTarget")}
-                options={targetOptions.map((option) => ({ value: option.id, label: option.id === "local" ? "local" : option.name ?? option.id }))}
-              />
-              <ChevronDown aria-hidden="true" />
-            </> : <span>{target === "local" ? "local" : target}</span>}
-          </label>
+          <TargetSwitcher
+            className="target-switcher"
+            value={target}
+            options={targetSwitcherOptions}
+            onValueChange={selectTarget}
+            label={i18n.t("onboarding.app.setupTarget")}
+            eyebrow={i18n.t("onboarding.app.availableTargets")}
+            description={selectedTarget?.reason || i18n.t("onboarding.app.targetDetails")}
+            statusLabel={i18n.t("onboarding.app.targetStatus")}
+            statusValue={selectedTargetUnavailable ? i18n.t("onboarding.app.targetUnavailable") : selectedTargetStatus}
+            statusTone={targetTone(selectedTarget ?? { id: "local" })}
+            addTargetLabel={i18n.t("onboarding.app.addTarget")}
+            onAddTarget={() => window.open("/apps/vrooli-bridge/proxy/", "_blank", "noopener,noreferrer")}
+            testId="setup-target-trigger"
+          />
         </div>
       </div>
 

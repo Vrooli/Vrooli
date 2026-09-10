@@ -3,6 +3,7 @@ package credentialescrow
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -58,5 +59,35 @@ func TestDiscoverReturnsTypedMissingInputsAndMetadataOnlyCandidates(t *testing.T
 	// because discovery has no value-bearing input.
 	if strings.Contains(string(payload), "secret-answer") {
 		t.Fatalf("discovery response leaked a secret answer: %s", payload)
+	}
+}
+
+func TestVerifyEvidenceRejectsStaleEscrowArtifacts(t *testing.T) {
+	home := t.TempDir()
+	stateDir := filepath.Join(home, "state")
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	verifiedAt := time.Date(2026, 7, 1, 16, 0, 0, 0, time.UTC)
+	copyStatus := securestore.CopyStatus{
+		Path: filepath.Join(home, "external", "root-copy"), Generation: "generation-1", Checksum: "copy-checksum", Verification: "readback", VerifiedAt: verifiedAt,
+	}
+	encoded, err := json.Marshal(copyStatus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stateDir, "credential-store-copy.json"), encoded, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	provider := NewProvider(t.TempDir(), home)
+	provider.now = func() time.Time { return time.Date(2026, 9, 1, 16, 0, 0, 0, time.UTC) }
+	receipt := credentialauthority.RecoveryReceipt{
+		ArtifactIdentity: "bundle-identity", SourceGeneration: "generation-1", Checksum: "bundle-checksum",
+		VerifiedAt: verifiedAt, Verification: "decrypt-readback",
+	}
+	ready, _, remediation := provider.verifyEvidence(securestore.StoreStatus{}, receipt, securestore.CopyConfig{})
+	if ready || !strings.Contains(remediation, "older than") {
+		t.Fatalf("ready=%v remediation=%q, want stale evidence rejection", ready, remediation)
 	}
 }

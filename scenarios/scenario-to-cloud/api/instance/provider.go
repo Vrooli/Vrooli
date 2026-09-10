@@ -99,7 +99,10 @@ type Provider interface {
 // silently substitute a container, because systemd and credential-wrap tests
 // depend on a real VM.
 type LocalQEMUProvider struct {
-	Binary         string
+	Binary string
+	// ImageManifest overrides the recorded image manifest read by Readiness;
+	// empty means ImageManifestEnv, then DefaultImageManifestPath.
+	ImageManifest  string
 	LookPath       func(string) (string, error)
 	StartProcess   func(string, []string, string) (int, error)
 	StopProcess    func(int) error

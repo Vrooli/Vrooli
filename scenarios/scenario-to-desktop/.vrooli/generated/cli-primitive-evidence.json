@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-desktop",
   "generator": "v1.0.0",
-  "manifest_hash": "4c1cb74ee9445bc2262f84cf0dc0d1df8a7094980d6cb977eedfb9b83ba80349",
+  "manifest_hash": "12a2c04880e2c7f148412fa68580d40bed9f01a98d0beece2caa86637a61f4d5",
   "commands": [
     {
       "path": "build get",
@@ -136,6 +136,7 @@
       "path": "evidence publish-offer-fact",
       "group": "evidence",
       "command": "publish-offer-fact",
+      "binding": ".",
       "observed_primitive": "proto_mutation"
     },
     {

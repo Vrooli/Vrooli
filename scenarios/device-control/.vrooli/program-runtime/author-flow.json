@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "device-control.author-flow",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Validate, execute, and persist one candidate or version-preserving repair with owner-verified provenance.",
   "inputs": {
     "device_id": {
@@ -72,7 +75,8 @@
       ]
     },
     "signals": {
-      "result": "Bounded exact identities and owner outcomes"
+      "result": "Bounded exact identities and owner outcomes",
+      "learning": "Durable feedback_ref identifies this task or exact artifact; preserve it and send a later correction with program-runtime.learning-feedback or learn.feedback."
     },
     "errors": {
       "classes": [
@@ -90,7 +94,9 @@
         "identity_mismatch",
         "invalid_response",
         "capability_gap",
-        "flow_failed"
+        "flow_failed",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Run and saved-flow references only"
@@ -149,31 +155,11 @@
   ],
   "rung": "S3",
   "owner_skill": "device-control",
-  "learning_task": {
-    "scope": "device-control-usage",
-    "operation": "device-control.author-flow",
-    "context_fields": [
-      "device_id",
-      "context_key"
-    ],
-    "outcome": {
-      "status_path": "signals.outcome",
-      "mapping": {
-        "verified_success": "verified_success",
-        "failed": "failed",
-        "unavailable": "unavailable",
-        "unknown": "unknown"
-      },
-      "evidence_paths": [
-        "evidence"
-      ]
-    }
-  },
   "verbs": [
-    "agent.collect",
-    "agent.run",
-    "tasks.get",
-    "tasks.run",
-    "validate"
+    "learn.note",
+    "learn.outcome",
+    "learn.result",
+    "learn.task",
+    "lib"
   ]
 }

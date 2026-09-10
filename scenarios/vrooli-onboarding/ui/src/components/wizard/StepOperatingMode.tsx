@@ -4,8 +4,8 @@ import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 import { Switch } from "@vrooli/react-component-library/Switch/1";
 import { i18n } from "../../i18n";
 
-export function StepOperatingMode({ selected, overrides, onAutoRestart }: { selected: Set<string>; overrides?: Record<string, { autoRestart?: boolean }>; onAutoRestart: (name: string, enabled: boolean) => void }) {
-  const { data } = useQuery({ queryKey: ["selection-scenarios"], queryFn: () => fetchScenarios() });
+export function StepOperatingMode({ selected, overrides, onAutoRestart, target = "local" }: { selected: Set<string>; overrides?: Record<string, { autoRestart?: boolean }>; onAutoRestart: (name: string, enabled: boolean) => void; target?: string }) {
+  const { data } = useQuery({ queryKey: ["selection-scenarios", target], queryFn: () => fetchScenarios(target) });
   const scenarios = (data?.scenarios ?? []).filter((scenario) => scenario.systemRequired || selected.has(scenario.name));
   const alwaysOn = scenarios.filter((scenario) => scenario.autoRestart);
   const onDemand = scenarios.filter((scenario) => !scenario.autoRestart);

@@ -18,7 +18,7 @@ func TestEvidenceSchemaStoresReferencesNotArtifactBytesOrPaths(t *testing.T) {
 			t.Fatalf("evidence schema must not contain %q", forbidden)
 		}
 	}
-	for _, required := range []string{"artifact_id", "checksum", "size_bytes", "producer"} {
+	for _, required := range []string{"artifact_id", "checksum", "size_bytes", "producer", "evidence_class"} {
 		if !strings.Contains(schema, required) {
 			t.Fatalf("evidence schema must contain reference field %q", required)
 		}

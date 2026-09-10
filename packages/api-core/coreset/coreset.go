@@ -24,6 +24,28 @@ const (
 	IntentTryStart  = "try_start"
 )
 
+// RequiredOperationalScenarios are the minimum recovery plane for a node that
+// is expected to keep agents and remote access available. They are authority
+// defaults, not scenario-owned knowledge: onboarding and the control plane
+// both use this list when presenting or accepting the operator's core set.
+var RequiredOperationalScenarios = []string{
+	"agent-manager",
+	"prompt-manager",
+	"web-console",
+	"vrooli-autoheal",
+}
+
+// NormalizeOperationalAuthority adds the required recovery plane to an
+// operator declaration and marks it as trusted-base authority. Existing
+// optional members and trusted-base members are preserved.
+func NormalizeOperationalAuthority(authority Authority) Authority {
+	seed := append([]string(nil), authority.Seed...)
+	trusted := append([]string(nil), authority.TrustedBase...)
+	seed = append(seed, RequiredOperationalScenarios...)
+	trusted = append(trusted, RequiredOperationalScenarios...)
+	return Authority{Seed: normalizeSorted(seed), TrustedBase: normalizeSorted(trusted)}
+}
+
 // AttributionStep explains one link from a supervision-set member back to the
 // operator-granted seed that caused it to be included. Chains are ordered from
 // the member toward authority, so the final step always has Source=core.seed.

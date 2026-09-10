@@ -64,8 +64,11 @@ func TestDesktopRampDistributorRegistersImmutableArtifact(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Disposition != deliveryramp.DispositionPass || result.EffectReceipt == nil || result.EffectReceipt.ExternalReceipt != "lpbs-asset:42" || gotPath != "/api/v1/admin/download-apps/paid-app" {
+	if result.Disposition != deliveryramp.DispositionDegraded || result.EffectReceipt == nil || result.EffectReceipt.ExternalReceipt != "lpbs-asset:42" || result.EffectReceipt.Outcome != "catalog_registered" || gotPath != "/api/v1/admin/download-apps/paid-app" {
 		t.Fatalf("registration result=%+v path=%q", result, gotPath)
+	}
+	if result.Reason == "" {
+		t.Fatal("catalog-only registration must explain why publication is still incomplete")
 	}
 	if got["app_key"] != "paid-app" {
 		t.Fatalf("registration payload = %#v", got)

@@ -7,171 +7,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+	"strings"
 	"time"
+
+	"connectrpc.com/connect"
+	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline/pipelineconnect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 )
-
-// SmokeTestRequest is the request for running a smoke test with optional recording.
-type SmokeTestRequest struct {
-	ScenarioName string                 `json:"scenario_name"`
-	ArtifactPath string                 `json:"artifact_path"`
-	Platform     string                 `json:"platform"`
-	Recording    *ScreenRecordingConfig `json:"recording,omitempty"`
-}
-
-// ScreenRecordingConfig controls screen capture during smoke tests.
-type ScreenRecordingConfig struct {
-	Enabled       bool `json:"enabled"`
-	DisplayWidth  int  `json:"display_width,omitempty"`
-	DisplayHeight int  `json:"display_height,omitempty"`
-	FPS           int  `json:"fps,omitempty"`
-}
-
-// SmokeTestStatusResponse is the status of a smoke test run.
-type SmokeTestStatusResponse struct {
-	SmokeTestID     string                 `json:"smoke_test_id"`
-	Status          string                 `json:"status"`
-	ScreenRecording *ScreenRecordingResult `json:"screen_recording,omitempty"`
-}
-
-// ScreenRecordingResult holds the outcome of a smoke test recording.
-type ScreenRecordingResult struct {
-	Recorded      bool   `json:"recorded"`
-	VideoPath     string `json:"video_path,omitempty"`
-	DurationMs    int64  `json:"duration_ms,omitempty"`
-	FileSizeBytes int64  `json:"file_size_bytes,omitempty"`
-	Error         string `json:"error,omitempty"`
-}
-
-// RunSmokeTest triggers a smoke test with optional recording on scenario-to-desktop.
-func (c *DesktopPackagerClient) RunSmokeTest(ctx context.Context, req *SmokeTestRequest) (*SmokeTestStatusResponse, error) {
-	c.log("info", map[string]interface{}{
-		"msg":      "running smoke test with recording",
-		"scenario": req.ScenarioName,
-		"platform": req.Platform,
-	})
-
-	body, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/v1/pipeline/run", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("smoke test API returned %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var result SmokeTestStatusResponse
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
-	}
-
-	return &result, nil
-}
-
-// GetSmokeTestStatus polls the status of a running smoke test.
-func (c *DesktopPackagerClient) GetSmokeTestStatus(ctx context.Context, smokeTestID string) (*SmokeTestStatusResponse, error) {
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/v1/smoketest/"+smokeTestID, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("smoke test status returned %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var result SmokeTestStatusResponse
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
-	}
-
-	return &result, nil
-}
-
-// WaitForSmokeTest polls until a smoke test completes or times out.
-func (c *DesktopPackagerClient) WaitForSmokeTest(ctx context.Context, smokeTestID string, pollInterval time.Duration) (*SmokeTestStatusResponse, error) {
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-ticker.C:
-			status, err := c.GetSmokeTestStatus(ctx, smokeTestID)
-			if err != nil {
-				c.log("warn", map[string]interface{}{
-					"msg":           "smoke test poll failed",
-					"smoke_test_id": smokeTestID,
-					"error":         err.Error(),
-				})
-				continue
-			}
-
-			switch status.Status {
-			case "passed", "failed":
-				return status, nil
-			}
-		}
-	}
-}
-
-// DownloadVideo downloads a smoke test video to a local path.
-func (c *DesktopPackagerClient) DownloadVideo(ctx context.Context, smokeTestID, destPath string) error {
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/v1/smoketest/"+smokeTestID+"/video", nil)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("video download returned %d", resp.StatusCode)
-	}
-
-	f, err := os.Create(destPath)
-	if err != nil {
-		return fmt.Errorf("create file: %w", err)
-	}
-	defer f.Close()
-
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		return fmt.Errorf("write video: %w", err)
-	}
-
-	return nil
-}
 
 // PublishPipelineRequest is the request body for triggering a deploy-only pipeline run.
 type PublishPipelineRequest struct {
@@ -185,7 +28,14 @@ type PublishPipelineRequest struct {
 	// commit payload carries it on download_artifacts.release_id.
 	ReleaseID string `json:"release_id,omitempty"`
 	// Channel is the release channel; S2D maps it to LPBS variant_key on apply.
-	Channel string `json:"channel,omitempty"`
+	Channel                 string            `json:"channel,omitempty"`
+	ReleaseVersion          string            `json:"release_version,omitempty"`
+	ArtifactDigest          string            `json:"artifact_digest,omitempty"`
+	ExpectedArtifactDigests map[string]string `json:"expected_artifact_digests,omitempty"`
+	CandidateID             string            `json:"candidate_id,omitempty"`
+	DestinationRevisionID   string            `json:"destination_revision_id,omitempty"`
+	AuthorizationEpoch      uint64            `json:"authorization_epoch,omitempty"`
+	ReadinessReviewKey      string            `json:"readiness_review_key,omitempty"`
 }
 
 // PublishDeployConfig mirrors scenario-to-desktop's DeployConfig for LPBS deployment.
@@ -197,8 +47,14 @@ type PublishDeployConfig struct {
 	UpdateURL     string `json:"update_url,omitempty"`
 	// ReleaseID + Channel ride on the deploy config so S2D's pipeline Config
 	// decoder forwards them to lpbs_client.go.
-	ReleaseID string `json:"release_id,omitempty"`
-	Channel   string `json:"channel,omitempty"`
+	ReleaseID               string            `json:"release_id,omitempty"`
+	Channel                 string            `json:"channel,omitempty"`
+	ArtifactDigest          string            `json:"artifact_digest,omitempty"`
+	ExpectedArtifactDigests map[string]string `json:"expected_artifact_digests,omitempty"`
+	CandidateID             string            `json:"candidate_id,omitempty"`
+	DestinationRevisionID   string            `json:"destination_revision_id,omitempty"`
+	AuthorizationEpoch      uint64            `json:"authorization_epoch,omitempty"`
+	ReadinessReviewKey      string            `json:"readiness_review_key,omitempty"`
 }
 
 // PublishPipelineResponse is the response from triggering a pipeline run.
@@ -208,92 +64,61 @@ type PublishPipelineResponse struct {
 	Message    string `json:"message,omitempty"`
 }
 
-// RunPublishPipeline triggers a deploy-stage-only pipeline via scenario-to-desktop.
-func (c *DesktopPackagerClient) RunPublishPipeline(ctx context.Context, req *PublishPipelineRequest) (*PublishPipelineResponse, error) {
-	c.log("info", map[string]interface{}{
-		"msg":      "triggering publish pipeline",
-		"scenario": req.ScenarioName,
-	})
-
-	body, err := json.Marshal(req)
+// RunPublishPipelineConnect starts the canonical owner pipeline. The legacy
+// JSON endpoint is retired; release publication must use the typed service.
+func (c *DesktopPackagerClient) RunPublishPipelineConnect(ctx context.Context, req *PublishPipelineRequest) (*PublishPipelineResponse, error) {
+	if req == nil || strings.TrimSpace(req.ScenarioName) == "" {
+		return nil, fmt.Errorf("publish pipeline request requires a scenario")
+	}
+	if req.DeployConfig == nil {
+		return nil, fmt.Errorf("publish pipeline requires deploy config")
+	}
+	deploy := req.DeployConfig
+	config := &pipelinev1.PipelineConfig{
+		ScenarioName:            req.ScenarioName,
+		Platforms:               platformEnums(req.Platforms),
+		PlatformTargets:         append([]string(nil), req.Platforms...),
+		Stages:                  []sharedv1.StageName{sharedv1.StageName_STAGE_NAME_DEPLOY},
+		Publish:                 boolPtr(true),
+		Sign:                    boolPtr(true),
+		ArtifactTrustMode:       stringPtr("production"),
+		ExpectedArtifactDigests: copyStringMap(req.ExpectedArtifactDigests),
+		ArtifactManifestDigest:  req.ArtifactDigest,
+		Version:                 optionalStringPtr(req.ReleaseVersion),
+		Deploy: &pipelinev1.DeployConfig{
+			TargetName: deploy.TargetName, ScenarioName: deploy.ScenarioName,
+			RemoteProfile: deploy.RemoteProfile, AppKey: deploy.AppKey,
+			UpdateUrl: deploy.UpdateURL, ReleaseId: deploy.ReleaseID,
+			Channel:     deploy.Channel,
+			CandidateId: deploy.CandidateID, DestinationRevisionId: deploy.DestinationRevisionID,
+			AuthorizationEpoch: deploy.AuthorizationEpoch, ReadinessReviewKey: deploy.ReadinessReviewKey,
+		},
+	}
+	client := pipelineconnect.NewPipelineServiceClient(c.httpClient, c.baseURL)
+	response, err := client.Run(ctx, connect.NewRequest(&pipelinev1.PipelineRunRequest{Config: config}))
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return nil, fmt.Errorf("run typed publish pipeline: %w", err)
 	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/v1/pipeline/run", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+	if response == nil || response.Msg == nil || response.Msg.GetPipelineId() == "" {
+		return nil, fmt.Errorf("typed publish pipeline returned no operation id")
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("pipeline API returned %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var result PublishPipelineResponse
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
-	}
-
-	return &result, nil
+	return &PublishPipelineResponse{PipelineID: response.Msg.GetPipelineId(), Message: response.Msg.GetMessage()}, nil
 }
 
-// GetPipelineStatus polls the status of a pipeline run.
-func (c *DesktopPackagerClient) GetPipelineStatus(ctx context.Context, pipelineID string) (*PipelineStatus, error) {
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/v1/pipeline/"+pipelineID, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("pipeline status API returned %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var status PipelineStatus
-	if err := json.Unmarshal(respBody, &status); err != nil {
-		return nil, fmt.Errorf("decode pipeline status: %w", err)
-	}
-
-	return &status, nil
-}
-
-// WaitForPipeline polls pipeline status until it completes or fails.
-func (c *DesktopPackagerClient) WaitForPipeline(ctx context.Context, pipelineID string) (*PipelineStatus, error) {
+func (c *DesktopPackagerClient) WaitForPipelineConnect(ctx context.Context, pipelineID string) (*PipelineStatus, error) {
+	client := pipelineconnect.NewPipelineServiceClient(c.httpClient, c.baseURL)
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
-
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-ticker.C:
-			status, err := c.GetPipelineStatus(ctx, pipelineID)
+			response, err := client.Get(ctx, connect.NewRequest(&pipelinev1.PipelineGetRequest{PipelineId: pipelineID}))
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("get typed pipeline status: %w", err)
 			}
-
+			status := pipelineStatusFromProto(response.Msg)
 			switch status.CurrentState {
 			case "completed":
 				return status, nil
@@ -302,6 +127,78 @@ func (c *DesktopPackagerClient) WaitForPipeline(ctx context.Context, pipelineID 
 			}
 		}
 	}
+}
+
+func platformEnums(platforms []string) []sharedv1.Platform {
+	result := make([]sharedv1.Platform, 0, len(platforms))
+	for _, platform := range platforms {
+		switch strings.ToLower(strings.SplitN(platform, "-", 2)[0]) {
+		case "win", "windows":
+			result = append(result, sharedv1.Platform_PLATFORM_WIN)
+		case "mac", "darwin", "macos":
+			result = append(result, sharedv1.Platform_PLATFORM_MAC)
+		default:
+			result = append(result, sharedv1.Platform_PLATFORM_LINUX)
+		}
+	}
+	return result
+}
+
+func pipelineStatusFromProto(value *pipelinev1.PipelineStatus) *PipelineStatus {
+	status := &PipelineStatus{CurrentState: value.GetCurrentState(), Stages: make(map[string]*PipelineStageResult)}
+	for name, stage := range value.GetStages() {
+		converted := &PipelineStageResult{}
+		if details := stage.GetDetails(); details != nil && details.GetDeploy() != nil {
+			deploy := details.GetDeploy()
+			artifacts := make([]interface{}, 0, len(deploy.GetArtifacts()))
+			for _, artifact := range deploy.GetArtifacts() {
+				platform := artifact.GetTargetId()
+				if platform == "" {
+					platform = platformName(artifact.GetPlatform())
+				}
+				artifacts = append(artifacts, map[string]interface{}{
+					"artifact_id": artifact.GetArtifactId(), "platform": platform,
+					"sha512": artifact.GetSha512(), "destination_object": artifact.GetDestinationObject(),
+				})
+			}
+			converted.Details = map[string]interface{}{"artifacts": artifacts, "update_url": deploy.GetUpdateUrl()}
+		}
+		status.Stages[name] = converted
+	}
+	return status
+}
+
+func platformName(value sharedv1.Platform) string {
+	switch value {
+	case sharedv1.Platform_PLATFORM_WIN:
+		return "win"
+	case sharedv1.Platform_PLATFORM_MAC:
+		return "mac"
+	default:
+		return "linux"
+	}
+}
+
+func boolPtr(value bool) *bool { return &value }
+
+func stringPtr(value string) *string { return &value }
+
+func optionalStringPtr(value string) *string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return &value
+}
+
+func copyStringMap(value map[string]string) map[string]string {
+	if value == nil {
+		return nil
+	}
+	result := make(map[string]string, len(value))
+	for key, item := range value {
+		result[key] = item
+	}
+	return result
 }
 
 // SetSigningConfig sets the signing configuration for a scenario via scenario-to-desktop.

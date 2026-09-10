@@ -293,22 +293,6 @@
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
     },
-    "layout.topBar": {
-      "testId": "layout-top-bar",
-      "selector": "[data-testid=\"layout-top-bar\"]"
-    },
-    "layout.sidebar": {
-      "testId": "layout-sidebar",
-      "selector": "[data-testid=\"layout-sidebar\"]"
-    },
-    "layout.bottomNav": {
-      "testId": "layout-bottom-nav",
-      "selector": "[data-testid=\"layout-bottom-nav\"]"
-    },
-    "layout.main": {
-      "testId": "layout-main",
-      "selector": "[data-testid=\"layout-main\"]"
-    },
     "theme.switcher": {
       "testId": "theme-switcher",
       "selector": "[data-testid=\"theme-switcher\"]"
@@ -435,6 +419,219 @@
     }
   },
   "dynamicSelectors": {
+    "fleet.row": {
+      "description": "Fleet node row by id",
+      "selectorPattern": "[data-testid=\"fleet-row-${id}\"]",
+      "testIdPattern": "fleet-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.jobs": {
+      "description": "Fleet node jobs by id",
+      "selectorPattern": "[data-testid=\"fleet-jobs-${id}\"]",
+      "testIdPattern": "fleet-jobs-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.revoke": {
+      "description": "Fleet revoke action by id",
+      "selectorPattern": "[data-testid=\"fleet-revoke-${id}\"]",
+      "testIdPattern": "fleet-revoke-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.onboardRemove": {
+      "description": "Onboarding remove action by id",
+      "selectorPattern": "[data-testid=\"fleet-onboard-remove-${id}\"]",
+      "testIdPattern": "fleet-onboard-remove-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.onboardRetry": {
+      "description": "Onboarding retry action by id",
+      "selectorPattern": "[data-testid=\"fleet-onboard-retry-${id}\"]",
+      "testIdPattern": "fleet-onboard-retry-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.onboardViewLogs": {
+      "description": "Onboarding logs action by id",
+      "selectorPattern": "[data-testid=\"fleet-onboard-view-logs-${id}\"]",
+      "testIdPattern": "fleet-onboard-view-logs-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.machineLifecycleRow": {
+      "description": "Machine lifecycle row by id",
+      "selectorPattern": "[data-testid=\"machine-lifecycle-row-${id}\"]",
+      "testIdPattern": "machine-lifecycle-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.onboardStep": {
+      "description": "Onboarding step by step id",
+      "selectorPattern": "[data-testid=\"fleet-onboard-step-${step}\"]",
+      "testIdPattern": "fleet-onboard-step-${step}",
+      "params": [
+        {
+          "name": "step",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.pairingRequests.row": {
+      "description": "Pairing request row by id",
+      "selectorPattern": "[data-testid=\"fleet-pairing-request-row-${id}\"]",
+      "testIdPattern": "fleet-pairing-request-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.pairingRequests.words": {
+      "description": "Pairing request words by id",
+      "selectorPattern": "[data-testid=\"fleet-pairing-request-words-${id}\"]",
+      "testIdPattern": "fleet-pairing-request-words-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.pairingRequests.wordsMatch": {
+      "description": "Pairing request word match by id",
+      "selectorPattern": "[data-testid=\"fleet-pairing-request-words-match-${id}\"]",
+      "testIdPattern": "fleet-pairing-request-words-match-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.pairingRequests.preset": {
+      "description": "Pairing request preset by id",
+      "selectorPattern": "[data-testid=\"fleet-pairing-request-preset-${id}\"]",
+      "testIdPattern": "fleet-pairing-request-preset-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.pairingRequests.approve": {
+      "description": "Pairing request approve action by id",
+      "selectorPattern": "[data-testid=\"fleet-pairing-request-approve-${id}\"]",
+      "testIdPattern": "fleet-pairing-request-approve-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.pairingRequests.reject": {
+      "description": "Pairing request reject action by id",
+      "selectorPattern": "[data-testid=\"fleet-pairing-request-reject-${id}\"]",
+      "testIdPattern": "fleet-pairing-request-reject-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.pairingRequests.error": {
+      "description": "Pairing request error by id",
+      "selectorPattern": "[data-testid=\"fleet-pairing-request-error-${id}\"]",
+      "testIdPattern": "fleet-pairing-request-error-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "runs.row": {
+      "description": "Run row by id",
+      "selectorPattern": "[data-testid=\"runs-row-${id}\"]",
+      "testIdPattern": "runs-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "runs.view": {
+      "description": "Run view action by id",
+      "selectorPattern": "[data-testid=\"runs-view-${id}\"]",
+      "testIdPattern": "runs-view-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "runs.cancel": {
+      "description": "Run cancel action by id",
+      "selectorPattern": "[data-testid=\"runs-cancel-${id}\"]",
+      "testIdPattern": "runs-cancel-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "runs.artifact": {
+      "description": "Run artifact by run id and index",
+      "selectorPattern": "[data-testid=\"runs-artifact-${id}-${index}\"]",
+      "testIdPattern": "runs-artifact-${id}-${index}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
     "locale.toggle": {
       "description": "Locale toggle button by language code",
       "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
@@ -451,10 +648,10 @@
         }
       ]
     },
-    "layout.sidebarLink": {
-      "description": "Sidebar navigation link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
-      "testIdPattern": "layout-sidebar-link-${key}",
+    "layout.navLink": {
+      "description": "App shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
       "params": [
         {
           "name": "key",
@@ -468,234 +665,6 @@
             "trust",
             "setup"
           ]
-        }
-      ]
-    },
-    "layout.bottomNavLink": {
-      "description": "Bottom-nav link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
-      "testIdPattern": "layout-bottom-nav-link-${key}",
-      "params": [
-        {
-          "name": "key",
-          "type": "enum",
-          "values": [
-            "dashboard",
-            "runs",
-            "settings",
-            "sessions",
-            "rollouts",
-            "trust",
-            "setup"
-          ]
-        }
-      ]
-    },
-    "fleet.pairingRequests.row": {
-      "description": "Pending pairing request by request id",
-      "selectorPattern": "[data-testid=\"fleet-pairing-request-${id}\"]",
-      "testIdPattern": "fleet-pairing-request-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.pairingRequests.words": {
-      "description": "Confirmation words for a pending pairing request",
-      "selectorPattern": "[data-testid=\"fleet-pairing-request-words-${id}\"]",
-      "testIdPattern": "fleet-pairing-request-words-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.pairingRequests.preset": {
-      "description": "Permission preset for a pending pairing request",
-      "selectorPattern": "[data-testid=\"fleet-pairing-request-preset-${id}\"]",
-      "testIdPattern": "fleet-pairing-request-preset-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.pairingRequests.wordsMatch": {
-      "description": "Confirmation checkbox for a pending pairing request",
-      "selectorPattern": "[data-testid=\"fleet-pairing-request-words-match-${id}\"]",
-      "testIdPattern": "fleet-pairing-request-words-match-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.pairingRequests.approve": {
-      "description": "Approve a pending pairing request",
-      "selectorPattern": "[data-testid=\"fleet-pairing-request-approve-${id}\"]",
-      "testIdPattern": "fleet-pairing-request-approve-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.pairingRequests.reject": {
-      "description": "Reject a pending pairing request",
-      "selectorPattern": "[data-testid=\"fleet-pairing-request-reject-${id}\"]",
-      "testIdPattern": "fleet-pairing-request-reject-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.pairingRequests.error": {
-      "description": "Pairing approval error",
-      "selectorPattern": "[data-testid=\"fleet-pairing-request-error\"]",
-      "testIdPattern": "fleet-pairing-request-error",
-      "params": []
-    },
-    "fleet.machineLifecycleRow": {
-      "description": "Durable Machine lifecycle row by Machine id",
-      "selectorPattern": "[data-testid=\"machine-lifecycle-${id}\"]",
-      "testIdPattern": "machine-lifecycle-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.row": {
-      "description": "Fleet node row by node id",
-      "selectorPattern": "[data-testid=\"fleet-row-${id}\"]",
-      "testIdPattern": "fleet-row-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.revoke": {
-      "description": "Revoke action for a fleet node by id",
-      "selectorPattern": "[data-testid=\"fleet-revoke-${id}\"]",
-      "testIdPattern": "fleet-revoke-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.jobs": {
-      "description": "Live job-status summary for a fleet node by id",
-      "selectorPattern": "[data-testid=\"fleet-jobs-${id}\"]",
-      "testIdPattern": "fleet-jobs-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.onboardStep": {
-      "description": "One onboarding step row by step id",
-      "selectorPattern": "[data-testid=\"fleet-onboard-step-${step}\"]",
-      "testIdPattern": "fleet-onboard-step-${step}",
-      "params": [
-        {
-          "name": "step",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.onboardRetry": {
-      "description": "Retry action for a saved failed onboarding target by operation id",
-      "selectorPattern": "[data-testid=\"fleet-onboard-retry-${id}\"]",
-      "testIdPattern": "fleet-onboard-retry-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.onboardViewLogs": {
-      "description": "View-or-hide durable onboarding diagnostics by operation id",
-      "selectorPattern": "[data-testid=\"fleet-onboard-view-logs-${id}\"]",
-      "testIdPattern": "fleet-onboard-view-logs-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "fleet.onboardRemove": {
-      "description": "Remove action for a saved failed onboarding target by operation id",
-      "selectorPattern": "[data-testid=\"fleet-onboard-remove-${id}\"]",
-      "testIdPattern": "fleet-onboard-remove-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "runs.row": {
-      "description": "Run-history row by run id",
-      "selectorPattern": "[data-testid=\"runs-row-${id}\"]",
-      "testIdPattern": "runs-row-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "runs.view": {
-      "description": "View-output action for a run by id",
-      "selectorPattern": "[data-testid=\"runs-view-${id}\"]",
-      "testIdPattern": "runs-view-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "runs.cancel": {
-      "description": "Cancel (abort) action for an in-flight run by id",
-      "selectorPattern": "[data-testid=\"runs-cancel-${id}\"]",
-      "testIdPattern": "runs-cancel-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "runs.artifact": {
-      "description": "Downloadable artifact link by run id and ordinal index",
-      "selectorPattern": "[data-testid=\"runs-artifact-${id}-${index}\"]",
-      "testIdPattern": "runs-artifact-${id}-${index}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        },
-        {
-          "name": "index",
-          "type": "number"
         }
       ]
     },
@@ -734,7 +703,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "11bd40692d6bcc12a17d5d226a3a398211e7fe994f86443929a8bd1e54a3bd80",
-    "ui/src/consts/selectors.ts": "7dcc7d1c9a565c4a0f0424ffac61061fee58aba9c04a5128a5f18d42850dadbf",
+    "ui/src/consts/selectors.ts": "3f33b0f3c380676414fccc383b893d6d611c5d785cad7efb02ba686e38f1fc1a",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

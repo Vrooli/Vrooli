@@ -15,17 +15,18 @@ import (
 
 // Manifest represents bundle.json (desktop v0.1).
 type Manifest struct {
-	SchemaVersion  string                 `json:"schema_version"`
-	Target         string                 `json:"target"`
-	App            App                    `json:"app"`
-	IPC            IPC                    `json:"ipc"`
-	Telemetry      Telemetry              `json:"telemetry"`
-	Authentication *AuthenticationProfile `json:"authentication,omitempty"`
-	Ports          *PortRules             `json:"ports,omitempty"`
-	Swaps          []Swap                 `json:"swaps,omitempty"`
-	Peers          []Peer                 `json:"peers,omitempty"`
-	Secrets        []Secret               `json:"secrets,omitempty"`
-	Services       []Service              `json:"services"`
+	SchemaVersion       string                 `json:"schema_version"`
+	Target              string                 `json:"target"`
+	App                 App                    `json:"app"`
+	IPC                 IPC                    `json:"ipc"`
+	Telemetry           Telemetry              `json:"telemetry"`
+	Authentication      *AuthenticationProfile `json:"authentication,omitempty"`
+	Ports               *PortRules             `json:"ports,omitempty"`
+	Swaps               []Swap                 `json:"swaps,omitempty"`
+	Peers               []Peer                 `json:"peers,omitempty"`
+	ProgramBindingPeers []Peer                 `json:"program_binding_peers,omitempty"`
+	Secrets             []Secret               `json:"secrets,omitempty"`
+	Services            []Service              `json:"services"`
 	// CatalogRequirements are immutable catalog paths the bundled application
 	// needs in order to boot every declared capability. Packaging validation
 	// fails before launch when one is absent.

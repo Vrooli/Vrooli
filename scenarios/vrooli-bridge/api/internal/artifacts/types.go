@@ -112,6 +112,20 @@ type Decision struct {
 	DeliveryRef    string
 }
 
+// DeliveryReceipt is the authenticated target-node result for a directed
+// placement instruction. It carries placement metadata only; artifact bytes
+// remain on device-sync-hub and the target node.
+type DeliveryReceipt struct {
+	DistributionID  string
+	NodeID          string
+	ItemID          string
+	DestinationPath string
+	Accepted        bool
+	Reason          string
+	SHA256          string
+	SizeBytes       int64
+}
+
 // ListFilter narrows ListDistributions.
 type ListFilter struct {
 	NodeID string
@@ -156,6 +170,21 @@ type ErrDeliveryFailed struct{ NodeID string }
 
 func (e ErrDeliveryFailed) Error() string {
 	return fmt.Sprintf("directed delivery to node %q failed", e.NodeID)
+}
+
+// ErrReceiptMismatch rejects a receipt that does not refer to the item Bridge
+// queued for the distribution.
+type ErrReceiptMismatch struct{ DistributionID string }
+
+func (e ErrReceiptMismatch) Error() string {
+	return fmt.Sprintf("artifact receipt does not match distribution %q", e.DistributionID)
+}
+
+// ErrReceiptNodeMismatch rejects a receipt from a different registered node.
+type ErrReceiptNodeMismatch struct{ DistributionID string }
+
+func (e ErrReceiptNodeMismatch) Error() string {
+	return fmt.Sprintf("artifact receipt node does not match distribution %q", e.DistributionID)
 }
 
 // ErrInvalidProducedArtifact is a node-upload validation failure.

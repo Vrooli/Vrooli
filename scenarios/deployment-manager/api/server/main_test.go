@@ -220,7 +220,7 @@ func TestHealthEndpoint(t *testing.T) {
 			profilesRepo := profiles.NewSQLRepository(db)
 
 			srv := &Server{
-				Config:              &Config{Port: "8080"},
+				Config:              &RuntimeConfig{Port: "8080"},
 				DB:                  db,
 				Router:              mux.NewRouter(),
 				ProfilesRepo:        profilesRepo,

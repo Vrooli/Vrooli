@@ -19,6 +19,24 @@ func TestDeleteContainedRejectsEscapingSymlink(t *testing.T) {
 	}
 }
 
+func TestDeleteContainedRejectsSymlinkIntoProtectedRoot(t *testing.T) {
+	root := t.TempDir()
+	protected := filepath.Join(root, "plan-artifacts")
+	if err := os.MkdirAll(protected, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "cache-link")
+	if err := os.Symlink(protected, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if err := DeleteContained(context.Background(), root, link, []string{protected}); err == nil {
+		t.Fatal("expected symlink into protected root to be rejected")
+	}
+	if _, err := os.Lstat(link); err != nil {
+		t.Fatalf("protected symlink was removed: %v", err)
+	}
+}
+
 func TestDeleteContainedRemovesStrictChild(t *testing.T) {
 	root := t.TempDir()
 	target := filepath.Join(root, "capture")

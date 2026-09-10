@@ -11,6 +11,7 @@ const schemaSQL = `
 CREATE TABLE IF NOT EXISTS runtime_instances (
   instance_id TEXT PRIMARY KEY,
   scenario TEXT NOT NULL,
+  build_identity TEXT NOT NULL DEFAULT '',
   variant TEXT NOT NULL DEFAULT 'live',
   generation INTEGER NOT NULL,
   scope_path TEXT NOT NULL DEFAULT '',
@@ -98,6 +99,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_runtime_port_claims_active_port
 CREATE TABLE IF NOT EXISTS runtime_health_snapshots (
   instance_id TEXT PRIMARY KEY,
   scenario TEXT NOT NULL,
+  build_identity TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL,
   readiness INTEGER,
   checked_at TEXT,
@@ -320,6 +322,17 @@ var schemaMigrations = map[int]func(context.Context, *sql.DB) error{
 	11: func(ctx context.Context, db *sql.DB) error {
 		_, err := db.ExecContext(ctx, demandStopSchemaSQL)
 		return err
+	},
+	12: func(ctx context.Context, db *sql.DB) error {
+		for _, statement := range []string{
+			`ALTER TABLE runtime_instances ADD COLUMN build_identity TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE runtime_health_snapshots ADD COLUMN build_identity TEXT NOT NULL DEFAULT ''`,
+		} {
+			if _, err := db.ExecContext(ctx, statement); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
+				return err
+			}
+		}
+		return nil
 	},
 	10: func(ctx context.Context, db *sql.DB) error {
 		_, err := db.ExecContext(ctx, demandIdleSchemaSQL)

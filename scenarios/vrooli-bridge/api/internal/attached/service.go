@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -11,6 +12,12 @@ import (
 
 	"github.com/google/uuid"
 )
+
+// ErrIdentityConflict is returned when a stable device identity is presented
+// with a different host or after its prior trust grant was revoked. Pairing
+// must never silently move an identity or resurrect authority held by an old
+// operation.
+var ErrIdentityConflict = errors.New("attached device identity conflicts with existing trust")
 
 type Device struct {
 	ID, Name, HostNodeID, Kind, Transport, Serial, OSVersion, TrustState, Reachability, HealthReason string
@@ -51,12 +58,24 @@ func NewServiceWithRepositoryAndPresence(repo Repository, live Presence) *Servic
 }
 
 func (s *Service) Pair(ctx context.Context, in PairInput) (Device, error) {
-	if strings.TrimSpace(in.HostNodeID) == "" || strings.TrimSpace(in.Kind) == "" {
+	hostNodeID := strings.TrimSpace(in.HostNodeID)
+	kind := strings.TrimSpace(in.Kind)
+	if hostNodeID == "" || kind == "" {
 		return Device{}, fmt.Errorf("host_node_id and kind are required")
 	}
 	now := time.Now().UTC()
+	serial := strings.TrimSpace(in.Serial)
+	id := stableID(kind, serial)
+	if existing, err := s.repo.Get(ctx, id); err == nil {
+		if existing.HostNodeID != hostNodeID {
+			return Device{}, fmt.Errorf("%w: identity %q is bound to host %q, not %q", ErrIdentityConflict, id, existing.HostNodeID, hostNodeID)
+		}
+		if !existing.RevokedAt.IsZero() || strings.EqualFold(strings.TrimSpace(existing.TrustState), "revoked") {
+			return Device{}, fmt.Errorf("%w: identity %q was revoked and must not be reactivated", ErrIdentityConflict, id)
+		}
+	}
 	transport := strings.TrimSpace(in.Transport)
-	d := Device{ID: stableID(in.Kind, in.Serial), Name: strings.TrimSpace(in.Name), HostNodeID: strings.TrimSpace(in.HostNodeID), Kind: strings.TrimSpace(in.Kind), Transport: transport, Transports: normalizeTransports([]string{transport}), Serial: strings.TrimSpace(in.Serial), OSVersion: strings.TrimSpace(in.OSVersion), TrustState: "trusted", Reachability: "reachable", CreatedAt: now}
+	d := Device{ID: id, Name: strings.TrimSpace(in.Name), HostNodeID: hostNodeID, Kind: kind, Transport: transport, Transports: normalizeTransports([]string{transport}), Serial: serial, OSVersion: strings.TrimSpace(in.OSVersion), TrustState: "trusted", Reachability: "reachable", CreatedAt: now}
 	if !in.HostNodeOnline {
 		d.Reachability = "unreachable"
 		d.HealthReason = "host node " + d.HostNodeID + " is offline"

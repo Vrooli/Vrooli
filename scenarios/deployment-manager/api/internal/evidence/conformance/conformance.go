@@ -38,6 +38,14 @@ func Validate(verdict *commonv1.TargetVerdict) []Violation {
 	if verdict.Disposition == commonv1.Disposition_DISPOSITION_UNSPECIFIED {
 		violations = append(violations, Violation{Path: "disposition", Reason: "must be specified"})
 	}
+	if verdict.Disposition == commonv1.Disposition_DISPOSITION_PASSED {
+		if strings.TrimSpace(verdict.EvidenceClass) == "" {
+			violations = append(violations, Violation{Path: "evidence_class", Reason: "required for passed evidence"})
+		}
+		if len(verdict.Refs) == 0 {
+			violations = append(violations, Violation{Path: "refs", Reason: "at least one reference is required for passed evidence"})
+		}
+	}
 	if t.DeviceKind != commonv1.DeviceKind_DEVICE_KIND_HOST && t.DeviceKind != commonv1.DeviceKind_DEVICE_KIND_PHYSICAL && t.BridgeNodeId != nil {
 		violations = append(violations, Violation{Path: "target.bridge_node_id", Reason: "only host or physical evidence may identify a bridge node"})
 	}
@@ -56,6 +64,8 @@ func Validate(verdict *commonv1.TargetVerdict) []Violation {
 		}
 		if ref.CreatedAt == nil {
 			violations = append(violations, Violation{Path: fmt.Sprintf("refs[%d].created_at", i), Reason: "required"})
+		} else if err := ref.CreatedAt.CheckValid(); err != nil {
+			violations = append(violations, Violation{Path: fmt.Sprintf("refs[%d].created_at", i), Reason: "must be a valid timestamp"})
 		}
 	}
 	return violations

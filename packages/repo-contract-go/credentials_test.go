@@ -44,3 +44,36 @@ func TestValidateCredentialDescriptorUniqueness(t *testing.T) {
 		t.Fatalf("ValidateCredentialDescriptorUniqueness() error = %v", err)
 	}
 }
+
+func TestFindCredentialDescriptorDuplicatesIgnoresConsumerRegistrations(t *testing.T) {
+	data := []byte(`{"credentials":{"descriptors":[{"logical_id":"vrooli/demo","field":"token"}],"consumers":[{"logical_id":"vrooli/demo","field":"token","kind":"dynamic","consumer":"session","source_ref":"api/session.go:1"},{"address_pattern":"vrooli/demo:token","kind":"environment","consumer":"compatibility","source_ref":"api/compat.go:1"}]}}`)
+	duplicates, err := FindCredentialDescriptorDuplicates(data)
+	if err != nil {
+		t.Fatalf("FindCredentialDescriptorDuplicates() error = %v", err)
+	}
+	if len(duplicates) != 0 {
+		t.Fatalf("consumer registration was treated as a duplicate declaration: %+v", duplicates)
+	}
+}
+
+func TestFindCredentialDescriptorDuplicatesMatchesBridgeManifestShape(t *testing.T) {
+	data := []byte(`{"credentials":{"descriptors":[{"logical_id":"vrooli/device-sync-hub","field":"bridge-origin-device-token"},{"logical_id":"vrooli/device-sync-hub","field":"bridge-target-device-token"}],"consumers":[{"logical_id":"vrooli/device-sync-hub","field":"bridge-origin-device-token"},{"address_pattern":"vrooli/device-sync-hub:bridge-origin-device-token"},{"logical_id":"vrooli/device-sync-hub","field":"bridge-target-device-token"}]}}`)
+	duplicates, err := FindCredentialDescriptorDuplicates(data)
+	if err != nil {
+		t.Fatalf("FindCredentialDescriptorDuplicates() error = %v", err)
+	}
+	if len(duplicates) != 0 {
+		t.Fatalf("Bridge-shaped consumer registrations were treated as declarations: %+v", duplicates)
+	}
+}
+
+func TestFindCredentialDescriptorDuplicatesMatchesTunnelManagerShape(t *testing.T) {
+	data := []byte(`{"credentials":{"descriptors":[{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-account-id"},{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-tunnel-id"},{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-api-token"},{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-connector-token"}],"consumers":[{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-api-token"},{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-account-id"},{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-tunnel-id"},{"logical_id":"vrooli/tunnel-manager","field":"cloudflare-connector-token"}]}}`)
+	duplicates, err := FindCredentialDescriptorDuplicates(data)
+	if err != nil {
+		t.Fatalf("FindCredentialDescriptorDuplicates() error = %v", err)
+	}
+	if len(duplicates) != 0 {
+		t.Fatalf("tunnel-manager consumer registrations were treated as declarations: %+v", duplicates)
+	}
+}

@@ -47,7 +47,7 @@ describe("useDeploymentProgress", () => {
     const onComplete = vi.fn();
     const onError = vi.fn();
     const { result } = renderHook(() => useDeploymentProgress("dep/1", {
-      runId: "run 1",
+      operationId: "op 1",
       onComplete,
       onError,
     }));
@@ -56,7 +56,7 @@ describe("useDeploymentProgress", () => {
     const source = FakeEventSource.instances[0];
     if (!source) throw new Error("expected EventSource instance");
     expect(source.url).toContain("dep%2F1");
-    expect(source.url).toContain("run_id=run%201");
+    expect(source.url).toContain("operation_id=op%201");
 
     act(() => source.onopen?.());
     expect(result.current.isConnected).toBe(true);

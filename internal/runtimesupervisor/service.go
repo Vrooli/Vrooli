@@ -973,10 +973,11 @@ func (s *Service) probeHealth(ctx context.Context, instance scenarioruntime.Inst
 		}
 	}
 	return scenarioruntime.HealthProbe{Clock: s.cfg.Clock}.Probe(ctx, scenarioruntime.HealthProbeInput{
-		InstanceID:   instance.InstanceID,
-		Scenario:     instance.Scenario,
-		HealthConfig: item.Manifest.HealthConfig(),
-		Ports:        healthPortsFromClaims(item.Manifest, claims),
+		InstanceID:            instance.InstanceID,
+		Scenario:              instance.Scenario,
+		HealthConfig:          item.Manifest.HealthConfig(),
+		Ports:                 healthPortsFromClaims(item.Manifest, claims),
+		ExpectedBuildIdentity: instance.BuildIdentity,
 	})
 }
 

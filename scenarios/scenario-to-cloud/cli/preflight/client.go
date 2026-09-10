@@ -4,21 +4,21 @@ import (
 	"encoding/json"
 
 	"github.com/vrooli/cli-core/cliutil"
+
+	"scenario-to-cloud/cli/deployment"
+	"scenario-to-cloud/cli/internal/transport"
 )
 
-// Client provides API access for preflight operations.
+// Client provides API access for preflight operations and resolves the
+// deployment a fix targets through the deployments client.
 type Client struct {
-	api *cliutil.APIClient
+	api         *cliutil.APIClient
+	Deployments *deployment.Client
 }
 
-// NewClient creates a new preflight client.
-func NewClient(api *cliutil.APIClient) *Client {
-	return &Client{api: api}
-}
-
-// APIClient returns the underlying API client.
-func (c *Client) APIClient() *cliutil.APIClient {
-	return c.api
+// NewClient creates a new preflight client over the shared transport.
+func NewClient(tr transport.Transport) *Client {
+	return &Client{api: tr.API, Deployments: deployment.NewClient(tr)}
 }
 
 // Run executes preflight checks for a manifest.
@@ -31,19 +31,6 @@ func (c *Client) Run(manifest map[string]interface{}) ([]byte, Response, error) 
 	var resp Response
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return body, Response{}, err
-	}
-	return body, resp, nil
-}
-
-// FixPorts fixes port conflicts.
-func (c *Client) FixPorts(req FixPortsRequest) ([]byte, FixResponse, error) {
-	body, err := c.api.Request("POST", "/api/v1/preflight/fix/ports", nil, req)
-	if err != nil {
-		return nil, FixResponse{}, err
-	}
-	var resp FixResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, FixResponse{}, err
 	}
 	return body, resp, nil
 }

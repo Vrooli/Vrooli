@@ -246,6 +246,58 @@ func TestSharedPackageSourceDigestIsPathSensitive(t *testing.T) {
 	}
 }
 
+func TestSharedPackageOutputsFreshTracksSelectedArtifactPointer(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	patterns := []string{"dist/**"}
+	writeSharedPackageFixture(t, root, "export const value = 1;\n", "export const value = 1;\n")
+	selectionRoot := filepath.Join(home, ".vrooli", "artifacts", "react-component-library")
+	if err := os.MkdirAll(selectionRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	selectionPath := filepath.Join(selectionRoot, "current.json")
+	if err := os.WriteFile(selectionPath, []byte(`{"id":"sha256:one"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	commandInputs := [][]string{nil, nil, {"@vrooli/react-component-library"}}
+	digest, err := sharedPackageSourceDigestWithHome(home, root, patterns, commandInputs...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stampPath, err := sharedPackageStampPath(home, root, "build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeSharedPackageStamp(stampPath, "@vrooli/react-component-library", "build", digest, outputsDigestFor(t, root, patterns)); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := sharedPackageOutputsFresh(home, root, "build", patterns, commandInputs...)
+	if err != nil || !fresh {
+		t.Fatalf("unchanged selected artifact should be fresh: fresh=%v err=%v", fresh, err)
+	}
+	draftRoot := filepath.Join(filepath.Dir(root), "draft-catalog")
+	if err := os.MkdirAll(draftRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(draftRoot, "unpublished-component.tsx"), []byte("broken draft\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err = sharedPackageOutputsFresh(home, root, "build", patterns, commandInputs...)
+	if err != nil || !fresh {
+		t.Fatalf("unrelated external draft should not invalidate selected artifact: fresh=%v err=%v", fresh, err)
+	}
+	if err := os.WriteFile(selectionPath, []byte(`{"id":"sha256:two"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err = sharedPackageOutputsFresh(home, root, "build", patterns, commandInputs...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fresh {
+		t.Fatal("changed selected artifact pointer must invalidate package freshness")
+	}
+}
+
 // A stamp recorded under an older hashing scheme must not be trusted.
 func TestSharedPackageOutputsFreshRejectsStaleStampVersion(t *testing.T) {
 	root := t.TempDir()
@@ -316,6 +368,31 @@ func TestProvisionSharedPackageReportsMissingDeclaredOutput(t *testing.T) {
 	}
 	if !strings.Contains(provisioningErr.Error(), "@vrooli/example") || !strings.Contains(provisioningErr.Error(), "sh -c true") {
 		t.Fatalf("error = %v, want package and command", provisioningErr)
+	}
+}
+
+func TestProvisionSharedPackagePromotesRuntimeDegradedEvidence(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	var log bytes.Buffer
+	dependency := sharedPackageDependency{
+		Name: "@vrooli/react-component-library",
+		Root: root,
+		Build: []packagegov.CommandSpec{{
+			Name:    "build",
+			Run:     []string{"sh", "-c", `mkdir -p dist; printf built > dist/index.js; printf '%s\n' '{"built":"@vrooli/react-component-library","status":"degraded","reason":"candidate compile failed","candidate":"candidate:test","selectedArtifact":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","compatibility":"verified"}'`},
+			Outputs: []string{"dist/**"},
+		}},
+	}
+	var output bytes.Buffer
+	if err := provisionSharedPackageWithOptions(dependency, &output, &log, sharedPackageProvisionOptions{Home: home}); err != nil {
+		t.Fatalf("provision shared package: %v", err)
+	}
+	if !strings.Contains(log.String(), `shared-package-runtime event=status package="@vrooli/react-component-library" status="degraded"`) {
+		t.Fatalf("lifecycle log did not promote degraded evidence:\n%s", log.String())
+	}
+	if !strings.Contains(log.String(), `candidate="candidate:test"`) || !strings.Contains(log.String(), `selected_artifact="sha256:aaaaaaaa`) {
+		t.Fatalf("lifecycle log omitted artifact identities:\n%s", log.String())
 	}
 }
 

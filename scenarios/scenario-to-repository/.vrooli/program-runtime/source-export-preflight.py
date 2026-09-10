@@ -1,7 +1,4 @@
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 scenario = str(inputs.get("scenario", "")).strip()
 source_root = str(inputs.get("source_root", "")).strip()
 envelope = {"program": "scenario-to-repository.source-export-preflight", "version": "1", "status": "failed", "phase": "validate", "evidence": [], "errors": [], "publication": "human-only"}

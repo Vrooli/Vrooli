@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS deployment_evidence_verdicts (
     bridge_node_id TEXT,
     bridge_job_id TEXT,
     disposition INTEGER NOT NULL,
+    evidence_class TEXT NOT NULL DEFAULT '',
     run_id TEXT NOT NULL,
     detail TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL

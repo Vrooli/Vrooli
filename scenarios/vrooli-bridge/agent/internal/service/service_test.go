@@ -100,6 +100,23 @@ func TestWindowsServiceCreateArgs_TypedArgv(t *testing.T) {
 	require.Contains(t, args, "vrooli-agent")
 }
 
+func TestWindowsServiceCreateArgs_RequiresExplicitServiceUser(t *testing.T) {
+	d := sampleDef()
+	d.User = "  "
+	_, err := service.WindowsServiceCreateArgs(d)
+	require.EqualError(t, err, "windows service user is required")
+}
+
+func TestWindowsServiceCreateArgs_QuotesProtectedAndNonASCIIPaths(t *testing.T) {
+	d := sampleDef()
+	d.ExecPath = `C:\Program Files\Vrooli\桥.exe`
+	d.Args = []string{`--state-dir`, `C:\Program Files\Vrooli Data`}
+	args, err := service.WindowsServiceCreateArgs(d)
+	require.NoError(t, err)
+	require.Contains(t, args, "binPath=")
+	require.Contains(t, args, `"C:\Program Files\Vrooli\桥.exe" --state-dir "C:\Program Files\Vrooli Data"`)
+}
+
 // [REQ:BRG-P0-007] The privileged provisioning helper installs under its OWN
 // principal — the same renderer, a different User — so the two trust tiers are
 // distinct OS principals at install time.

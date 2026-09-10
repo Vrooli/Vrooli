@@ -148,6 +148,124 @@ func (s *Server) discardDraft(ctx context.Context, target, actor string) (sessio
 	return operatorDraftToDomain(document.Drafts[operatorstate.DraftKey(target, actor)]), nil
 }
 
+func operatorProfileSessionToDomain(value *operatorstate.ProfileSession, revision string) *sessiondomain.ProfileSession {
+	if value == nil {
+		return nil
+	}
+	return &sessiondomain.ProfileSession{
+		Target: value.Target, Actor: value.Actor, Mode: value.Mode,
+		ProfileID: value.ProfileID, ProfileVersion: value.ProfileVersion,
+		CatalogRevision: value.CatalogRevision, BaseRevision: value.BaseRevision,
+		Answers:         cloneRawMessages(value.Answers),
+		ManualDecisions: cloneBools(value.ManualDecisions),
+		TargetContext:   cloneStrings(value.TargetContext), UpdatedAt: value.UpdatedAt, Revision: revision,
+	}
+}
+
+func (s *Server) getProfileSession(ctx context.Context, target, actor string) (*sessiondomain.ProfileSession, error) {
+	document, err := operatorStateService().Load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if document.Session == nil || document.Session.Profile == nil {
+		return nil, nil
+	}
+	value := document.Session.Profile
+	if value.Target != strings.TrimSpace(target) || value.Actor != strings.TrimSpace(actor) {
+		return nil, fmt.Errorf("profile session is outside the requested target or actor scope")
+	}
+	return s.reconcileProfileSession(ctx, operatorProfileSessionToDomain(value, operatorstate.Revision(document))), nil
+}
+
+func (s *Server) saveProfileSession(ctx context.Context, value sessiondomain.ProfileSession, expectedRevision string) (*sessiondomain.ProfileSession, error) {
+	current, err := operatorStateService().ProfileSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if current != nil && (current.Target != strings.TrimSpace(value.Target) || current.Actor != strings.TrimSpace(value.Actor)) {
+		return nil, fmt.Errorf("profile session is already owned by another target or actor")
+	}
+	document, err := operatorStateService().SaveProfileSession(ctx, operatorstate.ProfileSession{
+		Target: value.Target, Actor: value.Actor, Mode: value.Mode,
+		ProfileID: value.ProfileID, ProfileVersion: value.ProfileVersion,
+		CatalogRevision: value.CatalogRevision, BaseRevision: value.BaseRevision,
+		Answers: cloneRawMessages(value.Answers), ManualDecisions: cloneBools(value.ManualDecisions),
+		TargetContext: cloneStrings(value.TargetContext),
+	}, expectedRevision)
+	if err != nil {
+		return nil, err
+	}
+	return s.reconcileProfileSession(ctx, operatorProfileSessionToDomain(document.Session.Profile, operatorstate.Revision(document))), nil
+}
+
+// reconcileProfileSession compares the persisted profile reference with the
+// current owner-authored catalog. A changed or revoked profile is surfaced as
+// review-required; it never silently changes the selected profile or answers.
+func (s *Server) reconcileProfileSession(ctx context.Context, value *sessiondomain.ProfileSession) *sessiondomain.ProfileSession {
+	if value == nil {
+		return nil
+	}
+	value.ReconciliationState = "manual"
+	if strings.TrimSpace(value.ProfileID) == "" {
+		return value
+	}
+	profiles, err := onboardingProfilesService().List(ctx)
+	if err != nil {
+		value.ReconciliationState = "unavailable"
+		value.ReconciliationReasons = []string{"The current profile catalog could not be checked."}
+		return value
+	}
+	for _, profile := range profiles {
+		if profile.ID != value.ProfileID {
+			continue
+		}
+		value.CurrentProfileVersion = profile.Version
+		if strings.TrimSpace(value.ProfileVersion) != "" && profile.Version != value.ProfileVersion {
+			value.ReconciliationState = "review_required"
+			value.ReconciliationReasons = []string{fmt.Sprintf("Profile %q changed from version %s to %s.", value.ProfileID, value.ProfileVersion, profile.Version)}
+			return value
+		}
+		value.ReconciliationState = "current"
+		return value
+	}
+	value.ReconciliationState = "profile_revoked"
+	value.ReconciliationReasons = []string{fmt.Sprintf("Profile %q is no longer available; existing answers were retained.", value.ProfileID)}
+	return value
+}
+
+func cloneRawMessages(values map[string]json.RawMessage) map[string]json.RawMessage {
+	if len(values) == 0 {
+		return nil
+	}
+	result := make(map[string]json.RawMessage, len(values))
+	for key, value := range values {
+		result[key] = append(json.RawMessage(nil), value...)
+	}
+	return result
+}
+
+func cloneBools(values map[string]bool) map[string]bool {
+	if len(values) == 0 {
+		return nil
+	}
+	result := make(map[string]bool, len(values))
+	for key, value := range values {
+		result[key] = value
+	}
+	return result
+}
+
+func cloneStrings(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	result := make(map[string]string, len(values))
+	for key, value := range values {
+		result[key] = value
+	}
+	return result
+}
+
 type stepModelResponse struct {
 	ID       string `json:"id"`
 	Ordinal  int    `json:"ordinal"`

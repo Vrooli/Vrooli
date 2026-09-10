@@ -1,6 +1,7 @@
 import FormWizard from "@vrooli/react-component-library/FormWizard";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { useLayoutEffect, useRef } from "react";
+import { AlertCircle, CheckCircle2, LoaderCircle } from "lucide-react";
 import type { WizardStep } from "../../api/session";
 import { i18n } from "../../i18n";
 
@@ -86,15 +87,28 @@ export function WizardShell({
         </div>
       </div>
       <section className="wizard-stage" aria-label={i18n.t("onboarding.shell.setup")}>
-        {operatorStateError && <p role="alert" data-testid="operator-state-save-error">{operatorStateError}</p>}
-        {operatorStateSaveState !== "idle" && <div role="status" aria-live="polite" data-testid="operator-state-save-state">
-          <span>
-            {operatorStateSaveState === "saving" && i18n.t("onboarding.shell.savingPreferences")}
-            {operatorStateSaveState === "saved" && i18n.t("onboarding.shell.savedPreferences")}
-            {operatorStateSaveState === "failed" && i18n.t("onboarding.shell.failedPreferences")}
-            {operatorStateSaveState === "conflict" && i18n.t("onboarding.shell.conflictingPreferences")}
-          </span>
-          {(operatorStateSaveState === "failed" || operatorStateSaveState === "conflict") && onRetryOperatorStateSave && <Button type="button" variant="secondary" onClick={onRetryOperatorStateSave} data-testid="operator-state-save-retry">{i18n.t("onboarding.shell.retryPreferences")}</Button>}
+        {operatorStateSaveState !== "idle" && <div data-testid="operator-state-save-state">
+          <div
+            className={`operator-state-save-banner operator-state-save-banner--${operatorStateSaveState}`}
+            role={operatorStateError ? "alert" : "status"}
+            data-testid="operator-state-save-error"
+          >
+            {operatorStateSaveState === "saving" && <LoaderCircle className="operator-state-save-banner__icon operator-state-save-banner__icon--spin" aria-hidden="true" />}
+            {operatorStateSaveState === "saved" && <CheckCircle2 className="operator-state-save-banner__icon" aria-hidden="true" />}
+            {(operatorStateSaveState === "failed" || operatorStateSaveState === "conflict") && <AlertCircle className="operator-state-save-banner__icon" aria-hidden="true" />}
+            <span className="operator-state-save-banner__message">
+              {operatorStateError ?? (
+                operatorStateSaveState === "saving"
+                  ? i18n.t("onboarding.shell.savingPreferences")
+                  : operatorStateSaveState === "saved"
+                    ? i18n.t("onboarding.shell.savedPreferences")
+                    : operatorStateSaveState === "failed"
+                      ? i18n.t("onboarding.shell.failedPreferences")
+                      : i18n.t("onboarding.shell.conflictingPreferences")
+              )}
+            </span>
+            {(operatorStateSaveState === "failed" || operatorStateSaveState === "conflict") && onRetryOperatorStateSave && <Button type="button" size="sm" variant="secondary" onClick={onRetryOperatorStateSave} data-testid="operator-state-save-retry">{i18n.t("onboarding.shell.retryPreferences")}</Button>}
+          </div>
         </div>}
         <FormWizard
           key={steps.map((step) => step.id).join("/")}

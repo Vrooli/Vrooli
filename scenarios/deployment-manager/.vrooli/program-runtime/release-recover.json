@@ -2,11 +2,30 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "deployment-manager.release-recover",
   "version": "1",
-  "purpose": "Produce a bounded recovery decision for one exact review; execution is refused until an owner operation, explicit grant, confirmation, and dry-run evidence exist.",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Produce a bounded recovery decision for one exact review and route an explicitly granted recovery action through the owning target with a durable effect receipt.",
   "inputs": {
     "review_key": {
       "type": "string",
       "required": true
+    },
+    "release_id": {
+      "type": "string",
+      "default": ""
+    },
+    "candidate_id": {
+      "type": "string",
+      "default": ""
+    },
+    "destination_revision_id": {
+      "type": "string",
+      "default": ""
+    },
+    "action": {
+      "type": "string",
+      "default": "halt"
     },
     "execute": {
       "type": "boolean",
@@ -19,6 +38,18 @@
     "dry_run_reference": {
       "type": "string",
       "default": ""
+    },
+    "expected_predecessor_revision": {
+      "type": "integer",
+      "default": 0
+    },
+    "data_compatibility": {
+      "type": "string",
+      "default": ""
+    },
+    "repair_artifact_ids": {
+      "type": "object",
+      "default": {}
     }
   },
   "assumptions": [
@@ -34,6 +65,10 @@
     {
       "id": "deployment-manager/readiness-reviews/get",
       "effect": "read"
+    },
+    {
+      "id": "deployment-manager/releases/recover",
+      "effect": "write"
     }
   ],
   "outputs": {
@@ -56,10 +91,12 @@
       ]
     },
     "signals": {
-      "decision": "observe, repair blockers, rollback, or owner_action_unbound",
+      "decision": "observe or repair blockers",
       "review_status": "durable state",
       "target_identity": "review key",
-      "required_controls": "grant, confirmation, and dry-run evidence"
+      "required_controls": "grant, confirmation, and dry-run evidence",
+      "owner_receipt": "durable owner effect receipt",
+      "outcome": "halted, withdrawn, rolled_back, or forward_repaired"
     },
     "errors": {
       "classes": [
@@ -73,6 +110,7 @@
         "deadline_exceeded",
         "binding_error",
         "kernel_runtime",
+        "remote_error",
         "no_governed_binding"
       ]
     },

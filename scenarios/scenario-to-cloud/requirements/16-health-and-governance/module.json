@@ -1,0 +1,140 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-09T16:36:03-04:00"
+  },
+  "requirements": [
+    {
+      "id": "STC-P0-033",
+      "title": "Typed health observation with identity and freshness",
+      "status": "complete",
+      "prd_ref": "OT-P0-015",
+      "category": "health-and-governance",
+      "description": "Health reports carry deployment, target, observed release and configuration digests, observation time, typed check statuses and freshness; a healthy report can be too old or attached to the wrong release.",
+      "tags": [
+        "health"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/health/observation_test.go",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/vps/health_test.go::TestComputeHealth_SSHProbeFailureIsUnknown",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_health_test.go",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "docs/reference/health-contract.md",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-034",
+      "title": "Consumers reject false-green health",
+      "status": "complete",
+      "prd_ref": "OT-P0-015",
+      "category": "health-and-governance",
+      "description": "Deployment Manager and other consumers fail closed on HTTP 200 with unhealthy, malformed, stale or wrong-target content and resolve the exact deployment from profile, environment and target rather than a hardcoded scenario slug.",
+      "tags": [
+        "health",
+        "deployment-manager"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/health/observation_test.go",
+          "status": "implemented",
+          "notes": "Cross-scenario ref moved to notes: scenarios/deployment-manager/api/deployments/cloud_health_regression_test.go"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/deployments/tabs/HealthObservationBadge.test.tsx",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-035",
+      "title": "Delivery-ramp evidence and exact review binding",
+      "status": "complete",
+      "prd_ref": "OT-P0-015",
+      "category": "health-and-governance",
+      "description": "Cloud implements the shared ramp seams; review, approval and publication bind to source, artifact, configuration, target set, environment, channel and policy; forged, stale or mismatched receipts are rejected.",
+      "tags": [
+        "governance",
+        "evidence"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/evidence/evidence_test.go",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/ramp/ramp_test.go",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/persistence/evidence_test.go",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_publication_test.go",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "certification/evidence/GOV-01.json",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-036",
+      "title": "Edge routing, DNS and TLS lifecycle",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-015",
+      "category": "health-and-governance",
+      "description": "Public and private listeners derive from declarations; edge updates are transactional and preserve unrelated routes; certificate expiry and renewal produce actionable status; wrong DNS cannot claim external readiness.",
+      "tags": [
+        "edge",
+        "dns",
+        "tls"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/edge/policy_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "[REQ:STC-P0-036] declared listener policy, ACME staging/production authority, snippet never inlines secrets"
+        },
+        {
+          "type": "test",
+          "ref": "api/edge/checks_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "DNS family binding, local vs external readiness, port conflicts, TLS renewal states, Caddy journal parsing"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_edge_observation_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "typed edge observation without secrets; wrong DNS cannot claim readiness; IPv6-only"
+        }
+      ]
+    }
+  ]
+}

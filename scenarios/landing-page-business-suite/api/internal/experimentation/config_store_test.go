@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -40,6 +41,50 @@ func TestConfigStore_LoadAll(t *testing.T) {
 	}
 	if branding.SiteName == "" {
 		t.Error("Expected branding to have a site name")
+	}
+}
+
+func TestConfigStoreMigratesLegacySMTPPasswordBeforeLoading(t *testing.T) {
+	brandingPath := filepath.Join(t.TempDir(), "branding.json")
+	legacyPassword := "legacy-smtp-password"
+	if err := os.WriteFile(brandingPath, []byte(`{"site_name":"Legacy","smtp_password":"`+legacyPassword+`","smtp_host":"smtp.example.test"}`), 0o600); err != nil {
+		t.Fatalf("write legacy branding: %v", err)
+	}
+
+	var migratedKey, migratedValue string
+	store := NewConfigStoreWithOptions(ConfigStoreOptions{
+		BrandingPath: brandingPath,
+		MigrateCredential: func(key, value string) error {
+			migratedKey, migratedValue = key, value
+			return nil
+		},
+	})
+	if err := store.LoadAll(); err != nil {
+		t.Fatalf("LoadAll() error = %v", err)
+	}
+	if migratedKey != "SMTP_PASSWORD" || migratedValue != legacyPassword {
+		t.Fatalf("migration = (%q, %q), want SMTP_PASSWORD and legacy value", migratedKey, migratedValue)
+	}
+	clean, err := os.ReadFile(brandingPath)
+	if err != nil {
+		t.Fatalf("read migrated branding: %v", err)
+	}
+	if strings.Contains(string(clean), "smtp_password") || strings.Contains(string(clean), legacyPassword) {
+		t.Fatalf("legacy password remained in branding JSON: %s", clean)
+	}
+	if store.GetBranding().SMTPPassword != nil {
+		t.Fatal("legacy password remained in the in-memory branding model")
+	}
+}
+
+func TestConfigStoreRejectsLegacySMTPPasswordWithoutMigrationOwner(t *testing.T) {
+	brandingPath := filepath.Join(t.TempDir(), "branding.json")
+	if err := os.WriteFile(brandingPath, []byte(`{"site_name":"Legacy","smtp_password":"legacy"}`), 0o600); err != nil {
+		t.Fatalf("write legacy branding: %v", err)
+	}
+	store := NewConfigStore("", brandingPath, nil)
+	if err := store.LoadAll(); err == nil || !strings.Contains(err.Error(), "credential authority migration") {
+		t.Fatalf("LoadAll() error = %v, want migration-owner error", err)
 	}
 }
 

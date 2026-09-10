@@ -1,12 +1,14 @@
 package cliutil
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -89,6 +91,49 @@ func TestWithTimeoutIgnoresNonPositiveDurations(t *testing.T) {
 		if got := client.WithTimeout(timeout); got != client {
 			t.Fatalf("timeout %s should return the receiver", timeout)
 		}
+	}
+}
+
+func TestWithoutTimeoutPreservesTransportIdentityAndContextCancellation(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		if r.Header.Get("Authorization") != "Bearer saved-token" || r.Header.Get(HeaderInvocationCommand) != "workflow execution-wait" {
+			t.Errorf("wait lost authentication/provenance: %+v", r.Header)
+		}
+		select {
+		case <-time.After(60 * time.Millisecond):
+		case <-r.Context().Done():
+			return
+		}
+		_, _ = fmt.Fprint(w, `{"terminal":true}`)
+	}))
+	defer server.Close()
+	transport := &http.Transport{}
+	defer transport.CloseIdleConnections()
+	base := NewHTTPClient(HTTPClientOptions{Client: &http.Client{Timeout: 10 * time.Millisecond, Transport: transport}})
+	base.SetInvocationHeaderSource(func() map[string]string { return map[string]string{HeaderInvocationCommand: "workflow execution-wait"} })
+	client := NewAPIClient(base, func() APIBaseOptions { return APIBaseOptions{DefaultBase: server.URL} }, func() string { return "saved-token" })
+	wait := client.WithoutTimeout()
+	if wait.client.Timeout() != 0 || wait.client.client.Transport != transport || base.Timeout() != 10*time.Millisecond || wait.client == base {
+		t.Fatal("explicit wait clone lost transport or changed ordinary defaults")
+	}
+	if body, err := wait.Get("/wait", nil); err != nil || string(body) != `{"terminal":true}` {
+		t.Fatalf("durable wait inherited default timeout: %s %v", body, err)
+	}
+	if _, err := client.Get("/ordinary", nil); err == nil {
+		t.Fatal("ordinary request lost its timeout")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if _, err := wait.client.DoWithContext(ctx, http.MethodGet, "/wait", nil, nil); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("explicit request cancellation lost: %v", err)
+	}
+	if requests.Load() != 3 {
+		t.Fatalf("unexpected retry: requests=%d", requests.Load())
+	}
+	if empty := NewAPIClient(nil, nil, nil).WithoutTimeout(); empty.client.Timeout() != 0 {
+		t.Fatal("empty client inherited a default timeout")
 	}
 }
 

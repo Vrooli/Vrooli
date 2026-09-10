@@ -39,6 +39,10 @@ const (
 // It builds the dependency DAG, computes tier aggregates, generates bundle manifests,
 // and identifies metadata gaps.
 func BuildReport(scenarioName, scenarioPath, scenariosDir string, cfg *types.Manifest) *types.DeploymentAnalysisReport {
+	return BuildReportWithOptions(scenarioName, scenarioPath, scenariosDir, cfg, DependencyBuildOptions{})
+}
+
+func BuildReportWithOptions(scenarioName, scenarioPath, scenariosDir string, cfg *types.Manifest, options DependencyBuildOptions) *types.DeploymentAnalysisReport {
 	if cfg == nil {
 		return nil
 	}
@@ -46,7 +50,7 @@ func BuildReport(scenarioName, scenarioPath, scenariosDir string, cfg *types.Man
 	generatedAt := time.Now().UTC()
 	visited := map[string]struct{}{}
 	visited[config.NormalizeName(scenarioName)] = struct{}{}
-	nodes := BuildDependencyNodeList(scenariosDir, scenarioName, cfg, visited)
+	nodes := BuildDependencyNodeListWithOptions(scenariosDir, scenarioName, cfg, visited, options)
 	aggregateNodes := append([]types.DeploymentDependencyNode{}, nodes...)
 	if root := buildRootScenarioNode(scenarioName, scenarioPath, cfg); root != nil {
 		aggregateNodes = append(aggregateNodes, *root)

@@ -137,3 +137,57 @@ func TestCorrelatedRedemptionReusesActiveCredential(t *testing.T) {
 	require.True(t, paired)
 	require.Equal(t, first, resolved)
 }
+
+// [REQ:BRG-MEC-002] A credential-write interruption leaves a correlated saga
+// resumable, without claiming that the partial node is fully enrolled. Restart
+// reconciliation must finish the same node and must not create a second
+// credential or consume a fresh identity.
+func TestCorrelatedRedemptionRecoversAfterCredentialWriteFailure(t *testing.T) {
+	ctx := context.Background()
+	d := db.NewSQLite(t)
+	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(pairing.Schema)))
+	clock := scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
+	registrar := &correlatedRegistrar{nodes: map[string]string{}, updates: map[string][]string{}}
+	repo := pairing.NewSQLiteRepository(d, clock)
+	enrollmentRepo, ok := repo.(pairing.EnrollmentRepository)
+	require.True(t, ok)
+	svc := pairing.NewService(repo, registrar, clock, pairing.WithGrantValidator(func([]string) error { return nil }))
+
+	_, err := d.ExecContext(ctx, `CREATE TRIGGER fail_pairing_credential_insert
+		BEFORE INSERT ON node_credentials
+		BEGIN SELECT RAISE(ABORT, 'injected credential failure'); END`)
+	require.NoError(t, err)
+	issued, err := svc.IssueCodeForEnrollment(ctx, "mac", []string{"demo:read"}, 0, "attempt-credential-failure")
+	require.NoError(t, err)
+	key := base64.StdEncoding.EncodeToString(make([]byte, 32))
+
+	_, err = svc.Redeem(ctx, issued.Code, key, pairing.NodeFacts{OS: "darwin", Arch: "amd64"})
+	require.Error(t, err)
+	nodeID := registrar.nodes["attempt-credential-failure"]
+	require.NotEmpty(t, nodeID)
+	saga, err := enrollmentRepo.GetEnrollmentSaga(ctx, "attempt-credential-failure")
+	require.NoError(t, err)
+	require.Equal(t, "node_registered", saga.State)
+	require.Equal(t, nodeID, saga.NodeID)
+	_, active, err := repo.ActivePublicKey(ctx, nodeID)
+	require.NoError(t, err)
+	require.False(t, active, "a failed credential write must not leave an active credential")
+
+	_, err = d.ExecContext(ctx, `DROP TRIGGER fail_pairing_credential_insert`)
+	require.NoError(t, err)
+	resumed, err := svc.ReconcileEnrollments(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, resumed)
+
+	saga, err = enrollmentRepo.GetEnrollmentSaga(ctx, "attempt-credential-failure")
+	require.NoError(t, err)
+	require.Equal(t, "completed", saga.State)
+	require.Equal(t, nodeID, saga.NodeID)
+	resolved, paired, err := svc.ResolveEnrollment(ctx, "attempt-credential-failure")
+	require.NoError(t, err)
+	require.True(t, paired)
+	require.Equal(t, nodeID, resolved)
+	_, active, err = repo.ActivePublicKey(ctx, nodeID)
+	require.NoError(t, err)
+	require.True(t, active)
+}

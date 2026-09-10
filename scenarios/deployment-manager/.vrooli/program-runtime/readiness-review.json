@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "deployment-manager.readiness-review",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Prepare or resume one immutable candidate review and return its bounded decision, unresolved finding count, goal reference, and next actions.",
   "inputs": {
     "scenario": {
@@ -22,7 +25,14 @@
     },
     "target": {
       "type": "string",
-      "required": true
+      "default": ""
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
     },
     "channel": {
       "type": "string",
@@ -35,6 +45,22 @@
     "trigger": {
       "type": "string",
       "default": "operator requested readiness review"
+    },
+    "facts": {
+      "type": "object",
+      "default": {}
+    },
+    "candidate_id": {
+      "type": "string",
+      "default": ""
+    },
+    "destination_revision_id": {
+      "type": "string",
+      "default": ""
+    },
+    "authorization_epoch": {
+      "type": "integer",
+      "default": 0
     }
   },
   "assumptions": [
@@ -91,7 +117,9 @@
         "invalid_input",
         "deadline_exceeded",
         "binding_error",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "review key and goal reference"
@@ -124,6 +152,53 @@
         "artifact_digest": "sha256:fixture",
         "target": "linux-x64",
         "channel": "fixture"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "refused",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "deployment-manager",
+        "swarm-manager"
+      ]
+    },
+    {
+      "id": "live-multi-target",
+      "inputs": {
+        "scenario": "deployment-manager",
+        "profile_id": "fixture",
+        "candidate_commit": "fixture",
+        "artifact_digest": "sha256:fixture",
+        "targets": ["linux-x64", "windows-x64"],
+        "channel": "fixture"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "refused",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "deployment-manager",
+        "swarm-manager"
+      ]
+    },
+    {
+      "id": "live-release-bound",
+      "inputs": {
+        "scenario": "deployment-manager",
+        "profile_id": "fixture",
+        "candidate_commit": "fixture",
+        "artifact_digest": "sha256:fixture",
+        "targets": ["linux-x64"],
+        "channel": "fixture",
+        "candidate_id": "candidate-fixture",
+        "destination_revision_id": "destination-fixture",
+        "authorization_epoch": 7
       },
       "expect": {
         "status": [

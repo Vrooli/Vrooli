@@ -66,6 +66,10 @@ func (a *API) Descriptor() operatorcapability.Descriptor {
 	}
 	return operatorcapability.Descriptor{
 		Version: operatorcapability.ContractVersion, ID: CapabilityID, Owner: "storage-manager",
+		Scope: "host storage recovery", Purpose: "grant standing approval to named storage recovery providers",
+		Sensitivity: operatorcapability.SensitivityOperator, Disposition: operatorcapability.DispositionConfigurable,
+		Provenance:  operatorcapability.PermissionProvenance{Requester: "onboarding operator", Scope: "this host and the named storage providers", GrantSource: "reviewed capability apply with explicit confirmation", RevocationLimit: "storage-manager can revoke each provider approval; approval never grants an arbitrary path or command"},
+		Lifecycle:   operatorcapability.Lifecycle{Preview: true, Apply: true, Verify: true, Revoke: true, Recovery: "start storage-manager and retry the owner approval operation"},
 		Title:       "Storage recovery standing approvals",
 		Description: "Choose which privileged storage recovery providers may run autonomously on this host.",
 		Risk:        "Approved providers may delete regenerable system data under the recovery policy.",

@@ -2,6 +2,7 @@ package readiness
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"deployment-manager/crossosgate"
@@ -12,12 +13,15 @@ import (
 // evidence/run reference; deployment-manager still owns the aggregate.
 func SignalFromCrossOS(verdict crossosgate.Verdict, observedAt time.Time) Signal {
 	status := SignalFailed
-	if verdict.ProductionReady {
+	if verdict.ProductionReady && !verdict.TimedOut && strings.EqualFold(strings.TrimSpace(verdict.Verdict), "passed") && strings.TrimSpace(verdict.GateID) != "" {
 		status = SignalPassed
 	}
 	detail := fmt.Sprintf("cross-OS gate %s: %s", verdict.GateID, verdict.Verdict)
 	if verdict.TimedOut {
 		detail += " (timed out)"
 	}
-	return Signal{ItemID: "ramp-evidence-complete", Status: status, Source: "vrooli-bridge/cross-os", RunID: verdict.GateID, ObservedAt: observedAt.UTC(), Detail: detail}
+	if verdict.ProductionReady && status != SignalPassed {
+		detail += " (missing attributable terminal gate identity)"
+	}
+	return Signal{ItemID: "ramp-evidence-complete", Status: status, Source: "vrooli-bridge/cross-os", RunID: verdict.GateID, Reference: "bridge-gate:" + strings.TrimSpace(verdict.GateID), ObservedAt: observedAt.UTC(), Detail: detail}
 }

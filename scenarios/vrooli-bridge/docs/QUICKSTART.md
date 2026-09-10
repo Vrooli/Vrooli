@@ -60,7 +60,7 @@ automatically):
 
 ```bash
 vrooli-bridge status
-vrooli-bridge <domain> <command>   # e.g. list/create commands for your domain
+vrooli-bridge artifacts get "<distribution-id>"
 ```
 
 Or directly via HTTP:

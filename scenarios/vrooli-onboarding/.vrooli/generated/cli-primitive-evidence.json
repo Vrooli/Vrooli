@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "vrooli-onboarding",
   "generator": "v1.0.0",
-  "manifest_hash": "6315ad6345458f5008b6df0b0472a3a29ef2ef50df2b671de952d9def3331b34",
+  "manifest_hash": "82d9a18e1c060fc830d370779dbcad24ab475da37850abe6c07de5f70c74ceae",
   "commands": [
     {
       "path": "apply cancel",
@@ -303,6 +303,14 @@
       "observed_primitive": "external_delegation"
     },
     {
+      "path": "wizard profile-session",
+      "group": "wizard",
+      "command": "profile-session",
+      "binding": "SessionService.GetProfileSession",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
       "path": "wizard run",
       "group": "wizard",
       "command": "run",
@@ -315,6 +323,14 @@
       "group": "wizard",
       "command": "save-draft",
       "binding": "SessionService.SaveDraft",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "wizard save-profile-session",
+      "group": "wizard",
+      "command": "save-profile-session",
+      "binding": "SessionService.SaveProfileSession",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
     },

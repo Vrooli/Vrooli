@@ -200,7 +200,7 @@ describe("[REQ:BRG-P1-005] Run history", () => {
     confirmSpy.mockRestore();
   });
 
-  it("shows a terminal state (no spinner) for a finished run", async () => {
+	it("shows a terminal state (no spinner) for a finished run", async () => {
     listRuns.mockResolvedValue({
       runs: [makeRun({ id: "done1", status: RunStatus.PASSED, exitCode: 0 })],
     });
@@ -210,6 +210,25 @@ describe("[REQ:BRG-P1-005] Run history", () => {
     const scoped = within(row);
     // Terminal runs do not render the in-flight progress bar or cancel control.
     expect(scoped.queryByRole("progressbar")).not.toBeInTheDocument();
-    expect(scoped.queryByTestId(selectors.runs.cancel({ id: "done1" }))).not.toBeInTheDocument();
+		expect(scoped.queryByTestId(selectors.runs.cancel({ id: "done1" }))).not.toBeInTheDocument();
+	});
+
+  it("keeps cancellation states visible until termination is confirmed", async () => {
+    listRuns.mockResolvedValue({
+      runs: [
+        makeRun({ id: "cancel-requested", status: RunStatus.CANCEL_REQUESTED }),
+        makeRun({ id: "uncertain", status: RunStatus.UNCERTAIN }),
+      ],
+    });
+    renderWithProviders(<RunHistory />);
+
+    const requested = await screen.findByTestId(selectors.runs.row({ id: "cancel-requested" }));
+    const uncertain = await screen.findByTestId(selectors.runs.row({ id: "uncertain" }));
+    expect(within(requested).getByText(strings.runs.status.cancelRequested)).toBeInTheDocument();
+    expect(
+      within(requested).queryByTestId(selectors.runs.cancel({ id: "cancel-requested" })),
+    ).not.toBeInTheDocument();
+    expect(within(uncertain).getByText(strings.runs.status.uncertain)).toBeInTheDocument();
+    expect(within(uncertain).getByTestId(selectors.runs.cancel({ id: "uncertain" }))).toBeInTheDocument();
   });
 });

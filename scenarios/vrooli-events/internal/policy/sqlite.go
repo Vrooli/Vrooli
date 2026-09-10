@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS receipt_projection_rules (
 	event_type TEXT NOT NULL DEFAULT 'vrooli.events.receipt.v1',
 	response_type TEXT NOT NULL DEFAULT '',
   response_fields_json TEXT NOT NULL DEFAULT '[]',
+	work_reference_projections_json TEXT NOT NULL DEFAULT '[]',
 	read_principals_json TEXT NOT NULL DEFAULT '[]',
   redact_fields_json TEXT NOT NULL DEFAULT '[]',
   max_bytes INTEGER NOT NULL DEFAULT 65536,
@@ -106,6 +107,7 @@ func NewSQLiteStore(db sqlutil.DB) (*SQLiteStore, error) {
 		`ALTER TABLE receipt_projection_rules ADD COLUMN protocol TEXT NOT NULL DEFAULT 'connect'`,
 		`ALTER TABLE receipt_projection_rules ADD COLUMN event_type TEXT NOT NULL DEFAULT 'vrooli.events.receipt.v1'`,
 		`ALTER TABLE receipt_projection_rules ADD COLUMN response_type TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE receipt_projection_rules ADD COLUMN work_reference_projections_json TEXT NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE receipt_projection_rules ADD COLUMN read_principals_json TEXT NOT NULL DEFAULT '[]'`,
 	} {
 		if _, err := db.ExecContext(ctx, statement); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
@@ -235,9 +237,13 @@ func (s *SQLiteStore) CreateReceiptProjection(ctx context.Context, r ReceiptProj
 	if err != nil {
 		return 0, fmt.Errorf("marshal read principals: %w", err)
 	}
+	workReferences, err := json.Marshal(r.WorkReferenceProjections)
+	if err != nil {
+		return 0, fmt.Errorf("marshal work reference projections: %w", err)
+	}
 	res, err := s.db.ExecContext(ctx, `INSERT INTO receipt_projection_rules
-		(policy_id, source_scenario, target_scenario, operation_pattern, protocol, event_type, response_type, response_fields_json, read_principals_json, redact_fields_json, max_bytes, sample_per_ten_k, retention_days, priority, enabled)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, r.PolicyID, r.SourceScenario, r.TargetScenario, r.OperationPattern, r.Protocol, r.EventType, r.ResponseType, string(fields), string(principals), string(redactions), r.MaxBytes, r.SamplePerTenK, r.RetentionDays, r.Priority, sqlutil.BoolToInt(r.Enabled))
+		(policy_id, source_scenario, target_scenario, operation_pattern, protocol, event_type, response_type, response_fields_json, work_reference_projections_json, read_principals_json, redact_fields_json, max_bytes, sample_per_ten_k, retention_days, priority, enabled)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, r.PolicyID, r.SourceScenario, r.TargetScenario, r.OperationPattern, r.Protocol, r.EventType, r.ResponseType, string(fields), string(workReferences), string(principals), string(redactions), r.MaxBytes, r.SamplePerTenK, r.RetentionDays, r.Priority, sqlutil.BoolToInt(r.Enabled))
 	if err != nil {
 		return 0, fmt.Errorf("insert receipt projection rule: %w", err)
 	}
@@ -296,7 +302,11 @@ func (s *SQLiteStore) UpdateReceiptProjection(ctx context.Context, r ReceiptProj
 	if err != nil {
 		return fmt.Errorf("marshal read principals: %w", err)
 	}
-	_, err = s.db.ExecContext(ctx, `UPDATE receipt_projection_rules SET policy_id=?, source_scenario=?, target_scenario=?, operation_pattern=?, protocol=?, event_type=?, response_type=?, response_fields_json=?, read_principals_json=?, redact_fields_json=?, max_bytes=?, sample_per_ten_k=?, retention_days=?, priority=?, enabled=?, updated_at=strftime('%Y-%m-%dT%H:%M:%f','now') WHERE id=?`, r.PolicyID, r.SourceScenario, r.TargetScenario, r.OperationPattern, r.Protocol, r.EventType, r.ResponseType, string(fields), string(principals), string(redactions), r.MaxBytes, r.SamplePerTenK, r.RetentionDays, r.Priority, sqlutil.BoolToInt(r.Enabled), r.ID)
+	workReferences, err := json.Marshal(r.WorkReferenceProjections)
+	if err != nil {
+		return fmt.Errorf("marshal work reference projections: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx, `UPDATE receipt_projection_rules SET policy_id=?, source_scenario=?, target_scenario=?, operation_pattern=?, protocol=?, event_type=?, response_type=?, response_fields_json=?, work_reference_projections_json=?, read_principals_json=?, redact_fields_json=?, max_bytes=?, sample_per_ten_k=?, retention_days=?, priority=?, enabled=?, updated_at=strftime('%Y-%m-%dT%H:%M:%f','now') WHERE id=?`, r.PolicyID, r.SourceScenario, r.TargetScenario, r.OperationPattern, r.Protocol, r.EventType, r.ResponseType, string(fields), string(workReferences), string(principals), string(redactions), r.MaxBytes, r.SamplePerTenK, r.RetentionDays, r.Priority, sqlutil.BoolToInt(r.Enabled), r.ID)
 	if err != nil {
 		return fmt.Errorf("update receipt projection rule: %w", err)
 	}
@@ -344,14 +354,18 @@ func (s *SQLiteStore) ReconcileReceiptProjections(ctx context.Context, rules []R
 		if err != nil {
 			return ReceiptProjectionReconcileResult{}, fmt.Errorf("marshal read principals: %w", err)
 		}
+		workReferences, err := json.Marshal(rule.WorkReferenceProjections)
+		if err != nil {
+			return ReceiptProjectionReconcileResult{}, fmt.Errorf("marshal work reference projections: %w", err)
+		}
 		if existing, ok := byPolicyID[rule.PolicyID]; ok {
-			if _, err := tx.ExecContext(ctx, `UPDATE receipt_projection_rules SET policy_id=?, source_scenario=?, target_scenario=?, operation_pattern=?, protocol=?, event_type=?, response_type=?, response_fields_json=?, read_principals_json=?, redact_fields_json=?, max_bytes=?, sample_per_ten_k=?, retention_days=?, priority=?, enabled=?, updated_at=strftime('%Y-%m-%dT%H:%M:%f','now') WHERE id=?`, rule.PolicyID, rule.SourceScenario, rule.TargetScenario, rule.OperationPattern, rule.Protocol, rule.EventType, rule.ResponseType, string(fields), string(principals), string(redactions), rule.MaxBytes, rule.SamplePerTenK, rule.RetentionDays, rule.Priority, sqlutil.BoolToInt(rule.Enabled), existing.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE receipt_projection_rules SET policy_id=?, source_scenario=?, target_scenario=?, operation_pattern=?, protocol=?, event_type=?, response_type=?, response_fields_json=?, work_reference_projections_json=?, read_principals_json=?, redact_fields_json=?, max_bytes=?, sample_per_ten_k=?, retention_days=?, priority=?, enabled=?, updated_at=strftime('%Y-%m-%dT%H:%M:%f','now') WHERE id=?`, rule.PolicyID, rule.SourceScenario, rule.TargetScenario, rule.OperationPattern, rule.Protocol, rule.EventType, rule.ResponseType, string(fields), string(workReferences), string(principals), string(redactions), rule.MaxBytes, rule.SamplePerTenK, rule.RetentionDays, rule.Priority, sqlutil.BoolToInt(rule.Enabled), existing.ID); err != nil {
 				return ReceiptProjectionReconcileResult{}, fmt.Errorf("update receipt projection rule: %w", err)
 			}
 			result.Updated++
 			continue
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO receipt_projection_rules (policy_id, source_scenario, target_scenario, operation_pattern, protocol, event_type, response_type, response_fields_json, read_principals_json, redact_fields_json, max_bytes, sample_per_ten_k, retention_days, priority, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, rule.PolicyID, rule.SourceScenario, rule.TargetScenario, rule.OperationPattern, rule.Protocol, rule.EventType, rule.ResponseType, string(fields), string(principals), string(redactions), rule.MaxBytes, rule.SamplePerTenK, rule.RetentionDays, rule.Priority, sqlutil.BoolToInt(rule.Enabled)); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO receipt_projection_rules (policy_id, source_scenario, target_scenario, operation_pattern, protocol, event_type, response_type, response_fields_json, work_reference_projections_json, read_principals_json, redact_fields_json, max_bytes, sample_per_ten_k, retention_days, priority, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, rule.PolicyID, rule.SourceScenario, rule.TargetScenario, rule.OperationPattern, rule.Protocol, rule.EventType, rule.ResponseType, string(fields), string(workReferences), string(principals), string(redactions), rule.MaxBytes, rule.SamplePerTenK, rule.RetentionDays, rule.Priority, sqlutil.BoolToInt(rule.Enabled)); err != nil {
 			return ReceiptProjectionReconcileResult{}, fmt.Errorf("insert receipt projection rule: %w", err)
 		}
 		result.Created++
@@ -392,19 +406,22 @@ func (s *SQLiteStore) MatchReceiptProjection(ctx context.Context, source, target
 	return nil, nil
 }
 
-const receiptProjectionSelect = `SELECT id, policy_id, source_scenario, target_scenario, operation_pattern, protocol, event_type, response_type, response_fields_json, read_principals_json, redact_fields_json, max_bytes, sample_per_ten_k, retention_days, priority, enabled, created_at, updated_at FROM receipt_projection_rules`
+const receiptProjectionSelect = `SELECT id, policy_id, source_scenario, target_scenario, operation_pattern, protocol, event_type, response_type, response_fields_json, work_reference_projections_json, read_principals_json, redact_fields_json, max_bytes, sample_per_ten_k, retention_days, priority, enabled, created_at, updated_at FROM receipt_projection_rules`
 
 type receiptProjectionScanner interface{ Scan(...any) error }
 
 func scanReceiptProjection(row receiptProjectionScanner) (ReceiptProjectionRule, error) {
 	var r ReceiptProjectionRule
-	var responseFields, readPrincipals, redactFields, createdAt, updatedAt string
+	var responseFields, workReferences, readPrincipals, redactFields, createdAt, updatedAt string
 	var enabled int
-	if err := row.Scan(&r.ID, &r.PolicyID, &r.SourceScenario, &r.TargetScenario, &r.OperationPattern, &r.Protocol, &r.EventType, &r.ResponseType, &responseFields, &readPrincipals, &redactFields, &r.MaxBytes, &r.SamplePerTenK, &r.RetentionDays, &r.Priority, &enabled, &createdAt, &updatedAt); err != nil {
+	if err := row.Scan(&r.ID, &r.PolicyID, &r.SourceScenario, &r.TargetScenario, &r.OperationPattern, &r.Protocol, &r.EventType, &r.ResponseType, &responseFields, &workReferences, &readPrincipals, &redactFields, &r.MaxBytes, &r.SamplePerTenK, &r.RetentionDays, &r.Priority, &enabled, &createdAt, &updatedAt); err != nil {
 		return r, err
 	}
 	if err := json.Unmarshal([]byte(responseFields), &r.ResponseFields); err != nil {
 		return r, fmt.Errorf("decode response fields: %w", err)
+	}
+	if err := json.Unmarshal([]byte(workReferences), &r.WorkReferenceProjections); err != nil {
+		return r, fmt.Errorf("decode work reference projections: %w", err)
 	}
 	if err := json.Unmarshal([]byte(readPrincipals), &r.ReadPrincipals); err != nil {
 		return r, fmt.Errorf("decode read principals: %w", err)

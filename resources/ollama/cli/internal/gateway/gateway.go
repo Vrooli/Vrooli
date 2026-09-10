@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -31,7 +32,7 @@ import (
 )
 
 var (
-	defaultParallel      = 4
+	defaultParallel      = 2
 	defaultAcquire       = tuning.ResourceHTTPTimeout()
 	charsPerToken        = 4
 	envNumParallel       = "OLLAMA_NUM_PARALLEL"
@@ -41,6 +42,9 @@ var (
 	defaultLockChild     = "vrooli/resources/ollama/sem"
 	defaultMaxImageBytes = 10 * 1024 * 1024
 	defaultMaxImages     = 4
+	maxGatewayContext    = 131072
+	maxGatewayThreads    = 128
+	maxGatewayBatch      = 4096
 	envMaxImageBytes     = "OLLAMA_GATEWAY_MAX_IMAGE_BYTES"
 	envMaxImages         = "OLLAMA_GATEWAY_MAX_IMAGES"
 )
@@ -113,13 +117,13 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{
 				Name:        "generate",
 				Description: "Generate a completion for --prompt (or stdin) using --role or --model",
-				Usage:       "resource-ollama gateway generate --role chat.default [--json] [--cpu-only] [--max-tokens <n>] [--temperature <f>] [--prompt <text> | --prompt-stdin | --input-json-stdin]",
+				Usage:       "resource-ollama gateway generate --role chat.default [--json] [--cpu-only] [--max-tokens <n>] [--temperature <f>] [--num-ctx <n>] [--num-thread <n>] [--num-batch <n>] [--prompt <text> | --prompt-stdin | --input-json-stdin]",
 				Run:         h.Generate,
 			},
 			{
 				Name:        "chat",
 				Description: "Generate a chat response for --prompt (or stdin) using --role or --model",
-				Usage:       "resource-ollama gateway chat --role summarize.default --system <text> [--json] [--think=false] [--max-tokens <n>] [--temperature <f>] [--prompt <text> | --prompt-stdin]",
+				Usage:       "resource-ollama gateway chat --role summarize.default --system <text> [--json] [--think=false] [--max-tokens <n>] [--temperature <f>] [--num-ctx <n>] [--num-thread <n>] [--num-batch <n>] [--prompt <text> | --prompt-stdin]",
 				Run:         h.Chat,
 			},
 		},
@@ -184,6 +188,9 @@ func (h *Handlers) Generate(args []string) error {
 	cpuOnly := fs.Bool("cpu-only", false, "Force Ollama to run this request without GPU layers")
 	maxTokens := fs.Int("max-tokens", 0, "Maximum tokens to generate; omitted when <= 0")
 	temperature := fs.Float64("temperature", -1, "Sampling temperature; omitted when < 0")
+	numCtx := fs.Int("num-ctx", 0, "Per-request context size; bounded by the selected model policy")
+	numThread := fs.Int("num-thread", 0, "Per-request CPU thread limit (1-128)")
+	numBatch := fs.Int("num-batch", 0, "Per-request prompt batch size (1-4096)")
 	format := fs.String("format", "", "Ollama JSON format (json or a JSON Schema object)")
 	asJSON := fs.Bool("json", false, "Emit a single JSON object {\"response\":\"...\",\"eval_count\":0} on stdout")
 	if err := fs.Parse(args); err != nil {
@@ -207,7 +214,11 @@ func (h *Handlers) Generate(args []string) error {
 		return err
 	}
 	budget := effectiveMaxTokens(*maxTokens, selected)
-	if err := validateContextWindow(text, budget, selected); err != nil {
+	controls, err := validateRuntimeControls(*numCtx, *numThread, *numBatch, selected)
+	if err != nil {
+		return err
+	}
+	if err := validateContextWindow(text, budget, selected, controls.NumCtx); err != nil {
 		return err
 	}
 	var formatJSON json.RawMessage
@@ -242,15 +253,23 @@ func (h *Handlers) Generate(args []string) error {
 	if *temperature >= 0 {
 		req.Temperature = temperature
 	}
+	req.NumCtx = controls.NumCtx
+	req.NumThread = controls.NumThread
+	req.NumBatch = controls.NumBatch
 	out, err := h.NewClient().Generate(ctx, req)
 	if err != nil {
 		return err
 	}
 	if *asJSON {
 		return cliout.NewCompactEncoder(h.Stdout).Encode(struct {
-			Response  string `json:"response"`
-			EvalCount int    `json:"eval_count"`
-		}{Response: out.Response, EvalCount: out.EvalCount})
+			Response           string `json:"response"`
+			EvalCount          int    `json:"eval_count"`
+			TotalDuration      int64  `json:"total_duration_ns,omitempty"`
+			LoadDuration       int64  `json:"load_duration_ns,omitempty"`
+			PromptEvalCount    int    `json:"prompt_eval_count,omitempty"`
+			PromptEvalDuration int64  `json:"prompt_eval_duration_ns,omitempty"`
+			EvalDuration       int64  `json:"eval_duration_ns,omitempty"`
+		}{Response: out.Response, EvalCount: out.EvalCount, TotalDuration: out.TotalDuration, LoadDuration: out.LoadDuration, PromptEvalCount: out.PromptEvalCount, PromptEvalDuration: out.PromptEvalDuration, EvalDuration: out.EvalDuration})
 	}
 	_, err = fmt.Fprint(h.Stdout, out.Response)
 	return err
@@ -268,6 +287,9 @@ func (h *Handlers) Chat(args []string) error {
 	fromStdin := fs.Bool("prompt-stdin", false, "Read user prompt from stdin")
 	maxTokens := fs.Int("max-tokens", 0, "Maximum tokens to generate; omitted when <= 0")
 	temperature := fs.Float64("temperature", -1, "Sampling temperature; omitted when < 0")
+	numCtx := fs.Int("num-ctx", 0, "Per-request context size; bounded by the selected model policy")
+	numThread := fs.Int("num-thread", 0, "Per-request CPU thread limit (1-128)")
+	numBatch := fs.Int("num-batch", 0, "Per-request prompt batch size (1-4096)")
 	think := fs.Bool("think", false, "Allow model thinking output when supported")
 	asJSON := fs.Bool("json", false, "Emit a single JSON object {\"response\":\"...\",\"done_reason\":\"...\",\"eval_count\":0} on stdout")
 	if err := fs.Parse(args); err != nil {
@@ -282,7 +304,11 @@ func (h *Handlers) Chat(args []string) error {
 		return err
 	}
 	budget := effectiveMaxTokens(*maxTokens, selected)
-	if err := validateContextWindow(*system+"\n"+text, budget, selected); err != nil {
+	controls, err := validateRuntimeControls(*numCtx, *numThread, *numBatch, selected)
+	if err != nil {
+		return err
+	}
+	if err := validateContextWindow(*system+"\n"+text, budget, selected, controls.NumCtx); err != nil {
 		return err
 	}
 
@@ -304,6 +330,9 @@ func (h *Handlers) Chat(args []string) error {
 	if *temperature >= 0 {
 		req.Temperature = temperature
 	}
+	req.NumCtx = controls.NumCtx
+	req.NumThread = controls.NumThread
+	req.NumBatch = controls.NumBatch
 	out, err := h.NewClient().Chat(ctx, req)
 	if err != nil {
 		return err
@@ -311,10 +340,15 @@ func (h *Handlers) Chat(args []string) error {
 	response := out.Message.Content
 	if *asJSON {
 		return cliout.NewCompactEncoder(h.Stdout).Encode(struct {
-			Response   string `json:"response"`
-			DoneReason string `json:"done_reason"`
-			EvalCount  int    `json:"eval_count"`
-		}{Response: response, DoneReason: out.DoneReason, EvalCount: out.EvalCount})
+			Response           string `json:"response"`
+			DoneReason         string `json:"done_reason"`
+			EvalCount          int    `json:"eval_count"`
+			TotalDuration      int64  `json:"total_duration_ns,omitempty"`
+			LoadDuration       int64  `json:"load_duration_ns,omitempty"`
+			PromptEvalCount    int    `json:"prompt_eval_count,omitempty"`
+			PromptEvalDuration int64  `json:"prompt_eval_duration_ns,omitempty"`
+			EvalDuration       int64  `json:"eval_duration_ns,omitempty"`
+		}{Response: response, DoneReason: out.DoneReason, EvalCount: out.EvalCount, TotalDuration: out.TotalDuration, LoadDuration: out.LoadDuration, PromptEvalCount: out.PromptEvalCount, PromptEvalDuration: out.PromptEvalDuration, EvalDuration: out.EvalDuration})
 	}
 	_, err = fmt.Fprint(h.Stdout, response)
 	return err
@@ -480,16 +514,55 @@ func (h *Handlers) maxImages() int {
 	return defaultMaxImages
 }
 
-func validateContextWindow(prompt string, maxTokens int, selected selectedModel) error {
-	if selected.ContextWindowTokens <= 0 || maxTokens <= 0 {
+type runtimeControls struct {
+	NumCtx    *int
+	NumThread *int
+	NumBatch  *int
+}
+
+func validateRuntimeControls(numCtx, numThread, numBatch int, selected selectedModel) (runtimeControls, error) {
+	controls := runtimeControls{}
+	if numCtx < 0 || numCtx > maxGatewayContext {
+		return controls, fmt.Errorf("--num-ctx must be between 1 and %d when provided", maxGatewayContext)
+	}
+	if numThread < 0 || numThread > maxGatewayThreads {
+		return controls, fmt.Errorf("--num-thread must be between 1 and %d when provided", maxGatewayThreads)
+	}
+	if numBatch < 0 || numBatch > maxGatewayBatch {
+		return controls, fmt.Errorf("--num-batch must be between 1 and %d when provided", maxGatewayBatch)
+	}
+	if numCtx > 0 {
+		if selected.ContextWindowTokens > 0 && numCtx > selected.ContextWindowTokens {
+			return controls, fmt.Errorf("--num-ctx %d exceeds context window for %s (%d)", numCtx, selected.Ref, selected.ContextWindowTokens)
+		}
+		controls.NumCtx = &numCtx
+	}
+	if numThread > 0 {
+		if n := runtime.NumCPU(); n > 0 && numThread > n {
+			return controls, fmt.Errorf("--num-thread %d exceeds host CPU count %d", numThread, n)
+		}
+		controls.NumThread = &numThread
+	}
+	if numBatch > 0 {
+		controls.NumBatch = &numBatch
+	}
+	return controls, nil
+}
+
+func validateContextWindow(prompt string, maxTokens int, selected selectedModel, numCtx *int) error {
+	contextWindow := selected.ContextWindowTokens
+	if numCtx != nil {
+		contextWindow = *numCtx
+	}
+	if contextWindow <= 0 || maxTokens <= 0 {
 		return nil
 	}
 	estimatedPromptTokens := estimatePromptTokens(prompt)
 	requestedTokens := estimatedPromptTokens + maxTokens
-	if requestedTokens <= selected.ContextWindowTokens {
+	if requestedTokens <= contextWindow {
 		return nil
 	}
-	return fmt.Errorf("request exceeds context window for %s: estimated prompt tokens %d + max_tokens %d = %d, context_window_tokens %d", selected.Ref, estimatedPromptTokens, maxTokens, requestedTokens, selected.ContextWindowTokens)
+	return fmt.Errorf("request exceeds context window for %s: estimated prompt tokens %d + max_tokens %d = %d, context_window_tokens %d", selected.Ref, estimatedPromptTokens, maxTokens, requestedTokens, contextWindow)
 }
 
 func estimatePromptTokens(text string) int {

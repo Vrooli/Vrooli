@@ -57,3 +57,88 @@ func TestWriterSamplerExpandsGovernedChildren(t *testing.T) {
 		t.Fatalf("expanded root IDs = %q, %q; want sorted children", snapshots[0].RootID, snapshots[1].RootID)
 	}
 }
+
+// The total budget is a ceiling across every root in one sample, not a
+// per-root allowance: once it is spent the remaining roots are not walked, and
+// they are omitted rather than reported as zero bytes.
+func TestWriterSamplerStopsWalkingWhenTotalBudgetIsExhausted(t *testing.T) {
+	roots := []GovernedRoot{
+		{ID: "first", Root: "/first", Mount: "/", MeasureBudget: 5 * time.Second},
+		{ID: "second", Root: "/second", Mount: "/", MeasureBudget: 5 * time.Second},
+		{ID: "third", Root: "/third", Mount: "/", MeasureBudget: 5 * time.Second},
+	}
+	sampler := NewWriterSamplerWithConfig(roots, WriterSamplerConfig{TotalBudget: time.Second})
+
+	wall := time.Unix(1000, 0)
+	sampler.clock = func() time.Time { return wall }
+	var walked []string
+	var budgets []time.Duration
+	sampler.measure = func(ctx context.Context, root string) (int64, bool) {
+		walked = append(walked, root)
+		deadline, ok := ctx.Deadline()
+		if !ok {
+			t.Fatalf("walk of %s has no deadline", root)
+		}
+		// The context deadline is on the real clock; the sampler's own clock
+		// only decides how much of the total budget is left.
+		budgets = append(budgets, time.Until(deadline))
+		// The first walk consumes the whole budget.
+		wall = wall.Add(time.Second)
+		return 10, false
+	}
+
+	snapshots := sampler.Sample(context.Background(), time.Unix(100, 0))
+	if len(walked) != 1 || walked[0] != "/first" {
+		t.Fatalf("walked %v, want only /first before the budget ran out", walked)
+	}
+	if budgets[0] > time.Second {
+		t.Fatalf("first root was granted %s, more than the %s total budget", budgets[0], time.Second)
+	}
+	if len(snapshots) != 1 || snapshots[0].RootID != "first" {
+		t.Fatalf("snapshots = %#v, want only the measured root", snapshots)
+	}
+	if _, recorded := sampler.last["second"]; recorded {
+		t.Fatal("an unwalked root was recorded as measured")
+	}
+}
+
+// Expanded children are rotated across samples so a directory with many
+// children costs at most ChildrenPerSample walks per tick and every child is
+// still measured in turn.
+func TestWriterSamplerRotatesExpandedChildrenAcrossSamples(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"a", "b", "c", "d", "e"} {
+		if err := os.Mkdir(filepath.Join(root, name), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sampler := NewWriterSamplerWithConfig(
+		[]GovernedRoot{{ID: "go-work-dirs", Root: root, Mount: "/", ExpandChildren: true}},
+		WriterSamplerConfig{Interval: time.Minute, ChildrenPerSample: 2},
+	)
+
+	ids := func(snapshots []WriterSnapshot) []string {
+		out := make([]string, 0, len(snapshots))
+		for _, snapshot := range snapshots {
+			out = append(out, snapshot.RootID)
+		}
+		return out
+	}
+	start := time.Unix(100, 0)
+	rounds := [][]string{
+		{"go-work-dirs/a", "go-work-dirs/b"},
+		{"go-work-dirs/c", "go-work-dirs/d"},
+		{"go-work-dirs/e", "go-work-dirs/a"},
+	}
+	for i, want := range rounds {
+		got := ids(sampler.Sample(context.Background(), start.Add(time.Duration(i)*time.Minute)))
+		if len(got) != len(want) {
+			t.Fatalf("round %d sampled %v, want %v", i, got, want)
+		}
+		for j := range want {
+			if got[j] != want[j] {
+				t.Fatalf("round %d sampled %v, want %v", i, got, want)
+			}
+		}
+	}
+}

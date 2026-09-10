@@ -200,9 +200,9 @@ func (r *MemoryRepository) GetMetrics(ctx context.Context, filter repository.Met
 		return results[i].Timestamp.Before(results[j].Timestamp)
 	})
 
-	// Apply limit if specified
-	if filter.Limit > 0 && len(results) > filter.Limit {
-		results = results[len(results)-filter.Limit:]
+	// Keep the newest cycles; the limit is always bounded.
+	if limit := filter.EffectiveLimit(); len(results) > limit {
+		results = results[len(results)-limit:]
 	}
 
 	return results, nil

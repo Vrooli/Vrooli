@@ -88,8 +88,13 @@ func DeleteContained(ctx context.Context, root, target string, protectedRoots []
 		return fmt.Errorf("retention target is outside the permitted root")
 	}
 	resolved, err := filepath.EvalSymlinks(target)
-	if err == nil && (resolved == root || !PathContains(root, resolved)) {
-		return fmt.Errorf("retention target resolves outside the permitted root")
+	if err == nil {
+		if resolved == root || !PathContains(root, resolved) {
+			return fmt.Errorf("retention target resolves outside the permitted root")
+		}
+		if ProtectedPathOverlap(resolved, protectedRoots) {
+			return fmt.Errorf("retention target resolves to a protected path")
+		}
 	}
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("resolve retention target: %w", err)

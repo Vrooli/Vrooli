@@ -1,12 +1,29 @@
 package setup
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/operatorcapability"
 	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 )
+
+const SelectionSchemaVersion = "v1"
+
+// ValidateSelectionContract rejects an explicitly supplied selection version
+// that this control plane cannot interpret. An empty version remains accepted
+// for compatibility with older callers that predate the version field.
+func ValidateSelectionContract(selection *setupv1.Selection) error {
+	if selection == nil {
+		return errors.New("setup selection is required")
+	}
+	version := strings.TrimSpace(selection.GetSchemaVersion())
+	if version != "" && version != SelectionSchemaVersion {
+		return fmt.Errorf("unsupported setup selection schema version %q; supported version is %q", version, SelectionSchemaVersion)
+	}
+	return nil
+}
 
 // OperatorInputKind converts the control-plane vocabulary to the versioned
 // wire enum. Keeping this mapping beside preset expansion gives schema tests a

@@ -67,8 +67,19 @@ type Checker interface {
 	Check(context.Context) (Status, string)
 }
 
+type scenarioStatusRunner interface {
+	Status(context.Context, string) ([]byte, error)
+}
+
+type controlPlaneStatusRunner struct{}
+
+func (controlPlaneStatusRunner) Status(ctx context.Context, slug string) ([]byte, error) {
+	return exec.CommandContext(ctx, "vrooli", "scenario", "status", slug, "--json").Output()
+}
+
 type ScenarioChecker struct {
-	Slug string
+	Slug   string
+	runner scenarioStatusRunner
 }
 
 func (c ScenarioChecker) Check(ctx context.Context) (Status, string) {
@@ -76,7 +87,11 @@ func (c ScenarioChecker) Check(ctx context.Context) (Status, string) {
 	if slug == "" {
 		return StatusUnavailable, "scenario slug is not configured"
 	}
-	out, err := exec.CommandContext(ctx, "vrooli", "scenario", "status", slug, "--json").Output()
+	runner := c.runner
+	if runner == nil {
+		runner = controlPlaneStatusRunner{}
+	}
+	out, err := runner.Status(ctx, slug)
 	if err != nil {
 		return StatusUnavailable, "scenario status unavailable; use the operator start action"
 	}

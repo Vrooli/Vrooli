@@ -10,26 +10,24 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/vrooli/internal/credentialspec"
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	"github.com/vrooli/vrooli/packages/hostreq"
 	readinessdomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/readiness"
 )
 
 type credentialReadiness = readinessdomain.Credential
 
-type readinessCredentialDescriptor struct {
-	LogicalID    string `json:"logical_id"`
-	Field        string `json:"field"`
-	Label        string `json:"label"`
-	Description  string `json:"description"`
-	ObtainURL    string `json:"obtain_url"`
-	Required     bool   `json:"required"`
-	Provisioning string `json:"provisioning,omitempty"`
-	DerivedFrom  string `json:"derived_from,omitempty"`
-}
+const (
+	credentialEvidenceUnavailable = "unavailable"
+	credentialEvidenceUnverified  = "unverified"
+	credentialStatusPending       = "pending"
+)
 
 type integrationRequirement struct {
 	Connector string   `json:"connector"`
@@ -47,6 +45,18 @@ type recoveryGapReadiness = readinessdomain.RecoveryGap
 type credentialDiagnosisResponse struct {
 	Recovery recoveryReadiness `json:"recovery"`
 }
+
+type credentialConsumerInventoryCacheState struct {
+	sync.Mutex
+	key       string
+	blockers  []completionBlocker
+	ready     bool
+	running   bool
+	expiresAt time.Time
+	lastError string
+}
+
+var credentialConsumerInventoryCache credentialConsumerInventoryCacheState
 
 // readinessItem is a metadata-safe, actionable validation result. Its status
 // is one of ready, degraded, missing, unsupported, or deferred.
@@ -71,6 +81,17 @@ var releaseAuthorityStatusCommand = func(ctx context.Context, root string) ([]by
 }
 
 func releaseAuthorityReadiness(root string) readinessItem {
+	item, _, _ := releaseAuthorityReadinessWithStatus(root)
+	return item
+}
+
+func releaseAuthorityReadinessWithStatus(root string) (readinessItem, releaseAuthorityStatus, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return releaseAuthorityReadinessWithStatusContext(ctx, root)
+}
+
+func releaseAuthorityReadinessWithStatusContext(ctx context.Context, root string) (readinessItem, releaseAuthorityStatus, bool) {
 	item := readinessItem{
 		Name:        "release-authority",
 		Category:    "system",
@@ -78,32 +99,30 @@ func releaseAuthorityReadiness(root string) readinessItem {
 		Detail:      "release authority status is unavailable",
 		Remediation: "Run `vrooli release-authority init` after the native secure store is available.",
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 	output, err := releaseAuthorityStatusCommand(ctx, root)
 	if err != nil {
-		return item
+		return item, releaseAuthorityStatus{}, false
 	}
 	var status releaseAuthorityStatus
 	if err := json.Unmarshal(output, &status); err != nil {
 		item.Detail = "release authority returned an invalid status response"
-		return item
+		return item, releaseAuthorityStatus{}, false
 	}
 	if !status.Configured {
 		item.Status = "missing"
 		item.Detail = "no managed release key is configured"
-		return item
+		return item, status, true
 	}
 	if !status.TrustAnchorMatch {
 		item.Status = "degraded"
 		item.Detail = "managed release key exists but the repository trust anchor is not synchronized"
 		item.Remediation = "Run `vrooli release-authority init --replace-trust-anchor` after reviewing the trust-root change."
-		return item
+		return item, status, true
 	}
 	item.Status = "ready"
 	item.Detail = "managed release key and repository trust anchor are synchronized"
 	item.Remediation = ""
-	return item
+	return item, status, true
 }
 
 func selectedScenarioModels() ([]ScenarioReadModel, error) {
@@ -118,52 +137,6 @@ func selectedScenarioModels() ([]ScenarioReadModel, error) {
 		}
 	}
 	return selected, nil
-}
-
-func loadCredentialReadiness(resource string) ([]credentialReadiness, error) {
-	root, err := manifestRoot()
-	if err != nil {
-		return nil, err
-	}
-	data, err := os.ReadFile(filepath.Join(root, "resources", resource, "resource.json"))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	var manifest struct {
-		Credentials struct {
-			Descriptors []readinessCredentialDescriptor `json:"descriptors"`
-		} `json:"credentials"`
-	}
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, fmt.Errorf("decode %s credential descriptors: %w", resource, err)
-	}
-	return credentialReadinessForDescriptors(resource, manifest.Credentials.Descriptors), nil
-}
-
-func loadScenarioCredentialReadiness(scenario string) ([]credentialReadiness, error) {
-	root, err := manifestRoot()
-	if err != nil {
-		return nil, err
-	}
-	data, err := os.ReadFile(filepath.Join(root, "scenarios", scenario, ".vrooli", "service.json"))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	var manifest struct {
-		Credentials struct {
-			Descriptors []readinessCredentialDescriptor `json:"descriptors"`
-		} `json:"credentials"`
-	}
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, fmt.Errorf("decode %s scenario credential descriptors: %w", scenario, err)
-	}
-	return credentialReadinessForDescriptors(scenario, manifest.Credentials.Descriptors), nil
 }
 
 func loadIntegrationReadiness(path, owner string) ([]readinessItem, error) {
@@ -209,65 +182,281 @@ func loadIntegrationReadiness(path, owner string) ([]readinessItem, error) {
 	return items, nil
 }
 
-func credentialReadinessForDescriptors(owner string, descriptors []readinessCredentialDescriptor) []credentialReadiness {
-	items := make([]credentialReadiness, 0, len(descriptors))
-	for _, descriptor := range descriptors {
-		field := strings.TrimSpace(descriptor.Field)
-		if field == "" {
-			field = "value"
-		}
-		item := credentialReadiness{Resource: owner, LogicalID: descriptor.LogicalID, Field: field, Label: descriptor.Label, Description: descriptor.Description, ObtainURL: descriptor.ObtainURL, Required: descriptor.Required, Provisioning: descriptor.Provisioning, DerivedFrom: descriptor.DerivedFrom, Status: "unconfigured"}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		output, statusErr := credentialStatusCommand(ctx, descriptor.LogicalID, field)
-		cancel()
-		if statusErr != nil {
-			item.Status = "unsupported"
-			item.Detail = "native credential authority unavailable"
-		} else {
-			var status struct {
-				Configured bool `json:"configured"`
-			}
-			if err := json.Unmarshal(output, &status); err != nil {
-				item.Status = "unsupported"
-				item.Detail = "credential authority returned an invalid status response"
-			} else if status.Configured {
-				item.Status = "configured"
-			}
-		}
-		items = append(items, item)
-	}
-	return items
-}
-
-// credentialReadinessInventory is the canonical credential projection shared
-// by the list endpoint and the readiness verdict. Both surfaces must describe
-// the same dependency closure, including project-owned credentials; otherwise
-// an operator can be shown one inventory in the CLI and a different one in the
-// wizard. It intentionally returns metadata only and performs the same bounded
-// authority status probe for every descriptor.
-func credentialReadinessInventory(closure closureResult) ([]credentialReadiness, error) {
-	credentials := make([]credentialReadiness, 0)
-	for _, member := range closure.Scenarios {
-		items, err := loadScenarioCredentialReadiness(member.Name)
-		if err != nil {
-			return nil, err
-		}
-		credentials = append(credentials, items...)
-	}
-	for _, member := range closure.Resources {
-		items, err := loadCredentialReadiness(member.Name)
-		if err != nil {
-			return nil, err
-		}
-		credentials = append(credentials, items...)
-	}
-	projectCredentials, err := projectCredentialReadiness()
+// credentialMetadataInventory is the fast half of the canonical projection.
+// It resolves the same scoped descriptor set as readiness, but intentionally
+// does not contact the credential authority. The list surface can therefore
+// render declared inputs immediately while readiness enriches those rows with
+// configured/unconfigured status in the background.
+func credentialMetadataInventory(closure closureResult) ([]credentialReadiness, error) {
+	root, err := manifestRoot()
 	if err != nil {
 		return nil, err
 	}
-	credentials = append(credentials, projectCredentials...)
+	refs, err := credentialInventoryProjection(root, closure)
+	if err != nil {
+		return nil, err
+	}
+	credentials := credentialReadinessForRefs(context.Background(), refs, false)
 	sortCredentialReadiness(credentials)
 	return credentials, nil
+}
+
+func credentialReadinessInventoryContext(ctx context.Context, closure closureResult) ([]credentialReadiness, error) {
+	root, err := manifestRoot()
+	if err != nil {
+		return nil, err
+	}
+	refs, err := credentialInventoryProjection(root, closure)
+	if err != nil {
+		return nil, err
+	}
+	credentials := credentialReadinessForRefs(ctx, refs, true)
+	sortCredentialReadiness(credentials)
+	return credentials, nil
+}
+
+func credentialInventoryProjection(root string, closure closureResult) ([]credentialclient.CredentialRef, error) {
+	scenarioNames := make([]string, 0, len(closure.Scenarios))
+	for _, member := range closure.Scenarios {
+		scenarioNames = append(scenarioNames, member.Name)
+	}
+	resourceNames := make([]string, 0, len(closure.Resources))
+	for _, member := range closure.Resources {
+		resourceNames = append(resourceNames, member.Name)
+	}
+	refs, err := credentialclient.DescriptorsForScope(root, credentialclient.Scope{
+		IncludeProject: projectScopeAvailable(),
+		IncludeManaged: true,
+		Scenarios:      scenarioNames,
+		Resources:      resourceNames,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return refs, nil
+}
+
+// credentialConsumerInventoryBlockers turns only required declaration-to-use
+// gaps into completion blockers. Optional gaps remain diagnostic inventory;
+// they must not make an otherwise usable onboarding selection impossible.
+func credentialConsumerInventoryBlockers(ctx context.Context, root string, closure closureResult) ([]completionBlocker, error) {
+	scenarioNames := make([]string, 0, len(closure.Scenarios))
+	for _, member := range closure.Scenarios {
+		scenarioNames = append(scenarioNames, member.Name)
+	}
+	resourceNames := make([]string, 0, len(closure.Resources))
+	for _, member := range closure.Resources {
+		resourceNames = append(resourceNames, member.Name)
+	}
+	scope := credentialclient.Scope{
+		IncludeProject: projectScopeAvailable(),
+		Scenarios:      scenarioNames,
+		Resources:      resourceNames,
+	}
+	key := root + "|" + strings.Join(scenarioNames, ",") + "|" + strings.Join(resourceNames, ",")
+	now := time.Now()
+	credentialConsumerInventoryCache.Lock()
+	if credentialConsumerInventoryCache.key == key && credentialConsumerInventoryCache.ready && now.Before(credentialConsumerInventoryCache.expiresAt) {
+		blockers := append([]completionBlocker(nil), credentialConsumerInventoryCache.blockers...)
+		lastError := credentialConsumerInventoryCache.lastError
+		credentialConsumerInventoryCache.Unlock()
+		if lastError != "" {
+			return blockers, fmt.Errorf("credential consumer inventory: %s", lastError)
+		}
+		return blockers, nil
+	}
+	if credentialConsumerInventoryCache.key == key && credentialConsumerInventoryCache.running {
+		credentialConsumerInventoryCache.Unlock()
+		return []completionBlocker{{
+			Kind:        "readiness",
+			Name:        "credential-consumer-inventory",
+			Reason:      "required credential consumer inventory is still being verified",
+			Remediation: "retry readiness in a moment to refresh the completion verdict",
+		}}, nil
+	}
+	credentialConsumerInventoryCache.key = key
+	credentialConsumerInventoryCache.ready = false
+	credentialConsumerInventoryCache.running = true
+	credentialConsumerInventoryCache.lastError = ""
+	credentialConsumerInventoryCache.Unlock()
+
+	// The source scan is intentionally detached from the request. Readiness is
+	// allowed to report a stable pending blocker while the bounded diagnostic
+	// refresh completes, instead of making every credentials check wait on a
+	// repository-sized source walk.
+	go func(cacheKey, scanRoot string, scanScope credentialclient.Scope) {
+		scanCtx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		defer cancel()
+		inventory, inventoryErr := credentialclient.DiscoverConsumerInventoryContext(scanCtx, scanRoot, scanScope)
+		blockers := make([]completionBlocker, 0)
+		if inventoryErr == nil {
+			for _, gap := range inventory.Gaps {
+				if !gap.Required {
+					continue
+				}
+				name := strings.TrimSpace(gap.Address)
+				if name == "" {
+					name = strings.TrimSpace(gap.SourceRef)
+				}
+				if name == "" {
+					name = "unresolved-consumer"
+				}
+				blockers = append(blockers, completionBlocker{
+					Kind:        "credential-consumer",
+					Name:        name,
+					Reason:      firstNonEmptyString(gap.Reason, "a required credential consumer is unresolved"),
+					Remediation: firstNonEmptyString(gap.Remediation, "declare the required credential consumer in its owning manifest"),
+				})
+			}
+			sortBlockers(blockers)
+		}
+		credentialConsumerInventoryCache.Lock()
+		defer credentialConsumerInventoryCache.Unlock()
+		if credentialConsumerInventoryCache.key != cacheKey {
+			return
+		}
+		credentialConsumerInventoryCache.blockers = blockers
+		credentialConsumerInventoryCache.ready = true
+		credentialConsumerInventoryCache.running = false
+		credentialConsumerInventoryCache.expiresAt = time.Now().Add(2 * time.Minute)
+		if inventoryErr != nil {
+			credentialConsumerInventoryCache.lastError = inventoryErr.Error()
+		}
+	}(key, root, scope)
+	return []completionBlocker{{
+		Kind:        "readiness",
+		Name:        "credential-consumer-inventory",
+		Reason:      "required credential consumer inventory is being verified",
+		Remediation: "retry readiness in a moment to refresh the completion verdict",
+	}}, nil
+}
+
+func credentialReadinessForRefsContext(ctx context.Context, refs []credentialclient.CredentialRef) []credentialReadiness {
+	return credentialReadinessForRefs(ctx, refs, true)
+}
+
+func credentialReadinessForRefs(ctx context.Context, refs []credentialclient.CredentialRef, probeAuthority bool) []credentialReadiness {
+	items := make([]credentialReadiness, len(refs))
+	if len(refs) == 0 {
+		return items
+	}
+	for index := range refs {
+		items[index] = credentialReadinessItem(refs[index], probeAuthority)
+	}
+	if !probeAuthority {
+		return items
+	}
+	workers := 32
+	if len(refs) < workers {
+		workers = len(refs)
+	}
+	indices := make(chan int)
+	var group sync.WaitGroup
+	group.Add(workers)
+	for worker := 0; worker < workers; worker++ {
+		go func() {
+			defer group.Done()
+			for index := range indices {
+				ref := refs[index]
+				field := credentialDescriptorField(ref.Field)
+				item := items[index]
+				// Status is a metadata-only probe. A slow provider must not hold
+				// the whole credentials page open; the card can show the resulting
+				// unsupported/deferred state and the operator can retry.
+				probeContext, cancel := context.WithTimeout(ctx, time.Second)
+				type statusResult struct {
+					output []byte
+					err    error
+				}
+				resultCh := make(chan statusResult, 1)
+				go func() {
+					output, statusErr := credentialStatusCommand(probeContext, ref.LogicalID, field)
+					resultCh <- statusResult{output: output, err: statusErr}
+				}()
+				var output []byte
+				var statusErr error
+				probeTimedOut := false
+				select {
+				case result := <-resultCh:
+					output, statusErr = result.output, result.err
+				case <-probeContext.Done():
+					probeTimedOut = true
+				}
+				cancel()
+				if probeTimedOut {
+					item.Status = credentialStatusPending
+					item.Detail = "credential authority is still checking this address"
+					item.EvidenceDetail = "The provider did not answer within the readiness budget; retry to refresh this status."
+				} else if statusErr != nil {
+					item.Status = "unsupported"
+					item.Detail = "native credential authority unavailable"
+				} else {
+					var status struct {
+						Configured bool `json:"configured"`
+					}
+					if err := json.Unmarshal(output, &status); err != nil {
+						item.Status = "unsupported"
+						item.Detail = "credential authority returned an invalid status response"
+					} else if status.Configured {
+						item.Status = "configured"
+						item.EvidenceStatus = credentialEvidenceUnverified
+						item.EvidenceDetail = "The value is stored, but its owning provider has not supplied verification evidence."
+					}
+				}
+				items[index] = item
+			}
+		}()
+	}
+	for index := range refs {
+		indices <- index
+	}
+	close(indices)
+	group.Wait()
+	return items
+}
+
+func credentialReadinessItem(ref credentialclient.CredentialRef, probeAuthority bool) credentialReadiness {
+	item := credentialReadiness{
+		Version: ref.Version, Resource: ref.Resource, LogicalID: ref.LogicalID, Field: credentialDescriptorField(ref.Field),
+		Owner: ref.Owner, SourceRef: ref.SourceRef, Kind: ref.Kind, ConsumerRefs: append([]string(nil), ref.ConsumerRefs...),
+		Provider: ref.Provider, AppliesWhen: ref.AppliesWhen, RequirementGroup: ref.RequirementGroup,
+		CompanionSettings: append([]string(nil), ref.CompanionSettings...), CompanionCredentials: append([]string(nil), ref.CompanionCredentials...), AcquisitionRef: ref.AcquisitionRef,
+		VerificationRef: ref.VerificationRef, RecoveryRef: ref.RecoveryRef, HelpRef: ref.HelpRef, EvidencePolicy: ref.EvidencePolicy, ProviderVersion: ref.ProviderVersion,
+		MigrationDiagnostics: append([]credentialspec.MigrationDiagnostic(nil), ref.MigrationDiagnostics...),
+		Provenance:           readinessCredentialProvenance(ref.Provenance), Label: ref.Label, Description: ref.Description,
+		ObtainURL: ref.ObtainURL, Required: ref.Required, Provisioning: ref.Provisioning, DerivedFrom: ref.DerivedFrom,
+		Status: credentialStatusPending, EvidenceStatus: credentialEvidenceUnavailable,
+	}
+	if probeAuthority {
+		item.Status = "unconfigured"
+		item.EvidenceDetail = "No stored value is available to verify."
+	} else {
+		item.Detail = "Credential storage status is checked by readiness."
+		item.EvidenceDetail = "Credential storage status is checked by readiness."
+	}
+	return item
+}
+
+func readinessCredentialProvenance(values []credentialclient.CredentialProvenance) []readinessdomain.CredentialProvenance {
+	result := make([]readinessdomain.CredentialProvenance, 0, len(values))
+	for _, value := range values {
+		consumers := make([]readinessdomain.CredentialConsumerProvenance, 0, len(value.Consumers))
+		for _, consumer := range value.Consumers {
+			consumers = append(consumers, readinessdomain.CredentialConsumerProvenance{
+				LogicalID: consumer.LogicalID, AddressPattern: consumer.AddressPattern, Field: consumer.Field, Kind: consumer.Kind,
+				Consumer: consumer.Consumer, SourceRef: consumer.SourceRef, Required: consumer.Required, Reason: consumer.Reason,
+				Tiers: append([]string(nil), consumer.Tiers...),
+			})
+		}
+		result = append(result, readinessdomain.CredentialProvenance{
+			Version: value.Version, Owner: value.Owner, SourceRef: value.SourceRef, Kind: value.Kind, Provider: value.Provider, AppliesWhen: value.AppliesWhen, RequirementGroup: value.RequirementGroup, ConsumerRefs: append([]string(nil), value.ConsumerRefs...),
+			CompanionSettings: append([]string(nil), value.CompanionSettings...), CompanionCredentials: append([]string(nil), value.CompanionCredentials...), AcquisitionRef: value.AcquisitionRef, VerificationRef: value.VerificationRef, RecoveryRef: value.RecoveryRef, HelpRef: value.HelpRef, EvidencePolicy: value.EvidencePolicy, ProviderVersion: value.ProviderVersion,
+			Env: value.Env, Label: value.Label,
+			Description: value.Description, ObtainURL: value.ObtainURL, Provisioning: value.Provisioning,
+			DerivedFrom: value.DerivedFrom, Required: value.Required, Consumers: consumers,
+		})
+	}
+	return result
 }
 
 // buildReadinessResponse computes the whole readiness verdict.
@@ -296,10 +485,75 @@ func buildReadinessResponseForTarget(ctx context.Context, target string) (readin
 	if err != nil {
 		return readinessResponse{}, err
 	}
-	credentials, err := credentialReadinessInventory(closure)
-	if err != nil {
-		return readinessResponse{}, err
+	// These checks are independent of the descriptor projection and each other.
+	// Start them before the credential probes so a slow native store or doctor
+	// cannot add its timeout after the credential inventory has finished.
+	probeCtx, probeCancel := context.WithCancel(ctx)
+	defer probeCancel()
+	type doctorResult struct {
+		output []byte
+		err    error
 	}
+	doctorCh := make(chan doctorResult, 1)
+	go func() {
+		doctorCtx, cancel := context.WithTimeout(probeCtx, 2*time.Second)
+		defer cancel()
+		output, doctorErr := credentialDoctorCommand(doctorCtx)
+		doctorCh <- doctorResult{output: output, err: doctorErr}
+	}()
+	releaseCh := make(chan struct {
+		item               readinessItem
+		authority          releaseAuthorityStatus
+		authorityAvailable bool
+	}, 1)
+	go func() {
+		releaseCtx, cancel := context.WithTimeout(probeCtx, 2*time.Second)
+		defer cancel()
+		item, authority, available := releaseAuthorityReadinessWithStatusContext(releaseCtx, root)
+		releaseCh <- struct {
+			item               readinessItem
+			authority          releaseAuthorityStatus
+			authorityAvailable bool
+		}{item: item, authority: authority, authorityAvailable: available}
+	}()
+	storeCh := make(chan hostReadiness, 1)
+	go func() {
+		// The native store has its own owner/collection probe budgets. Keep the
+		// onboarding request shorter than the previous five-second umbrella so
+		// a wedged keyring becomes an explicit status instead of holding the
+		// entire readiness response open.
+		storeCtx, cancel := context.WithTimeout(probeCtx, 2*time.Second)
+		defer cancel()
+		store := hostinventory.CredentialStoreStatus(storeCtx)
+		storeStatus := store.State
+		if storeStatus == "" {
+			storeStatus = "unknown"
+		}
+		storeCh <- hostReadiness{Item: readinessItem{
+			Name: "credential_store", Category: "system", Status: storeStatus,
+			Detail: store.Reason, Remediation: "Run `vrooli credentials keyring unlock` and retry configuration.", Required: true,
+		}, Kind: "credential_store", Required: true}
+	}()
+	type credentialResult struct {
+		items []credentialReadiness
+		err   error
+	}
+	credentialCh := make(chan credentialResult, 1)
+	go func() {
+		items, credentialErr := credentialReadinessInventoryContext(probeCtx, closure)
+		credentialCh <- credentialResult{items: items, err: credentialErr}
+	}()
+	type consumerInventoryResult struct {
+		blockers []completionBlocker
+		err      error
+	}
+	consumerInventoryCh := make(chan consumerInventoryResult, 1)
+	go func() {
+		inventoryCtx, cancel := context.WithTimeout(probeCtx, 5*time.Second)
+		defer cancel()
+		blockers, inventoryErr := credentialConsumerInventoryBlockers(inventoryCtx, root, closure)
+		consumerInventoryCh <- consumerInventoryResult{blockers: blockers, err: inventoryErr}
+	}()
 	response := readinessResponse{Target: strings.TrimSpace(target), Status: "ready", Scenarios: make([]string, 0, len(models)), Credentials: []credentialReadiness{}, Hosts: []hostReadiness{}, Integrations: []readinessItem{}, Recovery: recoveryReadiness{Uncovered: []string{}, RequiredAbsent: []string{}, RequiredAbsentDetails: []recoveryGapReadiness{}, RootCopyIssues: []string{}}, Blockers: []completionBlocker{}, Degraded: []completionBlocker{}, CheckedAt: operatorStateNow().UTC().Format(time.RFC3339), ExpiresAt: operatorStateNow().UTC().Add(5 * time.Minute).Format(time.RFC3339)}
 	for _, model := range models {
 		response.Scenarios = append(response.Scenarios, model.Name)
@@ -318,10 +572,8 @@ func buildReadinessResponseForTarget(ctx context.Context, target string) (readin
 		}
 		response.Integrations = append(response.Integrations, integrationItems...)
 	}
-	response.Credentials = credentials
 	sort.Strings(response.Scenarios)
 	sort.Strings(response.Resources)
-	sortCredentialReadiness(response.Credentials)
 	sort.Slice(response.Integrations, func(i, j int) bool {
 		return response.Integrations[i].Name < response.Integrations[j].Name
 	})
@@ -355,21 +607,31 @@ func buildReadinessResponseForTarget(ctx context.Context, target string) (readin
 	// accept a value. Keep this as a named host fact so a locked login
 	// collection is actionable rather than being misreported as a generic
 	// credential question.
-	storeCtx, storeCancel := context.WithTimeout(ctx, 5*time.Second)
-	store := hostinventory.CredentialStoreStatus(storeCtx)
-	storeCancel()
-	storeStatus := store.State
-	if storeStatus == "" {
-		storeStatus = "unknown"
-	}
-	storeFact := hostReadiness{Item: readinessItem{
-		Name: "credential_store", Category: "system", Status: storeStatus,
-		Detail: store.Reason, Remediation: "Run `vrooli credentials keyring unlock` and retry configuration.", Required: true,
-	}, Kind: "credential_store", Required: true}
+	storeFact := <-storeCh
 	response.Hosts = append(response.Hosts, storeFact)
-	if storeStatus == "locked" || storeStatus == "unresponsive" {
+	if storeFact.Item.Status == "locked" || storeFact.Item.Status == "unresponsive" {
 		response.Status = lessReady(response.Status, "missing")
 	}
+	credentials := <-credentialCh
+	if credentials.err != nil {
+		return readinessResponse{}, credentials.err
+	}
+	consumerInventory := <-consumerInventoryCh
+	if consumerInventory.err != nil {
+		// Inventory is a completion gate, but a source scan failure should remain
+		// an actionable readiness verdict rather than turning the whole endpoint
+		// into an opaque 500 response.
+		response.Blockers = append(response.Blockers, completionBlocker{
+			Kind:        "readiness",
+			Name:        "credential-consumer-inventory",
+			Reason:      "required credential consumer inventory could not be verified",
+			Remediation: "resolve the inventory scan condition, then retry readiness",
+		})
+	} else {
+		response.Blockers = append(response.Blockers, consumerInventory.blockers...)
+	}
+	response.Credentials = credentials.items
+	sortCredentialReadiness(response.Credentials)
 	sort.Slice(response.Hosts, func(i, j int) bool {
 		return response.Hosts[i].Kind+response.Hosts[i].Name < response.Hosts[j].Kind+response.Hosts[j].Name
 	})
@@ -383,11 +645,11 @@ func buildReadinessResponseForTarget(ctx context.Context, target string) (readin
 			response.Status = lessReady(response.Status, "degraded")
 		}
 	}
-	doctorCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
-	if output, err := credentialDoctorCommand(doctorCtx); err == nil && json.Valid(output) {
-		response.CredentialDiagnosis = append(response.CredentialDiagnosis[:0], output...)
+	doctor := <-doctorCh
+	if doctor.err == nil && json.Valid(doctor.output) {
+		response.CredentialDiagnosis = append(response.CredentialDiagnosis[:0], doctor.output...)
 		var diagnosis credentialDiagnosisResponse
-		if json.Unmarshal(output, &diagnosis) == nil {
+		if json.Unmarshal(doctor.output, &diagnosis) == nil {
 			response.Recovery = diagnosis.Recovery
 			if response.Recovery.Uncovered == nil {
 				response.Recovery.Uncovered = []string{}
@@ -408,22 +670,16 @@ func buildReadinessResponseForTarget(ctx context.Context, target string) (readin
 			}
 		}
 	}
-	cancel()
 	for _, host := range response.Hosts {
 		response.Status = lessReady(response.Status, host.Status)
 	}
-	releaseItem := releaseAuthorityReadiness(root)
-	authorityCtx, authorityCancel := context.WithTimeout(ctx, 5*time.Second)
-	if output, authorityErr := releaseAuthorityStatusCommand(authorityCtx, root); authorityErr == nil {
-		var authority releaseAuthorityStatus
-		if json.Unmarshal(output, &authority) == nil {
-			response.ManagedKeyConfigured = authority.Configured
-			response.TrustAnchorMatch = authority.TrustAnchorMatch
-		}
+	release := <-releaseCh
+	if release.authorityAvailable {
+		response.ManagedKeyConfigured = release.authority.Configured
+		response.TrustAnchorMatch = release.authority.TrustAnchorMatch
 	}
-	authorityCancel()
-	response.Integrations = append(response.Integrations, releaseItem)
-	response.Status = lessReady(response.Status, releaseItem.Status)
+	response.Integrations = append(response.Integrations, release.item)
+	response.Status = lessReady(response.Status, release.item.Status)
 	assessment := assessCompletion(response, nil)
 	response.Blockers = assessment.Blockers
 	response.Degraded = assessment.Degraded

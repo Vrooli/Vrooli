@@ -13,6 +13,8 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	clitest "github.com/vrooli/cli-core/cliapptest"
+	credentialsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/credentials"
+	readinessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/readiness"
 )
 
 func TestRegisterAndSelectionErrors(t *testing.T) {
@@ -37,6 +39,15 @@ func TestReportReadinessBlockersRetainsSafeMetadataInError(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("error = %q, want %q", err.Error(), want)
 		}
+	}
+}
+
+func TestCredentialPromptUsesReadinessStatusForPendingMetadata(t *testing.T) {
+	metadata := &credentialsv1.Credential{LogicalId: "vrooli/demo", Field: "token", Status: "pending"}
+	readiness := &readinessv1.GetReadinessResponse{Credentials: []*readinessv1.Credential{{LogicalId: "vrooli/demo", Field: "token", LegacyStatus: "configured"}}}
+
+	if !credentialIsConfigured(metadata, credentialReadinessStatuses(readiness)) {
+		t.Fatal("a configured readiness item must suppress a prompt for pending metadata")
 	}
 }
 

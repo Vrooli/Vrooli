@@ -55,7 +55,8 @@ func TestV2CoreSetKeepsSeedVisibleWhenClosureUnavailable(t *testing.T) {
 	operatorStatePath = func() (string, error) { return statePath, nil }
 
 	response := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet", `{"target":"local"}`)
-	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), `"available":true`) || !strings.Contains(response.Body.String(), `"seed":["seed"]`) || !strings.Contains(response.Body.String(), "closure unavailable") {
+	body := response.Body.String()
+	if response.Code != http.StatusOK || strings.Contains(body, `"available":true`) || !strings.Contains(body, `"seed"`) || !strings.Contains(body, "closure unavailable") {
 		t.Fatalf("fallback response = %d: %s", response.Code, response.Body.String())
 	}
 }

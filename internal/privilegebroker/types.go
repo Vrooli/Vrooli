@@ -27,10 +27,23 @@ const (
 	ActionVolumeFilesystemCheck      = "volume.filesystem.check"
 	ActionVolumeFilesystemRepair     = "volume.filesystem.repair"
 	ActionRuntimeHomeOwnershipRepair = "runtime-home.ownership.repair"
-	ActionLogRotateForce              = "log.rotate.force"
-	ActionJournaldVacuum              = "journald.vacuum"
-	ActionDockerPruneUnusedImages     = "docker.prune.unused-images"
-	ActionDockerPruneUnusedVolumes    = "docker.prune.unused-volumes"
+	ActionLogRotateForce             = "log.rotate.force"
+	ActionJournaldVacuum             = "journald.vacuum"
+	ActionDockerPruneUnusedImages    = "docker.prune.unused-images"
+	ActionDockerPruneUnusedVolumes   = "docker.prune.unused-volumes"
+
+	// Cloud target actions replace the shell strings scenario-to-cloud used to
+	// run over SSH. Each has a closed subject: package names from a compiled
+	// allowlist, an edge port from {80, 443}, or one scenario id plus its
+	// deployment workdir. None accepts a path, pattern, or command fragment.
+	ActionAptPackagesEnsure = "apt.packages.ensure"
+	ActionEdgeUFWAllow      = "edge.ufw.allow"
+	ActionProcessStopScoped = "process.stop.scoped"
+	// Caddy actions validate and reload the edge proxy after a deployment
+	// snippet was written. The subject is the deployment id (audit and
+	// receipt evidence only); the argv is fixed and never carries a path.
+	ActionEdgeCaddyValidate = "edge.caddy.validate"
+	ActionEdgeCaddyReload   = "edge.caddy.reload"
 )
 
 // Request is the complete v1 wire input. Deliberately, it has no command,
@@ -48,6 +61,37 @@ type Request struct {
 	Log         *LogSubject         `json:"log,omitempty"`
 	Journal     *JournalSubject     `json:"journal,omitempty"`
 	Docker      *DockerSubject      `json:"docker,omitempty"`
+	Apt         *AptSubject         `json:"apt,omitempty"`
+	Edge        *EdgeSubject        `json:"edge,omitempty"`
+	Process     *ProcessSubject     `json:"process,omitempty"`
+	Caddy       *CaddySubject       `json:"caddy,omitempty"`
+}
+
+// CaddySubject scopes a validate/reload to the deployment whose snippet
+// changed. It is evidence, not an input: the policy validates the whole
+// main Caddyfile and reloads the one caddy unit regardless.
+type CaddySubject struct {
+	DeploymentID string `json:"deployment_id"`
+}
+
+// AptSubject names packages to ensure. Every name must appear in
+// AptAllowedPackages; the policy never forwards an unlisted name to apt.
+type AptSubject struct {
+	Packages []string `json:"packages"`
+}
+
+// EdgeSubject names one public edge port for the HTTP/ACME path. Only 80 and
+// 443 are admissible; the management port is never touched by this action.
+type EdgeSubject struct {
+	Port int `json:"port"`
+}
+
+// ProcessSubject scopes a stop to one scenario inside one deployment workdir.
+// The stop runs through the lifecycle owner by scenario id; there is no
+// process name, pattern, or signal field.
+type ProcessSubject struct {
+	Scenario string `json:"scenario"`
+	Workdir  string `json:"workdir"`
 }
 
 type LogSubject struct {

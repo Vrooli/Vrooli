@@ -60,23 +60,227 @@ type DeployDesktopRequest struct {
 	// ReleaseVersion mirrors scenario-to-desktop's Config.Version and flows
 	// to LPBS so the verify endpoint has an expected version to match.
 	ReleaseVersion string `json:"release_version,omitempty"`
+	// CandidateID binds the deployment to the immutable build candidate.
+	CandidateID string `json:"candidate_id,omitempty"`
+	// ArtifactDigest binds the deployment to the candidate's canonical artifact
+	// manifest digest. It must survive every owner handoff.
+	ArtifactDigest string `json:"artifact_digest,omitempty"`
+	// ExpectedArtifactDigests binds each exact target to its finalized bytes.
+	ExpectedArtifactDigests map[string]string `json:"expected_artifact_digests,omitempty"`
+	// DestinationRevisionID binds publication to the exact destination config.
+	DestinationRevisionID string `json:"destination_revision_id,omitempty"`
+	// AuthorizationEpoch prevents an old approval from authorizing a new release.
+	AuthorizationEpoch uint64 `json:"authorization_epoch,omitempty"`
+	// IdempotencyKey makes repeated lifecycle requests resolve to one operation.
+	IdempotencyKey     string                      `json:"idempotency_key,omitempty"`
+	AuthorizationCheck func(context.Context) error `json:"-"`
+	// ReadinessReviewKey is the approved review the release started under;
+	// the cloud owner re-checks it before any publication effect.
+	ReadinessReviewKey string `json:"readiness_review_key,omitempty"`
+	// CloudManifest opts this governed release into scenario-to-cloud's VPS
+	// lifecycle. The cloud service remains the owner of secrets and remote
+	// effects; DM records the receipt it returns.
+	CloudManifest        json.RawMessage `json:"cloud_manifest,omitempty"`
+	CloudDeploymentName  string          `json:"cloud_deployment_name,omitempty"`
+	CloudBundlePath      string          `json:"cloud_bundle_path,omitempty"`
+	CloudBundleSHA256    string          `json:"cloud_bundle_sha256,omitempty"`
+	CloudBundleSizeBytes int64           `json:"cloud_bundle_size_bytes,omitempty"`
+	CloudRunPreflight    bool            `json:"cloud_run_preflight,omitempty"`
+}
+
+// Recover routes an exact release recovery request to the owning cloud
+// service. Deployment-manager keeps the identity and authorization checks;
+// the owner returns the effect receipt.
+func (o *Orchestrator) Recover(ctx context.Context, request *releases.RecoveryRequest, deploymentID, expectedBundleSHA string) (*releases.RecoveryReceipt, error) {
+	client, ok := o.cloudClient.(CloudRecoveryClient)
+	if request == nil {
+		return nil, fmt.Errorf("recovery request is required")
+	}
+	if o.releaseIdentity != nil && request.DestinationRevisionID != "" {
+		record, err := o.releaseIdentity.GetDestinationRevision(ctx, request.DestinationRevisionID)
+		if err != nil || record == nil {
+			return nil, fmt.Errorf("load recovery destination %q: %w", request.DestinationRevisionID, err)
+		}
+		if strings.EqualFold(record.Revision.Kind, "lpbs") {
+			lpbsRecovery, supported := o.lpbsClient.(LPBSRecoveryClient)
+			if !supported {
+				return nil, fmt.Errorf("lpbs recovery owner is unavailable")
+			}
+			if o.lpbsConfigRepo == nil {
+				return nil, fmt.Errorf("lpbs release configuration is unavailable")
+			}
+			config, err := o.lpbsConfigRepo.Get(ctx, request.ProfileID)
+			if err != nil || config == nil || strings.TrimSpace(config.LPBSAppKey) == "" {
+				return nil, fmt.Errorf("lpbs release configuration is unavailable: %w", err)
+			}
+			revision, err := parseChannelRevision(record.Revision.ExpectedChannelRevision)
+			if err != nil {
+				return nil, fmt.Errorf("lpbs destination revision has no numeric expected channel revision: %w", err)
+			}
+			ownerRequest := &LPBSRecoveryRequest{AppKey: config.LPBSAppKey, VariantKey: lpbsVariantKey(request.Channel), ExpectedRevision: revision, ExpectedPredecessor: request.ExpectedPredecessor, Action: request.Action, DataCompatibility: request.DataCompatibility, ArtifactIDs: request.RepairArtifactIDs, CandidateID: request.CandidateID, DestinationRevisionID: request.DestinationRevisionID, Halted: true, Reason: request.Confirmation, Confirmation: request.Confirmation, DryRun: request.DryRun}
+			var ownerReceipt *LPBSRecoveryReceipt
+			if request.Action == "halt" {
+				ownerReceipt, err = lpbsRecovery.HaltChannel(ctx, ownerRequest)
+			} else {
+				recoveryOwner, supported := o.lpbsClient.(LPBSChannelRecoveryClient)
+				if !supported {
+					return nil, fmt.Errorf("lpbs recovery action %q is unsupported by the owner", request.Action)
+				}
+				ownerReceipt, err = recoveryOwner.RecoverChannel(ctx, ownerRequest)
+			}
+			if err != nil {
+				return nil, err
+			}
+			if ownerReceipt == nil || (request.Action != "halt" && ownerReceipt.Action != request.Action) || ownerReceipt.AppKey != config.LPBSAppKey || ownerReceipt.VariantKey != lpbsVariantKey(request.Channel) || strings.TrimSpace(ownerReceipt.ExternalReceipt) == "" || ownerReceipt.ObservedAt.IsZero() {
+				return nil, fmt.Errorf("lpbs recovery owner returned an incomplete or mismatched receipt")
+			}
+			if request.Action != "halt" && (ownerReceipt.CandidateID != request.CandidateID || ownerReceipt.DestinationRevisionID != request.DestinationRevisionID) {
+				return nil, fmt.Errorf("lpbs recovery receipt does not preserve candidate and destination identity")
+			}
+			return &releases.RecoveryReceipt{ReceiptID: fmt.Sprintf("%s:lpbs:%s", request.ReleaseID, ownerReceipt.ExternalReceipt), ReleaseID: request.ReleaseID, CandidateID: request.CandidateID, DestinationRevisionID: request.DestinationRevisionID, DeploymentID: record.Revision.DestinationID, Action: request.Action, Outcome: ownerReceipt.Outcome, Health: ownerReceipt.Health, ExternalReceipt: ownerReceipt.ExternalReceipt, ObservedAt: ownerReceipt.ObservedAt, DryRun: ownerReceipt.DryRun}, nil
+		}
+	}
+	if !ok {
+		return nil, fmt.Errorf("cloud recovery owner is unavailable")
+	}
+	idempotencyKey := strings.TrimSpace(request.IdempotencyKey)
+	if idempotencyKey == "" {
+		idempotencyKey = strings.Join([]string{request.ReleaseID, request.Action, expectedBundleSHA, request.RepairBundleSHA256}, ":")
+	}
+	ownerReceipt, err := client.RecoverCloud(ctx, &CloudRecoveryRequest{
+		DeploymentID: deploymentID, Action: request.Action, ExpectedBundleSHA: expectedBundleSHA,
+		RepairBundleSHA: request.RepairBundleSHA256, DataCompatibility: request.DataCompatibility,
+		IdempotencyKey: idempotencyKey, Confirmation: request.Confirmation, DryRun: request.DryRun,
+		ReviewKey: request.ReviewKey, PreviewRef: request.PreviewRef,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if ownerReceipt == nil {
+		return nil, fmt.Errorf("cloud recovery owner returned no receipt")
+	}
+	if request.Action != "halt" && strings.TrimSpace(ownerReceipt.BundleSHA256) == "" {
+		return nil, fmt.Errorf("cloud recovery owner returned no repaired bundle identity")
+	}
+	receipt := &releases.RecoveryReceipt{
+		ReceiptID: fmt.Sprintf("%s:%s", request.ReleaseID, ownerReceipt.ExternalReceipt), ReleaseID: request.ReleaseID,
+		CandidateID: request.CandidateID, DestinationRevisionID: request.DestinationRevisionID, DeploymentID: ownerReceipt.DeploymentID,
+		Action: ownerReceipt.Action, Outcome: ownerReceipt.Outcome, Health: ownerReceipt.Health,
+		BundleSHA256: ownerReceipt.BundleSHA256, ExternalReceipt: ownerReceipt.ExternalReceipt, ObservedAt: ownerReceipt.ObservedAt, DryRun: ownerReceipt.DryRun,
+		PreviewRef: ownerReceipt.PreviewRef,
+	}
+	return receipt, nil
+}
+
+// RecoveryControls reports the controls supported by the owner bound to an
+// exact destination revision. It is deliberately capability based: a route
+// must not advertise an action merely because the request type accepts it.
+func (o *Orchestrator) RecoveryControls(ctx context.Context, destinationRevisionID string) ([]string, error) {
+	if o == nil || o.releaseIdentity == nil {
+		return nil, fmt.Errorf("release identity repository is unavailable")
+	}
+	record, err := o.releaseIdentity.GetDestinationRevision(ctx, strings.TrimSpace(destinationRevisionID))
+	if err != nil || record == nil {
+		if err != nil {
+			return nil, fmt.Errorf("load recovery destination %q: %w", destinationRevisionID, err)
+		}
+		return nil, fmt.Errorf("load recovery destination %q: not found", destinationRevisionID)
+	}
+	if strings.EqualFold(record.Revision.Kind, "lpbs") {
+		controls := make([]string, 0, 4)
+		if _, supported := o.lpbsClient.(LPBSRecoveryClient); supported {
+			controls = append(controls, "halt")
+		}
+		if _, supported := o.lpbsClient.(LPBSChannelRecoveryClient); supported {
+			controls = append(controls, "withdraw", "rollback", "forward_repair")
+		}
+		return controls, nil
+	}
+	if _, supported := o.cloudClient.(CloudRecoveryClient); supported {
+		return []string{"halt", "rollback", "forward_repair"}, nil
+	}
+	return nil, nil
+}
+
+// ObserveRelease obtains current health from the owner bound to a cloud
+// destination. LPBS keeps its dedicated byte-and-version verifier; cloud
+// reconciliation must use the cloud health contract instead of pretending
+// that an LPBS check applies to every destination kind.
+func (o *Orchestrator) ObserveRelease(ctx context.Context, release *releases.Release) (*releases.OwnerObservation, error) {
+	if o == nil || release == nil {
+		return nil, fmt.Errorf("release observation requires a release")
+	}
+	if o.releaseIdentity == nil {
+		return nil, fmt.Errorf("release identity repository is unavailable")
+	}
+	record, err := o.releaseIdentity.GetDestinationRevision(ctx, strings.TrimSpace(release.DestinationRevisionID))
+	if err != nil || record == nil {
+		if err != nil {
+			return nil, fmt.Errorf("load release destination %q: %w", release.DestinationRevisionID, err)
+		}
+		return nil, fmt.Errorf("load release destination %q: not found", release.DestinationRevisionID)
+	}
+	if strings.EqualFold(record.Revision.Kind, "lpbs") {
+		return nil, fmt.Errorf("LPBS releases require the LPBS verifier")
+	}
+	client, ok := o.cloudClient.(CloudHealthClient)
+	if !ok || strings.TrimSpace(release.DeploymentID) == "" {
+		return nil, fmt.Errorf("cloud health owner or deployment identity is unavailable")
+	}
+	expected := expectedCloudReleaseDigest(release)
+	result, err := client.CheckDeploymentHealth(ctx, DeploymentHealthRequest{DeploymentID: release.DeploymentID, ExpectedReleaseDigest: expected})
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, fmt.Errorf("cloud health owner returned no observation")
+	}
+	if strings.TrimSpace(result.DeploymentID) != strings.TrimSpace(release.DeploymentID) {
+		return nil, fmt.Errorf("cloud health owner observed deployment %q, expected %q", result.DeploymentID, release.DeploymentID)
+	}
+	if result.ObservedAt.IsZero() {
+		return nil, fmt.Errorf("cloud health owner observation has no observed_at")
+	}
+	return &releases.OwnerObservation{
+		DeploymentID:          result.DeploymentID,
+		TargetID:              "cloud:" + result.DeploymentID,
+		ExpectedReleaseDigest: expected,
+		ObservedReleaseDigest: result.ObservedReleaseDigest,
+		Healthy:               result.Healthy,
+		ObservedAt:            result.ObservedAt,
+		Detail:                result.Explain(),
+	}, nil
+}
+
+func expectedCloudReleaseDigest(release *releases.Release) string {
+	if release == nil {
+		return ""
+	}
+	for i := len(release.PublicationReceipts) - 1; i >= 0; i-- {
+		receipt := release.PublicationReceipts[i]
+		if (strings.HasPrefix(receipt.TargetID, "cloud:") || receipt.Producer == cloudReceiptProducerRef) && strings.TrimSpace(receipt.ArtifactDigest) != "" {
+			return receipt.ArtifactDigest
+		}
+	}
+	return release.ArtifactDigest
 }
 
 // DeployDesktopResponse is the response from orchestrated deployment.
 type DeployDesktopResponse struct {
-	Status            string                `json:"status"`
-	ProfileID         string                `json:"profile_id"`
-	Scenario          string                `json:"scenario"`
-	Steps             []OrchestrationStep   `json:"steps"`
-	ManifestPath      string                `json:"manifest_path,omitempty"`
-	BuildResults      *build.BuildAllResult `json:"build_results,omitempty"`
-	DesktopBuildID    string                `json:"desktop_build_id,omitempty"`
-	DesktopPath       string                `json:"desktop_path,omitempty"`
-	InstallerBuildID  string                `json:"installer_build_id,omitempty"`
-	Installers        map[string]string     `json:"installers,omitempty"`
-	PublishedVersions []PublishedVersion    `json:"published_versions,omitempty"`
-	Duration          string                `json:"duration,omitempty"`
-	NextSteps         []string              `json:"next_steps,omitempty"`
+	Status            string                  `json:"status"`
+	ProfileID         string                  `json:"profile_id"`
+	Scenario          string                  `json:"scenario"`
+	Steps             []OrchestrationStep     `json:"steps"`
+	ManifestPath      string                  `json:"manifest_path,omitempty"`
+	BuildResults      *build.BuildAllResult   `json:"build_results,omitempty"`
+	DesktopBuildID    string                  `json:"desktop_build_id,omitempty"`
+	DesktopPath       string                  `json:"desktop_path,omitempty"`
+	InstallerBuildID  string                  `json:"installer_build_id,omitempty"`
+	Installers        map[string]string       `json:"installers,omitempty"`
+	PublishedVersions []PublishedVersion      `json:"published_versions,omitempty"`
+	CloudReceipt      *CloudDeploymentReceipt `json:"cloud_receipt,omitempty"`
+	Duration          string                  `json:"duration,omitempty"`
+	NextSteps         []string                `json:"next_steps,omitempty"`
 }
 
 // OrchestrationStep represents a single step in the orchestration.
@@ -94,9 +298,12 @@ type Orchestrator struct {
 	approvalsRepo         ApprovalsRepository
 	publishedVersionsRepo PublishedVersionsRepository
 	releasesRepo          releases.Repository
+	releaseIdentity       releases.IdentityRepository
 	lpbsConfigRepo        profiles.LPBSReleaseConfigRepository
+	publishPipelineRunner publishPipelineRunner
 	cloudClient           CloudHealthClient
 	lpbsClient            LPBSReleaseClient
+	commandRunner         commandRunner
 	vrooli                string
 	log                   func(string, map[string]interface{})
 }
@@ -128,12 +335,19 @@ func NewOrchestratorFull(
 		approvalsRepo:         approvalsRepo,
 		publishedVersionsRepo: publishedVersionsRepo,
 		releasesRepo:          releasesRepo,
+		releaseIdentity:       identityRepository(releasesRepo),
 		lpbsConfigRepo:        lpbsConfigRepo,
 		cloudClient:           cloudClient,
 		lpbsClient:            lpbsClient,
+		commandRunner:         processCommandRunner{},
 		vrooli:                vrooli,
 		log:                   log,
 	}
+}
+
+func identityRepository(repository releases.Repository) releases.IdentityRepository {
+	identity, _ := repository.(releases.IdentityRepository)
+	return identity
 }
 
 // deployState holds mutable state threaded through the deployment phases.
@@ -222,7 +436,7 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 	o.deployFinalizeAndPublish(ds)
 
 	ds.response.Duration = time.Since(start).String()
-	o.writeJSON(w, http.StatusOK, ds.response)
+	o.writeJSON(w, deploymentResponseHTTPStatus(ds.response), ds.response)
 }
 
 // deployLoadProfile loads the profile and checks the release gate.
@@ -247,7 +461,11 @@ func (o *Orchestrator) deployLoadProfile(ds *deployState) int {
 	ds.response.Steps = append(ds.response.Steps, step)
 
 	// Release gate check
-	if o.approvalsRepo != nil {
+	// Release-bound executions carry the canonical readiness authorization
+	// check, which is revalidated immediately before publication. Re-running
+	// the legacy commit/platform approval projection here would create a second
+	// decision boundary and could block an otherwise valid exact release.
+	if o.approvalsRepo != nil && ds.req.AuthorizationCheck == nil {
 		step = o.startStep("Check release gate")
 		gate, gateErr := o.approvalsRepo.CheckReleaseGate(ds.ctx, ds.req.ProfileID, ds.req.GitCommitHash)
 		if gateErr != nil {
@@ -302,13 +520,15 @@ func (o *Orchestrator) deployValidateAndSign(ds *deployState) int {
 			step.Message = "dry run - would apply signing config"
 		} else {
 			if err := o.applySigningConfig(ds.ctx, ds.profile.Scenario, ds.req.SigningConfig); err != nil {
-				step.Status = "warning"
-				step.Message = fmt.Sprintf("failed to apply signing config: %v", err)
+				o.failStep(&step, fmt.Sprintf("failed to apply signing config: %v", err))
 				o.log("warn", map[string]interface{}{
 					"msg":      "signing config application failed",
 					"scenario": ds.profile.Scenario,
 					"error":    err.Error(),
 				})
+				ds.response.Steps = append(ds.response.Steps, step)
+				ds.response.Status = "failed"
+				return http.StatusBadGateway
 			} else {
 				o.successStep(&step, "signing configuration applied to scenario-to-desktop")
 			}
@@ -320,6 +540,12 @@ func (o *Orchestrator) deployValidateAndSign(ds *deployState) int {
 	step := o.startStep("Check signing readiness")
 	signingWarnings := o.checkSigningReadiness(ds.ctx, ds.profile.Scenario)
 	if len(signingWarnings) > 0 {
+		if ds.req.ReleaseID != "" {
+			o.failStep(&step, "commercial release signing readiness failed: "+strings.Join(signingWarnings, "; "))
+			ds.response.Steps = append(ds.response.Steps, step)
+			ds.response.Status = "failed"
+			return http.StatusPreconditionFailed
+		}
 		step.Status = "warning"
 		step.Message = strings.Join(signingWarnings, "; ")
 		o.log("warn", map[string]interface{}{
@@ -346,8 +572,16 @@ func (o *Orchestrator) deployAssembleManifest(ds *deployState) int {
 		return http.StatusBadGateway
 	}
 
-	// Apply swaps from profile
-	profileSwaps, _ := o.profileRepo.GetSwaps(ds.ctx, ds.req.ProfileID)
+	// Apply swaps from profile. A commercial release cannot continue with an
+	// incomplete profile because the resulting artifact would no longer be
+	// attributable to the reviewed configuration.
+	profileSwaps, err := o.profileRepo.GetSwaps(ds.ctx, ds.req.ProfileID)
+	if err != nil {
+		o.failStep(&step, fmt.Sprintf("failed to load profile swaps: %v", err))
+		ds.response.Steps = append(ds.response.Steps, step)
+		ds.response.Status = "failed"
+		return http.StatusBadGateway
+	}
 	for _, ps := range profileSwaps {
 		manifest.Swaps = append(manifest.Swaps, bundles.ManifestSwap{
 			Original:    ps.From,
@@ -357,9 +591,16 @@ func (o *Orchestrator) deployAssembleManifest(ds *deployState) int {
 		})
 	}
 
-	// Populate missing asset metadata
+	// Populate missing asset metadata. A commercial release must fail closed if
+	// the exact asset set cannot be enumerated or hashed.
 	scenarioDir := filepath.Join(ds.scenarioBaseDir, ds.profile.Scenario)
 	if err := populateAssetMetadata(manifest, scenarioDir); err != nil {
+		if ds.req.ReleaseID != "" {
+			o.failStep(&step, fmt.Sprintf("failed to prepare exact asset metadata: %v", err))
+			ds.response.Steps = append(ds.response.Steps, step)
+			ds.response.Status = "failed"
+			return http.StatusBadGateway
+		}
 		step.Status = "warning"
 		step.Message = fmt.Sprintf("assembled manifest with %d swaps (asset metadata partial: %v)", len(manifest.Swaps), err)
 		o.log("warn", map[string]interface{}{
@@ -368,7 +609,9 @@ func (o *Orchestrator) deployAssembleManifest(ds *deployState) int {
 			"error":    err.Error(),
 		})
 	}
-	o.successStep(&step, fmt.Sprintf("assembled manifest with %d swaps", len(manifest.Swaps)))
+	if step.Status == "running" {
+		o.successStep(&step, fmt.Sprintf("assembled manifest with %d swaps", len(manifest.Swaps)))
+	}
 	ds.response.Steps = append(ds.response.Steps, step)
 
 	// Normalize CLI services
@@ -413,7 +656,13 @@ func (o *Orchestrator) deployAssembleManifest(ds *deployState) int {
 		}
 
 		manifestPath := filepath.Join(ds.outputDir, "bundle.json")
-		manifestData, _ := json.MarshalIndent(manifest, "", "  ")
+		manifestData, err := json.MarshalIndent(manifest, "", "  ")
+		if err != nil {
+			o.failStep(&step, fmt.Sprintf("failed to encode manifest: %v", err))
+			ds.response.Steps = append(ds.response.Steps, step)
+			ds.response.Status = "failed"
+			return http.StatusInternalServerError
+		}
 		if err := os.WriteFile(manifestPath, manifestData, 0o644); err != nil {
 			o.failStep(&step, fmt.Sprintf("failed to write manifest: %v", err))
 			ds.response.Steps = append(ds.response.Steps, step)
@@ -477,6 +726,7 @@ func (o *Orchestrator) deployBuildBinaries(ds *deployState) int {
 	defer cancel()
 
 	allSucceeded := true
+	var buildErrors []string
 	var allResults []build.BuildResult
 	for _, svc := range buildableServices {
 		result, err := builder.BuildAll(buildCtx, svc.ID, svc.Build, ds.buildPlatforms)
@@ -487,6 +737,7 @@ func (o *Orchestrator) deployBuildBinaries(ds *deployState) int {
 				"error":   err.Error(),
 			})
 			allSucceeded = false
+			buildErrors = append(buildErrors, fmt.Sprintf("%s: %v", svc.ID, err))
 			continue
 		}
 		allResults = append(allResults, result.Results...)
@@ -505,29 +756,54 @@ func (o *Orchestrator) deployBuildBinaries(ds *deployState) int {
 		updateManifestBinaryPaths(ds.manifest, allResults, scenarioDir, manifestDir)
 
 		if ds.response.ManifestPath != "" {
-			manifestData, _ := json.MarshalIndent(ds.manifest, "", "  ")
-			if err := os.WriteFile(ds.response.ManifestPath, manifestData, 0o644); err != nil {
-				o.log("warning", map[string]interface{}{
-					"msg":   "failed to update manifest with build paths",
-					"error": err.Error(),
-				})
+			manifestData, err := json.MarshalIndent(ds.manifest, "", "  ")
+			if err != nil {
+				o.failStep(&step, fmt.Sprintf("failed to encode built manifest: %v", err))
+			} else if err := os.WriteFile(ds.response.ManifestPath, manifestData, 0o644); err != nil {
+				o.failStep(&step, fmt.Sprintf("failed to persist built manifest: %v", err))
 			}
 		}
-		o.successStep(&step, fmt.Sprintf("built %d service(s) for %d platform(s)", len(buildableServices), len(ds.buildPlatforms)))
+		if step.Status != "failed" {
+			o.successStep(&step, fmt.Sprintf("built %d service(s) for %d platform(s)", len(buildableServices), len(ds.buildPlatforms)))
+		}
 	} else {
-		o.failStep(&step, "some builds failed")
+		message := "some builds failed"
+		if len(buildErrors) > 0 {
+			message += ": " + strings.Join(buildErrors, "; ")
+		}
+		o.failStep(&step, message)
 	}
 	ds.response.Steps = append(ds.response.Steps, step)
 
+	if !allSucceeded {
+		ds.response.Status = "failed"
+		return http.StatusBadGateway
+	}
 	return 0
 }
 
 // deployPackageAndInstall generates the desktop wrapper and builds installers.
 func (o *Orchestrator) deployPackageAndInstall(ds *deployState) int {
 	o.deployGenerateWrapper(ds)
+	if releaseStageFailed(ds) {
+		ds.response.Status = "failed"
+		return http.StatusBadGateway
+	}
 	o.deployValidateRuntime(ds)
+	if releaseStageFailed(ds) {
+		ds.response.Status = "failed"
+		return http.StatusBadGateway
+	}
 	o.deployCopyBinaries(ds)
+	if releaseStageFailed(ds) {
+		ds.response.Status = "failed"
+		return http.StatusBadGateway
+	}
 	o.deployBuildInstallers(ds)
+	if releaseStageFailed(ds) {
+		ds.response.Status = "failed"
+		return http.StatusBadGateway
+	}
 	o.deployVisualValidation(ds)
 	return 0
 }
@@ -624,8 +900,7 @@ func (o *Orchestrator) deployCopyBinaries(ds *deployState) {
 	if err != nil {
 		o.failStep(&step, fmt.Sprintf("failed to copy binaries into bundle: %v", err))
 	} else if len(missing) > 0 {
-		step.Status = "warning"
-		step.Message = fmt.Sprintf("copied binaries with %d missing artifact(s): %s", len(missing), strings.Join(missing, ", "))
+		o.failStep(&step, fmt.Sprintf("copied binaries with %d missing artifact(s): %s", len(missing), strings.Join(missing, ", ")))
 	} else {
 		o.successStep(&step, "copied binaries into bundle/bin for target platforms")
 	}
@@ -692,8 +967,27 @@ func (o *Orchestrator) deployVisualValidation(ds *deployState) {
 
 // deployFinalizeAndPublish publishes and determines overall status.
 func (o *Orchestrator) deployFinalizeAndPublish(ds *deployState) {
+	if !ds.req.DryRun && strings.TrimSpace(ds.req.ReleaseID) != "" && o.publishedVersionsRepo == nil {
+		step := o.startStep("Publish to LPBS")
+		o.failStep(&step, "commercial publication requires a published-version repository")
+		ds.response.Steps = append(ds.response.Steps, step)
+		ds.response.Status = "failed"
+		return
+	}
 	if o.publishedVersionsRepo != nil && !ds.req.DryRun {
 		step := o.startStep("Publish to LPBS")
+		if ds.req.AuthorizationCheck == nil {
+			o.failStep(&step, "canonical release authorization is required before publication")
+			ds.response.Steps = append(ds.response.Steps, step)
+			ds.response.Status = "blocked"
+			return
+		}
+		if err := ds.req.AuthorizationCheck(ds.ctx); err != nil {
+			o.failStep(&step, fmt.Sprintf("current release authorization failed before publication: %v", err))
+			ds.response.Steps = append(ds.response.Steps, step)
+			ds.response.Status = "blocked"
+			return
+		}
 		o.publishToLPBS(ds.ctx, ds.profile, ds.req, ds.response, &step)
 		ds.response.Steps = append(ds.response.Steps, step)
 	}
@@ -727,7 +1021,25 @@ func (o *Orchestrator) deployFinalizeAndPublish(ds *deployState) {
 			}
 		}
 	} else {
-		ds.response.Status = "failed"
+		if ds.response.Status != "ambiguous" {
+			ds.response.Status = "failed"
+		}
+	}
+}
+
+func deploymentResponseHTTPStatus(response *DeployDesktopResponse) int {
+	if response == nil {
+		return http.StatusInternalServerError
+	}
+	switch response.Status {
+	case "blocked":
+		return http.StatusPreconditionFailed
+	case "failed", "verify_failed":
+		return http.StatusBadGateway
+	case "ambiguous":
+		return http.StatusConflict
+	default:
+		return http.StatusOK
 	}
 }
 
@@ -782,15 +1094,13 @@ func (o *Orchestrator) validateProfile(ctx context.Context, profileID string) er
 
 	deps, err := shared.GetScenarioDependencies(ctx, profile.Scenario)
 	if err != nil {
-		o.log("warn", map[string]interface{}{
-			"msg":      "could not fetch scenario dependencies for blocker check",
-			"scenario": profile.Scenario,
-			"error":    err.Error(),
-		})
-		return nil
+		return fmt.Errorf("could not fetch scenario dependencies for blocker check: %w", err)
 	}
 
-	appliedSwaps, _ := o.profileRepo.GetSwaps(ctx, profileID)
+	appliedSwaps, err := o.profileRepo.GetSwaps(ctx, profileID)
+	if err != nil {
+		return fmt.Errorf("failed to load profile swaps: %w", err)
+	}
 	swappedDeps := make(map[string]bool)
 	for _, swap := range appliedSwaps {
 		swappedDeps[swap.From] = true

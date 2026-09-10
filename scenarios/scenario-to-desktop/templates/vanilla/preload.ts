@@ -182,6 +182,12 @@ interface DesktopAPI {
          */
         getAccessToken: () => Promise<string | null>;
 
+        /**
+         * Get the bundled runtime's local session token for same-machine API
+         * calls. The bridge only serves trusted local renderer origins.
+         */
+        getLocalSessionToken: () => Promise<string | null>;
+
         /** Get the encrypted-and-cached signed LPBS entitlement lease. */
         getEntitlementLease: () => Promise<string | null>;
 
@@ -383,6 +389,10 @@ const desktopAPI: DesktopAPI = {
 
         getAccessToken: async () => {
             return ipcRenderer.invoke("auth:get-access-token");
+        },
+
+        getLocalSessionToken: async () => {
+            return ipcRenderer.invoke("auth:get-local-session-token");
         },
 
         getEntitlementLease: async () => {

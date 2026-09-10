@@ -16,9 +16,20 @@ func TestAppleReadinessDerivesSixRungsAndUnavailability(t *testing.T) {
 	if len(ladder.Rungs) != 6 {
 		t.Fatal(len(ladder.Rungs))
 	}
+	wantMissing := map[string]string{
+		"developer-program": "apple-developer-program",
+		"verified-identity": "apple-verified-identity",
+		"macos-build-host":  "macos-bridge-node",
+		"signing-reference": "apple-signing-identity",
+		"testflight-access": "testflight-access",
+		"app-store-listing": "app-store-listing",
+	}
 	for _, rung := range ladder.Rungs {
 		if rung.State != Unavailable || rung.NextAction == "" || rung.MissingCapability == "" {
 			t.Fatalf("rung = %+v", rung)
+		}
+		if rung.MissingCapability != wantMissing[rung.ID] {
+			t.Fatalf("rung %q points at %q, want owner descriptor %q", rung.ID, rung.MissingCapability, wantMissing[rung.ID])
 		}
 	}
 }

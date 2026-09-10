@@ -25,7 +25,7 @@ describe("AppShell structure (cimode)", () => {
 
   it("renders the title, sidebar, bottom nav, and main outlet", () => {
     renderShell();
-    expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-density", "rail");
+    expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-density", "sidebar");
     expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-main-mode", "fill");
     expect(screen.getByTestId(`${selectors.layout.shell}-navigation`)).toBeInTheDocument();
     expect(screen.getByTestId(`${selectors.layout.shell}-tabs`)).toBeInTheDocument();

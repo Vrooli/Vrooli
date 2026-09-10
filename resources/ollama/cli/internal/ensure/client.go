@@ -450,13 +450,21 @@ type GenerateRequest struct {
 	NumPredict  *int            `json:"num_predict,omitempty"`
 	Temperature *float64        `json:"temperature,omitempty"`
 	NumGPU      *int            `json:"num_gpu,omitempty"`
+	NumCtx      *int            `json:"num_ctx,omitempty"`
+	NumThread   *int            `json:"num_thread,omitempty"`
+	NumBatch    *int            `json:"num_batch,omitempty"`
 }
 
 // GenerateResponse captures the buffered (stream=false) shape.
 type GenerateResponse struct {
-	Response  string `json:"response"`
-	Done      bool   `json:"done"`
-	EvalCount int    `json:"eval_count,omitempty"`
+	Response           string `json:"response"`
+	Done               bool   `json:"done"`
+	TotalDuration      int64  `json:"total_duration,omitempty"`
+	LoadDuration       int64  `json:"load_duration,omitempty"`
+	PromptEvalCount    int    `json:"prompt_eval_count,omitempty"`
+	PromptEvalDuration int64  `json:"prompt_eval_duration,omitempty"`
+	EvalCount          int    `json:"eval_count,omitempty"`
+	EvalDuration       int64  `json:"eval_duration,omitempty"`
 }
 
 // Generate calls /api/generate with stream=false and returns the full response.
@@ -470,6 +478,15 @@ func (c *Client) Generate(ctx context.Context, in GenerateRequest) (GenerateResp
 	}
 	if in.NumGPU != nil {
 		options["num_gpu"] = *in.NumGPU
+	}
+	if in.NumCtx != nil {
+		options["num_ctx"] = *in.NumCtx
+	}
+	if in.NumThread != nil {
+		options["num_thread"] = *in.NumThread
+	}
+	if in.NumBatch != nil {
+		options["num_batch"] = *in.NumBatch
 	}
 	requestBody := struct {
 		Model   string          `json:"model"`
@@ -556,6 +573,9 @@ type ChatRequest struct {
 	Temperature *float64
 	Think       *bool
 	Tools       []ChatTool
+	NumCtx      *int
+	NumThread   *int
+	NumBatch    *int
 }
 
 // ChatResponse captures the buffered (stream=false) chat response shape,
@@ -565,8 +585,13 @@ type ChatResponse struct {
 		Content   string         `json:"content"`
 		ToolCalls []ChatToolCall `json:"tool_calls,omitempty"`
 	} `json:"message"`
-	DoneReason string `json:"done_reason,omitempty"`
-	EvalCount  int    `json:"eval_count,omitempty"`
+	DoneReason         string `json:"done_reason,omitempty"`
+	TotalDuration      int64  `json:"total_duration,omitempty"`
+	LoadDuration       int64  `json:"load_duration,omitempty"`
+	PromptEvalCount    int    `json:"prompt_eval_count,omitempty"`
+	PromptEvalDuration int64  `json:"prompt_eval_duration,omitempty"`
+	EvalCount          int    `json:"eval_count,omitempty"`
+	EvalDuration       int64  `json:"eval_duration,omitempty"`
 }
 
 // Chat calls /api/chat with stream=false and returns the full response.
@@ -577,6 +602,15 @@ func (c *Client) Chat(ctx context.Context, in ChatRequest) (ChatResponse, error)
 	}
 	if in.Temperature != nil {
 		options["temperature"] = *in.Temperature
+	}
+	if in.NumCtx != nil {
+		options["num_ctx"] = *in.NumCtx
+	}
+	if in.NumThread != nil {
+		options["num_thread"] = *in.NumThread
+	}
+	if in.NumBatch != nil {
+		options["num_batch"] = *in.NumBatch
 	}
 	requestBody := struct {
 		Model    string         `json:"model"`

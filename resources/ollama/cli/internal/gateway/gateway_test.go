@@ -163,11 +163,14 @@ func TestGenerateJSONOutput(t *testing.T) {
 			if in.Think == nil || *in.Think {
 				t.Errorf("think = %v, want false", in.Think)
 			}
+			if in.NumCtx == nil || *in.NumCtx != 4096 || in.NumThread == nil || *in.NumThread != 2 || in.NumBatch == nil || *in.NumBatch != 256 {
+				t.Errorf("runtime controls = ctx:%v thread:%v batch:%v", in.NumCtx, in.NumThread, in.NumBatch)
+			}
 			return ensure.GenerateResponse{Response: "hello!", EvalCount: 7}, nil
 		},
 	}
 	h, stdout, _ := newHandlers(t, client, nil)
-	if err := h.Generate([]string{"--model", "llama3.2:1b", "--prompt", "hi", "--max-tokens", "123", "--temperature", "0.25", "--json"}); err != nil {
+	if err := h.Generate([]string{"--model", "llama3.2:1b", "--prompt", "hi", "--max-tokens", "123", "--temperature", "0.25", "--num-ctx", "4096", "--num-thread", "2", "--num-batch", "256", "--json"}); err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
 	var got struct {
@@ -270,6 +273,29 @@ func TestGenerateCPUOnlySetsZeroGPUOption(t *testing.T) {
 	h, _, _ := newHandlers(t, client, nil)
 	if err := h.Generate([]string{"--model", "qwen3-vl:2b", "--prompt", "describe", "--cpu-only"}); err != nil {
 		t.Fatalf("Generate: %v", err)
+	}
+}
+
+func TestGenerateRejectsUnsafeRuntimeControlsBeforeUpstream(t *testing.T) {
+	called := false
+	client := &fakeClient{generate: func(context.Context, ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+		called = true
+		return ensure.GenerateResponse{}, nil
+	}}
+	h, _, _ := newHandlers(t, client, policyEnv(t))
+	if err := h.Generate([]string{"--model", "qwen3-vl:2b", "--prompt", "describe", "--num-batch", "4097"}); err == nil || !strings.Contains(err.Error(), "--num-batch") {
+		t.Fatalf("expected num-batch validation error, got %v", err)
+	}
+	if called {
+		t.Fatal("upstream called after unsafe runtime control rejection")
+	}
+}
+
+func TestGenerateRejectsContextControlAboveModelPolicy(t *testing.T) {
+	h, _, _ := newHandlers(t, &fakeClient{}, policyEnv(t))
+	err := h.Generate([]string{"--role", "vision.default", "--prompt", "describe", "--num-ctx", "40000"})
+	if err == nil || !strings.Contains(err.Error(), "exceeds context window") {
+		t.Fatalf("expected context control rejection, got %v", err)
 	}
 }
 
@@ -483,8 +509,9 @@ func policyEnvWithRoleMaxTokens(t *testing.T, role string, maxTokens int) map[st
 	return map[string]string{"OLLAMA_MODEL_POLICY_PATH": path}
 }
 
-// Without a role-owned cap a caller who sends nothing is uncapped: num_predict
-// is omitted and generation is bounded only by the context window.
+// A direct model exception has no role-owned cap, so a caller who sends
+// nothing keeps the explicit uncapped behavior. Normal role traffic is
+// bounded by the shipped role policy defaults.
 func TestGenerateOmitsNumPredictWhenNeitherFlagNorRoleDeclaresCap(t *testing.T) {
 	var seen ensure.GenerateRequest
 	client := &fakeClient{
@@ -494,7 +521,7 @@ func TestGenerateOmitsNumPredictWhenNeitherFlagNorRoleDeclaresCap(t *testing.T) 
 		},
 	}
 	h, _, _ := newHandlers(t, client, policyEnv(t))
-	if err := h.Generate([]string{"--role", "chat.default", "--prompt", "hi"}); err != nil {
+	if err := h.Generate([]string{"--model", "local-test-model:latest", "--prompt", "hi"}); err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
 	if seen.NumPredict != nil {

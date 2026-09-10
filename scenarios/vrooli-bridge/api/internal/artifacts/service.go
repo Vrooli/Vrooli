@@ -3,6 +3,7 @@ package artifacts
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/api-core/schedule"
@@ -23,6 +24,7 @@ type Service interface {
 
 	// ListDistributions returns distributions newest-first, narrowed by filter.
 	ListDistributions(ctx context.Context, filter ListFilter) ([]Distribution, error)
+	RecordDeliveryReceipt(ctx context.Context, receipt DeliveryReceipt) error
 	UploadRunArtifact(ctx context.Context, nodeID string, in ProducedArtifact) (ProducedArtifact, error)
 	GetRunArtifact(ctx context.Context, runID, name string) (ProducedArtifact, error)
 }
@@ -107,7 +109,7 @@ func (s *service) Distribute(ctx context.Context, in DistributeInput) (Decision,
 
 	// Hand the bytes off to device-sync-hub. Bridge moves nothing itself.
 	result, derr := s.delivery.Deliver(ctx, DeliveryRequest{
-		NodeID: nodeID, Name: trim(in.Name), SourceRef: source, DestinationPath: dest,
+		DistributionID: dist.ID, NodeID: nodeID, Name: trim(in.Name), SourceRef: source, DestinationPath: dest,
 	})
 	if derr != nil {
 		updated, _ := s.repo.UpdateStatus(ctx, dist.ID, StatusFailed, "", derr.Error())
@@ -136,6 +138,41 @@ func (s *service) GetDistribution(ctx context.Context, id string) (Distribution,
 
 func (s *service) ListDistributions(ctx context.Context, filter ListFilter) ([]Distribution, error) {
 	return s.repo.List(ctx, filter)
+}
+
+func (s *service) RecordDeliveryReceipt(ctx context.Context, receipt DeliveryReceipt) error {
+	id := trim(receipt.DistributionID)
+	nodeID := trim(receipt.NodeID)
+	itemID := trim(receipt.ItemID)
+	destination := trim(receipt.DestinationPath)
+	if id == "" || nodeID == "" || itemID == "" || destination == "" {
+		return ErrInvalidDistribution{Field: "receipt", Reason: "distribution_id, node_id, item_id, and destination_path are required"}
+	}
+	dist, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if dist.Status == StatusDelivered {
+		return nil
+	}
+	if dist.NodeID != nodeID {
+		return ErrReceiptNodeMismatch{DistributionID: id}
+	}
+	if dist.DeliveryRef != "dsh://item/"+itemID {
+		return ErrReceiptMismatch{DistributionID: id}
+	}
+	status := StatusFailed
+	detail := trim(receipt.Reason)
+	if receipt.Accepted {
+		status = StatusDelivered
+		detail = "placed at " + destination + " (" + strconv.FormatInt(receipt.SizeBytes, 10) + " bytes"
+		if sha := trim(receipt.SHA256); sha != "" {
+			detail += ", sha256=" + sha
+		}
+		detail += ")"
+	}
+	_, err = s.repo.UpdateStatus(ctx, id, status, dist.DeliveryRef, detail)
+	return err
 }
 
 func (s *service) UploadRunArtifact(ctx context.Context, nodeID string, in ProducedArtifact) (ProducedArtifact, error) {

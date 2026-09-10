@@ -203,6 +203,10 @@ func statusLabel(s runsv1.RunStatus) string {
 		return "failed"
 	case runsv1.RunStatus_RUN_STATUS_ABORTED:
 		return "aborted"
+	case runsv1.RunStatus_RUN_STATUS_CANCEL_REQUESTED:
+		return "cancel_requested"
+	case runsv1.RunStatus_RUN_STATUS_UNCERTAIN:
+		return "uncertain"
 	default:
 		return "unspecified"
 	}

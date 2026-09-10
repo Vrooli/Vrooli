@@ -1,10 +1,14 @@
 import { useMemo, useRef, useState } from "react";
 import { applyCapability, previewCapability, type CapabilityInput, type CapabilityPreview, type CapabilityResult, type CapabilityStatus } from "../../api/capabilities";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { Alert } from "@vrooli/react-component-library/Alert/1";
 import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
 import { Input } from "@vrooli/react-component-library/Input/1";
 import { PasswordInput } from "@vrooli/react-component-library/PasswordInput/2";
 import { Select } from "@vrooli/react-component-library/Select/1";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1";
+import { FormSection } from "@vrooli/react-component-library/FormSection/1";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { i18n } from "../../i18n";
 
 interface CapabilityActionsProps {
@@ -25,13 +29,17 @@ export function CapabilityActions({ statuses, onRefresh }: CapabilityActionsProp
   const [, refreshInputs] = useState(0);
 
   const visible = useMemo(() => statuses, [statuses]);
+  const attentionCount = visible.filter((status) => status.state !== "ready").length;
 
   if (visible.length === 0) return null;
 
-  return <section className="mt-6" data-testid="capability-actions" aria-label={i18n.t("onboarding.capabilities.label")}>
-    <h2 className="text-lg font-medium">{i18n.t("onboarding.capabilities.label")}</h2>
-    <p className="mt-1 text-sm text-muted">{i18n.t("onboarding.capabilities.intro")}</p>
-    <div className="mt-3 space-y-4">
+  return <section className="capability-actions" data-testid="capability-actions" aria-label={i18n.t("onboarding.capabilities.label")}>
+    <Alert
+      tone={attentionCount > 0 ? "warning" : "success"}
+      title={attentionCount > 0 ? i18n.t("onboarding.capabilities.attentionTitle", { count: attentionCount }) : i18n.t("onboarding.capabilities.readyTitle")}
+      description={attentionCount > 0 ? i18n.t("onboarding.capabilities.attentionDescription") : i18n.t("onboarding.capabilities.readyDescription")}
+    />
+    <div className="capability-actions__list">
       {visible.map((status) => <CapabilityCard
         key={status.descriptor.id}
         status={status}
@@ -74,7 +82,8 @@ export function CapabilityActions({ statuses, onRefresh }: CapabilityActionsProp
             setResults((current) => ({ ...current, [status.descriptor.id]: result }));
             if (result.state === "ready" || result.state === "degraded") {
               setValues((current) => ({ ...current, [status.descriptor.id]: {} }));
-              delete secretValues.current[status.descriptor.id];
+              const { [status.descriptor.id]: _clearedSecretValues, ...remainingSecretValues } = secretValues.current;
+              secretValues.current = remainingSecretValues;
               refreshInputs((revision) => revision + 1);
               setConfirmations((current) => ({ ...current, [status.descriptor.id]: false }));
               setPreviews((current) => ({ ...current, [status.descriptor.id]: undefined }));
@@ -125,41 +134,49 @@ function CapabilityCard({
   const canPreview = !blocked && (descriptor.inputs?.filter((input) => input.required && input.kind !== "confirmation").every((input) => hasInput(input, values, secretValues, missing)) ?? false);
   const canApply = Boolean(preview && confirmed && canPreview);
 
-  return <article className="rounded-lg border border-muted bg-surface-muted p-4" data-testid={`capability-card-${descriptor.id}`}>
-    <div className="flex flex-wrap items-start justify-between gap-2">
-      <div>
-        <h3 className="font-medium">{descriptor.title}</h3>
-        <p className="mt-1 text-xs text-muted">{descriptor.owner} · {status.state}</p>
+  const badgeTone = blocked ? "warning" : status.state === "ready" ? "success" : "neutral";
+  const hasDetails = Boolean(descriptor.scope || descriptor.purpose || descriptor.sensitivity || descriptor.disposition || descriptor.provenance);
+  return <Card className="capability-card" data-testid={`capability-card-${descriptor.id}`}>
+    <CardHeader className="capability-card__header">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <CardTitle as="h3">{descriptor.title}</CardTitle>
+          <CardDescription>{descriptor.owner} · {descriptor.id}</CardDescription>
+        </div>
+        <StatusBadge tone={badgeTone}>{status.state}</StatusBadge>
       </div>
-      <span className="rounded-full border border-muted px-2 py-1 text-xs text-muted">{descriptor.id}</span>
-    </div>
-    {descriptor.description && <p className="mt-2 text-sm text-foreground">{descriptor.description}</p>}
-	    {(descriptor.scope || descriptor.purpose || descriptor.disposition || descriptor.provenance) && <dl className="mt-3 grid gap-1 text-xs text-muted sm:grid-cols-2" data-testid={`capability-provenance-${descriptor.id}`}>
-	      {descriptor.scope && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.scope")}</dt><dd>{descriptor.scope}</dd></div>}
-	      {descriptor.purpose && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.purpose")}</dt><dd>{descriptor.purpose}</dd></div>}
-	      {descriptor.sensitivity && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.sensitivity")}</dt><dd>{descriptor.sensitivity}</dd></div>}
-	      {descriptor.disposition && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.disposition")}</dt><dd>{descriptor.disposition}{descriptor.disposition_reason ? ` · ${descriptor.disposition_reason}` : ""}</dd></div>}
-	      {descriptor.provenance?.requester && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.requester")}</dt><dd>{descriptor.provenance.requester}</dd></div>}
-	      {descriptor.provenance?.scope && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.permissionScope")}</dt><dd>{descriptor.provenance.scope}</dd></div>}
-	      {descriptor.provenance?.grant_source && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.grantSource")}</dt><dd>{descriptor.provenance.grant_source}</dd></div>}
-	      {descriptor.provenance?.revocation_limit && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.revocationLimit")}</dt><dd>{descriptor.provenance.revocation_limit}</dd></div>}
-	    </dl>}
-    {descriptor.risk && <p className="mt-2 text-xs text-warning">{i18n.t("onboarding.capabilities.risk", { risk: descriptor.risk })}</p>}
-	    {(descriptor.disposition === "unsupported" || descriptor.disposition === "deferred" || status.state === "unsupported") && <p className="mt-2 text-sm text-warning" role="status" data-testid={`capability-blocked-${descriptor.id}`}>{descriptor.disposition_reason || status.remediation || i18n.t("onboarding.capabilities.blocked")}</p>}
+    </CardHeader>
+    <CardContent className="capability-card__content">
+      {descriptor.description && <p className="text-sm text-foreground">{descriptor.description}</p>}
+      {hasDetails && <FormSection title={i18n.t("onboarding.capabilities.details")} summary={descriptor.disposition_reason || undefined} collapsible defaultOpen className="capability-card__details">
+        <dl className="grid gap-2 text-xs text-muted sm:grid-cols-2" data-testid={`capability-provenance-${descriptor.id}`}>
+          {descriptor.scope && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.scope")}</dt><dd>{descriptor.scope}</dd></div>}
+          {descriptor.purpose && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.purpose")}</dt><dd>{descriptor.purpose}</dd></div>}
+          {descriptor.sensitivity && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.sensitivity")}</dt><dd>{descriptor.sensitivity}</dd></div>}
+          {descriptor.disposition && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.disposition")}</dt><dd>{descriptor.disposition}</dd></div>}
+          {descriptor.provenance?.requester && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.requester")}</dt><dd>{descriptor.provenance.requester}</dd></div>}
+          {descriptor.provenance?.scope && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.permissionScope")}</dt><dd>{descriptor.provenance.scope}</dd></div>}
+          {descriptor.provenance?.grant_source && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.grantSource")}</dt><dd>{descriptor.provenance.grant_source}</dd></div>}
+          {descriptor.provenance?.revocation_limit && <div><dt className="font-medium">{i18n.t("onboarding.capabilities.revocationLimit")}</dt><dd>{descriptor.provenance.revocation_limit}</dd></div>}
+        </dl>
+      </FormSection>}
+    {descriptor.risk && <Alert tone="warning" title={i18n.t("onboarding.capabilities.risk", { risk: descriptor.risk })} />}
+	    {(descriptor.disposition === "unsupported" || descriptor.disposition === "deferred" || status.state === "unsupported") && <div data-testid={`capability-blocked-${descriptor.id}`}><Alert tone="warning" title={i18n.t("onboarding.capabilities.blocked")} description={descriptor.disposition_reason || status.remediation} /></div>}
     {status.remediation && <p className="mt-2 text-xs text-primary-soft">{i18n.t("onboarding.capabilities.next", { remediation: status.remediation })}</p>}
     {(status.evidence ?? []).length > 0 && <EvidenceList evidence={status.evidence ?? []} />}
     {hasAction && !blocked && <div className="mt-3 space-y-3">
       {(descriptor.inputs ?? []).map((input) => <CapabilityInput key={input.id} input={input} value={input.kind === "secret" ? secretValues[input.id] : values[input.id]} missing={missing.has(input.id)} onValue={(value) => onValue(input.id, value, input.kind === "secret")} />)}
     </div>}
     {hasAction && !blocked && descriptor.policy.requires_confirmation && <Checkbox data-testid={`capability-confirm-${descriptor.id}`} checked={confirmed} onCheckedChange={onConfirm} label={i18n.t("onboarding.capabilities.confirmation")} className="mt-3" />}
-    {error && <p className="mt-3 text-sm text-danger" role="alert">{error}</p>}
+    {error && <Alert tone="danger" title={i18n.t("onboarding.capabilities.applyError")} description={error} />}
     {preview && <div className="mt-3 rounded-md border border-primary-soft/30 bg-primary-soft/10 p-3 text-sm" data-testid={`capability-preview-${descriptor.id}`}><p className="font-medium">{i18n.t("onboarding.capabilities.review")}</p><ul className="mt-1 list-disc pl-5">{(preview.mutations ?? []).map((mutation) => <li key={mutation.id}>{mutation.summary}{mutation.reversible ? ` · ${i18n.t("onboarding.capabilities.reversible")}` : ""}</li>)}</ul>{preview.remediation && <p className="mt-2 text-xs text-muted">{preview.remediation}</p>}</div>}
     {result && <div className={`mt-3 rounded-md border p-3 text-sm ${result.state === "ready" ? "border-primary-soft/30 bg-primary-soft/10" : "border-warning/30 bg-warning-surface"}`} data-testid={`capability-result-${descriptor.id}`} role="status"><p className="font-medium">{result.outcome} · {result.state}</p>{result.remediation && <p className="mt-1 text-xs text-muted">{result.remediation}</p>}{result.evidence && <EvidenceList evidence={result.evidence} />}</div>}
     {hasAction && !blocked && <div className="mt-3 flex flex-wrap gap-2">
       <Button type="button" variant="secondary" disabled={busy || !canPreview} onClick={() => { void onPreview(); }}>{busy ? i18n.t("onboarding.capabilities.working") : i18n.t("onboarding.capabilities.preview")}</Button>
       <Button type="button" disabled={busy || !canApply} onClick={() => { void onApply(); }}>{i18n.t("onboarding.capabilities.apply")}</Button>
     </div>}
-  </article>;
+    </CardContent>
+  </Card>;
 }
 
 function CapabilityInput({ input, value, missing, onValue }: { input: CapabilityInput; value?: InputValue; missing: boolean; onValue: (value: InputValue) => void }) {

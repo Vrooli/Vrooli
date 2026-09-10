@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "case_id": "OPS-01",
+  "verdict": "unavailable",
+  "lane": "soak",
+  "requirement_refs": [
+    "STC-P0-043"
+  ],
+  "candidate": {
+    "release_digest": "",
+    "configuration_digest": "",
+    "closure_digest": ""
+  },
+  "target": {
+    "machine_id": "",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "operation_refs": [],
+  "validation_receipt_ref": "go test ./perfbudget/ ./certification/ (2026-09-09, PASS, -race)",
+  "artifact_refs": [
+    "api/perfbudget/perfbudget_test.go#TestHarnessAgainstHandlerYieldsCompleteMeasurement",
+    "api/perfbudget/perfbudget_test.go#TestSmallSampleIsFlaggedAndNeverJudged",
+    "docs/reference/service-objectives.md"
+  ],
+  "assertions": [
+    "frozen: certification/budgets.json phase_23.fixture_profiles (p50/p95/p99, error rate, target resources per profile)",
+    "harness ready: api/perfbudget Harness drives 20 concurrent readers over the profile's read endpoints and records baseline/sustained/peak/post_cleanup with sample counts",
+    "small samples are reported as insufficient_samples, never as a percentile claim"
+  ],
+  "observed_at": "2026-09-09T18:30:00Z",
+  "limitations": [
+    "soak lane pending EXT-09 (authorised 24-hour staging soak on a disposable target); no soak has run",
+    "real_vps lane pending EXT-01 (authorised disposable VPS); no real target exists",
+    "qemu lane pending EXT-06 (qemu + cloud-localds not installed on the host)",
+    "no measurement against a target exists; the only measurement is the in-process httptest baseline in P23-soak-operations.md (labelled small/unrepresentative)"
+  ]
+}

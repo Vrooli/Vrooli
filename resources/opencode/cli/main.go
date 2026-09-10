@@ -20,7 +20,7 @@ const (
 	appVersion = "0.1.0"
 	// upstreamPinnedVersion mirrors resource.json upstream_cli.version_pinned.
 	// `permissions doctor` and `upstream-check` use it as the pinned baseline.
-	upstreamPinnedVersion = "1.17.9"
+	upstreamPinnedVersion = "1.18.30"
 )
 
 var (

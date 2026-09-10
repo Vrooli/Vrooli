@@ -41,6 +41,7 @@ const (
 	CommandCredentials      CommandID = "credentials"
 	CommandReleaseAuthority CommandID = "release-authority"
 	CommandBreakGlass       CommandID = "break-glass"
+	CommandCloudTarget      CommandID = "cloud-target"
 	CommandSupervisionSet   CommandID = "supervision-set"
 	CommandUninstall        CommandID = "uninstall"
 )
@@ -79,6 +80,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandCredentials), Group: "Configuration Commands", Summary: "Provision and inspect credentials through the native secure-store authority", Handler: CommandCredentials, Suggestable: true},
 		{Name: string(CommandReleaseAuthority), Group: "Configuration Commands", Summary: "Create, inspect, and use the managed release signing authority", Handler: CommandReleaseAuthority, Suggestable: true},
 		{Name: string(CommandBreakGlass), Group: "Configuration Commands", Summary: "Provision and issue target-bound break-glass credentials", Handler: CommandBreakGlass, Suggestable: true},
+		{Name: string(CommandCloudTarget), Group: "Configuration Commands", Summary: "Target-local owner of cloud deployment releases, receipts, data inventory and host repair", Handler: CommandCloudTarget, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: false, CanRunWithoutRoot: func([]string) bool { return true }}},
 		{Name: string(CommandSupervisionSet), Group: "Configuration Commands", Summary: "Show the manifest-derived supervision set and attribution", Handler: CommandSupervisionSet, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}, Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--kind", ValueName: "scenario|resource", Description: "Filter members by kind"}, commandtree.JSONOption()}}},
 		{Name: string(CommandLifecycle), Group: "Maintenance Commands", Summary: "Internal lifecycle command plumbing", Handler: CommandLifecycle, Hidden: true, Suggestable: false, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 	}

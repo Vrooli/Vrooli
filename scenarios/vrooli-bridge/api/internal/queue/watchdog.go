@@ -19,10 +19,11 @@ type WatchdogConfig struct {
 	StartDeadline      time.Duration
 	DeadlineGrace      time.Duration
 	PresenceStaleAfter time.Duration
+	CancellationGrace  time.Duration
 }
 
 func DefaultWatchdogConfig() WatchdogConfig {
-	return WatchdogConfig{DeliveryLease: 10 * time.Second, Interval: 2 * time.Second, MaxAttempts: 3, StartDeadline: 30 * time.Second, DeadlineGrace: 5 * time.Second, PresenceStaleAfter: 45 * time.Second}
+	return WatchdogConfig{DeliveryLease: 10 * time.Second, Interval: 2 * time.Second, MaxAttempts: 3, StartDeadline: 30 * time.Second, DeadlineGrace: 5 * time.Second, PresenceStaleAfter: 45 * time.Second, CancellationGrace: 10 * time.Second}
 }
 
 // WatchdogConfigFromEnv reads the scenario's documented bounds. Invalid or
@@ -34,6 +35,7 @@ func WatchdogConfigFromEnv() WatchdogConfig {
 	c.StartDeadline = envDuration("BRIDGE_START_DEADLINE_SECONDS", c.StartDeadline)
 	c.DeadlineGrace = envDuration("BRIDGE_DEADLINE_GRACE_SECONDS", c.DeadlineGrace)
 	c.PresenceStaleAfter = envDuration("BRIDGE_PRESENCE_STALE_SECONDS", c.PresenceStaleAfter)
+	c.CancellationGrace = envDuration("BRIDGE_CANCELLATION_GRACE_SECONDS", c.CancellationGrace)
 	if n, err := strconv.Atoi(os.Getenv("BRIDGE_MAX_DELIVERY_ATTEMPTS")); err == nil && n > 0 {
 		c.MaxAttempts = n
 	}
@@ -61,7 +63,7 @@ type Watchdog struct {
 }
 
 func NewWatchdog(store DurableStore, scheduler *Scheduler, aborter Aborter, clk schedule.Clock, config WatchdogConfig, onOutcome func(Reconciliation)) *Watchdog {
-	if config.DeliveryLease <= 0 || config.Interval <= 0 || config.MaxAttempts <= 0 || config.StartDeadline <= 0 {
+	if config.DeliveryLease <= 0 || config.Interval <= 0 || config.MaxAttempts <= 0 || config.StartDeadline <= 0 || config.CancellationGrace <= 0 {
 		defaults := DefaultWatchdogConfig()
 		if config.DeliveryLease <= 0 {
 			config.DeliveryLease = defaults.DeliveryLease
@@ -80,6 +82,9 @@ func NewWatchdog(store DurableStore, scheduler *Scheduler, aborter Aborter, clk 
 		}
 		if config.PresenceStaleAfter <= 0 {
 			config.PresenceStaleAfter = defaults.PresenceStaleAfter
+		}
+		if config.CancellationGrace <= 0 {
+			config.CancellationGrace = defaults.CancellationGrace
 		}
 	}
 	return &Watchdog{store: store, scheduler: scheduler, aborter: aborter, clock: clk, config: config, onOutcome: onOutcome}
@@ -107,6 +112,13 @@ func (w *Watchdog) Sweep(ctx context.Context) error {
 	}
 	now := w.clock.Now().UTC()
 	for _, entry := range entries {
+		if !entry.CancelRequestedAt.IsZero() && !entry.CancellationConfirmed && !entry.Uncertain && !entry.CancelRequestedAt.Add(w.config.CancellationGrace).After(now) {
+			if err := w.store.MarkUncertain(ctx, entry.Job.RunID, "cancellation termination not confirmed", now); err != nil {
+				return err
+			}
+			w.emit(Reconciliation{RunID: entry.Job.RunID, NodeID: entry.Job.NodeID, Reason: "cancellation_termination_unconfirmed"})
+			continue
+		}
 		if entry.State == StateQueued {
 			if entry.Job.TimeoutSeconds > 0 && !entry.EnqueuedAt.IsZero() && !entry.EnqueuedAt.Add(time.Duration(entry.Job.TimeoutSeconds)*time.Second+w.config.DeadlineGrace).After(now) {
 				if err := w.fail(ctx, entry, "deadline_exceeded", now); err != nil {
@@ -138,8 +150,11 @@ func (w *Watchdog) Sweep(ctx context.Context) error {
 			if err := w.aborter.Abort(ctx, entry.Job.RunID, "deadline_exceeded"); err != nil {
 				return err
 			}
-			w.scheduler.Remove(entry.Job.NodeID, entry.Job.RunID)
-			w.emit(Reconciliation{RunID: entry.Job.RunID, NodeID: entry.Job.NodeID, Reason: "deadline_exceeded", Terminal: true})
+			// Abort now records a cancellation request. Keep the execution slot
+			// occupied until the node's EXIT proves the process stopped; the runs
+			// terminal hook then removes it and promotes queued work.
+			w.emit(Reconciliation{RunID: entry.Job.RunID, NodeID: entry.Job.NodeID, Reason: "deadline_exceeded_cancellation_requested"})
+			continue
 		}
 	}
 	return nil

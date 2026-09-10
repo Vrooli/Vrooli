@@ -560,3 +560,30 @@ func TestComputeHealth_CPUSustainedHighLoadFails(t *testing.T) {
 		t.Fatalf("expected unhealthy for sustained CPU pressure, got %s", resp.Health)
 	}
 }
+
+// TestComputeHealth_SSHProbeFailureIsUnknown [REQ:STC-P0-033] proves that an
+// inspection whose commands all failed (OK=true, SSH ping not connected) is
+// reported unknown, never unhealthy: unreachable evidence is not evidence.
+func TestComputeHealth_SSHProbeFailureIsUnknown(t *testing.T) {
+	dep := newTestDeployment(domain.StatusDeployed)
+	live := newHealthyLiveState()
+	live.System.SSH.Connected = false
+	live.Processes = nil
+
+	resp := ComputeHealth(dep, newTestManifest(), newExplicitIdentity(sshidentity.VerificationAuthorized), live, newHealthyDNSEval(), newHealthyTLSSnapshot(), nil)
+	if resp.Health != domain.HealthUnknown {
+		t.Fatalf("Health = %s, want unknown", resp.Health)
+	}
+	if c := findCheck(resp, "ssh", "ssh_connected"); c == nil || c.Status != domain.HealthCheckFail {
+		t.Fatalf("ssh_connected = %+v", c)
+	}
+	if c := findCheck(resp, "processes", "processes_unavailable"); c == nil || c.Status != domain.HealthCheckSkip {
+		t.Fatalf("processes should be unavailable, got %+v", c)
+	}
+	if c := findCheck(resp, "system", "system_unavailable"); c == nil {
+		t.Fatal("system metrics should be unavailable when SSH did not connect")
+	}
+	if LiveStateReachable(live) {
+		t.Fatal("LiveStateReachable must be false when the SSH probe failed")
+	}
+}

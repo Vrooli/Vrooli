@@ -189,12 +189,17 @@ Defaults are tuned for a single-host workstation:
 | Setting | Default | Where set | Override path |
 |---|---|---|---|
 | Host memory budget | policy-derived | `requirements` and model policy | Select a smaller model role or adjust the declared policy after measurement |
-| Concurrent requests in-flight | `4` | `managed_service.environment.OLLAMA_NUM_PARALLEL` | Same — edit and restart |
+| Concurrent requests in-flight | `2` | `managed_service.environment.OLLAMA_NUM_PARALLEL` and the gateway semaphore fallback | Same — edit and restart |
 | Models kept resident | `3` | `managed_service.environment.OLLAMA_MAX_LOADED_MODELS` | Same |
 
 The 12 GiB cap is intended to keep one 7-8B model resident plus headroom; raise
 it on hosts with more RAM, lower it on smaller boxes. Keep `OLLAMA_NUM_PARALLEL`
 in step with the gateway semaphore (see below) — they are deliberately tied.
+The shipped policy also supplies conservative default output budgets for every
+generation role (512 for small/vision, 1024 for summarize, 2048 for default
+chat, 256 for routing/rerank, 4096 for code, and 8192 for writing). An explicit
+`--max-tokens` remains an operator-visible override; callers should only use it
+when the larger budget is intentional.
 
 ## Capacity planning
 
@@ -228,6 +233,23 @@ resource-ollama gateway embed    --role embedding.default --json --input "hello"
 resource-ollama gateway generate --role chat.default      --json --prompt "say hi"
 resource-ollama gateway chat     --role summarize.default --json --system "Be concise" --prompt "summarize this"
 ```
+
+For bounded experiments or a known CPU-sensitive workload, the gateway accepts
+per-request Ollama runtime controls. Each is validated before admission;
+context is checked against the selected model policy, while thread and batch
+values are bounded by host-safe ceilings:
+
+```bash
+resource-ollama gateway generate --role chat.small --prompt "say hi" \
+  --max-tokens 128 --num-ctx 4096 --num-thread 8 --num-batch 256 --json
+```
+
+`--num-thread` is the primary CPU control, while `--num-ctx` and `--num-batch`
+bound memory and prompt-evaluation work. The JSON response includes Ollama's
+`total_duration_ns`, `load_duration_ns`, `prompt_eval_*`, and `eval_duration_ns`
+fields so a benchmark can distinguish model-load cost from token-generation
+cost. The gateway remains serialized by the host-wide semaphore before any
+request reaches Ollama.
 
 Vision callers use the same gateway boundary with a JSON envelope on standard
 input; image bytes never travel in argv or logs:

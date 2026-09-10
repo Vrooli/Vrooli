@@ -111,7 +111,9 @@
         "env": "MAILINABOX_ADMIN_PASSWORD",
         "label": "Mail-in-a-Box administrator password",
         "description": "Migrated operator credential retained for the Mail-in-a-Box integration.",
-        "required": false
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://mailinabox.email/guide.html"
       },
       {
         "logical_id": "vrooli/legacy/n8n",
@@ -119,7 +121,9 @@
         "env": "N8N_API_KEY",
         "label": "n8n API key",
         "description": "Migrated operator credential retained for n8n automation integrations.",
-        "required": false
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://docs.n8n.io/hosting/configuration/configuration-methods/"
       },
       {
         "logical_id": "vrooli/legacy/n8n",
@@ -127,7 +131,9 @@
         "env": "N8N_PASSWORD",
         "label": "n8n password",
         "description": "Migrated operator credential retained for n8n automation integrations.",
-        "required": false
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://docs.n8n.io/hosting/configuration/configuration-methods/"
       },
       {
         "logical_id": "vrooli/legacy/test",
@@ -135,7 +141,9 @@
         "env": "TEST_API_KEY",
         "label": "Legacy test API key",
         "description": "Migrated operator credential retained for test and validation tooling.",
-        "required": false
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/secrets-manager/docs/reference/configuration.md"
       },
       {
         "logical_id": "vrooli/secrets-manager/vault",
@@ -143,7 +151,9 @@
         "env": "SECRETS_MANAGER_VAULT_KEY",
         "label": "Secrets Manager vault encryption key",
         "description": "Lifecycle-provided 32-byte key for encrypted password-manager payloads. Missing material requires recovery and never remints a key.",
-        "required": true
+        "required": true,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/secrets-manager/docs/QUICKSTART.md"
       },
       {
         "logical_id": "vrooli/secrets-manager/owner",
@@ -151,7 +161,9 @@
         "env": "SECRETS_MANAGER_OWNER_TOKEN",
         "label": "Secrets Manager owner authentication token",
         "description": "Explicit local fallback for development; production deployments should use the Scenario Authenticator JWKS relying-party boundary.",
-        "required": false
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/secrets-manager/docs/QUICKSTART.md"
       },
       {
         "logical_id": "vrooli/secrets-manager/native-host",
@@ -159,7 +171,9 @@
         "env": "SECRETS_MANAGER_NATIVE_HOST_TOKEN",
         "label": "Secrets Manager native-host transport token",
         "description": "Installed native-host transport capability. The host remains unavailable until this token and an owner authentication session are configured.",
-        "required": false
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/secrets-manager/platforms/native-host/README.md"
       },
       {
         "logical_id": "vrooli/secrets-manager/deployment",
@@ -167,7 +181,18 @@
         "label": "Secrets Manager deployment service token",
         "description": "Scoped machine credential accepted only by tier-specific deployment manifest endpoints. It has no vault or owner authority.",
         "required": false,
-        "provisioning": "operator"
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/deployment-manager/docs/workflows/saas-deployment.md"
+      }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/secrets-manager/vault",
+        "field": "encryption-key",
+        "kind": "environment",
+        "consumer": "encrypted vault payload store",
+        "source_ref": "api/password_manager.go:286",
+        "required": true
       }
     ]
   },

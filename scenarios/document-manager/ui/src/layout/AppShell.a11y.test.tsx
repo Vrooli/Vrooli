@@ -10,6 +10,7 @@ import { cleanup, screen } from "@testing-library/react";
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { setLocale } from "../i18n";
 import { TestAppRouter } from "../app/routes";
+import { selectors } from "../consts/selectors";
 
 describe("AppShell accessibility", () => {
   beforeEach(async () => {
@@ -28,13 +29,14 @@ describe("AppShell accessibility", () => {
     await expectNoA11yViolations(container);
   });
 
-  it("exposes exactly one primary navigation landmark", () => {
+  it("exposes exactly one primary navigation landmark", async () => {
     renderWithProviders(
       <TestAppRouter initialEntries={["/"]} />,
       { withoutRouter: true },
     );
 
+    await screen.findByTestId(selectors.pages.dashboard);
     expect(screen.getAllByRole("navigation", { name: "Primary navigation" })).toHaveLength(1);
-    expect(screen.getByRole("navigation", { name: "Mobile navigation" })).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-tabs`)).toBeInTheDocument();
   });
 });

@@ -53,6 +53,24 @@ func TestDistribute_DelegatesToDeviceSyncHub(t *testing.T) {
 	require.Equal(t, "blob://builds/app-1.4.0-setup.exe", reqs[0].SourceRef)
 }
 
+func TestRecordDeliveryReceiptClosesDistribution(t *testing.T) {
+	delivery := &mocks.FakeDelivery{Ref: "dsh://item/item-1"}
+	svc, repo := newService(okNodes(), delivery)
+
+	decision, err := svc.Distribute(context.Background(), input())
+	require.NoError(t, err)
+	require.NoError(t, svc.RecordDeliveryReceipt(context.Background(), artifacts.DeliveryReceipt{
+		DistributionID: decision.DistributionID, NodeID: "n1", ItemID: "item-1",
+		DestinationPath: "/opt/app/setup.exe", Accepted: true, SHA256: "abc123", SizeBytes: 42,
+	}))
+
+	got, err := repo.Get(context.Background(), decision.DistributionID)
+	require.NoError(t, err)
+	require.Equal(t, artifacts.StatusDelivered, got.Status)
+	require.Contains(t, got.Detail, "placed at /opt/app/setup.exe")
+	require.Contains(t, got.Detail, "sha256=abc123")
+}
+
 // [REQ:BRG-P1-003] A dry-run validates and short-circuits before recording or
 // delivering anything.
 func TestDistribute_DryRunShortCircuits(t *testing.T) {

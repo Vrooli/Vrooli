@@ -241,7 +241,7 @@ func copyArtifact(src, dst string) error {
 }
 
 func supportedBridgeTarget(target NodePlatform) bool {
-	if target.OS != "linux" && target.OS != "darwin" {
+	if target.OS != "linux" && target.OS != "darwin" && target.OS != "windows" {
 		return false
 	}
 	return target.Arch == "amd64" || target.Arch == "arm64"

@@ -101,6 +101,14 @@
         "versionRange": ">=0.0.1",
         "degraded_behavior": "Bridge-backed devices report unavailable with an authentication dependency reason; no device verb is dispatched.",
         "startup_policy": "must_start"
+      },
+      "vrooli-memory": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Scoped recall and immutable attempt capture for programs that use learn.* verbs.",
+        "degraded_behavior": "Programs run without advice; captures queue in program-runtime's outbox until memory returns.",
+        "bundle_policy": "either"
       }
     },
     "resources": {}

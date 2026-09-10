@@ -23,3 +23,12 @@ func TestRunCommandsWithOptionsUsesExplicitEnvironmentAndStdin(t *testing.T) {
 		t.Fatalf("output = %q, want explicit env and EOF stdin", got)
 	}
 }
+
+func TestSubstituteScenarioDropsEmptyScenarioFlag(t *testing.T) {
+	if got := substituteScenario([]string{"go", "run", "--scenario", "{scenario}", "--changed"}, ""); strings.Join(got, " ") != "go run --changed" {
+		t.Fatalf("empty scenario substitution = %#v", got)
+	}
+	if got := substituteScenario([]string{"go", "run", "--scenario", "{scenario}"}, "react-component-library"); strings.Join(got, " ") != "go run --scenario react-component-library" {
+		t.Fatalf("named scenario substitution = %#v", got)
+	}
+}

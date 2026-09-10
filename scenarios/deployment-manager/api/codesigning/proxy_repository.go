@@ -192,7 +192,10 @@ func (r *ProxyRepository) Delete(ctx context.Context, profileID string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("read signing API error response: %w", err)
+		}
 		return fmt.Errorf("signing API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -278,7 +281,10 @@ func (r *ProxyRepository) DeleteForPlatform(ctx context.Context, profileID strin
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("read signing API error response: %w", err)
+		}
 		return fmt.Errorf("signing API returned status %d: %s", resp.StatusCode, string(body))
 	}
 

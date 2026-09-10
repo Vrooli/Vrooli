@@ -313,7 +313,7 @@ func setupTestRouter() *gin.Engine {
 	h.services.Graph = mockGraphService{}
 
 	// Add test routes - use same health handler as server.go
-	router.GET("/health", gin.WrapF(health.New("scenario-dependency-analyzer-api").Handler()))
+	router.GET("/health", gin.WrapF(health.New("scenario-dependency-analyzer-api").BuildIdentity(os.Getenv("VROOLI_BUILD_IDENTITY")).Handler()))
 	router.GET("/api/v1/health/analysis", h.analysisHealth)
 
 	api := router.Group("/api/v1")

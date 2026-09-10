@@ -9,6 +9,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type gateEvidenceRepo struct {
@@ -108,6 +109,52 @@ func TestReleaseGateDoesNotAcceptDifferentCommitEvidence(t *testing.T) {
 	}
 }
 
+func TestReleaseGateRejectsPassedEvidenceWithoutProof(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectQuery(`SELECT ramp, platform, os, device_kind FROM profile_required_targets`).WithArgs("profile-1").WillReturnRows(sqlmock.NewRows([]string{"ramp", "platform", "os", "device_kind"}).AddRow("release", "linux", "linux", 1))
+	mock.ExpectQuery(`SELECT id, profile_id, git_commit_hash, platform, status`).WithArgs("profile-1", "commit-1").WillReturnRows(sqlmock.NewRows([]string{"id", "profile_id", "git_commit_hash", "platform", "status", "approved_by", "approved_at", "notes", "validation_id", "created_at", "updated_at"}))
+	invalid := testVerdict(RequiredTarget{Ramp: "release", Platform: "linux", OS: "linux", DeviceKind: commonv1.DeviceKind_DEVICE_KIND_HOST}, commonv1.Disposition_DISPOSITION_PASSED)
+	invalid.Refs = nil
+	got, err := NewSQLApprovalsRepository(db).WithEvidenceRepository(gateEvidenceRepo{verdicts: []*commonv1.TargetVerdict{invalid}}).CheckReleaseGate(context.Background(), "profile-1", "commit-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Ready || got.Reason != "target_evidence_invalid" || got.Targets[0].EvidenceDisposition != "invalid" {
+		t.Fatalf("invalid passed evidence opened gate: %+v", got)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReleaseGateUsesLatestEvidenceAttemptForTarget(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	target := RequiredTarget{Ramp: "release", Platform: "linux", OS: "linux", DeviceKind: commonv1.DeviceKind_DEVICE_KIND_HOST}
+	mock.ExpectQuery(`SELECT ramp, platform, os, device_kind FROM profile_required_targets`).WithArgs("profile-1").WillReturnRows(sqlmock.NewRows([]string{"ramp", "platform", "os", "device_kind"}).AddRow(target.Ramp, target.Platform, target.OS, int32(target.DeviceKind)))
+	mock.ExpectQuery(`SELECT id, profile_id, git_commit_hash, platform, status`).WithArgs("profile-1", "commit-1").WillReturnRows(sqlmock.NewRows([]string{"id", "profile_id", "git_commit_hash", "platform", "status", "approved_by", "approved_at", "notes", "validation_id", "created_at", "updated_at"}).AddRow("approval-1", "profile-1", "commit-1", "linux", ApprovalStatusApproved, "reviewer", time.Now(), "", "", time.Now(), time.Now()))
+	newFailure := testVerdict(target, commonv1.Disposition_DISPOSITION_FAILED)
+	newFailure.RunId = "run-2"
+	oldPass := testVerdict(target, commonv1.Disposition_DISPOSITION_PASSED)
+	got, err := NewSQLApprovalsRepository(db).WithEvidenceRepository(gateEvidenceRepo{verdicts: []*commonv1.TargetVerdict{newFailure, oldPass}}).CheckReleaseGate(context.Background(), "profile-1", "commit-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Ready || got.Reason != "target_evidence_failed" || got.Targets[0].EvidenceRunID != "run-2" {
+		t.Fatalf("stale evidence attempt opened gate: %+v", got)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func testVerdict(target RequiredTarget, disposition commonv1.Disposition) *commonv1.TargetVerdict {
-	return &commonv1.TargetVerdict{Target: &commonv1.EvidenceTarget{Ramp: target.Ramp, Platform: target.Platform, Os: target.OS, DeviceKind: target.DeviceKind}, Disposition: disposition, RunId: "run-1"}
+	return &commonv1.TargetVerdict{Target: &commonv1.EvidenceTarget{Ramp: target.Ramp, Platform: target.Platform, Os: target.OS, DeviceKind: target.DeviceKind}, Disposition: disposition, RunId: "run-1", EvidenceClass: "release-grade", Refs: []*commonv1.EvidenceRef{{Producer: "test", ArtifactId: "artifact-1", Kind: "log", Checksum: "sha256:test", SizeBytes: 1, CreatedAt: timestamppb.Now()}}}
 }

@@ -16,10 +16,10 @@ func TestRegisterAndRouteValidation(t *testing.T) {
 	if group.Title != "Profiles" || len(group.Commands) != 1 {
 		t.Fatalf("group = %#v", group)
 	}
-	if err := route(nil, nil)(nil); err == nil {
+	if err := route(nil)(nil); err == nil {
 		t.Fatal("empty route returned nil error")
 	}
-	if err := route(nil, nil)([]string{"unknown"}); err == nil {
+	if err := route(nil)([]string{"unknown"}); err == nil {
 		t.Fatal("unknown route returned nil error")
 	}
 	manifest, err := os.ReadFile("../../manifest.json")

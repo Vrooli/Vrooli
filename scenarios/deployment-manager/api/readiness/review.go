@@ -31,13 +31,16 @@ const (
 )
 
 type ReviewIdentity struct {
-	Scenario        string   `json:"scenario"`
-	ProfileID       string   `json:"profile_id"`
-	CandidateCommit string   `json:"candidate_commit"`
-	ArtifactDigest  string   `json:"artifact_digest"`
-	Targets         []string `json:"targets"`
-	Channel         string   `json:"channel"`
-	PolicyVersion   int      `json:"policy_version"`
+	Scenario              string   `json:"scenario"`
+	ProfileID             string   `json:"profile_id"`
+	CandidateCommit       string   `json:"candidate_commit"`
+	ArtifactDigest        string   `json:"artifact_digest"`
+	Targets               []string `json:"targets"`
+	Channel               string   `json:"channel"`
+	PolicyVersion         int      `json:"policy_version"`
+	CandidateID           string   `json:"candidate_id,omitempty"`
+	DestinationRevisionID string   `json:"destination_revision_id,omitempty"`
+	AuthorizationEpoch    uint64   `json:"authorization_epoch,omitempty"`
 }
 
 func (i ReviewIdentity) Canonical() (ReviewIdentity, error) {
@@ -46,6 +49,8 @@ func (i ReviewIdentity) Canonical() (ReviewIdentity, error) {
 	i.CandidateCommit = strings.TrimSpace(i.CandidateCommit)
 	i.ArtifactDigest = strings.TrimSpace(i.ArtifactDigest)
 	i.Channel = strings.TrimSpace(i.Channel)
+	i.CandidateID = strings.TrimSpace(i.CandidateID)
+	i.DestinationRevisionID = strings.TrimSpace(i.DestinationRevisionID)
 	if i.Scenario == "" || i.ProfileID == "" || i.CandidateCommit == "" || i.ArtifactDigest == "" || i.Channel == "" || i.PolicyVersion <= 0 {
 		return ReviewIdentity{}, fmt.Errorf("review identity requires scenario, profile, candidate commit, artifact digest, channel, and policy version")
 	}
@@ -65,6 +70,9 @@ func (i ReviewIdentity) Canonical() (ReviewIdentity, error) {
 	if len(targets) == 0 {
 		return ReviewIdentity{}, fmt.Errorf("review identity requires at least one target")
 	}
+	if (i.CandidateID == "") != (i.DestinationRevisionID == "") || (i.CandidateID == "" && i.AuthorizationEpoch != 0) || (i.CandidateID != "" && i.AuthorizationEpoch == 0) {
+		return ReviewIdentity{}, fmt.Errorf("release-bound readiness identity requires candidate, destination revision, and authorization epoch together")
+	}
 	sort.Strings(targets)
 	i.Targets = targets
 	return i, nil
@@ -81,6 +89,27 @@ func (i ReviewIdentity) Key() (string, error) {
 	}
 	sum := sha256.Sum256(payload)
 	return "rr-" + hex.EncodeToString(sum[:]), nil
+}
+
+func EvidenceSetDigest(evidence []EvidenceItem, findings []ReviewFinding) (string, error) {
+	canonicalEvidence := append([]EvidenceItem(nil), evidence...)
+	canonicalFindings := append([]ReviewFinding(nil), findings...)
+	sort.SliceStable(canonicalEvidence, func(a, b int) bool {
+		if canonicalEvidence[a].CriterionID != canonicalEvidence[b].CriterionID {
+			return canonicalEvidence[a].CriterionID < canonicalEvidence[b].CriterionID
+		}
+		return canonicalEvidence[a].Target < canonicalEvidence[b].Target
+	})
+	sort.SliceStable(canonicalFindings, func(a, b int) bool { return canonicalFindings[a].CriterionID < canonicalFindings[b].CriterionID })
+	payload, err := json.Marshal(struct {
+		Evidence []EvidenceItem  `json:"evidence"`
+		Findings []ReviewFinding `json:"findings"`
+	}{canonicalEvidence, canonicalFindings})
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(payload)
+	return "sha256:" + hex.EncodeToString(sum[:]), nil
 }
 
 type Review struct {
@@ -168,4 +197,71 @@ type ReviewRepository interface {
 	MarkPromoted(context.Context, string, time.Time) error
 	SaveHumanCheck(context.Context, HumanCheck) error
 	ListHumanChecks(context.Context, string) ([]HumanCheck, error)
+}
+
+// ValidateCurrentEvidence checks the evidence that an approval relies on at
+// the point where the approval is consumed. It deliberately accepts the
+// repository's active waivers and human checks as inputs so callers cannot
+// validate an old approval against a cached policy projection.
+func ValidateCurrentEvidence(policy Checklist, review Review, evidence []EvidenceItem, activeWaivers []ReviewWaiver, humanChecks []HumanCheck, now time.Time) error {
+	if len(policy.Items) == 0 {
+		policy = DefaultChecklist()
+	}
+	if err := policy.Validate(); err != nil {
+		return err
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	if len(evidence) != len(policy.Items) {
+		return fmt.Errorf("required evidence set is incomplete")
+	}
+	items := make(map[string]Item, len(policy.Items))
+	for _, item := range policy.Items {
+		items[item.ID] = item
+	}
+	waived := make(map[string]struct{}, len(activeWaivers))
+	for _, waiver := range activeWaivers {
+		waived[waiver.CriterionID] = struct{}{}
+	}
+	humanPassed := make(map[string]bool, len(humanChecks))
+	for _, check := range humanChecks {
+		humanPassed[check.CriterionID] = check.Verdict == "passed"
+	}
+	seen := make(map[string]struct{}, len(evidence))
+	for _, item := range evidence {
+		criterion, ok := items[item.CriterionID]
+		if !ok {
+			return fmt.Errorf("evidence %q is not part of the active policy", item.CriterionID)
+		}
+		if _, duplicate := seen[item.CriterionID]; duplicate {
+			return fmt.Errorf("evidence %q is duplicated", item.CriterionID)
+		}
+		seen[item.CriterionID] = struct{}{}
+		if item.CandidateCommit != review.Identity.CandidateCommit || item.ArtifactDigest != review.Identity.ArtifactDigest || item.PolicyVersion != review.Identity.PolicyVersion {
+			return fmt.Errorf("evidence %q no longer matches the review identity", item.CriterionID)
+		}
+		if criterion.Freshness.Basis == "max_age" && now.Sub(item.ObservedAt) > time.Duration(criterion.Freshness.MaxAgeSeconds)*time.Second {
+			return fmt.Errorf("evidence %q is stale", item.CriterionID)
+		}
+		switch item.Status {
+		case SignalPassed, SignalNotApplicable:
+		case SignalWaived:
+			if _, ok := waived[item.CriterionID]; !ok {
+				return fmt.Errorf("evidence %q no longer has an active waiver", item.CriterionID)
+			}
+		case SignalUnknown:
+			if criterion.HumanReview == nil || !humanPassed[item.CriterionID] {
+				return fmt.Errorf("evidence %q has no passed independent human check", item.CriterionID)
+			}
+		default:
+			return fmt.Errorf("evidence %q has blocking disposition %q", item.CriterionID, item.Status)
+		}
+	}
+	for _, criterion := range policy.Items {
+		if _, ok := seen[criterion.ID]; !ok {
+			return fmt.Errorf("evidence %q is missing", criterion.ID)
+		}
+	}
+	return nil
 }

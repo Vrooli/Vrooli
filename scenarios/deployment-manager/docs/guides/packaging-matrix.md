@@ -36,6 +36,13 @@ The desktop ramp must not promise a bundled API, offline mode, or secret
 bootstrap unless the target plan selects those capabilities and the native
 journey proves them.
 
+When a scenario opts into Scenario Dependency Analyzer's
+`include_program_bindings` DAG export, program-to-scenario evidence is emitted
+with source `program-binding` (or `program-binding-file` when the live
+program-runtime library is unavailable). The resulting bundle skeleton keeps
+these relationships in `program_binding_peers`; ordinary `peers` remain the
+manifest-declared compatibility surface.
+
 ## Common ramp contract
 
 Every target ramp should eventually:

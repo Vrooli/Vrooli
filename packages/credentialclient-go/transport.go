@@ -12,13 +12,14 @@ import (
 )
 
 type ClientOptions struct {
-	Authority    *credentialauthority.Authority
-	InProcess    Client
-	Root         string
-	StateDir     string
-	Descriptors  func() ([]CredentialRef, error)
-	RemoteTarget string
-	RemoteRunner SSHRunner
+	Authority       *credentialauthority.Authority
+	InProcess       Client
+	Root            string
+	StateDir        string
+	Descriptors     func() ([]CredentialRef, error)
+	DescriptorScope *Scope
+	RemoteTarget    string
+	RemoteRunner    SSHRunner
 }
 
 // NewClient selects the only transport order permitted by the architecture:
@@ -30,7 +31,7 @@ func NewClient(options ClientOptions) (Client, error) {
 		return options.InProcess, nil
 	}
 	if options.Authority != nil && options.Authority.Availability() == nil {
-		client, err := NewInProcess(InProcessOptions{Authority: options.Authority, Root: options.Root, StateDir: options.StateDir, Descriptors: options.Descriptors})
+		client, err := NewInProcess(InProcessOptions{Authority: options.Authority, Root: options.Root, StateDir: options.StateDir, Descriptors: options.Descriptors, DescriptorScope: options.DescriptorScope})
 		if err == nil {
 			return client, nil
 		}

@@ -1,4 +1,7 @@
 // Package deployment provides deployment lifecycle commands for the CLI.
+// Typed reads and the plan/apply path use the generated Connect clients;
+// the structs below mirror the REST bodies of the surfaces that have no
+// generated service yet (snake_case, the proto JSON shape where one exists).
 package deployment
 
 import (
@@ -6,98 +9,38 @@ import (
 	"time"
 )
 
-// DeploymentStatus represents the status of a deployment.
-type DeploymentStatus string
-
-const (
-	StatusPending       DeploymentStatus = "pending"
-	StatusSetupRunning  DeploymentStatus = "setup_running"
-	StatusSetupComplete DeploymentStatus = "setup_complete"
-	StatusDeploying     DeploymentStatus = "deploying"
-	StatusDeployed      DeploymentStatus = "deployed"
-	StatusFailed        DeploymentStatus = "failed"
-	StatusStopped       DeploymentStatus = "stopped"
-)
-
-// Deployment represents a deployment record.
-type Deployment struct {
-	ID              string           `json:"id"`
-	Name            string           `json:"name"`
-	ScenarioID      string           `json:"scenario_id"`
-	Status          DeploymentStatus `json:"status"`
-	Manifest        json.RawMessage  `json:"manifest"`
-	BundlePath      *string          `json:"bundle_path,omitempty"`
-	BundleSHA256    *string          `json:"bundle_sha256,omitempty"`
-	BundleSizeBytes *int64           `json:"bundle_size_bytes,omitempty"`
-
+// Record mirrors the REST deployment record as returned by create/execute.
+type Record struct {
+	ID              string          `json:"id"`
+	Name            string          `json:"name"`
+	ScenarioID      string          `json:"scenario_id"`
+	Environment     string          `json:"environment,omitempty"`
+	Status          string          `json:"status"`
+	Manifest        json.RawMessage `json:"manifest"`
+	BundlePath      *string         `json:"bundle_path,omitempty"`
+	BundleSHA256    *string         `json:"bundle_sha256,omitempty"`
 	ErrorMessage    *string         `json:"error_message,omitempty"`
 	ErrorStep       *string         `json:"error_step,omitempty"`
 	ProgressStep    *string         `json:"progress_step,omitempty"`
 	ProgressPercent float64         `json:"progress_percent"`
-	RunID           *string         `json:"run_id,omitempty"`
-	SSHIdentity     json.RawMessage `json:"ssh_identity,omitempty"`
-
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
-	LastDeployedAt *time.Time `json:"last_deployed_at,omitempty"`
+	Fence           uint64          `json:"fence"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
+	LastDeployedAt  *time.Time      `json:"last_deployed_at,omitempty"`
 }
 
-// DeploymentSummary is a lightweight deployment for list views.
-type DeploymentSummary struct {
-	ID              string           `json:"id"`
-	Name            string           `json:"name"`
-	ScenarioID      string           `json:"scenario_id"`
-	Status          DeploymentStatus `json:"status"`
-	Domain          string           `json:"domain,omitempty"`
-	Host            string           `json:"host,omitempty"`
-	ErrorMessage    *string          `json:"error_message,omitempty"`
-	ProgressStep    *string          `json:"progress_step,omitempty"`
-	ProgressPercent float64          `json:"progress_percent"`
-	CreatedAt       time.Time        `json:"created_at"`
-	LastDeployedAt  *time.Time       `json:"last_deployed_at,omitempty"`
-}
-
-// PlanResponse represents the response from deployment plan generation.
-type PlanResponse struct {
-	Plan      []PlanStep `json:"plan"`
-	Timestamp string     `json:"timestamp"`
-}
-
-// PlanStep represents a single step in the deployment plan.
-type PlanStep struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-}
-
-// CreateRequest is the request for creating a deployment.
+// CreateRequest is the request for creating or updating a deployment.
 type CreateRequest struct {
-	Name            string            `json:"name,omitempty"`
-	Manifest        json.RawMessage   `json:"manifest"`
-	BundlePath      string            `json:"bundle_path,omitempty"`
-	BundleSHA256    string            `json:"bundle_sha256,omitempty"`
-	BundleSizeBytes int64             `json:"bundle_size_bytes,omitempty"`
-	ProvidedSecrets map[string]string `json:"provided_secrets,omitempty"`
+	Name     string          `json:"name,omitempty"`
+	Manifest json.RawMessage `json:"manifest"`
 }
 
 // CreateResponse is the response from creating a deployment.
 type CreateResponse struct {
-	Deployment *Deployment `json:"deployment"`
-	Created    bool        `json:"created"`
-	Updated    bool        `json:"updated"`
-	Timestamp  string      `json:"timestamp"`
-}
-
-// ListResponse is the response from listing deployments.
-type ListResponse struct {
-	Deployments []DeploymentSummary `json:"deployments"`
-	Timestamp   string              `json:"timestamp"`
-}
-
-// GetResponse is the response from getting a deployment.
-type GetResponse struct {
-	Deployment *Deployment `json:"deployment"`
-	Timestamp  string      `json:"timestamp"`
+	Deployment *Record `json:"deployment"`
+	Created    bool    `json:"created"`
+	Updated    bool    `json:"updated"`
+	Timestamp  string  `json:"timestamp"`
 }
 
 // DeleteResponse is the response from deleting a deployment.
@@ -106,27 +49,10 @@ type DeleteResponse struct {
 	Timestamp string `json:"timestamp"`
 }
 
-// ExecuteRequest is the request for executing a deployment.
-type ExecuteRequest struct {
-	ProvidedSecrets  map[string]string `json:"provided_secrets,omitempty"`
-	RunPreflight     bool              `json:"run_preflight,omitempty"`
-	ForceBundleBuild bool              `json:"force_bundle_build,omitempty"`
-}
-
-// ExecuteResponse is the response from starting deployment execution.
-type ExecuteResponse struct {
-	Deployment *Deployment `json:"deployment"`
-	RunID      string      `json:"run_id"`
-	Message    string      `json:"message"`
-	Timestamp  string      `json:"timestamp"`
-}
-
-// StartResponse is the response from starting a stopped deployment.
-type StartResponse struct {
-	DeploymentID string `json:"deployment_id"`
-	RunID        string `json:"run_id"`
-	Message      string `json:"message"`
-	Timestamp    string `json:"timestamp"`
+// DeleteOptions contains options for deployment deletion.
+type DeleteOptions struct {
+	Stop    bool
+	Cleanup bool
 }
 
 // StopResponse is the response from stopping a deployment.
@@ -153,74 +79,139 @@ type HistoryResponse struct {
 	Timestamp    string         `json:"timestamp"`
 }
 
-// DeleteOptions contains options for deployment deletion.
-type DeleteOptions struct {
-	Stop    bool // Stop the deployment on VPS before deleting
-	Cleanup bool // Clean up bundle files
+// RecoveryPoint mirrors data.v1.RecoveryPoint (REST JSON of domain.RecoveryPoint).
+type RecoveryPoint struct {
+	ID                  string            `json:"id"`
+	DeploymentID        string            `json:"deployment_id"`
+	OperationID         string            `json:"operation_id,omitempty"`
+	BindingIDs          []string          `json:"binding_ids"`
+	SchemaVersion       string            `json:"schema_version"`
+	ConfigurationDigest string            `json:"configuration_digest"`
+	ReleaseDigest       string            `json:"release_digest"`
+	CapturedAt          time.Time         `json:"captured_at"`
+	Provider            string            `json:"provider"`
+	Encrypted           bool              `json:"encrypted"`
+	RecoveryKeyRef      string            `json:"recovery_key_ref"`
+	RetentionPolicy     string            `json:"retention_policy"`
+	Protected           bool              `json:"protected"`
+	ProtectedBy         []string          `json:"protected_by,omitempty"`
+	MigrationPosture    string            `json:"migration_posture"`
+	Location            string            `json:"location"`
+	Checksums           map[string]any    `json:"checksums"`
+	Consistency         []json.RawMessage `json:"consistency"`
 }
 
-// ListOptions contains options for listing deployments.
-type ListOptions struct {
-	Status     string // Filter by status
-	ScenarioID string // Filter by scenario ID
+// RecoveryPointsResponse is GET /deployments/{id}/recovery-points.
+type RecoveryPointsResponse struct {
+	SchemaVersion  string          `json:"schema_version"`
+	RecoveryPoints []RecoveryPoint `json:"recovery_points"`
 }
 
-// HealthResponse is the response from the health endpoint.
-type HealthResponse struct {
-	OK              bool             `json:"ok"`
-	Health          string           `json:"health"`
-	DeploymentID    string           `json:"deployment_id"`
-	DeploymentName  string           `json:"deployment_name"`
-	ScenarioID      string           `json:"scenario_id"`
-	Domain          string           `json:"domain,omitempty"`
-	Host            string           `json:"host,omitempty"`
-	Summary         string           `json:"summary"`
-	Sections        []HealthSection  `json:"sections"`
-	Freshness       *FreshnessStatus `json:"freshness,omitempty"`
-	Recommendations []Recommendation `json:"recommendations,omitempty"`
-	DurationMs      int64            `json:"duration_ms"`
-	Timestamp       string           `json:"timestamp"`
+// RecoveryPointCaptureRequest is the capture body (data.v1.CaptureRecoveryPointRequest).
+type RecoveryPointCaptureRequest struct {
+	OperationID     string   `json:"operation_id,omitempty"`
+	Step            string   `json:"step,omitempty"`
+	RecoveryPointID string   `json:"recovery_point_id,omitempty"`
+	ReleaseDigest   string   `json:"release_digest,omitempty"`
+	SchemaVersion   string   `json:"schema_version,omitempty"`
+	RetentionPolicy string   `json:"retention_policy,omitempty"`
+	ProtectedBy     []string `json:"protected_by,omitempty"`
 }
 
-// FreshnessStatus summarizes whether local scenario state is newer than deployed state.
-type FreshnessStatus struct {
-	Status               string   `json:"status"`
-	Summary              string   `json:"summary"`
-	VersionStatus        string   `json:"version_status"`
-	FingerprintStatus    string   `json:"fingerprint_status"`
-	LocalVersion         string   `json:"local_version,omitempty"`
-	DeployedVersion      string   `json:"deployed_version,omitempty"`
-	VersionSource        string   `json:"version_source,omitempty"`
-	LocalBundleSHA256    string   `json:"local_bundle_sha256,omitempty"`
-	DeployedBundleSHA256 string   `json:"deployed_bundle_sha256,omitempty"`
-	Notes                []string `json:"notes,omitempty"`
+// RecoveryPointResponse is the capture response.
+type RecoveryPointResponse struct {
+	SchemaVersion string         `json:"schema_version"`
+	RecoveryPoint *RecoveryPoint `json:"recovery_point"`
 }
 
-// HealthSection groups related health checks.
-type HealthSection struct {
-	Category   string        `json:"category"`
-	Title      string        `json:"title"`
-	Status     string        `json:"status"`
-	Checks     []HealthCheck `json:"checks"`
-	PassCount  int           `json:"pass_count"`
-	WarnCount  int           `json:"warn_count"`
-	FailCount  int           `json:"fail_count"`
-	ErrorCount int           `json:"error_count"`
+// InvariantResult is one restore/verify invariant.
+type InvariantResult struct {
+	Binding  string `json:"binding"`
+	Check    string `json:"check"`
+	Expected string `json:"expected"`
+	Observed string `json:"observed"`
+	Passed   bool   `json:"passed"`
 }
 
-// HealthCheck is a single health check result.
-type HealthCheck struct {
-	ID      string            `json:"id"`
-	Title   string            `json:"title"`
-	Status  string            `json:"status"`
-	Message string            `json:"message,omitempty"`
-	Details map[string]string `json:"details,omitempty"`
+// RecoveryPointVerifyReport is the verify report.
+type RecoveryPointVerifyReport struct {
+	RecoveryPoint   *RecoveryPoint    `json:"recovery_point"`
+	VerifiedAt      time.Time         `json:"verified_at"`
+	ArtifactsIntact bool              `json:"artifacts_intact"`
+	KeyResolved     bool              `json:"key_resolved"`
+	ArtifactsOpened bool              `json:"artifacts_opened"`
+	Invariants      []InvariantResult `json:"invariants"`
+	Outcome         string            `json:"outcome"`
 }
 
-// Recommendation is an actionable suggestion.
-type Recommendation struct {
-	Priority int    `json:"priority"`
-	Category string `json:"category"`
-	Summary  string `json:"summary"`
-	Command  string `json:"command,omitempty"`
+// RecoveryPointVerifyResponse is GET …/recovery-points/{rp}/verify.
+type RecoveryPointVerifyResponse struct {
+	SchemaVersion string                     `json:"schema_version"`
+	Report        *RecoveryPointVerifyReport `json:"report"`
+}
+
+// RecoveryPointRestoreRequest is the restore body (data.v1.RestoreRecoveryPointRequest).
+type RecoveryPointRestoreRequest struct {
+	TargetRef string            `json:"target_ref"`
+	Into      map[string]string `json:"into,omitempty"`
+	Bindings  []string          `json:"bindings,omitempty"`
+}
+
+// RestoreReceipt is the restore receipt.
+type RestoreReceipt struct {
+	ID               string            `json:"id"`
+	RecoveryPointID  string            `json:"recovery_point_id"`
+	DeploymentID     string            `json:"deployment_id"`
+	TargetRef        string            `json:"target_ref"`
+	StartedAt        time.Time         `json:"started_at"`
+	CompletedAt      time.Time         `json:"completed_at"`
+	InvariantResults []InvariantResult `json:"invariant_results"`
+	Outcome          string            `json:"outcome"`
+	ErrorCode        string            `json:"error_code,omitempty"`
+	ErrorMessage     string            `json:"error_message,omitempty"`
+	WithinBudgets    bool              `json:"within_budgets"`
+}
+
+// RecoveryPointRestoreResponse is POST …/recovery-points/{rp}/restore.
+type RecoveryPointRestoreResponse struct {
+	SchemaVersion string          `json:"schema_version"`
+	Receipt       *RestoreReceipt `json:"receipt"`
+}
+
+// RecoveryRequest is the governed cloud recovery body
+// (POST /deployments/{id}/recovery).
+type RecoveryRequest struct {
+	Action            string `json:"action"`
+	ExpectedBundleSHA string `json:"expected_bundle_sha256,omitempty"`
+	RepairBundleSHA   string `json:"repair_bundle_sha256,omitempty"`
+	DataCompatibility string `json:"data_compatibility,omitempty"`
+	IdempotencyKey    string `json:"idempotency_key,omitempty"`
+	Confirmation      string `json:"confirmation,omitempty"`
+	DryRun            bool   `json:"dry_run"`
+	ReviewRef         string `json:"review_ref,omitempty"`
+	ReleaseDigest     string `json:"release_digest,omitempty"`
+	PreviewRef        string `json:"preview_ref,omitempty"`
+}
+
+// RecoveryReceipt mirrors domain.CloudRecoveryReceipt.
+type RecoveryReceipt struct {
+	SchemaVersion int    `json:"schema_version"`
+	DeploymentID  string `json:"deployment_id"`
+	OperationID   string `json:"operation_id,omitempty"`
+	Action        string `json:"action"`
+	Outcome       string `json:"outcome"`
+	Health        string `json:"health"`
+	BundleSHA256  string `json:"bundle_sha256,omitempty"`
+	DryRun        bool   `json:"dry_run"`
+	Error         string `json:"error,omitempty"`
+	PreviewRef    string `json:"preview_ref,omitempty"`
+	ReviewKey     string `json:"review_key,omitempty"`
+	ReleaseDigest string `json:"release_digest,omitempty"`
+	RouteKind     string `json:"route_kind,omitempty"`
+}
+
+// RecoveryResponse is the recovery response.
+type RecoveryResponse struct {
+	Receipt   *RecoveryReceipt `json:"receipt"`
+	Timestamp string           `json:"timestamp"`
 }

@@ -8,6 +8,25 @@ import (
 	"plan-manager/internal/plans"
 )
 
+func TestRenderedCompletionUsesExecutionOwnedCapture(t *testing.T) {
+	p := comprehensivePlan()
+	p.Title = "Operator's approved plan"
+	md := plans.RenderMarkdown(p)
+	for _, want := range []string{
+		"plan-manager log record-add <execution-id> --kind execute --scenario 'plan-manager'",
+		"--title 'Completion: Operator'\"'\"'s approved plan'",
+		"--record-evidence '<suites/baselines/live checks that prove it>'",
+		"Plan Manager forwards it and retains the downstream disposition",
+	} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("completion guidance missing %q", want)
+		}
+	}
+	if strings.Contains(md, "swarm-manager records create") {
+		t.Fatal("execution guidance bypasses the plan's capture owner")
+	}
+}
+
 // comprehensivePlan builds a plan exercising the full professional structure for
 // render/parse golden coverage. Status is draft and content-hash is empty so the
 // rendered title line round-trips (those are computed, not parsed back).

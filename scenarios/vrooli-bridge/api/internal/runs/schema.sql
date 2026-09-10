@@ -24,7 +24,10 @@ CREATE TABLE IF NOT EXISTS runs (
   acked_at        TEXT NOT NULL DEFAULT '',
   delivery_attempts INTEGER NOT NULL DEFAULT 0,
   last_delivery_error TEXT NOT NULL DEFAULT '',
-  delivery_lease_expires_at TEXT NOT NULL DEFAULT ''
+  delivery_lease_expires_at TEXT NOT NULL DEFAULT '',
+  cancel_requested_at TEXT NOT NULL DEFAULT '',
+  cancellation_confirmed INTEGER NOT NULL DEFAULT 0,
+  status_reason TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at DESC);

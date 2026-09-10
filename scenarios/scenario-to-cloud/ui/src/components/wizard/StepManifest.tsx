@@ -4,7 +4,6 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Alert } from "../ui/alert";
 import { HelpTooltip } from "../ui/tooltip";
-import { SSHKeySetup } from "./SSHKeySetup";
 import { ValidationSummary } from "./ValidationSummary";
 import { AutoFixPanel } from "./AutoFixPanel";
 import { AnnotatedCodeBlock, type LineAnnotation } from "../ui/annotated-code-block";
@@ -750,28 +749,13 @@ export function StepManifest({ deployment }: StepManifestProps) {
             </div>
           </div>
 
-          {/* SSH Configuration Section - shown when host is entered */}
+          {/* Target access: keys never travel through the manifest. */}
           {formValues.host && formValues.host !== "203.0.113.10" && (
-            <div className="md:col-span-2">
-              <SSHKeySetup
-                host={formValues.host}
-                port={parsedManifest.ok ? parsedManifest.value.target?.vps?.port ?? 22 : 22}
-                user={parsedManifest.ok ? parsedManifest.value.target?.vps?.user ?? "root" : "root"}
-                selectedKeyPath={deployment.sshKeyPath}
-                onKeyPathChange={(keyPath) => {
-                  deployment.setSSHKeyPath(keyPath);
-                  // Also update the manifest's key_path field
-                  if (keyPath && parsedManifest.ok) {
-                    const manifest = { ...parsedManifest.value };
-                    manifest.target = {
-                      ...manifest.target,
-                      vps: { ...manifest.target.vps, key_path: keyPath }
-                    };
-                    deployment.setManifestJson(JSON.stringify(manifest, null, 2));
-                  }
-                }}
-                onConnectionStatusChange={deployment.setSSHConnectionStatus}
-              />
+            <div className="md:col-span-2 rounded-lg border border-slate-800 bg-slate-900/40 p-3 text-xs text-slate-400">
+              Target access is bound outside the manifest: enroll the host with{" "}
+              <code className="text-slate-300">vrooli-bridge onboard</code>, or let the cloud reach it over SSH with
+              your agent or default key. A deployment converted from an older manifest keeps its key through the
+              credential binding <code className="text-slate-300">vrooli/scenario-to-cloud:ssh-key</code>.
             </div>
           )}
 

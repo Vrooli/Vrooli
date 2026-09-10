@@ -1,15 +1,16 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
+	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/operations"
 
 	"github.com/gorilla/mux"
 )
@@ -37,53 +38,25 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// If run_id is specified, wait for it to match the current deployment's run_id.
-	// This prevents returning stale "completed" state from a previous run when a new
-	// deployment has just been started but the DB hasn't been updated yet.
-	expectedRunID := r.URL.Query().Get("run_id")
-	currentRunID := ""
-	if dep.RunID != nil {
-		currentRunID = *dep.RunID
-	}
-	if expectedRunID != "" && currentRunID != expectedRunID {
-		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-		defer cancel()
-
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-
-		matched := false
-		for !matched {
-			select {
-			case <-ctx.Done():
-				httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{
-					Code:    "run_not_started",
-					Message: "Deployment run has not started yet",
-					Hint:    fmt.Sprintf("Expected run_id %s but found %s", expectedRunID, currentRunID),
-				})
-				return
-			case <-ticker.C:
-				dep, err = s.repo.GetDeployment(r.Context(), id)
-				if err != nil {
-					httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-						Code:    "get_failed",
-						Message: "Failed to get deployment while waiting for run",
-						Hint:    err.Error(),
-					})
-					return
-				}
-				if dep == nil {
-					httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
-						Code:    "not_found",
-						Message: "Deployment not found",
-					})
-					return
-				}
-				if dep.RunID != nil && *dep.RunID == expectedRunID {
-					matched = true
-				}
-			}
+	// The stream may be keyed by operation id (DL-05: the durable operation
+	// replaced run_id). A terminal operation replays its outcome and closes;
+	// a live one streams until the operation's terminal event.
+	var op *domain.CloudOperation
+	if opID := r.URL.Query().Get("operation_id"); opID != "" {
+		if s.operations == nil {
+			apierrors.Write(w, apierrors.New(apierrors.CodeInternal, "Operation owner is not configured"))
+			return
 		}
+		found, err := s.operations.Get(r.Context(), opID)
+		if err != nil {
+			apierrors.Write(w, err)
+			return
+		}
+		if found.DeploymentID != id {
+			apierrors.Write(w, apierrors.New(apierrors.CodeOperationNotFound, "Operation does not belong to this deployment").WithDetail("operation_id", opID))
+			return
+		}
+		op = found
 	}
 
 	// Set SSE headers
@@ -128,6 +101,18 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 			Progress:        dep.ProgressPercent,
 			Timestamp:       time.Now().UTC().Format(time.RFC3339),
 		})
+	}
+
+	if op != nil && op.State.IsTerminal() {
+		sendPreflightResult()
+		sendOperationTerminal(sendEvent, op, dep)
+		return
+	}
+	if op != nil {
+		// A live operation: stream its events until terminal, regardless of
+		// the deployment status projection.
+		s.streamOperation(w, r, flusher, sendEvent, op, dep)
+		return
 	}
 
 	// Check if deployment is already complete
@@ -214,6 +199,72 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 
 		case <-r.Context().Done():
 			// Client disconnected
+			return
+		}
+	}
+}
+
+// sendOperationTerminal replays a terminal operation as the legacy terminal
+// SSE event so existing consumers close correctly.
+func sendOperationTerminal(sendEvent func(deployment.Event), op *domain.CloudOperation, dep *domain.Deployment) {
+	standing := operations.StandingOf(op)
+	switch op.State {
+	case operations.Succeeded:
+		sendEvent(deployment.Event{Type: "completed", Progress: 100, Message: "Deployment complete", Timestamp: time.Now().UTC().Format(time.RFC3339)})
+	default:
+		msg := string(op.State)
+		if standing.Error != nil {
+			msg = standing.Error.Message
+		} else if standing.Result != nil && standing.Result.Message != "" {
+			msg = standing.Result.Message
+		}
+		sendEvent(deployment.Event{Type: "deployment_error", Step: standing.ActiveStep, Error: msg, Progress: dep.ProgressPercent, Timestamp: time.Now().UTC().Format(time.RFC3339)})
+	}
+}
+
+// streamOperation forwards hub events for the deployment and the operation's
+// own events until the operation is terminal.
+func (s *Server) streamOperation(w http.ResponseWriter, r *http.Request, flusher http.Flusher, sendEvent func(deployment.Event), op *domain.CloudOperation, dep *domain.Deployment) {
+	if dep.ProgressStep != nil && *dep.ProgressStep != "" {
+		sendEvent(deployment.Event{Type: "progress_update", Step: *dep.ProgressStep, Progress: dep.ProgressPercent, Timestamp: time.Now().UTC().Format(time.RFC3339)})
+	}
+	sendEvent(deployment.Event{Type: "operation", Step: operations.StandingOf(op).ActiveStep, Message: string(op.State), Timestamp: time.Now().UTC().Format(time.RFC3339)})
+	hubCh := s.progressHub.Subscribe(dep.ID)
+	defer s.progressHub.Unsubscribe(dep.ID, hubCh)
+	opCh, unsubscribe := s.operations.Subscribe(op.ID)
+	defer unsubscribe()
+	done, cancelWaiter := s.operations.RegisterWaiter(op.ID)
+	defer cancelWaiter()
+	// Recheck after registering so a terminal transition racing the
+	// subscription is not missed.
+	if current, err := s.operations.Get(r.Context(), op.ID); err == nil && current.State.IsTerminal() {
+		sendOperationTerminal(sendEvent, current, dep)
+		return
+	}
+	keepAlive := time.NewTicker(15 * time.Second)
+	defer keepAlive.Stop()
+	for {
+		select {
+		case event, ok := <-hubCh:
+			if !ok {
+				return
+			}
+			if event.Type == "completed" || event.Type == "error" {
+				// Terminal projection events are replayed from the record below.
+				continue
+			}
+			sendEvent(event)
+		case ev := <-opCh:
+			sendEvent(deployment.Event{Type: "operation", Step: ev.Step, Message: ev.Message, Timestamp: ev.Timestamp})
+		case <-done:
+			if current, err := s.operations.Get(r.Context(), op.ID); err == nil {
+				sendOperationTerminal(sendEvent, current, dep)
+			}
+			return
+		case <-keepAlive.C:
+			fmt.Fprintf(w, ": keepalive\n\n")
+			flusher.Flush()
+		case <-r.Context().Done():
 			return
 		}
 	}

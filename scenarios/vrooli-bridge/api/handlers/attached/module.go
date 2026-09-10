@@ -3,6 +3,7 @@ package attached
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"time"
 
@@ -41,6 +42,9 @@ func (h *handler) PairAttachedDevice(ctx context.Context, req *connect.Request[a
 	}
 	d, err := h.service.Pair(ctx, internal.PairInput{Name: req.Msg.Name, HostNodeID: req.Msg.HostNodeId, Kind: req.Msg.Kind, Transport: req.Msg.Transport, Serial: req.Msg.Serial, OSVersion: req.Msg.OsVersion, HostNodeOnline: req.Msg.HostNodeOnline})
 	if err != nil {
+		if errors.Is(err, internal.ErrIdentityConflict) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(&attachedv1.AttachedDeviceResponse{Device: toProto(d)}), nil

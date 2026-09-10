@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -153,6 +154,58 @@ func TestHandler_ServiceFromEnv(t *testing.T) {
 
 	if resp.Service != "my-scenario-api" {
 		t.Errorf("expected service my-scenario-api, got %s", resp.Service)
+	}
+}
+
+func TestHandler_BuildIdentityDefaultsFromEnv(t *testing.T) {
+	// The lifecycle injects this at start and compares it against the served
+	// value; a handler that omits it turns that comparison into a silent no-op.
+	t.Setenv(buildIdentityEnv, "sha256:abc123")
+
+	handler := New("test").Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	var resp Response
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.BuildIdentity != "sha256:abc123" {
+		t.Errorf("expected build identity sha256:abc123, got %q", resp.BuildIdentity)
+	}
+}
+
+func TestHandler_BuildIdentityExplicitOverridesEnv(t *testing.T) {
+	t.Setenv(buildIdentityEnv, "sha256:from-env")
+
+	handler := New("test").BuildIdentity("sha256:explicit").Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	var resp Response
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.BuildIdentity != "sha256:explicit" {
+		t.Errorf("expected explicit identity to win, got %q", resp.BuildIdentity)
+	}
+}
+
+func TestHandler_BuildIdentityOmittedWhenUnset(t *testing.T) {
+	t.Setenv(buildIdentityEnv, "")
+
+	handler := New("test").Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if body := w.Body.String(); strings.Contains(body, "build_identity") {
+		t.Errorf("expected build_identity to be omitted when unset, got %s", body)
 	}
 }
 

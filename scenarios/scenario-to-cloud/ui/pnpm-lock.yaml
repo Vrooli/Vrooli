@@ -8,9 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@bufbuild/protobuf':
+        specifier: 2.12.0
+        version: 2.12.0
       '@connectrpc/connect-web':
         specifier: 2.1.1
-        version: 2.1.1(@bufbuild/protobuf@2.13.0)(@connectrpc/connect@2.1.2(@bufbuild/protobuf@2.13.0))
+        version: 2.1.1(@bufbuild/protobuf@2.12.0)(@connectrpc/connect@2.1.2(@bufbuild/protobuf@2.12.0))
       '@radix-ui/react-slot':
         specifier: ^1.1.0
         version: 1.2.4(@types/react@18.3.27)(react@18.3.1)
@@ -19,10 +22,13 @@ importers:
         version: 5.90.12(react@18.3.1)
       '@vrooli/api-base':
         specifier: file:../../../packages/api-base
-        version: file:../../../packages/api-base(@bufbuild/protobuf@2.13.0)(@testing-library/dom@10.4.1)(express@4.22.1)(ws@8.18.3)
+        version: file:../../../packages/api-base(@bufbuild/protobuf@2.12.0)(@testing-library/dom@10.4.1)(express@4.22.1)(ws@8.18.3)
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge(react@18.3.1)
+      '@vrooli/proto-types':
+        specifier: file:../../../packages/proto/gen/typescript
+        version: file:../../../packages/proto/gen/typescript
       '@vrooli/ui-selectors':
         specifier: file:../../../packages/ui-selectors
         version: file:../../../packages/ui-selectors(typescript@5.9.3)
@@ -242,8 +248,8 @@ packages:
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
 
-  '@bufbuild/protobuf@2.13.0':
-    resolution: {integrity: sha512-acq7c49vxfm1ggJ95P70TX7ABDM0vxr1SYD3BB0o0jnBLB4OAqeHyKuN+cD3w80gXEDQ2zxHpR6CUeA+O/aU9g==}
+  '@bufbuild/protobuf@2.12.0':
+    resolution: {integrity: sha512-B/XlCaFIP8LOwzo+bz5uFzATYokcwCKQcghqnlfwSmM5eX/qTkvDBnDPs+gXtX/RyjxJ4DRikECcPJbyALA8FA==}
 
   '@connectrpc/connect-web@2.1.1':
     resolution: {integrity: sha512-J8317Q2MaFRCT1jzVR1o06bZhDIBmU0UAzWx6xOIXzOq8+k71/+k7MUF7AwcBUX+34WIvbm5syRgC5HXQA8fOg==}
@@ -1028,6 +1034,10 @@ packages:
     peerDependenciesMeta:
       react:
         optional: true
+
+  '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
+    resolution: {directory: ../../../packages/proto/gen/typescript, type: directory}
+    engines: {node: '>=18.0.0'}
 
   '@vrooli/ui-selectors@file:../../../packages/ui-selectors':
     resolution: {directory: ../../../packages/ui-selectors, type: directory}
@@ -3134,16 +3144,16 @@ snapshots:
 
   '@bcoe/v8-coverage@0.2.3': {}
 
-  '@bufbuild/protobuf@2.13.0': {}
+  '@bufbuild/protobuf@2.12.0': {}
 
-  '@connectrpc/connect-web@2.1.1(@bufbuild/protobuf@2.13.0)(@connectrpc/connect@2.1.2(@bufbuild/protobuf@2.13.0))':
+  '@connectrpc/connect-web@2.1.1(@bufbuild/protobuf@2.12.0)(@connectrpc/connect@2.1.2(@bufbuild/protobuf@2.12.0))':
     dependencies:
-      '@bufbuild/protobuf': 2.13.0
-      '@connectrpc/connect': 2.1.2(@bufbuild/protobuf@2.13.0)
+      '@bufbuild/protobuf': 2.12.0
+      '@connectrpc/connect': 2.1.2(@bufbuild/protobuf@2.12.0)
 
-  '@connectrpc/connect@2.1.2(@bufbuild/protobuf@2.13.0)':
+  '@connectrpc/connect@2.1.2(@bufbuild/protobuf@2.12.0)':
     dependencies:
-      '@bufbuild/protobuf': 2.13.0
+      '@bufbuild/protobuf': 2.12.0
 
   '@csstools/color-helpers@5.1.0': {}
 
@@ -3820,10 +3830,10 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 1.2.0
 
-  '@vrooli/api-base@file:../../../packages/api-base(@bufbuild/protobuf@2.13.0)(@testing-library/dom@10.4.1)(express@4.22.1)(ws@8.18.3)':
+  '@vrooli/api-base@file:../../../packages/api-base(@bufbuild/protobuf@2.12.0)(@testing-library/dom@10.4.1)(express@4.22.1)(ws@8.18.3)':
     dependencies:
-      '@connectrpc/connect': 2.1.2(@bufbuild/protobuf@2.13.0)
-      '@connectrpc/connect-web': 2.1.1(@bufbuild/protobuf@2.13.0)(@connectrpc/connect@2.1.2(@bufbuild/protobuf@2.13.0))
+      '@connectrpc/connect': 2.1.2(@bufbuild/protobuf@2.12.0)
+      '@connectrpc/connect-web': 2.1.1(@bufbuild/protobuf@2.12.0)(@connectrpc/connect@2.1.2(@bufbuild/protobuf@2.12.0))
       '@tanstack/react-query': 5.59.0(react@18.3.1)
       '@testing-library/react': 16.1.0(@testing-library/dom@10.4.1)(@types/react-dom@18.3.0)(@types/react@18.3.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@types/react': 18.3.5
@@ -3844,6 +3854,10 @@ snapshots:
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge(react@18.3.1)':
     optionalDependencies:
       react: 18.3.1
+
+  '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
+    dependencies:
+      '@bufbuild/protobuf': 2.12.0
 
   '@vrooli/ui-selectors@file:../../../packages/ui-selectors(typescript@5.9.3)':
     optionalDependencies:

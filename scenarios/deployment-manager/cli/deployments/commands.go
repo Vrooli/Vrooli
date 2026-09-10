@@ -1,6 +1,7 @@
 package deployments
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -11,16 +12,28 @@ import (
 
 	"deployment-manager/cli/cmdutil"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	deploymentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/deployments/deploymentsv1connect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type Commands struct {
-	api *cliutil.APIClient
+	api           *cliutil.APIClient
+	connectClient deploymentsconnect.DeploymentsServiceClient
 }
 
 func New(api *cliutil.APIClient) *Commands {
 	return &Commands{api: api}
+}
+
+// NewWithConnectClient binds deployment operations to the generated service.
+// New remains available for focused compatibility fixtures and commands that
+// do not yet have a typed contract.
+func NewWithConnectClient(api *cliutil.APIClient, client deploymentsconnect.DeploymentsServiceClient) *Commands {
+	return &Commands{api: api, connectClient: client}
 }
 
 type DeploymentLog struct {
@@ -51,6 +64,21 @@ func (c *Commands) Deploy(args []string) error {
 	payload := map[string]interface{}{
 		"dry_run": *dryRun,
 		"async":   *async,
+	}
+	if c.connectClient != nil {
+		request, err := structpb.NewValue(map[string]interface{}{
+			"profile_id": id,
+			"dry_run":    *dryRun,
+			"async":      *async,
+		})
+		if err != nil {
+			return fmt.Errorf("encode deployment request: %w", err)
+		}
+		response, err := c.connectClient.Deploy(context.Background(), connect.NewRequest(request))
+		if err != nil {
+			return cliapp.WrapAPIError("deploy profile", err, nil)
+		}
+		return printConnectValue(*format, response)
 	}
 	body, err := c.api.Request("POST", "/api/v1/deploy/"+id, nil, payload)
 	if err != nil {
@@ -85,11 +113,34 @@ func (c *Commands) deploymentStatus(args []string) error {
 		return errors.New("deployment id is required")
 	}
 	id := remaining[0]
+	if c.connectClient != nil {
+		request, err := structpb.NewValue(map[string]interface{}{"deployment_id": id})
+		if err != nil {
+			return fmt.Errorf("encode deployment status request: %w", err)
+		}
+		response, err := c.connectClient.Status(context.Background(), connect.NewRequest(request))
+		if err != nil {
+			return cliapp.WrapAPIError("get deployment status", err, nil)
+		}
+		return printConnectValue(*format, response)
+	}
 	body, err := c.api.Get("/api/v1/deployments/"+id, nil)
 	if err != nil {
 		return err
 	}
 	cmdutil.PrintByFormat(*format, body)
+	return nil
+}
+
+func printConnectValue(format string, response *connect.Response[structpb.Value]) error {
+	if response == nil || response.Msg == nil {
+		return errors.New("typed deployment response was empty")
+	}
+	body, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(response.Msg)
+	if err != nil {
+		return fmt.Errorf("encode deployment response: %w", err)
+	}
+	cmdutil.PrintByFormat(format, body)
 	return nil
 }
 

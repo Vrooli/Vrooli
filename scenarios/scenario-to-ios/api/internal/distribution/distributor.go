@@ -3,6 +3,7 @@ package distribution
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
@@ -19,7 +20,16 @@ type Distributor struct {
 
 var _ deliveryramp.Distributor = Distributor{}
 
-func (d Distributor) Distribute(_ context.Context, request deliveryramp.DistributionRequest) (deliveryramp.DistributionResult, error) {
+func (d Distributor) Distribute(_ context.Context, request deliveryramp.DistributionRequest) (result deliveryramp.DistributionResult, err error) {
+	defer func() {
+		if err != nil {
+			return
+		}
+		if validationErr := request.ValidateResult(result); validationErr != nil {
+			err = fmt.Errorf("validate iOS distribution result: %w", validationErr)
+			result = deliveryramp.DistributionResult{}
+		}
+	}()
 	if strings.TrimSpace(request.Artifact.ImmutableRef) == "" {
 		return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionUnavailable, Reason: "artifact has no immutable identity"}, nil
 	}
@@ -30,7 +40,10 @@ func (d Distributor) Distribute(_ context.Context, request deliveryramp.Distribu
 	}
 	for _, target := range targets {
 		if target.Available {
-			return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionPass, Targets: targets}, nil
+			return deliveryramp.DistributionResult{
+				Disposition: deliveryramp.DispositionDegraded, Targets: targets, CapabilityReady: true,
+				Reason: "distribution prerequisites are ready; no App Store, TestFlight, or ad-hoc publication effect was performed",
+			}, nil
 		}
 	}
 	return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionUnavailable, Targets: targets, Reason: "no iOS distribution channel is currently available"}, nil

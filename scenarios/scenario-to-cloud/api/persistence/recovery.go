@@ -16,7 +16,7 @@ func (r *Repository) GetCloudRecoveryOperation(ctx context.Context, id string) (
 		SELECT id, deployment_id, idempotency_key, action,
 		       expected_bundle_sha256, repair_bundle_sha256, repair_bundle_path,
 		       data_compatibility, status, receipt, error_message,
-		       created_at, updated_at, started_at, completed_at
+		       created_at, updated_at, started_at, completed_at, binding
 		FROM cloud_recovery_operations
 		WHERE id = $1`
 	return r.scanCloudRecoveryOperation(r.db.QueryRowContext(ctx, q, id))
@@ -28,7 +28,7 @@ func (r *Repository) GetCloudRecoveryOperationByKey(ctx context.Context, deploym
 		SELECT id, deployment_id, idempotency_key, action,
 		       expected_bundle_sha256, repair_bundle_sha256, repair_bundle_path,
 		       data_compatibility, status, receipt, error_message,
-		       created_at, updated_at, started_at, completed_at
+		       created_at, updated_at, started_at, completed_at, binding
 		FROM cloud_recovery_operations
 		WHERE deployment_id = $1 AND idempotency_key = $2`
 	return r.scanCloudRecoveryOperation(r.db.QueryRowContext(ctx, q, deploymentID, key))
@@ -51,18 +51,26 @@ func (r *Repository) CreateCloudRecoveryOperation(ctx context.Context, operation
 	if operation.Status == "" {
 		operation.Status = "pending"
 	}
+	var binding any
+	if operation.Binding != nil {
+		raw, err := json.Marshal(operation.Binding)
+		if err != nil {
+			return nil, fmt.Errorf("encode recovery binding: %w", err)
+		}
+		binding = string(raw)
+	}
 	const q = `
 		INSERT INTO cloud_recovery_operations (
 			id, deployment_id, idempotency_key, action,
 			expected_bundle_sha256, repair_bundle_sha256, repair_bundle_path,
-			data_compatibility, status, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+			data_compatibility, status, created_at, updated_at, binding
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, $11)
 		ON CONFLICT (deployment_id, idempotency_key) DO NOTHING`
 	if _, err := r.db.ExecContext(ctx, q,
 		operation.ID, operation.DeploymentID, operation.IdempotencyKey,
 		operation.Action, operation.ExpectedBundleSHA, operation.RepairBundleSHA,
 		operation.RepairBundlePath, operation.DataCompatibility, operation.Status,
-		operation.CreatedAt,
+		operation.CreatedAt, binding,
 	); err != nil {
 		return nil, fmt.Errorf("create recovery operation: %w", err)
 	}
@@ -139,14 +147,14 @@ type recoveryOperationScanner interface {
 
 func (r *Repository) scanCloudRecoveryOperation(row recoveryOperationScanner) (*domain.RecoveryOperation, error) {
 	operation := &domain.RecoveryOperation{}
-	var expectedSHA, receiptJSON, errorMessage sql.NullString
+	var expectedSHA, receiptJSON, errorMessage, bindingJSON sql.NullString
 	var startedAt, completedAt sql.NullTime
 	if err := row.Scan(
 		&operation.ID, &operation.DeploymentID, &operation.IdempotencyKey,
 		&operation.Action, &expectedSHA, &operation.RepairBundleSHA,
 		&operation.RepairBundlePath, &operation.DataCompatibility, &operation.Status,
 		&receiptJSON, &errorMessage, &operation.CreatedAt, &operation.UpdatedAt,
-		&startedAt, &completedAt,
+		&startedAt, &completedAt, &bindingJSON,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -166,6 +174,13 @@ func (r *Repository) scanCloudRecoveryOperation(row recoveryOperationScanner) (*
 	if completedAt.Valid {
 		value := completedAt.Time
 		operation.CompletedAt = &value
+	}
+	if bindingJSON.Valid && bindingJSON.String != "" {
+		var binding domain.RecoveryBinding
+		if err := json.Unmarshal([]byte(bindingJSON.String), &binding); err != nil {
+			return nil, fmt.Errorf("decode recovery binding: %w", err)
+		}
+		operation.Binding = &binding
 	}
 	if receiptJSON.Valid && receiptJSON.String != "" {
 		var receipt domain.CloudRecoveryReceipt

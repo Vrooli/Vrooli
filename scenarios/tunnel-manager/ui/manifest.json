@@ -2,6 +2,12 @@
   "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
   "title": "Tunnel Manager UI manifest",
   "description": "Declares the feature, layout, page, API, and design-system boundaries for the Tunnel Manager Exposure Command Center.",
+  "shell": {
+    "archetype": "navigated-console",
+    "asset": "AppShell",
+    "entry": "ui/src/layout/AppShell.tsx",
+    "export": "AppShell"
+  },
   "contract": {
     "kind": "scenario-ui",
     "schema": "scenario-ui-manifest/v1",

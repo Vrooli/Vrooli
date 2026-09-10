@@ -10,7 +10,9 @@ import (
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/experimentation"
+	"strings"
 )
 
 // BrandingConnectHandler translates generated branding procedures into the
@@ -33,7 +35,11 @@ func BrandingProto(value *experimentation.SiteBranding) *lpbsv1.SiteBranding {
 		result := int32(*v)
 		return &result
 	}
-	return &lpbsv1.SiteBranding{Id: value.ID, SiteName: value.SiteName, Tagline: value.Tagline, LogoUrl: value.LogoURL, LogoIconUrl: value.LogoIconURL, FaviconUrl: value.FaviconURL, AppleTouchIconUrl: value.AppleTouchIconURL, DefaultTitle: value.DefaultTitle, DefaultDescription: value.DefaultDescription, DefaultOgImageUrl: value.DefaultOGImageURL, ThemePrimaryColor: value.ThemePrimaryColor, ThemeBackgroundColor: value.ThemeBackgroundColor, CanonicalBaseUrl: value.CanonicalBaseURL, GoogleSiteVerification: value.GoogleSiteVerification, RobotsTxt: value.RobotsTxt, CreatedAt: timestamppb.New(value.CreatedAt), UpdatedAt: timestamppb.New(value.UpdatedAt), SupportChatUrl: value.SupportChatURL, SupportEmail: value.SupportEmail, SmtpHost: value.SMTPHost, SmtpPort: port(value.SMTPPort), SmtpUsername: value.SMTPUsername, SmtpPassword: value.SMTPPassword, SmtpFrom: value.SMTPFrom, ComingSoonEnabled: value.ComingSoonEnabled, ComingSoonMessage: value.ComingSoonMessage}
+	// SMTP password is authority-backed write-only material. Keep the wire
+	// field present for schema compatibility, but never project its value back
+	// to a browser or API caller, including when a test/in-process store returns
+	// a legacy populated model.
+	return &lpbsv1.SiteBranding{Id: value.ID, SiteName: value.SiteName, Tagline: value.Tagline, LogoUrl: value.LogoURL, LogoIconUrl: value.LogoIconURL, FaviconUrl: value.FaviconURL, AppleTouchIconUrl: value.AppleTouchIconURL, DefaultTitle: value.DefaultTitle, DefaultDescription: value.DefaultDescription, DefaultOgImageUrl: value.DefaultOGImageURL, ThemePrimaryColor: value.ThemePrimaryColor, ThemeBackgroundColor: value.ThemeBackgroundColor, CanonicalBaseUrl: value.CanonicalBaseURL, GoogleSiteVerification: value.GoogleSiteVerification, RobotsTxt: value.RobotsTxt, CreatedAt: timestamppb.New(value.CreatedAt), UpdatedAt: timestamppb.New(value.UpdatedAt), SupportChatUrl: value.SupportChatURL, SupportEmail: value.SupportEmail, SmtpHost: value.SMTPHost, SmtpPort: port(value.SMTPPort), SmtpUsername: value.SMTPUsername, SmtpPassword: nil, SmtpFrom: value.SMTPFrom, ComingSoonEnabled: value.ComingSoonEnabled, ComingSoonMessage: value.ComingSoonMessage}
 }
 
 func brandingUpdate(input *lpbsv1.UpdateBrandingRequest) *experimentation.BrandingUpdateRequest {
@@ -52,7 +58,25 @@ func (h BrandingConnectHandler) GetBranding(context.Context, *connect.Request[lp
 }
 
 func (h BrandingConnectHandler) UpdateBranding(_ context.Context, request *connect.Request[lpbsv1.UpdateBrandingRequest]) (*connect.Response[lpbsv1.BrandingResponse], error) {
-	updated, err := h.store.UpdateBranding(brandingUpdate(request.Msg))
+	if request == nil || request.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("branding update request is required"))
+	}
+	input := request.Msg
+	if input.SmtpPassword != nil {
+		var err error
+		if strings.TrimSpace(input.GetSmtpPassword()) == "" {
+			err = administration.DeleteAuthorityCredential("SMTP_PASSWORD")
+		} else {
+			err = administration.PutAuthorityCredential("SMTP_PASSWORD", input.GetSmtpPassword())
+		}
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("store SMTP password in credential authority: %w", err))
+		}
+	}
+	update := brandingUpdate(input)
+	// The protected value is owned by the authority, never by ConfigStore.
+	update.SMTPPassword = nil
+	updated, err := h.store.UpdateBranding(update)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("update branding: %w", err))
 	}
@@ -62,6 +86,11 @@ func (h BrandingConnectHandler) UpdateBranding(_ context.Context, request *conne
 func (h BrandingConnectHandler) ClearBrandingField(_ context.Context, request *connect.Request[lpbsv1.ClearBrandingFieldRequest]) (*connect.Response[lpbsv1.BrandingResponse], error) {
 	if request.Msg.GetField() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("field is required"))
+	}
+	if request.Msg.GetField() == "smtp_password" {
+		if err := administration.DeleteAuthorityCredential("SMTP_PASSWORD"); err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("clear SMTP password from credential authority: %w", err))
+		}
 	}
 	if err := h.store.ClearBrandingField(request.Msg.GetField()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("clear branding field: %w", err))

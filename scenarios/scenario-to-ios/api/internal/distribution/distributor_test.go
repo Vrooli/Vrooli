@@ -12,8 +12,11 @@ func TestChannelsRemainIndependent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Disposition != deliveryramp.DispositionPass {
+	if result.Disposition != deliveryramp.DispositionDegraded || !result.CapabilityReady || result.EffectReceipt != nil {
 		t.Fatalf("result = %+v", result)
+	}
+	if result.Reason == "" {
+		t.Fatal("capability-only result must explain that no publication effect occurred")
 	}
 	if result.Targets[1].Available {
 		t.Fatal("App Store became available from TestFlight access")

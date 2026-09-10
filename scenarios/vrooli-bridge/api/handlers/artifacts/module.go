@@ -24,11 +24,15 @@ import (
 // module is the single place its proto-free seams are bound to the concrete
 // registry (revocation) and the device-sync-hub directed-delivery client. It
 // owns its own durable distributions table, so it re-exports Schema().
-func Module(db internalartifacts.SQLExecutor, clk schedule.Clock, registrySvc registry.Service, runsSvc internalruns.Service, verifier *nodeauth.Verifier, logger *log.Logger) module.Module {
+type ArtifactReceiptRecorder interface {
+	RecordDeliveryReceipt(context.Context, internalartifacts.DeliveryReceipt) error
+}
+
+func Module(db internalartifacts.SQLExecutor, clk schedule.Clock, registrySvc registry.Service, runsSvc internalruns.Service, verifier *nodeauth.Verifier, logger *log.Logger, placementPusher ArtifactPlacementPusher) (module.Module, ArtifactReceiptRecorder) {
 	svc := internalartifacts.NewService(
 		internalartifacts.NewSQLiteRepository(db, clk),
 		nodeReaderAdapter{svc: registrySvc},
-		newDeviceSyncDelivery(),
+		newDeviceSyncDelivery(placementPusher),
 		clk,
 		internalartifacts.WithProducedRepository(internalartifacts.NewSQLiteProducedRepository(db, clk)),
 		internalartifacts.WithRunReader(runReaderAdapter{svc: runsSvc}),
@@ -44,7 +48,7 @@ func Module(db internalartifacts.SQLExecutor, clk schedule.Clock, registrySvc re
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler})
 		},
 		Endpoints: Endpoints,
-	}
+	}, svc
 }
 
 type runReaderAdapter struct{ svc internalruns.Service }

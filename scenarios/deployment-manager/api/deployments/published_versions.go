@@ -14,6 +14,7 @@ type PublishedVersion struct {
 	ProfileID     string    `json:"profile_id"`
 	Platform      string    `json:"platform"`
 	Version       string    `json:"version"`
+	SHA512        string    `json:"sha512,omitempty"`
 	GitCommitHash string    `json:"git_commit_hash,omitempty"`
 	ArtifactID    int64     `json:"artifact_id,omitempty"`
 	DeploymentID  string    `json:"deployment_id,omitempty"`
@@ -45,10 +46,11 @@ func (r *SQLPublishedVersionsRepository) RecordPublish(ctx context.Context, reco
 	}
 	return r.db.QueryRowContext(ctx,
 		`INSERT INTO published_versions
-			(profile_id, platform, version, git_commit_hash, artifact_id, deployment_id, release_id, published_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			(profile_id, platform, version, sha512, git_commit_hash, artifact_id, deployment_id, release_id, published_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		 RETURNING id`,
 		record.ProfileID, record.Platform, record.Version,
+		nullString(record.SHA512),
 		nullString(record.GitCommitHash),
 		nullInt64(record.ArtifactID),
 		nullString(record.DeploymentID),
@@ -61,7 +63,7 @@ func (r *SQLPublishedVersionsRepository) RecordPublish(ctx context.Context, reco
 func (r *SQLPublishedVersionsRepository) GetLatestByProfile(ctx context.Context, profileID string) ([]PublishedVersion, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT DISTINCT ON (platform)
-			id, profile_id, platform, version, git_commit_hash, artifact_id, deployment_id, release_id, published_at
+			id, profile_id, platform, version, sha512, git_commit_hash, artifact_id, deployment_id, release_id, published_at
 		 FROM published_versions
 		 WHERE profile_id = $1
 		 ORDER BY platform, published_at DESC`,
@@ -83,7 +85,7 @@ func (r *SQLPublishedVersionsRepository) GetHistory(ctx context.Context, profile
 	var err error
 	if platform != "" {
 		rows, err = r.db.QueryContext(ctx,
-			`SELECT id, profile_id, platform, version, git_commit_hash, artifact_id, deployment_id, release_id, published_at
+			`SELECT id, profile_id, platform, version, sha512, git_commit_hash, artifact_id, deployment_id, release_id, published_at
 			 FROM published_versions
 			 WHERE profile_id = $1 AND platform = $2
 			 ORDER BY published_at DESC
@@ -91,7 +93,7 @@ func (r *SQLPublishedVersionsRepository) GetHistory(ctx context.Context, profile
 			profileID, platform, limit)
 	} else {
 		rows, err = r.db.QueryContext(ctx,
-			`SELECT id, profile_id, platform, version, git_commit_hash, artifact_id, deployment_id, release_id, published_at
+			`SELECT id, profile_id, platform, version, sha512, git_commit_hash, artifact_id, deployment_id, release_id, published_at
 			 FROM published_versions
 			 WHERE profile_id = $1
 			 ORDER BY published_at DESC
@@ -109,17 +111,18 @@ func scanPublishedVersions(rows *sql.Rows) ([]PublishedVersion, error) {
 	var result []PublishedVersion
 	for rows.Next() {
 		var pv PublishedVersion
-		var gitHash, deploymentID, releaseID sql.NullString
+		var sha512, gitHash, deploymentID, releaseID sql.NullString
 		var artifactID sql.NullInt64
 
 		if err := rows.Scan(
 			&pv.ID, &pv.ProfileID, &pv.Platform, &pv.Version,
-			&gitHash, &artifactID, &deploymentID, &releaseID, &pv.PublishedAt,
+			&sha512, &gitHash, &artifactID, &deploymentID, &releaseID, &pv.PublishedAt,
 		); err != nil {
 			return nil, err
 		}
 
 		pv.GitCommitHash = gitHash.String
+		pv.SHA512 = sha512.String
 		pv.DeploymentID = deploymentID.String
 		pv.ReleaseID = releaseID.String
 		if artifactID.Valid {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 
 	"deployment-manager/shared"
 )
@@ -36,18 +37,17 @@ func (r *SQLRepository) List(ctx context.Context) ([]Profile, error) {
 		var tiersJSON, swapsJSON, secretsJSON, settingsJSON []byte
 
 		if err := rows.Scan(&p.ID, &p.Name, &p.Scenario, &tiersJSON, &swapsJSON, &secretsJSON, &settingsJSON, &p.Version, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy, &p.UpdatedBy); err != nil {
-			continue
+			return nil, fmt.Errorf("scan profile: %w", err)
 		}
 
-		_ = json.Unmarshal(tiersJSON, &p.Tiers)
-		_ = json.Unmarshal(swapsJSON, &p.Swaps)
-		_ = json.Unmarshal(secretsJSON, &p.Secrets)
-		_ = json.Unmarshal(settingsJSON, &p.Settings)
+		if err := decodeProfileJSON(&p, tiersJSON, swapsJSON, secretsJSON, settingsJSON); err != nil {
+			return nil, fmt.Errorf("decode profile %q: %w", p.ID, err)
+		}
 
 		profiles = append(profiles, p)
 	}
 
-	return profiles, nil
+	return profiles, rows.Err()
 }
 
 // Get retrieves a profile by ID or name.
@@ -68,22 +68,29 @@ func (r *SQLRepository) Get(ctx context.Context, idOrName string) (*Profile, err
 		return nil, err
 	}
 
-	_ = json.Unmarshal(tiersJSON, &p.Tiers)
-	_ = json.Unmarshal(swapsJSON, &p.Swaps)
-	_ = json.Unmarshal(secretsJSON, &p.Secrets)
-	_ = json.Unmarshal(settingsJSON, &p.Settings)
+	if err := decodeProfileJSON(&p, tiersJSON, swapsJSON, secretsJSON, settingsJSON); err != nil {
+		return nil, fmt.Errorf("decode profile %q: %w", p.ID, err)
+	}
 
 	return &p, nil
 }
 
 // Create stores a new profile and returns its generated ID.
 func (r *SQLRepository) Create(ctx context.Context, profile *Profile) (string, error) {
-	tiersJSON, _ := json.Marshal(profile.Tiers)
-	swapsJSON, _ := json.Marshal(profile.Swaps)
-	secretsJSON, _ := json.Marshal(profile.Secrets)
-	settingsJSON, _ := json.Marshal(profile.Settings)
+	if profile == nil {
+		return "", fmt.Errorf("profile is required")
+	}
+	tiersJSON, swapsJSON, secretsJSON, settingsJSON, err := marshalProfileJSON(profile)
+	if err != nil {
+		return "", err
+	}
 
-	_, err := r.db.ExecContext(ctx, `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("begin profile creation: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	_, err = tx.ExecContext(ctx, `
 		INSERT INTO profiles (id, name, scenario, tiers, swaps, secrets, settings, version, created_by, updated_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, 1, 'system', 'system')
 	`, profile.ID, profile.Name, profile.Scenario, tiersJSON, swapsJSON, secretsJSON, settingsJSON)
@@ -91,11 +98,16 @@ func (r *SQLRepository) Create(ctx context.Context, profile *Profile) (string, e
 		return "", err
 	}
 
-	// Create initial version history entry (non-fatal)
-	_, _ = r.db.ExecContext(ctx, `
+	// Version history is part of the durable profile record.
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO profile_versions (profile_id, version, name, scenario, tiers, swaps, secrets, settings, created_by, change_description)
 		VALUES ($1, 1, $2, $3, $4, $5, $6, $7, 'system', 'Initial profile creation')
-	`, profile.ID, profile.Name, profile.Scenario, tiersJSON, swapsJSON, secretsJSON, settingsJSON)
+	`, profile.ID, profile.Name, profile.Scenario, tiersJSON, swapsJSON, secretsJSON, settingsJSON); err != nil {
+		return "", fmt.Errorf("create profile history: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("commit profile creation: %w", err)
+	}
 	return profile.ID, nil
 }
 
@@ -125,12 +137,17 @@ func (r *SQLRepository) Update(ctx context.Context, idOrName string, updates map
 	}
 
 	newVersion := current.Version + 1
-	tiersJSON, _ := json.Marshal(current.Tiers)
-	swapsJSON, _ := json.Marshal(current.Swaps)
-	secretsJSON, _ := json.Marshal(current.Secrets)
-	settingsJSON, _ := json.Marshal(current.Settings)
+	tiersJSON, swapsJSON, secretsJSON, settingsJSON, err := marshalProfileJSON(current)
+	if err != nil {
+		return nil, err
+	}
 
-	_, err = r.db.ExecContext(ctx, `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin profile update: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	_, err = tx.ExecContext(ctx, `
 		UPDATE profiles
 		SET tiers = $1, swaps = $2, secrets = $3, settings = $4, version = $5, updated_at = CURRENT_TIMESTAMP, updated_by = 'system'
 		WHERE id = $6
@@ -139,11 +156,16 @@ func (r *SQLRepository) Update(ctx context.Context, idOrName string, updates map
 		return nil, err
 	}
 
-	// Create version history entry
-	_, _ = r.db.ExecContext(ctx, `
+	// Version history is part of the durable profile record.
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO profile_versions (profile_id, version, name, scenario, tiers, swaps, secrets, settings, created_by, change_description)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'system', 'Profile updated')
-	`, current.ID, newVersion, current.Name, current.Scenario, tiersJSON, swapsJSON, secretsJSON, settingsJSON)
+	`, current.ID, newVersion, current.Name, current.Scenario, tiersJSON, swapsJSON, secretsJSON, settingsJSON); err != nil {
+		return nil, fmt.Errorf("create profile history: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit profile update: %w", err)
+	}
 
 	current.Version = newVersion
 	return current, nil
@@ -156,7 +178,10 @@ func (r *SQLRepository) Delete(ctx context.Context, idOrName string) (bool, erro
 		return false, err
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("read deleted profile count: %w", err)
+	}
 	return rowsAffected > 0, nil
 }
 
@@ -189,18 +214,17 @@ func (r *SQLRepository) GetVersions(ctx context.Context, idOrName string) ([]Ver
 		var tiersJSON, swapsJSON, secretsJSON, settingsJSON []byte
 
 		if err := rows.Scan(&v.ProfileID, &v.Version, &v.Name, &v.Scenario, &tiersJSON, &swapsJSON, &secretsJSON, &settingsJSON, &v.CreatedAt, &v.CreatedBy, &v.ChangeDescription); err != nil {
-			continue
+			return nil, fmt.Errorf("scan profile version: %w", err)
 		}
 
-		_ = json.Unmarshal(tiersJSON, &v.Tiers)
-		_ = json.Unmarshal(swapsJSON, &v.Swaps)
-		_ = json.Unmarshal(secretsJSON, &v.Secrets)
-		_ = json.Unmarshal(settingsJSON, &v.Settings)
+		if err := decodeVersionJSON(&v, tiersJSON, swapsJSON, secretsJSON, settingsJSON); err != nil {
+			return nil, fmt.Errorf("decode profile version %d: %w", v.Version, err)
+		}
 
 		versions = append(versions, v)
 	}
 
-	return versions, nil
+	return versions, rows.Err()
 }
 
 // GetScenarioAndTier retrieves just the scenario name and tier count for a profile.
@@ -246,7 +270,7 @@ func (r *SQLRepository) AddSwap(ctx context.Context, idOrName string, swap Swap)
 	// Parse existing swaps
 	var swaps []Swap
 	if err := json.Unmarshal(swapsJSON, &swaps); err != nil {
-		swaps = []Swap{}
+		return fmt.Errorf("decode profile swaps: %w", err)
 	}
 
 	// Check if swap already exists (same from->to)
@@ -254,7 +278,10 @@ func (r *SQLRepository) AddSwap(ctx context.Context, idOrName string, swap Swap)
 		if existing.From == swap.From && existing.To == swap.To {
 			// Update existing swap
 			swaps[i] = swap
-			newSwapsJSON, _ := json.Marshal(swaps)
+			newSwapsJSON, err := json.Marshal(swaps)
+			if err != nil {
+				return fmt.Errorf("encode profile swaps: %w", err)
+			}
 			_, err = r.db.ExecContext(ctx, `
 				UPDATE profiles
 				SET swaps = $1, updated_at = CURRENT_TIMESTAMP, version = version + 1
@@ -266,7 +293,10 @@ func (r *SQLRepository) AddSwap(ctx context.Context, idOrName string, swap Swap)
 
 	// Add new swap
 	swaps = append(swaps, swap)
-	newSwapsJSON, _ := json.Marshal(swaps)
+	newSwapsJSON, err := json.Marshal(swaps)
+	if err != nil {
+		return fmt.Errorf("encode profile swaps: %w", err)
+	}
 
 	_, err = r.db.ExecContext(ctx, `
 		UPDATE profiles
@@ -295,8 +325,60 @@ func (r *SQLRepository) GetSwaps(ctx context.Context, idOrName string) ([]Swap, 
 
 	var swaps []Swap
 	if err := json.Unmarshal(swapsJSON, &swaps); err != nil {
-		return []Swap{}, nil
+		return nil, fmt.Errorf("decode profile swaps: %w", err)
 	}
 
 	return swaps, nil
+}
+
+func marshalProfileJSON(profile *Profile) ([]byte, []byte, []byte, []byte, error) {
+	tiers, err := json.Marshal(profile.Tiers)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("encode profile tiers: %w", err)
+	}
+	swaps, err := json.Marshal(profile.Swaps)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("encode profile swaps: %w", err)
+	}
+	secrets, err := json.Marshal(profile.Secrets)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("encode profile secrets: %w", err)
+	}
+	settings, err := json.Marshal(profile.Settings)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("encode profile settings: %w", err)
+	}
+	return tiers, swaps, secrets, settings, nil
+}
+
+func decodeProfileJSON(profile *Profile, tiers, swaps, secrets, settings []byte) error {
+	if err := json.Unmarshal(tiers, &profile.Tiers); err != nil {
+		return fmt.Errorf("tiers: %w", err)
+	}
+	if err := json.Unmarshal(swaps, &profile.Swaps); err != nil {
+		return fmt.Errorf("swaps: %w", err)
+	}
+	if err := json.Unmarshal(secrets, &profile.Secrets); err != nil {
+		return fmt.Errorf("secrets: %w", err)
+	}
+	if err := json.Unmarshal(settings, &profile.Settings); err != nil {
+		return fmt.Errorf("settings: %w", err)
+	}
+	return nil
+}
+
+func decodeVersionJSON(version *Version, tiers, swaps, secrets, settings []byte) error {
+	if err := json.Unmarshal(tiers, &version.Tiers); err != nil {
+		return fmt.Errorf("tiers: %w", err)
+	}
+	if err := json.Unmarshal(swaps, &version.Swaps); err != nil {
+		return fmt.Errorf("swaps: %w", err)
+	}
+	if err := json.Unmarshal(secrets, &version.Secrets); err != nil {
+		return fmt.Errorf("secrets: %w", err)
+	}
+	if err := json.Unmarshal(settings, &version.Settings); err != nil {
+		return fmt.Errorf("settings: %w", err)
+	}
+	return nil
 }

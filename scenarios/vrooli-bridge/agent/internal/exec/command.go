@@ -49,7 +49,11 @@ func (osCommandRunner) run(ctx context.Context, argv []string, dir string, overl
 	// shell metacharacters); the binary is operator-configured. This is the
 	// allowlisted-verb execution path, not a shell.
 	cmd := exec.Command(resolved, argv[1:]...)
-	prepareCommand(cmd)
+	controller, err := prepareCommand(cmd)
+	if err != nil {
+		return startFailureExitCode, err
+	}
+	defer controller.close()
 	cmd.Dir = dir
 	// Native service managers intentionally provide a minimal PATH. The Vrooli
 	// CLI is often an absolute path in that environment, but its typed commands
@@ -73,6 +77,11 @@ func (osCommandRunner) run(ctx context.Context, argv []string, dir string, overl
 	if err := cmd.Start(); err != nil {
 		return startFailureExitCode, err
 	}
+	if err := controller.attach(cmd); err != nil {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return startFailureExitCode, err
+	}
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go streamLines(&wg, stdout, onLog)
@@ -84,7 +93,7 @@ func (osCommandRunner) run(ctx context.Context, argv []string, dir string, overl
 	select {
 	case waitErr = <-waitDone:
 	case <-ctx.Done():
-		terminateCommand(cmd)
+		controller.terminate(cmd)
 		waitErr = <-waitDone
 	}
 

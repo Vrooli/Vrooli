@@ -1,9 +1,6 @@
 """Compose shared learning measurements with Device Control's binding condition."""
 import json
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 envelope = {"program": "device-control.setpoint-read", "version": "2", "status": "ok",
             "phase": "report", "signals": {"rows": []}, "errors": [], "evidence": []}
 try:

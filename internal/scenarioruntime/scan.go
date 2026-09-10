@@ -7,7 +7,7 @@ import (
 )
 
 const instanceSelectSQL = `
-SELECT instance_id, scenario, variant, generation, scope_path, sandbox_id, status, phase,
+SELECT instance_id, scenario, build_identity, variant, generation, scope_path, sandbox_id, status, phase,
   started_at, updated_at, last_heartbeat_at, heartbeat_deadline_at, stopped_at,
   stop_reason, owner_kind, owner_pid, working_dir, host_boot_id, host_session_id,
   supervisor_id, supervised_at, last_reconciled_at, reconciliation_status,
@@ -45,7 +45,7 @@ func scanInstance(row scanner) (Instance, error) {
 	var lastHeartbeatAt, heartbeatDeadlineAt, stoppedAt, supervisedAt, lastReconciledAt sql.NullString
 	var ownerPID sql.NullInt64
 	err := row.Scan(
-		&in.InstanceID, &in.Scenario, &in.Variant, &in.Generation, &in.ScopePath, &in.SandboxID, &in.Status, &in.Phase,
+		&in.InstanceID, &in.Scenario, &in.BuildIdentity, &in.Variant, &in.Generation, &in.ScopePath, &in.SandboxID, &in.Status, &in.Phase,
 		&startedAt, &updatedAt, &lastHeartbeatAt, &heartbeatDeadlineAt, &stoppedAt,
 		&in.StopReason, &in.OwnerKind, &ownerPID, &in.WorkingDir, &in.HostBootID, &in.HostSessionID,
 		&in.SupervisorID, &supervisedAt, &lastReconciledAt, &in.ReconciliationStatus,
@@ -220,7 +220,7 @@ func scanHealthSnapshot(row scanner) (HealthSnapshot, error) {
 	var checkedAt sql.NullString
 	var latencyMillis sql.NullInt64
 	err := row.Scan(
-		&snapshot.InstanceID, &snapshot.Scenario, &snapshot.Status, &readiness, &checkedAt,
+		&snapshot.InstanceID, &snapshot.Scenario, &snapshot.BuildIdentity, &snapshot.Status, &readiness, &checkedAt,
 		&latencyMillis, &snapshot.Error, &snapshot.ResponseJSON, &schemaValid,
 	)
 	if err != nil {

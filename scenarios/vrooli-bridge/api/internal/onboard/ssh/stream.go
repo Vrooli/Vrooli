@@ -15,7 +15,7 @@ import (
 
 // KnownHostsPath returns the bridge-owned known_hosts file the Service pins all
 // its ssh/scp invocations to. The onboard orchestrator threads it into the
-// Config it builds for the post-first-touch SCP + streaming bootstrap exec so
+// ConnectionConfig it builds for the post-first-touch SCP + streaming bootstrap exec so
 // they share the same TOFU host-key store the first touch populated.
 func (s *Service) KnownHostsPath() string { return s.knownHostsPath() }
 
@@ -52,7 +52,7 @@ type StreamOptions struct {
 //
 // The command string is logged with the key path redacted (FormatCommandForLog);
 // opts.Stdin is never logged, so a secret injected over stdin stays out of logs.
-func (s *Service) RunStreaming(ctx context.Context, cfg Config, command string, opts StreamOptions) (Result, error) {
+func (s *Service) RunStreaming(ctx context.Context, cfg ConnectionConfig, command string, opts StreamOptions) (Result, error) {
 	if opts.Run.CommandTimeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, opts.Run.CommandTimeout)

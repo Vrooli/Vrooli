@@ -494,11 +494,15 @@ func runInstallCommand(ctx context.Context, controller *Controller, manifest Res
 	}
 
 	stderrTail := newTailBuffer(driversCliParameterB << driversCliParameterA)
+	env, err := resourceEnvForManifest(controller.Root, controller.Home, manifest)
+	if err != nil {
+		return err
+	}
 	cmd := shell.Command(shell.Spec{
 		Name:   command[0],
 		Args:   command[1:],
 		Dir:    controller.Root,
-		Env:    resourceEnvForResource(controller.Root, controller.Home, manifest.Name),
+		Env:    env,
 		Stdout: io.Discard,
 		Stderr: stderrTail,
 	})

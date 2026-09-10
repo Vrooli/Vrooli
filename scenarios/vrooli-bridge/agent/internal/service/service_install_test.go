@@ -19,6 +19,7 @@ import (
 type fakeRunner struct {
 	calls   [][]string
 	outputs map[string]string // key substring (matched against the joined argv) → canned stdout
+	errors  map[string]error  // key substring (matched against the joined argv) → canned error
 }
 
 func (r *fakeRunner) run(_ context.Context, argv ...string) (string, error) {
@@ -27,6 +28,11 @@ func (r *fakeRunner) run(_ context.Context, argv ...string) (string, error) {
 	for key, out := range r.outputs {
 		if strings.Contains(joined, key) {
 			return out, nil
+		}
+	}
+	for key, err := range r.errors {
+		if strings.Contains(joined, key) {
+			return "", err
 		}
 	}
 	return "", nil
@@ -101,6 +107,18 @@ func TestSystemdSystemScopeUsesMachineUnitAndManager(t *testing.T) {
 	unit, err := SystemdUnit(d)
 	require.NoError(t, err)
 	require.Contains(t, unit, "User=vrooli-provisioner")
+}
+
+func TestSystemScopeRequiresExplicitServiceUser(t *testing.T) {
+	d := installDef()
+	d.System = true
+	d.User = ""
+
+	_, err := SystemdUnit(d)
+	require.EqualError(t, err, "system service user is required")
+
+	_, err = WindowsServiceCreateArgs(d)
+	require.EqualError(t, err, "system service user is required")
 }
 
 // [REQ:BRG-P0-007] Re-running systemd Install is idempotent: it rewrites the same
@@ -340,18 +358,82 @@ func TestLaunchdPlist_EscapesXML(t *testing.T) {
 	require.NotContains(t, plist, "&b=2<x>")
 }
 
-// [REQ:BRG-P0-007] Windows stays render-only this phase: Install/Status/Uninstall
-// return a render-only error rather than pretending to install.
-func TestWindowsManager_RenderOnly(t *testing.T) {
-	m := windowsManager{}
-	_, err := m.Install(context.Background(), installDef())
-	require.ErrorContains(t, err, "render-only")
-	_, err = m.Uninstall(context.Background(), installDef())
-	require.ErrorContains(t, err, "render-only")
-	// Rendering still works.
-	out, err := m.Render(installDef())
+// [REQ:BRG-P0-007] Windows drives the SCM through a typed, idempotent command
+// sequence. The fake responses model the native `sc.exe` output; they do not
+// substitute for a real Windows host run.
+func TestWindowsManager_InstallStatusUninstall(t *testing.T) {
+	d := installDef()
+	runner := &scriptedRunner{responses: []scriptedResponse{
+		{err: errFakeErr("1060: service does not exist")},
+		{},
+		{},
+		{out: "STATE              : 4  RUNNING\n        PID                : 4242\n"},
+		{out: "START_TYPE         : 2   AUTO_START\nBINARY_PATH_NAME   : /bin/sh --control-plane-url https://cp.example --node-id n1\nSERVICE_START_NAME : vrooli-agent\n"},
+		{out: "STATE              : 4  RUNNING\n        PID                : 4242\n"},
+		{out: "START_TYPE         : 2   AUTO_START\nBINARY_PATH_NAME   : /bin/sh --control-plane-url https://cp.example --node-id n1\nSERVICE_START_NAME : vrooli-agent\n"},
+		{out: "STATE              : 1  STOPPED\n"},
+		{err: errFakeErr("1062: service is not active")},
+		{},
+	}}
+	m := windowsManager{runner: runner}
+
+	installed, err := m.Install(context.Background(), d)
 	require.NoError(t, err)
-	require.Contains(t, out, "sc.exe create")
+	require.True(t, installed.Enabled)
+	require.True(t, installed.Running)
+	require.Equal(t, platform.ServiceManagerWindows, installed.Kind)
+	require.Equal(t, []string{
+		"sc.exe queryex vrooli-bridge-agent",
+		"sc.exe create vrooli-bridge-agent binPath= /bin/sh --control-plane-url https://cp.example --node-id n1 start= auto DisplayName= Vrooli Bridge node agent obj= vrooli-agent",
+		"sc.exe start vrooli-bridge-agent",
+		"sc.exe queryex vrooli-bridge-agent",
+		"sc.exe qc vrooli-bridge-agent",
+	}, runner.argvStrings()[:5])
+
+	status, err := m.Status(context.Background(), d)
+	require.NoError(t, err)
+	require.True(t, status.Installed)
+	require.True(t, status.Configured)
+	require.True(t, status.Running)
+	require.True(t, status.Enabled)
+	require.Equal(t, 4242, status.PID)
+
+	removed, err := m.Uninstall(context.Background(), d)
+	require.NoError(t, err)
+	require.True(t, removed.Removed)
+	require.Equal(t, []string{
+		"sc.exe queryex vrooli-bridge-agent",
+		"sc.exe stop vrooli-bridge-agent",
+		"sc.exe delete vrooli-bridge-agent",
+	}, runner.argvStrings()[7:])
+}
+
+func TestWindowsManagerStatus_RejectsTamperedServiceConfiguration(t *testing.T) {
+	d := installDef()
+	runner := &scriptedRunner{responses: []scriptedResponse{
+		{out: "STATE              : 4  RUNNING\n        PID                : 4242\n"},
+		{out: "START_TYPE         : 2   AUTO_START\nBINARY_PATH_NAME   : C:\\Users\\Public\\rogue.exe\nSERVICE_START_NAME : Administrator\n"},
+	}}
+	m := windowsManager{runner: runner}
+
+	status, err := m.Status(context.Background(), d)
+	require.NoError(t, err)
+	require.True(t, status.Installed)
+	require.False(t, status.Configured)
+	require.True(t, status.Running)
+	require.Contains(t, status.Detail, "CONFIGURATION_MISMATCH")
+}
+
+func TestWindowsManager_MissingServiceIsReadOnlyNoop(t *testing.T) {
+	runner := &scriptedRunner{responses: []scriptedResponse{{err: errFakeErr("1060: does not exist")}, {err: errFakeErr("1060: does not exist")}}}
+	m := windowsManager{runner: runner}
+	res, err := m.Status(context.Background(), installDef())
+	require.NoError(t, err)
+	require.False(t, res.Installed)
+	require.False(t, res.Running)
+	removed, err := m.Uninstall(context.Background(), installDef())
+	require.NoError(t, err)
+	require.False(t, removed.Removed)
 }
 
 // [REQ:BRG-P0-007] A systemd Install whose enable step fails surfaces the error
@@ -369,6 +451,34 @@ var errFake = errFakeErr("boom")
 type errFakeErr string
 
 func (e errFakeErr) Error() string { return string(e) }
+
+type scriptedResponse struct {
+	out string
+	err error
+}
+
+type scriptedRunner struct {
+	calls     [][]string
+	responses []scriptedResponse
+}
+
+func (r *scriptedRunner) run(_ context.Context, argv ...string) (string, error) {
+	r.calls = append(r.calls, append([]string(nil), argv...))
+	if len(r.responses) == 0 {
+		return "", nil
+	}
+	response := r.responses[0]
+	r.responses = r.responses[1:]
+	return response.out, response.err
+}
+
+func (r *scriptedRunner) argvStrings() []string {
+	out := make([]string, len(r.calls))
+	for i, call := range r.calls {
+		out[i] = strings.Join(call, " ")
+	}
+	return out
+}
 
 // failOnRunner fails the first call whose joined argv contains a substring, so a
 // test can force a specific step to fail while others succeed.

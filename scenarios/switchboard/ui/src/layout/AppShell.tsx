@@ -10,7 +10,12 @@ import { BrandMark } from "./BrandMark";
 import { NAV_ITEMS, isNavItemActive, navIcon } from "./navItems";
 
 // The library owns chrome; Switchboard configures a conversation workspace.
-const SHELL = { density: "rail", mobileNav: "tabs", mainMode: "fill" } as const;
+//
+// `sidebar` rather than `rail`: the rail collapses every link to an icon over a
+// caption in a ~4rem column, hides the product name, and squeezes the utility
+// slot (which holds a select) with `overflow-wrap: anywhere`. Six items with
+// real words read better full width, and the sidebar is user-resizable.
+const SHELL = { density: "sidebar", mobileNav: "tabs", mainMode: "fill" } as const;
 
 export function AppShell() {
   const { t } = useTranslation();

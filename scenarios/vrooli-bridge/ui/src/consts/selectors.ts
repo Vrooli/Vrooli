@@ -101,10 +101,6 @@ const literalSelectors = {
   },
   layout: {
     shell: "layout-shell",
-    topBar: "layout-top-bar",
-    sidebar: "layout-sidebar",
-    bottomNav: "layout-bottom-nav",
-    main: "layout-main",
   },
   theme: {
     switcher: "theme-switcher",
@@ -157,6 +153,31 @@ const literalSelectors = {
 // is a TypeScript error when "fr" isn't a supported locale. The runtime enum
 // validation in `normalizeParams` provides the same guarantee at call time.
 const dynamicSelectorDefinitions = {
+  fleet: {
+    row: defineDynamicSelector({ description: "Fleet node row by id", testIdPattern: "fleet-row-${id}", params: { id: { type: "string" } } }),
+    jobs: defineDynamicSelector({ description: "Fleet node jobs by id", testIdPattern: "fleet-jobs-${id}", params: { id: { type: "string" } } }),
+    revoke: defineDynamicSelector({ description: "Fleet revoke action by id", testIdPattern: "fleet-revoke-${id}", params: { id: { type: "string" } } }),
+    onboardRemove: defineDynamicSelector({ description: "Onboarding remove action by id", testIdPattern: "fleet-onboard-remove-${id}", params: { id: { type: "string" } } }),
+    onboardRetry: defineDynamicSelector({ description: "Onboarding retry action by id", testIdPattern: "fleet-onboard-retry-${id}", params: { id: { type: "string" } } }),
+    onboardViewLogs: defineDynamicSelector({ description: "Onboarding logs action by id", testIdPattern: "fleet-onboard-view-logs-${id}", params: { id: { type: "string" } } }),
+    machineLifecycleRow: defineDynamicSelector({ description: "Machine lifecycle row by id", testIdPattern: "machine-lifecycle-row-${id}", params: { id: { type: "string" } } }),
+    onboardStep: defineDynamicSelector({ description: "Onboarding step by step id", testIdPattern: "fleet-onboard-step-${step}", params: { step: { type: "string" } } }),
+    pairingRequests: {
+      row: defineDynamicSelector({ description: "Pairing request row by id", testIdPattern: "fleet-pairing-request-row-${id}", params: { id: { type: "string" } } }),
+      words: defineDynamicSelector({ description: "Pairing request words by id", testIdPattern: "fleet-pairing-request-words-${id}", params: { id: { type: "string" } } }),
+      wordsMatch: defineDynamicSelector({ description: "Pairing request word match by id", testIdPattern: "fleet-pairing-request-words-match-${id}", params: { id: { type: "string" } } }),
+      preset: defineDynamicSelector({ description: "Pairing request preset by id", testIdPattern: "fleet-pairing-request-preset-${id}", params: { id: { type: "string" } } }),
+      approve: defineDynamicSelector({ description: "Pairing request approve action by id", testIdPattern: "fleet-pairing-request-approve-${id}", params: { id: { type: "string" } } }),
+      reject: defineDynamicSelector({ description: "Pairing request reject action by id", testIdPattern: "fleet-pairing-request-reject-${id}", params: { id: { type: "string" } } }),
+      error: defineDynamicSelector({ description: "Pairing request error by id", testIdPattern: "fleet-pairing-request-error-${id}", params: { id: { type: "string" } } }),
+    },
+  },
+  runs: {
+    row: defineDynamicSelector({ description: "Run row by id", testIdPattern: "runs-row-${id}", params: { id: { type: "string" } } }),
+    view: defineDynamicSelector({ description: "Run view action by id", testIdPattern: "runs-view-${id}", params: { id: { type: "string" } } }),
+    cancel: defineDynamicSelector({ description: "Run cancel action by id", testIdPattern: "runs-cancel-${id}", params: { id: { type: "string" } } }),
+    artifact: defineDynamicSelector({ description: "Run artifact by run id and index", testIdPattern: "runs-artifact-${id}-${index}", params: { id: { type: "string" }, index: { type: "number" } } }),
+  },
   locale: {
     toggle: defineDynamicSelector({
       description: "Locale toggle button by language code",
@@ -165,9 +186,9 @@ const dynamicSelectorDefinitions = {
     }),
   },
   layout: {
-    sidebarLink: defineDynamicSelector({
-      description: "Sidebar navigation link by canonical nav key",
-      testIdPattern: "layout-sidebar-link-${key}",
+    navLink: defineDynamicSelector({
+      description: "App shell navigation link by canonical nav key",
+      testIdPattern: "layout-nav-link-${key}",
       params: {
         key: {
           type: "enum",
@@ -178,128 +199,9 @@ const dynamicSelectorDefinitions = {
             "sessions",
             "rollouts",
             "trust",
-            "setup",
-          ] as const,
+            "setup",          ] as const,
         },
       },
-    }),
-    bottomNavLink: defineDynamicSelector({
-      description: "Bottom-nav link by canonical nav key",
-      testIdPattern: "layout-bottom-nav-link-${key}",
-      params: {
-        key: {
-          type: "enum",
-          values: [
-            "dashboard",
-            "runs",
-            "settings",
-            "sessions",
-            "rollouts",
-            "trust",
-            "setup",
-          ] as const,
-        },
-      },
-    }),
-  },
-  fleet: {
-    pairingRequests: {
-      row: defineDynamicSelector({
-        description: "Pending pairing request by request id",
-        testIdPattern: "fleet-pairing-request-${id}",
-        params: { id: { type: "string" } },
-      }),
-      words: defineDynamicSelector({
-        description: "Confirmation words for a pending pairing request",
-        testIdPattern: "fleet-pairing-request-words-${id}",
-        params: { id: { type: "string" } },
-      }),
-      preset: defineDynamicSelector({
-        description: "Permission preset for a pending pairing request",
-        testIdPattern: "fleet-pairing-request-preset-${id}",
-        params: { id: { type: "string" } },
-      }),
-      wordsMatch: defineDynamicSelector({
-        description: "Confirmation checkbox for a pending pairing request",
-        testIdPattern: "fleet-pairing-request-words-match-${id}",
-        params: { id: { type: "string" } },
-      }),
-      approve: defineDynamicSelector({
-        description: "Approve a pending pairing request",
-        testIdPattern: "fleet-pairing-request-approve-${id}",
-        params: { id: { type: "string" } },
-      }),
-      reject: defineDynamicSelector({
-        description: "Reject a pending pairing request",
-        testIdPattern: "fleet-pairing-request-reject-${id}",
-        params: { id: { type: "string" } },
-      }),
-      error: defineDynamicSelector({
-        description: "Pairing approval error",
-        testIdPattern: "fleet-pairing-request-error",
-      }),
-    },
-    machineLifecycleRow: defineDynamicSelector({
-      description: "Durable Machine lifecycle row by Machine id",
-      testIdPattern: "machine-lifecycle-${id}",
-      params: { id: { type: "string" } },
-    }),
-    row: defineDynamicSelector({
-      description: "Fleet node row by node id",
-      testIdPattern: "fleet-row-${id}",
-      params: { id: { type: "string" } },
-    }),
-    revoke: defineDynamicSelector({
-      description: "Revoke action for a fleet node by id",
-      testIdPattern: "fleet-revoke-${id}",
-      params: { id: { type: "string" } },
-    }),
-    jobs: defineDynamicSelector({
-      description: "Live job-status summary for a fleet node by id",
-      testIdPattern: "fleet-jobs-${id}",
-      params: { id: { type: "string" } },
-    }),
-    onboardStep: defineDynamicSelector({
-      description: "One onboarding step row by step id",
-      testIdPattern: "fleet-onboard-step-${step}",
-      params: { step: { type: "string" } },
-    }),
-    onboardRetry: defineDynamicSelector({
-      description: "Retry action for a saved failed onboarding target by operation id",
-      testIdPattern: "fleet-onboard-retry-${id}",
-      params: { id: { type: "string" } },
-    }),
-    onboardViewLogs: defineDynamicSelector({
-      description: "View-or-hide durable onboarding diagnostics by operation id",
-      testIdPattern: "fleet-onboard-view-logs-${id}",
-      params: { id: { type: "string" } },
-    }),
-    onboardRemove: defineDynamicSelector({
-      description: "Remove action for a saved failed onboarding target by operation id",
-      testIdPattern: "fleet-onboard-remove-${id}",
-      params: { id: { type: "string" } },
-    }),
-  },
-  runs: {
-    row: defineDynamicSelector({
-      description: "Run-history row by run id",
-      testIdPattern: "runs-row-${id}",
-      params: { id: { type: "string" } },
-    }),
-    view: defineDynamicSelector({
-      description: "View-output action for a run by id",
-      testIdPattern: "runs-view-${id}",
-      params: { id: { type: "string" } },
-    }),
-    cancel: defineDynamicSelector({
-      description: "Cancel (abort) action for an in-flight run by id",
-      testIdPattern: "runs-cancel-${id}",
-      params: { id: { type: "string" } },
-    }),
-    artifact: defineDynamicSelector({
-      description: "Downloadable artifact link by run id and ordinal index",
-      testIdPattern: "runs-artifact-${id}-${index}",
-      params: { id: { type: "string" }, index: { type: "number" } },
     }),
   },
   settingsPage: {

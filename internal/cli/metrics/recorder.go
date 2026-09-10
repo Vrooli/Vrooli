@@ -2,10 +2,13 @@ package metrics
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -49,8 +52,35 @@ Opting out:
 Caveat: commands that detach a subprocess (e.g. ` + "`scenario start`" + `)
 record the parent-side duration, not the time for the child to become healthy.
 
-Rotation: none. Truncate this file manually if it grows large.
+Rotation: the active file rotates at the configured size or age boundary;
+rotated files are retained up to the configured backup count. Rotation is
+owner-local and does not delete source, state, or other runtime-home data.
 `
+
+// RotationPolicy bounds the passive timings log. The policy is injectable so
+// size and age boundaries can be tested without waiting or relying on the host
+// clock.
+type RotationPolicy struct {
+	MaxBytes   int64
+	MaxAge     time.Duration
+	MaxBackups int
+	Now        func() time.Time
+}
+
+const (
+	defaultMaxTimingBytes   = 64 * 1024 * 1024
+	defaultMaxTimingAge     = 30 * 24 * time.Hour
+	defaultMaxTimingBackups = 3
+)
+
+func defaultRotationPolicy() RotationPolicy {
+	return RotationPolicy{
+		MaxBytes:   defaultMaxTimingBytes,
+		MaxAge:     defaultMaxTimingAge,
+		MaxBackups: defaultMaxTimingBackups,
+		Now:        func() time.Time { return time.Now().UTC() },
+	}
+}
 
 // Recorder appends Events to a JSONL file. Safe for concurrent use.
 // A nil *Recorder or one with disabled=true silently drops events.
@@ -61,6 +91,7 @@ type Recorder struct {
 
 	mu         sync.Mutex
 	readmeDone bool
+	rotation   RotationPolicy
 }
 
 // New constructs a Recorder that writes to $home/.vrooli/metrics/timings.jsonl.
@@ -70,6 +101,34 @@ type Recorder struct {
 // onError, if non-nil, is invoked for each IO failure. It must not panic.
 // Recording is always non-fatal; errors are never returned to the caller.
 func New(home string, onError func(error)) *Recorder {
+	return NewWithPolicy(home, onError, defaultRotationPolicy())
+}
+
+// NewWithPolicy constructs a Recorder with an explicit bounded-log policy.
+// Zero policy fields use safe defaults; negative values are clamped.
+func NewWithPolicy(home string, onError func(error), policy RotationPolicy) *Recorder {
+	defaults := defaultRotationPolicy()
+	if policy.MaxBytes == 0 {
+		policy.MaxBytes = defaults.MaxBytes
+	}
+	if policy.MaxAge == 0 {
+		policy.MaxAge = defaults.MaxAge
+	}
+	if policy.MaxBackups == 0 {
+		policy.MaxBackups = defaults.MaxBackups
+	}
+	if policy.MaxBytes < 0 {
+		policy.MaxBytes = 0
+	}
+	if policy.MaxAge < 0 {
+		policy.MaxAge = 0
+	}
+	if policy.MaxBackups < 0 {
+		policy.MaxBackups = 0
+	}
+	if policy.Now == nil {
+		policy.Now = defaults.Now
+	}
 	disabled := envDisabled(os.Getenv(EnvDisable))
 	path := ""
 	if root, err := repocontract.VrooliUserRoot(home); err == nil {
@@ -82,6 +141,7 @@ func New(home string, onError func(error)) *Recorder {
 		path:     path,
 		disabled: disabled,
 		onError:  onError,
+		rotation: policy,
 	}
 	return r
 }
@@ -110,6 +170,9 @@ func (r *Recorder) Record(e Event) {
 		r.ensureReadme(dir)
 		r.readmeDone = true
 	}
+	if err := r.rotateIfNeeded(len(line)); err != nil {
+		r.report(err)
+	}
 	f, err := os.OpenFile(r.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, tuning.PermFile)
 	if err != nil {
 		r.report(err)
@@ -119,6 +182,62 @@ func (r *Recorder) Record(e Event) {
 	_ = config.ChownToInvokingUser(r.path)
 	if _, err := f.Write(line); err != nil {
 		r.report(err)
+	}
+}
+
+func (r *Recorder) rotateIfNeeded(nextBytes int) error {
+	info, err := os.Stat(r.path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	now := r.rotation.Now()
+	bySize := r.rotation.MaxBytes > 0 && info.Size()+int64(nextBytes) > r.rotation.MaxBytes
+	byAge := r.rotation.MaxAge > 0 && !info.ModTime().IsZero() && now.Sub(info.ModTime()) >= r.rotation.MaxAge
+	if !bySize && !byAge {
+		return nil
+	}
+	stamp := now.UTC().Format("20060102-150405")
+	rotated := r.path + "." + stamp
+	for suffix := 1; ; suffix++ {
+		if _, statErr := os.Stat(rotated); os.IsNotExist(statErr) {
+			break
+		}
+		rotated = fmt.Sprintf("%s.%s-%d", r.path, stamp, suffix)
+	}
+	if err := os.Rename(r.path, rotated); err != nil {
+		return fmt.Errorf("rotate timings: %w", err)
+	}
+	r.cleanupRotated(now)
+	return nil
+}
+
+func (r *Recorder) cleanupRotated(now time.Time) {
+	matches, err := filepath.Glob(r.path + ".*")
+	if err != nil {
+		return
+	}
+	type backup struct {
+		path string
+		mod  time.Time
+	}
+	backups := make([]backup, 0, len(matches))
+	for _, path := range matches {
+		info, statErr := os.Stat(path)
+		if statErr != nil || !info.Mode().IsRegular() {
+			continue
+		}
+		if r.rotation.MaxAge > 0 && now.Sub(info.ModTime()) >= r.rotation.MaxAge {
+			_ = os.Remove(path)
+			continue
+		}
+		backups = append(backups, backup{path: path, mod: info.ModTime()})
+	}
+	sort.Slice(backups, func(i, j int) bool { return backups[i].mod.After(backups[j].mod) })
+	for i := r.rotation.MaxBackups; i < len(backups); i++ {
+		_ = os.Remove(backups[i].path)
 	}
 }
 

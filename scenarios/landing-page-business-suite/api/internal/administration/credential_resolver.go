@@ -42,6 +42,8 @@ func AuthorityFieldForKey(key string) string {
 		return "stripe-secret-key"
 	case "STRIPE_WEBHOOK_SECRET":
 		return "stripe-webhook-secret"
+	case "SMTP_PASSWORD":
+		return "smtp-password"
 	}
 	return field
 }
@@ -68,11 +70,33 @@ func ResolveAuthorityCredential(key string) (string, error) {
 	return strings.TrimSpace(value), nil
 }
 
+// PutAuthorityCredential is the write side for operator-supplied credentials
+// that are accepted by an owning settings surface. The settings layer may
+// retain non-secret SMTP metadata, but the protected value always goes through
+// the shared authority.
+func PutAuthorityCredential(key, value string) error {
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return fmt.Errorf("initialize credential authority: %w", err)
+	}
+	return authority.Put(credentialAuthorityIdentity, AuthorityFieldForKey(key), value)
+}
+
+// DeleteAuthorityCredential removes an operator-supplied credential from the
+// same authority used for resolution.
+func DeleteAuthorityCredential(key string) error {
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return fmt.Errorf("initialize credential authority: %w", err)
+	}
+	return authority.Delete(credentialAuthorityIdentity, AuthorityFieldForKey(key))
+}
+
 // ResolveSecret preserves the optional configuration seam while routing every
 // declared credential through the authority resolver.
 func ResolveSecret(key string, log func(string, map[string]interface{})) string {
 	switch key {
-	case "SENDGRID_API_KEY", "ADMIN_DEFAULT_PASSWORD", "SESSION_SECRET", "SESSION_SECRET_PREVIOUS", "LPBS_" + "SERVICE_SECRET", "CONSUMER_AUTH_PRIVATE_KEY", "LPBS_API_KEY_ENCRYPTION_KEY", "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET":
+	case "SENDGRID_API_KEY", "SMTP_PASSWORD", "ADMIN_DEFAULT_PASSWORD", "SESSION_SECRET", "SESSION_SECRET_PREVIOUS", "LPBS_" + "SERVICE_SECRET", "CONSUMER_AUTH_PRIVATE_KEY", "LPBS_API_KEY_ENCRYPTION_KEY", "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET":
 		value, err := ResolveAuthorityCredential(key)
 		if err != nil {
 			if log != nil {

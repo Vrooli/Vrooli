@@ -9,6 +9,21 @@ Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
   value: getContextMock
 });
 
+Object.defineProperty(window, "matchMedia", {
+  configurable: true,
+  writable: true,
+  value: (media: string) => ({
+    media,
+    matches: media.includes("min-width"),
+    onchange: null,
+    addListener() {},
+    removeListener() {},
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent: () => false,
+  }),
+});
+
 beforeEach(() => {
   window.localStorage.clear();
   getContextMock.mockClear();

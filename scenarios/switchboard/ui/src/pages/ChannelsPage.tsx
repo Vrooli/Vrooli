@@ -13,6 +13,7 @@ import { Page } from "../components/console/Page";
 import { Panel } from "../components/console/Panel";
 import { Quiet, Region } from "../components/console/Region";
 import { strings } from "../consts/strings";
+import { initials } from "../lib/identity";
 import { useSession } from "../features/session/SessionProvider";
 import { useTranslation } from "../i18n";
 
@@ -66,9 +67,9 @@ export function ChannelsPage() {
         skeletonRows={4}
         empty={<Quiet icon={<Radio className="h-6 w-6" />} title={t(strings.console.channels.emptyTitle)} description={t(strings.console.channels.emptyDetail)} />}
       >
-        <ul data-testid="channels-catalog" className="flex flex-col gap-3">
+        <ul data-testid="channels-catalog" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visible.map((channel) => (
-            <ChannelRow
+            <ChannelCard
               key={channel.descriptor.id}
               channel={channel}
               bindings={health[channel.descriptor.id]?.bindings ?? 0}
@@ -115,7 +116,12 @@ function FrictionDots({ friction }: { friction: number }) {
   );
 }
 
-function ChannelRow({ channel, bindings, threads, highlighted, onAttach }: { channel: ChannelListing; bindings: number; threads: number; highlighted: boolean; onAttach: () => void }) {
+/**
+ * A channel reads as a record, not a settings row: an identity mark carrying
+ * the descriptor accent, then what it is, then what it costs to turn on. Same
+ * card shape as the agent roster, so the two pages feel like one product.
+ */
+function ChannelCard({ channel, bindings, threads, highlighted, onAttach }: { channel: ChannelListing; bindings: number; threads: number; highlighted: boolean; onAttach: () => void }) {
   const { t } = useTranslation();
   const d = channel.descriptor;
   const live = channel.availability === "available" && channel.implemented;
@@ -126,55 +132,72 @@ function ChannelRow({ channel, bindings, threads, highlighted, onAttach }: { cha
     d.supports?.threads ? t(strings.console.channels.supports.threads) : null,
   ].filter((item): item is string => item !== null);
   return (
-    <li
-      data-testid="channels-row"
-      data-channel-id={d.id}
-      className="relative"
-    >
-      <Panel className={["relative flex flex-col gap-3 overflow-hidden p-4 pl-5 sm:flex-row sm:items-center", highlighted ? "border-app-primary" : ""].join(" ")}>
-        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1.5" style={{ background: d.accent ?? "var(--color-accent)" }} />
-        <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-sm font-semibold text-app-foreground">{d.displayName}</h3>
-          <StatusBadge tone={live ? "success" : channel.implemented ? "warning" : "neutral"} data-testid="channels-availability">
-            {live ? t(strings.console.channels.availability.available) : channel.implemented ? t(strings.console.channels.availability.unavailable) : t(strings.console.channels.availability.unimplemented)}
-          </StatusBadge>
-          {d.cost && d.cost !== "free" ? (
-            <span data-testid="channels-gated" role="note" className="rounded-pill bg-app-surface-muted px-2 py-0.5 text-xs text-app-muted-foreground">
-              {t(COST_KEY[d.cost === "byok" ? "byok" : "metered"])}
-            </span>
-          ) : null}
+    <li data-testid="channels-row" data-channel-id={d.id}>
+      <Panel className={["flex h-full flex-col gap-3 p-4", highlighted ? "border-app-primary" : ""].join(" ")}>
+        <div className="flex items-start gap-3">
+          <ChannelMark name={d.displayName} accent={d.accent} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="truncate text-sm font-semibold text-app-foreground">{d.displayName}</h3>
+              <StatusBadge tone={live ? "success" : channel.implemented ? "warning" : "neutral"} data-testid="channels-availability">
+                {live ? t(strings.console.channels.availability.available) : channel.implemented ? t(strings.console.channels.availability.unavailable) : t(strings.console.channels.availability.unimplemented)}
+              </StatusBadge>
+              {d.cost && d.cost !== "free" ? (
+                <span data-testid="channels-gated" role="note" className="rounded-pill bg-app-surface-muted px-2 py-0.5 text-xs text-app-muted-foreground">
+                  {t(COST_KEY[d.cost === "byok" ? "byok" : "metered"])}
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-0.5 font-mono text-[11px] text-app-muted-foreground">{d.id}</p>
+          </div>
         </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-app-muted-foreground">
-          <FrictionDots friction={d.setup.friction} />
-          {capabilities.length > 0 ? <span>{capabilities.join(" · ")}</span> : null}
-          {d.limits?.maxTextBytes ? <span className="font-mono">{t(strings.console.channels.textLimit, { kb: Math.round(d.limits.maxTextBytes / 1024) })}</span> : null}
-        </div>
+
         {!live && channel.reason ? (
-          <p className="mt-2 text-sm text-app-foreground">
+          <p className="text-sm text-app-foreground">
             <span className="text-app-muted-foreground">{t(strings.console.channels.toEnable)}</span> {channel.reason}
           </p>
+        ) : capabilities.length > 0 ? (
+          <p className="text-sm text-app-muted-foreground">{capabilities.join(" \u00b7 ")}</p>
         ) : null}
-        {live ? (
-          <p data-testid="channels-health" className="mt-2 text-xs text-app-muted-foreground">
-            {t(strings.console.overview.channelCounts, { bindings, threads })}
-          </p>
-        ) : null}
-      </div>
-        <div className="flex shrink-0 items-center gap-2">
-        {live ? (
-          <Button type="button" size="sm" data-testid="channels-attach" onClick={onAttach}>
-            <Link2 aria-hidden="true" className="h-4 w-4" />
-            {t(strings.console.channels.attachAgent)}
-          </Button>
-        ) : (
-          <Link to="/settings" data-testid="channels-requirement" className="inline-flex min-h-11 items-center rounded-control border border-app-border px-3 text-sm font-medium text-app-foreground hover:bg-app-surface-muted">
-            {t(strings.console.channels.satisfyRequirement)}
-          </Link>
-        )}
+
+        <div className="mt-auto flex flex-col gap-3 border-t border-app-border pt-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-app-muted-foreground">
+            <FrictionDots friction={d.setup.friction} />
+            {d.limits?.maxTextBytes ? <span className="font-mono">{t(strings.console.channels.textLimit, { kb: Math.round(d.limits.maxTextBytes / 1024) })}</span> : null}
+            {live ? (
+              <span data-testid="channels-health" className="ml-auto">
+                {t(strings.console.overview.channelCounts, { bindings, threads })}
+              </span>
+            ) : null}
+          </div>
+          {live ? (
+            <Button type="button" size="sm" className="w-full justify-center" data-testid="channels-attach" onClick={onAttach}>
+              <Link2 aria-hidden="true" className="h-4 w-4" />
+              {t(strings.console.channels.attachAgent)}
+            </Button>
+          ) : (
+            <Link to="/settings" data-testid="channels-requirement" className="inline-flex min-h-11 w-full items-center justify-center rounded-control border border-app-border px-3 text-sm font-medium text-app-foreground hover:bg-app-surface-muted md:min-h-9">
+              {t(strings.console.channels.satisfyRequirement)}
+            </Link>
+          )}
         </div>
       </Panel>
     </li>
+  );
+}
+
+/** Channel identity: the descriptor accent as a filled mark, so the catalogue is scannable by colour before it is readable by name. */
+function ChannelMark({ name, accent }: { name: string; accent?: string | null }) {
+  return (
+    <span
+      role="img"
+      aria-label={name}
+      data-testid="channels-mark"
+      className="grid h-12 w-12 shrink-0 place-items-center rounded-control text-sm font-semibold text-white"
+      style={{ background: accent ?? "var(--color-accent)" }}
+    >
+      <span aria-hidden="true">{initials(name)}</span>
+    </span>
   );
 }
 

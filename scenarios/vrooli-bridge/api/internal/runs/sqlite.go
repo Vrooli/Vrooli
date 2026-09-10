@@ -44,12 +44,12 @@ const runTimeFormat = time.RFC3339Nano
 
 const (
 	insertRunSQL = `
-INSERT INTO runs (id, node_id, scenario, verb, args, status, exit_code, timeout_seconds, created_at, started_at, finished_at, artifact_refs, queued_since, pushed_at, acked_at, delivery_attempts, last_delivery_error, delivery_lease_expires_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO runs (id, node_id, scenario, verb, args, status, exit_code, timeout_seconds, created_at, started_at, finished_at, artifact_refs, queued_since, pushed_at, acked_at, delivery_attempts, last_delivery_error, delivery_lease_expires_at, cancel_requested_at, cancellation_confirmed, status_reason)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	selectRunColumns = `
-SELECT id, node_id, scenario, verb, args, status, exit_code, timeout_seconds, created_at, started_at, finished_at, artifact_refs, queued_since, pushed_at, acked_at, delivery_attempts, last_delivery_error, delivery_lease_expires_at
+SELECT id, node_id, scenario, verb, args, status, exit_code, timeout_seconds, created_at, started_at, finished_at, artifact_refs, queued_since, pushed_at, acked_at, delivery_attempts, last_delivery_error, delivery_lease_expires_at, cancel_requested_at, cancellation_confirmed, status_reason
 FROM runs
 `
 
@@ -57,7 +57,7 @@ FROM runs
 
 	updateRunSQL = `
 UPDATE runs
-SET status = ?, exit_code = ?, started_at = ?, finished_at = ?, artifact_refs = ?, queued_since = ?, pushed_at = ?, acked_at = ?, delivery_attempts = ?, last_delivery_error = ?, delivery_lease_expires_at = ?
+SET status = ?, exit_code = ?, started_at = ?, finished_at = ?, artifact_refs = ?, queued_since = ?, pushed_at = ?, acked_at = ?, delivery_attempts = ?, last_delivery_error = ?, delivery_lease_expires_at = ?, cancel_requested_at = ?, cancellation_confirmed = ?, status_reason = ?
 WHERE id = ?
 `
 
@@ -105,7 +105,7 @@ func (s *sqliteRepository) Create(ctx context.Context, r Run) (Run, error) {
 		r.ID, r.NodeID, r.Scenario, r.Verb, args, int(r.Status), r.ExitCode, r.TimeoutSeconds,
 		r.CreatedAt.Format(runTimeFormat), formatNullableTime(r.StartedAt), formatNullableTime(r.FinishedAt), refs,
 		formatNullableTime(r.QueuedSince), formatNullableTime(r.PushedAt), formatNullableTime(r.AckedAt), r.DeliveryAttempts,
-		r.LastDeliveryError, formatNullableTime(r.DeliveryLeaseExpiresAt),
+		r.LastDeliveryError, formatNullableTime(r.DeliveryLeaseExpiresAt), formatNullableTime(r.CancelRequestedAt), r.CancellationConfirmed, r.StatusReason,
 	); err != nil {
 		return Run{}, fmt.Errorf("insert run %q: %w", r.ID, err)
 	}
@@ -185,6 +185,9 @@ func (s *sqliteRepository) Update(ctx context.Context, r Run) (Run, error) {
 	existing.DeliveryAttempts = r.DeliveryAttempts
 	existing.LastDeliveryError = r.LastDeliveryError
 	existing.DeliveryLeaseExpiresAt = r.DeliveryLeaseExpiresAt
+	existing.CancelRequestedAt = r.CancelRequestedAt
+	existing.CancellationConfirmed = r.CancellationConfirmed
+	existing.StatusReason = r.StatusReason
 
 	refs, err := marshalStrings(existing.ArtifactRefs)
 	if err != nil {
@@ -194,7 +197,7 @@ func (s *sqliteRepository) Update(ctx context.Context, r Run) (Run, error) {
 		int(existing.Status), existing.ExitCode,
 		formatNullableTime(existing.StartedAt), formatNullableTime(existing.FinishedAt), refs,
 		formatNullableTime(existing.QueuedSince), formatNullableTime(existing.PushedAt), formatNullableTime(existing.AckedAt), existing.DeliveryAttempts,
-		existing.LastDeliveryError, formatNullableTime(existing.DeliveryLeaseExpiresAt), existing.ID,
+		existing.LastDeliveryError, formatNullableTime(existing.DeliveryLeaseExpiresAt), formatNullableTime(existing.CancelRequestedAt), existing.CancellationConfirmed, existing.StatusReason, existing.ID,
 	); err != nil {
 		return Run{}, fmt.Errorf("update run %q: %w", r.ID, err)
 	}
@@ -272,10 +275,13 @@ func scanRun(sc rowScanner) (Run, error) {
 		pushedRaw   string
 		ackedRaw    string
 		leaseRaw    string
+		cancelRaw   string
+		cancelled   bool
+		reason      string
 	)
 	if err := sc.Scan(&r.ID, &r.NodeID, &r.Scenario, &r.Verb, &argsRaw, &status, &r.ExitCode,
 		&r.TimeoutSeconds, &createdRaw, &startedRaw, &finishedRaw, &refsRaw, &queuedRaw, &pushedRaw, &ackedRaw,
-		&r.DeliveryAttempts, &r.LastDeliveryError, &leaseRaw); err != nil {
+		&r.DeliveryAttempts, &r.LastDeliveryError, &leaseRaw, &cancelRaw, &cancelled, &reason); err != nil {
 		return Run{}, err
 	}
 	r.Status = RunStatus(status)
@@ -312,6 +318,11 @@ func scanRun(sc rowScanner) (Run, error) {
 	if r.DeliveryLeaseExpiresAt, err = parseNullableTime(leaseRaw); err != nil {
 		return Run{}, fmt.Errorf("parse delivery_lease_expires_at %q: %w", leaseRaw, err)
 	}
+	if r.CancelRequestedAt, err = parseNullableTime(cancelRaw); err != nil {
+		return Run{}, fmt.Errorf("parse cancel_requested_at %q: %w", cancelRaw, err)
+	}
+	r.CancellationConfirmed = cancelled
+	r.StatusReason = reason
 	return r, nil
 }
 

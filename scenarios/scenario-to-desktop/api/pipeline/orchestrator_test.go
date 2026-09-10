@@ -39,6 +39,34 @@ func TestOrchestratorWithMockStages(t *testing.T) {
 	}
 }
 
+func TestReleaseBoundDeployOnlyDoesNotExpandBuildDependencies(t *testing.T) {
+	deploy := &mockStage{name: StageDeploy}
+	orchestrator := NewOrchestrator(
+		WithStages(
+			&mockStage{name: StageBundle},
+			&mockStage{name: StagePreflight},
+			&mockStage{name: StageGenerate},
+			&mockStage{name: StageBuild},
+			&mockStage{name: StageSmokeTest},
+			deploy,
+		),
+	)
+
+	status, err := orchestrator.RunPipeline(context.Background(), &PipelineConfig{
+		ScenarioName:            "qualified-app",
+		Stages:                  []string{StageDeploy},
+		ArtifactManifestDigest:  "sha256:manifest",
+		ExpectedArtifactDigests: map[string]string{"linux-x64": "sha256:artifact"},
+		DeployConfig:            &DeployConfig{AppKey: "qualified-app", ReleaseID: "release-1"},
+	})
+	if err != nil {
+		t.Fatalf("RunPipeline() error = %v", err)
+	}
+	if len(status.StageOrder) != 1 || status.StageOrder[0] != StageDeploy {
+		t.Fatalf("stage order = %v, want [%s]", status.StageOrder, StageDeploy)
+	}
+}
+
 func TestOrchestratorValidation(t *testing.T) {
 	orchestrator := NewOrchestrator()
 

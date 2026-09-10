@@ -160,7 +160,14 @@ func (app *Service) Provision(ctx context.Context, out, errOut io.Writer, opts C
 		return err
 	}
 	wasConfigured := authority.Status(identity, field).Configured
-	if err := authority.Put(identity, field, strings.TrimSpace(string(value))); err != nil {
+	// Keep user-supplied values outside the active address until the authority
+	// accepts the candidate. Activation is the only point that replaces an
+	// existing value, so a failed store write cannot destroy the prior value.
+	candidate, err := authority.PutCandidate(identity, field, strings.TrimSpace(string(value)))
+	if err != nil {
+		return err
+	}
+	if err := authority.ActivateCandidate(candidate); err != nil {
 		return err
 	}
 	if wasConfigured {

@@ -23,8 +23,30 @@
  * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
+import { createElement } from "react";
 import { afterEach, beforeEach, vi } from "vitest";
+import { configureTestProviders } from "@vrooli/api-base/testing";
 import { i18n } from "./i18n";
+import { Providers } from "./app/providers";
+
+configureTestProviders((children) => createElement(Providers, null, children));
+
+// jsdom does not provide the media-query API used by the shared AppShell.
+if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+}
 
 let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;

@@ -76,6 +76,30 @@ func TestHealthProbeRecognizesStandardHealthResponse(t *testing.T) {
 	}
 }
 
+func TestHealthProbeRejectsHealthyResponseFromOlderBuild(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(apihealth.Response{
+			Status: apihealth.StatusHealthy, Service: "alpha-api",
+			Timestamp: "2026-05-08T12:00:00Z", Readiness: true,
+			BuildIdentity: "sha256:old",
+		})
+	}))
+	defer server.Close()
+
+	snapshot := HealthProbe{}.Probe(context.Background(), HealthProbeInput{
+		InstanceID: "inst-alpha", Scenario: "alpha", ExpectedBuildIdentity: "sha256:current",
+		HealthConfig: &scenario.HealthConfig{Checks: []scenario.HealthCheck{{
+			Name: "api", Type: "http", Target: server.URL, Critical: true,
+		}}},
+	})
+	if snapshot.Status != HealthStatusUnhealthy {
+		t.Fatalf("snapshot.Status = %q, want %q", snapshot.Status, HealthStatusUnhealthy)
+	}
+	if !strings.Contains(snapshot.Error, "build identity mismatch") {
+		t.Fatalf("snapshot.Error = %q, want build identity mismatch", snapshot.Error)
+	}
+}
+
 func TestHealthProbePreservesDegradedStatusWithProviderDetail(t *testing.T) {
 	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

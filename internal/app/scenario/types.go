@@ -166,18 +166,19 @@ func scenarioStatus(detail orchestrator.Detail) (string, string, *time.Time) {
 }
 
 type StatusItemOutput struct {
-	Name         string           `json:"name"`
-	DisplayName  string           `json:"display_name,omitempty"`
-	Description  string           `json:"description,omitempty"`
-	Tags         []string         `json:"tags"`
-	Status       string           `json:"status"`
-	Processes    int              `json:"processes"`
-	Runtime      string           `json:"runtime"`
-	StartedAt    *time.Time       `json:"started_at,omitempty"`
-	Ports        map[string]int   `json:"ports"`
-	PortBindings []ListPortOutput `json:"port_bindings,omitempty"`
-	Health       any              `json:"health_status"`
-	HealthError  string           `json:"health_error,omitempty"`
+	Name          string           `json:"name"`
+	DisplayName   string           `json:"display_name,omitempty"`
+	Description   string           `json:"description,omitempty"`
+	Tags          []string         `json:"tags"`
+	Status        string           `json:"status"`
+	Processes     int              `json:"processes"`
+	Runtime       string           `json:"runtime"`
+	StartedAt     *time.Time       `json:"started_at,omitempty"`
+	Ports         map[string]int   `json:"ports"`
+	PortBindings  []ListPortOutput `json:"port_bindings,omitempty"`
+	Health        any              `json:"health_status"`
+	HealthError   string           `json:"health_error,omitempty"`
+	BuildIdentity string           `json:"build_identity,omitempty"`
 	// StartOperation is the latest start/restart operation record (in-flight
 	// progress with ETA + recommended_next_check_seconds, or the last
 	// terminal outcome); nil when never started or the registry is
@@ -212,14 +213,15 @@ type InfoScenarioData struct {
 }
 
 type InfoRuntimeData struct {
-	Status      string           `json:"status"`
-	Processes   int              `json:"processes"`
-	Runtime     string           `json:"runtime"`
-	StartedAt   *time.Time       `json:"started_at,omitempty"`
-	Ports       map[string]int   `json:"ports"`
-	ProcessInfo []process.Record `json:"process_records"`
-	ListPorts   []ListPortOutput `json:"list_ports"`
-	HealthError string           `json:"health_error,omitempty"`
+	Status        string           `json:"status"`
+	Processes     int              `json:"processes"`
+	Runtime       string           `json:"runtime"`
+	StartedAt     *time.Time       `json:"started_at,omitempty"`
+	Ports         map[string]int   `json:"ports"`
+	ProcessInfo   []process.Record `json:"process_records"`
+	ListPorts     []ListPortOutput `json:"list_ports"`
+	HealthError   string           `json:"health_error,omitempty"`
+	BuildIdentity string           `json:"build_identity,omitempty"`
 }
 
 type StatusSingleOutput struct {
@@ -347,6 +349,7 @@ func BuildStatusDetail(detail orchestrator.Detail) StatusItemOutput {
 		PortBindings:   RuntimePortOutputs(detail.Details.PortBindings),
 		Health:         health,
 		HealthError:    healthError,
+		BuildIdentity:  detail.Details.BuildIdentity,
 		StartOperation: detail.StartOperation,
 		// The single-status surface uses health_error for the same reason; the
 		// explicit list fields below keep the list projection machine-readable.
@@ -386,14 +389,15 @@ func BuildRuntimeDataFromDetail(detail orchestrator.Detail) InfoRuntimeData {
 
 func BuildRuntimeDataFromDetails(details scenariomodel.RuntimeDetails) InfoRuntimeData {
 	return InfoRuntimeData{
-		Status:      details.Status,
-		Processes:   details.Processes,
-		Runtime:     details.Runtime,
-		StartedAt:   details.StartedAt,
-		Ports:       CopyIntMap(details.Ports),
-		ProcessInfo: CopyProcessRecords(details.ProcessInfo),
-		ListPorts:   RuntimePortOutputs(details.PortBindings),
-		HealthError: details.HealthError,
+		Status:        details.Status,
+		Processes:     details.Processes,
+		Runtime:       details.Runtime,
+		StartedAt:     details.StartedAt,
+		Ports:         CopyIntMap(details.Ports),
+		ProcessInfo:   CopyProcessRecords(details.ProcessInfo),
+		ListPorts:     RuntimePortOutputs(details.PortBindings),
+		HealthError:   details.HealthError,
+		BuildIdentity: details.BuildIdentity,
 	}
 }
 

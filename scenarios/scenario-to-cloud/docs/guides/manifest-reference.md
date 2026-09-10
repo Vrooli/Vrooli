@@ -51,8 +51,7 @@ Defines where to deploy.
     "vps": {
       "host": "192.168.1.100",
       "user": "root",
-      "port": 22,
-      "key_path": "~/.ssh/id_rsa"
+      "port": 22
     }
   }
 }
@@ -64,7 +63,8 @@ Defines where to deploy.
 | `vps.host` | string | Yes | - | Hostname or IP address |
 | `vps.user` | string | No | `root` | SSH username |
 | `vps.port` | number | No | `22` | SSH port |
-| `vps.key_path` | string | No | `~/.ssh/id_rsa` | Path to SSH private key |
+
+There is no key field. Target access is a Bridge enrollment or the credential binding `vrooli/scenario-to-cloud:ssh-key` (see [VPS Setup](vps-setup.md) "Target Access"); a manifest that carries `key_path` is refused by the schema.
 
 ## Edge Section
 
@@ -205,3 +205,11 @@ Bundle composition and runtime safety defaults.
   }
 }
 ```
+
+## Closure binding
+
+When the API refreshes a manifest (`ForceBundleBuild`), `dependencies.scenarios`,
+`dependencies.resources`, `bundle.scenarios` and `bundle.resources` are the
+projection of the deployment closure and `dependencies.closure_digest` records
+the closure digest the snapshot came from. See
+[Deployment Closure](../reference/closure.md).

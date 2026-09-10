@@ -5,7 +5,15 @@ import {
   type OperatorState,
   type OperatorStatePatch,
 } from "../api/operatorstate";
-import { advanceSessionStep, fetchSession, fetchStepModel } from "../api/session";
+import {
+  advanceSessionStep,
+  fetchProfileSession,
+  fetchSession,
+  fetchStepModel,
+  saveProfileSession,
+  type WizardProfileSession,
+  type WizardProfileSessionSaveRequest,
+} from "../api/session";
 import { acceptRecommendation as acceptRecommendationRequest } from "../api/selection";
 import type { Step } from "@vrooli/proto-types/vrooli-onboarding/v1/session/session_pb";
 
@@ -27,7 +35,7 @@ function mergePatches(base: OperatorStatePatch | null, next: OperatorStatePatch)
   };
 }
 
-export function useWizardState() {
+export function useWizardState(target = "local") {
   const [steps, setSteps] = useState<Step[]>([]);
   const [stepsLoading, setStepsLoading] = useState(true);
   const [stepsError, setStepsError] = useState<string | null>(null);
@@ -43,22 +51,49 @@ export function useWizardState() {
   const [operatorStateSaveState, setOperatorStateSaveState] = useState<
     "idle" | "saving" | "saved" | "failed" | "conflict"
   >("idle");
+  const [profileSession, setProfileSession] = useState<WizardProfileSession | null>(null);
+  const [profileSessionError, setProfileSessionError] = useState<string | null>(null);
+  const [profileSessionSaveState, setProfileSessionSaveState] = useState<
+    "idle" | "saving" | "saved" | "failed" | "conflict"
+  >("idle");
   const stepContentRef = useRef<HTMLDivElement>(null);
   const prevStepRef = useRef(currentStep);
   const operatorStateRef = useRef<OperatorState | null>(null);
   const pendingPatchRef = useRef<OperatorStatePatch | null>(null);
   const failedPatchRef = useRef<OperatorStatePatch | null>(null);
   const saveGenerationRef = useRef(0);
+  const profileSessionRef = useRef<WizardProfileSession | null>(null);
+  const failedProfileSessionRef = useRef<WizardProfileSessionSaveRequest | null>(null);
+  const profileSaveGenerationRef = useRef(0);
 
   // V2 re-entry loads durable operator choices, not database-backed progress.
   useEffect(() => {
-    Promise.all([fetchStepModel(), fetchOperatorState()])
-      .then(([model, state]) => {
+    let active = true;
+    setStepsLoading(true);
+    setStepsError(null);
+    setOperatorState(null);
+    setSelectedScenarios(new Set());
+    operatorStateRef.current = null;
+    profileSessionRef.current = null;
+    setProfileSession(null);
+    pendingPatchRef.current = null;
+    failedPatchRef.current = null;
+    setOperatorStateError(null);
+    setOperatorStateSaveState("idle");
+    Promise.all([
+      fetchStepModel(target),
+      fetchOperatorState(target),
+      fetchProfileSession(target).catch(() => null),
+    ])
+      .then(([model, state, savedProfileSession]) => {
+        if (!active) return;
         setSteps(model.steps.slice().sort((a, b) => a.ordinal - b.ordinal));
         setStepsError(null);
         setCurrentStep(stepForPath(window.location.pathname, model.steps));
         setOperatorState(state);
         operatorStateRef.current = state;
+        profileSessionRef.current = savedProfileSession;
+        setProfileSession(savedProfileSession);
         const selected = new Set(
           Object.entries(state.scenarios ?? {})
             .filter(([, choice]) => choice.enabled)
@@ -67,12 +102,13 @@ export function useWizardState() {
         setSelectedScenarios(selected);
       })
       .catch(() => {
-        setStepsError("The onboarding step model could not be loaded.");
+        if (active) setStepsError("The onboarding step model could not be loaded.");
       })
       .finally(() => {
-        setStepsLoading(false);
+        if (active) setStepsLoading(false);
       });
-  }, []);
+    return () => { active = false; };
+  }, [target]);
 
   useEffect(() => {
     const onPopState = () =>
@@ -93,9 +129,9 @@ export function useWizardState() {
       }
       setCurrentStep(step);
       const stepId = steps[step]?.id;
-      if (stepId) void advanceSessionStep(stepId).catch(() => undefined);
+      if (stepId) void advanceSessionStep(stepId, target).catch(() => undefined);
     },
-    [steps],
+    [steps, target],
   );
 
   useEffect(() => {
@@ -104,7 +140,7 @@ export function useWizardState() {
       (window.location.pathname === "/" ||
         window.location.pathname === "/setup")
     ) {
-      fetchSession()
+      fetchSession(target)
         .then((session) => {
           if (
             Number.isInteger(session.firstUnsatisfiedStep) &&
@@ -115,7 +151,7 @@ export function useWizardState() {
         })
         .catch(() => undefined);
     }
-  }, [moveToStep, steps.length]);
+  }, [moveToStep, steps.length, target]);
 
   const mergeOperatorState = useCallback((base: OperatorState, patch: OperatorStatePatch): OperatorState => ({
     ...base,
@@ -138,7 +174,7 @@ export function useWizardState() {
   const persistOperatorState = useCallback((patch: OperatorStatePatch) => {
     const base = operatorStateRef.current ?? { version: "1.0.0", updatedAt: "" };
     const optimistic = mergeOperatorState(base, patch);
-    const expectedRevision = base.updatedAt ?? "";
+    const expectedRevision = base.updatedAt ?? base.version ?? "";
     const requestPatch = mergePatches(pendingPatchRef.current, patch);
     const generation = ++saveGenerationRef.current;
     pendingPatchRef.current = requestPatch;
@@ -146,7 +182,7 @@ export function useWizardState() {
     setOperatorState(optimistic);
     setOperatorStateSaveState("saving");
     setOperatorStateError(null);
-    saveOperatorStateAtRevision(requestPatch, expectedRevision)
+    saveOperatorStateAtRevision(requestPatch, expectedRevision, target)
       .then((state) => {
         // A late response must not erase a newer optimistic edit. The durable
         // revision check rejects the competing write; the local edit remains
@@ -169,14 +205,14 @@ export function useWizardState() {
           ? "Another client changed these preferences. Your edit is retained; reload and retry to rebase it."
           : "The latest choice could not be saved. Your edit is retained; retry when the connection recovers.");
       });
-  }, [mergeOperatorState]);
+  }, [mergeOperatorState, target]);
 
   const retryOperatorStateSave = useCallback(async () => {
     const patch = failedPatchRef.current;
     if (!patch) return;
     let latest: OperatorState;
     try {
-      latest = await fetchOperatorState();
+      latest = await fetchOperatorState(target);
     } catch {
       setOperatorStateSaveState("failed");
       setOperatorStateError("The latest server state could not be loaded. Your edit remains available for retry.");
@@ -189,7 +225,7 @@ export function useWizardState() {
     setOperatorStateSaveState("saving");
     setOperatorStateError(null);
     try {
-      const saved = await saveOperatorStateAtRevision(patch, latest.updatedAt ?? "");
+      const saved = await saveOperatorStateAtRevision(patch, latest.updatedAt ?? latest.version ?? "", target);
       operatorStateRef.current = saved;
       setOperatorState(saved);
       pendingPatchRef.current = null;
@@ -200,7 +236,77 @@ export function useWizardState() {
       setOperatorStateSaveState(message.toLowerCase().includes("conflict") ? "conflict" : "failed");
       setOperatorStateError("The edit is still not saved. It remains available for another retry.");
     }
-  }, [mergeOperatorState]);
+  }, [mergeOperatorState, target]);
+
+  const persistProfileSession = useCallback((draft: Omit<WizardProfileSessionSaveRequest, "expectedRevision">) => {
+    const current = profileSessionRef.current;
+    const expectedRevision = current?.revision
+      ?? operatorStateRef.current?.updatedAt
+      ?? operatorStateRef.current?.version
+      ?? "";
+    const request: WizardProfileSessionSaveRequest = {
+      ...draft,
+      target,
+      baseRevision: draft.baseRevision || expectedRevision,
+      expectedRevision,
+    };
+    const generation = ++profileSaveGenerationRef.current;
+    failedProfileSessionRef.current = request;
+    setProfileSessionSaveState("saving");
+    setProfileSessionError(null);
+    saveProfileSession(request)
+      .then((saved) => {
+        if (generation !== profileSaveGenerationRef.current) return;
+        profileSessionRef.current = saved;
+        setProfileSession(saved);
+        failedProfileSessionRef.current = null;
+        setProfileSessionSaveState("saved");
+        setProfileSessionError(null);
+        if (saved.revision && operatorStateRef.current) {
+          const nextState = { ...operatorStateRef.current, updatedAt: saved.revision };
+          operatorStateRef.current = nextState;
+          setOperatorState(nextState);
+        }
+      })
+      .catch((error: unknown) => {
+        if (generation !== profileSaveGenerationRef.current) return;
+        const message = error instanceof Error ? error.message : String(error);
+        const conflict = message.toLowerCase().includes("conflict") || message.toLowerCase().includes("aborted");
+        setProfileSessionSaveState(conflict ? "conflict" : "failed");
+        setProfileSessionError(conflict
+          ? "Another client changed this setup session. Your answers are retained; retry to rebase them."
+          : "The setup session could not be saved. Your answers are retained; retry when the connection recovers.");
+      });
+  }, [target]);
+
+  const retryProfileSessionSave = useCallback(async () => {
+    const request = failedProfileSessionRef.current;
+    if (!request) return;
+    try {
+      const latest = await fetchProfileSession(target);
+      const expectedRevision = latest?.revision
+        ?? operatorStateRef.current?.updatedAt
+        ?? operatorStateRef.current?.version
+        ?? "";
+      const rebased = { ...request, expectedRevision };
+      failedProfileSessionRef.current = rebased;
+      setProfileSessionSaveState("saving");
+      setProfileSessionError(null);
+      const saved = await saveProfileSession(rebased);
+      profileSessionRef.current = saved;
+      setProfileSession(saved);
+      failedProfileSessionRef.current = null;
+      setProfileSessionSaveState("saved");
+      if (saved.revision && operatorStateRef.current) {
+        const nextState = { ...operatorStateRef.current, updatedAt: saved.revision };
+        operatorStateRef.current = nextState;
+        setOperatorState(nextState);
+      }
+    } catch {
+      setProfileSessionSaveState("failed");
+      setProfileSessionError("The setup session is still not saved. Your answers remain available for another retry.");
+    }
+  }, [target]);
 
   const toggleScenario = useCallback(
     (name: string) => {
@@ -281,11 +387,11 @@ export function useWizardState() {
   }, [currentStep, moveToStep, steps.length]);
 
   const acceptRecommendation = useCallback(async (profile?: string, scenarios?: string[]) => {
-    const accepted = await acceptRecommendationRequest("local", profile, scenarios);
-    const session = await fetchSession();
+    const accepted = await acceptRecommendationRequest(target, profile, scenarios);
+    const session = await fetchSession(target);
     setPlanAccepted(true);
     moveToStep(accepted.firstUnsatisfiedStep || session.firstUnsatisfiedStep, true);
-  }, [moveToStep]);
+  }, [moveToStep, target]);
 
   const goPrev = useCallback(() => {
     moveToStep(Math.max(currentStep - 1, 0));
@@ -352,6 +458,11 @@ export function useWizardState() {
     operatorStateError,
     operatorStateSaveState,
     retryOperatorStateSave,
+    profileSession,
+    profileSessionError,
+    profileSessionSaveState,
+    persistProfileSession,
+    retryProfileSessionSave,
     acceptRecommendation,
   };
 }

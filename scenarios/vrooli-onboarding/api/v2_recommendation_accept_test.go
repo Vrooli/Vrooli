@@ -17,6 +17,7 @@ func TestV2RecommendationAcceptIsIdempotent(t *testing.T) {
 	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0"}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true},"dependencies":{"resources":{"postgres":{"required":true}}}}`)
 	writeFixtureFile(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{"name":"postgres"}`)
+	writeFixtureFile(t, filepath.Join(root, "scenarios", "vrooli-onboarding", "profiles", "general-purpose.json"), `{"schemaVersion":"1.0.0","id":"general-purpose","version":"1.0.0","default":true,"titleKey":"test.title","descriptionKey":"test.description","owner":"test","compatibleCatalogMajor":1,"questions":[],"rules":[{"id":"default","recommend":[{"scenarioRefs":["alpha"],"reasonKey":"test.reason"}]}],"manualSelection":{"available":true},"provenance":{"source":"test","reviewRevision":"r1"}}`)
 
 	first := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/AcceptRecommendation", `{"target":"local"}`)
 	second := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/AcceptRecommendation", `{"target":"local"}`)

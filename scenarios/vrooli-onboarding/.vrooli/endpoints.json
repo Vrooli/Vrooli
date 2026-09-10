@@ -237,7 +237,9 @@
       "request": {
         "type": "object",
         "properties": {
-          "answers": "array\u003cAnswer\u003e (required)"
+          "answers": "array\u003cAnswer\u003e (required)",
+          "expected_revision": "string",
+          "target": "string (required)"
         }
       },
       "response": {
@@ -257,6 +259,11 @@
           "status": 412,
           "code": "failed_precondition",
           "description": "A capability did not become ready; remediation is returned"
+        },
+        {
+          "status": 409,
+          "code": "aborted",
+          "description": "The target configuration revision changed; reload before answering"
         },
         {
           "status": 500,
@@ -423,7 +430,7 @@
       "path": "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ListCredentials",
       "method": "POST",
       "summary": "List credential descriptors",
-      "description": "Returns credential metadata and status without credential values.",
+      "description": "Returns scoped credential metadata immediately without credential values; readiness supplies bounded storage status.",
       "category": "credentials"
     },
     {
@@ -517,8 +524,15 @@
       "path": "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState",
       "method": "POST",
       "summary": "Patch operator state",
-      "description": "Applies only the operator state fields named by the update mask.",
-      "category": "operatorstate"
+      "description": "Applies only the operator state fields named by the update mask and checks the optional optimistic-concurrency revision.",
+      "category": "operatorstate",
+      "request": {
+        "type": "object",
+        "properties": {
+          "expected_revision": "string (recommended for concurrent clients)",
+          "update_mask": "field mask (required)"
+        }
+      }
     },
     {
       "id": "resources_list",
@@ -573,7 +587,7 @@
       "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/GetDraft",
       "method": "POST",
       "summary": "Read onboarding draft",
-      "description": "Returns the target- and actor-scoped non-secret draft.",
+      "description": "Returns the target-scoped non-secret draft owned by the verified session; the legacy actor field is ignored.",
       "category": "session"
     },
     {
@@ -581,14 +595,15 @@
       "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/SaveDraft",
       "method": "POST",
       "summary": "Save onboarding draft",
-      "description": "Persists non-secret choices without changing effective host state.",
+      "description": "Persists non-secret choices without changing effective host state; ownership comes from verified session context.",
       "category": "session",
       "request": {
         "type": "object",
         "properties": {
-          "actor": "string (required)",
+          "actor": "ignored legacy field",
           "base_revision": "string (required)",
           "choices": "object",
+          "expected_revision": "string (recommended for concurrent clients)",
           "target": "string (required)"
         }
       }
@@ -598,8 +613,32 @@
       "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/DiscardDraft",
       "method": "POST",
       "summary": "Discard onboarding draft",
-      "description": "Removes a target- and actor-scoped draft without changing committed intent.",
+      "description": "Removes the verified session's target-scoped draft without changing committed intent.",
       "category": "session"
+    },
+    {
+      "id": "session_profile_get",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/GetProfileSession",
+      "method": "POST",
+      "summary": "Read profile session",
+      "description": "Returns the verified actor's durable non-secret guided/manual purpose context.",
+      "category": "session"
+    },
+    {
+      "id": "session_profile_save",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/SaveProfileSession",
+      "method": "POST",
+      "summary": "Save profile session",
+      "description": "Persists bounded profile answers, manual provenance, target context, and revisions without applying host changes.",
+      "category": "session",
+      "request": {
+        "type": "object",
+        "properties": {
+          "expected_revision": "string (recommended for concurrent clients)",
+          "session": "profile session (required; secrets rejected)",
+          "target": "string (required)"
+        }
+      }
     },
     {
       "id": "apply_cancel",

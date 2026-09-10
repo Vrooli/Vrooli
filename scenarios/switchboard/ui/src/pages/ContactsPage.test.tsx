@@ -63,12 +63,13 @@ describe("ContactsPage", () => {
 describe("ContactsPage edge states", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("shows the phone-width contact strip beside an open contact and survives a 404", async () => {
+  it("gives an open contact the whole screen and survives a 404", async () => {
     const routes = defaultRoutes();
     routes["/api/v1/contacts/ghost"] = new Response("not found", { status: 404 });
     stubConsoleFetch(routes);
     renderAt("/contacts/ghost");
-    expect(await screen.findByTestId("contacts-strip")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId("contacts-rooms-region")).toHaveAttribute("data-experience-state", "empty"));
+    // EXPERIENCE.md: list and detail are separate screens on a phone.
+    expect(screen.queryByTestId("contacts-strip")).not.toBeInTheDocument();
   });
 });

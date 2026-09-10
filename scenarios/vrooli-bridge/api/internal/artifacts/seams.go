@@ -20,6 +20,7 @@ type DirectedDelivery interface {
 
 // DeliveryRequest is the proto-free DTO handed to device-sync-hub.
 type DeliveryRequest struct {
+	DistributionID  string
 	NodeID          string
 	Name            string
 	SourceRef       string

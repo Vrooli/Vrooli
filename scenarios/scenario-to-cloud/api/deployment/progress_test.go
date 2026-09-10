@@ -181,7 +181,7 @@ func TestSetupSteps(t *testing.T) {
 	}
 
 	// Check expected setup step IDs
-	expectedIDs := []string{"mkdir", "bootstrap", "upload", "extract", "setup", "autoheal", "verify_setup"}
+	expectedIDs := []string{"host.prepare", "edge.firewall.allow", "data.inventory", "release.deliver", "release.verify", "release.stage", "data.backup", "release.activate", "config.apply"}
 	for i, expected := range expectedIDs {
 		if i >= len(SetupSteps) {
 			t.Errorf("Missing expected step: %s", expected)
@@ -228,38 +228,6 @@ func TestDefaultPortsFetcherUsesContractResolvedServicePath(t *testing.T) {
 	want := map[string]int{"api": 8080, "ui": 3000}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("FetchPorts = %#v, want %#v", got, want)
-	}
-}
-
-func TestServiceJSONDependenciesFetcherUsesContractResolvedServicePath(t *testing.T) {
-	root := t.TempDir()
-	writeRepoContractFixture(t, root)
-	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", root)
-
-	writeJSONFile(t, filepath.Join(root, "scenarios", "demo", ".vrooli", "service.json"), map[string]interface{}{
-		"service": map[string]interface{}{"name": "demo"},
-		"dependencies": map[string]interface{}{
-			"resources": map[string]interface{}{
-				"postgres": map[string]interface{}{"enabled": true},
-				"redis":    map[string]interface{}{"enabled": true},
-				"vault":    map[string]interface{}{"enabled": false},
-			},
-			"scenarios": map[string]interface{}{
-				"dep-a": map[string]interface{}{"enabled": true},
-				"dep-b": map[string]interface{}{"enabled": false},
-			},
-		},
-	})
-
-	resources, scenarios, err := ServiceJSONDependenciesFetcher("demo")
-	if err != nil {
-		t.Fatalf("ServiceJSONDependenciesFetcher: %v", err)
-	}
-	if !reflect.DeepEqual(resources, []string{"postgres", "redis"}) {
-		t.Fatalf("resources = %#v, want %#v", resources, []string{"postgres", "redis"})
-	}
-	if !reflect.DeepEqual(scenarios, []string{"dep-a"}) {
-		t.Fatalf("scenarios = %#v, want %#v", scenarios, []string{"dep-a"})
 	}
 }
 

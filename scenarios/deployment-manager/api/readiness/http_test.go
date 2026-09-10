@@ -11,7 +11,7 @@ import (
 func TestHandlerReturnsAggregatedVerdict(t *testing.T) {
 	checked := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
 	checklist := Checklist{Version: ChecklistVersion, Items: []Item{validTestItem("check", Required, CapabilityGap, "must pass")}}
-	body := []byte(`{"scenario":"demo","commit":"abc","signals":[{"item_id":"check","status":"passed","source":"test-genie","observed_at":"2026-09-01T00:00:00Z"}]}`)
+	body := []byte(`{"scenario":"demo","commit":"abc","signals":[{"item_id":"check","status":"passed","source":"test-genie","reference":"run:123","observed_at":"2026-09-01T00:00:00Z"}]}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/readiness/verdict", bytes.NewReader(body))
 	res := httptest.NewRecorder()
 	Handler(checklist).ServeHTTP(res, req)
@@ -19,6 +19,16 @@ func TestHandlerReturnsAggregatedVerdict(t *testing.T) {
 		t.Fatalf("status=%d body=%s", res.Code, res.Body.String())
 	}
 	_ = checked
+}
+
+func TestHandlerRejectsBarePassedSignal(t *testing.T) {
+	checklist := Checklist{Version: ChecklistVersion, Items: []Item{validTestItem("check", Required, CapabilityGap, "must pass")}}
+	body := []byte(`{"scenario":"demo","commit":"abc","signals":[{"item_id":"check","status":"passed","source":"test-genie","observed_at":"2026-09-01T00:00:00Z"}]}`)
+	res := httptest.NewRecorder()
+	Handler(checklist).ServeHTTP(res, httptest.NewRequest(http.MethodPost, "/api/v1/readiness/verdict", bytes.NewReader(body)))
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("bare passed signal status=%d body=%s", res.Code, res.Body.String())
+	}
 }
 
 func TestHandlerAdaptsCrossOSVerdictIntoReadiness(t *testing.T) {

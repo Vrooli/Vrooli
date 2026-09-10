@@ -142,6 +142,82 @@ func TestDescriptorTierScopeValidation(t *testing.T) {
 	}
 }
 
+func TestDeclarationValidatesExplicitRuntimeConsumers(t *testing.T) {
+	declaration := Declaration{
+		Descriptors: []Descriptor{{LogicalID: "vrooli/test", Field: "token"}},
+		Consumers:   []Consumer{{LogicalID: "vrooli/test", Field: "token", Kind: "dynamic", Consumer: "runtime session", SourceRef: "api/session.go:42", Tiers: []string{"tier-1-local"}}},
+	}
+	if err := declaration.Validate("scenario test"); err != nil {
+		t.Fatalf("dynamic consumer rejected: %v", err)
+	}
+	for _, consumer := range []Consumer{
+		{LogicalID: "vrooli/test", Kind: "unknown", Consumer: "runtime", SourceRef: "api/main.go:1"},
+		{LogicalID: "vrooli/test", Kind: "authority", SourceRef: "api/main.go:1"},
+		{LogicalID: "vrooli/test", Kind: "authority", Consumer: "runtime"},
+	} {
+		if err := (Declaration{Consumers: []Consumer{consumer}}).Validate("scenario test"); err == nil {
+			t.Fatalf("consumer %+v unexpectedly validated", consumer)
+		}
+	}
+}
+
+func TestDeclarationRequiresOneConsumerAddressForm(t *testing.T) {
+	for _, consumer := range []Consumer{
+		{Kind: "backup", Consumer: "kopia", SourceRef: "api/kopia.go:1"},
+		{LogicalID: "vrooli/test", AddressPattern: "vrooli/test/{name}:value", Kind: "backup", Consumer: "kopia", SourceRef: "api/kopia.go:1"},
+	} {
+		if err := (Declaration{Consumers: []Consumer{consumer}}).Validate("scenario test"); err == nil {
+			t.Fatalf("consumer %+v unexpectedly validated", consumer)
+		}
+	}
+	pattern := Consumer{AddressPattern: "vrooli/test/{name}:value", Kind: "backup", Consumer: "kopia", SourceRef: "api/kopia.go:1"}
+	if err := (Declaration{Consumers: []Consumer{pattern}}).Validate("scenario test"); err != nil {
+		t.Fatalf("address-pattern consumer rejected: %v", err)
+	}
+}
+
+func TestDescriptorMetadataSupportsOwnerActionsAndApplicability(t *testing.T) {
+	descriptor := Descriptor{
+		Version: DescriptorVersion, LogicalID: "vrooli/delivery", Field: "secret", Owner: "landing-page-business-suite",
+		Kind: KindSecret, Provider: "aws-s3", RequirementGroup: "delivery.s3.authentication",
+		ConsumerRefs: []string{"delivery.publish"}, CompanionSettings: []string{"delivery.bucket"}, CompanionCredentials: []string{"delivery/id"},
+		AcquisitionRef: "delivery.s3.connect", VerificationRef: "delivery.s3.verify", RecoveryRef: "delivery.s3.recover", HelpRef: "delivery-s3-access", EvidencePolicy: "release-required",
+		AppliesWhen: &Applicability{All: []ApplicabilityRule{{Eq: &ApplicabilityMatch{Setting: "delivery.authMethod", Value: "access-key"}}}},
+	}
+	if err := (Declaration{Descriptors: []Descriptor{descriptor}}).Validate("scenario delivery"); err != nil {
+		t.Fatalf("provider-neutral descriptor rejected: %v", err)
+	}
+	if got := descriptor.EffectiveKind(); got != KindSecret {
+		t.Fatalf("EffectiveKind() = %q, want %q", got, KindSecret)
+	}
+	for _, invalid := range []Descriptor{
+		{LogicalID: "vrooli/test", Version: "credential-descriptor/v2"},
+		{LogicalID: "vrooli/test", Kind: "unsupported"},
+		{LogicalID: "vrooli/test", AppliesWhen: &Applicability{All: []ApplicabilityRule{{Eq: &ApplicabilityMatch{Context: "a", Setting: "b", Value: "c"}}}}},
+		{LogicalID: "vrooli/test", AppliesWhen: &Applicability{All: []ApplicabilityRule{{}}}},
+	} {
+		if err := (Declaration{Descriptors: []Descriptor{invalid}}).Validate("scenario test"); err == nil {
+			t.Fatalf("invalid metadata descriptor %+v was accepted", invalid)
+		}
+	}
+}
+
+func TestMigrationDiagnosticsAreNonFatalAndValueFree(t *testing.T) {
+	diagnostics := (Declaration{Descriptors: []Descriptor{{LogicalID: "vrooli/test", Field: "token", Required: true}}}).MigrationDiagnostics()
+	if len(diagnostics) < 6 {
+		t.Fatalf("MigrationDiagnostics() = %+v, want the missing metadata guidance", diagnostics)
+	}
+	for _, diagnostic := range diagnostics {
+		if diagnostic.Address != "vrooli/test:token" || strings.Contains(strings.ToLower(diagnostic.Message), "value") {
+			t.Fatalf("diagnostic exposes the wrong information: %+v", diagnostic)
+		}
+	}
+	complete := Descriptor{Version: DescriptorVersion, LogicalID: "vrooli/test", Field: "token", Owner: "test-owner", Kind: KindSecret, ObtainURL: "https://example.test/token", AcquisitionRef: "test.acquire", VerificationRef: "test.verify", RecoveryRef: "test.recover"}
+	if diagnostics := (Declaration{Descriptors: []Descriptor{complete}}).MigrationDiagnostics(); len(diagnostics) != 0 {
+		t.Fatalf("complete descriptor still has migration diagnostics: %+v", diagnostics)
+	}
+}
+
 // [REQ] A signing secret has no external issuer, so the vocabulary has to be
 // able to say "the component mints this" without pretending it derives from
 // another credential.

@@ -84,7 +84,7 @@ func (s *Service) TriggerInvestigation(ctx context.Context, req TriggerInvestiga
 	inv := &domain.Investigation{
 		ID:              uuid.New().String(),
 		DeploymentID:    req.DeploymentID,
-		DeploymentRunID: deployment.RunID,
+		DeploymentRunID: nil, // run_id retired (DL-05): operations own execution identity
 		Status:          domain.InvestigationStatusPending,
 		Progress:        0,
 		CreatedAt:       now,
@@ -407,7 +407,7 @@ func (s *Service) ApplyFixes(ctx context.Context, req ApplyFixesRequest) (*domai
 	fixInv := &domain.Investigation{
 		ID:              uuid.New().String(),
 		DeploymentID:    originalInv.DeploymentID,
-		DeploymentRunID: deployment.RunID,
+		DeploymentRunID: nil, // run_id retired (DL-05): operations own execution identity
 		Status:          domain.InvestigationStatusPending,
 		Progress:        0,
 		CreatedAt:       now,

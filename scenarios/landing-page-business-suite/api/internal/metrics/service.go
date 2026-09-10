@@ -252,6 +252,10 @@ func (s *Service) TrackEvent(event Event) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal event_data: %w", err)
 	}
+	var existingEventID string
+	if err := s.db.QueryRow(`SELECT event_id FROM metrics_events WHERE event_id = $1`, eventID).Scan(&existingEventID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("idempotency check failed: %w", err)
+	}
 	if _, err = s.db.Exec(`INSERT INTO metrics_events
 		(variant_slug, event_type, event_data, event_id, session_id, visitor_id,
 		 referrer_host, referrer_kind, utm_source, utm_medium, utm_campaign,

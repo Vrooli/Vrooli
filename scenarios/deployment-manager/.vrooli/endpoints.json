@@ -301,6 +301,22 @@
       "category": "releases"
     },
     {
+      "id": "get_release_operation",
+      "path": "/vrooli.deployment_manager.v1.releases.ReleasesService/GetOperation",
+      "method": "POST",
+      "summary": "Get release operation standing",
+      "description": "Get release operation standing through the generated Connect contract.",
+      "category": "releases"
+    },
+    {
+      "id": "get_release_dossier",
+      "path": "/vrooli.deployment_manager.v1.releases.ReleasesService/Dossier",
+      "method": "POST",
+      "summary": "Get release dossier",
+      "description": "Get release dossier through the generated Connect contract.",
+      "category": "releases"
+    },
+    {
       "id": "reverify_release",
       "path": "/vrooli.deployment_manager.v1.releases.ReleasesService/Reverify",
       "method": "POST",
@@ -309,11 +325,51 @@
       "category": "releases"
     },
     {
+      "id": "reconcile_release",
+      "path": "/vrooli.deployment_manager.v1.releases.ReleasesService/Reconcile",
+      "method": "POST",
+      "summary": "Reconcile release standing",
+      "description": "Reconcile release standing through the generated Connect contract.",
+      "category": "releases"
+    },
+    {
+      "id": "recover_release",
+      "path": "/vrooli.deployment_manager.v1.releases.ReleasesService/Recover",
+      "method": "POST",
+      "summary": "Recover a release through its owner",
+      "description": "Recover a release through its owner through the generated Connect contract.",
+      "category": "releases"
+    },
+    {
       "id": "start_release",
       "path": "/vrooli.deployment_manager.v1.releases.ReleasesService/Start",
       "method": "POST",
       "summary": "Start a release",
       "description": "Start a release through the generated Connect contract.",
+      "category": "releases"
+    },
+    {
+      "id": "register_release_candidate",
+      "path": "/vrooli.deployment_manager.v1.releases.ReleasesService/RegisterCandidate",
+      "method": "POST",
+      "summary": "Register a release candidate",
+      "description": "Register a release candidate through the generated Connect contract.",
+      "category": "releases"
+    },
+    {
+      "id": "register_destination_revision",
+      "path": "/vrooli.deployment_manager.v1.releases.ReleasesService/RegisterDestinationRevision",
+      "method": "POST",
+      "summary": "Register a destination revision",
+      "description": "Register a destination revision through the generated Connect contract.",
+      "category": "releases"
+    },
+    {
+      "id": "record_client_update_receipt",
+      "path": "/vrooli.deployment_manager.v1.releases.ReleasesService/RecordClientUpdateReceipt",
+      "method": "POST",
+      "summary": "Record an owner client update receipt",
+      "description": "Record an owner client update receipt through the generated Connect contract.",
       "category": "releases"
     },
     {

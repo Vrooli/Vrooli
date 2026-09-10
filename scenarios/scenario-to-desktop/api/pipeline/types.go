@@ -142,6 +142,7 @@ type PipelineConfig struct {
 	// ExpectedArtifactDigests binds governed publication to the finalized
 	// candidate bytes, keyed by exact target identifier.
 	ExpectedArtifactDigests map[string]string `json:"expected_artifact_digests,omitempty"`
+	ArtifactManifestDigest  string            `json:"artifact_manifest_digest,omitempty"`
 	// ScenarioName is the name of the scenario to deploy (required).
 	ScenarioName string `json:"scenario_name" validate:"required"`
 
@@ -274,21 +275,42 @@ type DeployConfig struct {
 	RemoteProfile string `json:"remote_profile,omitempty"`
 
 	// AppKey is the download app key on the remote LPBS (always required).
+	// Release-bound deploys require the exact approved value.
 	AppKey string `json:"app_key"`
 
-	// UpdateURL is auto-derived from the remote profile if empty.
+	// UpdateURL is auto-derived from the remote profile if empty. Release-bound
+	// deploys always derive the owner destination and reject a configured value
+	// that does not match it.
 	UpdateURL string `json:"update_url,omitempty"`
 
 	// ReleaseID is the deployment-manager release UUID for traceability.
 	// When set, stored on the LPBS artifact for correlation.
 	ReleaseID string `json:"release_id,omitempty"`
 
+	// CandidateID binds a governed publication to the immutable build
+	// candidate that was reviewed by Deployment Manager.
+	CandidateID string `json:"candidate_id,omitempty"`
+
+	// DestinationRevisionID binds a governed publication to the exact owner
+	// destination revision selected by Deployment Manager.
+	DestinationRevisionID string `json:"destination_revision_id,omitempty"`
+
+	// AuthorizationEpoch prevents an older readiness decision from authorizing
+	// a newer release operation.
+	AuthorizationEpoch uint64 `json:"authorization_epoch,omitempty"`
+
+	// ReadinessReviewKey identifies the current approved review for this exact
+	// release identity.
+	ReadinessReviewKey string `json:"readiness_review_key,omitempty"`
+
 	// Channel is the update channel (e.g. "stable", "beta", "nightly").
-	// Maps to variant_key on the LPBS asset. Defaults to "stable" if empty.
+	// Maps to variant_key on the LPBS asset. Release-bound deploys require the
+	// exact approved value; local packaging may use the stable default.
 	Channel string `json:"channel,omitempty"`
 
-	// DeploymentManagerProfileID is the deployment-manager profile to check for approval gates.
-	// If empty, the deploy stage skips gate checks.
+	// DeploymentManagerProfileID selects the legacy profile approval gate for
+	// non-release-bound local preparation. Release-bound deploys use the exact
+	// readiness review carried by Deployment Manager and skip this gate.
 	DeploymentManagerProfileID string `json:"deployment_manager_profile_id,omitempty"`
 
 	// GateTimeout overrides DefaultGateTimeout for how long to wait for gates to clear.

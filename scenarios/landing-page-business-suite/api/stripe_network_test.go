@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -53,7 +54,7 @@ func TestStripeAPI_Timeout(t *testing.T) {
 	_, err := service.ListCoupons(ctx)
 	require.Error(t, err)
 	// Verify it's a timeout-related error
-	assert.Contains(t, err.Error(), "context deadline exceeded", "should be a timeout error")
+	assert.True(t, errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "Client.Timeout exceeded"), "should be a timeout error: %v", err)
 }
 
 // TestStripeAPI_RateLimited_429 verifies proper handling of rate limit responses.

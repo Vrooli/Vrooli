@@ -25,6 +25,12 @@ func (s *HTTPStore) Append(ctx context.Context, record Record) (Record, error) {
 	if strings.TrimSpace(s.Endpoint) == "" {
 		return Record{}, fmt.Errorf("audit HTTP endpoint is unset")
 	}
+	if strings.TrimSpace(record.Actor) == "" {
+		return Record{}, ErrInvalidRecord{Field: "actor", Reason: "required"}
+	}
+	if strings.TrimSpace(record.NodeID) == "" {
+		return Record{}, ErrInvalidRecord{Field: "node_id", Reason: "required"}
+	}
 	payload, err := json.Marshal(record)
 	if err != nil {
 		return Record{}, fmt.Errorf("encode audit record: %w", err)
@@ -73,13 +79,17 @@ func (s *HTTPStore) List(ctx context.Context, filter ListFilter) ([]Record, erro
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&records); err != nil {
 		return nil, fmt.Errorf("decode audit records: %w", err)
 	}
-	if filter.NodeID == "" {
-		return records, nil
-	}
 	filtered := records[:0]
 	for _, record := range records {
-		if record.NodeID == filter.NodeID {
-			filtered = append(filtered, record)
+		if filter.NodeID != "" && record.NodeID != filter.NodeID {
+			continue
+		}
+		if filter.RunID != "" && record.RunID != filter.RunID {
+			continue
+		}
+		filtered = append(filtered, record)
+		if filter.Limit > 0 && len(filtered) >= filter.Limit {
+			break
 		}
 	}
 	return filtered, nil

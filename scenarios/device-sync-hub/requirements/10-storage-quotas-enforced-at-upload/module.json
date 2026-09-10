@@ -1,93 +1,77 @@
 {
-  "description": "Per-device and global storage quotas are checked before a transfer is accepted; uploads that would breach the quota are rejected with a clear error before any bytes are written to the blobstore.",
-  "module_id": "MOD-P1-010",
-  "prd_ref": "OT-P1-002",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-09-09T16:26:32-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-012",
-        "REQ-P0-014"
-      ],
-      "description": "Before writing any bytes to the blobstore, the server checks both the per-device storage quota and the global (owner-level) storage quota. If the incoming item would cause either quota to be exceeded, the upload is rejected with HTTP 422 and a structured error indicating which quota would be breached and the current usage vs. limit. No partial bytes are written to the blobstore on quota rejection. Quota usage is updated atomically with successful item creation to prevent race conditions under concurrent uploads.",
       "id": "REQ-P1-003",
-      "prd_ref": "OT-P1-002",
-      "status": "draft",
       "title": "Per-Device and Global Storage Quota Enforcement at Upload",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "core",
+      "description": "Before writing any bytes to the blobstore, the server checks both the per-device storage quota and the global (owner-level) storage quota. If the incoming item would cause either quota to be exceeded, the upload is rejected with HTTP 422 and a structured error indicating which quota would be breached and the current usage vs. limit. No partial bytes are written to the blobstore on quota rejection. Quota usage is updated atomically with successful item creation to prevent race conditions under concurrent uploads.",
       "validation": [
         {
-          "notes": "Unit test: quota checker returns QuotaExceeded error with breach details when per-device usage + item size \u003e per-device limit",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Unit test: quota checker returns QuotaExceeded error with breach details when per-device usage + item size \u003e per-device limit"
         },
         {
-          "notes": "Unit test: quota checker returns QuotaExceeded error when global usage + item size \u003e global limit even if per-device quota is not exceeded",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Unit test: quota checker returns QuotaExceeded error when global usage + item size \u003e global limit even if per-device quota is not exceeded"
         },
         {
-          "notes": "Unit test: upload handler calls quota checker before opening blobstore write stream",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Unit test: upload handler calls quota checker before opening blobstore write stream"
         },
         {
-          "notes": "Unit test: quota usage counter is incremented atomically within the same database transaction as item creation",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Unit test: quota usage counter is incremented atomically within the same database transaction as item creation"
         },
         {
-          "notes": "Unit test: quota usage counter is decremented atomically on item purge or deletion",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Unit test: quota usage counter is decremented atomically on item purge or deletion"
         },
         {
-          "notes": "Integration test: set Device B quota to 10 MB; upload 9 MB file successfully; attempt 2 MB upload; assert HTTP 422 with quota breach error",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Integration test: set Device B quota to 10 MB; upload 9 MB file successfully; attempt 2 MB upload; assert HTTP 422 with quota breach error"
         },
         {
-          "notes": "Integration test: assert zero bytes written to blobstore for the rejected upload",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Integration test: assert zero bytes written to blobstore for the rejected upload"
         },
         {
-          "notes": "Integration test: simulate two concurrent uploads that together exceed the quota; assert exactly one succeeds and one is rejected",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Integration test: simulate two concurrent uploads that together exceed the quota; assert exactly one succeeds and one is rejected"
         },
         {
-          "notes": "Quota check adds less than 10 ms overhead per upload request",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "planned",
+          "notes": "Quota check adds less than 10 ms overhead per upload request"
         },
         {
-          "notes": "Playbook: fill quota to near-limit; attempt to exceed it; confirm error message clearly states quota limit and current usage",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Playbook: fill quota to near-limit; attempt to exceed it; confirm error message clearly states quota limit and current usage"
         }
       ]
     }
-  ],
-  "title": "Storage Quotas Enforced at Upload"
+  ]
 }

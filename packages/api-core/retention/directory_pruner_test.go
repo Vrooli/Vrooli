@@ -179,6 +179,28 @@ func TestDirectoryDeleteRejectsEscapingSymlink(t *testing.T) {
 	}
 }
 
+func TestDirectoryDeleteRejectsSymlinkIntoProtectedRoot(t *testing.T) {
+	root := t.TempDir()
+	protected := filepath.Join(root, "plan-artifacts")
+	if err := os.MkdirAll(protected, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "cache-link")
+	if err := os.Symlink(protected, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	p, err := NewDirectoryPruner(DirectoryConfig{Path: root, ProtectedRoots: []string{protected}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Delete(context.Background(), Candidates{{Path: link}}, Batch{}); err == nil {
+		t.Fatal("expected symlink into protected root to be rejected")
+	}
+	if _, err := os.Lstat(link); err != nil {
+		t.Fatalf("protected symlink was removed: %v", err)
+	}
+}
+
 func TestDirectoryDeleteHonorsProtectedGlob(t *testing.T) {
 	root := newFixtureDir(t, 1, 1000, time.Hour)
 	entry, err := os.ReadDir(root)

@@ -32,6 +32,10 @@ func (Service) Read(repoRoot string) (apicoreset.Report, error) {
 // Compute walks canonical manifests under scenariosDir. It always retains the
 // seed, including when a seed manifest is absent or invalid.
 func Compute(scenariosDir string, authority apicoreset.Authority) apicoreset.Report {
+	// The recovery plane is a control-plane invariant. Normalize here as well
+	// as at onboarding so stale or hand-authored operator state cannot remove
+	// the supervisors required to repair the system that performs recovery.
+	authority = apicoreset.NormalizeOperationalAuthority(authority)
 	seed := normalized(authority.Seed)
 	trusted := normalized(authority.TrustedBase)
 	if strings.TrimSpace(scenariosDir) == "" {

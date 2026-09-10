@@ -9,16 +9,20 @@ import (
 	"strings"
 	"time"
 
+	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/reach"
 )
 
 // HandlerDeps contains dependencies for preflight handlers.
 type HandlerDeps struct {
-	SSHRunner  ssh.Runner
+	// Reach is the transport every host observation goes through. Preflight
+	// runs before a deployment record exists, so the target is derived from
+	// the manifest locator and reached with the operator's ambient identity
+	// (or the enrolled Bridge node).
+	Reach      reach.Reach
 	DNSService dns.Service
 	// ValidateManifest is a function that validates and normalizes a manifest.
 	// Returns normalized manifest and validation issues.
@@ -63,144 +67,26 @@ func HandlePreflight(deps HandlerDeps) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
 		defer cancel()
 
-		resp := Run(ctx, normalized, deps.DNSService, deps.SSHRunner, RunOptions{})
+		resp := Run(ctx, normalized, deps.DNSService, deps.Reach, domain.TargetRefFromManifest(normalized), RunOptions{})
 		resp.Issues = issues
 		httputil.WriteJSON(w, http.StatusOK, resp)
 	}
 }
 
-// StopPortServicesRequest is the request body for stopping services on ports 80/443.
-type StopPortServicesRequest struct {
-	Host              string   `json:"host"`
-	Port              int      `json:"port,omitempty"`
-	User              string   `json:"user,omitempty"`
-	KeyPath           string   `json:"key_path"`
-	Ports             []int    `json:"ports,omitempty"`
-	PIDs              []int    `json:"pids,omitempty"`
-	Services          []string `json:"services,omitempty"`
-	PreferServiceStop *bool    `json:"prefer_service_stop,omitempty"`
-}
-
-// StopPortServicesResponse is the response from stopping port services.
-type StopPortServicesResponse struct {
-	OK        bool     `json:"ok"`
-	Stopped   []string `json:"stopped"`
-	Failed    []string `json:"failed,omitempty"`
-	Message   string   `json:"message"`
-	Timestamp string   `json:"timestamp"`
-}
-
-// HandleStopPortServices creates a handler for stopping services on ports 80/443.
-func HandleStopPortServices(sshRunner ssh.Runner) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req StopPortServicesRequest
-		if !httputil.DecodeRequestBody(w, r, &req) {
-			return
-		}
-
-		cfg := ssh.NewConfig(req.Host, req.Port, req.User, req.KeyPath)
-
-		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-		defer cancel()
-
-		preferServiceStop := req.PreferServiceStop == nil || *req.PreferServiceStop
-
-		pids, portsDetected, err := collectPortStopPIDs(ctx, sshRunner, cfg, req)
-		if err != nil {
-			httputil.WriteJSON(w, http.StatusOK, StopPortServicesResponse{
-				OK:        false,
-				Message:   "Failed to check ports: " + err.Error(),
-				Timestamp: time.Now().UTC().Format(time.RFC3339),
-			})
-			return
-		}
-
-		var stopped, failed []string
-		stoppedUnits := make(map[string]bool)
-
-		if len(pids) == 0 && len(req.Services) == 0 && len(req.Ports) == 0 && !portsDetected {
-			httputil.WriteJSON(w, http.StatusOK, StopPortServicesResponse{
-				OK:        true,
-				Stopped:   []string{},
-				Message:   "Ports 80/443 are already free",
-				Timestamp: time.Now().UTC().Format(time.RFC3339),
-			})
-			return
-		}
-
-		for _, svc := range req.Services {
-			unit := normalizeServiceName(svc)
-			if unit == "" {
-				continue
-			}
-			if stopUnit(ctx, sshRunner, cfg, unit) {
-				stoppedUnits[unit] = true
-				stopped = append(stopped, "service "+trimServiceSuffix(unit))
-			} else {
-				failed = append(failed, "service "+trimServiceSuffix(unit))
-			}
-		}
-
-		for _, pid := range pids {
-			if preferServiceStop {
-				unit := resolveUnitForPID(ctx, sshRunner, cfg, pid)
-				if unit != "" {
-					if stoppedUnits[unit] {
-						continue
-					}
-					if stopUnit(ctx, sshRunner, cfg, unit) {
-						stoppedUnits[unit] = true
-						stopped = append(stopped, fmt.Sprintf("service %s (pid %s)", trimServiceSuffix(unit), pid))
-						continue
-					}
-				}
-			}
-			if stopPID(ctx, sshRunner, cfg, pid) {
-				stopped = append(stopped, "pid "+pid)
-			} else {
-				failed = append(failed, "pid "+pid)
-			}
-		}
-
-		if len(req.Services) == 0 && len(req.PIDs) == 0 && len(req.Ports) == 0 {
-			commonServices := []string{"nginx", "apache2", "httpd", "caddy"}
-			for _, svc := range commonServices {
-				unit := normalizeServiceName(svc)
-				if unit == "" || stoppedUnits[unit] {
-					continue
-				}
-				if stopUnitIfActive(ctx, sshRunner, cfg, unit) {
-					stoppedUnits[unit] = true
-					stopped = append(stopped, "service "+trimServiceSuffix(unit))
-				}
-			}
-		}
-
-		msg := "Ports 80/443 should now be free"
-		if len(req.Services) > 0 || len(req.PIDs) > 0 || len(req.Ports) > 0 {
-			msg = "Requested stop actions completed"
-		}
-		if len(failed) > 0 {
-			msg = "Some processes could not be stopped"
-		}
-
-		httputil.WriteJSON(w, http.StatusOK, StopPortServicesResponse{
-			OK:        len(failed) == 0,
-			Stopped:   stopped,
-			Failed:    failed,
-			Message:   msg,
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		})
-	}
+// HostRequest names a target that has no deployment record yet: the locator
+// only. There is no key reference on the wire; the transport authenticates
+// with the credential binding of a bound deployment or the operator's
+// ambient identity.
+type HostRequest struct {
+	Host string `json:"host"`
+	Port int    `json:"port,omitempty"`
+	User string `json:"user,omitempty"`
 }
 
 // FirewallFixRequest is the request body for opening firewall ports via UFW.
 type FirewallFixRequest struct {
-	Host    string `json:"host"`
-	Port    int    `json:"port,omitempty"`
-	User    string `json:"user,omitempty"`
-	KeyPath string `json:"key_path"`
-	Ports   []int  `json:"ports,omitempty"`
+	HostRequest
+	Ports []int `json:"ports,omitempty"`
 }
 
 // FirewallFixResponse is the response from opening firewall ports.
@@ -212,79 +98,9 @@ type FirewallFixResponse struct {
 	Timestamp string `json:"timestamp"`
 }
 
-// HandleOpenFirewallPorts creates a handler for opening firewall ports.
-func HandleOpenFirewallPorts(sshRunner ssh.Runner) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req FirewallFixRequest
-		if !httputil.DecodeRequestBody(w, r, &req) {
-			return
-		}
-
-		cfg := ssh.NewConfig(req.Host, req.Port, req.User, req.KeyPath)
-		ports := req.Ports
-		if len(ports) == 0 {
-			ports = []int{80, 443}
-		}
-
-		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-		defer cancel()
-
-		checkRes, checkErr := sshRunner.Run(ctx, cfg, "command -v ufw >/dev/null", ssh.DefaultRunOptions())
-		if checkErr != nil || checkRes.ExitCode != 0 {
-			httputil.WriteJSON(w, http.StatusOK, FirewallFixResponse{
-				OK:        false,
-				Message:   "UFW not installed or not available on target host",
-				Ports:     ports,
-				Timestamp: time.Now().UTC().Format(time.RFC3339),
-			})
-			return
-		}
-
-		commands := make([]string, 0, len(ports))
-		for _, port := range ports {
-			if port <= 0 {
-				continue
-			}
-			commands = append(commands, fmt.Sprintf("ufw allow %d/tcp", port))
-		}
-		if len(commands) == 0 {
-			httputil.WriteJSON(w, http.StatusOK, FirewallFixResponse{
-				OK:        false,
-				Message:   "No valid ports provided",
-				Ports:     ports,
-				Timestamp: time.Now().UTC().Format(time.RFC3339),
-			})
-			return
-		}
-
-		allowCmd := strings.Join(commands, " && ")
-		if _, err := sshRunner.Run(ctx, cfg, allowCmd, ssh.DefaultRunOptions()); err != nil {
-			httputil.WriteJSON(w, http.StatusOK, FirewallFixResponse{
-				OK:        false,
-				Message:   "Failed to update UFW rules: " + err.Error(),
-				Ports:     ports,
-				Timestamp: time.Now().UTC().Format(time.RFC3339),
-			})
-			return
-		}
-
-		statusRes, _ := sshRunner.Run(ctx, cfg, "ufw status", ssh.DefaultRunOptions())
-		httputil.WriteJSON(w, http.StatusOK, FirewallFixResponse{
-			OK:        true,
-			Message:   "Firewall rules updated",
-			Ports:     ports,
-			Status:    strings.TrimSpace(statusRes.Stdout),
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		})
-	}
-}
-
 // DiskUsageRequest is the request body for getting disk usage details.
 type DiskUsageRequest struct {
-	Host    string `json:"host"`
-	Port    int    `json:"port,omitempty"`
-	User    string `json:"user,omitempty"`
-	KeyPath string `json:"key_path"`
+	HostRequest
 }
 
 // DiskUsageEntry represents a single disk usage entry.
@@ -303,82 +119,103 @@ type DiskUsageResponse struct {
 	TotalBytes  int64            `json:"total_bytes"`
 	UsedPercent int              `json:"used_percent"`
 	LargestDirs []DiskUsageEntry `json:"largest_dirs"`
+	Error       string           `json:"error,omitempty"`
 	Timestamp   string           `json:"timestamp"`
 }
 
-// HandleDiskUsage creates a handler for getting disk usage details.
-func HandleDiskUsage(sshRunner ssh.Runner) http.HandlerFunc {
+// diskUsageRoots are the directories whose immediate children are sized.
+// The set is fixed: a caller cannot name a path.
+var diskUsageRoots = []string{"/var", "/home", "/root", "/opt", "/tmp"}
+
+// HandleDiskUsage reports root filesystem usage and the largest directories
+// under the fixed roots, through df and du observations.
+func HandleDiskUsage(reachFor ReachFactory) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req DiskUsageRequest
 		if !httputil.DecodeRequestBody(w, r, &req) {
 			return
 		}
-
-		cfg := ssh.NewConfig(req.Host, req.Port, req.User, req.KeyPath)
-
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
+		target := preflightTarget(req.Host, req.Port, req.User, domain.DefaultVPSWorkdir)
+		obs := observer{reach: reachFor(target), target: target}
+		now := time.Now().UTC().Format(time.RFC3339)
 
-		// Get disk usage stats
-		dfRes, err := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $2, $3, $4, $5}'`, ssh.DefaultRunOptions())
-		if err != nil {
-			httputil.WriteJSON(w, http.StatusOK, DiskUsageResponse{
-				OK:        false,
-				Timestamp: time.Now().UTC().Format(time.RFC3339),
-			})
+		dfRes, err := obs.observe(ctx, "df", "-Pk", "/")
+		totalKB, _, availKB, usedPct, found := dfRoot(dfRes)
+		if !ok(dfRes, err) || !found {
+			msg := "df did not answer"
+			if err != nil {
+				msg = err.Error()
+			}
+			httputil.WriteJSON(w, http.StatusOK, DiskUsageResponse{OK: false, Error: msg, Timestamp: now})
 			return
-		}
-
-		parts := strings.Fields(dfRes.Stdout)
-		var totalKB, freeKB int64
-		var usedPct int
-		if len(parts) >= 4 {
-			totalKB, _ = strconv.ParseInt(parts[0], 10, 64)
-			// parts[1] is used space (not needed for response)
-			freeKB, _ = strconv.ParseInt(parts[2], 10, 64)
-			pctStr := strings.TrimSuffix(parts[3], "%")
-			usedPct, _ = strconv.Atoi(pctStr)
-		}
-
-		// Get largest directories
-		duRes, _ := sshRunner.Run(ctx, cfg, `du -sk /var/* /home/* /root/* /opt/* /tmp/* 2>/dev/null | sort -rn | head -10`, ssh.DefaultRunOptions())
-		var largestDirs []DiskUsageEntry
-		for _, line := range strings.Split(duRes.Stdout, "\n") {
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-			fields := strings.Fields(line)
-			if len(fields) >= 2 {
-				sizeKB, _ := strconv.ParseInt(fields[0], 10, 64)
-				largestDirs = append(largestDirs, DiskUsageEntry{
-					Path:  fields[1],
-					Size:  formatBytes(sizeKB),
-					Bytes: sizeKB * 1024,
-				})
-			}
 		}
 
 		httputil.WriteJSON(w, http.StatusOK, DiskUsageResponse{
 			OK:          true,
-			FreeSpace:   formatBytes(freeKB),
-			FreeBytes:   freeKB * 1024,
+			FreeSpace:   formatBytes(availKB),
+			FreeBytes:   availKB * 1024,
 			TotalSpace:  formatBytes(totalKB),
 			TotalBytes:  totalKB * 1024,
 			UsedPercent: usedPct,
-			LargestDirs: largestDirs,
-			Timestamp:   time.Now().UTC().Format(time.RFC3339),
+			LargestDirs: largestDirectories(ctx, obs),
+			Timestamp:   now,
 		})
 	}
 }
 
+// largestDirectories sizes the children of the fixed roots (du -sk on each
+// root's entries, resolved through ls) and returns the ten largest.
+func largestDirectories(ctx context.Context, obs observer) []DiskUsageEntry {
+	var entries []DiskUsageEntry
+	for _, root := range diskUsageRoots {
+		list, err := obs.observe(ctx, "ls", "-A1", "--", root)
+		if !ok(list, err) {
+			continue
+		}
+		var paths []string
+		for _, name := range strings.Split(list.Stdout, "\n") {
+			name = strings.TrimSpace(name)
+			if name == "" || reach.ValidateArgs([]string{name}) != nil {
+				continue
+			}
+			paths = append(paths, root+"/"+name)
+		}
+		if len(paths) == 0 {
+			continue
+		}
+		du, err := obs.observe(ctx, "du", append([]string{"-sk", "--"}, paths...)...)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(du.Stdout, "\n") {
+			fields := strings.Fields(line)
+			if len(fields) < 2 {
+				continue
+			}
+			sizeKB, perr := strconv.ParseInt(fields[0], 10, 64)
+			if perr != nil {
+				continue
+			}
+			entries = append(entries, DiskUsageEntry{Path: fields[1], Size: formatBytes(sizeKB), Bytes: sizeKB * 1024})
+		}
+	}
+	for i := 1; i < len(entries); i++ {
+		for j := i; j > 0 && entries[j].Bytes > entries[j-1].Bytes; j-- {
+			entries[j], entries[j-1] = entries[j-1], entries[j]
+		}
+	}
+	if len(entries) > 10 {
+		entries = entries[:10]
+	}
+	return entries
+}
+
 // DiskCleanupRequest is the request body for running disk cleanup.
 type DiskCleanupRequest struct {
-	Host    string   `json:"host"`
-	Port    int      `json:"port,omitempty"`
-	User    string   `json:"user,omitempty"`
-	KeyPath string   `json:"key_path"`
-	Actions []string `json:"actions"` // apt_clean, journal_vacuum, docker_prune
+	HostRequest
+	Actions []string `json:"actions"`
 }
 
 // DiskCleanupResponse is the response from disk cleanup.
@@ -403,95 +240,104 @@ type DiskCleanupActionResult struct {
 	Hint     string `json:"hint,omitempty"`
 }
 
-// HandleDiskCleanup creates a handler for running disk cleanup.
-func HandleDiskCleanup(sshRunner ssh.Runner) http.HandlerFunc {
+// cleanupAction is one disk cleanup the target owner can perform: the
+// privilege-broker action and its closed subject.
+type cleanupAction struct {
+	broker  string
+	subject any
+	hint    string
+}
+
+// journalVacuumBytes is the journal size the vacuum keeps (100 MiB).
+const journalVacuumBytes = 100 * 1024 * 1024
+
+// CleanupActions is the closed set of disk cleanup actions and their owner
+// operations. Every entry runs through `cloud-target host repair`.
+var CleanupActions = map[string]cleanupAction{
+	"journal_vacuum":       {broker: "journald.vacuum", subject: map[string]any{"journal": map[string]any{"max_use_bytes": journalVacuumBytes}}, hint: "Check journald permissions and the journal size settings, then retry."},
+	"docker_prune":         {broker: "docker.prune.unused-images", subject: map[string]any{"docker": map[string]any{}}, hint: "Ensure Docker is installed and running, or drop docker_prune from actions."},
+	"docker_prune_volumes": {broker: "docker.prune.unused-volumes", subject: map[string]any{"docker": map[string]any{}}, hint: "Ensure Docker is installed and running, or drop docker_prune_volumes from actions."},
+}
+
+// UnownedCleanupActions are the cleanup actions callers used to request that
+// have no privilege-broker owner. They are refused by name so the missing
+// owner is explicit rather than silently shelled.
+var UnownedCleanupActions = map[string]string{
+	"apt_clean": "no privilege-broker action owns apt cache cleaning (apt.packages.ensure only installs)",
+	"tmp_clean": "no privilege-broker action owns /tmp expiry (a path-taking delete is refused by design)",
+}
+
+// DefaultCleanupActions run when the request names none.
+var DefaultCleanupActions = []string{"journal_vacuum"}
+
+// HandleDiskCleanup frees disk space through the target owner's host repair
+// verb. An action without an owner is a typed unsupported_capability refusal
+// before anything runs.
+func HandleDiskCleanup(reachFor ReachFactory) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req DiskCleanupRequest
 		if !httputil.DecodeRequestBody(w, r, &req) {
 			return
 		}
-
 		if len(req.Actions) == 0 {
-			req.Actions = []string{"apt_clean", "journal_vacuum"}
+			req.Actions = append([]string(nil), DefaultCleanupActions...)
 		}
-
-		cfg := ssh.NewConfig(req.Host, req.Port, req.User, req.KeyPath)
+		for _, action := range req.Actions {
+			if _, owned := CleanupActions[action]; owned {
+				continue
+			}
+			reason, known := UnownedCleanupActions[action]
+			if !known {
+				reason = "unknown cleanup action"
+			}
+			apierrors.Write(w, apierrors.New(apierrors.CodeUnsupportedCapability, "disk cleanup action has no owner operation: "+action).
+				WithDetail("action", action).WithDetail("reason", reason).WithDetail("supported_actions", cleanupActionNames()).
+				WithNextAction(apierrors.NextAction{Owner: "internal/privilegebroker", Kind: "capability", Reference: action, Label: "Add a privilege-broker action for " + action}))
+			return
+		}
 
 		ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 		defer cancel()
+		target := preflightTarget(req.Host, req.Port, req.User, domain.DefaultVPSWorkdir)
+		rr := reachFor(target)
+		obs := observer{reach: rr, target: target}
 
-		// Get initial free space
-		beforeRes, _ := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`, ssh.DefaultRunOptions())
-		beforeKB, _ := strconv.ParseInt(strings.TrimSpace(beforeRes.Stdout), 10, 64)
+		before, _ := obs.observe(ctx, "df", "-Pk", "/")
+		_, _, beforeKB, _, _ := dfRoot(before)
 
 		var (
 			actionsRun    []string
 			actionsFailed []string
 			actionResults []DiskCleanupActionResult
 		)
-
-		actionCommands := map[string]string{
-			"apt_clean":      "apt-get clean && apt-get autoremove -y",
-			"journal_vacuum": "journalctl --vacuum-size=100M",
-			"docker_prune":   "docker system prune -af 2>/dev/null || true",
-			"tmp_clean":      "find /tmp -type f -atime +7 -delete 2>/dev/null || true",
-		}
-		actionHints := map[string]string{
-			"apt_clean":      "Ensure apt/dpkg locks are clear, then retry apt cleanup.",
-			"journal_vacuum": "Check journalctl permissions and available journal space settings.",
-			"docker_prune":   "Ensure Docker is installed/running, or remove docker_prune from actions.",
-			"tmp_clean":      "Verify /tmp permissions and retry tmp_clean.",
-		}
-
 		for _, action := range req.Actions {
-			cmd, ok := actionCommands[action]
-			if !ok {
-				actionsFailed = append(actionsFailed, action)
-				actionResults = append(actionResults, DiskCleanupActionResult{
-					Action:   action,
-					OK:       false,
-					ExitCode: 1,
-					Summary:  "unsupported cleanup action",
-					Hint:     "Use one of: apt_clean, journal_vacuum, docker_prune, tmp_clean",
-				})
-				continue
-			}
-			res, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
-			actionOK := err == nil && res.ExitCode == 0
-			summary := summarizeDiskCleanupAction(res.Stdout, res.Stderr)
-			if summary == "" && err != nil {
-				summary = err.Error()
-			}
-			actionResult := DiskCleanupActionResult{
-				Action:   action,
-				OK:       actionOK,
-				ExitCode: res.ExitCode,
-				Summary:  summary,
-				Stderr:   strings.TrimSpace(res.Stderr),
-				Hint:     actionHints[action],
-			}
-			actionResults = append(actionResults, actionResult)
-			if !actionOK {
+			spec := CleanupActions[action]
+			res, err := hostRepair(ctx, rr, target, spec.broker, spec.subject)
+			failure := verbFailure(res, err)
+			result := DiskCleanupActionResult{Action: action, OK: failure == "", ExitCode: res.ExitCode, Summary: summarizeDiskCleanupAction(res.Stdout, res.Stderr), Stderr: strings.TrimSpace(res.Stderr)}
+			if failure != "" {
+				result.Summary = failure
+				result.Hint = spec.hint
+				if err != nil && res.ExitCode == 0 {
+					result.ExitCode = 1
+				}
 				actionsFailed = append(actionsFailed, action)
 			} else {
 				actionsRun = append(actionsRun, action)
 			}
+			actionResults = append(actionResults, result)
 		}
 
-		// Get final free space
-		afterRes, _ := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`, ssh.DefaultRunOptions())
-		afterKB, _ := strconv.ParseInt(strings.TrimSpace(afterRes.Stdout), 10, 64)
-
+		after, _ := obs.observe(ctx, "df", "-Pk", "/")
+		_, _, afterKB, _, _ := dfRoot(after)
 		freedKB := afterKB - beforeKB
 		if freedKB < 0 {
 			freedKB = 0
 		}
-
 		msg := fmt.Sprintf("Freed %s of disk space", formatBytes(freedKB))
 		if freedKB == 0 {
 			msg = "No significant space was freed"
 		}
-
 		httputil.WriteJSON(w, http.StatusOK, DiskCleanupResponse{
 			OK:            len(actionsFailed) == 0,
 			SpaceFreed:    formatBytes(freedKB),
@@ -505,12 +351,23 @@ func HandleDiskCleanup(sshRunner ssh.Runner) http.HandlerFunc {
 	}
 }
 
+func cleanupActionNames() []string {
+	names := make([]string, 0, len(CleanupActions))
+	for name := range CleanupActions {
+		names = append(names, name)
+	}
+	for i := 1; i < len(names); i++ {
+		for j := i; j > 0 && names[j] < names[j-1]; j-- {
+			names[j], names[j-1] = names[j-1], names[j]
+		}
+	}
+	return names
+}
+
 func summarizeDiskCleanupAction(stdout, stderr string) string {
 	for _, source := range []string{stderr, stdout} {
-		lines := strings.Split(source, "\n")
-		for _, line := range lines {
-			trimmed := strings.TrimSpace(line)
-			if trimmed != "" {
+		for _, line := range strings.Split(source, "\n") {
+			if trimmed := strings.TrimSpace(line); trimmed != "" {
 				return trimmed
 			}
 		}
@@ -520,10 +377,7 @@ func summarizeDiskCleanupAction(stdout, stderr string) string {
 
 // StopScenarioProcessesRequest is the request body for stopping stale scenario processes.
 type StopScenarioProcessesRequest struct {
-	Host       string `json:"host"`
-	Port       int    `json:"port,omitempty"`
-	User       string `json:"user,omitempty"`
-	KeyPath    string `json:"key_path"`
+	HostRequest
 	Workdir    string `json:"workdir"`
 	ScenarioID string `json:"scenario_id,omitempty"` // If empty, stops all vrooli processes
 }
@@ -537,64 +391,6 @@ type StopScenarioProcessesResponse struct {
 	Timestamp string `json:"timestamp"`
 }
 
-// StopScenarioFunc is a function type for stopping scenarios.
-type StopScenarioFunc func(ctx context.Context, sshRunner ssh.Runner, cfg ssh.ConnectionConfig, workdir, scenarioID string, targetPorts []int) StopScenarioResult
-
-// StopScenarioResult represents the result of stopping a scenario.
-type StopScenarioResult struct {
-	OK      bool   `json:"ok"`
-	Message string `json:"message"`
-}
-
-// HandleStopScenarioProcesses creates a handler for stopping stale scenario processes.
-func HandleStopScenarioProcesses(sshRunner ssh.Runner, stopScenario StopScenarioFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req StopScenarioProcessesRequest
-		if !httputil.DecodeRequestBody(w, r, &req) {
-			return
-		}
-
-		if req.Workdir == "" {
-			req.Workdir = domain.DefaultVPSWorkdir
-		}
-
-		cfg := ssh.NewConfig(req.Host, req.Port, req.User, req.KeyPath)
-
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
-		defer cancel()
-
-		// Verify SSH connectivity first
-		testResult, testErr := sshRunner.Run(ctx, cfg, "echo ok", ssh.DefaultRunOptions())
-		if testErr != nil {
-			writeStopScenarioResponse(w, false, "test_ssh",
-				fmt.Sprintf("SSH connection test failed: %v (stdout: %s, stderr: %s)", testErr, testResult.Stdout, testResult.Stderr),
-				testResult.Stderr)
-			return
-		}
-
-		// Verify workdir exists (common check for both branches)
-		if !workdirExists(ctx, sshRunner, cfg, req.Workdir) {
-			writeStopScenarioResponse(w, false, "check_workdir",
-				fmt.Sprintf("Workdir %s does not exist on VPS", req.Workdir), "")
-			return
-		}
-
-		// Branch: Stop specific scenario
-		if req.ScenarioID != "" {
-			result := stopScenario(ctx, sshRunner, cfg, req.Workdir, req.ScenarioID, nil)
-			writeStopScenarioResponse(w, result.OK, "stop_scenario", result.Message,
-				fmt.Sprintf("Stopped scenario %s: %s", req.ScenarioID, result.Message))
-			return
-		}
-
-		// Branch: Stop all vrooli processes
-		outputs := stopAllVrooliProcesses(ctx, sshRunner, cfg, req.Workdir)
-		writeStopScenarioResponse(w, true, "stop_all",
-			"Stopped all vrooli processes and killed orphans",
-			strings.Join(outputs, "\n"))
-	}
-}
-
 // writeStopScenarioResponse is a helper to reduce response construction boilerplate.
 func writeStopScenarioResponse(w http.ResponseWriter, ok bool, action, message, output string) {
 	httputil.WriteJSON(w, http.StatusOK, StopScenarioProcessesResponse{
@@ -604,139 +400,4 @@ func writeStopScenarioResponse(w http.ResponseWriter, ok bool, action, message, 
 		Output:    output,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
-}
-
-// workdirExists checks if the specified directory exists on the remote VPS.
-func workdirExists(ctx context.Context, sshRunner ssh.Runner, cfg ssh.ConnectionConfig, workdir string) bool {
-	result, _ := sshRunner.Run(ctx, cfg, fmt.Sprintf("test -d %s && echo exists || echo missing", shellutil.QuoteSingle(workdir)), ssh.DefaultRunOptions())
-	return strings.TrimSpace(result.Stdout) == "exists"
-}
-
-// stopAllVrooliProcesses attempts to stop all vrooli processes using CLI (if available) and pkill.
-func stopAllVrooliProcesses(ctx context.Context, sshRunner ssh.Runner, cfg ssh.ConnectionConfig, workdir string) []string {
-	var outputs []string
-
-	// Try vrooli stop first (if the deployment-local CLI is available)
-	checkCliResult, _ := sshRunner.Run(ctx, cfg, fmt.Sprintf("test -x %s && echo found || echo notfound", shellutil.QuotedRemoteVrooliPath(workdir)), ssh.DefaultRunOptions())
-	if strings.TrimSpace(checkCliResult.Stdout) == "found" {
-		vrooliResult, _ := sshRunner.Run(ctx, cfg, shellutil.VrooliCommand(workdir, "vrooli stop"), ssh.DefaultRunOptions())
-		if vrooliResult.Stdout != "" {
-			outputs = append(outputs, vrooliResult.Stdout)
-		}
-	}
-
-	// Kill orphaned processes that may not be managed by vrooli lifecycle
-	killOrphansCmd := "pkill -f 'pm2' 2>/dev/null; pkill -f '-api$' 2>/dev/null; pkill -f 'scenario.*api' 2>/dev/null; true"
-	if _, err := sshRunner.Run(ctx, cfg, killOrphansCmd, ssh.DefaultRunOptions()); err != nil {
-		outputs = append(outputs, "Failed to kill orphaned processes: "+err.Error())
-	} else {
-		outputs = append(outputs, "Killed orphaned processes")
-	}
-
-	return outputs
-}
-
-// Helper functions for port stopping
-
-func collectPortStopPIDs(ctx context.Context, sshRunner ssh.Runner, cfg ssh.ConnectionConfig, req StopPortServicesRequest) ([]string, bool, error) {
-	if len(req.Ports) == 0 && len(req.PIDs) == 0 && len(req.Services) == 0 {
-		ssRes, err := sshRunner.Run(ctx, cfg, `ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null || ss -ltnH '( sport = :80 or sport = :443 )'`, ssh.DefaultRunOptions())
-		if err != nil {
-			return nil, false, err
-		}
-		if strings.TrimSpace(ssRes.Stdout) == "" {
-			return nil, false, nil
-		}
-		return ExtractPIDsFromSS(ssRes.Stdout), true, nil
-	}
-
-	seen := make(map[string]bool)
-	var pids []string
-	for _, pid := range req.PIDs {
-		pidStr := strconv.Itoa(pid)
-		if !seen[pidStr] {
-			seen[pidStr] = true
-			pids = append(pids, pidStr)
-		}
-	}
-
-	for _, port := range req.Ports {
-		cmd := fmt.Sprintf("ss -ltnpH 'sport = :%d' 2>/dev/null || ss -ltnH 'sport = :%d'", port, port)
-		res, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
-		if err != nil {
-			return nil, true, err
-		}
-		for _, pid := range ExtractPIDsFromSS(res.Stdout) {
-			if !seen[pid] {
-				seen[pid] = true
-				pids = append(pids, pid)
-			}
-		}
-	}
-
-	return pids, len(req.Ports) > 0 || len(req.PIDs) > 0 || len(req.Services) > 0, nil
-}
-
-func resolveUnitForPID(ctx context.Context, runner ssh.Runner, cfg ssh.ConnectionConfig, pid string) string {
-	cmd := fmt.Sprintf("systemctl status %s --no-pager 2>/dev/null | head -n 1", pid)
-	res, err := runner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
-	if err != nil {
-		return ""
-	}
-	line := strings.TrimSpace(res.Stdout)
-	if line == "" {
-		return ""
-	}
-	for _, field := range strings.Fields(line) {
-		if strings.HasSuffix(field, ".service") {
-			return strings.TrimPrefix(field, "●")
-		}
-	}
-	return ""
-}
-
-func stopUnit(ctx context.Context, runner ssh.Runner, cfg ssh.ConnectionConfig, unit string) bool {
-	cmd := fmt.Sprintf("systemctl stop %s 2>/dev/null", unit)
-	res, err := runner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
-	if err != nil {
-		return false
-	}
-	return res.ExitCode == 0
-}
-
-func stopUnitIfActive(ctx context.Context, runner ssh.Runner, cfg ssh.ConnectionConfig, unit string) bool {
-	checkCmd := fmt.Sprintf("systemctl is-active %s 2>/dev/null", unit)
-	checkRes, _ := runner.Run(ctx, cfg, checkCmd, ssh.DefaultRunOptions())
-	if strings.TrimSpace(checkRes.Stdout) != "active" {
-		return false
-	}
-	return stopUnit(ctx, runner, cfg, unit)
-}
-
-func stopPID(ctx context.Context, runner ssh.Runner, cfg ssh.ConnectionConfig, pid string) bool {
-	killCmd := fmt.Sprintf("kill %s 2>/dev/null && sleep 1 && ! kill -0 %s 2>/dev/null", pid, pid)
-	_, err := runner.Run(ctx, cfg, killCmd, ssh.DefaultRunOptions())
-	if err != nil {
-		killCmd = fmt.Sprintf("kill -9 %s 2>/dev/null", pid)
-		_, err = runner.Run(ctx, cfg, killCmd, ssh.DefaultRunOptions())
-		if err != nil {
-			return false
-		}
-	}
-	return true
-}
-
-func normalizeServiceName(service string) string {
-	service = strings.TrimSpace(service)
-	if service == "" {
-		return ""
-	}
-	if strings.HasSuffix(service, ".service") {
-		return service
-	}
-	return service + ".service"
-}
-
-func trimServiceSuffix(service string) string {
-	return strings.TrimSuffix(service, ".service")
 }

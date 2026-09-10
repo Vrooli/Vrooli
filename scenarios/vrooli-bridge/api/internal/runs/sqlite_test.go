@@ -55,6 +55,28 @@ func TestSQLiteRepository_CreateGetRoundTrip(t *testing.T) {
 	require.Equal(t, int64(600), got.TimeoutSeconds)
 }
 
+func TestSQLiteRepository_CancellationStateRoundTrips(t *testing.T) {
+	d, clk := newSchemaDB(t)
+	repo := runs.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	created, err := repo.Create(ctx, runs.Run{NodeID: "n1", Verb: "scenario test"})
+	require.NoError(t, err)
+
+	created.Status = runs.StatusUncertain
+	created.CancelRequestedAt = clk.Now()
+	created.CancellationConfirmed = false
+	created.StatusReason = "cancellation delivery unconfirmed"
+	_, err = repo.Update(ctx, created)
+	require.NoError(t, err)
+
+	got, err := repo.Get(ctx, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, runs.StatusUncertain, got.Status)
+	require.Equal(t, created.CancelRequestedAt, got.CancelRequestedAt)
+	require.False(t, got.CancellationConfirmed)
+	require.Equal(t, "cancellation delivery unconfirmed", got.StatusReason)
+}
+
 // [REQ:BRG-P0-005] An unknown id is a typed not-found.
 func TestSQLiteRepository_GetNotFound(t *testing.T) {
 	d, clk := newSchemaDB(t)

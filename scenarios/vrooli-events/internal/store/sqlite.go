@@ -234,6 +234,10 @@ func (s *SQLiteStore) Query(ctx context.Context, f QueryFilters) ([]Event, error
 			args = append(args, f.EventType)
 		}
 	}
+	if f.EventID != "" {
+		clauses = append(clauses, "event_id = ?")
+		args = append(args, f.EventID)
+	}
 	if f.Source != "" {
 		clauses = append(clauses, "source_scenario = ?")
 		args = append(args, f.Source)

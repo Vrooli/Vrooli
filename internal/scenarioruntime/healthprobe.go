@@ -28,10 +28,11 @@ type HealthProbe struct {
 }
 
 type HealthProbeInput struct {
-	InstanceID   string
-	Scenario     string
-	HealthConfig *scenario.HealthConfig
-	Ports        map[string]int
+	InstanceID            string
+	Scenario              string
+	HealthConfig          *scenario.HealthConfig
+	Ports                 map[string]int
+	ExpectedBuildIdentity string
 }
 
 func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnapshot {
@@ -58,9 +59,10 @@ func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnaps
 	var schemaValid *bool
 	var responseJSON string
 	var failures []string
+	var buildIdentity string
 
 	for _, check := range in.HealthConfig.Checks {
-		result := p.performCheck(ctx, client, check, in.Ports)
+		result := p.performCheck(ctx, client, check, in.Ports, in.ExpectedBuildIdentity)
 		if result.responseJSON != "" && responseJSON == "" {
 			responseJSON = result.responseJSON
 		}
@@ -69,6 +71,9 @@ func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnaps
 		}
 		if result.readiness != nil && readiness == nil {
 			readiness = result.readiness
+		}
+		if result.buildIdentity != "" && buildIdentity == "" {
+			buildIdentity = result.buildIdentity
 		}
 		if result.err == nil {
 			if result.status == apihealth.StatusDegraded {
@@ -114,6 +119,7 @@ func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnaps
 	snapshot.SchemaValid = schemaValid
 	snapshot.ResponseJSON = responseJSON
 	snapshot.Error = boundString(strings.Join(failures, "; "), healthprobeParameterA)
+	snapshot.BuildIdentity = buildIdentity
 	if snapshot.Status == HealthStatusDegraded && snapshot.Error == "" {
 		snapshot.Error = "health probe reported degraded without a reason"
 	}
@@ -127,12 +133,13 @@ type checkProbeResult struct {
 	responseJSON   string
 	err            error
 	degradedDetail string
+	buildIdentity  string
 }
 
-func (p HealthProbe) performCheck(ctx context.Context, client *http.Client, check scenario.HealthCheck, ports map[string]int) checkProbeResult {
+func (p HealthProbe) performCheck(ctx context.Context, client *http.Client, check scenario.HealthCheck, ports map[string]int, expectedBuildIdentity string) checkProbeResult {
 	switch strings.TrimSpace(check.Type) {
 	case "", "http":
-		return p.performHTTPCheck(ctx, client, check, ports)
+		return p.performHTTPCheck(ctx, client, check, ports, expectedBuildIdentity)
 	default:
 		if err := scenario.PerformHealthCheck(check, ports); err != nil {
 			return checkProbeResult{err: err}
@@ -141,7 +148,7 @@ func (p HealthProbe) performCheck(ctx context.Context, client *http.Client, chec
 	}
 }
 
-func (p HealthProbe) performHTTPCheck(ctx context.Context, client *http.Client, check scenario.HealthCheck, ports map[string]int) checkProbeResult {
+func (p HealthProbe) performHTTPCheck(ctx context.Context, client *http.Client, check scenario.HealthCheck, ports map[string]int, expectedBuildIdentity string) checkProbeResult {
 	target, err := scenario.ExpandHealthTarget(check.Target, ports)
 	if err != nil {
 		return checkProbeResult{err: err}
@@ -191,6 +198,16 @@ func (p HealthProbe) performHTTPCheck(ctx context.Context, client *http.Client, 
 			err:          fmt.Errorf("invalid health response schema"),
 		}
 	}
+	if expected := strings.TrimSpace(expectedBuildIdentity); expected != "" && decoded.BuildIdentity != expected {
+		return checkProbeResult{
+			status:        decoded.Status,
+			readiness:     &decoded.Readiness,
+			schemaValid:   &valid,
+			responseJSON:  responseJSON,
+			buildIdentity: decoded.BuildIdentity,
+			err:           fmt.Errorf("build identity mismatch: served %q, expected %q", decoded.BuildIdentity, expected),
+		}
+	}
 	var degradation error
 	if decoded.Status == apihealth.StatusDegraded {
 		if detail := degradedHealthDetail(body); detail != "" {
@@ -198,10 +215,11 @@ func (p HealthProbe) performHTTPCheck(ctx context.Context, client *http.Client, 
 		}
 	}
 	return checkProbeResult{
-		status:       decoded.Status,
-		readiness:    &decoded.Readiness,
-		schemaValid:  &valid,
-		responseJSON: responseJSON,
+		status:        decoded.Status,
+		readiness:     &decoded.Readiness,
+		schemaValid:   &valid,
+		responseJSON:  responseJSON,
+		buildIdentity: decoded.BuildIdentity,
 		degradedDetail: func() string {
 			if degradation == nil {
 				return ""

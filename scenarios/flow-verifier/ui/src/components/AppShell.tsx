@@ -1,89 +1,99 @@
-/**
- * AppShell — full-width operational shell.
- *
- * Desktop (≥ md): resizable left sidebar + main content. The sidebar is
- * driven by `useResizablePanel` so widths persist across reloads.
- * Mobile (< md): top header, bottom navigation, and a slide-in drawer
- * that hosts the same nav + flow list. The dark/light theme is mirrored
- * on `<html>` by the surrounding `<ThemeProvider>`.
- *
- * Replaces the starter centered-card layout: no `max-w-xl`, no eyebrow,
- * no card wrapping page-level content.
- */
-import { type ReactNode, useCallback, useRef, useState } from "react";
-import { Outlet } from "react-router-dom";
+import {
+  AppShell as LibraryAppShell,
+  type AppShellLinkProps,
+  type AppShellNavItem,
+} from "@vrooli/react-component-library/AppShell/2";
+import { Activity, Boxes, GaugeCircle, Layers, Settings as SettingsIcon } from "lucide-react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 
-import { useIsMobile } from "../hooks/useMediaQuery";
-import { useResizablePanel } from "../hooks/useResizablePanel";
+import { useTranslation } from "../i18n";
+import { ROUTES } from "../routes.generated";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { HealthPill } from "./HealthPill";
-import { MobileDrawer } from "./MobileDrawer";
-import { MobileHeader } from "./MobileHeader";
-import { MobileNav } from "./MobileNav";
-import { Sidebar } from "./Sidebar";
 import { SidebarFlowList } from "./SidebarFlowList";
 import { ThemeToggle } from "./ThemeToggle";
 
 const SIDEBAR_STORAGE = "flow-verifier.sidebar.width.v1";
 
-interface Props {
-  children?: ReactNode;
-}
+export function AppShell() {
+  const { t } = useTranslation();
+  const location = useLocation();
 
-export function AppShell({ children }: Props) {
-  const shellRef = useRef<HTMLDivElement>(null);
-  const sidebarRef = useRef<HTMLElement>(null);
-  const isMobile = useIsMobile();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const items: AppShellNavItem[] = [
+    {
+      id: "dashboard",
+      label: t("nav.dashboard", { defaultValue: "Dashboard" }),
+      href: ROUTES.dashboard,
+      icon: <GaugeCircle aria-hidden className="h-4 w-4" />,
+      current: location.pathname === ROUTES.dashboard,
+      testId: "nav-dashboard",
+    },
+    {
+      id: "scenarios",
+      label: t("nav.scenarios", { defaultValue: "Scenarios" }),
+      href: ROUTES.scenarios,
+      icon: <Boxes aria-hidden className="h-4 w-4" />,
+      current: location.pathname.startsWith("/scenarios"),
+      testId: "nav-scenarios",
+    },
+    {
+      id: "flows",
+      label: t("nav.flows", { defaultValue: "All flows" }),
+      href: ROUTES.flowsInventory,
+      icon: <Layers aria-hidden className="h-4 w-4" />,
+      current: location.pathname.startsWith("/flows"),
+      testId: "nav-flows",
+    },
+    {
+      id: "settings",
+      label: t("nav.settings", { defaultValue: "Settings" }),
+      href: ROUTES.settings,
+      icon: <SettingsIcon aria-hidden className="h-4 w-4" />,
+      current: location.pathname.startsWith("/settings"),
+      testId: "nav-settings",
+    },
+  ];
 
-  const { size: sidebarWidth, resizeHandleProps } = useResizablePanel({
-    containerRef: shellRef,
-    targetRef: sidebarRef,
-    minSize: 260,
-    maxSize: 480,
-    defaultSize: 300,
-    adjacentMinSize: 420,
-    handleWidth: 6,
-    storageKey: SIDEBAR_STORAGE,
-  });
-
-  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-  const openDrawer = useCallback(() => setDrawerOpen(true), []);
-
-  const headerSlot = (
-    <div className="flex items-center gap-1">
-      <HealthPill />
-      <ThemeToggle />
-    </div>
+  const renderLink = (item: AppShellNavItem, props: AppShellLinkProps) => (
+    <NavLink
+      to={item.href}
+      className={props.className}
+      aria-current={props["aria-current"]}
+      aria-disabled={props["aria-disabled"]}
+      data-testid={props["data-testid"]}
+      onClick={props.onClick}
+    >
+      {props.children}
+    </NavLink>
   );
 
   return (
-    <div
-      ref={shellRef}
-      data-testid="app-shell"
-      className="flex min-h-screen w-full bg-app-background text-app-foreground"
+    <LibraryAppShell
+      brand={t("app.brand", { defaultValue: "Flow Studio" })}
+      brandMark={<Activity aria-hidden className="h-4 w-4" />}
+      brandHref={ROUTES.dashboard}
+      items={items}
+      renderLink={renderLink}
+      density="sidebar"
+      mobileNav="drawer"
+      header={
+        <div className="flex items-center gap-1">
+          <HealthPill />
+          <ThemeToggle />
+        </div>
+      }
+      utility={<SidebarFlowList />}
+      sidebarStorageKey={SIDEBAR_STORAGE}
+      navigationLabel={t("nav.label", { defaultValue: "Primary navigation" })}
+      mobileNavigationLabel={t("nav.label", { defaultValue: "Primary navigation" })}
+      skipLabel={t("a11y.skipToMain", { defaultValue: "Skip to main content" })}
+      menuLabel={t("nav.open", { defaultValue: "Open navigation" })}
+      closeLabel={t("nav.close", { defaultValue: "Close navigation" })}
+      testId="flow-verifier-app-shell"
     >
-      <Sidebar
-        ref={sidebarRef}
-        width={isMobile ? undefined : sidebarWidth}
-        resizeHandleProps={isMobile ? undefined : resizeHandleProps}
-        headerSlot={headerSlot}
-        inventorySlot={<SidebarFlowList />}
-      />
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <MobileHeader onOpenDrawer={openDrawer} />
-        <main
-          data-testid="app-main"
-          className="pb-safe min-w-0 flex-1 px-4 py-4 pb-20 md:px-8 md:py-6 md:pb-8"
-        >
-          {children ?? <Outlet />}
-        </main>
-        <MobileNav />
-      </div>
-
-      <MobileDrawer open={drawerOpen} onClose={closeDrawer}>
-        <SidebarFlowList onNavigate={closeDrawer} />
-      </MobileDrawer>
-    </div>
+      <ErrorBoundary>
+        <Outlet />
+      </ErrorBoundary>
+    </LibraryAppShell>
   );
 }

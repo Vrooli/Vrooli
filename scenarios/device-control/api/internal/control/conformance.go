@@ -124,8 +124,19 @@ func (s *Service) RunAndroidCapabilitySelfTest(ctx context.Context, deviceID, ac
 	if allPassed {
 		result.Disposition = "passed"
 	}
+	finalizeAndroidSelfTest(&result, refs)
 	result.Verdict = conformanceVerdict(result, refs)
 	return result, nil
+}
+
+func finalizeAndroidSelfTest(result *AndroidCapabilitySelfTestResult, refs []evidence.Reference) {
+	if result == nil || result.Disposition != "passed" {
+		return
+	}
+	if len(refs) == 0 || strings.TrimSpace(result.EvidenceClass) == "" {
+		result.Disposition = "failed"
+		result.Reason = "self-test passed without an evidence class and checksum-bearing artifact reference"
+	}
 }
 
 func conformanceVerdict(result AndroidCapabilitySelfTestResult, refs []evidence.Reference) *commonv1.TargetVerdict {

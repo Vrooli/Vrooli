@@ -4,12 +4,16 @@ package readiness
 
 import (
 	"bytes"
+	"context"
+	"crypto/sha256"
 	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
 )
@@ -93,6 +97,500 @@ type Item struct {
 type Checklist struct {
 	Version int    `json:"version"`
 	Items   []Item `json:"items"`
+}
+
+// PolicyProducer records the deployment-manager-owned policy declaration as
+// evidence. The policy version is part of the candidate identity, so this
+// producer can prove the update-policy criterion without treating producer
+// registration or a stored observation as proof.
+type PolicyProducer struct {
+	Policy Checklist
+	Now    func() time.Time
+}
+
+// UnavailableProducer is an explicit fail-closed adapter for a declared
+// producer binding whose owner has not supplied a live execution seam yet.
+// It is deliberately an error-producing adapter: Prepare converts the error
+// into unavailable evidence, and therefore cannot mistake registration or a
+// stale stored observation for current owner execution.
+type UnavailableProducer struct {
+	Binding string
+	Reason  string
+}
+
+func (p UnavailableProducer) Collect(_ context.Context, _ ReviewIdentity, criterion Item) (EvidenceItem, error) {
+	binding := strings.TrimSpace(p.Binding)
+	if binding == "" || criterion.ProducerBinding() != binding {
+		return EvidenceItem{}, fmt.Errorf("unavailable producer cannot collect criterion %q", criterion.ID)
+	}
+	reason := strings.TrimSpace(p.Reason)
+	if reason == "" {
+		reason = "owner execution is not configured"
+	}
+	return EvidenceItem{}, fmt.Errorf("producer %s unavailable: %s", binding, reason)
+}
+
+// ObservabilityReadiness is the owner observation needed by the target
+// observability criterion. The resolver owns the transport and health
+// interpretation; this package only binds the result to the review identity.
+type ObservabilityReadiness struct {
+	Healthy    bool
+	Target     string
+	Reference  string
+	ObservedAt time.Time
+	Detail     string
+}
+
+type ObservabilityResolver interface {
+	CheckObservability(context.Context, ReviewIdentity) (ObservabilityReadiness, error)
+}
+
+type ObservabilityProducer struct {
+	Resolver ObservabilityResolver
+}
+
+func (p ObservabilityProducer) Collect(ctx context.Context, identity ReviewIdentity, criterion Item) (EvidenceItem, error) {
+	if criterion.ID != "observability-reachable" || criterion.ProducerBinding() != "deployment-manager.observability.readiness" {
+		return EvidenceItem{}, fmt.Errorf("observability producer cannot collect criterion %q", criterion.ID)
+	}
+	if p.Resolver == nil {
+		return EvidenceItem{}, fmt.Errorf("observability resolver is not configured")
+	}
+	observation, err := p.Resolver.CheckObservability(ctx, identity)
+	if err != nil {
+		return EvidenceItem{}, fmt.Errorf("check target observability: %w", err)
+	}
+	if strings.TrimSpace(observation.Target) == "" || strings.TrimSpace(observation.Reference) == "" || observation.ObservedAt.IsZero() {
+		return EvidenceItem{}, fmt.Errorf("target observability owner returned incomplete evidence")
+	}
+	observedAt := observation.ObservedAt.UTC()
+	status := SignalFailed
+	if observation.Healthy {
+		status = SignalPassed
+	}
+	detail := strings.TrimSpace(observation.Detail)
+	if detail == "" {
+		if observation.Healthy {
+			detail = "owner health observation proves target observability is reachable"
+		} else {
+			detail = "owner health observation did not prove target observability"
+		}
+	}
+	return EvidenceItem{
+		CriterionID: criterion.ID, Status: status, Applicability: "applicable",
+		Producer: "deployment-manager", ProducerVersion: "cloud-observability-v1",
+		CandidateCommit: identity.CandidateCommit, ArtifactDigest: identity.ArtifactDigest,
+		Target: observation.Target, Environment: identity.Channel,
+		PolicyVersion: identity.PolicyVersion, ObservedAt: observedAt,
+		Reference: observation.Reference, Detail: detail,
+	}, nil
+}
+
+func (p PolicyProducer) Collect(_ context.Context, identity ReviewIdentity, criterion Item) (EvidenceItem, error) {
+	policy := p.Policy
+	if len(policy.Items) == 0 {
+		policy = DefaultChecklist()
+	}
+	if err := policy.Validate(); err != nil {
+		return EvidenceItem{}, fmt.Errorf("validate readiness policy: %w", err)
+	}
+	if criterion.ID != "update-policy-set" || criterion.ProducerBinding() != "deployment-manager.policy.update" {
+		return EvidenceItem{}, fmt.Errorf("policy producer cannot collect criterion %q", criterion.ID)
+	}
+	observedAt := time.Now().UTC()
+	if p.Now != nil {
+		observedAt = p.Now().UTC()
+	}
+	digest, err := PolicyDigest(policy)
+	if err != nil {
+		return EvidenceItem{}, fmt.Errorf("digest readiness policy: %w", err)
+	}
+	status := SignalPassed
+	detail := fmt.Sprintf("active readiness policy version %d is bound to the candidate", policy.Version)
+	if identity.PolicyVersion != policy.Version {
+		status = SignalFailed
+		detail = fmt.Sprintf("candidate policy version %d does not match active version %d", identity.PolicyVersion, policy.Version)
+	}
+	return EvidenceItem{
+		CriterionID: criterion.ID, Status: status, Applicability: "applicable",
+		Producer: "deployment-manager", ProducerVersion: fmt.Sprintf("policy-v%d", policy.Version),
+		CandidateCommit: identity.CandidateCommit, ArtifactDigest: identity.ArtifactDigest,
+		Target: strings.Join(identity.Targets, ","), Environment: identity.Channel,
+		PolicyVersion: identity.PolicyVersion, ObservedAt: observedAt,
+		Reference: "readiness-policy:" + digest, Detail: detail,
+	}, nil
+}
+
+// CandidateProvenance is the immutable candidate projection needed by the
+// artifact provenance criterion. The resolver owns the candidate store; the
+// readiness package only evaluates the returned facts.
+type CandidateProvenance struct {
+	ID                     string
+	SourceRevision         string
+	ArtifactManifestDigest string
+	DependencyLockDigest   string
+	PolicyDigest           string
+	BuildInputsPresent     bool
+	ArtifactCount          int
+	SignedArtifactCount    int
+	ArtifactTargetIDs      []string
+	ArtifactPlatforms      []string
+	ArtifactRefsComplete   bool
+	CapabilityDeclaration  OperationsOwnership
+}
+
+// OperationsOwnership is the candidate-bound projection needed by the
+// operations-ownership criterion. The candidate repository owns the
+// declaration; readiness only checks that every authority is named.
+type OperationsOwnership struct {
+	SupportOwner          string
+	IncidentOwner         string
+	CustomerContact       string
+	ReleaseAuthority      string
+	RollbackAuthority     string
+	DegradedModeAuthority string
+}
+
+type OperationsOwnershipProducer struct {
+	Resolver CandidateResolver
+	Now      func() time.Time
+}
+
+func (p OperationsOwnershipProducer) Collect(ctx context.Context, identity ReviewIdentity, criterion Item) (EvidenceItem, error) {
+	if criterion.ID != "operations-ownership-set" || criterion.ProducerBinding() != "deployment-manager.operations.readiness" {
+		return EvidenceItem{}, fmt.Errorf("operations ownership producer cannot collect criterion %q", criterion.ID)
+	}
+	if p.Resolver == nil {
+		return EvidenceItem{}, fmt.Errorf("candidate resolver is not configured")
+	}
+	if strings.TrimSpace(identity.CandidateID) == "" {
+		return EvidenceItem{}, fmt.Errorf("candidate identity is required for operations ownership")
+	}
+	candidate, err := p.Resolver.ResolveCandidate(ctx, identity.CandidateID)
+	if err != nil {
+		return EvidenceItem{}, fmt.Errorf("resolve candidate %q: %w", identity.CandidateID, err)
+	}
+	ownership := candidate.CapabilityDeclaration
+	missing := make([]string, 0, 6)
+	if candidate.ID != identity.CandidateID {
+		missing = append(missing, "candidate id")
+	}
+	for name, value := range map[string]string{
+		"support owner": ownership.SupportOwner, "incident owner": ownership.IncidentOwner,
+		"customer contact": ownership.CustomerContact, "release authority": ownership.ReleaseAuthority,
+		"rollback authority": ownership.RollbackAuthority, "degraded-mode authority": ownership.DegradedModeAuthority,
+	} {
+		if strings.TrimSpace(value) == "" {
+			missing = append(missing, name)
+		}
+	}
+	sort.Strings(missing)
+	observedAt := time.Now().UTC()
+	if p.Now != nil {
+		observedAt = p.Now().UTC()
+	}
+	status := SignalPassed
+	detail := "candidate names support, incident, customer contact, release, rollback, and degraded-mode authorities"
+	if len(missing) > 0 {
+		status = SignalFailed
+		detail = "candidate operational ownership is incomplete: missing " + strings.Join(missing, ", ")
+	}
+	return EvidenceItem{
+		CriterionID: criterion.ID, Status: status, Applicability: "applicable",
+		Producer: "deployment-manager", ProducerVersion: "operations-ownership-v1",
+		CandidateCommit: identity.CandidateCommit, ArtifactDigest: identity.ArtifactDigest,
+		Target: strings.Join(identity.Targets, ","), Environment: identity.Channel,
+		PolicyVersion: identity.PolicyVersion, ObservedAt: observedAt,
+		Reference: "candidate-operations:" + candidate.ID, Detail: detail,
+	}, nil
+}
+
+type PlatformAssetsProducer struct {
+	Resolver CandidateResolver
+	Now      func() time.Time
+}
+
+func (p PlatformAssetsProducer) Collect(ctx context.Context, identity ReviewIdentity, criterion Item) (EvidenceItem, error) {
+	if criterion.ID != "platform-assets-set" || criterion.ProducerBinding() != "deployment-manager.assets.readiness" {
+		return EvidenceItem{}, fmt.Errorf("platform assets producer cannot collect criterion %q", criterion.ID)
+	}
+	if p.Resolver == nil {
+		return EvidenceItem{}, fmt.Errorf("candidate resolver is not configured")
+	}
+	if strings.TrimSpace(identity.CandidateID) == "" {
+		return EvidenceItem{}, fmt.Errorf("candidate identity is required for platform assets")
+	}
+	candidate, err := p.Resolver.ResolveCandidate(ctx, identity.CandidateID)
+	if err != nil {
+		return EvidenceItem{}, fmt.Errorf("resolve candidate %q: %w", identity.CandidateID, err)
+	}
+	ids := make(map[string]struct{}, len(candidate.ArtifactTargetIDs))
+	platforms := make(map[string]struct{}, len(candidate.ArtifactPlatforms))
+	for _, value := range candidate.ArtifactTargetIDs {
+		ids[strings.TrimSpace(value)] = struct{}{}
+	}
+	for _, value := range candidate.ArtifactPlatforms {
+		platforms[strings.TrimSpace(value)] = struct{}{}
+	}
+	missing := make([]string, 0)
+	if candidate.ID != identity.CandidateID {
+		missing = append(missing, "candidate id")
+	}
+	for _, target := range identity.Targets {
+		if _, ok := ids[target]; ok {
+			continue
+		}
+		if _, ok := platforms[target]; ok {
+			continue
+		}
+		missing = append(missing, target)
+	}
+	observedAt := time.Now().UTC()
+	if p.Now != nil {
+		observedAt = p.Now().UTC()
+	}
+	status := SignalPassed
+	detail := fmt.Sprintf("candidate assets cover %d declared target(s)", len(identity.Targets))
+	if !candidate.ArtifactRefsComplete || len(missing) > 0 {
+		status = SignalFailed
+		parts := make([]string, 0, 2)
+		if len(missing) > 0 {
+			parts = append(parts, "missing="+strings.Join(missing, ","))
+		}
+		if !candidate.ArtifactRefsComplete {
+			parts = append(parts, "incomplete artifact identity")
+		}
+		detail = "candidate platform assets are incomplete: " + strings.Join(parts, "; ")
+	}
+	return EvidenceItem{
+		CriterionID: criterion.ID, Status: status, Applicability: "applicable",
+		Producer: "deployment-manager", ProducerVersion: "platform-assets-v1",
+		CandidateCommit: identity.CandidateCommit, ArtifactDigest: identity.ArtifactDigest,
+		Target: strings.Join(identity.Targets, ","), Environment: identity.Channel,
+		PolicyVersion: identity.PolicyVersion, ObservedAt: observedAt,
+		Reference: "candidate-assets:" + candidate.ID + ":" + identity.ArtifactDigest, Detail: detail,
+	}, nil
+}
+
+type RecoveryReadiness struct {
+	ExecutorConfigured      bool
+	AuthorizationConfigured bool
+	TargetIdentityBound     bool
+}
+
+type RecoveryReadinessResolver interface {
+	CheckRecovery(context.Context, ReviewIdentity) (RecoveryReadiness, error)
+}
+
+type RecoveryProducer struct {
+	Resolver RecoveryReadinessResolver
+	Now      func() time.Time
+}
+
+func (p RecoveryProducer) Collect(ctx context.Context, identity ReviewIdentity, criterion Item) (EvidenceItem, error) {
+	if criterion.ID != "recovery-proven" || criterion.ProducerBinding() != "deployment-manager.recovery.preflight" {
+		return EvidenceItem{}, fmt.Errorf("recovery producer cannot collect criterion %q", criterion.ID)
+	}
+	if p.Resolver == nil {
+		return EvidenceItem{}, fmt.Errorf("recovery readiness resolver is not configured")
+	}
+	readiness, err := p.Resolver.CheckRecovery(ctx, identity)
+	if err != nil {
+		return EvidenceItem{}, fmt.Errorf("check recovery readiness: %w", err)
+	}
+	observedAt := time.Now().UTC()
+	if p.Now != nil {
+		observedAt = p.Now().UTC()
+	}
+	missing := make([]string, 0, 3)
+	if !readiness.ExecutorConfigured {
+		missing = append(missing, "recovery executor")
+	}
+	if !readiness.AuthorizationConfigured {
+		missing = append(missing, "destructive authorization")
+	}
+	if !readiness.TargetIdentityBound {
+		missing = append(missing, "candidate, destination, and authorization epoch")
+	}
+	status := SignalPassed
+	detail := "recovery executor, destructive authorization, and target identity are configured"
+	if len(missing) > 0 {
+		status = SignalFailed
+		detail = "recovery preflight is incomplete: " + strings.Join(missing, ", ")
+	}
+	return EvidenceItem{
+		CriterionID: criterion.ID, Status: status, Applicability: "applicable",
+		Producer: "deployment-manager", ProducerVersion: "recovery-preflight-v1",
+		CandidateCommit: identity.CandidateCommit, ArtifactDigest: identity.ArtifactDigest,
+		Target: strings.Join(identity.Targets, ","), Environment: identity.Channel,
+		PolicyVersion: identity.PolicyVersion, ObservedAt: observedAt,
+		Reference: "recovery-preflight:" + identity.ProfileID + ":" + identity.CandidateCommit + ":" + identity.DestinationRevisionID, Detail: detail,
+	}, nil
+}
+
+type CandidateResolver interface {
+	ResolveCandidate(context.Context, string) (CandidateProvenance, error)
+}
+
+type CandidateProvenanceProducer struct {
+	Resolver             CandidateResolver
+	ExpectedPolicyDigest string
+	Now                  func() time.Time
+}
+
+func (p CandidateProvenanceProducer) Collect(ctx context.Context, identity ReviewIdentity, criterion Item) (EvidenceItem, error) {
+	if criterion.ID != "artifact-provenance-complete" || criterion.ProducerBinding() != "deployment-manager.artifacts.provenance" {
+		return EvidenceItem{}, fmt.Errorf("candidate provenance producer cannot collect criterion %q", criterion.ID)
+	}
+	if p.Resolver == nil {
+		return EvidenceItem{}, fmt.Errorf("candidate provenance resolver is not configured")
+	}
+	if strings.TrimSpace(identity.CandidateID) == "" {
+		return EvidenceItem{}, fmt.Errorf("candidate identity is required for artifact provenance")
+	}
+	candidate, err := p.Resolver.ResolveCandidate(ctx, identity.CandidateID)
+	if err != nil {
+		return EvidenceItem{}, fmt.Errorf("resolve candidate %q: %w", identity.CandidateID, err)
+	}
+	observedAt := time.Now().UTC()
+	if p.Now != nil {
+		observedAt = p.Now().UTC()
+	}
+	checks := []string{}
+	if candidate.ID != identity.CandidateID {
+		checks = append(checks, "candidate id")
+	}
+	if candidate.SourceRevision != identity.CandidateCommit {
+		checks = append(checks, "source revision")
+	}
+	if candidate.ArtifactManifestDigest != identity.ArtifactDigest {
+		checks = append(checks, "artifact manifest digest")
+	}
+	if candidate.DependencyLockDigest == "" {
+		checks = append(checks, "dependency lock digest")
+	}
+	if candidate.PolicyDigest == "" {
+		checks = append(checks, "policy digest")
+	} else if strings.TrimSpace(p.ExpectedPolicyDigest) != "" && candidate.PolicyDigest != strings.TrimSpace(p.ExpectedPolicyDigest) {
+		checks = append(checks, "active policy digest")
+	}
+	if !candidate.BuildInputsPresent {
+		checks = append(checks, "build inputs")
+	}
+	if candidate.ArtifactCount == 0 || candidate.SignedArtifactCount != candidate.ArtifactCount {
+		checks = append(checks, "signed artifact coverage")
+	}
+	status := SignalPassed
+	detail := fmt.Sprintf("candidate %s matches source, artifact, build-input, dependency-lock, and signature identity", candidate.ID)
+	if len(checks) > 0 {
+		status = SignalFailed
+		detail = "candidate provenance mismatch: " + strings.Join(checks, ", ")
+	}
+	return EvidenceItem{
+		CriterionID: criterion.ID, Status: status, Applicability: "applicable",
+		Producer: "deployment-manager", ProducerVersion: "candidate-provenance-v1",
+		CandidateCommit: identity.CandidateCommit, ArtifactDigest: identity.ArtifactDigest,
+		Target: strings.Join(identity.Targets, ","), Environment: identity.Channel,
+		PolicyVersion: identity.PolicyVersion, ObservedAt: observedAt,
+		Reference: "candidate:" + candidate.ID + ":" + candidate.ArtifactManifestDigest, Detail: detail,
+	}, nil
+}
+
+type RampEvidence struct {
+	Target      string
+	Platform    string
+	OS          string
+	Ramp        string
+	Disposition string
+	RunID       string
+	Reference   string
+}
+
+type RampEvidenceResolver interface {
+	ListRampEvidence(context.Context, string, string) ([]RampEvidence, error)
+}
+
+type RampEvidenceProducer struct {
+	Resolver RampEvidenceResolver
+	Now      func() time.Time
+}
+
+func (p RampEvidenceProducer) Collect(ctx context.Context, identity ReviewIdentity, criterion Item) (EvidenceItem, error) {
+	if criterion.ID != "ramp-evidence-complete" || criterion.ProducerBinding() != "deployment-manager.evidence.coverage" {
+		return EvidenceItem{}, fmt.Errorf("ramp evidence producer cannot collect criterion %q", criterion.ID)
+	}
+	if p.Resolver == nil {
+		return EvidenceItem{}, fmt.Errorf("ramp evidence resolver is not configured")
+	}
+	rows, err := p.Resolver.ListRampEvidence(ctx, identity.ProfileID, identity.CandidateCommit)
+	if err != nil {
+		return EvidenceItem{}, fmt.Errorf("list target evidence: %w", err)
+	}
+	usable := make([]RampEvidence, 0, len(rows))
+	for _, row := range rows {
+		if strings.TrimSpace(row.RunID) == "" {
+			continue
+		}
+		usable = append(usable, row)
+	}
+	missing := make([]string, 0)
+	failed := make([]string, 0)
+	runs := make([]string, 0, len(identity.Targets))
+	usedRows := make(map[int]struct{}, len(identity.Targets))
+	for _, target := range identity.Targets {
+		row, rowIndex, ok := matchingRampEvidence(usable, target, usedRows)
+		if !ok {
+			missing = append(missing, target)
+			continue
+		}
+		usedRows[rowIndex] = struct{}{}
+		if strings.ToLower(strings.TrimSpace(row.Disposition)) != "passed" {
+			failed = append(failed, target)
+			continue
+		}
+		runs = append(runs, row.RunID)
+	}
+	observedAt := time.Now().UTC()
+	if p.Now != nil {
+		observedAt = p.Now().UTC()
+	}
+	status := SignalPassed
+	detail := fmt.Sprintf("current target evidence covers %d declared target(s)", len(identity.Targets))
+	if len(missing) > 0 || len(failed) > 0 {
+		status = SignalFailed
+		parts := make([]string, 0, 2)
+		if len(missing) > 0 {
+			parts = append(parts, "missing="+strings.Join(missing, ","))
+		}
+		if len(failed) > 0 {
+			parts = append(parts, "failed="+strings.Join(failed, ","))
+		}
+		detail = "target evidence coverage is incomplete: " + strings.Join(parts, "; ")
+	}
+	return EvidenceItem{
+		CriterionID: criterion.ID, Status: status, Applicability: "applicable",
+		Producer: "deployment-manager", ProducerVersion: "ramp-evidence-v1",
+		CandidateCommit: identity.CandidateCommit, ArtifactDigest: identity.ArtifactDigest,
+		Target: strings.Join(identity.Targets, ","), Environment: identity.Channel,
+		PolicyVersion: identity.PolicyVersion, ObservedAt: observedAt,
+		Reference: "evidence:" + identity.ProfileID + ":" + identity.CandidateCommit + ":" + strings.Join(runs, ","), Detail: detail,
+	}, nil
+}
+
+func matchingRampEvidence(rows []RampEvidence, declared string, used map[int]struct{}) (RampEvidence, int, bool) {
+	declared = strings.ToLower(strings.TrimSpace(declared))
+	for index, row := range rows {
+		if _, alreadyUsed := used[index]; alreadyUsed {
+			continue
+		}
+		for _, candidate := range []string{row.Target, row.Platform, row.OS, row.Ramp} {
+			candidate = strings.ToLower(strings.TrimSpace(candidate))
+			if candidate != "" && (declared == candidate || strings.HasPrefix(declared, candidate+"-")) {
+				return row, index, true
+			}
+		}
+	}
+	return RampEvidence{}, -1, false
 }
 
 var knownOwners = map[string]struct{}{
@@ -230,3 +728,16 @@ func CheckProjection(data []byte) error {
 }
 
 func BuiltInPolicyJSON() []byte { return append([]byte(nil), builtInPolicyJSON...) }
+
+func PolicyDigest(policy Checklist) (string, error) {
+	canonical := policy
+	if err := canonical.Validate(); err != nil {
+		return "", err
+	}
+	payload, err := json.Marshal(canonical)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(payload)
+	return "sha256:" + fmt.Sprintf("%x", sum[:]), nil
+}

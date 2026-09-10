@@ -161,16 +161,51 @@
         "label": "Cloudflare API Token",
         "description": "Authorizes tunnel and DNS changes. Re-resolved per operation so a rotated token takes effect without restarting the scenario.",
         "required": true,
+        "provisioning": "operator",
         "obtain_url": "https://dash.cloudflare.com/profile/api-tokens"
+      },
+    {
+      "logical_id": "vrooli/tunnel-manager",
+      "field": "cloudflare-connector-token",
+        "label": "Cloudflare Connector Token",
+        "description": "Derived token used by the managed cloudflared connector; never requested from the operator.",
+        "required": true,
+      "provisioning": "derived",
+      "derived_from": "cloudflare-api-token"
+      }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-api-token",
+        "kind": "authority",
+        "consumer": "Cloudflare tunnel configuration store",
+        "source_ref": "api/internal/config/service.go:279",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-account-id",
+        "kind": "dynamic",
+        "consumer": "Cloudflare tunnel configuration store",
+        "source_ref": "api/internal/config/service.go:283",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-tunnel-id",
+        "kind": "dynamic",
+        "consumer": "Cloudflare tunnel configuration store",
+        "source_ref": "api/internal/config/service.go:284",
+        "required": true
       },
       {
         "logical_id": "vrooli/tunnel-manager",
         "field": "cloudflare-connector-token",
-        "label": "Cloudflare Connector Token",
-        "description": "Derived token used by the managed cloudflared connector; never requested from the operator.",
-        "required": true,
-        "provisioning": "derived",
-        "derived_from": "cloudflare-api-token"
+        "kind": "dynamic",
+        "consumer": "managed cloudflared connector",
+        "source_ref": "api/internal/config/service.go:285",
+        "required": true
       }
     ]
   },

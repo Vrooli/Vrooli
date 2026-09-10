@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"deployment-manager/build"
 	"deployment-manager/bundles"
@@ -17,114 +18,241 @@ import (
 	"deployment-manager/releases"
 )
 
+type publishPipelineRunner interface {
+	RunPublishPipelineConnect(context.Context, *PublishPipelineRequest) (*PublishPipelineResponse, error)
+	WaitForPipelineConnect(context.Context, string) (*PipelineStatus, error)
+}
+
 // publishToLPBS triggers a deploy-stage-only pipeline, extracts version data,
-// and persists it. Errors are non-fatal: logged but do not fail the deployment.
+// and persists it. A commercial publication failure is terminal for the
+// operation because a warning cannot establish which bytes reached LPBS.
 func (o *Orchestrator) publishToLPBS(ctx context.Context, profile *profiles.Profile, req DeployDesktopRequest, response *DeployDesktopResponse, step *OrchestrationStep) {
-	client, err := NewDesktopPackagerClient(o.log)
-	if err != nil {
-		step.Status = "warning"
-		step.Message = fmt.Sprintf("could not create desktop client: %v", err)
-		o.log("warn", map[string]interface{}{"msg": "publish step skipped", "error": err.Error()})
+	ownerEffectPossible := false
+	fail := func(message string) {
+		o.failStep(step, message)
+		o.log("error", map[string]interface{}{"msg": "publish failed", "error": message})
+		if !ownerEffectPossible {
+			return
+		}
+		// The owner pipeline has started, so a later transport, receipt, or
+		// ledger failure cannot establish whether the external effect happened.
+		// Preserve that uncertainty for reconciliation instead of presenting a
+		// retryable ordinary failure that could duplicate publication.
+		response.Status = "ambiguous"
+		if o.releasesRepo != nil && strings.TrimSpace(req.ReleaseID) != "" {
+			if err := o.releasesRepo.UpdateStatus(ctx, req.ReleaseID, releases.StatusAmbiguous); err != nil {
+				o.log("error", map[string]interface{}{"msg": "persist ambiguous publication status failed", "release_id": req.ReleaseID, "error": err.Error()})
+			}
+		}
+	}
+	if strings.TrimSpace(req.ReleaseID) == "" {
+		step.Status = "skipped"
+		step.Message = "local packaging has no governed release identity; publication was not attempted"
 		return
 	}
-
 	pipelineReq := &PublishPipelineRequest{
-		ScenarioName:    profile.Scenario,
-		Platforms:       req.Platforms,
-		Publish:         true,
-		ResumeFromStage: "deploy",
-		StopAfterStage:  "deploy",
-		ReleaseID:       req.ReleaseID,
-		Channel:         req.Channel,
+		ScenarioName:            profile.Scenario,
+		Platforms:               req.Platforms,
+		Publish:                 true,
+		ReleaseID:               req.ReleaseID,
+		Channel:                 req.Channel,
+		ReleaseVersion:          req.ReleaseVersion,
+		ArtifactDigest:          req.ArtifactDigest,
+		ExpectedArtifactDigests: req.ExpectedArtifactDigests,
+		CandidateID:             req.CandidateID,
+		DestinationRevisionID:   req.DestinationRevisionID,
+		AuthorizationEpoch:      req.AuthorizationEpoch,
+		ReadinessReviewKey:      req.ReadinessReviewKey,
 	}
 
-	// Pass full LPBS coords on the inline DeployConfig when this profile has
-	// LPBS release config wired. ReleaseID + Channel must ride on the deploy
-	// config so S2D's Config decoder forwards them through to lpbs_client.go.
-	if cfg := o.loadLPBSConfigForPublish(ctx, req.ProfileID); cfg != nil && cfg.LPBSAppKey != "" {
-		pipelineReq.DeployConfig = &PublishDeployConfig{
-			ScenarioName:  profile.Scenario,
-			RemoteProfile: cfg.LPBSRemoteProfile,
-			AppKey:        cfg.LPBSAppKey,
-			UpdateURL:     cfg.UpdateURL,
-			ReleaseID:     req.ReleaseID,
-			Channel:       req.Channel,
+	// Pass full LPBS coords on the inline DeployConfig. ReleaseID + Channel
+	// must ride on the deploy config so S2D's Config decoder forwards them
+	// through to lpbs_client.go. A commercial publication without these exact
+	// coordinates would be an unbound owner effect, so fail before launching
+	// the pipeline.
+	cfg := o.loadLPBSConfigForPublish(ctx, req.ProfileID)
+	if cfg == nil || strings.TrimSpace(cfg.LPBSAppKey) == "" || strings.TrimSpace(cfg.LPBSRemoteProfile) == "" {
+		fail("commercial publication requires an exact LPBS app key and remote profile")
+		return
+	}
+	if o.releaseIdentity != nil {
+		destination, err := o.releaseIdentity.GetDestinationRevision(ctx, req.DestinationRevisionID)
+		if err != nil || destination == nil {
+			fail(fmt.Sprintf("commercial publication requires the approved destination revision: %v", err))
+			return
+		}
+		if destination.ID != req.DestinationRevisionID || strings.TrimSpace(destination.Revision.DestinationID) != strings.TrimSpace(cfg.LPBSRemoteProfile) {
+			fail("commercial publication destination revision does not match the configured LPBS remote profile")
+			return
+		}
+	}
+	pipelineReq.DeployConfig = &PublishDeployConfig{
+		ScenarioName:            profile.Scenario,
+		RemoteProfile:           cfg.LPBSRemoteProfile,
+		AppKey:                  cfg.LPBSAppKey,
+		UpdateURL:               cfg.UpdateURL,
+		ReleaseID:               req.ReleaseID,
+		Channel:                 req.Channel,
+		ArtifactDigest:          req.ArtifactDigest,
+		ExpectedArtifactDigests: req.ExpectedArtifactDigests,
+		CandidateID:             req.CandidateID,
+		DestinationRevisionID:   req.DestinationRevisionID,
+		AuthorizationEpoch:      req.AuthorizationEpoch,
+		ReadinessReviewKey:      req.ReadinessReviewKey,
+	}
+
+	var client publishPipelineRunner = o.publishPipelineRunner
+	if client == nil {
+		var err error
+		client, err = NewDesktopPackagerClient(o.log)
+		if err != nil {
+			fail(fmt.Sprintf("could not create desktop client: %v", err))
+			return
 		}
 	}
 
-	pipelineResp, err := client.RunPublishPipeline(ctx, pipelineReq)
+	pipelineResp, err := client.RunPublishPipelineConnect(ctx, pipelineReq)
 	if err != nil {
-		step.Status = "warning"
-		step.Message = fmt.Sprintf("failed to trigger publish pipeline: %v", err)
-		o.log("warn", map[string]interface{}{"msg": "publish pipeline trigger failed", "error": err.Error()})
+		fail(fmt.Sprintf("failed to trigger publish pipeline: %v", err))
 		return
 	}
+	if pipelineResp == nil || pipelineResp.PipelineID == "" {
+		fail("publish pipeline returned no operation id")
+		return
+	}
+	ownerEffectPossible = true
 
 	o.log("info", map[string]interface{}{
 		"msg":         "publish pipeline started",
 		"pipeline_id": pipelineResp.PipelineID,
 	})
 
-	status, err := client.WaitForPipeline(ctx, pipelineResp.PipelineID)
+	status, err := client.WaitForPipelineConnect(ctx, pipelineResp.PipelineID)
 	if err != nil {
-		step.Status = "warning"
-		step.Message = fmt.Sprintf("publish pipeline failed: %v", err)
-		o.log("warn", map[string]interface{}{"msg": "publish pipeline failed", "error": err.Error()})
+		fail(fmt.Sprintf("publish pipeline failed: %v", err))
 		return
 	}
 
 	deployResult, err := ExtractDeployResult(status)
 	if err != nil {
-		step.Status = "warning"
-		step.Message = fmt.Sprintf("published but could not extract deploy result: %v", err)
-		o.log("warn", map[string]interface{}{"msg": "deploy result extraction failed", "error": err.Error()})
+		fail(fmt.Sprintf("could not extract deploy result: %v", err))
+		return
+	}
+	if deployResult == nil || len(deployResult.Artifacts) == 0 {
+		fail("publish pipeline returned no published artifacts")
+		return
+	}
+	if !exactArtifactTargetSet(req.Platforms, deployResult.Artifacts) {
+		fail(fmt.Sprintf("published target set does not match requested target set (%s)", strings.Join(req.Platforms, ",")))
+		return
+	}
+	if o.publishedVersionsRepo == nil {
+		fail("published-version repository is not configured")
 		return
 	}
 
-	provenance, _ := ExtractProvenance(status)
-
-	version := ""
-	gitHash := ""
-	if provenance != nil {
-		version = provenance.Version
-		gitHash = provenance.GitCommitHash
+	provenance, err := ExtractProvenance(status)
+	if err != nil {
+		fail(fmt.Sprintf("published pipeline returned invalid provenance: %v", err))
+		return
 	}
-	if version == "" {
-		version = "unknown"
+
+	version := strings.TrimSpace(provenance.Version)
+	gitHash := strings.TrimSpace(provenance.GitCommitHash)
+	if strings.TrimSpace(req.ReleaseVersion) != "" && version != strings.TrimSpace(req.ReleaseVersion) {
+		fail(fmt.Sprintf("published pipeline provenance version %q does not match requested release version %q", version, req.ReleaseVersion))
+		return
+	}
+	if strings.TrimSpace(req.GitCommitHash) != "" && gitHash != strings.TrimSpace(req.GitCommitHash) {
+		fail(fmt.Sprintf("published pipeline provenance commit %q does not match requested commit %q", gitHash, req.GitCommitHash))
+		return
 	}
 
 	var published []PublishedVersion
+	receipts, hasReceipts := o.releasesRepo.(releases.PublicationReceiptRepository)
+	if req.ReleaseID != "" && !hasReceipts {
+		fail("commercial publication requires a durable publication-receipt repository")
+		return
+	}
+	hasReceipts = hasReceipts && req.ReleaseID != ""
 	for _, artifact := range deployResult.Artifacts {
+		if hasReceipts && (artifact.ArtifactID <= 0 || artifact.SHA512 == "" || strings.TrimSpace(artifact.DestinationObject) == "") {
+			fail(fmt.Sprintf("published artifact %s has incomplete receipt identity", artifact.Platform))
+			return
+		}
 		record := &PublishedVersion{
 			ProfileID:     req.ProfileID,
 			Platform:      artifact.Platform,
 			Version:       version,
+			SHA512:        artifact.SHA512,
 			GitCommitHash: gitHash,
 			ArtifactID:    artifact.ArtifactID,
 			ReleaseID:     req.ReleaseID,
 		}
+		if hasReceipts {
+			if err := receipts.RecordPublicationReceipt(ctx, req.ReleaseID, releases.PublicationReceipt{
+				CandidateID: req.CandidateID, DestinationRevisionID: req.DestinationRevisionID,
+				TargetID: artifact.Platform, ArtifactDigest: "sha512:" + artifact.SHA512,
+				DestinationObject: artifact.DestinationObject,
+				Producer:          "scenario-to-desktop/lpbs", ExternalReceipt: fmt.Sprintf("%s/%d", pipelineResp.PipelineID, artifact.ArtifactID),
+				Outcome: releases.ReceiptPublished, ObservedAt: time.Now().UTC(),
+			}); err != nil {
+				fail(fmt.Sprintf("failed to record publication receipt for %s: %v", artifact.Platform, err))
+				return
+			}
+		}
 		if err := o.publishedVersionsRepo.RecordPublish(ctx, record); err != nil {
-			o.log("warn", map[string]interface{}{
-				"msg":      "failed to record published version",
-				"platform": artifact.Platform,
-				"error":    err.Error(),
-			})
-			continue
+			fail(fmt.Sprintf("failed to record published version for %s: %v", artifact.Platform, err))
+			return
 		}
 		published = append(published, *record)
 
 		// Advance the per-platform release row so verify sees published state.
 		if o.releasesRepo != nil && req.ReleaseID != "" {
-			_ = o.releasesRepo.MarkPlatformPublished(ctx, req.ReleaseID, artifact.Platform, artifact.ArtifactID)
+			if err := o.releasesRepo.MarkPlatformPublished(ctx, req.ReleaseID, artifact.Platform, artifact.ArtifactID); err != nil {
+				fail(fmt.Sprintf("failed to persist published platform %s: %v", artifact.Platform, err))
+				return
+			}
 		}
 	}
 
 	if o.releasesRepo != nil && req.ReleaseID != "" && len(published) > 0 {
-		_ = o.releasesRepo.UpdateStatus(ctx, req.ReleaseID, releases.StatusPublishing)
+		if err := o.releasesRepo.UpdateStatus(ctx, req.ReleaseID, releases.StatusPublishing); err != nil {
+			fail(fmt.Sprintf("failed to persist publishing status: %v", err))
+			return
+		}
+	}
+	if len(published) != len(deployResult.Artifacts) {
+		fail(fmt.Sprintf("persisted %d of %d published artifact receipts", len(published), len(deployResult.Artifacts)))
+		return
 	}
 
 	response.PublishedVersions = published
 	o.successStep(step, fmt.Sprintf("published %d artifact(s), version %s", len(published), version))
+}
+
+func exactArtifactTargetSet(requested []string, artifacts []PipelineDeployArtifact) bool {
+	if len(requested) == 0 || len(requested) != len(artifacts) {
+		return false
+	}
+	want := make(map[string]struct{}, len(requested))
+	for _, target := range requested {
+		target = strings.TrimSpace(target)
+		if target == "" {
+			return false
+		}
+		if _, exists := want[target]; exists {
+			return false
+		}
+		want[target] = struct{}{}
+	}
+	for _, artifact := range artifacts {
+		if _, exists := want[artifact.Platform]; !exists {
+			return false
+		}
+		delete(want, artifact.Platform)
+	}
+	return len(want) == 0
 }
 
 // applySigningConfig applies the provided signing configuration to scenario-to-desktop.
@@ -142,21 +270,24 @@ func (o *Orchestrator) checkSigningReadiness(ctx context.Context, scenarioName s
 
 	desktopClient, err := NewDesktopPackagerClient(o.log)
 	if err != nil {
-		o.log("debug", map[string]interface{}{
+		o.log("error", map[string]interface{}{
 			"msg":   "could not check signing readiness - scenario-to-desktop unavailable",
 			"error": err.Error(),
 		})
-		return nil
+		return []string{fmt.Sprintf("signing readiness unavailable: %v", err)}
 	}
 
 	readiness, err := desktopClient.CheckSigningReadiness(ctx, scenarioName)
 	if err != nil {
-		o.log("debug", map[string]interface{}{
+		o.log("error", map[string]interface{}{
 			"msg":      "signing readiness check failed",
 			"scenario": scenarioName,
 			"error":    err.Error(),
 		})
-		return nil
+		return []string{fmt.Sprintf("signing readiness unavailable: %v", err)}
+	}
+	if readiness == nil {
+		return []string{"signing readiness returned no result"}
 	}
 
 	if !readiness.Ready {
@@ -181,9 +312,10 @@ func populateAssetMetadata(manifest *bundles.Manifest, scenarioDir string) error
 		return fmt.Errorf("manifest is nil")
 	}
 
-	_ = expandUIAssets(manifest, scenarioDir) // best-effort
-
 	var firstErr error
+	if err := expandUIAssets(manifest, scenarioDir); err != nil {
+		firstErr = err
+	}
 	for si := range manifest.Services {
 		svc := &manifest.Services[si]
 
@@ -282,8 +414,20 @@ func expandUIAssets(manifest *bundles.Manifest, scenarioDir string) error {
 				if d.IsDir() {
 					return nil
 				}
-				rel, _ := filepath.Rel(scenarioDir, path)
-				info, _ := os.Stat(path)
+				rel, relErr := filepath.Rel(scenarioDir, path)
+				if relErr != nil {
+					if firstErr == nil {
+						firstErr = fmt.Errorf("relativize ui asset %s: %w", path, relErr)
+					}
+					return nil
+				}
+				info, statErr := os.Stat(path)
+				if statErr != nil {
+					if firstErr == nil {
+						firstErr = fmt.Errorf("stat ui asset %s: %w", path, statErr)
+					}
+					return nil
+				}
 				hash, herr := hashFileSHA256(path)
 				if herr != nil {
 					if firstErr == nil {
@@ -464,7 +608,7 @@ func (o *Orchestrator) buildInstallersWithPnpm(ctx context.Context, desktopPath 
 		packageManager = "npm"
 	}
 
-	if err := runCommandLogged(ctx, packageManager, []string{"install"}, desktopPath, o.log); err != nil {
+	if err := o.runCommandLogged(ctx, packageManager, []string{"install"}, desktopPath); err != nil {
 		return nil, err
 	}
 
@@ -474,31 +618,58 @@ func (o *Orchestrator) buildInstallersWithPnpm(ctx context.Context, desktopPath 
 	}
 
 	installers := make(map[string]string)
+	var missing []string
 	for _, platform := range platforms {
 		cmd := []string{"run", fmt.Sprintf("dist:%s", platform)}
-		if err := runCommandLogged(ctx, packageManager, cmd, desktopPath, o.log); err != nil {
+		if err := o.runCommandLogged(ctx, packageManager, cmd, desktopPath); err != nil {
 			return installers, fmt.Errorf("%s build failed: %w", platform, err)
 		}
 
 		artifact, err := findInstallerArtifact(distDir, platform)
 		if err != nil {
-			o.log("warn", map[string]interface{}{
+			o.log("error", map[string]interface{}{
 				"msg":      "installer built but artifact not located",
 				"platform": platform,
 				"error":    err.Error(),
 			})
+			missing = append(missing, platform)
 			continue
 		}
 		installers[platform] = artifact
+	}
+	if len(missing) > 0 {
+		return installers, fmt.Errorf("installer artifacts missing for platform(s): %s", strings.Join(missing, ", "))
 	}
 
 	return installers, nil
 }
 
-func runCommandLogged(ctx context.Context, bin string, args []string, dir string, log func(string, map[string]interface{})) error {
+type commandRunner interface {
+	Run(context.Context, string, []string, string) ([]byte, error)
+}
+
+type processCommandRunner struct{}
+
+func (processCommandRunner) Run(ctx context.Context, bin string, args []string, dir string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Dir = dir
-	output, err := cmd.CombinedOutput()
+	return cmd.CombinedOutput()
+}
+
+func (o *Orchestrator) runCommandLogged(ctx context.Context, bin string, args []string, dir string) error {
+	runner := o.commandRunner
+	if runner == nil {
+		runner = processCommandRunner{}
+	}
+	return runCommandLoggedWith(runner, ctx, bin, args, dir, o.log)
+}
+
+func runCommandLogged(ctx context.Context, bin string, args []string, dir string, log func(string, map[string]interface{})) error {
+	return runCommandLoggedWith(processCommandRunner{}, ctx, bin, args, dir, log)
+}
+
+func runCommandLoggedWith(runner commandRunner, ctx context.Context, bin string, args []string, dir string, log func(string, map[string]interface{})) error {
+	output, err := runner.Run(ctx, bin, args, dir)
 	log("info", map[string]interface{}{
 		"msg":  "command completed",
 		"cmd":  fmt.Sprintf("%s %s", bin, strings.Join(args, " ")),

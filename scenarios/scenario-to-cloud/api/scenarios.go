@@ -16,7 +16,6 @@ import (
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/manifest"
-	"scenario-to-cloud/ssh"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/discovery"
@@ -308,20 +307,20 @@ func checkHostReachability(ctx context.Context, host string) ReachabilityResult 
 		errStr := err.Error()
 
 		// Check for IPv6-specific errors
-		if ssh.IsIPv6(host) && (strings.Contains(errStr, "no route to host") ||
+		if isIPv6(host) && (strings.Contains(errStr, "no route to host") ||
 			strings.Contains(errStr, "network is unreachable")) {
 			result.Reachable = false
 			result.Message = "IPv6 not available"
-			result.Hint = ssh.IPv6ConnectivityHint
+			result.Hint = ipv6ConnectivityHint
 			return result
 		}
 
 		// Check if it's a timeout or connection refused
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 			result.Reachable = false
-			if ssh.IsIPv6(host) {
+			if isIPv6(host) {
 				result.Message = "Connection timed out (IPv6)"
-				result.Hint = ssh.IPv6ConnectivityHint
+				result.Hint = ipv6ConnectivityHint
 			} else {
 				result.Message = "Connection timed out"
 				result.Hint = "The host may be unreachable, or SSH port 22 may be blocked. You can proceed if the server is not yet configured."
@@ -712,4 +711,13 @@ func (s *Server) handleGetExpectedSecrets(w http.ResponseWriter, r *http.Request
 		Summary:         summary,
 		Timestamp:       time.Now().UTC().Format(time.RFC3339),
 	})
+}
+
+// ipv6ConnectivityHint explains the usual cause of an unreachable IPv6 host.
+const ipv6ConnectivityHint = "You entered an IPv6 address, but your network may not have IPv6 connectivity. Most ISPs still only provide IPv4. Try using the IPv4 address of your server instead."
+
+// isIPv6 reports whether host is a literal IPv6 address.
+func isIPv6(host string) bool {
+	ip := net.ParseIP(host)
+	return ip != nil && ip.To4() == nil
 }

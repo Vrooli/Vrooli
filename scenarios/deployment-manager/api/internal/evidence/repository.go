@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"deployment-manager/internal/evidence/conformance"
 	"deployment-manager/shared"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -53,6 +54,9 @@ func (r *SQLRepository) Save(ctx context.Context, profileID, commit string, verd
 	if verdict == nil || verdict.Target == nil {
 		return errors.New("target verdict and target are required")
 	}
+	if violations := conformance.Validate(verdict); len(violations) > 0 {
+		return fmt.Errorf("invalid target verdict: %w", violations[0])
+	}
 	if profileID == "" || commit == "" || verdict.RunId == "" {
 		return errors.New("profile, commit, and run_id are required")
 	}
@@ -69,12 +73,12 @@ func (r *SQLRepository) Save(ctx context.Context, profileID, commit string, verd
 	_, err = tx.ExecContext(ctx,
 		fmt.Sprintf(`INSERT INTO deployment_evidence_verdicts
 			(id, profile_id, git_commit_hash, target_ramp, target_platform, target_os,
-			 device_kind, bridge_node_id, bridge_job_id, disposition, run_id, detail, created_at)
-			VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)`,
-			p(1), p(2), p(3), p(4), p(5), p(6), p(7), p(8), p(9), p(10), p(11), p(12), p(13)),
+			 device_kind, bridge_node_id, bridge_job_id, disposition, evidence_class, run_id, detail, created_at)
+			VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)`,
+			p(1), p(2), p(3), p(4), p(5), p(6), p(7), p(8), p(9), p(10), p(11), p(12), p(13), p(14)),
 		id, profileID, commit, verdict.Target.Ramp, verdict.Target.Platform, verdict.Target.Os,
 		int32(verdict.Target.DeviceKind), optionalString(verdict.Target.BridgeNodeId),
-		optionalString(verdict.Target.BridgeJobId), int32(verdict.Disposition), verdict.RunId,
+		optionalString(verdict.Target.BridgeJobId), int32(verdict.Disposition), strings.TrimSpace(verdict.EvidenceClass), verdict.RunId,
 		verdict.Detail, now,
 	)
 	if err != nil {
@@ -110,9 +114,9 @@ func (r *SQLRepository) List(ctx context.Context, profileID, commit string, limi
 	}
 	p := r.placeholder
 	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`SELECT id, target_ramp, target_platform,
-		target_os, device_kind, bridge_node_id, bridge_job_id, disposition, run_id, detail, created_at
+		target_os, device_kind, bridge_node_id, bridge_job_id, disposition, evidence_class, run_id, detail, created_at
 		FROM deployment_evidence_verdicts WHERE profile_id = %s AND git_commit_hash = %s
-		ORDER BY created_at ASC LIMIT %s`, p(1), p(2), p(3)), profileID, commit, limit)
+		ORDER BY created_at DESC, id DESC LIMIT %s`, p(1), p(2), p(3)), profileID, commit, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list evidence verdicts: %w", err)
 	}
@@ -120,12 +124,12 @@ func (r *SQLRepository) List(ctx context.Context, profileID, commit string, limi
 
 	var out []*commonv1.TargetVerdict
 	for rows.Next() {
-		var id, ramp, platform, osName, runID, detail string
+		var id, ramp, platform, osName, evidenceClass, runID, detail string
 		var deviceKind, disposition int32
 		var nodeID, jobID sql.NullString
 		var created time.Time
 		if err := rows.Scan(&id, &ramp, &platform, &osName, &deviceKind, &nodeID, &jobID,
-			&disposition, &runID, &detail, &created); err != nil {
+			&disposition, &evidenceClass, &runID, &detail, &created); err != nil {
 			return nil, fmt.Errorf("scan evidence verdict: %w", err)
 		}
 		refs, err := r.listRefs(ctx, id)
@@ -144,7 +148,7 @@ func (r *SQLRepository) List(ctx context.Context, profileID, commit string, limi
 		}
 		out = append(out, &commonv1.TargetVerdict{
 			Target: target, Disposition: commonv1.Disposition(disposition), Refs: refs,
-			RunId: runID, Detail: detail,
+			EvidenceClass: evidenceClass, RunId: runID, Detail: detail,
 		})
 	}
 	if err := rows.Err(); err != nil {

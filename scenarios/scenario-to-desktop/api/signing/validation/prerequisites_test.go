@@ -143,8 +143,22 @@ func TestMacOSPrerequisitesReportMissingFilesAndEnvironmentWithoutHostTools(t *t
 		}
 	}
 	platform := result.Platforms[types.PlatformMacOS]
-	if !platform.Configured || len(platform.Errors) != 2 {
+	if !platform.Configured || len(platform.Errors) != 3 {
 		t.Fatalf("macOS platform result = %#v", platform)
+	}
+}
+
+func TestMacOSPrerequisitesUsesDefaultAppPasswordEnvironmentBindings(t *testing.T) {
+	checker := NewPrerequisiteChecker(
+		WithCommandRunner(prerequisiteTestRunner{}),
+		WithEnvironmentReader(prerequisiteTestEnv{}),
+	)
+	result := NewValidationResult()
+	checker.checkMacOSPrerequisites(context.Background(), &types.MacOSSigningConfig{Notarize: true}, result)
+	for _, code := range []string{"MACOS_APPLE_ID_ENV_NOT_SET", "MACOS_APPLE_PASSWORD_ENV_NOT_SET"} {
+		if !hasPrerequisiteCode(result, code) {
+			t.Fatalf("expected %s for default binding, got %#v", code, result)
+		}
 	}
 }
 

@@ -57,6 +57,17 @@ scenario-dependency-analyzer analyze swarm-manager
 scenario-dependency-analyzer scan swarm-manager
 
 # Export recursive dependency DAG
+
+Use `--include-program-bindings` to add program-to-scenario evidence to the
+export. The default remains manifest-only. Live library evidence is marked
+`source: "program-binding"`; when program-runtime is unavailable, checked-in
+program contracts are marked `source: "program-binding-file"`. These edges are
+also exposed as `program_binding_peers` in bundle skeletons so existing peer
+consumers remain unchanged until they opt in.
+
+```bash
+scenario-dependency-analyzer dag export browser-automation-studio --include-program-bindings --json
+```
 scenario-dependency-analyzer dag export swarm-manager --recursive
 
 # Generate dependency graph

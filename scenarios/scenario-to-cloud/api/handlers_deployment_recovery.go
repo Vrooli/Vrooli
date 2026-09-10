@@ -4,16 +4,18 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/bundle"
-	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/evidence"
+	"scenario-to-cloud/execplan"
 	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/operations"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -27,6 +29,73 @@ type cloudRecoveryHTTPRequest struct {
 	IdempotencyKey    string `json:"idempotency_key"`
 	Confirmation      string `json:"confirmation"`
 	DryRun            bool   `json:"dry_run"`
+	// ReviewRef binds the repair to the governed publication (its approved
+	// review); ReleaseDigest names the exact release to restore or repair to;
+	// PreviewRef is the dry-run reference the owner issued.
+	ReviewRef     string `json:"review_ref"`
+	ReleaseDigest string `json:"release_digest"`
+	PreviewRef    string `json:"preview_ref"`
+}
+
+// recoveryPreviewRef is the owner's dry-run reference: a digest over the
+// exact identity of the effect the preview described. An execution must
+// present it, so a preview for another bundle, action or review cannot be
+// spent on this one.
+func recoveryPreviewRef(deploymentID, action, expectedSHA, repairSHA, reviewRef, routeKind string) string {
+	sum := sha256.Sum256([]byte(strings.Join([]string{deploymentID, action, expectedSHA, repairSHA, reviewRef, routeKind}, "\x00")))
+	return "preview:" + hex.EncodeToString(sum[:])
+}
+
+// recoveryRoute selects the owner route for a repair: the cloud-target
+// release verbs when the binding carries a Bridge machine identity, the
+// bundle pipeline otherwise.
+func recoveryRoute(deployment *domain.Deployment, action string) string {
+	if deployment != nil && strings.TrimSpace(deployment.Target.MachineID) != "" {
+		if action == "rollback" {
+			return domain.RecoveryRouteCloudTargetVerb
+		}
+		return domain.RecoveryRouteCloudTargetRepair
+	}
+	return domain.RecoveryRouteBundlePipeline
+}
+
+// bindRecoveryToPublication resolves the governed publication a repair
+// acts on. Rollback must target the published predecessor exactly; forward
+// repair names its own release. Missing binding is a refusal, never a
+// fallback to the caller's word.
+func (s *Server) bindRecoveryToPublication(ctx context.Context, deployment *domain.Deployment, request cloudRecoveryHTTPRequest) (*domain.RecoveryBinding, *apierrors.Error) {
+	reviewRef := strings.TrimSpace(request.ReviewRef)
+	if reviewRef == "" {
+		return nil, apierrors.New(apierrors.CodePublicationRefused, "Recovery requires the review_ref of the governed publication it acts on").WithDetail("refusal", "recovery_unbound")
+	}
+	publications, err := s.repo.ListPublications(ctx, deployment.ID)
+	if err != nil {
+		return nil, apierrors.Internal("Failed to list publications", err)
+	}
+	var bound *evidence.Publication
+	for i := range publications {
+		if publications[i].ReviewRef == reviewRef && publications[i].State == evidence.StatePublished {
+			bound = &publications[i]
+			break
+		}
+	}
+	if bound == nil {
+		return nil, apierrors.New(apierrors.CodePublicationRefused, "No published release is bound to this review_ref on this deployment").WithDetail("refusal", "recovery_unbound").WithDetail("review_ref", reviewRef)
+	}
+	releaseDigest := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(request.ReleaseDigest), "sha256:"))
+	if request.Action == "rollback" {
+		predecessor := strings.ToLower(strings.TrimPrefix(bound.PredecessorReleaseDigest, "sha256:"))
+		if predecessor == "" {
+			return nil, apierrors.New(apierrors.CodePublicationRefused, "The published release has no recorded predecessor; rollback has no exact supported target").WithDetail("refusal", "rollback_target_unsupported")
+		}
+		if releaseDigest == "" {
+			releaseDigest = predecessor
+		}
+		if releaseDigest != predecessor {
+			return nil, apierrors.New(apierrors.CodePublicationRefused, "Rollback must target the published predecessor exactly").WithDetail("refusal", "rollback_target_unsupported").WithDetail("predecessor_release_digest", bound.PredecessorReleaseDigest)
+		}
+	}
+	return &domain.RecoveryBinding{ReviewRef: reviewRef, PublicationID: bound.ID, ReleaseDigest: releaseDigest, RouteKind: recoveryRoute(deployment, request.Action)}, nil
 }
 
 // handleCloudRepairRecovery accepts rollback and forward repair only when the
@@ -50,7 +119,15 @@ func (s *Server) handleCloudRepairRecovery(w http.ResponseWriter, r *http.Reques
 		httputil.WriteAPIError(w, http.StatusPreconditionFailed, httputil.APIError{Code: "identity_mismatch", Message: "Recovery target bundle does not match the persisted deployment identity"})
 		return
 	}
+	binding, berr := s.bindRecoveryToPublication(r.Context(), deployment, request)
+	if berr != nil {
+		apierrors.Write(w, berr)
+		return
+	}
 	repairSHA := normalizeRecoverySHA(request.RepairBundleSHA)
+	if repairSHA == "" && binding.ReleaseDigest != "" {
+		repairSHA = normalizeRecoverySHA(s.publication().bundleFor(binding.ReleaseDigest))
+	}
 	if !validRecoverySHA(repairSHA) {
 		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "invalid_repair_bundle", Message: "repair_bundle_sha256 must be a 64-character hexadecimal SHA256"})
 		return
@@ -64,9 +141,14 @@ func (s *Server) handleCloudRepairRecovery(w http.ResponseWriter, r *http.Reques
 		httputil.WriteAPIError(w, http.StatusPreconditionFailed, httputil.APIError{Code: "repair_bundle_unavailable", Message: "The exact repair bundle is not retained by the cloud owner", Hint: err.Error()})
 		return
 	}
+	binding.PreviewRef = recoveryPreviewRef(id, request.Action, currentSHA, repairSHA, binding.ReviewRef, binding.RouteKind)
 	if request.DryRun {
-		receipt := domain.CloudRecoveryReceipt{SchemaVersion: 1, DeploymentID: id, Action: request.Action, Outcome: "preview", Health: "unknown", BundleSHA256: repairSHA, DryRun: true}
+		receipt := domain.CloudRecoveryReceipt{SchemaVersion: 1, DeploymentID: id, Action: request.Action, Outcome: "preview", Health: "unknown", BundleSHA256: repairSHA, DryRun: true, PreviewRef: binding.PreviewRef, ReviewKey: binding.ReviewRef, ReleaseDigest: binding.ReleaseDigest, RouteKind: binding.RouteKind}
 		httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{"receipt": receipt, "timestamp": time.Now().UTC().Format(time.RFC3339Nano)})
+		return
+	}
+	if strings.TrimSpace(request.PreviewRef) != binding.PreviewRef {
+		apierrors.Write(w, apierrors.New(apierrors.CodePreviewRequired, "Recovery execution requires the preview_ref of a dry run for this exact effect").WithDetail("expected_preview_ref", binding.PreviewRef))
 		return
 	}
 	if s.orchestrator == nil {
@@ -96,13 +178,14 @@ func (s *Server) handleCloudRepairRecovery(w http.ResponseWriter, r *http.Reques
 			RepairBundleSHA:   repairSHA,
 			RepairBundlePath:  repairBundle.Path,
 			DataCompatibility: "compatible",
+			Binding:           binding,
 		})
 		if err != nil {
 			httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Code: "recovery_persist_failed", Message: "Cloud recovery operation could not be recorded", Hint: err.Error()})
 			return
 		}
 	}
-	if operation.Action != request.Action || operation.RepairBundleSHA != repairSHA || operation.ExpectedBundleSHA != currentSHA {
+	if operation.Action != request.Action || operation.RepairBundleSHA != repairSHA || operation.ExpectedBundleSHA != currentSHA || operation.Binding == nil || operation.Binding.ReviewRef != binding.ReviewRef {
 		httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{Code: "recovery_identity_conflict", Message: "Recovery idempotency key is bound to a different repair identity"})
 		return
 	}
@@ -117,7 +200,7 @@ func (s *Server) handleCloudRepairRecovery(w http.ResponseWriter, r *http.Reques
 	}
 	if claimed {
 		runID := "cloud-recovery:" + operation.ID
-		if err := s.repo.StartDeploymentRun(r.Context(), id, runID); err != nil {
+		if err := s.repo.BeginDeploymentRun(r.Context(), id, domain.StatusSetupRunning); err != nil {
 			_ = s.repo.FailCloudRecoveryOperation(r.Context(), operation.ID, err.Error())
 			httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{Code: "recovery_start_failed", Message: "Cloud repair could not start", Hint: err.Error()})
 			return
@@ -128,24 +211,51 @@ func (s *Server) handleCloudRepairRecovery(w http.ResponseWriter, r *http.Reques
 			httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Code: "recovery_bundle_persist_failed", Message: "Cloud repair bundle identity could not be persisted", Hint: err.Error()})
 			return
 		}
-		manifest := domain.CloudManifest{}
-		if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-			_ = s.repo.FailCloudRecoveryOperation(r.Context(), operation.ID, err.Error())
-			httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{Code: "manifest_unavailable", Message: "Recovery target manifest is unavailable", Hint: err.Error()})
+		compiled, cerr := s.compileDeploymentPlan(r.Context(), id, execplan.ScopeFull)
+		if cerr != nil {
+			_ = s.repo.FailCloudRecoveryOperation(r.Context(), operation.ID, cerr.Message)
+			apierrors.Write(w, cerr)
 			return
 		}
-		path := repairBundle.Path
-		go s.runCloudRecoveryOperation(operation.ID, id, runID, manifest, path)
+		if compiled.Plan.Outcome != execplan.OutcomeApply {
+			_ = s.repo.FailCloudRecoveryOperation(r.Context(), operation.ID, "repair plan outcome "+compiled.Plan.Outcome)
+			apierrors.Write(w, apierrors.New(apierrors.CodeInvalidRequest, "Cloud repair compiled to "+compiled.Plan.Outcome+"; nothing to execute").WithDetail("outcome", compiled.Plan.Outcome))
+			return
+		}
+		op, _, aerr := s.admitAndSubmit(r, id, runID, compiled, operations.ExecuteOptions{})
+		if aerr != nil {
+			_ = s.repo.FailCloudRecoveryOperation(r.Context(), operation.ID, aerr.Message)
+			apierrors.Write(w, aerr)
+			return
+		}
+		go s.runCloudRecoveryOperation(operation.ID, id, op.ID)
 	}
 	operation.Status = "running"
 	operation.UpdatedAt = time.Now().UTC()
 	writeCloudRecoveryOperation(w, operation)
 }
 
-func (s *Server) runCloudRecoveryOperation(operationID, deploymentID, runID string, manifest domain.CloudManifest, bundlePath string) {
+// runCloudRecoveryOperation waits on the durable operation that executes
+// the repair plan and records the recovery outcome from the deployment
+// record the operation projected. The operation owner, not this goroutine,
+// owns execution: a cloud restart leaves the operation reconcilable.
+func (s *Server) runCloudRecoveryOperation(operationID, deploymentID, cloudOperationID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	s.orchestrator.RunPipeline(deploymentID, runID, manifest, &bundlePath, nil, deployment.ExecuteOptions{RunPreflight: false, ForceBundleBuild: false})
+	for {
+		op, done, err := s.operations.Wait(ctx, cloudOperationID, 0)
+		if err != nil {
+			_ = s.repo.FailCloudRecoveryOperation(context.Background(), operationID, "cloud repair operation wait failed: "+err.Error())
+			return
+		}
+		if done && op != nil {
+			break
+		}
+		if ctx.Err() != nil {
+			_ = s.repo.FailCloudRecoveryOperation(context.Background(), operationID, "cloud repair operation did not finish within the recovery window")
+			return
+		}
+	}
 	deployment, err := s.repo.GetDeployment(ctx, deploymentID)
 	if err != nil || deployment == nil || deployment.Status != domain.StatusDeployed || deployment.BundleSHA256 == nil {
 		message := "cloud repair did not reach deployed health"
@@ -172,6 +282,9 @@ func (s *Server) runCloudRecoveryOperation(operationID, deploymentID, runID stri
 		outcome = "forward_repaired"
 	}
 	receipt := domain.CloudRecoveryReceipt{SchemaVersion: 1, DeploymentID: deploymentID, OperationID: operationID, Action: operation.Action, Outcome: outcome, Health: "healthy", BundleSHA256: repairSHA, ExternalReceipt: "scenario-to-cloud:recovery:" + operationID, ObservedAt: now}
+	if operation.Binding != nil {
+		receipt.ReviewKey, receipt.ReleaseDigest, receipt.RouteKind, receipt.PreviewRef = operation.Binding.ReviewRef, operation.Binding.ReleaseDigest, operation.Binding.RouteKind, operation.Binding.PreviewRef
+	}
 	if err := s.repo.CompleteCloudRecoveryOperation(context.Background(), operationID, receipt); err != nil {
 		_ = s.repo.FailCloudRecoveryOperation(context.Background(), operationID, err.Error())
 	}
@@ -194,6 +307,9 @@ func (s *Server) handleGetCloudRecoveryOperation(w http.ResponseWriter, r *http.
 
 func writeCloudRecoveryOperation(w http.ResponseWriter, operation *domain.RecoveryOperation) {
 	receipt := domain.CloudRecoveryReceipt{SchemaVersion: 1, DeploymentID: operation.DeploymentID, OperationID: operation.ID, Action: operation.Action, BundleSHA256: operation.RepairBundleSHA}
+	if operation.Binding != nil {
+		receipt.ReviewKey, receipt.ReleaseDigest, receipt.RouteKind, receipt.PreviewRef = operation.Binding.ReviewRef, operation.Binding.ReleaseDigest, operation.Binding.RouteKind, operation.Binding.PreviewRef
+	}
 	switch operation.Status {
 	case "succeeded":
 		if operation.Receipt != nil {

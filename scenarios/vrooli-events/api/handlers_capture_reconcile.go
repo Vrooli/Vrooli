@@ -16,15 +16,16 @@ import (
 type receiptCaptureDeclaration struct {
 	SchemaVersion int `json:"schemaVersion"`
 	Policies      []struct {
-		PolicyID                string   `json:"policyId"`
-		TargetScenario          string   `json:"targetScenario"`
-		Operation               string   `json:"operation"`
-		Protocol                string   `json:"protocol"`
-		ResponseType            string   `json:"responseType"`
-		ResponseProjectionPaths []string `json:"responseProjectionPaths"`
-		RetentionDays           int      `json:"retentionDays"`
-		ReadPrincipals          []string `json:"readPrincipals"`
-		NeverExercised          bool     `json:"neverExercised,omitempty"`
+		PolicyID                 string                    `json:"policyId"`
+		TargetScenario           string                    `json:"targetScenario"`
+		Operation                string                    `json:"operation"`
+		Protocol                 string                    `json:"protocol"`
+		ResponseType             string                    `json:"responseType"`
+		ResponseProjectionPaths  []string                  `json:"responseProjectionPaths"`
+		WorkReferenceProjections []workReferenceProjection `json:"workReferenceProjections,omitempty"`
+		RetentionDays            int                       `json:"retentionDays"`
+		ReadPrincipals           []string                  `json:"readPrincipals"`
+		NeverExercised           bool                      `json:"neverExercised,omitempty"`
 	} `json:"policies"`
 }
 
@@ -147,7 +148,7 @@ func loadCaptureDeclarationRulesAtRootWithSnapshot(repoRoot, scenario string, sn
 				return nil, fmt.Errorf("receipt declaration policy_id %q is duplicated", entry.PolicyID)
 			}
 			seen[entry.PolicyID] = struct{}{}
-			candidate := receiptCapturePolicy{PolicyID: entry.PolicyID, Enabled: true, ResponseType: entry.ResponseType, ResponseProjectionPaths: entry.ResponseProjectionPaths, RetentionDays: entry.RetentionDays}
+			candidate := receiptCapturePolicy{PolicyID: entry.PolicyID, Enabled: true, ResponseType: entry.ResponseType, ResponseProjectionPaths: entry.ResponseProjectionPaths, WorkReferenceProjections: entry.WorkReferenceProjections, RetentionDays: entry.RetentionDays}
 			candidate.Selector.TargetScenario, candidate.Selector.Operation, candidate.Selector.Protocol, candidate.Selector.EventType = entry.TargetScenario, entry.Operation, entry.Protocol, receiptEventType
 			candidate.Access.ReadPrincipals = entry.ReadPrincipals
 			if message := validateCapturePolicy(candidate); message != "" {

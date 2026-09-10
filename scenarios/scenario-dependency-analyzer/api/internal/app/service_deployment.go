@@ -14,6 +14,14 @@ type deploymentService struct {
 }
 
 func (d *deploymentService) GetDeploymentReport(name string, refresh bool) (*types.DeploymentAnalysisReport, error) {
+	return d.getDeploymentReport(name, refresh, false)
+}
+
+func (d *deploymentService) GetDeploymentReportWithOptions(name string, refresh, includeProgramBindings bool) (*types.DeploymentAnalysisReport, error) {
+	return d.getDeploymentReport(name, refresh, includeProgramBindings)
+}
+
+func (d *deploymentService) getDeploymentReport(name string, refresh, includeProgramBindings bool) (*types.DeploymentAnalysisReport, error) {
 	scenarioPath := d.workspace.pathFor(name)
 	cfg, err := d.workspace.loadConfig(name)
 	if err != nil {
@@ -25,7 +33,11 @@ func (d *deploymentService) GetDeploymentReport(name string, refresh bool) (*typ
 		report, err = deployment.LoadReport(scenarioPath)
 	}
 	if refresh || err != nil {
-		report = deployment.BuildReport(name, scenarioPath, d.workspace.root, cfg)
+		options := deployment.DependencyBuildOptions{IncludeProgramBindings: includeProgramBindings}
+		if includeProgramBindings {
+			options.ProgramBindings = deployment.CompositeProgramBindingSource{ScenariosDir: d.workspace.root}
+		}
+		report = deployment.BuildReportWithOptions(name, scenarioPath, d.workspace.root, cfg, options)
 		if report != nil {
 			if persistErr := deployment.PersistReport(scenarioPath, report); persistErr != nil {
 				log.Printf("Warning: failed to persist deployment report for %s: %v", name, persistErr)

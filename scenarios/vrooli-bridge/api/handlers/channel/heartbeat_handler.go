@@ -8,6 +8,7 @@ import (
 	"log"
 	"time"
 
+	internalartifacts "vrooli-bridge/internal/artifacts"
 	"vrooli-bridge/internal/audit"
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/nodeauth"
@@ -62,6 +63,9 @@ type HeartbeatDeps struct {
 	CredentialReceipts interface {
 		RecordCredentialReceipt(context.Context, string, string, int64, bool, string) error
 	}
+	ArtifactReceipts interface {
+		RecordDeliveryReceipt(context.Context, internalartifacts.DeliveryReceipt) error
+	}
 	ScenarioResponses interface {
 		Deliver(string, []byte, string, bool, bool, string) error
 	}
@@ -95,13 +99,22 @@ func WithRelayResponseSink(sink interface {
 
 func WithCredentialReceiptRecorder(recorder interface {
 	RecordCredentialReceipt(context.Context, string, string, int64, bool, string) error
-}) HeartbeatOption {
+},
+) HeartbeatOption {
 	return func(d *HeartbeatDeps) { d.CredentialReceipts = recorder }
+}
+
+func WithArtifactReceiptRecorder(recorder interface {
+	RecordDeliveryReceipt(context.Context, internalartifacts.DeliveryReceipt) error
+},
+) HeartbeatOption {
+	return func(d *HeartbeatDeps) { d.ArtifactReceipts = recorder }
 }
 
 func WithScenarioResponseSink(sink interface {
 	Deliver(string, []byte, string, bool, bool, string) error
-}) HeartbeatOption {
+},
+) HeartbeatOption {
 	return func(d *HeartbeatDeps) { d.ScenarioResponses = sink }
 }
 
@@ -310,6 +323,49 @@ func (h *heartbeatHandler) ReportCredentialReceipt(ctx context.Context, req *con
 		return nil, connect.NewError(connect.CodePermissionDenied, recordErr)
 	}
 	return connect.NewResponse(&presencev1.ReportCredentialReceiptResponse{Accepted: true}), nil
+}
+
+// ReportArtifactReceipt records the authenticated target-node result after an
+// agent has pulled and atomically placed a directed artifact. Only placement
+// metadata crosses this RPC; artifact bytes remain on the target and hub.
+func (h *heartbeatHandler) ReportArtifactReceipt(ctx context.Context, req *connect.Request[presencev1.ReportArtifactReceiptRequest]) (*connect.Response[presencev1.ReportArtifactReceiptResponse], error) {
+	receipt := req.Msg.GetReceipt()
+	if receipt == nil || receipt.GetDistributionId() == "" || receipt.GetNodeId() == "" || receipt.GetItemId() == "" || receipt.GetDestinationPath() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("artifact receipt requires distribution, node, item, and destination path"))
+	}
+	nodeID := req.Header().Get(nodeauth.HeaderNode)
+	if nodeID == "" || nodeID != receipt.GetNodeId() {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("artifact receipt node proof mismatch"))
+	}
+	if h.deps.Verifier != nil {
+		proof, err := nodeauth.ParseHeaders(nodeID, req.Header().Get(nodeauth.HeaderTS), req.Header().Get(nodeauth.HeaderSig))
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		}
+		if err := h.deps.Verifier.VerifyProof(ctx, proof); err != nil {
+			return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		}
+	}
+	if h.deps.ArtifactReceipts == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("artifact receipt recorder unavailable"))
+	}
+	err := h.deps.ArtifactReceipts.RecordDeliveryReceipt(ctx, internalartifacts.DeliveryReceipt{
+		DistributionID: receipt.GetDistributionId(), NodeID: nodeID, ItemID: receipt.GetItemId(),
+		DestinationPath: receipt.GetDestinationPath(), Accepted: receipt.GetAccepted(), Reason: receipt.GetReason(),
+		SHA256: receipt.GetSha256(), SizeBytes: receipt.GetSizeBytes(),
+	})
+	if err != nil {
+		var invalid internalartifacts.ErrInvalidDistribution
+		if errors.As(err, &invalid) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		var notFound internalartifacts.ErrDistributionNotFound
+		if errors.As(err, &notFound) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+	return connect.NewResponse(&presencev1.ReportArtifactReceiptResponse{Accepted: true}), nil
 }
 
 // ReportScenarioResponse accepts one bounded response from the node-side

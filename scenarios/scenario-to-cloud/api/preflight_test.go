@@ -8,7 +8,6 @@ import (
 
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps/preflight"
 )
 
@@ -47,22 +46,8 @@ func TestVPSPreflightHappyPath(t *testing.T) {
 			"www.example.com":       {"203.0.113.10"},
 			"do-origin.example.com": {"203.0.113.10"},
 		}}),
-		&FakeSSHRunner{Responses: map[string]ssh.Result{
-			"echo ok":             {ExitCode: 0, Stdout: "ok"},
-			"cat /etc/os-release": {ExitCode: 0, Stdout: "ID=ubuntu\nVERSION_ID=\"24.04\"\n"},
-			"ss -ltnH '( sport = :80 or sport = :443 )'": {ExitCode: 0, Stdout: ""},
-			"ufw status": {ExitCode: 0, Stdout: "Status: inactive\n"},
-			"curl -fsS --max-time 5 https://example.com >/dev/null": {ExitCode: 0, Stdout: ""},
-			"df -Pk / | tail -n 1 | awk '{print $4}'":               {ExitCode: 0, Stdout: "9999999"},
-			"awk '/MemTotal/ {print $2}' /proc/meminfo":             {ExitCode: 0, Stdout: "2097152"},
-			// Bootstrap prerequisite checks
-			"which curl":  {ExitCode: 0, Stdout: "/usr/bin/curl"},
-			"which git":   {ExitCode: 0, Stdout: "/usr/bin/git"},
-			"which unzip": {ExitCode: 0, Stdout: "/usr/bin/unzip"},
-			"which tar":   {ExitCode: 0, Stdout: "/bin/tar"},
-			"which jq":    {ExitCode: 0, Stdout: "/usr/bin/jq"},
-			"apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log": {ExitCode: 0, Stdout: ""},
-		}},
+		preflightReach(&FakeSSHRunner{Responses: preflightObservationResponses()}),
+		domain.TargetRefFromManifest(manifest),
 		preflight.RunOptions{
 			PortProbe: func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
 			TLSALPNProbe: func(_ context.Context, _, _ string, _ int, _ time.Duration) (string, error) {
@@ -108,22 +93,8 @@ func TestVPSPreflightDNSErrorIsActionable(t *testing.T) {
 			"www.example.com":       {"198.51.100.5"},
 			"do-origin.example.com": {"203.0.113.10"},
 		}}),
-		&FakeSSHRunner{Responses: map[string]ssh.Result{
-			"echo ok":             {ExitCode: 0, Stdout: "ok"},
-			"cat /etc/os-release": {ExitCode: 0, Stdout: "ID=ubuntu\nVERSION_ID=\"24.04\"\n"},
-			"ss -ltnH '( sport = :80 or sport = :443 )'": {ExitCode: 0, Stdout: ""},
-			"ufw status": {ExitCode: 0, Stdout: "Status: inactive\n"},
-			"curl -fsS --max-time 5 https://example.com >/dev/null": {ExitCode: 0, Stdout: ""},
-			"df -Pk / | tail -n 1 | awk '{print $4}'":               {ExitCode: 0, Stdout: "9999999"},
-			"awk '/MemTotal/ {print $2}' /proc/meminfo":             {ExitCode: 0, Stdout: "2097152"},
-			// Bootstrap prerequisite checks
-			"which curl":  {ExitCode: 0, Stdout: "/usr/bin/curl"},
-			"which git":   {ExitCode: 0, Stdout: "/usr/bin/git"},
-			"which unzip": {ExitCode: 0, Stdout: "/usr/bin/unzip"},
-			"which tar":   {ExitCode: 0, Stdout: "/bin/tar"},
-			"which jq":    {ExitCode: 0, Stdout: "/usr/bin/jq"},
-			"apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log": {ExitCode: 0, Stdout: ""},
-		}},
+		preflightReach(&FakeSSHRunner{Responses: preflightObservationResponses()}),
+		domain.TargetRefFromManifest(manifest),
 		preflight.RunOptions{
 			PortProbe: func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
 			TLSALPNProbe: func(_ context.Context, _, _ string, _ int, _ time.Duration) (string, error) {
@@ -181,21 +152,8 @@ func TestVPSPreflightDNSPolicyWarnDowngradesFailure(t *testing.T) {
 			"www.example.com":       {"198.51.100.5"},
 			"do-origin.example.com": {"203.0.113.10"},
 		}}),
-		&FakeSSHRunner{Responses: map[string]ssh.Result{
-			"echo ok":             {ExitCode: 0, Stdout: "ok"},
-			"cat /etc/os-release": {ExitCode: 0, Stdout: "ID=ubuntu\nVERSION_ID=\"24.04\"\n"},
-			"ss -ltnH '( sport = :80 or sport = :443 )'": {ExitCode: 0, Stdout: ""},
-			"ufw status": {ExitCode: 0, Stdout: "Status: inactive\n"},
-			"curl -fsS --max-time 5 https://example.com >/dev/null": {ExitCode: 0, Stdout: ""},
-			"df -Pk / | tail -n 1 | awk '{print $4}'":               {ExitCode: 0, Stdout: "9999999"},
-			"awk '/MemTotal/ {print $2}' /proc/meminfo":             {ExitCode: 0, Stdout: "2097152"},
-			"which curl":  {ExitCode: 0, Stdout: "/usr/bin/curl"},
-			"which git":   {ExitCode: 0, Stdout: "/usr/bin/git"},
-			"which unzip": {ExitCode: 0, Stdout: "/usr/bin/unzip"},
-			"which tar":   {ExitCode: 0, Stdout: "/bin/tar"},
-			"which jq":    {ExitCode: 0, Stdout: "/usr/bin/jq"},
-			"apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log": {ExitCode: 0, Stdout: ""},
-		}},
+		preflightReach(&FakeSSHRunner{Responses: preflightObservationResponses()}),
+		domain.TargetRefFromManifest(manifest),
 		preflight.RunOptions{
 			PortProbe: func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
 			TLSALPNProbe: func(_ context.Context, _, _ string, _ int, _ time.Duration) (string, error) {

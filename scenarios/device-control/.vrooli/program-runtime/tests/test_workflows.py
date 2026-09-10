@@ -15,12 +15,67 @@ class Handle:
     def map(self, fn): return Handle([fn(r) for r in self.rows])
     def raw(self): return self._raw
 
+class Step:
+    def __init__(self): self.record = {'outcome': 'unknown'}
+    def __enter__(self): return self
+    def __exit__(self, *_): return False
+    def outcome(self, status, evidence=None): self.record.update(outcome=status, evidence=evidence or [])
+    def note(self, *_): pass
+
+class Learn:
+    def __init__(self): self.started = False; self.feedbacks = []; self.results = []
+    def task(self, **_): self.started = True; return {}
+    def result(self, name, artifact=None):
+        self.started = True; self.results.append((name, artifact)); return "prt_feedback_v1_" + str(name)
+    def step(self, *_args, **_kwargs): self.started = True; return Step()
+    def note(self, *_args, **_kwargs): self.started = True
+    def outcome(self, *_args, **_kwargs): self.started = True
+    def feedback(self, attempt_id, disposition, evidence):
+        self.feedbacks.append((attempt_id, disposition, evidence)); return {"delivery": "pending"}
+    def choose(self, options, default): self.started = True; return {'selected_id': default, 'learning': {'advice': []}}
+
+class Program:
+    def __init__(self, inputs): self._inputs = inputs
+    def inputs(self): return self._inputs
+    def fail(self, status, klass, detail, where):
+        import inspect
+        envelope = inspect.currentframe().f_back.f_globals.get('envelope')
+        if isinstance(envelope, dict):
+            envelope['status'] = status
+            envelope['errors'].append({'class': klass, 'detail': str(detail), 'where': where})
+        return 'report'
+    def classify(self, exc): return ('partial', 'binding_error') if 'scenario_not_running' in str(exc) else ('failed', 'binding_error')
+    def run(self, states, state):
+        while state:
+            state = states[state]()
+
 class Programs(unittest.TestCase):
     def run_program(self, name, inputs, api, library=None, runtime=None):
-        scope = {'inputs': inputs, 'device_control': api, 'lib': library, 'program_runtime': runtime}
+        scope = {'inputs': inputs, 'device_control': api, 'lib': library, 'program_runtime': runtime, 'program': Program(inputs), 'learn': Learn()}
         with contextlib.redirect_stdout(io.StringIO()):
             exec(compile((ROOT / (name + '.py')).read_text(), name, 'exec'), scope)
+        self.learning = scope['learn']
         return scope['envelope']
+
+    def test_verified_replay_grades_earlier_recommendation(self):
+        prepared = {'status': 'ok', 'signals': {'device_id': 'tv', 'outcome': 'unknown'}, 'evidence': []}
+        replayed = {'status': 'ok', 'signals': {'outcome': 'verified_success', 'flow_id': 'flow', 'version': 1}, 'evidence': ['assertion:volume'], 'errors': []}
+        library = NS(device_control=NS(prepare_task=lambda **_: Handle([prepared]), replay_flow=lambda **_: Handle([replayed])))
+        result = self.run_program('do-task', {'device': 'tv', 'context_key': 'v1', 'actor': 'operator', 'flow_id': 'flow', 'version': 1, 'advice_attempt_id': 'earlier'}, None, library)
+        self.assertEqual('ok', result['status'])
+        self.assertEqual([('earlier', 'supported', ['assertion:volume'])], self.learning.feedbacks)
+
+    def test_verified_replay_hands_back_a_reference_for_later_correction(self):
+        """A correction usually arrives after the run; the caller must still be able to name it."""
+        api = NS(flow=NS(get=lambda **kw: Handle([{'id': 'saved', 'version': 1, 'deviceId': 'tv', 'contextKey': 'app:v1'}]),
+                         replay=lambda **kw: Handle([{'runId': 'run-9', 'disposition': 'passed'}])))
+        result = self.run_program('replay-flow', {'flow_id': 'saved', 'version': 1, 'device_id': 'tv',
+                                                  'context_key': 'app:v1', 'actor': 'test'}, api)
+        reference = result['signals']['learning']['feedback_ref']
+        self.assertTrue(reference.startswith('prt_feedback_v1_'))
+        # The reference names the exact revision, so a later correction cannot hit a sibling.
+        self.assertEqual(('replay', {'kind': 'flow', 'owner': 'device-control', 'id': 'saved', 'revision': '1'}),
+                         self.learning.results[-1])
 
     def test_ambiguous_device_never_reads_or_runs_flows(self):
         api=NS(device=NS(list=lambda:Handle([{'id':'one','name':'TV'}, {'id':'two','name':'TV'}])))

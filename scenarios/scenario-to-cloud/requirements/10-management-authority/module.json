@@ -1,0 +1,120 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-09T00:00:00Z",
+    "plan": "scenario-to-cloud-professional-vps-delivery-certification"
+  },
+  "requirements": [
+    {
+      "id": "STC-P0-012",
+      "title": "Shared authentication on every management entry point",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "management-authority",
+      "description": "Cloud server startup configures the shared api-core authentication so REST, Connect, SSE, WebSocket and legacy routes reject anonymous callers before any target effect.",
+      "tags": [
+        "auth",
+        "security"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/authz/authz_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Anonymous refused before handlers on every route class with a sign-in next action; FromEnvironment never resolves to anonymous (shared mode without providers, unknown mode and non-loopback bind without allowed hosts all fail startup); bounded bodies, per-principal effect concurrency, no-store; audit lines never carry body or credential canaries. Tagged [REQ:STC-P0-012]."
+        },
+        {
+          "type": "test",
+          "ref": "api/authz_census_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Anonymous request to every non-public registered route through the real router returns 401 with zero SSH calls; public health discloses nothing target-specific; audit canary test."
+        },
+        {
+          "type": "test",
+          "ref": "cli/authz_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CLI attaches the operator bearer token; typed 401 maps to exit 2 with the sign-in next action."
+        },
+        {
+          "type": "manual",
+          "ref": "evidence/P04-management-authority.md",
+          "phase": "api",
+          "status": "implemented",
+          "notes": "Live curl proof after restart: anonymous execute on the production deployment returns 401 and leaves the row unchanged; personal-local CLI list succeeds from loopback."
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-013",
+      "title": "Route/effect/target authorization matrix",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "management-authority",
+      "description": "A table-driven matrix classifies each route by effect (read, workload mutation, secret, host, interactive) and binds access checks to deployment, target, environment and scope; wrong-target, revoked and insufficient-scope requests are denied without disclosure.",
+      "tags": [
+        "auth",
+        "authorization"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/authz/authz_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Table invariants; scope via scopecatalog.Resolve; wrong-target grant refused without disclosure (id existence hidden from restricted principals; body-addressed legacy routes closed); revoked between admission and effect refused with forbidden_revoked; policy-file revocation honoured without restart; service principals confined to declared rows. Tagged [REQ:STC-P0-013]."
+        },
+        {
+          "type": "test",
+          "ref": "api/authz/matrix_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "docs/reference/authorization-matrix.md is generated from the table and fails when stale; GET /api/v1/authz/matrix exports every row with its scope."
+        },
+        {
+          "type": "test",
+          "ref": "api/authz_census_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Route census walks the live mux router: every registered route classified, public rows allowlisted, stale rows detected; wrong-target grant refused on every target-bound and body-target route; service principal confined; revoked principal refused at the gated effect."
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-014",
+      "title": "Browser origin, CSRF and WebSocket upgrade enforcement",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "management-authority",
+      "description": "Cross-origin mutation and unauthorized terminal upgrades are refused; interactive session lifetime obeys grant policy.",
+      "tags": [
+        "csrf",
+        "websocket"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/authz/authz_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Same-origin, allowed-origin and loopback origins admitted; cross-origin and Sec-Fetch-Site cross-site mutations refused with forbidden_origin; interactive route requires an Origin; foreign Host refused with forbidden_host; expired credential refused and session context bounded by expiry. Tagged [REQ:STC-P0-014]."
+        },
+        {
+          "type": "test",
+          "ref": "api/authz_census_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Cross-origin request to every state-changing route refused; terminal upgrade refused for no principal, foreign origin and missing origin before any SSH session."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_terminal_origin_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "WebSocket upgrader admits only boundary-approved origins and refuses an absent Origin."
+        }
+      ]
+    }
+  ]
+}

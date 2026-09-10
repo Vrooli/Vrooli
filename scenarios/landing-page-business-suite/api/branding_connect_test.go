@@ -43,8 +43,15 @@ func TestBrandingConnectPreservesExpandedBrandingFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateBranding() error = %v", err)
 	}
-	if updated.Msg.GetBranding().GetSmtpHost() != smtpHost || updated.Msg.GetBranding().GetSmtpPassword() != smtpPassword || !updated.Msg.GetBranding().GetComingSoonEnabled() {
+	if updated.Msg.GetBranding().GetSmtpHost() != smtpHost || updated.Msg.GetBranding().GetSmtpPassword() != "" || !updated.Msg.GetBranding().GetComingSoonEnabled() {
 		t.Fatalf("expanded fields not preserved: %#v", updated.Msg.GetBranding())
+	}
+	persisted, err := os.ReadFile(store.GetBrandingPath())
+	if err != nil {
+		t.Fatalf("read persisted branding: %v", err)
+	}
+	if strings.Contains(string(persisted), "smtp_password") || strings.Contains(string(persisted), smtpPassword) {
+		t.Fatalf("SMTP password was persisted in branding JSON: %s", persisted)
 	}
 }
 

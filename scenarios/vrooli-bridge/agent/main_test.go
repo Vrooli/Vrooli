@@ -102,3 +102,19 @@ func TestServiceDefinition_ProvisionerIsDistinctService(t *testing.T) {
 		"--vrooli-bin", "/opt/vrooli/bin/vrooli",
 	}, def.Args)
 }
+
+func TestServiceDefinition_ProvisionerCarriesWindowsClientPrincipal(t *testing.T) {
+	cfg := config.Config{
+		StateDir:                 t.TempDir(),
+		ServiceUser:              `NT SERVICE\VrooliProvisioner`,
+		ProvisionHelper:          true,
+		ProvisionSocket:          `\\.\pipe\vrooli-bridge-provisioner`,
+		ProvisionClientUID:       -1,
+		ProvisionClientPrincipal: `MYHOST\vrooli-agent`,
+	}
+	def, err := serviceDefinition(cfg)
+	require.NoError(t, err)
+	require.Contains(t, def.Args, "--provision-client-user")
+	require.Contains(t, def.Args, `MYHOST\vrooli-agent`)
+	require.NotContains(t, def.Args, "--provision-client-uid")
+}

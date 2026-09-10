@@ -53,6 +53,7 @@ dependency exists.
 | `agent-manager` | deferred | A future integration may own long-lived orchestration. The delivered agent mode keeps the bounded loop in device-control so typed state, direct actuation, chapters, and lease scope remain one transaction. | No direct dependency or provider SDK is used. |
 | `prompt-manager` | required for agent mode | Owns the **operator skill** that teaches an agent this scenario's CLI. Keeping the skill there rather than here means the agent-facing instructions are versioned and discoverable with every other skill. | Skill read by slug; the skill's content is the CLI contract. |
 | `browser-automation-studio` | optional | Owns **web-content automation**. Because generated apps wrap the same web bundle everywhere, a scenario's real UX flows are BAS's domain on every surface; this scenario drives only the native shell around them. | Named flow execution against an attached WebView; result merged into one evidence timeline. |
+| `vrooli-memory` | optional (`try_start`) | Supplies scoped recall and immutable attempt capture for programs using `learn.*`. | If unavailable, programs run without advice and captures remain queued in program-runtime's outbox until Memory returns. |
 | `deployment-manager` | none (indirect) | Consumes device evidence only through the delivery ramps, never directly. Listing it as a dependency would invert the layering. | No direct call in either direction. |
 | `device-sync-hub` | none (adjacent) | Moves files *between* trusted devices; this scenario *drives* them. Same fleet, opposite direction, no shared contract. | No direct call. |
 
@@ -127,3 +128,11 @@ attempted.
 - [`DATA.md`](DATA.md) — storage ownership
 - [`../reference/configuration.md`](../reference/configuration.md) — environment and service manifest
 - [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md) — deployment readiness
+
+### Feedback across recommendation and execution
+
+`device-control.do-task` returns its learning task and attempt identities. When it
+executes a recommendation from an earlier run, pass that run's `advice_attempt_id`.
+Only verified success or a failure with actual execution evidence grades the earlier
+recommendation. An unavailable device or uncertain effect does not become negative
+advice. Failed feedback delivery remains in Program Runtime's durable finish outbox.

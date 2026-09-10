@@ -51,7 +51,7 @@ describe('Approvals', () => {
     renderWithProviders(<Approvals />, { wrapper: createWrapper() });
 
     expect(screen.getByText('Approvals')).toBeInTheDocument();
-    expect(screen.getByText(/Manage deployment approval gates/i)).toBeInTheDocument();
+    expect(screen.getByText(/Historical approval records/i)).toBeInTheDocument();
   });
 
   it('shows select prompt when no profile selected', () => {
@@ -135,68 +135,19 @@ describe('Approvals', () => {
     expect(screen.getByText('approval-1')).toBeInTheDocument();
   });
 
-  it('calls decideApproval on approve action', async () => {
+  it('keeps historical records read-only and points operators to canonical review', async () => {
     vi.mocked(api.listProfiles).mockResolvedValue(mockProfiles);
     vi.mocked(api.listApprovals).mockResolvedValue(mockApprovals);
-    vi.mocked(api.decideApproval).mockResolvedValue({
-      id: 'approval-1',
-      profile_id: 'prof-1',
-      git_commit_hash: 'abc123def456789',
-      platform: 'linux',
-      status: 'approved',
-      approved_by: 'tester',
-      created_at: '2026-01-01T00:00:00Z',
-      updated_at: '2026-01-01T00:00:00Z',
-    });
-
-    renderWithProviders(<Approvals />, { wrapper: createWrapper() });
-
-    await selectProfile();
-    await screen.findByText('Approval List');
-
-    // Click linux row to open detail
-    fireEvent.click(screen.getByText('linux'));
-
-    // Fill in reviewer
-    const reviewerInput = screen.getByPlaceholderText('Your name');
-    fireEvent.change(reviewerInput, { target: { value: 'tester' } });
-
-    // Click the Approve button in the detail panel (the one inside the decision section)
-    const approveButtons = screen.getAllByText('Approve');
-    // The last Approve button is the one in the detail decision section
-    const detailApproveBtn = approveButtons[approveButtons.length - 1];
-    expect(detailApproveBtn).toBeDefined();
-    if (detailApproveBtn) fireEvent.click(detailApproveBtn);
-
-    await waitFor(() => {
-      expect(api.decideApproval).toHaveBeenCalledWith('approval-1', {
-        decision: 'approved',
-        reviewer: 'tester',
-        notes: '',
-      });
-    });
-  });
-
-  it('supports refresh, notes, rejection, and closing the detail panel', async () => {
-    vi.mocked(api.listProfiles).mockResolvedValue(mockProfiles);
-    vi.mocked(api.listApprovals).mockResolvedValue(mockApprovals);
-    vi.mocked(api.decideApproval).mockResolvedValue({
-      id: 'approval-1', profile_id: 'prof-1', git_commit_hash: 'abc123def456789', platform: 'linux', status: 'rejected',
-      created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
-    });
 
     renderWithProviders(<Approvals />, { wrapper: createWrapper() });
     await selectProfile();
     await screen.findByText('Approval List');
     fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
     fireEvent.click(screen.getByText('linux'));
-    fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'reviewer' } });
-    fireEvent.change(screen.getByPlaceholderText('Optional notes'), { target: { value: 'not ready' } });
-    const rejectButtons = screen.getAllByText('Reject');
-    const rejectButton = rejectButtons[rejectButtons.length - 1];
-    if (rejectButton) fireEvent.click(rejectButton);
-    await waitFor(() => expect(api.decideApproval).toHaveBeenCalledWith('approval-1', {
-      decision: 'rejected', reviewer: 'reviewer', notes: 'not ready',
-    }));
+    expect(screen.getByText(/historical record is read-only/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /canonical evidence review/i })).toHaveAttribute('href', '/evidence');
+    expect(screen.queryByText('Make Decision')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reject' })).not.toBeInTheDocument();
   });
 });

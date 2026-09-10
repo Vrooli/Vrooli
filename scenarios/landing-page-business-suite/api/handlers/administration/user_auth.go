@@ -72,7 +72,10 @@ func RequestMagicLink(deps UserAuthDependencies) http.HandlerFunc {
 			// Deliberately return success below: this endpoint must not enumerate users.
 			deps.LogError("magic_link_request_failed", map[string]any{"error": err.Error(), "email": email})
 		}
-		writeJSON(w, MagicLinkResponse{Message: "Check your email for a login link"}, deps, "encode_response_failed")
+		// Keep the response non-enumerating without claiming that an email was
+		// delivered. Delivery failures are retained in the service/logging
+		// boundary, while this response remains safe for unknown accounts.
+		writeJSON(w, MagicLinkResponse{Message: "If the address is eligible, the sign-in request was processed"}, deps, "encode_response_failed")
 	}
 }
 

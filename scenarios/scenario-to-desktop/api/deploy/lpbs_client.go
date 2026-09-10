@@ -75,16 +75,21 @@ type ServiceAuthStatus struct {
 
 // UploadRequest describes one artifact to upload.
 type UploadRequest struct {
-	RemoteProfile  string
-	ScenarioName   string
-	AppKey         string
-	Platform       string
-	FilePath       string
-	ReleaseVersion string
-	ReleaseNotes   string
-	GitCommitHash  string
-	ReleaseID      string
-	Channel        string
+	RemoteProfile          string
+	ScenarioName           string
+	AppKey                 string
+	Platform               string
+	FilePath               string
+	ReleaseVersion         string
+	ReleaseNotes           string
+	GitCommitHash          string
+	ReleaseID              string
+	CandidateID            string
+	DestinationRevisionID  string
+	AuthorizationEpoch     uint64
+	ReadinessReviewKey     string
+	Channel                string
+	ArtifactManifestDigest string
 }
 
 // UploadResult is the outcome of a single artifact upload.
@@ -261,6 +266,23 @@ type ChannelHead struct {
 	Revision int64 `json:"revision"`
 }
 
+// ChannelPromotionReceipt is the destination-owned proof that the complete
+// artifact set advanced from the revision S2D observed. Release-bound
+// promotion also echoes the exact identity that authorized the effect.
+type ChannelPromotionReceipt struct {
+	AppKey                 string           `json:"app_key"`
+	VariantKey             string           `json:"variant_key"`
+	Revision               int64            `json:"revision"`
+	PredecessorRevision    int64            `json:"predecessor_revision"`
+	ArtifactIDs            map[string]int64 `json:"artifact_ids"`
+	ReleaseID              string           `json:"release_id,omitempty"`
+	ArtifactManifestDigest string           `json:"artifact_manifest_digest,omitempty"`
+	CandidateID            string           `json:"candidate_id,omitempty"`
+	DestinationRevisionID  string           `json:"destination_revision_id,omitempty"`
+	AuthorizationEpoch     uint64           `json:"authorization_epoch,omitempty"`
+	ReadinessReviewKey     string           `json:"readiness_review_key,omitempty"`
+}
+
 // GetChannelHead returns the current destination revision. A missing head is
 // the initial revision zero and is safe for the first commercial promotion.
 func (c *LPBSClient) GetChannelHead(ctx context.Context, req *UploadRequest) (*ChannelHead, error) {
@@ -287,6 +309,9 @@ func (c *LPBSClient) PromoteChannel(ctx context.Context, req *UploadRequest, art
 	if req == nil || req.ReleaseID == "" {
 		return fmt.Errorf("release-bound upload request is required")
 	}
+	if strings.TrimSpace(req.ArtifactManifestDigest) == "" || strings.TrimSpace(req.CandidateID) == "" || strings.TrimSpace(req.DestinationRevisionID) == "" || req.AuthorizationEpoch == 0 || strings.TrimSpace(req.ReadinessReviewKey) == "" {
+		return fmt.Errorf("release-bound promotion requires manifest, candidate, destination, authorization epoch, and readiness review identity")
+	}
 	head, err := c.GetChannelHead(ctx, req)
 	if err != nil {
 		return err
@@ -305,12 +330,36 @@ func (c *LPBSClient) PromoteChannel(ctx context.Context, req *UploadRequest, art
 	if len(artifactIDs) == 0 {
 		return fmt.Errorf("promotion requires at least one artifact")
 	}
-	_, err = c.ProxyRequest(ctx, req.RemoteProfile, "POST", "/admin/download-channels/promote", map[string]interface{}{
+	body, err := c.ProxyRequest(ctx, req.RemoteProfile, "POST", "/admin/download-channels/promote", map[string]interface{}{
 		"app_key": req.AppKey, "variant_key": variantKey,
 		"expected_revision": head.Revision, "artifact_ids": artifactIDs,
+		"release_id":               req.ReleaseID,
+		"artifact_manifest_digest": req.ArtifactManifestDigest,
+		"candidate_id":             req.CandidateID,
+		"destination_revision_id":  req.DestinationRevisionID,
+		"authorization_epoch":      req.AuthorizationEpoch,
+		"readiness_review_key":     req.ReadinessReviewKey,
 	})
 	if err != nil {
 		return fmt.Errorf("promote channel: %w", err)
+	}
+	var receipt ChannelPromotionReceipt
+	if err := json.Unmarshal(body, &receipt); err != nil {
+		return fmt.Errorf("decode channel promotion receipt: %w", err)
+	}
+	if receipt.AppKey != req.AppKey || receipt.VariantKey != variantKey || receipt.PredecessorRevision != head.Revision || receipt.Revision != head.Revision+1 {
+		return fmt.Errorf("channel promotion receipt does not match observed predecessor")
+	}
+	if len(receipt.ArtifactIDs) != len(artifactIDs) {
+		return fmt.Errorf("channel promotion receipt does not contain the complete artifact set")
+	}
+	for platform, artifactID := range artifactIDs {
+		if receipt.ArtifactIDs[platform] != artifactID {
+			return fmt.Errorf("channel promotion receipt artifact %q does not match request", platform)
+		}
+	}
+	if receipt.ReleaseID != req.ReleaseID || receipt.ArtifactManifestDigest != req.ArtifactManifestDigest || receipt.CandidateID != req.CandidateID || receipt.DestinationRevisionID != req.DestinationRevisionID || receipt.AuthorizationEpoch != req.AuthorizationEpoch || receipt.ReadinessReviewKey != req.ReadinessReviewKey {
+		return fmt.Errorf("channel promotion receipt does not match release identity")
 	}
 	return nil
 }
@@ -419,17 +468,18 @@ func (c *LPBSClient) uploadToS3(ctx context.Context, presign *presignResponse, b
 
 func (c *LPBSClient) proxyCommit(ctx context.Context, req *UploadRequest, presign *presignResponse, filename, contentType, sha256Hex, sha512Hex string, requiresEntitlement bool, manifest *MonetizationManifest) (int64, error) {
 	commitPayload := map[string]interface{}{
-		"bucket":            presign.Bucket,
-		"object_key":        presign.ObjectKey,
-		"original_filename": filename,
-		"content_type":      contentType,
-		"app_key":           req.AppKey,
-		"platform":          req.Platform,
-		"release_version":   req.ReleaseVersion,
-		"sha256":            sha256Hex,
-		"sha512":            sha512Hex,
-		"metadata":          artifactMetadata(req, manifest, sha256Hex, sha512Hex, requiresEntitlement),
-		"git_commit_hash":   req.GitCommitHash,
+		"bucket":                   presign.Bucket,
+		"object_key":               presign.ObjectKey,
+		"original_filename":        filename,
+		"content_type":             contentType,
+		"app_key":                  req.AppKey,
+		"platform":                 req.Platform,
+		"release_version":          req.ReleaseVersion,
+		"sha256":                   sha256Hex,
+		"sha512":                   sha512Hex,
+		"metadata":                 artifactMetadata(req, manifest, sha256Hex, sha512Hex, requiresEntitlement),
+		"git_commit_hash":          req.GitCommitHash,
+		"artifact_manifest_digest": req.ArtifactManifestDigest,
 	}
 	if req.ReleaseID != "" {
 		commitPayload["release_id"] = req.ReleaseID
@@ -490,6 +540,14 @@ func artifactMetadata(req *UploadRequest, manifest *MonetizationManifest, sha256
 		"sha256":               sha256Hex,
 		"sha512":               sha512Hex,
 		"requires_entitlement": requiresEntitlement,
+	}
+	if strings.TrimSpace(req.ReleaseID) != "" {
+		metadata["release_id"] = strings.TrimSpace(req.ReleaseID)
+		metadata["artifact_manifest_digest"] = strings.TrimSpace(req.ArtifactManifestDigest)
+		metadata["candidate_id"] = strings.TrimSpace(req.CandidateID)
+		metadata["destination_revision_id"] = strings.TrimSpace(req.DestinationRevisionID)
+		metadata["authorization_epoch"] = req.AuthorizationEpoch
+		metadata["readiness_review_key"] = strings.TrimSpace(req.ReadinessReviewKey)
 	}
 	if manifest != nil {
 		metadata["bundle_key"] = manifest.BundleKey

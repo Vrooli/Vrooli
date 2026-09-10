@@ -114,10 +114,12 @@ func TestEndToEndProfileDeploymentWorkflow(t *testing.T) {
 	defer srv.DB.Close()
 
 	// Mock profile creation
+	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO profiles").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec("INSERT INTO profile_versions").
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
 
 	var profileID string
 

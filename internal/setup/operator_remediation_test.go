@@ -23,7 +23,7 @@ import (
 // documentation. Describing how privilege works is not instructing the
 // operator, and a text scan cannot tell the two apart.
 var operatorRemediationFiles = []string{
-	"../../scenarios/vrooli-onboarding/api/v2_apply.go",
+	"../../scenarios/vrooli-onboarding/api/apply.go",
 	"../privilegebroker/install.go",
 	"../volumeremediation/service.go",
 	"../volumeremediation/elevated.go",

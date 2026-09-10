@@ -61,7 +61,7 @@ func (s *Server) getCoreSet(ctx context.Context, seed []string) (*selectionv1.Ge
 	if len(seed) == 0 {
 		seed = state.Core.Seed
 	}
-	authority := apicoreset.Authority{Seed: normalizeCoreSeed(seed), TrustedBase: append([]string(nil), state.Core.TrustedBase...)}
+	authority := apicoreset.NormalizeOperationalAuthority(apicoreset.Authority{Seed: normalizeCoreSeed(seed), TrustedBase: append([]string(nil), state.Core.TrustedBase...)})
 	if err := authority.Validate(); err != nil {
 		return nil, fmt.Errorf("core authority validation failed: %w", err)
 	}
@@ -106,8 +106,8 @@ func normalizeCoreSeed(values []string) []string {
 	return result
 }
 
-func (s *Server) getRecommendation(context.Context) (*selectionv1.GetRecommendationResponse, error) {
-	recommendation, err := buildRecommendation()
+func (s *Server) getRecommendation(ctx context.Context) (*selectionv1.GetRecommendationResponse, error) {
+	recommendation, err := buildRecommendation(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func (s *Server) acceptRecommendation(ctx context.Context, request *selectionv1.
 		}
 		return &selectionv1.AcceptRecommendationResponse{Selection: selection, FirstUnsatisfiedStep: int32(firstUnsatisfiedStep(state))}, nil
 	}
-	recommendation, err := buildRecommendation()
+	recommendation, err := buildRecommendation(ctx)
 	if err != nil {
 		return nil, err
 	}

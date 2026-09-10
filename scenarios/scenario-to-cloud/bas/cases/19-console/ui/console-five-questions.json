@@ -1,0 +1,59 @@
+{
+  "metadata": {
+    "name": "Deployment console answers the five operator questions",
+    "description": "Observer journey: open the production deployment page and assert the identity header (environment, target key, transport, deployment id), the release panel, the health panel, the operation panel and the recovery panel are all rendered from API state. Read-only: navigation and assertions only; nothing is clicked. Apply, cancel and restore journeys need the routed test-storage lease (docs/agent-system/routed-test-db.md), which is not installed for this scenario, so they are proven by vitest (ui/src/components/deployments/console/DeploymentConsole.test.tsx) and recorded here as observer-only.",
+    "tags": ["e2e", "ui", "console"],
+    "requirements": ["STC-P0-038"],
+    "labels": {
+      "safety": "observer",
+      "mutates_target": "false",
+      "mutates_repository": "false",
+      "requirements_json": "[\"STC-P0-038\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": { "width": 1280, "height": 900, "preset": "desktop" }
+  },
+  "nodes": [
+    {
+      "id": "open-console",
+      "type": "navigate",
+      "data": {
+        "label": "Open the deployment console",
+        "destinationType": "scenario",
+        "scenario": "scenario-to-cloud",
+        "scenarioPath": "/#deployments/7e493e04-5297-47eb-9df9-74929f185956",
+        "waitUntil": "load",
+        "timeoutMs": 30000,
+        "waitForMs": 3000
+      }
+    },
+    { "id": "identity", "type": "assert", "data": { "label": "Identity header present", "selector": "[data-testid=\"console-identity\"]", "assertMode": "exists", "timeoutMs": 30000, "failureMessage": "Identity header must render" } },
+    { "id": "environment", "type": "assert", "data": { "label": "Environment named", "selector": "[data-testid=\"console-identity-environment\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Environment must be named" } },
+    { "id": "target", "type": "assert", "data": { "label": "Target key named", "selector": "[data-testid=\"console-identity-target\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Target key must be named" } },
+    { "id": "transport", "type": "assert", "data": { "label": "Transport named", "selector": "[data-testid=\"console-identity-transport\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Transport must be named" } },
+    { "id": "release", "type": "assert", "data": { "label": "Release panel present", "selector": "[data-testid=\"console-release\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Release panel must render" } },
+    { "id": "health", "type": "assert", "data": { "label": "Health panel present", "selector": "[data-testid=\"console-health\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Health panel must render" } },
+    { "id": "operation", "type": "assert", "data": { "label": "Operation panel present", "selector": "[data-testid=\"console-operation\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Operation panel must render" } },
+    { "id": "recovery", "type": "assert", "data": { "label": "Recovery panel present", "selector": "[data-testid=\"console-recovery\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Recovery panel must render" } },
+    { "id": "health-settled", "type": "assert", "data": { "label": "Health observation settled with a verdict", "selector": "[data-testid=\"console-health\"]:not([data-state=\"loading\"])", "assertMode": "exists", "timeoutMs": 90000, "failureMessage": "Health panel must leave the loading state" } },
+    { "id": "health-status", "type": "assert", "data": { "label": "Health status and freshness shown separately", "selector": "[data-testid=\"console-health-freshness\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Freshness pill must render next to the verdict" } },
+    { "id": "advanced-collapsed", "type": "assert", "data": { "label": "Advanced surfaces stay behind a disclosure", "selector": "[data-testid=\"console-advanced-toggle\"][aria-expanded=\"false\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Terminal, files and raw process controls must be collapsed by default" } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "open-console", "target": "identity", "type": "smoothstep" },
+    { "id": "e2", "source": "identity", "target": "environment", "type": "smoothstep" },
+    { "id": "e3", "source": "environment", "target": "target", "type": "smoothstep" },
+    { "id": "e4", "source": "target", "target": "transport", "type": "smoothstep" },
+    { "id": "e5", "source": "transport", "target": "release", "type": "smoothstep" },
+    { "id": "e6", "source": "release", "target": "health", "type": "smoothstep" },
+    { "id": "e7", "source": "health", "target": "operation", "type": "smoothstep" },
+    { "id": "e8", "source": "operation", "target": "recovery", "type": "smoothstep" },
+    { "id": "e9", "source": "recovery", "target": "health-settled", "type": "smoothstep" },
+    { "id": "e10", "source": "health-settled", "target": "health-status", "type": "smoothstep" },
+    { "id": "e11", "source": "health-status", "target": "advanced-collapsed", "type": "smoothstep" }
+  ]
+}

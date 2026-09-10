@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/reach"
 	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/vps/systemmetrics"
 )
@@ -358,8 +358,8 @@ func TestCategorizePortsWithManifest(t *testing.T) {
 func TestParseSystemState_Uptime(t *testing.T) {
 	t.Parallel()
 
-	results := map[string]sshCommandResult{
-		"uptime": {result: ssh.Result{Stdout: "389593.24 1558372.96"}},
+	results := map[string]probeResult{
+		"uptime": {result: reach.Result{Stdout: "389593.24 1558372.96"}},
 	}
 
 	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{}, "", systemmetrics.CollectorForOS("linux"))
@@ -371,8 +371,8 @@ func TestParseSystemState_Uptime(t *testing.T) {
 func TestParseSystemState_Disk(t *testing.T) {
 	t.Parallel()
 
-	results := map[string]sshCommandResult{
-		"df_kb": {result: ssh.Result{Stdout: "/dev/sda1 209715200 88080384 121634816 42% /"}},
+	results := map[string]probeResult{
+		"df_kb": {result: reach.Result{Stdout: "/dev/sda1 209715200 88080384 121634816 42% /"}},
 	}
 
 	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{}, "", systemmetrics.CollectorForOS("linux"))
@@ -393,8 +393,8 @@ func TestParseSystemState_Disk(t *testing.T) {
 func TestParseSystemState_Memory(t *testing.T) {
 	t.Parallel()
 
-	results := map[string]sshCommandResult{
-		"meminfo": {result: ssh.Result{Stdout: "MemTotal:       4038656 kB\nMemFree:        1048576 kB\nMemAvailable:   1740800 kB\nBuffers:         102400 kB\nCached:          790528 kB\nSwapTotal:       2097152 kB\nSwapFree:        1572864 kB\n"}},
+	results := map[string]probeResult{
+		"meminfo": {result: reach.Result{Stdout: "MemTotal:       4038656 kB\nMemFree:        1048576 kB\nMemAvailable:   1740800 kB\nBuffers:         102400 kB\nCached:          790528 kB\nSwapTotal:       2097152 kB\nSwapFree:        1572864 kB\n"}},
 	}
 
 	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{}, "", systemmetrics.CollectorForOS("linux"))
@@ -415,9 +415,9 @@ func TestParseSystemState_Memory(t *testing.T) {
 func TestParseSystemState_SSHKeyAuthUnknownWithoutKey(t *testing.T) {
 	t.Parallel()
 
-	results := map[string]sshCommandResult{
-		"ssh_ping":      {result: ssh.Result{ExitCode: 0}},
-		"ssh_key_check": {result: ssh.Result{Stdout: "ssh-ed25519 AAAA existing-key user@host", ExitCode: 0}},
+	results := map[string]probeResult{
+		"ssh_ping":      {result: reach.Result{ExitCode: 0}},
+		"ssh_key_check": {result: reach.Result{Stdout: "ssh-ed25519 AAAA existing-key user@host", ExitCode: 0}},
 	}
 
 	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{AuthMode: sshidentity.AuthModeDefaultSSH}, "", systemmetrics.CollectorForOS("linux"))
@@ -430,12 +430,12 @@ func TestParseSystemState_SSHKeyAuthAuthorized(t *testing.T) {
 	t.Parallel()
 
 	pubKey := "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey generated-by-test"
-	results := map[string]sshCommandResult{
+	results := map[string]probeResult{
 		"ssh_ping": {
-			result: ssh.Result{ExitCode: 0},
+			result: reach.Result{ExitCode: 0},
 		},
 		"ssh_key_check": {
-			result: ssh.Result{Stdout: pubKey + "\nssh-ed25519 AAAA other", ExitCode: 0},
+			result: reach.Result{Stdout: pubKey + "\nssh-ed25519 AAAA other", ExitCode: 0},
 		},
 	}
 

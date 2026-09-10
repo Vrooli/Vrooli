@@ -33,6 +33,11 @@ const STATUS_LABEL = {
   [RunStatus.PASSED]: strings.runs.status.passed,
   [RunStatus.FAILED]: strings.runs.status.failed,
   [RunStatus.ABORTED]: strings.runs.status.aborted,
+  [RunStatus.PUSHED]: strings.runs.status.unspecified,
+  [RunStatus.ACKED]: strings.runs.status.unspecified,
+  [RunStatus.FAILED_DELIVERY]: strings.runs.status.failed,
+  [RunStatus.CANCEL_REQUESTED]: strings.runs.status.cancelRequested,
+  [RunStatus.UNCERTAIN]: strings.runs.status.uncertain,
 } as const satisfies Record<RunStatus, string>;
 
 // Status is conveyed by a distinct icon AND a text label — never color alone.
@@ -43,6 +48,11 @@ const STATUS_ICON: Record<RunStatus, LucideIcon> = {
   [RunStatus.PASSED]: CheckCircle2,
   [RunStatus.FAILED]: XCircle,
   [RunStatus.ABORTED]: CircleSlash,
+  [RunStatus.PUSHED]: CheckCircle2,
+  [RunStatus.ACKED]: CheckCircle2,
+  [RunStatus.FAILED_DELIVERY]: XCircle,
+  [RunStatus.CANCEL_REQUESTED]: CircleSlash,
+  [RunStatus.UNCERTAIN]: HelpCircle,
 };
 
 function jobLabel(run: Run): string {
@@ -72,6 +82,7 @@ function progressFraction(run: Run, now: number): number {
 /** Remaining-budget ETA in whole seconds, or null when unknowable. */
 function etaSeconds(run: Run, now: number): number | null {
   if (!isRunActive(run.status)) return null;
+  if (run.status === RunStatus.CANCEL_REQUESTED || run.status === RunStatus.UNCERTAIN) return null;
   const budget = Number(run.timeoutSeconds);
   if (!budget || budget <= 0) return null;
   if (run.status === RunStatus.QUEUED || !run.startedAt) return null;
@@ -118,7 +129,7 @@ function RunProgress({ run }: { run: Run }) {
             <span>· {t(strings.runs.exitLabel)} {run.exitCode}</span>
           )}
         </span>
-        {active && (
+        {active && run.status !== RunStatus.CANCEL_REQUESTED && (
           <Button
             size="sm"
             variant="secondary"

@@ -12,19 +12,23 @@ type linuxCollector struct{}
 
 func (linuxCollector) Name() string { return "linux" }
 
-// SystemCommands returns Linux-specific commands to execute on the remote VPS.
-// These are remote snapshot commands, not local host inventory probes.
+// CPUUsageProbeID is the id of the /proc/stat sample the prober takes twice
+// (one second apart) so usage can be derived from the delta.
+const CPUUsageProbeID = "cpuusage"
+
+// SystemCommands returns the Linux observations to run on the remote VPS.
+// These are remote snapshot probes, not local host inventory probes.
 // hostinventory:remote-snapshot-parser
 func (linuxCollector) SystemCommands() []CommandSpec {
 	return []CommandSpec{
-		{ID: "df_kb", Command: "df -Pk / 2>/dev/null | tail -1"},
-		{ID: "meminfo", Command: "cat /proc/meminfo 2>/dev/null"},
-		{ID: "loadavg", Command: "cat /proc/loadavg 2>/dev/null"},
-		{ID: "uptime", Command: "cat /proc/uptime 2>/dev/null"},
-		{ID: "cpuinfo", Command: "grep -c processor /proc/cpuinfo 2>/dev/null"},
-		{ID: "cpumodel", Command: "grep 'model name' /proc/cpuinfo 2>/dev/null | head -1"},
-		// Sample /proc/stat twice over 1 second to estimate current CPU usage.
-		{ID: "cpuusage", Command: "cat /proc/stat | head -1; sleep 1; cat /proc/stat | head -1"},
+		{ID: "df_kb", Program: "df", Args: []string{"-Pk", "/"}},
+		{ID: "meminfo", Program: "cat", Args: []string{"/proc/meminfo"}},
+		{ID: "loadavg", Program: "cat", Args: []string{"/proc/loadavg"}},
+		{ID: "uptime", Program: "cat", Args: []string{"/proc/uptime"}},
+		{ID: "cpuinfo", Program: "grep", Args: []string{"-c", "processor", "/proc/cpuinfo"}},
+		{ID: "cpumodel", Program: "grep", Args: []string{"-m", "1", "model name", "/proc/cpuinfo"}},
+		// The prober samples /proc/stat repeatedly; the parser reads the deltas.
+		{ID: CPUUsageProbeID, Program: "cat", Args: []string{"/proc/stat"}},
 	}
 }
 
@@ -145,7 +149,15 @@ func parseDiskMetrics(results map[string]CommandResult, state *domain.SystemStat
 	}
 }
 
-func parseDiskFromDFKB(line string, state *domain.SystemState) bool {
+func parseDiskFromDFKB(output string, state *domain.SystemState) bool {
+	// `df -Pk /` prints a header line; the last non-empty line is the root
+	// filesystem row.
+	line := ""
+	for _, candidate := range strings.Split(strings.TrimSpace(output), "\n") {
+		if strings.TrimSpace(candidate) != "" {
+			line = candidate
+		}
+	}
 	fields := strings.Fields(strings.TrimSpace(line))
 	if len(fields) < 5 {
 		return false

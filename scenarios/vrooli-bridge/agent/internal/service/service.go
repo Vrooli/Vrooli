@@ -75,6 +75,9 @@ func (d Definition) validate() error {
 	if strings.TrimSpace(d.ExecPath) == "" {
 		return fmt.Errorf("service exec path is required")
 	}
+	if d.System && strings.TrimSpace(d.User) == "" {
+		return fmt.Errorf("system service user is required")
+	}
 	return nil
 }
 
@@ -189,6 +192,9 @@ func WindowsServiceCreateArgs(d Definition) ([]string, error) {
 	if err := d.validate(); err != nil {
 		return nil, err
 	}
+	if strings.TrimSpace(d.User) == "" {
+		return nil, fmt.Errorf("windows service user is required")
+	}
 	args := []string{
 		"create", d.Name,
 		"binPath=", d.execLine(),
@@ -217,9 +223,8 @@ func fallback(primary, secondary string) string {
 // drives (OT-P0-007). They are idempotent by construction: Install rewrites the
 // unit and converges the service state (reload → enable → restart) so re-running
 // it is a no-op-shaped convergence, never an error; Uninstall tolerates an
-// already-absent unit; Status is read-only. Windows stays render-only — its
-// Install/Status/Uninstall return a "render-only" error and the operator installs
-// the rendered `sc.exe` argv with the platform's own tooling.
+// already-absent unit; Status is read-only. Windows drives the Service Control
+// Manager through `sc.exe` with the same typed Definition and command seam.
 type Manager interface {
 	// Kind reports which native service mechanism this manager drives.
 	Kind() platform.ServiceManagerKind
@@ -256,14 +261,15 @@ type InstallResult struct {
 
 // StatusResult is the read-only view of an installed service.
 type StatusResult struct {
-	Kind      platform.ServiceManagerKind `json:"kind"`
-	UnitName  string                      `json:"unit_name"`
-	UnitPath  string                      `json:"unit_path"`
-	Installed bool                        `json:"installed"` // unit file present
-	Enabled   bool                        `json:"enabled"`   // set to auto-start
-	Running   bool                        `json:"running"`   // currently active
-	PID       int                         `json:"pid"`       // main process pid, 0 if not running/unknown
-	Detail    string                      `json:"detail"`    // native state summary for humans
+	Kind       platform.ServiceManagerKind `json:"kind"`
+	UnitName   string                      `json:"unit_name"`
+	UnitPath   string                      `json:"unit_path"`
+	Installed  bool                        `json:"installed"`  // unit file present
+	Configured bool                        `json:"configured"` // native definition matches the requested service
+	Enabled    bool                        `json:"enabled"`    // set to auto-start
+	Running    bool                        `json:"running"`    // currently active
+	PID        int                         `json:"pid"`        // main process pid, 0 if not running/unknown
+	Detail     string                      `json:"detail"`     // native state summary for humans
 }
 
 // UninstallResult reports what Uninstall reversed.
@@ -291,7 +297,7 @@ func ManagerForKind(kind platform.ServiceManagerKind) Manager {
 	case platform.ServiceManagerLaunchd:
 		return newLaunchdManager()
 	case platform.ServiceManagerWindows:
-		return windowsManager{}
+		return newWindowsManager()
 	default:
 		return unsupportedManager{}
 	}

@@ -472,6 +472,121 @@ export interface ReleasePlatform {
   error?: string;
 }
 
+export interface ReleaseTargetIdentity {
+  id: string;
+  platform: string;
+  os: string;
+  architecture: string;
+  format: string;
+}
+
+export interface ReleaseCandidateArtifact {
+  target: ReleaseTargetIdentity;
+  immutable_ref: string;
+  digest: string;
+  size_bytes: number;
+  signature_digest: string;
+  signer_ref: string;
+}
+
+export interface ReleaseCapabilityDeclaration {
+  support_owner: string;
+  incident_owner: string;
+  customer_contact: string;
+  release_authority: string;
+  rollback_authority: string;
+  degraded_mode_authority: string;
+}
+
+export interface ReleaseCandidate {
+  candidate_id?: string;
+  source_revision: string;
+  profile_revision: string;
+  build_inputs?: Record<string, string>;
+  dependency_lock_digest: string;
+  policy_digest: string;
+  artifacts: ReleaseCandidateArtifact[];
+  capability_declaration?: ReleaseCapabilityDeclaration;
+}
+
+export interface ReleaseDestinationRevision {
+  destination_revision_id?: string;
+  kind: string;
+  destination_id: string;
+  configuration_digest: string;
+  channel: string;
+  expected_channel_revision?: string;
+}
+
+export interface ReleaseReviewBinding {
+  review_id?: string;
+  candidate_id: string;
+  destination_revision_id: string;
+  targets: string[];
+  channel: string;
+  evidence_set_digest: string;
+  policy_digest: string;
+  authorization_epoch: number;
+}
+
+export interface ReleasePublicationReceipt {
+  candidate_id: string;
+  destination_revision_id: string;
+  target_id: string;
+  artifact_digest: string;
+  destination_object: string;
+  producer: string;
+  external_receipt: string;
+  outcome: string;
+  observed_at: string;
+}
+
+export interface ReleaseClientUpdateReceipt {
+  candidate_id: string;
+  predecessor_ref: string;
+  successor_digest: string;
+  target_id: string;
+  verified_version: string;
+  outcome: string;
+  producer: string;
+  external_receipt: string;
+  observed_at: string;
+}
+
+export interface ReleaseRecoveryReceipt {
+  release_id: string;
+  candidate_id: string;
+  destination_revision_id: string;
+  deployment_id: string;
+  action: string;
+  outcome: string;
+  health: string;
+  external_receipt: string;
+  observed_at: string;
+  dry_run: boolean;
+}
+
+export interface ReleaseHealthAlert {
+  code: string;
+  severity: string;
+  target?: string;
+  message: string;
+  next_action: string;
+}
+
+export interface ReleaseHealth {
+  release_id: string;
+  status: string;
+  observed_at: string;
+  publication_verified: boolean;
+  client_updates_healthy: boolean;
+  recovery_standing?: string;
+  alerts: ReleaseHealthAlert[];
+  known_durations_millis: Record<string, number>;
+  supported_controls: string[];
+  unsupported_controls: string[];
+}
+
 export interface Release {
   id: string;
   profile_id: string;
@@ -489,6 +604,39 @@ export interface Release {
   created_at: string;
   published_at?: string;
   updated_at: string;
+  candidate_id?: string;
+  artifact_digest?: string;
+  destination_revision_id?: string;
+  authorization_epoch?: number;
+  readiness_review_key?: string;
+  candidate?: ReleaseCandidate;
+  destination_revision?: ReleaseDestinationRevision;
+  review_binding?: ReleaseReviewBinding;
+  publication_receipts?: ReleasePublicationReceipt[];
+  client_update_receipts?: ReleaseClientUpdateReceipt[];
+  recovery_receipts?: ReleaseRecoveryReceipt[];
+  operation_id?: string;
+}
+
+export interface ReleaseDossier {
+  schema_version: number;
+  generated_at: string;
+  release: Release;
+  health: ReleaseHealth;
+  missing_proof: string[];
+}
+
+export interface ReleaseOperation {
+  operation_id: string;
+  release_id: string;
+  profile_id: string;
+  idempotency_key?: string;
+  status: string;
+  active_stage?: string;
+  error?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
 }
 
 export interface ReleaseListResponse {
@@ -502,10 +650,25 @@ export interface StartReleaseRequest {
   release_notes?: string;
   released_by?: string;
   platforms?: string[];
+  artifact_digest?: string;
+  candidate_id?: string;
+  destination_revision_id?: string;
+  authorization_epoch?: number;
+  idempotency_key?: string;
+  readiness_review_key?: string;
+  cloud_manifest?: unknown;
+  cloud_deployment_name?: string;
+  cloud_bundle_path?: string;
+  cloud_bundle_sha256?: string;
+  cloud_bundle_size_bytes?: number;
+  cloud_run_preflight?: boolean;
 }
 
 export interface StartReleaseResponse {
-  release: Release;
+  operation_id?: string;
+  release_id?: string;
+  status?: string;
+  release?: Release;
   steps?: Array<{ name: string; status: string; message?: string; error?: string }>;
 }
 
@@ -523,6 +686,14 @@ export function listProfileReleases(profileId: string, limit = 10): Promise<Rele
 
 export function getRelease(releaseId: string): Promise<Release> {
   return operatorApi.release(releaseId) as Promise<Release>;
+}
+
+export function getReleaseDossier(releaseId: string): Promise<ReleaseDossier> {
+  return operatorApi.releaseDossier(releaseId) as Promise<ReleaseDossier>;
+}
+
+export function getReleaseOperation(operationId: string): Promise<ReleaseOperation> {
+  return operatorApi.releaseOperation(operationId) as Promise<ReleaseOperation>;
 }
 
 export function reverifyRelease(releaseId: string, deep = false): Promise<Release> {

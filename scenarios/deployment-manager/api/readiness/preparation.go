@@ -13,37 +13,6 @@ type EvidenceProducer interface {
 	Collect(context.Context, ReviewIdentity, Item) (EvidenceItem, error)
 }
 
-// ObservationProducer is the typed boundary between readiness orchestration
-// and evidence owners. Owners report observations through the API; prepare
-// reads only the observation for the exact identity, criterion, and declared
-// policy binding.
-type ObservationProducer struct {
-	Repository ReviewRepository
-	Binding    string
-}
-
-func (p ObservationProducer) Collect(ctx context.Context, identity ReviewIdentity, criterion Item) (EvidenceItem, error) {
-	if p.Repository == nil || p.Binding == "" || criterion.ProducerBinding() != p.Binding {
-		return EvidenceItem{}, errors.New("evidence observation producer is not configured for the policy binding")
-	}
-	item, err := p.Repository.FindObservation(ctx, identity, criterion.ID, p.Binding)
-	if err != nil {
-		return EvidenceItem{}, fmt.Errorf("read %s observation: %w", p.Binding, err)
-	}
-	return *item, nil
-}
-
-func ObservationProducers(policy Checklist, repository ReviewRepository) map[string]EvidenceProducer {
-	result := make(map[string]EvidenceProducer)
-	for _, criterion := range policy.Items {
-		binding := criterion.ProducerBinding()
-		if binding != "" {
-			result[binding] = ObservationProducer{Repository: repository, Binding: binding}
-		}
-	}
-	return result
-}
-
 type Predecessor struct {
 	ReleaseID      string `json:"release_id"`
 	Commit         string `json:"commit"`
@@ -57,6 +26,9 @@ type PredecessorResolver interface {
 
 type PrepareRequest struct {
 	Identity         ReviewIdentity    `json:"identity"`
+	// ProvidedEvidence is retained for compatibility with unbound mechanical
+	// callers. Producer-bound and human-review criteria always resolve through
+	// their owner or review repository and ignore request-supplied evidence.
 	ProvidedEvidence []EvidenceItem    `json:"evidence,omitempty"`
 	Facts            map[string]string `json:"facts,omitempty"`
 	Deliverable      string            `json:"deliverable,omitempty"`
@@ -149,11 +121,33 @@ func (p *Preparer) Prepare(ctx context.Context, request PrepareRequest) (Prepare
 			continue
 		}
 		item, ok := provided[criterion.ID]
+		// Request-supplied evidence is a compatibility seam for unbound
+		// mechanical criteria only. A declared producer or human review must
+		// execute through its owner/repository path; otherwise a caller could
+		// submit a passed signal and bypass an unavailable or failed owner.
+		if criterion.ProducerBinding() != "" || criterion.HumanReview != nil {
+			ok = false
+		}
 		if !ok {
-			if producer := p.Producers[criterion.ProducerBinding()]; producer != nil {
+			binding := criterion.ProducerBinding()
+			if producer := p.Producers[binding]; producer != nil {
 				item, err = producer.Collect(ctx, identity, criterion)
 				if err != nil {
 					item = unavailableEvidence(review.Key, identity, criterion, target, now, err.Error())
+				}
+			} else if binding != "" {
+				// Owner-reported observations are persisted by the readiness
+				// repository, but the repository is not itself a producer. Read
+				// the exact owner result here so a registry entry cannot imply
+				// that the owner ran or delivered evidence.
+				var observed *EvidenceItem
+				observed, err = p.Repository.FindObservation(ctx, identity, criterion.ID, binding)
+				if err != nil {
+					item = unavailableEvidence(review.Key, identity, criterion, target, now, fmt.Sprintf("read %s observation: %v", binding, err))
+				} else if observed == nil {
+					item = unavailableEvidence(review.Key, identity, criterion, target, now, fmt.Sprintf("read %s observation: owner returned no observation", binding))
+				} else {
+					item = *observed
 				}
 			} else if criterion.HumanReview != nil {
 				item = pendingHumanEvidence(review.Key, identity, criterion, target, now)
@@ -240,7 +234,7 @@ func (p *Preparer) Prepare(ctx context.Context, request PrepareRequest) (Prepare
 		decision.GoalRef, decision.Deduped = goal, deduped && goalDeduped
 	}
 	for _, finding := range verdict.Findings {
-		decision.Next = append(decision.Next, finding.ItemID)
+		decision.Next = append(decision.Next, nextAction(byID[finding.ItemID], finding))
 	}
 	sort.Strings(decision.Next)
 	stored, err := p.Repository.Get(ctx, review.Key)
@@ -249,6 +243,34 @@ func (p *Preparer) Prepare(ctx context.Context, request PrepareRequest) (Prepare
 	}
 	decision.Review = *stored
 	return decision, nil
+}
+
+func nextAction(criterion Item, finding Finding) string {
+	return ActionForFinding(criterion, finding.ItemID, finding.Signal.Detail)
+}
+
+// ActionForFinding turns a persisted finding detail into an operator action.
+// Persisted findings may predate the structured next-action projection, so the
+// policy remediation is appended when the owner detail does not provide one.
+func ActionForFinding(criterion Item, itemID, detail string) string {
+	detail = strings.TrimSpace(detail)
+	if detail != "" {
+		if !strings.Contains(strings.ToLower(detail), "next action:") {
+			detail += "; next action: " + criterionRepairAction(criterion)
+		}
+		return fmt.Sprintf("%s: %s", itemID, detail)
+	}
+	return fmt.Sprintf("%s: %s", itemID, criterionRepairAction(criterion))
+}
+
+func criterionRepairAction(criterion Item) string {
+	if criterion.HumanReview != nil {
+		return fmt.Sprintf("complete independent %s review", criterion.HumanReview.Kind)
+	}
+	if strings.TrimSpace(criterion.Remediation.Skill) != "" && strings.TrimSpace(criterion.Remediation.Topic) != "" {
+		return fmt.Sprintf("run %s for %s", criterion.Remediation.Skill, criterion.Remediation.Topic)
+	}
+	return fmt.Sprintf("owner %q must report a current observation", criterion.Owner)
 }
 
 func resolveApplicability(rule string, facts map[string]string, comparison ComparisonMode) (string, string) {
@@ -296,7 +318,18 @@ func (i Item) ProducerBinding() string {
 }
 
 func unavailableEvidence(key string, identity ReviewIdentity, criterion Item, target string, now time.Time, detail string) EvidenceItem {
-	return EvidenceItem{ReviewKey: key, CriterionID: criterion.ID, Status: SignalUnavailable, Applicability: "unknown", Producer: criterion.Owner, CandidateCommit: identity.CandidateCommit, ArtifactDigest: identity.ArtifactDigest, Target: target, Environment: identity.Channel, PolicyVersion: identity.PolicyVersion, ObservedAt: now, Reference: "binding:" + criterion.ProducerBinding(), Detail: detail}
+	return EvidenceItem{ReviewKey: key, CriterionID: criterion.ID, Status: SignalUnavailable, Applicability: "unknown", Producer: criterion.Owner, CandidateCommit: identity.CandidateCommit, ArtifactDigest: identity.ArtifactDigest, Target: target, Environment: identity.Channel, PolicyVersion: identity.PolicyVersion, ObservedAt: now, Reference: unavailableReference(criterion), Detail: unavailableDetail(criterion, detail)}
+}
+
+func unavailableReference(criterion Item) string {
+	if binding := strings.TrimSpace(criterion.ProducerBinding()); binding != "" {
+		return "binding:" + binding
+	}
+	return "owner:" + strings.TrimSpace(criterion.Owner)
+}
+
+func unavailableDetail(criterion Item, detail string) string {
+	return fmt.Sprintf("owner %q has no usable observation for binding %q: %s; next action: %s", criterion.Owner, criterion.ProducerBinding(), strings.TrimSpace(detail), criterionRepairAction(criterion))
 }
 
 func pendingHumanEvidence(key string, identity ReviewIdentity, criterion Item, target string, now time.Time) EvidenceItem {

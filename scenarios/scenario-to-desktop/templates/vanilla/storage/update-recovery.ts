@@ -63,6 +63,15 @@ export type UpdateRecovery =
     | { disposition: "unknown"; intent: UpdateIntent }
     | { disposition: "corrupt" };
 
+export function classifyUpdateRecovery(intent: UpdateIntent, currentVersion: string): Exclude<UpdateRecovery["disposition"], "none" | "corrupt"> {
+    // A matching version is insufficient for a release-bound receipt. The
+    // successor must carry the immutable artifact identity verified before
+    // quitAndInstall.
+    if (currentVersion === intent.toVersion && intent.toArtifactRef) return "applied";
+    if (currentVersion === intent.fromVersion) return "interrupted";
+    return "unknown";
+}
+
 export interface UpdateRecoveryFileSystem {
     readFile(path: string, encoding: "utf-8"): Promise<string>;
     writeFile(path: string, content: string, encoding?: "utf-8"): Promise<void>;
@@ -202,9 +211,7 @@ export async function consumeUpdateIntent(fs: UpdateRecoveryFileSystem, markerPa
         await clearUpdateIntent(fs, markerPath);
         return { disposition: exists ? "corrupt" : "none" };
     }
-    const disposition = currentVersion === intent.toVersion
-        ? "applied"
-        : currentVersion === intent.fromVersion ? "interrupted" : "unknown";
+    const disposition = classifyUpdateRecovery(intent, currentVersion);
     await clearUpdateIntent(fs, markerPath);
     return { disposition, intent };
 }

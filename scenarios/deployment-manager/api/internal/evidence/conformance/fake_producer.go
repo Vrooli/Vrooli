@@ -17,7 +17,7 @@ func (p FakeProducer) Verdict(target *commonv1.EvidenceTarget, disposition commo
 		return nil, fmt.Errorf("producer is required")
 	}
 	return &commonv1.TargetVerdict{
-		Target: target, Disposition: disposition, RunId: runID,
+		Target: target, Disposition: disposition, RunId: runID, EvidenceClass: "release-grade",
 		Refs: []*commonv1.EvidenceRef{{Producer: p.Producer, ArtifactId: "artifact-1", Kind: "video/mp4", Checksum: "sha256:test", SizeBytes: 1, CreatedAt: timestamppb.New(time.Now().UTC())}},
 	}, nil
 }

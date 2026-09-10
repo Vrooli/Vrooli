@@ -334,6 +334,15 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*PipelineConfig, error) 
 		Stages:                  stagesFromProto(value.GetStages()),
 		UpdateConfig:            updateConfig,
 		ExpectedArtifactDigests: copyStringMap(value.GetExpectedArtifactDigests()),
+		ArtifactManifestDigest:  value.GetArtifactManifestDigest(),
+	}
+	if deploy := value.GetDeploy(); deploy != nil {
+		config.DeployConfig = &DeployConfig{
+			TargetName: deploy.GetTargetName(), ScenarioName: deploy.GetScenarioName(), RemoteProfile: deploy.GetRemoteProfile(),
+			AppKey: deploy.GetAppKey(), UpdateURL: deploy.GetUpdateUrl(), ReleaseID: deploy.GetReleaseId(), Channel: deploy.GetChannel(),
+			CandidateID: deploy.GetCandidateId(), DestinationRevisionID: deploy.GetDestinationRevisionId(), AuthorizationEpoch: deploy.GetAuthorizationEpoch(), ReadinessReviewKey: deploy.GetReadinessReviewKey(),
+			DeploymentManagerProfileID: deploy.GetDeploymentManagerProfileId(), GateTimeout: deploy.GetGateTimeout(), GatePollInterval: deploy.GetGatePollInterval(),
+		}
 	}
 	if targets := value.GetPlatformTargets(); len(targets) > 0 {
 		config.Platforms = append([]string(nil), targets...)
@@ -651,7 +660,7 @@ func deployStageDetailsToProto(value *DeployResult) *pipelinev1.DeployStageDetai
 	}
 	result := &pipelinev1.DeployStageDetails{UpdateUrl: optionalString(value.UpdateURL)}
 	for _, artifact := range value.Artifacts {
-		result.Artifacts = append(result.Artifacts, &pipelinev1.DeployArtifactResult{ArtifactId: artifact.ArtifactID, Platform: platformToProto(artifact.Platform)})
+		result.Artifacts = append(result.Artifacts, &pipelinev1.DeployArtifactResult{ArtifactId: artifact.ArtifactID, Platform: platformToProto(artifact.Platform), Sha512: artifact.SHA512, DestinationObject: artifact.DestinationObject, TargetId: artifact.Platform})
 	}
 	return result
 }
@@ -725,6 +734,17 @@ func applyOptionalProtoExecutionConfig(result *pipelinev1.PipelineConfig, config
 	}
 	if len(config.ExpectedArtifactDigests) > 0 {
 		result.ExpectedArtifactDigests = copyStringMap(config.ExpectedArtifactDigests)
+	}
+	if config.ArtifactManifestDigest != "" {
+		result.ArtifactManifestDigest = config.ArtifactManifestDigest
+	}
+	if deploy := config.DeployConfig; deploy != nil {
+		result.Deploy = &pipelinev1.DeployConfig{
+			TargetName: deploy.TargetName, ScenarioName: deploy.ScenarioName, RemoteProfile: deploy.RemoteProfile,
+			AppKey: deploy.AppKey, UpdateUrl: deploy.UpdateURL, ReleaseId: deploy.ReleaseID, Channel: deploy.Channel,
+			CandidateId: deploy.CandidateID, DestinationRevisionId: deploy.DestinationRevisionID, AuthorizationEpoch: deploy.AuthorizationEpoch, ReadinessReviewKey: deploy.ReadinessReviewKey,
+			DeploymentManagerProfileId: deploy.DeploymentManagerProfileID, GateTimeout: deploy.GateTimeout, GatePollInterval: deploy.GatePollInterval,
+		}
 	}
 	if config.ResourceArtifactRoot != "" {
 		result.ResourceArtifactRoot = stringPtr(config.ResourceArtifactRoot)

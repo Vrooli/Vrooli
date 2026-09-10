@@ -1,10 +1,11 @@
+import { AppShell as LibraryAppShell } from "@vrooli/react-component-library/AppShell/2";
 import type { ReactNode } from "react";
-
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import type { AppRoute } from "../app/routeDefinitions";
 import { selectors } from "../consts/selectors";
-import { BottomNav } from "./BottomNav";
-import { Sidebar } from "./Sidebar";
-import { TopBar } from "./TopBar";
+import { strings } from "../consts/strings";
+import { useTranslation } from "../i18n";
+import { routeDefinitions } from "../app/routeDefinitions";
 
 export function AppShell({
   activeRoute,
@@ -15,23 +16,23 @@ export function AppShell({
   children: ReactNode;
   onNavigate: (routeKey: AppRoute) => void;
 }) {
+  const { t } = useTranslation();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+
   return (
-    <div
-      className="flex min-h-full flex-col bg-transparent text-foreground"
-      data-testid={selectors.layout.shell}
+    <LibraryAppShell density="sidebar" mobileNav="tabs" mainMode="scroll"
+      brand={<div><span data-testid={selectors.app.title}>{t(strings.app.title)}</span><span className="sr-only">{t(strings.app.description)}</span></div>}
+      brandHref="/"
+      items={routeDefinitions.map((item) => ({ id: item.key, href: item.path, label: t(item.label), icon: <item.icon size={16} aria-hidden />, current: activeRoute === item.key || pathname === item.path, testId: selectors.layout.navLink(item.key) }))}
+      renderLink={(item, { children: linkChildren, ...props }) => <button type="button" onClick={() => { onNavigate(item.id as AppRoute); navigate(item.href); }} {...props}>{linkChildren}</button>}
+      onNavigate={(item) => onNavigate(item.id as AppRoute)}
+      navigationLabel={strings.layout.sidebarLabel}
+      mobileNavigationLabel={strings.layout.bottomNavLabel}
+      sidebarStorageKey="scenario-dependency-analyzer.sidebar-width"
+      testId={selectors.layout.shell}
     >
-      <TopBar />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar activeRoute={activeRoute} onNavigate={onNavigate} />
-        <main
-          aria-label="Main content"
-          className="min-w-0 flex-1 overflow-auto px-6 pb-24 pt-6 sm:px-10 md:pb-10"
-          data-testid={selectors.layout.main}
-        >
-          <div className="flex flex-col gap-6">{children}</div>
-        </main>
-      </div>
-      <BottomNav activeRoute={activeRoute} onNavigate={onNavigate} />
-    </div>
+      <div className="flex flex-col gap-6"><Outlet />{children}</div>
+    </LibraryAppShell>
   );
 }

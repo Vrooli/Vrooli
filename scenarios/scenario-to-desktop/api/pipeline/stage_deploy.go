@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/shared/errors"
 
@@ -19,7 +20,8 @@ import (
 // LPBSClientFactory creates an LPBSClient for the given scenario and token.
 type LPBSClientFactory func(scenarioName, serviceToken string) *deploy.LPBSClient
 
-// DMClientFactory creates a DMClient for approval gate operations.
+// DMClientFactory creates a DMClient for the legacy profile approval gate used
+// by non-release-bound local preparation.
 type DMClientFactory func(ctx context.Context) (*deploy.DMClient, error)
 
 // DeployStage implements the deploy stage of the pipeline.
@@ -28,6 +30,7 @@ type DeployStage struct {
 	clientFactory   LPBSClientFactory
 	dmClientFactory DMClientFactory
 	targetRepo      *deploy.TargetRepository
+	buildStore      build.Store
 	timeProvider    TimeProvider
 }
 
@@ -45,6 +48,14 @@ func WithDeployClientFactory(f LPBSClientFactory) DeployStageOption {
 func WithDeployTargetRepo(repo *deploy.TargetRepository) DeployStageOption {
 	return func(s *DeployStage) {
 		s.targetRepo = repo
+	}
+}
+
+// WithDeployBuildStore supplies the durable build index used by a governed
+// deploy-only run to recover the already-built candidate after a restart.
+func WithDeployBuildStore(store build.Store) DeployStageOption {
+	return func(s *DeployStage) {
+		s.buildStore = store
 	}
 }
 
@@ -109,6 +120,35 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 			InDomain("deploy"))
 		return result
 	}
+	releaseBound := strings.TrimSpace(cfg.ReleaseID) != ""
+	if releaseBound {
+		if strings.TrimSpace(cfg.AppKey) == "" {
+			failStage(result, s.timeProvider, errors.New(errors.CodeValidation, "release-bound deploy requires an exact app key").InDomain("deploy"))
+			return result
+		}
+		if strings.TrimSpace(cfg.Channel) == "" {
+			failStage(result, s.timeProvider, errors.New(errors.CodeValidation, "release-bound deploy requires an exact channel").InDomain("deploy"))
+			return result
+		}
+		if strings.TrimSpace(cfg.CandidateID) == "" || strings.TrimSpace(cfg.DestinationRevisionID) == "" || cfg.AuthorizationEpoch == 0 || strings.TrimSpace(cfg.ReadinessReviewKey) == "" {
+			failStage(result, s.timeProvider, errors.New(errors.CodeValidation, "release-bound deploy requires candidate, destination, authorization epoch, and readiness review identity").InDomain("deploy"))
+			return result
+		}
+		if strings.TrimSpace(input.Config.ArtifactManifestDigest) == "" {
+			failStage(result, s.timeProvider, errors.New(errors.CodeValidation, "release-bound deploy requires artifact_manifest_digest").InDomain("deploy"))
+			return result
+		}
+		if len(input.Config.ExpectedArtifactDigests) == 0 {
+			failStage(result, s.timeProvider, errors.New(errors.CodeValidation, "release-bound deploy requires expected artifact digests").InDomain("deploy"))
+			return result
+		}
+		for platform, digest := range input.Config.ExpectedArtifactDigests {
+			if strings.TrimSpace(platform) == "" || strings.TrimSpace(digest) == "" {
+				failStage(result, s.timeProvider, errors.New(errors.CodeValidation, "release-bound deploy requires a non-empty digest for every target").InDomain("deploy"))
+				return result
+			}
+		}
+	}
 
 	// Resolve deploy target (saved vs inline)
 	scenarioName, remoteProfile, err := s.resolveTarget(cfg)
@@ -149,8 +189,11 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 		return result
 	}
 
-	// Check approval gate if deployment-manager profile is configured
-	if cfg.DeploymentManagerProfileID != "" {
+	// The legacy profile approval gate remains available for local preparation.
+	// A commercial release is already authorized by deployment-manager's exact
+	// readiness/release binding; consulting or creating a second approval record
+	// here would create a competing release authority.
+	if cfg.DeploymentManagerProfileID != "" && !releaseBound {
 		platforms := collectBuiltPlatforms(input)
 		if err := s.handleApprovalGate(ctx, input, result, cfg, platforms); err != nil {
 			failStage(result, s.timeProvider, errors.New(errors.CodeServiceHealthError, err.Error()).
@@ -161,22 +204,54 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 		if checkCancellation(ctx, result, s.timeProvider) {
 			return result
 		}
+	} else if releaseBound && cfg.DeploymentManagerProfileID != "" {
+		appendInfo(result, "Release-bound deploy uses the canonical readiness review; legacy profile approval gate is skipped")
 	}
 
-	// Derive update URL if not provided
-	updateURL := cfg.UpdateURL
-	if updateURL == "" {
+	// Commercial releases always bind the updater destination to the active
+	// owner profile. A configured URL may be retained for local packaging, but
+	// it cannot override the owner-derived destination for a governed release.
+	updateURL := strings.TrimSpace(cfg.UpdateURL)
+	if releaseBound || updateURL == "" {
 		derived, err := client.DeriveUpdateURL(ctx, remoteProfile, cfg.AppKey)
 		if err != nil {
+			if releaseBound {
+				failStage(result, s.timeProvider, errors.New(errors.CodeServiceHealthError, fmt.Sprintf("release-bound deploy could not derive update URL: %v", err)).
+					WithRecovery(errors.RecoveryRetry, "Restore the owner update endpoint and retry the governed release.").
+					InDomain("deploy"))
+				return result
+			}
 			appendWarn(result, "Could not derive update URL: %v", err)
+		} else if releaseBound {
+			derived = strings.TrimSpace(derived)
+			if derived == "" {
+				failStage(result, s.timeProvider, errors.New(errors.CodeServiceHealthError, "release-bound deploy requires a non-empty owner-derived update URL").
+					WithRecovery(errors.RecoveryFixInput, "Configure the owner update endpoint before retrying the governed release.").
+					InDomain("deploy"))
+				return result
+			}
+			if updateURL != "" && updateURL != derived {
+				failStage(result, s.timeProvider, errors.New(errors.CodeValidation, fmt.Sprintf("release-bound deploy update URL %q does not match owner-derived destination %q", updateURL, derived)).
+					WithRecovery(errors.RecoveryFixInput, "Use the owner-derived update endpoint for this governed release.").
+					InDomain("deploy"))
+				return result
+			}
+			updateURL = derived
+			appendInfo(result, "Bound update URL to owner destination: %s", updateURL)
 		} else {
 			updateURL = derived
 			appendInfo(result, "Derived update URL: %s", updateURL)
 		}
 	}
+	if releaseBound && strings.TrimSpace(updateURL) == "" {
+		failStage(result, s.timeProvider, errors.New(errors.CodeServiceHealthError, "release-bound deploy requires a non-empty update URL").
+			WithRecovery(errors.RecoveryFixInput, "Configure the owner update endpoint before retrying the governed release.").
+			InDomain("deploy"))
+		return result
+	}
 
 	// Collect artifacts from build result
-	artifacts := collectArtifacts(input)
+	artifacts := s.collectArtifacts(input)
 	if len(artifacts) == 0 {
 		failStage(result, s.timeProvider, errors.New(errors.CodeArtifactNotFound, "no built artifacts available for deployment").
 			WithRecovery(errors.RecoveryRetry, "Ensure build stage produces artifacts").
@@ -186,6 +261,21 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 			}).
 			InDomain("deploy"))
 		return result
+	}
+	if releaseBound {
+		expected := input.Config.ExpectedArtifactDigests
+		if len(artifacts) != len(expected) {
+			failStage(result, s.timeProvider, errors.New(errors.CodeValidation,
+				fmt.Sprintf("release-bound deploy requires the exact approved artifact target set: expected %d, found %d", len(expected), len(artifacts))).InDomain("deploy"))
+			return result
+		}
+		for platform := range artifacts {
+			if _, ok := expected[platform]; !ok {
+				failStage(result, s.timeProvider, errors.New(errors.CodeValidation,
+					fmt.Sprintf("release-bound deploy produced unapproved artifact target %q", platform)).InDomain("deploy"))
+				return result
+			}
+		}
 	}
 	appendInfo(result, "Found %d artifact(s) to deploy", len(artifacts))
 
@@ -203,6 +293,37 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 
 	completeStage(result, s.timeProvider, deployResult)
 	return result
+}
+
+func (s *DeployStage) collectArtifacts(input *StageInput) map[string]string {
+	artifacts := collectArtifacts(input)
+	if len(artifacts) > 0 || s.buildStore == nil || input == nil || input.Config == nil || input.Config.ArtifactManifestDigest == "" {
+		return artifacts
+	}
+
+	var selected map[string]string
+	for _, status := range s.buildStore.Snapshot() {
+		if status == nil || status.ScenarioName != input.Config.ScenarioName {
+			continue
+		}
+		candidate := GetReadyArtifacts(status.PlatformResults)
+		if len(candidate) != len(input.Config.ExpectedArtifactDigests) || len(candidate) == 0 {
+			continue
+		}
+		matches := true
+		for platform, expected := range input.Config.ExpectedArtifactDigests {
+			path, ok := candidate[platform]
+			if !ok || verifyExpectedArtifactDigest(path, expected) != nil {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			selected = candidate
+			break
+		}
+	}
+	return selected
 }
 
 func (s *DeployStage) uploadArtifacts(ctx context.Context, client *deploy.LPBSClient, input *StageInput, result *StageResult, cfg *DeployConfig, remoteProfile string, artifacts map[string]string) ([]DeployArtifactResult, error) {
@@ -230,15 +351,20 @@ func (s *DeployStage) uploadArtifacts(ctx context.Context, client *deploy.LPBSCl
 			appendInfo(result, "Verified candidate artifact binding for %s", platform)
 		}
 		uploadResult, err := client.UploadArtifact(ctx, &deploy.UploadRequest{
-			RemoteProfile:  remoteProfile,
-			ScenarioName:   input.Config.ScenarioName,
-			AppKey:         cfg.AppKey,
-			Platform:       platform,
-			FilePath:       artifactPath,
-			ReleaseVersion: releaseVersion,
-			GitCommitHash:  gitCommitHash,
-			ReleaseID:      cfg.ReleaseID,
-			Channel:        cfg.Channel,
+			RemoteProfile:          remoteProfile,
+			ScenarioName:           input.Config.ScenarioName,
+			AppKey:                 cfg.AppKey,
+			Platform:               platform,
+			FilePath:               artifactPath,
+			ReleaseVersion:         releaseVersion,
+			GitCommitHash:          gitCommitHash,
+			ReleaseID:              cfg.ReleaseID,
+			CandidateID:            cfg.CandidateID,
+			DestinationRevisionID:  cfg.DestinationRevisionID,
+			AuthorizationEpoch:     cfg.AuthorizationEpoch,
+			ReadinessReviewKey:     cfg.ReadinessReviewKey,
+			Channel:                cfg.Channel,
+			ArtifactManifestDigest: input.Config.ArtifactManifestDigest,
 		})
 		if err != nil {
 			failStage(result, s.timeProvider, errors.ErrDeployFailed(
@@ -258,7 +384,17 @@ func (s *DeployStage) uploadArtifacts(ctx context.Context, client *deploy.LPBSCl
 		for _, artifact := range uploadResults {
 			staged = append(staged, deploy.UploadResult{ArtifactID: artifact.ArtifactID, Platform: artifact.Platform, SHA512: artifact.SHA512})
 		}
-		if err := client.PromoteChannel(ctx, &deploy.UploadRequest{RemoteProfile: remoteProfile, AppKey: cfg.AppKey, ReleaseID: cfg.ReleaseID, Channel: cfg.Channel}, staged); err != nil {
+		if err := client.PromoteChannel(ctx, &deploy.UploadRequest{
+			RemoteProfile:          remoteProfile,
+			AppKey:                 cfg.AppKey,
+			ReleaseID:              cfg.ReleaseID,
+			CandidateID:            cfg.CandidateID,
+			DestinationRevisionID:  cfg.DestinationRevisionID,
+			AuthorizationEpoch:     cfg.AuthorizationEpoch,
+			ReadinessReviewKey:     cfg.ReadinessReviewKey,
+			Channel:                cfg.Channel,
+			ArtifactManifestDigest: input.Config.ArtifactManifestDigest,
+		}, staged); err != nil {
 			failStage(result, s.timeProvider, errors.ErrDeployFailed(fmt.Errorf("promote complete artifact set: %w", err), remoteProfile))
 			return nil, err
 		}
@@ -327,7 +463,10 @@ func parseDurationOr(s string, fallback time.Duration) time.Duration {
 	return fallback
 }
 
-// handleApprovalGate creates pending approvals and polls until the gate clears or times out.
+// handleApprovalGate creates pending approvals and polls until the legacy gate
+// clears or times out. Release-bound publication already carries the exact
+// candidate, destination and approved readiness identity from deployment-manager
+// and must never create a second approval path.
 func (s *DeployStage) handleApprovalGate(ctx context.Context, input *StageInput, result *StageResult, cfg *DeployConfig, platforms []string) error {
 	dmClient, err := s.dmClientFactory(ctx)
 	if err != nil {

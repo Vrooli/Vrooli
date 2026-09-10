@@ -396,7 +396,7 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 	}
 
 	// Create a test config
-	config := &Config{
+	config := &RuntimeConfig{
 		Port:        "0", // Use random port for testing
 		DatabaseURL: envx.Get("DATABASE_URL"),
 	}

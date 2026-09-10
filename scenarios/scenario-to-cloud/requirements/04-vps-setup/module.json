@@ -9,7 +9,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "vps-setup",
-      "description": "Copy the mini-Vrooli tarball to the VPS, extract it into the deployment workdir, upload a deployment-local native vrooli CLI to \u003cworkdir\u003e/.vrooli/bin/vrooli, run `vrooli setup --yes yes --environment production` through that exact binary, configure autoheal scope, and verify the deployment-local CLI is functional.",
+      "description": "Copy the mini-Vrooli tarball to the VPS, extract it into the deployment workdir, upload a deployment-local native vrooli CLI to <workdir>/.vrooli/bin/vrooli, run `vrooli setup --yes yes --environment production` through that exact binary, configure autoheal scope, and verify the deployment-local CLI is functional.",
       "tags": [
         "ssh",
         "scp",
@@ -37,7 +37,7 @@
     {
       "id": "STC-P0-010",
       "title": "Autoheal scope configured for mini-Vrooli",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "vps-setup",
       "description": "Deployment writes a scoped config so vrooli-autoheal monitors only the deployed scenario/resources and core lifecycle health signals.",
@@ -50,8 +50,8 @@
           "type": "automation",
           "ref": "test/playbooks/vps/autoheal-scope.yaml",
           "phase": "workflow",
-          "status": "implemented",
-          "notes": "E2E planned. Tag with [REQ:STC-P0-010]."
+          "status": "planned",
+          "notes": "E2E planned. Tag with [REQ:STC-P0-010]. Demoted 2026-09-09: no requirements-sync snapshot earned completion."
         }
       ]
     }

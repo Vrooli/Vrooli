@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "device-control.do-task",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Replay a selected, assertion-bearing device flow revision after exact identity and context checks. Semantic volume requests use device-control.volume.",
   "inputs": {
     "device": {
@@ -24,6 +27,10 @@
     },
     "flow": {
       "type": "object"
+    },
+    "advice_attempt_id": {
+      "type": "string",
+      "default": ""
     }
   },
   "assumptions": [
@@ -72,6 +79,12 @@
     }
   ],
   "verbs": [
+    "learn.choose",
+    "learn.feedback",
+    "learn.note",
+    "learn.outcome",
+    "learn.result",
+    "learn.task",
     "lib"
   ],
   "outputs": {
@@ -94,7 +107,8 @@
     },
     "signals": {
       "outcome": "Domain-verified task outcome, unknown when no action is selected",
-      "device_id": "Resolved durable device identity"
+      "device_id": "Resolved durable device identity",
+      "learning": "Durable feedback_ref identifies this task or exact artifact; preserve it and send a later correction with program-runtime.learning-feedback or learn.feedback."
     },
     "errors": {
       "classes": [
@@ -111,7 +125,9 @@
         "no_grant",
         "not_run_eligible",
         "deadline_exceeded",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Owner execution references"
@@ -156,25 +172,5 @@
     }
   ],
   "rung": "S3",
-  "owner_skill": "device-control",
-  "learning_task": {
-    "scope": "device-control-usage",
-    "operation": "device-control.do-task",
-    "context_fields": [
-      "device",
-      "context_key"
-    ],
-    "outcome": {
-      "status_path": "signals.outcome",
-      "mapping": {
-        "verified_success": "verified_success",
-        "failed": "failed",
-        "unavailable": "unavailable",
-        "unknown": "unknown"
-      },
-      "evidence_paths": [
-        "evidence"
-      ]
-    }
-  }
+  "owner_skill": "device-control"
 }

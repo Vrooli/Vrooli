@@ -13,6 +13,12 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
+	heartbeatv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat"
+	heartbeatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat/heartbeat_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
+
 	"plan-manager/internal/httpc"
 	planmodel "plan-manager/internal/planmodel"
 
@@ -20,12 +26,11 @@ import (
 )
 
 const (
-	scenarioQASystem           = "scenario-qa"
-	swarmManagerSystem         = "swarm-manager"
-	promptManagerSystem        = "prompt-manager"
-	promptManagerTeamAPI       = "/api/v1/teams/%s/knowledge"
-	promptManagerBugCaptureAPI = "/api/v1/teams/%s/bugs/capture"
-	swarmRecordsAPI            = "/api/v1/records"
+	scenarioQASystem     = "scenario-qa"
+	swarmManagerSystem   = "swarm-manager"
+	promptManagerSystem  = "prompt-manager"
+	promptManagerTeamAPI = "/api/v1/teams/%s/knowledge"
+	swarmRecordsAPI      = "/api/v1/records"
 
 	bugWriterSkillID = "report-bug"
 	// Retained only for the legacy lookup helper until its callers are removed.
@@ -131,30 +136,31 @@ func (r *scenarioQABugReporter) lookup(ctx context.Context, baseURL, topic strin
 
 func (r *scenarioQABugReporter) capture(ctx context.Context, baseURL string, entry Entry) (bugCaptureResponse, error) {
 	payload := bugCaptureRequest{Title: entry.Title, SignalType: entry.Bug.SignalType, Severity: entry.Bug.Severity, Repro: entry.Bug.Repro, Expected: entry.Bug.Expected, Actual: entry.Bug.Actual, Description: entry.Bug.Description, Context: entry.Bug.Context, HonestyFlags: entry.Bug.HonestyFlags, IdempotencyKey: entry.ID}
-	var body bytes.Buffer
-	if err := json.NewEncoder(&body).Encode(payload); err != nil {
-		return bugCaptureResponse{}, err
-	}
-	endpoint := baseURL + fmt.Sprintf(promptManagerBugCaptureAPI, scenarioQASystem)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &body)
+	encoded, err := json.Marshal(payload)
 	if err != nil {
 		return bugCaptureResponse{}, err
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Vrooli-Attribution", bugAttributionHeader())
-	resp, err := r.doer.Do(req)
+	body := new(structpb.Value)
+	if err := protojson.Unmarshal(encoded, body); err != nil {
+		return bugCaptureResponse{}, err
+	}
+	req := connect.NewRequest(&heartbeatv1.TeamMutationRequest{TeamId: scenarioQASystem, Body: body})
+	req.Header().Set("X-Vrooli-Attribution", bugAttributionHeader())
+	resp, err := heartbeatconnect.NewHeartbeatServiceClient(r.doer, baseURL).CaptureBug(ctx, req)
 	if err != nil {
-		return bugCaptureResponse{}, ErrDownstreamUnavailable{System: scenarioQASystem, Reason: err.Error()}
+		switch connect.CodeOf(err) {
+		case connect.CodeUnavailable, connect.CodeDeadlineExceeded, connect.CodeInternal, connect.CodeUnknown:
+			return bugCaptureResponse{}, ErrDownstreamUnavailable{System: scenarioQASystem, Reason: err.Error()}
+		default:
+			return bugCaptureResponse{}, fmt.Errorf("scenario-qa bug capture rejected: %w", err)
+		}
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 500 {
-		return bugCaptureResponse{}, ErrDownstreamUnavailable{System: scenarioQASystem, Reason: statusDetail(resp)}
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return bugCaptureResponse{}, fmt.Errorf("scenario-qa bug capture rejected: %s", statusDetail(resp))
+	encoded, err = protojson.Marshal(resp.Msg.GetData())
+	if err != nil {
+		return bugCaptureResponse{}, fmt.Errorf("decode scenario-qa bug capture: %w", err)
 	}
 	var out bugCaptureResponse
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	if err := json.Unmarshal(encoded, &out); err != nil {
 		return bugCaptureResponse{}, fmt.Errorf("decode scenario-qa bug capture: %w", err)
 	}
 	if out.Disposition != "published" && out.Disposition != "draft" {

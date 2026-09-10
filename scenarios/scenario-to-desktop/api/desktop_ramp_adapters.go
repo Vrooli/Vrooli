@@ -81,7 +81,16 @@ func (b desktopRampBuilder) Build(_ context.Context, request deliveryramp.BuildR
 // call records the exact checksum and entitlement metadata that was built.
 type desktopRampDistributor struct{ client *http.Client }
 
-func (d desktopRampDistributor) Distribute(ctx context.Context, request deliveryramp.DistributionRequest) (deliveryramp.DistributionResult, error) {
+func (d desktopRampDistributor) Distribute(ctx context.Context, request deliveryramp.DistributionRequest) (result deliveryramp.DistributionResult, err error) {
+	defer func() {
+		if err != nil {
+			return
+		}
+		if validationErr := request.ValidateResult(result); validationErr != nil {
+			err = fmt.Errorf("validate desktop distribution result: %w", validationErr)
+			result = deliveryramp.DistributionResult{}
+		}
+	}()
 	if strings.TrimSpace(request.Artifact.ImmutableRef) == "" {
 		return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionUnavailable, Reason: "desktop artifact has no immutable identity"}, nil
 	}
@@ -151,14 +160,15 @@ func (d desktopRampDistributor) Distribute(ctx context.Context, request delivery
 		return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionUnavailable, Reason: "LPBS catalog response omitted the durable asset receipt"}, nil
 	}
 	return deliveryramp.DistributionResult{
-		Disposition:     deliveryramp.DispositionPass,
+		Disposition:     deliveryramp.DispositionDegraded,
 		CapabilityReady: true,
+		Reason:          "LPBS catalog registration succeeded; payload upload and public-path verification remain pending",
 		Targets:         []deliveryramp.DistributionTarget{{ID: "lpbs-download-catalog", Kind: "catalog", Available: true}},
 		EffectReceipt: &deliveryramp.DistributionEffectReceipt{
 			TargetID:        "lpbs-download-catalog",
 			ArtifactRef:     request.Artifact.ImmutableRef,
 			ExternalReceipt: fmt.Sprintf("lpbs-asset:%d", envelope.Data.ID),
-			Outcome:         "published",
+			Outcome:         "catalog_registered",
 			ObservedAt:      time.Now().UTC(),
 		},
 	}, nil

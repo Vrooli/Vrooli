@@ -2,11 +2,10 @@ package vps
 
 import (
 	"context"
-	"fmt"
 	"strings"
+	"time"
 
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/reach"
 )
 
 // TLSRenewResult captures the outcome of a Caddy TLS renewal attempt.
@@ -16,43 +15,27 @@ type TLSRenewResult struct {
 	Output  string
 }
 
-// CaddyTLSRenewCommand builds the command used to renew/validate TLS via Caddy.
-func CaddyTLSRenewCommand(domain string) string {
+// RunCaddyTLSRenew asks the edge proxy to reload its configuration through
+// the privilege broker's edge.caddy.reload action (Caddy renews certificates
+// itself on reload) and then verifies the domain from the cloud side. No
+// shell runs on the target.
+func RunCaddyTLSRenew(ctx context.Context, rt Runtime, deploymentID, domain string, verify func(ctx context.Context, domain string) error) TLSRenewResult {
 	domain = strings.TrimSpace(domain)
-	return fmt.Sprintf(
-		"caddy trust 2>/dev/null; "+
-			"systemctl reload caddy && "+
-			"sleep 3 && "+
-			"curl -sf %s >/dev/null && echo 'Certificate valid'",
-		shellutil.QuoteSingle("https://"+domain),
-	)
-}
-
-// RunCaddyTLSRenew executes a TLS renewal attempt over SSH.
-func RunCaddyTLSRenew(ctx context.Context, sshRunner ssh.Runner, cfg ssh.ConnectionConfig, domain string) TLSRenewResult {
-	cmd := CaddyTLSRenewCommand(domain)
-	result, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
+	subject, err := EncodeJSONArg(map[string]any{"caddy": map[string]any{"deployment_id": deploymentID}})
 	if err != nil {
-		return TLSRenewResult{
-			OK:      false,
-			Message: "Failed to renew TLS certificate",
-			Output:  err.Error(),
+		return TLSRenewResult{OK: false, Message: "Failed to encode the reload request", Output: err.Error()}
+	}
+	res, err := rt.Reach.Exec(ctx, rt.Target, reach.Command{Verb: "cloud-target host repair", Args: []string{"--action", "edge.caddy.reload", "--subject", subject, "--json"}, RequiredScope: "vrooli:write", Effectful: true, Timeout: 2 * time.Minute})
+	if err != nil {
+		return TLSRenewResult{OK: false, Message: "Failed to reload the edge proxy", Output: err.Error()}
+	}
+	if res.ExitCode != 0 {
+		return TLSRenewResult{OK: false, Message: "Edge proxy reload was refused or failed", Output: coalesce(strings.TrimSpace(res.Stdout), strings.TrimSpace(res.Stderr))}
+	}
+	if verify != nil && domain != "" {
+		if err := verify(ctx, domain); err != nil {
+			return TLSRenewResult{OK: false, Message: "Edge proxy reloaded but the certificate did not verify", Output: err.Error()}
 		}
 	}
-	if result.ExitCode != 0 {
-		output := result.Stderr
-		if result.Stdout != "" {
-			output = result.Stdout + "\n" + result.Stderr
-		}
-		return TLSRenewResult{
-			OK:      false,
-			Message: "Certificate renewal may have failed",
-			Output:  output,
-		}
-	}
-	return TLSRenewResult{
-		OK:      true,
-		Message: "TLS certificate renewed/validated successfully",
-		Output:  result.Stdout,
-	}
+	return TLSRenewResult{OK: true, Message: "TLS certificate renewed/validated successfully", Output: strings.TrimSpace(res.Stdout)}
 }

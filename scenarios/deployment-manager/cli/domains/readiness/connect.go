@@ -28,14 +28,37 @@ func newConnectHandlers(core *cliapp.ScenarioApp) *connectHandlers {
 }
 
 func (h *connectHandlers) prepare(ctx cliapp.OperationContext) (*readinessv1.ReviewResponse, error) {
+	facts, err := parseFacts(ctx.FlagValues("fact"))
+	if err != nil {
+		return nil, err
+	}
 	response, err := h.client.PrepareReview(context.Background(), connect.NewRequest(&readinessv1.PrepareReviewRequest{
-		Scenario: ctx.Positional("scenario"), ProfileId: ctx.Positional("profile_id"), CandidateCommit: ctx.Positional("candidate_commit"), ArtifactDigest: ctx.Positional("artifact_digest"), Targets: ctx.Positionals("targets"), Channel: ctx.Positional("channel"), PolicyVersion: 2,
-		Deliverable: ctx.Flag("deliverable"), Trigger: ctx.Flag("trigger"),
+		Scenario: ctx.Positional("scenario"), ProfileId: ctx.Positional("profile_id"), CandidateCommit: ctx.Positional("candidate_commit"), ArtifactDigest: ctx.Positional("artifact_digest"), Targets: ctx.Positionals("targets"), Channel: ctx.Positional("channel"), PolicyVersion: 2, CandidateId: ctx.Flag("candidate-id"), DestinationRevisionId: ctx.Flag("destination-revision-id"), AuthorizationEpoch: parseUint64(ctx.Flag("authorization-epoch")),
+		Deliverable: ctx.Flag("deliverable"), Trigger: ctx.Flag("trigger"), Facts: facts,
 	}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("prepare readiness review", err, nil)
 	}
 	return response.Msg, nil
+}
+
+func parseFacts(values []string) (map[string]string, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	facts := make(map[string]string, len(values))
+	for _, raw := range values {
+		key, value, ok := strings.Cut(raw, "=")
+		key, value = strings.TrimSpace(key), strings.TrimSpace(value)
+		if !ok || key == "" || value == "" {
+			return nil, fmt.Errorf("invalid --fact %q; expected key=value", raw)
+		}
+		if _, exists := facts[key]; exists {
+			return nil, fmt.Errorf("duplicate --fact %q", key)
+		}
+		facts[key] = value
+	}
+	return facts, nil
 }
 
 func (h *connectHandlers) reportEvidence(ctx cliapp.OperationContext) (*readinessv1.ReportEvidenceResponse, error) {
@@ -45,7 +68,7 @@ func (h *connectHandlers) reportEvidence(ctx cliapp.OperationContext) (*readines
 	}
 	response, err := h.client.ReportEvidence(context.Background(), connect.NewRequest(&readinessv1.ReportEvidenceRequest{
 		Scenario: ctx.Positional("scenario"), ProfileId: ctx.Positional("profile_id"), CandidateCommit: ctx.Positional("candidate_commit"), ArtifactDigest: ctx.Positional("artifact_digest"), Targets: ctx.Positionals("targets"), Channel: ctx.Positional("channel"), PolicyVersion: 2,
-		CriterionId: ctx.Positional("criterion_id"), ProducerBinding: ctx.Positional("producer_binding"), ProducerVersion: ctx.Flag("producer-version"), Status: ctx.Positional("status"), ObservedAt: timestamppb.New(observed), EvidenceReference: ctx.Flag("evidence-reference"), Detail: ctx.Flag("detail"),
+		CriterionId: ctx.Positional("criterion_id"), ProducerBinding: ctx.Positional("producer_binding"), ProducerVersion: ctx.Flag("producer-version"), Status: ctx.Positional("status"), ObservedAt: timestamppb.New(observed), EvidenceReference: ctx.Flag("evidence-reference"), Detail: ctx.Flag("detail"), CandidateId: ctx.Flag("candidate-id"), DestinationRevisionId: ctx.Flag("destination-revision-id"), AuthorizationEpoch: parseUint64(ctx.Flag("authorization-epoch")),
 	}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("report readiness evidence", err, nil)
@@ -88,7 +111,7 @@ func (h *connectHandlers) sync(ctx cliapp.OperationContext) (*readinessv1.Review
 func (h *connectHandlers) approve(ctx cliapp.OperationContext) (*readinessv1.ReviewResponse, error) {
 	response, err := h.client.ApproveReview(context.Background(), connect.NewRequest(&readinessv1.ApproveReviewRequest{
 		ReviewKey: ctx.Positional("review_key"), Actor: ctx.Positional("actor"), Identity: &readinessv1.ReviewIdentity{
-			Scenario: ctx.Positional("scenario"), ProfileId: ctx.Positional("profile_id"), CandidateCommit: ctx.Positional("candidate_commit"), ArtifactDigest: ctx.Positional("artifact_digest"), Targets: ctx.Positionals("targets"), Channel: ctx.Positional("channel"), PolicyVersion: 2,
+			Scenario: ctx.Positional("scenario"), ProfileId: ctx.Positional("profile_id"), CandidateCommit: ctx.Positional("candidate_commit"), ArtifactDigest: ctx.Positional("artifact_digest"), Targets: ctx.Positionals("targets"), Channel: ctx.Positional("channel"), PolicyVersion: 2, CandidateId: ctx.Flag("candidate-id"), DestinationRevisionId: ctx.Flag("destination-revision-id"), AuthorizationEpoch: parseUint64(ctx.Flag("authorization-epoch")),
 		},
 	}))
 	if err != nil {
@@ -134,7 +157,11 @@ func (h *connectHandlers) policyCheck(_ cliapp.OperationContext) (*readinessv1.C
 }
 
 func reviewMutationReport(_ cliapp.OperationContext, response *readinessv1.ReviewResponse) cliapp.MutationReport {
-	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Review %s is %s.", response.GetReviewKey(), response.GetStatus())}, Changes: []string{fmt.Sprintf("Goal: %s; findings: %d; evidence: %d", response.GetGoalRef(), len(response.GetFindings()), len(response.GetEvidence()))}, NextCommand: []string{fmt.Sprintf("deployment-manager readiness get --review-key %s", response.GetReviewKey())}}
+	changes := []string{fmt.Sprintf("Goal: %s; findings: %d; evidence: %d", response.GetGoalRef(), len(response.GetFindings()), len(response.GetEvidence()))}
+	if actions := response.GetNextActions(); len(actions) > 0 {
+		changes = append(changes, "Next actions: "+strings.Join(actions, ", "))
+	}
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Review %s is %s.", response.GetReviewKey(), response.GetStatus())}, Changes: changes, NextCommand: []string{fmt.Sprintf("deployment-manager readiness get --review-key %s", response.GetReviewKey())}}
 }
 
 func evidenceMutationReport(_ cliapp.OperationContext, response *readinessv1.ReportEvidenceResponse) cliapp.MutationReport {
@@ -142,7 +169,11 @@ func evidenceMutationReport(_ cliapp.OperationContext, response *readinessv1.Rep
 }
 
 func reviewListReport(_ cliapp.OperationContext, response *readinessv1.ReviewResponse) cliapp.ListReport {
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Review %s is %s.", response.GetReviewKey(), response.GetStatus())}, ResultsHeading: "Readiness evidence", Results: []string{fmt.Sprintf("%d evidence rows; %d unresolved findings; comparison=%s", len(response.GetEvidence()), len(response.GetFindings()), response.GetComparisonMode())}, ResultCount: 1, ListShaped: true}
+	result := fmt.Sprintf("%d evidence rows; %d unresolved findings; comparison=%s", len(response.GetEvidence()), len(response.GetFindings()), response.GetComparisonMode())
+	if actions := response.GetNextActions(); len(actions) > 0 {
+		result += "; next: " + strings.Join(actions, ", ")
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Review %s is %s.", response.GetReviewKey(), response.GetStatus())}, ResultsHeading: "Readiness evidence", Results: []string{result}, ResultCount: 1, ListShaped: true}
 }
 
 func policyListReport(_ cliapp.OperationContext, response *readinessv1.CheckPolicyProjectionResponse) cliapp.ListReport {
@@ -152,7 +183,11 @@ func policyListReport(_ cliapp.OperationContext, response *readinessv1.CheckPoli
 func reviewsListReport(_ cliapp.OperationContext, response *readinessv1.ListReviewsResponse) cliapp.ListReport {
 	results := make([]string, 0, len(response.GetReviews()))
 	for _, review := range response.GetReviews() {
-		results = append(results, fmt.Sprintf("%s — %s", review.GetReviewKey(), review.GetStatus()))
+		result := fmt.Sprintf("%s — %s", review.GetReviewKey(), review.GetStatus())
+		if actions := review.GetNextActions(); len(actions) > 0 {
+			result += "; next: " + strings.Join(actions, ", ")
+		}
+		results = append(results, result)
 	}
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d readiness reviews.", response.GetCount())}, ResultsHeading: "Reviews", Results: results, ResultCount: len(results), ListShaped: true}
 }
@@ -171,6 +206,14 @@ func parsePageSize(raw string) int32 {
 		return 100
 	}
 	return int32(value)
+}
+
+func parseUint64(raw string) uint64 {
+	var value uint64
+	if _, err := fmt.Sscan(raw, &value); err != nil {
+		return 0
+	}
+	return value
 }
 
 func RegisterConnect(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {

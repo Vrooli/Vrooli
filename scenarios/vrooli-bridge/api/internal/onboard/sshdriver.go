@@ -81,13 +81,20 @@ func (d *sshDriver) VerifyKey(ctx context.Context, conn Conn) (Conn, error) {
 	return verified, nil
 }
 
-func (d *sshDriver) PushScript(ctx context.Context, conn Conn) (string, error) {
+func (d *sshDriver) PushScript(ctx context.Context, conn Conn, target NodePlatform) (string, error) {
 	cfg := d.config(conn)
-	remotePath, err := remoteScriptPath()
+	scriptPath := d.scriptPath
+	if target.OS == "windows" {
+		scriptPath = filepath.Join(filepath.Dir(d.scriptPath), "bootstrap.ps1")
+	}
+	if _, err := os.Stat(scriptPath); err != nil {
+		return "", fmt.Errorf("platform bootstrap script %q is unavailable: %w", scriptPath, err)
+	}
+	remotePath, err := remoteScriptPath(target.OS)
 	if err != nil {
 		return "", err
 	}
-	if err := d.scpRunner.Copy(ctx, cfg, d.scriptPath, remotePath, ssh.DefaultSCPOptions()); err != nil {
+	if err := d.scpRunner.Copy(ctx, cfg, scriptPath, remotePath, ssh.DefaultSCPOptions()); err != nil {
 		return "", err
 	}
 	return remotePath, nil
@@ -182,7 +189,7 @@ func shortRunOptions() ssh.RunOptions {
 // memory) and its byte count is measured for the step detail.
 func (d *sshDriver) SyncTree(ctx context.Context, p SyncParams) (SyncResult, error) {
 	cfg := d.config(p.Conn)
-	remoteCmd := buildSyncRemoteCommand(p.DestDir)
+	remoteCmd := buildSyncRemoteCommandForPlatform(p.DestDir, p.Platform.OS)
 
 	// Produce the tar on a background goroutine writing into a pipe; the ssh
 	// command reads the pipe as its stdin. A counting reader measures what actually
@@ -209,7 +216,7 @@ func (d *sshDriver) SyncTree(ctx context.Context, p SyncParams) (SyncResult, err
 	if res.ExitCode != 0 {
 		return SyncResult{}, fmt.Errorf("remote tar extract failed (exit %d): %s", res.ExitCode, res.Stderr)
 	}
-	if resolvedDest == "" {
+	if resolvedDest == "" || !validRemotePath(resolvedDest, p.Platform.OS) {
 		return SyncResult{}, fmt.Errorf("remote sync did not report a destination directory")
 	}
 	return SyncResult{BytesTransferred: counter.n, ResolvedDestDir: resolvedDest}, nil
@@ -219,19 +226,43 @@ func (d *sshDriver) SyncTree(ctx context.Context, p SyncParams) (SyncResult, err
 // normalises the result to the Go target names consumed by the shared builder.
 func (d *sshDriver) DetectPlatform(ctx context.Context, conn Conn) (NodePlatform, error) {
 	cfg := d.config(conn)
+	lines, _, firstErr := d.runPlatformProbe(ctx, cfg, platformProbeCommand())
+	if target, ok, probeErr := platformFromProbeLines(lines); probeErr != nil {
+		return NodePlatform{}, probeErr
+	} else if ok {
+		return target, nil
+	}
+
+	// Windows OpenSSH commonly uses cmd.exe or Windows PowerShell as its
+	// default shell. Run the PowerShell fallback as a separate command instead
+	// of relying on shell-specific `||` syntax.
+	lines, _, fallbackErr := d.runPlatformProbe(ctx, cfg, windowsPlatformProbeCommand())
+	if target, ok, probeErr := platformFromProbeLines(lines); probeErr != nil {
+		return NodePlatform{}, probeErr
+	} else if ok {
+		return target, nil
+	}
+	if fallbackErr != nil {
+		if firstErr != nil {
+			return NodePlatform{}, fmt.Errorf("node platform probes failed: posix: %v; windows: %w", firstErr, fallbackErr)
+		}
+		return NodePlatform{}, fallbackErr
+	}
+	return NodePlatform{}, fmt.Errorf("node platform probe returned no platform marker")
+}
+
+func (d *sshDriver) runPlatformProbe(ctx context.Context, cfg ssh.ConnectionConfig, command string) ([]string, ssh.Result, error) {
 	var lines []string
-	res, err := d.svc.RunStreaming(ctx, cfg, `printf 'VBPLATFORM=%s/%s\n' "$(uname -s)" "$(uname -m)"`, ssh.StreamOptions{
+	res, err := d.svc.RunStreaming(ctx, cfg, command, ssh.StreamOptions{
 		Run: shortRunOptions(),
 		OnStdoutLine: func(line string) {
 			lines = append(lines, strings.TrimSpace(line))
 		},
 	})
-	if err != nil {
-		return NodePlatform{}, err
-	}
-	if res.ExitCode != 0 {
-		return NodePlatform{}, fmt.Errorf("node platform probe failed (exit %d): %s", res.ExitCode, res.Stderr)
-	}
+	return lines, res, err
+}
+
+func platformFromProbeLines(lines []string) (NodePlatform, bool, error) {
 	for _, line := range lines {
 		raw, ok := strings.CutPrefix(line, "VBPLATFORM=")
 		if !ok {
@@ -243,11 +274,25 @@ func (d *sshDriver) DetectPlatform(ctx context.Context, conn Conn) (NodePlatform
 		}
 		target := NodePlatform{OS: normaliseNodeOS(parts[0]), Arch: normaliseNodeArch(parts[1])}
 		if !supportedBridgeTarget(target) {
-			return NodePlatform{}, fmt.Errorf("unsupported bridge node platform %s/%s", parts[0], parts[1])
+			return NodePlatform{}, false, fmt.Errorf("unsupported bridge node platform %s/%s", parts[0], parts[1])
 		}
-		return target, nil
+		return target, true, nil
 	}
-	return NodePlatform{}, fmt.Errorf("node platform probe returned no platform marker")
+	return NodePlatform{}, false, nil
+}
+
+// platformProbeCommand is the POSIX fast path. Windows OpenSSH hosts use the
+// separate PowerShell fallback below because their default shell may be cmd.exe
+// or a Windows PowerShell version without `||` syntax.
+func platformProbeCommand() string {
+	return `printf 'VBPLATFORM=%s/%s\n' "$(uname -s)" "$(uname -m)"`
+}
+
+// windowsPlatformProbeCommand uses RuntimeInformation rather than
+// PROCESSOR_ARCHITECTURE, which can expose a 32-bit process view on a 64-bit
+// Windows host.
+func windowsPlatformProbeCommand() string {
+	return `powershell.exe -NoProfile -NonInteractive -Command "$a=[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant(); if($a -eq 'x64'){$a='amd64'}; Write-Output ('VBPLATFORM=windows/'+$a)"`
 }
 
 func normaliseNodeOS(value string) string {
@@ -296,14 +341,14 @@ func (d *sshDriver) PushArtifacts(ctx context.Context, p ArtifactPushParams) (Re
 		return RemoteArtifacts{}, err
 	}
 	cfg := d.config(p.Conn)
-	remoteDir, err := d.prepareRemoteArtifactDir(ctx, cfg, remoteDirName)
+	remoteDir, err := d.prepareRemoteArtifactDir(ctx, cfg, remoteDirName, p.Artifacts.Target.OS)
 	if err != nil {
 		return RemoteArtifacts{}, fmt.Errorf("prepare remote artifact directory: %w", err)
 	}
 	cleanup := true
 	defer func() {
 		if cleanup {
-			_ = d.runRemoteCommand(ctx, cfg, "rm -rf "+shellQuote(remoteDir))
+			_ = d.runRemoteCommand(ctx, cfg, removeRemoteDirectoryCommand(remoteDir, p.Artifacts.Target.OS))
 		}
 	}()
 	pr, pw := io.Pipe()
@@ -311,7 +356,11 @@ func (d *sshDriver) PushArtifacts(ctx context.Context, p ArtifactPushParams) (Re
 	go func() {
 		pw.CloseWithError(writeArtifactTarStream(pw, files))
 	}()
-	res, err := d.svc.RunStreaming(ctx, cfg, "tar -x -C "+shellQuote(remoteDir), ssh.StreamOptions{
+	extractCommand := "tar -x -C " + shellQuote(remoteDir)
+	if p.Artifacts.Target.OS == "windows" {
+		extractCommand = windowsTarExtractCommand(remoteDir)
+	}
+	res, err := d.svc.RunStreaming(ctx, cfg, extractCommand, ssh.StreamOptions{
 		Run:         syncRunOptions(),
 		StdinReader: counter,
 	})
@@ -322,12 +371,15 @@ func (d *sshDriver) PushArtifacts(ctx context.Context, p ArtifactPushParams) (Re
 		return RemoteArtifacts{}, fmt.Errorf("remote artifact extract failed (exit %d): %s", res.ExitCode, res.Stderr)
 	}
 	remote := RemoteArtifacts{
-		Vrooli:    remoteDir + "/" + filepath.Base(p.Artifacts.Vrooli),
-		BridgeCLI: remoteDir + "/" + filepath.Base(p.Artifacts.BridgeCLI),
-		Agent:     remoteDir + "/" + filepath.Base(p.Artifacts.Agent),
+		Vrooli:    remoteArtifactPath(remoteDir, filepath.Base(p.Artifacts.Vrooli), p.Artifacts.Target.OS),
+		BridgeCLI: remoteArtifactPath(remoteDir, filepath.Base(p.Artifacts.BridgeCLI), p.Artifacts.Target.OS),
+		Agent:     remoteArtifactPath(remoteDir, filepath.Base(p.Artifacts.Agent), p.Artifacts.Target.OS),
 	}
 	finalise := "chmod 700 " + shellQuote(remote.Vrooli) + " " + shellQuote(remote.BridgeCLI) + " " + shellQuote(remote.Agent) +
 		"; touch " + shellQuote(remote.Vrooli+".fp") + " " + shellQuote(remote.BridgeCLI+".fp") + " " + shellQuote(remote.Agent+".fp")
+	if p.Artifacts.Target.OS == "windows" {
+		finalise = windowsArtifactFinaliseCommand(remote)
+	}
 	if err := d.runRemoteCommand(ctx, cfg, finalise); err != nil {
 		return RemoteArtifacts{}, fmt.Errorf("finalise remote artifacts: %w", err)
 	}
@@ -369,9 +421,12 @@ func writeArtifactTarStream(w io.Writer, files []string) error {
 
 const artifactDirMarker = "VBARTIFACTDIR="
 
-func (d *sshDriver) prepareRemoteArtifactDir(ctx context.Context, cfg ssh.Config, name string) (string, error) {
+func (d *sshDriver) prepareRemoteArtifactDir(ctx context.Context, cfg ssh.ConnectionConfig, name, targetOS string) (string, error) {
 	var resolved string
 	command := `dest="$HOME/.local/lib/vrooli-bridge/bootstrap/` + name + `"; umask 077; mkdir -p "$dest"; printf '` + artifactDirMarker + `%s\n' "$dest"`
+	if targetOS == "windows" {
+		command = `powershell.exe -NoProfile -NonInteractive -Command "$dest=Join-Path $env:LOCALAPPDATA 'Vrooli\\Bridge\\bootstrap\\` + name + `'; New-Item -ItemType Directory -Force -Path $dest | Out-Null; [Console]::WriteLine('` + artifactDirMarker + `'+$dest)"`
+	}
 	res, err := d.svc.RunStreaming(ctx, cfg, command, ssh.StreamOptions{
 		Run: shortRunOptions(),
 		OnStdoutLine: func(line string) {
@@ -386,13 +441,40 @@ func (d *sshDriver) prepareRemoteArtifactDir(ctx context.Context, cfg ssh.Config
 	if res.ExitCode != 0 {
 		return "", fmt.Errorf("remote directory creation failed (exit %d): %s", res.ExitCode, res.Stderr)
 	}
-	if resolved == "" || !strings.HasPrefix(resolved, "/") {
+	if resolved == "" || !validRemotePath(resolved, targetOS) {
 		return "", fmt.Errorf("node did not report an absolute artifact directory")
 	}
 	return resolved, nil
 }
 
-func (d *sshDriver) runRemoteCommand(ctx context.Context, cfg ssh.Config, command string) error {
+func remoteArtifactPath(dir, base, targetOS string) string {
+	if targetOS == "windows" {
+		return strings.TrimRight(dir, `\\/`) + `\` + base
+	}
+	return dir + "/" + base
+}
+
+func removeRemoteDirectoryCommand(dir, targetOS string) string {
+	if targetOS == "windows" {
+		return `powershell.exe -NoProfile -NonInteractive -Command "if(Test-Path -LiteralPath '` + windowsPowerShellLiteral(dir) + `'){Remove-Item -Recurse -Force -LiteralPath '` + windowsPowerShellLiteral(dir) + `'}"`
+	}
+	return "rm -rf " + shellQuote(dir)
+}
+
+func windowsTarExtractCommand(dir string) string {
+	quoted := windowsPowerShellLiteral(dir)
+	return `powershell.exe -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; tar.exe -xf - -C '` + quoted + `'; if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}"`
+}
+
+func windowsArtifactFinaliseCommand(remote RemoteArtifacts) string {
+	paths := []string{remote.Vrooli, remote.BridgeCLI, remote.Agent}
+	for i := range paths {
+		paths[i] = "'" + windowsPowerShellLiteral(paths[i]) + "'"
+	}
+	return `powershell.exe -NoProfile -NonInteractive -Command "$paths=@(` + strings.Join(paths, ",") + `); foreach($path in $paths){if(-not(Test-Path -LiteralPath $path)){throw 'received artifact missing'}}"`
+}
+
+func (d *sshDriver) runRemoteCommand(ctx context.Context, cfg ssh.ConnectionConfig, command string) error {
 	res, err := d.svc.RunStreaming(ctx, cfg, command, ssh.StreamOptions{Run: shortRunOptions()})
 	if err != nil {
 		return err
@@ -444,6 +526,31 @@ func buildSyncRemoteCommand(destDir string) string {
 		assign = `dest="$HOME/vrooli"`
 	}
 	return assign + `; parent=$(dirname "$dest"); base=$(basename "$dest"); stage="$parent/.${base}.bridge-sync-$$"; backup="$parent/.${base}.bridge-old-$$"; rm -rf "$stage" "$backup"; mkdir -p "$stage" && printf '` + syncDestMarker + `%s\n' "$dest" && tar -xf - -C "$stage" && { [ ! -e "$dest" ] || mv "$dest" "$backup"; } && mv "$stage" "$dest" && rm -rf "$backup"`
+}
+
+func buildSyncRemoteCommandForPlatform(destDir, targetOS string) string {
+	if targetOS != "windows" {
+		return buildSyncRemoteCommand(destDir)
+	}
+	dest := strings.TrimSpace(destDir)
+	if dest == "" {
+		dest = "$env:USERPROFILE\\vrooli"
+	}
+	if strings.HasPrefix(dest, "$env:") {
+		return `powershell.exe -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $dest=` + dest + `; $parent=Split-Path -Parent $dest; $base=Split-Path -Leaf $dest; $stage=Join-Path $parent ('.'+$base+'.bridge-sync-'+[guid]::NewGuid().ToString('N')); $backup=Join-Path $parent ('.'+$base+'.bridge-old-'+[guid]::NewGuid().ToString('N')); New-Item -ItemType Directory -Force -Path $stage | Out-Null; [Console]::WriteLine('` + syncDestMarker + `'+$dest); tar.exe -xf - -C $stage; if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}; if(Test-Path -LiteralPath $dest){Move-Item -Force -LiteralPath $dest -Destination $backup}; Move-Item -Force -LiteralPath $stage -Destination $dest; if(Test-Path -LiteralPath $backup){Remove-Item -Recurse -Force -LiteralPath $backup}"`
+	}
+	return `powershell.exe -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $dest='` + windowsPowerShellLiteral(dest) + `'; $parent=Split-Path -Parent $dest; $base=Split-Path -Leaf $dest; $stage=Join-Path $parent ('.'+$base+'.bridge-sync-'+[guid]::NewGuid().ToString('N')); $backup=Join-Path $parent ('.'+$base+'.bridge-old-'+[guid]::NewGuid().ToString('N')); New-Item -ItemType Directory -Force -Path $stage | Out-Null; [Console]::WriteLine('` + syncDestMarker + `'+$dest); tar.exe -xf - -C $stage; if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}; if(Test-Path -LiteralPath $dest){Move-Item -Force -LiteralPath $dest -Destination $backup}; Move-Item -Force -LiteralPath $stage -Destination $dest; if(Test-Path -LiteralPath $backup){Remove-Item -Recurse -Force -LiteralPath $backup}"`
+}
+
+func validRemotePath(value, targetOS string) bool {
+	if targetOS == "windows" {
+		return len(value) >= 3 && ((value[1] == ':' && (value[2] == '\\' || value[2] == '/')) || strings.HasPrefix(value, `\\\\`))
+	}
+	return strings.HasPrefix(value, "/")
+}
+
+func windowsPowerShellLiteral(value string) string {
+	return strings.ReplaceAll(value, "'", "''")
 }
 
 // writeTarStream writes a tar archive of the repo-relative files (rooted at
@@ -520,11 +627,17 @@ func (d *sshDriver) RunBootstrap(ctx context.Context, p RunParams, onMarker func
 	cfg := d.config(p.Conn)
 	var nodeID string
 
-	// The pairing code rides stdin (env-only, never argv/logs): the remote shell
-	// reads one line into BRIDGE_PAIRING_CODE, exports it, then execs the script.
-	// The script's flags carry NO secret.
-	remoteCmd := "IFS= read -r __vb_code; export BRIDGE_PAIRING_CODE=\"$__vb_code\"; unset __vb_code; exec bash " +
-		shellQuote(p.RemotePath) + " " + quoteArgs(p.Args)
+	// The pairing code rides stdin (env-only, never argv/logs). POSIX hosts use
+	// a shell prelude to export it; the PowerShell bootstrap reads the first
+	// stdin line itself so no Windows shell variable expansion is involved.
+	remoteCmd := ""
+	if p.Platform.OS == "windows" {
+		remoteCmd = "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File " +
+			windowsPowerShellQuote(p.RemotePath) + " " + windowsPowerShellArgs(p.Args)
+	} else {
+		remoteCmd = "IFS= read -r __vb_code; export BRIDGE_PAIRING_CODE=\"$__vb_code\"; unset __vb_code; exec bash " +
+			shellQuote(p.RemotePath) + " " + quoteArgs(p.Args)
+	}
 
 	// stdin = code + newline. Built here and zeroed on return so the only lasting
 	// copy of the secret is the caller's, which the orchestrator wipes too.
@@ -582,9 +695,9 @@ func diagnosticsTail(stderr string) string {
 	return s
 }
 
-// config builds the ssh.Config for a resolved Conn, pinned to the bridge-owned
+// config builds the ssh.ConnectionConfig for a resolved Conn, pinned to the bridge-owned
 // known_hosts the first touch populated.
-func (d *sshDriver) config(conn Conn) ssh.Config {
+func (d *sshDriver) config(conn Conn) ssh.ConnectionConfig {
 	return ssh.NewConfig(conn.Host, conn.Port, conn.User, conn.KeyPath, d.svc.KnownHostsPath())
 }
 
@@ -606,10 +719,16 @@ func bootstrapRunOptions() ssh.RunOptions {
 
 // remoteScriptPath returns a unique, non-predictable /tmp path for the staged
 // bootstrap script on the node.
-func remoteScriptPath() (string, error) {
+func remoteScriptPath(targetOS string) (string, error) {
 	var b [8]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		return "", fmt.Errorf("generate remote script suffix: %w", err)
+	}
+	if targetOS == "windows" {
+		// A relative SCP destination lands in the Windows OpenSSH user's home,
+		// which is also the working directory for the subsequent PowerShell
+		// command. Avoid POSIX /tmp assumptions and drive-letter parsing here.
+		return "vrooli-bridge-bootstrap-" + hex.EncodeToString(b[:]) + ".ps1", nil
 	}
 	return "/tmp/vrooli-bridge-bootstrap-" + hex.EncodeToString(b[:]) + ".sh", nil
 }
@@ -630,4 +749,16 @@ func quoteArgs(args []string) string {
 		out[i] = shellQuote(a)
 	}
 	return strings.Join(out, " ")
+}
+
+func windowsPowerShellQuote(value string) string {
+	return `"` + strings.ReplaceAll(value, `"`, `\"`) + `"`
+}
+
+func windowsPowerShellArgs(args []string) string {
+	quoted := make([]string, len(args))
+	for i, arg := range args {
+		quoted[i] = windowsPowerShellQuote(arg)
+	}
+	return strings.Join(quoted, " ")
 }

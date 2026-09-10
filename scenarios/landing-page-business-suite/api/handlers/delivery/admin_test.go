@@ -73,3 +73,39 @@ func TestTestStorageMapsProviderFailureToValidationError(t *testing.T) {
 		t.Fatalf("status = %d", response.Code)
 	}
 }
+
+func TestSetChannelHaltDryRunDoesNotMutateOwner(t *testing.T) {
+	deps := adminTestDependencies()
+	called := false
+	deps.GetChannelHead = func(string, string, string) (*delivery.ChannelHead, error) {
+		return &delivery.ChannelHead{Revision: 4}, nil
+	}
+	deps.SetChannelHalt = func(context.Context, delivery.ChannelHaltRequest) (*delivery.ChannelHalt, error) {
+		called = true
+		return nil, errors.New("dry-run must not mutate")
+	}
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/download-channels/halt", strings.NewReader(`{"app_key":"demo","variant_key":"default","expected_revision":4,"halted":true,"dry_run":true}`))
+	SetChannelHalt(deps)(response, request)
+	if response.Code != http.StatusOK || called || !strings.Contains(response.Body.String(), `"outcome":"preview"`) {
+		t.Fatalf("status=%d called=%t body=%s", response.Code, called, response.Body.String())
+	}
+}
+
+func TestRecoverChannelDryRunUsesOwnerValidationWithoutMutation(t *testing.T) {
+	deps := adminTestDependencies()
+	called := false
+	deps.RecoverChannel = func(_ context.Context, request delivery.ChannelRecoveryRequest) (*delivery.ChannelRecovery, error) {
+		called = true
+		if !request.DryRun || request.Action != "rollback" || request.DataCompatibility != "compatible" {
+			t.Fatalf("request = %#v", request)
+		}
+		return &delivery.ChannelRecovery{AppKey: request.AppKey, VariantKey: request.VariantKey, Revision: request.ExpectedRevision, Action: request.Action, Outcome: "preview", Health: "unknown", DryRun: true}, nil
+	}
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/download-channels/recover", strings.NewReader(`{"app_key":"demo","variant_key":"default","expected_revision":4,"action":"rollback","expected_predecessor_revision":3,"data_compatibility":"compatible","dry_run":true}`))
+	RecoverChannel(deps)(response, request)
+	if response.Code != http.StatusOK || !called || !strings.Contains(response.Body.String(), `"outcome":"preview"`) {
+		t.Fatalf("status=%d called=%t body=%s", response.Code, called, response.Body.String())
+	}
+}

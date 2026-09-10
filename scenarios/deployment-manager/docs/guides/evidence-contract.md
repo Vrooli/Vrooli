@@ -54,6 +54,12 @@ The producer then calls `EvidenceService.ReportTargetVerdict`. If the
 governance service is unreachable, the producer reports the failure to its
 caller; it does not convert the run into an implicit pass.
 
+The Bridge cross-OS adapter follows the same rule. Its current per-OS result
+contains execution identity but no producer-owned artifact locator and
+checksum, so the adapter refuses to map a Bridge success to a passed verdict.
+A Bridge gate can satisfy release evidence only after its owner supplies a
+retrievable, checksum-bearing reference.
+
 ## Degraded journeys
 
 A journey that cannot interact with a real application window is a failed

@@ -71,6 +71,26 @@ func TestRunCheckHTTPRendersEnvironmentTarget(t *testing.T) {
 	}
 }
 
+func TestRunCheckHTTPRendersHeadersFromEnvironment(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer test-key" {
+			t.Errorf("Authorization = %q, want %q", got, "Bearer test-key")
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	result, err := RunCheck(context.Background(), manifestpkg.ResourceHealthCheck{
+		Type:           "http",
+		Target:         srv.URL,
+		Headers:        map[string]string{"Authorization": "Bearer ${API_KEY}"},
+		ExpectedStatus: []int{http.StatusNoContent},
+	}, Config{Env: []string{"API_KEY=test-key"}})
+	if err != nil || !result.Healthy {
+		t.Fatalf("authenticated HTTP health = %#v, %v", result, err)
+	}
+}
+
 func TestRunCheckCommandFailureReturnsUnhealthy(t *testing.T) {
 	result, err := RunCheck(context.Background(), manifestpkg.ResourceHealthCheck{
 		Type:    "command",

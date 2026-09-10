@@ -162,6 +162,23 @@ func TestApprovalsHandlerHappyPaths(t *testing.T) {
 	}
 }
 
+func TestApprovalsHandlerBindsDecisionToVerifiedActor(t *testing.T) {
+	repo := &approvalHandlerFakeRepo{approval: &DeploymentApproval{ID: "approval-1"}}
+	h := NewApprovalsHandler(repo, func(string, map[string]interface{}) {}).WithActorResolver(func(context.Context) (string, error) {
+		return "verified-reviewer", nil
+	})
+	req, rr := approvalRequest(t, http.MethodPost, "/api/v1/approvals/approval-1/decide", ApprovalDecisionRequest{
+		Decision: ApprovalStatusApproved, Reviewer: "forged-request-label",
+	}, map[string]string{"id": "approval-1"})
+	h.Decide(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Decide() status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if repo.approval.ApprovedBy != "verified-reviewer" {
+		t.Fatalf("approved_by=%q, want verified-reviewer", repo.approval.ApprovedBy)
+	}
+}
+
 func TestApprovalsHandlerRejectsInvalidRequests(t *testing.T) {
 	h := NewApprovalsHandler(&approvalHandlerFakeRepo{}, func(string, map[string]interface{}) {})
 	tests := []struct {

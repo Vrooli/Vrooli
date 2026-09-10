@@ -42,3 +42,25 @@ func TestScenarioCheckerRecognizesHealthyAndStoppedOutput(t *testing.T) {
 		t.Fatalf("stopped checker=%q/%q", status, reason)
 	}
 }
+
+type scenarioStatusRunnerFunc func(context.Context, string) ([]byte, error)
+
+func (f scenarioStatusRunnerFunc) Status(ctx context.Context, slug string) ([]byte, error) {
+	return f(ctx, slug)
+}
+
+func TestScenarioCheckerUsesInjectedStatusRunner(t *testing.T) {
+	called := ""
+	checker := ScenarioChecker{
+		Slug: "demo",
+		runner: scenarioStatusRunnerFunc(func(_ context.Context, slug string) ([]byte, error) {
+			called = slug
+			return []byte(`{"health_status":"healthy"}`), nil
+		}),
+	}
+
+	status, reason := checker.Check(context.Background())
+	if status != StatusAvailable || reason != "scenario is healthy" || called != "demo" {
+		t.Fatalf("injected checker = %q/%q, called %q", status, reason, called)
+	}
+}

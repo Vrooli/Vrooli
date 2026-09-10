@@ -28,6 +28,9 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		{"delivery_attempts", "INTEGER NOT NULL DEFAULT 0"},
 		{"last_delivery_error", "TEXT NOT NULL DEFAULT ''"},
 		{"delivery_lease_expires_at", "TEXT NOT NULL DEFAULT ''"},
+		{"cancel_requested_at", "TEXT NOT NULL DEFAULT ''"},
+		{"cancellation_confirmed", "INTEGER NOT NULL DEFAULT 0"},
+		{"status_reason", "TEXT NOT NULL DEFAULT ''"},
 	}
 	for _, column := range columns {
 		var found int

@@ -62,27 +62,41 @@ type Rule struct {
 // Scenario code may provide candidate fields, but this rule is the authority
 // for whether anything is emitted or retained.
 type ReceiptProjectionRule struct {
-	ID               int64    `json:"id"`
-	PolicyID         string   `json:"policy_id"`
-	SourceScenario   string   `json:"source_scenario"`
-	TargetScenario   string   `json:"target_scenario"`
-	OperationPattern string   `json:"operation_pattern"`
-	Protocol         string   `json:"protocol"`
-	EventType        string   `json:"event_type"`
-	ResponseType     string   `json:"response_type"`
-	ResponseFields   []string `json:"response_fields"`
-	ReadPrincipals   []string `json:"read_principals"`
-	RedactFields     []string `json:"redact_fields,omitempty"`
-	MaxBytes         int      `json:"max_bytes"`
-	SamplePerTenK    int      `json:"sample_per_ten_k"`
-	RetentionDays    int      `json:"retention_days"`
-	Priority         int      `json:"priority"`
-	Enabled          bool     `json:"enabled"`
+	ID                       int64                     `json:"id"`
+	PolicyID                 string                    `json:"policy_id"`
+	SourceScenario           string                    `json:"source_scenario"`
+	TargetScenario           string                    `json:"target_scenario"`
+	OperationPattern         string                    `json:"operation_pattern"`
+	Protocol                 string                    `json:"protocol"`
+	EventType                string                    `json:"event_type"`
+	ResponseType             string                    `json:"response_type"`
+	ResponseFields           []string                  `json:"response_fields"`
+	WorkReferenceProjections []WorkReferenceProjection `json:"work_reference_projections,omitempty"`
+	ReadPrincipals           []string                  `json:"read_principals"`
+	RedactFields             []string                  `json:"redact_fields,omitempty"`
+	MaxBytes                 int                       `json:"max_bytes"`
+	SamplePerTenK            int                       `json:"sample_per_ten_k"`
+	RetentionDays            int                       `json:"retention_days"`
+	Priority                 int                       `json:"priority"`
+	Enabled                  bool                      `json:"enabled"`
 	// NeverExercised is declaration-only validation intent. It is deliberately
 	// not persisted as a capture authorization property.
 	NeverExercised bool      `json:"-"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+// WorkReferenceProjection describes an explicit response-to-reference mapping.
+// It is intentionally data-only so any producer can declare a projection
+// without importing a work-system client or Plan Manager type.
+type WorkReferenceProjection struct {
+	KindPath           string `json:"kind_path"`
+	IDPath             string `json:"id_path"`
+	RevisionPath       string `json:"revision_path,omitempty"`
+	Relationship       string `json:"relationship"`
+	VerifiedPath       string `json:"verified_path,omitempty"`
+	VisibilityPath     string `json:"visibility_path,omitempty"`
+	EvidenceDigestPath string `json:"evidence_digest_path,omitempty"`
 }
 
 type ReceiptProjectionFilters struct {

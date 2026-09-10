@@ -332,6 +332,7 @@ func TestUploadArtifact(t *testing.T) {
 
 func TestPromoteChannelUsesCurrentRevisionAndCompleteArtifactSet(t *testing.T) {
 	var promotion map[string]interface{}
+	receipt := `{"app_key":"desktop","variant_key":"default","revision":8,"predecessor_revision":7,"artifact_ids":{"windows":41,"linux":42},"release_id":"release-1","artifact_manifest_digest":"sha256:manifest","candidate_id":"candidate-1","destination_revision_id":"destination-1","authorization_epoch":7,"readiness_review_key":"review-1"}`
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/v1/admin/remote-profiles" && r.Method == http.MethodGet:
@@ -345,7 +346,7 @@ func TestPromoteChannelUsesCurrentRevisionAndCompleteArtifactSet(t *testing.T) {
 				_, _ = w.Write([]byte(`{"revision":7}`))
 			case strings.Contains(path, "/download-channels/promote"):
 				promotion, _ = envelope["body"].(map[string]interface{})
-				_, _ = w.Write([]byte(`{"revision":8}`))
+				_, _ = w.Write([]byte(receipt))
 			default:
 				t.Fatalf("unexpected proxy path %q", path)
 			}
@@ -358,6 +359,8 @@ func TestPromoteChannelUsesCurrentRevisionAndCompleteArtifactSet(t *testing.T) {
 	client := newTestClient(server)
 	err := client.PromoteChannel(context.Background(), &UploadRequest{
 		RemoteProfile: "prod", AppKey: "desktop", Channel: "stable", ReleaseID: "release-1",
+		ArtifactManifestDigest: "sha256:manifest", CandidateID: "candidate-1",
+		DestinationRevisionID: "destination-1", AuthorizationEpoch: 7, ReadinessReviewKey: "review-1",
 	}, []UploadResult{{ArtifactID: 41, Platform: "windows"}, {ArtifactID: 42, Platform: "linux"}})
 	if err != nil {
 		t.Fatalf("PromoteChannel: %v", err)
@@ -369,6 +372,26 @@ func TestPromoteChannelUsesCurrentRevisionAndCompleteArtifactSet(t *testing.T) {
 	if !ok || ids["windows"] != float64(41) || ids["linux"] != float64(42) {
 		t.Fatalf("artifact set = %#v", promotion["artifact_ids"])
 	}
+	for key, want := range map[string]interface{}{
+		"release_id":               "release-1",
+		"artifact_manifest_digest": "sha256:manifest",
+		"candidate_id":             "candidate-1",
+		"destination_revision_id":  "destination-1",
+		"authorization_epoch":      float64(7),
+		"readiness_review_key":     "review-1",
+	} {
+		if promotion[key] != want {
+			t.Fatalf("promotion[%q] = %#v, want %#v", key, promotion[key], want)
+		}
+	}
+	receipt = strings.Replace(receipt, `"candidate_id":"candidate-1"`, `"candidate_id":"candidate-other"`, 1)
+	if err := client.PromoteChannel(context.Background(), &UploadRequest{
+		RemoteProfile: "prod", AppKey: "desktop", Channel: "stable", ReleaseID: "release-1",
+		ArtifactManifestDigest: "sha256:manifest", CandidateID: "candidate-1",
+		DestinationRevisionID: "destination-1", AuthorizationEpoch: 7, ReadinessReviewKey: "review-1",
+	}, []UploadResult{{ArtifactID: 41, Platform: "windows"}, {ArtifactID: 42, Platform: "linux"}}); err == nil || !strings.Contains(err.Error(), "release identity") {
+		t.Fatalf("mismatched channel promotion receipt was accepted: %v", err)
+	}
 }
 
 func TestArtifactMetadataCarriesManifestPolicyAndBuiltChecksums(t *testing.T) {
@@ -377,6 +400,8 @@ func TestArtifactMetadataCarriesManifestPolicyAndBuiltChecksums(t *testing.T) {
 		AppKey:         "browser-automation-studio",
 		Platform:       "linux",
 		ReleaseVersion: "2.4.0",
+		ReleaseID:      "release-1", ArtifactManifestDigest: "sha256:manifest",
+		CandidateID: "candidate-1", DestinationRevisionID: "destination-1", AuthorizationEpoch: 7, ReadinessReviewKey: "review-1",
 	}, &MonetizationManifest{
 		Version:             2,
 		BundleKey:           "business_suite",
@@ -385,14 +410,20 @@ func TestArtifactMetadataCarriesManifestPolicyAndBuiltChecksums(t *testing.T) {
 	}, "sha256", "sha512", true)
 
 	for key, want := range map[string]interface{}{
-		"bundle_key":           "business_suite",
-		"app_key":              "browser-automation-studio",
-		"platform":             "linux",
-		"release_version":      "2.4.0",
-		"sha256":               "sha256",
-		"sha512":               "sha512",
-		"requires_entitlement": true,
-		"manifest_version":     2,
+		"bundle_key":               "business_suite",
+		"app_key":                  "browser-automation-studio",
+		"platform":                 "linux",
+		"release_version":          "2.4.0",
+		"sha256":                   "sha256",
+		"sha512":                   "sha512",
+		"requires_entitlement":     true,
+		"manifest_version":         2,
+		"release_id":               "release-1",
+		"artifact_manifest_digest": "sha256:manifest",
+		"candidate_id":             "candidate-1",
+		"destination_revision_id":  "destination-1",
+		"authorization_epoch":      uint64(7),
+		"readiness_review_key":     "review-1",
 	} {
 		if metadata[key] != want {
 			t.Errorf("metadata[%q] = %#v, want %#v", key, metadata[key], want)

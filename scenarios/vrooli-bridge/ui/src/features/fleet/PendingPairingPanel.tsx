@@ -150,7 +150,7 @@ export function PendingPairingPanel() {
                 </Button>
               </div>
               {approve.error && approve.variables?.requestId === request.id ? (
-                <p data-testid={selectors.fleet.pairingRequests.error} role="alert" className="mt-2 text-xs text-app-danger">
+                <p data-testid={selectors.fleet.pairingRequests.error({ id: request.id })} role="alert" className="mt-2 text-xs text-app-danger">
                   {errorMessage(approve.error, t)}
                 </p>
               ) : null}

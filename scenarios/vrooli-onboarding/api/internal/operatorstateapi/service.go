@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/vrooli/api-core/coreset"
 	"github.com/vrooli/vrooli/internal/operatorstate"
 )
 
@@ -59,7 +60,50 @@ func (s Service) Patch(ctx context.Context, stateJSON []byte, updateMask []strin
 	if err != nil {
 		return operatorstate.Document{}, err
 	}
+	patch, err = normalizeCorePatch(patch)
+	if err != nil {
+		return operatorstate.Document{}, err
+	}
 	return s.store.ApplyAtRevisionValidated(ctx, expectedRevision, patch, s.validate)
+}
+
+// normalizeCorePatch makes the required recovery plane invariant at the
+// typed onboarding write boundary. This prevents a direct API client from
+// bypassing the disabled trusted-base controls in the wizard.
+func normalizeCorePatch(patch []byte) ([]byte, error) {
+	var root map[string]json.RawMessage
+	if err := json.Unmarshal(patch, &root); err != nil {
+		return nil, err
+	}
+	raw, ok := root["core"]
+	if !ok {
+		return patch, nil
+	}
+	var rawCore map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &rawCore); err != nil {
+		return nil, fmt.Errorf("decode core authority patch: %w", err)
+	}
+	// A partial core patch must retain the store's existing trusted base and
+	// therefore must not be rewritten using only the fields present in the
+	// partial request. Full typed onboarding writes include both fields.
+	if _, ok := rawCore["trusted_base"]; !ok {
+		return patch, nil
+	}
+	var core struct {
+		Seed        []string `json:"seed"`
+		TrustedBase []string `json:"trusted_base"`
+	}
+	if err := json.Unmarshal(raw, &core); err != nil {
+		return nil, fmt.Errorf("decode core authority patch: %w", err)
+	}
+	normalized := coreset.NormalizeOperationalAuthority(coreset.Authority{Seed: core.Seed, TrustedBase: core.TrustedBase})
+	core.Seed, core.TrustedBase = normalized.Seed, normalized.TrustedBase
+	encodedCore, err := json.Marshal(core)
+	if err != nil {
+		return nil, fmt.Errorf("encode core authority patch: %w", err)
+	}
+	root["core"] = encodedCore
+	return json.Marshal(root)
 }
 
 func maskedPatch(stateJSON []byte, paths []string) ([]byte, error) {

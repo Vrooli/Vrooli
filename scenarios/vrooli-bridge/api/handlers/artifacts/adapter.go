@@ -14,13 +14,18 @@ import (
 	"strings"
 
 	"vrooli-bridge/internal/artifacts"
+	"vrooli-bridge/internal/channelsign"
+	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/registry"
 
+	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	transferv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/transfer"
 	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts"
+	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -90,32 +95,60 @@ func (a nodeReaderAdapter) GetTarget(ctx context.Context, id string) (artifacts.
 // upload contract accepts bytes, not a source URI.
 //
 // The hub's device-token trust model is intentionally fail-closed. The token is
-// supplied through BRIDGE_DEVICE_SYNC_TOKEN, while BRIDGE_DEVICE_SYNC_TARGETS
-// is a JSON object mapping Bridge node ids to the corresponding hub device ids.
-// The identities are separate by design: a Bridge registry node id is not
-// silently treated as a device-sync-hub device id.
+// resolved from the credential authority, with BRIDGE_DEVICE_SYNC_TOKEN kept
+// as an explicit compatibility fallback for managed deployments. The target
+// mapping is public configuration: BRIDGE_DEVICE_SYNC_TARGETS is a JSON object
+// mapping Bridge node ids to the corresponding hub device ids. The identities
+// are separate by design: a Bridge registry node id is not silently treated as
+// a device-sync-hub device id.
 type deviceSyncDelivery struct {
 	endpoint   string
 	token      string
 	targets    map[string]string
+	pusher     ArtifactPlacementPusher
 	resolver   *discovery.Resolver
 	httpClient *http.Client
 }
 
 var _ artifacts.DirectedDelivery = deviceSyncDelivery{}
 
-func newDeviceSyncDelivery() deviceSyncDelivery {
+func newDeviceSyncDelivery(pusher ArtifactPlacementPusher) deviceSyncDelivery {
 	var targets map[string]string
 	if raw := strings.TrimSpace(os.Getenv("BRIDGE_DEVICE_SYNC_TARGETS")); raw != "" {
 		_ = json.Unmarshal([]byte(raw), &targets)
 	}
 	return deviceSyncDelivery{
 		endpoint:   strings.TrimRight(strings.TrimSpace(os.Getenv("BRIDGE_DEVICE_SYNC_URL")), "/"),
-		token:      strings.TrimSpace(os.Getenv("BRIDGE_DEVICE_SYNC_TOKEN")),
+		token:      resolveDeviceSyncToken(),
 		targets:    targets,
+		pusher:     pusher,
 		resolver:   discovery.NewResolver(discovery.ResolverConfig{}),
 		httpClient: &http.Client{},
 	}
+}
+
+const (
+	deviceSyncCredentialIdentity = "vrooli/device-sync-hub"
+	deviceSyncCredentialField    = "bridge-origin-device-token"
+)
+
+func resolveDeviceSyncToken() string {
+	authorityToken := ""
+	if authority, err := credentialauthority.Default(); err == nil {
+		if identity, parseErr := credentialauthority.ParseIdentity(deviceSyncCredentialIdentity); parseErr == nil {
+			if value, requireErr := authority.Require(identity, deviceSyncCredentialField); requireErr == nil && strings.TrimSpace(value) != "" {
+				authorityToken = value
+			}
+		}
+	}
+	return selectDeviceSyncToken(authorityToken, os.Getenv("BRIDGE_DEVICE_SYNC_TOKEN"))
+}
+
+func selectDeviceSyncToken(authorityToken, compatibilityToken string) string {
+	if value := strings.TrimSpace(authorityToken); value != "" {
+		return value
+	}
+	return strings.TrimSpace(compatibilityToken)
 }
 
 func (d deviceSyncDelivery) Deliver(ctx context.Context, req artifacts.DeliveryRequest) (artifacts.DeliveryResult, error) {
@@ -194,11 +227,48 @@ func (d deviceSyncDelivery) Deliver(ctx context.Context, req artifacts.DeliveryR
 	if uploaded.Item == nil || strings.TrimSpace(uploaded.Item.Id) == "" {
 		return artifacts.DeliveryResult{}, errors.New("device-sync-hub upload response did not contain an item id")
 	}
+	if d.pusher != nil {
+		if delivered, pushErr := d.pusher.PushArtifact(ctx, req.NodeID, req.DistributionID, uploaded.Item.Id, strings.TrimSpace(req.Name), req.DestinationPath); pushErr != nil {
+			return artifacts.DeliveryResult{}, pushErr
+		} else if delivered == 0 {
+			return artifacts.DeliveryResult{}, fmt.Errorf("bridge node %q has no live channel for artifact placement", req.NodeID)
+		}
+	}
 	return artifacts.DeliveryResult{
 		Ref:       "dsh://item/" + url.PathEscape(uploaded.Item.Id),
 		Delivered: false,
-		Detail:    "accepted by device-sync-hub; target receipt remains pending",
+		Detail:    "accepted by device-sync-hub; signed target placement instruction queued",
 	}, nil
+}
+
+// ArtifactPlacementPusher is the typed, signed Bridge-channel handoff from the
+// control plane to the target node. It carries metadata only; the node pulls
+// bytes from device-sync-hub with its own device token.
+type ArtifactPlacementPusher interface {
+	PushArtifact(context.Context, string, string, string, string, string) (int, error)
+}
+
+type channelArtifactPusher struct {
+	hub    *presence.Hub
+	signer channelsign.Signer
+}
+
+func NewArtifactPlacementPusher(hub *presence.Hub, signer channelsign.Signer) ArtifactPlacementPusher {
+	return channelArtifactPusher{hub: hub, signer: signer}
+}
+
+func (p channelArtifactPusher) PushArtifact(_ context.Context, nodeID, distributionID, itemID, name, destinationPath string) (int, error) {
+	frame := &channelv1.ServerFrame{
+		FrameId: uuid.NewString(),
+		Payload: &channelv1.ServerFrame_ArtifactDelivery{ArtifactDelivery: &channelv1.ArtifactDelivery{
+			DistributionId: distributionID, ItemId: itemID, Name: name, DestinationPath: destinationPath,
+		}},
+	}
+	payload, err := channelsign.Marshal(p.signer, frame)
+	if err != nil {
+		return 0, err
+	}
+	return p.hub.PushFrame(nodeID, frame.GetFrameId(), payload), nil
 }
 
 func (d deviceSyncDelivery) endpointURL(ctx context.Context) (string, error) {

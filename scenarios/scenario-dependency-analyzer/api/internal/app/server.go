@@ -186,7 +186,7 @@ func cleanupInvalidScenarioDependencies(rt *Runtime) {
 }
 
 func registerRoutes(router *gin.Engine, handler *handler, graphIngest *graphIngestService) {
-	router.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
+	router.GET("/health", gin.WrapF(health.New().Version("1.0.0").BuildIdentity(os.Getenv("VROOLI_BUILD_IDENTITY")).Check(health.DB(db), health.Critical).Handler()))
 	router.GET("/api/v1/health/analysis", handler.analysisHealth)
 
 	api := router.Group("/api/v1")

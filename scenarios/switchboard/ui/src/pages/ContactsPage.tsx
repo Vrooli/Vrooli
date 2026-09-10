@@ -15,7 +15,7 @@ import { TIER_LABEL_KEY, TierBadge, tierRank } from "../components/console/TierB
 import { strings } from "../consts/strings";
 import { useSession } from "../features/session/SessionProvider";
 import { useTranslation } from "../i18n";
-import { initials } from "../lib/identity";
+import { hueFor, initials } from "../lib/identity";
 import { relativeTime } from "../lib/time";
 
 const TIER_EFFECT_KEY: Record<TrustTier, (typeof strings.console.tiers.effect)[TrustTier]> = {
@@ -57,20 +57,6 @@ export function ContactsPage() {
           skeletonRows={5}
           empty={<Quiet icon={<Users className="h-6 w-6" />} title={t(strings.console.contacts.emptyTitle)} description={t(strings.console.contacts.empty)} />}
         >
-          {showListOnMobile ? null : (
-            <div role="list" aria-label={t(strings.console.contacts.title)} data-testid="contacts-strip" className="flex gap-2 overflow-x-auto pb-1 lg:hidden">
-              {visible.map((contact) => {
-                const name = contact.display_name?.trim() || contact.address;
-                const selected = contact.id === contactId;
-                return (
-                  <Link key={contact.id} role="listitem" to={`/contacts/${encodeURIComponent(contact.id)}`} aria-current={selected ? "page" : undefined} className={["inline-flex min-h-11 shrink-0 items-center gap-2 rounded-pill border px-3 text-xs font-medium", selected ? "border-app-primary bg-app-primary/10 text-app-primary" : "border-app-border text-app-foreground"].join(" ")}>
-                    <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: contact.channel_accent ?? "var(--color-accent)" }} />
-                    <span className="max-w-[9rem] truncate">{name}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
           <div className={showListOnMobile ? "flex min-h-0 flex-1 flex-col gap-3" : "hidden min-h-0 flex-1 flex-col gap-3 lg:flex"}>
           <label className="block">
             <span className="sr-only">{t(strings.console.contacts.search)}</span>
@@ -117,7 +103,11 @@ function ContactRow({ contact, selected }: { contact: Contact; selected: boolean
         aria-current={selected ? "page" : undefined}
         className={["flex items-center gap-3 px-3 py-2.5 transition-colors", selected ? "bg-app-primary/5" : "hover:bg-app-surface-muted"].join(" ")}
       >
-        <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-app-surface-muted text-xs font-semibold text-app-muted-foreground">
+        <span
+          aria-hidden="true"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-semibold text-white"
+          style={{ background: `hsl(${hueFor(contact.id)} 55% 42%)` }}
+        >
           {initials(name)}
         </span>
         <div className="min-w-0 flex-1">
@@ -131,7 +121,9 @@ function ContactRow({ contact, selected }: { contact: Contact; selected: boolean
             {contact.room_count > 1 ? <span>{t(strings.console.contacts.roomCount, { count: contact.room_count })}</span> : null}
           </div>
         </div>
-        <TierBadge tier={contact.tier} testId="contacts-tier-badge" />
+        <span className="flex w-[4.5rem] shrink-0 justify-end">
+          <TierBadge tier={contact.tier} testId="contacts-tier-badge" />
+        </span>
       </Link>
     </li>
   );

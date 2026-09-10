@@ -222,6 +222,17 @@ type DeploymentDependencyNode struct {
 	Metadata     map[string]interface{}        `json:"metadata,omitempty"`
 }
 
+// ProgramBindingTarget is evidence that a program reaches another scenario.
+// It is intentionally separate from manifest dependencies: manifests remain
+// the lifecycle authority, while this evidence lets the analyzer expose drift.
+type ProgramBindingTarget struct {
+	Scenario  string
+	BindingID string
+	Effect    string
+	Program   string
+	Optional  bool
+}
+
 // TargetDAGResponse is the target-aware dependency export. TargetKind is
 // explicit so consumers cannot mistake package/resource graphs for scenario
 // graphs.
@@ -289,16 +300,17 @@ type BundleDependencyEntry struct {
 // It is intentionally conservative: defaults are portable, and values are placeholders
 // that deployment-manager can refine.
 type DesktopBundleSkeleton struct {
-	SchemaVersion string                  `json:"schema_version"`
-	Target        string                  `json:"target"`
-	App           BundleSkeletonApp       `json:"app"`
-	IPC           BundleSkeletonIPC       `json:"ipc"`
-	Telemetry     BundleSkeletonTelemetry `json:"telemetry"`
-	Ports         BundleSkeletonPorts     `json:"ports"`
-	Swaps         []BundleSkeletonSwap    `json:"swaps,omitempty"`
-	Peers         []BundleSkeletonPeer    `json:"peers,omitempty"`
-	Secrets       []BundleSkeletonSecret  `json:"secrets,omitempty"`
-	Services      []BundleSkeletonService `json:"services"`
+	SchemaVersion       string                  `json:"schema_version"`
+	Target              string                  `json:"target"`
+	App                 BundleSkeletonApp       `json:"app"`
+	IPC                 BundleSkeletonIPC       `json:"ipc"`
+	Telemetry           BundleSkeletonTelemetry `json:"telemetry"`
+	Ports               BundleSkeletonPorts     `json:"ports"`
+	Swaps               []BundleSkeletonSwap    `json:"swaps,omitempty"`
+	Peers               []BundleSkeletonPeer    `json:"peers,omitempty"`
+	ProgramBindingPeers []BundleSkeletonPeer    `json:"program_binding_peers,omitempty"`
+	Secrets             []BundleSkeletonSecret  `json:"secrets,omitempty"`
+	Services            []BundleSkeletonService `json:"services"`
 }
 
 type BundleSkeletonApp struct {

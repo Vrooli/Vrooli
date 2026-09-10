@@ -3,21 +3,24 @@ package deployment
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"scenario-to-cloud/bundle"
+	"scenario-to-cloud/credentials"
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/identity"
 	"scenario-to-cloud/internal/stringutil"
 	"scenario-to-cloud/persistence"
+	"scenario-to-cloud/reach"
+	"scenario-to-cloud/reconcile"
+	"scenario-to-cloud/release"
 	"scenario-to-cloud/secrets"
-	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/vps"
-	"scenario-to-cloud/vps/preflight"
 )
 
 // progressHubAdapter adapts the deployment package's Hub to the vps.ProgressBroadcaster interface.
@@ -58,8 +61,10 @@ func (a *progressRepoAdapter) UpdateDeploymentProgress(ctx context.Context, id, 
 type Orchestrator struct {
 	repo              *persistence.Repository
 	progressHub       *Hub
-	sshRunner         ssh.Runner
-	scpRunner         ssh.SCPRunner
+	reach             reach.Reach
+	releaseBuilder    ReleaseBuilder
+	credentials       CredentialBinder
+	backups           vps.RecoveryPointRecorder
 	secretsFetcher    secrets.Fetcher
 	secretsGenerator  secrets.GeneratorFunc
 	dnsService        dns.Service
@@ -68,12 +73,24 @@ type Orchestrator struct {
 	logger            func(msg string, fields map[string]interface{})
 }
 
+// ReleaseBuilder builds (or returns) the release artifact set for a manifest
+// and target platform: bundle, release manifest and native control plane
+// beneath releases/<digest>/. Deployments deliver only built releases.
+type ReleaseBuilder func(ctx context.Context, manifest domain.CloudManifest, platform release.Platform) (release.Release, error)
+
+// CredentialBinder binds the credential lifecycle to one deployment target
+// (SSH or Bridge) so credentials.provision and grants.revoke run through the
+// credential authority instead of a private writer.
+type CredentialBinder func(ctx context.Context, deploymentID string, target identity.TargetRef, manifest domain.CloudManifest) (*credentials.Service, error)
+
 // OrchestratorConfig holds configuration for creating an Orchestrator.
 type OrchestratorConfig struct {
 	Repo              *persistence.Repository
 	ProgressHub       *Hub
-	SSHRunner         ssh.Runner
-	SCPRunner         ssh.SCPRunner
+	Reach             reach.Reach
+	ReleaseBuilder    ReleaseBuilder
+	Credentials       CredentialBinder
+	Backups           vps.RecoveryPointRecorder
 	SecretsFetcher    secrets.Fetcher
 	SecretsGenerator  secrets.GeneratorFunc
 	DNSService        dns.Service
@@ -87,8 +104,10 @@ func NewOrchestrator(cfg OrchestratorConfig) *Orchestrator {
 	return &Orchestrator{
 		repo:              cfg.Repo,
 		progressHub:       cfg.ProgressHub,
-		sshRunner:         cfg.SSHRunner,
-		scpRunner:         cfg.SCPRunner,
+		reach:             cfg.Reach,
+		releaseBuilder:    cfg.ReleaseBuilder,
+		credentials:       cfg.Credentials,
+		backups:           cfg.Backups,
 		secretsFetcher:    cfg.SecretsFetcher,
 		secretsGenerator:  cfg.SecretsGenerator,
 		dnsService:        cfg.DNSService,
@@ -106,372 +125,6 @@ func (o *Orchestrator) RefreshManifest(ctx context.Context, base domain.CloudMan
 		return base, nil
 	}
 	return o.manifestRefresher.RefreshManifest(ctx, base)
-}
-
-// ExecuteOptions controls which steps run during execution.
-type ExecuteOptions struct {
-	RunPreflight     bool
-	ForceBundleBuild bool
-}
-
-// RunPipeline executes the full deployment with progress tracking.
-// The runID parameter uniquely identifies this execution for idempotency tracking.
-func (o *Orchestrator) RunPipeline(
-	id, runID string,
-	manifest domain.CloudManifest,
-	existingBundlePath *string,
-	providedSecrets map[string]string,
-	options ExecuteOptions,
-) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-	defer cancel()
-
-	progress := 0.0
-	canonicalIdentity, effectiveManifest := o.resolveAndPersistIdentity(ctx, id, manifest)
-	manifest = effectiveManifest
-
-	// Helper to emit and persist progress
-	emitProgress := func(eventType, step, stepTitle string, pct float64, errMsg string) {
-		event := Event{
-			Type:      eventType,
-			Step:      step,
-			StepTitle: stepTitle,
-			Progress:  pct,
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		}
-		if errMsg != "" {
-			event.Error = errMsg
-		}
-
-		// Broadcast to SSE clients
-		o.progressHub.Broadcast(id, event)
-
-		// Persist to database for reconnection
-		if err := o.repo.UpdateDeploymentProgress(ctx, id, step, pct); err != nil {
-			o.log("failed to persist progress", map[string]interface{}{"error": err.Error()})
-		}
-	}
-
-	// Helper for errors (used for bundle_build step which isn't in VPS runners)
-	emitError := func(step, stepTitle, errMsg string) {
-		event := Event{
-			Type:      "deployment_error",
-			Step:      step,
-			StepTitle: stepTitle,
-			Progress:  progress,
-			Error:     errMsg,
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		}
-		o.progressHub.Broadcast(id, event)
-	}
-
-	// Log the run_id for traceability
-	o.log("deployment pipeline started", map[string]interface{}{
-		"deployment_id": id,
-		"run_id":        runID,
-		"scenario_id":   manifest.Scenario.ID,
-	})
-
-	// Record manifest refresh in history when ForceBundleBuild is requested
-	// Note: The actual refresh happens in the handler BEFORE validation
-	// This just records the event for tracking purposes
-	if options.ForceBundleBuild {
-		o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-			Type:      domain.EventManifestRefreshed,
-			Timestamp: time.Now().UTC(),
-			Message:   "Manifest refreshed from current scenario state",
-			Success:   boolPtr(true),
-		})
-		progress += vps.StepWeights["manifest_refresh"]
-		emitProgress("step_completed", "manifest_refresh", "Manifest refreshed", progress, "")
-	}
-
-	// Fetch and validate secrets
-	if err := o.ensureSecretsAvailable(ctx, &manifest, providedSecrets, id, emitError); err != nil {
-		return // Error already logged and emitted
-	}
-
-	// Step 1: Build bundle (if not already built)
-	emitProgress("step_started", "bundle_build", "Building bundle", progress, "")
-
-	bundlePath, err := o.ensureBundleBuilt(ctx, manifest, existingBundlePath, options.ForceBundleBuild, id, emitError)
-	if err != nil {
-		return // Error already logged and emitted
-	}
-
-	progress += vps.StepWeights["bundle_build"]
-	emitProgress("step_completed", "bundle_build", "Building bundle", progress, "")
-
-	// Optional preflight checks
-	if options.RunPreflight {
-		preflightStart := time.Now()
-		o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-			Type:      domain.EventPreflightStarted,
-			Timestamp: preflightStart.UTC(),
-			Message:   "Preflight checks started",
-		})
-
-		emitProgress("step_started", "preflight", "Running preflight checks", progress, "")
-		preflightResp := preflight.Run(ctx, manifest, o.dnsService, o.sshRunner, preflight.RunOptions{
-			ProvidedSecrets: providedSecrets,
-		})
-
-		// Automatic remediation: VPS bundle cache can accumulate across repeated redeploys.
-		// If preflight fails due to low disk, attempt a single VPS bundle GC pass and re-run preflight.
-		if !preflightResp.OK && hasFailingPreflightCheck(preflightResp, domain.PreflightDiskFreeID) {
-			if gcApplied := o.tryAutoVPSBundleGC(ctx, id, manifest); gcApplied {
-				preflightResp = preflight.Run(ctx, manifest, o.dnsService, o.sshRunner, preflight.RunOptions{
-					ProvidedSecrets: providedSecrets,
-				})
-			}
-		}
-
-		preflightJSON, _ := json.Marshal(preflightResp)
-		if err := o.repo.UpdateDeploymentPreflightResult(ctx, id, preflightJSON); err != nil {
-			o.log("failed to save preflight result", map[string]interface{}{"error": err.Error()})
-		}
-		o.progressHub.Broadcast(id, Event{
-			Type:            "preflight_result",
-			Step:            "preflight",
-			StepTitle:       "Running preflight checks",
-			Progress:        progress,
-			PreflightResult: &preflightResp,
-			Timestamp:       time.Now().UTC().Format(time.RFC3339),
-		})
-		if !preflightResp.OK {
-			failCount := 0
-			for _, check := range preflightResp.Checks {
-				if check.Status == domain.PreflightFail {
-					failCount++
-				}
-			}
-			errMsg := "Preflight checks failed"
-			if failCount > 0 {
-				errMsg = fmt.Sprintf("Preflight checks failed (%d issue%s)", failCount, pluralize(failCount))
-			}
-			o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-				Type:       domain.EventPreflightCompleted,
-				Timestamp:  time.Now().UTC(),
-				Message:    errMsg,
-				Details:    FormatPreflightFailureDetails(preflightResp),
-				DurationMs: time.Since(preflightStart).Milliseconds(),
-				Success:    boolPtr(false),
-			})
-			setDeploymentError(ctx, o.repo, id, "preflight", errMsg)
-			emitError("preflight", "Running preflight checks", errMsg)
-			return
-		}
-		o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-			Type:       domain.EventPreflightCompleted,
-			Timestamp:  time.Now().UTC(),
-			Message:    "Preflight checks passed",
-			DurationMs: time.Since(preflightStart).Milliseconds(),
-			Success:    boolPtr(true),
-		})
-		progress += vps.StepWeights["preflight"]
-		emitProgress("step_completed", "preflight", "Running preflight checks", progress, "")
-	}
-
-	// Step 2: VPS Setup
-	if err := o.repo.UpdateDeploymentStatus(ctx, id, domain.StatusSetupRunning, nil, nil); err != nil {
-		o.log("failed to update status", map[string]interface{}{"error": err.Error()})
-	}
-
-	setupStart := time.Now()
-	o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-		Type:      domain.EventSetupStarted,
-		Timestamp: setupStart.UTC(),
-		Message:   "VPS setup started",
-	})
-
-	hubAdapter := &progressHubAdapter{hub: o.progressHub}
-	repoAdapter := &progressRepoAdapter{repo: o.repo}
-	setupResult := vps.RunSetupWithProgress(ctx, manifest, bundlePath, o.sshRunner, o.scpRunner, hubAdapter, repoAdapter, id, &progress)
-	setupJSON, _ := json.Marshal(setupResult)
-	if err := o.repo.UpdateDeploymentSetupResult(ctx, id, setupJSON); err != nil {
-		o.log("failed to save setup result", map[string]interface{}{"error": err.Error()})
-	}
-
-	if !setupResult.OK {
-		// VPS runner already emitted deployment_error event with correct step
-		failedStep := setupResult.FailedStep
-		if failedStep == "" {
-			failedStep = "vps_setup"
-		}
-		o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-			Type:       domain.EventSetupCompleted,
-			Timestamp:  time.Now().UTC(),
-			Message:    "VPS setup failed",
-			Details:    setupResult.Error,
-			DurationMs: time.Since(setupStart).Milliseconds(),
-			Success:    boolPtr(false),
-			StepName:   failedStep,
-		})
-		setDeploymentError(ctx, o.repo, id, failedStep, setupResult.Error)
-		return
-	}
-
-	o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-		Type:       domain.EventSetupCompleted,
-		Timestamp:  time.Now().UTC(),
-		Message:    "VPS setup completed",
-		DurationMs: time.Since(setupStart).Milliseconds(),
-		Success:    boolPtr(true),
-	})
-
-	// Step 3: VPS Deploy
-	if err := o.repo.UpdateDeploymentStatus(ctx, id, domain.StatusDeploying, nil, nil); err != nil {
-		o.log("failed to update status", map[string]interface{}{"error": err.Error()})
-	}
-
-	deployStart := time.Now()
-	o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-		Type:      domain.EventDeployStarted,
-		Timestamp: deployStart.UTC(),
-		Message:   "Deployment started",
-	})
-
-	deployResult := vps.RunDeployWithProgress(ctx, manifest, o.sshRunner, o.secretsGenerator, providedSecrets, hubAdapter, repoAdapter, id, &progress, vps.DeployOptions{})
-	deployJSON, _ := json.Marshal(deployResult)
-	if err := o.repo.UpdateDeploymentDeployResult(ctx, id, deployJSON, deployResult.OK); err != nil {
-		o.log("failed to save deploy result", map[string]interface{}{"error": err.Error()})
-	}
-
-	if !deployResult.OK {
-		// VPS runner already emitted deployment_error event with correct step
-		failedStep := deployResult.FailedStep
-		if failedStep == "" {
-			failedStep = "vps_deploy"
-		}
-		o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-			Type:       domain.EventDeployFailed,
-			Timestamp:  time.Now().UTC(),
-			Message:    "Deployment failed",
-			Details:    deployResult.Error,
-			DurationMs: time.Since(deployStart).Milliseconds(),
-			Success:    boolPtr(false),
-			StepName:   failedStep,
-		})
-		setDeploymentError(ctx, o.repo, id, failedStep, deployResult.Error)
-		return
-	}
-
-	o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-		Type:       domain.EventDeployCompleted,
-		Timestamp:  time.Now().UTC(),
-		Message:    "Deployment completed",
-		DurationMs: time.Since(deployStart).Milliseconds(),
-		Success:    boolPtr(true),
-	})
-
-	// Proactively enforce VPS bundle cache retention so repeated redeploys do not accumulate disk usage.
-	// This is best-effort and must not block a successful deployment.
-	o.enforceVPSBundleRetentionBestEffort(ctx, id, manifest)
-
-	o.verifyAndPersistIdentity(ctx, id, manifest, canonicalIdentity)
-
-	// Success!
-	o.progressHub.Broadcast(id, Event{
-		Type:      "completed",
-		Progress:  100,
-		Message:   "Deployment successful",
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-	})
-}
-
-// RunStartPipeline starts/resumes a stopped deployment.
-// Unlike RunPipeline, this skips bundle building, preflight, and VPS setup steps.
-// It only runs the deploy steps needed to restart services.
-func (o *Orchestrator) RunStartPipeline(
-	id, runID string,
-	manifest domain.CloudManifest,
-	providedSecrets map[string]string,
-) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-
-	progress := 0.0
-	canonicalIdentity, effectiveManifest := o.resolveAndPersistIdentity(ctx, id, manifest)
-	manifest = effectiveManifest
-
-	// Log the start operation
-	o.log("start pipeline initiated", map[string]interface{}{
-		"deployment_id": id,
-		"run_id":        runID,
-		"scenario_id":   manifest.Scenario.ID,
-	})
-
-	// Record start event
-	startTime := time.Now()
-	o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-		Type:      domain.EventStarted,
-		Timestamp: startTime.UTC(),
-		Message:   "Deployment start/resume initiated",
-	})
-
-	// Create adapters for progress tracking
-	hubAdapter := &progressHubAdapter{hub: o.progressHub}
-	repoAdapter := &progressRepoAdapter{repo: o.repo}
-
-	// Calculate normalized weights for start steps
-	startWeights := vps.CalculateWeightsForSteps(vps.StartSteps)
-
-	// Run deploy steps with start-specific options
-	deployResult := vps.RunDeployWithProgress(
-		ctx,
-		manifest,
-		o.sshRunner,
-		o.secretsGenerator,
-		providedSecrets,
-		hubAdapter,
-		repoAdapter,
-		id,
-		&progress,
-		vps.DeployOptions{
-			StepsToRun:  vps.StartSteps,
-			StepWeights: startWeights,
-		},
-	)
-
-	deployJSON, _ := json.Marshal(deployResult)
-	if err := o.repo.UpdateDeploymentDeployResult(ctx, id, deployJSON, deployResult.OK); err != nil {
-		o.log("failed to save start result", map[string]interface{}{"error": err.Error()})
-	}
-
-	if !deployResult.OK {
-		failedStep := deployResult.FailedStep
-		if failedStep == "" {
-			failedStep = "start"
-		}
-		o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-			Type:       domain.EventDeployFailed,
-			Timestamp:  time.Now().UTC(),
-			Message:    "Start failed",
-			Details:    deployResult.Error,
-			DurationMs: time.Since(startTime).Milliseconds(),
-			Success:    boolPtr(false),
-			StepName:   failedStep,
-		})
-		setDeploymentError(ctx, o.repo, id, failedStep, deployResult.Error)
-		return
-	}
-
-	o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-		Type:       domain.EventDeployCompleted,
-		Timestamp:  time.Now().UTC(),
-		Message:    "Deployment started successfully",
-		DurationMs: time.Since(startTime).Milliseconds(),
-		Success:    boolPtr(true),
-	})
-	o.verifyAndPersistIdentity(ctx, id, manifest, canonicalIdentity)
-
-	// Success!
-	o.progressHub.Broadcast(id, Event{
-		Type:      "completed",
-		Progress:  100,
-		Message:   "Deployment started successfully",
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-	})
 }
 
 // ensureSecretsAvailable fetches secrets from secrets-manager and validates user_prompt secrets.
@@ -551,8 +204,20 @@ func (o *Orchestrator) ensureSecretsAvailable(
 	return nil
 }
 
-// ensureBundleBuilt builds a new bundle or returns the existing bundle path.
-// Returns the bundle path or an error (error already logged and emitted).
+// EnsureBundle builds the release archive when none is recorded (or when
+// forced) and persists its identity on the deployment. It is cloud-local:
+// nothing reaches the target.
+func (o *Orchestrator) EnsureBundle(ctx context.Context, deploymentID string, manifest domain.CloudManifest, existingBundlePath *string, force bool) (string, error) {
+	emit := func(step, stepTitle, errMsg string) {
+		o.progressHub.Broadcast(deploymentID, Event{Type: "deployment_error", Step: step, StepTitle: stepTitle, Error: errMsg, Timestamp: time.Now().UTC().Format(time.RFC3339)})
+	}
+	return o.ensureBundleBuilt(ctx, manifest, existingBundlePath, force, deploymentID, emit)
+}
+
+// ensureBundleBuilt builds the release artifact set (bundle, release
+// manifest, native control plane) or returns the recorded bundle path. The
+// target platform is negotiated through reach when a target is bound; a
+// fresh host defaults to linux/amd64, the platform every release supports.
 func (o *Orchestrator) ensureBundleBuilt(
 	ctx context.Context,
 	manifest domain.CloudManifest,
@@ -561,62 +226,56 @@ func (o *Orchestrator) ensureBundleBuilt(
 	deploymentID string,
 	emitError func(step, stepTitle, errMsg string),
 ) (string, error) {
-	// Use existing bundle if provided
 	if !forceBundleBuild && existingBundlePath != nil && *existingBundlePath != "" {
 		return *existingBundlePath, nil
 	}
-
-	// Get bundle output directory
-	repoRoot, err := bundle.FindRepoRootFromCWD()
-	if err != nil {
+	if o.releaseBuilder == nil {
+		err := fmt.Errorf("release builder is not configured; a deployment delivers only built releases")
 		setDeploymentError(ctx, o.repo, deploymentID, "bundle_build", err.Error())
-		emitError("bundle_build", "Building bundle", err.Error())
+		emitError("bundle_build", "Building release", err.Error())
 		return "", err
 	}
-
-	outDir, err := bundle.GetLocalBundlesDir()
-	if err != nil {
-		setDeploymentError(ctx, o.repo, deploymentID, "bundle_build", err.Error())
-		emitError("bundle_build", "Building bundle", err.Error())
-		return "", err
+	platform := release.Platform{GOOS: "linux", GOARCH: "amd64"}
+	if o.reach != nil {
+		if dep, err := o.repo.GetDeployment(ctx, deploymentID); err == nil && dep != nil && !dep.Target.IsZero() {
+			target := dep.Target
+			if target.Locator.Workdir == "" && manifest.Target.VPS != nil {
+				target.Locator = identity.TargetLocator{Host: manifest.Target.VPS.Host, Port: manifest.Target.VPS.Port, User: manifest.Target.VPS.User, Workdir: manifest.Target.VPS.Workdir}
+			}
+			if caps, err := o.reach.Negotiate(ctx, target); caps.Platform != "" {
+				if goos, goarch, ok := strings.Cut(caps.Platform, "/"); ok {
+					platform = release.Platform{GOOS: goos, GOARCH: goarch}
+				}
+			} else if err != nil {
+				o.log("target platform not negotiated; building the default control plane", map[string]interface{}{"deployment_id": deploymentID, "error": err.Error()})
+			}
+		}
 	}
-
-	// Clean up old bundles (keep 3 newest)
-	o.cleanupOldBundles(outDir, manifest.Scenario.ID)
-
-	// Build the bundle
 	buildStart := time.Now()
-	artifact, err := bundle.BuildMiniVrooliBundle(repoRoot, outDir, manifest)
+	rel, err := o.releaseBuilder(ctx, manifest, platform)
 	if err != nil {
 		setDeploymentError(ctx, o.repo, deploymentID, "bundle_build", err.Error())
-		emitError("bundle_build", "Building bundle", err.Error())
+		emitError("bundle_build", "Building release", err.Error())
 		o.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
-			Type:       domain.EventBundleBuilt,
-			Timestamp:  time.Now().UTC(),
-			Message:    "Bundle build failed",
-			Details:    err.Error(),
-			DurationMs: time.Since(buildStart).Milliseconds(),
-			Success:    boolPtr(false),
+			Type: domain.EventBundleBuilt, Timestamp: time.Now().UTC(), Message: "Release build failed", Details: err.Error(),
+			DurationMs: time.Since(buildStart).Milliseconds(), Success: boolPtr(false),
 		})
 		return "", err
 	}
-
+	bundlePath := rel.BundlePath()
+	size := int64(0)
+	if info, statErr := os.Stat(bundlePath); statErr == nil {
+		size = info.Size()
+	}
 	o.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
-		Type:       domain.EventBundleBuilt,
-		Timestamp:  time.Now().UTC(),
-		Message:    "Bundle built locally",
-		Details:    fmt.Sprintf("Path: %s\nSize: %d bytes", artifact.Path, artifact.SizeBytes),
-		DurationMs: time.Since(buildStart).Milliseconds(),
-		Success:    boolPtr(true),
-		BundleHash: artifact.Sha256,
+		Type: domain.EventBundleBuilt, Timestamp: time.Now().UTC(), Message: "Release built locally",
+		Details:    fmt.Sprintf("Release: %s\nPath: %s\nPlatform: %s", rel.Digest, bundlePath, platform),
+		DurationMs: time.Since(buildStart).Milliseconds(), Success: boolPtr(true), BundleHash: rel.Manifest.BundleSHA256,
 	})
-
-	// Update database with bundle info
-	if err := o.repo.UpdateDeploymentBundle(ctx, deploymentID, artifact.Path, artifact.Sha256, artifact.SizeBytes); err != nil {
+	if err := o.repo.UpdateDeploymentBundle(ctx, deploymentID, bundlePath, rel.Manifest.BundleSHA256, size); err != nil {
 		o.log("failed to update bundle info", map[string]interface{}{"error": err.Error()})
 	}
-
-	return artifact.Path, nil
+	return bundlePath, nil
 }
 
 // cleanupOldBundles removes old bundles for a scenario, keeping the newest N.
@@ -648,7 +307,11 @@ func (o *Orchestrator) resolveAndPersistIdentity(ctx context.Context, deployment
 		}
 	}
 
-	resolved, err := resolver.Resolve(manifest, existing)
+	boundKey, keyErr := credentials.ResolveSSHKeyPath(ctx, o.repo, deploymentID)
+	if keyErr != nil {
+		o.log("resolve ssh key binding failed", map[string]interface{}{"deployment_id": deploymentID, "error": keyErr.Error()})
+	}
+	resolved, err := resolver.Resolve(boundKey, existing)
 	if err != nil {
 		o.log("ssh identity resolve failed", map[string]interface{}{
 			"deployment_id": deploymentID,
@@ -669,7 +332,7 @@ func (o *Orchestrator) resolveAndPersistIdentity(ctx context.Context, deployment
 		}
 	}
 
-	return resolved, sshidentity.ApplyToManifest(manifest, resolved)
+	return resolved, manifest
 }
 
 func (o *Orchestrator) verifyAndPersistIdentity(
@@ -679,10 +342,8 @@ func (o *Orchestrator) verifyAndPersistIdentity(
 	identity sshidentity.DeploymentSSHIdentity,
 ) {
 	verified := identity.Clone()
-	if verified.AuthMode == sshidentity.AuthModeExplicitKey {
-		cfg := sshidentity.EffectiveSSHConfig(manifest, verified)
-		inspector := sshidentity.RemoteAuthorizedKeysInspector{Runner: o.sshRunner}
-		state, err := inspector.Inspect(ctx, cfg, verified)
+	if verified.AuthMode == sshidentity.AuthModeExplicitKey && o.reach != nil {
+		state, err := vps.VerifyAuthorizedKey(ctx, vps.Prober{Reach: o.reach, Target: o.targetFor(ctx, deploymentID, manifest)}, verified)
 		if err != nil {
 			o.log("ssh identity verification failed", map[string]interface{}{
 				"deployment_id": deploymentID,
@@ -812,8 +473,21 @@ func (o *Orchestrator) tryAutoVPSBundleGC(ctx context.Context, deploymentID stri
 			protect = append(protect, strings.TrimSpace(*dep.BundleSHA256))
 		}
 	}
+	// Releases a recovery point references and every retained (active or
+	// predecessor) release survive cleanup regardless of age or lease state.
+	if points, err := o.repo.ListRecoveryPoints(ctx, deploymentID); err == nil {
+		var nonTerminal []string
+		if ops, oerr := o.repo.ListOperationsByDeployment(ctx, deploymentID); oerr == nil {
+			for _, op := range ops {
+				if !op.State.IsTerminal() {
+					nonTerminal = append(nonTerminal, op.ID)
+				}
+			}
+		}
+		protection := reconcile.Protect(strings.Join(protect, ""), "", points, nonTerminal)
+		protect = append(protect, protection.ReleaseDigests...)
+	}
 
-	cfg := ssh.ConfigFromManifest(manifest)
 	req := domain.VPSBundleGCRequest{
 		ScenarioID:    manifest.Scenario.ID,
 		KeepLatest:    bundle.DefaultVPSBundleKeepLatest,
@@ -822,7 +496,7 @@ func (o *Orchestrator) tryAutoVPSBundleGC(ctx context.Context, deploymentID stri
 	}
 
 	gcStart := time.Now()
-	resp := bundle.GCVPSBundles(ctx, o.sshRunner, cfg, manifest.Target.VPS.Workdir, req)
+	resp := bundle.GCTargetReleases(ctx, o.reach, o.targetFor(ctx, deploymentID, manifest), deploymentID, manifest.Scenario.ID, req)
 
 	// History event is intentionally non-blocking: GC is a best-effort remediation.
 	details := fmt.Sprintf("keep_latest=%d deleted=%d deleted_bytes=%d before_bytes=%d after_bytes=%d dry_run=%v",
@@ -858,7 +532,6 @@ func (o *Orchestrator) enforceVPSBundleRetentionBestEffort(ctx context.Context, 
 		}
 	}
 
-	cfg := ssh.ConfigFromManifest(manifest)
 	req := domain.VPSBundleGCRequest{
 		ScenarioID:    manifest.Scenario.ID,
 		KeepLatest:    bundle.DefaultVPSBundleKeepLatest,
@@ -867,7 +540,7 @@ func (o *Orchestrator) enforceVPSBundleRetentionBestEffort(ctx context.Context, 
 	}
 
 	gcStart := time.Now()
-	resp := bundle.GCVPSBundles(ctx, o.sshRunner, cfg, manifest.Target.VPS.Workdir, req)
+	resp := bundle.GCTargetReleases(ctx, o.reach, o.targetFor(ctx, deploymentID, manifest), deploymentID, manifest.Scenario.ID, req)
 	if !resp.OK {
 		o.log("vps bundle retention gc warning", map[string]interface{}{
 			"deployment_id": deploymentID,
@@ -894,4 +567,17 @@ func (o *Orchestrator) enforceVPSBundleRetentionBestEffort(ctx context.Context, 
 
 func boolPtr(value bool) *bool {
 	return &value
+}
+
+// targetFor is the reach target for a deployment: the recorded binding, or
+// the manifest locator for a record that predates target bindings.
+func (o *Orchestrator) targetFor(ctx context.Context, deploymentID string, manifest domain.CloudManifest) identity.TargetRef {
+	if dep, err := o.repo.GetDeployment(ctx, deploymentID); err == nil && dep != nil && !dep.Target.IsZero() {
+		target := dep.Target
+		if target.Locator.Workdir == "" && manifest.Target.VPS != nil {
+			target.Locator.Workdir = manifest.Target.VPS.Workdir
+		}
+		return target
+	}
+	return domain.TargetRefFromManifest(manifest)
 }

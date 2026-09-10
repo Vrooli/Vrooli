@@ -50,6 +50,7 @@ export const AUTH_CHANNELS = {
     CONNECT_DESKTOP: "auth:connect-desktop",
     SIGN_OUT: "auth:sign-out",
     GET_ACCESS_TOKEN: "auth:get-access-token",
+    GET_LOCAL_SESSION_TOKEN: "auth:get-local-session-token",
     GET_ENTITLEMENT_LEASE: "auth:get-entitlement-lease",
     GET_USER: "auth:get-user",
     IS_AUTHENTICATED: "auth:is-authenticated",

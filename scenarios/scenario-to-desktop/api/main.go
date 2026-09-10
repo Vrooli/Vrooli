@@ -501,6 +501,7 @@ func initPipelineStack(deps pipelineInitDeps) (*pipeline.DefaultOrchestrator, *p
 		),
 		pipeline.NewDeployStage(
 			pipeline.WithDeployTargetRepo(deployTargetRepo),
+			pipeline.WithDeployBuildStore(deps.buildStore),
 		),
 	}
 

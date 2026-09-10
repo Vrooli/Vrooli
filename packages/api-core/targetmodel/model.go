@@ -301,7 +301,28 @@ func EvaluateOperationReadiness(t Target, operation string, now time.Time) Opera
 	if t.Revoked {
 		return operationFailure(decision, ReadinessMissing, "grant_revoked", "target authority has been revoked", "restore the target grant and refresh")
 	}
-	if operation == OperationDeviceOperation && t.DeviceKind != "attached" {
+	if t.DeviceKind == "attached" {
+		if operation != OperationDeviceOperation && operation != OperationVisualValidation {
+			return operationFailure(decision, ReadinessNotApplicable, "operation_not_applicable", "this operation does not apply to an attached device", "select a supported device operation")
+		}
+		if !t.Available || !t.Transport.Available {
+			return attachedTargetFailure(decision, t)
+		}
+		if t.LastSeenAt.IsZero() {
+			return operationFailure(decision, ReadinessUnknown, "heartbeat_missing", "attached-device identity has no fresh observation", "refresh the attached-device inventory before admission")
+		}
+		if fresh, _ := HeartbeatFresh(t.LastSeenAt, now, DefaultReadinessStaleAfter); !fresh {
+			return operationFailure(decision, ReadinessUnknown, "heartbeat_stale", "attached-device identity is stale; readiness was not assumed", "refresh the attached-device inventory before admission")
+		}
+		if !t.Supports("device-control") {
+			return operationFailure(decision, ReadinessMissing, "device_adapter_missing", "the attached device does not advertise device-control operations", "enable the device-control adapter and refresh")
+		}
+		if operation == OperationVisualValidation && !t.Supports("screen-recording") {
+			return operationFailure(decision, ReadinessMissing, "screen_recording_missing", "visual validation requires attached-device screen recording", "enable screen recording on the device adapter and refresh")
+		}
+		return operationReady(decision)
+	}
+	if operation == OperationDeviceOperation {
 		return operationFailure(decision, ReadinessNotApplicable, "device_not_applicable", "device operations apply only to attached targets", "select an attached target")
 	}
 	if t.Transport.Kind == TransportLocal {
@@ -365,6 +386,22 @@ func EvaluateOperationReadiness(t Target, operation string, now time.Time) Opera
 		return operationFailure(decision, ReadinessUnknown, "device_adapter_unknown", "attached-device adapter readiness has not been observed", "refresh the attached-device inventory before admission")
 	}
 	return operationReady(decision)
+}
+
+func attachedTargetFailure(decision OperationReadiness, target Target) OperationReadiness {
+	reason := strings.ToLower(strings.TrimSpace(target.Reason))
+	switch {
+	case strings.Contains(reason, "lock"):
+		return operationFailure(decision, ReadinessMissing, "device_locked", nonEmpty(target.Reason, "attached device is locked"), "unlock the device, then refresh the attached-device inventory")
+	case strings.Contains(reason, "unauthoriz"), strings.Contains(reason, "trust"):
+		return operationFailure(decision, ReadinessMissing, "device_unauthorized", nonEmpty(target.Reason, "attached device is unauthorized"), "authorize and trust the device on its host, then refresh")
+	case strings.Contains(reason, "stale"):
+		return operationFailure(decision, ReadinessUnknown, "heartbeat_stale", nonEmpty(target.Reason, "attached-device identity is stale"), "refresh the attached-device inventory before admission")
+	case strings.Contains(reason, "disconnect"), strings.Contains(reason, "offline"), strings.Contains(reason, "unreach"):
+		return operationFailure(decision, ReadinessMissing, "device_disconnected", nonEmpty(target.Reason, "attached device is disconnected"), "reconnect the device or its host adapter, then refresh")
+	default:
+		return operationFailure(decision, ReadinessMissing, "device_unavailable", nonEmpty(target.Reason, "attached device is unavailable"), "restore the attached-device adapter, then refresh")
+	}
 }
 
 func operationReady(decision OperationReadiness) OperationReadiness {

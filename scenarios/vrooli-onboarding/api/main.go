@@ -109,7 +109,7 @@ func (s *Server) setupRoutes() {
 	profilesH.Module(onboardingProfilesService(), targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	resourcesH.Module(resourceService(), targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	glossaryH.Module().Mount(s.router)
-	sessionH.Module(sessiondomain.Service{Get: s.getSession, Advance: s.advanceSession, Model: s.getStepModel, GetDraftFn: s.getDraft, SaveDraftFn: s.saveDraft, DiscardDraftFn: s.discardDraft}, targetproxy.Interceptor(s.bridge)).Mount(s.router)
+	sessionH.Module(sessiondomain.Service{Get: s.getSession, Advance: s.advanceSession, Model: s.getStepModel, GetDraftFn: s.getDraft, SaveDraftFn: s.saveDraft, DiscardDraftFn: s.discardDraft, GetProfileSessionFn: s.getProfileSession, SaveProfileSessionFn: s.saveProfileSession}, targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	selectionH.Module(s.selectionService(), targetproxy.Interceptor(s.bridge)).Mount(s.router)
 }
 

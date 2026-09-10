@@ -1,3 +1,4 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
@@ -6,7 +7,8 @@ import { AppRouter } from "./router";
 import { onProfilerRender } from "./lib/profiler";
 import "./styles.css";
 
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -56,8 +58,10 @@ const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("Root element not found");
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
-    <React.Profiler id="vrooli-events" onRender={onProfilerRender}>
-      <AppRouter />
-    </React.Profiler>
+    <SpatialNavProvider controller={spatialNav}>
+      <React.Profiler id="vrooli-events" onRender={onProfilerRender}>
+        <AppRouter />
+      </React.Profiler>
+    </SpatialNavProvider>
   </React.StrictMode>
 );

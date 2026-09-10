@@ -18,6 +18,8 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 
 ## Decision Log
 
+| 2026-09-09 | **Complete and selective installation share one onboarding-owned closure.** | The deployment foundation must support a general first paid scenario without a special-case full checkout. | Operator choices and presets expand into one canonical selection document; the resolver produces a deterministic union with inclusion reasons and a digest. Bridge transports and verifies that shipment but does not become a second onboarding or dependency authority. Activation is generation-based and fail-closed on incomplete, tampered, escaped, or platform-incompatible content. | Revisit if onboarding publishes a versioned closure contract that is intentionally replaced by a newer owner. |
+
 | Date | Decision | Context | Consequences | Revisit Trigger |
 |---|---|---|---|---|
 | 2026-07-17 | **Machine, EnrollmentAttempt, Node, Presence, and trust store have independent ownership.** | The prior onboarding operation mixes operator intent, ephemeral bootstrap progress, parsed Node identity, and service-install success. The paired-then-launchd-failed trace proves a terminal op cannot be the durable aggregate. | Machine owns intent/lifecycle/locators; EnrollmentAttempt owns immutable attempt history and correlation; Registry owns paired Node/scopes; Presence owns liveness; trust store owns private material. Readiness is composed. | A real multi-operator or distributed control-plane requirement changes ownership boundaries. |

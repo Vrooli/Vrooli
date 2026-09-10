@@ -40,7 +40,7 @@ func TestServerWriteJSONAndFileRoots(t *testing.T) {
 }
 
 func TestServerStartStopsOnSignal(t *testing.T) {
-	srv := &Server{Config: &Config{Port: "0"}, Handler: http.NewServeMux()}
+	srv := &Server{Config: &RuntimeConfig{Port: "0"}, Handler: http.NewServeMux()}
 	done := make(chan error, 1)
 	go func() { done <- srv.Start() }()
 	time.Sleep(100 * time.Millisecond)

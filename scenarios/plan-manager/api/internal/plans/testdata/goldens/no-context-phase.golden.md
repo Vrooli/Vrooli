@@ -79,13 +79,14 @@ plan-manager log decision-add <execution-id> --phase <phase-id> --title "..." --
 
 Other variants: `finding-add`, `bug-add`, `record-add`, `note-add`. When the handle is an execution id, omitting `--phase` uses that execution's current phase; `--phase` also accepts a phase id or 1-based ordinal. If the computed scope is wrong, run `plan-manager log reassign <entry-id> --phase <phase-id-or-ordinal>`.
 
-On completion, write the learning-loop record — copy, fill the `<...>` placeholders, run:
+On completion, capture the work record through this plan's execution handle. Plan Manager forwards it and retains the downstream disposition. Fill the `<...>` placeholders:
 
 ```bash
-swarm-manager records create --kind execute --scenario plan-manager \
+plan-manager log record-add <execution-id> --kind execute --scenario 'plan-manager' \
+  --title 'Completion: No context phase' \
   --trigger 'No context phase: <one-line goal>' \
   --approach '<what was built + key decisions>' \
-  --evidence '<suites/baselines/live checks that prove it>' \
+  --record-evidence '<suites/baselines/live checks that prove it>' \
   --outcome shipped
 ```
 

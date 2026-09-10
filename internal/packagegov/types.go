@@ -53,11 +53,12 @@ const (
 )
 
 type CommandSpec struct {
-	Name    string   `json:"name"`
-	Run     []string `json:"run"`
-	Inputs  []string `json:"inputs,omitempty"`
-	Ignore  []string `json:"ignore,omitempty"`
-	Outputs []string `json:"outputs,omitempty"`
+	Name              string   `json:"name"`
+	Run               []string `json:"run"`
+	Inputs            []string `json:"inputs,omitempty"`
+	Ignore            []string `json:"ignore,omitempty"`
+	Outputs           []string `json:"outputs,omitempty"`
+	ArtifactSelection string   `json:"artifact_selection,omitempty"`
 }
 
 type Manifest struct {

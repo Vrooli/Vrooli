@@ -33,6 +33,7 @@ type FakeDelivery struct {
 	mu        sync.Mutex
 	Requests  []artifacts.DeliveryRequest
 	Delivered bool
+	Ref       string
 	Err       error
 }
 
@@ -45,8 +46,12 @@ func (f *FakeDelivery) Deliver(_ context.Context, req artifacts.DeliveryRequest)
 		return artifacts.DeliveryResult{}, f.Err
 	}
 	f.Requests = append(f.Requests, req)
+	ref := f.Ref
+	if ref == "" {
+		ref = "dsh://" + req.NodeID + "/" + req.Name
+	}
 	return artifacts.DeliveryResult{
-		Ref:       "dsh://" + req.NodeID + "/" + req.Name,
+		Ref:       ref,
 		Delivered: f.Delivered,
 		Detail:    "accepted by device-sync-hub",
 	}, nil

@@ -53,6 +53,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"os"
 	"runtime"
 	"sync"
 	"time"
@@ -236,10 +237,11 @@ func New(service ...string) *Builder {
 		svc = service[0]
 	}
 	return &Builder{
-		service:   svc,
-		timeout:   5 * time.Second,
-		startTime: processStart,
-		nowFunc:   time.Now,
+		service:       svc,
+		buildIdentity: os.Getenv(buildIdentityEnv),
+		timeout:       5 * time.Second,
+		startTime:     processStart,
+		nowFunc:       time.Now,
 	}
 }
 
@@ -249,7 +251,17 @@ func (b *Builder) Version(v string) *Builder {
 	return b
 }
 
-// BuildIdentity sets the source/build identity reported by the health handler.
+// buildIdentityEnv carries the hash of the authored scenario source that the
+// lifecycle asked this process to serve. The lifecycle injects it at start and
+// compares it against the served value, which is how a process still running
+// code older than the working tree is detected. Defaulting it here rather than
+// per scenario is deliberate: the value has exactly one source, and a handler
+// that silently omits it turns that check into a no-op without saying so.
+const buildIdentityEnv = "VROOLI_BUILD_IDENTITY"
+
+// BuildIdentity overrides the source/build identity reported by the health
+// handler. It defaults to the lifecycle-injected environment value, so calling
+// this is only necessary when a service resolves its identity some other way.
 func (b *Builder) BuildIdentity(identity string) *Builder {
 	b.buildIdentity = identity
 	return b

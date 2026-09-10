@@ -33,6 +33,10 @@ var onboardingAuthority = credentialauthority.Default
 // so both paths stay empty there and the client degrades exactly as it does on
 // a desktop install rather than reading paths that do not exist.
 func onboardingCredentialClientOptions() (credentialclient.ClientOptions, error) {
+	return onboardingCredentialClientOptionsForScope(nil)
+}
+
+func onboardingCredentialClientOptionsForScope(scope *credentialclient.Scope) (credentialclient.ClientOptions, error) {
 	authority, err := onboardingAuthority()
 	if err != nil {
 		return credentialclient.ClientOptions{}, err
@@ -47,8 +51,13 @@ func onboardingCredentialClientOptions() (credentialclient.ClientOptions, error)
 		options.StateDir = stateDir
 	}
 	scopeRoot := options.Root
+	descriptorScope := credentialclient.Scope{IncludeProject: true}
+	if scope != nil {
+		descriptorScope = *scope
+		options.DescriptorScope = &descriptorScope
+	}
 	options.Descriptors = func() ([]credentialclient.CredentialRef, error) {
-		return credentialclient.DescriptorsForScope(scopeRoot, credentialclient.Scope{IncludeProject: true})
+		return credentialclient.DescriptorsForScope(scopeRoot, descriptorScope)
 	}
 	return options, nil
 }
@@ -76,7 +85,32 @@ func recheckCredentialAuthority() {
 }
 
 func onboardingDoctorJSON(ctx context.Context) ([]byte, error) {
-	client, err := onboardingCredentialClient()
+	options, err := onboardingCredentialClientOptions()
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(options.Root) != "" {
+		models, modelsErr := loadScenarioReadModels()
+		if modelsErr != nil {
+			return nil, modelsErr
+		}
+		closure, closureErr := resolveClosure(options.Root, models)
+		if closureErr != nil {
+			return nil, closureErr
+		}
+		scope := credentialclient.Scope{IncludeProject: projectScopeAvailable(), IncludeManaged: true, Scenarios: []string{}, Resources: []string{}}
+		for _, member := range closure.Scenarios {
+			scope.Scenarios = append(scope.Scenarios, member.Name)
+		}
+		for _, member := range closure.Resources {
+			scope.Resources = append(scope.Resources, member.Name)
+		}
+		options, err = onboardingCredentialClientOptionsForScope(&scope)
+		if err != nil {
+			return nil, err
+		}
+	}
+	client, err := credentialclient.NewClient(options)
 	if err != nil {
 		return nil, err
 	}

@@ -14,16 +14,39 @@ import (
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
-type testStore struct{ value string }
+type testStore struct {
+	value  string
+	values map[string]string
+}
 
-func (s *testStore) Put(_, _ string, value string) error { s.value = value; return nil }
-func (s *testStore) Get(_, _ string) (string, error) {
+func (s *testStore) Put(service, key, value string) error {
+	if s.values == nil {
+		s.values = map[string]string{}
+	}
+	s.values[service+"\x00"+key] = value
+	if !strings.HasPrefix(key, "candidate/") {
+		s.value = value
+	}
+	return nil
+}
+func (s *testStore) Get(service, key string) (string, error) {
+	if value, ok := s.values[service+"\x00"+key]; ok {
+		return value, nil
+	}
 	if s.value == "" {
 		return "", securestore.ErrNotFound
 	}
 	return s.value, nil
 }
-func (s *testStore) Delete(_, _ string) error { s.value = ""; return nil }
+func (s *testStore) Delete(service, key string) error {
+	if s.values != nil {
+		delete(s.values, service+"\x00"+key)
+	}
+	if !strings.HasPrefix(key, "candidate/") {
+		s.value = ""
+	}
+	return nil
+}
 
 func TestInProcessProvisionAndStatusNeverNeedsSubprocess(t *testing.T) {
 	authority, err := credentialauthority.NewAuthority(&testStore{})

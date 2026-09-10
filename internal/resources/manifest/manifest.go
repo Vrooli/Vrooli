@@ -266,6 +266,10 @@ type ResourceHealthCheck struct {
 	Type    string   `json:"type"`
 	Target  string   `json:"target,omitempty"`
 	Command []string `json:"command,omitempty"`
+	// Headers are rendered against the resource environment before an HTTP
+	// check. This keeps authenticated readiness checks inside the generic
+	// resource lifecycle instead of requiring a resource-specific probe.
+	Headers map[string]string `json:"headers,omitempty"`
 	// Kind declares the check's semantics, and the control plane executes both.
 	//
 	// "readiness" must fail until the resource can actually serve its primary
@@ -446,6 +450,11 @@ func validateManifestContract(manifest ResourceManifest) error {
 }
 
 func validateManifestFeatures(manifest ResourceManifest) error {
+	for _, capability := range manifest.OperatorCapabilities {
+		if err := capability.Validate(); err != nil {
+			return fmt.Errorf("validate operator capability %q: %w", capability.CapabilityID, err)
+		}
+	}
 	if manifest.Driver == manifestManagedService {
 		if err := validateManagedServiceHealthContract(manifest.HealthChecks); err != nil {
 			return err

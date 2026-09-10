@@ -30,6 +30,14 @@ import (
 // Per-domain dependencies (database handle, repository services,
 // pingers) live inside each module's constructor — Deps is intentionally
 // limited to what the middleware stack reads.
+//
+// Logger is reserved for server-level messages. The middleware stack
+// deliberately writes NOTHING per request to it: the shared
+// api-core/server runner already wraps the handler in an access log
+// (one "HTTP access ..." line per request), and a second scenario-local
+// line doubled log volume under load (a 15 GB file at 400 req/s). Do not
+// add a per-request logging middleware here; TestServer_NoPerRequestLogging
+// guards this.
 type Deps struct {
 	Clock  schedule.Clock
 	Logger *log.Logger
@@ -44,9 +52,10 @@ type Server struct {
 	router *mux.Router
 }
 
-// New builds a Server with logging middleware applied and every module's
-// Mount invoked. Logger defaults to log.Default() if nil; Clock has no
-// default and is required so the logging middleware never hides its time seam.
+// New builds a Server with the cross-cutting middleware applied and every
+// module's Mount invoked. Logger defaults to log.Default() if nil; Clock
+// has no default and is required so any time-reading middleware never
+// hides its time seam.
 //
 // The handler test in handlers/health/handler_test.go reproduces a
 // stripped-down version of the middleware composition; if you add
@@ -61,7 +70,6 @@ func New(d Deps, modules ...module.Module) *Server {
 	}
 	s := &Server{deps: d, router: mux.NewRouter()}
 	s.router.Use(middleware.NewSecurityHeadersMiddleware())
-	s.router.Use(middleware.NewLoggingMiddleware(d.Clock, d.Logger))
 	for _, m := range modules {
 		m.Mount(s.router)
 	}

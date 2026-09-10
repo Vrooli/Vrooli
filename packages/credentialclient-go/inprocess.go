@@ -29,10 +29,11 @@ const (
 )
 
 type InProcessOptions struct {
-	Authority   *credentialauthority.Authority
-	Root        string
-	StateDir    string
-	Descriptors func() ([]CredentialRef, error)
+	Authority       *credentialauthority.Authority
+	Root            string
+	StateDir        string
+	Descriptors     func() ([]CredentialRef, error)
+	DescriptorScope *Scope
 }
 
 type inProcessClient struct {
@@ -40,6 +41,7 @@ type inProcessClient struct {
 	root        string
 	stateDir    string
 	descriptors func() ([]CredentialRef, error)
+	scope       *Scope
 	leaseMu     sync.Mutex
 	leases      map[string]*hydrationLease
 }
@@ -54,7 +56,7 @@ func NewInProcess(options InProcessOptions) (Client, error) {
 	if options.Authority == nil {
 		return nil, fmt.Errorf("in-process credential authority is required")
 	}
-	return &inProcessClient{authority: options.Authority, root: options.Root, stateDir: options.StateDir, descriptors: options.Descriptors, leases: make(map[string]*hydrationLease)}, nil
+	return &inProcessClient{authority: options.Authority, root: options.Root, stateDir: options.StateDir, descriptors: options.Descriptors, scope: options.DescriptorScope, leases: make(map[string]*hydrationLease)}, nil
 }
 
 func (c *inProcessClient) Provision(_ context.Context, request ProvisionRequest) (ProvisionResponse, error) {
@@ -62,7 +64,15 @@ func (c *inProcessClient) Provision(_ context.Context, request ProvisionRequest)
 	if err != nil {
 		return ProvisionResponse{}, err
 	}
-	if err := c.authority.Put(identity, request.Field, request.Value); err != nil {
+	// Treat operator delivery as a candidate transaction even for the
+	// in-process transport. The active value is changed only after the
+	// candidate has been durably accepted, and a failed activation cannot
+	// erase the previous active value.
+	candidate, err := c.authority.PutCandidate(identity, request.Field, request.Value)
+	if err != nil {
+		return ProvisionResponse{}, err
+	}
+	if err := c.authority.ActivateCandidate(candidate); err != nil {
 		return ProvisionResponse{}, err
 	}
 	return ProvisionResponse{Identity: string(identity), Field: request.Field, Provider: c.authority.Provider(), Status: "provisioned"}, nil
@@ -178,9 +188,16 @@ func (c *inProcessClient) List(_ context.Context) ([]CredentialRef, error) {
 		}
 		return c.descriptors()
 	}
-	refs, err := DescriptorsForScope(c.root, Scope{IncludeProject: true})
+	scope := Scope{IncludeProject: true}
+	if c.scope != nil {
+		scope = *c.scope
+	}
+	refs, err := DescriptorsForScope(c.root, scope)
 	if err != nil {
 		return nil, err
+	}
+	if c.scope != nil {
+		return refs, nil
 	}
 	collected, err := credentialinventory.Collect(c.root)
 	if err != nil {
@@ -219,6 +236,17 @@ func (c *inProcessClient) Inventory(ctx context.Context) (InventoryResponse, err
 		RequiredAbsent:           []string{},
 	}
 	if strings.TrimSpace(c.root) == "" {
+		return response, nil
+	}
+	if c.scope != nil {
+		response.ManagedInstancesIncluded = false
+		response.InventoryBasis = "scoped_distinct_addresses"
+		response.RequiredAbsent = nil
+		for _, descriptor := range refs {
+			if descriptor.Required && !credentialConfigured(c.authority, descriptor) {
+				response.RequiredAbsent = append(response.RequiredAbsent, descriptor.LogicalID+":"+descriptor.Field)
+			}
+		}
 		return response, nil
 	}
 	// List has already merged the managed instances into the population; the

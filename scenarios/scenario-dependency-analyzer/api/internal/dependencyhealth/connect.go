@@ -35,7 +35,8 @@ type Options struct {
 	// Environment is the host CaptureEnvironment captured once at server init
 	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
 	// backfills os/arch/num_cpu from the stdlib.
-	Environment *commonv1.CaptureEnvironment
+	Environment       *commonv1.CaptureEnvironment
+	ReadinessReporter ReadinessReporter
 }
 
 func loadPortabilitySpec(scenariosRoot string) (*assessment.Spec, error) {
@@ -70,6 +71,10 @@ func RegisterConnectRoutes(router *gin.Engine, scenariosDir func() string, opts 
 		environment:        cfg.Environment,
 		portabilitySpec:    portabilitySpec,
 		portabilitySpecErr: portabilitySpecErr,
+		readinessReporter:  cfg.ReadinessReporter,
+	}
+	if handler.readinessReporter == nil {
+		handler.readinessReporter = newReadinessReporter(context.Background())
 	}
 	nativePath, nativeHandler := healthconnect.NewDependencyHealthServiceHandler(handler)
 	// DescribeProvider answers readiness from this provider's own descriptor, so a
@@ -92,7 +97,8 @@ type connectHandler struct {
 	portabilitySpecErr error
 	// environment is the host CaptureEnvironment captured once at server init.
 	// nil is safe — the metrics collector backfills os/arch/num_cpu from stdlib.
-	environment *commonv1.CaptureEnvironment
+	environment       *commonv1.CaptureEnvironment
+	readinessReporter ReadinessReporter
 }
 
 func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *connect.Request[healthv1.ValidateDependencyHealthRequest]) (*connect.Response[healthv1.DependencyHealthResponse], error) {
@@ -380,6 +386,9 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 		if responseErr != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build portability validation response: %w", responseErr))
 		}
+		if err := h.reportReadiness(ctx, scenario, resp); err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
 		return connect.NewResponse(resp), nil
 	}
 	collector := metrics.Start(metrics.WithEnvironment(h.environment))
@@ -396,7 +405,17 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
+	if err := h.reportReadiness(ctx, scenario, resp); err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
 	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) reportReadiness(ctx context.Context, scenario string, response *scenariovalidationv1.ValidateScenarioResponse) error {
+	if h == nil || h.readinessReporter == nil {
+		return nil
+	}
+	return h.readinessReporter.Report(ctx, scenario, response, time.Now().UTC())
 }
 
 func (h *connectHandler) resolveScenariosDir() string {

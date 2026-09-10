@@ -4,7 +4,7 @@ import type { GetClosureResponse, GetRecommendationResponse } from "@vrooli/prot
 import { PlanSummary } from "@vrooli/react-component-library/PlanSummary/0";
 import { i18n } from "../../i18n";
 
-export function StepPlan({ onAccept, onAdjust }: { onAccept: () => Promise<void>; onAdjust: () => void }) {
+export function StepPlan({ target = "local", onAccept, onAdjust }: { target?: string; onAccept: () => Promise<void>; onAdjust: () => void }) {
   const [recommendation, setRecommendation] = useState<GetRecommendationResponse | null>(null);
   const [closure, setClosure] = useState<GetClosureResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -12,7 +12,7 @@ export function StepPlan({ onAccept, onAdjust }: { onAccept: () => Promise<void>
 
   useEffect(() => {
     let active = true;
-    Promise.all([fetchRecommendation(), fetchClosure()]).then(([nextRecommendation, nextClosure]) => {
+    Promise.all([fetchRecommendation(target), fetchClosure(target)]).then(([nextRecommendation, nextClosure]) => {
       if (!active) return;
       if (!Array.isArray(nextRecommendation?.scenarios) || !Array.isArray(nextRecommendation?.resources)) {
         setError(i18n.t("onboarding.plan.unavailable"));
@@ -22,7 +22,7 @@ export function StepPlan({ onAccept, onAdjust }: { onAccept: () => Promise<void>
       setClosure(Array.isArray(nextClosure?.resources) ? nextClosure : null);
     }).catch(() => { if (active) setError(i18n.t("onboarding.plan.loadError")); });
     return () => { active = false; };
-  }, []);
+  }, [target]);
 
   if (error) return <p role="alert" data-testid="plan-error">{error}</p>;
   if (!recommendation) return <p role="status" data-testid="plan-loading">{i18n.t("onboarding.plan.loading")}</p>;

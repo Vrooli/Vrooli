@@ -36,9 +36,11 @@ remarks. Keep blob/opaque bytes outside proto payloads, behind a seam
 such as BlobStore.
 
 Control-plane metadata lives in SQLite via `api-core/storage`. The inbound
-distribution path remains metadata-only: build artifacts move through
-device-sync-hub and bridge stores only their delivery reference. Typed outputs
-produced by an authenticated run are the deliberate exception: bridge stores
+distribution path remains metadata-only in the control plane: build artifacts
+move through device-sync-hub, Bridge stores only their delivery reference and
+placement metadata, and the signed target instruction tells the node agent to
+pull and atomically write the bytes at the requested destination path. Typed
+outputs produced by an authenticated run are the deliberate exception: bridge stores
 their bounded bytes in the artifacts domain, keyed by run and name, so an
 owner can retrieve plan evidence without reading a node-local path. The audit
 trail is routed to workspace-sandbox, not a bespoke local table.

@@ -300,6 +300,12 @@ Get full deployment readiness report including recursive DAG, tier fitness, and 
 ### `GET /api/v1/scenarios/:scenario/dag/export`
 Export the recursive dependency DAG for a scenario.
 
+The optional `include_program_bindings=true` query parameter adds program
+evidence. Nodes retain `source: "declared"` when the manifest already declares
+the edge and carry `metadata.program_bindings` and `metadata.programs`; an
+undeclared edge uses `source: "program-binding"` or the file fallback
+`source: "program-binding-file"`.
+
 **Parameters**:
 - `scenario` (path): Scenario name
 - `recursive` (query): Include full recursive tree (default: `true`)

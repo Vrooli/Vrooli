@@ -33,11 +33,13 @@ func runExport(core *cliapp.ScenarioApp, args []string) error {
 	var jsonOutput bool
 	var outputPath string
 	var refresh bool
+	var includeProgramBindings bool
 	fs.BoolVar(&recursive, "recursive", true, "Include recursive dependencies")
 	fs.BoolVar(&jsonOutput, "json", false, "Output JSON")
 	fs.StringVar(&outputPath, "output", "", "Write output to a file")
 	fs.StringVar(&outputPath, "o", "", "Write output to a file")
 	fs.BoolVar(&refresh, "refresh", false, "Refresh deployment report first")
+	fs.BoolVar(&includeProgramBindings, "include-program-bindings", false, "Include program-to-scenario binding evidence")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
@@ -47,9 +49,10 @@ func runExport(core *cliapp.ScenarioApp, args []string) error {
 	}
 	target := positionals[0]
 	query := support.BuildQuery(map[string]string{
-		"recursive": support.BoolWord(recursive, "true", "false"),
-		"format":    "json",
-		"refresh":   support.BoolWord(refresh, "true", ""),
+		"recursive":                support.BoolWord(recursive, "true", "false"),
+		"format":                   "json",
+		"refresh":                  support.BoolWord(refresh, "true", ""),
+		"include_program_bindings": support.BoolWord(includeProgramBindings, "true", ""),
 	})
 	body, err := core.Get("/scenarios/"+target+"/dag/export", query)
 	if err != nil {

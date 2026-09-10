@@ -30,6 +30,18 @@ func TestUpdateFileRejectsMissingChannelBeforeLookup(t *testing.T) {
 	}
 }
 
+func TestUpdateFileRejectsHaltedChannelBeforeAssetLookup(t *testing.T) {
+	status := 0
+	lookups := 0
+	deps := updateTestDependencies(map[string]string{"app_key": "desktop", "channel": "stable", "file": "latest.yml"}, func(_ http.ResponseWriter, got int, _, _ string) { status = got })
+	assets := haltedUpdateAssetStub{halted: true, lookup: &lookups}
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	UpdateFile(deps, assets, updateArtifactStub{}).ServeHTTP(httptest.NewRecorder(), req)
+	if status != http.StatusGone || lookups != 0 {
+		t.Fatalf("halted channel status=%d asset_lookups=%d", status, lookups)
+	}
+}
+
 func TestPutUpdatePolicyRejectsInvalidIntervalBeforeStore(t *testing.T) {
 	status, called := 0, false
 	deps := updateTestDependencies(map[string]string{"app_key": "desktop"}, func(_ http.ResponseWriter, got int, _, _ string) { status = got })
@@ -38,6 +50,17 @@ func TestPutUpdatePolicyRejectsInvalidIntervalBeforeStore(t *testing.T) {
 	PutUpdatePolicy(deps, apps).ServeHTTP(httptest.NewRecorder(), req)
 	if status != http.StatusBadRequest || called {
 		t.Fatalf("status=%d called=%t", status, called)
+	}
+}
+
+func TestValidateDownloadRedirectRejectsUnsafeDestinations(t *testing.T) {
+	for _, raw := range []string{"", "/relative", "ftp://downloads.example/app.zip", "https://user:pass@downloads.example/app.zip", "https://downloads.example/app.zip#fragment"} {
+		if err := validateDownloadRedirect(raw); err == nil {
+			t.Errorf("validateDownloadRedirect(%q) accepted unsafe destination", raw)
+		}
+	}
+	if err := validateDownloadRedirect("https://downloads.example/app.zip?signature=short-lived"); err != nil {
+		t.Fatalf("valid signed destination rejected: %v", err)
 	}
 }
 
@@ -69,6 +92,20 @@ type updateAssetStub struct{}
 
 func (updateAssetStub) GetAssetByVariant(string, string, string, string) (*internal.Asset, error) {
 	return nil, errors.New("unexpected lookup")
+}
+
+type haltedUpdateAssetStub struct {
+	halted bool
+	lookup *int
+}
+
+func (s haltedUpdateAssetStub) GetAssetByVariant(string, string, string, string) (*internal.Asset, error) {
+	*s.lookup = *s.lookup + 1
+	return nil, errors.New("asset lookup should not run while channel is halted")
+}
+
+func (s haltedUpdateAssetStub) IsChannelHalted(string, string, string) (bool, error) {
+	return s.halted, nil
 }
 
 type updateArtifactStub struct{}

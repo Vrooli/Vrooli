@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/manifest"
-	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
 
@@ -309,91 +309,48 @@ func buildDomainCheck(status dns.DomainStatus, vpsLookup domain.DNSLookupResult)
 	return check
 }
 
-// handleCaddyControl handles Caddy service control actions.
+// handleCaddyControl controls the edge proxy through the privilege
+// broker's caddy actions (validate, reload). Start, stop and restart of the
+// caddy unit have no broker action and are refused with the owner that
+// would have to exist; the route apply/rollback verbs already validate and
+// reload the proxy for every deployment change.
 // POST /api/v1/deployments/{id}/edge/caddy
 func (s *Server) handleCaddyControl(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
 	var req CaddyControlRequest
 	if !httputil.DecodeRequestBody(w, r, &req) {
 		return
 	}
-
-	// Validate action
-	validActions := map[string]string{
-		"start":   "systemctl start caddy",
-		"stop":    "systemctl stop caddy",
-		"restart": "systemctl restart caddy",
-		"reload":  "systemctl reload caddy",
-	}
-
-	cmd, ok := validActions[req.Action]
+	brokerActions := map[string]string{"reload": "edge.caddy.reload", "validate": "edge.caddy.validate"}
+	action, ok := brokerActions[req.Action]
 	if !ok {
-		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-			Message: "Invalid action",
-			Hint:    "Valid actions: start, stop, restart, reload",
-		})
+		switch req.Action {
+		case "start", "stop", "restart":
+			apierrors.Write(w, apierrors.Newf(apierrors.CodeUnsupportedCapability, "Caddy %s has no target owner action; reload and validate are the supported edge controls", req.Action).
+				WithDetail("required_owner", "privilegebroker edge.caddy."+req.Action))
+		default:
+			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Message: "Invalid action", Hint: "Valid actions: reload, validate"})
+		}
 		return
 	}
-
-	repo := s.deploymentRepo
-	if repo == nil {
-		repo = s.repo
-	}
-	if repo == nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Deployment repository unavailable"})
+	dc := s.FetchDeploymentContext(w, r)
+	if dc == nil {
 		return
 	}
-
-	// Get deployment
-	deployment, err := repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to get deployment"})
-		return
-	}
-	if deployment == nil {
-		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{Message: "Deployment not found"})
-		return
-	}
-
-	// Parse manifest
-	var m domain.CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &m); err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to parse manifest"})
-		return
-	}
-
-	normalized, _ := manifest.ValidateAndNormalize(m)
-	if normalized.Target.VPS == nil {
-		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Message: "Deployment does not have a VPS target"})
-		return
-	}
-
-	cfg := ssh.ConfigFromManifest(normalized)
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
-	result, err := s.sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
-
-	resp := CaddyControlResponse{
-		Action:    req.Action,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-	}
-
-	if err != nil || result.ExitCode != 0 {
+	output, actErr := managementRepair(ctx, s.runtimeFor(dc), action, map[string]any{"caddy": map[string]any{"deployment_id": dc.ID}})
+	resp := CaddyControlResponse{Action: req.Action, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	if actErr != nil {
 		resp.OK = false
 		resp.Message = fmt.Sprintf("Failed to %s Caddy", req.Action)
-		if result.Stderr != "" {
-			resp.Output = result.Stderr
-		}
-	} else {
-		resp.OK = true
-		resp.Message = fmt.Sprintf("Caddy %sed successfully", req.Action)
-		if result.Stdout != "" {
-			resp.Output = result.Stdout
-		}
+		resp.Output = actErr.Message
+		httputil.WriteJSON(w, http.StatusOK, resp)
+		return
 	}
-
+	resp.OK = true
+	resp.Message = fmt.Sprintf("Caddy %s completed through the target owner", req.Action)
+	resp.Output = output
 	httputil.WriteJSON(w, http.StatusOK, resp)
 }
 
@@ -442,59 +399,39 @@ func (s *Server) handleTLSInfo(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, resp)
 }
 
-// handleTLSRenew forces a TLS certificate renewal via Caddy.
+// handleTLSRenew asks the edge proxy to reload through the target owner
+// (Caddy renews on reload) and verifies the domain from the cloud side.
 // POST /api/v1/deployments/{id}/edge/tls/renew
 func (s *Server) handleTLSRenew(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
-	repo := s.deploymentRepo
-	if repo == nil {
-		repo = s.repo
-	}
-	if repo == nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Deployment repository unavailable"})
+	dc := s.FetchDeploymentContext(w, r)
+	if dc == nil {
 		return
 	}
-
-	// Get deployment
-	deployment, err := repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to get deployment"})
-		return
-	}
-	if deployment == nil {
-		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{Message: "Deployment not found"})
-		return
-	}
-
-	// Parse manifest
-	var m domain.CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &m); err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to parse manifest"})
-		return
-	}
-
-	normalized, _ := manifest.ValidateAndNormalize(m)
-	if normalized.Target.VPS == nil {
-		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Message: "Deployment does not have a VPS target"})
-		return
-	}
-
-	domainName := normalized.Edge.Domain
-	cfg := ssh.ConfigFromManifest(normalized)
+	domainName := dc.Manifest.Edge.Domain
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
-	result := vps.RunCaddyTLSRenew(ctx, s.sshRunner, cfg, domainName)
+	verify := func(ctx context.Context, domain string) error {
+		if s.tlsService == nil {
+			return nil
+		}
+		probe, err := s.tlsService.Probe(ctx, domain)
+		if err != nil {
+			return err
+		}
+		if !probe.Valid {
+			return fmt.Errorf("certificate for %s did not validate: %s", domain, probe.ValidationError)
+		}
+		return nil
+	}
+	result := vps.RunCaddyTLSRenew(ctx, s.runtimeFor(dc), dc.ID, domainName, verify)
 
 	resp := TLSRenewResponse{
 		Domain:    domainName,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		OK:        result.OK,
+		Message:   result.Message,
+		Output:    result.Output,
 	}
-
-	resp.OK = result.OK
-	resp.Message = result.Message
-	resp.Output = result.Output
-
 	httputil.WriteJSON(w, http.StatusOK, resp)
 }

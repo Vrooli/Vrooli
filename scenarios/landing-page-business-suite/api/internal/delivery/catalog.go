@@ -439,6 +439,15 @@ func (s *CatalogService) GetAssetByVariant(bundleKey, appKey, platform, variantK
 		return nil, err
 	}
 	asset := t.Hydrate()
+	if artifactID, hasHead, err := s.currentChannelArtifactID(bundleKey, appKey, variantKey, platform); err != nil {
+		return nil, err
+	} else if hasHead {
+		if artifactID <= 0 {
+			return nil, fmt.Errorf("%w: channel head has no artifact for platform %q", ErrAssetNotFound, platform)
+		}
+		asset.ArtifactID = &artifactID
+		asset.ArtifactSource = "managed"
+	}
 
 	return &asset, nil
 }
@@ -518,11 +527,19 @@ func (s *CatalogService) ListChannels(bundleKey, appKey string) ([]ChannelInfo, 
 		SELECT
 			da.variant_key,
 			da.platform,
-			COALESCE(art.release_version, da.release_version) AS version,
-			COALESCE(art.updated_at, NOW()) AS updated_at
+			COALESCE(current_art.release_version, da.release_version) AS version,
+			COALESCE(current_art.updated_at, ch.updated_at, NOW()) AS updated_at
 		FROM download_assets da
-		LEFT JOIN download_artifacts art ON da.artifact_id = art.id
-		WHERE da.bundle_key = $1 AND da.app_key = $2
+		LEFT JOIN download_channel_heads ch
+			ON ch.bundle_key = da.bundle_key AND ch.app_key = da.app_key AND ch.variant_key = da.variant_key
+		LEFT JOIN download_channel_halts halt
+			ON halt.bundle_key = da.bundle_key AND halt.app_key = da.app_key AND halt.variant_key = da.variant_key
+		LEFT JOIN download_artifacts current_art
+			ON current_art.id = CASE
+				WHEN ch.current_revision IS NOT NULL THEN (ch.artifact_set ->> da.platform)::bigint
+				ELSE da.artifact_id
+			END
+		WHERE da.bundle_key = $1 AND da.app_key = $2 AND COALESCE(halt.halted, FALSE) = FALSE
 		ORDER BY da.variant_key, da.platform
 	`, bundleKey, appKey)
 	if err != nil {

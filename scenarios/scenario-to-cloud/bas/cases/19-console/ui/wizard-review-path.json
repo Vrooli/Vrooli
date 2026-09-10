@@ -1,0 +1,41 @@
+{
+  "metadata": {
+    "name": "Wizard offers the reviewed plan path",
+    "description": "Observer journey: open the wizard and assert the stepper and container render so the manifest → secrets → build → preflight → review flow is reachable. Creating a record, compiling and applying a plan are mutating and need the routed test-storage lease, which is not installed; those steps are proven by vitest (ui/src/components/wizard/StepDeploy.test.tsx) and are not exercised here.",
+    "tags": ["e2e", "ui", "wizard"],
+    "requirements": ["STC-P0-039"],
+    "labels": {
+      "safety": "observer",
+      "mutates_target": "false",
+      "mutates_repository": "false",
+      "requirements_json": "[\"STC-P0-039\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": { "width": 1280, "height": 900, "preset": "desktop" }
+  },
+  "nodes": [
+    {
+      "id": "open-wizard",
+      "type": "navigate",
+      "data": {
+        "label": "Open the wizard",
+        "destinationType": "scenario",
+        "scenario": "scenario-to-cloud",
+        "scenarioPath": "/#wizard",
+        "waitUntil": "load",
+        "timeoutMs": 30000,
+        "waitForMs": 2000
+      }
+    },
+    { "id": "container", "type": "assert", "data": { "label": "Wizard container present", "selector": "[data-testid=\"wizard-container\"]", "assertMode": "exists", "timeoutMs": 20000, "failureMessage": "Wizard must render" } },
+    { "id": "stepper", "type": "assert", "data": { "label": "Wizard stepper present", "selector": "[data-testid=\"wizard-stepper\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Stepper must render" } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "open-wizard", "target": "container", "type": "smoothstep" },
+    { "id": "e2", "source": "container", "target": "stepper", "type": "smoothstep" }
+  ]
+}

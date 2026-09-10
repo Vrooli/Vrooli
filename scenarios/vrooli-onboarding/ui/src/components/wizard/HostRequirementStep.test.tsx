@@ -20,7 +20,8 @@ describe("HostRequirementStep", () => {
     renderWithProviders(<HostRequirementStep onTool={vi.fn()} onSafeguard={onSafeguard} onHostConfig={onConfig} />);
     expect(await screen.findByTestId("risk-indicator")).toHaveTextContent("high");
     fireEvent.click(screen.getByRole("checkbox", { name: /firewall/i }));
-    fireEvent.change(screen.getByLabelText("mode"), { target: { value: "enforce" } });
+    fireEvent.click(screen.getByRole("button", { name: "mode" }));
+    fireEvent.click(screen.getByRole("option", { name: "enforce" }));
     fireEvent.change(screen.getByLabelText("retries"), { target: { value: "2" } });
     expect(onSafeguard).toHaveBeenCalledWith("firewall", true);
     expect(onConfig).toHaveBeenLastCalledWith("host_safeguards", "firewall", { mode: "enforce", retries: 2 });

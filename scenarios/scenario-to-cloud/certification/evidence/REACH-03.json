@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "case_id": "REACH-03",
+  "verdict": "passed",
+  "lane": "package",
+  "requirement_refs": [
+    "STC-P0-024"
+  ],
+  "candidate": {
+    "release_digest": "sha256:package-lane-fixture",
+    "configuration_digest": "fixture-configuration",
+    "closure_digest": "sha256:fixture-stateless-web"
+  },
+  "target": {
+    "machine_id": "package-lane-fixture",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "operation_refs": [],
+  "validation_receipt_ref": "go test ./reach/ -run TestRouterHonoursExplicitTransportWithoutFallback; go test ./deployment/ -run TestReachTargetReceiptsReadsThroughBoundTransport",
+  "artifact_refs": [],
+  "assertions": [
+    "the same typed verb + argv goes to the bridge or the ssh adapter by explicit binding",
+    "both adapters return the same Result shape with transport and correlation identity",
+    "required scope is carried on both paths"
+  ],
+  "observed_at": "2026-09-09T15:59:13Z",
+  "limitations": [
+    "package lane: fake transports; QEMU (EXT-06) and real-VPS/real relay (EXT-01) lanes pending"
+  ]
+}

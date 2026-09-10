@@ -22,13 +22,24 @@ type receiptCapturePolicy struct {
 	Selector struct {
 		TargetScenario, Operation, Protocol, EventType string `json:"-"`
 	} `json:"-"`
-	ResponseType            string   `json:"response_type"`
-	ResponseProjectionPaths []string `json:"response_projection_paths"`
-	RetentionDays           int      `json:"retention_days"`
-	Access                  struct {
+	ResponseType             string                    `json:"response_type"`
+	ResponseProjectionPaths  []string                  `json:"response_projection_paths"`
+	WorkReferenceProjections []workReferenceProjection `json:"work_reference_projections,omitempty"`
+	RetentionDays            int                       `json:"retention_days"`
+	Access                   struct {
 		ReadPrincipals []string `json:"read_principals"`
 	} `json:"access"`
 	Version string `json:"version,omitempty"`
+}
+
+type workReferenceProjection struct {
+	KindPath           string `json:"kind_path"`
+	IDPath             string `json:"id_path"`
+	RevisionPath       string `json:"revision_path,omitempty"`
+	Relationship       string `json:"relationship"`
+	VerifiedPath       string `json:"verified_path,omitempty"`
+	VisibilityPath     string `json:"visibility_path,omitempty"`
+	EvidenceDigestPath string `json:"evidence_digest_path,omitempty"`
 }
 
 func (p receiptCapturePolicy) MarshalJSON() ([]byte, error) {
@@ -48,8 +59,9 @@ func (p receiptCapturePolicy) MarshalJSON() ([]byte, error) {
 		Access                  struct {
 			ReadPrincipals []string `json:"read_principals"`
 		} `json:"access"`
-		Version string `json:"version,omitempty"`
-	}{PolicyID: p.PolicyID, Enabled: p.Enabled, Selector: selector{p.Selector.TargetScenario, p.Selector.Operation, p.Selector.Protocol, p.Selector.EventType}, ResponseType: p.ResponseType, ResponseProjectionPaths: p.ResponseProjectionPaths, RetentionDays: p.RetentionDays, Access: struct {
+		Version                  string                    `json:"version,omitempty"`
+		WorkReferenceProjections []workReferenceProjection `json:"work_reference_projections,omitempty"`
+	}{PolicyID: p.PolicyID, Enabled: p.Enabled, Selector: selector{p.Selector.TargetScenario, p.Selector.Operation, p.Selector.Protocol, p.Selector.EventType}, ResponseType: p.ResponseType, ResponseProjectionPaths: p.ResponseProjectionPaths, WorkReferenceProjections: p.WorkReferenceProjections, RetentionDays: p.RetentionDays, Access: struct {
 		ReadPrincipals []string `json:"read_principals"`
 	}{p.Access.ReadPrincipals}, Version: p.Version})
 }
@@ -66,10 +78,11 @@ func (p *receiptCapturePolicy) UnmarshalJSON(data []byte) error {
 			Protocol       string `json:"protocol"`
 			EventType      string `json:"event_type"`
 		} `json:"selector"`
-		ResponseType            string   `json:"response_type"`
-		ResponseProjectionPaths []string `json:"response_projection_paths"`
-		RetentionDays           int      `json:"retention_days"`
-		Access                  struct {
+		ResponseType             string                    `json:"response_type"`
+		ResponseProjectionPaths  []string                  `json:"response_projection_paths"`
+		WorkReferenceProjections []workReferenceProjection `json:"work_reference_projections"`
+		RetentionDays            int                       `json:"retention_days"`
+		Access                   struct {
 			ReadPrincipals []string `json:"read_principals"`
 		} `json:"access"`
 		Version string `json:"version"`
@@ -78,20 +91,27 @@ func (p *receiptCapturePolicy) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &value); err != nil {
 		return err
 	}
-	p.PolicyID, p.Enabled, p.ResponseType, p.ResponseProjectionPaths, p.RetentionDays, p.Version = value.PolicyID, value.Enabled, value.ResponseType, value.ResponseProjectionPaths, value.RetentionDays, value.Version
+	p.PolicyID, p.Enabled, p.ResponseType, p.ResponseProjectionPaths, p.WorkReferenceProjections, p.RetentionDays, p.Version = value.PolicyID, value.Enabled, value.ResponseType, value.ResponseProjectionPaths, value.WorkReferenceProjections, value.RetentionDays, value.Version
 	p.Selector.TargetScenario, p.Selector.Operation, p.Selector.Protocol, p.Selector.EventType = value.Selector.TargetScenario, value.Selector.Operation, value.Selector.Protocol, value.Selector.EventType
 	p.Access.ReadPrincipals = value.Access.ReadPrincipals
 	return nil
 }
 
 func (p receiptCapturePolicy) rule() policy.ReceiptProjectionRule {
-	return policy.ReceiptProjectionRule{PolicyID: p.PolicyID, SourceScenario: "*", TargetScenario: p.Selector.TargetScenario, OperationPattern: p.Selector.Operation, Protocol: p.Selector.Protocol, EventType: p.Selector.EventType, ResponseType: p.ResponseType, ResponseFields: p.ResponseProjectionPaths, ReadPrincipals: p.Access.ReadPrincipals, MaxBytes: 64 * 1024, SamplePerTenK: 10000, RetentionDays: p.RetentionDays, Enabled: p.Enabled}
+	workRefs := make([]policy.WorkReferenceProjection, 0, len(p.WorkReferenceProjections))
+	for _, projection := range p.WorkReferenceProjections {
+		workRefs = append(workRefs, policy.WorkReferenceProjection{KindPath: projection.KindPath, IDPath: projection.IDPath, RevisionPath: projection.RevisionPath, Relationship: projection.Relationship, VerifiedPath: projection.VerifiedPath, VisibilityPath: projection.VisibilityPath, EvidenceDigestPath: projection.EvidenceDigestPath})
+	}
+	return policy.ReceiptProjectionRule{PolicyID: p.PolicyID, SourceScenario: "*", TargetScenario: p.Selector.TargetScenario, OperationPattern: p.Selector.Operation, Protocol: p.Selector.Protocol, EventType: p.Selector.EventType, ResponseType: p.ResponseType, ResponseFields: p.ResponseProjectionPaths, WorkReferenceProjections: workRefs, ReadPrincipals: p.Access.ReadPrincipals, MaxBytes: 64 * 1024, SamplePerTenK: 10000, RetentionDays: p.RetentionDays, Enabled: p.Enabled}
 }
 
 func capturePolicy(rule policy.ReceiptProjectionRule, version string) receiptCapturePolicy {
 	var result receiptCapturePolicy
 	result.PolicyID, result.Enabled, result.ResponseType, result.ResponseProjectionPaths, result.RetentionDays, result.Version = rule.PolicyID, rule.Enabled, rule.ResponseType, rule.ResponseFields, rule.RetentionDays, version
 	result.Selector.TargetScenario, result.Selector.Operation, result.Selector.Protocol, result.Selector.EventType = rule.TargetScenario, rule.OperationPattern, rule.Protocol, rule.EventType
+	for _, projection := range rule.WorkReferenceProjections {
+		result.WorkReferenceProjections = append(result.WorkReferenceProjections, workReferenceProjection{KindPath: projection.KindPath, IDPath: projection.IDPath, RevisionPath: projection.RevisionPath, Relationship: projection.Relationship, VerifiedPath: projection.VerifiedPath, VisibilityPath: projection.VisibilityPath, EvidenceDigestPath: projection.EvidenceDigestPath})
+	}
 	result.Access.ReadPrincipals = rule.ReadPrincipals
 	return result
 }
@@ -109,6 +129,16 @@ func validateCapturePolicy(p receiptCapturePolicy) string {
 	for _, path := range p.ResponseProjectionPaths {
 		if !descriptorPath.MatchString(path) {
 			return "response_projection_paths must be canonical descriptor paths"
+		}
+	}
+	for _, projection := range p.WorkReferenceProjections {
+		if strings.TrimSpace(projection.KindPath) == "" || strings.TrimSpace(projection.IDPath) == "" || strings.TrimSpace(projection.Relationship) == "" {
+			return "work_reference_projections require kind_path, id_path, and relationship"
+		}
+		for _, path := range []string{projection.KindPath, projection.IDPath, projection.RevisionPath, projection.VerifiedPath, projection.VisibilityPath, projection.EvidenceDigestPath} {
+			if path != "" && !descriptorPath.MatchString(path) {
+				return "work_reference_projections paths must be canonical descriptor paths"
+			}
 		}
 	}
 	return ""

@@ -1,10 +1,8 @@
 """Run one typed, lease-owned semantic volume operation."""
 import json
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
+learn.task(operation="device-control.volume", key={"device": inputs.get("device", "")})
 
 envelope = {"program": "device-control.volume", "version": "1", "status": "failed", "phase": "validate", "signals": {"outcome": "unknown"}, "errors": [], "evidence": []}
 
@@ -65,10 +63,17 @@ try:
     envelope["signals"].update({"operation_id": payload.get("operationId", payload.get("operation_id", "")), "verification_class": payload.get("verificationClass", payload.get("verification_class", "unavailable")), "result": compact_result(payload)})
     envelope["signals"]["outcome"] = {"verified": "verified_success", "acknowledged": "unknown", "unverified": "unknown", "conflicted": "failed"}.get(envelope["signals"]["verification_class"], "unavailable")
     envelope["evidence"] = payload.get("evidence", [])[:10]
+    if envelope["signals"]["outcome"] == "verified_success":
+        learn.note("parameter", {"name": "verification_policy", "value": inputs.get("verification_policy", "physical_output")})
 except ValueError as exc:
     envelope["errors"].append({"class": "invalid_input", "where": envelope["phase"], "detail": str(exc)[:180]})
 except Exception as exc:
     envelope["status"] = "unavailable"
     envelope["errors"].append({"class": "binding_error", "where": envelope["phase"], "detail": str(exc)[:180]})
 envelope["phase"] = "report"
+status = envelope["signals"].get("outcome", "unknown")
+# No external artifact: the task reference is what a later correction names.
+envelope["signals"]["learning"] = {"feedback_ref": learn.result("volume")}
+learn.outcome(status if status in ("verified_success", "failed", "unavailable", "unknown") else "unknown",
+              envelope["evidence"] if status == "verified_success" else [])
 print(json.dumps(envelope, allow_nan=False))

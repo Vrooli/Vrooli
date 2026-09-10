@@ -51,7 +51,9 @@ dial-out channel. The node-agent runs it as the non-privileged runner and
 streams `RunEvent`s (STATUS/LOG/EXIT/ARTIFACT_REF) back via the node-facing
 `RunsService.ReportRunEvent`.
 
-States: `queued → running → (passed | failed | aborted)`. The run is
+States: `queued → running → (passed | failed | aborted)`, with
+`cancel_requested` and `uncertain` retained until a node EXIT confirms
+termination. The run is
 **server-owned and durable**: it survives the dispatching client disconnecting
 and is re-attachable by id (`runs get`), with a block-once `runs wait` that
 returns exactly once on the terminal transition (no polling) or `timed_out` when

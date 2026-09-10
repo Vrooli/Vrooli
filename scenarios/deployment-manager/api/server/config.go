@@ -9,8 +9,9 @@ import (
 	"github.com/vrooli/api-core/database"
 )
 
-// Config holds minimal runtime configuration.
-type Config struct {
+// RuntimeConfig holds minimal runtime configuration. The name is explicit so
+// this scenario does not re-declare api-core/boottest's public Config helper.
+type RuntimeConfig struct {
 	Port        string
 	DatabaseURL string
 }

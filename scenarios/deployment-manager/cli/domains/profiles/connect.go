@@ -3,12 +3,17 @@ package profiles
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
+
+	"deployment-manager/cli/cmdutil"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	profilesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/profiles"
 	profilesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/profiles/profilesv1connect"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -68,6 +73,125 @@ func (c *connectCommands) show(args []string) error {
 		return cliapp.WrapAPIError("get profile", err, nil)
 	}
 	return writeJSON(response.Msg)
+}
+
+func (c *connectCommands) export(args []string) error {
+	fs := flag.NewFlagSet("profile export", flag.ContinueOnError)
+	format := fs.String("format", "", "output format (json)")
+	outputPath := fs.String("output", "", "output file")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	remaining := fs.Args()
+	if len(remaining) == 0 {
+		return errors.New("profile id is required")
+	}
+	response, err := c.client.GetProfile(context.Background(), connect.NewRequest(&profilesv1.GetProfileRequest{ProfileId: remaining[0]}))
+	if err != nil {
+		return cliapp.WrapAPIError("export profile", err, nil)
+	}
+	if response == nil || response.Msg == nil || response.Msg.Profile == nil {
+		return errors.New("server returned no profile")
+	}
+	data, err := protojson.MarshalOptions{UseProtoNames: true, Indent: "  "}.Marshal(response.Msg.Profile)
+	if err != nil {
+		return fmt.Errorf("encode profile export: %w", err)
+	}
+	if *outputPath != "" {
+		if err := os.WriteFile(*outputPath, append(data, '\n'), 0o644); err != nil {
+			return fmt.Errorf("write profile export: %w", err)
+		}
+		return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{Result: []string{fmt.Sprintf("Profile exported to %s", *outputPath)}})
+	}
+	if strings.EqualFold(cmdutil.ResolveFormat(*format), "json") || *format == "" {
+		_, err = os.Stdout.Write(append(data, '\n'))
+		return err
+	}
+	return writeJSON(response.Msg.Profile)
+}
+
+func (c *connectCommands) importProfile(args []string) error {
+	fs := flag.NewFlagSet("profile import", flag.ContinueOnError)
+	name := fs.String("name", "", "override profile name")
+	format := fs.String("format", "", "output format (json)")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	remaining := fs.Args()
+	if len(remaining) == 0 {
+		return errors.New("file path is required")
+	}
+	data, err := os.ReadFile(remaining[0])
+	if err != nil {
+		return fmt.Errorf("read profile import: %w", err)
+	}
+	var profile profilesv1.Profile
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(data, &profile); err != nil {
+		return fmt.Errorf("parse canonical profile export: %w", err)
+	}
+	if *name != "" {
+		profile.Name = *name
+	}
+	if strings.TrimSpace(profile.Name) == "" || strings.TrimSpace(profile.Scenario) == "" {
+		return errors.New("profile import requires name and scenario")
+	}
+	response, err := c.client.CreateProfile(context.Background(), connect.NewRequest(&profilesv1.CreateProfileRequest{
+		Name: profile.Name, Scenario: profile.Scenario, Tiers: profile.Tiers,
+		Swaps: profile.Swaps, Secrets: profile.Secrets, Settings: profile.Settings,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("import profile", err, nil)
+	}
+	if response == nil || response.Msg == nil {
+		return errors.New("server returned no imported profile")
+	}
+	if strings.EqualFold(cmdutil.ResolveFormat(*format), "json") {
+		return writeJSON(response.Msg)
+	}
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{Result: []string{fmt.Sprintf("Profile imported from %s", remaining[0])}})
+}
+
+func (c *connectCommands) update(args []string) error {
+	fs := flag.NewFlagSet("profile update", flag.ContinueOnError)
+	name := fs.String("name", "", "replacement profile name")
+	scenario := fs.String("scenario", "", "replacement scenario")
+	tier := fs.String("tier", "", "replacement deployment tier")
+	format := fs.String("format", "", "output format (json)")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	remaining := fs.Args()
+	if len(remaining) == 0 {
+		return errors.New("profile id is required")
+	}
+	request := &profilesv1.UpdateProfileRequest{ProfileId: remaining[0]}
+	if *name != "" {
+		request.Name = name
+	}
+	if *scenario != "" {
+		request.Scenario = scenario
+	}
+	if *tier != "" {
+		parsed, err := parseTier(*tier)
+		if err != nil {
+			return err
+		}
+		request.Tiers = []int32{parsed}
+	}
+	if request.Name == nil && request.Scenario == nil && len(request.Tiers) == 0 {
+		return errors.New("at least one update flag is required")
+	}
+	response, err := c.client.UpdateProfile(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return cliapp.WrapAPIError("update profile", err, nil)
+	}
+	if response == nil || response.Msg == nil {
+		return errors.New("server returned no updated profile")
+	}
+	if strings.EqualFold(cmdutil.ResolveFormat(*format), "json") {
+		return writeJSON(response.Msg)
+	}
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{Result: []string{fmt.Sprintf("Profile updated: %s", remaining[0])}})
 }
 
 func (c *connectCommands) delete(args []string) error {
@@ -220,6 +344,18 @@ func (c *connectCommands) versionsReport(_ cliapp.OperationContext, response *pr
 }
 
 func parseTier(value string) (int32, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "local":
+		return 1, nil
+	case "desktop":
+		return 2, nil
+	case "mobile", "ios", "android":
+		return 3, nil
+	case "saas", "cloud", "web":
+		return 4, nil
+	case "enterprise", "on-prem":
+		return 5, nil
+	}
 	tier, err := strconv.ParseInt(value, 10, 32)
 	if err != nil || tier < 0 {
 		return 0, fmt.Errorf("invalid tier %q", value)

@@ -26,6 +26,14 @@ func Validate(req Request) error {
 		return validateRuntimeHome(req)
 	case ActionLogRotateForce, ActionJournaldVacuum, ActionDockerPruneUnusedImages, ActionDockerPruneUnusedVolumes:
 		return validateStorageAction(req)
+	case ActionAptPackagesEnsure:
+		return validateApt(req)
+	case ActionEdgeUFWAllow:
+		return validateEdge(req)
+	case ActionProcessStopScoped:
+		return validateProcess(req)
+	case ActionEdgeCaddyValidate, ActionEdgeCaddyReload:
+		return validateCaddy(req)
 	default:
 		return fmt.Errorf("action_not_allowed")
 	}
@@ -33,8 +41,14 @@ func Validate(req Request) error {
 
 const managedLogStanza = "vrooli-log-volume-bounds"
 
+// hasCloudSubject reports whether any cloud-target subject is present, so the
+// older action families can refuse a request that smuggles one alongside.
+func hasCloudSubject(req Request) bool {
+	return req.Apt != nil || req.Edge != nil || req.Process != nil || req.Caddy != nil
+}
+
 func validateStorageAction(req Request) error {
-	if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil {
+	if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || hasCloudSubject(req) {
 		return fmt.Errorf("subject_not_allowed")
 	}
 	switch req.Action {
@@ -65,7 +79,7 @@ func validateStorageAction(req Request) error {
 }
 
 func validateRuntimeHome(req Request) error {
-	if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome == nil {
+	if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome == nil || hasCloudSubject(req) {
 		return fmt.Errorf("runtime_home_subject_required")
 	}
 	switch strings.TrimSpace(req.RuntimeHome.Class) {
@@ -83,7 +97,7 @@ func validateRuntimeHome(req Request) error {
 // also carries a volume subject is rejected: each action family must arrive in
 // exactly its own shape, never a union of both.
 func validateBridge(req Request) error {
-	if req.Volume != nil {
+	if req.Volume != nil || req.RuntimeHome != nil || hasCloudSubject(req) {
 		return fmt.Errorf("subject_not_allowed")
 	}
 	if req.Subject.Scenario != BridgeScenario {
@@ -119,7 +133,7 @@ func validateVolume(req Request) error {
 	if req.Volume == nil {
 		return fmt.Errorf("volume_subject_required")
 	}
-	if req.Subject != (Subject{}) {
+	if req.Subject != (Subject{}) || req.RuntimeHome != nil || hasCloudSubject(req) {
 		return fmt.Errorf("subject_not_allowed")
 	}
 	device := strings.TrimSpace(req.Volume.Device)

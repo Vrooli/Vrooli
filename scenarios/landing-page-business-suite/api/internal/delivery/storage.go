@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"context"
+	"io"
 	"time"
 )
 
@@ -13,6 +14,14 @@ type Storage interface {
 	PresignGet(ctx context.Context, bucket, key string, ttl time.Duration) (string, error)
 	PresignPut(ctx context.Context, bucket, key string, ttl time.Duration, contentType string) (string, map[string]string, error)
 	HeadObject(ctx context.Context, bucket, key string) (etag string, size int64, contentType string, err error)
+}
+
+// ObjectReader is an optional capability for providers that can return the
+// object bytes. It is separate from Storage so existing provider adapters keep
+// their shallow connectivity contract while deep verification can require the
+// stronger capability explicitly.
+type ObjectReader interface {
+	ReadObject(ctx context.Context, bucket, key string) (io.ReadCloser, int64, string, error)
 }
 
 // StorageProvider builds a request-safe storage implementation from persisted

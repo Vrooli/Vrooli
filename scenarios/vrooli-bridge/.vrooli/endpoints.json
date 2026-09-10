@@ -577,6 +577,43 @@
       ]
     },
     {
+      "id": "presence_report_artifact_receipt",
+      "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportArtifactReceipt",
+      "method": "POST",
+      "summary": "Report artifact placement receipt",
+      "description": "Node-facing: records metadata-only success or failure after the target agent pulls and atomically places a directed artifact.",
+      "category": "channel",
+      "request": {
+        "type": "object",
+        "properties": {
+          "receipt": "ArtifactReceipt (distribution_id, node_id, item_id, destination_path, accepted, reason, sha256, size_bytes)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing artifact receipt metadata"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid node proof"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Receipt does not match the distribution or target node"
+        }
+      ]
+    },
+    {
       "id": "presence_report_relay_response",
       "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportRelayResponse",
       "method": "POST",

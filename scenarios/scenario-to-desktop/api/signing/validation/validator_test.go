@@ -202,11 +202,12 @@ func TestDefaultValidator_ValidateConfig_MacOSNotarizeWithoutTeamID(t *testing.T
 	config := &types.SigningConfig{
 		Enabled: true,
 		MacOS: &types.MacOSSigningConfig{
-			Identity:        "Developer ID Application: Test",
-			Notarize:        true,
-			HardenedRuntime: true,
-			AppleAPIKeyID:   "KEY123",
-			AppleAPIKeyFile: "/path/to/key.p8",
+			Identity:         "Developer ID Application: Test",
+			Notarize:         true,
+			HardenedRuntime:  true,
+			AppleAPIKeyID:    "KEY123",
+			AppleAPIKeyFile:  "/path/to/key.p8",
+			AppleAPIIssuerID: "ISSUER123",
 			// TeamID missing
 		},
 	}
@@ -230,12 +231,13 @@ func TestDefaultValidator_ValidateConfig_MacOSNotarizeWithoutHardenedRuntime(t *
 	config := &types.SigningConfig{
 		Enabled: true,
 		MacOS: &types.MacOSSigningConfig{
-			Identity:        "Developer ID Application: Test",
-			TeamID:          "TEAMID",
-			Notarize:        true,
-			HardenedRuntime: false, // Should be true for notarization
-			AppleAPIKeyID:   "KEY123",
-			AppleAPIKeyFile: "/path/to/key.p8",
+			Identity:         "Developer ID Application: Test",
+			TeamID:           "TEAMID",
+			Notarize:         true,
+			HardenedRuntime:  false, // Should be true for notarization
+			AppleAPIKeyID:    "KEY123",
+			AppleAPIKeyFile:  "/path/to/key.p8",
+			AppleAPIIssuerID: "ISSUER123",
 		},
 	}
 	result := v.ValidateConfig(config)
@@ -282,12 +284,13 @@ func TestDefaultValidator_ValidateConfig_MacOSNotarizeWithAPIKey(t *testing.T) {
 	config := &types.SigningConfig{
 		Enabled: true,
 		MacOS: &types.MacOSSigningConfig{
-			Identity:        "Developer ID Application: Test",
-			TeamID:          "TEAMID",
-			HardenedRuntime: true,
-			Notarize:        true,
-			AppleAPIKeyID:   "KEY123",
-			AppleAPIKeyFile: "/path/to/key.p8",
+			Identity:         "Developer ID Application: Test",
+			TeamID:           "TEAMID",
+			HardenedRuntime:  true,
+			Notarize:         true,
+			AppleAPIKeyID:    "KEY123",
+			AppleAPIKeyFile:  "/path/to/key.p8",
+			AppleAPIIssuerID: "ISSUER123",
 		},
 	}
 	result := v.ValidateConfig(config)

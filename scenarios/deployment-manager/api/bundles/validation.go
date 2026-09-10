@@ -52,8 +52,8 @@ func ValidateManifestBytes(data []byte) error {
 	}
 
 	// Validate IPC mode using domain decision helper
-	if !shared.IsValidIPCMode(manifest.IPC.Mode) || manifest.IPC.Host == "" || manifest.IPC.Port == 0 || manifest.IPC.AuthTokenPath == "" {
-		return fmt.Errorf("ipc must define %s host, port, and auth_token_path", shared.IPCModeLoopbackHTTP)
+	if !shared.IsValidIPCMode(manifest.IPC.Mode) || manifest.IPC.Host == "" || manifest.IPC.Port < 0 || manifest.IPC.AuthTokenPath == "" {
+		return fmt.Errorf("ipc must define %s host, a non-negative allocator input, and auth_token_path", shared.IPCModeLoopbackHTTP)
 	}
 	if manifest.Telemetry.File == "" {
 		return fmt.Errorf("telemetry.file is required")

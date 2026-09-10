@@ -18,7 +18,7 @@ type runResult struct {
 	err error
 }
 
-func (r *scriptedRunner) Run(_ context.Context, _ Config, _ string, _ RunOptions) (Result, error) {
+func (r *scriptedRunner) Run(_ context.Context, _ ConnectionConfig, _ string, _ RunOptions) (Result, error) {
 	i := r.calls
 	r.calls++
 	if i < len(r.queue) {

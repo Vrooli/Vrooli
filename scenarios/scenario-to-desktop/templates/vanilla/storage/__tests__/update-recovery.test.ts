@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { consumeUpdateIntent, markUpdateIntentApplying, readUpdateIntent, writeInstalledUpdateReceipt, writeUpdateIntent, writeUpdateState, type UpdateRecoveryFileSystem } from "../update-recovery";
+import { classifyUpdateRecovery, consumeUpdateIntent, markUpdateIntentApplying, readUpdateIntent, writeInstalledUpdateReceipt, writeUpdateIntent, writeUpdateState, type UpdateRecoveryFileSystem } from "../update-recovery";
 
 function fixture(initial = "") {
     const files = new Map<string, string>();
@@ -22,7 +22,7 @@ function fixture(initial = "") {
     return { fs, files };
 }
 
-const intent = { schemaVersion: 1 as const, fromVersion: "1.0.0", toVersion: "1.1.0", requestedAt: "2026-09-06T00:00:00Z", nonce: "nonce-12345678" };
+const intent = { schemaVersion: 1 as const, fromVersion: "1.0.0", toVersion: "1.1.0", requestedAt: "2026-09-06T00:00:00Z", nonce: "nonce-12345678", toArtifactRef: "sha512:new" };
 
 describe("update recovery marker", () => {
     it("atomically records and classifies an applied update", async () => {
@@ -37,6 +37,13 @@ describe("update recovery marker", () => {
         const { fs } = fixture(JSON.stringify(intent));
         const recovery = await consumeUpdateIntent(fs, "/user/update-intent.json", "1.0.0");
         expect(recovery.disposition).toBe("interrupted");
+    });
+
+    it("does not claim applied when the successor artifact identity is missing", async () => {
+        const { toArtifactRef: _missingArtifactRef, ...missingIdentity } = intent;
+        expect(classifyUpdateRecovery(missingIdentity, "1.1.0")).toBe("unknown");
+        const recovery = await consumeUpdateIntent(fixture(JSON.stringify(missingIdentity)).fs, "/user/update-intent.json", "1.1.0");
+        expect(recovery.disposition).toBe("unknown");
     });
 
     it("removes a malformed marker without claiming recovery", async () => {

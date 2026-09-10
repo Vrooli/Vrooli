@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/reach"
 	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
@@ -25,7 +25,12 @@ type (
 	ProcessControlResponse = vps.ProcessControlResponse
 )
 
-// handleGetLiveState fetches comprehensive live state from the VPS.
+// Every handler in this file reaches the target through the deployment's
+// bound transport (reach): live state and files are observation programs
+// and typed vrooli verbs, process control is the lifecycle owner's verbs.
+// There is no shell string and no raw SSH here.
+
+// handleGetLiveState fetches comprehensive live state from the target.
 // GET /api/v1/deployments/{id}/live-state
 func (s *Server) handleGetLiveState(w http.ResponseWriter, r *http.Request) {
 	dc := s.FetchDeploymentContext(w, r)
@@ -35,9 +40,9 @@ func (s *Server) handleGetLiveState(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
-	identity := s.resolveCanonicalIdentity(dc.Manifest, dc.Deployment)
+	identity := s.resolveCanonicalIdentity(r.Context(), dc.Deployment)
 
-	result := vps.RunLiveStateInspection(ctx, dc.Manifest, identity, s.sshRunner)
+	result := vps.RunLiveStateInspection(ctx, dc.Manifest, identity, s.proberFor(dc))
 	if result.OK && result.System != nil {
 		verified := sshidentity.ApplyVerificationResult(
 			identity,
@@ -55,7 +60,7 @@ func (s *Server) handleGetLiveState(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleGetMetricsDebug returns raw system metric command output plus parsed metrics.
+// handleGetMetricsDebug returns raw system metric probe output plus parsed metrics.
 // GET /api/v1/deployments/{id}/metrics-debug
 func (s *Server) handleGetMetricsDebug(w http.ResponseWriter, r *http.Request) {
 	dc := s.FetchDeploymentContext(w, r)
@@ -65,8 +70,9 @@ func (s *Server) handleGetMetricsDebug(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
+	identity := s.resolveCanonicalIdentity(r.Context(), dc.Deployment)
 
-	result := vps.RunSystemMetricsDebug(ctx, dc.Manifest, s.sshRunner)
+	result := vps.RunSystemMetricsDebug(ctx, identity, s.proberFor(dc))
 
 	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"deployment_id": dc.Deployment.ID,
@@ -75,7 +81,7 @@ func (s *Server) handleGetMetricsDebug(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleGetFiles lists directory contents on VPS.
+// handleGetFiles lists directory contents on the target.
 // GET /api/v1/deployments/{id}/files?path=...
 func (s *Server) handleGetFiles(w http.ResponseWriter, r *http.Request) {
 	dc := s.FetchDeploymentContext(w, r)
@@ -101,19 +107,20 @@ func (s *Server) handleGetFiles(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	// Execute ls -la
-	cmd := "ls -la " + shellutil.QuoteSingle(requestedPath)
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd, ssh.DefaultRunOptions())
+	result, err := s.proberFor(dc).Observe(ctx, "ls", "-la", "--", requestedPath)
 	if err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-			Code:    "ssh_failed",
+		apierrors.Write(w, reach.APIError(err))
+		return
+	}
+	if result.ExitCode != 0 {
+		httputil.WriteAPIError(w, http.StatusBadGateway, httputil.APIError{
+			Code:    "list_failed",
 			Message: "Failed to list directory",
-			Hint:    result.Stderr,
+			Hint:    strings.TrimSpace(result.Stderr),
 		})
 		return
 	}
 
-	// Parse ls output
 	entries := vps.ParseLsOutput(result.Stdout)
 
 	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -124,7 +131,7 @@ func (s *Server) handleGetFiles(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleGetFileContent reads file contents from VPS.
+// handleGetFileContent reads file contents from the target.
 // GET /api/v1/deployments/{id}/files/content?path=...
 func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
 	requestedPath := r.URL.Query().Get("path")
@@ -167,30 +174,34 @@ func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
+	prober := s.proberFor(dc)
 
 	// Get file size first
-	sizeCmd := "stat -c %s " + shellutil.QuoteSingle(requestedPath) + " 2>/dev/null || echo -1"
-	sizeResult, _ := s.sshRunner.Run(ctx, dc.SSHConfig, sizeCmd, ssh.DefaultRunOptions())
 	fileSize := -1
-	if sizeResult.Stdout != "" {
+	if sizeResult, err := prober.Observe(ctx, "stat", "-c", "%s", "--", requestedPath); err == nil && sizeResult.ExitCode == 0 {
 		fileSize, _ = parseInt(sizeResult.Stdout)
 	}
 
 	// Limit file size (1MB max)
 	const maxFileSize = 1024 * 1024
 	truncated := false
-	readCmd := "cat " + shellutil.QuoteSingle(requestedPath)
+	var result reach.Result
+	var err error
 	if fileSize > maxFileSize {
-		readCmd = "head -c " + intToStr(maxFileSize) + " " + shellutil.QuoteSingle(requestedPath)
+		result, err = prober.Observe(ctx, "head", "-c", intToStr(maxFileSize), "--", requestedPath)
 		truncated = true
+	} else {
+		result, err = prober.Observe(ctx, "cat", "--", requestedPath)
 	}
-
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, readCmd, ssh.DefaultRunOptions())
 	if err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-			Code:    "ssh_failed",
+		apierrors.Write(w, reach.APIError(err))
+		return
+	}
+	if result.ExitCode != 0 {
+		httputil.WriteAPIError(w, http.StatusBadGateway, httputil.APIError{
+			Code:    "read_failed",
 			Message: "Failed to read file",
-			Hint:    result.Stderr,
+			Hint:    strings.TrimSpace(result.Stderr),
 		})
 		return
 	}
@@ -215,9 +226,9 @@ func (s *Server) handleGetDrift(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
-	identity := s.resolveCanonicalIdentity(dc.Manifest, dc.Deployment)
+	identity := s.resolveCanonicalIdentity(r.Context(), dc.Deployment)
 
-	liveState := vps.RunLiveStateInspection(ctx, dc.Manifest, identity, s.sshRunner)
+	liveState := vps.RunLiveStateInspection(ctx, dc.Manifest, identity, s.proberFor(dc))
 	s.enrichCaddyTLS(ctx, &liveState)
 	if !liveState.OK {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
@@ -251,7 +262,10 @@ func (s *Server) enrichCaddyTLS(ctx context.Context, result *domain.LiveStateRes
 	result.Caddy.TLS = buildDomainTLSInfo(snapshot, err)
 }
 
-// handleKillProcess kills a specific process on VPS.
+// handleKillProcess is refused: killing a process by pid is not an owner
+// operation. A scenario the deployment owns is stopped through the
+// lifecycle owner (actions/process with action=stop); a foreign process is
+// the host operator's to stop.
 // POST /api/v1/deployments/{id}/actions/kill
 func (s *Server) handleKillProcess(w http.ResponseWriter, r *http.Request) {
 	req, err := httputil.DecodeJSON[KillProcessRequest](r.Body, 1<<20)
@@ -263,7 +277,6 @@ func (s *Server) handleKillProcess(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-
 	if req.PID <= 0 {
 		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "invalid_pid",
@@ -271,40 +284,17 @@ func (s *Server) handleKillProcess(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-
 	dc := s.FetchDeploymentContext(w, r)
 	if dc == nil {
-		return // Error already written
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-
-	signal := req.Signal
-	if signal == "" {
-		signal = "TERM"
-	}
-
-	cmd := "kill -" + signal + " " + intToStr(req.PID)
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd, ssh.DefaultRunOptions())
-	if err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-			Code:    "kill_failed",
-			Message: "Failed to kill process",
-			Hint:    result.Stderr,
-		})
 		return
 	}
-
-	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
-		"ok":        true,
-		"pid":       req.PID,
-		"signal":    signal,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	})
+	apierrors.Write(w, apierrors.Newf(apierrors.CodeUnsupportedCapability, "Killing pid %d by signal has no target owner action; stop the owning scenario through the lifecycle owner or stop a foreign unit on the host", req.PID).
+		WithDetail("required_owner", "privilegebroker process.stop.scoped").
+		WithNextAction(apierrors.NextAction{Owner: "scenario-to-cloud", Kind: "process", Reference: "/api/v1/deployments/" + dc.ID + "/actions/process", Label: "Stop the scenario that owns the process (type=scenario, action=stop)"}))
 }
 
-// handleRestartProcess restarts a scenario or resource on VPS.
+// handleRestartProcess restarts a scenario or resource through the
+// lifecycle owner's verb.
 // POST /api/v1/deployments/{id}/actions/restart
 func (s *Server) handleRestartProcess(w http.ResponseWriter, r *http.Request) {
 	req, err := httputil.DecodeJSON[RestartRequest](r.Body, 1<<20)
@@ -341,21 +331,27 @@ func (s *Server) handleRestartProcess(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	cmd := shellutil.VrooliCommand(dc.Workdir, "vrooli "+req.Type+" restart "+shellutil.QuoteSingle(req.ID))
-
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd, ssh.DefaultRunOptions())
-	if err != nil {
+	result, err := s.proberFor(dc).Effect(ctx, req.Type+" restart", req.ID)
+	if err != nil || result.ExitCode != 0 {
+		detail := strings.TrimSpace(result.Stderr)
+		if err != nil {
+			detail = err.Error()
+		}
 		s.appendHistoryEvent(ctx, dc.ID, domain.HistoryEvent{
 			Type:      domain.EventRestarted,
 			Timestamp: time.Now().UTC(),
 			Message:   fmt.Sprintf("Restart failed: %s %s", req.Type, req.ID),
-			Details:   result.Stderr,
+			Details:   detail,
 			Success:   boolPtr(false),
 		})
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
+		if err != nil {
+			apierrors.Write(w, reach.APIError(err))
+			return
+		}
+		httputil.WriteAPIError(w, http.StatusBadGateway, httputil.APIError{
 			Code:    "restart_failed",
 			Message: "Failed to restart " + req.Type,
-			Hint:    result.Stderr,
+			Hint:    detail,
 		})
 		return
 	}
@@ -377,7 +373,8 @@ func (s *Server) handleRestartProcess(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleProcessControl handles start/stop/restart/setup for scenarios and resources.
+// handleProcessControl handles start/stop/restart/setup for scenarios and
+// resources through the lifecycle owner's verbs.
 // POST /api/v1/deployments/{id}/actions/process
 func (s *Server) handleProcessControl(w http.ResponseWriter, r *http.Request) {
 	req, err := httputil.DecodeJSON[ProcessControlRequest](r.Body, 1<<20)
@@ -404,8 +401,7 @@ func (s *Server) handleProcessControl(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	cmd := shellutil.VrooliCommand(dc.Workdir, "vrooli "+req.Type+" "+req.Action+" "+shellutil.QuoteSingle(req.ID))
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd, ssh.DefaultRunOptions())
+	result, err := s.proberFor(dc).Effect(ctx, req.Type+" "+req.Action, req.ID)
 
 	response := ProcessControlResponse{
 		Action:    req.Action,
@@ -414,10 +410,13 @@ func (s *Server) handleProcessControl(w http.ResponseWriter, r *http.Request) {
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 
-	if err != nil {
+	if err != nil || result.ExitCode != 0 {
 		response.OK = false
 		response.Message = "Failed to " + req.Action + " " + req.Type
-		response.Output = result.Stderr
+		response.Output = strings.TrimSpace(result.Stderr)
+		if err != nil {
+			response.Output = err.Error()
+		}
 		if req.Action == "restart" || req.Action == "stop" {
 			eventType := domain.EventRestarted
 			if req.Action == "stop" {
@@ -428,12 +427,12 @@ func (s *Server) handleProcessControl(w http.ResponseWriter, r *http.Request) {
 				Type:      eventType,
 				Timestamp: time.Now().UTC(),
 				Message:   fmt.Sprintf("%s failed: %s %s", label, req.Type, req.ID),
-				Details:   result.Stderr,
+				Details:   response.Output,
 				Success:   boolPtr(false),
 				StepName:  req.Action,
 			})
 		}
-		httputil.WriteJSON(w, http.StatusInternalServerError, response)
+		httputil.WriteJSON(w, http.StatusBadGateway, response)
 		return
 	}
 
@@ -498,6 +497,12 @@ func validateProcessControlRequest(req ProcessControlRequest) *httputil.APIError
 		return &httputil.APIError{
 			Code:    "missing_id",
 			Message: "ID is required",
+		}
+	}
+	if err := reach.ValidateArgs([]string{req.ID}); err != nil {
+		return &httputil.APIError{
+			Code:    "invalid_id",
+			Message: "ID must be a plain scenario or resource identifier",
 		}
 	}
 

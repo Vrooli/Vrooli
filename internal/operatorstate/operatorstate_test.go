@@ -2,6 +2,8 @@ package operatorstate
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -168,6 +170,168 @@ func TestDisjointConcurrentPatchesBothLand(t *testing.T) {
 	}
 	if doc.Scenarios["alpha"].Enabled == nil || !*doc.Scenarios["alpha"].Enabled || doc.Resources["ollama"].Enabled == nil || !*doc.Resources["ollama"].Enabled {
 		t.Fatalf("disjoint patches did not both land: %#v", doc)
+	}
+}
+
+func TestApplyAtRevisionRejectsStaleWriterWithoutChangingState(t *testing.T) {
+	service, _ := testService(t)
+	ctx := context.Background()
+	initial, err := service.Apply(ctx, []byte(`{"scenarios":{"alpha":{"enabled":true}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Apply(ctx, []byte(`{"resources":{"ollama":{"enabled":true}}}`)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ApplyAtRevision(ctx, Revision(initial), []byte(`{"scenarios":{"alpha":{"auto_restart":true}}}`)); !errors.Is(err, ErrRevisionConflict) {
+		t.Fatalf("stale apply error = %v, want revision conflict", err)
+	}
+	current, err := service.Load(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.Scenarios["alpha"].AutoRestart != nil {
+		t.Fatalf("stale patch changed state: %#v", current.Scenarios["alpha"])
+	}
+}
+
+func TestSaveDraftIsTargetScopedAndDoesNotChangeEffectiveChoices(t *testing.T) {
+	service, _ := testService(t)
+	ctx := context.Background()
+	effective, err := service.Apply(ctx, []byte(`{"scenarios":{"alpha":{"enabled":true}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved, err := service.SaveDraft(ctx, "target-a", "actor-a", Revision(effective), Revision(effective), "resources", map[string]string{"scenario.alpha": "disabled"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.Scenarios["alpha"].Enabled == nil || !*saved.Scenarios["alpha"].Enabled {
+		t.Fatalf("draft changed effective selection: %#v", saved.Scenarios)
+	}
+	if len(saved.Drafts) != 1 || saved.Drafts[DraftKey("target-a", "actor-a")].Choices["scenario.alpha"] != "disabled" {
+		t.Fatalf("draft was not persisted: %#v", saved.Drafts)
+	}
+	if _, ok := saved.Drafts[DraftKey("target-b", "actor-a")]; ok {
+		t.Fatal("draft leaked across target scope")
+	}
+}
+
+func TestSaveDraftRejectsSecretLikeChoicesAndStaleClients(t *testing.T) {
+	service, _ := testService(t)
+	ctx := context.Background()
+	first, err := service.Apply(ctx, []byte(`{"scenarios":{"alpha":{"enabled":true}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SaveDraft(ctx, "target-a", "actor-a", Revision(first), Revision(first), "scenarios", map[string]string{"api_token": "must-not-persist"}); err == nil {
+		t.Fatal("secret-like draft choice was accepted")
+	}
+	if _, err := service.SaveDraft(ctx, "target-a", "actor-a", "stale", Revision(first), "scenarios", map[string]string{"scenario.alpha": "enabled"}); !errors.Is(err, ErrDraftConflict) {
+		t.Fatalf("stale draft error = %v, want draft conflict", err)
+	}
+}
+
+func TestSaveProfileSessionIsBoundedNonSecretAndRevisionChecked(t *testing.T) {
+	service, _ := testService(t)
+	ctx := context.Background()
+	initial, err := service.Apply(ctx, []byte(`{"scenarios":{"alpha":{"enabled":true}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	answers := map[string]json.RawMessage{
+		"purposes": json.RawMessage(`["develop-apps"]`),
+		"hosting":  json.RawMessage(`"managed-vps"`),
+	}
+	saved, err := service.SaveProfileSession(ctx, ProfileSession{
+		Target: "target-a", Actor: "actor-a", Mode: "guided", ProfileID: "develop-and-publish",
+		ProfileVersion: "1.0.0", CatalogRevision: "catalog-r1", BaseRevision: Revision(initial),
+		Answers: answers, ManualDecisions: map[string]bool{"optional-tool": false},
+		TargetContext: map[string]string{"operation": "prepare-desktop-release"},
+	}, Revision(initial))
+	if err != nil {
+		t.Fatalf("save profile session: %v", err)
+	}
+	if saved.Session == nil || saved.Session.Profile == nil || saved.Session.Profile.ProfileID != "develop-and-publish" {
+		t.Fatalf("profile session was not persisted: %#v", saved.Session)
+	}
+	loaded, err := service.ProfileSession(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded.Answers["purposes"][0] = 'x'
+	again, err := service.ProfileSession(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(again.Answers["purposes"]) != `["develop-apps"]` {
+		t.Fatalf("profile session returned mutable answer bytes: %s", again.Answers["purposes"])
+	}
+	if _, err := service.SaveProfileSession(ctx, ProfileSession{Target: "target-a", Actor: "actor-a", Mode: "guided", BaseRevision: Revision(saved)}, "stale"); !errors.Is(err, ErrRevisionConflict) {
+		t.Fatalf("stale profile session error = %v, want revision conflict", err)
+	}
+	if _, err := service.SaveProfileSession(ctx, ProfileSession{Target: "target-a", Actor: "actor-a", Mode: "guided", BaseRevision: Revision(saved), Answers: map[string]json.RawMessage{"api_token": json.RawMessage(`"no"`)}}, Revision(saved)); err == nil {
+		t.Fatal("secret-like profile answer was accepted")
+	}
+}
+
+func TestDiscardDraftLeavesCommittedConfigurationUntouched(t *testing.T) {
+	service, _ := testService(t)
+	ctx := context.Background()
+	initial, err := service.Apply(ctx, []byte(`{"scenarios":{"alpha":{"enabled":true}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SaveDraft(ctx, "target-a", "actor-a", Revision(initial), Revision(initial), "review", map[string]string{"scenario.alpha": "enabled"}); err != nil {
+		t.Fatal(err)
+	}
+	discarded, err := service.DiscardDraft(ctx, "target-a", "actor-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(discarded.Drafts) != 0 || discarded.Scenarios["alpha"].Enabled == nil || !*discarded.Scenarios["alpha"].Enabled {
+		t.Fatalf("discard changed committed state: %#v", discarded)
+	}
+}
+
+func TestPruneDraftsUsesControlledClockAndPreservesUnreadableDrafts(t *testing.T) {
+	service, _ := testService(t)
+	ctx := context.Background()
+	now := time.Date(2026, 8, 11, 1, 0, 0, 0, time.UTC)
+	service.cfg.Now = func() time.Time { return now }
+	initial, err := service.Apply(ctx, []byte(`{"scenarios":{"alpha":{"enabled":true}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SaveDraft(ctx, "target-old", "actor-a", Revision(initial), Revision(initial), "scenarios", map[string]string{"scenario.alpha": "disabled"}); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(31 * 24 * time.Hour)
+	current, err := service.Load(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	drafts := current.Drafts
+	drafts[DraftKey("target-b", "actor-a")] = Draft{Target: "target-b", Actor: "actor-a", BaseRevision: "r", Revision: "r", UpdatedAt: "not-a-timestamp", Choices: map[string]string{"scenario.alpha": "enabled"}}
+	patch, err := json.Marshal(map[string]any{"drafts": drafts})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ApplyAtRevision(ctx, Revision(current), patch); err != nil {
+		t.Fatal(err)
+	}
+	pruned, err := service.PruneDrafts(ctx, 30*24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := pruned.Drafts[DraftKey("target-old", "actor-a")]; ok {
+		t.Fatalf("expired draft was retained: %#v", pruned.Drafts)
+	}
+	if _, ok := pruned.Drafts[DraftKey("target-b", "actor-a")]; !ok {
+		t.Fatal("unreadable draft was removed")
+	}
+	if pruned.Scenarios["alpha"].Enabled == nil || !*pruned.Scenarios["alpha"].Enabled {
+		t.Fatal("pruning changed committed configuration")
 	}
 }
 

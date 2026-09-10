@@ -248,13 +248,16 @@ func (d *FakeSSHDriver) VerifyKey(_ context.Context, conn onboard.Conn) (onboard
 	return conn, nil
 }
 
-func (d *FakeSSHDriver) PushScript(ctx context.Context, _ onboard.Conn) (string, error) {
+func (d *FakeSSHDriver) PushScript(ctx context.Context, _ onboard.Conn, target onboard.NodePlatform) (string, error) {
 	if d.PushScriptBlock {
 		<-ctx.Done()
 		return "", ctx.Err()
 	}
 	if d.PushScriptErr != nil {
 		return "", d.PushScriptErr
+	}
+	if target.OS == "windows" {
+		return "C:/Windows/Temp/bootstrap.ps1", nil
 	}
 	return "/tmp/bootstrap.sh", nil
 }

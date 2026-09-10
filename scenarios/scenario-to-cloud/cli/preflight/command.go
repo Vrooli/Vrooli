@@ -22,8 +22,6 @@ func Run(client *Client, args []string) error {
 		return runPreflight(client, args[1:])
 	case "requirements":
 		return runRequirements(client, args[1:])
-	case "fix-ports":
-		return runFixPorts(client, args[1:])
 	case "fix-firewall":
 		return runFixFirewall(client, args[1:])
 	case "fix-processes":
@@ -45,7 +43,6 @@ func printUsage() error {
 Commands:
   run <manifest.json>    Run VPS preflight checks for a cloud manifest
   requirements           Show canonical VPS requirements/policy
-  fix-ports              Stop services/processes on conflicting ports
   fix-firewall           Open required firewall ports
   fix-processes          Stop stale scenario processes on target VPS
   disk-usage             Show disk usage breakdown
@@ -53,7 +50,7 @@ Commands:
 
 Selector flags for target-dependent commands:
   --host <host> | --domain <domain> | --target <domain-or-host>
-  [--scenario <id>] [--user <ssh-user>] [--key-path <path>] [--ssh-port <n>]
+  [--scenario <id>] [--user <ssh-user>] [--ssh-port <n>]
 
 Run 'scenario-to-cloud preflight <command> -h' for command-specific options.`)
 	return nil
@@ -126,77 +123,6 @@ Flags:
 	return nil
 }
 
-func runFixPorts(client *Client, args []string) error {
-	fs := flag.NewFlagSet("preflight fix-ports", flag.ContinueOnError)
-	targetFlags := registerPreflightTargetFlags(fs)
-	var ports intListFlag
-	var pids intListFlag
-	var services cliutil.StringList
-	preferServiceStop := fs.Bool("prefer-service-stop", true, "Prefer stopping owning systemd service before PID kill")
-	fs.Var(&ports, "port", "Fix specific port (repeatable)")
-	fs.Var(&pids, "pid", "Stop specific PID (repeatable)")
-	fs.Var(&services, "service", "Stop specific service (repeatable)")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() != 0 {
-		return fmt.Errorf("usage: scenario-to-cloud preflight fix-ports --domain <domain>|--host <host>|--target <target> [--scenario <id>] [--port <n>] [--pid <n>] [--service <name>] [--json]")
-	}
-
-	target, err := targetFlags.resolve(client)
-	if err != nil {
-		return err
-	}
-
-	req := FixPortsRequest{
-		Host:              target.Host,
-		Port:              target.Port,
-		User:              target.User,
-		KeyPath:           target.KeyPath,
-		Ports:             ports.Values,
-		PIDs:              pids.Values,
-		Services:          services.Values(),
-		PreferServiceStop: preferServiceStop,
-	}
-
-	body, resp, err := client.FixPorts(req)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	if resp.OK {
-		fmt.Println("Port conflict actions completed.")
-		if len(resp.Stopped) > 0 {
-			fmt.Println("Stopped:")
-			for _, item := range resp.Stopped {
-				fmt.Printf("  - %s\n", item)
-			}
-		}
-		if len(resp.Failed) > 0 {
-			fmt.Println("Failed:")
-			for _, item := range resp.Failed {
-				fmt.Printf("  - %s\n", item)
-			}
-		}
-		return nil
-	}
-
-	fmt.Printf("Port conflict fix failed: %s\n", resp.Message)
-	if len(resp.Failed) > 0 {
-		fmt.Println("Failed:")
-		for _, item := range resp.Failed {
-			fmt.Printf("  - %s\n", item)
-		}
-	}
-	return nil
-}
-
 func runFixFirewall(client *Client, args []string) error {
 	fs := flag.NewFlagSet("preflight fix-firewall", flag.ContinueOnError)
 	targetFlags := registerPreflightTargetFlags(fs)
@@ -206,21 +132,17 @@ func runFixFirewall(client *Client, args []string) error {
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() != 0 {
-		return fmt.Errorf("usage: scenario-to-cloud preflight fix-firewall --domain <domain>|--host <host>|--target <target> [--scenario <id>] [--port <n>] [--json]")
-	}
 
-	target, err := targetFlags.resolve(client)
+	target, err := targetFlags.resolve(client, fs.Args())
 	if err != nil {
 		return err
 	}
 
 	req := FixFirewallRequest{
-		Host:    target.Host,
-		Port:    target.Port,
-		User:    target.User,
-		KeyPath: target.KeyPath,
-		Ports:   ports.Values,
+		Host:  target.Host,
+		Port:  target.Port,
+		User:  target.User,
+		Ports: ports.Values,
 	}
 
 	body, resp, err := client.FixFirewall(req)
@@ -254,11 +176,8 @@ func runFixProcesses(client *Client, args []string) error {
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() != 0 {
-		return fmt.Errorf("usage: scenario-to-cloud preflight fix-processes --domain <domain>|--host <host>|--target <target> [--scenario <id>] [--scenario-id <id>] [--workdir <path>] [--json]")
-	}
 
-	target, err := targetFlags.resolve(client)
+	target, err := targetFlags.resolve(client, fs.Args())
 	if err != nil {
 		return err
 	}
@@ -267,7 +186,6 @@ func runFixProcesses(client *Client, args []string) error {
 		Host:       target.Host,
 		Port:       target.Port,
 		User:       target.User,
-		KeyPath:    target.KeyPath,
 		Workdir:    target.Workdir,
 		ScenarioID: target.ScenarioID,
 	}
@@ -307,20 +225,16 @@ func runDiskUsage(client *Client, args []string) error {
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() != 0 {
-		return fmt.Errorf("usage: scenario-to-cloud preflight disk-usage --domain <domain>|--host <host>|--target <target> [--scenario <id>] [--json]")
-	}
 
-	target, err := targetFlags.resolve(client)
+	target, err := targetFlags.resolve(client, fs.Args())
 	if err != nil {
 		return err
 	}
 
 	body, resp, err := client.DiskUsage(DiskUsageRequest{
-		Host:    target.Host,
-		Port:    target.Port,
-		User:    target.User,
-		KeyPath: target.KeyPath,
+		Host: target.Host,
+		Port: target.Port,
+		User: target.User,
 	})
 	if err != nil {
 		return err
@@ -357,11 +271,8 @@ func runDiskCleanup(client *Client, args []string) error {
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() != 0 {
-		return fmt.Errorf("usage: scenario-to-cloud preflight disk-cleanup --domain <domain>|--host <host>|--target <target> [--scenario <id>] [--action <name>] [--json]")
-	}
 
-	target, err := targetFlags.resolve(client)
+	target, err := targetFlags.resolve(client, fs.Args())
 	if err != nil {
 		return err
 	}
@@ -375,7 +286,6 @@ func runDiskCleanup(client *Client, args []string) error {
 		Host:    target.Host,
 		Port:    target.Port,
 		User:    target.User,
-		KeyPath: target.KeyPath,
 		Actions: requestedActions,
 	})
 	if err != nil {

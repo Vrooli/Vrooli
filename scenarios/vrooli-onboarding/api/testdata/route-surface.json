@@ -186,6 +186,22 @@
     },
     {
       "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/GetProfileSession",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/SaveProfileSession",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
       "path": "/vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ListOperatorInputs",
       "surfaces": [
         "cli",

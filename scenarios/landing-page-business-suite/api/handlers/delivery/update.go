@@ -4,9 +4,14 @@ package delivery
 
 import (
 	"context"
+	"crypto/sha512"
 	"crypto/subtle"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
+	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	internal "landing-page-business-suite-api/internal/delivery"
@@ -30,10 +35,15 @@ type UpdateVerifier interface {
 	GetArtifact(context.Context, string, int64) (*internal.Artifact, error)
 	PresignGetArtifact(context.Context, string, internal.Artifact) (string, error)
 	HeadArtifact(context.Context, string, internal.Artifact) error
+	ReadArtifact(context.Context, string, internal.Artifact) (io.ReadCloser, int64, string, error)
 }
 
 type UpdateChannelLookup interface {
 	ListChannels(bundleKey, appKey string) ([]internal.ChannelInfo, error)
+}
+
+type UpdateChannelHaltLookup interface {
+	IsChannelHalted(bundleKey, appKey, variantKey string) (bool, error)
 }
 
 type UpdatePolicyLookup interface {
@@ -96,6 +106,13 @@ func UpdateFile(deps UpdateDependencies, assets UpdateAssetLookup, artifacts Upd
 			return
 		}
 		bundleKey, variantKey := deps.BundleKey(), ChannelToVariantKey(channel)
+		if halted, err := channelHalted(assets, bundleKey, appKey, variantKey); err != nil {
+			deps.WriteError(w, http.StatusInternalServerError, "failed to read channel halt state", "server_error")
+			return
+		} else if halted {
+			deps.WriteError(w, http.StatusGone, "channel is halted; no new offers are available", "channel_halted")
+			return
+		}
 		if platform := ManifestFilenameToPlatform(file); platform != "" {
 			asset, err := assets.GetAssetByVariant(bundleKey, appKey, platform, variantKey)
 			if err != nil {
@@ -122,7 +139,7 @@ func UpdateFile(deps UpdateDependencies, assets UpdateAssetLookup, artifacts Upd
 			w.Header().Set("Content-Type", "application/x-yaml")
 			w.Header().Set("Cache-Control", "no-cache")
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write(BuildElectronManifest(artifact, asset.ReleaseNotes))
+			_, _ = w.Write(BuildElectronManifest(artifact, asset.ReleaseNotes, channel, appKey))
 			return
 		}
 		artifact, err := artifacts.GetCurrentArtifactByFilename(r.Context(), bundleKey, appKey, variantKey, file)
@@ -135,8 +152,26 @@ func UpdateFile(deps UpdateDependencies, assets UpdateAssetLookup, artifacts Upd
 			deps.WriteError(w, http.StatusInternalServerError, "failed to generate download URL", "server_error")
 			return
 		}
+		if err := validateDownloadRedirect(signedURL); err != nil {
+			deps.WriteError(w, http.StatusInternalServerError, "generated download URL is unsafe", "server_error")
+			return
+		}
+		// The redirect contains a short-lived provider URL. Do not let an
+		// intermediary cache that credential-bearing location after expiry.
+		w.Header().Set("Cache-Control", "no-store")
 		http.Redirect(w, r, signedURL, http.StatusFound)
 	}
+}
+
+func validateDownloadRedirect(raw string) error {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" {
+		return errors.New("download redirect must be an absolute URL without userinfo")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return errors.New("download redirect must use http or https")
+	}
+	return nil
 }
 
 func ChannelDiscovery(deps UpdateDependencies, channels UpdateChannelLookup) http.HandlerFunc {
@@ -155,11 +190,19 @@ func VerifyUpdate(deps UpdateDependencies, assets UpdateAssetLookup, artifacts U
 	return func(w http.ResponseWriter, r *http.Request) {
 		appKey, _ := deps.appKey(r)
 		channel, platform, expectedVersion := r.URL.Query().Get("channel"), r.URL.Query().Get("platform"), r.URL.Query().Get("expected_version")
-		if channel == "" || platform == "" || expectedVersion == "" {
-			deps.WriteError(w, http.StatusBadRequest, "channel, platform, and expected_version are required", "validation")
+		expectedSHA512 := strings.TrimSpace(r.URL.Query().Get("expected_sha512"))
+		if channel == "" || platform == "" || expectedVersion == "" || expectedSHA512 == "" {
+			deps.WriteError(w, http.StatusBadRequest, "channel, platform, expected_version, and expected_sha512 are required", "validation")
 			return
 		}
 		bundleKey := deps.BundleKey()
+		if halted, err := channelHalted(assets, bundleKey, appKey, ChannelToVariantKey(channel)); err != nil {
+			deps.WriteError(w, http.StatusInternalServerError, "failed to read channel halt state", "server_error")
+			return
+		} else if halted {
+			deps.WriteError(w, http.StatusGone, "channel is halted; no new offers are available", "channel_halted")
+			return
+		}
 		asset, err := assets.GetAssetByVariant(bundleKey, appKey, platform, ChannelToVariantKey(channel))
 		if err != nil {
 			if errors.Is(err, internal.ErrAssetNotFound) {
@@ -178,14 +221,87 @@ func VerifyUpdate(deps UpdateDependencies, assets UpdateAssetLookup, artifacts U
 			deps.WriteError(w, http.StatusNotFound, "artifact not found", "not_found")
 			return
 		}
-		resp := map[string]any{"match": artifact.ReleaseVersion == expectedVersion && artifact.SHA512 != "", "actual_version": artifact.ReleaseVersion, "actual_sha512": artifact.SHA512}
+		versionMatch := artifact.ReleaseVersion == expectedVersion
+		metadataSHA512Match := digestMatches(artifact.SHA512, expectedSHA512)
+		resp := map[string]any{
+			"app_key":          appKey,
+			"channel":          channel,
+			"platform":         platform,
+			"expected_version": expectedVersion,
+			"match":            versionMatch && artifact.SHA512 != "" && metadataSHA512Match,
+			"actual_version":   artifact.ReleaseVersion, "actual_sha512": artifact.SHA512,
+			"sha512_match": metadataSHA512Match,
+		}
 		if r.URL.Query().Get("deep") == "true" {
-			resp["artifact_accessible"] = artifacts.HeadArtifact(r.Context(), bundleKey, *artifact) == nil
-			_, err := artifacts.PresignGetArtifact(r.Context(), bundleKey, *artifact)
-			resp["presign_valid"] = err == nil
+			artifactAccessible := artifacts.HeadArtifact(r.Context(), bundleKey, *artifact) == nil
+			resp["artifact_accessible"] = artifactAccessible
+			signedURL, err := artifacts.PresignGetArtifact(r.Context(), bundleKey, *artifact)
+			presignValid := err == nil && validateDownloadRedirect(signedURL) == nil
+			resp["presign_valid"] = presignValid
+
+			bytesVerified, actualSize, actualSHA512 := false, int64(0), ""
+			if artifactAccessible && presignValid {
+				body, declaredSize, _, readErr := artifacts.ReadArtifact(r.Context(), bundleKey, *artifact)
+				if readErr == nil && body != nil {
+					actualSize, actualSHA512, readErr = digestArtifact(body, declaredSize)
+					bytesVerified = readErr == nil && digestMatches(actualSHA512, artifact.SHA512) &&
+						(artifact.SizeBytes <= 0 || actualSize == artifact.SizeBytes)
+				}
+			}
+			resp["bytes_verified"] = bytesVerified
+			resp["actual_size_bytes"] = actualSize
+			resp["actual_sha512"] = actualSHA512
+			sha512Match := bytesVerified && digestMatches(actualSHA512, expectedSHA512)
+			resp["sha512_match"] = sha512Match
+			resp["match"] = versionMatch && artifact.SHA512 != "" && sha512Match
 		}
 		deps.WriteData(w, resp)
 	}
+}
+
+func channelHalted(value interface{}, bundleKey, appKey, variantKey string) (bool, error) {
+	lookup, ok := value.(UpdateChannelHaltLookup)
+	if !ok {
+		return false, nil
+	}
+	return lookup.IsChannelHalted(bundleKey, appKey, variantKey)
+}
+
+func digestArtifact(body io.ReadCloser, declaredSize int64) (int64, string, error) {
+	defer body.Close()
+	hash := sha512.New()
+	count, err := io.Copy(hash, body)
+	if err != nil {
+		return count, "", err
+	}
+	if declaredSize > 0 && count != declaredSize {
+		return count, "", errors.New("artifact byte count differs from provider content length")
+	}
+	return count, base64.StdEncoding.EncodeToString(hash.Sum(nil)), nil
+}
+
+func digestMatches(actual, expected string) bool {
+	actual = strings.TrimSpace(strings.TrimPrefix(actual, "sha512:"))
+	expected = strings.TrimSpace(strings.TrimPrefix(expected, "sha512:"))
+	if actual == "" || expected == "" {
+		return false
+	}
+	if subtle.ConstantTimeCompare([]byte(actual), []byte(expected)) == 1 {
+		return true
+	}
+	actualBytes, actualErr := decodeDigest(actual)
+	expectedBytes, expectedErr := decodeDigest(expected)
+	if actualErr == nil && expectedErr == nil {
+		return subtle.ConstantTimeCompare(actualBytes, expectedBytes) == 1
+	}
+	return false
+}
+
+func decodeDigest(value string) ([]byte, error) {
+	if decoded, err := base64.StdEncoding.DecodeString(value); err == nil {
+		return decoded, nil
+	}
+	return hex.DecodeString(value)
 }
 
 func GetUpdatePolicy(deps UpdateDependencies, apps UpdatePolicyLookup) http.HandlerFunc {

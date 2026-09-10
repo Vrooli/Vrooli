@@ -64,7 +64,7 @@ func newAuthStub(t *testing.T, impl *fakeAccounts) *httptest.Server {
 
 func newForwarder(t *testing.T, url string) *identity.Forwarder {
 	t.Helper()
-	return identity.NewForwarder(identity.Config{Resolver: discovery.NewStaticResolver(url)})
+	return identity.NewForwarder(identity.ForwarderConfig{Resolver: discovery.NewStaticResolver(url)})
 }
 
 func TestForwarderLogin(t *testing.T) {
@@ -118,13 +118,13 @@ func TestForwarderLogin(t *testing.T) {
 	})
 
 	t.Run("resolver failure is unavailable", func(t *testing.T) {
-		f := identity.NewForwarder(identity.Config{Resolver: failingResolver{}})
+		f := identity.NewForwarder(identity.ForwarderConfig{Resolver: failingResolver{}})
 		_, err := f.Login(context.Background(), identity.Credentials{Email: "o@x.io", Password: "pw"})
 		assert.ErrorIs(t, err, identity.ErrAuthUnavailable)
 	})
 
 	t.Run("stopped authenticator names the dependency and remediation", func(t *testing.T) {
-		f := identity.NewForwarder(identity.Config{Resolver: stoppedResolver{}})
+		f := identity.NewForwarder(identity.ForwarderConfig{Resolver: stoppedResolver{}})
 		_, err := f.Login(context.Background(), identity.Credentials{Email: "o@x.io", Password: "pw"})
 		assert.ErrorIs(t, err, identity.ErrAuthUnavailable)
 		assert.Contains(t, err.Error(), "scenario-authenticator is stopped")

@@ -2,10 +2,13 @@ package systemmetrics
 
 import "scenario-to-cloud/domain"
 
-// CommandSpec describes a command executed on the remote VPS by the SSH runner.
+// CommandSpec describes one host observation the collector needs: a
+// read-only program from reach.ObservationPrograms and its argument vector.
+// The prober runs it through reach; nothing here is a shell string.
 type CommandSpec struct {
 	ID      string
-	Command string
+	Program string
+	Args    []string
 }
 
 // CommandResult is normalized output from a command already run on the remote VPS.

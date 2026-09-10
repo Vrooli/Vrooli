@@ -9,15 +9,22 @@ import (
 )
 
 func TestVerdictFromBridgeMapsDispositionAndTarget(t *testing.T) {
-	result, err := VerdictFromBridge(crossosgate.OSResult{OS: "linux", RunID: "bridge-run", NodeID: "node-1", Disposition: "success", Detail: "smoke passed"}, "desktop", "linux", "")
+	result, err := VerdictFromBridge(crossosgate.OSResult{OS: "linux", RunID: "bridge-run", NodeID: "node-1", Disposition: "failed", Detail: "smoke failed"}, "desktop", "linux", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.RunId != "bridge-run" || result.Disposition != commonv1.Disposition_DISPOSITION_PASSED || result.Target.GetDeviceKind() != commonv1.DeviceKind_DEVICE_KIND_HOST {
+	if result.RunId != "bridge-run" || result.Disposition != commonv1.Disposition_DISPOSITION_FAILED || result.Target.GetDeviceKind() != commonv1.DeviceKind_DEVICE_KIND_HOST {
 		t.Fatalf("mapped verdict = %+v", result)
 	}
 	if result.Target.GetBridgeNodeId() != "node-1" || result.Target.GetBridgeJobId() != "bridge-run" {
 		t.Fatalf("bridge references = %+v", result.Target)
+	}
+}
+
+func TestVerdictFromBridgeRejectsPassedResultWithoutEvidenceReference(t *testing.T) {
+	_, err := VerdictFromBridge(crossosgate.OSResult{OS: "linux", RunID: "bridge-run", Disposition: "passed"}, "desktop", "linux", "")
+	if err == nil {
+		t.Fatal("bridge pass without an evidence reference was accepted")
 	}
 }
 

@@ -2,6 +2,7 @@ package vps
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -50,11 +51,25 @@ func (c *Client) SetupPlan(manifest map[string]interface{}, bundlePath string) (
 	return body, resp, nil
 }
 
-// SetupApply executes VPS setup.
-func (c *Client) SetupApply(manifest map[string]interface{}, bundlePath string) ([]byte, SetupApplyResponse, error) {
+// SetupApply executes VPS setup. planDigest is the digest returned by the
+// plan endpoint; when empty the plan is compiled first and its digest is
+// submitted, so apply is a thin alias for "plan, then apply what was shown".
+// A stale digest is refused by the API with plan_digest_mismatch.
+func (c *Client) SetupApply(manifest map[string]interface{}, bundlePath, planDigest string) ([]byte, SetupApplyResponse, error) {
+	if planDigest == "" {
+		_, plan, err := c.SetupPlan(manifest, bundlePath)
+		if err != nil {
+			return nil, SetupApplyResponse{}, err
+		}
+		if plan.PlanDigest == "" {
+			return nil, SetupApplyResponse{}, fmt.Errorf("setup plan response carried no plan_digest; cannot apply without a reviewed plan")
+		}
+		planDigest = plan.PlanDigest
+	}
 	req := map[string]interface{}{
 		"manifest":    manifest,
 		"bundle_path": bundlePath,
+		"plan_digest": planDigest,
 	}
 	body, err := c.api.Request("POST", "/api/v1/vps/setup/apply", nil, req)
 	if err != nil {
@@ -83,10 +98,21 @@ func (c *Client) DeployPlan(manifest map[string]interface{}) ([]byte, DeployPlan
 	return body, resp, nil
 }
 
-// DeployApply executes VPS deploy.
-func (c *Client) DeployApply(manifest map[string]interface{}) ([]byte, DeployApplyResponse, error) {
+// DeployApply executes VPS deploy. See SetupApply for the planDigest rule.
+func (c *Client) DeployApply(manifest map[string]interface{}, planDigest string) ([]byte, DeployApplyResponse, error) {
+	if planDigest == "" {
+		_, plan, err := c.DeployPlan(manifest)
+		if err != nil {
+			return nil, DeployApplyResponse{}, err
+		}
+		if plan.PlanDigest == "" {
+			return nil, DeployApplyResponse{}, fmt.Errorf("deploy plan response carried no plan_digest; cannot apply without a reviewed plan")
+		}
+		planDigest = plan.PlanDigest
+	}
 	req := map[string]interface{}{
-		"manifest": manifest,
+		"manifest":    manifest,
+		"plan_digest": planDigest,
 	}
 	body, err := c.api.Request("POST", "/api/v1/vps/deploy/apply", nil, req)
 	if err != nil {

@@ -23,7 +23,7 @@ describe("ScenarioCatalogStep", () => {
 
   it("renders dependency cascade evidence and protects system-required scenarios", async () => {
     renderWithProviders(<ScenarioCatalogStep selected={new Set()} onToggle={vi.fn()} />);
-    expect(await screen.findByTestId("scenario-card-control-plane")).toBeDisabled();
+    expect(await screen.findByTestId("scenario-card-control-plane")).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByTestId("cascade-note")).toHaveTextContent("helper");
     expect(screen.getByTestId("resource-rollup")).toHaveTextContent("postgres");
   });

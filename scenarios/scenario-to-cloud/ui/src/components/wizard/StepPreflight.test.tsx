@@ -32,7 +32,7 @@ import type { DiskUsageResponse, PreflightCheck } from "../../lib/api";
 
 const manifest = {
   scenario: { id: "demo-scenario" },
-  target: { vps: { host: "vps.example.test", port: 2222, user: "deploy", key_path: "/tmp/key", workdir: "/srv/vrooli" } },
+  target: { vps: { host: "vps.example.test", port: 2222, user: "deploy", workdir: "/srv/vrooli" } },
 };
 
 const checks: PreflightCheck[] = [
@@ -115,10 +115,11 @@ describe("StepPreflight support and action flows", () => {
     expect(document.querySelector(".animate-spin")).toBeInTheDocument();
     rerender(<DiskUsageModal usage={diskUsage} loading={false} onClose={onClose} onCleanup={onCleanup} cleanupLoading={false} />);
     expect(screen.getByText("/var/lib/docker")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Clean apt cache" }));
+    expect(screen.queryByRole("button", { name: "Clean apt cache" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Vacuum journals" }));
     fireEvent.click(screen.getByRole("button", { name: "Run All" }));
-    expect(onCleanup).toHaveBeenNthCalledWith(1, ["apt_clean"]);
-    expect(onCleanup).toHaveBeenNthCalledWith(2, ["apt_clean", "journal_vacuum", "docker_prune", "tmp_clean"]);
+    expect(onCleanup).toHaveBeenNthCalledWith(1, ["journal_vacuum"]);
+    expect(onCleanup).toHaveBeenNthCalledWith(2, ["journal_vacuum", "docker_prune", "docker_prune_volumes"]);
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -152,12 +153,12 @@ describe("StepPreflight support and action flows", () => {
 
   it("runs firewall, disk, process, and port-stop actions through the shared SSH config", async () => {
     const onRecheck = vi.fn().mockResolvedValue(undefined);
-    const { result } = renderHook(() => usePreflightActions({ manifest, sshKeyPath: null, preflightChecks: checks, onRecheck }));
+    const { result } = renderHook(() => usePreflightActions({ manifest, preflightChecks: checks, onRecheck }));
     await act(async () => { await result.current.handleAction("firewall_inbound", "open_firewall"); });
-    expect(api.openFirewallPorts).toHaveBeenCalledWith({ host: "vps.example.test", port: 2222, user: "deploy", key_path: "/tmp/key", ports: [80, 443] });
+    expect(api.openFirewallPorts).toHaveBeenCalledWith({ host: "vps.example.test", port: 2222, user: "deploy", ports: [80, 443] });
     await act(async () => { await result.current.handleAction("disk_free", "show_disk"); });
     expect(result.current.showDiskModal).toBe(true);
-    await act(async () => { await result.current.handleCleanup(["apt_clean"]); });
+    await act(async () => { await result.current.handleCleanup(["journal_vacuum"]); });
     expect(api.runDiskCleanup).toHaveBeenCalled();
     await act(async () => { await result.current.handleAction("stale_processes", "stop_scenario"); });
     expect(api.stopScenarioProcesses).toHaveBeenCalledWith(expect.objectContaining({ scenario_id: "demo-scenario" }));
@@ -168,19 +169,18 @@ describe("StepPreflight support and action flows", () => {
     expect(onRecheck).toHaveBeenCalled();
   });
 
-  it("reports missing SSH configuration and action failures", async () => {
+  it("reports a missing target host and action failures", async () => {
     const { result } = renderHook(() => usePreflightActions({
-      manifest: { target: { vps: { host: "vps.example.test" } } },
-      sshKeyPath: null,
+      manifest: { target: { vps: {} } },
       preflightChecks: [],
     }));
     await act(async () => { await result.current.handleAction("firewall_inbound", "open_firewall"); });
-    expect(result.current.actionError).toMatch(/SSH key/);
+    expect(result.current.actionError).toMatch(/target host/);
 
     const failedResult = { ok: false, message: "firewall denied" };
     api.openFirewallPorts.mockResolvedValueOnce(failedResult);
     const withKey = renderHook(() => usePreflightActions({
-      manifest, sshKeyPath: "/tmp/key", preflightChecks: checks,
+      manifest, preflightChecks: checks,
     }));
     await act(async () => { await withKey.result.current.handleAction("firewall_inbound", "open_firewall"); });
     expect(withKey.result.current.actionError).toBe("firewall denied");
@@ -189,7 +189,7 @@ describe("StepPreflight support and action flows", () => {
     expect(withKey.result.current.actionError).toBe("Action failed: disk unavailable");
     api.getDiskUsage.mockResolvedValueOnce({ ok: true, free_space: "21 GB", free_bytes: 21, total_space: "100 GB", total_bytes: 100, used_percent: 79, largest_dirs: [], timestamp: "now" });
     api.runDiskCleanup.mockRejectedValueOnce(new Error("cleanup denied"));
-    await act(async () => { await withKey.result.current.handleCleanup(["apt_clean"]); });
+    await act(async () => { await withKey.result.current.handleCleanup(["journal_vacuum"]); });
     expect(withKey.result.current.actionError).toBe("Cleanup failed: cleanup denied");
   });
 
@@ -214,7 +214,6 @@ describe("StepPreflight support and action flows", () => {
       setPreflightOverride,
       runPreflight,
       parsedManifest: { ok: true, value: manifest },
-      sshKeyPath: null,
     } as unknown as ComponentProps<typeof StepPreflight>["deployment"];
     render(<StepPreflight deployment={base} />);
     expect(screen.getByText("Preflight Passed")).toBeInTheDocument();
@@ -262,7 +261,7 @@ describe("StepPreflight support and action flows", () => {
     const base: ComponentProps<typeof StepPreflight>['deployment'] = {
       ...({} as any), preflightPassed: false, preflightChecks: null, preflightError: "VPS unavailable",
       isRunningPreflight: true, preflightOverride: true, setPreflightOverride: vi.fn(), runPreflight,
-      parsedManifest: { ok: false, error: "invalid" }, sshKeyPath: null,
+      parsedManifest: { ok: false, error: "invalid" },
     } as any;
     render(<StepPreflight deployment={base} />);
     expect(screen.getByRole("button", { name: "Running Checks..." })).toBeInTheDocument();

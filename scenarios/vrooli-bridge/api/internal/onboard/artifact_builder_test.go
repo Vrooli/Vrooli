@@ -108,6 +108,60 @@ func TestArtifactBuilderBuildsExactlyOneTargetWithSharedSidecars(t *testing.T) {
 	require.True(t, got.VrooliBootstrapOnly, "Darwin artifacts built on the control plane must be bootstrap-only")
 }
 
+func TestArtifactBuilderAcceptsWindowsTargetAndUsesExecutableSuffix(t *testing.T) {
+	root := t.TempDir()
+	var callsMu sync.Mutex
+	var calls [][]string
+	b := &controlPlaneArtifactBuilder{
+		lookPath: func(string) (string, error) { return "/usr/bin/go", nil },
+		run: func(_ context.Context, _ string, args []string, _ string, env []string) error {
+			callsMu.Lock()
+			calls = append(calls, append([]string(nil), args...))
+			callsMu.Unlock()
+			var output string
+			for i, arg := range args {
+				if (arg == "--output" || arg == "-o") && i+1 < len(args) {
+					output = args[i+1]
+				}
+			}
+			if output == "" {
+				return fmt.Errorf("test build did not receive an output path")
+			}
+			if err := os.WriteFile(output, []byte("binary"), 0o755); err != nil {
+				return err
+			}
+			if strings.Contains(strings.Join(args, " "), "./cmd/vrooli-dist") {
+				return os.WriteFile(output+".fp", []byte("windows-tree\n"), 0o644)
+			}
+			_ = env
+			return nil
+		},
+	}
+
+	got, err := b.Build(context.Background(), ArtifactBuildParams{
+		RepoDir: root, Target: NodePlatform{OS: "windows", Arch: "amd64"},
+	})
+	require.NoError(t, err)
+	defer os.RemoveAll(got.Directory)
+	require.Equal(t, "windows", got.Target.OS)
+	require.Equal(t, "amd64", got.Target.Arch)
+	require.False(t, got.VrooliBootstrapOnly)
+	require.Equal(t, "windows-tree", got.Fingerprint)
+	require.True(t, strings.HasSuffix(got.Vrooli, "vrooli.exe"))
+	require.True(t, strings.HasSuffix(got.BridgeCLI, "vrooli-bridge.exe"))
+	require.True(t, strings.HasSuffix(got.Agent, "vrooli-bridge-agent.exe"))
+
+	callsMu.Lock()
+	defer callsMu.Unlock()
+	require.Len(t, calls, 3)
+	for _, args := range calls {
+		if strings.Contains(strings.Join(args, " "), "./cmd/vrooli-dist") {
+			continue
+		}
+		require.Contains(t, strings.Join(args, " "), "-o")
+	}
+}
+
 func TestArtifactBuilderCachesBySnapshotAndBuildsExecutablesInParallel(t *testing.T) {
 	root := t.TempDir()
 	cacheRoot := t.TempDir()

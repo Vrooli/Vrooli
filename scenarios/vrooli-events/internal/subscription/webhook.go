@@ -23,9 +23,13 @@ type WebhookDeliverer struct {
 
 // NewWebhookDeliverer creates a WebhookDeliverer with a 10-second timeout.
 func NewWebhookDeliverer() *WebhookDeliverer {
+	secret := os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET")
+	if secret == "" {
+		secret, _ = resolveWebhookSecret()
+	}
 	return &WebhookDeliverer{
 		client: &http.Client{Timeout: 10 * time.Second},
-		secret: []byte(os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET")),
+		secret: []byte(secret),
 	}
 }
 

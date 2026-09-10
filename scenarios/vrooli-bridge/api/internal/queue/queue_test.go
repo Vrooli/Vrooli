@@ -61,9 +61,20 @@ type fakeAborter struct {
 	aborted []string
 }
 
+type fakeCancellationSender struct {
+	delivered int
+	err       error
+	calls     []string
+}
+
+func (f *fakeCancellationSender) CancelJob(_ context.Context, _ string, runID, _ string) (int, error) {
+	f.calls = append(f.calls, runID)
+	return f.delivered, f.err
+}
+
 type fakeDurableStore struct {
-	entries                []queue.DurableEntry
-	queued, pushed, failed []string
+	entries                           []queue.DurableEntry
+	queued, pushed, failed, uncertain []string
 }
 
 func (f *fakeDurableStore) Load(context.Context) ([]queue.DurableEntry, error) {
@@ -82,6 +93,11 @@ func (f *fakeDurableStore) MarkPushed(_ context.Context, runID string, _, _ time
 
 func (f *fakeDurableStore) MarkFailedDelivery(_ context.Context, runID, _ string, _ time.Time) error {
 	f.failed = append(f.failed, runID)
+	return nil
+}
+
+func (f *fakeDurableStore) MarkUncertain(_ context.Context, runID, _ string, _ time.Time) error {
+	f.uncertain = append(f.uncertain, runID)
 	return nil
 }
 
@@ -235,6 +251,96 @@ func TestReconcile_TerminalizesUnownedRunAndReportsOutcome(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"r1"}, store.failed)
 	require.Equal(t, []queue.Reconciliation{{RunID: "r1", NodeID: "n1", Reason: "node_channel_lost", Terminal: true}}, outcomes)
+}
+
+func TestReconcile_LeavesQueuedWorkForScheduler(t *testing.T) {
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	store := &fakeDurableStore{entries: []queue.DurableEntry{{Job: job("queued-1", "n1"), State: queue.StateQueued}}}
+	pusher := &fakePusher{failNodes: map[string]bool{}}
+	outcomes, err := queue.Reconcile(context.Background(), store, fakeReconcilePresence{dispatchable: true}, pusher, clk)
+	require.NoError(t, err)
+	require.Empty(t, pusher.pushedRunIDs(), "queued work must be promoted through the scheduler")
+	require.Empty(t, store.pushed)
+	require.Equal(t, []queue.Reconciliation{{RunID: "queued-1", NodeID: "n1", Reason: "queued_restored"}}, outcomes)
+}
+
+func TestReconcile_DoesNotReplayAcknowledgedOrStartedWork(t *testing.T) {
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	startedAt := clk.Now().Add(-time.Second)
+	store := &fakeDurableStore{entries: []queue.DurableEntry{
+		{Job: job("acked-1", "n1"), State: queue.StateRunning, Acked: true, AckedAt: startedAt},
+		{Job: job("started-1", "n1"), State: queue.StateRunning, StartedAt: startedAt},
+	}}
+	pusher := &fakePusher{failNodes: map[string]bool{}}
+	outcomes, err := queue.Reconcile(context.Background(), store, fakeReconcilePresence{dispatchable: true}, pusher, clk)
+	require.NoError(t, err)
+	require.Empty(t, pusher.pushedRunIDs(), "work with possible external effects must not be replayed")
+	require.Empty(t, store.pushed)
+	require.Equal(t, []queue.Reconciliation{
+		{RunID: "acked-1", NodeID: "n1", Reason: "acknowledged_delivery_preserved"},
+		{RunID: "started-1", NodeID: "n1", Reason: "execution_state_preserved"},
+	}, outcomes)
+}
+
+func TestReconcile_RedrivenDeliveryGetsWatchdogLease(t *testing.T) {
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	store := &fakeDurableStore{entries: []queue.DurableEntry{{Job: job("redrive-1", "n1"), State: queue.StateRunning}}}
+	pusher := &fakePusher{failNodes: map[string]bool{}}
+	outcomes, err := queue.Reconcile(context.Background(), store, fakeReconcilePresence{dispatchable: true}, pusher, clk)
+	require.NoError(t, err)
+	require.Equal(t, []string{"redrive-1"}, pusher.pushedRunIDs())
+	require.Equal(t, []string{"redrive-1"}, store.pushed)
+	require.Equal(t, []queue.Reconciliation{{RunID: "redrive-1", NodeID: "n1", Reason: "delivery_redriven"}}, outcomes)
+}
+
+func TestReconcile_RedrivesCancellationWithoutReplayingJob(t *testing.T) {
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	store := &fakeDurableStore{entries: []queue.DurableEntry{{
+		Job: job("cancel-1", "n1"), State: queue.StateRunning,
+		CancelRequestedAt: clk.Now().Add(-time.Second), CancelReason: "operator abort",
+	}}}
+	pusher := &fakePusher{failNodes: map[string]bool{}}
+	sender := &fakeCancellationSender{delivered: 1}
+	outcomes, err := queue.Reconcile(context.Background(), store, fakeReconcilePresence{dispatchable: true}, pusher, clk, sender)
+	require.NoError(t, err)
+	require.Empty(t, pusher.pushedRunIDs(), "reconciliation must never replay the original job")
+	require.Equal(t, []string{"cancel-1"}, sender.calls)
+	require.Equal(t, []queue.Reconciliation{{RunID: "cancel-1", NodeID: "n1", Reason: "cancellation_redriven"}}, outcomes)
+}
+
+func TestReconcile_UnconfirmedCancellationBecomesUncertain(t *testing.T) {
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	store := &fakeDurableStore{entries: []queue.DurableEntry{{
+		Job: job("cancel-uncertain", "n1"), State: queue.StateRunning,
+		CancelRequestedAt: clk.Now().Add(-time.Second),
+	}}}
+	sender := &fakeCancellationSender{}
+	outcomes, err := queue.Reconcile(context.Background(), store, fakeReconcilePresence{dispatchable: true}, &fakePusher{failNodes: map[string]bool{}}, clk, sender)
+	require.NoError(t, err)
+	require.Equal(t, []string{"cancel-uncertain"}, store.uncertain)
+	require.Equal(t, []queue.Reconciliation{{RunID: "cancel-uncertain", NodeID: "n1", Reason: "cancellation_unconfirmed"}}, outcomes)
+}
+
+func TestReconcileAndSchedulerRestoreQueuedWorkWithoutExceedingBound(t *testing.T) {
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	store := &fakeDurableStore{entries: []queue.DurableEntry{
+		{Job: job("running-1", "n1"), State: queue.StateRunning},
+		{Job: job("queued-1", "n1"), State: queue.StateQueued, EnqueuedAt: clk.Now()},
+	}}
+	pusher := &fakePusher{failNodes: map[string]bool{}}
+
+	_, err := queue.Reconcile(context.Background(), store, fakeReconcilePresence{dispatchable: true}, pusher, clk)
+	require.NoError(t, err)
+	require.Equal(t, []string{"running-1"}, pusher.pushedRunIDs(), "boot reconciliation redrives only the safe delivery attempt")
+
+	scheduler, err := queue.NewSchedulerWithStore(pusher, &fakeAborter{}, clk, 1, store)
+	require.NoError(t, err)
+	scheduler.Promote(context.Background(), "n1")
+	require.Equal(t, []string{"running-1"}, pusher.pushedRunIDs(), "the restored running entry still owns the slot")
+	scheduler.Complete(context.Background(), "n1", "running-1")
+	require.Equal(t, []string{"running-1", "queued-1"}, pusher.pushedRunIDs())
+	require.Equal(t, 1, scheduler.Snapshot("n1")[0].Running)
+	require.Equal(t, 0, scheduler.Snapshot("n1")[0].Queued)
 }
 
 type fakeReconcilePresence struct{ dispatchable bool }

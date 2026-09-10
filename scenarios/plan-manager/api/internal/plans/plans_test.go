@@ -200,6 +200,9 @@ func TestExtendChangeBoundaryIsAppendOnlyAndDenyRespecting(t *testing.T) {
 
 	created, err := svc.Create(ctx, plans.Plan{
 		Title: "Boundary extension",
+		RegressionAnchor: plans.RegressionAnchor{
+			Strategy: plans.AnchorStrategyChangeBoundary,
+		},
 		ChangeBoundary: plans.ChangeBoundary{
 			AcceptanceAllow: []string{"scenarios/plan-manager/**"},
 			AcceptanceDeny:  []string{"scenarios/swarm-manager/**"},
@@ -215,11 +218,15 @@ func TestExtendChangeBoundaryIsAppendOnlyAndDenyRespecting(t *testing.T) {
 	require.Contains(t, updated.ChangeBoundary.AcceptanceAllow, "packages/proto/**")
 	require.Contains(t, updated.ChangeBoundary.AcceptanceAllow, "scenarios/plan-manager/**",
 		"extension is append-only; the original allow glob must survive")
+	require.True(t, planmodel.CurrentBaselineSetValid(updated),
+		"boundary extension must keep the persisted baseline-set intent synchronized")
 
 	// It persists.
 	reloaded, err := svc.Get(ctx, created.ID, plans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.Contains(t, reloaded.ChangeBoundary.AcceptanceAllow, "packages/proto/**")
+	require.True(t, planmodel.CurrentBaselineSetValid(reloaded),
+		"the synchronized baseline-set intent must survive persistence")
 
 	// An already-covered glob is a no-op, not a duplicate.
 	_, addedAgain, err := svc.ExtendChangeBoundary(ctx, created.ID, plans.WorkspaceScope{}, []string{"packages/proto/**"})

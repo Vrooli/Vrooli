@@ -1,0 +1,71 @@
+{
+  "metadata": {
+    "name": "Bundle inventory surface",
+    "description": "Observer check of the bundle inventory and stats endpoints that a deterministic bundle build populates; the build itself is exercised by api/bundle package tests, not by this read-only case.",
+    "tags": [
+      "e2e",
+      "api",
+      "bundle"
+    ],
+    "requirements": [
+      "STC-P0-002",
+      "STC-P0-008"
+    ],
+    "labels": {
+      "safety": "observer",
+      "mutates_target": "false",
+      "mutates_repository": "false",
+      "requirements_json": "[\"STC-P0-002\", \"STC-P0-008\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer"
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "list",
+      "type": "http_request",
+      "data": {
+        "label": "GET /api/v1/bundles",
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/bundles",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {
+            "type": "status_code",
+            "expected": 200
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.bundles"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.timestamp"
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats",
+      "type": "http_request",
+      "data": {
+        "label": "GET /api/v1/bundles/stats",
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/bundles/stats",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {
+            "type": "status_code",
+            "expected": 200
+          }
+        ]
+      }
+    }
+  ],
+  "edges": []
+}

@@ -175,7 +175,16 @@ func (r *Runner) Execute(ctx context.Context, job *channelv1.JobPush) error {
 		ev.RunId = job.GetRunId()
 		ev.Sequence = seq
 		ev.EmittedAt = timestamppb.New(r.now().UTC())
-		return r.reporter.Report(ctx, ev)
+		reportCtx := ctx
+		if ev.GetKind() == sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT {
+			// A cancelled execution still needs to publish its terminal evidence.
+			// Keep that report independent of the run context, but bounded so a
+			// broken control-plane transport cannot strand the agent forever.
+			var cancel context.CancelFunc
+			reportCtx, cancel = context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+			defer cancel()
+		}
+		return r.reporter.Report(reportCtx, ev)
 	}
 
 	argv, outputs, err := r.buildArgvWithOutputs(job)

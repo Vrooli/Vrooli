@@ -32,6 +32,7 @@ type (
 	RecoveryManifest = internalcredentialauthority.RecoveryManifest
 	RecoveryReceipt  = internalcredentialauthority.RecoveryReceipt
 	RecoveryEpoch    = internalcredentialauthority.RecoveryEpoch
+	CandidateRef     = internalcredentialauthority.CandidateRef
 )
 
 var ParseIdentity = internalcredentialauthority.ParseIdentity
@@ -157,4 +158,16 @@ func (a *Authority) ExportRecovery(entries []RecoveryEntry, passphrase string) (
 
 func (a *Authority) RestoreRecovery(bundle []byte, passphrase string) error {
 	return a.inner.RestoreRecovery(bundle, passphrase)
+}
+
+func (a *Authority) PutCandidate(identity Identity, field, value string) (CandidateRef, error) {
+	return a.inner.PutCandidate(identity, field, value)
+}
+
+func (a *Authority) ActivateCandidate(ref CandidateRef) error {
+	return a.inner.ActivateCandidate(ref)
+}
+
+func (a *Authority) RejectCandidate(ref CandidateRef) error {
+	return a.inner.RejectCandidate(ref)
 }

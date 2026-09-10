@@ -2344,6 +2344,11 @@
       "reason": "Node-facing authenticated credential delivery receipt called by the node-agent; operators inspect the generation and ack metadata through grant inventory."
     },
     {
+      "service": "PresenceService",
+      "method": "ReportArtifactReceipt",
+      "reason": "Node-facing authenticated artifact placement receipt called by the node-agent after pulling and atomically installing a directed item; operators inspect the durable distribution status instead."
+    },
+    {
       "service": "RunsService",
       "method": "ReportRunEvent",
       "reason": "Node-facing dial-out RPC: the node-agent streams run events back here signed with its per-node credential. There is no operator `runs report` command; the agent reports run progress on the channel."

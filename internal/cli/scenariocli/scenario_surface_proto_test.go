@@ -54,8 +54,9 @@ func TestScenarioStatusListJSONContract(t *testing.T) {
 			PortBindings: []ListPortOutput{
 				{Key: "API_PORT", Step: "develop", Port: 5329, ListenerStatus: "listening"},
 			},
-			Health:      "healthy",
-			HealthError: "",
+			Health:        "healthy",
+			HealthError:   "",
+			BuildIdentity: "sha256:alpha",
 		},
 		// sparse: nil StartedAt, nil Health, no ports.
 		{Name: "beta", Status: "stopped"},
@@ -89,6 +90,9 @@ func TestScenarioStatusListJSONContract(t *testing.T) {
 	}
 	if first["health_status"] != "healthy" {
 		t.Errorf("health_status: %v", first["health_status"])
+	}
+	if first["build_identity"] != "sha256:alpha" {
+		t.Errorf("build_identity: %v", first["build_identity"])
 	}
 	ports := first["ports"].(map[string]any)
 	isJSONNumber(t, ports["API_PORT"], "ports.API_PORT")
@@ -128,9 +132,10 @@ func TestScenarioStatusSingleJSONContract(t *testing.T) {
 			},
 		},
 		Runtime: InfoRuntimeData{
-			Status:      "running",
-			Processes:   1,
-			ProcessInfo: []process.Record{{PID: 42, Command: "serve", StartedAt: time.Date(2026, 6, 11, 9, 0, 0, 0, time.UTC)}},
+			Status:        "running",
+			Processes:     1,
+			BuildIdentity: "sha256:alpha",
+			ProcessInfo:   []process.Record{{PID: 42, Command: "serve", StartedAt: time.Date(2026, 6, 11, 9, 0, 0, 0, time.UTC)}},
 		},
 	}
 
@@ -156,6 +161,9 @@ func TestScenarioStatusSingleJSONContract(t *testing.T) {
 	isJSONNumber(t, rec["pid"], "process_records[0].pid")
 	if rec["started_at"] != "2026-06-11T09:00:00Z" {
 		t.Errorf("process started_at: %v", rec["started_at"])
+	}
+	if rt["build_identity"] != "sha256:alpha" {
+		t.Errorf("runtime.build_identity: %v", rt["build_identity"])
 	}
 }
 

@@ -13,16 +13,19 @@ import (
 // layer never imports proto; this is the single translation point (api-steer §7).
 func domainRunToProto(r runs.Run) *runsv1.Run {
 	out := &runsv1.Run{
-		Id:             r.ID,
-		NodeId:         r.NodeID,
-		Scenario:       r.Scenario,
-		Verb:           r.Verb,
-		Args:           append([]string(nil), r.Args...),
-		Status:         statusToProto(r.Status),
-		ExitCode:       r.ExitCode,
-		TimeoutSeconds: r.TimeoutSeconds,
-		ArtifactRefs:   append([]string(nil), r.ArtifactRefs...),
-		CreatedAt:      timestamppb.New(r.CreatedAt),
+		Id:                    r.ID,
+		NodeId:                r.NodeID,
+		Scenario:              r.Scenario,
+		Verb:                  r.Verb,
+		Args:                  append([]string(nil), r.Args...),
+		Status:                statusToProto(r.Status),
+		ExitCode:              r.ExitCode,
+		TimeoutSeconds:        r.TimeoutSeconds,
+		ArtifactRefs:          append([]string(nil), r.ArtifactRefs...),
+		CancelRequested:       !r.CancelRequestedAt.IsZero(),
+		CancellationConfirmed: r.CancellationConfirmed,
+		StatusReason:          r.StatusReason,
+		CreatedAt:             timestamppb.New(r.CreatedAt),
 	}
 	if !r.StartedAt.IsZero() {
 		out.StartedAt = timestamppb.New(r.StartedAt)
@@ -47,6 +50,10 @@ func statusToProto(s runs.RunStatus) runsv1.RunStatus {
 		return runsv1.RunStatus_RUN_STATUS_ABORTED
 	case runs.StatusFailedDelivery:
 		return runsv1.RunStatus_RUN_STATUS_FAILED_DELIVERY
+	case runs.StatusCancelRequested:
+		return runsv1.RunStatus_RUN_STATUS_CANCEL_REQUESTED
+	case runs.StatusUncertain:
+		return runsv1.RunStatus_RUN_STATUS_UNCERTAIN
 	case runs.StatusPushed, runs.StatusAcked:
 		if s == runs.StatusPushed {
 			return runsv1.RunStatus_RUN_STATUS_PUSHED

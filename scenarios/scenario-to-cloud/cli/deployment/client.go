@@ -5,87 +5,164 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"scenario-to-cloud/cli/internal/streaming"
 
-	"github.com/vrooli/cli-core/cliutil"
+	"connectrpc.com/connect"
+	deploymentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/deployments"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/deployments/deploymentsv1connect"
+	evidencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/evidence"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/evidence/evidencev1connect"
+	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/health"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/health/healthv1connect"
+	identityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/identity"
+	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/plans"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/plans/plansv1connect"
+
+	"scenario-to-cloud/cli/internal/selector"
+	"scenario-to-cloud/cli/internal/transport"
+	"scenario-to-cloud/cli/operation"
 )
 
-// Client provides API access for deployment operations.
+// Client is the deployment command group's access to the API: the generated
+// Deployments, Plans, Health and Evidence services, the operations client
+// for durable waits, and the REST client for the surfaces that have no
+// Connect service yet (create, delete, stop, history, recovery points,
+// cloud recovery). It carries no policy: every decision is the server's.
 type Client struct {
-	api *cliutil.APIClient
+	tr          transport.Transport
+	Deployments deploymentsv1connect.DeploymentsServiceClient
+	Plans       plansv1connect.PlansServiceClient
+	Health      healthv1connect.HealthServiceClient
+	Evidence    evidencev1connect.EvidenceServiceClient
+	Operations  *operation.Client
 }
 
-// NewClient creates a new deployment client.
-func NewClient(api *cliutil.APIClient) *Client {
-	return &Client{api: api}
+// NewClient builds the client over the shared transport.
+func NewClient(tr transport.Transport) *Client {
+	return &Client{
+		tr:          tr,
+		Deployments: deploymentsv1connect.NewDeploymentsServiceClient(tr.HTTP, tr.BaseURL),
+		Plans:       plansv1connect.NewPlansServiceClient(tr.HTTP, tr.BaseURL),
+		Health:      healthv1connect.NewHealthServiceClient(tr.HTTP, tr.BaseURL),
+		Evidence:    evidencev1connect.NewEvidenceServiceClient(tr.HTTP, tr.BaseURL),
+		Operations:  operation.NewClient(tr),
+	}
 }
 
-// APIClient returns the underlying API client for advanced operations.
-func (c *Client) APIClient() *cliutil.APIClient {
-	return c.api
+// Resolve maps a selector to exactly one deployment reference.
+func (c *Client) Resolve(ctx context.Context, sel selector.Selector) (*identityv1.DeploymentRef, error) {
+	return selector.Resolve(ctx, c.Deployments, sel)
 }
 
-// Plan generates a deployment plan from a manifest.
-func (c *Client) Plan(manifest map[string]interface{}) ([]byte, PlanResponse, error) {
-	body, err := c.api.Request("POST", "/api/v1/plan", nil, manifest)
+// Get reads one deployment record.
+func (c *Client) Get(ctx context.Context, id string) (*deploymentsv1.GetDeploymentResponse, error) {
+	resp, err := c.Deployments.GetDeployment(ctx, connect.NewRequest(&deploymentsv1.GetDeploymentRequest{Id: id}))
 	if err != nil {
-		return nil, PlanResponse{}, err
+		return nil, err
 	}
-	var resp PlanResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, PlanResponse{}, err
-	}
-	return body, resp, nil
+	return resp.Msg, nil
 }
 
-// Create creates a new deployment from a manifest.
+// List returns deployment summaries.
+func (c *Client) List(ctx context.Context, req *deploymentsv1.ListDeploymentsRequest) (*deploymentsv1.ListDeploymentsResponse, error) {
+	resp, err := c.Deployments.ListDeployments(ctx, connect.NewRequest(req))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
+}
+
+// CompileOptions are the compile-time inputs: the scope and whether the
+// release bundle must be rebuilt before the plan pins its digest.
+type CompileOptions struct {
+	Scope            string
+	ForceBundleBuild bool
+}
+
+// ApplyOptions are the admission inputs.
+type ApplyOptions struct {
+	Scope        string
+	RequestKey   string
+	RunPreflight bool
+}
+
+// CompilePlan previews the executable plan. The server ensures the release
+// bundle exists (or rebuilds it with ForceBundleBuild) so the digest is real.
+func (c *Client) CompilePlan(ctx context.Context, id string, opts CompileOptions) (*plansv1.CompilePlanResponse, error) {
+	resp, err := c.Plans.CompilePlan(ctx, connect.NewRequest(&plansv1.CompilePlanRequest{DeploymentId: id, Scope: opts.Scope, ForceBundleBuild: opts.ForceBundleBuild}))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
+}
+
+// ApplyPlan admits the reviewed digest as a durable operation.
+func (c *Client) ApplyPlan(ctx context.Context, id, digest string, opts ApplyOptions) (*plansv1.ApplyPlanResponse, error) {
+	resp, err := c.Plans.ApplyPlan(ctx, connect.NewRequest(&plansv1.ApplyPlanRequest{DeploymentId: id, PlanDigest: digest, RequestKey: opts.RequestKey, Scope: opts.Scope, RunPreflight: opts.RunPreflight}))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
+}
+
+// HealthObservation returns the typed health observation.
+func (c *Client) HealthObservation(ctx context.Context, id string) (*healthv1.GetHealthObservationResponse, error) {
+	resp, err := c.Health.GetHealthObservation(ctx, connect.NewRequest(&healthv1.GetHealthObservationRequest{DeploymentId: id}))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
+}
+
+// RequestPublication opens a governed publication for the deployment.
+func (c *Client) RequestPublication(ctx context.Context, req *evidencev1.PublicationRequest) (*evidencev1.Publication, error) {
+	resp, err := c.Evidence.RequestPublication(ctx, connect.NewRequest(req))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
+}
+
+// ApplyPublication activates an approved publication by its reviewed digest.
+func (c *Client) ApplyPublication(ctx context.Context, req *evidencev1.ApplyPublicationRequest) (*evidencev1.Publication, error) {
+	resp, err := c.Evidence.ApplyPublication(ctx, connect.NewRequest(req))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
+}
+
+// GetPublication reads the publication standing.
+func (c *Client) GetPublication(ctx context.Context, id, requestKey string) (*evidencev1.Publication, error) {
+	resp, err := c.Evidence.GetPublication(ctx, connect.NewRequest(&evidencev1.GetPublicationRequest{DeploymentId: id, RequestKey: requestKey}))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
+}
+
+// --- REST surfaces (no generated service yet) ---
+
+func (c *Client) rest(method, path string, query url.Values, body any, out any) ([]byte, error) {
+	raw, err := c.tr.API.Request(method, path, query, body)
+	if err != nil {
+		return nil, err
+	}
+	if out != nil {
+		if err := json.Unmarshal(raw, out); err != nil {
+			return raw, fmt.Errorf("decode %s %s: %w", method, path, err)
+		}
+	}
+	return raw, nil
+}
+
+// Create creates or updates a deployment record from a manifest.
 func (c *Client) Create(req CreateRequest) ([]byte, CreateResponse, error) {
-	body, err := c.api.Request("POST", "/api/v1/deployments", nil, req)
-	if err != nil {
-		return nil, CreateResponse{}, err
-	}
 	var resp CreateResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, CreateResponse{}, err
-	}
-	return body, resp, nil
+	raw, err := c.rest("POST", "/api/v1/deployments", nil, req, &resp)
+	return raw, resp, err
 }
 
-// List returns all deployments with optional filtering.
-func (c *Client) List(opts ListOptions) ([]byte, ListResponse, error) {
-	query := url.Values{}
-	if opts.Status != "" {
-		query.Set("status", opts.Status)
-	}
-	if opts.ScenarioID != "" {
-		query.Set("scenario_id", opts.ScenarioID)
-	}
-
-	body, err := c.api.Get("/api/v1/deployments", query)
-	if err != nil {
-		return nil, ListResponse{}, err
-	}
-	var resp ListResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, ListResponse{}, err
-	}
-	return body, resp, nil
-}
-
-// Get returns a single deployment by ID.
-func (c *Client) Get(id string) ([]byte, GetResponse, error) {
-	body, err := c.api.Get(fmt.Sprintf("/api/v1/deployments/%s", id), nil)
-	if err != nil {
-		return nil, GetResponse{}, err
-	}
-	var resp GetResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, GetResponse{}, err
-	}
-	return body, resp, nil
-}
-
-// Delete removes a deployment by ID.
+// Delete removes a deployment record.
 func (c *Client) Delete(id string, opts DeleteOptions) ([]byte, DeleteResponse, error) {
 	query := url.Values{}
 	if opts.Stop {
@@ -94,91 +171,62 @@ func (c *Client) Delete(id string, opts DeleteOptions) ([]byte, DeleteResponse, 
 	if opts.Cleanup {
 		query.Set("cleanup", "true")
 	}
-
-	body, err := c.api.Request("DELETE", fmt.Sprintf("/api/v1/deployments/%s", id), query, nil)
-	if err != nil {
-		return nil, DeleteResponse{}, err
-	}
 	var resp DeleteResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, DeleteResponse{}, err
-	}
-	return body, resp, nil
+	raw, err := c.rest("DELETE", "/api/v1/deployments/"+url.PathEscape(id), query, nil, &resp)
+	return raw, resp, err
 }
 
-// Execute starts the deployment pipeline.
-func (c *Client) Execute(id string, req ExecuteRequest) ([]byte, ExecuteResponse, error) {
-	body, err := c.api.Request("POST", fmt.Sprintf("/api/v1/deployments/%s/execute", id), nil, req)
-	if err != nil {
-		return nil, ExecuteResponse{}, err
-	}
-	var resp ExecuteResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, ExecuteResponse{}, err
-	}
-	return body, resp, nil
-}
-
-// Start resumes a stopped deployment.
-func (c *Client) Start(id string, req ExecuteRequest) ([]byte, StartResponse, error) {
-	body, err := c.api.Request("POST", fmt.Sprintf("/api/v1/deployments/%s/start", id), nil, req)
-	if err != nil {
-		return nil, StartResponse{}, err
-	}
-	var resp StartResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, StartResponse{}, err
-	}
-	return body, resp, nil
-}
-
-// Stop stops a running deployment.
+// Stop stops the workload synchronously (no plan scope exists for stop).
 func (c *Client) Stop(id string) ([]byte, StopResponse, error) {
-	body, err := c.api.Request("POST", fmt.Sprintf("/api/v1/deployments/%s/stop", id), nil, nil)
-	if err != nil {
-		return nil, StopResponse{}, err
-	}
 	var resp StopResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, StopResponse{}, err
-	}
-	return body, resp, nil
+	raw, err := c.rest("POST", "/api/v1/deployments/"+url.PathEscape(id)+"/stop", nil, nil, &resp)
+	return raw, resp, err
 }
 
 // History returns the deployment history events.
 func (c *Client) History(id string) ([]byte, HistoryResponse, error) {
-	body, err := c.api.Get(fmt.Sprintf("/api/v1/deployments/%s/history", id), nil)
-	if err != nil {
-		return nil, HistoryResponse{}, err
-	}
 	var resp HistoryResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, HistoryResponse{}, err
-	}
-	return body, resp, nil
+	raw, err := c.rest("GET", "/api/v1/deployments/"+url.PathEscape(id)+"/history", nil, nil, &resp)
+	return raw, resp, err
 }
 
-// Health returns the unified health report for a deployment.
-func (c *Client) Health(id string) ([]byte, HealthResponse, error) {
-	body, err := c.api.Get(fmt.Sprintf("/api/v1/deployments/%s/health", id), nil)
-	if err != nil {
-		return nil, HealthResponse{}, err
-	}
-	var resp HealthResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, HealthResponse{}, err
-	}
-	return body, resp, nil
+// ListRecoveryPoints lists the deployment's recovery points.
+func (c *Client) ListRecoveryPoints(id string) ([]byte, RecoveryPointsResponse, error) {
+	var resp RecoveryPointsResponse
+	raw, err := c.rest("GET", "/api/v1/deployments/"+url.PathEscape(id)+"/recovery-points", nil, nil, &resp)
+	return raw, resp, err
 }
 
-// StreamProgress opens an SSE connection to stream deployment progress.
-// The handler is called for each progress event received.
-// Returns nil on successful completion, or an error if streaming fails.
-func (c *Client) StreamProgress(ctx context.Context, id string, handler streaming.ProgressHandler) error {
-	opts := streaming.StreamOptions{
-		BaseURL: c.api.BaseURL(),
-		Path:    fmt.Sprintf("/api/v1/deployments/%s/progress", id),
-		Headers: c.api.AuthHeaders(),
+// CaptureRecoveryPoint captures a consistent recovery point.
+func (c *Client) CaptureRecoveryPoint(id string, req RecoveryPointCaptureRequest) ([]byte, RecoveryPointResponse, error) {
+	var resp RecoveryPointResponse
+	raw, err := c.rest("POST", "/api/v1/deployments/"+url.PathEscape(id)+"/recovery-points", nil, req, &resp)
+	return raw, resp, err
+}
+
+// VerifyRecoveryPoint verifies a recovery point (open=true also proves the
+// recovery key resolves).
+func (c *Client) VerifyRecoveryPoint(id, rp string, open bool) ([]byte, RecoveryPointVerifyResponse, error) {
+	query := url.Values{}
+	if open {
+		query.Set("open", "true")
 	}
-	return streaming.StreamProgress(ctx, opts, handler)
+	var resp RecoveryPointVerifyResponse
+	raw, err := c.rest("GET", "/api/v1/deployments/"+url.PathEscape(id)+"/recovery-points/"+url.PathEscape(rp)+"/verify", query, nil, &resp)
+	return raw, resp, err
+}
+
+// RestoreRecoveryPoint restores a recovery point onto a target.
+func (c *Client) RestoreRecoveryPoint(id, rp string, req RecoveryPointRestoreRequest) ([]byte, RecoveryPointRestoreResponse, error) {
+	var resp RecoveryPointRestoreResponse
+	raw, err := c.rest("POST", "/api/v1/deployments/"+url.PathEscape(id)+"/recovery-points/"+url.PathEscape(rp)+"/restore", nil, req, &resp)
+	return raw, resp, err
+}
+
+// Recovery runs the governed cloud recovery (rollback / forward repair):
+// dry_run previews and issues the preview_ref an execution must present.
+func (c *Client) Recovery(id string, req RecoveryRequest) ([]byte, RecoveryResponse, error) {
+	var resp RecoveryResponse
+	raw, err := c.rest("POST", "/api/v1/deployments/"+url.PathEscape(id)+"/recovery", nil, req, &resp)
+	return raw, resp, err
 }

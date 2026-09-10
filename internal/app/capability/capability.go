@@ -237,12 +237,25 @@ func (app *Service) Workflow(ctx context.Context, root string, out io.Writer, op
 		if err != nil {
 			return err
 		}
+		if action == "catalog" {
+			inventory, inventoryErr := operatorcapability.BuildInventory(statuses)
+			if inventoryErr != nil {
+				return inventoryErr
+			}
+			if jsonOutput {
+				return cliout.WriteJSONValue(out, inventory)
+			}
+			statuses = make([]operatorcapability.Status, 0, len(inventory.Entries))
+			for _, entry := range inventory.Entries {
+				statuses = append(statuses, operatorcapability.Status{Descriptor: entry.Descriptor, State: entry.State, Remediation: entry.Reason})
+			}
+		}
 		if jsonOutput {
 			return cliout.WriteJSONValue(out, statuses)
 		}
 		rows := make([][]string, 0, len(statuses))
 		for _, status := range statuses {
-			rows = append(rows, []string{status.Descriptor.ID, string(status.State), values.FirstNonEmpty(status.Remediation, status.Descriptor.Remediation)})
+			rows = append(rows, []string{status.Descriptor.ID, string(status.State), string(status.Descriptor.Disposition), status.Descriptor.Scope, status.Descriptor.Provenance.GrantSource, values.FirstNonEmpty(status.Remediation, status.Descriptor.Remediation)})
 		}
 		return cliout.WriteSection(out, cliout.Section{Rows: rows})
 	}

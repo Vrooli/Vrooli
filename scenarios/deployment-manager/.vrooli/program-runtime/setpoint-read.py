@@ -1,34 +1,15 @@
-try:
-    inputs
-except NameError:
-    inputs = {}
+import json
+
+inputs = program.inputs()
 envelope = {"program": "deployment-manager.setpoint-read", "version": "1", "status": "failed", "phase": "collect", "inputs": {}, "signals": {"rows": [], "readable": 0, "unavailable": 0}, "errors": [], "evidence": []}; handles = {}
 def row(name, reading, target, in_band, unavailable=False, reason=None): envelope["signals"]["rows"].append({"row": name, "reading": None if unavailable else reading, "target": target, "in_band": None if unavailable else in_band, "unavailable": unavailable, "reason": reason}); envelope["signals"]["unavailable" if unavailable else "readable"] += 1
-def classify_transport(exc):
-    if isinstance(exc, (NameError, AttributeError)): raise exc
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running", "no running runtime ports", "connection refused"):
-        if needle in text: return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text: return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text: return ("refused", "not_run_eligible")
-    if "inference spend" in text: return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text: return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text: return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text: return ("failed", "invalid_input")
-    if "deadline" in text: return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
-def guarded(call):
-    def run():
-        try: return call()
-        except Exception as exc: return exc
-    return run
+guarded = program.guarded
 def step_collect():
     results = gather(guarded(lambda: deployment_manager.readiness_reviews.policy_check()), guarded(lambda: deployment_manager.profiles.list(page_size=1)), guarded(lambda: deployment_manager.readiness_reviews.list(page_size=100)), guarded(lambda: deployment_manager.readiness_review_waivers.list(page_size=100)), guarded(lambda: vrooli_memory.learning.measure(scope="deployment-manager-usage", rows="cohorts")))
     collect_learning(results[4])
     for name, result in zip(("policy", "profiles", "reviews", "waivers"), results):
         if isinstance(result, Exception):
-            status, klass = classify_transport(result); envelope["errors"].append({"class": klass, "detail": str(result)[:160], "where": "collect"})
+            status, klass = program.classify(result); envelope["errors"].append({"class": klass, "detail": str(result)[:160], "where": "collect"})
         else: handles[name] = result
     if not handles: envelope["status"] = "unavailable"; return "report"
     return "classify"
@@ -58,12 +39,12 @@ def step_classify():
     row("program-success-rate", None, ">=0.9", None, True, "read_elsewhere:program-runtime.failure-triage")
     classify_learning()
     envelope["status"] = "partial" if envelope["errors"] else "ok"; return "report"
-def step_report(): envelope["phase"] = "report"; print(envelope); return None
+def step_report(): envelope["phase"] = "report"; print(json.dumps(envelope, allow_nan=False)); return None
 
 # Learning is a typed sensor projection. This program does not recall or capture.
 def collect_learning(result):
     if isinstance(result, Exception):
-        status, klass = classify_transport(result)
+        status, klass = program.classify(result)
         envelope["errors"].append({"class": klass, "detail": klass, "where": "collect:learning"})
         handles["learning_reason"] = "scenario_unreachable" if klass == "scenario_unreachable" else "unreliable:" + klass
     else:
@@ -102,8 +83,4 @@ def classify_learning():
             "in_band": None, "unavailable": bool(reason), "reason": reason})
 
 STATES = {"collect": step_collect, "classify": step_classify, "report": step_report}; state = "collect"
-while state:
-    try: state = STATES[state]()
-    except Exception as exc:
-        if envelope.get("phase") == "report": raise
-        envelope["status"] = "failed"; envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state}); state = "report"
+program.run(STATES, state)

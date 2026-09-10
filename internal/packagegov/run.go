@@ -19,6 +19,9 @@ type CommandOptions struct {
 	Context context.Context
 	Env     []string
 	Stdin   io.Reader
+	// Scenario is the requesting scenario for shared-package generation. An
+	// empty value removes scenario-scoped lifecycle arguments.
+	Scenario string
 }
 
 func RunCommands(workdir string, commands []CommandSpec, stdout, stderr io.Writer) error {
@@ -48,10 +51,14 @@ func RunCommandsWithOptions(workdir string, commands []CommandSpec, stdout, stde
 		if _, err := fmt.Fprintf(stdout, "packagegov: %s\n", command.Name); err != nil {
 			return err
 		}
+		run := substituteScenario(command.Run, options.Scenario)
+		if len(run) == 0 {
+			continue
+		}
 		spec := shell.Spec{
 			Context: options.Context,
-			Name:    command.Run[0],
-			Args:    append([]string(nil), command.Run[1:]...),
+			Name:    run[0],
+			Args:    append([]string(nil), run[1:]...),
 			Dir:     workdir,
 			Env:     env,
 			Stdin:   stdin,
@@ -63,6 +70,26 @@ func RunCommandsWithOptions(workdir string, commands []CommandSpec, stdout, stde
 		}
 	}
 	return nil
+}
+
+func substituteScenario(argv []string, scenario string) []string {
+	scenario = strings.TrimSpace(scenario)
+	out := make([]string, 0, len(argv))
+	for index := 0; index < len(argv); index++ {
+		arg := argv[index]
+		if scenario == "" && (arg == "--scenario" || arg == "--scenario={scenario}") {
+			if arg == "--scenario" && index+1 < len(argv) && argv[index+1] == "{scenario}" {
+				index++
+			}
+			continue
+		}
+		arg = strings.ReplaceAll(arg, "{scenario}", scenario)
+		if arg == "" {
+			continue
+		}
+		out = append(out, arg)
+	}
+	return out
 }
 
 func MatchDependents(dependents []Dependent, target string) []Dependent {

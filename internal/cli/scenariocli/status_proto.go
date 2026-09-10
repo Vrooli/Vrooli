@@ -73,6 +73,7 @@ func scenarioStatusItem(item StatusItemOutput) *cliv1.ScenarioStatusItem {
 		PortBindings:   scenarioPortMessages(item.PortBindings),
 		HealthStatus:   health,
 		HealthError:    item.HealthError,
+		BuildIdentity:  item.BuildIdentity,
 		StartOperation: ScenarioStartOperationMessage(item.StartOperation),
 	}
 }
@@ -253,13 +254,14 @@ func ScenarioEnvValidationResponse(report resources.ScenarioEnvValidationReport)
 // scenarioRuntimeData maps an InfoRuntimeData onto its proto message.
 func scenarioRuntimeData(rt InfoRuntimeData) *cliv1.ScenarioRuntimeData {
 	msg := &cliv1.ScenarioRuntimeData{
-		Status:      rt.Status,
-		Processes:   int32(rt.Processes),
-		Runtime:     rt.Runtime,
-		StartedAt:   renderTimestampPtr(rt.StartedAt),
-		Ports:       copyInt32Map(rt.Ports),
-		ListPorts:   scenarioPortMessages(rt.ListPorts),
-		HealthError: rt.HealthError,
+		Status:        rt.Status,
+		Processes:     int32(rt.Processes),
+		Runtime:       rt.Runtime,
+		StartedAt:     renderTimestampPtr(rt.StartedAt),
+		Ports:         copyInt32Map(rt.Ports),
+		ListPorts:     scenarioPortMessages(rt.ListPorts),
+		HealthError:   rt.HealthError,
+		BuildIdentity: rt.BuildIdentity,
 	}
 	for _, r := range rt.ProcessInfo {
 		msg.ProcessRecords = append(msg.ProcessRecords, scenarioProcessRecord(r))

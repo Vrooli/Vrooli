@@ -81,7 +81,10 @@ func (c *Client) FetchBundleSecrets(ctx context.Context, scenario, tier string) 
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(res.Body, 1<<16))
+		body, err := io.ReadAll(io.LimitReader(res.Body, 1<<16))
+		if err != nil {
+			return nil, fmt.Errorf("read secrets-manager error response: %w", err)
+		}
 		return nil, fmt.Errorf("secrets-manager returned %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
 	}
 

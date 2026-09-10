@@ -11,8 +11,61 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/reach/sshadapter"
 )
+
+type fakeRemoteBundle struct {
+	size int64
+	mt   int64
+}
+
+func releaseDigest(filename string) string {
+	base := strings.TrimSuffix(filename, ".tar.gz")
+	return base[strings.LastIndex(base, "_")+1:]
+}
+
+func ownerReleaseReply(remote map[string]fakeRemoteBundle) sshadapter.Result {
+	type release struct {
+		Digest       string `json:"digest"`
+		State        string `json:"state"`
+		Role         string `json:"role"`
+		Path         string `json:"path"`
+		SizeBytes    int64  `json:"size_bytes"`
+		ModTime      string `json:"mod_time"`
+		BundleSHA256 string `json:"bundle_sha256"`
+	}
+	rows := make([]release, 0, len(remote))
+	for filename, meta := range remote {
+		if strings.Contains(filename, "_other-scenario_") {
+			continue
+		}
+		digest := releaseDigest(filename)
+		rows = append(rows, release{Digest: digest, State: "complete", Role: "staged", Path: filename, SizeBytes: meta.size, ModTime: time.Unix(meta.mt, 0).UTC().Format(time.RFC3339), BundleSHA256: digest})
+	}
+	payload, _ := json.Marshal(map[string]any{"deployment_id": "test", "releases": rows})
+	return sshadapter.Result{Stdout: string(payload), ExitCode: 0}
+}
+
+func ownerReleasePruneReply(remote map[string]fakeRemoteBundle, command string) sshadapter.Result {
+	var deleted []string
+	var reclaimed int64
+	fields := strings.Fields(command)
+	for i := 0; i+1 < len(fields); i++ {
+		if strings.Trim(fields[i], "'") != "--release" {
+			continue
+		}
+		digest := strings.Trim(fields[i+1], "'")
+		for filename, meta := range remote {
+			if releaseDigest(filename) == digest {
+				delete(remote, filename)
+				deleted = append(deleted, digest)
+				reclaimed += meta.size
+			}
+		}
+	}
+	payload, _ := json.Marshal(map[string]any{"report": map[string]any{"deleted": deleted, "reclaimed_bytes": reclaimed}})
+	return sshadapter.Result{Stdout: string(payload), ExitCode: 0}
+}
 
 func TestDeploymentVPSBundles_ListAndGCContract(t *testing.T) {
 	t.Setenv("API_PORT", "0")
@@ -25,7 +78,6 @@ func TestDeploymentVPSBundles_ListAndGCContract(t *testing.T) {
 				Host:    "203.0.113.10",
 				Port:    22,
 				User:    "root",
-				KeyPath: "/tmp/fake-key",
 				Workdir: "/root/Vrooli",
 			},
 		},
@@ -49,10 +101,7 @@ func TestDeploymentVPSBundles_ListAndGCContract(t *testing.T) {
 	shaNew := strings.Repeat("c", 64)
 
 	// Simulated remote bundles directory state. Times are unix seconds.
-	remote := map[string]struct {
-		size int64
-		mt   int64
-	}{
+	remote := map[string]fakeRemoteBundle{
 		"mini-vrooli_landing-page-business-suite_" + shaOld + ".tar.gz":     {size: 100, mt: 1000},
 		"mini-vrooli_landing-page-business-suite_" + shaMid + ".tar.gz":     {size: 200, mt: 2000},
 		"mini-vrooli_landing-page-business-suite_" + shaNew + ".tar.gz":     {size: 300, mt: 3000},
@@ -60,7 +109,13 @@ func TestDeploymentVPSBundles_ListAndGCContract(t *testing.T) {
 	}
 
 	fakeSSH := &FakeSSHRunner{
-		Handler: func(cmd string) (ssh.Result, error, bool) {
+		Handler: func(cmd string) (sshadapter.Result, error, bool) {
+			if strings.Contains(cmd, "'cloud-target' 'release' 'list'") {
+				return ownerReleaseReply(remote), nil, true
+			}
+			if strings.Contains(cmd, "'cloud-target' 'release' 'prune'") {
+				return ownerReleasePruneReply(remote, cmd), nil, true
+			}
 			// List command: return stat lines for current remote map.
 			if strings.Contains(cmd, "stat --printf") && strings.Contains(cmd, "mini-vrooli_") {
 				var b strings.Builder
@@ -72,7 +127,7 @@ func TestDeploymentVPSBundles_ListAndGCContract(t *testing.T) {
 					b.WriteString(strconv.FormatInt(meta.mt, 10))
 					b.WriteByte('\n')
 				}
-				return ssh.Result{Stdout: b.String(), ExitCode: 0}, nil, true
+				return sshadapter.Result{Stdout: b.String(), ExitCode: 0}, nil, true
 			}
 
 			// Delete command: rm -f -- 'file' 'file' ...
@@ -90,11 +145,11 @@ func TestDeploymentVPSBundles_ListAndGCContract(t *testing.T) {
 					fn := strings.Trim(fields[i], "'")
 					delete(remote, fn)
 				}
-				return ssh.Result{Stdout: "", ExitCode: 0}, nil, true
+				return sshadapter.Result{Stdout: "", ExitCode: 0}, nil, true
 			}
 
 			// Allow "echo ok" or other probes in unrelated handlers, but keep strict by default.
-			return ssh.Result{}, nil, false
+			return sshadapter.Result{}, nil, false
 		},
 		DefaultErr: nil,
 	}
@@ -134,11 +189,11 @@ func TestDeploymentVPSBundles_ListAndGCContract(t *testing.T) {
 	if !listOut.OK {
 		t.Fatalf("expected ok list, got error=%q", listOut.Error)
 	}
-	if len(listOut.Bundles) != 4 {
-		t.Fatalf("expected 4 bundles, got %d", len(listOut.Bundles))
+	if len(listOut.Bundles) != 3 {
+		t.Fatalf("expected 3 deployment bundles, got %d", len(listOut.Bundles))
 	}
-	if listOut.TotalSizeBytes != 1000 {
-		t.Fatalf("expected total_size_bytes=1000, got %d", listOut.TotalSizeBytes)
+	if listOut.TotalSizeBytes != 600 {
+		t.Fatalf("expected total_size_bytes=600, got %d", listOut.TotalSizeBytes)
 	}
 
 	// 2) GC dry-run should return a plan and not delete anything.
@@ -208,7 +263,6 @@ func TestDeploymentVPSBundles_GCProtectsRecordedBundleSHA(t *testing.T) {
 			Type: "vps",
 			VPS: &domain.ManifestVPS{
 				Host:    "203.0.113.10",
-				KeyPath: "/tmp/fake-key",
 				Workdir: "/root/Vrooli",
 			},
 		},
@@ -222,17 +276,20 @@ func TestDeploymentVPSBundles_GCProtectsRecordedBundleSHA(t *testing.T) {
 	}
 	manifestJSON, _ := json.Marshal(manifest)
 
-	remote := map[string]struct {
-		size int64
-		mt   int64
-	}{
+	remote := map[string]fakeRemoteBundle{
 		"mini-vrooli_landing-page-business-suite_" + shaOld + ".tar.gz": {size: 100, mt: 1000},
 		"mini-vrooli_landing-page-business-suite_" + shaMid + ".tar.gz": {size: 200, mt: 2000},
 		"mini-vrooli_landing-page-business-suite_" + shaNew + ".tar.gz": {size: 300, mt: 3000},
 	}
 
 	fakeSSH := &FakeSSHRunner{
-		Handler: func(cmd string) (ssh.Result, error, bool) {
+		Handler: func(cmd string) (sshadapter.Result, error, bool) {
+			if strings.Contains(cmd, "'cloud-target' 'release' 'list'") {
+				return ownerReleaseReply(remote), nil, true
+			}
+			if strings.Contains(cmd, "'cloud-target' 'release' 'prune'") {
+				return ownerReleasePruneReply(remote, cmd), nil, true
+			}
 			if strings.Contains(cmd, "stat --printf") {
 				var b strings.Builder
 				for name, meta := range remote {
@@ -243,7 +300,7 @@ func TestDeploymentVPSBundles_GCProtectsRecordedBundleSHA(t *testing.T) {
 					b.WriteString(strconv.FormatInt(meta.mt, 10))
 					b.WriteByte('\n')
 				}
-				return ssh.Result{Stdout: b.String(), ExitCode: 0}, nil, true
+				return sshadapter.Result{Stdout: b.String(), ExitCode: 0}, nil, true
 			}
 			if strings.Contains(cmd, " rm -f -- ") {
 				fields := strings.Fields(cmd)
@@ -256,9 +313,9 @@ func TestDeploymentVPSBundles_GCProtectsRecordedBundleSHA(t *testing.T) {
 						break
 					}
 				}
-				return ssh.Result{Stdout: "", ExitCode: 0}, nil, true
+				return sshadapter.Result{Stdout: "", ExitCode: 0}, nil, true
 			}
-			return ssh.Result{}, nil, false
+			return sshadapter.Result{}, nil, false
 		},
 	}
 

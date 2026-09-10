@@ -218,7 +218,7 @@ func (h *handler) SyncNode(ctx context.Context, nodeID string) error {
 }
 
 // deliverGrant seals and pushes the node-bound credential value.
-// DOC: scenarios/vrooli-bridge/docs/reference/credential-delivery.md
+// DOC: docs/reference/credential-delivery.md
 func (h *handler) deliverGrant(ctx context.Context, grant internalgrant.Grant) error {
 	if h.presence == nil || h.signer == nil || h.presence.IsOnline(grant.NodeID) == false {
 		return nil

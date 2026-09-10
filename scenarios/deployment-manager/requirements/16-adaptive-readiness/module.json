@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-04T03:17:18-04:00"
+    "last_validated_at": "2026-09-08T20:40:00-04:00"
   },
   "requirements": [
     {
@@ -19,7 +19,7 @@
           "type": "test",
           "ref": "api/readiness/checklist_test.go::TestDefaultChecklistIsValidAndCoversReleaseRiskGroups",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "The embedded 33-criterion policy is schema- and semantics-validated and its projection drift check is executable."
         }
       ]
@@ -40,7 +40,7 @@
           "type": "test",
           "ref": "api/internal/readiness/repository_test.go::TestCreateOrGetIsDeterministicAndDoesNotFabricateApproval",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Repository tests prove deterministic identity, separated lifecycle state, invalidation, typed observations, human checks, waivers, approval, promotion, and supersession constraints."
         }
       ]
@@ -63,7 +63,7 @@
           "type": "test",
           "ref": "api/readiness/preparation_test.go::TestPrepareReadsTypedObservationFromDeclaredProducer",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Preparation tests cover exact typed producer observations and honest first-release, comparable, and unavailable predecessor modes; the server adapter verifies exact published target lineage."
         }
       ]
@@ -85,7 +85,7 @@
           "type": "test",
           "ref": "api/handlers/readiness/connect_handler_test.go::TestApprovalRevalidationRequiresPassingMechanicalAndHumanEvidence",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Approval rejects unresolved mechanical or human evidence, stale evidence, expired waivers, and identity mismatch; release handler tests enforce the exact approved identity."
         }
       ]
@@ -108,7 +108,7 @@
           "type": "test",
           "ref": ".vrooli/program-runtime/setpoint-read.json",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "The validated usage/improve skill set declares five bounded governed programs, owned measures, failure classes, and attributable learning capture."
         }
       ]

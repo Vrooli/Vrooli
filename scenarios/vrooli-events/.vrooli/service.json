@@ -97,6 +97,17 @@
     "resources": {},
     "scenarios": {}
   },
+  "credentials": {
+    "descriptors": [{
+      "logical_id": "vrooli/vrooli-events",
+      "field": "agent-manager-webhook-secret",
+      "label": "Agent Manager program-event webhook secret",
+      "description": "Generated shared HMAC credential used to sign webhook deliveries.",
+      "required": false,
+      "provisioning": "generated",
+      "tiers": ["tier-1-local"]
+    }]
+  },
   "cli": {
     "enabled": true,
     "command": "vrooli-events",

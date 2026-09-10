@@ -62,6 +62,12 @@ func (Container) ContainSelf(scope string, c cliutil.SessionContainment) (cliuti
 	return cliutil.ContainedSession{Scope: ref.String(), Method: method}, err
 }
 
+// SupportsContainment satisfies cliutil.ContainmentCapability so the launcher
+// can tell a platform that has no ceiling primitive from one whose ceiling
+// broke. Only the second is worth an operator's attention; without the
+// distinction a host that can never comply warns on every single launch.
+func (Container) SupportsContainment() bool { return platform.SupportsContainment() }
+
 // ceilingSaturationFloor is how full a ceiling has to be before a launch is
 // warned about it. Below this a session starts normally and silently; at or
 // above it the next fork may be the one the kernel refuses.

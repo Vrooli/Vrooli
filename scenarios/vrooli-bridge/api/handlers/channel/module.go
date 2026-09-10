@@ -43,6 +43,7 @@ func Module(hub *presence.Hub, lastSeen LastSeenRecorder, verifier *nodeauth.Ver
 		DeliveryAckRecorder: heartbeatDeps.DeliveryAckRecorder, Audit: heartbeatDeps.Audit,
 		SessionManager: heartbeatDeps.SessionManager, SessionPush: heartbeatDeps.SessionPush,
 		RelayResponses: heartbeatDeps.RelayResponses, CredentialReceipts: heartbeatDeps.CredentialReceipts,
+		ArtifactReceipts:  heartbeatDeps.ArtifactReceipts,
 		ScenarioResponses: heartbeatDeps.ScenarioResponses,
 	}))
 	return module.Module{

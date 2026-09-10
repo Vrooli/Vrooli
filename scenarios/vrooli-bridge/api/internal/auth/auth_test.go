@@ -33,14 +33,14 @@ func TestValidate_RejectsNonRS256(t *testing.T) {
 	claims := seg(t, map[string]any{"user_id": "u1"})
 	token := header + "." + claims + "." + "c2ln" // bogus sig
 
-	c := NewClient(Config{}) // nil resolver — but alg check fires first
+	c := NewClient(ClientConfig{}) // nil resolver — but alg check fires first
 	_, err := c.Validate(context.Background(), token)
 	require.ErrorIs(t, err, ErrUnauthenticated)
 }
 
 // TestValidate_EmptyToken is a fast fail-closed.
 func TestValidate_EmptyToken(t *testing.T) {
-	c := NewClient(Config{})
+	c := NewClient(ClientConfig{})
 	_, err := c.Validate(context.Background(), "   ")
 	require.ErrorIs(t, err, ErrUnauthenticated)
 }
@@ -53,7 +53,7 @@ func TestValidate_NoResolverIsUnavailable(t *testing.T) {
 	claims := seg(t, map[string]any{"user_id": "u1"})
 	token := header + "." + claims + "." + base64.RawURLEncoding.EncodeToString([]byte("sig"))
 
-	c := NewClient(Config{}) // nil resolver → cannot obtain key
+	c := NewClient(ClientConfig{}) // nil resolver → cannot obtain key
 	_, err := c.Validate(context.Background(), token)
 	require.ErrorIs(t, err, ErrAuthUnavailable)
 }
@@ -86,7 +86,7 @@ func TestBreakGlassValidatorIsOfflineAndDistinct(t *testing.T) {
 		Scopes: []string{"vrooli-bridge:read"}, IssuedAt: now.Unix(), ExpiresAt: now.Add(time.Minute).Unix(),
 	})
 	require.NoError(t, err)
-	c := NewClient(Config{Now: func() time.Time { return now }, BreakGlassPublicKey: public, BreakGlassTarget: "host-a"})
+	c := NewClient(ClientConfig{Now: func() time.Time { return now }, BreakGlassPublicKey: public, BreakGlassTarget: "host-a"})
 	id, err := c.ValidateBreakGlass(context.Background(), token)
 	require.NoError(t, err)
 	require.Equal(t, "owner-1", id.OwnerID)
@@ -109,7 +109,7 @@ func TestValidateLocalDoesNotNeedAuthenticator(t *testing.T) {
 	now := time.Unix(2_000, 0).UTC()
 	token, err := sharedsession.Mint(private, "enrollment-1", "owner-1", []string{"vrooli-bridge:read"}, now, time.Minute)
 	require.NoError(t, err)
-	c := NewClient(Config{Now: func() time.Time { return now }, LocalSessions: localStore{record: localenrollment.Record{Reference: "enrollment-1", OperatorID: "owner-1", Mode: sharedsession.ModePersonal, PublicKey: public, Scopes: []string{"vrooli-bridge:read"}, EnrolledAt: now}}})
+	c := NewClient(ClientConfig{Now: func() time.Time { return now }, LocalSessions: localStore{record: localenrollment.Record{Reference: "enrollment-1", OperatorID: "owner-1", Mode: sharedsession.ModePersonal, PublicKey: public, Scopes: []string{"vrooli-bridge:read"}, EnrolledAt: now}}})
 	id, err := c.ValidateLocal(context.Background(), token)
 	require.NoError(t, err)
 	require.Equal(t, "owner-1", id.OwnerID)

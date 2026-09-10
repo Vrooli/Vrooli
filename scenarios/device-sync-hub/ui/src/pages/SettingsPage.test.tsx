@@ -34,7 +34,7 @@ describe("SettingsPage", () => {
   it("selects a theme via the radiogroup", async () => {
     const user = userEvent.setup();
     fetchHealth.mockResolvedValue(makeHealthResponse());
-    renderWithProviders(<SettingsPage />, { initialTheme: "light" });
+    renderWithProviders(<SettingsPage />);
 
     const dark = screen.getByTestId(selectors.settingsPage.themeOption({ choice: "dark" }));
     expect(dark).toHaveAttribute("aria-checked", "false");

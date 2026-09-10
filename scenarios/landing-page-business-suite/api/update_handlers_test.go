@@ -2,10 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/sha512"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -795,6 +799,7 @@ type mockVerifyArtifactResolver struct {
 	GetArtifactFn        func(ctx context.Context, bundleKey string, id int64) (*DownloadArtifact, error)
 	PresignGetArtifactFn func(ctx context.Context, bundleKey string, artifact DownloadArtifact) (string, error)
 	HeadArtifactFn       func(ctx context.Context, bundleKey string, artifact DownloadArtifact) error
+	ReadArtifactFn       func(ctx context.Context, bundleKey string, artifact DownloadArtifact) (io.ReadCloser, int64, string, error)
 }
 
 func (m *mockVerifyArtifactResolver) GetArtifact(ctx context.Context, bundleKey string, id int64) (*DownloadArtifact, error) {
@@ -807,6 +812,10 @@ func (m *mockVerifyArtifactResolver) PresignGetArtifact(ctx context.Context, bun
 
 func (m *mockVerifyArtifactResolver) HeadArtifact(ctx context.Context, bundleKey string, artifact DownloadArtifact) error {
 	return m.HeadArtifactFn(ctx, bundleKey, artifact)
+}
+
+func (m *mockVerifyArtifactResolver) ReadArtifact(ctx context.Context, bundleKey string, artifact DownloadArtifact) (io.ReadCloser, int64, string, error) {
+	return m.ReadArtifactFn(ctx, bundleKey, artifact)
 }
 
 func TestHandleUpdateVerify_LightweightMatch(t *testing.T) {
@@ -830,7 +839,7 @@ func TestHandleUpdateVerify_LightweightMatch(t *testing.T) {
 
 	handler := handleUpdateVerify(assets, resolver, bundles)
 	req := httptest.NewRequest(http.MethodGet,
-		"/api/v1/updates/test-app/verify?channel=stable&platform=windows&expected_version=2.0.0", nil)
+		"/api/v1/updates/test-app/verify?channel=stable&platform=windows&expected_version=2.0.0&expected_sha512=abc123", nil)
 	req = mux.SetURLVars(req, map[string]string{"app_key": "test-app"})
 	w := httptest.NewRecorder()
 
@@ -849,6 +858,9 @@ func TestHandleUpdateVerify_LightweightMatch(t *testing.T) {
 	}
 	if resp["actual_version"] != "2.0.0" {
 		t.Errorf("expected actual_version=2.0.0, got %v", resp["actual_version"])
+	}
+	if resp["sha512_match"] != true || resp["expected_version"] != "2.0.0" || resp["app_key"] != "test-app" {
+		t.Errorf("expected canonical verification identity and digest fields, got %#v", resp)
 	}
 	// Deep fields should NOT be present in lightweight mode
 	if _, ok := resp["artifact_accessible"]; ok {
@@ -880,7 +892,7 @@ func TestHandleUpdateVerify_LightweightMismatch(t *testing.T) {
 
 	handler := handleUpdateVerify(assets, resolver, bundles)
 	req := httptest.NewRequest(http.MethodGet,
-		"/api/v1/updates/test-app/verify?channel=stable&platform=windows&expected_version=2.0.0", nil)
+		"/api/v1/updates/test-app/verify?channel=stable&platform=windows&expected_version=2.0.0&expected_sha512=abc123", nil)
 	req = mux.SetURLVars(req, map[string]string{"app_key": "test-app"})
 	w := httptest.NewRecorder()
 
@@ -904,6 +916,9 @@ func TestHandleUpdateVerify_LightweightMismatch(t *testing.T) {
 
 func TestHandleUpdateVerify_DeepMode(t *testing.T) {
 	artifactID := int64(42)
+	payload := []byte("verified installer bytes")
+	digest := sha512.Sum512(payload)
+	digestText := base64.StdEncoding.EncodeToString(digest[:])
 
 	assets := &mockUpdateAssetLookup{
 		GetAssetByVariantFn: func(_, _, _, _ string) (*DownloadAsset, error) {
@@ -915,7 +930,7 @@ func TestHandleUpdateVerify_DeepMode(t *testing.T) {
 			return &DownloadArtifact{
 				ID:             artifactID,
 				ReleaseVersion: "2.0.0",
-				SHA512:         "abc123",
+				SHA512:         digestText,
 				Bucket:         "test-bucket",
 				ObjectKey:      "artifacts/test.exe",
 			}, nil
@@ -926,12 +941,15 @@ func TestHandleUpdateVerify_DeepMode(t *testing.T) {
 		PresignGetArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) (string, error) {
 			return "https://s3.example.com/presigned", nil
 		},
+		ReadArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) (io.ReadCloser, int64, string, error) {
+			return io.NopCloser(strings.NewReader(string(payload))), int64(len(payload)), "application/octet-stream", nil
+		},
 	}
 	bundles := &mockBundleKeyProvider{key: "test_bundle"}
 
 	handler := handleUpdateVerify(assets, resolver, bundles)
 	req := httptest.NewRequest(http.MethodGet,
-		"/api/v1/updates/test-app/verify?channel=stable&platform=windows&expected_version=2.0.0&deep=true", nil)
+		"/api/v1/updates/test-app/verify?channel=stable&platform=windows&expected_version=2.0.0&expected_sha512="+url.QueryEscape(digestText)+"&deep=true", nil)
 	req = mux.SetURLVars(req, map[string]string{"app_key": "test-app"})
 	w := httptest.NewRecorder()
 
@@ -953,6 +971,12 @@ func TestHandleUpdateVerify_DeepMode(t *testing.T) {
 	}
 	if resp["presign_valid"] != true {
 		t.Errorf("expected presign_valid=true, got %v", resp["presign_valid"])
+	}
+	if resp["bytes_verified"] != true || resp["sha512_match"] != true {
+		t.Errorf("expected byte-level digest verification, got bytes_verified=%v sha512_match=%v", resp["bytes_verified"], resp["sha512_match"])
+	}
+	if resp["actual_sha512"] != digestText || resp["actual_size_bytes"] != float64(len(payload)) {
+		t.Errorf("expected downloaded byte evidence, got actual_sha512=%v actual_size_bytes=%v", resp["actual_sha512"], resp["actual_size_bytes"])
 	}
 }
 
@@ -983,7 +1007,7 @@ func TestHandleUpdateVerify_DeepModeFailed(t *testing.T) {
 
 	handler := handleUpdateVerify(assets, resolver, bundles)
 	req := httptest.NewRequest(http.MethodGet,
-		"/api/v1/updates/test-app/verify?channel=stable&platform=windows&expected_version=2.0.0&deep=true", nil)
+		"/api/v1/updates/test-app/verify?channel=stable&platform=windows&expected_version=2.0.0&expected_sha512=abc123&deep=true", nil)
 	req = mux.SetURLVars(req, map[string]string{"app_key": "test-app"})
 	w := httptest.NewRecorder()
 
@@ -1002,6 +1026,57 @@ func TestHandleUpdateVerify_DeepModeFailed(t *testing.T) {
 	}
 	if resp["presign_valid"] != false {
 		t.Errorf("expected presign_valid=false, got %v", resp["presign_valid"])
+	}
+}
+
+func TestHandleUpdateVerify_DeepModeRejectsDownloadedByteMismatch(t *testing.T) {
+	artifactID := int64(42)
+	expectedPayload := []byte("expected installer bytes")
+	actualPayload := []byte("different installer bytes")
+	expectedDigest := sha512.Sum512(expectedPayload)
+	expectedDigestText := base64.StdEncoding.EncodeToString(expectedDigest[:])
+
+	assets := &mockUpdateAssetLookup{
+		GetAssetByVariantFn: func(_, _, _, _ string) (*DownloadAsset, error) {
+			return &DownloadAsset{ArtifactID: &artifactID}, nil
+		},
+	}
+	resolver := &mockVerifyArtifactResolver{
+		GetArtifactFn: func(_ context.Context, _ string, _ int64) (*DownloadArtifact, error) {
+			return &DownloadArtifact{
+				ID: artifactID, ReleaseVersion: "2.0.0", SHA512: expectedDigestText,
+				SizeBytes: int64(len(expectedPayload)), Bucket: "test-bucket", ObjectKey: "artifacts/test.exe",
+			}, nil
+		},
+		HeadArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) error { return nil },
+		PresignGetArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) (string, error) {
+			return "https://s3.example.com/presigned", nil
+		},
+		ReadArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) (io.ReadCloser, int64, string, error) {
+			return io.NopCloser(strings.NewReader(string(actualPayload))), int64(len(actualPayload)), "application/octet-stream", nil
+		},
+	}
+
+	handler := handleUpdateVerify(assets, resolver, &mockBundleKeyProvider{key: "test_bundle"})
+	req := httptest.NewRequest(http.MethodGet,
+		"/api/v1/updates/test-app/verify?channel=stable&platform=windows&expected_version=2.0.0&expected_sha512="+url.QueryEscape(expectedDigestText)+"&deep=true", nil)
+	req = mux.SetURLVars(req, map[string]string{"app_key": "test-app"})
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode: %v", err)
+	}
+	if resp["artifact_accessible"] != true || resp["presign_valid"] != true {
+		t.Fatalf("expected shallow checks to pass, got %#v", resp)
+	}
+	if resp["bytes_verified"] != false || resp["sha512_match"] != false || resp["match"] != false {
+		t.Fatalf("downloaded byte mismatch was accepted: %#v", resp)
 	}
 }
 

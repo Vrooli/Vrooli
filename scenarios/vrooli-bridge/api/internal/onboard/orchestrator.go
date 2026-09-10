@@ -92,10 +92,22 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	}
 	s.emit(ctx, opID, &seq, StepAdmission, StepStatusOK, admissionDetail(admission))
 
+	// Resolve the target platform before staging bootstrap so the driver can
+	// select a native script and remote path. Working-tree mode reuses this
+	// result for its control-plane cross-build; pinned mode still needs it for
+	// the Windows PowerShell bootstrap selection.
+	platform, platformErr := s.driver.DetectPlatform(ctx, conn)
+	if platformErr != nil {
+		detail := "node platform detection failed: " + platformErr.Error()
+		s.emit(ctx, opID, &seq, StepPushScript, StepStatusFailed, detail)
+		s.finishFailed(ctx, opID, &seq, FailurePrebuiltArtifacts, 0, detail, "")
+		return
+	}
+
 	// ---- Phase: PUSHING_SCRIPT ----
 	s.transition(ctx, opID, StatePushingScript)
 	s.emit(ctx, opID, &seq, StepPushScript, StepStatusStarted, "copying bootstrap script to node")
-	remotePath, err := s.driver.PushScript(ctx, conn)
+	remotePath, err := s.driver.PushScript(ctx, conn, platform)
 	if err != nil {
 		if s.cancelled(ctx) {
 			s.finishCancelled(ctx, opID, &seq)
@@ -127,7 +139,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 			return
 		}
 		syncRes, syErr := s.driver.SyncTree(ctx, SyncParams{
-			Conn: conn, RepoDir: snap.RepoDir, Files: snap.Files, DestDir: trimField(in.CheckoutDir),
+			Conn: conn, Platform: platform, RepoDir: snap.RepoDir, Files: snap.Files, DestDir: trimField(in.CheckoutDir),
 		})
 		if syErr != nil {
 			if s.cancelled(ctx) {
@@ -152,12 +164,6 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		// executable inputs from the exact RepoDir just shipped, then transfer them
 		// and their sidecars before bootstrap starts.
 		s.emit(ctx, opID, &seq, StepPrebuiltArtifacts, StepStatusStarted, "cross-building prebuilt binaries for node")
-		platform, pErr := s.driver.DetectPlatform(ctx, conn)
-		if pErr != nil {
-			s.emit(ctx, opID, &seq, StepPrebuiltArtifacts, StepStatusFailed, pErr.Error())
-			s.finishFailed(ctx, opID, &seq, FailurePrebuiltArtifacts, 0, "node platform detection failed: "+pErr.Error(), "")
-			return
-		}
 		built, bErr := s.artifacts.Build(ctx, ArtifactBuildParams{RepoDir: snap.RepoDir, Target: platform, CacheKey: wtDigest})
 		if built.Directory != "" {
 			defer os.RemoveAll(built.Directory)
@@ -204,7 +210,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		s.handleMarker(ctx, opID, &seq, m)
 	}
 	res, runErr := s.driver.RunBootstrap(ctx, RunParams{
-		Conn: conn, RemotePath: remotePath, Args: buildBootstrapArgsForScopes(in, wtSourceDir, wtDigest, remoteArtifacts, s.defaultScopes), PairingCode: code, SetupPassphrase: in.SetupPassphrase,
+		Conn: conn, RemotePath: remotePath, Platform: platform, Args: buildBootstrapArgsForScopes(in, wtSourceDir, wtDigest, remoteArtifacts, s.defaultScopes), PairingCode: code, SetupPassphrase: in.SetupPassphrase,
 	}, onMarker)
 	// The code has served its one purpose — destroy our copy immediately.
 	zeroBytes(code)

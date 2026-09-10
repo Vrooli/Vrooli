@@ -46,4 +46,16 @@ func TestValidateRejectsArtifactPathAndInvalidFields(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsPassedEvidenceWithoutProof(t *testing.T) {
+	verdict := &commonv1.TargetVerdict{
+		Target:      &commonv1.EvidenceTarget{Ramp: "release", Platform: "linux", Os: "linux", DeviceKind: commonv1.DeviceKind_DEVICE_KIND_HOST},
+		Disposition: commonv1.Disposition_DISPOSITION_PASSED,
+		RunId:       "run-1",
+	}
+	violations := Validate(verdict)
+	if len(violations) != 2 {
+		t.Fatalf("violations = %v, want missing evidence class and reference", violations)
+	}
+}
+
 func stringPtr(value string) *string { return &value }

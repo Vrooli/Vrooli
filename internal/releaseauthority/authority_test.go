@@ -198,3 +198,44 @@ func TestRegenerateReplacesTheTrustRoot(t *testing.T) {
 		t.Fatalf("Regenerate = %#v, %v", second, err)
 	}
 }
+
+func TestRegenerateRevokesArtifactsSignedByThePreviousAnchor(t *testing.T) {
+	authority, root := newTestAuthority(t)
+	if _, err := authority.Initialize(root, false); err != nil {
+		t.Fatal(err)
+	}
+	oldAnchor := filepath.Join(t.TempDir(), "old.pub")
+	anchor, err := os.ReadFile(filepath.Join(root, publicPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(oldAnchor, anchor, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stage := t.TempDir()
+	artifact := []byte("signed before rotation")
+	if err := os.WriteFile(filepath.Join(stage, "artifact.bin"), artifact, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(artifact)
+	manifest := resourcedeployment.ReleaseManifest{SchemaVersion: "v1", Artifacts: []resourcedeployment.ReleaseArtifact{{Name: "artifact.bin", SHA256: hex.EncodeToString(sum[:]), Role: "desktop", UpstreamProvenance: "test"}}}
+	canonical, err := manifest.CanonicalBytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stage, "release-manifest.json"), append(canonical, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := authority.SignStage(root, stage, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := resourcedeployment.VerifyReleaseDirectory(stage, resourcedeployment.ArtifactTrustProduction, oldAnchor); err != nil {
+		t.Fatalf("old anchor rejected its own artifact: %v", err)
+	}
+	if _, err := authority.Regenerate(root); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := resourcedeployment.VerifyReleaseDirectory(stage, resourcedeployment.ArtifactTrustProduction, filepath.Join(root, publicPath)); err == nil {
+		t.Fatal("artifact signed by the previous authority remained trusted after rotation")
+	}
+}

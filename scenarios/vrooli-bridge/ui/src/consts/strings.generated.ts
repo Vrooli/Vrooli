@@ -402,6 +402,8 @@ export const strings = {
       queued: "runs.status.queued",
       running: "runs.status.running",
       unspecified: "runs.status.unspecified",
+      cancelRequested: "runs.status.cancelRequested",
+      uncertain: "runs.status.uncertain",
     },
     title: "runs.title",
     view: "runs.view",

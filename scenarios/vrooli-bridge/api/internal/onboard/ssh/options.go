@@ -90,12 +90,12 @@ func (o RunOptions) maxOutput() int {
 }
 
 // buildSSHArgs assembles the option flags for an ssh invocation.
-func buildSSHArgs(cfg Config, opts RunOptions) []string {
+func buildSSHArgs(cfg ConnectionConfig, opts RunOptions) []string {
 	return buildArgs(cfg, opts, "-p")
 }
 
 // buildSCPArgs assembles the option flags for an scp invocation.
-func buildSCPArgs(cfg Config, opts SCPOptions) []string {
+func buildSCPArgs(cfg ConnectionConfig, opts SCPOptions) []string {
 	runOpts := RunOptions{ConnectTimeout: opts.ConnectTimeout, StrictHostKey: opts.StrictHostKey, ControlMaster: opts.ControlMaster}
 	return buildArgs(cfg, runOpts, "-P")
 }
@@ -104,7 +104,7 @@ func buildSCPArgs(cfg Config, opts SCPOptions) []string {
 // "-P" for scp. When cfg.KnownHostsFile is set the invocation is pinned to the
 // bridge-owned known_hosts (and the system-wide file is ignored) so system ssh
 // shares TOFU state with the x/crypto key-copy path.
-func buildArgs(cfg Config, opts RunOptions, portFlag string) []string {
+func buildArgs(cfg ConnectionConfig, opts RunOptions, portFlag string) []string {
 	timeout := opts.connectTimeoutSecs()
 
 	out := []string{
@@ -145,7 +145,7 @@ func buildArgs(cfg Config, opts RunOptions, portFlag string) []string {
 }
 
 // buildControlPath returns an OS-safe, short, stable control socket path.
-func buildControlPath(cfg Config) string {
+func buildControlPath(cfg ConnectionConfig) string {
 	sum := sha1.Sum([]byte(fmt.Sprintf("%s@%s:%d", cfg.User, cfg.Host, cfg.Port)))
 	name := "vrooli-bridge-ssh-" + hex.EncodeToString(sum[:8])
 	return filepath.ToSlash(filepath.Join(controlPathDir(), name))

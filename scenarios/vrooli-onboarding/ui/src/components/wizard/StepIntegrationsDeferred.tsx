@@ -3,8 +3,8 @@ import { ExternalLink, Info } from "lucide-react";
 import { fetchReadiness } from "../../api/readiness";
 import { i18n } from "../../i18n";
 
-export function StepIntegrationsDeferred() {
-  const { data } = useQuery({ queryKey: ["readiness", "local"], queryFn: () => fetchReadiness("local") });
+export function StepIntegrationsDeferred({ target = "local" }: { target?: string }) {
+  const { data } = useQuery({ queryKey: ["readiness", target], queryFn: () => fetchReadiness(target) });
   const integrations = data?.integrations.filter((item) => item.category === "integration") ?? [];
   return <div data-testid="step-integrations-deferred">
     <h1 className="text-xl font-semibold sm:text-2xl">{i18n.t("onboarding.integrations.heading")}</h1>

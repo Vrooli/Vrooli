@@ -31,6 +31,14 @@ func (s *Server) enqueueSubscriptions(ctx context.Context, event store.Event) er
 		if message, unmarshalErr := anypb.UnmarshalNew(env.Data, proto.UnmarshalOptions{}); unmarshalErr == nil {
 			if structured, ok := message.(*structpb.Struct); ok {
 				payloadValue = structured.AsMap()
+			} else if typed, ok := message.(proto.Message); ok {
+				// Typed protobuf subscribers receive the inner message, not the
+				// canonical event envelope. This keeps webhook payloads stable
+				// across the generic event store and typed receivers such as
+				// agent-manager's ProgramEvent webhook.
+				if encoded, marshalErr := proto.Marshal(typed); marshalErr == nil {
+					payloadValue = map[string]string{"encoding": "base64", "data": base64.StdEncoding.EncodeToString(encoded)}
+				}
 			}
 		}
 	}

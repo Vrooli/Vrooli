@@ -80,10 +80,13 @@ func TestStageManifestCatalogCopiesOnlyDeclarativeManifests(t *testing.T) {
 	repo := t.TempDir()
 	app := filepath.Join(repo, "scenarios", "onboarding")
 	for path, content := range map[string]string{
-		"scenarios/onboarding/.vrooli/service.json": `{"service":{"name":"onboarding"}}`,
-		"scenarios/other/.vrooli/service.json":      `{"service":{"name":"other"}}`,
-		"resources/openrouter/resource.json":        `{"credentials":{"descriptors":[]}}`,
-		"resources/openrouter/config/private.json":  `{"must_not_ship":true}`,
+		"scenarios/onboarding/.vrooli/service.json":           `{"service":{"name":"onboarding"}}`,
+		"scenarios/vrooli-onboarding/.vrooli/service.json":    `{"service":{"name":"vrooli-onboarding"}}`,
+		"scenarios/vrooli-onboarding/profiles/local-use.json": `{"id":"local-use"}`,
+		"scenarios/vrooli-onboarding/profiles/README.txt":     "must not ship",
+		"scenarios/other/.vrooli/service.json":                `{"service":{"name":"other"}}`,
+		"resources/openrouter/resource.json":                  `{"credentials":{"descriptors":[]}}`,
+		"resources/openrouter/config/private.json":            `{"must_not_ship":true}`,
 	} {
 		full := filepath.Join(repo, path)
 		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
@@ -98,17 +101,21 @@ func TestStageManifestCatalogCopiesOnlyDeclarativeManifests(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stage manifest catalog: %v", err)
 	}
-	if len(copied) != 3 {
-		t.Fatalf("copied %d catalog files, want 3: %v", len(copied), copied)
+	if len(copied) != 5 {
+		t.Fatalf("copied %d catalog files, want 5: %v", len(copied), copied)
 	}
 	for _, path := range []string{
 		filepath.Join(bundleDir, "catalog", "scenarios", "onboarding", ".vrooli", "service.json"),
 		filepath.Join(bundleDir, "catalog", "scenarios", "other", ".vrooli", "service.json"),
 		filepath.Join(bundleDir, "catalog", "resources", "openrouter", "resource.json"),
+		filepath.Join(bundleDir, "catalog", "scenarios", "vrooli-onboarding", "profiles", "local-use.json"),
 	} {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("expected catalog file %s: %v", path, err)
 		}
+	}
+	if _, err := os.Stat(filepath.Join(bundleDir, "catalog", "scenarios", "vrooli-onboarding", "profiles", "README.txt")); !os.IsNotExist(err) {
+		t.Fatalf("non-declarative onboarding profile file shipped: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(bundleDir, "catalog", "resources", "openrouter", "config", "private.json")); !os.IsNotExist(err) {
 		t.Fatalf("non-manifest configuration shipped in catalog: %v", err)

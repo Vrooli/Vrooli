@@ -26,6 +26,8 @@ type DB interface {
 // Repository provides database operations for the deployment domain.
 type Repository struct {
 	db DB
+	// hostConcurrencyMax bounds live operations per target (0 = unbounded).
+	hostConcurrencyMax int
 }
 
 // NewRepository creates a new repository with the given database connection.
@@ -75,6 +77,14 @@ func (r *Repository) InitSchemaOnDialect(ctx context.Context, db DB, dialect str
 		-- Identification
 		name TEXT NOT NULL,
 		scenario_id TEXT NOT NULL,
+		-- Identity: (scenario_id, environment, target_key) is unique. target_key
+		-- is denormalised from target_binding on every write.
+		environment TEXT NOT NULL DEFAULT 'production',
+		target_binding JSONB,
+		target_key TEXT,
+		fence BIGINT NOT NULL DEFAULT 0,
+		desired_state TEXT NOT NULL DEFAULT 'running',
+		persistent_data JSONB,
 
 		-- Status
 		status TEXT NOT NULL DEFAULT 'pending'
@@ -170,12 +180,6 @@ func (r *Repository) InitSchemaOnDialect(ctx context.Context, db DB, dialect str
 			ALTER TABLE deployment_investigations
 			ADD COLUMN IF NOT EXISTS deployment_run_id TEXT;
 		`},
-		{"add_idempotency_tracking", `
-			-- Track completed steps for replay-safe execution
-			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS completed_steps JSONB DEFAULT '[]'::jsonb;
-			-- UUID for the current execution run; changes on each fresh execution
-			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS run_id TEXT;
-		`},
 		{"add_preflight_result", `
 			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS preflight_result JSONB;
 		`},
@@ -230,6 +234,20 @@ func (r *Repository) InitSchemaOnDialect(ctx context.Context, db DB, dialect str
 			CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_deployment_id ON cloud_recovery_operations(deployment_id);
 			CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_status ON cloud_recovery_operations(status);
 		`},
+		{"add_cloud_operations", cloudOperationsPostgresDDL},
+		{"add_cloud_credentials", cloudCredentialsPostgresDDL},
+		{"add_cloud_operations_active_step", `
+			ALTER TABLE cloud_operations ADD COLUMN IF NOT EXISTS active_step JSONB;
+		`},
+		{"add_cloud_evidence", cloudEvidencePostgresDDL},
+		{"add_recovery_binding", `
+			ALTER TABLE cloud_recovery_operations ADD COLUMN IF NOT EXISTS binding JSONB;
+		`},
+		{"add_cloud_recovery_points", cloudRecoveryPointsPostgresDDL},
+		{"add_desired_state_and_persistent_data", `
+			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS desired_state TEXT NOT NULL DEFAULT 'running';
+			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS persistent_data JSONB;
+		`},
 	}
 
 	for _, m := range migrations {
@@ -242,7 +260,13 @@ func (r *Repository) InitSchemaOnDialect(ctx context.Context, db DB, dialect str
 		}
 	}
 
-	return nil
+	// Identity columns, predecessor-record conversion and the uniqueness index
+	// run outside the tolerant loop so a real conflict is never mistaken for
+	// "already exists".
+	if err := ensureDeploymentIdentity(ctx, db, "postgres"); err != nil {
+		return err
+	}
+	return convertLegacyKeyPathBindings(ctx, db)
 }
 
 // initSQLiteSchema is intentionally complete rather than migration-shaped:
@@ -256,6 +280,12 @@ CREATE TABLE IF NOT EXISTS deployments (
 	 id TEXT PRIMARY KEY,
 	 name TEXT NOT NULL,
 	 scenario_id TEXT NOT NULL,
+	 environment TEXT NOT NULL DEFAULT 'production',
+	 target_binding TEXT,
+	 target_key TEXT,
+	 fence INTEGER NOT NULL DEFAULT 0,
+	 desired_state TEXT NOT NULL DEFAULT 'running',
+	 persistent_data TEXT,
 	 status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'setup_running', 'setup_complete', 'deploying', 'deployed', 'failed', 'stopped')),
 	 manifest TEXT NOT NULL,
 	 bundle_path TEXT,
@@ -274,9 +304,7 @@ CREATE TABLE IF NOT EXISTS deployments (
 	 last_inspected_at TIMESTAMP,
 	 progress_step TEXT,
 	 progress_percent REAL DEFAULT 0,
-	 deployment_history TEXT DEFAULT '[]',
-	 completed_steps TEXT DEFAULT '[]',
-	 run_id TEXT
+	 deployment_history TEXT DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS idx_deployments_status ON deployments(status);
 CREATE INDEX IF NOT EXISTS idx_deployments_scenario_id ON deployments(scenario_id);
@@ -338,6 +366,7 @@ CREATE TABLE IF NOT EXISTS cloud_recovery_operations (
 	 status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'succeeded', 'failed')),
 	 receipt TEXT,
 	 error_message TEXT,
+	 binding TEXT,
 	 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	 started_at TIMESTAMP,
@@ -346,11 +375,24 @@ CREATE TABLE IF NOT EXISTS cloud_recovery_operations (
 );
 CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_deployment_id ON cloud_recovery_operations(deployment_id);
 CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_status ON cloud_recovery_operations(status);
-`
+` + cloudOperationsSQLiteDDL + cloudEvidenceSQLiteDDL + cloudCredentialsSQLiteDDL + cloudRecoveryPointsSQLiteDDL
 	if _, err := db.ExecContext(ctx, schema); err != nil {
 		return fmt.Errorf("failed to create SQLite schema: %w", err)
 	}
-	return nil
+	if columns, err := sqliteColumns(ctx, db, "cloud_recovery_operations"); err != nil {
+		return err
+	} else if !columns["binding"] {
+		if _, err := db.ExecContext(ctx, `ALTER TABLE cloud_recovery_operations ADD COLUMN binding TEXT`); err != nil {
+			return fmt.Errorf("add recovery binding column: %w", err)
+		}
+	}
+	// A pool that already holds a predecessor-shaped deployments table (for
+	// example a preserved shadow database) gets the identity columns,
+	// conversion and index exactly like the PostgreSQL authority.
+	if err := ensureDeploymentIdentity(ctx, db, "sqlite"); err != nil {
+		return err
+	}
+	return convertLegacyKeyPathBindings(ctx, db)
 }
 
 // contains checks if a string contains a substring (case-insensitive check not needed here)

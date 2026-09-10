@@ -32,15 +32,16 @@ type RuntimePortResolution struct {
 }
 
 type RuntimeDetails struct {
-	Status       string               `json:"status"`
-	Processes    int                  `json:"processes"`
-	Runtime      string               `json:"runtime"`
-	StartedAt    *time.Time           `json:"started_at,omitempty"`
-	Ports        map[string]int       `json:"ports,omitempty"`
-	PortBindings []RuntimePortBinding `json:"port_bindings,omitempty"`
-	ProcessInfo  []process.Record     `json:"process_info,omitempty"`
-	Health       string               `json:"health_status,omitempty"`
-	HealthError  string               `json:"health_error,omitempty"`
+	Status        string               `json:"status"`
+	BuildIdentity string               `json:"build_identity,omitempty"`
+	Processes     int                  `json:"processes"`
+	Runtime       string               `json:"runtime"`
+	StartedAt     *time.Time           `json:"started_at,omitempty"`
+	Ports         map[string]int       `json:"ports,omitempty"`
+	PortBindings  []RuntimePortBinding `json:"port_bindings,omitempty"`
+	ProcessInfo   []process.Record     `json:"process_info,omitempty"`
+	Health        string               `json:"health_status,omitempty"`
+	HealthError   string               `json:"health_error,omitempty"`
 }
 
 func DescribeRuntime(manifest ServiceManifest, runtime process.ScenarioRuntime) RuntimeDetails {
@@ -53,14 +54,14 @@ func DescribeRuntime(manifest ServiceManifest, runtime process.ScenarioRuntime) 
 	}
 
 	return RuntimeDetails{
-		Status:       status,
-		Processes:    runtime.ProcessCount,
-		Runtime:      runtime.Runtime,
-		StartedAt:    runtime.StartedAt,
-		Ports:        ports,
-		PortBindings: bindings,
-		ProcessInfo:  append([]process.Record(nil), runtime.Records...),
-		Health:       health,
+		Status:        status,
+		Processes:     runtime.ProcessCount,
+		Runtime:       runtime.Runtime,
+		StartedAt:     runtime.StartedAt,
+		Ports:         ports,
+		PortBindings:  bindings,
+		ProcessInfo:   append([]process.Record(nil), runtime.Records...),
+		Health:        health,
 	}
 }
 

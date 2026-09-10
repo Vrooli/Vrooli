@@ -1,4 +1,4 @@
-// DOC: docs/concepts/REACH-AND-CONFIGURATION.md
+// DOC: docs/concepts/ONBOARDING-BOUNDARY.md
 // Package onboarding is the transport-neutral contract between vrooli-bridge
 // and vrooli-onboarding. Bridge owns reaching a node; this package owns the
 // stable selection document and the machine-readable result of applying it.

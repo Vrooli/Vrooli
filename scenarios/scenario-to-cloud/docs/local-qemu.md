@@ -39,3 +39,21 @@ work directory and boots that owned disk. The source image is never mutated by
 snapshot, reset, or destroy. Destroy stops the VM and removes the owned disk
 and cloud-init artifacts; the source image remains available for the next
 fresh-host run.
+
+## Readiness report
+
+`GET /api/v1/instances/readiness` (`api/instance.Readiness`) reports the lane
+without running anything: each declared tool with its `hostTools` owner, KVM
+usability, the recorded base images from `certification/lanes/qemu-images.json`
+(add `?verify=1` to hash them), the `amd64`/`arm64` execution state
+(`kvm`, `tcg` or `unavailable`), every limitation with its external-input row,
+and one `next_action`. An unready lane is a 200 report with `state:
+"unavailable"`; the qualification program refuses on it. Missing tools name
+`vrooli setup` as the next action; the provider never installs them.
+
+## Certification lane
+
+The QEMU certification lane (matrix cases whose lanes include `qemu`) is
+declared in `certification/lanes/qemu.json` and driven by the governed program
+`scenario-to-cloud.cloud-qemu-qualification`. Operator steps, admission
+refusals and receipt reading are in `docs/guides/qemu-qualification.md`.

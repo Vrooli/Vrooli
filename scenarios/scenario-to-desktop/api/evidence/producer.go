@@ -20,6 +20,7 @@ import (
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"scenario-to-desktop-api/captures"
+	serviceauth "scenario-to-desktop-api/shared/auth"
 	"scenario-to-desktop-api/smoketest"
 )
 
@@ -72,12 +73,37 @@ func NewConnectReporterFromURL(baseURL string, httpClient *http.Client) *Connect
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 30 * time.Second}
 	}
+	httpClient = withDeploymentManagerServiceAuth(httpClient)
 	baseURL = strings.TrimRight(baseURL, "/")
 	return NewConnectReporterWithAllClients(
 		evidencev1connect.NewEvidenceServiceClient(httpClient, baseURL),
 		readinessv1connect.NewReadinessServiceClient(httpClient, baseURL),
 		releasesv1connect.NewReleasesServiceClient(httpClient, baseURL),
 	)
+}
+
+type deploymentManagerServiceAuthTransport struct {
+	base http.RoundTripper
+}
+
+func (t deploymentManagerServiceAuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	base := t.base
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	token := serviceauth.DeploymentManagerServiceToken()
+	if token == "" {
+		return base.RoundTrip(req)
+	}
+	clone := req.Clone(req.Context())
+	clone.Header.Set("Authorization", "Bearer "+token)
+	return base.RoundTrip(clone)
+}
+
+func withDeploymentManagerServiceAuth(client *http.Client) *http.Client {
+	copy := *client
+	copy.Transport = deploymentManagerServiceAuthTransport{base: client.Transport}
+	return &copy
 }
 
 // ReportClientUpdateReceipt routes a finalized owner receipt to the durable
@@ -184,6 +210,7 @@ func (r *ConnectReporter) ReportJourney(ctx context.Context, input smoketest.Evi
 	verdict := &commonv1.TargetVerdict{
 		Target:      TargetToEvidenceTarget(input.Target, input.Platform),
 		Disposition: disposition(input.Disposition),
+		EvidenceClass: "desktop-journey",
 		Refs:        refs,
 		RunId:       input.RunID,
 		Detail:      journeyDetail(input),

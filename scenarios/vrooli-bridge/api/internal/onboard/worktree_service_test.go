@@ -132,7 +132,7 @@ func TestStart_PinnedModeNeverShipsTree(t *testing.T) {
 	require.False(t, res.calledWorkingTree)
 	require.Equal(t, 0, src.Calls, "pinned mode must not snapshot the working tree")
 	require.Equal(t, 0, driver.SyncTreeCalls, "pinned mode must not ship a tree")
-	require.Equal(t, 0, driver.DetectPlatformCalls, "pinned mode does not cross-build live-tree artifacts")
+	require.Equal(t, 1, driver.DetectPlatformCalls, "pinned mode still detects the target to select its native bootstrap")
 	require.Equal(t, 0, driver.PushArtifactsCalls, "pinned mode does not transfer live-tree artifacts")
 	require.NotContains(t, driver.CapturedArgs, "--source-dir")
 	require.Equal(t, onboard.SourceModePinned, op.SourceMode)

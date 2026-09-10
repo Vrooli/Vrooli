@@ -18,7 +18,7 @@ import (
 )
 
 // commandRunner is the exec seam the OS managers drive their native tool through
-// (systemctl / launchctl). Production runs os/exec; tests substitute a fake that
+// (systemctl / launchctl / sc.exe). Production runs os/exec; tests substitute a fake that
 // records argv and returns canned output, so the exact command sequence — and
 // the idempotent re-install path — is unit-testable without touching the host's
 // service manager.
@@ -45,10 +45,11 @@ func (execRunner) run(ctx context.Context, argv ...string) (string, error) {
 	return string(out), nil
 }
 
-// errRenderOnly is returned by the render-only managers' install operations. The
-// operator installs the rendered unit with the platform's own tooling instead.
+// errRenderOnly is returned only for unsupported host platforms. Supported
+// platforms have a native install manager; the operator can still inspect its
+// rendered artifact before installation.
 func errRenderOnly(goos string) error {
-	return fmt.Errorf("service install is render-only on %s; render the unit with --print-service-unit and install it with the platform's native tooling", goos)
+	return fmt.Errorf("no native service manager is implemented for GOOS %q; run the agent in the foreground", goos)
 }
 
 // ---------------------------------------------------------------------------
@@ -155,6 +156,7 @@ func (m systemdManager) Status(ctx context.Context, d Definition) (StatusResult,
 	res := StatusResult{Kind: platform.ServiceManagerSystemd, UnitName: m.unitName(d), UnitPath: unitPath}
 	if _, statErr := os.Stat(unitPath); statErr == nil {
 		res.Installed = true
+		res.Configured = true
 	}
 	// `systemctl show` exits 0 even for an unknown unit (LoadState=not-found), so
 	// its output — not the exit code — is the source of truth; ignore the error.
@@ -416,6 +418,7 @@ func (m launchdManager) Status(ctx context.Context, d Definition) (StatusResult,
 	res := StatusResult{Kind: platform.ServiceManagerLaunchd, UnitName: LaunchdLabel(d.Name), UnitPath: plistPath}
 	if _, statErr := os.Stat(plistPath); statErr == nil {
 		res.Installed = true
+		res.Configured = true
 		// The plist is present and Install always enables + bootstraps it, so a
 		// present plist means it is set to run at load.
 		res.Enabled = true
@@ -521,13 +524,17 @@ func launchctlStateDetail(out string) string {
 }
 
 // ---------------------------------------------------------------------------
-// Windows (render-only) + unsupported
+// Windows Service Control Manager
 // ---------------------------------------------------------------------------
 
-// windowsManager renders the `sc.exe create` argv but does not install: Windows
-// stays render-only this phase (the Kind()/renderer already model the argv shape
-// so a later phase can add the real install without reshaping the abstraction).
-type windowsManager struct{}
+// windowsManager drives the Windows Service Control Manager through sc.exe.
+// The command runner is injected for tests so command construction and state
+// parsing are covered on non-Windows hosts without pretending to have native
+// Windows evidence. The installed agent is responsible for entering the SCM
+// service dispatcher when it is launched by the service manager.
+type windowsManager struct{ runner commandRunner }
+
+func newWindowsManager() windowsManager { return windowsManager{runner: execRunner{}} }
 
 func (windowsManager) Kind() platform.ServiceManagerKind { return platform.ServiceManagerWindows }
 
@@ -539,16 +546,236 @@ func (windowsManager) Render(d Definition) (string, error) {
 	return "sc.exe " + strings.Join(args, " "), nil
 }
 
-func (windowsManager) Install(context.Context, Definition) (InstallResult, error) {
-	return InstallResult{}, errRenderOnly("windows")
+func (m windowsManager) Install(ctx context.Context, d Definition) (InstallResult, error) {
+	if err := d.validate(); err != nil {
+		return InstallResult{}, err
+	}
+	if strings.TrimSpace(d.User) == "" {
+		return InstallResult{}, errors.New("windows service user is required")
+	}
+	if m.runner == nil {
+		return InstallResult{}, errors.New("windows service command runner is required")
+	}
+	_, installed, err := m.query(ctx, d)
+	if err != nil {
+		return InstallResult{}, err
+	}
+	if installed {
+		// `sc config` is the convergent path for a re-install: it updates the
+		// executable, arguments, account, and auto-start policy without deleting
+		// a service that may currently own an active node identity.
+		if _, err := m.runner.run(ctx, "sc.exe", "config", d.Name,
+			"binPath=", d.execLine(),
+			"start=", "auto",
+			"DisplayName=", fallback(d.Description, d.Name),
+			"obj=", d.User); err != nil {
+			return InstallResult{}, fmt.Errorf("configure Windows service %q: %w", d.Name, err)
+		}
+	} else {
+		args, err := WindowsServiceCreateArgs(d)
+		if err != nil {
+			return InstallResult{}, err
+		}
+		if _, err := m.runner.run(ctx, append([]string{"sc.exe"}, args...)...); err != nil {
+			return InstallResult{}, fmt.Errorf("create Windows service %q: %w", d.Name, err)
+		}
+	}
+	if out, err := m.runner.run(ctx, "sc.exe", "start", d.Name); err != nil && !windowsAlreadyRunning(out, err) {
+		return InstallResult{}, fmt.Errorf("start Windows service %q: %w", d.Name, err)
+	}
+	status, err := m.Status(ctx, d)
+	if err != nil {
+		return InstallResult{}, err
+	}
+	if !status.Configured {
+		return InstallResult{}, fmt.Errorf("Windows service %q does not match the requested executable or principal: %s", d.Name, status.Detail)
+	}
+	if !status.Running {
+		return InstallResult{}, fmt.Errorf("Windows service %q did not reach running state: %s", d.Name, status.Detail)
+	}
+	return InstallResult{
+		Kind:     platform.ServiceManagerWindows,
+		UnitName: d.Name,
+		Enabled:  status.Enabled,
+		Running:  true,
+	}, nil
 }
 
-func (windowsManager) Status(context.Context, Definition) (StatusResult, error) {
-	return StatusResult{}, errRenderOnly("windows")
+func (m windowsManager) Status(ctx context.Context, d Definition) (StatusResult, error) {
+	if err := d.validate(); err != nil {
+		return StatusResult{}, err
+	}
+	if m.runner == nil {
+		return StatusResult{}, errors.New("windows service command runner is required")
+	}
+	query, installed, err := m.query(ctx, d)
+	if err != nil {
+		return StatusResult{}, err
+	}
+	res := StatusResult{Kind: platform.ServiceManagerWindows, UnitName: d.Name}
+	if !installed {
+		res.Detail = "SERVICE_STATUS=not-installed"
+		return res, nil
+	}
+	qc, err := m.runner.run(ctx, "sc.exe", "qc", d.Name)
+	if err != nil {
+		return StatusResult{}, fmt.Errorf("query Windows service configuration %q: %w", d.Name, err)
+	}
+	running, state := parseSCState(query)
+	res.Installed = true
+	res.Configured = windowsServiceConfigurationMatches(qc, d)
+	res.Running = running
+	res.Enabled = parseSCAutoStart(qc)
+	res.PID = parseSCPID(query)
+	res.Detail = fmt.Sprintf("STATE=%s PID=%d START_TYPE=%s CONFIGURED=%t", state, res.PID, parseSCStartType(qc), res.Configured)
+	if !res.Configured {
+		res.Detail += " CONFIGURATION_MISMATCH"
+	}
+	return res, nil
 }
 
-func (windowsManager) Uninstall(context.Context, Definition) (UninstallResult, error) {
-	return UninstallResult{}, errRenderOnly("windows")
+func (m windowsManager) Uninstall(ctx context.Context, d Definition) (UninstallResult, error) {
+	if err := d.validate(); err != nil {
+		return UninstallResult{}, err
+	}
+	if m.runner == nil {
+		return UninstallResult{}, errors.New("windows service command runner is required")
+	}
+	_, installed, err := m.query(ctx, d)
+	if err != nil {
+		return UninstallResult{}, err
+	}
+	res := UninstallResult{Kind: platform.ServiceManagerWindows, UnitName: d.Name}
+	if !installed {
+		return res, nil
+	}
+	if out, err := m.runner.run(ctx, "sc.exe", "stop", d.Name); err != nil && !windowsNotActive(out, err) {
+		return UninstallResult{}, fmt.Errorf("stop Windows service %q: %w", d.Name, err)
+	}
+	if out, err := m.runner.run(ctx, "sc.exe", "delete", d.Name); err != nil && !windowsServiceMissing(out, err) {
+		return UninstallResult{}, fmt.Errorf("delete Windows service %q: %w", d.Name, err)
+	}
+	res.Removed = true
+	return res, nil
+}
+
+func (m windowsManager) query(ctx context.Context, d Definition) (string, bool, error) {
+	out, err := m.runner.run(ctx, "sc.exe", "queryex", d.Name)
+	if err != nil {
+		if windowsServiceMissing(out, err) {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("query Windows service %q: %w", d.Name, err)
+	}
+	return out, true, nil
+}
+
+func windowsServiceMissing(output string, err error) bool {
+	text := strings.ToLower(output + " " + errorText(err))
+	return strings.Contains(text, "1060") || strings.Contains(text, "does not exist") || strings.Contains(text, "not exist")
+}
+
+func windowsAlreadyRunning(output string, err error) bool {
+	text := strings.ToLower(output + " " + errorText(err))
+	return strings.Contains(text, "1056") || strings.Contains(text, "already running")
+}
+
+func windowsNotActive(output string, err error) bool {
+	text := strings.ToLower(output + " " + errorText(err))
+	return strings.Contains(text, "1062") || strings.Contains(text, "not started") || strings.Contains(text, "not active")
+}
+
+func errorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+func parseSCState(output string) (bool, string) {
+	for _, line := range strings.Split(output, "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), "STATE") {
+			continue
+		}
+		_, value, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		fields := strings.Fields(value)
+		if len(fields) == 0 {
+			continue
+		}
+		if len(fields) == 1 {
+			return fields[0] == "4", fields[0]
+		}
+		return fields[0] == "4", strings.Join(fields, " ")
+	}
+	return false, "UNKNOWN"
+}
+
+func parseSCPID(output string) int { return parseSCIntField(output, "PID") }
+
+func parseSCStartType(output string) string {
+	for _, line := range strings.Split(output, "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), "START_TYPE") {
+			continue
+		}
+		_, value, ok := strings.Cut(line, ":")
+		if ok {
+			return strings.TrimSpace(value)
+		}
+	}
+	return "UNKNOWN"
+}
+
+func parseSCAutoStart(output string) bool {
+	return strings.HasPrefix(strings.TrimSpace(parseSCStartType(output)), "2")
+}
+
+func windowsServiceConfigurationMatches(output string, d Definition) bool {
+	binaryPath := strings.TrimSpace(parseSCStringField(output, "BINARY_PATH_NAME"))
+	serviceUser := strings.TrimSpace(parseSCStringField(output, "SERVICE_START_NAME"))
+	return normalizeSCValue(binaryPath) == normalizeSCValue(d.execLine()) &&
+		normalizeSCValue(serviceUser) == normalizeSCValue(d.User)
+}
+
+func parseSCStringField(output, field string) string {
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, field) {
+			continue
+		}
+		_, value, ok := strings.Cut(line, ":")
+		if ok {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func normalizeSCValue(value string) string {
+	return strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(value)), " "))
+}
+
+func parseSCIntField(output, field string) int {
+	for _, line := range strings.Split(output, "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), field) {
+			continue
+		}
+		_, value, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		fields := strings.Fields(value)
+		if len(fields) == 0 {
+			continue
+		}
+		n, err := strconv.Atoi(fields[0])
+		if err == nil {
+			return n
+		}
+	}
+	return 0
 }
 
 // unsupportedManager is returned for a GOOS with no native service manager; the

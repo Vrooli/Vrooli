@@ -140,7 +140,118 @@
       }
     }
   },
-  "credentials": {},
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "apple-developer-program",
+        "label": "Apple Developer Program enrollment",
+        "description": "External enrollment prerequisite for signed iOS delivery. This is an operator-owned account state, not a secret and not a success flag supplied by the scenario.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/programs/enroll/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "apple-verified-identity",
+        "label": "Verified Apple developer identity",
+        "description": "Apple identity verification prerequisite for the selected release context.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/account/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "apple-signing-identity",
+        "label": "Apple signing identity reference",
+        "description": "Reference to the certificate and provisioning material held by secrets-manager; signing material never belongs in onboarding state or generated projects.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/help/account/create-certificates/create-a-certificate-signing-request/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "apple-team-id",
+        "label": "Apple team ID",
+        "description": "Public team identifier matched against the signing identity and App Store Connect record; it is not enrollment proof.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/account/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "apple-bundle-id",
+        "label": "Apple bundle ID",
+        "description": "Bundle identifier shared by the generated app, provisioning profile, and App Store Connect record.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/account/resources/identifiers/list"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "apple-provisioning-profile",
+        "label": "Apple provisioning profile reference",
+        "description": "Reference to the profile held by secrets-manager for the selected bundle and device/distribution context; expiry and renewal remain visible owner actions.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/help/account/manage-profiles/create-a-development-provisioning-profile/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "app-store-connect-api-key",
+        "label": "App Store Connect API key reference",
+        "description": "Reference to the App Store Connect private key held by secrets-manager for upload and listing operations. It is an alternative to an Apple ID app-specific password, not a second signing identity.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/help/app-store-connect/manage-api-access/create-api-keys/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "app-store-connect-issuer-id",
+        "label": "App Store Connect issuer ID",
+        "description": "Public issuer identifier paired with the App Store Connect API key reference.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://appstoreconnect.apple.com/access/api"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "app-store-connect-key-id",
+        "label": "App Store Connect key ID",
+        "description": "Public key identifier paired with the App Store Connect API key reference.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://appstoreconnect.apple.com/access/api"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "testflight-access",
+        "label": "TestFlight access",
+        "description": "App Store Connect access and app setup required for TestFlight distribution.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://appstoreconnect.apple.com/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "app-store-listing",
+        "label": "App Store listing",
+        "description": "Completed App Store Connect app record and listing for the selected release context.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://appstoreconnect.apple.com/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "app-store-link",
+        "label": "Apple App Store public link",
+        "description": "Public listing URL after publication. A link never establishes that signing, review, or the selected bundle is valid.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://appstoreconnect.apple.com/"
+      }
+    ]
+  },
   "environment": {},
   "components": {
     "api": {

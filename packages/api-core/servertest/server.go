@@ -156,3 +156,28 @@ func (l *LiveServer) Do(t *testing.T, method, path string, body io.Reader) (*htt
 	}
 	return resp, respBody
 }
+
+// DoJSON is the convenience form used by JSON handler fixtures. It preserves
+// the live-socket behavior of Do while setting the request content type so the
+// handler sees the same metadata as a production JSON client.
+func (l *LiveServer) DoJSON(t *testing.T, method, path, body string) (*http.Response, []byte) {
+	t.Helper()
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	req, err := http.NewRequest(method, l.URL+path, strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("build JSON request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := l.Client.Do(req)
+	if err != nil {
+		t.Fatalf("client.Do %s %s: %v", method, path, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read JSON body: %v", err)
+	}
+	return resp, respBody
+}

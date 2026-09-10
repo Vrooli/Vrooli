@@ -3,6 +3,7 @@ package app
 import (
 	"database/sql"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -90,6 +91,7 @@ func (h *handler) scenariosDir() string {
 func (h *handler) analysisHealth(c *gin.Context) {
 	graphSvc := h.graphService()
 	timestamp := time.Now().UTC().Format(time.RFC3339)
+	buildIdentity := os.Getenv("VROOLI_BUILD_IDENTITY")
 	if _, err := graphSvc.GenerateGraph("combined"); err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status":    "unhealthy",
@@ -101,6 +103,7 @@ func (h *handler) analysisHealth(c *gin.Context) {
 			"last_indexed_at": timestamp,
 			"readiness":       false,
 			"version":         "1.0.0",
+			"build_identity":  buildIdentity,
 			"error":           "Analysis capability test failed",
 		})
 		return
@@ -113,6 +116,7 @@ func (h *handler) analysisHealth(c *gin.Context) {
 		"last_indexed_at": timestamp,
 		"readiness":       true,
 		"version":         "1.0.0",
+		"build_identity":  buildIdentity,
 		"capabilities":    []string{"dependency_analysis", "graph_generation"},
 	}
 

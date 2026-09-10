@@ -2,9 +2,33 @@ package plans
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
+
+func TestFilesystemMaturityIgnoresNestedScenariosDirectory(t *testing.T) {
+	fixture := repocontracttest.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	for _, dir := range []string{"scenarios/scenarios", "scenarios/plan-manager/api", "scenarios/pilot/.vrooli"} {
+		if err := os.MkdirAll(filepath.Join(fixture.Root, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(fixture.Root, "scenarios/pilot/.vrooli/service.json"), []byte(`{"maturity":"pilot"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_SOURCE_ROOT", "")
+	t.Setenv("VROOLI_ROOT", "")
+	t.Chdir(filepath.Join(fixture.Root, "scenarios/plan-manager/api"))
+	posture, source, detail := ResolvePosture(context.Background(), planWithScenario("pilot"), NewFilesystemMaturityReader())
+	if posture != WorkPostureBrownfield || source != WorkPostureSourceServiceMaturity {
+		t.Fatalf("existing pilot posture = %s/%s: %s", posture, source, detail)
+	}
+}
 
 // fakeMaturityReader returns a fixed maturity per scenario for deterministic
 // posture-derivation tests.

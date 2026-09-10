@@ -17,6 +17,10 @@ import (
 // BuildTargetDAG resolves a repository target through repo-contract-go and
 // exports the dependency surface appropriate to that target kind.
 func BuildTargetDAG(repoRoot, expression string, recursive, refresh bool) (*types.TargetDAGResponse, error) {
+	return BuildTargetDAGWithOptions(repoRoot, expression, recursive, refresh, false)
+}
+
+func BuildTargetDAGWithOptions(repoRoot, expression string, recursive, refresh, includeProgramBindings bool) (*types.TargetDAGResponse, error) {
 	contract, err := repocontract.LoadDefault(repoRoot)
 	if err != nil {
 		return nil, fmt.Errorf("load repository contract: %w", err)
@@ -36,7 +40,11 @@ func BuildTargetDAG(repoRoot, expression string, recursive, refresh bool) (*type
 		if loadErr != nil {
 			return nil, loadErr
 		}
-		nodes = BuildDependencyNodeList(filepath.Join(repoRoot, "scenarios"), target.ID, cfg, map[string]struct{}{config.NormalizeName(target.ID): {}})
+		options := DependencyBuildOptions{IncludeProgramBindings: includeProgramBindings}
+		if includeProgramBindings {
+			options.ProgramBindings = CompositeProgramBindingSource{RepoRoot: repoRoot, BaseURL: firstEnv("VROOLI_PROGRAM_RUNTIME_URL", "PROGRAM_RUNTIME_API_URL")}
+		}
+		nodes = BuildDependencyNodeListWithOptions(filepath.Join(repoRoot, "scenarios"), target.ID, cfg, map[string]struct{}{config.NormalizeName(target.ID): {}}, options)
 	case repocontract.TargetKindPackage:
 		nodes, err = buildModuleDependencies(filepath.Join(repoRoot, filepath.FromSlash(target.Root)), repoRoot)
 		if err != nil {
@@ -59,6 +67,15 @@ func BuildTargetDAG(repoRoot, expression string, recursive, refresh bool) (*type
 		TargetKind: string(target.Kind), TargetID: target.ID, TargetRoot: target.Root,
 		Recursive: recursive, GeneratedAt: time.Now().UTC(), DAG: nodes,
 	}, nil
+}
+
+func firstEnv(names ...string) string {
+	for _, name := range names {
+		if value := strings.TrimSpace(os.Getenv(name)); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func splitTargetExpression(expression string) (string, string) {

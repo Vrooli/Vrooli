@@ -25,6 +25,7 @@ func (a releasesVerifierAdapter) Verify(ctx context.Context, req *releases.Verif
 		Channel:         req.Channel,
 		Platform:        req.Platform,
 		ExpectedVersion: req.ExpectedVersion,
+		ExpectedSHA512:  req.ExpectedSHA512,
 		Deep:            req.Deep,
 	})
 	if err != nil {

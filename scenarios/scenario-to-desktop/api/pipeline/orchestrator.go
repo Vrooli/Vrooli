@@ -247,10 +247,7 @@ func normalizePipelinePlatforms(config *PipelineConfig) error {
 }
 
 func (o *DefaultOrchestrator) newPipelineStatus(config *PipelineConfig) *Status {
-	stages := o.stages
-	if requested := config.GetStages(); len(requested) > 0 {
-		stages = o.filterStages(requested)
-	}
+	stages := o.stagesForConfig(config)
 	order := make([]string, 0, len(stages))
 	for _, stage := range stages {
 		order = append(order, stage.Name())
@@ -342,10 +339,7 @@ func (o *DefaultOrchestrator) CreateIdlePipeline(config *PipelineConfig) (*Statu
 	pipelineID := o.idGenerator.Generate()
 
 	// Build stage order (filtered if specific stages requested)
-	stagesToUse := o.stages
-	if requestedStages := config.GetStages(); len(requestedStages) > 0 {
-		stagesToUse = o.filterStages(requestedStages)
-	}
+	stagesToUse := o.stagesForConfig(config)
 	stageOrder := make([]string, 0, len(stagesToUse))
 	for _, stage := range stagesToUse {
 		stageOrder = append(stageOrder, stage.Name())
@@ -451,7 +445,7 @@ func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpda
 		applyConfigComplexFields(s.Config, configUpdates)
 		if len(configUpdates.Stages) > 0 {
 			s.Config.Stages = configUpdates.Stages
-			stagesToUse := o.filterStages(configUpdates.Stages)
+			stagesToUse := o.stagesForConfig(s.Config)
 			s.StageOrder = make([]string, 0, len(stagesToUse))
 			for _, stage := range stagesToUse {
 				s.StageOrder = append(s.StageOrder, stage.Name())
@@ -502,6 +496,12 @@ func applyConfigStringFields(dst, src *PipelineConfig) {
 	if src.Version != "" {
 		dst.Version = src.Version
 	}
+	if src.ArtifactManifestDigest != "" {
+		dst.ArtifactManifestDigest = src.ArtifactManifestDigest
+	}
+	if src.ArtifactTrustMode != "" {
+		dst.ArtifactTrustMode = src.ArtifactTrustMode
+	}
 	if src.UpdateConfig != nil {
 		dst.UpdateConfig = src.UpdateConfig
 	}
@@ -540,6 +540,9 @@ func applyConfigComplexFields(dst, src *PipelineConfig) {
 	}
 	if len(src.PreflightSecrets) > 0 {
 		dst.PreflightSecrets = src.PreflightSecrets
+	}
+	if len(src.ExpectedArtifactDigests) > 0 {
+		dst.ExpectedArtifactDigests = copyStringMap(src.ExpectedArtifactDigests)
 	}
 	if src.DeployConfig != nil {
 		dst.DeployConfig = src.DeployConfig
@@ -598,7 +601,10 @@ func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID str
 		ResourceArtifactRoot:    parentStatus.Config.ResourceArtifactRoot,
 		ToolArtifactRoot:        parentStatus.Config.ToolArtifactRoot,
 		Sign:                    parentStatus.Config.Sign,
+		ArtifactTrustMode:       parentStatus.Config.ArtifactTrustMode,
 		DeployConfig:            parentStatus.Config.DeployConfig,
+		ExpectedArtifactDigests: copyStringMap(parentStatus.Config.ExpectedArtifactDigests),
+		ArtifactManifestDigest:  parentStatus.Config.ArtifactManifestDigest,
 		Version:                 parentStatus.Config.Version,
 		PreflightSecrets:        parentStatus.Config.PreflightSecrets,
 		PreflightTimeoutSeconds: parentStatus.Config.PreflightTimeoutSeconds,

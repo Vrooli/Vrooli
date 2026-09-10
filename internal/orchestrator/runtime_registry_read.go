@@ -344,15 +344,16 @@ func registryRuntimeDetails(manifest scenario.ServiceManifest, instance scenario
 	}
 
 	return scenario.RuntimeDetails{
-		Status:       status,
-		Processes:    countRunningRecords(records),
-		Runtime:      "registry",
-		StartedAt:    startedAt,
-		Ports:        ports,
-		PortBindings: bindings,
-		ProcessInfo:  append([]process.Record(nil), records...),
-		Health:       registryHealthStatus(health),
-		HealthError:  health.Error,
+		Status:        status,
+		BuildIdentity: instance.BuildIdentity,
+		Processes:     countRunningRecords(records),
+		Runtime:       "registry",
+		StartedAt:     startedAt,
+		Ports:         ports,
+		PortBindings:  bindings,
+		ProcessInfo:   append([]process.Record(nil), records...),
+		Health:        registryHealthStatus(health),
+		HealthError:   health.Error,
 	}
 }
 

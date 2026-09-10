@@ -23,6 +23,13 @@
  * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
+import { createElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { configureTestProviders } from "@vrooli/api-base/testing";
+import { Providers } from "./app/providers";
+
+const queryClient = new QueryClient();
+configureTestProviders((children) => createElement(QueryClientProvider, { client: queryClient }, createElement(Providers, null, children)));
 import { afterEach, beforeEach, vi } from "vitest";
 import { i18n } from "./i18n";
 
@@ -60,3 +67,5 @@ afterEach(() => {
 // its own beforeEach and restore it on teardown — opt-in override
 // rather than process-wide unwiring.
 vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+
+Object.defineProperty(window, "matchMedia", { configurable: true, writable: true, value: (media: string) => ({ media, matches: media.includes("min-width"), onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent: () => false }) });

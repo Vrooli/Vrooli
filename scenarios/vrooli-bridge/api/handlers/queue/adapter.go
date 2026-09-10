@@ -104,7 +104,7 @@ func NewChannelCanceller(hub *presence.Hub, signer channelsign.Signer) runs.Canc
 
 var _ runs.Canceller = channelCanceller{}
 
-func (c channelCanceller) CancelJob(_ context.Context, nodeID, runID, reason string) error {
+func (c channelCanceller) CancelJob(_ context.Context, nodeID, runID, reason string) (int, error) {
 	frame := &channelv1.ServerFrame{
 		FrameId: uuid.NewString(),
 		Payload: &channelv1.ServerFrame_Abort{
@@ -113,10 +113,9 @@ func (c channelCanceller) CancelJob(_ context.Context, nodeID, runID, reason str
 	}
 	payload, err := channelsign.Marshal(c.signer, frame)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	c.hub.PushFrame(nodeID, frame.GetFrameId(), payload)
-	return nil
+	return c.hub.PushFrame(nodeID, frame.GetFrameId(), payload), nil
 }
 
 // channelRelayPusher carries the short-lived relay request over the same
@@ -230,7 +229,7 @@ func NewDurableStore(svc runs.Service) queue.DurableStore { return durableRunSto
 
 func (s durableRunStore) Load(ctx context.Context) ([]queue.DurableEntry, error) {
 	all, err := s.svc.List(ctx, runs.ListFilter{
-		Statuses: []runs.RunStatus{runs.StatusQueued, runs.StatusRunning, runs.StatusPushed, runs.StatusAcked},
+		Statuses: []runs.RunStatus{runs.StatusQueued, runs.StatusRunning, runs.StatusPushed, runs.StatusAcked, runs.StatusCancelRequested, runs.StatusUncertain},
 		Limit:    1000,
 	})
 	if err != nil {
@@ -247,6 +246,8 @@ func (s durableRunStore) Load(ctx context.Context) ([]queue.DurableEntry, error)
 			State: state, EnqueuedAt: run.QueuedSince, StartedAt: run.StartedAt,
 			PushedAt: run.PushedAt, AckedAt: run.AckedAt, LeaseExpiresAt: run.DeliveryLeaseExpiresAt,
 			DeliveryAttempts: run.DeliveryAttempts, Acked: run.Status == runs.StatusAcked,
+			CancelRequestedAt: run.CancelRequestedAt, CancellationConfirmed: run.CancellationConfirmed,
+			Uncertain: run.Status == runs.StatusUncertain, CancelReason: run.StatusReason,
 		})
 	}
 	return out, nil
@@ -266,6 +267,10 @@ func (s durableRunStore) MarkPushed(ctx context.Context, runID string, at, lease
 
 func (s durableRunStore) MarkFailedDelivery(ctx context.Context, runID, reason string, at time.Time) error {
 	return s.svc.MarkDeliveryState(ctx, runID, runs.StatusFailedDelivery, reason, at)
+}
+
+func (s durableRunStore) MarkUncertain(ctx context.Context, runID, reason string, at time.Time) error {
+	return s.svc.MarkDeliveryState(ctx, runID, runs.StatusUncertain, reason, at)
 }
 
 // ---- snapshot -> proto translations (api-steer §7) ----

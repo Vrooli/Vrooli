@@ -124,3 +124,17 @@ func statusForInstanceError(err error) int {
 func writeInstanceError(w http.ResponseWriter, status int, err error) {
 	httputil.WriteAPIError(w, status, httputil.APIError{Code: "instance_operation_failed", Message: err.Error()})
 }
+
+// handleInstanceReadiness reports whether the disposable QEMU lane can run on
+// this host. It is a read: an unready lane is a 200 report with state
+// "unavailable" and one next action, never an opaque error.
+func (s *Server) handleInstanceReadiness(w http.ResponseWriter, r *http.Request) {
+	verify := r.URL.Query().Get("verify") == "1" || r.URL.Query().Get("verify") == "true"
+	var report instance.LaneReadiness
+	if provider, ok := s.instanceProvider.(instance.LocalQEMUProvider); ok {
+		report = instance.Readiness(r.Context(), instance.ReadinessOptions{LookPath: provider.LookPath, ImageManifestPath: provider.ImageManifest, VerifyImages: verify})
+	} else {
+		report = instance.Readiness(r.Context(), instance.ReadinessOptions{VerifyImages: verify})
+	}
+	httputil.WriteJSON(w, http.StatusOK, report)
+}

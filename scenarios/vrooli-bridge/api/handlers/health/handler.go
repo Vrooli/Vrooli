@@ -9,6 +9,7 @@ package health
 import (
 	"context"
 	"net/http"
+	"os"
 
 	"vrooli-bridge/internal/database"
 
@@ -31,6 +32,7 @@ type Deps struct {
 func NewHandler(d Deps) http.HandlerFunc {
 	return apihealth.New(d.Service).
 		Version(d.Version).
+		BuildIdentity(os.Getenv("VROOLI_BUILD_IDENTITY")).
 		Check(apihealth.Func("database", func(ctx context.Context) error {
 			return d.Pinger.PingContext(ctx)
 		}), apihealth.Critical).

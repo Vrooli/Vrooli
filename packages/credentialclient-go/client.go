@@ -8,14 +8,41 @@ package credentialclient
 import (
 	"context"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/credentialspec"
 )
 
 type CredentialRef struct {
+	Version   string `json:"version,omitempty"`
 	Resource  string `json:"resource"`
 	Env       string `json:"env"`
 	LogicalID string `json:"logical_id"`
 	Field     string `json:"field"`
-	Label     string `json:"label,omitempty"`
+	// Owner and SourceRef identify the declaration owner and its canonical
+	// source location. They are metadata only; neither field can reveal a
+	// credential value.
+	Owner                string                               `json:"owner,omitempty"`
+	SourceRef            string                               `json:"source_ref,omitempty"`
+	Kind                 string                               `json:"kind,omitempty"`
+	Provider             string                               `json:"provider,omitempty"`
+	AppliesWhen          *credentialspec.Applicability        `json:"applies_when,omitempty"`
+	RequirementGroup     string                               `json:"requirement_group,omitempty"`
+	ConsumerRefs         []string                             `json:"consumer_refs,omitempty"`
+	CompanionSettings    []string                             `json:"companion_settings,omitempty"`
+	CompanionCredentials []string                             `json:"companion_credentials,omitempty"`
+	AcquisitionRef       string                               `json:"acquisition_ref,omitempty"`
+	VerificationRef      string                               `json:"verification_ref,omitempty"`
+	RecoveryRef          string                               `json:"recovery_ref,omitempty"`
+	HelpRef              string                               `json:"help_ref,omitempty"`
+	EvidencePolicy       string                               `json:"evidence_policy,omitempty"`
+	ProviderVersion      string                               `json:"provider_version,omitempty"`
+	MigrationDiagnostics []credentialspec.MigrationDiagnostic `json:"migration_diagnostics,omitempty"`
+	// Provenance retains every declaration that contributed this shared
+	// authority address. Resource and scenario manifests may describe the same
+	// address from different process boundaries; collapsing them must not erase
+	// the owner, source, or consumer-specific requirement.
+	Provenance []CredentialProvenance `json:"provenance,omitempty"`
+	Label      string                 `json:"label,omitempty"`
 	// Description is the operator-facing purpose of the credential. It is
 	// carried separately from Label because a credential card must show both
 	// the name and the reason the value is being asked for.
@@ -24,6 +51,49 @@ type CredentialRef struct {
 	Provisioning string `json:"provisioning,omitempty"`
 	DerivedFrom  string `json:"derived_from,omitempty"`
 	Required     bool   `json:"required"`
+}
+
+type CredentialProvenance struct {
+	Version              string                         `json:"version,omitempty"`
+	Owner                string                         `json:"owner"`
+	SourceRef            string                         `json:"source_ref"`
+	Kind                 string                         `json:"kind,omitempty"`
+	Provider             string                         `json:"provider,omitempty"`
+	AppliesWhen          *credentialspec.Applicability  `json:"applies_when,omitempty"`
+	RequirementGroup     string                         `json:"requirement_group,omitempty"`
+	ConsumerRefs         []string                       `json:"consumer_refs,omitempty"`
+	CompanionSettings    []string                       `json:"companion_settings,omitempty"`
+	CompanionCredentials []string                       `json:"companion_credentials,omitempty"`
+	AcquisitionRef       string                         `json:"acquisition_ref,omitempty"`
+	VerificationRef      string                         `json:"verification_ref,omitempty"`
+	RecoveryRef          string                         `json:"recovery_ref,omitempty"`
+	HelpRef              string                         `json:"help_ref,omitempty"`
+	EvidencePolicy       string                         `json:"evidence_policy,omitempty"`
+	ProviderVersion      string                         `json:"provider_version,omitempty"`
+	Env                  string                         `json:"env,omitempty"`
+	Label                string                         `json:"label,omitempty"`
+	Description          string                         `json:"description,omitempty"`
+	ObtainURL            string                         `json:"obtain_url,omitempty"`
+	Provisioning         string                         `json:"provisioning,omitempty"`
+	DerivedFrom          string                         `json:"derived_from,omitempty"`
+	Required             bool                           `json:"required"`
+	Consumers            []CredentialConsumerProvenance `json:"consumers,omitempty"`
+}
+
+// CredentialConsumerProvenance keeps the runtime obligation attached to the
+// declaration that introduced it. A shared address can have multiple owners
+// and delivery modes; flattening these to consumer names loses the source and
+// requiredness needed by contextual projections.
+type CredentialConsumerProvenance struct {
+	LogicalID      string   `json:"logical_id,omitempty"`
+	AddressPattern string   `json:"address_pattern,omitempty"`
+	Field          string   `json:"field,omitempty"`
+	Kind           string   `json:"kind"`
+	Consumer       string   `json:"consumer"`
+	SourceRef      string   `json:"source_ref"`
+	Required       bool     `json:"required"`
+	Reason         string   `json:"reason,omitempty"`
+	Tiers          []string `json:"tiers,omitempty"`
 }
 
 type CredentialStatus struct {

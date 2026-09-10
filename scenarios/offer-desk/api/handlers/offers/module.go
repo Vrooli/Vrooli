@@ -27,20 +27,23 @@ import (
 	offersconnect "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers/offers_v1connect"
 	swarmapipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	swarmconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
+	readinessreporter "github.com/vrooli/vrooli/packages/proto/readinessreporter"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Service struct {
-	store    *catalog.Store
-	logger   *log.Logger
-	clock    schedule.Clock
-	journal  ledgerconnect.JournalServiceClient
-	position ledgerconnect.PositionServiceClient
-	bookID   string
-	bookName string
-	books    ledgerconnect.BooksServiceClient
-	goals    swarmconnect.GoalServiceClient
-	interval time.Duration
+	store               *catalog.Store
+	logger              *log.Logger
+	clock               schedule.Clock
+	journal             ledgerconnect.JournalServiceClient
+	position            ledgerconnect.PositionServiceClient
+	bookID              string
+	bookName            string
+	books               ledgerconnect.BooksServiceClient
+	goals               swarmconnect.GoalServiceClient
+	interval            time.Duration
+	storefrontReadiness *readinessreporter.Reporter
+	pricingReadiness    *readinessreporter.Reporter
 }
 
 func NewService(db *database.RoutedDB, logger *log.Logger, clock schedule.Clock) *Service {
@@ -99,6 +102,13 @@ func deploymentReadinessProvider(client *http.Client, baseURL string) catalog.Re
 
 func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) module.Module {
 	s := NewService(db, logger, clock)
+	var err error
+	if s.storefrontReadiness, err = newReadinessReporter(context.Background(), "storefront-registered", "offer-desk.storefront.readiness"); err != nil {
+		panic(fmt.Sprintf("configure offer-desk storefront readiness reporter: %v", err))
+	}
+	if s.pricingReadiness, err = newReadinessReporter(context.Background(), "bundle-price-present", "offer-desk.pricing.readiness"); err != nil {
+		panic(fmt.Sprintf("configure offer-desk pricing readiness reporter: %v", err))
+	}
 	s.startScheduler()
 	return module.Module{Name: "offers", Mount: func(r *mux.Router) {
 		p, h := offersconnect.NewCatalogServiceHandler(s)
@@ -359,6 +369,22 @@ func (s *Service) ListEdges(ctx context.Context, r *connect.Request[offerspb.Lis
 	if err != nil {
 		return nil, internal(err)
 	}
+	if strings.TrimSpace(r.Msg.NodeId) == "" && s.pricingReadiness != nil {
+		priced := 0
+		for _, edge := range edges {
+			if edge.GetKind() == "sells_at" && edge.GetIntendedPriceDeclared() && edge.GetIntendedPriceMinor() > 0 && strings.TrimSpace(edge.GetCurrency()) != "" {
+				priced++
+			}
+		}
+		status := "failed"
+		if priced > 0 {
+			status = "passed"
+		}
+		scenario := configuredReadinessScenario()
+		if err := s.pricingReadiness.ReportStatus(ctx, scenario, status, fmt.Sprintf("full catalog edge read found %d attributable priced sell edge(s)", priced), "offer-desk:pricing:"+scenario, s.clock.Now().UTC()); err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
+	}
 	return connect.NewResponse(&offerspb.ListEdgesResponse{Edges: edges}), nil
 }
 
@@ -429,6 +455,16 @@ func (s *Service) VerifyCatalog(ctx context.Context, r *connect.Request[offerspb
 	response.OrphanEdgeIds = append(response.OrphanEdgeIds, report.OrphanEdgeIds...)
 	response.ExtraNodeIds = append(response.ExtraNodeIds, report.ExtraNodeIds...)
 	response.ScenarioGaps = append(response.ScenarioGaps, report.ScenarioGaps...)
+	if s.storefrontReadiness != nil {
+		status := "failed"
+		if report.Comparable && report.Reconciled && report.TotalDrift == 0 && len(report.ScenarioGaps) == 0 {
+			status = "passed"
+		}
+		scenario := configuredReadinessScenario()
+		if err := s.storefrontReadiness.ReportStatus(ctx, scenario, status, fmt.Sprintf("catalog reconciliation drift=%d scenario_gaps=%d", report.TotalDrift, len(report.ScenarioGaps)), "offer-desk:storefront:"+scenario, s.clock.Now().UTC()); err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
+	}
 	return connect.NewResponse(response), nil
 }
 

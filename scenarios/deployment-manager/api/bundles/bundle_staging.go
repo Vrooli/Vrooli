@@ -41,9 +41,14 @@ func resolveRepoRoot() string {
 // populateAssetMetadata fills in missing/pending asset hashes and sizes using files on disk.
 func populateAssetMetadata(manifest *Manifest, scenarioRoot string) error {
 	if manifest == nil {
-		return nil
+		return fmt.Errorf("populate asset metadata: manifest is nil")
 	}
-	_ = expandUIAssets(manifest, scenarioRoot)
+	if strings.TrimSpace(scenarioRoot) == "" {
+		return fmt.Errorf("populate asset metadata: scenario root is required")
+	}
+	if err := expandUIAssets(manifest, scenarioRoot); err != nil {
+		return fmt.Errorf("expand UI assets: %w", err)
+	}
 
 	for svcIdx, svc := range manifest.Services {
 		for assetIdx, asset := range svc.Assets {
@@ -52,12 +57,15 @@ func populateAssetMetadata(manifest *Manifest, scenarioRoot string) error {
 			}
 			abs := filepath.Join(scenarioRoot, filepath.FromSlash(asset.Path))
 			info, err := os.Stat(abs)
-			if err != nil || info.IsDir() {
-				continue
+			if err != nil {
+				return fmt.Errorf("stat asset %q: %w", asset.Path, err)
+			}
+			if info.IsDir() {
+				return fmt.Errorf("asset %q is a directory", asset.Path)
 			}
 			hash, size, hErr := hashFile(abs)
 			if hErr != nil {
-				continue
+				return fmt.Errorf("hash asset %q: %w", asset.Path, hErr)
 			}
 			manifest.Services[svcIdx].Assets[assetIdx].SHA256 = hash
 			manifest.Services[svcIdx].Assets[assetIdx].SizeBytes = size

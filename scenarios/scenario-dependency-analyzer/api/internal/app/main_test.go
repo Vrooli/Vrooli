@@ -22,6 +22,7 @@ import (
 func TestHealthHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
+	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:test-build")
 
 	router := setupTestRouter()
 
@@ -45,6 +46,10 @@ func TestHealthHandler(t *testing.T) {
 		if response["service"] != "scenario-dependency-analyzer-api" {
 			t.Errorf("Expected service 'scenario-dependency-analyzer-api', got %v", response["service"])
 		}
+
+		if response["build_identity"] != "sha256:test-build" {
+			t.Errorf("Expected build identity to be reported, got %v", response["build_identity"])
+		}
 	})
 }
 
@@ -52,6 +57,7 @@ func TestHealthHandler(t *testing.T) {
 func TestAnalysisHealthHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
+	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:test-build")
 
 	router := setupTestRouter()
 
@@ -73,6 +79,10 @@ func TestAnalysisHealthHandler(t *testing.T) {
 
 		if response["service"] != "scenario-dependency-analyzer-api" {
 			t.Errorf("Expected service 'scenario-dependency-analyzer-api', got %v", response["service"])
+		}
+
+		if response["build_identity"] != "sha256:test-build" {
+			t.Errorf("Expected analysis build identity to be reported, got %v", response["build_identity"])
 		}
 
 		if _, ok := response["timestamp"].(string); !ok {

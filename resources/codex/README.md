@@ -102,3 +102,12 @@ Upstream docs: <https://developers.openai.com/codex/permissions>.
 ## Maturity
 
 M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.
+
+## Historical integration summary
+
+The shell-era implementation summary has been retired from current guidance.
+Its references to shell libraries, model prices, and automatic fallback behavior
+are historical, not a description of the current resource implementation.
+The original remains beneath runtime home at
+`plan-artifacts/docs-cleanup-20260907-final-txumdx73/resources/codex/docs/IMPLEMENTATION-SUMMARY.md`.
+Use this README and the resource's current command help for supported behavior.

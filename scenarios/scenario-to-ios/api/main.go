@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	"scenario-to-ios/internal/builds"
 	"scenario-to-ios/internal/capabilities"
@@ -134,15 +133,13 @@ func main() {
 	matrixService.RecoverStale()
 	matrixHandler := validationmatrix.NewHandler(matrixService)
 	readinessProbe := readiness.Probe{
-		DeveloperProgram: envBool("APPLE_DEVELOPER_PROGRAM"),
-		VerifiedIdentity: envBool("APPLE_VERIFIED_IDENTITY"),
+		// External Apple prerequisites must come from an owner-produced
+		// readiness receipt. Caller-controlled environment booleans are not proof
+		// of enrollment, identity, signing, TestFlight access, or store review.
 		// The build-host rung is derived from live fleet state rather than an
 		// environment flag. A remembered flag can claim a macOS host that is not
 		// there, which is exactly what the ladder exists to prevent.
 		ObserveBuildHost: readiness.BuildHostObserver(discoverTargets),
-		SigningReference: envBool("APPLE_SIGNING_REFERENCE"),
-		TestFlightAccess: envBool("APPLE_TESTFLIGHT_ACCESS"),
-		AppStoreListing:  envBool("APPLE_APP_STORE_LISTING"),
 	}
 	distributor := distribution.Distributor{
 		DeveloperProgram: readinessProbe.DeveloperProgram,
@@ -185,9 +182,4 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
-}
-
-func envBool(key string) bool {
-	value := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
-	return value == "1" || value == "true" || value == "yes"
 }

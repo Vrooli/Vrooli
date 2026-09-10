@@ -97,7 +97,6 @@ func validDeploymentForContext() *domain.Deployment {
 				Host:    "138.197.95.182",
 				Port:    22,
 				User:    "root",
-				KeyPath: "~/.ssh/id_ed25519",
 				Workdir: "/root/Vrooli",
 			},
 		},

@@ -345,6 +345,27 @@ func (p *DefaultPackager) stageManifestCatalogForRequirements(appPath, bundleDir
 				return nil, fmt.Errorf("copy manifest catalog entry %s: %w", src, err)
 			}
 			copied = append(copied, dst)
+			if root.dest == "scenarios" && entry.Name() == "vrooli-onboarding" {
+				profileDir := filepath.Join(root.source, entry.Name(), "profiles")
+				profileEntries, profileErr := os.ReadDir(profileDir)
+				if os.IsNotExist(profileErr) {
+					continue
+				}
+				if profileErr != nil {
+					return nil, fmt.Errorf("read onboarding profile catalog %s: %w", profileDir, profileErr)
+				}
+				for _, profile := range profileEntries {
+					if profile.IsDir() || filepath.Ext(profile.Name()) != ".json" {
+						continue
+					}
+					profileSrc := filepath.Join(profileDir, profile.Name())
+					profileDst := filepath.Join(bundleDir, "catalog", "scenarios", entry.Name(), "profiles", profile.Name())
+					if err := p.fileOps.CopyFile(profileSrc, profileDst); err != nil {
+						return nil, fmt.Errorf("copy onboarding profile %s: %w", profileSrc, err)
+					}
+					copied = append(copied, profileDst)
+				}
+			}
 		}
 	}
 	return copied, nil

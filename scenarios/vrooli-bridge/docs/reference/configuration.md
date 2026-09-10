@@ -34,7 +34,8 @@ for the full policy.
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 | `BRIDGE_DESKTOP_OWNER_SOCKET` | unset | Optional absolute Unix socket for the node-local Device Control owner service. Desktop-bound Bridge sessions fail closed unless this explicit adapter path is configured. |
 | `BRIDGE_DEVICE_SYNC_URL` | (lifecycle discovery) | Optional device-sync-hub API base URL. When unset, Bridge resolves the live scenario through api-core discovery. |
-| `BRIDGE_DEVICE_SYNC_TOKEN` | unset | Trusted device-sync-hub device token used only for artifact uploads. Distribution fails closed when it is absent. Keep it in the operator secret store. |
+| `BRIDGE_DEVICE_SYNC_TOKEN` | unset | Compatibility fallback for the trusted device-sync-hub upload token. Bridge first resolves `vrooli/device-sync-hub:bridge-origin-device-token` from the credential authority; distribution fails closed when both are absent. |
+| `BRIDGE_DEVICE_SYNC_DEVICE_TOKEN` | unset | Node-agent-only device-sync-hub token used to pull a directed item after a signed placement instruction. It is never sent in Bridge channel frames or logged. |
 | `BRIDGE_DEVICE_SYNC_TARGETS` | unset | JSON object mapping Bridge registry node ids to device-sync-hub device ids, for example `{\"node-id\":\"hub-device-id\"}`. The ids are intentionally not conflated. |
 
 ### Delivery safety bounds
@@ -50,6 +51,7 @@ section. They bound delivery independently from scenario startup time:
 | `BRIDGE_START_DEADLINE_SECONDS` | `30` | Time after acknowledgement before a `RUNNING` event is required. |
 | `BRIDGE_PRESENCE_STALE_SECONDS` | `45` | Heartbeat age after which a half-open channel is not dispatchable. |
 | `BRIDGE_DEADLINE_GRACE_SECONDS` | `5` | Control-plane grace after a run's execution budget. |
+| `BRIDGE_CANCELLATION_GRACE_SECONDS` | `10` | Time after a cancel request before the watchdog records termination as unconfirmed. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

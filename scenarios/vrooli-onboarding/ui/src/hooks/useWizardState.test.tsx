@@ -4,8 +4,10 @@ import { vi } from "vitest";
 
 vi.mock("../api/session", () => ({
   advanceSessionStep: vi.fn(),
+  fetchProfileSession: vi.fn(),
   fetchSession: vi.fn(),
   fetchStepModel: vi.fn(),
+  saveProfileSession: vi.fn(),
 }));
 vi.mock("../api/operatorstate", () => ({
   fetchOperatorState: vi.fn(),
@@ -16,7 +18,7 @@ vi.mock("../api/selection", () => ({
 }));
 
 import { useWizardState } from "./useWizardState";
-import { advanceSessionStep, fetchSession, fetchStepModel } from "../api/session";
+import { advanceSessionStep, fetchProfileSession, fetchSession, fetchStepModel, saveProfileSession } from "../api/session";
 import { fetchOperatorState, saveOperatorStateAtRevision } from "../api/operatorstate";
 import { acceptRecommendation as acceptRecommendationRequest } from "../api/selection";
 import { create } from "@bufbuild/protobuf";
@@ -60,8 +62,10 @@ describe("useWizardState", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
     vi.mocked(fetchStepModel).mockResolvedValue(create(GetStepModelResponseSchema, { steps: testSteps }) as unknown as Awaited<ReturnType<typeof fetchStepModel>>);
+    vi.mocked(fetchProfileSession).mockResolvedValue(null);
     vi.mocked(fetchSession).mockResolvedValue(create(GetSessionResponseSchema, { firstUnsatisfiedStep: 0, completion: false }) as unknown as Awaited<ReturnType<typeof fetchSession>>);
     vi.mocked(advanceSessionStep).mockResolvedValue(create(GetSessionResponseSchema, { firstUnsatisfiedStep: 0, completion: false }) as unknown as Awaited<ReturnType<typeof advanceSessionStep>>);
+    vi.mocked(saveProfileSession).mockResolvedValue({ target: "local", actor: "test", mode: "guided", baseRevision: "now", answers: {}, manualDecisions: {}, targetContext: {}, revision: "saved" });
     vi.mocked(fetchOperatorState).mockResolvedValue(testAPIResponse);
     vi.mocked(saveOperatorStateAtRevision).mockResolvedValue(testAPIResponse);
     vi.mocked(acceptRecommendationRequest).mockResolvedValue({ firstUnsatisfiedStep: 2 } as never);
@@ -173,6 +177,7 @@ describe("useWizardState", () => {
       expect(saveOperatorStateAtRevision).toHaveBeenCalledWith(
         { scenarios: { "scenario-a": { enabled: true } } },
         "now",
+        "local",
       );
     });
   });
@@ -203,6 +208,7 @@ describe("useWizardState", () => {
     expect(saveOperatorStateAtRevision).toHaveBeenLastCalledWith(
       { scenarios: { "scenario-a": { enabled: true } } },
       "server-revision",
+      "local",
     );
     expect(result.current.operatorStateSaveState).toBe("saved");
   });
@@ -343,6 +349,51 @@ describe("useWizardState", () => {
       expect(result.current.selectedScenarios.has("scenario-a")).toBe(true);
     });
     expect(result.current.selectedScenarios.has("scenario-b")).toBe(false);
+  });
+
+  it("restores the durable profile session on mount", async () => {
+    vi.mocked(fetchProfileSession).mockResolvedValue({
+      target: "local",
+      actor: "scenario-authenticator:operator",
+      mode: "guided",
+      profileId: "develop-and-publish",
+      profileVersion: "1.0.0",
+      baseRevision: "selection-r1",
+      answers: { purposes: ["develop-apps"] },
+      manualDecisions: {},
+      targetContext: { operation: "prepare-desktop-release" },
+      revision: "state-r2",
+    });
+
+    const { result } = renderHook(() => useWizardState());
+
+    await waitFor(() => expect(result.current.profileSession?.profileId).toBe("develop-and-publish"));
+    expect(result.current.profileSession?.answers).toEqual({ purposes: ["develop-apps"] });
+    expect(result.current.profileSession?.revision).toBe("state-r2");
+  });
+
+  it("retains a failed profile session and retries against the latest revision", async () => {
+    vi.mocked(saveProfileSession).mockRejectedValueOnce(new Error("conflict"));
+    const { result } = renderHook(() => useWizardState());
+    await waitForStepModel(result);
+
+    act(() => result.current.persistProfileSession({
+      target: "local",
+      mode: "guided",
+      profileId: "local-use",
+      profileVersion: "1.0.0",
+      baseRevision: "selection-r1",
+      answers: { purposes: ["use-local-apps"] },
+      manualDecisions: {},
+      targetContext: {},
+    }));
+
+    await waitFor(() => expect(result.current.profileSessionSaveState).toBe("conflict"));
+    expect(result.current.profileSessionError).toMatch(/retained|rebase/i);
+
+    await act(async () => { await result.current.retryProfileSessionSave(); });
+    expect(result.current.profileSessionSaveState).toBe("saved");
+    expect(saveProfileSession).toHaveBeenCalledTimes(2);
   });
 
   it("does not treat operator state as disposable wizard progress", async () => {

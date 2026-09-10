@@ -91,7 +91,7 @@ func TestRealScenarioComponentProjectionFidelity(t *testing.T) {
 				t.Fatalf("service IDs = %#v, want %#v", ids, test.serviceIDs)
 			}
 			if test.name == "browser-automation-studio" {
-				if len(skeleton.Peers) != 1 || skeleton.Peers[0].BundlePolicy != "discover" {
+				if len(skeleton.Peers) != 4 || skeleton.Peers[0].BundlePolicy != "discover" {
 					t.Fatalf("peer projection = %#v", skeleton.Peers)
 				}
 				if got := skeleton.Services[0].Env["PLAYWRIGHT_DRIVER_URL"]; got != "http://127.0.0.1:${playwright-driver.playwright_driver}" {

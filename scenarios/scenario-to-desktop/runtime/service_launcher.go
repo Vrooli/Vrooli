@@ -258,6 +258,10 @@ func (s *Supervisor) prepareServiceEnv(ctx context.Context, svc manifest.Service
 	if err != nil {
 		return nil, err
 	}
+	// Bind bundled local-auth consumers to the exact token path declared by the
+	// manifest. The runtime owns this value so a service cannot accidentally
+	// authenticate against a different file or fall back to its OS user.
+	envMap["VROOLI_AUTH_LOCAL_TOKEN_FILE"] = manifest.ResolvePath(s.appData, s.opts.Manifest.IPC.AuthTokenRel)
 	if s.resourceServer != nil {
 		for key, value := range s.resourceServer.Environment() {
 			if existing, exists := envMap[key]; exists && existing != value {

@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"bytes"
 	"io"
 	"log"
 	"net/http"
@@ -20,7 +21,7 @@ import (
 // TestServer_MountsEachModule pins the contract the server owns:
 // every module passed to New has its Mount invoked exactly once on
 // the production router, and the resulting routes are reachable
-// through the Handler() chain (including recovery + logging
+// through the Handler() chain (including recovery + security-header
 // middleware).
 //
 // Per-module route coverage (notes list returns 200, notes get
@@ -83,6 +84,41 @@ func TestServer_ZeroModules(t *testing.T) {
 func TestServer_HandlerNotNil(t *testing.T) {
 	srv := server.New(newTestDeps())
 	require.NotNil(t, srv.Handler(), "server.Handler() must not be nil")
+}
+
+// TestServer_NoPerRequestLogging pins the desired logging contract: the
+// scenario emits at most one log line per request, and that line is
+// owned by the shared api-core/server access log wrapped around
+// Handler() by server.Run in production. The scenario-local middleware
+// stack must therefore write nothing per request to Deps.Logger. A
+// duplicate line here once doubled log volume during a request storm
+// (a 15 GB log file at 400 req/s).
+func TestServer_NoPerRequestLogging(t *testing.T) {
+	buf := &bytes.Buffer{}
+	deps := server.Deps{
+		Clock:  schedule.System(),
+		Logger: log.New(buf, "", 0),
+	}
+	mod := module.Module{
+		Name: "probe",
+		Mount: func(r *mux.Router) {
+			r.HandleFunc("/probe", func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			}).Methods(http.MethodGet)
+		},
+	}
+	srv := server.New(deps, mod)
+	live := httpx.NewLiveServer(t, srv)
+
+	for i := 0; i < 3; i++ {
+		resp, _ := live.Do(t, http.MethodGet, "/probe", nil)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	}
+	resp, _ := live.Do(t, http.MethodGet, "/missing", nil)
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+
+	require.Empty(t, buf.String(),
+		"scenario middleware must not log per request; api-core's access log already emits one line per request")
 }
 
 func TestServer_NewRequiresClock(t *testing.T) {

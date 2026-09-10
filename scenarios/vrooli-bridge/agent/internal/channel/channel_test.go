@@ -120,6 +120,10 @@ func (f *fakeControlPlane) ReportCredentialReceipt(_ context.Context, _ *connect
 	return connect.NewResponse(&presencev1.ReportCredentialReceiptResponse{Accepted: true}), nil
 }
 
+func (f *fakeControlPlane) ReportArtifactReceipt(_ context.Context, _ *connect.Request[presencev1.ReportArtifactReceiptRequest]) (*connect.Response[presencev1.ReportArtifactReceiptResponse], error) {
+	return connect.NewResponse(&presencev1.ReportArtifactReceiptResponse{Accepted: true}), nil
+}
+
 func (f *fakeControlPlane) ReportScenarioResponse(_ context.Context, _ *connect.Request[presencev1.ReportScenarioResponseRequest]) (*connect.Response[presencev1.ReportScenarioResponseResponse], error) {
 	return connect.NewResponse(&presencev1.ReportScenarioResponseResponse{Accepted: true}), nil
 }

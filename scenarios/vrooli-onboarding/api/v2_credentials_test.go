@@ -61,3 +61,27 @@ func TestCredentialDoctorHidesRelayFailureDetails(t *testing.T) {
 		t.Fatalf("status/body = %d/%s", w.Code, w.Body.String())
 	}
 }
+
+func TestCredentialListReturnsMetadataWithoutWaitingForAuthority(t *testing.T) {
+	writeProjectScopeFixture(t)
+	previous := credentialStatusCommand
+	var calls int
+	credentialStatusCommand = func(context.Context, string, string) ([]byte, error) {
+		calls++
+		return []byte(`{"configured":true}`), nil
+	}
+	t.Cleanup(func() { credentialStatusCommand = previous })
+
+	items, err := listCredentials(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) < 2 || calls != 0 {
+		t.Fatalf("metadata inventory = %d items with %d authority calls, want at least the two declared items and zero calls", len(items), calls)
+	}
+	for _, item := range items {
+		if item.Status != credentialStatusPending || item.Detail == "" {
+			t.Fatalf("metadata item = %+v, want pending status and explanation", item)
+		}
+	}
+}

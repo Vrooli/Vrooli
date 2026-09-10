@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -142,4 +143,20 @@ func (s *s3Storage) HeadObject(ctx context.Context, bucket, key string) (etag st
 		contentType = *response.ContentType
 	}
 	return etag, size, contentType, nil
+}
+
+func (s *s3Storage) ReadObject(ctx context.Context, bucket, key string) (io.ReadCloser, int64, string, error) {
+	response, err := s.client.GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+	if err != nil {
+		return nil, 0, "", err
+	}
+	var size int64
+	if response.ContentLength != nil {
+		size = *response.ContentLength
+	}
+	var contentType string
+	if response.ContentType != nil {
+		contentType = *response.ContentType
+	}
+	return response.Body, size, contentType, nil
 }

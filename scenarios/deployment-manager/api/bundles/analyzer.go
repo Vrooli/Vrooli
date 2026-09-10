@@ -76,7 +76,10 @@ func FetchSkeletonBundle(ctx context.Context, scenario string) (*Manifest, error
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(res.Body, 1<<15))
+		body, err := io.ReadAll(io.LimitReader(res.Body, 1<<15))
+		if err != nil {
+			return nil, fmt.Errorf("read analyzer error response: %w", err)
+		}
 		return nil, fmt.Errorf("analyzer returned %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
 	}
 

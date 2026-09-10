@@ -389,7 +389,9 @@
       "passed": "Passed",
       "queued": "Queued",
       "running": "Running",
-      "unspecified": "Unknown"
+      "unspecified": "Unknown",
+      "cancelRequested": "Cancellation requested",
+      "uncertain": "Outcome uncertain"
     },
     "title": "Run history",
     "view": "View output"

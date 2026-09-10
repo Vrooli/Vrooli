@@ -9,6 +9,13 @@ type VPSSecretEntry struct {
 	Masked      bool   `json:"masked"`
 	Source      string `json:"source"` // "auto_generated", "user_provided", "manual"
 	LastUpdated string `json:"last_updated,omitempty"`
+	// Binding metadata: the descriptor-exact binding behind the key, its
+	// lifecycle class, active version number and state. References only.
+	BindingID  string `json:"binding_id,omitempty"`
+	Descriptor string `json:"descriptor,omitempty"`
+	Class      string `json:"class,omitempty"`
+	Version    int64  `json:"version,omitempty"`
+	State      string `json:"state,omitempty"`
 }
 
 // VPSSecretsMetadata contains metadata about the secrets.json file on VPS.
@@ -60,6 +67,11 @@ type SecretOperationResponse struct {
 	Message         string `json:"message"`
 	ScenarioRestart bool   `json:"scenario_restart,omitempty"` // True if scenario was restarted
 	Timestamp       string `json:"timestamp"`
+	// Binding-model references for the operation that ran.
+	BindingID      string `json:"binding_id,omitempty"`
+	Version        int64  `json:"version,omitempty"`
+	RotationID     string `json:"rotation_id,omitempty"`
+	OperationState string `json:"operation_state,omitempty"`
 }
 
 // SecretKeyValidationRegex is the regex pattern for valid secret keys.

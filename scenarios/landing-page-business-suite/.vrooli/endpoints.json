@@ -131,6 +131,38 @@
       "category": "admin"
     },
     {
+      "id": "post-api-v1-admin-download-channels-halt",
+      "path": "/api/v1/admin/download-channels/halt",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/download-channels/halt",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-download-channels-head",
+      "path": "/api/v1/admin/download-channels/head",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/download-channels/head",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-download-channels-promote",
+      "path": "/api/v1/admin/download-channels/promote",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/download-channels/promote",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-download-channels-recover",
+      "path": "/api/v1/admin/download-channels/recover",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/download-channels/recover",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
       "id": "get-api-v1-admin-download-storage",
       "path": "/api/v1/admin/download-storage",
       "method": "GET",

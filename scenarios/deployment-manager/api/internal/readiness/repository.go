@@ -12,6 +12,7 @@ import (
 
 	domain "deployment-manager/readiness"
 	"deployment-manager/shared"
+	"github.com/google/uuid"
 )
 
 type SQLRepository struct {
@@ -85,6 +86,9 @@ func (r *SQLRepository) CreateOrGet(ctx context.Context, review *domain.Review) 
 		*review = *existing
 		return true, nil
 	}
+	if err := r.saveReleaseBinding(ctx, key, identity); err != nil {
+		return false, err
+	}
 	review.CreatedAt, review.UpdatedAt = now, now
 	return false, nil
 }
@@ -123,7 +127,49 @@ func (r *SQLRepository) Get(ctx context.Context, key string) (*domain.Review, er
 		value := approved.Time
 		review.ApprovedAt = &value
 	}
+	if err := r.loadReleaseBinding(ctx, review.Key, &review.Identity); err != nil {
+		return nil, err
+	}
 	return &review, nil
+}
+
+func (r *SQLRepository) saveReleaseBinding(ctx context.Context, key string, identity domain.ReviewIdentity) error {
+	if identity.CandidateID == "" {
+		return nil
+	}
+	p := r.placeholder
+	_, err := r.db.ExecContext(ctx, fmt.Sprintf(`INSERT INTO readiness_review_release_bindings
+		(review_key, candidate_id, destination_revision_id, authorization_epoch, created_at)
+		VALUES (%s,%s,%s,%s,%s) ON CONFLICT (review_key) DO NOTHING`, p(1), p(2), p(3), p(4), p(5)),
+		key, identity.CandidateID, identity.DestinationRevisionID, identity.AuthorizationEpoch, time.Now().UTC())
+	if err != nil {
+		return fmt.Errorf("store readiness release binding: %w", err)
+	}
+	var candidateID, destinationID string
+	var epoch uint64
+	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT candidate_id, destination_revision_id, authorization_epoch
+		FROM readiness_review_release_bindings WHERE review_key = %s`, p(1)), key).Scan(&candidateID, &destinationID, &epoch); err != nil {
+		return fmt.Errorf("read readiness release binding: %w", err)
+	}
+	if candidateID != identity.CandidateID || destinationID != identity.DestinationRevisionID || epoch != identity.AuthorizationEpoch {
+		return errors.New("stored readiness release binding does not match deterministic review identity")
+	}
+	return nil
+}
+
+func (r *SQLRepository) loadReleaseBinding(ctx context.Context, key string, identity *domain.ReviewIdentity) error {
+	var candidateID, destinationID string
+	var epoch uint64
+	err := r.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT candidate_id, destination_revision_id, authorization_epoch
+		FROM readiness_review_release_bindings WHERE review_key = %s`, r.placeholder(1)), key).Scan(&candidateID, &destinationID, &epoch)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read readiness release binding: %w", err)
+	}
+	identity.CandidateID, identity.DestinationRevisionID, identity.AuthorizationEpoch = candidateID, destinationID, epoch
+	return nil
 }
 
 func (r *SQLRepository) ListReviews(ctx context.Context, status domain.ReviewStatus, limit int) ([]domain.Review, error) {
@@ -279,6 +325,18 @@ func (r *SQLRepository) ReplaceEvaluation(ctx context.Context, key string, evide
 	}
 	defer func() { _ = tx.Rollback() }()
 	p := r.placeholder
+	revisionID := uuid.NewString()
+	replacedAt := time.Now().UTC()
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(`INSERT INTO readiness_evidence_history
+		(revision_id, review_key, criterion_id, status, applicability, applicability_reason,
+		 producer, producer_version, candidate_commit, artifact_digest, target, environment,
+		 policy_version, observed_at, evidence_reference, detail, replaced_at)
+		SELECT %s, review_key, criterion_id, status, applicability, applicability_reason,
+		 producer, producer_version, candidate_commit, artifact_digest, target, environment,
+		 policy_version, observed_at, evidence_reference, detail, %s
+		FROM readiness_evidence WHERE review_key = %s`, p(1), p(2), p(3)), revisionID, replacedAt, key); err != nil {
+		return fmt.Errorf("archive readiness evidence: %w", err)
+	}
 	if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM readiness_evidence WHERE review_key = %s", p(1)), key); err != nil {
 		return err
 	}
@@ -411,7 +469,8 @@ func (r *SQLRepository) SaveObservation(ctx context.Context, observation domain.
 		candidate_commit=excluded.candidate_commit, artifact_digest=excluded.artifact_digest,
 		target=excluded.target, environment=excluded.environment, policy_version=excluded.policy_version,
 		status=excluded.status, observed_at=excluded.observed_at,
-		evidence_reference=excluded.evidence_reference, detail=excluded.detail`,
+		evidence_reference=excluded.evidence_reference, detail=excluded.detail
+		WHERE excluded.observed_at >= readiness_observations.observed_at`,
 		p(1), p(2), p(3), p(4), p(5), p(6), p(7), p(8), p(9), p(10), p(11), p(12), p(13), p(14)),
 		key, observation.CriterionID, observation.ProducerBinding, evidence.Producer, nullString(evidence.ProducerVersion),
 		identity.CandidateCommit, identity.ArtifactDigest, strings.Join(identity.Targets, ","), identity.Channel,

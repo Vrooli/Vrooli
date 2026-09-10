@@ -31,7 +31,8 @@ import (
 )
 
 const (
-	providerReady = "ready"
+	providerReady         = "ready"
+	escrowFreshnessWindow = 30 * 24 * time.Hour
 )
 
 const (
@@ -78,9 +79,11 @@ func NewProviders(root, home string) []operatorcapability.Provider {
 
 func (p *Provider) Descriptor() operatorcapability.Descriptor {
 	return operatorcapability.Descriptor{
-		Version:     operatorcapability.ContractVersion,
-		ID:          CapabilityID,
-		Owner:       Owner,
+		Version: operatorcapability.ContractVersion, ID: CapabilityID, Owner: Owner,
+		Scope: "host credential protection", Purpose: "protect operator credentials with a verified recovery copy",
+		Sensitivity: operatorcapability.SensitivitySecret, Disposition: operatorcapability.DispositionConfigurable,
+		Provenance:  operatorcapability.PermissionProvenance{Requester: "onboarding operator", Scope: "this host and the selected escrow destination", GrantSource: "reviewed capability apply with explicit confirmation", RevocationLimit: "revocation stops future escrow work; existing artifacts remain until the credential owner removes them"},
+		Lifecycle:   operatorcapability.Lifecycle{Preview: true, Apply: true, Verify: true, Revoke: true, Recover: true, Recovery: "retry after correcting the destination or credential-store condition"},
 		Title:       "Protect credentials with verified escrow",
 		Description: "Select an approved escrow sink, create a verified encrypted root copy and recovery bundle, and keep their evidence fresh.",
 		Risk:        "A destination is never adopted automatically; an unverified or same-device destination is not reported as protection.",
@@ -119,9 +122,11 @@ func newStoreProvider(parent *Provider) operatorcapability.Provider {
 
 func (p *storeProvider) Descriptor() operatorcapability.Descriptor {
 	return operatorcapability.Descriptor{
-		Version:     operatorcapability.ContractVersion,
-		ID:          StoreCapabilityID,
-		Owner:       Owner,
+		Version: operatorcapability.ContractVersion, ID: StoreCapabilityID, Owner: Owner,
+		Scope: "host credential store", Purpose: "make the credential store available to the control plane",
+		Sensitivity: operatorcapability.SensitivitySecret, Disposition: operatorcapability.DispositionConfigurable,
+		Provenance:  operatorcapability.PermissionProvenance{Requester: "onboarding operator", Scope: "this host credential store", GrantSource: "reviewed capability apply with explicit confirmation", RevocationLimit: "locking or rotating the store passphrase is owned by the credential authority"},
+		Lifecycle:   operatorcapability.Lifecycle{Preview: true, Apply: true, Verify: true, Revoke: true, Recover: true, Recovery: "retry after correcting the passphrase or backend session"},
 		Title:       "Make the credential store available",
 		Description: "Initialize or unlock the selected credential backend using an operator-supplied passphrase.",
 		Inputs: []operatorcapability.InputDescriptor{
@@ -321,15 +326,22 @@ func (p *Provider) Discover(ctx context.Context) (operatorcapability.Status, err
 
 func (p *Provider) verifyEvidence(store securestore.StoreStatus, receipt credentialauthority.RecoveryReceipt, copyConfig securestore.CopyConfig) (bool, []operatorcapability.EvidenceReference, string) {
 	copyStatus, copyFound := readCopyStatus(filepath.Join(p.home, "state", "credential-store-copy.json"))
-	if !copyFound || copyStatus.Verification != "readback" || copyStatus.Checksum == "" || copyStatus.VerifiedAt.IsZero() {
+	if !copyFound || copyStatus.Verification != "readback" || copyStatus.Generation == "" || copyStatus.Checksum == "" || copyStatus.VerifiedAt.IsZero() {
 		return false, nil, "encrypted root-copy evidence is absent or was not verified by read-back"
+	}
+	now := time.Now().UTC()
+	if p != nil && p.now != nil {
+		now = p.now().UTC()
+	}
+	if !freshEvidence(copyStatus.VerifiedAt, now) || !freshEvidence(receipt.VerifiedAt, now) {
+		return false, nil, fmt.Sprintf("recovery evidence is older than %s; refresh the escrow artifacts", escrowFreshnessWindow)
 	}
 	if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(copyStatus.Path)), "s3://") {
 		if _, err := os.Stat(copyStatus.Path); err != nil {
 			return false, nil, "encrypted root-copy artifact is missing from its receipt location"
 		}
 	}
-	if receipt.Checksum == "" || receipt.VerifiedAt.IsZero() || receipt.Verification != "decrypt-readback" {
+	if receipt.ArtifactIdentity == "" || receipt.SourceGeneration == "" || receipt.Checksum == "" || receipt.VerifiedAt.IsZero() || receipt.Verification != "decrypt-readback" {
 		return false, nil, "recovery-bundle evidence is absent or was not decrypted and read back"
 	}
 	if store.Path != "" && receipt.SourceGeneration != "" {
@@ -346,9 +358,59 @@ func (p *Provider) verifyEvidence(store securestore.StoreStatus, receipt credent
 		return false, nil, "recovery evidence does not cover every configured credential"
 	}
 	if copyConfig.Enabled && copyStatus.ScheduleState != providerReady {
-		return false, []operatorcapability.EvidenceReference{{Kind: "encrypted-root-copy", ArtifactIdentity: artifactIdentity(copyStatus.Path), SourceGeneration: copyStatus.Generation, Checksum: copyStatus.Checksum, ObservedAt: copyStatus.VerifiedAt, Verified: true}, {Kind: "recovery-bundle", ArtifactIdentity: receipt.ArtifactIdentity, SourceGeneration: receipt.SourceGeneration, Checksum: receipt.Checksum, Coverage: recoveryCoverage(receipt.Entries), ObservedAt: receipt.VerifiedAt, Verified: true}, {Kind: "schedule", ArtifactIdentity: "native-schedule", ObservedAt: receipt.VerifiedAt, Verified: false, Remediation: copyStatus.Remediation}}, "artifacts are verified but the native refresh schedule is degraded"
+		return false, escrowEvidence(copyStatus, receipt, false, copyStatus.Remediation), "artifacts are verified but the native refresh schedule is degraded"
 	}
-	return true, []operatorcapability.EvidenceReference{{Kind: "encrypted-root-copy", ArtifactIdentity: artifactIdentity(copyStatus.Path), SourceGeneration: copyStatus.Generation, Checksum: copyStatus.Checksum, ObservedAt: copyStatus.VerifiedAt, Verified: true}, {Kind: "recovery-bundle", ArtifactIdentity: receipt.ArtifactIdentity, SourceGeneration: receipt.SourceGeneration, Checksum: receipt.Checksum, Coverage: recoveryCoverage(receipt.Entries), ObservedAt: receipt.VerifiedAt, Verified: true}, {Kind: "schedule", ArtifactIdentity: "native-schedule", ObservedAt: receipt.VerifiedAt, Verified: true}}, ""
+	return true, escrowEvidence(copyStatus, receipt, true, ""), ""
+}
+
+func escrowEvidence(copyStatus securestore.CopyStatus, receipt credentialauthority.RecoveryReceipt, scheduleVerified bool, scheduleRemediation string) []operatorcapability.EvidenceReference {
+	coverage := recoveryCoverage(receipt.Entries)
+	return []operatorcapability.EvidenceReference{
+		{Kind: "encrypted-root-copy", ArtifactIdentity: artifactIdentity(copyStatus.Path), SourceGeneration: copyStatus.Generation, Checksum: copyStatus.Checksum, Coverage: []string{"credential-store-root-copy"}, ObservedAt: copyStatus.VerifiedAt, Verified: true},
+		{Kind: "recovery-bundle", ArtifactIdentity: receipt.ArtifactIdentity, SourceGeneration: receipt.SourceGeneration, Checksum: receipt.Checksum, Coverage: coverage, ObservedAt: receipt.VerifiedAt, Verified: true},
+		{Kind: "schedule", ArtifactIdentity: "native-schedule", SourceGeneration: copyStatus.Generation, Checksum: copyStatus.Checksum, Coverage: []string{"credential-store-refresh-schedule"}, ObservedAt: receipt.VerifiedAt, Verified: scheduleVerified, Remediation: scheduleRemediation},
+	}
+}
+
+// Verify refreshes escrow evidence through the control-plane owner and binds
+// it to the requested target, operation, and credential authority version.
+func (p *Provider) Verify(ctx context.Context, request operatorcapability.VerificationRequest) ([]operatorcapability.EvidenceReference, error) {
+	status, err := p.Discover(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if status.State != operatorcapability.StateReady {
+		return nil, fmt.Errorf("credential escrow evidence is not ready: %s", status.Remediation)
+	}
+	now := p.now().UTC()
+	receipts := append([]operatorcapability.EvidenceReference(nil), status.Evidence...)
+	for index := range receipts {
+		receipt := &receipts[index]
+		receipt.SchemaVersion = operatorcapability.EvidenceSchemaVersion
+		receipt.CapabilityID = request.CapabilityID
+		receipt.TargetID = request.TargetID
+		receipt.Environment = request.Environment
+		receipt.AccountIdentity = request.AccountIdentity
+		receipt.Operation = request.Operation
+		receipt.Status = "exercised"
+		receipt.EffectClass = string(operatorcapability.EffectReadOnly)
+		receipt.ExpiresAt = receipt.ObservedAt.Add(escrowFreshnessWindow)
+		if request.CredentialRef != nil {
+			ref := *request.CredentialRef
+			receipt.CredentialRef = &ref
+		}
+		if !receipt.FreshAt(now) {
+			return nil, fmt.Errorf("credential escrow evidence receipt %q is not fresh", receipt.Kind)
+		}
+	}
+	return receipts, nil
+}
+
+func freshEvidence(observedAt, now time.Time) bool {
+	if observedAt.IsZero() || observedAt.After(now) {
+		return false
+	}
+	return now.Sub(observedAt) <= escrowFreshnessWindow
 }
 
 func readCopyStatus(path string) (securestore.CopyStatus, bool) {

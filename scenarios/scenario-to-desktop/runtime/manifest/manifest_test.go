@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -655,5 +656,18 @@ func TestResolvePath_MixedSeparators(t *testing.T) {
 
 	if got != want {
 		t.Errorf("ResolvePath() = %q, want %q", got, want)
+	}
+}
+
+func TestManifestParsesProgramBindingPeersAdditively(t *testing.T) {
+	var parsed Manifest
+	if err := json.Unmarshal([]byte(`{"schema_version":"v0.1","target":"desktop","app":{"name":"demo","version":"1"},"ipc":{"mode":"loopback-http","host":"127.0.0.1","port":0,"auth_token_path":"token"},"telemetry":{"file":"events.jsonl"},"services":[],"program_binding_peers":[{"scenario":"vrooli-memory","bundle_policy":"discover","bindings":[]}]}`), &parsed); err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed.ProgramBindingPeers) != 1 || parsed.ProgramBindingPeers[0].Scenario != "vrooli-memory" {
+		t.Fatalf("program binding peers = %#v", parsed.ProgramBindingPeers)
+	}
+	if len(parsed.Peers) != 0 {
+		t.Fatalf("ordinary peers changed = %#v", parsed.Peers)
 	}
 }

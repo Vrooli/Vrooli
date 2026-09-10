@@ -372,7 +372,7 @@ describe("OnboardNodeForm progress", () => {
         ),
       );
 
-      renderWithProviders(<OnboardNodeForm />);
+      const mounted = renderWithProviders(<OnboardNodeForm />);
       await startOnboard();
 
       const banner = await screen.findByTestId(s.failure);
@@ -382,6 +382,7 @@ describe("OnboardNodeForm progress", () => {
       expect(rendered.has(expectedKey), `code ${code} shares a message`).toBe(false);
       rendered.add(expectedKey);
 
+      mounted.unmount();
       cleanup();
       vi.clearAllMocks();
     }

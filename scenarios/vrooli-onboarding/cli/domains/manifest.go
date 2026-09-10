@@ -27,7 +27,7 @@ import (
 // cliSurfaceRouteReferences keeps the source-level route contract searchable
 // for the onboarding CLI surface audit. The actual command bindings remain
 // descriptor-driven from cli/manifest.json.
-const cliSurfaceRouteReferences = "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply /vrooli.vrooli_onboarding.v1.apply.ApplyService/CancelApply /vrooli.vrooli_onboarding.v1.session.SessionService/GetDraft /vrooli.vrooli_onboarding.v1.session.SessionService/SaveDraft /vrooli.vrooli_onboarding.v1.session.SessionService/DiscardDraft /vrooli.vrooli_onboarding.v1.glossary.GlossaryService/SearchConfiguration"
+const cliSurfaceRouteReferences = "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply /vrooli.vrooli_onboarding.v1.apply.ApplyService/CancelApply /vrooli.vrooli_onboarding.v1.session.SessionService/GetDraft /vrooli.vrooli_onboarding.v1.session.SessionService/SaveDraft /vrooli.vrooli_onboarding.v1.session.SessionService/DiscardDraft /vrooli.vrooli_onboarding.v1.session.SessionService/GetProfileSession /vrooli.vrooli_onboarding.v1.session.SessionService/SaveProfileSession /vrooli.vrooli_onboarding.v1.glossary.GlossaryService/SearchConfiguration"
 
 // LoadManifestGroups is the one CLI registration point. It builds the
 // command tree from manifest bindings and uses cli-core's descriptor-backed
@@ -62,7 +62,7 @@ func LoadManifestGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Com
 		{"control", []serviceSpec{{string(selectionv1.File_vrooli_onboarding_v1_selection_selection_proto.Services().Get(0).FullName()), readMap("GetClosure")}}, true},
 		{"host", []serviceSpec{{string(hostv1.File_vrooli_onboarding_v1_host_host_proto.Services().Get(0).FullName()), readMap("ListHostRequirements")}}, false},
 		{"wizard", []serviceSpec{
-			{string(sessionv1.File_vrooli_onboarding_v1_session_session_proto.Services().Get(0).FullName()), readMap("GetSession", "GetStepModel", "GetDraft")},
+			{string(sessionv1.File_vrooli_onboarding_v1_session_session_proto.Services().Get(0).FullName()), readMap("GetSession", "GetStepModel", "GetDraft", "GetProfileSession")},
 			{string(selectionv1.File_vrooli_onboarding_v1_selection_selection_proto.Services().Get(0).FullName()), readMap()},
 			{string(applyv1.File_vrooli_onboarding_v1_apply_apply_proto.Services().Get(0).FullName()), readMap("GetApplyRun", "GetApplyPlan")},
 		}, false},

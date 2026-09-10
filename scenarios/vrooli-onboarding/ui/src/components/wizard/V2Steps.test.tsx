@@ -1,5 +1,5 @@
 // [REQ:ONB-CORE-SUPERVISION-AUTHORITY]
-import { fireEvent, screen, waitFor } from "../../test-utils";
+import { fireEvent, screen, waitFor, within } from "../../test-utils";
 import { vi } from "vitest";
 import { renderWithProviders } from "@vrooli/api-base/testing";
 import { DerivedResourceStep } from "./DerivedResourceStep";
@@ -16,7 +16,7 @@ import { ApplyRunState, ApplyStepState } from "@vrooli/proto-types/vrooli-onboar
 const api = vi.hoisted(() => ({
   fetchHostRequirements: vi.fn(),
 }));
-const credentialsApi = vi.hoisted(() => ({ provisionCredential: vi.fn() }));
+const credentialsApi = vi.hoisted(() => ({ fetchCredentials: vi.fn(), provisionCredential: vi.fn() }));
 const capabilitiesApi = vi.hoisted(() => ({
   fetchCapabilities: vi.fn(),
   previewCapability: vi.fn(),
@@ -97,6 +97,7 @@ beforeEach(() => {
     standalone: [{ name: "qdrant", category: "search", enabled: false, installed: true }], count: 3,
   });
   credentialsApi.provisionCredential.mockResolvedValue({ status: "provisioned" });
+  credentialsApi.fetchCredentials.mockResolvedValue({ credentials: [{ resource: "openrouter", logical_id: "openrouter", field: "api_key", label: "OpenRouter key", required: true, status: "unconfigured" }], count: 1 });
   applyApi.startApply.mockResolvedValue({ run: { runId: "apply-test", status: ApplyRunState.APPLIED, legacyStatus: "applied", steps: [{ name: "postgres", state: ApplyStepState.APPLIED, legacyOutcome: "applied" }] } });
   applyApi.reviewApply.mockResolvedValue({ target: "local", planId: "plan-test", planDigest: "digest-test", revision: "revision-test", consentReceiptId: "receipt-test" });
   applyApi.fetchApplyPlan.mockResolvedValue({ target: "local", plan_id: "plan-test", plan_digest: "digest-test", revision: "revision-test", items: [{ id: "resource:postgres", kind: "resource", name: "postgres", required: true, privileged: false, state: "pending" }] });
@@ -106,6 +107,12 @@ beforeEach(() => {
   capabilitiesApi.previewCapability.mockResolvedValue({ capability_id: "demo-capability", plan_id: "demo-plan", state: "ready_to_preview", mutations: [{ id: "demo-write", summary: "write a verified demo artifact", reversible: true }] });
   capabilitiesApi.applyCapability.mockResolvedValue({ capability_id: "demo-capability", state: "ready", outcome: "demo_ready", retryable: true, evidence: [{ kind: "demo", artifact_identity: "demo-artifact", observed_at: "now", verified: true }] });
 });
+
+async function openCredentialDetails(tab: "actions" | "questions" = "actions") {
+  fireEvent.click(await screen.findByRole("button", { name: "Review credential setup" }));
+  await screen.findByRole("dialog", { name: "Credential setup details" });
+  fireEvent.click(screen.getByRole("tab", { name: tab === "questions" ? "Setup questions" : "Provider actions" }));
+}
 
 describe("V2 onboarding wizard steps", () => {
   it("previews the supervision closure and prevents trusted-base removal", async () => {
@@ -140,9 +147,9 @@ describe("V2 onboarding wizard steps", () => {
     expect(await screen.findByTestId("scenario-card-writer")).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(screen.getByTestId("scenario-card-writer"));
     expect(onToggle).toHaveBeenCalledWith("writer");
-    expect(await screen.findByText("ollama")).toBeInTheDocument();
-    expect(screen.getByText("postgres")).toBeInTheDocument();
-    expect(screen.getByText("qdrant")).toBeInTheDocument();
+    expect(await screen.findByRole("checkbox", { name: /ollama/i })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /postgres/i })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /qdrant/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox", { name: /ollama/i }));
     expect(onResourceToggle).toHaveBeenCalledWith("ollama", false);
     fireEvent.click(screen.getByRole("checkbox", { name: /qdrant/i }));
@@ -258,7 +265,8 @@ describe("V2 onboarding wizard steps", () => {
     });
     const onConfig = vi.fn();
     renderWithProviders(<HostRequirementStep onTool={vi.fn()} onSafeguard={vi.fn()} onHostConfig={(kind, name, config) => onConfig(kind, name, config)} />);
-    fireEvent.change(await screen.findByLabelText("mode"), { target: { value: "enforce" } });
+    fireEvent.click(await screen.findByRole("button", { name: "mode" }));
+    fireEvent.click(screen.getByRole("option", { name: "enforce" }));
     fireEvent.click(screen.getByLabelText("enabled"));
     fireEvent.change(screen.getByLabelText("retries"), { target: { value: "3" } });
     expect(onConfig).toHaveBeenLastCalledWith("host_safeguards", "firewall", { mode: "enforce", enabled: true, retries: 3 });
@@ -299,6 +307,7 @@ describe("V2 onboarding wizard steps", () => {
       }],
     });
     renderWithProviders(<StepCredentials />);
+    await openCredentialDetails();
     expect(await screen.findByTestId("capability-card-demo-capability")).toHaveTextContent("Protect a demo artifact");
     fireEvent.change(screen.getByLabelText("Destination"), { target: { value: "/mnt/approved" } });
     fireEvent.click(screen.getByTestId("capability-confirm-demo-capability"));
@@ -324,6 +333,7 @@ describe("V2 onboarding wizard steps", () => {
       }],
     });
     renderWithProviders(<StepCredentials />);
+    await openCredentialDetails();
     expect(await screen.findByTestId("capability-card-durable-backup-evidence")).toHaveTextContent("recovery-drill · verified");
     expect(screen.getByTestId("capability-card-durable-backup-evidence")).toHaveTextContent("run a recovery drill");
     expect(screen.queryByRole("button", { name: "Preview" })).not.toBeInTheDocument();
@@ -344,6 +354,7 @@ describe("V2 onboarding wizard steps", () => {
       }],
     });
     renderWithProviders(<StepCredentials />);
+    await openCredentialDetails();
     const card = await screen.findByTestId("capability-card-platform-permission-fixture");
     expect(card).toHaveTextContent("selected host");
     expect(card).toHaveTextContent("owner revoke only");
@@ -369,6 +380,7 @@ describe("V2 onboarding wizard steps", () => {
       }],
     });
     renderWithProviders(<StepCredentials />);
+    await openCredentialDetails();
     expect(await screen.findByTestId("capability-card-secret-capability")).toBeInTheDocument();
     const destination = screen.getByLabelText("Destination");
     fireEvent.change(destination, { target: { value: "/mnt/approved" } });
@@ -402,6 +414,7 @@ describe("V2 onboarding wizard steps", () => {
     });
     capabilitiesApi.previewCapability.mockRejectedValueOnce(new Error("preview unavailable"));
     renderWithProviders(<StepCredentials />);
+    await openCredentialDetails();
     fireEvent.change(await screen.findByLabelText("Destination"), { target: { value: "/mnt/approved" } });
     fireEvent.click(screen.getByLabelText(/Enabled/));
     fireEvent.click(screen.getByRole("button", { name: "Preview" }));
@@ -467,8 +480,64 @@ describe("V2 onboarding wizard steps", () => {
     const input = await screen.findByLabelText("Value for OpenRouter key");
     fireEvent.change(input, { target: { value: "secret-value" } });
     fireEvent.click(screen.getByRole("button", { name: "Save securely" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Credential provisioning failed");
+    expect(await screen.findByTestId("credential-list")).toHaveTextContent("Credential provisioning failed");
     expect(input).toHaveValue("secret-value");
+  });
+
+  it("keeps credential rows informative across provider-supplied and verified states", async () => {
+    readinessApi.fetchReadiness.mockResolvedValueOnce({
+      status: "degraded", scenarios: [], resources: [], hosts: [], integrations: [], checked_at: "now", blockers: [], degraded: [],
+      credentials: [
+        { resource: "derived", logical_id: "derived", field: "endpoint", label: "Derived endpoint", required: true, provisioning: "derived", derived_from: "gateway", status: "configured", evidence_status: "verified", evidence_detail: "Verified by the owning component." },
+        { resource: "generated", logical_id: "generated", field: "token", label: "Generated token", required: false, provisioning: "generated", status: "configured" },
+        { resource: "pending", logical_id: "pending", field: "key", label: "Pending key", required: true, status: "pending", detail: "Still checking." },
+      ],
+    });
+    credentialsApi.fetchCredentials.mockResolvedValueOnce({ credentials: [
+      { resource: "derived", logical_id: "derived", field: "endpoint", label: "Derived endpoint", required: true, provisioning: "derived", derived_from: "gateway", status: "configured" },
+      { resource: "generated", logical_id: "generated", field: "token", label: "Generated token", required: false, provisioning: "generated", status: "configured", description: "Created by onboarding." },
+      { resource: "pending", logical_id: "pending", field: "key", label: "Pending key", required: true, status: "pending", detail: "Still checking.", evidence_detail: "The provider has not responded yet." },
+    ], count: 3 });
+    renderWithProviders(<StepCredentials />);
+
+    expect(await screen.findAllByTestId("credential-card")).toHaveLength(3);
+    expect(screen.getByText("Provided by gateway after its source credential is available.")).toBeInTheDocument();
+    expect(screen.getByText("Generated by the owning component on first start. There is nothing to enter.")).toBeInTheDocument();
+    expect(screen.getByText("Still checking.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Value for Pending key")).toBeInTheDocument();
+  });
+
+  it("renders the credential configuration provider diagnosis and refresh action", async () => {
+    readinessApi.fetchReadiness.mockResolvedValueOnce({
+      status: "degraded", scenarios: [], resources: [], hosts: [], integrations: [], checked_at: "now", blockers: [], degraded: [],
+      credentials: [], credential_diagnosis: { provider: { backend: "verified escrow", condition: "attention", explanation: "The escrow is locked.", fix: "Unlock the escrow.", write_condition: "write unavailable", write_fix: "Reconnect the escrow." } },
+    });
+    renderWithProviders(<StepCredentials />);
+    await openCredentialDetails();
+    fireEvent.click(screen.getByRole("tab", { name: "Secure store" }));
+    expect(await screen.findByTestId("credential-configuration")).toHaveTextContent("verified escrow");
+  });
+
+  it("keeps credential inputs on the page and defers configuration work to the dialog", async () => {
+    capabilitiesApi.fetchCapabilities.mockClear();
+    operatorInputsApi.fetchOperatorInputs.mockClear();
+    renderWithProviders(<StepCredentials />);
+    expect(await screen.findByTestId("credential-card")).toHaveTextContent("OpenRouter key");
+    expect(capabilitiesApi.fetchCapabilities).not.toHaveBeenCalled();
+    expect(operatorInputsApi.fetchOperatorInputs).not.toHaveBeenCalled();
+
+    await openCredentialDetails();
+    const dialog = await screen.findByRole("dialog", { name: "Credential setup details" });
+    expect(within(dialog).queryByTestId("credential-card")).not.toBeInTheDocument();
+    await waitFor(() => expect(capabilitiesApi.fetchCapabilities).toHaveBeenCalledWith("local"));
+    await waitFor(() => expect(operatorInputsApi.fetchOperatorInputs).toHaveBeenCalledWith("local"));
+  });
+
+  it("shows a stable credential skeleton while readiness and inventory are loading", async () => {
+    readinessApi.fetchReadiness.mockImplementationOnce(() => new Promise(() => undefined));
+    credentialsApi.fetchCredentials.mockImplementationOnce(() => new Promise(() => undefined));
+    renderWithProviders(<StepCredentials />);
+    expect(await screen.findByRole("status", { name: /Checking credential requirements/ })).toBeInTheDocument();
   });
 
   it("renders and submits every declared operator-input kind", async () => {
@@ -487,6 +556,7 @@ describe("V2 onboarding wizard steps", () => {
     });
     readinessApi.fetchReadiness.mockResolvedValueOnce({ status: "ready", scenarios: [], resources: [], credentials: [], hosts: [], integrations: [], checked_at: "now", blockers: [], degraded: [] });
     renderWithProviders(<StepCredentials target="remote" />);
+    await openCredentialDetails("questions");
     expect(await screen.findByTestId("target-question-set")).toHaveTextContent("Secret");
     expect(screen.getByLabelText("Secret")).toBeInTheDocument();
     expect(screen.getByText("Choice")).toBeInTheDocument();

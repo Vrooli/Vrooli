@@ -514,7 +514,7 @@ func main() {
 			}
 		}
 	}
-	authClient := auth.NewClient(auth.Config{
+	authClient := auth.NewClient(auth.ClientConfig{
 		Resolver:            authResolver,
 		JWKSGrace:           postureDefaults.JWKSCacheGrace,
 		BreakGlassPublicKey: breakGlassPublic,
@@ -690,9 +690,10 @@ func main() {
 		}),
 	)
 	durableQueue := queueH.NewDurableStore(runsSvc)
+	queuePusher := queueH.NewChannelPusher(presenceHub, cpKeypair)
 	if reconciled, reconcileErr := internalqueue.Reconcile(
-		context.Background(), durableQueue, presenceHub,
-		queueH.NewChannelPusher(presenceHub, cpKeypair), clk,
+		context.Background(), durableQueue, presenceHub, queuePusher, clk,
+		queueH.NewChannelCanceller(presenceHub, cpKeypair),
 	); reconcileErr != nil {
 		log.Fatalf("queue reconciliation failed: %v", reconcileErr)
 	} else {
@@ -711,11 +712,21 @@ func main() {
 		}
 	}
 	scheduler, err = internalqueue.NewSchedulerWithStore(
-		queueH.NewChannelPusher(presenceHub, cpKeypair), queueH.NewAborter(runsSvc), clk, 0,
+		queuePusher, queueH.NewAborter(runsSvc), clk, 0,
 		durableQueue,
 	)
 	if err != nil {
 		log.Fatalf("queue projection restore failed: %v", err)
+	}
+	// Reconciliation deliberately leaves queued work to the scheduler so boot
+	// cannot bypass the per-node concurrency bound. Promote restored work for
+	// nodes that are already online; future reconnects use the online hook below.
+	if available, ok := queuePusher.(internalqueue.Availability); ok {
+		for _, nodeQueue := range scheduler.Snapshot("") {
+			if available.IsAvailable(nodeQueue.NodeID) {
+				scheduler.Promote(context.Background(), nodeQueue.NodeID)
+			}
+		}
 	}
 	presenceHub.SetOnlineHook(func(nodeID string) {
 		if scheduler != nil {
@@ -858,6 +869,9 @@ func main() {
 		queueH.NewChannelScenarioPusher(presenceHub, cpKeypair), scenarioBroker,
 	)
 
+	artifactsModule, artifactReceiptRecorder := artifactsH.Module(db, clk, registrySvc, runsSvc, nodeVerifier, logger,
+		artifactsH.NewArtifactPlacementPusher(presenceHub, cpKeypair))
+
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: logger},
 		healthH.Module(db, "vrooli-bridge-api", "1.0.0"),
@@ -879,6 +893,7 @@ func main() {
 			channelH.WithDeliveryAckRecorder(runsSvc), channelH.WithAuditSink(auditStore),
 			channelH.WithSessionManager(sessionManager, authClient, registrySvc), channelH.WithSessionPush(pushSession),
 			channelH.WithRelayResponseSink(relayBroker), channelH.WithCredentialReceiptRecorder(grantSvc),
+			channelH.WithArtifactReceiptRecorder(artifactReceiptRecorder),
 			channelH.WithScenarioResponseSink(scenarioResponseSink{broker: scenarioBroker})),
 		cleanupH.Module(cleanupSvc, nodeVerifier, logger),
 		credentialgrantH.Module(grantHandler),
@@ -922,7 +937,7 @@ func main() {
 		// artifacts (OT-P1-003): non-git artifact distribution. Validates node
 		// revocation (registrySvc) and delegates the byte move to device-sync-hub
 		// directed delivery (bridge stores no blob).
-		artifactsH.Module(db, clk, registrySvc, runsSvc, nodeVerifier, logger),
+		artifactsModule,
 		// audit (OT-P0-008): owner-gated read of the append-only trail.
 		auditH.Module(auditStore, logger),
 	)

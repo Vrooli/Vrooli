@@ -92,6 +92,9 @@ func Aggregate(scenario, commit string, checklist Checklist, signals []Signal, n
 				signal.Detail = fmt.Sprintf("signal belongs to commit %s, evaluated commit is %s", signal.Commit, commit)
 			}
 		}
+		if signal.Status == SignalPassed && strings.TrimSpace(signal.Reference) == "" {
+			return Verdict{}, fmt.Errorf("passed signal %q requires a producer reference", signal.ItemID)
+		}
 		if signal.Status == SignalNotApplicable && strings.TrimSpace(signal.ApplicabilityReason) == "" {
 			return Verdict{}, fmt.Errorf("signal %q is not_applicable without a reason", signal.ItemID)
 		}

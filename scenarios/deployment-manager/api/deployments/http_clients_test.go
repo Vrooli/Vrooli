@@ -6,52 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 )
-
-func TestHTTPCloudHealthClient(t *testing.T) {
-	tests := []struct {
-		name       string
-		status     int
-		body       string
-		wantHealth bool
-	}{
-		{name: "healthy", status: http.StatusOK, body: `{"status":"ok"}`, wantHealth: true},
-		{name: "unhealthy", status: http.StatusServiceUnavailable, body: `downstream unavailable`, wantHealth: false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path != "/api/v1/deployments/landing-page-business-suite/health" {
-					t.Errorf("path = %s", r.URL.Path)
-				}
-				w.WriteHeader(tt.status)
-				_, _ = w.Write([]byte(tt.body))
-			}))
-			defer srv.Close()
-
-			client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL}
-			result, err := client.CheckLPBSHealth(context.Background())
-			if err != nil {
-				t.Fatalf("CheckLPBSHealth() error = %v", err)
-			}
-			if result.Healthy != tt.wantHealth {
-				t.Fatalf("Healthy = %v, want %v", result.Healthy, tt.wantHealth)
-			}
-			if !tt.wantHealth && result.Details == "" {
-				t.Fatal("unhealthy result should retain the downstream response")
-			}
-			if tt.wantHealth && result.Details != "" {
-				t.Fatalf("healthy Details = %q", result.Details)
-			}
-			if _, err := client.CheckLPBSHealth(context.Background()); err != nil {
-				t.Fatalf("second health check error = %v", err)
-			}
-		})
-	}
-}
 
 func TestNewHTTPCloudHealthClientUsesConfiguredURL(t *testing.T) {
 	previous := os.Getenv("SCENARIO_TO_CLOUD_URL")
@@ -65,6 +24,190 @@ func TestNewHTTPCloudHealthClientUsesConfiguredURL(t *testing.T) {
 	}
 	if client.baseURL != "http://cloud.example" {
 		t.Fatalf("baseURL = %q", client.baseURL)
+	}
+}
+
+func TestHTTPCloudDeploymentClientRequiresDurableReceipt(t *testing.T) {
+	var statusCalls, observationCalls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/deployments":
+			if r.Method != http.MethodPost {
+				t.Fatalf("create method = %s", r.Method)
+			}
+			var body map[string]json.RawMessage
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode create request: %v", err)
+			}
+			if string(body["manifest"]) != `{"scenario":{"id":"demo"}}` {
+				t.Fatalf("manifest = %s", body["manifest"])
+			}
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"deployment":{"id":"dep-1"}}`))
+		case "/api/v1/deployments/dep-1/execute":
+			if r.Method != http.MethodPost {
+				t.Fatalf("execute method = %s", r.Method)
+			}
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"run_id":"run-1"}`))
+		case "/api/v1/deployments/dep-1":
+			call := statusCalls.Add(1)
+			status := "deploying"
+			if call > 1 {
+				status = "deployed"
+			}
+			_, _ = w.Write([]byte(`{"deployment":{"status":"` + status + `"}}`))
+		case "/api/v1/deployments/dep-1/receipt":
+			_, _ = w.Write([]byte(`{"receipt":{"schema_version":1,"deployment_id":"dep-1","scenario_id":"demo","target_kind":"vps","destination_id":"sha256:target","destination_host":"vps.example","destination_workdir":"/srv/demo","destination_domain":"demo.example","bundle_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","outcome":"deployed","health":"healthy","external_receipt":"scenario-to-cloud:dep-1","observed_at":"` + time.Now().UTC().Format(time.RFC3339) + `","producer_ref":"scenario-to-cloud","target_key":"host:vps.example","release_digest":"` + strings.Repeat("a", 64) + `"}}`))
+		case "/api/v1/deployments/dep-1/health/observation":
+			observationCalls.Add(1)
+			_, _ = w.Write([]byte(healthyObservationJSON("dep-1", "sha256:"+strings.Repeat("a", 64), time.Now().UTC())))
+		case "/api/v1/deployments/dep-1/evidence":
+			if r.URL.Query().Get("release_digest") != strings.Repeat("a", 64) {
+				t.Fatalf("evidence release_digest = %q", r.URL.Query().Get("release_digest"))
+			}
+			_, _ = w.Write([]byte(`{"schema_version":"1","evidence":{"schema_version":"1","profile_id":"cloud-launch-v1","release_digest":"` + strings.Repeat("a", 64) + `","target_key":"host:vps.example","cells":[{"case_id":"GOV-05","lane":"api","disposition":"passed","required":true,"record_id":"rec-1","receipt_refs":["cloud-target:op-1:GOV-05"]}],"required_cells":1,"passed":true,"producer_ref":"scenario-to-cloud"}}`))
+		case "/api/v1/deployments/dep-1/publication":
+			_, _ = w.Write([]byte(`{"schema_version":"1","publication":{"id":"pub-1","request_key":"req-1","review_ref":"rr-1","release_digest":"` + strings.Repeat("a", 64) + `","state":"published","activated_release_digest":"` + strings.Repeat("a", 64) + `","predecessor_release_digest":"` + strings.Repeat("9", 64) + `","target_key":"host:vps.example"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
+	receipt, err := client.DeployCloud(context.Background(), &CloudDeploymentRequest{Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`), RunPreflight: true})
+	if err != nil {
+		t.Fatalf("DeployCloud() error = %v", err)
+	}
+	if receipt.DeploymentID != "dep-1" || receipt.DestinationID != "sha256:target" {
+		t.Fatalf("receipt = %#v", receipt)
+	}
+	if receipt.Evidence == nil || !receipt.Evidence.Passed || receipt.Publication == nil || receipt.Publication.PredecessorReleaseDigest != strings.Repeat("9", 64) {
+		t.Fatalf("receipt evidence/publication = %#v / %#v", receipt.Evidence, receipt.Publication)
+	}
+	if statusCalls.Load() < 2 {
+		t.Fatalf("status calls = %d, expected wait for deployed state", statusCalls.Load())
+	}
+	if observationCalls.Load() != 1 {
+		t.Fatalf("observation calls = %d, the receipt must be backed by the typed observation", observationCalls.Load())
+	}
+}
+
+// TestHTTPCloudDeploymentClientRejectsReceiptWithoutHealthyObservation
+// [REQ:STC-P0-034] proves a receipt that says healthy is not accepted when
+// the typed observation disagrees.
+func TestHTTPCloudDeploymentClientRejectsReceiptWithoutHealthyObservation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/deployments":
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"deployment":{"id":"dep-3"}}`))
+		case "/api/v1/deployments/dep-3/execute":
+			w.WriteHeader(http.StatusAccepted)
+		case "/api/v1/deployments/dep-3":
+			_, _ = w.Write([]byte(`{"deployment":{"status":"deployed"}}`))
+		case "/api/v1/deployments/dep-3/receipt":
+			_, _ = w.Write([]byte(`{"receipt":{"schema_version":1,"deployment_id":"dep-3","scenario_id":"demo","target_kind":"vps","destination_id":"sha256:target","destination_host":"vps.example","destination_workdir":"/srv/demo","destination_domain":"demo.example","bundle_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","outcome":"deployed","health":"healthy","external_receipt":"scenario-to-cloud:dep-3","observed_at":"` + time.Now().UTC().Format(time.RFC3339) + `","producer_ref":"scenario-to-cloud","target_key":"host:vps.example","release_digest":"` + strings.Repeat("a", 64) + `"}}`))
+		case "/api/v1/deployments/dep-3/health/observation":
+			body := strings.Replace(healthyObservationJSON("dep-3", "sha256:"+strings.Repeat("a", 64), time.Now().UTC()), "HEALTH_STATUS_HEALTHY", "HEALTH_STATUS_UNHEALTHY", 1)
+			_, _ = w.Write([]byte(body))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
+	_, err := client.DeployCloud(context.Background(), &CloudDeploymentRequest{Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`)})
+	if err == nil || !strings.Contains(err.Error(), "status_not_healthy") {
+		t.Fatalf("DeployCloud() error = %v, want the observation verdict", err)
+	}
+}
+
+func TestHTTPCloudDeploymentClientRejectsIncompleteReceipt(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/deployments":
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"deployment":{"id":"dep-2"}}`))
+		case "/api/v1/deployments/dep-2/execute":
+			w.WriteHeader(http.StatusAccepted)
+		case "/api/v1/deployments/dep-2":
+			_, _ = w.Write([]byte(`{"deployment":{"status":"deployed"}}`))
+		case "/api/v1/deployments/dep-2/receipt":
+			_, _ = w.Write([]byte(`{"receipt":{"schema_version":1,"deployment_id":"dep-2","outcome":"deployed"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
+	if _, err := client.DeployCloud(context.Background(), &CloudDeploymentRequest{Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`)}); err == nil {
+		t.Fatal("incomplete receipt was accepted")
+	}
+}
+
+func TestHTTPCloudRecoveryClientRequiresOwnerReceipt(t *testing.T) {
+	var received map[string]interface{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/deployments/dep-1/recovery" || r.Method != http.MethodPost {
+			t.Fatalf("recovery request = %s %s", r.Method, r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+			t.Fatalf("decode recovery request: %v", err)
+		}
+		_, _ = w.Write([]byte(`{"receipt":{"schema_version":1,"deployment_id":"dep-1","action":"halt","outcome":"halted","health":"stopped","external_receipt":"scenario-to-cloud:recovery:dep-1","observed_at":"2026-09-08T21:00:00Z"}}`))
+	}))
+	defer srv.Close()
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL}
+	receipt, err := client.RecoverCloud(context.Background(), &CloudRecoveryRequest{DeploymentID: "dep-1", Action: "halt", ExpectedBundleSHA: "sha256:bundle", Confirmation: "halt dep-1"})
+	if err != nil {
+		t.Fatalf("RecoverCloud() error = %v", err)
+	}
+	if receipt.Outcome != "halted" || received["confirmation"] != "halt dep-1" || received["expected_bundle_sha256"] != "sha256:bundle" {
+		t.Fatalf("receipt/request = %#v / %#v", receipt, received)
+	}
+}
+
+func TestHTTPCloudRecoveryClientPollsDurableRepairOperation(t *testing.T) {
+	var statusCalls atomic.Int32
+	var received map[string]interface{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/deployments/dep-1/recovery":
+			if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+				t.Fatalf("decode recovery request: %v", err)
+			}
+			_, _ = w.Write([]byte(`{"receipt":{"schema_version":1,"deployment_id":"dep-1","operation_id":"op-1","action":"rollback","outcome":"pending","health":"unknown"}}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/deployments/dep-1/recovery/op-1":
+			call := statusCalls.Add(1)
+			if call == 1 {
+				_, _ = w.Write([]byte(`{"receipt":{"schema_version":1,"deployment_id":"dep-1","operation_id":"op-1","action":"rollback","outcome":"running","health":"unknown"}}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"receipt":{"schema_version":1,"deployment_id":"dep-1","operation_id":"op-1","action":"rollback","outcome":"rolled_back","health":"healthy","bundle_sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","external_receipt":"scenario-to-cloud:recovery:op-1","observed_at":"2026-09-08T21:00:00Z"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
+	receipt, err := client.RecoverCloud(context.Background(), &CloudRecoveryRequest{
+		DeploymentID: "dep-1", Action: "rollback", ExpectedBundleSHA: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		RepairBundleSHA: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", DataCompatibility: "compatible",
+		IdempotencyKey: "recovery-key", Confirmation: "rollback dep-1",
+	})
+	if err != nil {
+		t.Fatalf("RecoverCloud() error = %v", err)
+	}
+	if receipt == nil || receipt.OperationID != "op-1" || receipt.Outcome != "rolled_back" || receipt.BundleSHA256 == "" {
+		t.Fatalf("receipt = %#v", receipt)
+	}
+	if statusCalls.Load() < 2 {
+		t.Fatalf("status calls = %d, expected durable operation polling", statusCalls.Load())
+	}
+	if received["repair_bundle_sha256"] != "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" || received["data_compatibility"] != "compatible" || received["idempotency_key"] != "recovery-key" {
+		t.Fatalf("recovery request = %#v", received)
 	}
 }
 

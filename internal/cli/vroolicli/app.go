@@ -28,6 +28,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/capacitycli"
 	"github.com/vrooli/vrooli/internal/cli/capacityhandlers"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
+	"github.com/vrooli/vrooli/internal/cli/cloudtargethandlers"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/contractcli"
 	"github.com/vrooli/vrooli/internal/cli/contracthandlers"
@@ -232,6 +233,7 @@ func RegisteredLeafPaths() ([]string, error) {
 	paths = append(paths, hosthandlers.RegisteredCommandPaths()...)
 	paths = append(paths, runtimehandlers.RegisteredCommandPaths()...)
 	paths = append(paths, capabilityhandlers.RegisteredCommandPaths()...)
+	paths = append(paths, cloudtargethandlers.RegisteredCommandPaths()...)
 	return rootcli.WalkCommandTree(app.Registry(), paths)
 }
 
@@ -869,6 +871,14 @@ func topLevelHandlerDefinitions() map[topcli.CommandID]rootcli.Handler[*AppConte
 			Stderr:           func(ctx *AppContext) io.Writer { return ctx.Stderr },
 		}),
 		topcli.CommandReleaseAuthority: func(ctx *AppContext, args []string) error { return ctx.app.runReleaseAuthorityCommand(ctx, args) },
+		topcli.CommandCloudTarget: cloudtargethandlers.RootHandler(rootcli.HandlerDeps[*AppContext]{
+			Root:             func(ctx *AppContext) string { return ctx.Root },
+			Globals:          func(ctx *AppContext) rootcli.GlobalOptions { return ctx.Globals },
+			OperationContext: func(ctx *AppContext) context.Context { return ctx.OperationContext() },
+			Stdin:            func(ctx *AppContext) io.Reader { return ctx.Stdin },
+			Stdout:           commandStdout,
+			Stderr:           func(ctx *AppContext) io.Writer { return ctx.Stderr },
+		}),
 		topcli.CommandBreakGlass: credentialshandlers.BreakGlassHandler(rootcli.HandlerDeps[*AppContext]{
 			Root:             func(ctx *AppContext) string { return ctx.Root },
 			Globals:          func(ctx *AppContext) rootcli.GlobalOptions { return ctx.Globals },

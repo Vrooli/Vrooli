@@ -387,6 +387,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 				logx.AttrScenario, item.Slug,
 				logx.AttrDependency, dependencyName,
 				logx.AttrOperation, "start_dependency",
+				"error", err.Error(),
 			)
 			return dependencyName, nil
 		}
