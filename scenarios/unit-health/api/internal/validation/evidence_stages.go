@@ -27,7 +27,7 @@ func (stages EvidenceStages) Normalized() EvidenceStages {
 	stages.Configured = known(stages.Configured, "observed", "cached")
 	stages.Analyzed = known(stages.Analyzed, "observed", "partial", "cached")
 	stages.Executed = known(stages.Executed, "not_requested", "not_executed", "passed", "failed", "refused", "cached")
-	stages.Reviewed = known(stages.Reviewed, "not_supplied")
+	stages.Reviewed = known(stages.Reviewed, "not_supplied", "supplied")
 	return stages
 }
 
@@ -75,4 +75,13 @@ func summarizeEvidenceStages(response Response, executionRequested bool) *Eviden
 		}
 	}
 	return stages
+}
+
+func attachReviewedEvidence(stages *EvidenceStages, req Request) {
+	if stages == nil {
+		return
+	}
+	if req.ReviewedCohortID != "" && req.ReviewedSourceIdentity != "" && req.ReviewedObservationCount > 0 {
+		stages.Reviewed = "supplied"
+	}
 }

@@ -2,6 +2,7 @@ package validate
 
 import (
 	"fmt"
+
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation"
 )
 

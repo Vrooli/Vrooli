@@ -13,14 +13,21 @@
 package httpx
 
 import (
-	"log"
 	"net/http"
+
+	"unit-health/internal/logx"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/errors"
 )
+
+// Logger is the narrow diagnostic surface needed by the REST writers.
+// Production uses logx.Default; tests provide a recorder.
+type Logger interface {
+	Printf(string, ...any)
+}
 
 // Canonical error codes. Handlers reach for these constants rather than
 // open-coding the strings so the wire-side vocabulary stays narrow.
@@ -62,6 +69,11 @@ const (
 // new shape introduces a real failure mode. If that day comes, the
 // right move is to thread the logger; do not silently drop the log.
 func WriteError(w http.ResponseWriter, status int, code, message string) {
+	WriteErrorWithLogger(w, status, code, message, logx.Default())
+}
+
+// WriteErrorWithLogger is the substitution point for marshal-failure tests.
+func WriteErrorWithLogger(w http.ResponseWriter, status int, code, message string, logger Logger) {
 	envelope := &errorsv1.ErrorEnvelope{
 		Code:    code,
 		Message: message,
@@ -72,7 +84,7 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 		// comment). If a future shape change makes this firable, the
 		// scenario MUST thread a logger through WriteError instead of
 		// keeping this global-log fallback.
-		log.Printf("httpx.WriteError: protojson marshal failed: %v", err)
+		logger.Printf("httpx.WriteError: protojson marshal failed: %v", err)
 		body = []byte(`{"code":"internal","message":"error envelope marshal failed"}`)
 		status = http.StatusInternalServerError
 	}
@@ -84,10 +96,15 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 // WriteProto serialises msg as proto JSON for REST endpoints whose response
 // metadata is still proto-typed. Connect-RPC handlers do not use this helper.
 func WriteProto(w http.ResponseWriter, status int, msg proto.Message) {
+	WriteProtoWithLogger(w, status, msg, logx.Default())
+}
+
+// WriteProtoWithLogger is the substitution point for marshal-failure tests.
+func WriteProtoWithLogger(w http.ResponseWriter, status int, msg proto.Message, logger Logger) {
 	body, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(msg)
 	if err != nil {
-		log.Printf("httpx.WriteProto: protojson marshal failed: %v", err)
-		WriteError(w, http.StatusInternalServerError, CodeInternal, "response marshal failed")
+		logger.Printf("httpx.WriteProto: protojson marshal failed: %v", err)
+		WriteErrorWithLogger(w, http.StatusInternalServerError, CodeInternal, "response marshal failed", logger)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

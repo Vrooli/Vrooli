@@ -261,6 +261,7 @@ type Report struct {
 type SampledObservation struct {
 	SchemaVersion  string   `json:"schemaVersion"`
 	CohortID       string   `json:"cohortId"`
+	RuleVersion    string   `json:"ruleVersion"`
 	SourceIdentity string   `json:"sourceIdentity"`
 	TestIdentity   string   `json:"testIdentity"`
 	Label          string   `json:"label"`

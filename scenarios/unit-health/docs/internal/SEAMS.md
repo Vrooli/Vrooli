@@ -34,7 +34,7 @@ only where the payload is not proto-typed, such as multipart file
 uploads; the response metadata still uses generated proto types.
 
 If a piece of production code reaches for `time.Now()`, `*sql.DB`, or
-the network without going through one of the entries below, that's a
+the network without going through an entry below, that's a
 new seam that hasn't been declared yet. Declaring it is the work — the
 test ergonomics fall out for free.
 
@@ -87,7 +87,27 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Interface** | `internal/clock/clock.go::Clock` (`Now() time.Time`) |
 | **Production wiring** | `main.go` constructs `clock.System{}` and passes it via `server.Deps`. |
 | **Test fake** | `internal/testutil/mocks::FakeClock` (`Now`, `Advance`, `SetNow`). |
-| **Why it exists** | Middleware computes request-duration log lines from two `Now()` calls. With `time.Now()` direct, duration assertions are flaky on loaded CI and undefined on fast hardware. With `FakeClock.Advance(150 * time.Millisecond)` inside the inner handler, the duration string is bit-for-bit deterministic. See `internal/middleware/logging_test.go::TestLoggingMiddleware_LogsDuration`. |
+| **Why it exists** | Middleware computes request-duration log lines from paired `Now()` calls. With `time.Now()` direct, duration assertions are flaky on loaded CI and undefined on fast hardware. With `FakeClock.Advance(150 * time.Millisecond)` inside the inner handler, the duration string is bit-for-bit deterministic. See `internal/middleware/logging_test.go::TestLoggingMiddleware_LogsDuration`. |
+
+### executor.EnvReader
+
+| | |
+|---|---|
+| **Seam** | Process environment used by command setup and admission |
+| **Interface** | `internal/executor/executor.go::EnvReader` (`Getenv`, `LookupEnv`, `Environ`) |
+| **Production wiring** | `executor.Bounded` and validation admission default to `internal/envx.OS{}`. |
+| **Test fake** | `internal/executor/executor_test.go::fakeEnvReader` supplies a controlled `VROOLI_HOME` and inherited environment. |
+| **Why it exists** | Go work directories and toolchain environment filtering must be testable without mutating the process environment. `TestEnvironmentSeamControlsGoWorkDirectoryAndScrubbing` proves the injected values change both outcomes. |
+
+### httpx.Logger
+
+| | |
+|---|---|
+| **Seam** | Diagnostic logging for REST serialization failures |
+| **Interface** | `internal/httpx/errors.go::Logger` (`Printf`) |
+| **Production wiring** | `internal/logx.Default()` adapts the standard logger at the HTTP boundary. |
+| **Test fake** | `internal/httpx/errors_test.go::recordingLogger` captures the marshal-failure line through `WriteProtoWithLogger`. |
+| **Why it exists** | Error serialization failures are rare but observable. The writer can now prove its log behavior without touching the process-global logger. |
 
 ### Pinger (database reachability)
 
@@ -154,7 +174,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | The orchestration core whose collaborators are all injectable fields |
-| **Interface** | `internal/validation/service.go::Service` — not a Go interface but a struct of seams: `Discoverer`, `Locator`, `Spec *assessment.Spec` (parsed `.vrooli/maturity.json`), `Executor`, `MaxConcurrency`, `History runhistory.Store`, `Now func() time.Time`. `Validate(ctx, Request) (Response, error)` is the single entry point. |
+| **Interface** | `internal/validation/service.go::Service` — not a Go interface but a struct of seams: `Discoverer`, `Locator`, `Spec *assessment.Spec` (parsed from the `maturity` block of `.vrooli/test-genie.json`), `Executor`, `MaxConcurrency`, `History runhistory.Store`, `Now func() time.Time`. `Validate(ctx, Request) (Response, error)` is the single entry point. |
 | **Production wiring** | `handlers/validation/module.go::Module(...)` builds the `Service`, loads the maturity `Spec`, sets `Locator`, and sets `History = runhistory.NewRepository(...)`. Nil `Discoverer`/`Executor` fall back to live defaults; nil `History` disables persistence. |
 | **Test fake** | `service_test.go::newService(disc, spec)` constructs a `Service` with a fixed `Now`, a `fakeDiscoverer`, and (per test) a `fakeExecutor` and/or real `runhistory.Repository`. This is the substitution hub the whole analyzer suite drives. |
 | **Why it exists** | Keeping every external dependency a field (not a hidden global) means `Validate` is a pure function of its seams: deterministic clock, canned discovery, controllable execution, optional history. Adding an analyzer extends the `Response` without changing the signature or the wiring. |
@@ -197,7 +217,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Interface** | `internal/module/module.go::Module` (`Name string`, `Mount func(r *mux.Router)`, `Endpoints []EndpointDescriptor`). Data type, not behaviour — modules don't have methods. |
 | **Production wiring** | `main.go` calls `healthH.Module(...)` and `validationH.Module(logger, repoRoot, history)`, and passes the slice to `server.New(deps, modules...)`. The server iterates `m.Mount(s.router)` after registering the logging middleware. |
 | **Test fake** | A literal `module.Module{Name: "stub", Mount: func(r){...}}` in `internal/server/server_test.go` proves the iteration; per-domain `module_test.go` files (`handlers/health/module_test.go`) exercise the real constructors against in-memory fixtures. |
-| **Why it exists** | Eliminates the central registry that would otherwise grow per-domain fields on `server.Deps` and per-domain wiring lines in `routes.go`. Adding a domain means creating files; deleting one means removing files. The endpoint descriptors travel with the module, so `.vrooli/endpoints.json` codegen has a single source per domain (no manual JSON editing). |
+| **Why it exists** | Eliminates the central registry that would otherwise grow per-domain fields on `server.Deps` and per-domain wiring lines in `routes.go`. Adding a domain means creating files; deleting a domain means removing files. The endpoint descriptors travel with the module, so `.vrooli/endpoints.json` codegen has a single source per domain (no manual JSON editing). |
 
 ### Endpoints codegen (manifest source-of-truth)
 
@@ -207,7 +227,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Interface** | `api/cmd/gen-endpoints/main.go` reads `internal/modules.AllEndpoints()` — the shared registry that collects each handler's static `Endpoints []module.EndpointDescriptor` slice plus `cli_commands_seed.json`. Output is the canonical envelope at `.vrooli/endpoints.json`. |
 | **Production wiring** | Run via `make endpoints`. CI runs `make endpoints && git diff --exit-code .vrooli/endpoints.json` so a stale manifest fails the build with an actionable diff. |
 | **Test fake** | `api/cmd/gen-endpoints/main_test.go` exercises the codegen with hand-built fixtures and asserts the output is valid JSON with the canonical envelope. `internal/modules/registry_test.go` pins the registry shape (non-empty, stable order). The manifest coverage gate (every Connect endpoint is bound or explicitly omitted in `cli/manifest.json`) has its own unit test. |
-| **Why it exists** | Hand-edited endpoints manifests drift from real handlers. The shared `modules` registry means runtime (`main.go`) and codegen (`gen-endpoints`) read endpoints + schema from one place — adding a domain is two registry lines, not separate edits in `main.go` and `gen-endpoints/main.go`. The CI drift check makes "I forgot to regenerate" a build failure, not a stale-doc bug. |
+| **Why it exists** | Hand-edited endpoints manifests drift from real handlers. The shared `modules` registry means runtime (`main.go`) and codegen (`gen-endpoints`) read endpoints + schema from one place — adding a domain is a small registry edit, not separate edits in `main.go` and `gen-endpoints/main.go`. The CI drift check makes "I forgot to regenerate" a build failure, not a stale-doc bug. |
 
 ### database.SystemSchema (cross-cutting infrastructure)
 
@@ -326,7 +346,7 @@ never domain-specific interfaces.
    (`FakeClock`, `FakePinger`, `FakeDoer`) stay in
    `internal/testutil/mocks/`.
 5. **Update this document.** A row in the table above with the same
-   five columns. If you skip this step, the seam exists but isn't
+   columns. If you skip this step, the seam exists but isn't
    discoverable — future readers will reinvent it parallel.
 6. **Add `var _` compile-time assertions** wherever the interface is
    defined: `var _ Repository = (*sqliteRepository)(nil)`. The

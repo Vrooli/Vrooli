@@ -16,7 +16,7 @@ import (
 )
 
 // Unit Health finding codes. These are the contract between the engine and
-// `.vrooli/maturity.json`; every code emitted here has a mapping there.
+// the `maturity` block of `.vrooli/test-genie.json`; every code emitted here has a mapping there.
 const (
 	codeTestSurfaceAbsent       = "TEST_SURFACE_ABSENT"
 	codeUnsupportedParseUnit    = "UNSUPPORTED_PARSE_UNIT"
@@ -39,7 +39,7 @@ const (
 )
 
 // codeSeverity mirrors the severity_default of each code in
-// `.vrooli/maturity.json`. Findings carry their own severity so renderers and
+// the `maturity` block of `.vrooli/test-genie.json`. Findings carry their own severity so renderers and
 // counts do not need the spec; the maturity assessor cross-checks the mapping.
 var codeSeverity = map[string]string{
 	codeTestSurfaceAbsent:       "error",
@@ -69,13 +69,11 @@ var codeSeverity = map[string]string{
 	codeTestHelperFromProd:      "error",
 	codeMissingInjectableSeam:   "warning",
 	codeTestSkippedOrOnly:       "warning",
-	codeTestNoAssertion:         "warning",
-	codeTestRenderOnly:          "warning",
 	codeTestExcessiveSnapshots:  "info",
-	codeTestMissingEdgeCases:    "warning",
 	codeTestFlakeSuspected:      "warning",
 	codeTestRuntimeGrowth:       "info",
 	codeTestUntaggedRequirement: "warning",
+	codeTestQualityViolation:    "error",
 	codeSeamDuplicatedInPackage: "error",
 	codeSeamReimplemented:       "error",
 	codeCompanionReimplemented:  "error",
@@ -186,11 +184,13 @@ func buildPlan(scenario string, inv discovery.Inventory, now string) ([]Surface,
 		if ws.TestCommand != "" || ws.CoverageCommand != "" || ws.TypecheckCommand != "" {
 			if reason := executor.UnsupportedIsolation(ws.Hermetic); reason != "" {
 				ws.DegradedReason = strings.TrimSpace(ws.DegradedReason + " " + reason)
-				findings = append(findings, Finding{ID: codeTestDependencyMissing + "-isolation-" + ws.ID, Scenario: scenario, WorkspaceID: ws.ID,
+				findings = append(findings, Finding{
+					ID: codeTestDependencyMissing + "-isolation-" + ws.ID, Scenario: scenario, WorkspaceID: ws.ID,
 					Code: codeTestDependencyMissing, Category: "isolation", Severity: codeSeverity[codeTestDependencyMissing],
 					Message: "Required isolation capability is unavailable; execution will be refused before launch.", Evidence: reason,
 					Expected: "The host supports every requested isolation control.", Observed: "unsupported isolation capability",
-					Remediation: "Use a supporting execution host or explicitly select an appropriate integration profile; never silently weaken isolation.", CreatedAt: now})
+					Remediation: "Use a supporting execution host or explicitly select an appropriate integration profile; never silently weaken isolation.", CreatedAt: now,
+				})
 			}
 		}
 	}
@@ -436,7 +436,7 @@ func buildExecutionPlanForMode(workspaces []Workspace, fastTestOnly bool) Execut
 		if fastTestOnly {
 			mode = "fast-test-only"
 		}
-		plan.Notes = fmt.Sprintf("Dry run: %d %s command(s) planned. Execution is bounded per-workspace and runs only with --include-execution.", len(plan.Commands), mode)
+		plan.Notes = fmt.Sprintf("Dry run: %d %s command(s) planned. Execution is bounded per-workspace and runs only when execution is requested (`unit-health validate scenario <name> --execution`).", len(plan.Commands), mode)
 	}
 	return plan
 }

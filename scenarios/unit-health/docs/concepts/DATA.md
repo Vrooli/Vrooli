@@ -16,9 +16,15 @@ Use this document to answer:
 
 ## Storage Overview
 
-The template default is embedded SQLite through `modernc.org/sqlite`.
-The database path is resolved from the scenario id by `api-core/storage`, and
-the API applies schemas on startup through `api-core/database`.
+Persistence is embedded SQLite through `modernc.org/sqlite`. The
+database path is resolved from the scenario id by `api-core/storage`,
+and the API applies domain schemas on startup through
+`api-core/database` (`EnsureSchemas`).
+
+Unit Health also keeps a filesystem evidence cache under the scenario
+cache directory resolved by `api-core/storage`
+(`<cache-dir>/validation-evidence`). It is regenerable: a missing or
+unreadable cache disables reuse and the run proceeds without it.
 
 External storage resources should be introduced only when a real
 domain needs them. Document those decisions in
@@ -29,22 +35,28 @@ domain needs them. Document those decisions in
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| Notes | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted by future product behavior | Template reference data; remove with notes domain. |
-| Attachment metadata | notes | SQLite | `api/internal/notes/schema.sql` | Until parent note or attachment is deleted by future product behavior | Metadata only; bytes are stored through BlobStore. |
-| Attachment bytes | notes | Filesystem BlobStore by default | BlobStore implementation in notes handler module | Same lifecycle as metadata | Opaque bytes stay outside proto payloads. |
+| Validation runs (`unit_runs`) | validation (`runhistory`) | SQLite | `api/internal/runhistory/schema.sql` | Newest 50 runs per scenario; older runs pruned on each `Record` | Run id, scenario, start time, status, maturity rung. |
+| Command outcomes (`unit_run_commands`, `unit_run_command_identity`) | validation (`runhistory`) | SQLite | `api/internal/runhistory/schema.sql` | Same as parent run | Per-workspace command duration, status, failure class; optional identity JSON for comparability. |
+| Coverage samples (`unit_run_coverage`) | validation (`runhistory`) | SQLite | `api/internal/runhistory/schema.sql` | Same as parent run | Per-file coverage percent; feeds runtime-growth and regression diagnostics. |
+| Native test observations (`unit_run_native_tests`) | validation (`runhistory`) | SQLite | `api/internal/runhistory/schema.sql` | Same as parent run | Runner's final observation JSON; separate from command-level reliability cohorts. |
+| Evidence cache | validation (`evidence`) | Filesystem | `api/internal/evidence/store.go` | Bounded to 512 MiB and 24 h, evicted by the store | Keyed by target and input fingerprints; reuse is reported on the response (`cache_hit`, `cache_miss_reason`). |
+| Test-quality rule catalog | validation (`testquality`) | Checked-in JSON | `api/internal/testquality/catalog.json` | Source, not data | The rules; loaded at boot, never written at runtime. |
+| Maturity spec | validation | Checked-in JSON | `maturity` block of `.vrooli/test-genie.json` | Source, not data | Capability ladders read through `maturity-go/assessment`. |
 
 ## Schema Map
 
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
-| notes tables | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
-| system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
+| `unit_runs`, `unit_run_commands`, `unit_run_coverage`, `unit_run_command_identity`, `unit_run_native_tests` | validation / runhistory | `api/internal/runhistory/schema.sql` | `runhistory.Repository`; diagnostics and reliability analyzers |
+| system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup (ships empty by intent) |
 
 ## Migrations And Compatibility
 
-The generated template uses idempotent schema bootstrap. Domain schema
-files should use `CREATE TABLE IF NOT EXISTS` and live beside the code
-that interprets them.
+Schema bootstrap is idempotent and forward-only. Domain schema files
+use `CREATE TABLE IF NOT EXISTS` and live beside the code that
+interprets them. `scenario` and `started_at` are denormalized into the
+child tables so history queries are single `SELECT`s, which keeps them
+safe under the single-connection pool.
 
 For production data migrations that need column drops, renames, or data
 backfills, add a scenario-specific migration plan here and update
@@ -60,12 +72,16 @@ backfills, add a scenario-specific migration plan here and update
 
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
-| Template notes data | Domain removal or future product delete behavior | Local development data only | Real scenarios must define product-specific deletion semantics. |
+| Run history | Each new `Record` for the same scenario | Keep newest 50 runs (`runhistory.DefaultRetention`), cascade to child rows | No operator-facing purge command. |
+| Evidence cache | Store eviction | `num[threshold]:512` MiB / `num[threshold]:24` h bounds enforced by `evidence.Store` | No manual invalidation besides removing the directory. |
 
 ## Privacy Notes
 
-Generated template data is local development data. If a scenario stores
-personal, regulated, customer, financial, or sensitive business data,
+Persisted data is test metadata about repository targets: command
+lines, durations, statuses, file paths, and coverage percentages. No
+personal, customer, or financial data is stored. Captured command
+output excerpts can include whatever a test prints; treat the cache
+directory and SQLite file as local development data. If that changes,
 update this document and [`../internal/SECURITY.md`](../internal/SECURITY.md)
 before implementation expands.
 

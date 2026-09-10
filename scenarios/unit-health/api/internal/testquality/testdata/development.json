@@ -1,4 +1,120 @@
-[
+{
+  "floor": {
+    "matched": 42,
+    "recorded_at": "2026-09-09",
+    "derivation": "Every implemented development case matched in the governed adapter suite when this floor was recorded."
+  },
+  "cases": [
+  {
+    "input": {
+      "id": "C022",
+      "profile": "react-vitest-v2",
+      "kind": "parser",
+      "root": "snippets/vitest",
+      "files": ["delegated.test.ts.txt"]
+    },
+    "partition": "development",
+    "rationale": "Delegated assertion activity is observable as a supported source construct without claiming semantic adequacy.",
+    "provenance": "Authored for the governed Vitest assertion-observation calibration expansion.",
+    "expected": [{"ruleId":"assertion-observation","ruleVersion":"1","file":"delegated.test.ts.txt","testId":"delegated","line":1,"column":1,"status":"checked_clean","reason":"none"}],
+    "forbidden": [{"ruleId":"assertion-observation","ruleVersion":"1","file":"delegated.test.ts.txt","testId":"delegated","line":1,"column":1,"status":"violation","reason":"none"}]
+  },
+  {
+    "input": {"id":"C023","profile":"react-vitest-v2","kind":"parser","root":"snippets/vitest","files":["empty.test.ts.txt"]},
+    "partition":"development",
+    "rationale":"An executable empty test provides no assertion observation.",
+    "provenance":"Authored for the governed Vitest assertion-observation calibration expansion.",
+    "expected":[{"ruleId":"assertion-observation","ruleVersion":"1","file":"empty.test.ts.txt","testId":"empty","line":1,"column":1,"status":"violation","reason":"none"}],
+    "forbidden":[]
+  },
+  {
+    "input": {"id":"C024","profile":"react-vitest-v2","kind":"parser","root":"snippets/vitest","files":["unreachable.test.ts.txt"]},
+    "partition":"development",
+    "rationale":"An assertion in an unreachable branch is not executable assertion evidence.",
+    "provenance":"Authored for the governed Vitest assertion-observation calibration expansion.",
+    "expected":[{"ruleId":"assertion-observation","ruleVersion":"1","file":"unreachable.test.ts.txt","testId":"unreachable","line":1,"column":1,"status":"violation","reason":"none"}],
+    "forbidden":[]
+  },
+  {
+    "input": {"id":"C026","profile":"react-vitest-v2","kind":"parser","root":"snippets/vitest","files":["tautology.test.ts.txt"]},
+    "partition":"development",
+    "rationale":"A tautological matcher remains observable assertion activity while its behavioral weakness is advisory.",
+    "provenance":"Authored for the governed Vitest assertion-observation calibration expansion.",
+    "expected":[{"ruleId":"assertion-observation","ruleVersion":"1","file":"tautology.test.ts.txt","testId":"tautology","line":1,"column":1,"status":"checked_clean","reason":"none"}],
+    "forbidden":[]
+  },
+  {
+    "input": {"id":"C027","profile":"react-vitest-v2","kind":"parser","root":"snippets/vitest","files":["hook.test.ts.txt"]},
+    "partition":"development",
+    "rationale":"A beforeEach assertion is observable setup activity even when the test body is empty.",
+    "provenance":"Authored for the governed Vitest assertion-observation calibration expansion.",
+    "expected":[{"ruleId":"assertion-observation","ruleVersion":"1","file":"hook.test.ts.txt","testId":"empty","line":3,"column":1,"status":"checked_clean","reason":"none"}],
+    "forbidden":[]
+  },
+  {
+    "input": {"id":"C028","profile":"react-vitest-v2","kind":"parser","root":"snippets/vitest","files":["node-assert.test.ts.txt"]},
+    "partition":"development",
+    "rationale":"The expect-only profile must disclose that an alternate assertion library is outside its supported evidence.",
+    "provenance":"Authored for the governed Vitest assertion-observation calibration expansion.",
+    "expected":[{"ruleId":"assertion-observation","ruleVersion":"1","file":"node-assert.test.ts.txt","testId":"node","line":2,"column":1,"status":"unknown","reason":"unsupported-adapter"}],
+    "forbidden":[]
+  },
+  {
+    "input": {"id":"C029","profile":"react-vitest-v2","kind":"parser","root":"snippets/vitest","files":["parameterized.test.ts.txt"]},
+    "partition":"development",
+    "rationale":"A parameterized test with no observed assertion is a source-level assertion violation.",
+    "provenance":"Authored for the governed Vitest assertion-observation calibration expansion.",
+    "expected":[{"ruleId":"assertion-observation","ruleVersion":"1","file":"parameterized.test.ts.txt","testId":"param","line":1,"column":1,"status":"violation","reason":"none"}],
+    "forbidden":[]
+  },
+  {
+    "input": {"id":"C030","profile":"react-vitest-v2","kind":"parser","root":"snippets/vitest","files":["concurrent.test.ts.txt"]},
+    "partition":"development",
+    "rationale":"Concurrent local expect contexts remain independently observable.",
+    "provenance":"Authored for the governed Vitest assertion-observation calibration expansion.",
+    "expected":[{"ruleId":"assertion-observation","ruleVersion":"1","file":"concurrent.test.ts.txt","testId":"local","line":1,"column":1,"status":"checked_clean","reason":"none"}],
+    "forbidden":[]
+  },
+  {
+    "input": {"id":"C031","profile":"react-vitest-v2","kind":"parser","root":"snippets/vitest","files":["custom-matcher.test.ts.txt"]},
+    "partition":"development",
+    "rationale":"Custom matcher invocation is assertion activity even when its eventual result is a failure.",
+    "provenance":"Authored for the governed Vitest assertion-observation calibration expansion.",
+    "expected":[{"ruleId":"assertion-observation","ruleVersion":"1","file":"custom-matcher.test.ts.txt","testId":"custom","line":1,"column":1,"status":"checked_clean","reason":"none"}],
+    "forbidden":[]
+  },
+  {
+    "input": {"id":"C032","profile":"react-vitest-v2","kind":"parser","root":"snippets/vitest","files":["setup-failure.test.ts.txt"]},
+    "partition":"development",
+    "rationale":"A failing setup hook prevents a clean assertion observation and remains explicitly unknown to the static adapter.",
+    "provenance":"Authored for the governed Vitest assertion-observation calibration expansion.",
+    "expected":[{"ruleId":"assertion-observation","ruleVersion":"1","file":"setup-failure.test.ts.txt","testId":"body","line":3,"column":1,"status":"unknown","reason":"missing-analysis"}],
+    "forbidden":[]
+  },
+  {
+    "input": {"id":"C033","profile":"react-vitest-v2","kind":"parser","root":"snippets/vitest","files":["retry.test.ts.txt"]},
+    "partition":"development",
+    "rationale":"Retry configuration does not erase the source-level assertion observation.",
+    "provenance":"Authored for the governed Vitest assertion-observation calibration expansion.",
+    "expected":[{"ruleId":"assertion-observation","ruleVersion":"1","file":"retry.test.ts.txt","testId":"retry","line":1,"column":1,"status":"checked_clean","reason":"none"}],
+    "forbidden":[]
+  },
+  {
+    "input": {"id":"C034","profile":"react-vitest-v2","kind":"parser","root":"snippets/vitest","files":["skipped.test.ts.txt"]},
+    "partition":"development",
+    "rationale":"A skip-only declaration is a static placeholder violation and is not a passing requirement observation.",
+    "provenance":"Authored for the governed Vitest skip-declaration calibration expansion.",
+    "expected":[{"ruleId":"skip-declaration","ruleVersion":"1","file":"skipped.test.ts.txt","testId":"skipped","line":1,"column":1,"status":"violation","reason":"none"}],
+    "forbidden":[]
+  },
+  {
+    "input": {"id":"C037","profile":"react-vitest-v2","kind":"parser","root":"snippets/vitest","files":["extended.test.ts.txt"]},
+    "partition":"development",
+    "rationale":"A declared extended test function is recognized without regex-based focus inference.",
+    "provenance":"Authored for the governed Vitest syntax calibration expansion.",
+    "expected":[{"ruleId":"focused-test","ruleVersion":"1","file":"extended.test.ts.txt","testId":"extended","line":1,"column":1,"status":"checked_clean","reason":"none"}],
+    "forbidden":[]
+  },
   {
     "input": {
       "id": "C001",
@@ -1132,5 +1248,44 @@
         "reason": "parse-failure"
       }
     ]
+  },
+  {
+    "input": {
+      "id": "C081",
+      "profile": "go-architecture-v1",
+      "kind": "parser",
+      "root": "snippets/go/testutil-workspace",
+      "files": [
+        "internal/testutil/helper.go"
+      ]
+    },
+    "partition": "development",
+    "rationale": "The fixture contains one shared helper and three co-located Go tests, which is the smallest honest shared-root consumer case.",
+    "provenance": "Authored for Phase 4 testutil reader reconciliation; the fixture fails when the helper package is absent.",
+    "expected": [
+      {
+        "ruleId": "test-util-root",
+        "ruleVersion": "1",
+        "file": "internal/testutil/helper.go",
+        "testId": "TestUtilRoot",
+        "line": 1,
+        "column": 1,
+        "status": "checked_clean",
+        "reason": "none"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "test-util-root",
+        "ruleVersion": "1",
+        "file": "internal/testutil/helper.go",
+        "testId": "TestUtilRoot",
+        "line": 1,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      }
+    ]
   }
-]
+  ]
+}

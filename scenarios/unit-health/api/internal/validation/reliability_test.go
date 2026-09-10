@@ -43,6 +43,7 @@ func reliabilityTestIdentity(t *testing.T, source, toolchain string) *runhistory
 	return &runhistory.ComparisonIdentity{Evidence: key, Selection: "go test ./..."}
 }
 
+// [REQ:UH-ANALYZE-004]
 func TestReliabilityExcludesIncompatibleAndInfrastructureHistory(t *testing.T) {
 	identity := reliabilityTestIdentity(t, "source", "go1")
 	plan := ExecutionPlan{Commands: []PlannedCommand{{WorkspaceID: "api", Command: "go test ./...", WorkingDirectory: "/api"}}}

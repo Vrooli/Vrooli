@@ -264,6 +264,8 @@ func inspectGoSeams(path string, bypass, declared map[string]bool) {
 			}
 		case *ast.InterfaceType:
 			classifySeamInterface(x, declared)
+		case *ast.StructType:
+			classifySeamStruct(x, declared)
 		}
 		return true
 	})
@@ -278,17 +280,39 @@ func classifySeamInterface(it *ast.InterfaceType, declared map[string]bool) {
 	}
 	for _, m := range it.Methods.List {
 		for _, name := range m.Names {
-			switch name.Name {
-			case "Now":
-				declared["clock"] = true
-			case "Do":
-				declared["http"] = true
-			case "Getenv", "LookupEnv", "Environ":
-				declared["env"] = true
-			case "Info", "Error", "Debug", "Warn", "Infof", "Errorf":
-				declared["logger"] = true
-			}
+			classifySeamName(name.Name, declared)
 		}
+	}
+}
+
+// classifySeamStruct marks a seam category when a struct exposes a function
+// field with one of the canonical injection names. Function-valued fields are
+// valid seams too (for example, Service.Now), so requiring FuncType avoids
+// treating ordinary data fields named Now or Do as injection points.
+func classifySeamStruct(st *ast.StructType, declared map[string]bool) {
+	if st == nil || st.Fields == nil {
+		return
+	}
+	for _, field := range st.Fields.List {
+		if _, ok := field.Type.(*ast.FuncType); !ok {
+			continue
+		}
+		for _, name := range field.Names {
+			classifySeamName(name.Name, declared)
+		}
+	}
+}
+
+func classifySeamName(name string, declared map[string]bool) {
+	switch name {
+	case "Now":
+		declared["clock"] = true
+	case "Do":
+		declared["http"] = true
+	case "Getenv", "LookupEnv", "Environ":
+		declared["env"] = true
+	case "Info", "Error", "Debug", "Warn", "Infof", "Errorf":
+		declared["logger"] = true
 	}
 }
 

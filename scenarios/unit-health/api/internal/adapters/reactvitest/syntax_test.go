@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit"
-	"google.golang.org/protobuf/encoding/protojson"
 	"os"
 	"path/filepath"
 	"testing"
+
+	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit"
+	"google.golang.org/protobuf/encoding/protojson"
+
 	"unit-health/internal/adapters"
 	"unit-health/internal/testquality"
 )
@@ -29,7 +31,7 @@ func TestSyntaxLiveOwnerEvidenceConvertsWithoutRelinting(t *testing.T) {
 	}
 	files := []string{"src/test-utils/factories.test.ts"}
 	rows := convertSyntax(adapters.QualityInput{Root: root, Workspace: "ui", TestKind: "unit"}, files, &response)
-	if len(rows) != 3 {
+	if len(rows) != 4 {
 		t.Fatal(rows)
 	}
 	for _, row := range rows {
@@ -43,7 +45,7 @@ func syntaxFixture(t *testing.T) (adapters.QualityInput, *auditv1.ObserveTestSyn
 	t.Helper()
 	root := t.TempDir()
 	data := []byte("import {expect} from 'vitest'; expect(2);")
-	if err := os.WriteFile(filepath.Join(root, "a.test.ts"), data, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "a.test.ts"), data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	digest := sha256.Sum256(data)
@@ -52,10 +54,11 @@ func syntaxFixture(t *testing.T) (adapters.QualityInput, *auditv1.ObserveTestSyn
 	response.Observations[0].ConfigDigest = syntaxConfigDigest
 	return input, response
 }
+
 func TestSyntaxConversionPreservesFileScopeAndNativeDetail(t *testing.T) {
 	in, response := syntaxFixture(t)
 	rows := convertSyntax(in, []string{"a.test.ts"}, response)
-	if len(rows) != 3 {
+	if len(rows) != 4 {
 		t.Fatal(rows)
 	}
 	row := rows[1]
@@ -72,6 +75,7 @@ func TestSyntaxConversionPreservesFileScopeAndNativeDetail(t *testing.T) {
 		}
 	}
 }
+
 func TestSyntaxConversionRejectsUntrustworthyEvidence(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
@@ -88,6 +92,12 @@ func TestSyntaxConversionRejectsUntrustworthyEvidence(t *testing.T) {
 			in, response := syntaxFixture(t)
 			tc.change(response)
 			for _, row := range convertSyntax(in, []string{"a.test.ts"}, response) {
+				if row.RuleID == "skip-declaration" {
+					if row.Status != testquality.CheckedClean || row.Reason != testquality.ReasonNone {
+						t.Fatalf("source skip projection: %+v", row)
+					}
+					continue
+				}
 				if row.Status != testquality.Unknown || row.Reason != tc.reason {
 					t.Fatalf("untrustworthy evidence accepted: %+v", row)
 				}
@@ -95,6 +105,7 @@ func TestSyntaxConversionRejectsUntrustworthyEvidence(t *testing.T) {
 		})
 	}
 }
+
 func TestSyntaxConversionDoesNotTurnUnsupportedFocusIntoViolation(t *testing.T) {
 	in, response := syntaxFixture(t)
 	response.Observations[0].Checks[0].Status = "unknown"
@@ -105,12 +116,13 @@ func TestSyntaxConversionDoesNotTurnUnsupportedFocusIntoViolation(t *testing.T) 
 		t.Fatal(row)
 	}
 }
+
 func TestSyntaxDryRunDoesNotContactOwner(t *testing.T) {
 	in, _ := syntaxFixture(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	rows, reason := (Analyzer{}).CollectSyntax(ctx, in)
-	if reason != testquality.ReasonNone || len(rows) != 3 {
+	if reason != testquality.ReasonNone || len(rows) != 4 {
 		t.Fatalf("rows=%v reason=%s", rows, reason)
 	}
 	for _, row := range rows {
@@ -131,9 +143,37 @@ func TestSyntaxProjectionRejectsChangedRuleSelection(t *testing.T) {
 			t.Fatal("unknown configuration passed projection")
 		}
 		for _, row := range convertSyntax(in, []string{"a.test.ts"}, response) {
+			if row.RuleID == "skip-declaration" {
+				if row.Status != testquality.CheckedClean || row.Reason != testquality.ReasonNone {
+					t.Fatalf("source skip projection: %+v", row)
+				}
+				continue
+			}
 			if row.Status != testquality.Unknown || row.Reason != testquality.UnsupportedVersion {
 				t.Fatal(row)
 			}
 		}
+	}
+}
+
+func TestVitestSkipDeclarationProjection(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		status testquality.Status
+		reason testquality.Reason
+	}{
+		{name: "clean", source: `test("implemented", () => { expect(true).toBe(true) })`, status: testquality.CheckedClean, reason: testquality.ReasonNone},
+		{name: "skip only", source: `test.skip("placeholder", () => {})`, status: testquality.Violation, reason: testquality.ReasonNone},
+		{name: "suite skip with body", source: `describe.skip("suite", () => { test("case", () => {}) })`, status: testquality.Unknown, reason: testquality.MissingAnalysis},
+		{name: "conditional skip remains unknown", source: `test.skipIf(flag)("conditional", () => {})`, status: testquality.Unknown, reason: testquality.MissingAnalysis},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := projectSkipDeclaration(tt.source, "fixture.test.ts")
+			if got.Status != tt.status || got.Reason != tt.reason {
+				t.Fatalf("projection = %+v, want status=%s reason=%s", got, tt.status, tt.reason)
+			}
+		})
 	}
 }

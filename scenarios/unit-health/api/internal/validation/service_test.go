@@ -85,6 +85,7 @@ func (r fixtureRegistry) Read(context.Context, string) (RequirementRegistry, err
 	return r.registry, r.err
 }
 
+// [REQ:UH-BOUND-001]
 func TestValidateNoSurfacesIsDegradedL0(t *testing.T) {
 	spec := loadSpec(t)
 	svc := newService(fakeDiscoverer{inv: discovery.Inventory{Scenario: "empty", DegradedReason: "Code Facts returned no surfaces"}}, spec)
@@ -107,6 +108,7 @@ func TestValidateNoSurfacesIsDegradedL0(t *testing.T) {
 	}
 }
 
+// [REQ:UH-CORE-001]
 func TestValidateGoSurfaceIsReady(t *testing.T) {
 	spec := loadSpec(t)
 	root := t.TempDir()
@@ -302,6 +304,7 @@ func TestValidatePythonIsDegradedFallback(t *testing.T) {
 	}
 }
 
+// [REQ:UH-BOUND-002]
 func TestValidatePackageTargetUsesPackageKindWithoutScenarioMaturity(t *testing.T) {
 	spec := loadSpec(t)
 	root := t.TempDir()

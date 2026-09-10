@@ -18,12 +18,22 @@ import (
 )
 
 func main() {
-	output := flag.String("output", "../.vrooli/endpoints.json", "path to write the generated endpoints.json")
-	manifest := flag.String("manifest", "../cli/manifest.json", "path to the scenario cli manifest")
-	flag.Parse()
-
-	if err := gen.Generate(modules.AllEndpoints(), *manifest, *output); err != nil {
+	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintf(os.Stderr, "gen-endpoints: %v\n", err)
-		os.Exit(1)
+		exitProcess(1)
 	}
+}
+
+var exitProcess = os.Exit
+
+func run(args []string) error {
+	flags := flag.NewFlagSet("gen-endpoints", flag.ContinueOnError)
+	flags.SetOutput(os.Stderr)
+	output := flags.String("output", "../.vrooli/endpoints.json", "path to write the generated endpoints.json")
+	manifest := flags.String("manifest", "../cli/manifest.json", "path to the scenario cli manifest")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+
+	return gen.Generate(modules.AllEndpoints(), *manifest, *output)
 }

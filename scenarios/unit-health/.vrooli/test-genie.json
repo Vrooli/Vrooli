@@ -376,29 +376,6 @@
         "capability_id": "coverage_quality",
         "clean_requirement": "advisory"
       },
-      "TEST_NO_ASSERTION": {
-        "local_level_impact": "L2",
-        "global_impact": "advisory",
-        "dimension": "tests",
-        "severity_default": "SEVERITY_WARNING",
-        "recommended_skill_ids": [
-          "test"
-        ],
-        "capability_id": "coverage_quality",
-        "clean_requirement": "advisory"
-      },
-      "TEST_RENDER_ONLY": {
-        "local_level_impact": "L2",
-        "global_impact": "advisory",
-        "dimension": "tests",
-        "severity_default": "SEVERITY_WARNING",
-        "recommended_skill_ids": [
-          "test",
-          "unit-testing-architecture-steer"
-        ],
-        "capability_id": "coverage_quality",
-        "clean_requirement": "advisory"
-      },
       "TEST_EXCESSIVE_SNAPSHOTS": {
         "local_level_impact": "L2",
         "global_impact": "advisory",
@@ -406,18 +383,6 @@
         "severity_default": "SEVERITY_INFO",
         "recommended_skill_ids": [
           "test"
-        ],
-        "capability_id": "coverage_quality",
-        "clean_requirement": "advisory"
-      },
-      "TEST_MISSING_EDGE_CASES": {
-        "local_level_impact": "L2",
-        "global_impact": "advisory",
-        "dimension": "tests",
-        "severity_default": "SEVERITY_WARNING",
-        "recommended_skill_ids": [
-          "test",
-          "unit-testing-architecture-steer"
         ],
         "capability_id": "coverage_quality",
         "clean_requirement": "advisory"
@@ -456,6 +421,18 @@
         ],
         "capability_id": "stability_traceability",
         "clean_requirement": "advisory"
+      },
+      "TEST_QUALITY_RULE_VIOLATION": {
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test",
+          "unit-health-improve"
+        ],
+        "capability_id": "execution_readiness",
+        "clean_requirement": "required"
       }
     },
     "fallback": {

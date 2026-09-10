@@ -14,6 +14,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
 		"ValidationService.ValidateScenario": h.validateScenario,
+		"ValidationService.ReadTestBody":     h.readTestBody,
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("validate: load from manifest: %w", err)

@@ -41,7 +41,7 @@ func CompareHoldout(labels []testquality.HoldoutLabel, observations []testqualit
 	}
 	seen := map[string]bool{}
 	for _, label := range labels {
-		if label.TestIdentity == "" || label.Reviewer == "" || label.ReviewedAt == "" || !testquality.ValidReviewLabel(label.Label) {
+		if label.TestIdentity == "" || label.Reviewer == "" || label.ReviewedAt == "" || label.RuleVersion != ruleVersion || !testquality.ValidReviewLabel(label.Label) {
 			out.Unknown++
 			continue
 		}
@@ -51,7 +51,7 @@ func CompareHoldout(labels []testquality.HoldoutLabel, observations []testqualit
 		}
 		seen[label.TestIdentity] = true
 		row, ok := obs[label.TestIdentity]
-		if !ok || row.Status != "observed" || !testquality.ValidReviewLabel(row.Label) || row.SourceIdentity != label.SourceIdentity {
+		if !ok || row.Status != "observed" || row.RuleVersion != ruleVersion || !testquality.ValidReviewLabel(row.Label) || row.SourceIdentity != label.SourceIdentity {
 			out.Unknown++
 			out.Disagreements = append(out.Disagreements, label.TestIdentity)
 			continue

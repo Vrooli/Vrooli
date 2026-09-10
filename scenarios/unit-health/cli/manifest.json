@@ -46,6 +46,27 @@
               }
             },
             {
+              "name": "reviewed-cohort",
+              "description": "Attach a sampled-review cohort id to the validation receipt",
+              "bind": {
+                "field": "reviewed_cohort_id"
+              }
+            },
+            {
+              "name": "reviewed-source-identity",
+              "description": "Source identity for the attached sampled-review cohort",
+              "bind": {
+                "field": "reviewed_source_identity"
+              }
+            },
+            {
+              "name": "reviewed-observation-count",
+              "description": "Number of observed labels in the attached sampled-review cohort",
+              "bind": {
+                "field": "reviewed_observation_count"
+              }
+            },
+            {
               "name": "json",
               "description": "Emit JSON output",
               "local_only": true
@@ -64,6 +85,73 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "test-body",
+          "description": "Read one bounded redacted test body for sampled review",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug"},
+            {"name": "workspace", "required": true, "description": "Workspace id"},
+            {"name": "file", "required": true, "description": "Workspace-relative test file"},
+            {"name": "test-id", "required": true, "description": "Go test identifier"}
+          ],
+          "flags": [
+            {"name": "max-bytes", "description": "Excerpt ceiling, capped by the owner at 4096 bytes", "bind": {"field": "max_bytes"}},
+            {"name": "json", "local_only": true, "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ValidationService", "method": "ReadTestBody"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "calibrate",
+      "description": "Compare the governed test-quality corpus with adapter observations",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run development or reviewed-holdout calibration",
+          "flags": [
+            {"name": "partition", "default": "development", "description": "Calibration partition: development or reviewed-holdout", "bind": {"field": "partition"}},
+            {"name": "holdout", "description": "Reviewed holdout identity", "bind": {"field": "holdout_id"}},
+            {"name": "rule", "description": "Restrict comparison to one rule", "bind": {"field": "rule_id"}},
+            {"name": "include-native", "bool": true, "description": "Include native observations when available", "bind": {"field": "include_native"}},
+            {"name": "json", "description": "Emit JSON output", "local_only": true}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ValidationService", "method": "RunCalibration"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "corpus",
+          "description": "Show the authored calibration corpus inventory",
+          "flags": [
+            {"name": "json", "description": "Emit JSON output", "local_only": true}
+          ],
+          "binding": {"kind": "local", "handler": "calibrate.corpus"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "mutation",
+      "description": "Run bounded disposable mutation pilots",
+      "commands": [
+        {
+          "name": "pilot",
+          "description": "Apply bounded Go mutations in cache copies and run owning tests",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug"}
+          ],
+          "flags": [
+            {"name": "workspace", "default": "api", "description": "Scenario workspace", "bind": {"field": "workspace"}},
+            {"name": "package", "default": "./internal/testquality/...", "description": "Go package pattern relative to the workspace", "bind": {"field": "package"}},
+            {"name": "operators", "description": "Mutation operator (repeatable)", "bind": {"field": "operators"}},
+            {"name": "max-mutants", "default": "20", "description": "Maximum mutants, capped by the owner at 50", "bind": {"field": "max_mutants"}},
+            {"name": "seed", "description": "Deterministic candidate-selection seed", "bind": {"field": "seed"}},
+            {"name": "json", "local_only": true, "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ValidationService", "method": "RunMutationPilot"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write", "network:internal"]}
         }
       ]
     }
@@ -86,6 +174,16 @@
       "service": "ScenarioValidationService",
       "method": "ApplyFix",
       "reason": "Shared deterministic fix surface consumed by Test Genie's aggregate fixer; no dedicated unit-health CLI command is exposed yet."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateTarget",
+      "reason": "Shared cross-scenario validation surface for first-class repository targets (packages, control plane, tools, safeguards) consumed by Test Genie's unit phase; the CLI 'validate scenario --path' covers the operator path and no dedicated target command is exposed yet."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "DescribeProvider",
+      "reason": "Shared provider self-description consumed by Test Genie's provider-contract check; a machine read with no operator workflow, so no CLI command is exposed."
     }
   ]
 }

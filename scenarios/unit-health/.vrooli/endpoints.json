@@ -45,6 +45,14 @@
       }
     },
     {
+      "id": "validation_validate_target",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateTarget",
+      "method": "POST",
+      "summary": "Validate a first-class repository target",
+      "description": "",
+      "category": "validation"
+    },
+    {
       "id": "validation_validate_scenario",
       "path": "/vrooli.unit_health.v1.validation.ValidationService/ValidateScenario",
       "method": "POST",
@@ -54,8 +62,12 @@
       "request": {
         "type": "object",
         "properties": {
+          "fast_test_only": "bool",
           "include_execution": "bool",
           "path": "string",
+          "reviewed_cohort_id": "string",
+          "reviewed_observation_count": "uint32",
+          "reviewed_source_identity": "string",
           "scenario": "string",
           "use_cache": "bool",
           "workspaces": "array<string>"
@@ -74,6 +86,7 @@
           "coverage": "array<CoverageTarget>",
           "findings": "array<ValidationFinding>",
           "maturity": "MaturitySummary",
+          "projection_checks": "array<ProjectionCheck>",
           "status": "string",
           "surfaces": "array<TestSurface>",
           "workspaces": "array<TestWorkspace>"
@@ -84,6 +97,128 @@
           "status": 400,
           "code": "invalid_argument",
           "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "validation_run_calibration",
+      "path": "/vrooli.unit_health.v1.validation.ValidationService/RunCalibration",
+      "method": "POST",
+      "summary": "Run governed test-quality calibration",
+      "description": "Compares the authored calibration corpus or a reviewed holdout with adapter observations without promoting a rule automatically.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "holdout_id": "string",
+          "include_native": "bool",
+          "partition": "string",
+          "rule_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cases": "array<CaseOutcome>",
+          "corpus": "CorpusInventory",
+          "holdout": "array<HoldoutComparison>",
+          "limitations": "array<string>",
+          "partition": "string",
+          "run_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Calibration partition or fixture is invalid"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Reviewed holdout is not available"
+        }
+      ]
+    },
+    {
+      "id": "validation_read_test_body",
+      "path": "/vrooli.unit_health.v1.validation.ValidationService/ReadTestBody",
+      "method": "POST",
+      "summary": "Read a bounded redacted test body",
+      "description": "Returns one governed source excerpt for sampled review with a 4096-byte ceiling and privacy-pattern refusal.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "file": "string",
+          "max_bytes": "uint32",
+          "scenario": "string",
+          "test_id": "string",
+          "workspace": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "body_bytes": "uint32",
+          "body_excerpt": "string",
+          "redactions": "uint32",
+          "refusal_reason": "string",
+          "refused": "bool",
+          "test_identity": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Test body request is invalid"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Scenario, workspace, file, or test is not available"
+        }
+      ]
+    },
+    {
+      "id": "validation_run_mutation_pilot",
+      "path": "/vrooli.unit_health.v1.validation.ValidationService/RunMutationPilot",
+      "method": "POST",
+      "summary": "Run a bounded disposable mutation pilot",
+      "description": "Applies bounded go/ast mutations in scenario cache copies and runs the owning tests through Unit Health's executor.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "max_mutants": "uint32",
+          "operators": "array<string>",
+          "package": "string",
+          "scenario": "string",
+          "seed": "string",
+          "workspace": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "limitations": "array<string>",
+          "receipts": "array<MutantReceipt>",
+          "run_id": "string",
+          "summary": "MutationSummary",
+          "workspace_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Mutation pilot request is invalid"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Scenario or workspace is not available"
         }
       ]
     },
@@ -116,6 +251,34 @@
           "status": 400,
           "code": "invalid_argument",
           "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "validation_describe_provider",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider",
+      "method": "POST",
+      "summary": "Describe this provider's identity and contract",
+      "description": "Reports provider identity, backed phase, maturity spec version, contract, build provenance, and capabilities. Inspects no target, so readiness consumers can confirm this provider is live and current without paying for a full validation run.",
+      "category": "validation",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "build": "scenario_validation.v1.ProviderBuild",
+          "capabilities": "scenario_validation.v1.ProviderCapabilities",
+          "contract": "string",
+          "phase": "string",
+          "provider": "string",
+          "spec_version": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Describe provider",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider -H 'Content-Type: application/json' -d '{}'"
         }
       ]
     },

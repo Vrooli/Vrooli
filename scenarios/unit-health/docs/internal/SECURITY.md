@@ -17,8 +17,8 @@ Use this document to answer:
 
 | Data | Sensitivity | Owner | Notes |
 |---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
+| Validation run history (SQLite) | low | validation / runhistory | Command lines, durations, statuses, file paths, coverage percentages for local repository targets. |
+| Evidence cache and command output excerpts | low to unknown | validation / evidence | Captured test output (8 KiB tail per stream) can contain whatever a test prints; treat the cache directory as local development data. |
 
 ## Auth And Authorization
 
@@ -37,7 +37,8 @@ authorization belongs at the API/service layer.
 
 | Risk | Impact | Mitigation | Status |
 |---|---|---|---|
-| Unsafe file upload handling | Malicious or oversized upload could affect storage. | Multipart handler validates metadata and BlobStore seam isolates bytes. | template-reference |
+| Executing target test commands | `--execution` runs the target repository's own test commands on this host, so a hostile target can run arbitrary code. | Executor bounds each command with a timeout, no-output watchdog, process-group teardown, child-leak detection, and admission caps; the plan's `HermeticPolicy` records the isolation expectations. No sandbox beyond that. | accepted, local-operator tool |
+| Fix application writes files | `ScenarioValidationService.ApplyFix` writes config/projection fixes into the target. | Deterministic low-risk rules only; before-write drift check returns `failed_precondition` if a file changed. | mitigated |
 | Missing auth for product data | User/customer data could be exposed if added without access control. | Add API-layer auth before storing protected data. | deferred |
 
 ## Security Gaps

@@ -15,7 +15,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -23,6 +22,7 @@ import (
 	"time"
 
 	"unit-health/internal/discovery"
+	"unit-health/internal/envx"
 	"unit-health/internal/evidence"
 	"unit-health/internal/executor"
 	"unit-health/internal/readiness"
@@ -43,7 +43,7 @@ type Service struct {
 	Discoverer discovery.Discoverer
 	// Locator resolves scenario/path to a root dir for the default discoverer.
 	Locator discovery.Locator
-	// Spec is the parsed `.vrooli/maturity.json`. When set, the engine computes
+	// Spec is the parsed `maturity` block of `.vrooli/test-genie.json`. When set, the engine computes
 	// the local maturity summary from emitted findings.
 	Spec *assessment.Spec
 	// Executor runs planned commands when execution is requested. Defaults to a
@@ -62,6 +62,9 @@ type Service struct {
 	// the live target-DAG export and remains conservative if it is unavailable.
 	DependencyResolver        DependencyResolver
 	RequirementRegistryReader RequirementRegistryReader
+	// Env supplies process configuration for execution admission. Production
+	// wires envx.OS; tests can force a deterministic build-width fallback.
+	Env executor.EnvReader
 	// ReadinessResolver consumes governed dependency readiness. It is distinct
 	// from DependencyResolver, which only supplies graph closure for static
 	// architecture analysis.
@@ -148,13 +151,16 @@ func cachedResponse(record evidence.Record, runID string) (Response, bool) {
 
 // Request identifies the validation target and execution options.
 type Request struct {
-	Scenario         string
-	TargetKind       string
-	Path             string
-	Workspaces       []string
-	IncludeExecution bool
-	UseCache         bool
-	FastTestOnly     bool
+	Scenario                 string
+	TargetKind               string
+	Path                     string
+	Workspaces               []string
+	IncludeExecution         bool
+	UseCache                 bool
+	FastTestOnly             bool
+	ReviewedCohortID         string
+	ReviewedSourceIdentity   string
+	ReviewedObservationCount uint32
 }
 
 // Response is the engine's normalized result. It maps one-to-one onto
@@ -333,7 +339,7 @@ type ProjectionCheck struct {
 }
 
 // Finding is a normalized Unit Health finding. Code maps to a
-// `.vrooli/maturity.json` entry.
+// entry in the `maturity` block of `.vrooli/test-genie.json`.
 type Finding struct {
 	ID                 string
 	Scenario           string
@@ -412,7 +418,14 @@ func New() *Service {
 	if memoryCapacity < 2<<30 {
 		memoryCapacity = 2 << 30
 	}
-	return &Service{Admission: executor.NewAdmission(capacity, memoryCapacity)}
+	return &Service{Admission: executor.NewAdmission(capacity, memoryCapacity), Env: envx.OS{}}
+}
+
+func (s *Service) environment() executor.EnvReader {
+	if s.Env != nil {
+		return s.Env
+	}
+	return envx.OS{}
 }
 
 func (s *Service) now() time.Time {
@@ -648,10 +661,11 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 		diagnostics, diagFindings = analyzeDiagnostics(scenario, workspaces, plan, commandResults, history, nowStr)
 	}
 	findings = append(findings, diagFindings...)
-	findings = applyConfiguredUnitPolicyWaivers(findings, scenario, inv.RootPath, nowStr)
-	findings, suppressedFindings = splitSuppressedFindings(findings)
 
 	qualityReport, requirementLinks, linkReason := collectNativeQualityEvidence(ctx, qualityCollections, qualityExecuted, sourceQuality)
+	findings = append(findings, rollupFindings(scenario, workspaces, qualityReport.Results, nowStr)...)
+	findings = applyConfiguredUnitPolicyWaivers(findings, scenario, inv.RootPath, nowStr)
+	findings, suppressedFindings = splitSuppressedFindings(findings)
 	if qualityExecuted {
 		var executionReason testquality.Reason
 		sourceLinks, executionReason = collectExecutionEvidence(executionEvidence, commandResults, sourceLinks)
@@ -711,6 +725,7 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	}
 	resp.Summary = summarize(scenario, surfaces, workspaces, findings)
 	resp.EvidenceStages = summarizeEvidenceStages(resp, req.IncludeExecution)
+	attachReviewedEvidence(resp.EvidenceStages, req)
 	resp.NextSteps = nextSteps(resp.Status, inv)
 	resp.Artifacts = buildArtifacts(resp)
 	if req.IncludeExecution && req.UseCache && s.EvidenceStore != nil && cacheKey.Digest != "" && cacheableResponse(resp) {
@@ -869,8 +884,10 @@ func buildRunRecord(resp Response, plan ExecutionPlan, started time.Time) runhis
 			if native == nil {
 				continue
 			}
-			sample := runhistory.NativeTestSample{RunID: resp.RunID, NativeRunID: native.RunID, WorkspaceID: row.Target.Workspace,
-				File: row.Target.File, TestID: row.Target.TestID, State: native.State, Seed: native.Seed, RetryCount: native.RetryCount, RetryOrdinal: native.RetryOrdinal}
+			sample := runhistory.NativeTestSample{
+				RunID: resp.RunID, NativeRunID: native.RunID, WorkspaceID: row.Target.Workspace,
+				File: row.Target.File, TestID: row.Target.TestID, State: native.State, Seed: native.Seed, RetryCount: native.RetryCount, RetryOrdinal: native.RetryOrdinal,
+			}
 			// Only a unique owning command supplies a comparable execution key.
 			var owners []*runhistory.ComparisonIdentity
 			for _, command := range rec.Commands {
@@ -895,11 +912,11 @@ func buildRunRecord(resp Response, plan ExecutionPlan, started time.Time) runhis
 func (s *Service) execute(ctx context.Context, scenario string, plan ExecutionPlan, findings []Finding, now string, execStage *metrics.Stage) ([]CommandResult, []Finding) {
 	runner := s.Executor
 	if runner == nil {
-		runner = executor.Bounded{}
+		runner = executor.Bounded{Env: s.Env}
 	}
 	concurrency := s.MaxConcurrency
 	if concurrency < 1 {
-		concurrency = envkit.BuildWidthFrom(envkit.Env(os.Environ()))
+		concurrency = envkit.BuildWidthFrom(envkit.Env(s.environment().Environ()))
 	}
 	for _, command := range plan.Commands {
 		if command.Resource.MaxWorkers > 0 && command.Resource.MaxWorkers < concurrency {
@@ -1036,7 +1053,7 @@ func executionFinding(scenario string, r executor.Result, now string) (Finding, 
 		Expected:      "The workspace's tests run to completion and pass within the timeout.",
 		Observed:      fmt.Sprintf("status=%s, class=%s, exit=%d, %dms", r.Status, r.FailureClass, r.ExitCode, r.DurationMS),
 		WhyItMatters:  "A failing, hanging, or unrunnable test command blocks the scenario from being validated or hardened.",
-		Remediation:   "Inspect the command output, fix the failure, and re-run with --include-execution.",
+		Remediation:   "Inspect the command output, fix the failure, and re-run with `--execution`.",
 		SourceCommand: r.Command,
 		CreatedAt:     now,
 	}, true
@@ -1110,9 +1127,9 @@ func nextSteps(status string, inv discovery.Inventory) []string {
 	case len(inv.Surfaces) == 0:
 		return []string{"Add a discoverable test workspace; ensure Code Facts can describe the scenario."}
 	case status == "failed":
-		return []string{"Resolve the blocking configuration findings, then run with --include-execution to run the planned tests."}
+		return []string{"Resolve the blocking configuration findings, then run `unit-health validate scenario <name> --execution` to run the planned tests."}
 	default:
-		return []string{"Run with --include-execution to execute the planned tests and analyze coverage."}
+		return []string{"Run `unit-health validate scenario <name> --execution` to execute the planned tests and analyze coverage."}
 	}
 }
 

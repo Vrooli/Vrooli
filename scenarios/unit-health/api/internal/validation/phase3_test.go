@@ -26,6 +26,19 @@ func TestSeamBypassWithDeclaredSeamIsNotFlagged(t *testing.T) {
 	}
 }
 
+func TestFunctionFieldSeamSuppressesAmbientClockFinding(t *testing.T) {
+	root := t.TempDir()
+	goModForSeam(t, root)
+	// A function-valued dependency is a seam even when it is not declared as
+	// an interface or placed in a package named clock.
+	writeFile(t, filepath.Join(root, "svc.go"), "package demo\n\nimport \"time\"\n\ntype Service struct { Now func() time.Time }\n\nfunc (s Service) N() time.Time { return time.Now() }\n")
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "api", Language: "go", RootPath: root}}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeMissingInjectableSeam); ok {
+		t.Errorf("function-valued Now seam should suppress MISSING_INJECTABLE_SEAM, got %v", codes(findings))
+	}
+}
+
 func TestSeamBypassInCommentIsNotFlagged(t *testing.T) {
 	root := t.TempDir()
 	goModForSeam(t, root)
@@ -58,97 +71,6 @@ func TestSeamBypassInMainIsNotFlagged(t *testing.T) {
 	findings := analyzeArchitecture("demo", []Workspace{{ID: "api", Language: "go", RootPath: root}}, fixedNowStr)
 	if _, ok := findingByCode(findings, codeMissingInjectableSeam); ok {
 		t.Errorf("main.go config read must not fire the seam finding, got %v", codes(findings))
-	}
-}
-
-// --- B4: local-helper assertion resolution ------------------------------
-
-func TestAssertionThroughLocalHelperIsNotFlagged(t *testing.T) {
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
-	writeFile(t, filepath.Join(root, "x_test.go"), `package demo
-
-import "testing"
-
-func assertEqual(t *testing.T, a, b int) {
-	if a != b {
-		t.Fatalf("want %d got %d", b, a)
-	}
-}
-
-func TestThroughHelper(t *testing.T) {
-	assertEqual(t, 1, 1)
-}
-`)
-	findings := analyzeQuality("demo", root, []Workspace{{ID: "api", Language: "go", RootPath: root}}, fixedNowStr)
-	if _, ok := findingByCode(findings, codeTestNoAssertion); ok {
-		t.Errorf("a test asserting through a local helper must not be flagged assertion-free, got %v", codes(findings))
-	}
-}
-
-func TestThroughSharedTestutilRequireHelper(t *testing.T) {
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
-	writeFile(t, filepath.Join(root, "x_test.go"), `package demo
-
-import (
-    "testing"
-    "demo/internal/testutil"
-)
-
-func TestResponse(t *testing.T) {
-    testutil.RequireHTTPStatus(t, 200, 200)
-}
-`)
-	findings := analyzeQuality("demo", root, []Workspace{{ID: "api", Language: "go", RootPath: root}}, fixedNowStr)
-	if _, ok := findingByCode(findings, codeTestNoAssertion); ok {
-		t.Errorf("a test using testutil.Require* must not be flagged assertion-free, got %v", codes(findings))
-	}
-}
-
-// Semantic edge-case coverage is a behavioral review, not a naming heuristic.
-
-func TestQualityDoesNotInferMissingEdgeCasesFromNames(t *testing.T) {
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
-	// An unrelated string and a test name cannot establish behavioral coverage.
-	writeFile(t, filepath.Join(root, "x_test.go"), `package demo
-
-import "testing"
-
-func TestHappy(t *testing.T) {
-	got := "no error here, just a label"
-	if got == "" {
-		t.Fatal("x")
-	}
-}
-`)
-	findings := analyzeQuality("demo", root, []Workspace{{ID: "api", Language: "go", RootPath: root}}, fixedNowStr)
-	if _, ok := findingByCode(findings, codeTestMissingEdgeCases); ok {
-		t.Errorf("static syntax cannot infer missing semantic cases, got %v", codes(findings))
-	}
-}
-
-func TestQualityDoesNotTreatErrorMatcherAsEdgeCoverageProof(t *testing.T) {
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
-	writeFile(t, filepath.Join(root, "x_test.go"), `package demo
-
-import (
-	"testing"
-
-	"github.com/stretchr/testify/require"
-)
-
-func TestStuff(t *testing.T) {
-	require.Error(t, doThing())
-}
-
-func doThing() error { return nil }
-`)
-	findings := analyzeQuality("demo", root, []Workspace{{ID: "api", Language: "go", RootPath: root}}, fixedNowStr)
-	if _, ok := findingByCode(findings, codeTestMissingEdgeCases); ok {
-		t.Errorf("an assertion name cannot prove semantic coverage, got %v", codes(findings))
 	}
 }
 

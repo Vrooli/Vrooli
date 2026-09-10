@@ -22,44 +22,57 @@ workflow model.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| Attachment upload | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Level 5 workflow tests: matrix, traces, declarative spec, checked Quint model, generated artifacts, and production replay. |
+| Scenario validation run | validation | `ValidateScenario` from UI, CLI, or Test Genie. | Normalized findings, maturity assessment, and (when executed) persisted run history. | Ordered pipeline with degraded and failure paths; each executed command has a bounded lifecycle. | Level 1 (inventory) for the pipeline; executor and service tests cover the ordering and bounds directly. |
 
 ## Flow Details
 
-### Attachment upload
+### Scenario validation run
 
-- Owner domain: notes.
-- Trigger: multipart upload request from UI or CLI.
-- Inputs: note id, file key/name, file bytes, content type, file size.
+- Owner domain: validation (`api/internal/validation/service.go`).
+- Trigger: `ValidationService.ValidateScenario` or the shared
+  `ScenarioValidationService.ValidateScenario`.
+- Inputs: scenario slug or path, optional workspace ids,
+  `include_execution`, `use_cache`, `fast_test_only`.
 - Steps:
-  1. Parse multipart request.
-  2. Validate note id and file metadata.
-  3. Store opaque bytes through BlobStore.
-  4. Persist attachment metadata through notes repository seam.
-  5. Return proto-typed metadata response.
-- Outputs: uploaded attachment metadata or typed error response.
-- Failure modes: missing note id, missing file, invalid metadata, blob
-  write failure, metadata persistence failure.
-- Retry/cancel behavior: caller may retry after transport/storage
-  failure; duplicate handling belongs to the owning real domain when
-  product requirements demand it.
-- Tests: `api/handlers/notes/attachments_handler_test.go`,
-  `api/internal/notes/attachments_service_test.go`,
-  `api/internal/notes/flow/flow_test.go`,
-  `ui/src/features/notes/AttachmentUpload.test.tsx`, and
-  `ui/src/features/notes/flow/flow.test.ts`.
-- Generated subpackages: `api/internal/notes/flow/generated/`
-  (`model.qnt`, `artifact.json`, `runtime.go`, `replay.go`) and
-  `ui/src/features/notes/flow/generated/` (`model.qnt`, `artifact.json`,
-  `runtime.ts`, `replay.helper.ts`).
-- Requirements: template starter only.
+  1. Locate the target (`discovery.Locator`) and resolve its root.
+  2. Discover surfaces and parse units through Code Facts
+     (`discovery.Discoverer`). If Code Facts is unreachable, build a
+     heuristic fallback inventory and set `degraded_reason`.
+  3. Build the per-workspace plan: canonical framework, fast and
+     coverage commands, hermetic policy, resource limits.
+  4. Optionally execute planned commands through `executor.Runner`
+     under a per-command timeout, a no-output watchdog, process-group
+     cleanup, and weighted admission caps. Reuse cached evidence when
+     the evidence key matches.
+  5. Run the analyzers (coverage, architecture, quality, reliability,
+     diagnostics, requirement traceability, policy projections).
+  6. Assess maturity against the `maturity` block of
+     `.vrooli/test-genie.json` and roll findings into `status`.
+  7. Persist the run through `runhistory.Store` when execution ran and
+     a store is configured.
+- Outputs: `ValidateScenarioResponse` with `status` of `passed`,
+  `failed`, `degraded`, or `error`.
+- Failure modes: unresolvable target (`invalid_argument`), Code Facts
+  unavailable (degraded), missing toolchain, test failure, timeout,
+  no-output stall, system error, unsupported command.
+- Retry/cancel behavior: the request context cancels execution;
+  process groups are torn down on cancel or timeout. Callers may
+  simply re-run; the evidence cache makes an unchanged target cheap.
+- Tests: `api/internal/validation/service_test.go`,
+  `execution_test.go`, `execution_evidence_test.go`, `e2e_test.go`,
+  `api/internal/executor/*_test.go`, `api/handlers/validation/handler_test.go`,
+  `ui/src/features/validation/ScenarioValidationWorkbench.test.tsx`.
+- Requirements: see `requirements/`.
 
 ## State Machines
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| notes / attachment upload API | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | `*.flow.json` contract, generated Quint model, generated formal artifact replay, side-effect cleanup tests |
-| notes / attachment upload UI | idle, selected, uploading, succeeded, failed | start before select, stale completion after reset/reselect, retry without file context | `*.flow.json` contract, generated Quint model, generated formal artifact replay, attempt-id stale completion tests |
+| validation / executed command | running → `passed`, `failed`, `timeout`, `error` (terminal), each with a failure class (`test_failure`, `missing_dependency`, `misconfiguration`, `timeout_hang`, `no_output_stall`, `system`, `unsupported`) | Leaving a terminal state; reporting output after process-group teardown | `api/internal/executor` (timeout, watchdog, leak detection tests) |
+| validation / UI workbench | idle → pending → success or error (react-query mutation) | Submitting while pending (button disabled) | `ScenarioValidationWorkbench.test.tsx` |
+
+Neither machine has a `*.flow.json` contract yet; both are enforced by
+direct tests rather than a generated model.
 
 ## Maturity Ladder
 
@@ -77,7 +90,7 @@ to add a standalone formal document.
 
 ## Production Shape
 
-Three (Go) or four (UI) files per flow at the top of the feature folder,
+The required Go or UI files per flow sit at the top of the feature folder,
 plus one `generated/` sibling. Everything in `generated/` is codegen output.
 
 Every flow lives in a `flow/` subdirectory next to its consumer with
@@ -117,8 +130,8 @@ the contract no longer declares any output paths or module names.
 
 The workflow owns state/status values, events, `Transition`, and
 `CheckInvariants`. It should be pure or nearly pure. Effects live
-outside the workflow behind seams: repositories, BlobStore, clocks,
-timers, HTTP clients, or UI API modules.
+outside the workflow behind seams: repositories, the executor, the
+Code Facts client, clocks, timers, HTTP clients, or UI API modules.
 
 The `*.flow.json` contract is the source of truth. Level 5 generated
 Quint models, formal artifacts, and Go/TypeScript declarations are
@@ -172,8 +185,8 @@ fails the check.
 To scaffold a new flow:
 
 ```bash
-flow-verifier flows new ui/src/features/<feature> --flow-id <flow-id> --lang ts --root .
-flow-verifier flows new api/internal/<domain>     --flow-id <flow-id> --lang go --root .
+flow-verifier flows new "ui/src/features/<feature>" --flow-id "<flow-id>" --lang ts --root .
+flow-verifier flows new "api/internal/<domain>"     --flow-id "<flow-id>" --lang go --root .
 ```
 
 The scaffold writes the hand-authored files and immediately runs
@@ -193,7 +206,8 @@ To add or rename a state/event:
 
 | Flow | Risk | Next Step |
 |---|---|---|
-| None yet. | Generated scaffold. | Add real scenario workflows when domains have stateful behavior. |
+| Executed command lifecycle | Terminal-state and cleanup rules live only in `api/internal/executor`; a regression in teardown ordering is caught by tests, not by a checked model. | Promote to Level 2+ with a `flow/` directory under `api/internal/executor/` if the lifecycle grows (retries, partial re-runs). |
+| Workbench request state | Client state is a react-query mutation; adding cancel, stale-run detection, or multi-run comparison would introduce real modes. | Add `ui/src/features/validation/flow/` when a second mode appears. |
 
 ## Cross-References
 

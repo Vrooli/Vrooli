@@ -21,7 +21,7 @@ RPC bindings, governance metadata) is declared in
 `cliapp.LoadFromManifest`, which:
 
 - builds each domain's `SubcommandGroup` from its manifest group
-- wires each command's `binding.method` (e.g. `NotesService.ListNotes`)
+- wires each command's `binding.method` (`ValidationService.ValidateScenario`)
   to a handler registered in the domain's `register.go` bindings map
 - fails loudly on missing handlers, dead handlers, or unknown groups
 
@@ -33,14 +33,9 @@ omitting it) fails the test.
 
 The manifest's `governance` block (`effect`, `run_eligible`,
 `permissions`, `requires_confirmation`) is consumed by prompt-manager
-to derive action certainty automatically; scenarios that adopt the
-manifest don't need hand-classified action-safety lists.
-
-`binding.kind` is currently `connect-rpc` only. REST-exception
-commands (the canonical example is `notes attach`, which uses
-multipart upload) are appended to the loaded group outside the manifest
-path in the domain's `register.go` and documented in the manifest's
-`omitted[]` array.
+and Program Runtime to derive action certainty and the governed
+binding `unit-health/validate/scenario`; the scenario does not keep a
+hand-classified action-safety list.
 
 For environment-variable precedence and CLI config-file shape, see
 [`configuration.md`](configuration.md).
@@ -80,7 +75,7 @@ per [`configuration.md`](configuration.md#cli-config-file)).
 
 ```bash
 unit-health configure api_base http://localhost:15001/api/v1
-unit-health configure token <token>
+unit-health configure token "<token>"
 ```
 
 Read values back without an argument:
@@ -89,55 +84,92 @@ Read values back without an argument:
 unit-health configure api_base
 ```
 
-## Scenario commands — `notes` (CRUD reference)
+## Scenario commands — `validate`
 
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario.
+The `validate` group is the scenario's whole command surface. It binds
+to `ValidationService.ValidateScenario`.
 
-### `unit-health notes list`
+### `unit-health validate scenario <scenario>`
 
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
-
-```bash
-unit-health notes list
-unit-health notes list --json
-```
-
-### `unit-health notes create --title <title> [--body <body>]`
-
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
+Assess a scenario's test surface: discovery, per-workspace test plan,
+canonical-framework and coverage-config projection checks, test
+architecture, advisory test-quality rule results, requirement
+traceability, and the six-capability local maturity assessment. The
+human report is the default and is the agent workflow; `--json` is for
+programmatic consumers such as Test Genie's `unit` phase and the
+`unit-health.setpoint-read` program.
 
 ```bash
-unit-health notes create --title "First note" --body "Hello world"
+unit-health validate scenario unit-health
+unit-health validate scenario unit-health --execution
+unit-health validate scenario unit-health --workspace api --execution
+unit-health validate scenario unit-health --execution --fast-test-only
+unit-health validate scenario unit-health --json
 ```
 
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
+| Argument | Meaning |
+|---|---|
+| `<scenario>` | Scenario slug. Optional when `--path` is set. |
+| `--path <dir>` | Validate a filesystem path instead of a registered scenario. |
+| `--workspace <id>` | Restrict validation to one workspace id (repeatable). |
+| `--execution` | Execute the planned test commands under bounded limits. Without it the response is a plan: the maturity level still reflects static required findings, but coverage, execution, and reliability findings are absent and `evidence_stages.executed` reads `not_requested`. |
+| `--fast-test-only` | With `--execution`, run only the fast test command and omit coverage artifacts. |
+| `--json` | Emit the `ValidateScenarioResponse` proto JSON. |
 
-### `unit-health notes get <id>`
+The CLI flag `--execution` maps to the request field `include_execution`.
+API messages name the CLI form so a reader of the human report can act on
+them directly.
 
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
+Exit status is nonzero when `counts.errors > 0`. The report uses the
+**operational contract**: summary, workspaces and plan, projection
+checks, findings grouped by capability, coverage, test-quality results,
+and next steps.
+
+### `unit-health mutation pilot <scenario>`
+
+Run a bounded owner-side mutation pilot for a Go package. Unit Health applies
+one `go/ast` mutation per disposable copy below the scenario cache directory and
+runs the owning test through the bounded executor. The shared checkout is never
+the mutation target.
 
 ```bash
-unit-health notes get abc123
+unit-health mutation pilot unit-health --package ./internal/testquality/... --seed pilot-1
+unit-health mutation pilot unit-health --package ./internal/testquality/... --operators boundary --max-mutants 20 --seed pilot-1 --json
 ```
 
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
+The supported operators are `boundary`, `negate-condition`, and
+`return-constant`. Receipts use the closed vocabulary `killed`, `survived`,
+`invalid`, `equivalent`, `out_of_contract`, `infrastructure_failure`, and
+`unknown`; only valid killed/survived mutants contribute to `kill_rate`.
 
-### `unit-health notes attach <id> --file <path>`
+The comparable Unit Health pilot floor is 0.95, derived from two 20-mutant
+runs in the improve skill. A surviving valid mutant is a review signal, not a
+defect verdict.
 
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
+Reading the result without over-claiming is the `unit-health` usage
+skill's job (`prompt-manager skill read unit-health`); the maturity
+vocabulary is in [`maturity.md`](maturity.md) and the rule vocabulary in
+[`test-quality-rules.md`](test-quality-rules.md).
+
+### `unit-health calibrate run`
+
+Compare the committed calibration corpus with the owner adapters through
+`ValidationService.RunCalibration`. The command is the governed CLI surface and
+the `unit-health/calibrate/run` read binding used by `unit-health.setpoint-read`.
 
 ```bash
-unit-health notes attach abc123 --file ./example.png
+unit-health calibrate run --partition development
+unit-health calibrate run --partition reviewed-holdout --holdout assertion-observation-go-v1 --rule assertion-observation
+unit-health calibrate corpus
 ```
+
+The development read reports exact matches against implemented cases. The
+reviewed holdout reports false positives, false negatives, unknowns, and the
+catalog decision state; it never promotes a rule automatically. `calibrate corpus`
+reports the bounded implemented, retired, and specified inventory.
+
+The developer-only `test-quality-reference` generator remains test-fixture tooling,
+not a CLI command; it is not a sensor or an authorization path.
 
 ## Output contracts
 
@@ -148,7 +180,7 @@ or `cliapp.RenderProtoMutation`: human consumers see the report, while
 
 | Contract | Used by | Structure |
 |---|---|---|
-| **Operational** | `status`, `health`, `audit`, `validate`, `doctor` | Status → Triage → Next Steps |
+| **Operational** | `status`, `validate` | Status → Triage → Next Steps |
 | **Data Retrieval** | `list`, `get`, `view`, `search` | Summary → Results → Retrieval Hints |
 | **Mutation** | `create`, `update`, `delete`, `start`, `stop` | Result → What Changed → Next Command |
 
@@ -159,10 +191,9 @@ helpers).
 
 ## Adding a new command
 
-For a new domain, copy the notes command group first, then replace it
-once your real domain is green.
-
-For a command inside an existing domain:
+Every command is one RPC. A tool that today runs through `go run`
+(the calibration comparison above) becomes a command only by first
+becoming an RPC.
 
 1. If the command needs a new API endpoint (RPC), add it first per
    [`api-endpoints.md`](api-endpoints.md#adding-a-new-endpoint). The
@@ -182,14 +213,9 @@ For a command inside an existing domain:
    `cli/domains/<domain>/register.go` keyed by `"<Service>.<Method>"`
    so `cliapp.LoadFromManifest` can wire it. Missing handler or
    dead handler both fail at startup.
-5. Handler implementation should:
-   - Construct generated Connect clients with
-     `cliapp.NewConnectHTTPClient(core)` for proto-typed operations.
-   - Use `cliapp.UploadFile` only for documented multipart REST
-     exceptions (append those outside the manifest path in
-     `register.go` and document them in the manifest's `omitted[]`).
-   - Render proto-backed responses with `cliapp.RenderProtoList` or
-     `cliapp.RenderProtoMutation`.
+5. Render proto-backed responses with `cliapp.RenderProtoList` or
+   `cliapp.RenderProtoMutation`; construct generated Connect clients
+   with `cliapp.NewConnectHTTPClient(core)`.
 6. Add endpoint metadata in the API handler module and add a matching
    row to `api/cmd/gen-endpoints/cli_commands_seed.json`. Then run
    `make endpoints`; do not edit [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json)
@@ -204,11 +230,10 @@ For a command inside an existing domain:
 
 ## Command structure principles
 
-- **Subcommand groups** (`notes list`, `notes create`) over flat
-  verbs (`list-notes`, `create-note`). Discoverability via `--help`
-  is the goal.
-- **Positional for required, flags for optional.** `notes get <id>`
-  not `notes get --id <id>`.
+- **Subcommand groups** (`validate scenario`) over flat verbs.
+  Discoverability via `--help` is the goal.
+- **Positional for required, flags for optional.** `validate scenario <name>`
+  not `validate scenario --name <name>`.
 - **One command per API endpoint.** If you find yourself making two
   endpoint calls, the API is missing a use-case.
 - **Error messages must be actionable.** "API unreachable" is bad;
@@ -218,6 +243,8 @@ For a command inside an existing domain:
 ## Cross-references
 
 - [`api-endpoints.md`](api-endpoints.md) — API endpoints these commands mirror
+- [`maturity.md`](maturity.md) — how to read the assessment
+- [`test-quality-rules.md`](test-quality-rules.md) — the advisory rule catalog
 - [`configuration.md`](configuration.md) — env vars and config-file precedence
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for "API unreachable", auth, stale binary
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#inside-the-cli-thin-wrapper-domain-organized) — CLI architecture

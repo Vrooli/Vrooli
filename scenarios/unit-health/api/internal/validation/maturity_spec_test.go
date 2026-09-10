@@ -2,7 +2,7 @@ package validation
 
 import "testing"
 
-// specSeverityToLocal maps a maturity.json severity_default onto the lowercase
+// specSeverityToLocal maps a maturity-spec severity_default onto the lowercase
 // severity codeSeverity uses.
 func specSeverityToLocal(s string) string {
 	switch s {
@@ -18,10 +18,11 @@ func specSeverityToLocal(s string) string {
 }
 
 // TestCodeSeverityMatchesSpec proves the engine's codeSeverity map and the
-// scenario's .vrooli/maturity.json never drift: every spec finding code has a
+// scenario's maturity spec (the `maturity` block of .vrooli/test-genie.json) never drift: every spec finding code has a
 // codeSeverity entry with the same severity, and every codeSeverity key is a
 // declared spec code. This is the "validate every emitted finding code has a
 // mapping" guard from Phase 5.
+// [REQ:UH-ANALYZE-005]
 func TestCodeSeverityMatchesSpec(t *testing.T) {
 	spec := loadSpec(t)
 	if spec.Version != "2.0.0" {
@@ -58,7 +59,7 @@ func TestCodeSeverityMatchesSpec(t *testing.T) {
 
 	for code := range codeSeverity {
 		if _, ok := spec.Findings[code]; !ok {
-			t.Errorf("codeSeverity has code %q with no maturity.json mapping", code)
+			t.Errorf("codeSeverity has code %q with no maturity-spec mapping", code)
 		}
 	}
 }

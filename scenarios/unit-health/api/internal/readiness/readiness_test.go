@@ -15,3 +15,14 @@ func TestReportRequiresGovernedRemediation(t *testing.T) {
 		t.Fatal("missing dependency did not block execution")
 	}
 }
+
+func TestReportRejectsMissingStatusSourceAndMalformedRequirements(t *testing.T) {
+	for _, report := range []Report{{Source: "source"}, {Status: "future", Source: "source"}, {Status: Ready}, {Status: Ready, Source: "source", Requirements: []Requirement{{Kind: "tool", Remediation: "fix"}}}, {Status: Ready, Source: "source", Requirements: []Requirement{{ID: "id", Remediation: "fix"}}}, {Status: Ready, Source: "source", Requirements: []Requirement{{ID: "id", Kind: "tool"}}}} {
+		if err := report.Validate(); err == nil {
+			t.Fatalf("invalid report accepted: %+v", report)
+		}
+	}
+	if (Report{Status: Ready, Source: "source"}).BlocksExecution() {
+		t.Fatal("ready report blocks execution")
+	}
+}

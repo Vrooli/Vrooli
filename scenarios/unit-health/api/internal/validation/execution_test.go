@@ -51,6 +51,7 @@ func TestExecuteSkippedWithoutIncludeExecution(t *testing.T) {
 	}
 }
 
+// [REQ:UH-EXEC-003]
 func TestExecuteTestFailureProducesFindingAndFailedStatus(t *testing.T) {
 	spec := loadSpec(t)
 	svc := newService(fakeDiscoverer{inv: goSurfaceInventory(t)}, spec)

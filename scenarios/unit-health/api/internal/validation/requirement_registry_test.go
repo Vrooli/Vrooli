@@ -15,7 +15,7 @@ func (r registryURL) ResolveScenarioURLDefault(context.Context, string) (string,
 
 func TestOwnerRequirementRegistryPreservesExactIDsAndResponsibilities(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/scenarios/demo/requirements" || r.URL.Query().Get("view") != "registry" {
+		if r.URL.Path != "/api/v1/scenarios/demo/requirements" || r.URL.Query().Get("view") != "registry" {
 			t.Errorf("wrong owner request: %s", r.URL)
 		}
 		w.Write([]byte(`{"schemaVersion":"requirement-registry/v1","requirements":[{"id":"UH-CORE-001"},{"id":"UH-CORE-010","validation":[{"type":"test","phase":"integration","ref":"test/integration.sh"}]}]}`))

@@ -39,3 +39,39 @@ func TestRegistryRejectsUnsupportedVersionAndMatch(t *testing.T) {
 		t.Fatal("unsupported match unexpectedly resolved")
 	}
 }
+
+func TestRegistryCoversNilValidationExplicitResolutionAndIdentityOrdering(t *testing.T) {
+	if err := (*Registry)(nil).Register(testAdapter{}); err == nil {
+		t.Fatal("nil registry accepted adapter")
+	}
+	r := NewRegistry()
+	for _, adapter := range []testAdapter{{id: Identity{ID: "", Version: "1"}, matches: true}, {id: Identity{ID: "x", Version: ""}, matches: true}} {
+		if err := r.Register(adapter); err == nil {
+			t.Fatal("invalid identity accepted")
+		}
+	}
+	if _, err := r.Resolve(Identity{ID: "missing"}, Match{}); err == nil {
+		t.Fatal("missing adapter resolved")
+	}
+	if err := r.Register(testAdapter{id: Identity{ID: "go", Version: "1"}, matches: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Register(testAdapter{id: Identity{ID: "go", Version: "2"}, matches: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Resolve(Identity{ID: "go", Version: "1"}, Match{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Resolve(Identity{ID: "go", Version: "9"}, Match{}); err == nil {
+		t.Fatal("unknown explicit version resolved")
+	}
+	if _, err := r.Resolve(Identity{ID: "go"}, Match{}); err == nil {
+		t.Fatal("ambiguous/multiple resolution unexpectedly succeeded")
+	}
+	if ids := r.Identities(); len(ids) != 2 || ids[0].ID != "go" || ids[0].Version != "1" {
+		t.Fatalf("identities = %+v", ids)
+	}
+	if (*Registry)(nil).Identities() != nil {
+		t.Fatal("nil registry identities not nil")
+	}
+}

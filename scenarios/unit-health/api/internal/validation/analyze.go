@@ -8,7 +8,7 @@ import (
 )
 
 // Phase 5 finding codes for the coverage, architecture, quality, and diagnostics
-// analyzers. Every code maps to a `.vrooli/maturity.json` entry; the anti-drift
+// analyzers. Every code maps to an entry in the `maturity` block of `.vrooli/test-genie.json`; the anti-drift
 // test in maturity_spec_test.go proves codeSeverity and the spec agree.
 const (
 	codeLowCoverage             = "LOW_COVERAGE"
@@ -18,13 +18,11 @@ const (
 	codeTestHelperFromProd      = "TEST_HELPER_FROM_PRODUCTION"
 	codeMissingInjectableSeam   = "MISSING_INJECTABLE_SEAM"
 	codeTestSkippedOrOnly       = "TEST_SKIPPED_OR_ONLY"
-	codeTestNoAssertion         = "TEST_NO_ASSERTION"
-	codeTestRenderOnly          = "TEST_RENDER_ONLY"
 	codeTestExcessiveSnapshots  = "TEST_EXCESSIVE_SNAPSHOTS"
-	codeTestMissingEdgeCases    = "TEST_MISSING_EDGE_CASES"
 	codeTestFlakeSuspected      = "TEST_FLAKE_SUSPECTED"
 	codeTestRuntimeGrowth       = "TEST_RUNTIME_GROWTH"
 	codeTestUntaggedRequirement = "TEST_UNTAGGED_REQUIREMENT"
+	codeTestQualityViolation    = "TEST_QUALITY_RULE_VIOLATION"
 	codeSeamDuplicatedInPackage = "SEAM_DUPLICATED_IN_PACKAGE"
 	codeSeamReimplemented       = "SEAM_REIMPLEMENTED"
 	codeCompanionReimplemented  = "COMPANION_REIMPLEMENTED"
@@ -45,6 +43,17 @@ var analyzerSkipDirs = map[string]bool{
 	".turbo":       true,
 	"out":          true,
 	"testdata":     true,
+}
+
+// EmittedCodes returns the validation finding vocabulary owned by this
+// package. Callers use the copy to compare authored specifications without
+// reaching into the package's severity table.
+func EmittedCodes() map[string]struct{} {
+	out := make(map[string]struct{}, len(codeSeverity))
+	for code := range codeSeverity {
+		out[code] = struct{}{}
+	}
+	return out
 }
 
 // walkSourceFiles invokes fn for every file under root, skipping dependency,

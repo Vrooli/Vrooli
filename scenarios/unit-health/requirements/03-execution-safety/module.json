@@ -17,7 +17,7 @@
       "description": "The command runner enforces a per-workspace timeout, a no-output watchdog, process-group cleanup on cancel/timeout, bounded concurrency, memory-aware worker caps, and environment isolation, and writes a command log artifact for every command.",
       "tags": ["safety", "timeout", "watchdog", "process-group"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "Fake executor proves timeout, no-output stall, and cancel each terminate the process group and produce a classified result."}
+        {"type": "unit", "status": "planned", "notes": "Fake executor proves timeout, no-output stall, and cancel each terminate the process group and produce a classified result.", "refs": ["api/internal/executor/executor_test.go::TestBoundedRunTimeoutHang"]}
       ]
     },
     {
@@ -30,7 +30,7 @@
       "description": "When a supported adapter is selected, Unit Health shall submit executable-plus-argv commands with declared artifacts, test kind, bounded resources, and platform applicability. If the requested runner version, assertion style, network denial, or filesystem isolation cannot be enforced, then Unit Health shall return an explicit unsupported or refused outcome. Dependency provisioning shall remain owned by Scenario Dependency Analyzer.",
       "tags": ["go", "vitest", "pytest", "runners"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "Each runner builds the expected argv and conservative env against fixtures; real smoke test runs a tiny passing fixture per language available."}
+        {"type": "unit", "status": "planned", "notes": "Each runner builds the expected argv and conservative env against fixtures; real smoke test runs a tiny passing fixture per language available.", "refs": ["api/internal/validation/typed_plan_test.go::TestBuildExecutionPlanProjectsDeclaredRunnerProfile"]}
       ]
     },
     {
@@ -43,7 +43,7 @@
       "description": "Command results are classified as pass, test-failure, missing-dependency, misconfiguration, timeout/hang, no-output stall, or system-failure, and the classification drives the emitted finding code and severity.",
       "tags": ["failure-class", "diagnostics"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "Fixture exit codes / output patterns map to the correct failure class and finding code."}
+        {"type": "unit", "status": "planned", "notes": "Fixture exit codes / output patterns map to the correct failure class and finding code.", "refs": ["api/internal/validation/execution_test.go::TestExecuteTestFailureProducesFindingAndFailedStatus"]}
       ]
     }
   ]

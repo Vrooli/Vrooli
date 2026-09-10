@@ -22,6 +22,7 @@ func (f fakeExecutorByName) Run(_ context.Context, cmd executor.Command) executo
 	return r
 }
 
+// [REQ:UH-CORE-002]
 func TestBuildExecutionPlanUsesTypedCommandsAndNeverInstallsDependencies(t *testing.T) {
 	root := t.TempDir()
 	ui := filepath.Join(root, "ui")
@@ -53,6 +54,7 @@ func TestBuildExecutionPlanUsesTypedCommandsAndNeverInstallsDependencies(t *test
 	}
 }
 
+// [REQ:UH-EXEC-002]
 func TestBuildExecutionPlanProjectsDeclaredRunnerProfile(t *testing.T) {
 	root := t.TempDir()
 	apiRoot := filepath.Join(root, "api")

@@ -33,7 +33,7 @@ This document does not own:
 
 ## Scenario Shape
 
-A scenario is one product expressed through three coordinated surfaces
+A scenario is one product expressed through coordinated surfaces
 and one canonical contract layer.
 
 ```
@@ -117,7 +117,7 @@ Use Connect-RPC by default:
 - CLI to API for proto-typed payloads,
 - API to API / inter-scenario calls with Vrooli-owned protos.
 
-REST is allowed only for four enumerated reasons, defined as
+REST is allowed only for enumerated reasons, defined as
 `RESTReason` constants in `api/internal/module/module.go`:
 
 | Reason | When it applies |
@@ -130,7 +130,7 @@ REST is allowed only for four enumerated reasons, defined as
 Mechanical enforcement: `cmd/gen-endpoints` rejects any
 `EndpointDescriptor.Path` that is not a generated Connect procedure
 constant (i.e. does not start with `/vrooli.`) unless the descriptor
-carries a `RESTException` with one of the four reasons. A REST
+carries a `RESTException` with a reason. A REST
 endpoint without that tag fails `make endpoints`, which fails
 `make test`, which fails CI. The fix is either to author a proto
 service method (the preferred path) or to tag the exception
@@ -157,6 +157,8 @@ business-vocabulary-free and used by unrelated domains or surfaces.
 | `api/internal/modules/` | Thin registry for schemas and endpoints. | Boot/codegen need central lists; logic stays domain-owned. | `main.go`, `gen-endpoints`. |
 | `api/internal/database/` | System schema and DB reachability seam. | Cross-cutting DB infrastructure, not one domain's data. | API boot, health. |
 | `api/internal/clock/` | Deterministic time seam. | Time is cross-cutting and test-substitutable. | Middleware, repositories. |
+| `api/internal/envx/` | Process environment adapter. | Environment reads are cross-cutting and test-substitutable through consumer-owned readers. | Executor, validation admission. |
+| `api/internal/logx/` | Standard logger adapter. | Logger construction is cross-cutting and test-substitutable at API boundaries. | HTTP writers. |
 | `api/internal/testutil/` | Cross-domain test harnesses and fakes. | Used by unrelated domains; domain fakes stay domain-local. | API tests. |
 | `ui/src/test-utils/` | Cross-feature render helpers, a11y helpers, and model tests. | Used by unrelated UI features. | UI tests. |
 

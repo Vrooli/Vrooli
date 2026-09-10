@@ -28,6 +28,7 @@
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "@vrooli/ui-selectors": "file:../../../packages/ui-selectors",
     "@vrooli/vitest-requirement-reporter": "file:../../../packages/vitest-requirement-reporter",
     "class-variance-authority": "^0.7.0",

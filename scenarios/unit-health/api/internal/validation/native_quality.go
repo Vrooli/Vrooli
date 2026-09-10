@@ -112,6 +112,7 @@ func collectNativeQualityEvidence(ctx context.Context, collections []qualityColl
 			unavailable = append(unavailable, reason)
 		}
 	}
+	results = catalog.ApplyCatalogEnforcement(results)
 	// Never silently truncate or invent discovered tests for unavailable artifacts.
 	report, err := testquality.BuildReport(catalog.Version, results, 10000, "")
 	if err != nil {

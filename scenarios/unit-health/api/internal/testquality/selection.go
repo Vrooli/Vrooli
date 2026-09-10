@@ -57,6 +57,17 @@ func Select(candidates []Candidate, sampleSize int, seed, sourceIdentity string,
 		return Cohort{}, fmt.Errorf("seed and source identity are required")
 	}
 	ordered := append([]Candidate(nil), candidates...)
+	seen := make(map[string]bool, len(ordered))
+	for _, candidate := range ordered {
+		identity := candidate.Identity()
+		if identity == ":::" {
+			return Cohort{}, fmt.Errorf("candidate identity is required")
+		}
+		if seen[identity] {
+			return Cohort{}, fmt.Errorf("duplicate candidate identity %q", identity)
+		}
+		seen[identity] = true
+	}
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].Identity() < ordered[j].Identity() })
 	cohort := Cohort{SchemaVersion: "test-quality-cohort/v1", PolicyVersion: SelectionPolicyVersion, Seed: seed, SourceIdentity: sourceIdentity, Denominator: len(ordered), Candidates: ordered, Selected: []Candidate{}, Excluded: []Exclusion{}}
 	if len(ordered) == 0 {

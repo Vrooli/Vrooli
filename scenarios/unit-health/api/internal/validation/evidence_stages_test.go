@@ -8,6 +8,7 @@ import (
 	"unit-health/internal/executor"
 )
 
+// [REQ:UH-ANALYZE-011]
 func TestEvidenceStagesNeverInferExecutionOrReviewFromStaticStatus(t *testing.T) {
 	response := Response{RunID: "source", Status: "passed", ProjectionChecks: []ProjectionCheck{{}}}
 	stages := summarizeEvidenceStages(response, false)
@@ -36,5 +37,27 @@ func TestCachedEvidenceStagesRetainOriginalRunAndDoNotClaimFreshExecution(t *tes
 	cached, ok := cachedResponse(evidence.Record{Payload: raw}, "new")
 	if !ok || cached.RunID != "new" || cached.EvidenceStages.SourceRunID != "original" || cached.EvidenceStages.Executed != "cached" || cached.EvidenceStages.Reviewed != "not_supplied" {
 		t.Fatalf("cache provenance lost: %+v", cached)
+	}
+}
+
+func TestEvidenceStagesNormalizationClampsUnknownValues(t *testing.T) {
+	normalized := (EvidenceStages{Configured: "future", Analyzed: "future", Executed: "future", Reviewed: "future"}).Normalized()
+	if normalized.Configured != "unknown" || normalized.Analyzed != "unknown" || normalized.Executed != "unknown" || normalized.Reviewed != "unknown" {
+		t.Fatalf("normalized = %+v", normalized)
+	}
+	if got := (EvidenceStages{Configured: "cached", Analyzed: "partial", Executed: "failed", Reviewed: "not_supplied"}).Normalized(); got.Configured != "cached" || got.Executed != "failed" {
+		t.Fatalf("known stages changed: %+v", got)
+	}
+}
+
+func TestReviewedEvidenceRequiresAttachedObservedCohort(t *testing.T) {
+	base := summarizeEvidenceStages(Response{RunID: "run"}, false)
+	attachReviewedEvidence(base, Request{ReviewedCohortID: "cohort", ReviewedSourceIdentity: "sha256:source", ReviewedObservationCount: 0})
+	if base.Reviewed != "not_supplied" {
+		t.Fatalf("empty cohort overclaimed review: %+v", base)
+	}
+	attachReviewedEvidence(base, Request{ReviewedCohortID: "cohort", ReviewedSourceIdentity: "sha256:source", ReviewedObservationCount: 1})
+	if base.Reviewed != "supplied" {
+		t.Fatalf("observed cohort was not supplied: %+v", base)
 	}
 }

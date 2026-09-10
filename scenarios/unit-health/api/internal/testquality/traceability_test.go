@@ -2,6 +2,7 @@ package testquality
 
 import "testing"
 
+// [REQ:UH-ANALYZE-009]
 func TestRequirementLinksSeparateIdentityExecutionAndResponsibility(t *testing.T) {
 	registry := RequirementRegistry{SchemaVersion: "requirement-registry/v1", Requirements: []RequirementDeclaration{
 		{ID: "UH-CORE-001", Validations: []RequirementResponsibility{{Phase: "unit"}}},
@@ -50,5 +51,17 @@ func TestDuplicateRegistryCannotEstablishMembership(t *testing.T) {
 	report := ReconcileRequirements(RequirementRegistry{SchemaVersion: "requirement-registry/v1", Requirements: []RequirementDeclaration{{ID: "UH-CORE-001"}, {ID: "UH-CORE-001"}}}, ReasonNone, "unit", []TestLinks{{IDs: []string{"UH-CORE-001"}, EvidenceKind: Static}})
 	if report.UnavailableReason != ParseFailure || report.Links[0].Registration != "unknown" {
 		t.Fatalf("duplicate registry: %+v", report)
+	}
+}
+
+func TestTraceabilityNormalizationKeepsUnknownEvidenceExplicit(t *testing.T) {
+	report := TraceabilityReport{SchemaVersion: "old", UnavailableReason: Reason("future"), EvidenceUnavailableReason: Reason("future"), Requirements: []RequirementScope{{ID: "r", Applicability: "maybe"}}, Links: []RequirementLink{{ID: "r", Registration: "maybe", Execution: ExecutionUnknown, Reason: Reason("future")}}}
+	normalized := report.Normalized()
+	if normalized.UnavailableReason != UnsupportedVersion || normalized.EvidenceUnavailableReason == "" || len(normalized.Requirements) != 0 || normalized.Links[0].Registration != "unknown" || normalized.Links[0].Execution != ExecutionUnknown || normalized.Links[0].Reason != UnsupportedVersion {
+		t.Fatalf("normalized report = %+v", normalized)
+	}
+	valid := TraceabilityReport{SchemaVersion: "requirement-traceability/v1", Requirements: []RequirementScope{{ID: "r", Applicability: "maybe"}}, Links: []RequirementLink{{Registration: "registered", Execution: ExecutionPassed}}}.Normalized()
+	if valid.Requirements[0].Applicability != "unknown" || valid.Links[0].Registration != "registered" {
+		t.Fatalf("valid normalization = %+v", valid)
 	}
 }

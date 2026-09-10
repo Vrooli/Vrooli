@@ -3,6 +3,10 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/vrooli/cli-core/cliapptest"
+
+	"unit-health/cli/internal/testutil"
 )
 
 // TestNewAppConstructs is the smoke gate: NewApp() must succeed against
@@ -27,9 +31,13 @@ func TestRunVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp() error: %v", err)
 	}
-	if err := app.Run([]string{"--version"}); err != nil {
-		t.Fatalf("app.Run(--version) error: %v", err)
-	}
+	output := cliapptest.CaptureStdout(t, func() error {
+		if err := app.Run([]string{"--version"}); err != nil {
+			return err
+		}
+		return nil
+	})
+	testutil.RequireContains(t, output, appVersion)
 }
 
 // TestRunHelp exercises cli-core's help renderer through the scenario
@@ -41,9 +49,13 @@ func TestRunHelp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp() error: %v", err)
 	}
-	if err := app.Run([]string{"--help"}); err != nil {
-		t.Fatalf("app.Run(--help) error: %v", err)
-	}
+	output := cliapptest.CaptureStdout(t, func() error {
+		if err := app.Run([]string{"--help"}); err != nil {
+			return err
+		}
+		return nil
+	})
+	testutil.RequireContains(t, output, appName)
 }
 
 // TestMetadata pins the values app.go declares — appName must match the

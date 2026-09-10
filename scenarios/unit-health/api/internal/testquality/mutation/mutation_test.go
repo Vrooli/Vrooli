@@ -2,9 +2,11 @@ package mutation
 
 import (
 	"testing"
+
 	"unit-health/internal/testquality"
 )
 
+// [REQ:UH-ANALYZE-012]
 func TestClassifyMutationOutcomes(t *testing.T) {
 	base := Experiment{MutationID: "m", SourceIdentity: "s", TestIdentity: "t", InContract: true, CompileOK: true, BehaviorChanged: true, EvidenceAvailable: true}
 	cases := []struct {

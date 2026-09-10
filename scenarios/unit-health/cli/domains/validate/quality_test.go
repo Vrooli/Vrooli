@@ -1,10 +1,11 @@
 package validate
 
 import (
-	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation"
-	"google.golang.org/protobuf/encoding/protojson"
 	"strings"
 	"testing"
+
+	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestEvidenceStagesKeepStaticAndHistoricalUnknownSeparate(t *testing.T) {
@@ -41,9 +42,11 @@ func TestQualityGuidanceRemainsProviderOwned(t *testing.T) {
 }
 
 func TestPartialQualityDisplaysFourStatesAndReportedDenominator(t *testing.T) {
-	r := &validationv1.TestQualityReport{SchemaVersion: "test-quality/v1", CatalogVersion: "1", TotalResults: 4,
+	r := &validationv1.TestQualityReport{
+		SchemaVersion: "test-quality/v1", CatalogVersion: "1", TotalResults: 4,
 		Coverage:              []*validationv1.QualityAssessmentCoverage{{RuleId: "rule", SupportProfile: "profile", Discovered: 4, Assessed: 2, Unknown: 1, NotApplicable: 1}},
-		CollectionLimitations: []*validationv1.QualityCollectionLimitation{{Reason: validationv1.QualityReason_QUALITY_REASON_OWNER_UNAVAILABLE, Guidance: "Check missing collector."}}}
+		CollectionLimitations: []*validationv1.QualityCollectionLimitation{{Reason: validationv1.QualityReason_QUALITY_REASON_OWNER_UNAVAILABLE, Guidance: "Check missing collector."}},
+	}
 	for _, s := range []validationv1.QualityCheckStatus{validationv1.QualityCheckStatus_QUALITY_CHECK_STATUS_CHECKED_CLEAN, validationv1.QualityCheckStatus_QUALITY_CHECK_STATUS_VIOLATION, validationv1.QualityCheckStatus_QUALITY_CHECK_STATUS_UNKNOWN, validationv1.QualityCheckStatus_QUALITY_CHECK_STATUS_NOT_APPLICABLE} {
 		r.Results = append(r.Results, &validationv1.QualityCheckResult{Status: s})
 	}
@@ -56,9 +59,11 @@ func TestPartialQualityDisplaysFourStatesAndReportedDenominator(t *testing.T) {
 }
 
 func TestPartialAssessmentKeepsLocationsAndDenominatorUncertainty(t *testing.T) {
-	report := &validationv1.TestQualityReport{SchemaVersion: "test-quality/v1", CatalogVersion: "1", TotalResults: 1,
+	report := &validationv1.TestQualityReport{
+		SchemaVersion: "test-quality/v1", CatalogVersion: "1", TotalResults: 1,
 		UnavailableReason: validationv1.QualityReason_QUALITY_REASON_OWNER_UNAVAILABLE,
-		Results:           []*validationv1.QualityCheckResult{{Status: validationv1.QualityCheckStatus_QUALITY_CHECK_STATUS_CHECKED_CLEAN, Target: &validationv1.QualityTestTarget{File: "a.test.ts", TestId: "case-1"}}}}
+		Results:           []*validationv1.QualityCheckResult{{Status: validationv1.QualityCheckStatus_QUALITY_CHECK_STATUS_CHECKED_CLEAN, Target: &validationv1.QualityTestTarget{File: "a.test.ts", TestId: "case-1"}}},
+	}
 	text := strings.Join(qualityLines(report), "\n")
 	for _, want := range []string{"a.test.ts", "case-1", "[unknown]", "no trustworthy denominator", "severity=", "enforcement="} {
 		if !strings.Contains(text, want) {
@@ -131,6 +136,7 @@ func TestQualityFileScopeAndNativeDetailAreVisible(t *testing.T) {
 	}
 }
 
+// [REQ:UH-ANALYZE-006]
 func TestQualityUnknownWireEnumsAndHistoricalAbsence(t *testing.T) {
 	for _, input := range []string{`{}`, `{"status":0}`, `{"status":999}`} {
 		var row validationv1.QualityCheckResult
@@ -149,10 +155,14 @@ func TestQualityUnknownWireEnumsAndHistoricalAbsence(t *testing.T) {
 }
 
 func TestQualityCleanIsScopedAndTruncationVisible(t *testing.T) {
-	r := &validationv1.TestQualityReport{SchemaVersion: "test-quality/v1", CatalogVersion: "1", TotalResults: 2, Truncated: true, DetailsRef: "run:one/details",
-		Results: []*validationv1.QualityCheckResult{{RuleId: "assertion-observation", RuleVersion: "1", Status: validationv1.QualityCheckStatus_QUALITY_CHECK_STATUS_CHECKED_CLEAN,
+	r := &validationv1.TestQualityReport{
+		SchemaVersion: "test-quality/v1", CatalogVersion: "1", TotalResults: 2, Truncated: true, DetailsRef: "run:one/details",
+		Results: []*validationv1.QualityCheckResult{{
+			RuleId: "assertion-observation", RuleVersion: "1", Status: validationv1.QualityCheckStatus_QUALITY_CHECK_STATUS_CHECKED_CLEAN,
 			Target: &validationv1.QualityTestTarget{File: "x_test.go", TestId: "TestX"}, EvidenceKind: validationv1.QualityEvidenceKind_QUALITY_EVIDENCE_KIND_STATIC,
-			Enforcement: validationv1.QualityEnforcement_QUALITY_ENFORCEMENT_ADVISORY}}}
+			Enforcement: validationv1.QualityEnforcement_QUALITY_ENFORCEMENT_ADVISORY,
+		}},
+	}
 	got := strings.Join(qualityLines(r), "\n")
 	for _, expected := range []string{"[checked_clean]", "not behavioral certification", "Showing 1 of 2", "run:one/details", "QUALITY_EVIDENCE_KIND_STATIC", "QUALITY_ENFORCEMENT_ADVISORY"} {
 		if !strings.Contains(got, expected) {

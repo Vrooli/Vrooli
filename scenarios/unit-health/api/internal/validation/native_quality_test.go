@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 	"testing"
+
 	"unit-health/internal/adapters"
 	"unit-health/internal/testquality"
 )
@@ -16,10 +17,12 @@ type combinedEvidenceStub struct {
 func (s *combinedEvidenceStub) CollectQuality(adapters.QualityInput) ([]testquality.Result, testquality.Reason) {
 	panic("legacy collector must not run beside combined collector")
 }
+
 func (s *combinedEvidenceStub) CollectQualityEvidence(input adapters.QualityInput) ([]testquality.Result, []testquality.TestLinks, testquality.Reason) {
 	s.reads++
 	return s.rows, []testquality.TestLinks{{Target: s.rows[0].Target, IDs: []string{"UH-CORE-001"}, EvidenceKind: testquality.Runtime, Execution: testquality.ExecutionSkipped, RunID: input.RunID, ExpectedRunID: input.RunID}}, testquality.ReasonNone
 }
+
 func TestNativeQualityCollectsRequirementEvidenceOnce(t *testing.T) {
 	collector := &combinedEvidenceStub{nativeQualityStub: nativeQualityStub{rows: []testquality.Result{{RuleID: "assertion-observation", RuleVersion: "1", Target: testquality.Target{Workspace: "ui", File: "a.test.ts", TestID: "native"}, SupportProfile: "react-vitest-v2", Status: testquality.Unknown, Reason: testquality.Skipped}}}}
 	report, links, reason := collectNativeQualityEvidence(context.Background(), []qualityCollection{{collector: collector, input: adapters.QualityInput{RunID: "current"}}}, true, nil)
@@ -36,6 +39,7 @@ type nativeQualityStub struct {
 func (s nativeQualityStub) QualityArtifact(string, string) adapters.Artifact {
 	return adapters.Artifact{}
 }
+
 func (s nativeQualityStub) CollectQuality(adapters.QualityInput) ([]testquality.Result, testquality.Reason) {
 	return s.rows, s.reason
 }
@@ -55,6 +59,30 @@ func TestNativeQualityAggregateCannotHideUnavailableWorkspace(t *testing.T) {
 	collections[1].collector = nativeQualityStub{rows: []testquality.Result{row}, reason: testquality.ReasonNone}
 	if report := collectNativeQuality(collections, true); report.UnavailableReason != testquality.MissingInput {
 		t.Fatalf("duplicate identity became valid: %+v", report)
+	}
+}
+
+func TestPromotedAssertionViolationBlocksOnlyAfterApproval(t *testing.T) {
+	ws := []Workspace{{ID: "fixture", Language: "go", Framework: "gotest"}}
+	row := testquality.Result{
+		RuleID: "assertion-observation", RuleVersion: "1",
+		Target:         testquality.Target{Workspace: "fixture", File: "hollow_test.go", TestID: "TestHollow"},
+		SupportProfile: "go-syntax-v1", Status: testquality.Violation,
+		Reason: testquality.ReasonNone, EvidenceKind: testquality.Static, Enforcement: testquality.Advisory,
+	}
+	if findings := rollupFindings("fixture", ws, []testquality.Result{row}, "now"); len(findings) != 0 {
+		t.Fatalf("advisory violation blocked phase: %+v", findings)
+	}
+	catalog, err := testquality.LoadCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog.Rules[0].DefaultEnforcement = testquality.Blocking
+	catalog.Rules[0].PromotionDecisions[0].Status = "approved"
+	row.Enforcement = catalog.ApplyCatalogEnforcement([]testquality.Result{row})[0].Enforcement
+	findings := rollupFindings("fixture", ws, []testquality.Result{row}, "now")
+	if len(findings) != 1 || findings[0].Code != codeTestQualityViolation || findings[0].Severity != "error" {
+		t.Fatalf("approved blocking violation did not fail fixture phase: %+v", findings)
 	}
 }
 

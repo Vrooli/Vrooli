@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -25,10 +26,22 @@ import (
 )
 
 func main() {
+	if err := runApplication(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+var (
+	runApplication = startApplication
+	preflightRun   = preflight.Run
+	runAPIServer   = apiserver.Run
+)
+
+func startApplication() error {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
-	if preflight.Run(preflight.Config{ScenarioName: "unit-health"}) {
-		return
+	if preflightRun(preflight.Config{ScenarioName: "unit-health"}) {
+		return nil
 	}
 
 	db, err := database.Open(context.Background(), database.Config{
@@ -38,17 +51,17 @@ func main() {
 		MaxIdleConns: 1,
 	})
 	if err != nil {
-		log.Fatalf("Database connection failed: %v", err)
+		return fmt.Errorf("Database connection failed: %w", err)
 	}
 
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
-		log.Fatalf("schema initialization failed: %v", err)
+		return fmt.Errorf("schema initialization failed: %w", err)
 	}
 
 	logger := log.Default()
 	repoRoot, err := repocontract.ResolveRepoRoot()
 	if err != nil {
-		log.Fatalf("resolve repo root: %v", err)
+		return fmt.Errorf("resolve repo root: %w", err)
 	}
 
 	srv := server.New(
@@ -72,11 +85,12 @@ func main() {
 
 	// Unit validation can execute target test suites before writing its
 	// Connect response; the api-core 30s default write timeout is too short.
-	if err := apiserver.Run(apiserver.Config{
+	if err := runAPIServer(apiserver.Config{
 		Handler:      handler,
 		WriteTimeout: 25 * time.Minute,
 		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
-		log.Fatalf("Server error: %v", err)
+		return fmt.Errorf("Server error: %w", err)
 	}
+	return nil
 }

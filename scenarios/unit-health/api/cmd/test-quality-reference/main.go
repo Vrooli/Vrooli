@@ -5,31 +5,45 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
 	"unit-health/internal/testquality"
 )
 
 func main() {
-	output := flag.String("output", "../docs/reference/test-quality-rules.md", "generated reference path")
-	check := flag.Bool("check", false, "check committed output without writing")
-	flag.Parse()
+	if err := run(os.Args[1:]); err != nil {
+		fail(err)
+	}
+}
+
+var exitProcess = os.Exit
+
+func run(args []string) error {
+	flags := flag.NewFlagSet("test-quality-reference", flag.ContinueOnError)
+	flags.SetOutput(os.Stderr)
+	output := flags.String("output", "../docs/reference/test-quality-rules.md", "generated reference path")
+	check := flags.Bool("check", false, "check committed output without writing")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
 	catalog, err := testquality.LoadCatalog()
 	if err != nil {
-		fail(err)
+		return err
 	}
 	want := catalog.EnforcementReference()
 	if *check {
 		data, err := os.ReadFile(*output)
 		if err != nil {
-			fail(err)
+			return err
 		}
 		if string(data) != want {
-			fail(fmt.Errorf("enforcement reference is stale: %s", *output))
+			return fmt.Errorf("enforcement reference is stale: %s", *output)
 		}
-		return
+		return nil
 	}
-	if err := os.WriteFile(*output, []byte(want), 0644); err != nil {
-		fail(err)
+	if err := os.WriteFile(*output, []byte(want), 0o644); err != nil {
+		return err
 	}
+	return nil
 }
 
-func fail(err error) { fmt.Fprintln(os.Stderr, err); os.Exit(1) }
+func fail(err error) { fmt.Fprintln(os.Stderr, err); exitProcess(1) }

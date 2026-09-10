@@ -17,13 +17,14 @@ func qualityFixture(t *testing.T) (adapters.QualityInput, nativeReport) {
 	r := nativeReport{RunID: in.RunID, Schema: "vitest-native/v1", Version: "2.1.9", Profile: "react-vitest-v2", Tests: []nativeTest{{ID: "native-id", File: filepath.Join(root, "a.test.ts"), State: "pass", Enabled: true, Status: testquality.CheckedClean, Reason: testquality.ReasonNone}}}
 	return in, r
 }
+
 func writeNative(t *testing.T, in adapters.QualityInput, r nativeReport) {
 	t.Helper()
 	data, err := json.Marshal(r)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(in.Artifact.Path, data, 0600); err != nil {
+	if err := os.WriteFile(in.Artifact.Path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -92,6 +93,7 @@ func TestNativeRequirementEvidenceRejectsPartialArtifact(t *testing.T) {
 		t.Fatalf("duplicate artifact leaked partial evidence: %+v %+v %s", rows, links, reason)
 	}
 }
+
 func TestNativeQualityTruthfulStates(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
@@ -129,6 +131,7 @@ func TestNativeQualityTruthfulStates(t *testing.T) {
 		})
 	}
 }
+
 func TestNativeQualityRejectsStaleMissingMalformedAndDuplicateEvidence(t *testing.T) {
 	in, report := qualityFixture(t)
 	if _, reason := (Analyzer{}).CollectQuality(in); reason != testquality.MissingInput {
@@ -145,7 +148,7 @@ func TestNativeQualityRejectsStaleMissingMalformedAndDuplicateEvidence(t *testin
 	if _, reason := (Analyzer{}).CollectQuality(in); reason != testquality.ParseFailure {
 		t.Fatal(reason)
 	}
-	if err := os.WriteFile(in.Artifact.Path, []byte("{"), 0600); err != nil {
+	if err := os.WriteFile(in.Artifact.Path, []byte("{"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, reason := (Analyzer{}).CollectQuality(in); reason != testquality.ParseFailure {
@@ -182,7 +185,7 @@ func TestNativeQualityReporterConformance(t *testing.T) {
 		t.Fatalf("native test count: %d", len(report.Tests))
 	}
 	in := adapters.QualityInput{Workspace: "ui", Root: filepath.Dir(report.Tests[0].File), RunID: report.RunID, TestKind: "unit", Executed: true, Artifact: adapters.Artifact{Path: filepath.Join(t.TempDir(), "handoff.json")}}
-	if err := os.WriteFile(in.Artifact.Path, fixture.Handoff, 0600); err != nil {
+	if err := os.WriteFile(in.Artifact.Path, fixture.Handoff, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	rows, reason := (Analyzer{}).CollectQuality(in)

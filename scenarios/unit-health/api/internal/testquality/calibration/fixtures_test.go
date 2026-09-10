@@ -11,19 +11,20 @@ import (
 	"unit-health/internal/testquality"
 )
 
+// [REQ:UH-ANALYZE-003]
 func TestDevelopmentFixturesAndCompleteRetainedInventory(t *testing.T) {
 	cases, err := LoadCases("../testdata", "development.json", "development")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cases) != 28 {
-		t.Fatalf("expected 28 materialized development cases, got %d", len(cases))
+	if len(cases) != 42 {
+		t.Fatalf("expected 42 materialized development cases, got %d", len(cases))
 	}
 	rows, err := Inventory("../testdata", cases)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 80 {
+	if len(rows) != 81 {
 		t.Fatalf("retained required cases lost: %d", len(rows))
 	}
 	pending, materialized := 0, 0
@@ -37,7 +38,7 @@ func TestDevelopmentFixturesAndCompleteRetainedInventory(t *testing.T) {
 			t.Fatalf("unclassified case %+v", row)
 		}
 	}
-	if pending != 0 || materialized != 80 {
+	if pending != 0 || materialized != 81 {
 		t.Fatalf("inventory hid unfinished work: pending=%d materialized=%d", pending, materialized)
 	}
 }

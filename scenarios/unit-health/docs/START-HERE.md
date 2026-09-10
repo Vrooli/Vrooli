@@ -17,8 +17,9 @@ The generated scaffold is intentionally not the product. Treat every
 generated UI surface as placeholder unless it is explicitly listed as
 durable infrastructure below. In particular:
 
-- The `notes` domain is a worked example. Build one real domain beside
-  it, prove that domain is green, then remove the example.
+- The template's starter domain has already been removed. The real
+  domains are `validation` (the analyzer engine) and `health`; add new
+  domains beside them following the pattern at the end of this file.
 - The `AppShell` layout, the centered single-panel home page, the title
   / description / eyebrow text, and the bare-minimum settings surface
   are placeholders. They exist so the template boots green; they are
@@ -34,7 +35,7 @@ durable infrastructure below. In particular:
 
 Binding contract vs. illustrative example: every reference doc this
 scenario ships with — `DESIGN.md`, `PRD.md`, the placeholder shell,
-and the `notes` example — mixes two kinds of guidance. Tokens, motion,
+and the `validation` domain's layout — mixes different kinds of guidance. Tokens, motion,
 status-color semantics, accessibility floors, i18n, and the
 domain/proto/API/CLI/UI shape are **binding contracts**: respect them.
 Specific lists of components, settings, page surfaces, or copy
@@ -108,10 +109,8 @@ EOF
 - [ ] Generate and publish the PRD:
 
 ```bash
-business-health wizard start  # (was: prd generate) unit-health \
-  --context-file /tmp/prd_context_unit-health.md \
-  --publish \
-  --json
+business-health wizard start unit-health --interactive
+business-health wizard preview unit-health
 ```
 
 - [ ] Validate the PRD:
@@ -163,9 +162,7 @@ EOF
 - [ ] Generate requirements:
 
 ```bash
-business-health wizard apply  # (was: requirements generate) unit-health \
-  --context-file /tmp/requirements_context_unit-health.md \
-  --json
+business-health wizard apply unit-health
 ```
 
 - [ ] Validate requirements:
@@ -212,8 +209,9 @@ it exists, and which files it will touch before writing code.
       in `PRD.md` during the charter gate and in
       `docs/concepts/INTEGRATIONS.md` before editing
       `.vrooli/service.json`.
-- [ ] Confirm no dependency is added only because the example `notes`
-      domain happens to use a local SQLite store.
+- [ ] Confirm each dependency is used by a real domain. Today the only
+      declared storage is SQLite (run history); Code Facts is resolved
+      at call time and degrades gracefully rather than being declared.
 
 **Exit criteria:** `.vrooli/service.json` reflects only dependencies
 the real scenario needs.
@@ -294,13 +292,13 @@ deferred, or explicitly not-applicable for a reason.
 
 ### Gate 6 — First Real Vertical Slice
 
-- [ ] Add the first real domain beside the example `notes` domain.
+- [ ] Add the new domain beside `validation` and `health`.
 - [ ] **Start in proto.** Author `packages/proto/schemas/unit-health/v1/<domain>/<domain>.proto`
       with a `service` block FIRST, run `make generate`, then write
       handlers/CLI/UI against the generated `*Procedure` constants and
       `*Service` clients. If you find yourself writing `Path:` as a
       literal string in an `EndpointDescriptor`, stop — codegen will
-      reject it. The only exceptions are the four `RESTReason` values
+      reject it. The only exceptions are the `RESTReason` values
       in `api/internal/module/module.go`.
 - [ ] **Register the proto file** in `api/internal/modules/registry.go`
       by appending a `ProtoFileEntry` to `AllProtoFiles()`. The global
@@ -316,25 +314,28 @@ deferred, or explicitly not-applicable for a reason.
 **Exit criteria:** the first real domain is green across API, CLI, UI,
 and scenario tests.
 
-### Gate 7 — Remove The Example Domain
+### Gate 7 — Remove Starter Residue
 
-- [ ] Delete `api/internal/notes`, `api/handlers/notes`,
-      `cli/domains/notes`, `ui/src/features/notes`,
-      `ui/src/api/notes.ts`, and `ui/src/api/notes.test.ts`.
-- [ ] Remove `notes` imports, module registrations, schema entries, CLI
-      registration, and `<NotesCard />` render.
-- [ ] Remove `notes` command rows from
-      `api/cmd/gen-endpoints/cli_commands_seed.json`, then run
-      `make endpoints`.
-- [ ] Remove notes-specific i18n keys and run `pnpm strings:gen` from
-      `ui/`.
-- [ ] Remove the `notes` block from `ui/src/consts/selectors.ts`.
-- [ ] Verify no product residue remains with focused searches for
-      `notes`, `Notes`, and `NOTES` in `api/`, `cli/`, `ui/src/`,
-      `.vrooli/`, and the scenario's proto schema directory.
+The template's starter domain is already gone from code. This gate is
+the residue check after any domain removal or rename.
+
+- [ ] Delete the retired domain's `api/internal/<domain>`,
+      `api/handlers/<domain>`, `cli/domains/<domain>`,
+      `ui/src/features/<domain>`, and `ui/src/api/<domain>.ts` (plus
+      tests).
+- [ ] Remove its imports, module registrations, schema entries, CLI
+      manifest group, and UI renders.
+- [ ] Run `make endpoints` so `.vrooli/endpoints.json` matches the
+      mounted modules.
+- [ ] Remove its i18n keys and run `pnpm strings:gen` from `ui/`.
+- [ ] Remove its block from `ui/src/consts/selectors.ts`.
+- [ ] Verify no residue remains with focused searches for the domain
+      name in `api/`, `cli/`, `ui/src/`, `.vrooli/`, `docs/`, and the
+      scenario's proto schema directory.
 - [ ] Run `make test`.
 
-**Exit criteria:** only health plus real scenario domains remain.
+**Exit criteria:** only `health` plus real scenario domains remain, and
+docs describe no domain that code does not implement.
 
 ### Gate 7b — Contribute Back To The Component Canon
 
@@ -357,10 +358,10 @@ this tree and the tree has to be real first.
       directory:
 
 ```bash
-react-component-library components draft-begin <component>
+react-component-library components draft-begin "<component>"
 # add the stories/states your experience spec declares
-react-component-library components test <component-id>
-react-component-library components draft-publish <component>
+react-component-library components test "<component-id>"
+react-component-library components draft-publish "<component>"
 ```
 
       A raised component improves every scenario already consuming it, which a
@@ -369,17 +370,15 @@ react-component-library components draft-publish <component>
       it so the canon inherits the claims rather than losing them:
 
 ```bash
-react-component-library components ingest unit-health <tsx-path> <slug> \
-  --experience-contract experience/components/<component>.json \
-  --display-name "<Name>" --slot <slot>
+react-component-library components ingest unit-health "<source-file>" "<slug>" --experience-contract "experience/components/<slug>.json" --display-name "<display-name>" --slot "<slot>"
 ```
 
 - [ ] Validate before calling anything canonical:
 
 ```bash
-react-component-library components test <component-id>
-react-component-library components style-fit <component-id> unit-health
-react-component-library catalog evidence capture <asset-id>
+react-component-library components test "<component-id>"
+react-component-library catalog gates --all --asset-id "<component-id>"
+react-component-library adoptions preflight "<component-id>" unit-health
 ```
 
 - [ ] Read the promotion gate. It requires parity, examples, dependency
@@ -387,14 +386,14 @@ react-component-library catalog evidence capture <asset-id>
       scenario:
 
 ```bash
-react-component-library workflows promotion-readiness <asset-id> \
-  --origin-scenario unit-health
+react-component-library catalog gates release-provenance --asset-id "<asset-id>"
+react-component-library catalog graph "<asset-id>"
 ```
 
 - [ ] Adopt the published version back, then delete the local original:
 
 ```bash
-react-component-library adoptions apply <component-id> unit-health <adopted-path>
+react-component-library workflows start --kind adopt --asset-id "<asset-id>" --target-scenario unit-health --idempotency-key "<idempotency-key>"
 ```
 
       Promotion is not finished while this scenario still runs its own copy.
@@ -433,42 +432,47 @@ complete, and what remains.
   business rules.
 - Domain-owned schemas live next to the domain code.
 - Generated files are regenerated, not hand-edited.
-- `notes` is a worked example, not product functionality.
+- The CLI surface is declared in `cli/manifest.json`; every proto RPC
+  needs a binding there or an `omitted` entry.
 
 Read `docs/concepts/ARCHITECTURE.md` before changing structure, and
 read `docs/internal/TESTING.md` before adding non-trivial tests.
 
-## Replacing The Example Domain
+## Adding A Domain
 
-Build your first real domain side-by-side with `notes`, then remove
-`notes`. Use plural package/folder names such as `tasks`, `profiles`,
-or `orders`; use PascalCase for components and Go exported names.
+The `validation` domain is the worked reference for this scenario:
+proto in `packages/proto/schemas/unit-health/v1/validation/`, engine
+in `api/internal/validation/`, thin Connect handler in
+`api/handlers/validation/`, CLI group `validate` bound in
+`cli/manifest.json` and handled in `cli/domains/validate/`, UI feature
+in `ui/src/features/validation/`, and run-history storage in
+`api/internal/runhistory/schema.sql`. Use plural package/folder names;
+use PascalCase for components and Go exported names.
 
-For a normal proto-backed CRUD domain:
+For a normal proto-backed domain:
 
 1. Add proto messages and a service under
    `packages/proto/schemas/unit-health/v1/<domain>/`, then run
    `make generate` from `packages/proto`.
-2. Add `api/internal/<domain>/` with `types.go`, `repository.go`,
-   storage implementation, `service.go`, `schema.sql`, `schema.go`,
-   tests, and co-located mocks.
+2. Add `api/internal/<domain>/` with the service, any repository and
+   `schema.sql` it owns, tests, and co-located fakes.
 3. Add `api/handlers/<domain>/` with a thin generated Connect handler,
    `module.go`, conversion helpers if needed, endpoint descriptors, and
    tests.
 4. Register the domain schema/endpoints in
    `api/internal/modules/registry.go` and mount the module in
    `api/main.go`.
-5. Add `cli/domains/<domain>/` with declarative `cliapp.ArgSchema`
-   commands that call generated Connect clients, then register the
-   domain in `cli/domains/domains.go`.
-6. Add endpoint-to-command seed rows in
-   `api/cmd/gen-endpoints/cli_commands_seed.json`, then run
-   `make endpoints`.
+5. Add a command group to `cli/manifest.json` whose commands bind
+   `<Service>.<Method>`, then add `cli/domains/<domain>/` handlers that
+   call the generated Connect client and register the domain in
+   `cli/domains/domains.go`. RPCs without a command go in `omitted`.
+6. Run `make endpoints` to regenerate `.vrooli/endpoints.json`.
 7. Add `ui/src/api/<domain>.ts` and `ui/src/features/<domain>/` with
    feature components, mocks, factories, selectors, i18n strings, and
    tests.
 8. Run string/code generation as needed, then run `make test`.
 
-If the domain needs opaque binary uploads, keep bytes on a REST
-multipart edge and keep metadata proto-typed. The example `notes`
-attachments path demonstrates that exception.
+If a domain ever needs opaque binary uploads, keep bytes on a REST
+multipart edge tagged with a `RESTException` and keep metadata
+proto-typed. `GET /health` (ops probe) is the only REST exception this
+scenario has today.

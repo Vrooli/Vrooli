@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -59,6 +60,7 @@ func testSpec(t *testing.T) *assessment.Spec {
 	return spec
 }
 
+// [REQ:UH-CORE-004]
 func TestResponseToProtoMapsFields(t *testing.T) {
 	spec := testSpec(t)
 	out, err := responseToProto(protoMappingFixture(), spec)
@@ -111,7 +113,7 @@ func protoMappingFixture() internalvalidation.Response {
 			FindingCode: "UNIT_POLICY_PROJECTION_DRIFT",
 		}},
 		Findings: []internalvalidation.Finding{
-			{Code: "TEST_NO_ASSERTION", Severity: "warning", Message: "m", Evidence: "role=ui policy_class=react_vite_ui", Expected: "coverage thresholds >= 85", Observed: "coverage thresholds below policy", Remediation: "Restore the template policy projection.", SourceCommand: "go test ./..."},
+			{Code: "TEST_SKIPPED_OR_ONLY", Severity: "warning", Message: "m", Evidence: "role=ui policy_class=react_vite_ui", Expected: "coverage thresholds >= 85", Observed: "coverage thresholds below policy", Remediation: "Restore the template policy projection.", SourceCommand: "go test ./..."},
 			{Code: "LOW_COVERAGE", Severity: "warning", Message: "c"},
 		},
 		Maturity: internalvalidation.Maturity{Rung: 5, Label: "L5"},
@@ -202,13 +204,155 @@ func TestValidateScenarioRejectsEmptyTarget(t *testing.T) {
 	}
 }
 
+type handlerLocator struct {
+	root string
+	err  error
+}
+
+func (l handlerLocator) Locate(context.Context, string, string) (string, string, string, error) {
+	if l.err != nil {
+		return "", "", "", l.err
+	}
+	return "demo", "scenario", l.root, nil
+}
+
+func TestReadTestBodyReturnsBoundedRedactedExcerpt(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "api")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(workspace, "handler_test.go"), []byte("package api\nfunc TestBody(t *testing.T) { token = \"secret-value\" }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	svc := internalvalidation.New()
+	svc.Locator = handlerLocator{root: root}
+	h := NewHandlerWithDeps(Deps{Service: svc})
+	resp, err := h.ReadTestBody(context.Background(), connect.NewRequest(&validationv1.ReadTestBodyRequest{Scenario: "demo", Workspace: "api", File: "handler_test.go", TestId: "TestBody", MaxBytes: 256}))
+	if err != nil {
+		t.Fatalf("ReadTestBody: %v", err)
+	}
+	if resp.Msg.GetTestIdentity() != "api:handler_test.go:TestBody" || resp.Msg.GetRedactions() != 1 || strings.Contains(resp.Msg.GetBodyExcerpt(), "secret-value") {
+		t.Fatalf("body response = %+v", resp.Msg)
+	}
+}
+
+func TestReadTestBodyRejectsInvalidAndUnavailableInputs(t *testing.T) {
+	h := NewHandlerWithDeps(Deps{})
+	if _, err := h.ReadTestBody(context.Background(), connect.NewRequest(&validationv1.ReadTestBodyRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty request code = %v", connect.CodeOf(err))
+	}
+	svc := internalvalidation.New()
+	svc.Locator = handlerLocator{err: errors.New("not found")}
+	h = NewHandlerWithDeps(Deps{Service: svc})
+	_, err := h.ReadTestBody(context.Background(), connect.NewRequest(&validationv1.ReadTestBodyRequest{Scenario: "demo", Workspace: "api", File: "x.go", TestId: "TestX"}))
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing scenario code = %v", connect.CodeOf(err))
+	}
+	if got, err := workspacePath("/tmp/scenario", "../escape"); err == nil || got != "" {
+		t.Fatalf("workspace escape = %q, %v", got, err)
+	}
+	if got, err := workspacePath("/tmp/scenario", "/absolute"); err == nil || got != "" {
+		t.Fatalf("absolute workspace = %q, %v", got, err)
+	}
+}
+
+func TestRunMutationPilotValidatesOwnerBoundaryBeforeRunning(t *testing.T) {
+	h := NewHandlerWithDeps(Deps{})
+	if _, err := h.RunMutationPilot(context.Background(), connect.NewRequest(&validationv1.RunMutationPilotRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty mutation request code = %v", connect.CodeOf(err))
+	}
+
+	svc := internalvalidation.New()
+	svc.Locator = handlerLocator{err: errors.New("scenario unavailable")}
+	h = NewHandlerWithDeps(Deps{Service: svc})
+	req := &validationv1.RunMutationPilotRequest{Scenario: "demo", Workspace: "api", Package: "./internal/testquality/...", Seed: "seed"}
+	if _, err := h.RunMutationPilot(context.Background(), connect.NewRequest(req)); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("locator failure code = %v", connect.CodeOf(err))
+	}
+
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "api"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	svc.Locator = handlerLocator{root: root}
+	for _, workspace := range []string{"../escape", "/absolute", "missing"} {
+		req.Workspace = workspace
+		if _, err := h.RunMutationPilot(context.Background(), connect.NewRequest(req)); connect.CodeOf(err) != connect.CodeInvalidArgument && connect.CodeOf(err) != connect.CodeNotFound {
+			t.Fatalf("workspace %q code = %v", workspace, connect.CodeOf(err))
+		}
+	}
+}
+
+func TestRunCalibrationDevelopmentReportsImplementedCases(t *testing.T) {
+	h := NewHandlerWithDeps(Deps{CalibrationRoot: filepath.Join("..", "..", "internal", "testquality", "testdata")})
+	resp, err := h.RunCalibration(context.Background(), connect.NewRequest(&validationv1.RunCalibrationRequest{Partition: "development"}))
+	if err != nil {
+		t.Fatalf("RunCalibration development: %v", err)
+	}
+	if resp.Msg.GetCorpus().GetImplemented() != 42 || resp.Msg.GetCorpus().GetSpecified() != 81 {
+		t.Fatalf("unexpected corpus inventory: %+v", resp.Msg.GetCorpus())
+	}
+	if len(resp.Msg.GetCases()) != int(resp.Msg.GetCorpus().GetImplemented()) {
+		t.Fatalf("case outcomes = %d, implemented = %d", len(resp.Msg.GetCases()), resp.Msg.GetCorpus().GetImplemented())
+	}
+	for _, row := range resp.Msg.GetCases() {
+		if !row.GetMatched() {
+			t.Fatalf("development case %s did not match: %v", row.GetId(), row.GetDifferences())
+		}
+	}
+}
+
+func TestRunCalibrationInventoryIncludesDevelopmentOutcomes(t *testing.T) {
+	h := NewHandlerWithDeps(Deps{CalibrationRoot: filepath.Join("..", "..", "internal", "testquality", "testdata")})
+	resp, err := h.RunCalibration(context.Background(), connect.NewRequest(&validationv1.RunCalibrationRequest{Partition: "inventory"}))
+	if err != nil {
+		t.Fatalf("RunCalibration inventory: %v", err)
+	}
+	if resp.Msg.GetPartition() != "inventory" || len(resp.Msg.GetCases()) != int(resp.Msg.GetCorpus().GetImplemented()) {
+		t.Fatalf("inventory response = partition %q cases=%d implemented=%d", resp.Msg.GetPartition(), len(resp.Msg.GetCases()), resp.Msg.GetCorpus().GetImplemented())
+	}
+}
+
+func TestRunCalibrationUnknownHoldoutIsNotFound(t *testing.T) {
+	h := NewHandlerWithDeps(Deps{CalibrationRoot: t.TempDir()})
+	_, err := h.RunCalibration(context.Background(), connect.NewRequest(&validationv1.RunCalibrationRequest{Partition: "reviewed-holdout", HoldoutId: "missing"}))
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("code = %v, want not found (err=%v)", connect.CodeOf(err), err)
+	}
+}
+
+func TestRunCalibrationRefusesHoldoutLabelsAfterObservation(t *testing.T) {
+	root := t.TempDir()
+	holdout := filepath.Join(root, "holdouts", "h001")
+	if err := os.MkdirAll(holdout, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	labels := []byte(`{"labelled_at":"2026-09-09T12:00:00Z","labels":[]}`)
+	if err := os.WriteFile(filepath.Join(holdout, "labels.json"), labels, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	observations := []byte(`{"observed_at":"2026-09-09T11:00:00Z","observations":[]}`)
+	if err := os.WriteFile(filepath.Join(holdout, "observations.json"), observations, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h := NewHandlerWithDeps(Deps{CalibrationRoot: root})
+	resp, err := h.RunCalibration(context.Background(), connect.NewRequest(&validationv1.RunCalibrationRequest{Partition: "reviewed-holdout", HoldoutId: "h001"}))
+	if err != nil {
+		t.Fatalf("RunCalibration late labels: %v", err)
+	}
+	if len(resp.Msg.GetHoldout()) != 0 || len(resp.Msg.GetLimitations()) != 1 || resp.Msg.GetLimitations()[0] != "holdout_labels_after_observation" {
+		t.Fatalf("late-label response = %+v", resp.Msg)
+	}
+}
+
 func TestFindingSourceFromDimension(t *testing.T) {
 	spec := testSpec(t)
 	if got := findingSource("LOW_COVERAGE", spec); got.String() != "FINDING_SOURCE_COVERAGE" {
 		t.Errorf("LOW_COVERAGE source = %v, want coverage", got)
 	}
-	if got := findingSource("TEST_NO_ASSERTION", spec); got.String() != "FINDING_SOURCE_STANDARDS" {
-		t.Errorf("TEST_NO_ASSERTION source = %v, want standards", got)
+	if got := findingSource("TEST_SKIPPED_OR_ONLY", spec); got.String() != "FINDING_SOURCE_STANDARDS" {
+		t.Errorf("TEST_SKIPPED_OR_ONLY source = %v, want standards", got)
 	}
 }
 

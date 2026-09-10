@@ -134,7 +134,7 @@ versioned-migration helpers (`Migrate` / `MigrationProvider` in
 
 See [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#domain-owned-schema)
 for the design rationale and [`../internal/SEAMS.md`](../internal/SEAMS.md)
-for the per-seam table including `notes.Schema` and
+for the per-seam table including `runhistory.Schema` and
 `database.SystemSchema`.
 
 ## CLI config file
@@ -160,7 +160,7 @@ Set values via the CLI rather than editing the file directly:
 
 ```bash
 unit-health configure api_base http://localhost:15001/api/v1
-unit-health configure token <token>
+unit-health configure token "<token>"
 ```
 
 ## API-base resolution precedence
@@ -171,7 +171,7 @@ When the CLI calls the API, the base URL is resolved in this order
 1. `--api-base <url>` flag
 2. Scenario-prefixed env vars (above)
 3. CLI config file (`api_base` field)
-4. Vrooli lifecycle port detection (`vrooli scenario port unit-health API_PORT`)
+4. Vrooli lifecycle status and port detection (`vrooli scenario status unit-health --json`)
 5. Compile-time default (only set if explicitly configured in `app.go`)
 
 If none of these resolve, the command exits with an actionable error
@@ -193,7 +193,7 @@ the doc viewer) — keep them in sync with the code they describe.
 ## Unit testing policy profile
 
 Unit Health's policy-profile contract is a joined contract, not a
-surface inventory. Three owners participate:
+surface inventory. The participating owners are:
 
 | Owner | Source | Responsibility |
 |---|---|---|

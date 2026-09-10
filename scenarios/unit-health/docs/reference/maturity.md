@@ -1,37 +1,40 @@
 # Test Maturity Reference — Unit Health
 
-Unit Health reports a **provider-local** test-maturity rung for a scenario.
+Unit Health reports a **provider-local** test-maturity assessment for a scenario.
 It never reports the scenario's overall (global) maturity — `maturity-go` owns
-that. The local ladder and the finding→level mapping are declared in
-[`.vrooli/maturity.json`](../../.vrooli/maturity.json) and validated by
-`packages/maturity-go/assessment`.
+that. The local ladders and the finding→level mapping are declared in the
+`maturity` block of [`.vrooli/test-genie.json`](../../.vrooli/test-genie.json)
+(spec version 2.0.0) and validated by `packages/maturity-go/assessment`. The
+`maturity_spec_test.go` anti-drift test holds the code's severity map and the
+spec's finding map equal in both directions.
 
 This file is the human-readable companion to that machine-readable spec. When
-they disagree, `.vrooli/maturity.json` is the source of truth.
+they disagree, the `maturity` block of `.vrooli/test-genie.json` is the source
+of truth. There is no separate `.vrooli/maturity.json`; earlier drafts of this
+document and the PRD referred to one, and that reference is retired.
 
 ## Local Maturity Ladder (L0–L5)
 
-**Enforced gates vs advisory tiers.** L0–L3 are **enforced gates**: each maps to
-ERROR-severity findings that block local maturity until cleared. L4–L5 are
-**advisory tiers** — they are *measured and reported but never gate*. Every L4/L5
-finding is WARNING/INFO and carries `global_impact: advisory`, so a scenario that
-is clean through L3 is reported at the advisory tier; the L4/L5 findings guide
-hardening but do not hold back the level. This split is enforced by the
-`TestMaturityLadderGateAdvisorySplit` anti-drift test.
+The heading keeps its historical name; the assessment is no longer a single
+L0–L5 ladder. It is a set of capability ladders, each monotone, each capped by
+the findings that map to it. The reported local level is the lowest capability
+level that still has a **required** finding open; the assessment names that
+capability as `highest_priority_capability` together with its `next_unlock`.
 
-| Level | Kind | Name | A scenario reaches this level when… |
-|---|---|---|---|
-| L0 | gate | No reliable test surface | The target cannot be resolved or has no discoverable testable workspace. |
-| L1 | gate | Test surfaces discovered | Every discovered workspace has a runnable test command or an explicit gap finding, and no test execution fails or hangs. |
-| L2 | gate | Canonical test frameworks configured | Each workspace uses its canonical framework (Go `go test`, React/Vite Vitest, Python pytest, Bash bats) with a coverage-capable config; no missing/noncanonical-framework or missing-coverage-config error. |
-| L3 | gate | Testable architecture and shared test utilities | Tests are co-located, share test utilities, never import helpers from production, and exercise injectable seams; no test-architecture error. |
-| L4 | advisory | Coverage and edge-case depth | Advisory: per-file coverage, edge-case presence, and assertion strength are measured as non-blocking warnings. |
-| L5 | advisory | Drift-gated, flake-aware, requirement-linked | Advisory: cross-run flake, runtime growth, and requirement linkage are measured as non-blocking signals informing fleet-readiness. |
+| Capability | Rungs | Top rung means |
+|---|---|---|
+| `surface_discovery` | L0 No reliable test surface → L1 Test surfaces discovered → L2 Discovery clean | Code Facts found every workspace and its parse units without an unsupported unit |
+| `execution_readiness` | L0 Execution unavailable → L1 Commands runnable → L2 Execution clean | Planned commands ran to a classified result inside timeout and watchdog |
+| `framework_config` | L0 Framework missing → L1 Framework configured → L2 Canonical and coverage-capable → L3 Framework config clean | Canonical runner, coverage config, and the policy profile are honored without weakening |
+| `test_architecture` | L0 Architecture contracts unavailable → L1 Architecture comparable → L2 Layout aligned → L3 Architecture clean | Tests are co-located, share a test-utility root, never import helpers from production, and ambient dependencies sit behind seams |
+| `coverage_quality` | L0 Coverage unavailable → L1 Coverage measured → L2 Quality depth clean | Coverage artifacts parse and the advisory depth findings are clean |
+| `stability_traceability` | L0 History unavailable → L1 History measured → L2 Stable and linked | No flake suspicion, no runtime growth, requirements linked to tests |
 
-The **current level** is the highest enforced gate (L0–L3) with no blocking
-finding below it; once L3 is clean the scenario reaches the advisory tier. The
-assessment lists exactly which findings block the next gate. L4/L5 findings are
-reported for guidance but never appear as blocking codes.
+**Enforced versus advisory.** Each finding carries `clean_requirement`:
+`required` findings block their capability's next rung and, at ERROR severity,
+fail the Test Genie `unit` phase; `advisory` findings are measured and reported
+but never block. The split lives in the spec, not in prose; read the table
+below for the current mapping.
 
 ## Global Semantic Impact
 
@@ -41,63 +44,74 @@ rungs directly; `maturity-go` maps these semantic impacts to the global ladder.
 
 | Impact | Meaning for test findings |
 |---|---|
-| `foundation_blocker` | No reliable test surface / tests don't run at all / no framework. |
+| `foundation_blocker` | No reliable test surface, tests do not run at all, or no framework. |
 | `safety_blocker` | Tests hang or stall (no-output watchdog), risking the host. |
-| `evolvability_gap` | Noncanonical framework, missing seams/test-utils. |
-| `hardening_gap` | Missing coverage config, weakened policy, or native projection drift (enforced L2 gates). |
-| `advisory` | All L4/L5 signals: per-file/missing coverage, weak assertions, skipped/render-only tests, missing edge cases, flake, runtime growth, untagged requirements, snapshot overuse, unsupported parse units. These are measured, never gating. |
+| `evolvability_gap` | Noncanonical framework, ungoverned surface, missing seams or test utilities, reimplemented shared seams. |
+| `hardening_gap` | Missing coverage config, weakened policy, invalid waiver, or native projection drift. |
+| `advisory` | Coverage depth, skip/only, assertion, edge-case, flake, runtime growth, and requirement-link signals. Measured, never gating. |
 
 ## Finding Codes
 
-Every code Unit Health emits is mapped in `.vrooli/maturity.json` (the assessor
-fails closed if an unmapped code is emitted).
+Every code in the spec maps to a capability level, a global impact, a dimension,
+a default severity, and a clean requirement. The assessor fails closed when an
+unmapped code is emitted.
 
-| Code | Level | Global impact | Dimension | Default severity |
-|---|---|---|---|---|
-| `TEST_SURFACE_ABSENT` | L0 | foundation_blocker | tests | error |
-| `UNSUPPORTED_PARSE_UNIT` | L1 | advisory | tests | info |
-| `TEST_EXECUTION_FAILURE` | L1 | foundation_blocker | tests | error |
-| `TEST_DEPENDENCY_MISSING` | L1 | foundation_blocker | tests | error |
-| `UNIT_TEST_KIND_OUT_OF_SCOPE` | L1 | advisory | tests | warning |
-| `TEST_TIMEOUT_HANG` | L1 | safety_blocker | tests | error |
-| `UNIT_POLICY_PROFILE_INVALID` | L0 | foundation_blocker | tests | error |
-| `UNIT_REQUIRED_ROLE_MISSING` | L0 | foundation_blocker | tests | error |
-| `UNIT_SURFACE_UNGOVERNED` | L1 | evolvability_gap | tests | warning |
-| `UNIT_POLICY_WEAKENED` | L2 | hardening_gap | coverage | error |
-| `UNIT_POLICY_WAIVER_INVALID` | L1 | hardening_gap | tests | error |
-| `UNIT_POLICY_PROJECTION_DRIFT` | L2 | hardening_gap | tests | error |
-| `TEST_FRAMEWORK_MISSING` | L2 | foundation_blocker | tests | error |
-| `TEST_FRAMEWORK_NONCANONICAL` | L2 | evolvability_gap | tests | error |
-| `COVERAGE_CONFIG_MISSING` | L2 | hardening_gap | coverage | error |
-| `PACKAGE_MANAGER_MISMATCH` | L2 | evolvability_gap | tests | warning |
-| `TEST_MISCONFIGURATION` | L2 | hardening_gap | tests | warning |
-| `TEST_NOT_COLOCATED` | L3 | evolvability_gap | tests | warning |
-| `TEST_UTIL_MISSING` | L3 | evolvability_gap | tests | warning |
-| `TEST_HELPER_FROM_PRODUCTION` | L3 | hardening_gap | tests | error |
-| `MISSING_INJECTABLE_SEAM` | L3 | evolvability_gap | tests | warning |
-| `LOW_COVERAGE` | L4 | advisory | coverage | warning |
-| `COVERAGE_ABSENT` | L4 | advisory | coverage | info |
-| `TEST_SKIPPED_OR_ONLY` | L4 | advisory | tests | warning |
-| `TEST_NO_ASSERTION` | L4 | advisory | tests | warning |
-| `TEST_RENDER_ONLY` | L4 | advisory | tests | warning |
-| `TEST_EXCESSIVE_SNAPSHOTS` | L4 | advisory | tests | info |
-| `TEST_MISSING_EDGE_CASES` | L4 | advisory | tests | warning |
-| `TEST_FLAKE_SUSPECTED` | L5 | advisory | tests | warning |
-| `TEST_RUNTIME_GROWTH` | L5 | advisory | tests | info |
-| `TEST_UNTAGGED_REQUIREMENT` | L5 | advisory | tests | warning |
+| Code | Capability level | Global impact | Dimension | Severity | Clean requirement |
+|---|---|---|---|---|---|
+| `TEST_SURFACE_ABSENT` | L0 | foundation_blocker | tests | error | required |
+| `UNSUPPORTED_PARSE_UNIT` | L1 | advisory | tests | info | advisory |
+| `UNSUPPORTED_TARGET_KIND` | L0 | foundation_blocker | tests | error | required |
+| `UNIT_REQUIRED_ROLE_MISSING` | L0 | foundation_blocker | tests | error | required |
+| `UNIT_SURFACE_UNGOVERNED` | L1 | evolvability_gap | tests | warning | required |
+| `UNIT_TEST_KIND_OUT_OF_SCOPE` | L1 | advisory | tests | warning | required |
+| `TEST_EXECUTION_FAILURE` | L2 | foundation_blocker | tests | error | required |
+| `TEST_DEPENDENCY_MISSING` | L0 | foundation_blocker | tests | error | required |
+| `TEST_TIMEOUT_HANG` | L2 | safety_blocker | tests | error | required |
+| `UNIT_POLICY_PROFILE_INVALID` | L0 | foundation_blocker | tests | error | required |
+| `UNIT_POLICY_WEAKENED` | L2 | hardening_gap | coverage | error | required |
+| `UNIT_POLICY_WAIVER_INVALID` | L1 | hardening_gap | tests | error | required |
+| `UNIT_POLICY_PROJECTION_DRIFT` | L2 | hardening_gap | tests | error | required |
+| `TEST_FRAMEWORK_MISSING` | L0 | foundation_blocker | tests | error | required |
+| `TEST_FRAMEWORK_NONCANONICAL` | L2 | evolvability_gap | tests | error | required |
+| `COVERAGE_CONFIG_MISSING` | L2 | hardening_gap | coverage | error | required |
+| `PACKAGE_MANAGER_MISMATCH` | L3 | evolvability_gap | tests | warning | required |
+| `TEST_MISCONFIGURATION` | L1 | hardening_gap | tests | warning | required |
+| `TEST_NOT_COLOCATED` | L2 | evolvability_gap | tests | warning | required |
+| `TEST_UTIL_MISSING` | L2 | evolvability_gap | tests | warning | required |
+| `TEST_HELPER_FROM_PRODUCTION` | L3 | hardening_gap | tests | error | required |
+| `MISSING_INJECTABLE_SEAM` | L3 | evolvability_gap | tests | warning | required |
+| `SEAM_DUPLICATED_IN_PACKAGE` | L3 | evolvability_gap | tests | error | required |
+| `SEAM_REIMPLEMENTED` | L3 | evolvability_gap | tests | error | required |
+| `COMPANION_REIMPLEMENTED` | L3 | evolvability_gap | tests | error | required |
+| `COMPANION_AVAILABLE` | L3 | evolvability_gap | tests | info | advisory |
+| `LOW_COVERAGE` | L2 | advisory | coverage | warning | advisory |
+| `COVERAGE_ABSENT` | L0 | advisory | coverage | info | advisory |
+| `TEST_EXCESSIVE_SNAPSHOTS` | L2 | advisory | tests | info | advisory |
+| `TEST_FLAKE_SUSPECTED` | L2 | advisory | tests | warning | advisory |
+| `TEST_RUNTIME_GROWTH` | L2 | advisory | tests | info | advisory |
+| `TEST_SKIPPED_OR_ONLY` | L2 | advisory | tests | warning | advisory |
+| `TEST_UNTAGGED_REQUIREMENT` | L2 | advisory | tests | warning | advisory |
 
-Unmapped codes fall back to the `fallback` block (`L1` / `hardening_gap` /
-`tests` / `warning`).
+**Typed quality rollups.** `TEST_SKIPPED_OR_ONLY` is emitted once per workspace
+when typed `focused-test` or `skip-declaration` results contain a violation.
+`TEST_UNTAGGED_REQUIREMENT` is emitted once per workspace for a typed
+`requirement-link` violation. Three non-observable legacy quality codes were
+removed on 2026-09-09 because static syntax cannot establish those claims. The typed
+catalog remains the source of truth for per-test `violation`, `checked_clean`,
+`unknown`, and `not_applicable` results.
+
+Unmapped codes fall back to the spec's `fallback` block.
 
 ## Dimensions
 
 Findings carry a `dimension` so `maturity-go` can route them. Unit Health emits
-only `tests` and `coverage` (the two dimensions it owns after Test Genie's
-`unit` + `coverage` phases collapse into one delegated `unit` phase).
+only `tests` and `coverage` (the dimensions it owns after Test Genie's
+`unit` and `coverage` phases collapsed into one delegated `unit` phase).
 
 ## Cross-references
 
-- [`.vrooli/maturity.json`](../../.vrooli/maturity.json) — machine-readable spec
+- [`.vrooli/test-genie.json`](../../.vrooli/test-genie.json) — the `maturity` block is the machine-readable spec
+- [`test-quality-rules.md`](test-quality-rules.md) — the per-test rule catalog and its promotion prerequisites
 - [`cli-commands.md`](cli-commands.md) — how to read the assessment from the CLI
 - [`api-endpoints.md`](api-endpoints.md) — `ValidateScenario` response shape
 - `packages/maturity-go/assessment` — the shared validator/aggregator

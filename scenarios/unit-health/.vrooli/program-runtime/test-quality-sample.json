@@ -53,7 +53,7 @@
     }
   },
   "assumptions": [
-    "Unit Health and Code Facts own candidate inventory",
+    "Unit Health owns the candidate inventory: the live path folds its validation read's test-quality results into one candidate per test",
     "AI labels are advisory observations and never rule verdicts"
   ],
   "invariants": [
@@ -67,12 +67,14 @@
       "effect": "read"
     },
     {
-      "id": "code-facts/tests/list",
-      "effect": "read"
+      "id": "unit-health/validate/test-body",
+      "effect": "read",
+      "optional": true
     },
     {
       "id": "ai-gateway/inference/run-batch",
-      "effect": "read"
+      "effect": "read",
+      "optional": true
     }
   ],
   "verbs": [
@@ -105,6 +107,8 @@
       "classes": [
         "invalid_input",
         "privacy_refused",
+        "insufficient_context",
+        "body_over_limit",
         "scenario_unreachable",
         "source_drift",
         "partial_results",
@@ -149,11 +153,12 @@
             "testKind": "handler",
             "staticStatus": "checked_clean"
           }
-        ]
+        ],
+        "review_ai": false
       },
       "expect": {
         "status": [
-          "ok"
+          "partial"
         ]
       }
     },
@@ -168,20 +173,6 @@
       "expect": {
         "status": [
           "failed"
-        ]
-      }
-    },
-    {
-      "id": "empty-inventory",
-      "inputs": {
-        "scenario": "unit-health",
-        "seed": "fixture-1",
-        "source_identity": "sha256:fixture",
-        "candidates": []
-      },
-      "expect": {
-        "status": [
-          "unavailable"
         ]
       }
     },
@@ -209,6 +200,39 @@
           "unavailable"
         ]
       }
+    },
+    {
+      "id": "live-review",
+      "inputs": {
+        "scenario": "unit-health",
+        "seed": "fixture-live-review",
+        "source_identity": "sha256:fixture",
+        "sample_size": 2,
+        "review_ai": true
+      },
+      "requires": ["unit-health", "ai-gateway"],
+      "expect": {
+        "status": ["ok", "partial", "unavailable"]
+      }
+    },
+    {
+      "id": "live-inventory",
+      "inputs": {
+        "scenario": "unit-health",
+        "seed": "fixture-live",
+        "source_identity": "sha256:live",
+        "sample_size": 4
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "unit-health"
+      ]
     }
   ],
   "rung": "S3",

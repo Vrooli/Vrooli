@@ -4,27 +4,6 @@ Generated from testquality/catalog.json (catalog 1). Do not edit by hand.
 
 Declared profiles and calibration cases are not certification. Checked clean applies only to the named supported check; unknown is never a pass. Promotion requires separate recorded evidence.
 
-## Sampled review and mutation evidence
-
-`unit-health.test-quality-sample` is the versioned, read-only Program Runtime
-contract for bounded semantic review. It uses `test-quality-stratified/v1`
-selection with a caller-provided seed and source identity. Findings and unknowns
-are prioritized; clean controls remain in the denominator. The output is bounded
-and contains metadata only.
-
-The contract statuses are `ok`, `partial`, `unavailable`, `refused`, and
-`failed`. Partial rows, privacy refusals, unavailable owners, source drift, and
-invalid labels remain visible. AI labels use the closed vocabulary
-`behavioral`, `weak_oracle`, `missing_negative_case`, `implementation_coupled`,
-`valid_exception`, `insufficient_context`, and `uncertain`. These labels are
-advisory and cannot promote a rule.
-
-Independent holdout comparison records denominators, unknowns, exclusions,
-false positives, false negatives, disagreements, and the owner promotion
-decision. Mutation receipts remain separate from sampled observations and use
-the dispositions `killed`, `survived`, `invalid`, `equivalent`,
-`out_of_contract`, `infrastructure_failure`, and `unknown`.
-
 <a id="rule-assertion-observation"></a>
 
 ## assertion-observation
@@ -39,10 +18,12 @@ Recognize supported assertion observations without claiming behavioral adequacy.
 - Severity: warning
 - Default enforcement: advisory
 - Eligible for promotion: true
+- False-positive budget: 0.0500
+- Promotion decisions: 1
 - Promotion prerequisites: reviewed-calibration, reviewed-holdout, native-profile-conformance, false-positive-budget, owner-promotion-decision
 - Calibration cases: C001, C002, C003, C004, C005, C006, C007, C008, C009, C010, C011, C012, C018, C019, C020, C021, C022, C023, C024, C027, C028, C029, C030, C031, C032, C037, C040
 
-A violation is scoped to the declared rule and profile; missing or unsupported evidence is unknown. Native runtime support is implemented for Vitest 2.1.9 only; the Go source profile observes import-bound testing/testify failure mechanisms with package/build-scoped local helper traversal (depth 8, 4096 nodes per body, 1000 files, 1 MiB per file and 16 MiB total). Literal subtests have separate identities. Unresolved calls, cycles and parse failures remain unknown; TestMain, build-excluded tests and supported registered subprocess helpers are not applicable. Static observations are neither executed assertion counts nor negative-path coverage. The public reporter observes requireAssertions with direct, delegated axe, parameterized, local-expect concurrent, custom-matcher, setup, extended and returned-async fixtures. Bare expect, tautologies and setup assertions can satisfy the check without proving matcher completion or behavioral adequacy. Node assert and other alternate assertion libraries are not observed by this native check. Skips and expected-failure inversion remain unknown; failed setup and other failures without assertion-absence evidence remain unknown. Retries retain final state, retry count and prior errors, not fabricated per-attempt history. Command-unique run identities reject stale artifacts. Other installed versions, including api-base's Vitest 1.x profile, are unsupported until independently probed.
+A violation is scoped to the declared rule and profile; missing or unsupported evidence is unknown. Native runtime support is implemented for Vitest 2.1.9 only; the Go source profile observes import-bound testing/testify failure mechanisms with package/build-scoped local helper traversal (depth `num[threshold]:8`, `num[threshold]:4096` nodes per body, `num[threshold]:1000` files, `num[threshold]:1` MiB per file and `num[threshold]:16` MiB total). Literal subtests have separate identities. Unresolved calls, cycles and parse failures remain unknown; TestMain, build-excluded tests and supported registered subprocess helpers are not applicable. Static observations are neither executed assertion counts nor negative-path coverage. The public reporter observes requireAssertions with direct, delegated axe, parameterized, local-expect concurrent, custom-matcher, setup, extended and returned-async fixtures. Bare expect, tautologies and setup assertions can satisfy the check without proving matcher completion or behavioral adequacy. Node assert and other alternate assertion libraries are not observed by this native check. Skips and expected-failure inversion remain unknown; failed setup and other failures without assertion-absence evidence remain unknown. Retries retain final state, retry count and prior errors, not fabricated per-attempt history. Command-unique run identities reject stale artifacts. Other installed versions, including api-base's Vitest 1.x profile, are unsupported until independently probed.
 
 <a id="rule-focused-test"></a>
 
@@ -58,6 +39,8 @@ Detect an executable focused-test declaration, not words in strings.
 - Severity: warning
 - Default enforcement: advisory
 - Eligible for promotion: true
+- False-positive budget: 0.0000
+- Promotion decisions: 0
 - Promotion prerequisites: reviewed-calibration, reviewed-holdout, native-profile-conformance, false-positive-budget, owner-promotion-decision
 - Calibration cases: C035, C036, C037
 
@@ -77,6 +60,8 @@ Detect a supported expectation without a completed matcher.
 - Severity: warning
 - Default enforcement: advisory
 - Eligible for promotion: true
+- False-positive budget: 0.0000
+- Promotion decisions: 0
 - Promotion prerequisites: reviewed-calibration, reviewed-holdout, native-profile-conformance, false-positive-budget, owner-promotion-decision
 - Calibration cases: C021, C025, C028, C031
 
@@ -96,6 +81,8 @@ Require supported asynchronous matchers to be awaited or returned.
 - Severity: warning
 - Default enforcement: advisory
 - Eligible for promotion: true
+- False-positive budget: 0.0000
+- Promotion decisions: 0
 - Promotion prerequisites: reviewed-calibration, reviewed-holdout, native-profile-conformance, false-positive-budget, owner-promotion-decision
 - Calibration cases: C038, C039
 
@@ -109,16 +96,18 @@ Report static skip declarations separately from runtime skipped outcomes.
 
 - Version: 1
 - Implementation: implemented
-- Profiles: go-syntax-v1
+- Profiles: go-syntax-v1, vitest-syntax-1.6.9
 - Test kinds: unit, local-integration
 - Required evidence: source
 - Severity: warning
 - Default enforcement: advisory
 - Eligible for promotion: true
+- False-positive budget: 0.0000
+- Promotion decisions: 0
 - Promotion prerequisites: reviewed-calibration, reviewed-holdout, native-profile-conformance, false-positive-budget, owner-promotion-decision
 - Calibration cases: C013, C014, C034
 
-Go source declarations are not runtime skipped outcomes. A sole direct import-bound testing.T Skip, Skipf or SkipNow statement is an unconditional placeholder violation. Conditional and other direct declarations remain unknown/not-executed. Nested callbacks own their declarations separately; helper traversal and dynamic skips are not covered, and absence of a declaration row is not a clean skip assessment. Build-excluded tests and registered process helpers remain not applicable. The scan is bounded to 4096 nodes per body. C013/C014 cover the implemented Go profile; C034 and the Vitest skip-declaration profile remain unimplemented and uncalibrated. No blocking promotion is implied.
+Go source declarations and Vitest test.skip declarations are not runtime skipped outcomes. A sole direct import-bound testing.T Skip, Skipf or SkipNow statement, or a skip-only Vitest body, is an unconditional placeholder violation. Conditional and other direct declarations remain unknown/not-executed. Nested callbacks own their declarations separately; helper traversal and dynamic skips are not covered, and absence of a declaration row is not a clean skip assessment. Build-excluded tests and registered process helpers remain not applicable. The scan is bounded to `num[threshold]:4096` nodes per body. C013/C014 and the Vitest C034 fixture calibrate the supported source profiles. No blocking promotion is implied.
 
 <a id="rule-requirement-link"></a>
 
@@ -134,6 +123,8 @@ Reconcile actual registry IDs and declared validation ownership.
 - Severity: warning
 - Default enforcement: advisory
 - Eligible for promotion: true
+- False-positive budget: 0.0000
+- Promotion decisions: 0
 - Promotion prerequisites: reviewed-calibration, reviewed-holdout, native-profile-conformance, false-positive-budget, owner-promotion-decision
 - Calibration cases: C057, C058, C059, C060, C061, C062
 
@@ -153,6 +144,8 @@ Compare outcomes only within compatible input cohorts; variation is suspected in
 - Severity: warning
 - Default enforcement: advisory
 - Eligible for promotion: false
+- False-positive budget: 0.0000
+- Promotion decisions: 0
 - Promotion prerequisites: reviewed-calibration, reviewed-holdout, native-profile-conformance, false-positive-budget, owner-promotion-decision
 - Calibration cases: C063, C064, C065, C066, C067
 

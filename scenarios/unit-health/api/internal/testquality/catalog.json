@@ -57,6 +57,19 @@
         "C040"
       ],
       "documentationAnchor": "rule-assertion-observation",
+      "falsePositiveBudget": 0.05,
+      "promotionDecisions": [
+        {
+          "decidedAt": "2026-09-09T08:23:00Z",
+          "decidedBy": "execution-agent",
+          "holdoutId": "assertion-observation-go-v1",
+          "ruleVersion": "1",
+          "fpRate": 0,
+          "fnRate": 0,
+          "budget": 0.05,
+          "status": "requested"
+        }
+      ],
       "failureSemantics": "A violation is scoped to the declared rule and profile; missing or unsupported evidence is unknown. Native runtime support is implemented for Vitest 2.1.9 only; the Go source profile observes import-bound testing/testify failure mechanisms with package/build-scoped local helper traversal (depth 8, 4096 nodes per body, 1000 files, 1 MiB per file and 16 MiB total). Literal subtests have separate identities. Unresolved calls, cycles and parse failures remain unknown; TestMain, build-excluded tests and supported registered subprocess helpers are not applicable. Static observations are neither executed assertion counts nor negative-path coverage. The public reporter observes requireAssertions with direct, delegated axe, parameterized, local-expect concurrent, custom-matcher, setup, extended and returned-async fixtures. Bare expect, tautologies and setup assertions can satisfy the check without proving matcher completion or behavioral adequacy. Node assert and other alternate assertion libraries are not observed by this native check. Skips and expected-failure inversion remain unknown; failed setup and other failures without assertion-absence evidence remain unknown. Retries retain final state, retry count and prior errors, not fabricated per-attempt history. Command-unique run identities reject stale artifacts. Other installed versions, including api-base's Vitest 1.x profile, are unsupported until independently probed."
     },
     {
@@ -164,7 +177,8 @@
       "intent": "Report static skip declarations separately from runtime skipped outcomes.",
       "implementation": "implemented",
       "supportProfiles": [
-        "go-syntax-v1"
+        "go-syntax-v1",
+        "vitest-syntax-1.6.9"
       ],
       "testKinds": [
         "unit",
@@ -189,7 +203,7 @@
         "C034"
       ],
       "documentationAnchor": "rule-skip-declaration",
-      "failureSemantics": "Go source declarations are not runtime skipped outcomes. A sole direct import-bound testing.T Skip, Skipf or SkipNow statement is an unconditional placeholder violation. Conditional and other direct declarations remain unknown/not-executed. Nested callbacks own their declarations separately; helper traversal and dynamic skips are not covered, and absence of a declaration row is not a clean skip assessment. Build-excluded tests and registered process helpers remain not applicable. The scan is bounded to 4096 nodes per body. C013/C014 cover the implemented Go profile; C034 and the Vitest skip-declaration profile remain unimplemented and uncalibrated. No blocking promotion is implied."
+      "failureSemantics": "Go source declarations and Vitest test.skip declarations are not runtime skipped outcomes. A sole direct import-bound testing.T Skip, Skipf or SkipNow statement, or a skip-only Vitest body, is an unconditional placeholder violation. Conditional and other direct declarations remain unknown/not-executed. Nested callbacks own their declarations separately; helper traversal and dynamic skips are not covered, and absence of a declaration row is not a clean skip assessment. Build-excluded tests and registered process helpers remain not applicable. The scan is bounded to 4096 nodes per body. C013/C014 and the Vitest C034 fixture calibrate the supported source profiles. No blocking promotion is implied."
     },
     {
       "id": "requirement-link",

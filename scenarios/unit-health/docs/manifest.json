@@ -102,7 +102,7 @@
             "requiredHeadings": [
               "Initialization Protocol",
               "Architecture Rules",
-              "Replacing The Example Domain"
+              "Adding A Domain"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -131,12 +131,7 @@
           "requiredBy": [
             "generated"
           ],
-          "completion": "required",
-          "validation": {
-            "forbiddenPlaceholders": [
-              "[TODO]"
-            ]
-          }
+          "completion": "required"
         },
         {
           "path": "../PRD.md",
@@ -166,11 +161,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "\ud83c\udfaf Overview",
-              "\ud83c\udfaf Operational Targets",
-              "\ud83e\uddf1 Tech Direction Snapshot",
-              "\ud83e\udd1d Dependencies & Launch Plan",
-              "\ud83c\udfa8 UX & Branding"
+              "🎯 Overview",
+              "🎯 Operational Targets",
+              "🧱 Tech Direction Snapshot",
+              "🤝 Dependencies & Launch Plan",
+              "🎨 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -245,10 +240,10 @@
           "validation": {
             "requiredHeadings": [
               "Prerequisites",
-              "1 \u2014 Setup",
-              "2 \u2014 Start",
-              "3 \u2014 Open",
-              "5 \u2014 Run the tests"
+              "1 — Setup",
+              "2 — Start",
+              "3 — Open",
+              "5 — Run the tests"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -858,6 +853,10 @@
             "test-quality-rule-catalog"
           ],
           "maturity": "active",
+          "requiredBy": [
+            "generated",
+            "implemented"
+          ],
           "completion": "required",
           "validation": {
             "requiredHeadings": [
@@ -891,7 +890,7 @@
           "validation": {
             "requiredHeadings": [
               "System",
-              "Notes (CRUD reference)",
+              "Validation",
               "Adding a new endpoint",
               "Cross-references"
             ],
@@ -921,7 +920,7 @@
           "canonicalFor": [
             "cli-reference"
           ],
-          "maturity": "draft",
+          "maturity": "active",
           "requiredBy": [
             "generated",
             "implemented"
@@ -931,7 +930,7 @@
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Scenario commands \u2014 `notes` (CRUD reference)",
+              "Scenario commands — `validate`",
               "Output contracts",
               "Adding a new command",
               "Cross-references"
@@ -1052,7 +1051,7 @@
             "ladder",
             "levels"
           ],
-          "description": "Local L0-L5 test-maturity ladder, finding codes, and global semantic impacts",
+          "description": "Six capability ladders, finding codes with their clean requirements, and global semantic impacts",
           "audience": [
             "developers",
             "agents"
@@ -1068,7 +1067,7 @@
           "completion": "required",
           "validation": {
             "requiredHeadings": [
-              "Local Maturity Ladder (L0\u2013L5)",
+              "Local Maturity Ladder (L0–L5)",
               "Global Semantic Impact",
               "Finding Codes",
               "Dimensions",
@@ -1078,7 +1077,7 @@
               "[TODO]"
             ],
             "requiredLinks": [
-              ".vrooli/maturity.json"
+              ".vrooli/test-genie.json"
             ]
           }
         }
@@ -1102,7 +1101,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry \u2014 every interface and its production / test fake",
+          "description": "Boundary registry — every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1408,7 +1407,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log \u2014 append a row whenever work lands",
+          "description": "Lifecycle log — append a row whenever work lands",
           "audience": [
             "developers",
             "agents"

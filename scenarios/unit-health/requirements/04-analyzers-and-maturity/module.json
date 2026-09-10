@@ -17,7 +17,7 @@
       "description": "Versioned adapters parse their declared coverage artifacts into normalized per-surface and per-file coverage, and Unit Health emits low-coverage and coverage-absent findings as hardening gaps within the delegated unit phase.",
       "tags": ["coverage", "lcov", "vitest"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "Fixture profiles produce deterministic per-target percentages and threshold findings; absent artifacts produce coverage_absent."}
+        {"type": "unit", "status": "planned", "notes": "Fixture profiles produce deterministic per-target percentages and threshold findings; absent artifacts produce coverage_absent.", "refs": ["api/internal/validation/analyzers_test.go::TestAnalyzeCoverageGoProfile"]}
       ]
     },
     {
@@ -30,7 +30,7 @@
       "description": "The architecture analyzer reports co-location, shared test utilities (internal/testutil, src/test-utils), no-helper-from-production, fixture/mock placement, and injectable-seam usage for time/env/http/logger/repository where inferable from Code Facts.",
       "tags": ["architecture", "seams", "testutil"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "Fixtures cover co-located vs separated tests, missing testutil, and a production import of a test helper."}
+        {"type": "unit", "status": "planned", "notes": "Fixtures cover co-located vs separated tests, missing testutil, and a production import of a test helper.", "refs": ["api/internal/validation/analyzers_test.go::TestAnalyzeArchitectureSharedTestUtilRootWithConsumers"]}
       ]
     },
     {
@@ -43,7 +43,7 @@
       "description": "When a supported test surface is assessed, Unit Health should report calibrated construction findings with the rule version, support profile, evidence kind, and limitations. If helper resolution or required analysis input is unavailable, then Unit Health should report unknown. Names, comments, and successful-input assertions should remain review clues rather than evidence of negative-case protection.",
       "tags": ["quality", "assertions", "edge-cases"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "Owner: Unit Health testquality calibration harness. Exact expected, forbidden, and unknown findings cover aliases, local/imported helpers, sibling subtests, malformed inputs, conditional skip, TestMain, subprocess helpers, and unsupported profiles. Add concrete refs when these behavior tests exist."}
+        {"type": "unit", "status": "planned", "notes": "Owner: Unit Health testquality calibration harness. Exact expected, forbidden, and unknown findings cover aliases, local/imported helpers, sibling subtests, malformed inputs, conditional skip, TestMain, subprocess helpers, and unsupported profiles. Add concrete refs when these behavior tests exist.", "refs": ["api/internal/testquality/calibration/fixtures_test.go::TestDevelopmentFixturesAndCompleteRetainedInventory"]}
       ]
     },
     {
@@ -56,7 +56,7 @@
       "description": "When comparable runtime samples are available, Unit Health may report suspected instability and runtime growth with sample size, failure class, and source, configuration, dependency, toolchain, adapter, policy, platform, and runner identities. If an identity is missing or differs, then Unit Health should preserve that sample as non-comparable evidence rather than treating pass/fail variation as flakiness.",
       "tags": ["flake", "runtime", "history"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "Owner: Unit Health runhistory and diagnostics. Test comparable timing series, changed source/configuration, unknown historical identities, dependency failures, and no-output culprit. Add refs to the actual regression cases during implementation."}
+        {"type": "unit", "status": "planned", "notes": "Owner: Unit Health runhistory and diagnostics. Test comparable timing series, changed source/configuration, unknown historical identities, dependency failures, and no-output culprit. Add refs to the actual regression cases during implementation.", "refs": ["api/internal/validation/reliability_test.go::TestReliabilityExcludesIncompatibleAndInfrastructureHistory"]}
       ]
     },
     {
@@ -69,7 +69,7 @@
       "description": "When an assessment is serialized, persisted, or presented through API, CLI, UI, or Test Genie, Unit Health shall preserve violation, checked_clean, unknown, and not_applicable independently of severity and enforcement. If no runtime observation exists, then Unit Health shall report execution as not observed. Historical absent fields shall remain unknown.",
       "tags": ["quality", "evidence", "presentation"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "Owners: Unit Health contract conversion, handlers, CLI and UI; Test Genie unit projection. Add roundtrip, historical decoding, static-only presentation and cross-consumer tests in phases 6 and 14."}
+        {"type": "unit", "status": "planned", "notes": "Owners: Unit Health contract conversion, handlers, CLI and UI; Test Genie unit projection. Add roundtrip, historical decoding, static-only presentation and cross-consumer tests in phases 6 and 14.", "refs": ["cli/domains/validate/quality_test.go::TestQualityUnknownWireEnumsAndHistoricalAbsence"]}
       ]
     },
     {
@@ -82,7 +82,7 @@
       "description": "When a quality rule is evaluated, Unit Health shall identify its version, supported adapters and test kinds, required inputs, calibration cases, documentation anchor, and promotion state from its rule catalog. If promotion evidence is insufficient for a support profile, then enforcement shall remain advisory for that profile.",
       "tags": ["quality", "catalog", "calibration"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "Owner: Unit Health testquality. Add catalog invariants, deterministic documentation rendering, holdout expectations and promotion refusal tests in phases 6, 7 and 19."}
+        {"type": "unit", "status": "planned", "notes": "Owner: Unit Health testquality. Add catalog invariants, deterministic documentation rendering, holdout expectations and promotion refusal tests in phases 6, 7 and 19.", "refs": ["api/internal/testquality/catalog_test.go::TestCatalogContractAndIndependentCopies"]}
       ]
     },
     {
@@ -95,7 +95,7 @@
       "description": "When discovered targets are assessed, Unit Health shall account for assessed, unknown, and not-applicable targets without dropping unavailable inputs. When result details are bounded, Unit Health shall expose total counts and a retrieval path for omitted details.",
       "tags": ["quality", "discovery", "inventory"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "Owners: Unit Health assessment and governed fleet program. Inject failed target analysis, duplicate identities and bounded pages; assert exact once-only accounting in phases 6, 14 and 21."}
+        {"type": "unit", "status": "planned", "notes": "Owners: Unit Health assessment and governed fleet program. Inject failed target analysis, duplicate identities and bounded pages; assert exact once-only accounting in phases 6, 14 and 21.", "refs": ["api/internal/testquality/model_test.go::TestIncompleteCollectionRetainsIndependentFindingsAndDenominators"]}
       ]
     },
     {
@@ -108,7 +108,7 @@
       "description": "When requirement evidence is requested, Unit Health may reconcile exact registered IDs and validation kinds through the requirement owners. If a linked test is skipped, not run, or unresolved, then Unit Health should retain that outcome separately from passing execution. Suite inheritance and comma-separated markers should use the reporter contract.",
       "tags": ["requirements", "evidence"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "Owners: Test Genie requirement parser/evidence and native requirement reporters, consumed by Unit Health. Add arbitrary-ID, unknown-ID, suite inheritance, multiple-ID, skipped and missing execution regressions in phase 11."}
+        {"type": "unit", "status": "planned", "notes": "Owners: Test Genie requirement parser/evidence and native requirement reporters, consumed by Unit Health. Add arbitrary-ID, unknown-ID, suite inheritance, multiple-ID, skipped and missing execution regressions in phase 11.", "refs": ["api/internal/testquality/traceability_test.go::TestRequirementLinksSeparateIdentityExecutionAndResponsibility"]}
       ]
     },
     {
@@ -121,7 +121,7 @@
       "description": "The maturity assessor loads .vrooli/maturity.json, maps every finding to a local level and global semantic impact, computes the current and next Unit Health level, and fails closed if any emitted finding code lacks a mapping.",
       "tags": ["maturity", "assessor", "maturity-go"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "Tests assert level computation from a finding set and an error when an unmapped code is emitted."}
+        {"type": "unit", "status": "planned", "notes": "Tests assert level computation from a finding set and an error when an unmapped code is emitted.", "refs": ["api/internal/validation/maturity_spec_test.go::TestCodeSeverityMatchesSpec"]}
       ]
     },
     {
@@ -133,7 +133,7 @@
       "criticality": "P1",
       "description": "When bounded sampled review is requested, Unit Health shall select a deterministic stratified cohort with source identity, policy version, seed, denominator, clean controls, and exclusions. If inventory or source identity is unavailable, Unit Health shall report unavailable or unknown.",
       "tags": ["sampling", "cohort", "evidence"],
-      "validation": [{"type": "unit", "status": "planned", "notes": "selection tests cover deterministic reselection, caps, controls, empty inventory, and source drift."}]
+      "validation": [{"type": "unit", "status": "planned", "notes": "selection tests cover deterministic reselection, caps, controls, empty inventory, and source drift.", "refs": ["api/internal/testquality/selection_test.go::TestSelectDeterministicAndIncludesControls"]}]
     },
     {
       "id": "UH-ANALYZE-011",
@@ -144,7 +144,7 @@
       "criticality": "P1",
       "description": "When AI or human sampled observations are presented, Unit Health shall preserve advisory, partial, unavailable, invalid, and stale statuses separately from static and runtime proof. Unit Health shall not promote a rule from model agreement alone.",
       "tags": ["advisory", "ai", "holdout"],
-      "validation": [{"type": "unit", "status": "planned", "notes": "holdout comparison retains unknowns and records independent reviewer, denominator, error counts, and owner decision."}]
+      "validation": [{"type": "unit", "status": "planned", "notes": "holdout comparison retains unknowns and records independent reviewer, denominator, error counts, and owner decision.", "refs": ["api/internal/validation/evidence_stages_test.go::TestEvidenceStagesNeverInferExecutionOrReviewFromStaticStatus"]}]
     },
     {
       "id": "UH-ANALYZE-012",
@@ -155,7 +155,7 @@
       "criticality": "P1",
       "description": "When a disposable mutation pilot runs, Unit Health shall classify each experiment as killed, survived, invalid, equivalent, out_of_contract, infrastructure_failure, or unknown and shall retain source and test identities. Mutations shall not run in the shared worktree.",
       "tags": ["mutation", "evidence", "safety"],
-      "validation": [{"type": "unit", "status": "planned", "notes": "mutation classifier tests cover every disposition and reject missing identities."}]
+      "validation": [{"type": "unit", "status": "planned", "notes": "mutation classifier tests cover every disposition and reject missing identities.", "refs": ["api/internal/testquality/mutation/mutation_test.go::TestClassifyMutationOutcomes"]}]
     }
   ]
 }

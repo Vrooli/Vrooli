@@ -6,22 +6,28 @@ Purpose: Unit Health is Vrooli's test-execution and test-maturity authority. It 
 
 Deployment surfaces: Go API, Go CLI, React/Vite UI, and Test Genie provider integration. The API and CLI are the canonical programmatic surfaces; the UI is an operator inspection console.
 
-Value promise: Test execution, coverage, test architecture, and test maturity become discoverable, bounded, and reusable. Agents get one command — `unit-health validate scenario <name>` — that explains current test maturity, the next level, exactly what blocks it, what would run and why, what failed or hung, and which skills repair each gap. Test Genie stops owning four hard-coded language runners and a separate coverage phase; future scenarios reuse the same test contracts without coupling test policy to templates.
+Value promise: Test execution, coverage, test architecture, and test maturity become discoverable, bounded, and reusable. Agents get one command — `unit-health validate scenario <name>` — that explains current test maturity, the next level, exactly what blocks it, what would run and why, what failed or hung, and which skills repair each gap. Test Genie stops owning template-specific hard-coded language runners and a separate coverage phase; future scenarios reuse the same test contracts without coupling test policy to templates.
 
 ## 🎯 Operational Targets
 
 Operational targets are measurable outcomes; checkboxes may auto-update based on validation.
 
+Close-out note (2026-09-09): OT-P0-004, OT-P1-002, OT-P2-001, and OT-P2-002
+descriptions below reflect the shipped validation, typed test-quality, run-history,
+and requirement-traceability surfaces. Their linked registry requirements remain
+`planned` in the current registry derivation, so their checkboxes are intentionally
+not ticked; implementation evidence and registry completion are separate claims.
+
 ### 🔴 P0 – Must ship for viability
 - [ ] OT-P0-001 | Surface-Aware Test Plan | `unit-health validate scenario <name> --json` calls Code Facts for surfaces and parse units, returns a degraded result when discovery is unavailable, and produces a per-workspace test plan for Go modules, React/Vite TypeScript UIs, and (degraded) Python packages without filesystem-only assumptions.
 - [ ] OT-P0-002 | Bounded Diagnostic Execution | Planned tests run under per-workspace timeout, no-output watchdog, process-group cleanup, bounded concurrency, and memory-aware worker caps; every command returns a structured result classified as pass, test-failure, missing-dependency, misconfiguration, timeout/hang, or system-failure.
 - [ ] OT-P0-003 | Coverage Ownership | Unit Health parses Go cover profiles, LCOV, and Vitest coverage summaries, computes per-surface/per-file coverage, and emits low/missing coverage findings — coverage is part of the unit phase, not a separate Test Genie phase.
-- [ ] OT-P0-004 | Agent-Readable Maturity Assessment | The response includes stable finding codes, evidence, remediation, recommended skills, current and next Unit Health local maturity (L0–L5), the blocking findings for the next level, and global semantic impact grouping — and every emitted finding code maps in `.vrooli/maturity.json`. The ladder is honest about enforcement: **L0–L3 are enforced gates** (ERROR findings block local maturity) while **L4–L5 are advisory tiers** (measured, `global_impact: advisory`, never gating); the `TestMaturityLadderGateAdvisorySplit` anti-drift test holds the split.
+- [ ] OT-P0-004 | Agent-Readable Maturity Assessment | The response includes stable finding codes, evidence, remediation, recommended skills, the current and next level of each local capability ladder, the blocking findings for the next rung, and global semantic impact grouping — and every emitted finding code maps in the `maturity` block of `.vrooli/test-genie.json`. The ladders are honest about enforcement: findings with `clean_requirement: required` gate their capability (ERROR severity fails the phase) while `advisory` findings are measured and never gate; the `maturity_spec_test.go` anti-drift test holds code and spec equal in both directions.
 - [ ] OT-P0-005 | Canonical Framework Contracts | Unit Health detects and requires canonical frameworks (Go `go test`, React/Vite `vitest`, Python `pytest` preferred, Bash `bats`) and reports Jest, missing test scripts, missing coverage config, package-manager mismatch, missing bats tests, and absent bats runner as degraded/error findings — Vitest is canonical for Vrooli React/Vite UIs and bats for shell. Node surfaces get a cross-platform lockfile-frozen dependency install (pnpm/yarn/npm) before vitest, classified as a dependency gap on failure.
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Test Genie Unit Phase Provider | Test Genie shells the `unit` phase to `unit-health validate scenario <name> --json`, maps results through shared maturity metadata into the `tests` and `coverage` dimensions, and retires the internal unit runner plus the separate `coverage` phase.
-- [ ] OT-P1-002 | Test Architecture And Quality Findings | Unit Health reports co-location, shared test utilities, no-helper-from-production, injectable-seam, assertion-strength, render-only, skipped/only, snapshot-overuse, and missing edge-case findings mapped to local maturity and global impact.
+- [ ] OT-P1-002 | Test Architecture And Quality Findings | Unit Health reports co-location, shared test utilities, no-helper-from-production, injectable-seam, and snapshot-overuse findings mapped to local maturity and global impact, and reports per-test assertion, focused-test, malformed-expectation, async-assertion, skip-declaration, and requirement-link observations through the typed test-quality rule catalog (`api/internal/testquality/catalog.json`) with four-valued status. Focused-test and skip-declaration violations roll up to `TEST_SKIPPED_OR_ONLY`, and requirement-link violations roll up to `TEST_UNTAGGED_REQUIREMENT`; three non-observable legacy quality codes were retired from the maturity contract on 2026-09-09.
 - [ ] OT-P1-003 | Operator Inspection UI | The UI shows scenario test maturity, next-level blockers, the test plan table, execution results, a coverage dashboard, architecture/quality findings, artifact/log links, and global impact grouping with loading, empty, degraded, running, and failed states.
 - [ ] OT-P1-004 | CLI Discoverability And Human Default | CLI help exposes `validate scenario` with human output as the default agent/operator workflow and `--json` only for programmatic consumers; output never requires `--json` to be useful.
 
@@ -33,7 +39,7 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: generated React/Vite UI, Go API, Go CLI, proto/Connect contracts, and SQLite only if run-timing history or local cache is implemented. CLI business logic stays thin over API behavior.
 - Data + storage expectations: v1 can be stateless for live validation. If run history lands (flake/runtime diagnostics), store run metadata, command results, and coverage snapshots in local SQLite with deterministic retention.
-- Integration strategy: Code Facts is the source of surface/parse-unit discovery for Go and TypeScript. Test Genie consumes Unit Health as its `unit` phase provider. `packages/maturity-go` validates the `.vrooli/maturity.json` ladder and turns finding impacts into global signals. Shell syntax validation stays with Quality Health/static quality.
+- Integration strategy: Code Facts is the source of surface/parse-unit discovery for Go and TypeScript. Test Genie consumes Unit Health as its `unit` phase provider. `packages/maturity-go` validates the `maturity` block of `.vrooli/test-genie.json` and turns finding impacts into global signals. Shell syntax validation stays with Quality Health/static quality.
 - Non-goals / guardrails: Do not own shell syntax validation, smoke/playbooks/E2E (BAS keeps those), or final global scenario maturity. Do not duplicate Code Facts language/surface discovery for Go/TypeScript. Do not make Jest the canonical React/Vite path. Do not keep legacy internal unit-runner wrappers or a separate `coverage` phase after cutover. Do not require `--json` for the human workflow.
 
 ## 🤝 Dependencies & Launch Plan
@@ -52,4 +58,5 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 - Source plan: `~/.vrooli/plans/unit-health-scenario-and-test-genie-unit-phase-cutover.md`
 - Phase 0 handoff: `~/.vrooli/plans/unit-health-PHASE0-handoff.md`
 - Sibling reference scenario: `scenarios/quality-health` (static-quality cutover).
-- Local maturity ladder: `.vrooli/maturity.json` (L0–L5, provider=`unit-health`, phase=`unit`).
+- Local maturity spec: the `maturity` block of `.vrooli/test-genie.json` (six capability ladders, provider=`unit-health`, phase=`unit`); human companion in `docs/reference/maturity.md`.
+- Scenario skill set: `skills/unit-health/SKILL.md` (usage) and `skills/unit-health-improve/SKILL.md` (improve), declared in `.vrooli/service.json`; the improve board is read by the `unit-health.setpoint-read` program.

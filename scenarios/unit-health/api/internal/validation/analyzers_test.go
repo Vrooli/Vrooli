@@ -7,6 +7,7 @@ import (
 	"unit-health/internal/adapters"
 	"unit-health/internal/executor"
 	"unit-health/internal/runhistory"
+	"unit-health/internal/testquality"
 )
 
 const fixedNowStr = "2026-06-16T12:00:00Z"
@@ -22,6 +23,7 @@ func findingByCode(findings []Finding, code string) (Finding, bool) {
 
 // --- Coverage analyzer ---------------------------------------------------
 
+// [REQ:UH-ANALYZE-001]
 func TestAnalyzeCoverageGoProfile(t *testing.T) {
 	root := t.TempDir()
 	wsDir := filepath.Join(root, "api")
@@ -141,6 +143,21 @@ func TestAnalyzeArchitectureTestUtilMissing(t *testing.T) {
 	}
 }
 
+// [REQ:UH-ANALYZE-002]
+func TestAnalyzeArchitectureSharedTestUtilRootWithConsumers(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(root, "internal", "testutil", "helper.go"), "package testutil\n\nfunc Name() string { return \"shared\" }\n")
+	for _, n := range []string{"a", "b", "c"} {
+		writeFile(t, filepath.Join(root, n+"_test.go"), "package demo\n\nimport \"testing\"\n\nfunc Test"+n+"(t *testing.T) { t.Helper() }\n")
+	}
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "cli", Language: "go", RootPath: root}}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeTestUtilMissing); ok {
+		t.Fatalf("shared testutil root with consumers was reported missing: %v", codes(findings))
+	}
+}
+
 func TestAnalyzeArchitectureGoProjectionDriftMissingImportBan(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
@@ -196,13 +213,6 @@ func TestErrorPath(t *testing.T) {
 	if _, ok := findingByCode(findings, codeTestSkippedOrOnly); ok {
 		t.Errorf("static declaration invented runtime skip evidence: %v", codes(findings))
 	}
-	if _, ok := findingByCode(findings, codeTestNoAssertion); ok {
-		t.Errorf("legacy source path competed with typed adapter evidence: %v", codes(findings))
-	}
-	// Unreachable error text cannot establish semantic edge-case coverage.
-	if _, ok := findingByCode(findings, codeTestMissingEdgeCases); ok {
-		t.Errorf("static syntax must not certify or reject semantic edge-case coverage")
-	}
 }
 
 func TestAnalyzeQualityTSDoesNotInventNativeEvidenceFromSourceNames(t *testing.T) {
@@ -215,9 +225,6 @@ describe.only("App", () => {
 `)
 	ws := Workspace{ID: "ui", Language: "typescript", RootPath: root}
 	findings := analyzeQuality("demo", root, []Workspace{ws}, fixedNowStr)
-	if _, ok := findingByCode(findings, codeTestRenderOnly); ok {
-		t.Errorf("source heuristic invented native assertion evidence: %v", codes(findings))
-	}
 	if _, ok := findingByCode(findings, codeTestSkippedOrOnly); ok {
 		t.Errorf("source heuristic bypassed calibrated native lint: %v", codes(findings))
 	}
@@ -235,32 +242,6 @@ it("reports a rejection", () => {
 	findings := analyzeQuality("demo", root, []Workspace{ws}, fixedNowStr)
 	if _, ok := findingByCode(findings, codeTestSkippedOrOnly); ok {
 		t.Errorf("ordinary fit text must not be treated as a focused test, got %v", codes(findings))
-	}
-}
-
-func TestAnalyzeQualityGoDoesNotTreatTestMainAsAssertionFree(t *testing.T) {
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "x_test.go"), `package demo
-
-import (
-  "os"
-  "testing"
-)
-
-func TestMain(m *testing.M) {
-  os.Exit(m.Run())
-}
-
-func TestProtectedBehavior(t *testing.T) {
-  if 1 != 1 {
-    t.Fatal("unexpected")
-  }
-}
-`)
-	ws := Workspace{ID: "api", Language: "go", RootPath: root}
-	findings := analyzeQuality("demo", root, []Workspace{ws}, fixedNowStr)
-	if _, ok := findingByCode(findings, codeTestNoAssertion); ok {
-		t.Errorf("TestMain lifecycle hook must not be treated as assertion-free, got %v", codes(findings))
 	}
 }
 
@@ -289,6 +270,38 @@ func TestAnalyzeQualityTaggedRequirementIsClean(t *testing.T) {
 }
 
 // --- Diagnostics analyzer -----------------------------------------------
+
+func TestRollupFindingsMapsTypedViolationsPerWorkspace(t *testing.T) {
+	workspaces := []Workspace{{ID: "ui", Language: "typescript", Framework: "vite", RootPath: "/ui"}, {ID: "api", Language: "go", Framework: "go", RootPath: "/api"}}
+	results := []testquality.Result{
+		{RuleID: "focused-test", Target: testquality.Target{Workspace: "ui", File: "App.test.tsx", TestID: "App"}, Status: testquality.Violation},
+		{RuleID: "skip-declaration", Target: testquality.Target{Workspace: "api", File: "handler_test.go", TestID: "TestPlaceholder"}, Status: testquality.Violation},
+		{RuleID: "requirement-link", Target: testquality.Target{Workspace: "api", File: "handler_test.go", TestID: "TestUnlinked"}, Status: testquality.Violation},
+		{RuleID: "focused-test", Target: testquality.Target{Workspace: "ui", File: "other.test.tsx", TestID: "Unknown"}, Status: testquality.Unknown},
+	}
+
+	findings := rollupFindings("demo", workspaces, results, fixedNowStr)
+	if len(findings) != 3 {
+		t.Fatalf("rollups=%d, want three bounded workspace/rule findings: %+v", len(findings), findings)
+	}
+	if finding, ok := findingByCode(findings, codeTestSkippedOrOnly); !ok || finding.WorkspaceID != "ui" || finding.Evidence != "violating tests: App.test.tsx#App (focused-test)" {
+		t.Fatalf("focused-test rollup=%+v", finding)
+	}
+	if finding, ok := findingByCode(findings, codeTestUntaggedRequirement); !ok || finding.WorkspaceID != "api" || finding.Evidence != "violating tests: handler_test.go#TestUnlinked (requirement-link)" {
+		t.Fatalf("requirement-link rollup=%+v", finding)
+	}
+}
+
+func TestRollupFindingsDoesNotPromoteUnknownOrClean(t *testing.T) {
+	workspaces := []Workspace{{ID: "ui", Language: "typescript", RootPath: "/ui"}}
+	results := []testquality.Result{
+		{RuleID: "focused-test", Target: testquality.Target{Workspace: "ui", File: "App.test.tsx", TestID: "App"}, Status: testquality.Unknown},
+		{RuleID: "skip-declaration", Target: testquality.Target{Workspace: "ui", File: "other.test.tsx", TestID: "Other"}, Status: testquality.CheckedClean},
+	}
+	if findings := rollupFindings("demo", workspaces, results, fixedNowStr); len(findings) != 0 {
+		t.Fatalf("unknown/clean results produced rollups: %+v", findings)
+	}
+}
 
 func TestAnalyzeDiagnosticsRuntimePressureAndHang(t *testing.T) {
 	plan := ExecutionPlan{Commands: []PlannedCommand{

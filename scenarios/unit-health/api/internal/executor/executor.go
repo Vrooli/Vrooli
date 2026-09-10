@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/platform-go"
+	"unit-health/internal/envx"
 )
 
 // Failure classes Unit Health distinguishes. The validation package maps these
@@ -145,11 +146,20 @@ type Runner interface {
 	Run(ctx context.Context, cmd Command) Result
 }
 
+// EnvReader is the narrow process-environment surface used by command setup.
+// Production wires envx.OS; tests provide a deterministic map-backed reader.
+type EnvReader interface {
+	Getenv(string) string
+	LookupEnv(string) (string, bool)
+	Environ() []string
+}
+
 // Bounded is the default Runner. Zero value is usable.
 type Bounded struct {
 	// NoOutputTimeout cancels a command that produces no output for this long.
 	// Defaults to defaultNoOutputTimeout when zero.
 	NoOutputTimeout time.Duration
+	Env             EnvReader
 }
 
 // RunAll executes commands with bounded concurrency, preserving input order in
@@ -240,7 +250,7 @@ func (b Bounded) Run(ctx context.Context, cmd Command) Result {
 
 	var c *exec.Cmd
 	var temporaryRoot string
-	goWorkDir, err := createGoWorkDir("unit-health-")
+	goWorkDir, err := createGoWorkDir("unit-health-", b.Env)
 	if err != nil {
 		res.Status = StatusError
 		res.FailureClass = ClassSystem
@@ -279,7 +289,7 @@ func (b Bounded) Run(ctx context.Context, cmd Command) Result {
 	if cmd.Dir != "" {
 		c.Dir = cmd.Dir
 	}
-	c.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(scrubbedEnviron(path)), envkit.SameScenario, envkit.Env{"GOWORK=off", "CI=1", "GOTMPDIR=" + goWorkDir}), envkit.ToolchainOptions{})
+	c.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(scrubbedEnviron(path, b.Env)), envkit.SameScenario, envkit.Env{"GOWORK=off", "CI=1", "GOTMPDIR=" + goWorkDir}), envkit.ToolchainOptions{})
 	keys := make([]string, 0, len(cmd.Env))
 	canonicalEnv := make(map[string]string, len(cmd.Env))
 	for key, value := range cmd.Env {
@@ -573,8 +583,9 @@ func killGroup(cmd *exec.Cmd) {
 	_ = platform.KillProcess(cmd.Process.Pid, true)
 }
 
-func createGoWorkDir(prefix string) (string, error) {
-	base := strings.TrimSpace(os.Getenv("VROOLI_HOME"))
+func createGoWorkDir(prefix string, readers ...EnvReader) (string, error) {
+	env := resolveEnvReader(readers...)
+	base := strings.TrimSpace(env.Getenv("VROOLI_HOME"))
 	if base == "" {
 		if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
 			base = filepath.Join(home, ".vrooli")
@@ -616,8 +627,8 @@ var scenarioIdentityEnvVars = map[string]struct{}{
 // may point at a different installation and make the selected binary load an
 // incompatible standard library. Omitting those overrides lets Go use the root
 // embedded in (or discovered from) the resolved executable on every platform.
-func scrubbedEnviron(executable string) []string {
-	env := os.Environ()
+func scrubbedEnviron(executable string, readers ...EnvReader) []string {
+	env := resolveEnvReader(readers...).Environ()
 	out := make([]string, 0, len(env))
 	scrubGoRoot := isGoExecutable(executable)
 	for _, kv := range env {
@@ -628,6 +639,15 @@ func scrubbedEnviron(executable string) []string {
 		out = append(out, kv)
 	}
 	return out
+}
+
+func resolveEnvReader(readers ...EnvReader) EnvReader {
+	for _, reader := range readers {
+		if reader != nil {
+			return reader
+		}
+	}
+	return envx.OS{}
 }
 
 func isGoExecutable(executable string) bool {

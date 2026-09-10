@@ -64,10 +64,11 @@ func Module(logger *log.Logger, repoRoot string, history runhistory.Store) modul
 		environment = nil
 	}
 	handler := NewHandlerWithDeps(Deps{
-		Service:      svc,
-		Logger:       logger,
-		MaturitySpec: spec,
-		Environment:  environment,
+		Service:         svc,
+		Logger:          logger,
+		MaturitySpec:    spec,
+		Environment:     environment,
+		CalibrationRoot: filepath.Join(repoRoot, "scenarios", "unit-health", "api", "internal", "testquality", "testdata"),
 	})
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(handler)
 	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(NewSharedHandler(handler), describer))
@@ -111,9 +112,42 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Validate scenario test maturity",
 		Description: "Discovers test surfaces through Code Facts, plans and optionally runs the canonical test commands, analyzes coverage/architecture/quality, and returns normalized findings plus a shared maturity assessment.",
 		Category:    "validation",
-		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "workspaces": "array<string>", "include_execution": "bool", "use_cache": "bool", "fast_test_only": "bool"}},
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "workspaces": "array<string>", "include_execution": "bool", "use_cache": "bool", "fast_test_only": "bool", "reviewed_cohort_id": "string", "reviewed_source_identity": "string", "reviewed_observation_count": "uint32"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"status": "string", "surfaces": "array<TestSurface>", "workspaces": "array<TestWorkspace>", "findings": "array<ValidationFinding>", "coverage": "array<CoverageTarget>", "projection_checks": "array<ProjectionCheck>", "maturity": "MaturitySummary", "assessment": "common.v1.MaturityAssessment", "cache_hit": "bool", "cache_miss_reason": "string", "cache_invalidated_dimensions": "array<string>", "cache_saved_wall_time_ms": "int64", "cache_saved_cpu_time_ms": "int64", "cache_retained_bytes": "int64"}},
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}},
+	},
+	{
+		ID:          "validation_run_calibration",
+		Path:        validationconnect.ValidationServiceRunCalibrationProcedure,
+		Method:      "POST",
+		Summary:     "Run governed test-quality calibration",
+		Description: "Compares the authored calibration corpus or a reviewed holdout with adapter observations without promoting a rule automatically.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"partition": "string", "holdout_id": "string", "include_native": "bool", "rule_id": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"run_id": "string", "partition": "string", "corpus": "CorpusInventory", "cases": "array<CaseOutcome>", "holdout": "array<HoldoutComparison>", "limitations": "array<string>"}},
+		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Calibration partition or fixture is invalid"}, {Status: 404, Code: "not_found", Description: "Reviewed holdout is not available"}},
+	},
+	{
+		ID:          "validation_read_test_body",
+		Path:        validationconnect.ValidationServiceReadTestBodyProcedure,
+		Method:      "POST",
+		Summary:     "Read a bounded redacted test body",
+		Description: "Returns one governed source excerpt for sampled review with a 4096-byte ceiling and privacy-pattern refusal.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "workspace": "string", "file": "string", "test_id": "string", "max_bytes": "uint32"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"test_identity": "string", "body_excerpt": "string", "body_bytes": "uint32", "redactions": "uint32", "refused": "bool", "refusal_reason": "string"}},
+		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Test body request is invalid"}, {Status: 404, Code: "not_found", Description: "Scenario, workspace, file, or test is not available"}},
+	},
+	{
+		ID:          "validation_run_mutation_pilot",
+		Path:        validationconnect.ValidationServiceRunMutationPilotProcedure,
+		Method:      "POST",
+		Summary:     "Run a bounded disposable mutation pilot",
+		Description: "Applies bounded go/ast mutations in scenario cache copies and runs the owning tests through Unit Health's executor.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "workspace": "string", "package": "string", "operators": "array<string>", "max_mutants": "uint32", "seed": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"run_id": "string", "workspace_path": "string", "receipts": "array<MutantReceipt>", "summary": "MutationSummary", "limitations": "array<string>"}},
+		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Mutation pilot request is invalid"}, {Status: 404, Code: "not_found", Description: "Scenario or workspace is not available"}},
 	},
 	{
 		ID:          "scenario_validation_validate_scenario",

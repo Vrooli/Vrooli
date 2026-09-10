@@ -20,7 +20,7 @@ import (
 	"unit-health/internal/testquality"
 )
 
-var syntaxRules = []string{"focused-test", "malformed-expectation", "async-assertion"}
+var syntaxRules = []string{"focused-test", "malformed-expectation", "async-assertion", "skip-declaration"}
 
 func (Analyzer) CollectSyntax(ctx context.Context, input adapters.QualityInput) ([]testquality.Result, testquality.Reason) {
 	files, err := syntaxFiles(input.Root)
@@ -91,13 +91,13 @@ func unknownSyntax(input adapters.QualityInput, files []string, reason testquali
 func convertSyntax(input adapters.QualityInput, files []string, response *auditv1.ObserveTestSyntaxResponse) []testquality.Result {
 	rows := unknownSyntax(input, files, testquality.MissingInput)
 	if response == nil {
-		return rows
+		return applySkipProjection(input, rows)
 	}
 	if response.GetSchemaVersion() != "vitest-lint/v1" {
-		return unknownSyntax(input, files, testquality.UnsupportedVersion)
+		return applySkipProjection(input, unknownSyntax(input, files, testquality.UnsupportedVersion))
 	}
 	if response.GetUnavailableReason() != "" {
-		return unknownSyntax(input, files, testquality.NormalizeReason(testquality.Reason(response.GetUnavailableReason())))
+		return applySkipProjection(input, unknownSyntax(input, files, testquality.NormalizeReason(testquality.Reason(response.GetUnavailableReason()))))
 	}
 	byFile := map[string]*auditv1.TestSyntaxObservation{}
 	digests := map[string]string{}
@@ -188,6 +188,43 @@ func convertSyntax(input adapters.QualityInput, files []string, response *auditv
 			row.Location = row.Diagnostics[0].Location
 		}
 		*row = row.Normalized()
+	}
+	return applySkipProjectionWithDigests(input, rows, digests)
+}
+
+func applySkipProjection(input adapters.QualityInput, rows []testquality.Result) []testquality.Result {
+	digests := map[string]string{}
+	for i := range rows {
+		if rows[i].RuleID != "skip-declaration" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(input.Root, rows[i].Target.File))
+		if err != nil {
+			continue
+		}
+		digest := sha256.Sum256(data)
+		digests[rows[i].Target.File] = hex.EncodeToString(digest[:])
+	}
+	return applySkipProjectionWithDigests(input, rows, digests)
+}
+
+func applySkipProjectionWithDigests(input adapters.QualityInput, rows []testquality.Result, digests map[string]string) []testquality.Result {
+	for i := range rows {
+		if rows[i].RuleID != "skip-declaration" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(input.Root, rows[i].Target.File))
+		if err != nil {
+			continue
+		}
+		projection := projectSkipDeclaration(string(data), rows[i].Target.File)
+		rows[i].Status, rows[i].Reason = projection.Status, projection.Reason
+		rows[i].EvidenceKind = projection.EvidenceKind
+		rows[i].EvidenceRefs = []string{"unit-health:source/" + digests[rows[i].Target.File] + "/" + rows[i].Target.File}
+		rows[i].Limitations = projection.Limitations
+		rows[i].Location = projection.Location
+		rows[i].Diagnostics = nil
+		rows[i] = rows[i].Normalized()
 	}
 	return rows
 }

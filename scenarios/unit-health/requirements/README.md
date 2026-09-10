@@ -15,4 +15,4 @@ Generated scenarios start with `01-foundation/module.json` so Test Genie can val
 - Remove or replace `01-foundation/module.json` once real PRD-generated modules exist.
 - Tag tests with `[REQ:ID]` so auto-sync can update status.
 - Never add compatibility shims (duplicate folders or alias imports) during migrations—let things fail temporarily instead of adding debt.
-- Keep this README under 100 lines. Use `scenarios/test-genie/docs/reference/requirement-schema.md` for schema details and `scenarios/test-genie/docs/phases/business/requirements-sync.md` for auto-sync behavior.
+- Keep this README under `num[target]:100` lines. Use `scenarios/test-genie/docs/reference/requirement-schema.md` for schema details and `scenarios/test-genie/docs/phases/business/requirements-sync.md` for auto-sync behavior.

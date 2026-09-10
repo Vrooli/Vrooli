@@ -1,12 +1,84 @@
 package discovery
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
+
+type failingResolver struct{}
+
+func (failingResolver) ResolveScenarioURLDefault(context.Context, string) (string, error) {
+	return "", os.ErrNotExist
+}
+
+func TestDiscoveryHelpersCoverLocatorFallbackAndObservedToolchains(t *testing.T) {
+	root := t.TempDir()
+	if name, kind, got, err := (DefaultLocator{}).Locate(context.Background(), "demo", root); err != nil || name != "demo" || kind != "path" || got == "" {
+		t.Fatalf("path locate = %q,%q,%q,%v", name, kind, got, err)
+	}
+	if _, _, _, err := (DefaultLocator{RepoRoot: root}).Locate(context.Background(), "", ""); err == nil {
+		t.Fatal("empty locator accepted")
+	}
+	for _, kind := range []string{"scenario", "package", "control-plane", "resource", "project", "other"} {
+		if targetKindToProto(kind).String() == "" {
+			t.Fatalf("empty target kind for %s", kind)
+		}
+	}
+	for _, observation := range []ToolchainObservation{{RunnerIndicators: []string{"dependency:vitest"}}, {RunnerIndicators: []string{"devDependency:jest"}}, {RunnerIndicators: []string{"config:pytest"}}, {Ecosystem: "go"}, {Ecosystem: "rust"}, {Ecosystem: "bash", RunnerIndicators: []string{"source:.bats"}}} {
+		if frameworkFromToolchain(observation) == "" {
+			t.Fatalf("toolchain not recognized: %+v", observation)
+		}
+	}
+	if confidence(nil) != 0.8 || confidence([]*factsv1.Evidence{{Confidence: 0.9}}) != 0.9 {
+		t.Fatal("confidence calculation failed")
+	}
+	for _, name := range []string{"pyproject.toml", "setup.py", "requirements.txt"} {
+		dir := t.TempDir()
+		write(t, filepath.Join(dir, name), "")
+		if !hasPythonIndicators(dir) {
+			t.Fatalf("python marker %s not recognized", name)
+		}
+	}
+	shell := t.TempDir()
+	write(t, filepath.Join(shell, "run.sh"), "#!/bin/sh\n")
+	if !hasShellIndicators(shell) {
+		t.Fatal("shell indicator not recognized")
+	}
+	for _, want := range []struct{ name, file, language string }{{"go", "go.mod", "go"}, {"typescript", "tsconfig.json", "typescript"}, {"javascript", "package.json", "javascript"}} {
+		dir := t.TempDir()
+		write(t, filepath.Join(dir, want.file), "{}")
+		if languageFromRoot(dir) != want.language {
+			t.Fatalf("language for %s = %q", want.name, languageFromRoot(dir))
+		}
+	}
+	if languageFromRoot(t.TempDir()) != "unknown" {
+		t.Fatal("empty root was not unknown")
+	}
+	nested := t.TempDir()
+	mkdir(t, filepath.Join(nested, "cli"))
+	write(t, filepath.Join(nested, "cli", "package.json"), `{"devDependencies":{"vitest":"1"}}`)
+	inv := fallbackInventory("demo", "scenario", nested)
+	if len(inv.Surfaces) != 1 || inv.Surfaces[0].ID != "cli" {
+		t.Fatalf("nested fallback = %+v", inv)
+	}
+	if report := fromCodeFacts(nil, "demo", "scenario", root); report.DegradedReason == "" {
+		t.Fatal("nil Code Facts report was not degraded")
+	}
+}
+
+func TestCodeFactsDiscoverDegradesWhenOwnerUnavailable(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "go.mod"), "module demo\n")
+	client := CodeFactsClient{Resolver: failingResolver{}, Locator: DefaultLocator{}}
+	inv, err := client.Discover(context.Background(), "demo", "scenario", root, false)
+	if err != nil || inv.DegradedReason == "" || len(inv.Surfaces) != 1 {
+		t.Fatalf("degraded discovery = %+v, %v", inv, err)
+	}
+}
 
 func TestFromCodeFactsMapsSurfacesAndLanguages(t *testing.T) {
 	root := t.TempDir()

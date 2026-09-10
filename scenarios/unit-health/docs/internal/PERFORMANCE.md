@@ -24,9 +24,9 @@ Use this document to answer:
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| Web Console representative Vitest file | 5 repeated warm samples: median/p90 1.44/1.81 s wall, 1.83/2.21 s user CPU, 145,048/150,108 KiB peak RSS | `/usr/bin/time` + `vitest run src/stores/voiceSilenceDefaults.test.ts` | 2026-08-21 |
-| Swarm Manager representative Vitest file | 5 repeated warm samples: median/p90 4.55/4.62 s wall, 1.94/2.01 s user CPU, 149,472/153,308 KiB peak RSS | `/usr/bin/time` + `vitest run src/stores/agent-session-store.test.ts` | 2026-08-21 |
-| React Component Library representative Vitest file | 5 repeated warm samples: median/p90 1.66/1.74 s wall, 1.93/1.98 s user CPU, 177,984/180,524 KiB peak RSS | `/usr/bin/time` + `vitest run src/components/adopted-foundations.test.tsx` | 2026-08-21 |
+| Web Console representative Vitest file | `num[sot]:5` repeated warm samples: median/p90 1.44/1.81 s wall, 1.83/2.21 s user CPU, 145,048/150,108 KiB peak RSS | `/usr/bin/time` + `vitest run src/stores/voiceSilenceDefaults.test.ts` | 2026-08-21 |
+| Swarm Manager representative Vitest file | `num[sot]:5` repeated warm samples: median/p90 4.55/4.62 s wall, 1.94/2.01 s user CPU, 149,472/153,308 KiB peak RSS | `/usr/bin/time` + `vitest run src/stores/agent-session-store.test.ts` | 2026-08-21 |
+| React Component Library representative Vitest file | `num[sot]:5` repeated warm samples: median/p90 1.66/1.74 s wall, 1.93/1.98 s user CPU, 177,984/180,524 KiB peak RSS | `/usr/bin/time` + `vitest run src/components/adopted-foundations.test.tsx` | 2026-08-21 |
 
 These are five repeated warm targeted smoke samples, not the required five
 cold/five warm full-suite measurements or the three-suite geometric-mean
@@ -134,7 +134,7 @@ these hosted native results.
 
 ## Known Constraints
 
-- Vite production builds may process thousands of modules and take
+- Vite production builds may process many modules and take
   several minutes.
 - Performance budgets for real product workflows must be defined after
   domains and UX flows are known.

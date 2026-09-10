@@ -2,6 +2,7 @@ package testquality
 
 import "testing"
 
+// [REQ:UH-ANALYZE-010]
 func TestSelectDeterministicAndIncludesControls(t *testing.T) {
 	rows := []Candidate{
 		{Workspace: "api", File: "a_test.go", TestID: "TestBad", Framework: "go", TestKind: "handler", StaticStatus: Violation, Severity: Error},
@@ -50,5 +51,18 @@ func TestSelectBoundsOutput(t *testing.T) {
 	}
 	if len(c.Selected) != 4 || !c.Truncated || len(c.Excluded) != 16 {
 		t.Fatalf("unexpected cap: selected=%d excluded=%d truncated=%v", len(c.Selected), len(c.Excluded), c.Truncated)
+	}
+}
+
+func TestSelectRejectsBlankAndDuplicateCandidateIdentities(t *testing.T) {
+	if _, err := Select([]Candidate{{}}, 1, "seed", "source", true); err == nil {
+		t.Fatal("expected blank candidate identity to be rejected")
+	}
+	duplicate := []Candidate{
+		{Workspace: "api", File: "x_test.go", TestID: "TestX", Framework: "go"},
+		{Workspace: "api", File: "x_test.go", TestID: "TestX", Framework: "go"},
+	}
+	if _, err := Select(duplicate, 1, "seed", "source", true); err == nil {
+		t.Fatal("expected duplicate candidate identity to be rejected")
 	}
 }

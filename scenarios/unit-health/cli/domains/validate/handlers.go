@@ -3,6 +3,7 @@ package validate
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -28,13 +29,25 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 		httpClient, baseURL := cliapp.NewConnectHTTPClient(h.core)
 		client = validationconnect.NewValidationServiceClient(httpClient, baseURL)
 	}
+	reviewedObservationCount := uint32(0)
+	if value := firstFlag(ctx.FlagValues("reviewed-observation-count")); value != "" {
+		parsed, err := strconv.ParseUint(value, 10, 32)
+		if err != nil {
+			return fmt.Errorf("reviewed-observation-count: %w", err)
+		}
+		reviewedObservationCount = uint32(parsed)
+	}
 	resp, err := client.ValidateScenario(context.Background(), connect.NewRequest(&validationv1.ValidateScenarioRequest{
 		Scenario:         scenario,
 		Path:             firstFlag(ctx.FlagValues("path")),
 		Workspaces:       splitCSV(ctx.FlagValues("workspace")),
 		IncludeExecution: ctx.BoolFlag("execution"),
-		UseCache:         true,
+		// An executed read must produce a fresh receipt. Plan-only reads may
+		// reuse the stable discovery/cache view, but a cached execution would
+		// make the evidence stage report historical state as current.
+		UseCache:         !ctx.BoolFlag("execution"),
 		FastTestOnly:     ctx.BoolFlag("fast-test-only"),
+		ReviewedCohortId: firstFlag(ctx.FlagValues("reviewed-cohort")), ReviewedSourceIdentity: firstFlag(ctx.FlagValues("reviewed-source-identity")), ReviewedObservationCount: reviewedObservationCount,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("validate scenario %q", scenario), err, nil)
@@ -81,6 +94,39 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 		return fmt.Errorf("unit-health validation failed with %d error finding(s)", msg.GetCounts().GetErrors())
 	}
 	return nil
+}
+
+func (h *handlers) readTestBody(ctx cliapp.RunContext) error {
+	client := h.client
+	if client == nil {
+		httpClient, baseURL := cliapp.NewConnectHTTPClient(h.core)
+		client = validationconnect.NewValidationServiceClient(httpClient, baseURL)
+	}
+	maxBytes := uint32(0)
+	if value := firstFlag(ctx.FlagValues("max-bytes")); value != "" {
+		parsed, err := strconv.ParseUint(value, 10, 32)
+		if err != nil {
+			return fmt.Errorf("max-bytes: %w", err)
+		}
+		maxBytes = uint32(parsed)
+	}
+	resp, err := client.ReadTestBody(context.Background(), connect.NewRequest(&validationv1.ReadTestBodyRequest{
+		Scenario: ctx.Positional("scenario"), Workspace: ctx.Positional("workspace"), File: ctx.Positional("file"), TestId: ctx.Positional("test-id"), MaxBytes: maxBytes,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("read test body", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no test-body response")
+	}
+	msg := resp.Msg
+	result := []string{fmt.Sprintf("%s bytes=%d redactions=%d refused=%t", msg.GetTestIdentity(), msg.GetBodyBytes(), msg.GetRedactions(), msg.GetRefused())}
+	if msg.GetRefused() {
+		result = append(result, "refusal_reason: "+msg.GetRefusalReason())
+	} else {
+		result = append(result, msg.GetBodyExcerpt())
+	}
+	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{Summary: result, ResultsHeading: "Test body", Results: result})
 }
 
 // findingLines keeps the first line scan-friendly while preserving the

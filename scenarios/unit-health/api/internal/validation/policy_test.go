@@ -9,6 +9,7 @@ import (
 	"unit-health/internal/discovery"
 )
 
+// [REQ:UH-CORE-003]
 func TestOwnUnitPolicyMatchesObservedVitestSurface(t *testing.T) {
 	root, err := filepath.Abs("../../..")
 	if err != nil {

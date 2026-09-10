@@ -36,7 +36,7 @@ make start
 
 This starts the API, UI, and any declared resources. The lifecycle
 allocates ports automatically and exposes them through scenario
-commands such as `make status` and `vrooli scenario port`.
+commands such as `make status` and `vrooli scenario status`.
 
 ## 3 — Open
 
@@ -47,11 +47,12 @@ make open
 Or check the URL directly:
 
 ```bash
-vrooli scenario port unit-health UI_PORT
+vrooli scenario status unit-health --json
 ```
 
-You should see the example UI rendering live `/health` data and a
-notes pane backed by the local SQLite store.
+You should see the health card rendering live `/health` data and the
+scenario validation workbench, which runs `ValidateScenario` against a
+scenario slug and renders findings, coverage, and maturity.
 
 ## 4 — Talk to the API
 
@@ -60,18 +61,23 @@ automatically):
 
 ```bash
 unit-health status
-unit-health notes list
-unit-health notes create --title "First note" --body "Hello"
+unit-health validate scenario unit-health
+unit-health validate scenario unit-health --execution --json
 ```
+
+`validate scenario` plans and analyzes by default; add `--execution`
+to run the planned test commands, `--fast-test-only` to skip coverage
+artifacts, `--workspace <id>` to narrow the target, or `--path <dir>`
+to validate a directory instead of a scenario slug.
 
 Or directly via HTTP:
 
 ```bash
-API_PORT=$(vrooli scenario port unit-health API_PORT)
+API_PORT=$(vrooli scenario status unit-health --json | jq -r '.scenario.ports.API_PORT')
 curl -s "http://localhost:${API_PORT}/health"
-curl -s -X POST "http://localhost:${API_PORT}/vrooli.unit_health.v1.notes.NotesService/ListNotes" \
+curl -s -X POST "http://localhost:${API_PORT}/vrooli.unit_health.v1.validation.ValidationService/ValidateScenario" \
   -H 'Content-Type: application/json' \
-  -d '{}'
+  -d '{"scenario":"unit-health"}'
 ```
 
 ## 5 — Run the tests
@@ -112,7 +118,7 @@ common first-time issues are:
 - Read [`START-HERE.md`](START-HERE.md) before implementing product
   behavior. It owns the first-session workflow after generation.
 - Read [`concepts/ARCHITECTURE.md`](concepts/ARCHITECTURE.md) for the
-  mental model: three surfaces, proto bridge, layered API, where to
+  mental model: the product surfaces, proto bridge, layered API, where to
   add code.
 - Read [`internal/TESTING.md`](internal/TESTING.md) before writing
   your first non-trivial test.

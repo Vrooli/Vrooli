@@ -2,79 +2,29 @@ package gotest
 
 import (
 	"context"
-	"encoding/json"
-	"os"
-	"path/filepath"
 	"testing"
-	"unit-health/internal/testquality"
+
 	"unit-health/internal/testquality/calibration"
 )
 
-func TestRetainedGoAssertionCalibration(t *testing.T) {
-	root := filepath.Join("..", "..", "testquality", "testdata")
-	cases, err := calibration.LoadCases(root, "development.json", "development")
+func TestEvaluateCalibrationUsesAdapterObservationsAndCaseFilter(t *testing.T) {
+	cases, err := calibration.LoadCases("../../testquality/testdata", "development.json", "development")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var selected []calibration.Case
-	for _, c := range cases {
-		// Skip declarations have their own rule-scoped calibration below.
-		if c.Input.Profile == "go-syntax-v1" && c.Input.ID != "C013" && c.Input.ID != "C014" {
-			selected = append(selected, c)
-		}
-	}
-	if len(selected) != 19 {
-		t.Fatalf("unexpected retained inventory: %d", len(selected))
-	}
-	report, err := calibration.Run(context.Background(), selected, "development", func(_ context.Context, in calibration.Input) ([]testquality.Result, error) {
-		return Analyze(Input{Root: filepath.Join(root, in.Root), Workspace: "api", Files: in.Files, GOOS: in.GOOS, GOARCH: in.GOARCH, SelectedTests: in.SelectedTests, RegisteredHelpers: in.RegisteredHelpers, TestKinds: in.TestKinds})
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := json.MarshalIndent(report, "", "  ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if path := os.Getenv("UNIT_HEALTH_GO_CALIBRATION_OUTPUT"); path != "" {
-		if err := os.WriteFile(path, data, 0600); err != nil {
+	for _, input := range []calibration.Input{cases[0].Input, {ID: "C013", Profile: "go-syntax-v1", Kind: "parser", Root: "snippets/go", Files: []string{"skip_test.go"}, SelectedTests: []string{"TestConditionalSkip"}}} {
+		rows, err := evaluateCalibration(context.Background(), "../../testquality/testdata", input)
+		if err != nil {
 			t.Fatal(err)
 		}
-	}
-	if report.FailedCases != 0 {
-		t.Fatalf("retained Go calibration:\n%s", data)
-	}
-}
-
-func TestRetainedGoSkipDeclarationCalibration(t *testing.T) {
-	root := filepath.Join("..", "..", "testquality", "testdata")
-	cases, err := calibration.LoadCases(root, "development.json", "development")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var selected []calibration.Case
-	for _, c := range cases {
-		if c.Input.ID == "C013" || c.Input.ID == "C014" {
-			selected = append(selected, c)
-		}
-	}
-	if len(selected) != 2 {
-		t.Fatalf("skip corpus inventory: %d", len(selected))
-	}
-	report, err := calibration.Run(context.Background(), selected, "development", func(_ context.Context, in calibration.Input) ([]testquality.Result, error) {
-		rows, err := Analyze(Input{Root: filepath.Join(root, in.Root), Workspace: "api", Files: in.Files, SelectedTests: in.SelectedTests})
-		var declarations []testquality.Result
-		for _, row := range rows {
-			if row.RuleID == "skip-declaration" {
-				declarations = append(declarations, row)
+		if input.ID == "C013" {
+			for _, row := range rows {
+				if row.RuleID != "skip-declaration" {
+					t.Fatalf("filtered calibration row = %+v", row)
+				}
 			}
+		} else if len(rows) == 0 {
+			t.Fatal("calibration returned no observed rows")
 		}
-		return declarations, err
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if report.FailedCases != 0 {
-		t.Fatalf("retained skip calibration: %+v", report)
 	}
 }

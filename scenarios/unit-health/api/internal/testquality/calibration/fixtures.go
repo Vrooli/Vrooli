@@ -18,7 +18,13 @@ func LoadCases(root, manifest, partition string) ([]Case, error) {
 	}
 	var cases []Case
 	if err := json.Unmarshal(data, &cases); err != nil {
-		return nil, err
+		var envelope struct {
+			Cases []Case `json:"cases"`
+		}
+		if envelopeErr := json.Unmarshal(data, &envelope); envelopeErr != nil {
+			return nil, err
+		}
+		cases = envelope.Cases
 	}
 	if err := ValidateCases(cases, partition); err != nil {
 		return nil, err
@@ -49,8 +55,15 @@ func LoadCases(root, manifest, partition string) ([]Case, error) {
 }
 
 type Specification struct {
-	Status string                                                  `json:"status"`
-	Cases  []struct{ ID, Group, Name, Expected, Rationale string } `json:"cases"`
+	Status string `json:"status"`
+	Cases  []struct {
+		ID            string `json:"id"`
+		Group         string `json:"group"`
+		Name          string `json:"name"`
+		Expected      string `json:"expected"`
+		Rationale     string `json:"rationale"`
+		RetiredReason string `json:"retired_reason,omitempty"`
+	} `json:"cases"`
 }
 
 type InventoryEntry struct {

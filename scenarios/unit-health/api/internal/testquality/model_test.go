@@ -27,6 +27,7 @@ func TestUnknownReasonsHaveActionableGuidance(t *testing.T) {
 	}
 }
 
+// [REQ:UH-ANALYZE-008]
 func TestIncompleteCollectionRetainsIndependentFindingsAndDenominators(t *testing.T) {
 	row := result("observed", Violation)
 	row.Enforcement = Blocking

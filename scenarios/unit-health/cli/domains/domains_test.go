@@ -3,11 +3,14 @@ package domains
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/cli-core/cliapp"
+
+	"unit-health/cli/internal/testutil"
 )
 
 // TestCommandGroups exercises the flat-commands aggregator. The
@@ -38,6 +41,11 @@ func TestSubcommandGroups(t *testing.T) {
 		require.NotEmpty(t, g.Name, "group[%d].Name must be set", i)
 		require.NotEmpty(t, g.Subcommands, "group[%d] (%s) must register at least one subcommand", i, g.Name)
 	}
+	names := make([]string, 0, len(got))
+	for _, g := range got {
+		names = append(names, g.Name)
+	}
+	testutil.RequireContains(t, strings.Join(names, ","), names...)
 }
 
 // readManifestForTest reads cli/manifest.json from the parent cli/ directory

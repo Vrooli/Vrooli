@@ -286,189 +286,216 @@
       "group": "Data",
       "name": "Literal independent expected result",
       "expected": "checked_clean",
-      "rationale": "Literal expected values can be the strongest simple oracle."
+      "rationale": "Literal expected values can be the strongest simple oracle.",
+      "retired_reason": "Retired: behavioral oracle strength is domain semantics, not a claim available to a declared static Unit Health profile."
     },
     {
       "id": "C042",
       "group": "Data",
       "name": "Imported protocol enum",
       "expected": "checked_clean",
-      "rationale": "Stable contract identifiers can be shared incidentally."
+      "rationale": "Stable contract identifiers can be shared incidentally.",
+      "retired_reason": "Retired: imported protocol identity requires semantic cross-module review outside the declared static profiles."
     },
     {
       "id": "C043",
       "group": "Data",
       "name": "Expected result computed by production function",
       "expected": "advisory",
-      "rationale": "Review common-mode oracle failure; do not claim complete static detection."
+      "rationale": "Review common-mode oracle failure; do not claim complete static detection.",
+      "retired_reason": "Retired: common-mode behavioral adequacy is advisory review evidence, not deterministic static evidence."
     },
     {
       "id": "C044",
       "group": "Data",
       "name": "Fresh deterministic factory",
       "expected": "checked_clean",
-      "rationale": "Defaults remove incidental setup without sharing mutable state."
+      "rationale": "Defaults remove incidental setup without sharing mutable state.",
+      "retired_reason": "Retired: factory aliasing requires runtime object identity and mutation evidence."
     },
     {
       "id": "C045",
       "group": "Data",
       "name": "Factory silently repairs invalid override",
       "expected": "reference_failure",
-      "rationale": "The invalid-input reference test must detect normalization that hides its case."
+      "rationale": "The invalid-input reference test must detect normalization that hides its case.",
+      "retired_reason": "Retired: invalid-input normalization is a behavioral reference assertion outside static profiles."
     },
     {
       "id": "C046",
       "group": "Data",
       "name": "Nested singleton factory object",
       "expected": "reference_failure",
-      "rationale": "Mutating one instance must not affect a second instance."
+      "rationale": "Mutating one instance must not affect a second instance.",
+      "retired_reason": "Retired: nested object aliasing requires runtime identity and mutation evidence."
     },
     {
       "id": "C047",
       "group": "Data",
       "name": "Raw malformed JSON",
       "expected": "checked_clean",
-      "rationale": "Malformed input is intentionally outside valid generated types."
+      "rationale": "Malformed input is intentionally outside valid generated types.",
+      "retired_reason": "Retired: parser acceptance and generated-type boundaries require a domain parser contract."
     },
     {
       "id": "C048",
       "group": "Data",
       "name": "Serializer-generated parser input only",
       "expected": "advisory",
-      "rationale": "Roundtrip tests need independent compatibility cases for shared defects."
+      "rationale": "Roundtrip tests need independent compatibility cases for shared defects.",
+      "retired_reason": "Retired: wire compatibility is a semantic interoperability claim, not static source evidence."
     },
     {
       "id": "C049",
       "group": "Data",
       "name": "Justified cardinality assertion",
       "expected": "checked_clean",
-      "rationale": "Count is sufficient when cardinality itself is the contract."
+      "rationale": "Count is sufficient when cardinality itself is the contract.",
+      "retired_reason": "Retired: assertion sufficiency depends on the domain contract, which static analysis cannot infer."
     },
     {
       "id": "C050",
       "group": "Data",
       "name": "Filtering test checks only unexplained length",
       "expected": "advisory",
-      "rationale": "Membership and order may be the missing behavioral contract."
+      "rationale": "Membership and order may be the missing behavioral contract.",
+      "retired_reason": "Retired: membership and order adequacy require domain semantics beyond static profiles."
     },
     {
       "id": "C051",
       "group": "UI",
       "name": "Typed key in cimode",
       "expected": "checked_clean",
-      "rationale": "Proves key wiring while remaining copy-independent."
+      "rationale": "Proves key wiring while remaining copy-independent.",
+      "retired_reason": "Retired: rendered UI and localization state require a UI runtime profile not declared for calibration."
     },
     {
       "id": "C052",
       "group": "UI",
       "name": "Real locale plural and interpolation",
       "expected": "reference_pass",
-      "rationale": "Real translation behavior needs real locale evaluation."
+      "rationale": "Real translation behavior needs real locale evaluation.",
+      "retired_reason": "Retired: pluralization and interpolation require executing the localization runtime."
     },
     {
       "id": "C053",
       "group": "UI",
       "name": "Role and accessible name query",
       "expected": "checked_clean",
-      "rationale": "Semantic queries express user-visible control behavior."
+      "rationale": "Semantic queries express user-visible control behavior.",
+      "retired_reason": "Retired: accessibility query behavior requires a rendered UI and interaction runtime."
     },
     {
       "id": "C054",
       "group": "UI",
       "name": "Justified shared test ID",
       "expected": "checked_clean",
-      "rationale": "Some surfaces have no suitable semantic query."
+      "rationale": "Some surfaces have no suitable semantic query.",
+      "retired_reason": "Retired: selector suitability is a UI contract judgment, not static source evidence."
     },
     {
       "id": "C055",
       "group": "UI",
       "name": "Locale leaks across tests",
       "expected": "reference_failure",
-      "rationale": "Each test must receive declared locale state independently."
+      "rationale": "Each test must receive declared locale state independently.",
+      "retired_reason": "Retired: locale leakage requires multi-test runtime state observation."
     },
     {
       "id": "C056",
       "group": "UI",
       "name": "Global console suppression",
       "expected": "advisory",
-      "rationale": "Unexpected errors must remain visible; suppression requires local rationale."
+      "rationale": "Unexpected errors must remain visible; suppression requires local rationale.",
+      "retired_reason": "Retired: console suppression needs runtime output and reviewer context, not a deterministic static rule."
     },
     {
       "id": "C057",
       "group": "Requirements",
       "name": "UH-CORE-001 actual registry ID",
       "expected": "linked",
-      "rationale": "IDs come from the registry rather than a REQ-prefix regex."
+      "rationale": "IDs come from the registry rather than a REQ-prefix regex.",
+      "retired_reason": "Retired: requirement ownership is an external registry and execution-evidence contract, not a static source profile."
     },
     {
       "id": "C058",
       "group": "Requirements",
       "name": "Suite-inherited comma-separated tags",
       "expected": "linked",
-      "rationale": "Preserve existing reporter grammar and inheritance."
+      "rationale": "Preserve existing reporter grammar and inheritance.",
+      "retired_reason": "Retired: inherited requirement tags require the Test Genie reporter and owner registry."
     },
     {
       "id": "C059",
       "group": "Requirements",
       "name": "ID only in a comment",
       "expected": "not_executed",
-      "rationale": "A source mention is not an observed passing test."
+      "rationale": "A source mention is not an observed passing test.",
+      "retired_reason": "Retired: execution status is supplied by Test Genie runtime evidence, not static source calibration."
     },
     {
       "id": "C060",
       "group": "Requirements",
       "name": "Integration-only requirement",
       "expected": "not_applicable_unit",
-      "rationale": "Respect the declared validation kind."
+      "rationale": "Respect the declared validation kind.",
+      "retired_reason": "Retired: validation-kind ownership is a requirements registry concern."
     },
     {
       "id": "C061",
       "group": "Requirements",
       "name": "Unavailable registry",
       "expected": "unknown",
-      "rationale": "An unavailable owner cannot be treated as an empty registry."
+      "rationale": "An unavailable owner cannot be treated as an empty registry.",
+      "retired_reason": "Retired: owner availability is external Test Genie service-state evidence."
     },
     {
       "id": "C062",
       "group": "Requirements",
       "name": "Prefix-colliding IDs",
       "expected": "exact_match",
-      "rationale": "Use exact IDs rather than substring membership."
+      "rationale": "Use exact IDs rather than substring membership.",
+      "retired_reason": "Retired: exact registry membership requires the live requirements owner."
     },
     {
       "id": "C063",
       "group": "History",
       "name": "Same command with changed source",
       "expected": "uncomparable",
-      "rationale": "A repair is not evidence of flaky behavior."
+      "rationale": "A repair is not evidence of flaky behavior.",
+      "retired_reason": "Retired: source-revision comparability requires persisted run-history identities."
     },
     {
       "id": "C064",
       "group": "History",
       "name": "Same source with changed toolchain",
       "expected": "uncomparable",
-      "rationale": "Toolchain changes alter the observation context."
+      "rationale": "Toolchain changes alter the observation context.",
+      "retired_reason": "Retired: toolchain-cohort comparability requires runtime history metadata."
     },
     {
       "id": "C065",
       "group": "History",
       "name": "Comparable pass/fail outcomes",
       "expected": "suspected_instability",
-      "rationale": "Report observed variation without proving its cause."
+      "rationale": "Report observed variation without proving its cause.",
+      "retired_reason": "Retired: instability requires comparable repeated runtime outcomes."
     },
     {
       "id": "C066",
       "group": "History",
       "name": "Infrastructure failure versus assertion failure",
       "expected": "separate_classes",
-      "rationale": "Do not attribute a transport outage to a flaky assertion."
+      "rationale": "Do not attribute a transport outage to a flaky assertion.",
+      "retired_reason": "Retired: failure-class separation depends on runtime receipts and infrastructure metadata."
     },
     {
       "id": "C067",
       "group": "History",
       "name": "Legacy missing evidence identity",
       "expected": "unknown",
-      "rationale": "Historical observations remain readable without invented identity."
+      "rationale": "Historical observations remain readable without invented identity.",
+      "retired_reason": "Retired: legacy evidence identity is a history migration concern, not a static test-quality observation."
     },
     {
       "id": "C068",
@@ -482,84 +509,103 @@
       "group": "Analysis",
       "name": "Unreadable source or truncated discovery",
       "expected": "unknown",
-      "rationale": "Assessment coverage exposes missing inputs."
+      "rationale": "Assessment coverage exposes missing inputs.",
+      "retired_reason": "Retired: unreadable or truncated discovery is an executor/discovery failure-path contract, not a source calibration profile."
     },
     {
       "id": "C070",
       "group": "Analysis",
       "name": "File order shuffled",
       "expected": "deterministic",
-      "rationale": "Semantic result must not depend on directory enumeration order."
+      "rationale": "Semantic result must not depend on directory enumeration order.",
+      "retired_reason": "Retired: order-independence is a harness determinism property covered by focused tests, not an additional rule observation."
     },
     {
       "id": "C071",
       "group": "Analysis",
       "name": "Finding limit reached",
       "expected": "bounded_with_total",
-      "rationale": "Truncation must retain totals and detail retrieval."
+      "rationale": "Truncation must retain totals and detail retrieval.",
+      "retired_reason": "Retired: finding pagination and totals are response-contract behavior covered by API tests."
     },
     {
       "id": "C072",
       "group": "Isolation",
       "name": "Denied external network on supported host",
       "expected": "enforced",
-      "rationale": "The declared profile needs an actual denial observation."
+      "rationale": "The declared profile needs an actual denial observation.",
+      "retired_reason": "Retired: network denial requires a disposable execution sandbox and receipt."
     },
     {
       "id": "C073",
       "group": "Isolation",
       "name": "Unsupported host sandbox",
       "expected": "unknown_or_refused",
-      "rationale": "Do not silently replace isolation with network allow."
+      "rationale": "Do not silently replace isolation with network allow.",
+      "retired_reason": "Retired: host capability refusal is environment-specific executor evidence."
     },
     {
       "id": "C074",
       "group": "Isolation",
       "name": "Local streaming integration",
       "expected": "declared_local_integration",
-      "rationale": "Real loopback transport is valid for transport behavior."
+      "rationale": "Real loopback transport is valid for transport behavior.",
+      "retired_reason": "Retired: loopback transport behavior requires an integration runtime and lifecycle receipt."
     },
     {
       "id": "C075",
       "group": "Mutation",
       "name": "Wrong production threshold",
       "expected": "detected_by_intended_test",
-      "rationale": "A selected behavioral fault must reach the expected failing assertion."
+      "rationale": "A selected behavioral fault must reach the expected failing assertion.",
+      "retired_reason": "Retired: mutation killing is a disposable runtime experiment, not static calibration evidence."
     },
     {
       "id": "C076",
       "group": "Mutation",
       "name": "Mutant does not compile",
       "expected": "invalid_experiment",
-      "rationale": "Build failure does not prove the test detects behavior."
+      "rationale": "Build failure does not prove the test detects behavior.",
+      "retired_reason": "Retired: mutation compilation validity is an experiment-runner result."
     },
     {
       "id": "C077",
       "group": "Mutation",
       "name": "Equivalent or out-of-contract mutant",
       "expected": "excluded_with_reason",
-      "rationale": "A survivor is not automatically a missing-test defect."
+      "rationale": "A survivor is not automatically a missing-test defect.",
+      "retired_reason": "Retired: equivalent and out-of-contract dispositions require mutation receipts and contract review."
     },
     {
       "id": "C078",
       "group": "Fleet",
       "name": "Unavailable target during inventory",
       "expected": "unknown_accounted",
-      "rationale": "Every discovered target remains in the denominator."
+      "rationale": "Every discovered target remains in the denominator.",
+      "retired_reason": "Retired: fleet denominator behavior depends on live discovery inventory and target availability."
     },
     {
       "id": "C079",
       "group": "Fleet",
       "name": "Custom profile migration",
       "expected": "preserved_or_refused",
-      "rationale": "Migration must not overwrite legitimate local test-kind policy."
+      "rationale": "Migration must not overwrite legitimate local test-kind policy.",
+      "retired_reason": "Retired: profile migration is a control-plane configuration operation."
     },
     {
       "id": "C080",
       "group": "Fleet",
       "name": "Repeated migration request",
       "expected": "idempotent",
-      "rationale": "Replaying an acknowledged application must not duplicate changes."
+      "rationale": "Replaying an acknowledged application must not duplicate changes.",
+      "retired_reason": "Retired: migration idempotence belongs to the fleet control-plane handler and API tests."
+    },
+    {
+      "id": "C081",
+      "group": "Analysis",
+      "name": "Shared Go test utility root with consumers",
+      "expected": "checked_clean",
+      "rationale": "A shared internal/testutil package with a helper and co-located consumers must not produce TEST_UTIL_MISSING."
     }
   ]
 }

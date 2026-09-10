@@ -1,37 +1,6 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {
-    "entries": {
-      "data": {
-        "rung": "owned",
-        "kind": "dir",
-        "class": "data",
-        "regenerable": false,
-        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
-        "budget": {
-          "max_bytes": "5GiB",
-          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
-        }
-      },
-      "coverage_tool_output": {
-        "rung": "pinned",
-        "kind": "dir",
-        "path": "coverage",
-        "regenerable": true,
-        "rationale": "The upstream coverage tool fixes lcov.info and coverage-summary.json beneath coverage; the complete directory measured 72347231 bytes on 2026-08-27.",
-        "reclaim": {
-          "command": "vrooli scenario test cleanup unit-health"
-        },
-        "budget": {
-          "max_age": "7d",
-          "max_bytes": "1GiB",
-          "rationale": "Pinned coverage output measured 72347231 bytes on 2026-08-27; seven days and 1 GiB bound reproducible tool output."
-        }
-      }
-    },
-    "rationale": "Storage surfaces include durable scenario data and pinned upstream coverage-tool output."
-  },
   "service": {
     "parent": "vrooli",
     "name": "unit-health",
@@ -44,45 +13,6 @@
       "react-ui",
       "go-api"
     ]
-  },
-  "generation": {
-    "template": {
-      "id": "react-vite",
-      "version": "1.1.0"
-    },
-    "generated_at": "2026-06-16T19:20:45Z",
-    "design": {
-      "id": "vrooli-default",
-      "version": "0.2.0",
-      "adapter": "react-vite-tailwind"
-    },
-    "manifest_sha": "efce375640f074bcbd20e0463fd67d9b413778c930293dda319a6e2f21526fd5",
-    "content_sha": "f26ae1ea5fb267b746c6ab7966468b0f3cebd1fc6631e78cbf6eac20fce1244e"
-  },
-  "cli": {
-    "enabled": true,
-    "command": "unit-health",
-    "adapter": {
-      "kind": "go_module",
-      "module_dir": "cli"
-    },
-    "artifacts": {
-      "manifest": {},
-      "build_metadata": {}
-    },
-    "invoke": {
-      "kind": "installed_command",
-      "command": "unit-health"
-    },
-    "freshness": {
-      "inputs": [
-        "cli/**",
-        ".vrooli/service.json"
-      ]
-    },
-    "source_build": {
-      "kind": "go_module"
-    }
   },
   "ports": {
     "api": {
@@ -126,7 +56,112 @@
   },
   "dependencies": {
     "resources": {},
-    "scenarios": {}
+    "scenarios": {
+      "ai-gateway": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Provides the optional governed inference binding used by the test-quality sample program.",
+        "degraded_behavior": "The test-quality sample reports its AI-backed comparison as unavailable when AI Gateway is unreachable; Unit Health validation and calibration remain usable."
+      },
+      "test-genie": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Provides the optional validation-digest child program used by the fleet-adoption setpoint sensor.",
+        "degraded_behavior": "The fleet-adoption row reports the child failure as unreliable; it never converts an unavailable digest into zero coverage."
+      },
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Provides the optional friction-digest child program used by the external-friction setpoint sensor.",
+        "degraded_behavior": "The external-friction row reports unreliable:<class> when the child cannot complete; it never converts the failure into zero recurring fingerprints."
+      },
+      "code-facts": {
+        "required": true,
+        "versionRange": ">=0.0.1",
+        "description": "Import-level dependency detected via go_import"
+      },
+      "quality-health": {
+        "required": true,
+        "versionRange": ">=0.0.1",
+        "description": "Import-level dependency detected via go_import"
+      }
+    }
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "coverage_tool_output": {
+        "rung": "pinned",
+        "kind": "dir",
+        "path": "coverage",
+        "regenerable": true,
+        "rationale": "The upstream coverage tool fixes lcov.info and coverage-summary.json beneath coverage; the complete directory measured 72347231 bytes on 2026-08-27.",
+        "reclaim": {
+          "command": "vrooli scenario test cleanup unit-health"
+        },
+        "budget": {
+          "max_age": "7d",
+          "max_bytes": "1GiB",
+          "rationale": "Pinned coverage output measured 72347231 bytes on 2026-08-27; seven days and 1 GiB bound reproducible tool output."
+        }
+      }
+    },
+    "rationale": "Storage surfaces include durable scenario data and pinned upstream coverage-tool output."
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-06-16T19:20:45Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "efce375640f074bcbd20e0463fd67d9b413778c930293dda319a6e2f21526fd5",
+    "content_sha": "f26ae1ea5fb267b746c6ab7966468b0f3cebd1fc6631e78cbf6eac20fce1244e"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "unit-health",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "unit-health"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
   },
   "environment": {},
   "components": {
@@ -163,14 +198,20 @@
   "skills": {
     "usage": {
       "source": "skills/unit-health/SKILL.md",
-      "programs": ["unit-health.test-quality-sample"]
+      "programs": []
     },
     "improve": {
       "source": "skills/unit-health-improve/SKILL.md",
-      "programs": ["unit-health.test-quality-sample"]
+      "programs": [
+        "unit-health.setpoint-read",
+        "unit-health.test-quality-sample",
+        "unit-health.mutation-pilot"
+      ]
     },
     "feature": [],
-    "learning": {"scope": "unit-health-usage"},
+    "learning": {
+      "scope": "unit-health-usage"
+    },
     "waivers": {}
   }
 }

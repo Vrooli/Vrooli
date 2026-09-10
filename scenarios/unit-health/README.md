@@ -16,7 +16,7 @@ the standard full-stack Vrooli scenario shape:
 > domain map, design language, placeholder replacement, and first real
 > vertical slice. Run `make orient` for a machine-readable gate status.
 
-## What's In This Scenario
+## What You Get
 
 - Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
   coordinated through generated proto contracts.
@@ -41,11 +41,11 @@ the standard full-stack Vrooli scenario shape:
 
 ## Placeholders vs. Durable Scaffolding
 
-The generated scaffold is intentionally not the product. When you build
+The template's starter domain has already been removed; the real
+domains are `validation` (the analyzer engine behind
+`ValidationService.ValidateScenario`) and `health`. When you build
 the real UX, treat these as **placeholders** to replace:
 
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
 - The `AppShell` and the centered single-panel home page in `ui/src/`.
 - The bare-minimum settings surface (currently just locale switching).
 
@@ -63,13 +63,13 @@ through a proto service and generated Connect handlers/clients. If
 you find yourself writing `Path: "/api/v1/..."` as a literal string in
 an `EndpointDescriptor`, stop — use a proto service method instead.
 Codegen rejects literal Paths that lack an explicit `RESTException`
-tag; the four allowed REST reasons (multipart upload, webhook
+tag; the allowed REST reasons (multipart upload, webhook
 receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
+`api/internal/module/module.go`. `GET /health` (ops probe) is this
+scenario's only REST exception.
 
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
+[`docs/START-HERE.md`](docs/START-HERE.md) describes the initialization
+protocol and the pattern for adding a domain.
 
 ## Running The Scenario
 
@@ -88,6 +88,12 @@ Run tests with `make test` (which runs `vrooli scenario test`) or invoke
 finer-grained presets.
 
 ## Documentation Map
+
+## Customize Safely
+
+Extend the scenario through its declared API, CLI, UI, and documentation
+contracts. Keep generated files and shared component release directories under
+their owning tool's control.
 
 | Need | Start Here |
 |---|---|

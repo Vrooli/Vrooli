@@ -2,6 +2,8 @@ package calibration
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -23,6 +25,43 @@ func TestNativeMatcherRequiresNamedIntendedFailure(t *testing.T) {
 	observed.Cases = nil
 	if missing := CompareNative(spec, observed); missing.Matched != 0 || len(missing.Differences) == 0 {
 		t.Fatal("missing case passed")
+	}
+}
+
+func TestLoadNativeSpecificationRejectsMalformedAndUnsafeFixtures(t *testing.T) {
+	root := t.TempDir()
+	write := func(raw string) {
+		if err := os.WriteFile(filepath.Join(root, "native-expected.json"), []byte(raw), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, raw := range []string{`{}`, `{"version":"1","provenance":"p","root":".","files":[]}`, `{"version":"1","provenance":"p","root":"../escape","files":["x"]}`} {
+		write(raw)
+		if _, err := LoadNativeSpecification(root); err == nil {
+			t.Fatalf("malformed native fixture accepted: %s", raw)
+		}
+	}
+	write(`{"version":"1","provenance":"p","root":"fixtures","files":["case.js"],"cases":[{"caseId":"C1","name":"broken","status":"failed"}]}`)
+	os.MkdirAll(filepath.Join(root, "fixtures"), 0o755)
+	os.WriteFile(filepath.Join(root, "fixtures", "case.js"), []byte(""), 0o600)
+	if _, err := LoadNativeSpecification(root); err == nil {
+		t.Fatal("failed case without rationale accepted")
+	}
+	write(`{"version":"1","provenance":"p","root":"fixtures","files":["case.js"],"cases":[{"caseId":"C1","name":"same","status":"passed"},{"caseId":"C2","name":"same","status":"passed"}]}`)
+	if _, err := LoadNativeSpecification(root); err == nil {
+		t.Fatal("duplicate native name accepted")
+	}
+}
+
+func TestCompareNativeReportsRetriesUnexpectedCasesAndLimitations(t *testing.T) {
+	spec := NativeSpecification{Version: "1", Cases: []NativeExpectation{{CaseID: "C1", Name: "pass", Status: "passed", RetryCount: 1, RetainedErrorContains: "old", Limitation: "runner note"}, {CaseID: "C2", Name: "skip", Status: "skipped"}}}
+	var observed NativeObservation
+	if err := json.Unmarshal([]byte(`{"version":"1","cases":[{"name":"pass","status":"passed"},{"name":"extra","status":"passed"}],"reporter":{"events":[{"name":"pass","retryCount":1,"errors":[{"message":"old error"}]}]}}`), &observed); err != nil {
+		t.Fatal(err)
+	}
+	report := CompareNative(spec, observed)
+	if report.Matched != 1 || len(report.Limitations) != 1 || len(report.Differences) == 0 {
+		t.Fatalf("native comparison = %+v", report)
 	}
 }
 

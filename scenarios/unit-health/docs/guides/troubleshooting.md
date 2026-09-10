@@ -49,7 +49,7 @@ Confirm the UI server is running:
 
 ```bash
 make status
-vrooli scenario port unit-health UI_PORT
+vrooli scenario status unit-health --json
 ```
 
 Then open `http://localhost:<UI_PORT>` directly. If the URL works
@@ -74,7 +74,7 @@ make start
 unit-health status --auto-start
 
 # Or override the API base for this invocation
-unit-health status --api-base "http://localhost:$(vrooli scenario port unit-health API_PORT)/api/v1"
+unit-health status --api-base "http://localhost:$(vrooli scenario status unit-health --json | jq -r '.scenario.ports.API_PORT')/api/v1"
 ```
 
 ### CLI behaves like an old version after editing source
@@ -141,7 +141,7 @@ directory. Workspace isolation does not replace dependency governance.
 
 ### UI build is slow (5–10 minutes)
 
-`vite build` processes 4400+ modules in the production bundle. This
+`vite build` processes `num[sot]:4400+` modules in the production bundle. This
 is expected. Use `pnpm dev` (via `make start`) for the fast iteration
 loop and reserve `pnpm build` for verification.
 
@@ -156,7 +156,7 @@ git add src/consts/strings.generated.ts
 ```
 
 Commit `en.json`, the locale files, **and** `strings.generated.ts`
-together — never one without the others.
+together — never an isolated member without the others.
 
 ## Tests
 
@@ -209,7 +209,7 @@ safe.
 
 ### "database is locked"
 
-SQLite single-writer behaviour. If two processes (e.g., a stale API
+SQLite single-writer behaviour. If multiple processes (e.g., a stale API
 plus a new one) hold the file, find and kill the older one:
 
 ```bash

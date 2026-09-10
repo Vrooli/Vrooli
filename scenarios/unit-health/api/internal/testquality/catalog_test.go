@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// [REQ:UH-ANALYZE-007]
 func TestCatalogContractAndIndependentCopies(t *testing.T) {
 	c, err := LoadCatalog()
 	if err != nil {
@@ -59,6 +60,42 @@ func TestEveryPromotionPrerequisiteIsRequired(t *testing.T) {
 		if err := c.Validate(); err == nil {
 			t.Fatalf("accepted promotion without %s", missing)
 		}
+	}
+}
+
+func TestCatalogRejectsInvalidPromotionDecisionStatus(t *testing.T) {
+	c, _ := LoadCatalog()
+	c.Rules[0].PromotionDecisions[0].Status = "maybe"
+	if err := c.Validate(); err == nil {
+		t.Fatal("accepted invalid promotion decision status")
+	}
+}
+
+func TestCatalogCarriesHoldoutBudgetAndRequestedDecision(t *testing.T) {
+	c, err := LoadCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rule := c.Rules[0]
+	if rule.FalsePositiveBudget != 0.05 || len(rule.PromotionDecisions) != 1 || rule.PromotionDecisions[0].Status != "requested" {
+		t.Fatalf("promotion gate = %+v", rule)
+	}
+}
+
+func TestCatalogProjectsOnlyApprovedBlockingEnforcement(t *testing.T) {
+	c, err := LoadCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Rules[0].DefaultEnforcement = Blocking
+	c.Rules[0].PromotionDecisions[0].Status = "approved"
+	results := []Result{{RuleID: c.Rules[0].ID, SupportProfile: c.Rules[0].SupportProfiles[0], Enforcement: Advisory}, {RuleID: "other", SupportProfile: c.Rules[0].SupportProfiles[0], Enforcement: Advisory}}
+	projected := c.ApplyCatalogEnforcement(results)
+	if projected[0].Enforcement != Blocking || projected[1].Enforcement != Advisory {
+		t.Fatalf("projected enforcement = %+v", projected)
+	}
+	if !c.Rules[0].hasApprovedPromotion() {
+		t.Fatal("approved promotion was not recognized")
 	}
 }
 

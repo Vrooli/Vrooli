@@ -45,7 +45,7 @@ func (r testGenieRegistryReader) Read(ctx context.Context, scenario string) (Req
 	if err != nil {
 		return RequirementRegistry{}, err
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(base, "/")+"/scenarios/"+url.PathEscape(scenario)+"/requirements?view=registry", nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(base, "/")+"/api/v1/scenarios/"+url.PathEscape(scenario)+"/requirements?view=registry", nil)
 	if err != nil {
 		return RequirementRegistry{}, err
 	}

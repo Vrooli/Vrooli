@@ -70,6 +70,7 @@ func TestBoundedRunNonzeroIsFailed(t *testing.T) {
 	}
 }
 
+// [REQ:UH-EXEC-001]
 func TestBoundedRunTimeoutHang(t *testing.T) {
 	cmd := helperCommand("sleep")
 	cmd.WorkspaceID, cmd.TimeoutSeconds = "w", 1
@@ -200,6 +201,45 @@ func TestScrubbedEnvironPreservesGoRootForNonGoCommand(t *testing.T) {
 
 	if !environmentContains(scrubbedEnviron("node"), "GOROOT", want) {
 		t.Fatal("non-Go command lost an unrelated inherited environment variable")
+	}
+}
+
+type fakeEnvReader struct {
+	values map[string]string
+	env    []string
+}
+
+func (f fakeEnvReader) Getenv(key string) string { return f.values[key] }
+
+func (f fakeEnvReader) LookupEnv(key string) (string, bool) {
+	value, ok := f.values[key]
+	return value, ok
+}
+
+func (f fakeEnvReader) Environ() []string { return append([]string(nil), f.env...) }
+
+func TestEnvironmentSeamControlsGoWorkDirectoryAndScrubbing(t *testing.T) {
+	root := t.TempDir()
+	fake := fakeEnvReader{
+		values: map[string]string{"VROOLI_HOME": root},
+		env:    []string{"GOROOT=foreign", "GOTOOLDIR=foreign-tools", "UNIT_HEALTH_PRESERVED_ENV=present"},
+	}
+
+	workDir, err := createGoWorkDir("seam-", fake)
+	if err != nil {
+		t.Fatalf("createGoWorkDir: %v", err)
+	}
+	defer os.RemoveAll(workDir)
+	if !strings.HasPrefix(workDir, filepath.Join(root, "tmp", "go-work")) {
+		t.Fatalf("work directory %q did not use injected VROOLI_HOME %q", workDir, root)
+	}
+
+	got := scrubbedEnviron(filepath.Join("managed", "go", "bin", "go"), fake)
+	if environmentContains(got, "GOROOT", "foreign") || environmentContains(got, "GOTOOLDIR", "foreign-tools") {
+		t.Fatalf("injected Go environment was not scrubbed: %v", got)
+	}
+	if !environmentContains(got, "UNIT_HEALTH_PRESERVED_ENV", "present") {
+		t.Fatalf("unrelated injected environment was not preserved: %v", got)
 	}
 }
 

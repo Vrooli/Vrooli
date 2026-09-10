@@ -5,14 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/anypb"
 
+	"unit-health/internal/adapters/gotest"
+	internaldiscovery "unit-health/internal/discovery"
+	"unit-health/internal/testquality/mutation"
 	internalvalidation "unit-health/internal/validation"
 
 	"github.com/vrooli/api-core/metrics"
+	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/maturity-go/assessment"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -29,16 +35,18 @@ type Deps struct {
 	// Environment is the host CaptureEnvironment captured once at module init
 	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
 	// backfills os/arch/num_cpu from the stdlib.
-	Environment *commonv1.CaptureEnvironment
+	Environment     *commonv1.CaptureEnvironment
+	CalibrationRoot string
 }
 
 // Handler implements the generated ValidationServiceHandler.
 type Handler struct {
 	validationconnect.UnimplementedValidationServiceHandler
-	svc    *internalvalidation.Service
-	logger *log.Logger
-	spec   *assessment.Spec
-	env    *commonv1.CaptureEnvironment
+	svc             *internalvalidation.Service
+	logger          *log.Logger
+	spec            *assessment.Spec
+	env             *commonv1.CaptureEnvironment
+	calibrationRoot string
 }
 
 // NewHandlerWithDeps builds a Handler, defaulting nil collaborators.
@@ -49,7 +57,7 @@ func NewHandlerWithDeps(deps Deps) *Handler {
 	if deps.Service == nil {
 		deps.Service = internalvalidation.New()
 	}
-	return &Handler{svc: deps.Service, logger: deps.Logger, spec: deps.MaturitySpec, env: deps.Environment}
+	return &Handler{svc: deps.Service, logger: deps.Logger, spec: deps.MaturitySpec, env: deps.Environment, calibrationRoot: deps.CalibrationRoot}
 }
 
 var _ validationconnect.ValidationServiceHandler = (*Handler)(nil)
@@ -67,6 +75,7 @@ func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[val
 		IncludeExecution: req.Msg.GetIncludeExecution(),
 		UseCache:         req.Msg.GetUseCache(),
 		FastTestOnly:     req.Msg.GetFastTestOnly(),
+		ReviewedCohortID: req.Msg.GetReviewedCohortId(), ReviewedSourceIdentity: req.Msg.GetReviewedSourceIdentity(), ReviewedObservationCount: req.Msg.GetReviewedObservationCount(),
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -76,6 +85,111 @@ func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[val
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// ReadTestBody returns one privacy-checked, bounded source excerpt for the
+// sampled-review program. The owner resolves the scenario and workspace; the
+// program never reads the filesystem directly.
+func (h *Handler) ReadTestBody(ctx context.Context, req *connect.Request[validationv1.ReadTestBodyRequest]) (*connect.Response[validationv1.ReadTestBodyResponse], error) {
+	if req.Msg.GetScenario() == "" || req.Msg.GetWorkspace() == "" || req.Msg.GetFile() == "" || req.Msg.GetTestId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario, workspace, file, and test_id are required"))
+	}
+	locator := internaldiscovery.Locator(internaldiscovery.DefaultLocator{})
+	if h.svc != nil && h.svc.Locator != nil {
+		locator = h.svc.Locator
+	}
+	_, _, scenarioRoot, err := locator.Locate(ctx, req.Msg.GetScenario(), "")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	workspaceRoot := filepath.Join(scenarioRoot, filepath.Clean(req.Msg.GetWorkspace()))
+	if info, statErr := os.Stat(workspaceRoot); statErr != nil || !info.IsDir() {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workspace %q not found", req.Msg.GetWorkspace()))
+	}
+	body, err := gotest.ReadTestBody(gotest.BodyRequest{
+		Root: workspaceRoot, Workspace: req.Msg.GetWorkspace(), File: req.Msg.GetFile(), TestID: req.Msg.GetTestId(), MaxBytes: req.Msg.GetMaxBytes(),
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&validationv1.ReadTestBodyResponse{
+		TestIdentity: body.TestIdentity, BodyExcerpt: body.BodyExcerpt, BodyBytes: body.BodyBytes,
+		Redactions: body.Redactions, Refused: body.Refused, RefusalReason: body.RefusalReason,
+	}), nil
+}
+
+// RunMutationPilot runs bounded owner-side mutations in disposable cache
+// workspaces. The shared scenario checkout is never used as a mutation target.
+func (h *Handler) RunMutationPilot(ctx context.Context, req *connect.Request[validationv1.RunMutationPilotRequest]) (*connect.Response[validationv1.RunMutationPilotResponse], error) {
+	if req.Msg.GetScenario() == "" || req.Msg.GetWorkspace() == "" || req.Msg.GetPackage() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario, workspace, and package are required"))
+	}
+	locator := internaldiscovery.Locator(internaldiscovery.DefaultLocator{})
+	if h.svc != nil && h.svc.Locator != nil {
+		locator = h.svc.Locator
+	}
+	_, _, scenarioRoot, err := locator.Locate(ctx, req.Msg.GetScenario(), "")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	workspaceRoot, err := workspacePath(scenarioRoot, req.Msg.GetWorkspace())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if info, statErr := os.Stat(workspaceRoot); statErr != nil || !info.IsDir() {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workspace %q not found", req.Msg.GetWorkspace()))
+	}
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli"})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resolve mutation cache: %w", err))
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: req.Msg.GetScenario()})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resolve mutation cache: %w", err))
+	}
+	pilot, err := mutation.Run(ctx, mutation.PilotRequest{
+		WorkspaceRoot: workspaceRoot,
+		Package:       req.Msg.GetPackage(),
+		Operators:     req.Msg.GetOperators(),
+		MaxMutants:    req.Msg.GetMaxMutants(),
+		Seed:          req.Msg.GetSeed(),
+		CacheRoot:     paths.CacheDir,
+		Executor:      h.svc.Executor,
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	receipts := make([]*validationv1.MutantReceipt, 0, len(pilot.Receipts))
+	for _, receipt := range pilot.Receipts {
+		receipts = append(receipts, &validationv1.MutantReceipt{Id: receipt.ID, Operator: receipt.Operator, File: receipt.File, Line: receipt.Line, Disposition: string(receipt.Disposition), Detail: receipt.Detail, OwningTest: receipt.OwningTest})
+	}
+	return connect.NewResponse(&validationv1.RunMutationPilotResponse{
+		RunId: pilot.RunID, WorkspacePath: pilot.WorkspacePath, Receipts: receipts,
+		Summary:     &validationv1.MutationSummary{Generated: pilot.Summary.Generated, Killed: pilot.Summary.Killed, Survived: pilot.Summary.Survived, Invalid: pilot.Summary.Invalid, Equivalent: pilot.Summary.Equivalent, OutOfContract: pilot.Summary.OutOfContract, InfrastructureFailure: pilot.Summary.InfrastructureFailure, Unknown: pilot.Summary.Unknown, KillRate: pilot.Summary.KillRate},
+		Limitations: pilot.Limitations,
+	}), nil
+}
+
+func workspacePath(scenarioRoot, workspace string) (string, error) {
+	if filepath.IsAbs(workspace) {
+		return "", fmt.Errorf("workspace must be relative: %q", workspace)
+	}
+	clean := filepath.Clean(workspace)
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("workspace must stay inside scenario: %q", workspace)
+	}
+	root, err := filepath.Abs(scenarioRoot)
+	if err != nil {
+		return "", err
+	}
+	path, err := filepath.Abs(filepath.Join(root, clean))
+	if err != nil || (path != root && !strings.HasPrefix(path, root+string(filepath.Separator))) {
+		return "", fmt.Errorf("workspace must stay inside scenario: %q", workspace)
+	}
+	return path, nil
 }
 
 // SharedHandler adapts Unit Health's rich validation RPC to the shared
@@ -399,9 +513,11 @@ func findingToProto(in internalvalidation.Finding) *validationv1.ValidationFindi
 func diagnosticToProto(in internalvalidation.Diagnostic) *validationv1.Diagnostic {
 	out := &validationv1.Diagnostic{Kind: in.Kind, WorkspaceId: in.WorkspaceID, Message: in.Message, Evidence: in.Evidence, Severity: in.Severity}
 	if r := in.Reliability; r != nil {
-		out.Reliability = &validationv1.ReliabilityObservation{State: r.State, Scope: r.Scope, CohortDigest: r.CohortDigest,
+		out.Reliability = &validationv1.ReliabilityObservation{
+			State: r.State, Scope: r.Scope, CohortDigest: r.CohortDigest,
 			SampleCount: int32(r.SampleCount), Passed: int32(r.Passed), Failed: int32(r.Failed),
-			ExcludedInfrastructure: int32(r.ExcludedInfrastructure), ExcludedIncompatible: int32(r.ExcludedIncompatible), Seed: r.Seed}
+			ExcludedInfrastructure: int32(r.ExcludedInfrastructure), ExcludedIncompatible: int32(r.ExcludedIncompatible), Seed: r.Seed,
+		}
 		if r.RetryOrdinal != nil {
 			ordinal := int32(*r.RetryOrdinal)
 			out.Reliability.RetryOrdinal = &ordinal
