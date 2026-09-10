@@ -2,10 +2,14 @@ package research
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
+	"web-search/internal/evidence"
 	"web-search/internal/findings"
 	"web-search/internal/research/agentmanager"
 )
@@ -154,18 +158,57 @@ func (s *Service) RunL3(ctx context.Context, query string) (agentmanager.RunResu
 }
 
 func (s *Service) StartResearch(ctx context.Context, query, key string) (agentmanager.RunResult, error) {
+	return s.StartResearchWithContract(ctx, query, key, EvidencePolicy{}, nil)
+}
+
+// StartResearchWithContract admits the same bounded evidence contract used by
+// direct research and serializes it into the owner-managed workflow input.
+func (s *Service) StartResearchWithContract(ctx context.Context, query, key string, policy EvidencePolicy, questions []ResearchQuestion) (agentmanager.RunResult, error) {
 	query = strings.TrimSpace(query)
-	if query == "" || len(query) > 4096 {
-		return agentmanager.RunResult{}, fmt.Errorf("%w: query must contain 1..4096 bytes", ErrInvalidInput)
+	if err := ValidateContractBounds(query, questions, policy); err != nil {
+		return agentmanager.RunResult{}, fmt.Errorf("%w: %v", ErrInvalidInput, err)
 	}
 	if s.agentManager == nil {
 		return agentmanager.RunResult{}, fmt.Errorf("%w: agent-manager not configured", agentmanager.ErrNotAvailable)
 	}
-	return s.agentManager.Spawn(ctx, agentmanager.SpawnRequest{
+	questionValues := make([]map[string]any, 0, len(questions))
+	for _, q := range questions {
+		questionValues = append(questionValues, map[string]any{"id": q.ID, "prompt": q.Prompt, "required": q.Required})
+	}
+	result, err := s.agentManager.Spawn(ctx, agentmanager.SpawnRequest{
 		Query:          query,
 		Title:          "L3 research: " + query,
 		IdempotencyKey: key, GatherCap: s.gatherCap, ConfidenceGate: s.confidenceGate, MaxLoops: s.maxLoops,
+		Policy:    map[string]any{"max_age_seconds": int64(policy.MaxAge.Seconds()), "source_domains": stringValues(policy.SourceDomains), "minimum_sources": policy.MinimumSources, "top_n": policy.TopN, "max_evidence_bytes": policy.MaxEvidenceBytes},
+		Questions: questionValues,
 	})
+	if err != nil {
+		return agentmanager.RunResult{}, err
+	}
+	s.captureL3Admission(ctx, query, result)
+	s.recordL3AdmissionMetric(questions)
+	return result, nil
+}
+
+func (s *Service) recordL3AdmissionMetric(questions []ResearchQuestion) {
+	if s.outcomeMetrics == nil {
+		return
+	}
+	required := 0
+	for _, question := range questions {
+		if question.Required {
+			required++
+		}
+	}
+	s.outcomeMetrics.Record(OutcomeMetric{At: s.now(), RequiredQuestions: required, Calls: 1})
+}
+
+func stringValues(values []string) []any {
+	out := make([]any, 0, len(values))
+	for _, value := range values {
+		out = append(out, value)
+	}
+	return out
 }
 
 // GetResearchStatus reads a declared L3 execution by id.
@@ -173,7 +216,12 @@ func (s *Service) GetResearchStatus(ctx context.Context, runID string) (agentman
 	if s.agentManager == nil {
 		return agentmanager.RunState{}, fmt.Errorf("%w: agent-manager not configured", agentmanager.ErrNotAvailable)
 	}
-	return s.agentManager.GetRunState(ctx, runID)
+	state, err := s.agentManager.GetRunState(ctx, runID)
+	if err != nil {
+		return agentmanager.RunState{}, err
+	}
+	s.persistL3Assessments(ctx, &state)
+	return state, nil
 }
 
 // ReconcileItem is one distilled claim the L3 reconcile post-step proposes to
@@ -265,5 +313,73 @@ func (s *Service) WaitResearch(ctx context.Context, id string, seconds int) (age
 	if !ok {
 		return agentmanager.RunState{}, fmt.Errorf("%w: owner wait is not configured", agentmanager.ErrNotAvailable)
 	}
-	return w.Wait(ctx, id, seconds)
+	state, err := w.Wait(ctx, id, seconds)
+	if err != nil {
+		return agentmanager.RunState{}, err
+	}
+	s.persistL3Assessments(ctx, &state)
+	return state, nil
+}
+
+// CancelResearch explicitly delegates cancellation to Agent Manager. A client
+// timeout in WaitResearch never calls this operation.
+func (s *Service) CancelResearch(ctx context.Context, id, reason, idempotencyKey string) (agentmanager.RunState, error) {
+	if s.agentManager == nil {
+		return agentmanager.RunState{}, fmt.Errorf("%w: agent-manager not configured", agentmanager.ErrNotAvailable)
+	}
+	canceller, ok := s.agentManager.(agentmanager.Canceller)
+	if !ok {
+		return agentmanager.RunState{}, fmt.Errorf("%w: owner cancellation is not configured", agentmanager.ErrNotAvailable)
+	}
+	state, err := canceller.Cancel(ctx, id, reason, idempotencyKey)
+	if err != nil {
+		return agentmanager.RunState{}, err
+	}
+	s.persistL3Assessments(ctx, &state)
+	return state, nil
+}
+
+// persistL3Assessments records every claim emitted by Agent Manager. L3's
+// current result contract carries citations but not owner passage IDs, so the
+// assessment is deliberately unknown until a passage-backed verification
+// operation runs. This preserves the claim and its limitation without turning
+// a structurally valid citation into unsupported proof.
+func (s *Service) persistL3Assessments(ctx context.Context, state *agentmanager.RunState) {
+	writer, ok := s.receiptStore.(evidence.AssessmentWriter)
+	if !ok || state == nil || state.Result == nil {
+		return
+	}
+	claims, ok := state.Result["claims"].([]any)
+	if !ok {
+		return
+	}
+	assessmentViews := make([]any, 0, len(claims))
+	for index, raw := range claims {
+		claim, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		claimID := state.RunID + ":claim:" + strconv.Itoa(index)
+		assessmentID := uuid.NewSHA1(uuid.Nil, []byte(claimID)).String()
+		refs, _ := json.Marshal(claim["citations"])
+		stored, err := writer.CreateAssessment(ctx, evidence.Assessment{AssessmentID: assessmentID, ClaimID: claimID, Disposition: string(AssessmentUnknown), Reason: "l3_result_has_no_owner_passage", EvidenceJSON: string(refs)})
+		if err != nil {
+			s.logger.Printf("research: persist L3 assessment %q: %v", claimID, err)
+			continue
+		}
+		claim["assessment_id"] = stored.AssessmentID
+		assessmentViews = append(assessmentViews, map[string]any{"assessment_id": stored.AssessmentID, "claim_id": stored.ClaimID, "disposition": stored.Disposition, "reason": stored.Reason})
+	}
+	if len(assessmentViews) > 0 {
+		state.Result["assessments"] = assessmentViews
+		// Agent Manager validates citation shape, while web-search owns
+		// passage-backed support. A citation-only L3 result is therefore a
+		// partial answer until a verification operation supplies owner passage
+		// references; it must not be exposed as answered.
+		if status, _ := state.Result["status"].(string); status == "answered" {
+			state.Result["status"] = "partial"
+			gaps, _ := state.Result["gaps"].([]any)
+			state.Result["gaps"] = append(gaps, "verification_unknown")
+		}
+	}
 }

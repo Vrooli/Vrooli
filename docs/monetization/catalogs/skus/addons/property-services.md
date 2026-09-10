@@ -17,7 +17,7 @@ Local service businesses — power washing, landscaping, house flipping, general
 - **Scheduling and dispatch** — coordinating crews and bookings
 - **Customer communication** — automated follow-up, review requests
 
-A property-services add-on would package scenarios addressing these needs. Dual-purpose: attach to a business-bundle subscriber *or* serve as the backing tool for Vrooli's own [services-led revenue line](../../REVENUE_LINES.md).
+A property-services add-on would package scenarios addressing these needs. Dual-purpose: attach to a business-bundle subscriber *or* serve as the backing tool for Vrooli's own [services-led revenue line](../../revenue-lines/README.md).
 
 ## Promotion constraints
 
@@ -44,7 +44,7 @@ This add-on is one of the strongest candidates for the **services → subscripti
 3. Productize the tooling into the add-on.
 4. Convert pilot clients to add-on subscription once the tool carries the work without our hands on it.
 
-See [REVENUE_LINES.md](../../REVENUE_LINES.md) for services-engagement discipline.
+See [REVENUE_LINES.md](../../revenue-lines/README.md) for services-engagement discipline.
 
 ## Signals to monitor before promotion
 

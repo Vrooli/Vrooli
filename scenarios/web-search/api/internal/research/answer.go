@@ -25,6 +25,12 @@ type EvidencePolicy struct {
 	TopN           int
 	Capture        bool
 	FindingID      string
+	// MaxEvidenceBytes bounds retained/source content admitted to one request.
+	// Zero means the documented server default and is resolved by the caller.
+	MaxEvidenceBytes int
+	Questions        []ResearchQuestion
+	// ParentRunID groups this child research attempt under an owning L3 run.
+	ParentRunID string
 }
 
 type AnswerOutcome struct {
@@ -35,6 +41,8 @@ type AnswerOutcome struct {
 	Abstained, Cached             bool
 	CheckedAt                     time.Time
 	LiveCalls                     int
+	Assessments                   []ClaimAssessment
+	Coverage                      []QuestionCoverage
 }
 
 type LiveSearch interface {
@@ -44,8 +52,8 @@ type LiveSearch interface {
 func (p *EvidencePolicy) Validate() error {
 	p.Query = strings.TrimSpace(p.Query)
 	p.applyDefaults()
-	if p.Query == "" || len(p.Query) > 4096 {
-		return fmt.Errorf("query must contain 1..4096 bytes")
+	if err := ValidateContractBounds(p.Query, p.Questions, *p); err != nil {
+		return err
 	}
 	if !map[string]bool{"l0": true, "l1": true, "l2": true}[p.Effort] {
 		return fmt.Errorf("effort must be l0, l1, or l2")
@@ -110,15 +118,14 @@ func allowedSource(raw string, domains []string) bool {
 }
 
 func supportedSources(citations []Citation, domains []string) int {
-	hosts := map[string]bool{}
+	urls := make([]string, 0, len(citations))
 	for _, c := range citations {
 		if len(c.URL) > 2048 || len(c.Title) > 300 || !allowedSource(c.URL, domains) {
 			return 0
 		}
-		u, _ := url.Parse(c.URL)
-		hosts[strings.ToLower(u.Hostname())] = true
+		urls = append(urls, c.URL)
 	}
-	return len(hosts)
+	return IndependentPublisherCount(urls)
 }
 
 func (s *Service) Answer(ctx context.Context, p EvidencePolicy) (out AnswerOutcome, err error) {
@@ -180,6 +187,12 @@ func (s *Service) storedAnswer(ctx context.Context, p EvidencePolicy, now time.T
 		if !ok {
 			continue
 		}
+		if len(p.Questions) > 0 {
+			// Legacy findings have no per-question claim assessments, so they
+			// cannot silently satisfy a newly typed multipart request.
+			out.Coverage = EvaluateQuestionCoverage(p.Questions, nil, nil)
+			continue
+		}
 		out.Kind = "stored_finding"
 		out.Brief = brief
 		out.FindingIDs = []string{f.ID}
@@ -236,13 +249,19 @@ func (s *Service) collectLiveAnswer(ctx context.Context, p EvidencePolicy, out *
 func (s *Service) collectPageAnswer(ctx context.Context, p EvidencePolicy, out *AnswerOutcome) error {
 	scoped := *s
 	scoped.searcher = domainSearcher{inner: s.searcher, domains: p.SourceDomains}
-	live, err := scoped.RunL2(ctx, p.Query, p.TopN, false)
+	// Answer owns the final capture decision after sufficiency checks; the
+	// delegated L2 pass must never enqueue a finding before that gate.
+	l2Policy := p
+	l2Policy.Capture = false
+	live, err := scoped.RunL2WithPolicyAndParent(ctx, l2Policy, p.ParentRunID)
 	if err != nil {
 		return err
 	}
 	out.Brief = live.Brief
 	out.Abstained = live.Abstained
 	out.Reason = string(live.AbstainReason)
+	out.Assessments = live.Assessments
+	out.Coverage = live.Coverage
 	if len(live.DegradedEngines) > 0 {
 		out.Gaps = append(out.Gaps, "upstream_engines_degraded")
 	}
@@ -285,14 +304,20 @@ func copySnippetSynthesis(out *AnswerOutcome, syn *livesearch.Synthesis) {
 }
 
 func (s *Service) finishAnswer(ctx context.Context, p EvidencePolicy, out AnswerOutcome) AnswerOutcome {
+	if len(p.Questions) > 0 && len(out.Coverage) == 0 {
+		out.Coverage = EvaluateQuestionCoverage(p.Questions, out.Assessments, nil)
+	}
 	if len(out.Brief.Summary) > 10000 || len(out.Brief.Citations) > 10 {
 		out.Reason = "answer_output_limit"
 	}
-	if sufficientAnswer(out, p) {
+	if sufficientAnswer(out, p) && questionsCovered(p.Questions, out) {
 		out.Kind = "cited_synthesis"
 		s.captureAnswer(ctx, p, &out)
 	} else {
 		rejectAnswer(p, &out)
+		if len(p.Questions) > 0 {
+			out.Reason = "question_coverage_incomplete"
+		}
 	}
 	if len(out.Gaps) > 0 && out.Status == "ok" {
 		out.Status = "partial"
@@ -300,8 +325,35 @@ func (s *Service) finishAnswer(ctx context.Context, p EvidencePolicy, out Answer
 	return out
 }
 
+func questionsCovered(questions []ResearchQuestion, out AnswerOutcome) bool {
+	if len(questions) == 0 {
+		return true
+	}
+	for _, question := range questions {
+		found := false
+		for _, coverage := range out.Coverage {
+			if coverage.QuestionID == question.ID && coverage.Status == "supported" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
 func sufficientAnswer(out AnswerOutcome, p EvidencePolicy) bool {
-	return !out.Abstained && len(out.Brief.Summary) <= 10000 && len(out.Brief.Citations) <= 10 && strings.TrimSpace(out.Brief.Summary) != "" && supportedSources(out.Brief.Citations, p.SourceDomains) >= p.MinimumSources
+	if out.Abstained || len(out.Brief.Summary) > 10000 || len(out.Brief.Citations) > 10 || strings.TrimSpace(out.Brief.Summary) == "" || supportedSources(out.Brief.Citations, p.SourceDomains) < p.MinimumSources {
+		return false
+	}
+	for _, assessment := range out.Assessments {
+		if assessment.Disposition != AssessmentSupported || len(assessment.Evidence) == 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Service) captureAnswer(ctx context.Context, p EvidencePolicy, out *AnswerOutcome) {

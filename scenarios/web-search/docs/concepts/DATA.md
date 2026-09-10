@@ -4,10 +4,8 @@ This document is the canonical data ownership and storage map for the
 scenario. Update it when domains add tables, files, blobs, external
 records, retention rules, migrations, imports, or exports.
 
-> **Scaffold status (2026-06-09):** The schema below is the *intended*
-> data model from `PRD.md` / requirements (OT-P0-005, OT-P1-006). It is
-> not yet implemented; the only on-disk schema is the template `notes`
-> example, which will be removed.
+The schema below is the implemented owner model. Domain schemas are embedded
+next to the code that interprets them and are applied idempotently at startup.
 
 ## Purpose Of This Document
 
@@ -49,6 +47,8 @@ domain genuinely needs semantic recall — documented in
 | Briefs | findings (produced by research) | SQLite (`briefs` table) | `api/internal/findings/schema.sql` (planned) | Retained with their findings for provenance | One research run; holds many findings. |
 | Citations | findings | SQLite (`finding_citations` table or embedded JSON) | same | Same lifecycle as parent finding | URL + title + retrieved-at per source. |
 | Finding audit log | findings | SQLite (`finding_audit` table) | same | Append-only; retained for auditability | what/why/which-brief on every mutation. |
+| Evidence receipts and passages | evidence | SQLite (`evidence_*` tables) | `api/internal/evidence/schema.sql` | Receipt metadata retained; content may expire | Content-addressed artifacts, UTF-8-safe passage hashes, and optional BAS producer execution identity. |
+| Method release state | evaluation | SQLite (`method_release_state`) | `api/internal/evaluation/schema.sql` | Current, history, and suspensions retained | Restored on restart; promotion remains compare-and-swap guarded. |
 | Live-web result cache | livesearch | SQLite or in-memory (TTL'd) | n/a (derived from SearXNG) | TTL eviction only | Dampens repeated external queries. |
 | Budget governor state | livesearch | in-memory token bucket | n/a | Per-window, not durable | Caps external request rate. |
 | Provider descriptors | federation | `.vrooli/search.json` (file) | the file itself | Versioned with the repo | web-search.live + web-search.learnings. |
@@ -62,6 +62,8 @@ domain genuinely needs semantic recall — documented in
 | `briefs` | findings | `api/internal/findings/schema.sql` | research run orchestration; findings provenance |
 | `finding_citations` | findings | `api/internal/findings/schema.sql` | finding read/projection |
 | `finding_audit` | findings | `api/internal/findings/schema.sql` | every finding mutation |
+| `evidence_receipts`, `evidence_artifacts`, `evidence_passages` | evidence | `api/internal/evidence/schema.sql` | research fetch and evidence API |
+| `method_release_state` | evaluation | `api/internal/evaluation/schema.sql` | method release API and startup restore |
 | `web-search-findings` (Qdrant) | findings | aisearch-go collection spec | semantic recall |
 | live cache | livesearch | `api/internal/livesearch/` | L0/L1 query path |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot |
@@ -106,6 +108,7 @@ drop/rename/backfill plan here and the tradeoff in
 | Findings | Never hard-deleted | Supersede → archived in place (recoverable, auditable) | Long-term: P2 GC may prune permanently-decayed/superseded rows. |
 | Superseded findings | Reconcile / explicit supersede | Excluded from default search; retrievable via `--include-archived` | — |
 | Live cache | TTL expiry | Ephemeral | — |
+| Evidence content | Retention preview/expiry | Expiry protects supplied active artifact references and preserves receipt tombstones | Operator invokes the bounded retention seam. |
 | Audit log | Never | Append-only | Growth managed by P2 GC. |
 
 ## Privacy Notes

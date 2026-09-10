@@ -10,10 +10,7 @@ is called with dry_run=True only, and every proposal is returned for a human or 
 usage skill's tree to execute with the cited CLI verb.
 """
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 limit = int(inputs.get("limit", 100))
 include_disputed = bool(inputs.get("include_disputed", True))
 decayed_below = float(inputs.get("decayed_below", 0.5))
@@ -36,33 +33,6 @@ def fail(status, klass, detail, where):
     envelope["status"] = status
     envelope["errors"].append({"class": klass, "detail": str(detail)[:160], "where": where})
     return "report"
-
-
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
 
 
 def propose(kind, finding_id, verb, evidence):
@@ -89,7 +59,7 @@ def step_collect():  # COLLECT · governed reads only, concurrent
             lambda: web_search.disputes.list(limit=50),
         )
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         return fail(status, klass, exc, "collect")
     handles.update(eff=eff, disputes=disputes)
     return "act"
@@ -102,7 +72,7 @@ def step_act():  # ACT · the one write-effect binding, invoked in dry-run only 
         handles["gc"] = web_search.findings.gc(dry_run=True, rows="supersededDecayed")
         handles["gc"].count()
     except Exception as exc:
-        status, klass = classify_transport(exc)
+        status, klass = program.classify(exc)
         return fail(status, klass, exc, "act")
     return "classify"
 
@@ -163,12 +133,4 @@ def step_report():  # REPORT
 
 STATES = {"validate": step_validate, "collect": step_collect, "act": step_act, "classify": step_classify, "report": step_report}
 state = "validate"
-while state:
-    try:
-        state = STATES[state]()
-    except Exception as exc:  # the one catch that guarantees an envelope on every path
-        if envelope.get("phase") == "report":
-            raise
-        envelope["status"] = "failed"
-        envelope["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": envelope.get("phase") or state})
-        state = "report"
+program.run(STATES, state)

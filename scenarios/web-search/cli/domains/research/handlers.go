@@ -29,6 +29,14 @@ type handlers struct {
 // WriteTimeout budget.
 const researchClientTimeout = 5 * time.Minute
 
+func parseFloatOrZero(v string) float64 {
+	if v == "" {
+		return 0
+	}
+	f, _ := strconv.ParseFloat(v, 64)
+	return f
+}
+
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, researchClientTimeout)
 	return &handlers{
@@ -40,9 +48,11 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 func (h *handlers) l2(ctx cliapp.RunContext) error {
 	query := ctx.Positional("query")
 	resp, err := h.client.RunL2(context.Background(), connect.NewRequest(&researchv1.RunL2Request{
-		Query:   query,
-		TopN:    cliutil.ParseInt32(ctx.Flag("top-n")),
-		Capture: ctx.BoolFlag("capture"),
+		Query:       query,
+		TopN:        cliutil.ParseInt32(ctx.Flag("top-n")),
+		Capture:     ctx.BoolFlag("capture"),
+		ParentRunId: ctx.Flag("parent-run-id"),
+		Policy:      &researchv1.EvidencePolicy{MaxEvidenceBytes: cliutil.ParseInt32(ctx.Flag("max-evidence-bytes"))},
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("run L2 research", err, nil)
@@ -95,7 +105,10 @@ func (h *handlers) l2(ctx cliapp.RunContext) error {
 
 func (h *handlers) l3(ctx cliapp.RunContext) error {
 	query := ctx.Positional("query")
-	resp, err := h.client.RunL3(context.Background(), connect.NewRequest(&researchv1.RunL3Request{Query: query, IdempotencyKey: ctx.Flag("idempotency-key")}))
+	resp, err := h.client.RunL3(context.Background(), connect.NewRequest(&researchv1.RunL3Request{
+		Query: query, IdempotencyKey: ctx.Flag("idempotency-key"),
+		Policy: &researchv1.EvidencePolicy{MaxEvidenceBytes: cliutil.ParseInt32(ctx.Flag("max-evidence-bytes"))},
+	}))
 	if err != nil {
 		return cliapp.WrapAPIError("start L3 research", err, nil)
 	}
@@ -174,7 +187,7 @@ func (h *handlers) answer(ctx cliapp.RunContext) error {
 	if raw := ctx.Flag("source-domains"); raw != "" {
 		domains = strings.Split(raw, ",")
 	}
-	resp, err := h.client.Answer(context.Background(), connect.NewRequest(&researchv1.AnswerRequest{Query: ctx.Positional("query"), Effort: ctx.Flag("effort"), MaxAgeSeconds: age, SourceDomains: domains, MinimumSources: cliutil.ParseInt32(ctx.Flag("minimum-sources")), TopN: cliutil.ParseInt32(ctx.Flag("top-n")), Capture: ctx.BoolFlag("capture"), FindingId: ctx.Flag("finding-id")}))
+	resp, err := h.client.Answer(context.Background(), connect.NewRequest(&researchv1.AnswerRequest{Query: ctx.Positional("query"), Effort: ctx.Flag("effort"), MaxAgeSeconds: age, SourceDomains: domains, MinimumSources: cliutil.ParseInt32(ctx.Flag("minimum-sources")), TopN: cliutil.ParseInt32(ctx.Flag("top-n")), Capture: ctx.BoolFlag("capture"), FindingId: ctx.Flag("finding-id"), ParentRunId: ctx.Flag("parent-run-id"), Policy: &researchv1.EvidencePolicy{MaxEvidenceBytes: cliutil.ParseInt32(ctx.Flag("max-evidence-bytes"))}}))
 	if err != nil {
 		return cliapp.WrapAPIError("answer research", err, nil)
 	}
@@ -212,4 +225,126 @@ func (h *handlers) wait(ctx cliapp.RunContext) error {
 		return fmt.Errorf("research execution ended as %s", m.Status)
 	}
 	return nil
+}
+
+func (h *handlers) cancel(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	resp, err := h.client.CancelResearch(context.Background(), connect.NewRequest(&researchv1.CancelResearchRequest{
+		RunId: id, Reason: ctx.Flag("reason"), IdempotencyKey: ctx.Flag("idempotency-key"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("cancel research", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no cancellation response")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Cancellation requested for research run %s (status: %s).", resp.Msg.RunId, resp.Msg.Status)},
+		NextCommand: []string{fmt.Sprintf("`research status %s` — inspect the owner terminal state", resp.Msg.RunId)},
+	})
+}
+
+func (h *handlers) captureStatus(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetCaptureStatus(context.Background(), connect.NewRequest(&researchv1.GetCaptureStatusRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("get research capture status", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no capture status")
+	}
+	m := resp.Msg
+	summary := []string{fmt.Sprintf("Research capture status: %s.", m.Status), fmt.Sprintf("Pending: %d; delivered: %d; failed: %d.", m.Pending, m.Delivered, m.Failed)}
+	if m.OldestPendingAt != "" {
+		summary = append(summary, "Oldest pending: "+m.OldestPendingAt)
+	}
+	return cliapp.RenderProtoList(ctx, m, cliapp.ListReport{Summary: summary, ResultsHeading: "Capture delivery", Results: []string{m.Status}})
+}
+
+func (h *handlers) evidenceReceipt(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetEvidenceReceipt(context.Background(), connect.NewRequest(&researchv1.GetEvidenceReceiptRequest{ReceiptId: ctx.Positional("receipt-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("get evidence receipt", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no evidence receipt")
+	}
+	m := resp.Msg
+	return cliapp.RenderProtoList(ctx, m, cliapp.ListReport{Summary: []string{"Evidence receipt " + m.ReceiptId + ".", "Retrieved: " + m.RetrievedAt, "URL: " + m.OriginalUrl}, ResultsHeading: "Artifact", Results: []string{m.ArtifactId + " (" + m.ContentSha256 + ")"}})
+}
+
+func (h *handlers) evidencePassage(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetEvidencePassage(context.Background(), connect.NewRequest(&researchv1.GetEvidencePassageRequest{PassageId: ctx.Positional("passage-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("get evidence passage", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no evidence passage")
+	}
+	m := resp.Msg
+	return cliapp.RenderProtoList(ctx, m, cliapp.ListReport{Summary: []string{fmt.Sprintf("Evidence passage %s (%d..%d).", m.PassageId, m.StartByte, m.EndByte), "Receipt: " + m.ReceiptId}, ResultsHeading: "Passage", Results: []string{m.Content}})
+}
+
+func (h *handlers) evidenceAssessment(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetEvidenceAssessment(context.Background(), connect.NewRequest(&researchv1.GetEvidenceAssessmentRequest{AssessmentId: ctx.Positional("assessment-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("get evidence assessment", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no evidence assessment")
+	}
+	m := resp.Msg
+	return cliapp.RenderProtoList(ctx, m, cliapp.ListReport{Summary: []string{"Evidence assessment " + m.AssessmentId + ".", "Claim: " + m.ClaimId, "Disposition: " + m.Disposition}, ResultsHeading: "Assessment", Results: []string{m.Reason, m.EvidenceJson}})
+}
+
+func (h *handlers) methodCurrent(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetMethodRelease(context.Background(), connect.NewRequest(&researchv1.GetMethodReleaseRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("get current method release", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no method release")
+	}
+	summary := []string{"No current method release."}
+	if resp.Msg.Found && resp.Msg.Release != nil {
+		summary = []string{"Current method release: " + resp.Msg.Release.RevisionHash + "."}
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: summary, ResultsHeading: "Release", Results: nil})
+}
+
+func (h *handlers) methodPromote(ctx cliapp.RunContext) error {
+	resp, err := h.client.PromoteMethod(context.Background(), connect.NewRequest(&researchv1.PromoteMethodRequest{
+		ExpectedCurrentHash: ctx.Flag("expected-current-hash"), Grant: ctx.Flag("grant"),
+		Revision: &researchv1.MethodRevision{Id: ctx.Flag("revision-id"), ProgramHash: ctx.Flag("program-hash"), ConfigHash: ctx.Flag("config-hash")},
+		Receipt:  &researchv1.EvaluationReceipt{Id: ctx.Flag("receipt-id"), CandidateHash: ctx.Flag("candidate-hash"), ReportHash: ctx.Flag("report-hash"), Accepted: ctx.BoolFlag("receipt-accepted")},
+		Report:   &researchv1.EvaluationReport{Accepted: ctx.BoolFlag("report-accepted"), Reason: ctx.Flag("report-reason"), BaselineMethod: ctx.Flag("baseline-method"), CandidateMethod: ctx.Flag("candidate-method"), Population: cliutil.ParseInt32(ctx.Flag("population")), MeanBaselineEffort: parseFloatOrZero(ctx.Flag("baseline-effort")), MeanCandidateEffort: parseFloatOrZero(ctx.Flag("candidate-effort"))},
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("promote research method", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Release == nil {
+		return fmt.Errorf("server returned no promoted release")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{"Promoted method " + resp.Msg.Release.RevisionHash + "."}})
+}
+
+func (h *handlers) methodRollback(ctx cliapp.RunContext) error {
+	resp, err := h.client.RollbackMethod(context.Background(), connect.NewRequest(&researchv1.RollbackMethodRequest{ExpectedCurrentHash: ctx.Flag("expected-current-hash"), TargetHash: ctx.Flag("target-hash")}))
+	if err != nil {
+		return cliapp.WrapAPIError("rollback research method", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Release == nil {
+		return fmt.Errorf("server returned no rolled-back release")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{"Rolled back method to " + resp.Msg.Release.RevisionHash + "."}})
+}
+
+func (h *handlers) methodSuspend(ctx cliapp.RunContext) error {
+	resp, err := h.client.SuspendMethod(context.Background(), connect.NewRequest(&researchv1.SuspendMethodRequest{RevisionHash: ctx.Flag("revision-hash"), Reason: ctx.Flag("reason")}))
+	if err != nil {
+		return cliapp.WrapAPIError("suspend research method", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no suspension")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{"Suspended method " + resp.Msg.RevisionHash + "."}})
 }

@@ -1,10 +1,7 @@
 import json
 
 """Read fixed research learning cohorts without inventing baselines or zero counts."""
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 envelope = {"program":"web-search.learning-read","version":"1","status":"failed","phase":"validate","signals":{},"errors":[],"evidence":[]}
 try:
     if not isinstance(inputs,dict) or set(inputs)-{"from","to","operation","context_key"}:

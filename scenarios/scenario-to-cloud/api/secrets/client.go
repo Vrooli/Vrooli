@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 	"unicode"
@@ -89,7 +88,6 @@ func NewClient() *Client {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		serviceToken: strings.TrimSpace(os.Getenv("SECRETS_MANAGER_DEPLOYMENT_TOKEN")),
 		resolver:     discovery.DefaultResolver(),
 	}
 }

@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+// ollamaGatewayRunner is the process boundary for resource-ollama. Production
+// uses runOllamaGateway; tests replace the runner with a deterministic fixture
+// so parsing and error handling still exercise the real gateway wrappers.
+var ollamaGatewayRunner = runOllamaGateway
+
 // runOllamaGateway shells out to `resource-ollama gateway <args>`. All Ollama
 // daemon traffic goes through this CLI so the host-wide semaphore can bound
 // fleet-wide parallelism — never hit Ollama HTTP directly.
@@ -26,7 +31,7 @@ func runOllamaGateway(ctx context.Context, args []string, stdin string) ([]byte,
 }
 
 func ollamaGatewayEmbed(ctx context.Context, role, text string) ([]float64, error) {
-	out, err := runOllamaGateway(ctx, []string{"gateway", "embed", "--role", role, "--json", "--input-stdin"}, text)
+	out, err := ollamaGatewayRunner(ctx, []string{"gateway", "embed", "--role", role, "--json", "--input-stdin"}, text)
 	if err != nil {
 		return nil, fmt.Errorf("resource-ollama gateway embed failed: %w", err)
 	}
@@ -40,7 +45,7 @@ func ollamaGatewayEmbed(ctx context.Context, role, text string) ([]float64, erro
 }
 
 func ollamaGatewayGenerate(ctx context.Context, role, prompt string) (string, error) {
-	out, err := runOllamaGateway(ctx, []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}, prompt)
+	out, err := ollamaGatewayRunner(ctx, []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}, prompt)
 	if err != nil {
 		return "", fmt.Errorf("resource-ollama gateway generate failed: %w", err)
 	}

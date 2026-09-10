@@ -208,6 +208,16 @@
           "tier-1-local"
         ]
       }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "service-secret",
+        "kind": "authority",
+        "consumer": "LPBS revenue projection client",
+        "source_ref": "api/server.go:114",
+        "required": false
+      }
     ]
   },
   "skills": {

@@ -21,13 +21,42 @@ const (
 
 // Mutation types recorded in finding_audit.mutation_type.
 const (
-	MutationCreate    = "create"
-	MutationEdit      = "edit"
-	MutationSupersede = "supersede"
-	MutationFlag      = "flag"
-	MutationPrune     = "prune"
-	MutationResolve   = "resolve"
+	MutationCreate     = "create"
+	MutationEdit       = "edit"
+	MutationSupersede  = "supersede"
+	MutationFlag       = "flag"
+	MutationPrune      = "prune"
+	MutationResolve    = "resolve"
+	MutationCorrection = "correction"
 )
+
+// Correction is an append-only caller observation about a finding. It links
+// later verification to the original claim without rewriting that claim or
+// its creation audit row.
+type Correction struct {
+	ID                string
+	FindingID         string
+	Identity          string
+	OriginalClaimHash string
+	Disposition       string
+	Reason            string
+	EvidenceRefs      []string
+	InvestigationIDs  []string
+	MethodRevisions   []string
+	Actor             string
+	CreatedAt         time.Time
+}
+
+type CorrectionInput struct {
+	FindingID         string
+	Identity          string
+	OriginalClaimHash string
+	Disposition       string
+	Reason            string
+	EvidenceRefs      []string
+	InvestigationIDs  []string
+	MethodRevisions   []string
+}
 
 // Dispute resolutions accepted by Service.ResolveDispute.
 const (
@@ -87,19 +116,22 @@ type Brief struct {
 
 // NewCitation is a citation supplied when adding a finding.
 type NewCitation struct {
-	URL   string
-	Title string
+	URL         string
+	Title       string
+	RetrievedAt time.Time
 }
 
 // NewFinding is the input DTO Service.Add accepts. Distinct from Finding so
-// callers cannot pass ID, status, or timestamps.
+// callers cannot pass ID or lifecycle status. RetrievedAt is source
+// provenance supplied by the capture boundary.
 type NewFinding struct {
-	Claim      string
-	Confidence float64
-	Query      string
-	Source     string
-	BriefID    string
-	Citations  []NewCitation
+	Claim       string
+	Confidence  float64
+	Query       string
+	Source      string
+	BriefID     string
+	Citations   []NewCitation
+	RetrievedAt time.Time
 }
 
 // EditInput is the input DTO Service.Edit accepts. Both fields overwrite.

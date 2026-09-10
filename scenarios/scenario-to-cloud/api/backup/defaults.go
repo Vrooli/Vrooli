@@ -42,7 +42,7 @@ func (AuthorityKeys) ResolveKey(_ context.Context, keyRef string) ([]byte, error
 
 // PostgresCredentialIdentity is the postgres resource's declared credential
 // logical identity (resources/postgres/resource.json credentials.descriptors).
-const PostgresCredentialIdentity = "vrooli/postgres"
+const PostgresCredentialIdentity = "vrooli/postgres" // #nosec G101 -- credential-authority identity, not a credential value.
 
 // AuthorityPostgresEnv resolves the managed PostgreSQL password through the
 // credential authority and returns it as PGPASSWORD for the child process;

@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "web-search.setpoint-read",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Read every row of web-search's improve setpoint in one submission and report each as in band, out of band, or unavailable, without estimating.",
   "inputs": {
     "effectiveness_limit": {
@@ -90,7 +93,8 @@
         "deadline_exceeded",
         "binding_error",
         "kernel_runtime",
-        "no_governed_binding"
+        "no_governed_binding",
+        "remote_error"
       ]
     },
     "evidence": "sensor command names, one per row"
@@ -125,7 +129,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "web-search"
+      ]
     }
   ],
   "rung": "S3",

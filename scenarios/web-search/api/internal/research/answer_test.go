@@ -16,6 +16,12 @@ import (
 
 type evidenceStore struct{ rows map[string]findings.Finding }
 
+type relatedGatherer struct{ hits []research.GatheredFinding }
+
+func (g relatedGatherer) Gather(context.Context, string, int) ([]research.GatheredFinding, error) {
+	return g.hits, nil
+}
+
 func (e evidenceStore) GetMany(context.Context, []string) (map[string]findings.Finding, error) {
 	return e.rows, nil
 }
@@ -92,12 +98,46 @@ func TestAnswerBoundsBeforeCapture(t *testing.T) {
 	require.Equal(t, "answer_output_limit", out.Reason)
 }
 
-// [REQ:REQ-P0-009] A successful answer cannot silently satisfy an unavailable capture.
-func TestAnswerReportsUnavailableCapture(t *testing.T) {
+// [REQ:REQ-P0-009] An unretained passage cannot silently become a supported answer.
+func TestAnswerRejectsUnretainedSynthesis(t *testing.T) {
 	svc := research.NewService(research.Deps{Searcher: &fakeSearcher{candidates: []research.Candidate{{URL: "https://example.org/a"}}}, Fetcher: &fakeFetcher{textByURL: map[string]string{"https://example.org/a": "evidence"}}, Synthesizer: &fakeSynthesizer{result: research.Synthesis{Text: "supported", Citations: []research.Citation{{URL: "https://example.org/a"}}}}})
 	out, err := svc.Answer(context.Background(), research.EvidencePolicy{Query: "q", Capture: true})
 	require.NoError(t, err)
 	require.Equal(t, "partial", out.Status)
-	require.Equal(t, "supported", out.Brief.Summary)
-	require.Contains(t, out.Gaps, "capture_unavailable")
+	require.True(t, out.Abstained)
+	require.Empty(t, out.Brief.Summary)
+	require.Contains(t, out.Gaps, "evidence_requirements_unmet")
+}
+
+func TestStoredFindingDoesNotSatisfyMultipartRequest(t *testing.T) {
+	now := time.Date(2026, 9, 5, 0, 0, 0, 0, time.UTC)
+	f := findings.Finding{ID: "f", Query: "version status", Claim: "supported claim", Confidence: 0.8, Status: findings.StatusActive, RetrievalDate: now.Add(-time.Hour), Citations: []findings.Citation{{URL: "https://docs.example.org/reference"}}}
+	search := &fakeSearcher{err: errors.New("offline")}
+	svc := research.NewService(research.Deps{EvidenceStore: evidenceStore{rows: map[string]findings.Finding{"f": f}}, Searcher: search, Fetcher: &fakeFetcher{}, Synthesizer: &fakeSynthesizer{}, Now: func() time.Time { return now }})
+	out, err := svc.Answer(context.Background(), research.EvidencePolicy{Query: "version status", FindingID: "f", MaxAge: 2 * time.Hour, Questions: []research.ResearchQuestion{{ID: "a", Prompt: "first"}, {ID: "b", Prompt: "second"}}})
+	require.NoError(t, err)
+	require.Equal(t, "unavailable", out.Status)
+	require.NotEqual(t, "stored_finding", out.Kind)
+}
+
+func TestStoredFindingPreservesOriginalRetrievalDate(t *testing.T) {
+	retrieved := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	now := retrieved.Add(24 * time.Hour)
+	f := findings.Finding{ID: "f", Query: "release version", Claim: "supported claim", Confidence: 0.8, Status: findings.StatusActive, RetrievalDate: retrieved, Citations: []findings.Citation{{URL: "https://docs.example.org/reference"}}}
+	svc := research.NewService(research.Deps{EvidenceStore: evidenceStore{rows: map[string]findings.Finding{"f": f}}, Searcher: &fakeSearcher{err: errors.New("offline")}, Fetcher: &fakeFetcher{}, Synthesizer: &fakeSynthesizer{}, Now: func() time.Time { return now }})
+	out, err := svc.Answer(context.Background(), research.EvidencePolicy{Query: "release version", FindingID: "f", MaxAge: 2 * 24 * time.Hour})
+	require.NoError(t, err)
+	require.Equal(t, "stored_finding", out.Kind)
+	require.Equal(t, retrieved, out.CheckedAt)
+}
+
+func TestVersionSpecificQueriesDoNotReuseSimilarFinding(t *testing.T) {
+	now := time.Date(2026, 9, 5, 0, 0, 0, 0, time.UTC)
+	f := findings.Finding{ID: "f", Query: "release version 1", Claim: "old claim", Confidence: 0.8, Status: findings.StatusActive, RetrievalDate: now.Add(-time.Hour), Citations: []findings.Citation{{URL: "https://docs.example.org/reference"}}}
+	search := &fakeSearcher{err: errors.New("offline")}
+	svc := research.NewService(research.Deps{EvidenceStore: evidenceStore{rows: map[string]findings.Finding{"f": f}}, Gatherer: relatedGatherer{hits: []research.GatheredFinding{{FindingID: "f", Score: 0.99}}}, Searcher: search, Fetcher: &fakeFetcher{}, Synthesizer: &fakeSynthesizer{}, Now: func() time.Time { return now }})
+	out, err := svc.Answer(context.Background(), research.EvidencePolicy{Query: "release version 2", MaxAge: 2 * time.Hour})
+	require.NoError(t, err)
+	require.Equal(t, "unavailable", out.Status)
+	require.NotEqual(t, "stored_finding", out.Kind)
 }

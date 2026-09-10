@@ -98,7 +98,15 @@
         "certification",
         "vps"
       ],
-      "validation": []
+    "validation": [
+      {
+        "type": "manual",
+        "ref": "docs/internal/PROBLEMS.md",
+        "phase": "certification",
+        "status": "pending",
+        "notes": "Authorized disposable VPS authority is not present in this environment. Keep installation, update, DNS/TLS, reattachment, replacement-host restore and publication evidence pending until an authorized target and receipts exist."
+      }
+    ]
     },
     {
       "id": "STC-P0-043",

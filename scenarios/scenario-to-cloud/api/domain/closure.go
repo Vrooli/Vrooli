@@ -20,7 +20,7 @@ const (
 	ClosureKindPackage              ClosureComponentKind = "package"
 	ClosureKindTool                 ClosureComponentKind = "tool"
 	ClosureKindSafeguard            ClosureComponentKind = "safeguard"
-	ClosureKindCredentialDescriptor ClosureComponentKind = "credential_descriptor"
+	ClosureKindCredentialDescriptor ClosureComponentKind = "credential_descriptor" // #nosec G101 -- component-kind vocabulary, not credential material.
 	ClosureKindNativeArtifact       ClosureComponentKind = "native_artifact"
 )
 
@@ -41,7 +41,7 @@ const (
 	// ClosureReasonPlatformArtifact: a release artifact the platform needs.
 	ClosureReasonPlatformArtifact ClosureReasonKind = "platform_artifact"
 	// ClosureReasonCredentialOf: a credential descriptor declared by From.
-	ClosureReasonCredentialOf ClosureReasonKind = "credential_of"
+	ClosureReasonCredentialOf ClosureReasonKind = "credential_of" // #nosec G101 -- reason vocabulary, not credential material.
 	// ClosureReasonSafeguardOf: a host tool or safeguard declared by From.
 	ClosureReasonSafeguardOf ClosureReasonKind = "safeguard_of"
 	// ClosureReasonSelectedBy: an optional component the operator selected.

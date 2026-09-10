@@ -44,7 +44,7 @@ type CredentialClass string
 
 const (
 	CredentialClassGeneratedDatabasePassword CredentialClass = "generated_database_password"
-	CredentialClassExternalAPICredential     CredentialClass = "external_api_credential"
+	CredentialClassExternalAPICredential     CredentialClass = "external_api_credential" // #nosec G101 -- closed class vocabulary, not credential material.
 	CredentialClassSigningKey                CredentialClass = "signing_key"
 	CredentialClassMachineEnrollment         CredentialClass = "machine_enrollment_credential"
 	CredentialClassEncryptionRecoveryKey     CredentialClass = "encryption_recovery_key"

@@ -5,7 +5,7 @@
 > and productization judgment rather than a live line snapshot.
 
 - **Revisit trigger:** *"Revisit when at least one property-services scenario is deployable as a thin tool AND one local-service prospect signs a pilot agreement."*
-- **Productization target:** [`property-services` add-on](../catalog/addons/property-services.md)
+- **Productization target:** [`property-services` add-on](../skus/addons/property-services.md)
 - **Legal surface:** TCPA (US telemarketing), CAN-SPAM (email), GDPR (if international), state-level rules on B2B vs B2C lead sales. Non-trivial; requires explicit legal review before first paid engagement.
 
 ## Hypothesis
@@ -27,7 +27,7 @@ On promotion to `active`, this line must have all four:
 3. **Productization target** — `property-services` add-on (already documented).
 4. **Sunset or convert clause** — by date X, productize and hand off, or stop.
 
-See [REVENUE_LINES.md](../REVENUE_LINES.md) for the full services-trap discipline.
+See [REVENUE_LINES.md](README.md) for the full services-trap discipline.
 
 ## Candidate vertical playbooks
 

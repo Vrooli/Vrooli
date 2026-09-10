@@ -1,6 +1,10 @@
 package research
 
-import "web-search/internal/livesearch"
+import (
+	"time"
+
+	"web-search/internal/livesearch"
+)
 
 // Levels recorded on a Brief.
 const (
@@ -21,6 +25,7 @@ type Citation struct {
 	ResultIndex int
 	URL         string
 	Title       string
+	RetrievedAt time.Time
 }
 
 // Brief is the L2/L3 research artifact: the query, the level, the synthesized
@@ -35,9 +40,19 @@ type Brief struct {
 // Document is one fetched candidate page: its source URL/title plus the
 // extracted readable text the synthesizer reads.
 type Document struct {
-	URL   string
-	Title string
-	Text  string
+	URL       string
+	Title     string
+	Text      string
+	ReceiptID string
+	PassageID string
+}
+
+type FetchFailure struct {
+	URL       string
+	ReceiptID string
+	Code      string
+	Message   string
+	Retryable bool
 }
 
 // AbstainReason explains which collapse produced an L2 abstention. The single
@@ -61,6 +76,9 @@ const (
 	// ReasonCitationsInvalid: the model answered but grounded it in no valid
 	// document index — treated as fabrication by the always-cited contract.
 	ReasonCitationsInvalid AbstainReason = "citations_invalid"
+	// ReasonSynthesisUnavailable means retrieval completed but the verifier or
+	// synthesis service could not produce an assessment.
+	ReasonSynthesisUnavailable AbstainReason = "synthesis_unavailable"
 )
 
 // Synthesis is the always-cited L2 output. Abstained signals the fetched pages
@@ -94,5 +112,9 @@ type L2Outcome struct {
 	Excerpts []DocumentExcerpt
 	// DegradedEngines lists upstream engines that did not answer the L0
 	// candidate query backing this run (partial-inputs signal).
-	DegradedEngines []livesearch.EngineIssue
+	DegradedEngines    []livesearch.EngineIssue
+	EvidenceReceiptIDs []string
+	FetchFailures      []FetchFailure
+	Assessments        []ClaimAssessment
+	Coverage           []QuestionCoverage
 }

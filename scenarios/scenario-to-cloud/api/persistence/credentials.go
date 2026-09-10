@@ -15,6 +15,7 @@ import (
 // are references and metadata only; no column ever holds a credential value.
 // The rotation document is stored whole (JSON) because its receipts and
 // consumer progress are read and written as one unit by the lifecycle owner.
+// #nosec G101 -- schema identifiers describe metadata columns; no credential value is embedded.
 const cloudCredentialsPostgresDDL = `
 	CREATE TABLE IF NOT EXISTS cloud_credential_bindings (
 		id TEXT PRIMARY KEY,
@@ -110,6 +111,7 @@ CREATE INDEX IF NOT EXISTS idx_cloud_credential_rotations_deployment ON cloud_cr
 CREATE INDEX IF NOT EXISTS idx_cloud_credential_rotations_binding ON cloud_credential_rotations(binding_id);
 `
 
+// #nosec G101 -- fixed projection identifiers; no credential value is embedded.
 const credentialBindingColumns = `
 		id, deployment_id, logical_id, field, class, source_class, target_type, target_name,
 		version_number, version_content_ref, version_created_at, previous_version, consumer_refs,

@@ -4,12 +4,9 @@ Stable reference for the slots declared in
 `templates/scenarios/react-vite/ui/manifest.json`. Mirrors the file. Update
 both when adding or renaming a slot.
 
-> **Scaffold status (2026-06-09):** web-search inherits the template's
-> v1 slot taxonomy unchanged — no scenario-specific slot overrides are
-> declared, and none are anticipated. The intended UI features
-> (`search`, `findings`, `research`, `health`/ops, dispute review queue)
-> all map onto the existing `feature` / `feature-component` slots below;
-> they are *planned*, not yet built. See
+> **Current status (2026-09-06):** web-search uses the template's v1
+> slot taxonomy with implemented search, findings, research, operations,
+> and dispute surfaces. See
 > [`../concepts/UI-ARCHITECTURE.md`](../concepts/UI-ARCHITECTURE.md#intended-surfaces-web-search)
 > for the surface design. This doc is a generated-surface reference: the
 > live slot table is whatever `ui/manifest.json` declares, and an

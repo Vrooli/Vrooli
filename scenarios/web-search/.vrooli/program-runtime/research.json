@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "web-search.research",
   "version": "2",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Answer one question through the owner evidence policy with complete source-linked output; current evidence is the default.",
   "inputs": {
     "query": {
@@ -38,6 +41,9 @@
     },
     "finding_id": {
       "type": "string"
+    },
+    "parent_run_id": {
+      "type": "string"
     }
   },
   "assumptions": [
@@ -54,7 +60,11 @@
       "effect": "write"
     }
   ],
-  "verbs": [],
+  "verbs": [
+    "capture",
+    "tasks.get",
+    "validate"
+  ],
   "outputs": {
     "status": {
       "enum": [
@@ -87,7 +97,9 @@
         "invalid_input",
         "binding_error",
         "scenario_unreachable",
-        "no_grant"
+        "no_grant",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "finding ids read or written"
@@ -109,7 +121,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "web-search"
+      ]
     },
     {
       "id": "current-live",

@@ -161,6 +161,35 @@ func (h *handlers) flag(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) recordCorrection(ctx cliapp.RunContext) error {
+	resp, err := h.client.RecordCorrection(context.Background(), connect.NewRequest(&findingsv1.RecordCorrectionRequest{
+		FindingId: ctx.Positional("finding-id"), Identity: ctx.Flag("identity"), OriginalClaimHash: ctx.Flag("original-claim-hash"),
+		Disposition: ctx.Flag("disposition"), Reason: ctx.Flag("reason"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("record finding correction", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Correction == nil {
+		return fmt.Errorf("server returned no correction")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{"Recorded correction " + resp.Msg.Correction.Id + "."}, Changes: []string{resp.Msg.Correction.Disposition + ": " + resp.Msg.Correction.Reason}})
+}
+
+func (h *handlers) listCorrections(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListCorrections(context.Background(), connect.NewRequest(&findingsv1.ListCorrectionsRequest{FindingId: ctx.Positional("finding-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("list finding corrections", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no corrections")
+	}
+	rows := make([]string, 0, len(resp.Msg.Corrections))
+	for _, c := range resp.Msg.Corrections {
+		rows = append(rows, c.Id+": "+c.Disposition+" — "+c.Reason)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d correction(s).", len(rows))}, ResultsHeading: "Corrections", Results: rows})
+}
+
 func (h *handlers) prune(ctx cliapp.RunContext) error {
 	dryRun := ctx.BoolFlag("dry-run")
 	if !dryRun && !ctx.BoolFlag("force") {

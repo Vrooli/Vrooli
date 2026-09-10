@@ -228,3 +228,40 @@ func TestDiscoverConsumerInventoryBindsAddressPatternRegistrations(t *testing.T)
 		}
 	}
 }
+
+func TestDiscoverConsumerInventoryIncludesManagedReleaseAuthority(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	inventory, err := DiscoverConsumerInventory(root, Scope{
+		IncludeManaged: true,
+		Scenarios:      []string{},
+		Resources:      []string{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var release *ConsumerInventoryRow
+	for index := range inventory.Rows {
+		if inventory.Rows[index].LogicalID == "vrooli/release-authority" {
+			release = &inventory.Rows[index]
+			break
+		}
+	}
+	if release == nil {
+		t.Fatalf("managed inventory rows = %#v, want release-authority", inventory.Rows)
+	}
+	if release.Disposition != "bound" || len(release.Consumers) != 1 {
+		t.Fatalf("release-authority row = %#v, want one bound consumer", *release)
+	}
+	consumer := release.Consumers[0]
+	if consumer.Kind != ConsumerDelegated || consumer.Consumer != "release metadata signer" {
+		t.Fatalf("release-authority consumer = %#v, want delegated release signer", consumer)
+	}
+	if !filepath.IsAbs(release.SourceRef) || !filepath.IsAbs(consumer.SourceRef) {
+		t.Fatalf("managed source refs = (%q, %q), want absolute refs", release.SourceRef, consumer.SourceRef)
+	}
+}

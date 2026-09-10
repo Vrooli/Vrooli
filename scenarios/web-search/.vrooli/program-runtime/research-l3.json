@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "web-search.research-l3",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Start a declared research workflow idempotently and attach once, or resume an existing execution.",
   "inputs": {
     "query": {
@@ -37,7 +40,10 @@
       "effect": "read"
     }
   ],
-  "verbs": [],
+  "verbs": [
+    "tasks.get",
+    "validate"
+  ],
   "outputs": {
     "status": {
       "enum": [
@@ -65,7 +71,9 @@
       "classes": [
         "invalid_input",
         "binding_error",
-        "research_failed"
+        "research_failed",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "finding ids read or written"
@@ -87,7 +95,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "web-search"
+      ]
     }
   ],
   "rung": "S3",

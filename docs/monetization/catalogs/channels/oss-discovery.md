@@ -6,7 +6,7 @@
 
 - **Audience:** humans (developers, technical evaluators, OSS contributors)
 - **Owner:** ambiguous — no dedicated owner today. README/repo polish lives partially with marketing-crew (positioning), partially with director-swarm (project-identity canon), partially with scenario teams (per-scenario READMEs). The lack of a single owner is a known gap.
-- **Feeds:** [`subscription`](../revenue-lines/subscription.md) — primarily through the "could self-host but prefer not to" conversion path described in [STRATEGY.md §1](../STRATEGY.md). Strong OSS discovery is what produces that audience in the first place.
+- **Feeds:** [`subscription`](../revenue-lines/subscription.md) — primarily through the "could self-host but prefer not to" conversion path described in [STRATEGY.md §1](../../strategy/STRATEGY.md). Strong OSS discovery is what produces that audience in the first place.
 - **Coupling:** Spans all tiers, with strongest pull on Tier 2 (self-hosted) since OSS-discovery audiences are most likely to self-host.
 
 ## Hypothesis
@@ -34,7 +34,7 @@ What "doing this channel well" looks like, even before instrumentation:
 ## Anti-patterns
 
 - **Starbuying / fake stars.** Permanent credibility damage; named explicitly in the channel cross-cutting "what's NOT a channel" list. Do not propose this even as a "test."
-- **README-as-essay.** A README that buries the demo / install / first-action behind paragraphs of narrative is a conversion killer. Lead with the concrete; defer the philosophy to [`narrative/`](../../narrative/) docs and [`VISION.md`](../../../VISION.md).
+- **README-as-essay.** A README that buries the demo / install / first-action behind paragraphs of narrative is a conversion killer. Lead with the concrete; defer the philosophy to [`narrative/`](../../../narrative/README.md) docs and [`VISION.md`](../../../../VISION.md).
 - **Stale "coming soon" sections.** Promising future work and not delivering damages credibility worse than not promising it.
 - **Inflated star counts via cross-promotion campaigns** that don't reflect genuine interest. The audience that finds Vrooli through OSS discovery is sophisticated about social-proof signals.
 - **Dark-pattern badges or fake metrics.** Same prohibition as everywhere else.
@@ -71,4 +71,4 @@ that evidence exists.
 ## Notes
 
 - The ambiguity of ownership is a real risk. README polish, GitHub Discussions hygiene, awesome-list submissions, and similar "one-time-but-recurring" tasks tend to fall through the cracks when no one owns them. A future `channel-strategy-update` decision should propose an owner — likely inside marketing-crew or as a structural responsibility of director-swarm — before this channel scales further.
-- This channel's existence is partly *why* the open-source positioning is strategic, not a revenue leak (per [STRATEGY.md §1](../STRATEGY.md)). Closing the source would close this channel; the audience it produces is the audience subscriptions later capture.
+- This channel's existence is partly *why* the open-source positioning is strategic, not a revenue leak (per [STRATEGY.md §1](../../strategy/STRATEGY.md)). Closing the source would close this channel; the audience it produces is the audience subscriptions later capture.

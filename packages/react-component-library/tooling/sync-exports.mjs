@@ -1,4 +1,4 @@
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { authoredRoot } from "./catalog-source.mjs";
@@ -7,6 +7,11 @@ import { fileURLToPath } from "node:url";
 
 const packageRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/tooling$/, "");
 const packageJSONPath = join(packageRoot, "package.json");
+const outputIndex = process.argv.indexOf("--output-package");
+const outputPackagePath = outputIndex >= 0 ? process.argv[outputIndex + 1] : null;
+if (outputIndex >= 0 && (!outputPackagePath || outputPackagePath.startsWith("--"))) {
+  throw new Error("--output-package requires a destination path");
+}
 // Export only what the package compiler can actually emit. Cold versions may
 // remain durable in the ledger, but they have no authored source in the
 // package tree and therefore must not be advertised as package subpaths.
@@ -99,7 +104,9 @@ if (process.argv.includes("--check")) {
     process.exitCode = 1;
   }
 } else {
-  await writeFile(packageJSONPath, next);
+  const destination = outputPackagePath || packageJSONPath;
+  await mkdir(dirname(destination), { recursive: true });
+  await writeFile(destination, next);
 }
 const versionedExports = Object.keys(resolutions).filter((key) => /\/\d+\.\d+\.\d+$/.test(key)).length;
-console.log(JSON.stringify({ assets: assets.length, versionedExports, exports: publicSubpaths.length + 1, sideMapEntries: availableSubpaths.size, brokenVersionImports: brokenVersionImports.length, checked: process.argv.includes("--check") }));
+console.log(JSON.stringify({ assets: assets.length, versionedExports, exports: publicSubpaths.length + 1, sideMapEntries: availableSubpaths.size, brokenVersionImports: brokenVersionImports.length, checked: process.argv.includes("--check"), outputPackage: outputPackagePath || packageJSONPath }));

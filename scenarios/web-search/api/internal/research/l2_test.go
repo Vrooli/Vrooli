@@ -2,12 +2,15 @@ package research_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
 	"time"
 
+	"web-search/internal/capture"
 	localdb "web-search/internal/database"
+	"web-search/internal/evidence"
 	"web-search/internal/findings"
 	"web-search/internal/research"
 
@@ -19,6 +22,81 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 )
 
+type observedQuestionFetcher struct {
+	text string
+}
+
+func (f observedQuestionFetcher) Fetch(_ context.Context, _ string) (string, error) {
+	return f.text, nil
+}
+
+func (f observedQuestionFetcher) FetchObservation(_ context.Context, url string) (evidence.NewObservation, error) {
+	return evidence.NewObservation{URL: url, Content: []byte(f.text), ExtractionRevision: "test-v1", Retention: "test"}, nil
+}
+
+type questionSynthesizer struct {
+	answers map[string]research.Synthesis
+	calls   []string
+}
+
+func (s *questionSynthesizer) Synthesize(_ context.Context, query string, _ []research.Document) (research.Synthesis, error) {
+	s.calls = append(s.calls, query)
+	return s.answers[query], nil
+}
+
+func TestRunL2AnswersMultipartQuestionsIndependently(t *testing.T) {
+	db := testdb.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(evidence.Schema)))
+	receipts := evidence.NewSQLiteRepository(db, time.Now)
+	synth := &questionSynthesizer{answers: map[string]research.Synthesis{
+		"When was it released?":  {Text: "It was released on 2026-01-01.", Citations: []research.Citation{{ResultIndex: 0}}},
+		"When does support end?": {Text: "Support ends on 2028-01-01.", Citations: []research.Citation{{ResultIndex: 0}}},
+	}}
+	outcomeMetrics := research.NewOutcomeMetrics()
+	service := research.NewService(research.Deps{
+		Searcher:       &fakeSearcher{candidates: []research.Candidate{{URL: "https://source.example", Title: "Source"}}},
+		Fetcher:        observedQuestionFetcher{text: "The product was released on 2026-01-01. Support ends on 2027-01-01."},
+		Synthesizer:    synth,
+		ReceiptStore:   receipts,
+		OutcomeMetrics: outcomeMetrics,
+	})
+	out, err := service.RunL2WithContract(context.Background(), "product lifecycle", 1, false, []research.ResearchQuestion{
+		{ID: "release", Prompt: "When was it released?", Required: true},
+		{ID: "support", Prompt: "When does support end?", Required: true},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"When was it released?", "When does support end?"}, synth.calls)
+	require.Len(t, out.Coverage, 2)
+	require.Equal(t, "supported", out.Coverage[0].Status)
+	require.Equal(t, "unresolved", out.Coverage[1].Status)
+	require.Equal(t, "claim_not_supported", out.Coverage[1].UnresolvedReason)
+	require.Len(t, out.Assessments, 2)
+	totals, attempts, complete := outcomeMetrics.Snapshot(time.Now().Add(-time.Minute), time.Now().Add(time.Minute))
+	require.True(t, complete)
+	require.Equal(t, 1, attempts)
+	require.Equal(t, 1, totals.SupportedClaims)
+	require.Equal(t, 2, totals.AssessedClaims)
+	require.Equal(t, 2, totals.RequiredQuestions)
+}
+
+func TestRunL2AppliesEvidenceByteBudgetToRetainedInput(t *testing.T) {
+	db := testdb.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(evidence.Schema)))
+	receipts := evidence.NewSQLiteRepository(db, time.Now)
+	synth := &fakeSynthesizer{result: research.Synthesis{Text: "bounded answer", Citations: []research.Citation{{ResultIndex: 0}}}}
+	service := research.NewService(research.Deps{
+		Searcher: &fakeSearcher{candidates: []research.Candidate{{URL: "https://source.example", Title: "Source"}}},
+		Fetcher:  &observedQuestionFetcher{text: "0123456789"}, Synthesizer: synth, ReceiptStore: receipts,
+	})
+	out, err := service.RunL2WithPolicyAndParent(context.Background(), research.EvidencePolicy{Query: "bounded", Effort: "l2", TopN: 1, MaxEvidenceBytes: 5}, "")
+	require.NoError(t, err)
+	require.Len(t, out.Excerpts, 1)
+	require.Equal(t, "01234", out.Excerpts[0].Excerpt)
+	require.Len(t, out.FetchFailures, 1)
+	require.Equal(t, "evidence_limit", out.FetchFailures[0].Code)
+	require.Len(t, out.EvidenceReceiptIDs, 1)
+}
+
 func newFindingsService(t *testing.T) findings.Service {
 	t.Helper()
 	d := testdb.NewSQLite(t)
@@ -28,6 +106,51 @@ func newFindingsService(t *testing.T) findings.Service {
 	))
 	repo := findings.NewSQLiteRepository(d, schedule.System())
 	return findings.NewServiceWithActor(repo, "agent")
+}
+
+func TestDirectL2AttemptLeavesDurableCaptureWhenMemoryDeliveryIsDeferred(t *testing.T) {
+	db := testdb.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(capture.Schema)))
+	outbox := capture.NewRepository(db, time.Now)
+	service := research.NewService(research.Deps{
+		Searcher:      &fakeSearcher{candidates: []research.Candidate{{URL: "https://source.example", Title: "Source"}}},
+		Fetcher:       &fakeFetcher{textByURL: map[string]string{"https://source.example": "source body"}},
+		Synthesizer:   &fakeSynthesizer{result: research.Synthesis{Text: "answer", Citations: []research.Citation{{ResultIndex: 0, URL: "https://source.example"}}}},
+		AttemptOutbox: outbox,
+	})
+	_, err := service.RunL2(context.Background(), "direct api query", 1, false)
+	require.NoError(t, err)
+	counts, err := outbox.Counts(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, counts.Pending, "direct API work must be recoverable before remote acknowledgement")
+	claimed, err := outbox.Claim(context.Background(), 1)
+	require.NoError(t, err)
+	require.Len(t, claimed, 1)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(claimed[0].Payload, &payload))
+	require.Equal(t, "research.l2", payload["operation"])
+	require.Equal(t, "unknown", payload["disposition"])
+	require.Equal(t, claimed[0].AttemptID+"-quality", payload["observation_id"])
+}
+
+func TestL2ChildCaptureRetainsOwningL3RunID(t *testing.T) {
+	db := testdb.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(capture.Schema)))
+	outbox := capture.NewRepository(db, time.Now)
+	service := research.NewService(research.Deps{
+		Searcher:      &fakeSearcher{candidates: []research.Candidate{{URL: "https://source.example", Title: "Source"}}},
+		Fetcher:       &fakeFetcher{textByURL: map[string]string{"https://source.example": "source body"}},
+		Synthesizer:   &fakeSynthesizer{result: research.Synthesis{Text: "answer", Citations: []research.Citation{{ResultIndex: 0, URL: "https://source.example"}}}},
+		AttemptOutbox: outbox,
+	})
+	_, err := service.RunL2WithContractAndParent(context.Background(), "focused child query", 1, false, nil, "l3-owner-1")
+	require.NoError(t, err)
+	claimed, err := outbox.Claim(context.Background(), 1)
+	require.NoError(t, err)
+	require.Len(t, claimed, 1)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(claimed[0].Payload, &payload))
+	require.Equal(t, "l3-owner-1", payload["parent_run_id"])
 }
 
 // TestRunL2CitedOutput asserts the happy path: candidates -> fetch each ->
@@ -191,6 +314,41 @@ func TestRunL2ToleratesFetchFailures(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, out.Abstained)
 	require.Len(t, syn.gotDocs, 1, "only the successfully fetched page reaches synthesis")
+}
+
+func TestRunL2PreservesEvidenceWhenSynthesisUnavailable(t *testing.T) {
+	svc := research.NewService(research.Deps{
+		Searcher:    &fakeSearcher{candidates: []research.Candidate{{URL: "https://source.example", Title: "Source"}}},
+		Fetcher:     &fakeFetcher{textByURL: map[string]string{"https://source.example": "retained source body"}},
+		Synthesizer: &fakeSynthesizer{err: errors.New("verifier offline")},
+	})
+	out, err := svc.RunL2(context.Background(), "q", 1, false)
+	require.Error(t, err)
+	require.True(t, out.Abstained)
+	require.Equal(t, research.ReasonSynthesisUnavailable, out.AbstainReason)
+	require.Len(t, out.Excerpts, 1)
+	require.Equal(t, "retained source body", out.Excerpts[0].Excerpt)
+	require.Empty(t, out.Assessments, "verifier outage must not claim support")
+}
+
+func TestL2FailureReceiptUsesOwnerClock(t *testing.T) {
+	db := testdb.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(evidence.Schema)))
+	ownerNow := time.Date(2026, 9, 6, 4, 0, 0, 0, time.UTC)
+	receipts := evidence.NewSQLiteRepository(db, func() time.Time { return ownerNow })
+	service := research.NewService(research.Deps{
+		Now:          func() time.Time { return ownerNow },
+		Searcher:     &fakeSearcher{candidates: []research.Candidate{{URL: "https://source.example", Title: "Source"}}},
+		Fetcher:      &fakeFetcher{failErr: errors.New("upstream unavailable")},
+		Synthesizer:  &fakeSynthesizer{},
+		ReceiptStore: receipts,
+	})
+	out, err := service.RunL2(context.Background(), "clocked failure", 1, false)
+	require.NoError(t, err)
+	require.Len(t, out.EvidenceReceiptIDs, 1)
+	receipt, err := receipts.GetReceipt(context.Background(), out.EvidenceReceiptIDs[0])
+	require.NoError(t, err)
+	require.Equal(t, ownerNow, receipt.RetrievedAt)
 }
 
 // TestRunL2AbstainsWhenSeamsMissing asserts L2 degrades gracefully (abstains)

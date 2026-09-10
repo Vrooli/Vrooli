@@ -730,8 +730,9 @@ func getSimilarInjections(c *gin.Context) {
 // Vector search endpoint
 func vectorSearch(c *gin.Context) {
 	var request struct {
-		Query string `json:"query"`
-		Limit int    `json:"limit"`
+		Query     string  `json:"query"`
+		Limit     int     `json:"limit"`
+		Threshold float32 `json:"threshold"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -747,8 +748,12 @@ func vectorSearch(c *gin.Context) {
 	if request.Limit <= 0 {
 		request.Limit = 10
 	}
+	if request.Threshold < 0 || request.Threshold > 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "threshold must be between 0 and 1"})
+		return
+	}
 
-	results, err := FindSimilarInjections(request.Query, request.Limit)
+	results, err := FindSimilarInjectionsWithThreshold(request.Query, request.Limit, request.Threshold)
 	if err != nil {
 		logger.Error("Vector search error", map[string]interface{}{
 			"error": err.Error(),
@@ -1117,8 +1122,21 @@ func getExportFormats(c *gin.Context) {
 	})
 }
 
+// healthCheck exposes the lightweight test and operational health contract.
+func healthCheck(c *gin.Context) {
+	if db == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unhealthy", "service": "prompt-injection-arena"})
+		return
+	}
+	if err := db.PingContext(c.Request.Context()); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unhealthy", "service": "prompt-injection-arena"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "healthy", "service": "prompt-injection-arena"})
+}
+
 // Admin: Clean up test injection data
-func cleanupTestData(c *gin.Context) {
+func cleanupTestDataHandler(c *gin.Context) {
 	// Delete test results first (foreign key constraint)
 	deleteResultsQuery := `
 		DELETE FROM test_results
@@ -1246,7 +1264,7 @@ func main() {
 		api.GET("/export/formats", getExportFormats)
 
 		// Admin operations
-		api.POST("/admin/cleanup-test-data", cleanupTestData)
+		api.POST("/admin/cleanup-test-data", cleanupTestDataHandler)
 	}
 
 	// Get port from validated configuration

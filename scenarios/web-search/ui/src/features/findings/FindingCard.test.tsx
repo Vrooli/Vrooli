@@ -17,6 +17,7 @@ vi.mock("../../api/clients", () => ({
     editFinding: vi.fn(),
     supersedeFinding: vi.fn(),
     flagFinding: vi.fn(),
+    recordCorrection: vi.fn(),
   },
   liveSearchClient: { search: vi.fn() },
 }));
@@ -117,6 +118,30 @@ describe("FindingCard", () => {
 
     await waitFor(() => {
       expect(findingsClient.flagFinding).toHaveBeenCalledWith({ id: "f1", reason: "looks wrong" });
+    });
+  });
+
+  it("records an append-only correction with the original claim hash", async () => {
+    vi.mocked(findingsClient.recordCorrection).mockResolvedValue({} as never);
+
+    renderWithProviders(<FindingCard finding={baseFinding} findingsKey={findingsKey} />);
+    fireEvent.click(screen.getByTestId(selectors.findings.correctionButton));
+    const form = screen.getByTestId(selectors.findings.correctionForm);
+    fireEvent.change(screen.getByTestId(selectors.findings.correctionReason), {
+      target: { value: "new source contradicts this claim" },
+    });
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(findingsClient.recordCorrection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          findingId: "f1",
+          disposition: "contradicted",
+          reason: "new source contradicts this claim",
+          originalClaimHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+          identity: expect.any(String),
+        }),
+      );
     });
   });
 

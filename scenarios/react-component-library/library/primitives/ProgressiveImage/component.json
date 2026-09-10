@@ -12,9 +12,9 @@
   ],
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
   "draft": "",
@@ -24,7 +24,8 @@
     "1.1.5",
     "1.1.0",
     "1.1.8",
-    "1.1.7"
+    "1.1.7",
+    "1.1.9"
   ],
   "latest": "1.1.10",
   "libraryId": "react-component-library:ProgressiveImage"

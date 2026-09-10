@@ -53,22 +53,6 @@
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
     },
-    "layout.topBar": {
-      "testId": "layout-top-bar",
-      "selector": "[data-testid=\"layout-top-bar\"]"
-    },
-    "layout.sidebar": {
-      "testId": "layout-sidebar",
-      "selector": "[data-testid=\"layout-sidebar\"]"
-    },
-    "layout.bottomNav": {
-      "testId": "layout-bottom-nav",
-      "selector": "[data-testid=\"layout-bottom-nav\"]"
-    },
-    "layout.main": {
-      "testId": "layout-main",
-      "selector": "[data-testid=\"layout-main\"]"
-    },
     "theme.switcher": {
       "testId": "theme-switcher",
       "selector": "[data-testid=\"theme-switcher\"]"
@@ -299,28 +283,43 @@
     }
   },
   "dynamicSelectors": {
-    "layout.sidebarLink": {
-      "description": "Sidebar navigation link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
-      "testIdPattern": "layout-sidebar-link-${key}",
+    "debtList.row": {
+      "description": "Debt list row by debt id",
+      "selectorPattern": "[data-testid=\"debt-list-row-${key}\"]",
+      "testIdPattern": "debt-list-row-${key}",
       "params": [
         {
           "name": "key",
-          "type": "enum",
-          "values": [
-            "dashboard",
-            "templates",
-            "runs",
-            "debt",
-            "settings"
-          ]
+          "type": "string"
         }
       ]
     },
-    "layout.bottomNavLink": {
-      "description": "Bottom-nav link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
-      "testIdPattern": "layout-bottom-nav-link-${key}",
+    "templateDetail.runLink": {
+      "description": "Template detail run link by run id",
+      "selectorPattern": "[data-testid=\"template-detail-run-${id}\"]",
+      "testIdPattern": "template-detail-run-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "templateDetail.debtLink": {
+      "description": "Template detail debt link by debt id",
+      "selectorPattern": "[data-testid=\"template-detail-debt-${key}\"]",
+      "testIdPattern": "template-detail-debt-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "string"
+        }
+      ]
+    },
+    "layout.navLink": {
+      "description": "App shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
       "params": [
         {
           "name": "key",
@@ -336,7 +335,7 @@
       ]
     },
     "templateList.row": {
-      "description": "Template list row link to a template detail view, by template id",
+      "description": "Template list row by template id",
       "selectorPattern": "[data-testid=\"template-list-row-${id}\"]",
       "testIdPattern": "template-list-row-${id}",
       "params": [
@@ -347,45 +346,12 @@
       ]
     },
     "runList.row": {
-      "description": "Run list row link to a validation run detail view, by run id",
+      "description": "Run list row by run id",
       "selectorPattern": "[data-testid=\"run-list-row-${id}\"]",
       "testIdPattern": "run-list-row-${id}",
       "params": [
         {
           "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "debtList.row": {
-      "description": "Debt list row link to a debt entry detail view, by debt key",
-      "selectorPattern": "[data-testid=\"debt-list-row-${key}\"]",
-      "testIdPattern": "debt-list-row-${key}",
-      "params": [
-        {
-          "name": "key",
-          "type": "string"
-        }
-      ]
-    },
-    "templateDetail.runLink": {
-      "description": "Template detail link to one of its validation runs, by run id",
-      "selectorPattern": "[data-testid=\"template-detail-run-link-${id}\"]",
-      "testIdPattern": "template-detail-run-link-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
-    "templateDetail.debtLink": {
-      "description": "Template detail link to one of its debt entries, by debt key",
-      "selectorPattern": "[data-testid=\"template-detail-debt-link-${key}\"]",
-      "testIdPattern": "template-detail-debt-link-${key}",
-      "params": [
-        {
-          "name": "key",
           "type": "string"
         }
       ]
@@ -424,8 +390,8 @@
     }
   },
   "sources": {
-    "ui/src/consts/selectors.library.ts": "81351191b0400ce043acc4dc9a0394972441a2fd04126f93c9a53717fb1bdb2f",
-    "ui/src/consts/selectors.ts": "cc814c369c9d6c205509b858e3512087fffce7f41fd1e72fa5c92d2d35e8a106",
+    "ui/src/consts/selectors.library.ts": "ca9a2ebc19d7954a6bea47f33f36ed3acb58140026aefb3211cc8109ab013181",
+    "ui/src/consts/selectors.ts": "44ba1a8f0605da04ec85105475317782929b1ffb479f23bc9feb168ff7b2cc09",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

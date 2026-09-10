@@ -20,10 +20,19 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	bindings := map[string]func(cliapp.RunContext) error{
 		"ResearchService.Answer":                h.answer,
 		"ResearchService.WaitResearch":          h.wait,
+		"ResearchService.CancelResearch":        h.cancel,
 		"ResearchService.RunL2":                 h.l2,
 		"ResearchService.RunL3":                 h.l3,
 		"ResearchService.GetResearchStatus":     h.status,
 		"ResearchService.GatherRelatedFindings": h.gather,
+		"ResearchService.GetCaptureStatus":      h.captureStatus,
+		"ResearchService.GetEvidenceReceipt":    h.evidenceReceipt,
+		"ResearchService.GetEvidencePassage":    h.evidencePassage,
+		"ResearchService.GetEvidenceAssessment": h.evidenceAssessment,
+		"ResearchService.GetMethodRelease":      h.methodCurrent,
+		"ResearchService.PromoteMethod":         h.methodPromote,
+		"ResearchService.RollbackMethod":        h.methodRollback,
+		"ResearchService.SuspendMethod":         h.methodSuspend,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

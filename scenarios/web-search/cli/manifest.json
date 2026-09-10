@@ -199,6 +199,26 @@
           }
         },
         {
+          "name": "record-correction",
+          "description": "Append an evidence-linked correction and dispute the active finding",
+          "positionals": [{"name": "finding-id", "required": true, "description": "Finding id"}],
+          "flags": [
+            {"name": "identity", "required": true, "description": "Stable correction identity"},
+            {"name": "original-claim-hash", "required": true, "description": "SHA-256 of the original claim"},
+            {"name": "disposition", "required": true, "description": "supported, contradicted, unresolved, or unknown"},
+            {"name": "reason", "required": true, "description": "Correction reason"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "FindingsService", "method": "RecordCorrection"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "list-corrections",
+          "description": "List append-only corrections for a finding",
+          "positionals": [{"name": "finding-id", "required": true, "description": "Finding id"}],
+          "binding": {"kind": "connect-rpc", "service": "FindingsService", "method": "ListCorrections"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
           "name": "prune",
           "description": "Prune (archive) superseded findings",
           "flags": [
@@ -534,6 +554,14 @@
               "name": "capture",
               "bool": true,
               "description": "Distill the synthesis into the findings store (opt-in for L2)"
+            },
+            {
+              "name": "parent-run-id",
+              "description": "Owning L3 Agent Manager execution for child-attempt lineage"
+            },
+            {
+              "name": "max-evidence-bytes",
+              "description": "Maximum extracted source bytes admitted to one L2 request (0 uses the server default)"
             }
           ],
           "binding": {
@@ -575,6 +603,10 @@
             {
               "name": "idempotency-key",
               "description": "Stable request identity for retry-safe start"
+            },
+            {
+              "name": "max-evidence-bytes",
+              "description": "Maximum extracted source bytes admitted to delegated research (0 uses the server default)"
             }
           ]
         },
@@ -634,6 +666,45 @@
           }
         },
         {
+          "name": "capture-status",
+          "description": "Inspect pending, delivered, and failed research attempt capture delivery",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResearchService",
+            "method": "GetCaptureStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "evidence-receipt",
+          "description": "Read owner-issued evidence receipt metadata by opaque id",
+          "positionals": [{"name": "receipt-id", "required": true, "description": "Receipt id"}],
+          "binding": {"kind": "connect-rpc", "service": "ResearchService", "method": "GetEvidenceReceipt"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "evidence-passage",
+          "description": "Read a bounded evidence passage by opaque id",
+          "positionals": [{"name": "passage-id", "required": true, "description": "Passage id"}],
+          "binding": {"kind": "connect-rpc", "service": "ResearchService", "method": "GetEvidencePassage"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "evidence-assessment",
+          "description": "Read an owner-issued claim assessment by opaque id",
+          "positionals": [{"name": "assessment-id", "required": true, "description": "Assessment id"}],
+          "binding": {"kind": "connect-rpc", "service": "ResearchService", "method": "GetEvidenceAssessment"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {"name":"method-current","description":"Read current research method release","binding":{"kind":"connect-rpc","service":"ResearchService","method":"GetMethodRelease"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"method-promote","description":"Promote a passing research method under a grant","flags":[{"name":"revision-id","local_only":true,"required":true,"bind_waiver":"CLI handler decomposes this flag into the nested MethodRevision.id field."},{"name":"program-hash","local_only":true,"required":true,"bind_waiver":"CLI handler decomposes this flag into the nested MethodRevision.program_hash field."},{"name":"config-hash","local_only":true,"required":true,"bind_waiver":"CLI handler decomposes this flag into the nested MethodRevision.config_hash field."},{"name":"receipt-id","local_only":true,"required":true,"bind_waiver":"CLI handler decomposes this flag into the nested EvaluationReceipt.id field."},{"name":"candidate-hash","local_only":true,"required":true,"bind_waiver":"CLI handler decomposes this flag into the nested EvaluationReceipt.candidate_hash field."},{"name":"report-hash","local_only":true,"required":true,"bind_waiver":"CLI handler decomposes this flag into the nested EvaluationReceipt.report_hash field."},{"name":"grant","required":true},{"name":"receipt-accepted","local_only":true,"bool":true,"bind_waiver":"CLI handler decomposes this flag into the nested EvaluationReceipt.accepted field."},{"name":"report-accepted","local_only":true,"bool":true,"bind_waiver":"CLI handler decomposes this flag into the nested EvaluationReport.accepted field."},{"name":"expected-current-hash"},{"name":"report-reason","local_only":true,"bind_waiver":"CLI handler decomposes this flag into the nested EvaluationReport.reason field."},{"name":"baseline-method","local_only":true,"bind_waiver":"CLI handler decomposes this flag into the nested EvaluationReport.baseline_method field."},{"name":"candidate-method","local_only":true,"bind_waiver":"CLI handler decomposes this flag into the nested EvaluationReport.candidate_method field."},{"name":"population","local_only":true,"bind_waiver":"CLI handler decomposes this flag into the nested EvaluationReport.population field."},{"name":"baseline-effort","local_only":true,"bind_waiver":"CLI handler decomposes this flag into the nested EvaluationReport.mean_baseline_effort field."},{"name":"candidate-effort","local_only":true,"bind_waiver":"CLI handler decomposes this flag into the nested EvaluationReport.mean_candidate_effort field."}],"binding":{"kind":"connect-rpc","service":"ResearchService","method":"PromoteMethod"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"method-rollback","description":"Rollback to a known research method release","flags":[{"name":"expected-current-hash","required":true},{"name":"target-hash","required":true}],"binding":{"kind":"connect-rpc","service":"ResearchService","method":"RollbackMethod"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"method-suspend","description":"Suspend a research method revision","flags":[{"name":"revision-hash","required":true},{"name":"reason","required":true}],"binding":{"kind":"connect-rpc","service":"ResearchService","method":"SuspendMethod"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {
           "name": "answer",
           "description": "Answer with explicit freshness and source requirements",
           "positionals": [
@@ -672,6 +743,14 @@
             {
               "name": "finding-id",
               "description": "Explicitly selected relevant stored finding"
+            },
+            {
+              "name": "parent-run-id",
+              "description": "Owning L3 Agent Manager execution for child-attempt lineage"
+            },
+            {
+              "name": "max-evidence-bytes",
+              "description": "Maximum extracted source bytes admitted to one answer (0 uses the server default)"
             }
           ],
           "binding": {
@@ -718,6 +797,17 @@
               "network:internal"
             ]
           }
+        }
+        ,{
+          "name": "cancel",
+          "description": "Explicitly cancel an owner-held research execution",
+          "positionals": [{"name":"id","required":true,"description":"Research execution ID","bind":{"field":"run_id"}}],
+          "flags": [
+            {"name":"reason","required":true,"description":"Reason for cancellation"},
+            {"name":"idempotency-key","description":"Stable cancellation identity for retry-safe requests"}
+          ],
+          "binding": {"kind":"connect-rpc","service":"ResearchService","method":"CancelResearch"},
+          "governance": {"effect":"write","run_eligible":true,"permissions":["network:internal"]}
         }
       ]
     },

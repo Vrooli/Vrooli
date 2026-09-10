@@ -62,5 +62,5 @@ channel sunsets with it.
 
 ## Notes
 
-- The platform-revenue-share dynamics (15-30% to the store) affect Tier 1 unit economics directly. See [`TIERS.md`](../TIERS.md) and [`FINANCIAL_MODEL.md`](../FINANCIAL_MODEL.md) for cost-structure context. Listed here as a structural fact, not a channel-side concern.
+- The platform-revenue-share dynamics (15-30% to the store) affect Tier 1 unit economics directly. See [`TIERS.md`](../../strategy/TIERS.md) and [`FINANCIAL_MODEL.md`](../../evidence/FINANCIAL_MODEL.md) for cost-structure context. Listed here as a structural fact, not a channel-side concern.
 - ToS regime matters more than for any other channel. Each store has different rules about subscriptions, parental controls, AI content, and in-app purchases that Vrooli's bundles must conform to. Pre-launch checklist required before activation.

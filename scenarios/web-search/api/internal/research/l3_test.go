@@ -10,11 +10,14 @@ import (
 	"text/template"
 	"time"
 
+	"web-search/internal/evidence"
 	"web-search/internal/findings"
 	"web-search/internal/research"
 	"web-search/internal/research/agentmanager"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/database"
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
 // TestRunL3SpawnsAndPolls asserts RunL3 spawns an agent-manager run (returning
@@ -48,6 +51,32 @@ func TestRunL3SpawnsAndPolls(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "complete", state.Status)
 	require.Equal(t, "done", state.Summary)
+}
+
+func TestL3StatusPersistsUnknownAssessmentForUnbackedClaim(t *testing.T) {
+	db := testdb.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(evidence.Schema)))
+	am := &fakeAgentManager{stateByID: map[string]agentmanager.RunState{
+		"run-claims": {RunID: "run-claims", Status: "complete", Result: map[string]any{
+			"status": "answered", "gaps": []any{},
+			"claims": []any{map[string]any{"text": "claim text", "citations": []any{map[string]any{"url": "https://example.test"}}}},
+		}},
+	}}
+	svc := research.NewService(research.Deps{AgentManager: am, ReceiptStore: evidence.NewSQLiteRepository(db, nil)})
+	state, err := svc.GetResearchStatus(context.Background(), "run-claims")
+	require.NoError(t, err)
+	claims := state.Result["assessments"].([]any)
+	require.Len(t, claims, 1)
+	assessment := claims[0].(map[string]any)
+	require.Equal(t, "unknown", assessment["disposition"])
+	require.NotEmpty(t, assessment["assessment_id"])
+	require.Equal(t, "partial", state.Result["status"])
+	require.Equal(t, []any{"verification_unknown"}, state.Result["gaps"])
+	_, err = svc.GetResearchStatus(context.Background(), "run-claims")
+	require.NoError(t, err)
+	var count int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM evidence_assessments`).Scan(&count))
+	require.Equal(t, 1, count)
 }
 
 // TestRunL3PromptRegistersResearchTools asserts the L3 run's callable toolset:

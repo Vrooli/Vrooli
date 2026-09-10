@@ -117,7 +117,7 @@ func (s *ptySession) Close() error {
 func dialSSH(cfg ConnectionConfig) (*gossh.Client, error) {
 	var auth []gossh.AuthMethod
 	if socket := os.Getenv("SSH_AUTH_SOCK"); socket != "" {
-		if conn, err := net.Dial("unix", socket); err == nil { //nolint:gosec // local operator agent socket, never a network target
+		if conn, err := net.Dial("unix", socket); err == nil { // #nosec G704 -- local operator agent socket, never a network target.
 			auth = append(auth, gossh.PublicKeysCallback(agent.NewClient(conn).Signers))
 		}
 	}

@@ -143,6 +143,26 @@ continuation. No development agent was launched for this check.
 Keep pending targets explicit until the operator approves them in the product
 contract. Do not encode the candidate values below as passing requirements.
 
+### Current access inventory (2026-09-09)
+
+This inventory describes what the current workspace can inspect or exercise; it
+is not a qualification receipt and does not authorize a launch.
+
+| Required input | Current access | Qualification consequence |
+| --- | --- | --- |
+| Audio source and held-out corpus | Existing checked-in synthetic/test fixtures and the declared corpus recipe; no newly supplied licensed or consented speech inventory | Transport and fixture behavior can be tested; recognition floors remain unknown |
+| Local engines | Existing Audio Tools discovery and deterministic provider fakes; real-engine host/profile receipt is not attached to this packet | Engine availability is observable; stable-provider and duration claims remain unearned |
+| Native devices | No nominated physical D1–D6 device, browser version, operator or access receipt | Device rows remain unavailable |
+| BYOK provider | Protocol fixtures and configuration boundaries are present; no live key is supplied | Simulated route refusal can be tested; live delivery remains unavailable |
+| Owned hosted provider | LPBS-owned routed fixture seam is the intended owner path; no production account or paid allowance is supplied | Entitlement/inference/settlement fixtures must remain separate from hosted qualification |
+| Acceptance resolvers | Swarm's owner-resolver contract is implemented, but no product-specific Audio/Test Genie resolver is registered | Full-target acceptance cannot be submitted as complete |
+| Agent authority | Controlled owner stubs and fallback capability fixtures are available; no human-issued development grant is attached | Q2 continuation can be exercised; Q3 real-agent evidence remains pending |
+
+The next access decisions belong to the operator and the named owners: corpus
+permission, device nominations, provider credentials, commercial policy,
+resolver registration and positive aggregate limits. Missing access stays an
+explicit unknown and is never filled by a local simulation.
+
 | Decision | Proposed review starting point | Evidence needed before adoption |
 | --- | --- | --- |
 | Interactive latency | Warm click-to-ready p95 ≤ 500 ms; speech-to-visible-partial p95 ≤ 1 s; stop-to-final-tail p95 ≤ 1 s. Report cold readiness separately. | Paced browser traces with permissions already granted, at least 30 attempts per declared route/profile, including failures; separately measure first permission flow. |

@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "command-center.learning-read",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Read outcome-linked morning walk preparation effort and failure evidence for explicit comparable windows; exclude test attempts and preserve unreliable samples.",
   "inputs": {
     "from": {
@@ -68,7 +71,9 @@
         "identity_mismatch",
         "invalid_response",
         "capability_gap",
-        "flow_failed"
+        "flow_failed",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Typed Memory and binding-condition sensor references"

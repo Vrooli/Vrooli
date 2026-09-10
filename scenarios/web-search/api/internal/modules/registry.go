@@ -26,7 +26,10 @@ import (
 	healthH "web-search/handlers/health"
 	livesearchH "web-search/handlers/livesearch"
 	researchH "web-search/handlers/research"
+	"web-search/internal/capture"
 	localdb "web-search/internal/database"
+	"web-search/internal/evaluation"
+	"web-search/internal/evidence"
 
 	findingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/findings"
 	livesearchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch"
@@ -87,5 +90,8 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(findingsH.Schema),
+		apidb.SchemaProviderFunc(evidence.Schema),
+		apidb.SchemaProviderFunc(capture.Schema),
+		apidb.SchemaProviderFunc(evaluation.Schema),
 	}
 }

@@ -24,7 +24,8 @@
     "16-usage-telemetry-driven-curation/module.json",
     "17-classifier-auto-routing-to-live-web/module.json",
     "18-periodic-full-store-consistency-gc-run/module.json",
-    "19-research-maturity/module.json"
+    "19-research-maturity/module.json",
+    "20-research-assurance/module.json"
   ],
   "modules": [
     {
@@ -134,6 +135,18 @@
       "path": "18-periodic-full-store-consistency-gc-run",
       "priority": "P2",
       "title": "Periodic Full-Store Consistency GC Run"
+    },
+    {
+      "id": "MOD-P2-019",
+      "path": "19-research-maturity",
+      "priority": "P2",
+      "title": "Research Maturity"
+    },
+    {
+      "id": "MOD-P2-020",
+      "path": "20-research-assurance",
+      "priority": "P1",
+      "title": "Research Assurance"
     }
   ]
 }

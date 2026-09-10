@@ -269,14 +269,6 @@
         "consumer": "Secrets Manager deployment client",
         "source_ref": "api/secrets/client.go:210",
         "required": false
-      },
-      {
-        "logical_id": "vrooli/secrets-manager/deployment",
-        "field": "service-token",
-        "kind": "environment",
-        "consumer": "Secrets Manager deployment compatibility environment",
-        "source_ref": "api/secrets/client.go:92",
-        "required": false
       }
     ]
   },

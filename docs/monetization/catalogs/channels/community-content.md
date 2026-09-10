@@ -14,7 +14,7 @@
 
 Long-form content (blog), short-form social (X, LinkedIn, YouTube demos), and community presence (HN, Reddit, dev forums, Discord/Slack communities) collectively produce a brand-trust + audience-building signal that no other channel produces alone. This is what most companies call "marketing" — Vrooli treats it as one channel among several rather than the only channel because it's slow, expensive, and not always the highest-leverage path for a given goal.
 
-For the developer audience the business bundle targets, builder-in-public dev-log content is structurally aligned with the audience's tastes and Vrooli's positioning. For the lifestyle-bundle audience, persona-actor short-form video is a different production discipline with different rules (see [`docs/marketing/strategy/patterns/ai-ugc-personas.md`](../../marketing/strategies/ai-ugc-personas.md)).
+For the developer audience the business bundle targets, builder-in-public dev-log content is structurally aligned with the audience's tastes and Vrooli's positioning. For the lifestyle-bundle audience, persona-actor short-form video is a different production discipline with different rules (see [`docs/marketing/strategy/patterns/ai-ugc-personas.md`](../../../marketing/strategy/patterns/ai-ugc-personas.md)).
 
 ## Activation criteria
 
@@ -25,16 +25,16 @@ readiness, not "post more."
 
 ## Operational discipline
 
-- **Per-platform publishing rules live in marketing.** Detailed per-platform rules (X length limits, blog SEO discipline, TikTok format support, HN convention, ProductHunt launch mechanics) live in [`docs/marketing/strategy/CHANNELS.md`](../../marketing/CHANNELS.md). This file is the strategy lens; that file is the operational lens. Don't duplicate.
-- **Builder-in-public voice.** [`docs/marketing/strategy/STRATEGY.md`](../../marketing/STRATEGY.md) defines the voice canon; corporate-marketer voice is rejected by `contrarian`. This applies on every platform.
+- **Per-platform publishing rules live in marketing.** Detailed per-platform rules (X length limits, blog SEO discipline, TikTok format support, HN convention, ProductHunt launch mechanics) live in [`docs/marketing/strategy/CHANNELS.md`](../../../marketing/strategy/CHANNELS.md). This file is the strategy lens; that file is the operational lens. Don't duplicate.
+- **Builder-in-public voice.** [`docs/marketing/strategy/STRATEGY.md`](../../../marketing/strategy/STRATEGY.md) defines the voice canon; corporate-marketer voice is rejected by `contrarian`. This applies on every platform.
 - **Honesty flags travel.** `pending-telemetry`, `estimate`, `light-interpretation` flags carry through to social drafts. Publisher does not smooth them away during polish.
 - **Variant integrity.** Every cross-platform variant traces back to the same approved proposal and same positioning claim.
-- **AI-UGC discipline.** Persona-actor accounts on TikTok / Instagram Reels operate under [`docs/marketing/strategy/patterns/ai-ugc-personas.md`](../../marketing/strategies/ai-ugc-personas.md): native disclosure, no real-person impersonation, no fabricated credentials, no fake-customer-testimonial framings. Disclosure is non-negotiable.
+- **AI-UGC discipline.** Persona-actor accounts on TikTok / Instagram Reels operate under [`docs/marketing/strategy/patterns/ai-ugc-personas.md`](../../../marketing/strategy/patterns/ai-ugc-personas.md): native disclosure, no real-person impersonation, no fabricated credentials, no fake-customer-testimonial framings. Disclosure is non-negotiable.
 
 ## Anti-patterns
 
 - **Cold spam / scraped-list outreach.** Explicitly off-table per the cross-cutting principles. This includes mass-email cold-outreach campaigns disguised as "newsletter" content.
-- **AI-generated slop with no expert in the loop.** AI-assisted drafting is fine; AI-generated content with no human review and no domain expertise is rejected. The line is articulated in [`docs/marketing/strategy/patterns/ai-ugc-personas.md`](../../marketing/strategies/ai-ugc-personas.md): persona-actors with disclosure are allowed; fabricated credentials, real-person impersonation, and fake real-customer testimonials are banned.
+- **AI-generated slop with no expert in the loop.** AI-assisted drafting is fine; AI-generated content with no human review and no domain expertise is rejected. The line is articulated in [`docs/marketing/strategy/patterns/ai-ugc-personas.md`](../../../marketing/strategy/patterns/ai-ugc-personas.md): persona-actors with disclosure are allowed; fabricated credentials, real-person impersonation, and fake real-customer testimonials are banned.
 - **Astroturfed community presence.** Fake reviews, paid HN comments, ghost-written user testimonials. Same prohibition as the cross-cutting list.
 - **Paid social ads.** Off-table for the same reason as paid search — fights principle 1 and the brand positioning.
 - **Launch-cycle thrash.** Launching on PH every month, relaunching on HN with renamed projects, crisis-marketing every two weeks. Cadence and consistency beat hype spikes.
@@ -46,7 +46,7 @@ readiness, not "post more."
 - Referrer traffic from each platform to landing pages and GitHub
 - Platform-specific algorithmic surfacing (X reply-engagement, Reddit upvote ratio, YouTube watch-time)
 - Sentiment in comments (qualitative; sampled, not exhaustive)
-- Conversion-by-bundle attribution once `social-media-scheduler` returns engagement and click-through data (currently `pending-telemetry` per [`docs/marketing/strategy/CHANNELS.md`](../../marketing/CHANNELS.md))
+- Conversion-by-bundle attribution once `social-media-scheduler` returns engagement and click-through data (currently `pending-telemetry` per [`docs/marketing/strategy/CHANNELS.md`](../../../marketing/strategy/CHANNELS.md))
 
 ## Cross-channel relationships
 
@@ -65,4 +65,4 @@ the anti-thrash discipline applies throughout the channel's life.
 ## Notes
 
 - This channel deliberately does NOT include cold-outreach for services revenue lines (`lead-generation`, `app-development`). Outreach for services has its own discipline scoped to qualified prospects, captured inside the relevant revenue-line files.
-- The marketing-crew operational ownership pattern is fully described in [`path:docs/marketing/`](../../marketing/). This channel doc is the high-altitude lens; do not duplicate per-post or per-platform rules here.
+- The marketing-crew operational ownership pattern is fully described in [`path:docs/marketing/`](../../../marketing/README.md). This channel doc is the high-altitude lens; do not duplicate per-post or per-platform rules here.

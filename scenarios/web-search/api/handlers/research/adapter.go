@@ -26,6 +26,7 @@ func briefToProto(b internalresearch.Brief) *researchv1.Brief {
 			ResultIndex: int32(c.ResultIndex),
 			Url:         c.URL,
 			Title:       c.Title,
+			RetrievedAt: c.RetrievedAt.UTC().Format(time.RFC3339Nano),
 		})
 	}
 	return out

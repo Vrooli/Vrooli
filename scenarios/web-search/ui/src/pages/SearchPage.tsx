@@ -4,6 +4,7 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { HistoryPanel } from "../features/history/HistoryPanel";
 import { SearchPanel, type ReplayRequest } from "../features/search/SearchPanel";
+import { ResearchPanel } from "../features/research/ResearchPanel";
 import { type SearchMode } from "../lib/searchHistory";
 import { useTranslation } from "../i18n";
 
@@ -36,6 +37,7 @@ export function SearchPage() {
         <SearchPanel replay={replay} />
         <HistoryPanel onReplay={handleReplay} />
       </div>
+      <ResearchPanel />
     </section>
   );
 }

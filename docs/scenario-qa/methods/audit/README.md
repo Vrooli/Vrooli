@@ -31,7 +31,10 @@ Enforced by the canon coherence test at `scenarios/prompt-manager/test/agent_sys
 
 The asymmetry is the point. A lens that **graduates** to a provider keeps both its tag and its doc — `screaming-architecture-audit` is the worked case — because the doc holds why the lens applied and what the contrarian challenged, and that stays worth reading after detection mechanizes. Direction 1 keeps such a doc honest by requiring its skill to still exist. Direction 2 stops *requiring* a doc the moment the lens leaves the rotation.
 
-**Open question, not a defect.** `scenario-improvement-campaign` carries the `audit-technique` tag while being a `tools`-mode orchestration skill with no provider home and no lens of its own. The rotation query already excludes it on mode, so nothing is broken, but the tag arguably misdescribes it. Resolve by decision if the tag ever starts meaning something a `tools` skill can satisfy.
+`scenario-improvement-campaign` is now a `practice` skill without the
+`audit-technique` tag. It executes authorized improvements; it is not an audit
+lens and needs no paired technique document here. The historical example above
+describes the earlier tag-only validation error, not its current metadata.
 
 This registry was created on 2026-05-03 specifically to close the `skillless canon` smell across the seven audit lenses already in active rotation: the procedure side existed for each, but the strategic-canon side did not — so the qa-contrarian had no operator-curated home to challenge an audit's applicability or conclusions against.
 
@@ -76,6 +79,6 @@ Future candidates the audit log will surface: `performance-audit`, `security-aud
 
 - [`../../README.md`](../../README.md) — scenario-qa team plan-of-record overview.
 - [`../investigation/README.md`](../investigation/README.md) — sister registry for the bug-investigator's techniques; same lifecycle and discipline.
-- [`docs/marketing/methods/post-techniques/README.md`](../../../marketing/post-techniques/README.md) — gold-standard reference this folder replicates.
+- [`docs/marketing/methods/post-techniques/README.md`](../../../marketing/methods/post-techniques/README.md) — gold-standard reference this folder replicates.
 - [`docs/agent-system/PROMOTION_LADDER.md`](../../../agent-system/PROMOTION_LADDER.md) — how prose techniques mature into CLI-backed ones.
-- [`scenarios/prompt-manager/store/teams/scenario-qa/team.json`](../../../scenarios/prompt-manager/store/teams/scenario-qa/team.json) — runtime contract; `skillRotation` array on `quality-auditor` enumerates the active subset of this registry.
+- [`scenarios/prompt-manager/store/teams/scenario-qa/team.json`](../../../../scenarios/prompt-manager/store/teams/scenario-qa/team.json) — runtime contract; `skillRotation` array on `quality-auditor` enumerates the active subset of this registry.

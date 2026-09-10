@@ -26,6 +26,7 @@ type Service struct {
 	governor    *Governor
 	synthesizer Synthesizer
 	logger      *log.Logger
+	metrics     *Metrics
 }
 
 // Deps wires the service's seams. Client is required; Cache, Governor, and
@@ -37,6 +38,7 @@ type Deps struct {
 	Governor    *Governor
 	Synthesizer Synthesizer
 	Logger      *log.Logger
+	Metrics     *Metrics
 }
 
 // NewService constructs the live-search service.
@@ -51,6 +53,7 @@ func NewService(d Deps) *Service {
 		governor:    d.Governor,
 		synthesizer: d.Synthesizer,
 		logger:      logger,
+		metrics:     d.Metrics,
 	}
 }
 
@@ -74,14 +77,17 @@ func (s *Service) Search(ctx context.Context, in SearchInput) (SearchOutcome, er
 	// engine-degradation snapshot stored with the entry rides along.
 	if s.cache != nil && !in.Fresh {
 		if cached, engineIssues, ok := s.cache.Get(query, limit); ok {
+			s.metrics.RecordNow(MetricCacheHit)
 			out := SearchOutcome{Results: cached, Cached: true, DegradedEngines: engineIssues}
 			return s.withSynthesis(ctx, query, cached, out, in.Synthesize), nil
 		}
+		s.metrics.RecordNow(MetricCacheMiss)
 	}
 
 	// Budget governor: on exhaustion, degrade gracefully WITHOUT calling
 	// SearXNG. Synthesis is skipped (no results to ground it).
 	if s.governor != nil && !s.governor.Allow() {
+		s.metrics.RecordNow(MetricGovernorRefusal)
 		return SearchOutcome{
 			Results:        nil,
 			Degraded:       true,
@@ -89,6 +95,7 @@ func (s *Service) Search(ctx context.Context, in SearchInput) (SearchOutcome, er
 		}, nil
 	}
 
+	s.metrics.RecordNow(MetricUpstreamCall)
 	page, err := s.client.Search(ctx, query, limit)
 	if err != nil {
 		return SearchOutcome{}, err

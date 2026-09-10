@@ -20,7 +20,7 @@ import (
 	edgev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/edge"
 )
 
-const edgeCanaryToken = "canary-secret-9f3a7c1e"
+const edgeCanaryToken = "canary-secret-9f3a7c1e" // gitleaks:allow -- synthetic test-only canary, never a credential.
 
 type fakeEdgeDNS struct{ answers map[string][]string }
 

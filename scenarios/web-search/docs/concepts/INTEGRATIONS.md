@@ -3,10 +3,10 @@
 This document is the canonical dependency contract for resources,
 other scenarios, and third-party services used by the scenario.
 
-> **Scaffold status (2026-06-09):** Dependencies are declared in
-> `.vrooli/service.json` and described here as the *intended* contract.
-> Wiring is not implemented yet. `enabled: false` entries (browserless,
-> agent-manager) are P1 dependencies turned on when their level ships.
+> **Current status (2026-09-06):** Dependencies are declared in
+> `.vrooli/service.json` and wired through the scenario lifecycle. Optional
+> SearXNG, Qdrant, Ollama, Agent Manager, and BAS paths report typed
+> unavailable or degraded outcomes when they cannot be reached.
 
 ## Purpose Of This Document
 
@@ -43,6 +43,8 @@ Use this document to answer:
 | browserless | disabled (P1) | Page fetch + readable-text extraction for L2/L3. | Enable when OT-P1-001 (L2) lands. |
 
 ## Scenario Dependencies
+
+`vrooli-memory` is an optional `try_start` dependency for `record-attempt` and `learning-read`. When it is unavailable, web-search still serves its domain operation without advice and program-runtime queues captures for later delivery; it is bundled with either deployment variant.
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|

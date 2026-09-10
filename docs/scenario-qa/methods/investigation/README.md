@@ -57,5 +57,5 @@ The bug-investigator surfaces graduation candidates in its heartbeat output as `
 - [`../../README.md`](../../README.md) — scenario-qa team plan-of-record overview.
 - [`../../taxonomies/bug-report/README.md`](../../taxonomies/bug-report/README.md) — bug-report taxonomy; each signal type's `defaultMethod` resolves to a technique here.
 - [`../audit/README.md`](../audit/README.md) — sister registry for `quality-auditor`'s audit lenses; same lifecycle and discipline.
-- [`docs/marketing/methods/post-techniques/README.md`](../../../marketing/post-techniques/README.md) — gold-standard reference this folder replicates.
+- [`docs/marketing/methods/post-techniques/README.md`](../../../marketing/methods/post-techniques/README.md) — gold-standard reference this folder replicates.
 - [`docs/agent-system/PROMOTION_LADDER.md`](../../../agent-system/PROMOTION_LADDER.md) — how prose techniques mature into CLI-backed ones.

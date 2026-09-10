@@ -12,9 +12,9 @@
   ],
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
   "draft": "",
@@ -25,7 +25,8 @@
     "1.0.6",
     "1.0.7",
     "1.0.8",
-    "1.0.9"
+    "1.0.9",
+    "1.1.0"
   ],
   "latest": "1.1.1",
   "libraryId": "react-component-library:Sortable"

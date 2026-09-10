@@ -228,7 +228,7 @@ func (s *Server) handleCloudRepairRecovery(w http.ResponseWriter, r *http.Reques
 			apierrors.Write(w, aerr)
 			return
 		}
-		go s.runCloudRecoveryOperation(operation.ID, id, op.ID)
+		go s.runCloudRecoveryOperation(operation.ID, id, op.ID) // #nosec G118 -- durable operation intentionally outlives the HTTP request.
 	}
 	operation.Status = "running"
 	operation.UpdatedAt = time.Now().UTC()

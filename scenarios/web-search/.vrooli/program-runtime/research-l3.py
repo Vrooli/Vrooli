@@ -1,10 +1,7 @@
 import json
 
 """Start idempotently or reattach to one declared research workflow; never poll."""
-try:
-    inputs
-except NameError:
-    inputs={}
+inputs = program.inputs()
 envelope={"program":"web-search.research-l3","version":"1","status":"failed","phase":"validate","signals":{},"errors":[],"evidence":[]}
 def fields(h):
     m=h.meta() or {}

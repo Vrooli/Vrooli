@@ -29,10 +29,6 @@ const literalSelectors = {
   },
   layout: {
     shell: "layout-shell",
-    topBar: "layout-top-bar",
-    sidebar: "layout-sidebar",
-    bottomNav: "layout-bottom-nav",
-    main: "layout-main",
   },
   theme: {
     switcher: "theme-switcher",
@@ -102,71 +98,54 @@ const literalSelectors = {
 } satisfies LiteralSelectorTree;
 
 const dynamicSelectorDefinitions = {
-  layout: {
-    sidebarLink: defineDynamicSelector({
-      description: "Sidebar navigation link by canonical nav key",
-      testIdPattern: "layout-sidebar-link-${key}",
-      params: {
-        key: {
-          type: "enum",
-          values: [
-            "dashboard",
-            "templates",
-            "runs",
-            "debt",
-            "settings",
-          ] as const,
-        },
-      },
-    }),
-    bottomNavLink: defineDynamicSelector({
-      description: "Bottom-nav link by canonical nav key",
-      testIdPattern: "layout-bottom-nav-link-${key}",
-      params: {
-        key: {
-          type: "enum",
-          values: [
-            "dashboard",
-            "templates",
-            "runs",
-            "debt",
-            "settings",
-          ] as const,
-        },
-      },
-    }),
-  },
-  templateList: {
-    row: defineDynamicSelector({
-      description: "Template list row link to a template detail view, by template id",
-      testIdPattern: "template-list-row-${id}",
-      params: { id: { type: "string" } },
-    }),
-  },
-  runList: {
-    row: defineDynamicSelector({
-      description: "Run list row link to a validation run detail view, by run id",
-      testIdPattern: "run-list-row-${id}",
-      params: { id: { type: "string" } },
-    }),
-  },
   debtList: {
     row: defineDynamicSelector({
-      description: "Debt list row link to a debt entry detail view, by debt key",
+      description: "Debt list row by debt id",
       testIdPattern: "debt-list-row-${key}",
       params: { key: { type: "string" } },
     }),
   },
   templateDetail: {
     runLink: defineDynamicSelector({
-      description: "Template detail link to one of its validation runs, by run id",
-      testIdPattern: "template-detail-run-link-${id}",
+      description: "Template detail run link by run id",
+      testIdPattern: "template-detail-run-${id}",
       params: { id: { type: "string" } },
     }),
     debtLink: defineDynamicSelector({
-      description: "Template detail link to one of its debt entries, by debt key",
-      testIdPattern: "template-detail-debt-link-${key}",
+      description: "Template detail debt link by debt id",
+      testIdPattern: "template-detail-debt-${key}",
       params: { key: { type: "string" } },
+    }),
+  },
+  layout: {
+    navLink: defineDynamicSelector({
+      description: "App shell navigation link by canonical nav key",
+      testIdPattern: "layout-nav-link-${key}",
+      params: {
+        key: {
+          type: "enum",
+          values: [
+            "dashboard",
+            "templates",
+            "runs",
+            "debt",
+            "settings",          ] as const,
+        },
+      },
+    }),
+  },
+  templateList: {
+    row: defineDynamicSelector({
+      description: "Template list row by template id",
+      testIdPattern: "template-list-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+  },
+  runList: {
+    row: defineDynamicSelector({
+      description: "Run list row by run id",
+      testIdPattern: "run-list-row-${id}",
+      params: { id: { type: "string" } },
     }),
   },
   settingsPage: {

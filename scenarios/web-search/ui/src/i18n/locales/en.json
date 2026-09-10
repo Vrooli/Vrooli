@@ -113,7 +113,13 @@
     "degradedYes": "Degraded",
     "degradedNo": "Healthy",
     "degradedReasonLabel": "Reason:",
-    "resultCountLabel": "Results:"
+    "resultCountLabel": "Results:",
+    "captureHeading": "Research capture delivery",
+    "captureStatusLabel": "Status:",
+    "capturePendingLabel": "Pending:",
+    "captureDeliveredLabel": "Delivered:",
+    "captureFailedLabel": "Failed:",
+    "captureUnavailable": "Capture delivery status is unavailable."
   },
   "findings": {
     "filterLabel": "Filter",
@@ -163,6 +169,11 @@
     "flagReasonPlaceholder": "Why is this disputed?",
     "flagSubmit": "Flag as disputed",
     "flagError": "Could not flag: {{message}}",
+    "correctionAction": "Record correction",
+    "correctionDispositionLabel": "Disposition",
+    "correctionReasonPlaceholder": "Why is this claim corrected?",
+    "correctionSubmit": "Save correction",
+    "correctionError": "Could not record correction: {{message}}",
     "cancel": "Cancel",
     "pruneHeading": "Prune superseded",
     "pruneDryRun": "Preview prune",
@@ -184,6 +195,19 @@
     "effectivenessNeverSurfaced": "Never surfaced",
     "effectivenessLastSurfaced": "Last surfaced {{when}}",
     "effectivenessScore": "Score {{value}}"
+  },
+  "research": {
+    "heading": "Research investigation",
+    "queryPlaceholder": "Question requiring verified research…",
+    "start": "Start investigation",
+    "resume": "Resume investigation",
+    "waiting": "Waiting for research…",
+    "status": "Status: {{status}}",
+    "summary": "Research summary",
+    "error": "Research unavailable: {{message}}",
+    "passagePlaceholder": "Evidence passage ID",
+    "readPassage": "Read evidence",
+    "passageUnavailable": "Evidence content is unavailable after retention expiry."
   },
   "disputes": {
     "loading": "Loading disputes…",

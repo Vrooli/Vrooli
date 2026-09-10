@@ -166,6 +166,38 @@ func (h *connectHandler) FlagFinding(ctx context.Context, req *connect.Request[f
 	return connect.NewResponse(&findingsv1.FlagFindingResponse{Finding: domainToProto(f)}), nil
 }
 
+func correctionToProto(c findings.Correction) *findingsv1.Correction {
+	out := &findingsv1.Correction{Id: c.ID, FindingId: c.FindingID, Identity: c.Identity, OriginalClaimHash: c.OriginalClaimHash, Disposition: c.Disposition, Reason: c.Reason, EvidenceRefs: c.EvidenceRefs, InvestigationIds: c.InvestigationIDs, MethodRevisions: c.MethodRevisions, Actor: c.Actor}
+	if !c.CreatedAt.IsZero() {
+		out.CreatedAt = timestamppb.New(c.CreatedAt)
+	}
+	return out
+}
+
+func (h *connectHandler) RecordCorrection(ctx context.Context, req *connect.Request[findingsv1.RecordCorrectionRequest]) (*connect.Response[findingsv1.RecordCorrectionResponse], error) {
+	c, err := h.deps.Service.RecordCorrection(ctx, findings.CorrectionInput{FindingID: req.Msg.GetFindingId(), Identity: req.Msg.GetIdentity(), OriginalClaimHash: req.Msg.GetOriginalClaimHash(), Disposition: req.Msg.GetDisposition(), Reason: req.Msg.GetReason(), EvidenceRefs: req.Msg.GetEvidenceRefs(), InvestigationIDs: req.Msg.GetInvestigationIds(), MethodRevisions: req.Msg.GetMethodRevisions()})
+	if err != nil {
+		connectErr := findings.ToConnectError(err)
+		h.logIfInternal("RecordCorrection", err, connectErr)
+		return nil, connectErr
+	}
+	return connect.NewResponse(&findingsv1.RecordCorrectionResponse{Correction: correctionToProto(c)}), nil
+}
+
+func (h *connectHandler) ListCorrections(ctx context.Context, req *connect.Request[findingsv1.ListCorrectionsRequest]) (*connect.Response[findingsv1.ListCorrectionsResponse], error) {
+	corrections, err := h.deps.Service.ListCorrections(ctx, req.Msg.GetFindingId())
+	if err != nil {
+		connectErr := findings.ToConnectError(err)
+		h.logIfInternal("ListCorrections", err, connectErr)
+		return nil, connectErr
+	}
+	out := make([]*findingsv1.Correction, 0, len(corrections))
+	for _, c := range corrections {
+		out = append(out, correctionToProto(c))
+	}
+	return connect.NewResponse(&findingsv1.ListCorrectionsResponse{Corrections: out}), nil
+}
+
 func (h *connectHandler) ListDisputes(ctx context.Context, req *connect.Request[findingsv1.ListDisputesRequest]) (*connect.Response[findingsv1.ListDisputesResponse], error) {
 	results, err := h.deps.Service.List(ctx, findings.ListFilter{
 		Status: findings.StatusDisputed,

@@ -4,13 +4,38 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"time"
 )
+
+// validateOllamaRequest keeps the request contract at the production boundary.
+// The gateway currently accepts model and prompt through positional arguments,
+// so validating here prevents malformed requests from reaching the process
+// boundary and makes failures deterministic for callers.
+func validateOllamaRequest(model, prompt string, temperature float64, maxTokens int) error {
+	if strings.TrimSpace(model) == "" {
+		return fmt.Errorf("model is required")
+	}
+	if strings.TrimSpace(prompt) == "" {
+		return fmt.Errorf("prompt is required")
+	}
+	if temperature < 0 || temperature > 2 {
+		return fmt.Errorf("temperature must be between 0 and 2")
+	}
+	if maxTokens <= 0 || maxTokens > 100000 {
+		return fmt.Errorf("max_tokens must be between 1 and 100000")
+	}
+	return nil
+}
 
 // TestAgentWithOllama performs actual agent testing using the resource-ollama
 // gateway CLI. The temperature/maxTokens parameters are accepted for API
 // stability but not yet plumbed through the gateway flag surface.
-func TestAgentWithOllama(systemPrompt string, injectionPrompt string, modelName string, _temperature float64, _maxTokens int) (string, int64, error) {
+func TestAgentWithOllama(systemPrompt string, injectionPrompt string, modelName string, temperature float64, maxTokens int) (string, int64, error) {
+	if err := validateOllamaRequest(modelName, injectionPrompt, temperature, maxTokens); err != nil {
+		return "", 0, err
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

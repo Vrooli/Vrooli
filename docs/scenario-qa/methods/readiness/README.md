@@ -31,7 +31,7 @@ Cross-reference: scenario-qa README `## Future PoR work` enumerates this and oth
 
 ## Doc + paired skill discipline
 
-The same mandatory rule applies (mirrored from [`docs/marketing/catalogs/post-types/README.md`](../../../marketing/post-types/README.md)):
+The same mandatory rule applies (mirrored from [`docs/marketing/catalogs/post-types/README.md`](../../../marketing/catalogs/post-types/README.md)):
 
 > Every entry ships as `doc + paired skill`. This is a hard rule, not a recommendation. Neither half is optional, and neither half replaces the other. The doc holds *reasoning*; the skill holds *procedure*. A doc with no skill is a stale shrine. A skill with no doc is brittle.
 
@@ -60,4 +60,4 @@ When the substrate calls for a concrete entry, follow the same flow as the sibli
 - [`../../README.md`](../../README.md) — scenario-qa team plan-of-record overview; full set of registries and `## Future PoR work` items.
 - [`../investigation/README.md`](../investigation/README.md) — sister registry; same lifecycle, currently 1 entry.
 - [`../audit/README.md`](../audit/README.md) — sister registry; same lifecycle, currently 7 entries.
-- [`docs/marketing/methods/post-techniques/README.md`](../../../marketing/post-techniques/README.md) — gold-standard reference all three registries replicate.
+- [`docs/marketing/methods/post-techniques/README.md`](../../../marketing/methods/post-techniques/README.md) — gold-standard reference all three registries replicate.

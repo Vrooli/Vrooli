@@ -1,7 +1,7 @@
 // Package research is the L2/L3 deep-research domain that sits above the L0/L1
 // live-search path.
 //
-// L2 (l2_pipeline.go) is a synchronous single-pass pipeline: take a query, ask
+// L2 (l2_pipeline.go) is a synchronous bounded pipeline: take a query, ask
 // the live-search service for the top-N candidate URLs, fetch each page via the
 // Fetcher seam, extract readable text, and run a single always-cited synthesis
 // over the fetched content. Auto-capture is opt-in for L2 — when requested the
@@ -18,7 +18,11 @@
 // inject fakes.
 package research
 
-import "context"
+import (
+	"context"
+
+	"web-search/internal/evidence"
+)
 
 // Fetcher is the L2 page-fetch seam: it returns the readable body text of a
 // URL. Production wires fetch.EscalatingFetcher (plain HTTP first, per-URL
@@ -34,4 +38,12 @@ type Fetcher interface {
 	// Fetch returns the readable text of url. A non-nil error means the fetch or
 	// extraction failed (the pipeline skips that page and continues).
 	Fetch(ctx context.Context, url string) (text string, err error)
+}
+
+// ObservationFetcher is an optional richer seam. Implementations retain the
+// extracted bytes as an evidence observation while the legacy Fetcher method
+// remains available to existing callers and test doubles.
+type ObservationFetcher interface {
+	Fetcher
+	FetchObservation(context.Context, string) (evidence.NewObservation, error)
 }

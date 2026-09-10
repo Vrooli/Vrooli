@@ -99,24 +99,6 @@
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Initialize Prompt Injection Arena",
-      "steps": [
-        {
-          "name": "generate-embeddings",
-          "exec": [
-            "vrooli",
-            "resource",
-            "qdrant",
-            "embeddings",
-            "refresh",
-            "--force"
-          ],
-          "on_error": "continue",
-          "description": "Generate injection technique embeddings for similarity search"
-        }
-      ]
     }
   },
   "dependencies": {

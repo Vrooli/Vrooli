@@ -30,7 +30,7 @@ Among all services lines, consulting has the **highest distraction-to-revenue ra
 
 ## Activation discipline (from REVENUE_LINES.md)
 
-On promotion to `active`, this line must have all four of the standing guardrails plus the elevated bar above. See [REVENUE_LINES.md](../REVENUE_LINES.md) for the base discipline.
+On promotion to `active`, this line must have all four of the standing guardrails plus the elevated bar above. See [REVENUE_LINES.md](README.md) for the base discipline.
 
 ## Notes
 

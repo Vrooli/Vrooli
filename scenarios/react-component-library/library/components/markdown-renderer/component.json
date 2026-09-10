@@ -11,14 +11,16 @@
   ],
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
   "draft": "",
   "entry": "markdown-renderer.tsx",
-  "evictedVersions": [],
+  "evictedVersions": [
+    "0.4.3"
+  ],
   "latest": "0.4.4",
   "libraryId": "react-component-library:markdown-renderer"
 }

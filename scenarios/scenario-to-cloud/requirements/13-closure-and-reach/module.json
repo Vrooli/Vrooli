@@ -153,7 +153,15 @@
         "host",
         "privilege"
       ],
-      "validation": []
+    "validation": [
+      {
+        "type": "manual",
+        "ref": "docs/internal/PROBLEMS.md",
+        "phase": "security",
+        "status": "pending",
+        "notes": "The contract requires host detection and remediation to remain with control-plane owners. Certification remains pending until the managed target-owner repair path is exercised with privilege denial, scoped cleanup and multi-workload isolation evidence."
+      }
+    ]
     }
   ]
 }

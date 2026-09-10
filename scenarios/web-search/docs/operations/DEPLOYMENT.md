@@ -3,9 +3,9 @@
 This document records supported delivery tiers, packaging assumptions,
 runtime dependencies, and deployment readiness.
 
-> **Status (2026-06-09):** Not implemented yet. This describes the
-> *intended* deployment shape from `PRD.md` and
-> [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md).
+> **Current status (2026-09-06):** Local Vrooli-stack operation is
+> supported through the scenario lifecycle. Desktop/mobile packaging and
+> hosted deployment remain deferred tiers.
 
 ## Purpose Of This Document
 
@@ -20,7 +20,7 @@ Use this document to answer:
 
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
-| Tier 1 local Vrooli stack | active (intended) | Vrooli lifecycle, Go, Node/pnpm, SQLite path, healthy SearXNG/Qdrant/Ollama/reranker resources, search-hub reachable for registration | Not yet implemented; SearXNG must be verified healthy first (see precondition below). |
+| Tier 1 local Vrooli stack | active | Vrooli lifecycle, Go, Node/pnpm, SQLite path, and optional SearXNG/Qdrant/Ollama/BAS resources | Resource reachability and cross-owner acceptance remain environment-dependent. |
 | Desktop/mobile app | deferred | Cross-platform runtime, packaged UI/API, storage resolver, bundled/remote SearXNG | Resource (SearXNG/Qdrant/Ollama) availability off the local stack is unsolved. |
 | Managed cloud/SaaS | deferred | Hosted runtime, auth, observability, cost model, hosted search backend | Requires monetization review and external-engine rate-limit strategy at scale. |
 | Enterprise/self-host | deferred | Install docs, backup/restore, support model | Requires operational hardening (findings backup/restore). |

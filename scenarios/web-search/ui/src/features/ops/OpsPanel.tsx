@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { researchClient } from "../../api/clients";
 import { fetchHealth } from "../../api/health";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -26,6 +27,11 @@ export function OpsPanel() {
     queryFn: fetchHealth,
   });
   const lastQuery = useLiveSearchHealth();
+  const capture = useQuery({
+    queryKey: ["research-capture-status"],
+    queryFn: () => researchClient.getCaptureStatus({}),
+    refetchInterval: 30_000,
+  });
 
   const dependencies = data ? Object.entries(data.dependencies) : [];
 
@@ -101,6 +107,29 @@ export function OpsPanel() {
             )}
           </dl>
         )}
+      </section>
+
+      <section
+        data-testid={selectors.ops.captureStatus}
+        aria-labelledby="ops-capture-heading"
+        className="rounded-panel border border-app-border bg-app-surface p-4"
+      >
+        <h3 id="ops-capture-heading" className="text-sm font-semibold uppercase text-app-muted-foreground">
+          {t(strings.ops.captureHeading)}
+        </h3>
+        {capture.error != null ? (
+          <p className="mt-2 text-sm text-app-danger">{t(strings.ops.captureUnavailable)}</p>
+        ) : capture.isLoading ? (
+          <p className="mt-2 text-sm text-app-muted-foreground">{t(strings.ops.dependenciesLoading)}</p>
+        ) : capture.data ? (
+          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+            <dt className="text-app-muted-foreground">{t(strings.ops.captureStatusLabel)}</dt>
+            <dd className={capture.data.status === "healthy" ? "text-app-success" : "text-app-warning"}>{capture.data.status}</dd>
+            <dt className="text-app-muted-foreground">{t(strings.ops.capturePendingLabel)}</dt><dd>{capture.data.pending}</dd>
+            <dt className="text-app-muted-foreground">{t(strings.ops.captureDeliveredLabel)}</dt><dd>{capture.data.delivered}</dd>
+            <dt className="text-app-muted-foreground">{t(strings.ops.captureFailedLabel)}</dt><dd>{capture.data.failed}</dd>
+          </dl>
+        ) : null}
       </section>
     </div>
   );

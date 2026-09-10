@@ -1,12 +1,24 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "web-search.compare-sources",
-  "version": "1",
-  "purpose": "Research two to four comparison questions against explicit sources and preserve incomplete evidence.",
+  "version": "2",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Research two to four comparison questions as bounded subject, dimension, and temporal cells against explicit sources and preserve incomplete evidence.",
   "inputs": {
     "questions": {
       "type": "array",
       "required": true
+    },
+    "subjects": {
+      "type": "array"
+    },
+    "dimensions": {
+      "type": "array"
+    },
+    "temporal_scope": {
+      "type": "string"
     },
     "source_domains": {
       "type": "array"
@@ -34,7 +46,11 @@
       "effect": "write"
     }
   ],
-  "verbs": [],
+  "verbs": [
+    "capture",
+    "tasks.get",
+    "validate"
+  ],
   "outputs": {
     "status": {
       "enum": [
@@ -55,13 +71,16 @@
     },
     "signals": {
       "answers": "Complete per-question briefs and citation provenance",
+      "cells": "Bounded subject, question, dimension, and temporal evidence cells",
       "unresolved": "Questions whose evidence requirements were not met"
     },
     "errors": {
       "classes": [
         "invalid_input",
         "source_unavailable",
-        "answer_output_limit"
+        "answer_output_limit",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Durable references, never raw source bodies"
@@ -84,7 +103,37 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "web-search"
+      ]
+    },
+    {
+      "id": "bounded-cells",
+      "inputs": {
+        "subjects": [
+          "product-a",
+          "product-b"
+        ],
+        "questions": [
+          "price",
+          "support"
+        ],
+        "dimensions": [
+          "current"
+        ],
+        "temporal_scope": "2026"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "web-search"
+      ]
     }
   ],
   "rung": "S3",

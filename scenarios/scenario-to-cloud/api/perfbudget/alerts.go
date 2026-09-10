@@ -20,7 +20,7 @@ const (
 	CheckHealthObservationStale    = "health_observation_stale"
 	CheckCertificateExpiring       = "certificate_expiring"
 	CheckBackupFreshness           = "backup_freshness"
-	CheckCredentialRotationPending = "credential_rotation_pending"
+	CheckCredentialRotationPending = "credential_rotation_pending" // #nosec G101 -- public alert identifier, not credential material.
 )
 
 // Alert severities use notification-hub's vocabulary so the server-owned

@@ -28,6 +28,9 @@ type Client interface {
 	Result(context.Context, string) (*domainpb.WorkflowExecution, error)
 	Wait(context.Context, string, int) (*domainpb.WorkflowExecution, bool, error)
 }
+type CancelClient interface {
+	Cancel(context.Context, *apipb.WorkflowExecutionOperationRequest) (*domainpb.WorkflowExecution, error)
+}
 type HTTPClient struct {
 	Resolver func(context.Context) (string, error)
 	HTTP     *http.Client
@@ -101,4 +104,16 @@ func (c *HTTPClient) Wait(ctx context.Context, id string, n int) (*domainpb.Work
 		return nil, false, e
 	}
 	return v.Msg.Execution, v.Msg.TimedOut, nil
+}
+
+func (c *HTTPClient) Cancel(ctx context.Context, r *apipb.WorkflowExecutionOperationRequest) (*domainpb.WorkflowExecution, error) {
+	a, e := c.client(ctx)
+	if e != nil {
+		return nil, e
+	}
+	v, e := a.CancelWorkflowExecution(ctx, request(ctx, r))
+	if e != nil {
+		return nil, e
+	}
+	return v.Msg.Execution, nil
 }

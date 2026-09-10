@@ -1,17 +1,10 @@
 """Read external binding health and outcome-linked learning; never invent a baseline."""
 import json
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 envelope = {'program':'command-center.setpoint-read','version':'1','status':'ok','phase':'collect','inputs':{},'signals':{'rows':[]},'errors':[],'evidence':[]}
 def row(name,reading,target,in_band=None,reason=None):
     envelope['signals']['rows'].append({'row':name,'reading':reading,'target':target,'in_band':in_band,'unavailable':reason is not None,'reason':reason})
-def guarded(call):
-    def run():
-        try: return call()
-        except Exception as exc: return exc
-    return run
+guarded = program.guarded
 results = gather(guarded(lambda:program_runtime.bindings.condition(scenario='command-center',window_seconds=604800,rows='conditions')),
                  guarded(lambda:vrooli_memory.learning.measure(scope='command-center-usage',operation='vision-walk-prep',rows='cohorts')))
 envelope['phase']='classify'

@@ -32,6 +32,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"FindingsService.NeverSurfaced":     h.neverSurfaced,
 		"FindingsService.RecordUsage":       h.use,
 		"FindingsService.RunGC":             h.gc,
+		"FindingsService.RecordCorrection":  h.recordCorrection,
+		"FindingsService.ListCorrections":   h.listCorrections,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

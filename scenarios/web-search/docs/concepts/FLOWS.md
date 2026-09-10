@@ -5,12 +5,10 @@ the scenario. Use it when behavior depends on ordered states, retries,
 cancellation, stale completion, background jobs, polling, or mutually
 exclusive UI modes.
 
-> **Scaffold status (2026-06-09):** The flows below are *inventoried*
-> (Maturity Level 1) from `PRD.md` / requirements but not yet modeled or
-> implemented. Formal `*.flow.json` + Quint artifacts (Levels 2–5) are
-> implementation work, authored when each owning domain is built. The
-> template `notes` attachment-upload flow is still present and will be
-> removed with the example domain.
+> **Current status (2026-09-06):** The flows below describe implemented
+> search, findings, research, evidence, correction, recovery, and
+> lifecycle behavior. Formal model artifacts remain a separate maturity
+> target where listed.
 
 ## Purpose Of This Document
 
@@ -214,4 +212,4 @@ The scaffold writes the hand-authored files and immediately runs
 - [`DOMAINS.md`](DOMAINS.md) — owning domain map
 - [`DATA.md`](DATA.md) — persisted state and retention
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — side-effect boundaries
-- [`../internal/TESTING.md`](../internal/TESTING.md#temporal-workflow-tests) — matrix and trace testing
+- [Shared harness recipes](/scenarios/template-manager/docs/internal/TESTING-RECIPES.md#temporal-workflow-tests) — matrix and trace testing

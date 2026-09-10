@@ -39,6 +39,8 @@ type Service interface {
 	// RecordUsage records an explicit "this finding was used" signal and returns
 	// the finding. ErrFindingNotFound for an unknown id.
 	RecordUsage(ctx context.Context, id string) (Finding, error)
+	RecordCorrection(ctx context.Context, in CorrectionInput) (Correction, error)
+	ListCorrections(ctx context.Context, findingID string) ([]Correction, error)
 
 	// ListDecayCandidates / ListOrphanedFindings expose the GC (OT-P2-003)
 	// eligibility queries at the application layer.
@@ -145,6 +147,13 @@ func (s *service) ResolveDispute(ctx context.Context, id, resolution, replacemen
 		if strings.TrimSpace(replacement) == "" {
 			return Finding{}, ErrInvalidFinding{Field: "replacement", Reason: "required for supersede resolution"}
 		}
+		candidate, err := s.repo.Get(ctx, strings.TrimSpace(replacement))
+		if err != nil {
+			return Finding{}, err
+		}
+		if candidate.Status != StatusActive || strings.TrimSpace(candidate.Claim) == "" || len(candidate.Citations) == 0 || candidate.Confidence < 0.5 {
+			return Finding{}, ErrInvalidFinding{Field: "replacement", Reason: "replacement must be an active, citation-backed finding with sufficient confidence"}
+		}
 		return s.repo.Supersede(ctx, id, replacement, reason, s.actor)
 	default:
 		return Finding{}, ErrInvalidFinding{Field: "resolution", Reason: "must be keep or supersede"}
@@ -207,6 +216,24 @@ func (s *service) RecordUsage(ctx context.Context, id string) (Finding, error) {
 		return Finding{}, err
 	}
 	return s.repo.Get(ctx, id)
+}
+
+func (s *service) RecordCorrection(ctx context.Context, in CorrectionInput) (Correction, error) {
+	in.FindingID = strings.TrimSpace(in.FindingID)
+	in.Identity = strings.TrimSpace(in.Identity)
+	in.OriginalClaimHash = strings.TrimSpace(in.OriginalClaimHash)
+	in.Disposition = strings.TrimSpace(in.Disposition)
+	if in.FindingID == "" || in.Identity == "" || in.OriginalClaimHash == "" || in.Disposition == "" {
+		return Correction{}, ErrInvalidFinding{Field: "correction", Reason: "finding_id, identity, original_claim_hash, and disposition are required"}
+	}
+	return s.repo.RecordCorrection(ctx, in, s.actor)
+}
+
+func (s *service) ListCorrections(ctx context.Context, findingID string) ([]Correction, error) {
+	if strings.TrimSpace(findingID) == "" {
+		return nil, ErrInvalidFinding{Field: "finding_id", Reason: "required"}
+	}
+	return s.repo.ListCorrections(ctx, strings.TrimSpace(findingID))
 }
 
 func (s *service) ListDecayCandidates(ctx context.Context, minAge time.Duration, limit int) ([]Finding, error) {

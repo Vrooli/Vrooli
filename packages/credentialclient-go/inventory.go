@@ -179,17 +179,31 @@ func DescriptorsForScope(root string, scope Scope) ([]CredentialRef, error) {
 			if owner == "" {
 				owner = "managed-system"
 			}
-			sourceRef := "managed://credentialinventory/" + owner
+			sourceRef := filepath.Join(root, "internal", "credentialinventory", "inventory.go")
+			descriptor := credentialspec.Descriptor{
+				LogicalID: managed.LogicalID, Field: managed.Field,
+				Kind: credentialspec.KindDelegated, Provisioning: credentialspec.ProvisioningGenerated,
+			}
+			consumerRefs := declaredConsumerNames(managed.Consumers, descriptor, scope.Tier)
+			consumerProvenance := declaredConsumerProvenance(managed.Consumers, descriptor, sourceRef, scope.Tier)
+			required := false
+			for _, consumer := range managed.Consumers {
+				if consumer.Required {
+					required = true
+					break
+				}
+			}
 			provenance := CredentialProvenance{
 				Version: "managed-credential/v1", Owner: owner, SourceRef: sourceRef,
 				Kind: "managed", Provisioning: credentialspec.ProvisioningGenerated,
+				ConsumerRefs: consumerRefs, Consumers: consumerProvenance, Required: required,
 			}
 			byAddress[key] = len(refs)
 			refs = append(refs, CredentialRef{
 				Version: "managed-credential/v1", Resource: owner, LogicalID: managed.LogicalID, Field: managed.Field,
-				Owner: owner, SourceRef: sourceRef, Kind: "managed", Label: "Managed " + owner,
+				Owner: owner, SourceRef: sourceRef, Kind: "managed", ConsumerRefs: consumerRefs, Label: "Managed " + owner,
 				Description: "Authority-owned identity managed by the control plane.", Provisioning: credentialspec.ProvisioningGenerated,
-				Provenance: []CredentialProvenance{provenance},
+				Required: required, Provenance: []CredentialProvenance{provenance},
 			})
 		}
 	}

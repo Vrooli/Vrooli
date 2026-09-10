@@ -1,10 +1,9 @@
 # Start Here — Web Search
 
-This is the first document to read after generating the scenario from
-the `react-vite` template. Treat it as the scenario initialization
-protocol: complete the gates in order, check them off as you go, and
-do not start product implementation until the charter and requirements
-gates are complete.
+This document records the scenario initialization protocol from the
+original `react-vite` scaffold. The product implementation now exists;
+use the lifecycle and validation commands below for current operation,
+and consult the historical gates when reconstructing authoring context.
 
 Run `make orient` from this scenario directory whenever you want a
 machine-readable progress check for these gates. It delegates to
@@ -13,7 +12,7 @@ machine-readable progress check for these gates. It delegates to
 all required gates pass, run `template-manager orient web-search
 --finalize` to remove only that temporary orientation metadata.
 
-The generated scaffold is intentionally not the product. Treat every
+The generated scaffold was intentionally not the product. Treat every
 generated UI surface as placeholder unless it is explicitly listed as
 durable infrastructure below. In particular:
 

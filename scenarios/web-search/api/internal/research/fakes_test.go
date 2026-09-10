@@ -2,6 +2,7 @@ package research_test
 
 import (
 	"context"
+	"sync"
 
 	"web-search/internal/livesearch"
 	"web-search/internal/research"
@@ -36,10 +37,13 @@ type fakeFetcher struct {
 	textByURL map[string]string
 	failErr   error
 	fetched   []string
+	mu        sync.Mutex
 }
 
 func (f *fakeFetcher) Fetch(_ context.Context, url string) (string, error) {
+	f.mu.Lock()
 	f.fetched = append(f.fetched, url)
+	f.mu.Unlock()
 	if txt, ok := f.textByURL[url]; ok {
 		return txt, nil
 	}

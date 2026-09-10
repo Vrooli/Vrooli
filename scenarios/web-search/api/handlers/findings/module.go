@@ -171,4 +171,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Runs the periodic full-store consistency pass: soft-retires never-surfaced, fully-decayed findings (confidence-gated) and reports cold-archive candidates, stale disputes, and orphans. --dry-run reports without mutating. Never hard-deletes; never auto-resolves a dispute.",
 		Category:    "findings",
 	},
+	{ID: "findings_correction_record", Path: findingsconnect.FindingsServiceRecordCorrectionProcedure, Method: "POST", Summary: "Record a finding correction", Description: "Appends an evidence-linked correction and marks the active finding disputed without rewriting its claim history.", Category: "findings"},
+	{ID: "findings_correction_list", Path: findingsconnect.FindingsServiceListCorrectionsProcedure, Method: "POST", Summary: "List finding corrections", Description: "Lists append-only corrections linked to one finding.", Category: "findings"},
 }

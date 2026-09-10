@@ -157,6 +157,22 @@
       "category": "findings"
     },
     {
+      "id": "findings_correction_record",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/RecordCorrection",
+      "method": "POST",
+      "summary": "Record a finding correction",
+      "description": "Appends an evidence-linked correction and marks the active finding disputed without rewriting its claim history.",
+      "category": "findings"
+    },
+    {
+      "id": "findings_correction_list",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/ListCorrections",
+      "method": "POST",
+      "summary": "List finding corrections",
+      "description": "Lists append-only corrections linked to one finding.",
+      "category": "findings"
+    },
+    {
       "id": "livesearch_search",
       "path": "/vrooli.web_search.v1.livesearch.LiveSearchService/Search",
       "method": "POST",
@@ -178,6 +194,14 @@
       "method": "POST",
       "summary": "Wait once for research",
       "description": "Attach to the durable Agent Manager workflow without polling or canceling on timeout.",
+      "category": "research"
+    },
+    {
+      "id": "research_cancel",
+      "path": "/vrooli.web_search.v1.research.ResearchService/CancelResearch",
+      "method": "POST",
+      "summary": "Cancel research",
+      "description": "Explicitly cancels the owner-held Agent Manager execution and preserves its terminal cause.",
       "category": "research"
     },
     {
@@ -210,6 +234,70 @@
       "method": "POST",
       "summary": "Bounded GATHER of findings near a query",
       "description": "Returns the findings semantically near the query for the GATHER step of the research-and-reconcile loop. The sweep is bounded server-side (hard cap 20) — the L3 agent uses this instead of a free-form findings search, so it never scans the whole store.",
+      "category": "research"
+    },
+    {
+      "id": "research_capture_status",
+      "path": "/vrooli.web_search.v1.research.ResearchService/GetCaptureStatus",
+      "method": "POST",
+      "summary": "Inspect research attempt capture delivery",
+      "description": "Returns bounded pending, delivered, and failed Memory capture counts.",
+      "category": "research"
+    },
+    {
+      "id": "research_evidence_receipt",
+      "path": "/vrooli.web_search.v1.research.ResearchService/GetEvidenceReceipt",
+      "method": "POST",
+      "summary": "Read an evidence receipt",
+      "description": "Returns owner-issued receipt metadata by opaque receipt ID.",
+      "category": "research"
+    },
+    {
+      "id": "research_evidence_passage",
+      "path": "/vrooli.web_search.v1.research.ResearchService/GetEvidencePassage",
+      "method": "POST",
+      "summary": "Read an evidence passage",
+      "description": "Returns a bounded, integrity-addressed passage by opaque passage ID.",
+      "category": "research"
+    },
+    {
+      "id": "research_evidence_assessment",
+      "path": "/vrooli.web_search.v1.research.ResearchService/GetEvidenceAssessment",
+      "method": "POST",
+      "summary": "Read a claim assessment",
+      "description": "Returns an owner-issued claim assessment by opaque assessment ID.",
+      "category": "research"
+    },
+    {
+      "id": "research_method_current",
+      "path": "/vrooli.web_search.v1.research.ResearchService/GetMethodRelease",
+      "method": "POST",
+      "summary": "Read current research method release",
+      "description": "Returns the owner-selected method revision and evaluation identity.",
+      "category": "research"
+    },
+    {
+      "id": "research_method_promote",
+      "path": "/vrooli.web_search.v1.research.ResearchService/PromoteMethod",
+      "method": "POST",
+      "summary": "Promote an evaluated research method",
+      "description": "Promotes only a matching passing evaluation under an explicit grant and current-hash compare-and-swap.",
+      "category": "research"
+    },
+    {
+      "id": "research_method_rollback",
+      "path": "/vrooli.web_search.v1.research.ResearchService/RollbackMethod",
+      "method": "POST",
+      "summary": "Rollback research method",
+      "description": "Rolls back to a known release using current-hash compare-and-swap.",
+      "category": "research"
+    },
+    {
+      "id": "research_method_suspend",
+      "path": "/vrooli.web_search.v1.research.ResearchService/SuspendMethod",
+      "method": "POST",
+      "summary": "Suspend research method",
+      "description": "Suspends a method revision while retaining its release history.",
       "category": "research"
     }
   ]

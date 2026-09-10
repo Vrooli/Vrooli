@@ -1,17 +1,49 @@
-import { cp, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, dirname, relative as relativePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
 import { authoredRoot } from "./catalog-source.mjs";
 import { resolveCatalogExports } from "./export-resolution.mjs";
 import { packageDependencyPaths as derivePackageDependencyPaths } from "./dependency-paths.mjs";
 import { scanModuleSpecifiers } from "./resolve-imports.mjs";
+import { ArtifactStore, defaultArtifactStoreRoot, directoryDigest, fileDigest } from "./runtime-artifact.mjs";
 
 const packageRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/tooling$/, "");
 const sourceRoot = authoredRoot;
 const checkOnly = process.argv.includes("--check-only");
+const strictBuild = process.argv.includes("--strict");
+const runtimeBuild = process.argv.includes("--runtime") || process.env.VROOLI_PACKAGE_RUNTIME === "1";
+const allowVerifiedFallback = runtimeBuild && !strictBuild;
+const scenarioArgumentIndex = process.argv.indexOf("--scenario");
+const requestingScenario = scenarioArgumentIndex >= 0 ? process.argv[scenarioArgumentIndex + 1] : "";
+const artifactStore = new ArtifactStore(defaultArtifactStoreRoot());
+const candidateRoot = join(packageRoot, `.rcl-candidate-${randomUUID()}`);
+const candidateIdentity = `candidate:${randomUUID()}`;
+const generatedConfigPath = join(packageRoot, ".build-tsconfig.json");
 const cssDeclarationPath = join(packageRoot, ".build-css.d.ts");
+
+function requestedConsumerExports(scenario) {
+  if (!scenario || scenario.startsWith("-") || !/^[a-z0-9][a-z0-9-]*$/.test(scenario)) return [];
+  const root = join(packageRoot, "..", "..", "scenarios", scenario, "ui", "src");
+  if (!existsSync(root)) return [];
+  const required = new Set();
+  for (const [, specifiers] of scanModuleSpecifiers(root)) {
+    for (const specifier of specifiers) {
+      if (specifier.startsWith("@vrooli/react-component-library/")) {
+        required.add(`./${specifier.slice("@vrooli/react-component-library/".length)}`);
+      }
+    }
+  }
+  return [...required].sort();
+}
+
+async function assertArtifactSupportsScenario(id, scenario) {
+  const required = requestedConsumerExports(scenario);
+  if (required.length === 0) return;
+  await artifactStore.requireCompatible(id, required);
+}
 await writeFile(cssDeclarationPath, 'declare module "*.css" { const css: string; export default css; }\n');
 
 const { resolutions: exportResolutions } = await resolveCatalogExports({
@@ -42,14 +74,76 @@ if (existsSync(workbenchRoot)) {
     }
   }
 }
+const fallbackOrExit = async (code, reason) => {
+  let selectedArtifact = null;
+  if (allowVerifiedFallback) {
+    try {
+      const selected = await artifactStore.readCurrentVerified();
+      selectedArtifact = selected.verification.id;
+      await assertArtifactSupportsScenario(selectedArtifact, requestingScenario);
+      await artifactStore.writeStatus({
+        status: "degraded",
+        packageName: "@vrooli/react-component-library",
+        candidateIdentity,
+        candidateArtifact: null,
+        selectedArtifact,
+        reason,
+        compatibility: "verified",
+        updatedAt: new Date().toISOString(),
+      });
+      console.error(JSON.stringify({
+        built: "@vrooli/react-component-library",
+        status: "degraded",
+        reason,
+        candidate: candidateIdentity,
+        selectedArtifact,
+        compatibility: "verified",
+      }));
+      await rm(candidateRoot, { recursive: true, force: true });
+      await rm(generatedConfigPath, { force: true });
+      await rm(cssDeclarationPath, { force: true });
+      process.exit(0);
+    } catch (fallbackError) {
+      await artifactStore.writeStatus({
+        status: "failed",
+        packageName: "@vrooli/react-component-library",
+        candidateIdentity,
+        candidateArtifact: null,
+        selectedArtifact,
+        reason: `${reason}; fallback unavailable: ${fallbackError.message}`,
+        compatibility: selectedArtifact ? "incompatible" : "missing",
+        updatedAt: new Date().toISOString(),
+      }).catch(() => {});
+      console.error(`react-component-library runtime fallback unavailable: ${fallbackError.message}`);
+    }
+  }
+  await rm(candidateRoot, { recursive: true, force: true });
+  await rm(generatedConfigPath, { force: true });
+  await rm(cssDeclarationPath, { force: true });
+  await artifactStore.writeStatus({
+    status: "failed",
+    packageName: "@vrooli/react-component-library",
+    candidateIdentity,
+    candidateArtifact: null,
+    selectedArtifact,
+    reason,
+    compatibility: selectedArtifact ? "incompatible" : "missing",
+    updatedAt: new Date().toISOString(),
+  }).catch(() => {});
+  process.exit(code ?? 1);
+};
+const maybeInjectFailure = async (stage) => {
+  if (process.env.RCL_BUILD_FAIL_STAGE !== stage) return;
+  console.error(`react-component-library failure injection: ${stage}`);
+  await fallbackOrExit(1, `injected ${stage} failure`);
+};
 if (workbenchBrokenImports.length > 0) {
   console.error("react-component-library build failed: workbench consumer imports are not published");
   for (const finding of workbenchBrokenImports) {
     console.error(`  ${finding.file}: ${finding.specifier}`);
   }
-  process.exit(1);
+  await fallbackOrExit(1, "workbench export preflight failed");
 }
-const generatedConfigPath = join(packageRoot, ".build-tsconfig.json");
 const baseConfig = JSON.parse(await readFile(join(packageRoot, "tsconfig.build.json"), "utf8"));
 const packageNodeModules = join(packageRoot, "node_modules");
 const packageManifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
@@ -128,27 +222,30 @@ if (checkOnly) {
 // suite, the running scenario that triggers this build — resolved modules that
 // did not exist. Staging narrows that window to a single rename, and a failed
 // build now leaves the previous artifact in place instead of no artifact.
-const distRoot = join(packageRoot, "dist");
-const stagingRoot = join(packageRoot, "dist.staging");
-const retiredRoot = join(packageRoot, "dist.previous");
-await rm(stagingRoot, { recursive: true, force: true });
-await rm(retiredRoot, { recursive: true, force: true });
+const stagingRoot = join(candidateRoot, "dist");
+await rm(candidateRoot, { recursive: true, force: true });
 await mkdir(stagingRoot, { recursive: true });
+await maybeInjectFailure("candidate");
 
 const abandonStaging = async (code) => {
-  await rm(stagingRoot, { recursive: true, force: true });
+  await rm(candidateRoot, { recursive: true, force: true });
   await rm(generatedConfigPath, { force: true });
   await rm(cssDeclarationPath, { force: true });
   process.exit(code ?? 1);
 };
-const sync = spawnSync(process.execPath, [join(packageRoot, "tooling", "sync-exports.mjs")], { cwd: packageRoot, stdio: "inherit" });
-if (sync.status !== 0) process.exit(sync.status ?? 1);
+const sync = spawnSync(process.execPath, [join(packageRoot, "tooling", "sync-exports.mjs"), "--output-package", join(candidateRoot, "package.json")], { cwd: packageRoot, stdio: "inherit" });
+if (sync.status !== 0) await fallbackOrExit(sync.status ?? 1, "export generation failed");
+await maybeInjectFailure("export");
 if (!tsc || !existsSync(tsc)) {
   console.error("TypeScript compiler not found in the package toolchain or configured build environment");
-  process.exit(1);
+  await fallbackOrExit(1, "package TypeScript compiler is unavailable");
 }
 const result = spawnSync(tsc, ["-p", generatedConfigPath, "--outDir", stagingRoot], { cwd: packageRoot, stdio: "inherit" });
-if (result.status !== 0) await abandonStaging(result.status);
+if (result.status !== 0) {
+  if (allowVerifiedFallback) await fallbackOrExit(result.status, "candidate TypeScript compilation failed");
+  await abandonStaging(result.status);
+}
+await maybeInjectFailure("compile");
 
 
 // CSS remains pleasant to author beside a component, but it is not a
@@ -310,20 +407,55 @@ if (metaReads.length > 0 || staleExceptions.length > 0) {
   for (const offender of metaReads) console.error(`  reads import.meta: ${offender}`);
   for (const relative of staleExceptions) console.error(`  stale exception for a version that is no longer emitted: ${relative}`);
   console.error("Derive the behavior from a runtime-observable signal instead; see .ast-grep/rules/no-bundler-env-in-shared-library.yml");
-  await rm(stagingRoot, { recursive: true, force: true });
-  process.exit(1);
+  await fallbackOrExit(1, "emitted artifact contains an invalid bundler environment read");
 }
 
-// Publish. Two renames rather than a delete-and-repopulate, so a reader is
-// only ever between artifacts for the duration of one syscall.
-if (existsSync(distRoot)) await rename(distRoot, retiredRoot);
-await rename(stagingRoot, distRoot);
-await rm(retiredRoot, { recursive: true, force: true });
+const packageLockDigest = existsSync(join(packageRoot, "pnpm-lock.yaml"))
+  ? await fileDigest(packageRoot, ["pnpm-lock.yaml"])
+  : `sha256:${createHash("sha256").update("missing-pnpm-lock").digest("hex")}`;
+const sourceDigest = await directoryDigest(sourceRoot);
+const toolchainDigest = `sha256:${createHash("sha256").update(JSON.stringify({
+  node: process.version,
+  packageManager: packageManifest.packageManager,
+  typescript: packageManifest.devDependencies?.typescript,
+})).digest("hex")}`;
+const selectedVersions = Object.fromEntries(
+  Object.entries(exportResolutions)
+    .filter(([key]) => /\/\d+\.\d+\.\d+$/.test(key))
+    .map(([key, resolution]) => [key.slice(2), resolution.version]),
+);
+const dependencyClosure = Object.keys(exportResolutions).sort();
+await maybeInjectFailure("publish");
+const published = await artifactStore.publish(candidateRoot, {
+  sourceDigest,
+  selectedVersions,
+  dependencyClosure,
+  packageLockDigest,
+  toolchainDigest,
+  requiredExports: requestedConsumerExports(requestingScenario),
+});
+await assertArtifactSupportsScenario(published.id, requestingScenario);
+await artifactStore.materialize(published.id, packageRoot);
+await artifactStore.writeStatus({
+  status: "verified",
+  packageName: "@vrooli/react-component-library",
+  candidateIdentity,
+  candidateArtifact: published.id,
+  selectedArtifact: published.id,
+  reason: "candidate published and materialized",
+  compatibility: "verified",
+  updatedAt: new Date().toISOString(),
+});
 await rm(generatedConfigPath, { force: true });
+await rm(candidateRoot, { recursive: true, force: true });
 
 console.log(JSON.stringify({
   built: "@vrooli/react-component-library",
   consumer: "scenarios/react-component-library/ui",
   workbenchBrokenImports: 0,
   declarations: true,
+  status: "verified",
+  candidateArtifact: published.id,
+  selectedArtifact: published.id,
+  compatibility: "verified",
 }));

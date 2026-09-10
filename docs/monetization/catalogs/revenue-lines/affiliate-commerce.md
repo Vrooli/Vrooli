@@ -90,7 +90,7 @@ On promotion to `active`, this line must have all five:
 4. **Partner agreement in force** — Amazon Associates (or chosen starter) approved, terms reviewed.
 5. **Cross-line monitoring active** — `financial-tracker` reports the recommendation-integrity signal to the morning vision walk.
 
-See [REVENUE_LINES.md](../REVENUE_LINES.md) for the broader revenue-line discipline.
+See [REVENUE_LINES.md](README.md) for the broader revenue-line discipline.
 
 ## Notes
 

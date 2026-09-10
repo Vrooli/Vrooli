@@ -3,10 +3,9 @@
 This document records operator procedures for running, diagnosing,
 recovering, and maintaining the scenario.
 
-> **Status (2026-06-09):** Not implemented yet. Procedures below are the
-> *intended* operational playbook from `PRD.md` and
-> [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) (whose
-> degraded-behavior matrix is the source of truth for failure modes).
+> **Current status (2026-09-06):** This runbook is the supported operator
+> procedure. Live acceptance and recovery limitations are recorded in
+> [`LIVE_VALIDATION.md`](LIVE_VALIDATION.md).
 
 ## Purpose Of This Document
 

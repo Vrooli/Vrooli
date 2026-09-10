@@ -17,6 +17,7 @@ import (
 type fakeClient struct {
 	execution *domainpb.WorkflowExecution
 	request   *apipb.StartWorkflowExecutionRequest
+	cancelRequest *apipb.WorkflowExecutionOperationRequest
 	waits     int
 	timedOut  bool
 }
@@ -39,6 +40,12 @@ func (f *fakeClient) Wait(context.Context, string, int) (*domainpb.WorkflowExecu
 	return f.execution, f.timedOut, nil
 }
 
+func (f *fakeClient) Cancel(_ context.Context, r *apipb.WorkflowExecutionOperationRequest) (*domainpb.WorkflowExecution, error) {
+	f.cancelRequest = r
+	f.execution.Status = domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED
+	return f.execution, nil
+}
+
 func execution() *domainpb.WorkflowExecution {
 	return &domainpb.WorkflowExecution{Id: "execution-1", Owner: "web-search", WorkflowKey: "web-search/research", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_RUNNING}
 }
@@ -53,6 +60,21 @@ func TestSpawnDeclaredWorkflow(t *testing.T) {
 	require.Equal(t, "web-search/research", f.request.WorkflowKey)
 	require.Equal(t, "request-1", f.request.IdempotencyKey)
 	require.Equal(t, "q", f.request.Input.GetStructValue().Fields["query"].GetStringValue())
+}
+
+func TestSpawnPropagatesEvidencePolicyAndQuestions(t *testing.T) {
+	f := &fakeClient{execution: execution()}
+	s := agentmanager.NewService(f)
+	_, err := s.Spawn(context.Background(), agentmanager.SpawnRequest{
+		Query: "q", GatherCap: 20, MaxLoops: 4, ConfidenceGate: 0.75,
+		Policy:    map[string]any{"max_age_seconds": int64(3600), "minimum_sources": 2},
+		Questions: []map[string]any{{"id": "q1", "prompt": "What changed?", "required": true}},
+	})
+	require.NoError(t, err)
+	input := f.request.Input.GetStructValue().AsMap()
+	require.Equal(t, float64(3600), input["evidence_policy"].(map[string]any)["max_age_seconds"])
+	require.Equal(t, float64(2), input["evidence_policy"].(map[string]any)["minimum_sources"])
+	require.Equal(t, "q1", input["questions"].([]any)[0].(map[string]any)["id"])
 }
 
 // [REQ:REQ-P0-010] A wait timeout preserves the active execution and calls the owner once.
@@ -75,6 +97,18 @@ func TestForeignExecutionRefusedBeforeWait(t *testing.T) {
 	_, e := agentmanager.NewService(f).(agentmanager.Waiter).Wait(context.Background(), "execution-1", 30)
 	require.Error(t, e)
 	require.Zero(t, f.waits)
+}
+
+func TestCancelDelegatesToOwnerAndPreservesExecutionIdentity(t *testing.T) {
+	f := &fakeClient{execution: execution()}
+	canceller := agentmanager.NewService(f).(agentmanager.Canceller)
+	state, err := canceller.Cancel(context.Background(), "execution-1", "operator stopped research", "cancel-1")
+	require.NoError(t, err)
+	require.Equal(t, "execution-1", state.RunID)
+	require.Equal(t, "cancelled", state.Status)
+	require.Equal(t, "execution-1", f.cancelRequest.ExecutionId)
+	require.Equal(t, "cancel-1", f.cancelRequest.IdempotencyKey)
+	require.Equal(t, "operator stopped research", f.cancelRequest.Reason)
 }
 
 func TestCompletedExecutionRequiresStructuredResult(t *testing.T) {

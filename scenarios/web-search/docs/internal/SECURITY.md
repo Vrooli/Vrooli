@@ -4,10 +4,11 @@ This document records the scenario's security and privacy posture.
 Update it before adding auth, user data, external APIs, payment flows,
 secrets, or sensitive business data.
 
-> **Scaffold status (2026-06-09):** The posture below is the *intended*
-> design from `PRD.md` / requirements. Nothing is implemented yet — these
-> are the mandatory mitigations the implementation must honor, not
-> validated controls.
+> **Current status (2026-09-06):** The posture below describes implemented
+> controls and remaining validation limits. Destination validation,
+> evidence integrity, append-only correction, and explicit uncertainty are
+> covered by owner tests; residual advisories remain in the acceptance
+> report.
 
 ## Purpose Of This Document
 
@@ -86,7 +87,7 @@ the local-dev default is unauthenticated like the rest of the fleet.
 
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
-| Nothing implemented yet | n/a (scaffold) | All mitigations above are design intent; validate as each level (L0–L3) ships. |
+| Integrated security inventory | tracked | Public destination validation, redirect DNS recheck, bounded bodies, untrusted source-content handling, and mutation gates are implemented; run the scenario security phase for the current advisory inventory. |
 | Budget governor + cache unproven | high | Required before live web can be auto-routed (P2 OT-P2-002 is explicitly gated behind a proven cache + governor). |
 | Dispute review queue not built | medium | Required for OT-P1-005/007; until then disputed findings surface with a warning but have no resolution UI. |
 | No multi-user auth model | conditional | Required before any protected or multi-tenant deployment. |

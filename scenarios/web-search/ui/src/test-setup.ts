@@ -26,12 +26,17 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, vi, type MockInstance } from "vitest";
 import { i18n } from "./i18n";
 import { createElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
 import { configureTestProviders } from "@vrooli/api-base/testing";
 import { ThemeProvider } from "./theme/ThemeProvider";
 
-configureTestProviders((children) => createElement(I18nextProvider, { i18n },
-  createElement(ThemeProvider, null, children),
+const queryClient = new QueryClient();
+
+configureTestProviders((children) => createElement(QueryClientProvider, { client: queryClient },
+  createElement(I18nextProvider, { i18n },
+    createElement(ThemeProvider, null, children),
+  ),
 ));
 
 let consoleError: MockInstance<(...args: unknown[]) => void>;
@@ -68,3 +73,18 @@ afterEach(() => {
 // its own beforeEach and restore it on teardown — opt-in override
 // rather than process-wide unwiring.
 vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+
+Object.defineProperty(window, "matchMedia", {
+  configurable: true,
+  writable: true,
+  value: (media: string) => ({
+    media,
+    matches: media.includes("min-width"),
+    onchange: null,
+    addListener() {},
+    removeListener() {},
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent: () => false,
+  }),
+});

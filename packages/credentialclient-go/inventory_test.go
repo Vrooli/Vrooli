@@ -191,6 +191,12 @@ func TestDescriptorsForScopeAppliesTierAndManagedApplicability(t *testing.T) {
 	if managed.Kind != "managed" || managed.Owner != "release-authority" || managed.SourceRef == "" {
 		t.Fatalf("managed projection = %+v, want explicit owner/source metadata", managed)
 	}
+	if !filepath.IsAbs(managed.SourceRef) || len(managed.ConsumerRefs) != 1 || managed.ConsumerRefs[0] != "release metadata signer" {
+		t.Fatalf("managed consumer projection = %+v, want absolute source and release consumer", managed)
+	}
+	if len(managed.Provenance) != 1 || len(managed.Provenance[0].Consumers) != 1 || !filepath.IsAbs(managed.Provenance[0].Consumers[0].SourceRef) {
+		t.Fatalf("managed provenance = %+v, want absolute consumer provenance", managed.Provenance)
+	}
 }
 
 func TestDescriptorsForScopeMergesSharedAddressesWithAllProvenance(t *testing.T) {

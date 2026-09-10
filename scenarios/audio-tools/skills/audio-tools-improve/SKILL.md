@@ -21,6 +21,12 @@ Close the highest broken contract, obligation, evidence, or implementation layer
 for the authorized voice target. Preserve unknown results until the relevant
 product path has been measured.
 
+When Audio Tools is a target of Swarm's `contract-development` workflow, keep
+the Swarm approval, campaign checkpoint and aggregate grant as the engagement
+identity. This skill supplies Audio's outcome judgment and owner routes; it does
+not approve the target, launch a private branch, or convert a workflow result
+into product acceptance.
+
 ### Scope and required reading
 
 Read `path:docs/agent-system/SCENARIO_DEVELOPMENT.md`, then

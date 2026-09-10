@@ -2,9 +2,13 @@ package research
 
 import (
 	"context"
+	"fmt"
+	"net/url"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
+	"web-search/internal/evidence"
 	"web-search/internal/findings"
 	"web-search/internal/livesearch"
 )
@@ -61,13 +65,14 @@ func (l LiveSearcher) Candidates(ctx context.Context, query string, topN int) (C
 }
 
 // runL2 executes the synchronous L2 pipeline: candidates -> fetch each ->
-// single-pass cited synthesis -> (optional) capture. It is the shared core both
+// cited synthesis (one pass for an untyped query, one bounded pass per declared
+// question) -> (optional) capture. It is the shared core both
 // the RunL2 RPC and the L3 reconcile loop's "research the gap" step call.
 //
 // Fetch failures are tolerated per-page: a page that cannot be fetched is
 // skipped and the synthesis runs over whatever was retrieved. With no fetched
 // documents the pipeline abstains rather than fabricating.
-func (s *Service) runL2(ctx context.Context, query string, topN int, capture bool) (L2Outcome, error) {
+func (s *Service) runL2(ctx context.Context, query string, topN int, capture bool, questions []ResearchQuestion, maxEvidenceBytes int) (L2Outcome, error) {
 	query = strings.TrimSpace(query)
 	if topN <= 0 {
 		topN = DefaultTopN
@@ -82,19 +87,7 @@ func (s *Service) runL2(ctx context.Context, query string, topN int, capture boo
 	}
 	cands := candSet.Candidates
 
-	docs := make([]Document, 0, len(cands))
-	for _, c := range cands {
-		text, ferr := s.fetcher.Fetch(ctx, c.URL)
-		if ferr != nil {
-			s.logger.Printf("research: L2 fetch %q failed (skipping): %v", c.URL, ferr)
-			continue
-		}
-		if strings.TrimSpace(text) == "" {
-			s.logger.Printf("research: L2 fetch %q returned no readable text (skipping)", c.URL)
-			continue
-		}
-		docs = append(docs, Document{URL: c.URL, Title: c.Title, Text: text})
-	}
+	docs, receiptIDs, failures := s.collectDocuments(ctx, cands, maxEvidenceBytes)
 
 	// Excerpting decides what part of each fetched page the model reads
 	// (relevance-selected by default, positional under the escape hatch or on
@@ -102,6 +95,8 @@ func (s *Service) runL2(ctx context.Context, query string, topN int, capture boo
 	// preserves document order.
 	var excerpts []DocumentExcerpt
 	syn := Abstain()
+	var questionAssessments []ClaimAssessment
+	var claimsByQuestion map[string][]string
 	switch {
 	case len(cands) == 0:
 		syn = AbstainWith(ReasonNoCandidates)
@@ -110,9 +105,21 @@ func (s *Service) runL2(ctx context.Context, query string, topN int, capture boo
 	default:
 		docs = s.excerpter.Select(ctx, query, docs)
 		excerpts = excerptsForResponse(docs)
-		syn, err = s.synthesizer.Synthesize(ctx, query, docs)
+		if len(questions) > 0 {
+			syn, questionAssessments, claimsByQuestion, err = s.synthesizeQuestions(ctx, questions, docs)
+		} else {
+			syn, err = s.synthesizer.Synthesize(ctx, query, docs)
+		}
 		if err != nil {
-			return L2Outcome{}, err
+			// Preserve the immutable retrieval evidence and explicit abstention
+			// state even when the verifier/model is unavailable. Callers receive
+			// the error and must not treat this as supported output.
+			return L2Outcome{
+				Brief:     Brief{Query: query, Level: LevelL2, Summary: abstainNote},
+				Abstained: true, AbstainReason: ReasonSynthesisUnavailable,
+				Excerpts: excerpts, DegradedEngines: candSet.DegradedEngines,
+				EvidenceReceiptIDs: receiptIDs, FetchFailures: failures,
+			}, err
 		}
 	}
 
@@ -123,10 +130,31 @@ func (s *Service) runL2(ctx context.Context, query string, topN int, capture boo
 			Summary:   syn.Text,
 			Citations: syn.Citations,
 		},
-		Abstained:       syn.Abstained,
-		AbstainReason:   syn.AbstainReason,
-		Excerpts:        excerpts,
-		DegradedEngines: candSet.DegradedEngines,
+		Abstained:          syn.Abstained,
+		AbstainReason:      syn.AbstainReason,
+		Excerpts:           excerpts,
+		DegradedEngines:    candSet.DegradedEngines,
+		EvidenceReceiptIDs: receiptIDs,
+		FetchFailures:      failures,
+	}
+	if !syn.Abstained {
+		for i := range syn.Citations {
+			idx := syn.Citations[i].ResultIndex
+			if idx >= 0 && idx < len(docs) && docs[idx].ReceiptID != "" && s.receiptStore != nil {
+				if receipt, err := s.receiptStore.GetReceipt(ctx, docs[idx].ReceiptID); err == nil {
+					syn.Citations[i].RetrievedAt = receipt.RetrievedAt
+				}
+			}
+		}
+		if len(questions) > 0 {
+			out.Assessments = questionAssessments
+			out.Coverage = EvaluateQuestionCoverage(questions, out.Assessments, claimsByQuestion)
+		} else {
+			out.Assessments = assessSynthesis(syn, docs)
+		}
+	}
+	if len(questions) > 0 && len(out.Coverage) == 0 {
+		out.Coverage = EvaluateQuestionCoverage(questions, out.Assessments, claimsByQuestion)
 	}
 
 	// Auto-capture is opt-in for L2 and never fires on an abstention (there is no
@@ -139,6 +167,247 @@ func (s *Service) runL2(ctx context.Context, query string, topN int, capture boo
 		out.CapturedFindingIDs = ids
 	}
 	return out, nil
+}
+
+// synthesizeQuestions answers each caller-declared question independently over
+// the same retained documents. A single combined model response can cite a
+// source while silently omitting one requested part; separate passes keep the
+// coverage denominator authoritative and let one supported part survive beside
+// an explicitly unresolved part.
+func (s *Service) synthesizeQuestions(ctx context.Context, questions []ResearchQuestion, docs []Document) (Synthesis, []ClaimAssessment, map[string][]string, error) {
+	var summary strings.Builder
+	var citations []Citation
+	var assessments []ClaimAssessment
+	claimsByQuestion := make(map[string][]string, len(questions))
+	allAbstained := true
+	for _, question := range questions {
+		syn, err := s.synthesizer.Synthesize(ctx, question.Prompt, docs)
+		if err != nil {
+			return Synthesis{}, nil, nil, err
+		}
+		if syn.Abstained || strings.TrimSpace(syn.Text) == "" {
+			continue
+		}
+		allAbstained = false
+		questionAssessments := assessSynthesisWithPrefix(syn, docs, "question-"+question.ID)
+		for _, assessment := range questionAssessments {
+			claimsByQuestion[question.ID] = append(claimsByQuestion[question.ID], assessment.ClaimID)
+		}
+		assessments = append(assessments, questionAssessments...)
+		if summary.Len() > 0 {
+			summary.WriteString("\n")
+		}
+		fmt.Fprintf(&summary, "%s: %s", question.Prompt, strings.TrimSpace(syn.Text))
+		citations = append(citations, syn.Citations...)
+	}
+	if allAbstained {
+		return AbstainWith(ReasonModelAbstained), nil, claimsByQuestion, nil
+	}
+	return Synthesis{Text: summary.String(), Citations: citations}, assessments, claimsByQuestion, nil
+}
+
+func assessSynthesis(syn Synthesis, docs []Document) []ClaimAssessment {
+	return assessSynthesisWithPrefix(syn, docs, "claim")
+}
+
+func assessSynthesisWithPrefix(syn Synthesis, docs []Document, prefix string) []ClaimAssessment {
+	assessments := make([]ClaimAssessment, 0, len(syn.Citations))
+	for i, citation := range syn.Citations {
+		if citation.ResultIndex < 0 || citation.ResultIndex >= len(docs) {
+			continue
+		}
+		doc := docs[citation.ResultIndex]
+		assessment := ClaimAssessment{ClaimID: fmt.Sprintf("%s-%d", prefix, i), Disposition: AssessClaimSupport(syn.Text, []string{doc.Text})}
+		if doc.ReceiptID != "" || doc.PassageID != "" {
+			assessment.Evidence = []EvidencePassageRef{{ReceiptID: doc.ReceiptID, PassageID: doc.PassageID, ContentHash: evidence.ContentHash([]byte(doc.Text)), ExtractionRevision: "readable-text-v1"}}
+		}
+		if len(assessment.Evidence) == 0 {
+			assessment.Reason = "no_retained_passage"
+			assessment.Disposition = AssessmentUnknown
+		}
+		assessments = append(assessments, assessment)
+	}
+	return assessments
+}
+
+type fetchedDocument struct {
+	doc     Document
+	receipt string
+	failure *FetchFailure
+}
+
+func (s *Service) collectDocuments(ctx context.Context, cands []Candidate, maxEvidenceBytes int) ([]Document, []string, []FetchFailure) {
+	if len(cands) == 0 {
+		return nil, nil, nil
+	}
+	workers := s.fetchConcurrency
+	if workers <= 0 || workers > len(cands) {
+		workers = len(cands)
+	}
+	jobs := make(chan int)
+	results := make([]fetchedDocument, len(cands))
+	globalPermits := make(chan struct{}, s.fetchConcurrency)
+	hostPermits := map[string]chan struct{}{}
+	var hostMu sync.Mutex
+	hostPermit := func(rawURL string) chan struct{} {
+		host := strings.ToLower(rawURL)
+		if parsed, err := url.Parse(rawURL); err == nil && parsed.Hostname() != "" {
+			host = strings.ToLower(parsed.Hostname())
+		}
+		hostMu.Lock()
+		defer hostMu.Unlock()
+		if permit, ok := hostPermits[host]; ok {
+			return permit
+		}
+		permit := make(chan struct{}, s.fetchPerHostConcurrency)
+		hostPermits[host] = permit
+		return permit
+	}
+	acquire := func(permit chan struct{}) bool {
+		select {
+		case permit <- struct{}{}:
+			return true
+		case <-ctx.Done():
+			return false
+		}
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				index, ok := <-jobs
+				if !ok {
+					return
+				}
+				candidate := cands[index]
+				if !acquire(globalPermits) {
+					results[index].failure = &FetchFailure{URL: candidate.URL, Code: "cancelled", Message: "fetch cancelled before admission", Retryable: false}
+					continue
+				}
+				permit := hostPermit(candidate.URL)
+				if !acquire(permit) {
+					<-globalPermits
+					results[index].failure = &FetchFailure{URL: candidate.URL, Code: "cancelled", Message: "fetch cancelled while queued for host", Retryable: false}
+					continue
+				}
+				// Both the permit send and ctx.Done can become ready together.
+				// Recheck after admission so cancellation never turns queued work
+				// into a network request merely because select chose the permit.
+				if ctx.Err() != nil {
+					<-permit
+					<-globalPermits
+					results[index].failure = &FetchFailure{URL: candidate.URL, Code: "cancelled", Message: "fetch cancelled after admission", Retryable: false}
+					continue
+				}
+				text, receiptID, err := s.fetchCandidate(ctx, candidate)
+				<-permit
+				<-globalPermits
+				if err != nil {
+					results[index].failure = &FetchFailure{URL: candidate.URL, ReceiptID: receiptID, Code: "fetch_failed", Message: err.Error(), Retryable: ctx.Err() == nil}
+					continue
+				}
+				if strings.TrimSpace(text) == "" {
+					results[index].failure = &FetchFailure{URL: candidate.URL, Code: "empty_content", Message: "fetch returned no readable text"}
+					continue
+				}
+				results[index] = fetchedDocument{doc: Document{URL: candidate.URL, Title: candidate.Title, Text: text, ReceiptID: receiptID}, receipt: receiptID}
+			}
+		}()
+	}
+enqueue:
+	for i := range cands {
+		select {
+		case jobs <- i:
+		case <-ctx.Done():
+			break enqueue
+		}
+	}
+	close(jobs)
+	wg.Wait()
+	var docs []Document
+	var receipts []string
+	var failures []FetchFailure
+	if maxEvidenceBytes <= 0 {
+		maxEvidenceBytes = 4 << 20
+	}
+	usedBytes := 0
+	for _, result := range results {
+		if result.failure != nil {
+			failures = append(failures, *result.failure)
+			if result.failure.ReceiptID != "" {
+				receipts = append(receipts, result.failure.ReceiptID)
+			}
+			continue
+		}
+		remaining := maxEvidenceBytes - usedBytes
+		if remaining <= 0 {
+			failures = append(failures, FetchFailure{URL: result.doc.URL, ReceiptID: result.doc.ReceiptID, Code: "evidence_limit", Message: "retained evidence byte budget exhausted", Retryable: false})
+			if result.doc.ReceiptID != "" {
+				receipts = append(receipts, result.doc.ReceiptID)
+			}
+			continue
+		}
+		if len([]byte(result.doc.Text)) > remaining {
+			result.doc.Text = boundedUTF8Prefix(result.doc.Text, remaining)
+			failures = append(failures, FetchFailure{URL: result.doc.URL, ReceiptID: result.doc.ReceiptID, Code: "evidence_limit", Message: "source content was bounded by the request evidence byte budget", Retryable: false})
+		}
+		usedBytes += len([]byte(result.doc.Text))
+		if result.doc.ReceiptID != "" {
+			if passage, err := s.receiptStore.CreatePassage(ctx, result.doc.ReceiptID, 0, len([]byte(result.doc.Text))); err == nil {
+				result.doc.PassageID = passage.PassageID
+			}
+			receipts = append(receipts, result.doc.ReceiptID)
+		}
+		docs = append(docs, result.doc)
+	}
+	return docs, receipts, failures
+}
+
+func boundedUTF8Prefix(text string, maxBytes int) string {
+	if maxBytes <= 0 {
+		return ""
+	}
+	if len([]byte(text)) <= maxBytes {
+		return text
+	}
+	cut := maxBytes
+	for cut > 0 && !utf8.RuneStart(text[cut]) {
+		cut--
+	}
+	return text[:cut]
+}
+
+func (s *Service) fetchCandidate(ctx context.Context, candidate Candidate) (string, string, error) {
+	if observed, ok := s.fetcher.(ObservationFetcher); ok && s.receiptStore != nil {
+		observation, err := observed.FetchObservation(ctx, candidate.URL)
+		if err != nil {
+			return "", s.failureReceipt(ctx, candidate.URL, err), err
+		}
+		receipt, err := s.receiptStore.CreateReceipt(ctx, observation)
+		if err != nil {
+			return "", s.failureReceipt(ctx, candidate.URL, err), err
+		}
+		return string(observation.Content), receipt.ReceiptID, nil
+	}
+	text, err := s.fetcher.Fetch(ctx, candidate.URL)
+	if err != nil && s.receiptStore != nil {
+		return "", s.failureReceipt(ctx, candidate.URL, err), err
+	}
+	return text, "", err
+}
+
+func (s *Service) failureReceipt(ctx context.Context, rawURL string, cause error) string {
+	if s.receiptStore == nil {
+		return ""
+	}
+	receipt, err := s.receiptStore.CreateReceipt(ctx, evidence.NewObservation{URL: rawURL, RetrievedAt: s.now().UTC(), ExtractionRevision: "fetch-failure-v1", Retention: "metadata-only", FailureCode: "fetch_failed"})
+	if err != nil {
+		s.logger.Printf("research: failed to persist fetch failure for %q: %v (original: %v)", rawURL, err, cause)
+		return ""
+	}
+	return receipt.ReceiptID
 }
 
 // excerptPreviewChars caps each per-document excerpt mirrored onto the
@@ -184,7 +453,7 @@ func (s *Service) captureSynthesis(ctx context.Context, query string, syn Synthe
 	}
 	cites := make([]findings.NewCitation, 0, len(syn.Citations))
 	for _, c := range syn.Citations {
-		cites = append(cites, findings.NewCitation{URL: c.URL, Title: c.Title})
+		cites = append(cites, findings.NewCitation{URL: c.URL, Title: c.Title, RetrievedAt: c.RetrievedAt})
 	}
 	f, err := s.findings.Add(ctx, findings.NewFinding{
 		Claim:      claim,

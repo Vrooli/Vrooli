@@ -43,6 +43,10 @@ type Repository interface {
 	// findings when an include-archived search is requested (they are not in
 	// the semantic index).
 	SearchArchivedLike(ctx context.Context, query string, limit int) ([]Finding, error)
+	// RecordCorrection appends a linked caller observation. Replaying an
+	// identity returns the original correction; a different body is rejected.
+	RecordCorrection(ctx context.Context, in CorrectionInput, actor string) (Correction, error)
+	ListCorrections(ctx context.Context, findingID string) ([]Correction, error)
 
 	// RecordSurfaced increments the surfaced counter for each id and stamps
 	// last_surfaced_at = now, creating the usage row if absent. This is the write

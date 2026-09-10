@@ -14,7 +14,13 @@ import { formatRelativeTime } from "../../i18n/format";
 import { FindingStatus, type Finding } from "@vrooli/proto-types/web-search/v1/findings/findings_pb";
 import { StatusBadge } from "./StatusBadge";
 
-type ActiveForm = "none" | "edit" | "supersede" | "flag";
+type ActiveForm = "none" | "edit" | "supersede" | "flag" | "correction";
+
+async function claimHash(claim: string): Promise<string> {
+  const bytes = new TextEncoder().encode(claim);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 const AGE_UNITS: ReadonlyArray<readonly [Intl.RelativeTimeFormatUnit, number]> = [
   ["year", 365 * 24 * 60 * 60 * 1000],
@@ -83,6 +89,17 @@ export function FindingCard({
   const flagMutation = useMutation({
     mutationFn: async (vars: { reason: string }) =>
       findingsClient.flagFinding({ id: finding.id, reason: vars.reason }),
+    onSuccess: invalidate,
+  });
+  const correctionMutation = useMutation({
+    mutationFn: async (vars: { disposition: string; reason: string }) =>
+      findingsClient.recordCorrection({
+        findingId: finding.id,
+        identity: crypto.randomUUID(),
+        originalClaimHash: await claimHash(finding.claim),
+        disposition: vars.disposition,
+        reason: vars.reason,
+      }),
     onSuccess: invalidate,
   });
 
@@ -165,6 +182,14 @@ export function FindingCard({
           >
             {t(strings.findings.flagAction)}
           </Button>
+          <Button
+            data-testid={selectors.findings.correctionButton}
+            variant="outline"
+            size="sm"
+            onClick={() => setForm("correction")}
+          >
+            {t(strings.findings.correctionAction)}
+          </Button>
         </div>
       )}
 
@@ -193,6 +218,14 @@ export function FindingCard({
           onSubmit={(reason) => flagMutation.mutate({ reason })}
         />
       )}
+      {form === "correction" && (
+        <CorrectionForm
+          pending={correctionMutation.isPending}
+          error={correctionMutation.error}
+          onCancel={() => setForm("none")}
+          onSubmit={(disposition, reason) => correctionMutation.mutate({ disposition, reason })}
+        />
+      )}
     </li>
   );
 }
@@ -200,7 +233,9 @@ export function FindingCard({
 type ErrorKeyPath =
   | typeof strings.findings.editError
   | typeof strings.findings.supersedeError
-  | typeof strings.findings.flagError;
+  | typeof strings.findings.flagError
+  | typeof strings.findings.correctionError;
+
 
 function FormError({ error, keyPath }: { error: unknown; keyPath: ErrorKeyPath }) {
   const { t } = useTranslation();
@@ -352,6 +387,65 @@ function FlagForm({
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={pending}>
           {t(strings.findings.flagSubmit)}
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+          {t(strings.findings.cancel)}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function CorrectionForm({
+  pending,
+  error,
+  onCancel,
+  onSubmit,
+}: {
+  pending: boolean;
+  error: unknown;
+  onCancel: () => void;
+  onSubmit: (disposition: string, reason: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [disposition, setDisposition] = useState("contradicted");
+  const [reason, setReason] = useState("");
+  return (
+    <form
+      data-testid={selectors.findings.correctionForm}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit(disposition, reason.trim());
+      }}
+      className="mt-1 flex flex-col gap-2"
+    >
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="text-app-muted-foreground">{t(strings.findings.correctionDispositionLabel)}</span>
+        <select
+          data-testid={selectors.findings.correctionDisposition}
+          aria-label={t(strings.findings.correctionDispositionLabel)}
+          value={disposition}
+          onChange={(e) => setDisposition(e.target.value)}
+          className="rounded-control border border-app-border bg-app-surface px-2 py-1 text-app-foreground"
+        >
+          <option value="supported">supported</option>
+          <option value="contradicted">contradicted</option>
+          <option value="insufficient">insufficient</option>
+          <option value="unavailable">unavailable</option>
+          <option value="unknown">unknown</option>
+        </select>
+      </label>
+      <Textarea
+        data-testid={selectors.findings.correctionReason}
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder={t(strings.findings.correctionReasonPlaceholder)}
+        aria-label={t(strings.findings.correctionReasonPlaceholder)}
+      />
+      <FormError error={error} keyPath={strings.findings.correctionError} />
+      <div className="flex gap-2">
+        <Button data-testid={selectors.findings.correctionSubmit} type="submit" size="sm" disabled={pending || !reason.trim()}>
+          {t(strings.findings.correctionSubmit)}
         </Button>
         <Button type="button" variant="outline" size="sm" onClick={onCancel}>
           {t(strings.findings.cancel)}

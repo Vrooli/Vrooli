@@ -28,3 +28,12 @@ func TestFetchBundleSecretsSendsScopedServiceToken(t *testing.T) {
 		t.Fatalf("FetchBundleSecrets() error = %v", err)
 	}
 }
+
+func TestNewClientDoesNotReadLegacyDeploymentTokenEnvironment(t *testing.T) {
+	t.Setenv("SECRETS_MANAGER_DEPLOYMENT_TOKEN", "legacy-token")
+
+	client := NewClient()
+	if client.serviceToken != "" {
+		t.Fatalf("NewClient() read the legacy deployment token environment variable")
+	}
+}

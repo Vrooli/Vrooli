@@ -113,7 +113,13 @@
     "degradedYes": "متدهور",
     "degradedNo": "سليم",
     "degradedReasonLabel": "السبب:",
-    "resultCountLabel": "النتائج:"
+    "resultCountLabel": "النتائج:",
+    "captureHeading": "تسليم التقاط البحث",
+    "captureStatusLabel": "الحالة:",
+    "capturePendingLabel": "معلق:",
+    "captureDeliveredLabel": "تم التسليم:",
+    "captureFailedLabel": "فشل:",
+    "captureUnavailable": "حالة تسليم الالتقاط غير متاحة."
   },
   "findings": {
     "filterLabel": "تصفية",
@@ -163,6 +169,11 @@
     "flagReasonPlaceholder": "لماذا هذا متنازع عليه؟",
     "flagSubmit": "وضع علامة كمتنازع عليه",
     "flagError": "تعذر وضع العلامة: {{message}}",
+    "correctionAction": "Record correction",
+    "correctionDispositionLabel": "Disposition",
+    "correctionReasonPlaceholder": "Why is this claim corrected?",
+    "correctionSubmit": "Save correction",
+    "correctionError": "Could not record correction: {{message}}",
     "cancel": "إلغاء",
     "pruneHeading": "تقليم المُستبدلة",
     "pruneDryRun": "معاينة التقليم",
@@ -184,6 +195,19 @@
     "effectivenessNeverSurfaced": "لم تظهر قط",
     "effectivenessLastSurfaced": "آخر ظهور {{when}}",
     "effectivenessScore": "النتيجة {{value}}"
+  },
+  "research": {
+    "heading": "Research investigation",
+    "queryPlaceholder": "Question requiring verified research…",
+    "start": "Start investigation",
+    "resume": "Resume investigation",
+    "waiting": "Waiting for research…",
+    "status": "Status: {{status}}",
+    "summary": "Research summary",
+    "error": "Research unavailable: {{message}}",
+    "passagePlaceholder": "Evidence passage ID",
+    "readPassage": "Read evidence",
+    "passageUnavailable": "Evidence content is unavailable after retention expiry."
   },
   "disputes": {
     "loading": "جارٍ تحميل النزاعات…",

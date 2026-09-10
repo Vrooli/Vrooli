@@ -28,7 +28,7 @@ The structured-data side benefit (AEO — agentic engine optimization, llms.txt,
 - **Paid search ads.** Explicitly off-table per the channel cross-cutting principles. The funnel for organic search and paid search look superficially similar but the brand-positioning consequence is different. Don't conflate them; don't propose paid search as a "test" channel.
 - **Doorway pages, gateway pages, content farms, AI-spun copy at scale.** Permanent SERP damage if Google catches them; even before that, contrarian rejects.
 - **Hidden text, link schemes, exact-match-domain manipulation.** Black-hat SEO. Same prohibition.
-- **Marketer-voice copy** that drifts from the builder-in-public voice canon in [`docs/marketing/strategy/STRATEGY.md`](../../marketing/STRATEGY.md). Voice violations are caught by contrarian during publishing review.
+- **Marketer-voice copy** that drifts from the builder-in-public voice canon in [`docs/marketing/strategy/STRATEGY.md`](../../../marketing/strategy/STRATEGY.md). Voice violations are caught by contrarian during publishing review.
 
 ## Telemetry
 
@@ -58,5 +58,5 @@ No sunset condition planned; this channel persists through every phase of the co
 
 ## Notes
 
-- Per-platform publishing rules for the blog itself live in [`docs/marketing/strategy/CHANNELS.md`](../../marketing/CHANNELS.md) under "Blog (self-hosted)." This channel doc is the strategy lens; that doc is the operational lens.
+- Per-platform publishing rules for the blog itself live in [`docs/marketing/strategy/CHANNELS.md`](../../../marketing/strategy/CHANNELS.md) under "Blog (self-hosted)." This channel doc is the strategy lens; that doc is the operational lens.
 - The AEO / llms.txt discipline overlaps with [`skill-registries`](skill-registries.md) at the technical level (both reward structured data) but not at the audience level. Don't merge the channels.

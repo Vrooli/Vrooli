@@ -11,20 +11,16 @@ The CLI binary is built from `cli/`, installed by `make setup` to
 sources change (cli-core's stale-detection rebuilds before any command
 that touches the API).
 
-> **Scaffold status (2026-06-09):** Only the built-in commands
-> (`status`, `configure`) and the template `notes` group exist. The
-> `findings` and `research` groups in **Intended command groups** below
-> are *planned* — each command mirrors a single API endpoint and is
-> generated/wired as the owning domain lands. The `notes` group is the
-> worked example to copy and will be removed once the first real domain
-> is green.
+> **Current status (2026-09-06):** The findings and research command
+> groups are implemented and bound to the generated Connect-RPC clients.
+> The manifest and per-domain registration tests are authoritative.
 
-## Intended command groups (planned)
+## Product command groups
 
 Per `PRD.md` (OT-P0-006, P1), the CLI gains two product groups, usable
 by both human operators and (later) the L3 research agent as tools. Each
 command binds to one Connect-RPC method (see
-[`api-endpoints.md`](api-endpoints.md#intended-surface-planned)).
+[`api-endpoints.md`](api-endpoints.md#current-surface)).
 
 `web-search findings ...` — manage the learnings corpus:
 

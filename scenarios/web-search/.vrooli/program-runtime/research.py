@@ -1,13 +1,10 @@
 import json
 
 """One bounded evidence-policy call; web-search owns freshness and answer truth."""
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 envelope = {"program": "web-search.research", "version": "2", "status": "failed", "phase": "validate", "signals": {}, "errors": [], "evidence": []}
 try:
-    allowed = {"query", "effort", "max_age_seconds", "source_domains", "minimum_sources", "top_n", "capture", "finding_id"}
+    allowed = {"query", "effort", "max_age_seconds", "source_domains", "minimum_sources", "top_n", "capture", "finding_id", "parent_run_id"}
     if not isinstance(inputs, dict) or set(inputs) - allowed or not str(inputs.get("query", "")).strip():
         raise ValueError("Supply query and declared evidence-policy inputs only")
     envelope["phase"] = "act"

@@ -23,7 +23,7 @@ Every SKU carries a status field that flows through this lifecycle:
 
 Promotion from `candidate` → `active` is a human work surfaced at the morning vision walk. Agents never self-promote.
 
-**Where SKU-shaped ideas live before they enter this catalog:** the agent-side raw pool lives in the `team:monetization` Source Ledger under `monetization/opportunity/<slug>`, populated by opportunity-scout. Recall it with `source-ledger recall recall "<query>" --scope=team:monetization`. When an opportunity is broader-than-SKU OR not-yet-ready-for-active-tracking, it may instead be staged in [`path:docs/strategy/idea-pipeline/`](../strategy/idea-pipeline/) — the operator-curated, capacity-deferred staging surface for project-wide ideas. Idea-pipeline graduates SKU-shaped entries to Offer Desk candidate records when their revisit triggers fire and active tracking is warranted.
+**Where SKU-shaped ideas live before they enter this catalog:** the agent-side raw pool lives in the `team:monetization` Source Ledger under `monetization/opportunity/<slug>`, populated by opportunity-scout. Recall it with `source-ledger recall recall "<query>" --scope=team:monetization`. When an opportunity is broader-than-SKU OR not-yet-ready-for-active-tracking, it may instead be staged in [`path:docs/strategy/idea-pipeline/`](../../strategy/idea-pipeline/README.md) — the operator-curated, capacity-deferred staging surface for project-wide ideas. Idea-pipeline graduates SKU-shaped entries to Offer Desk candidate records when their revisit triggers fire and active tracking is warranted.
 
 ## Revisit trigger discipline
 

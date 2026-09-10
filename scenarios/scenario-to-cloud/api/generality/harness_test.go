@@ -43,7 +43,7 @@ const newcomerID = "newcomer-service"
 
 // canarySecret is the synthetic operator-supplied value; it must never
 // appear in a plan, an argv, a receipt or a trace.
-const canarySecret = "canary-secret-9f3a7c1e"
+const canarySecret = "canary-secret-9f3a7c1e" // gitleaks:allow -- synthetic test-only canary, never a credential.
 
 var linuxAMD64 = closure.Platform{OS: "linux", Arch: "amd64"}
 

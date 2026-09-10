@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "web-search.learning-read",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Read fixed outcome-linked research cohorts with explicit reliability and no invented baseline.",
   "inputs": {
     "from": {
@@ -31,7 +34,11 @@
       "effect": "read"
     }
   ],
-  "verbs": [],
+  "verbs": [
+    "tasks.get",
+    "validate",
+    "recall"
+  ],
   "outputs": {
     "status": {
       "enum": [
@@ -58,7 +65,9 @@
     "errors": {
       "classes": [
         "invalid_input",
-        "learning_unavailable"
+        "learning_unavailable",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Durable references, never raw source bodies"
@@ -78,7 +87,27 @@
       },
       "expect": {
         "admission_error": "invalid_argument"
-      }
+      },
+      "requires": [
+        "web-search"
+      ]
+    },
+    {
+      "id": "live-valid",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable",
+          "refused",
+          "failed"
+        ]
+      },
+      "requires": [
+        "web-search"
+      ],
+      "note": "Valid bounded exercise fixture added after admission-only fixtures left the contract unexercised."
     }
   ],
   "rung": "S3",

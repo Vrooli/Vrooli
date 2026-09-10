@@ -81,7 +81,7 @@ const (
 	EffectEdgeWrite       = "edge_write"
 	EffectDeploymentWrite = "deployment_write"
 	EffectDataWrite       = "data_write"
-	EffectCredentialWrite = "credential_write"
+	EffectCredentialWrite = "credential_write" // #nosec G101 -- public plan effect vocabulary, not credential material.
 	EffectRuntimeStop     = "runtime_stop"
 	EffectRuntimeStart    = "runtime_start"
 )

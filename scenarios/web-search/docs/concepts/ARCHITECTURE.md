@@ -206,19 +206,17 @@ temporal behavior, update [`FLOWS.md`](FLOWS.md).
 ## Architecture Maturity
 
 Generated scenarios start with a mature template shape and starter
-reference domains. web-search is freshly scaffolded (2026-06-09): the
-template shape is in place but **no product domain is implemented yet**.
-The `livesearch`, `findings`, `research`, and `federation` domains are
-planned (see [`DOMAINS.md`](DOMAINS.md)); the starter `notes` domain
-and the example data/flows will be removed once the first real domain
-(`livesearch`) is green (orientation Gate 6/7).
+reference domains. web-search now runs its livesearch, findings,
+research, federation, and operations surfaces. Historical scaffold
+state is retained in [`../internal/PROGRESS.md`](../internal/PROGRESS.md);
+this document describes the current product boundary.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Scaffold | Template `notes` stack, module registry, per-domain schema, documented seams. | All four product domains (livesearch/findings/research/federation) still to be built; notes example to be removed. |
-| UI | Scaffold | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Search/findings/research/ops surfaces not yet built (see [`UI-ARCHITECTURE.md`](UI-ARCHITECTURE.md)). |
-| CLI | Scaffold | Domain command groups wrap API calls and render reports. | `web-search findings ...` and `web-search research ...` groups not yet added. |
-| Docs | Contract-ready | Manifest registers docs, maturity, stages, and validation hints. Concept docs (DOMAINS/DATA/FLOWS/INTEGRATIONS) are scenario-specific. | Reference docs describe the intended (not-yet-generated) surface. |
+| API | Product | Domain modules, Connect-RPC handlers, per-domain schemas, and documented seams. | Cross-owner federation and operational maturity evidence remains tracked in the assurance handoff. |
+| UI | Product | Search, findings, research, operations, selectors, i18n, and accessibility tests. | Runtime BAS journey evidence remains pending in the assurance handoff. |
+| CLI | Product | Findings and research command groups wrap typed API calls and render reports. | Keep manifest bindings synchronized with generated RPCs. |
+| Docs | Maintained | Manifest registers docs, maturity, stages, and validation hints. Concept and operations docs describe the current scenario surfaces. | Historical template prose is being retired as each document is refreshed. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later

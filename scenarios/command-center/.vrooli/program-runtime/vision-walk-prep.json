@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "command-center.vision-walk-prep",
   "version": "7",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Prepare all thirteen morning walk phases from bounded current outcome, portfolio, team-ledger, declared peer-continuity and peer-instrument evidence, preserving durable checkpoint identity and explicit gaps.",
   "inputs": {
     "limit": {
@@ -113,7 +116,9 @@
         "invalid_evidence",
         "invalid_checkpoint",
         "kernel_runtime",
-        "output_bound_exceeded"
+        "output_bound_exceeded",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Binding id plus named source; entry/work ids remain in rows."

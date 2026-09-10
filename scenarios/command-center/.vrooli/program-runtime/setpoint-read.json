@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "command-center.setpoint-read",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Read external binding condition and outcome-linked preparation learning; retain absent baselines and operator usefulness telemetry as explicit gaps.",
   "inputs": {},
   "assumptions": [
@@ -44,7 +47,9 @@
     },
     "errors": {
       "classes": [
-        "binding_error"
+        "binding_error",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "External sensor binding ids."

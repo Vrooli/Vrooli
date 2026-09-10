@@ -90,7 +90,7 @@ Deployment Manager owns profiles, promotion and evidence review. Scenario-to-clo
 
 **Acceptance:** Given two unrelated workloads on one host, repair and cleanup affect only authorized state. Validate privilege denial, firewall lockout prevention, bounded deletion and control-plane package behavior.
 
-**Sources:** [scenarios/scenario-to-cloud/api/vps/preflight/handlers.go](../../api/vps/preflight/handlers.go), [scenarios/scenario-to-cloud/api/ssh/config.go](../../api/ssh/config.go), [AGENTS.md](../../../../AGENTS.md)
+**Sources:** [scenarios/scenario-to-cloud/api/vps/preflight/handlers.go](../../api/vps/preflight/handlers.go), [scenarios/scenario-to-cloud/api/sshidentity/resolve.go](../../api/sshidentity/resolve.go), [AGENTS.md](../../../../AGENTS.md)
 
 ### 06. Credential lifecycle — Partial implementation
 
@@ -100,7 +100,7 @@ Deployment Manager owns profiles, promotion and evidence review. Scenario-to-clo
 
 **Acceptance:** Given a credential update, all intended consumers use the new version and the previous version is revoked after a safe transition. Test locked stores, lost host, partial rotation, dependencies, database passwords and canary-value leakage across logs, argv, archives and evidence.
 
-**Sources:** [scenarios/scenario-to-cloud/api/secrets/writer.go](../../api/secrets/writer.go), [scenarios/scenario-to-cloud/api/secrets/handlers_management.go](../../api/secrets/handlers_management.go), [scenarios/scenario-to-cloud/api/vps/deploy.go](../../api/vps/deploy.go)
+**Sources:** [scenarios/scenario-to-cloud/api/credentials/lifecycle.go](../../api/credentials/lifecycle.go), [scenarios/scenario-to-cloud/api/secrets/handlers_management.go](../../api/secrets/handlers_management.go), [scenarios/scenario-to-cloud/api/vps/deploy.go](../../api/vps/deploy.go)
 
 ### 07. Artifact identity and dependency closure — Partial implementation
 

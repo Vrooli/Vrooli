@@ -1,8 +1,5 @@
 import json
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 envelope={"program":"command-center.learning-read","version":"1","status":"failed","phase":"validate","inputs":{},
  "signals":{},"errors":[],"evidence":[]}
 handles={}
@@ -10,33 +7,6 @@ def fail(status,klass,detail,where):
     envelope["status"]=status
     envelope["errors"].append({"class":klass,"detail":str(detail)[:160],"where":where})
     return "report"
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
-
-
 
 
 def step_validate():
@@ -50,7 +20,7 @@ def step_collect():
         handles["learning"]=vrooli_memory.learning.measure(scope="command-center-usage",rows="cohorts",**inputs)
         envelope["evidence"].append("vrooli-memory/learning/measure")
     except Exception as exc:
-        status,klass=classify_transport(exc)
+        status,klass=program.classify(exc)
         handles["reason"]="scenario_unreachable" if klass=="scenario_unreachable" else "unreliable:"+klass
         envelope["errors"].append({"class":klass,"detail":klass,"where":"collect"})
     return "act"

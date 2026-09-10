@@ -20,7 +20,7 @@ The three-speed stack keeps judgment in skills, repeated workflows in governed p
 | Layer | Surface | Responsibility |
 |---|---|---|
 | Skills | `web-search`, `web-search-investigate`, `web-search-improve` | Choose sources and freshness, judge coverage and contradictions, verify outcomes, improve methods |
-| Programs | `web-search.research`, `web-search.compare-sources`, `web-search.research-l3` | Bounded research, complete evidence handoff, idempotent start and one owner wait |
+| Programs | `web-search.research`, `web-search.compare-sources`, `web-search.change-investigation`, `web-search.research-l3` | Bounded research, explicit comparison cells, change classification, idempotent start and one owner wait |
 | Programs | `web-search.record-attempt`, `web-search.learning-read`, `web-search.setpoint-read`, `web-search.findings-curate` | Durable outcome capture, comparable learning cohorts, diagnostic reads and curation proposals |
 | Scenario | `research answer`, findings operations, declared `web-search/research` workflow | Evidence eligibility, source-linked findings, execution ownership and structured results |
 
@@ -44,6 +44,8 @@ web-search research wait "<run-id>" --timeout-seconds 60 --json
 ```
 
 L0 returns raw URLs and snippets. L1 adds snippet-grounded synthesis. L2 fetches pages and synthesizes cited evidence. L3 decomposes a question, researches gaps, returns structured claims and unresolved issues, and captures supported findings with L3 provenance.
+
+`web-search.compare-sources` accepts optional subjects, dimensions, and temporal scope and returns one bounded evidence cell per combination. `web-search.change-investigation` compares prior and current cell observations and labels missing evidence `unverified`, conflicting effective dates `incomparable`, and equal or changed claims separately.
 
 Current evidence is the default: a request with zero maximum age bypasses the live-results cache. Stored reuse requires an explicit age budget and an eligible finding from the exact originating query, or an explicitly selected `finding_id`. Active status, known retrieval dates, confidence, citations, and source requirements still apply. Semantic similarity alone does not establish answer sufficiency.
 

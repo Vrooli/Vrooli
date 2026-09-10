@@ -97,7 +97,7 @@ On promotion to `active`, this line must have all four:
 3. **Bundle-link target** — which bundle / scenario does this feed, and how does the in-scenario offer surface work?
 4. **Sunset or iterate clause** — by date X, SKU proves itself (≥ target units sold AND ≥ target conversion-to-sub), or we retire the SKU and document learnings.
 
-See [REVENUE_LINES.md](../REVENUE_LINES.md) for the broader revenue-line discipline.
+See [REVENUE_LINES.md](README.md) for the broader revenue-line discipline.
 
 ## Notes
 

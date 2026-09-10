@@ -4,7 +4,8 @@ This document is the reconciled cloud experience specification for the
 deployment page (`#/deployments/<id>`) and the wizard's plan review, apply
 and operation views. It is written before the components and is the contract
 the vitest, accessibility and BAS evidence under
-`~/.vrooli/plan-artifacts/scenario-to-cloud-professional-vps-delivery-certification/evidence/P19-operator-experience.md`
+the current scenario-to-cloud qualification evidence and the owner-produced
+receipts for this plan's candidate.
 proves. Requirements: STC-P0-038 (five operator questions), STC-P0-039
 (accessible, interruption-safe recovery).
 
@@ -158,8 +159,8 @@ text remains.
 
 - vitest: every component state above, keyboard-only journeys with
   `userEvent.tab()`, axe on each surface.
-- BAS (`bas/cases/19-console/`): observer journeys against the running
-  scenario. Mutating journeys (apply, restore, cancel) require the routed
-  test-storage lease for this scenario, which is not installed, so they are
-  recorded as observer-only navigation and assertion cases and named as such.
+- BAS (`bas/cases/19-console/`): observer and mutating journeys against the
+  running scenario. Apply, restore, and cancel use the routed test-storage
+  lease and must emit target/data assertions; observer-only rendering cases
+  remain useful but cannot satisfy mutating qualification.
 - Independent walkthrough (P19-A06, UX-08): pending EXT-08.

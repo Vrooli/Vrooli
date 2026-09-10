@@ -9,7 +9,7 @@
 
 - **Purpose**: Turn a `deployment-manager` profile + `scenario-dependency-analyzer` graph into a deployable “mini Vrooli” bundle, then deploy it to cloud targets (VPS first).
 - **Primary users/verticals**: Vrooli operator deploying scenarios to production infrastructure.
-- **Deployment surfaces**: `deployment-manager` orchestration, `scenario-to-cloud` CLI, `scenario-to-cloud` API (UI is optional and non-blocking for P0).
+- **Deployment surfaces**: `deployment-manager` orchestration plus equivalent `scenario-to-cloud` UI, CLI, and API surfaces. The UI is a required professional operator surface for P0; it cannot be treated as optional evidence.
 - **Value promise**: Repeatable deployments with strong preflight checks, explicit manifests, and predictable health verification.
 
 ## 🎯 Operational Targets
@@ -18,10 +18,10 @@ Operational targets are tracked via `requirements/` modules and auto-updated by 
 
 ### 🔴 P0 – Must ship for viability
 - [ ] OT-P0-001 | Cloud Manifest Export | Export a deployment manifest from deployment-manager that fully defines the cloud bundle + target config for one scenario.
-- [ ] OT-P0-002 | Mini-Vrooli Bundle Build | Build a tarball containing only required Vrooli core + required scenarios/resources (from analyzer) + all `packages/`, plus `vrooli-autoheal`.
+- [ ] OT-P0-002 | Mini-Vrooli Bundle Build | Build an immutable bundle containing the required Vrooli core, declaration-derived scenario/resource/tool/safeguard/credential closure, target control-plane artifacts, and no unrelated packages.
 - [ ] OT-P0-003 | VPS Preflight | Validate SSH/DNS/ports/OS/network and fail fast with actionable errors before copying artifacts.
 - [ ] OT-P0-004 | VPS Install + Setup | Copy bundle to the VPS, run Vrooli setup, and write minimal config needed for this deployment mode.
-- [ ] OT-P0-005 | Deploy + Start | Start required resources, start the scenario with fixed ports (UI 3000, API 3001, WS 3002), and verify health via HTTPS.
+- [ ] OT-P0-005 | Deploy + Start | Start required resources, allocate target-owned ports from the reviewed deployment contract, start the scenario, and verify health through the configured endpoint and observed target identity.
 - [ ] OT-P0-006 | Inspect + Logs | Provide a standard way to fetch status + logs over SSH for the deployed scenario/resources.
 - [ ] OT-P0-007 | Authenticated Management Authority | Every management API, CLI, WebSocket and relay entry point authenticates the actor and authorizes deployment, target, environment and effect under the shared policy before any target effect.
 - [ ] OT-P0-008 | Typed Identities + One Executable Plan | Machine, deployment, release and operation identities are explicit and noninterchangeable; preview, policy and apply consume one typed plan digest.
@@ -56,7 +56,7 @@ Operational targets are tracked via `requirements/` modules and auto-updated by 
 
 - Required resources: postgres (deployment, operation and release records).
 - Scenario dependencies (conceptual): `deployment-manager`, `scenario-dependency-analyzer`, `vrooli-bridge`, `vrooli-onboarding`, `secrets-manager`, `data-backup-manager`, `test-genie`, `vrooli-autoheal`.
-- Operational risks: DNS/ports for Let’s Encrypt, “mini Vrooli” bundle determinism, fixed-port overrides, and idempotency.
+- Operational risks: DNS/ports for Let’s Encrypt, declaration-derived bundle determinism, target-owned port allocation, and idempotency.
 - Launch sequencing:
   1) Implement manifest export + validation in deployment-manager.
   2) Implement bundle builder + stripper in scenario-to-cloud.

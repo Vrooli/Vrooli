@@ -1,4 +1,15 @@
-# Architecture
+# Cloud lifecycle architecture
+
+This is the canonical ownership contract. It describes the intended
+composition; it does not claim that implementation or certification is
+complete. Scenario-to-cloud owns workload desired state, target-bound plans,
+durable operations, release lifecycle, and projections of target observations.
+Deployment Manager owns approval and publication acceptance. Bridge owns
+machine identity, enrollment, grants, reach, dispatch, and artifact transport.
+Onboarding/setup owns shared selection and configuration application. The
+target control plane owns host effects, runtime activation, process demand,
+and scoped remediation. Credential and backup owners retain their respective
+protected values and recovery artifacts.
 
 System design and components of Scenario-to-Cloud.
 
@@ -20,7 +31,7 @@ Scenario-to-Cloud is a deployment orchestrator that transfers Vrooli scenarios f
 │  │   Server         │     │   Scenarios      │              │
 │  └────────┬─────────┘     └──────────────────┘              │
 └───────────┼─────────────────────────────────────────────────┘
-            │ SSH/SCP
+            │ explicit Bridge or direct reach adapter
             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Remote VPS                                │
@@ -63,10 +74,13 @@ Creates minimal, self-contained packages:
 - Resource configurations
 - No unnecessary files
 
-### SSH/SCP Integration
+### Reach integration
 
 Secure file transfer and remote execution:
-- Primary: SSH key-based authentication
+- Bridge and direct reach use the same typed authorization and observation
+  semantics. A refusal or revoked Bridge grant never silently falls back to
+  another transport. Cloud keeps no private SSH inventory and no host-repair
+  shell implementation.
 - Password authentication used only for initial key copying (via `ExecKeyCopier`)
 - Idempotent operations
 - Error recovery with structured classification
@@ -79,15 +93,15 @@ Secure file transfer and remote execution:
 2. **Validation**: API validates manifest against schema
 3. **Planning**: API generates execution plan
 4. **Bundle**: Creates tarball of minimal Vrooli + scenario
-5. **Transfer**: SCP sends bundle to VPS
-6. **Setup**: SSH runs setup scripts on VPS
-7. **Deploy**: SSH starts scenario services
+5. **Transfer**: the selected reach owner delivers verified release artifacts
+6. **Setup**: onboarding applies the reviewed setup/v1 Selection
+7. **Deploy**: the target control plane activates the release and records a target receipt
 8. **Verify**: Health checks confirm deployment
 
 ### Inspection Flow
 
 1. **Request**: UI triggers inspect via API
-2. **SSH**: API connects to VPS
+2. **Reach**: the selected target binding performs a bounded typed observation
 3. **Check**: Runs `vrooli scenario status`
 4. **Logs**: Retrieves recent log output
 5. **Response**: Returns status to UI
@@ -117,9 +131,12 @@ CREATE TABLE deployments (
 
 ## Security Considerations
 
-### SSH Keys
+### Credentials and authorization
 
-- Primary: SSH key-based authentication for all VPS operations
+- Credentials remain in the credential authority and are referenced by logical
+  identity and version, never copied into argv, URLs, logs, or screenshots.
+- Every mutating ingress persists intent before dispatch and carries bounded
+  authorization through the owning operation.
 - Supports key path configuration
 - Password authentication used only for initial key copying (via `ExecKeyCopier`)
 - Key lifecycle: Discover -> Generate -> Copy -> Test -> Delete
@@ -136,7 +153,7 @@ CREATE TABLE deployments (
 - Automatic certificate management
 - No sensitive data in logs
 
-## Target Reach and the SSH Adapter
+## Target reach and bounded adapters
 
 > [CODE: api/reach/reach.go]
 > [CODE: api/reach/sshadapter/adapter.go]
@@ -161,7 +178,7 @@ The cloud touches a target only through `reach.Reach`: a typed command (`{verb, 
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### The bounded SSH adapter
+### The bounded direct-reach adapter
 
 `reach/sshadapter` is a policy-equivalent adapter, not a private connection plane:
 
@@ -172,7 +189,7 @@ The cloud touches a target only through `reach.Reach`: a typed command (`{verb, 
 - artifacts are placed by `Deliver` (scp into the parent directory, remote sha256 verified against the local bytes, mode applied);
 - the interactive terminal is `OpenSession` (a PTY over `golang.org/x/crypto/ssh`) behind the `reach.SessionOpener` seam.
 
-### Connection resolution and key custody
+### Target binding and key custody
 
 `ConnectionConfig` is resolved per target by the server (`sshConfigForTarget`): the locator from the target binding, the key file from the credential binding `vrooli/scenario-to-cloud:ssh-key` (class `machine_enrollment_credential`, file target = operator-held path, no bytes). A target without a binding is reached with the operator's ambient identity. Host keys are trusted on first use into the scenario's `known_hosts` through `packages/ssh-core`. The manifest carries no key: a legacy row's `target.vps.key_path` is converted into the binding at API start (`persistence.convertLegacyKeyPathBindings`).
 
@@ -234,7 +251,11 @@ The Edge subsystem manages the public-facing layer of a deployment: DNS verifica
 
 > [CODE: api/secrets/handlers_management.go]
 
-Post-deployment CRUD for secrets stored on the VPS `.env` file. Supports listing (masked by default), creating, updating, and deleting individual secrets. Optionally restarts the scenario after mutation to pick up new values.
+Credential operations resolve logical references through the credential owner.
+They record provider verification, distribution, running-consumer
+acknowledgement, predecessor retention, and safe revocation. A target `.env`
+file or a masked read is not proof that the running consumer accepted a new
+version.
 
 A separate **Expected Secrets** endpoint (`/expected-secrets`) returns the secrets defined in the scenario's `service.json`, enabling the UI to show which secrets are required vs. present.
 
@@ -258,12 +279,15 @@ Tasks support configurable focus (harness/subject), effort levels (logs/inspect/
 
 > [CODE: api/deployment/progress.go]
 
-Long-running operations (execute, start, stop) report real-time progress via **Server-Sent Events** on `GET /deployments/{id}/progress`. The `deployment.Hub` fans out progress events to all connected SSE clients for a given deployment.
+Long-running operations expose durable standing and step receipts. SSE is an
+optional observer projection of those records; it never owns retries, leases,
+authorization, or the operation verdict. A disconnected observer reattaches
+by operation identity and cannot cancel the worker implicitly.
 
 Each SSE event carries:
 - `step` — Current pipeline step ID
 - `status` — Step status (`running`, `complete`, `failed`)
-- `percent` — Overall progress percentage
+- active step and completed step receipts — durable operation standing
 - `message` — Human-readable status message
 - `error_category`, `retryable`, `hint` — Structured error metadata (when applicable)
 

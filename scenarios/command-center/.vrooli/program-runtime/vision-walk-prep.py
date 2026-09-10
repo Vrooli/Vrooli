@@ -2,10 +2,7 @@
 import json
 from datetime import datetime, timezone
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 
 PHASE_TEAM = {'2': 'director-swarm', '5': 'monetization', '5.3': 'marketing-crew',
               '5.5': 'meta-optimization', '5.7': 'infra-health', '5.9': 'scenario-qa'}
@@ -77,13 +74,7 @@ def clip(value, size=700):
     return str(value or '')[:size]
 
 
-def guarded(call):
-    def run():
-        try:
-            return call()
-        except Exception as exc:
-            return exc
-    return run
+guarded = program.guarded
 
 
 def journal_rows(handle):

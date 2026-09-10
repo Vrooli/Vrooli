@@ -30,7 +30,7 @@ On promotion to `active`, this line must have all four:
 3. **Productization target** — named scenario or tooling surface that results from the engagement.
 4. **Sunset or convert clause** — engagement has a clean end; subscription conversion is the goal.
 
-See [REVENUE_LINES.md](../REVENUE_LINES.md) for the full services-trap discipline.
+See [REVENUE_LINES.md](README.md) for the full services-trap discipline.
 
 ## Recommended posture
 

@@ -43,7 +43,7 @@ func TestResolveDisputeSupersedeRetires(t *testing.T) {
 
 	old, err := svc.Add(ctx, findings.NewFinding{Claim: "old claim", Confidence: 0.5})
 	require.NoError(t, err)
-	replacement, err := svc.Add(ctx, findings.NewFinding{Claim: "new claim", Confidence: 0.9})
+	replacement, err := svc.Add(ctx, findings.NewFinding{Claim: "new claim", Confidence: 0.9, Citations: []findings.NewCitation{{URL: "https://source.example/new"}}})
 	require.NoError(t, err)
 
 	_, err = svc.Flag(ctx, old.ID, "contested")
@@ -85,4 +85,23 @@ func TestResolveDisputeRejectsBadInput(t *testing.T) {
 	_, err = svc.ResolveDispute(ctx, f.ID, "merge", "", "")
 	require.Error(t, err)
 	require.True(t, errors.As(err, &invalid))
+}
+
+func TestResolveDisputeRejectsUnsupportedReplacement(t *testing.T) {
+	repo, _ := newRepo(t)
+	ctx := context.Background()
+	svc := findings.NewService(repo)
+	old, err := svc.Add(ctx, findings.NewFinding{Claim: "old claim", Confidence: 0.8, Citations: []findings.NewCitation{{URL: "https://source.example/old"}}})
+	require.NoError(t, err)
+	bad, err := svc.Add(ctx, findings.NewFinding{Claim: "unverified replacement", Confidence: 0.2})
+	require.NoError(t, err)
+	_, err = svc.Flag(ctx, old.ID, "contested")
+	require.NoError(t, err)
+	_, err = svc.ResolveDispute(ctx, old.ID, findings.ResolutionSupersede, bad.ID, "replacement lacks evidence")
+	require.Error(t, err)
+	var invalid findings.ErrInvalidFinding
+	require.ErrorAs(t, err, &invalid)
+	current, err := svc.Get(ctx, old.ID)
+	require.NoError(t, err)
+	require.Equal(t, findings.StatusDisputed, current.Status)
 }

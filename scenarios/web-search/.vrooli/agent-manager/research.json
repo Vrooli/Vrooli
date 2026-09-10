@@ -2,7 +2,7 @@
   "schemaVersion": "agent-workflow/v1",
   "owner": "web-search",
   "key": "web-search/research",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -25,13 +25,40 @@
         "type": "integer",
         "minimum": 1,
         "maximum": 10
+      },
+      "evidence_policy": {
+        "type": "object",
+        "properties": {
+          "max_age_seconds": {"type": "integer", "minimum": 0, "maximum": 15552000},
+          "source_domains": {"type": "array", "items": {"type": "string", "maxLength": 253}, "maxItems": 20},
+          "minimum_sources": {"type": "integer", "minimum": 0, "maximum": 10},
+          "top_n": {"type": "integer", "minimum": 0, "maximum": 10},
+          "max_evidence_bytes": {"type": "integer", "minimum": 0, "maximum": 4194304}
+        },
+        "additionalProperties": false
+      },
+      "questions": {
+        "type": "array",
+        "maxItems": 20,
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {"type": "string", "minLength": 1, "maxLength": 128},
+            "prompt": {"type": "string", "minLength": 1, "maxLength": 4096},
+            "required": {"type": "boolean"}
+          },
+          "required": ["id", "prompt", "required"],
+          "additionalProperties": false
+        }
       }
     },
     "required": [
       "query",
       "gather_cap",
       "confidence_gate",
-      "max_loops"
+      "max_loops",
+      "evidence_policy",
+      "questions"
     ],
     "additionalProperties": false
   },
@@ -288,6 +315,33 @@
             "limit": 1,
             "maxBytes": 8192,
             "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "evidence_policy",
+            "source": "workflow_input",
+            "selector": "$.evidence_policy",
+            "limit": 1,
+            "maxBytes": 8192,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "questions",
+            "source": "workflow_input",
+            "selector": "$.questions",
+            "limit": 1,
+            "maxBytes": 32768,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "parent_run_id",
+            "source": "execution_id",
+            "selector": "$",
+            "limit": 1,
+            "maxBytes": 64,
+            "renderAs": "text",
             "missingPolicy": "error"
           }
         ],

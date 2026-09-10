@@ -1,10 +1,10 @@
-# Cloud deployment support policy
+# Cloud deployment support and evidence policy
 
-This policy states which target platforms, workload shapes and providers
-scenario-to-cloud **certifies**, which it treats as **compatibility-only**, and
-which are **unsupported**. A claim is certified only when the named matrix
-cells hold current, retrievable evidence. Source existence, a passing package
-test or a green aggregate status never upgrades a classification.
+This policy separates intended support from achieved qualification. A required
+platform, workload, or transport remains required when evidence is missing; it
+cannot be relabeled compatibility-only to make an unavailable lane disappear.
+Source existence, a passing package test, or a green aggregate status never
+upgrades a classification.
 
 Frozen for plan `scenario-to-cloud-professional-vps-delivery-certification`
 (phase 1, 2026-09-09). Re-freeze before qualifying a release candidate.
@@ -13,8 +13,8 @@ Frozen for plan `scenario-to-cloud-professional-vps-delivery-certification`
 
 | OS | Architecture | Classification | Required evidence | Notes |
 |---|---|---|---|---|
-| Ubuntu 24.04 LTS | linux/amd64 | **Certified (launch baseline)** | QEMU fresh-host lane + authorized real-VPS lane, minimal fixture, all mandatory matrix rows for the lane | Preflight recommends 24.04; native CLI artifact exists for amd64 |
-| Ubuntu 24.04 LTS | linux/arm64 | **Certified (launch baseline, evidence pending)** | Same as amd64 on an arm64 lane | Native CLI artifact detection exists; per-resource artifact eligibility is checked per closure, not assumed |
+| Ubuntu 24.04 LTS | linux/amd64 | Required launch support | QEMU fresh-host lane + authorized real-VPS lane, minimal fixture, all mandatory matrix rows for the lane | Intended support is not certification; evidence must be current and retrievable |
+| Ubuntu 24.04 LTS | linux/arm64 | Required launch support | Same as amd64 on an arm64 lane | Per-resource artifact eligibility is checked per declaration-derived closure |
 | Ubuntu 22.04 LTS | linux/amd64, arm64 | Compatibility-only | Preflight warning; no certification cells | Older package baselines; not exercised by the certification matrix |
 | Ubuntu 20.04 LTS | any | Compatibility-only (deprecated) | Preflight warning | End of standard support; no certification |
 | Debian 12 | any | Unsupported | none | Not exercised; preflight reports unsupported distribution |
@@ -24,20 +24,20 @@ Frozen for plan `scenario-to-cloud-professional-vps-delivery-certification`
 
 | Shape | Classification | Fixture | Notes |
 |---|---|---|---|
-| Minimal stateless web scenario | Certified | `fixtures/workloads/stateless-web` | No persistent data bindings |
-| Headless API scenario | Certified | `fixtures/workloads/headless-api` | No UI surface |
-| Durable SQL + file uploads | Certified | `fixtures/workloads/sql-uploads` | Postgres binding + object-store binding; backup/restore required |
-| Scenario with a scenario dependency that owns its own resource and credential | Certified | `fixtures/workloads/dependent-chain` | Closure must include transitive requirements with reasons |
-| Shared dependency across two deployments | Certified | two-deployment coexistence fixture | Lifecycle demand must preserve the survivor |
+| Minimal stateless web scenario | Required qualification | `fixtures/workloads/stateless-web` | No persistent data bindings |
+| Headless API scenario | Required qualification | `fixtures/workloads/headless-api` | No UI surface |
+| Durable SQL + file uploads | Required qualification | `fixtures/workloads/sql-uploads` | Postgres binding + object-store binding; backup/restore required |
+| Scenario with a scenario dependency that owns its own resource and credential | Required qualification | `fixtures/workloads/dependent-chain` | Closure must include transitive requirements with reasons |
+| Shared dependency across two deployments | Required qualification | two-deployment coexistence fixture | Lifecycle demand must preserve the survivor |
 | Resource-heavy profile (GPU, large memory) | Compatibility-only | `fixtures/workloads/resource-heavy` | Certified only for the explicit unsupported/insufficient-capacity refusal path |
-| Representative hosted commercial backend (landing-page-business-suite) | Certified as an additional consumer | existing deployment declarations | Never the only fixture; billing, desktop and mobile are out of scope |
+| Representative hosted commercial backend (landing-page-business-suite) | Required as an additional consumer | existing deployment declarations | Never the only fixture; billing, desktop and mobile are out of scope |
 | Any scenario satisfying the published declaration contract | Supported ("deploy any scenario") | none | Exact unmet requirements are returned for all others |
 
 ## Providers and transports
 
 | Concern | Classification | Notes |
 |---|---|---|
-| Machine reach via vrooli-bridge / nodereach | Implemented path; live qualification pending | Enrollment, grants, typed dispatch, Bridge-owned artifact delivery |
+| Machine reach via vrooli-bridge / nodereach | Required path; live qualification pending | Enrollment, grants, typed dispatch, Bridge-owned artifact delivery |
 | Direct SSH through the shared bounded reach adapter | Supported with explicit transport selection | Policy-equivalent authorization; never a silent fallback after revocation |
 | Cloud-owned raw SSH inventory | Unsupported (retired) | See deletion ledger |
 | Cloud provider APIs (DigitalOcean, Hetzner, AWS, ...) | Out of scope | VPS provisioning is the operator's responsibility |
@@ -120,7 +120,7 @@ Rules the readiness computation applies (`api/certification`, tests in
 | Wire contracts (proto `vrooli.scenario_to_cloud.v1.*`, REST envelope, exit codes) | additive within v1; the CLI negotiates the server version and refuses an incompatible one (`docs/reference/identity-and-selectors.md` §"Version negotiation") | |
 | Recovery points | readable by any release whose `schema_version` the point's schema strategy declares compatible (`docs/guides/runbooks/restore.md`) | `rollback_incompatible` is the refusal |
 
-### What a re-certification requires
+### What a certification requires
 
 Any of these events starts a new certification of the candidate; none of
 them can be absorbed by editing evidence:
@@ -134,7 +134,7 @@ them can be absorbed by editing evidence:
   validator refuses to drift silently;
 - a re-freeze of this policy.
 
-Re-certification is: run the deterministic lanes (`go test ./...` in `api/`
+Certification is: run the deterministic lanes (`go test ./...` in `api/`
 and `cli/`, the UI suite) for the candidate; run the QEMU lane journeys and
 the authorised real-VPS journeys against the candidate; re-run the BAS
 journeys on the candidate's UI build; complete the independent review and
@@ -144,7 +144,6 @@ A candidate whose readiness is `not_ready` may be deployed to a
 non-production environment; it is not "certified" anywhere in prose until
 the report says `ready`.
 
-Standing at the time of writing: the package lane is substantially covered;
-every real, QEMU, BAS, review and soak lane is pending the external inputs
-listed in the plan's `ledgers/external-inputs.md` (EXT-01..11), and the
-current readiness report is `not_ready` (`docs/RELEASE-NOTES.md`).
+Standing at the time of this contract reconciliation: qualification is not
+claimed. The readiness owner must derive standing from current receipts and
+must name every missing, stale, failed, unavailable, or incompatible cell.

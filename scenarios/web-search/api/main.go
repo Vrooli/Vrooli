@@ -20,6 +20,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -30,6 +31,9 @@ import (
 	healthH "web-search/handlers/health"
 	livesearchH "web-search/handlers/livesearch"
 	researchH "web-search/handlers/research"
+	internalcapture "web-search/internal/capture"
+	internalevaluation "web-search/internal/evaluation"
+	internalevidence "web-search/internal/evidence"
 	internalfindings "web-search/internal/findings"
 	internallivesearch "web-search/internal/livesearch"
 	internalresearch "web-search/internal/research"
@@ -63,6 +67,10 @@ func main() {
 	}
 
 	logger := log.Default()
+	methodRegistry, err := internalevaluation.NewSQLiteMethodRegistry(db.Primary())
+	if err != nil {
+		log.Fatalf("restore method release registry: %v", err)
+	}
 
 	// Boot-time control surface (docs/reference/configuration.md):
 	// WEB_SEARCH_-prefixed levers, each zero when unset so the compiled
@@ -138,12 +146,15 @@ func main() {
 	// Ollama); the service owns the orchestration. Synthesis is off unless a
 	// request opts in, and the raw L0 results are never blocked by it.
 	liveClock := schedule.System()
+	liveMetrics := internallivesearch.NewMetrics(liveClock.Now)
+	outcomeMetrics := internalresearch.NewOutcomeMetrics()
 	liveService := internallivesearch.NewService(internallivesearch.Deps{
 		Client:      internallivesearch.NewHTTPSearxngClient(os.Getenv("SEARXNG_URL"), nil),
 		Cache:       internallivesearch.NewCache(tuning.CacheTTL, liveClock),
 		Governor:    internallivesearch.NewGovernor(tuning.GovernorCapacity, internallivesearch.DefaultGovernorWindow, liveClock),
 		Synthesizer: internallivesearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_SYNTHESIS_ROLE")),
 		Logger:      logger,
+		Metrics:     liveMetrics,
 	})
 
 	// L2/L3 deep research. L2 reuses the live-search service for candidate URLs,
@@ -177,13 +188,16 @@ func main() {
 	if tuning.RelevantExcerptsOff {
 		excerpter = internalresearch.PositionalExcerpter{Budget: tuning.SynthExcerptChars}
 	}
+	attemptOutbox := internalcapture.NewRepository(db, schedule.System().Now)
 	researchService := internalresearch.NewService(internalresearch.Deps{
-		EvidenceStore: researchFindings, Live: liveService,
-		Searcher:    internalresearch.LiveSearcher{Service: liveService},
-		Fetcher:     newL2Fetcher(tuning, logger),
-		Synthesizer: internalresearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_SYNTHESIS_ROLE")),
-		Excerpter:   excerpter,
-		Findings:    researchFindings,
+		EvidenceStore: researchFindings, ReceiptStore: internalevidence.NewSQLiteRepository(db, nil), Live: liveService,
+		AttemptOutbox:  attemptOutbox,
+		OutcomeMetrics: outcomeMetrics,
+		Searcher:       internalresearch.LiveSearcher{Service: liveService},
+		Fetcher:        newL2Fetcher(tuning, logger),
+		Synthesizer:    internalresearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_SYNTHESIS_ROLE")),
+		Excerpter:      excerpter,
+		Findings:       researchFindings,
 		// Bounded GATHER (OT-P1-003): the semantic findings index supplies nearby
 		// ids, the findings store hydrates them. The hard cap is enforced inside
 		// the research service, not here.
@@ -198,6 +212,9 @@ func main() {
 		GatherCap:        tuning.GatherCap,
 		MaxResearchLoops: tuning.MaxResearchLoops,
 	})
+	go internalcapture.RunMemoryWorker(syncCtx, attemptOutbox, func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "vrooli-memory")
+	}, 15*time.Second, 10, logger.Printf)
 
 	// Usage telemetry (OT-P2-001): the async surfacing recorder counts which
 	// findings a search returned, entirely off the hot path. It drains on the
@@ -226,7 +243,7 @@ func main() {
 		healthH.Module(db, "web-search-api", "1.0.0"),
 		findingsH.Module(db, schedule.System(), searcher, usageRecorder, syncLoop.Kick, logger),
 		livesearchH.Module(liveService, logger),
-		researchH.Module(researchService, logger),
+		researchH.Module(researchService, logger, methodRegistry),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -239,7 +256,7 @@ func main() {
 	// harvests <prefix>/declarations and the auto-execution path POSTs
 	// <prefix>/execute. The findings domain owns the canonical measure
 	// (findings.count).
-	findingsMeasures, err := findingsH.MeasuresHandler(db, schedule.System())
+	findingsMeasures, err := findingsH.MeasuresHandlerWithMetrics(db, schedule.System(), liveMetrics, outcomeMetrics)
 	if err != nil {
 		log.Fatalf("measures registry: %v", err)
 	}
@@ -346,7 +363,13 @@ func (a findingIndexAdapter) Search(ctx context.Context, query string, limit int
 // pools. The lease is not installed until its schema initialization succeeds.
 func initializeDatabaseSchemas(ctx context.Context, db *database.RoutedDB) error {
 	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
-		return database.EnsureSchemas(ctx, pool, modules.AllSchemas()...)
+		if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
+			return err
+		}
+		return internalevidence.Migrate(ctx, pool)
 	})
-	return database.EnsureSchemas(ctx, db.Primary(), modules.AllSchemas()...)
+	if err := database.EnsureSchemas(ctx, db.Primary(), modules.AllSchemas()...); err != nil {
+		return err
+	}
+	return internalevidence.Migrate(ctx, db.Primary())
 }

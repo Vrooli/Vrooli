@@ -21,6 +21,7 @@ type SQLExecutor interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
 }
 
 // findingTimeFormat sorts lexicographically in time order for a fixed zone, so
@@ -42,11 +43,19 @@ var _ Repository = (*sqliteRepository)(nil)
 func (s *sqliteRepository) now() time.Time { return s.clock.Now().UTC() }
 
 func (s *sqliteRepository) writeAudit(ctx context.Context, findingID, mutation, reason, sourceBrief, actor string) error {
-	_, err := s.db.ExecContext(ctx,
+	return writeAudit(ctx, s.db, s.now(), findingID, mutation, reason, sourceBrief, actor)
+}
+
+type sqlWriter interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func writeAudit(ctx context.Context, db sqlWriter, now time.Time, findingID, mutation, reason, sourceBrief, actor string) error {
+	_, err := db.ExecContext(ctx,
 		`INSERT INTO finding_audit (id, finding_id, mutation_type, reason, source_brief_id, actor, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		uuid.NewString(), findingID, mutation, reason, sourceBrief, actor,
-		s.now().Format(findingTimeFormat),
+		now.Format(findingTimeFormat),
 	)
 	if err != nil {
 		return fmt.Errorf("write audit (%s) for finding %q: %w", mutation, findingID, err)
@@ -56,19 +65,28 @@ func (s *sqliteRepository) writeAudit(ctx context.Context, findingID, mutation, 
 
 func (s *sqliteRepository) Add(ctx context.Context, in NewFinding, actor string) (Finding, error) {
 	now := s.now()
+	retrievedAt := in.RetrievedAt.UTC()
+	if in.RetrievedAt.IsZero() {
+		retrievedAt = now
+	}
 	f := Finding{
 		ID:            uuid.NewString(),
 		Claim:         in.Claim,
 		BriefID:       in.BriefID,
 		Confidence:    in.Confidence,
 		Status:        StatusActive,
-		RetrievalDate: now,
+		RetrievalDate: retrievedAt,
 		Query:         in.Query,
 		Source:        normalizeSource(in.Source),
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
-	_, err := s.db.ExecContext(ctx,
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Finding{}, fmt.Errorf("begin add finding: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	_, err = tx.ExecContext(ctx,
 		`INSERT INTO findings (id, claim, brief_id, confidence, status, retrieval_date, query, superseded_by, dispute_note, source, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, '', '', ?, ?, ?)`,
 		f.ID, f.Claim, f.BriefID, f.Confidence, f.Status,
@@ -79,8 +97,12 @@ func (s *sqliteRepository) Add(ctx context.Context, in NewFinding, actor string)
 		return Finding{}, fmt.Errorf("insert finding %q: %w", f.ID, err)
 	}
 	for _, c := range in.Citations {
-		cit := Citation{ID: uuid.NewString(), URL: c.URL, Title: c.Title, RetrievedAt: now}
-		_, err := s.db.ExecContext(ctx,
+		citationRetrievedAt := c.RetrievedAt.UTC()
+		if c.RetrievedAt.IsZero() {
+			citationRetrievedAt = retrievedAt
+		}
+		cit := Citation{ID: uuid.NewString(), URL: c.URL, Title: c.Title, RetrievedAt: citationRetrievedAt}
+		_, err := tx.ExecContext(ctx,
 			`INSERT INTO finding_citations (id, finding_id, url, title, retrieved_at) VALUES (?, ?, ?, ?, ?)`,
 			cit.ID, f.ID, cit.URL, cit.Title, cit.RetrievedAt.Format(findingTimeFormat),
 		)
@@ -89,8 +111,11 @@ func (s *sqliteRepository) Add(ctx context.Context, in NewFinding, actor string)
 		}
 		f.Citations = append(f.Citations, cit)
 	}
-	if err := s.writeAudit(ctx, f.ID, MutationCreate, "", in.BriefID, actor); err != nil {
+	if err := writeAudit(ctx, tx, now, f.ID, MutationCreate, "", in.BriefID, actor); err != nil {
 		return Finding{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Finding{}, fmt.Errorf("commit finding %q: %w", f.ID, err)
 	}
 	return f, nil
 }

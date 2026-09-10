@@ -23,6 +23,9 @@ import (
 	"context"
 	"log"
 	"strings"
+	"time"
+
+	"web-search/internal/evidence"
 )
 
 // Fetcher mirrors research.Fetcher so this package stays import-cycle-free;
@@ -92,4 +95,40 @@ func (f *EscalatingFetcher) Fetch(ctx context.Context, url string) (string, erro
 		return "", httpErr
 	}
 	return browserText, nil
+}
+
+func (f *EscalatingFetcher) FetchObservation(ctx context.Context, url string) (evidence.NewObservation, error) {
+	text, httpErr := f.HTTP.Fetch(ctx, url)
+	threshold := f.MinReadableChars
+	if threshold <= 0 {
+		threshold = DefaultMinReadableChars
+	}
+	if httpErr == nil && len(strings.TrimSpace(text)) >= threshold {
+		return evidence.NewObservation{URL: url, RetrievedAt: time.Now().UTC(), Content: []byte(text), ExtractionRevision: "http-readable-text-v1", Retention: "metadata-and-extracted-content"}, nil
+	}
+	if f.Browser != nil {
+		if observed, ok := f.Browser.(interface {
+			FetchObservation(context.Context, string) (evidence.NewObservation, error)
+		}); ok {
+			observation, browserErr := observed.FetchObservation(ctx, url)
+			if browserErr == nil {
+				return observation, nil
+			}
+			if httpErr != nil {
+				return evidence.NewObservation{}, httpErr
+			}
+		} else {
+			browserText, browserErr := f.Browser.Fetch(ctx, url)
+			if browserErr == nil {
+				return evidence.NewObservation{URL: url, RetrievedAt: time.Now().UTC(), Content: []byte(browserText), ExtractionRevision: "escalating-readable-text-v1", Retention: "metadata-and-extracted-content"}, nil
+			}
+			if httpErr != nil {
+				return evidence.NewObservation{}, httpErr
+			}
+		}
+	}
+	if httpErr != nil {
+		return evidence.NewObservation{}, httpErr
+	}
+	return evidence.NewObservation{URL: url, RetrievedAt: time.Now().UTC(), Content: []byte(text), ExtractionRevision: "http-readable-text-v1", Retention: "metadata-and-extracted-content"}, nil
 }

@@ -112,7 +112,13 @@
     "degradedYes": "劣化",
     "degradedNo": "正常",
     "degradedReasonLabel": "理由:",
-    "resultCountLabel": "結果:"
+    "resultCountLabel": "結果:",
+    "captureHeading": "調査キャプチャ配信",
+    "captureStatusLabel": "状態:",
+    "capturePendingLabel": "保留:",
+    "captureDeliveredLabel": "配信済み:",
+    "captureFailedLabel": "失敗:",
+    "captureUnavailable": "キャプチャ配信状態を取得できません。"
   },
   "findings": {
     "filterLabel": "フィルター",
@@ -162,6 +168,11 @@
     "flagReasonPlaceholder": "なぜ係争中ですか？",
     "flagSubmit": "係争中としてフラグ",
     "flagError": "フラグを付けられませんでした: {{message}}",
+    "correctionAction": "Record correction",
+    "correctionDispositionLabel": "Disposition",
+    "correctionReasonPlaceholder": "Why is this claim corrected?",
+    "correctionSubmit": "Save correction",
+    "correctionError": "Could not record correction: {{message}}",
     "cancel": "キャンセル",
     "pruneHeading": "置換済みを整理",
     "pruneDryRun": "整理をプレビュー",
@@ -179,6 +190,19 @@
     "effectivenessNeverSurfaced": "未表示",
     "effectivenessLastSurfaced": "最終表示 {{when}}",
     "effectivenessScore": "スコア {{value}}"
+  },
+  "research": {
+    "heading": "Research investigation",
+    "queryPlaceholder": "Question requiring verified research…",
+    "start": "Start investigation",
+    "resume": "Resume investigation",
+    "waiting": "Waiting for research…",
+    "status": "Status: {{status}}",
+    "summary": "Research summary",
+    "error": "Research unavailable: {{message}}",
+    "passagePlaceholder": "Evidence passage ID",
+    "readPassage": "Read evidence",
+    "passageUnavailable": "Evidence content is unavailable after retention expiry."
   },
   "disputes": {
     "loading": "係争を読み込み中…",

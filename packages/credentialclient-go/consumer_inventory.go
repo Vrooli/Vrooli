@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/credentialinventory"
 	"github.com/vrooli/vrooli/internal/credentialspec"
 	"github.com/vrooli/vrooli/internal/resources/catalog"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
@@ -411,6 +412,21 @@ func discoverInventoryDeclarations(root string, scope Scope) ([]inventoryDeclara
 			for _, item := range found {
 				add(item.Slug, item.ServicePath, item.Path, item.Manifest.Credentials)
 			}
+		}
+	}
+	if scope.IncludeManaged {
+		for _, managed := range credentialinventory.ManagedSystemEntries(root) {
+			declaration := credentialspec.Declaration{
+				Descriptors: []credentialspec.Descriptor{{
+					LogicalID:    managed.LogicalID,
+					Field:        managed.Field,
+					Required:     len(managed.Consumers) > 0,
+					Kind:         credentialspec.KindDelegated,
+					Provisioning: credentialspec.ProvisioningGenerated,
+				}},
+				Consumers: managed.Consumers,
+			}
+			add(managed.Owner, filepath.Join(root, "internal", "credentialinventory", "inventory.go"), root, declaration)
 		}
 	}
 	return declarations, nil

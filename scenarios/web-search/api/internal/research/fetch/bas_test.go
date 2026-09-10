@@ -64,6 +64,19 @@ func TestBASFetcherExtractsReadableTextFromInlineDom(t *testing.T) {
 	require.True(t, client.lastReq.GetWaitFor().GetNetworkidle())
 }
 
+func TestBASFetcherCarriesExecutionIdentityIntoObservation(t *testing.T) {
+	client := &fakeCaptureClient{resp: &capturev1.CaptureResponse{
+		ExecutionId: "bas-execution-1",
+		DomHtml:     `<html><body><p>Rendered article text.</p></body></html>`,
+	}}
+	f := basWithClient(client, nil)
+
+	observation, err := f.FetchObservation(context.Background(), "https://example.com/spa")
+	require.NoError(t, err)
+	require.Equal(t, "bas-execution-1", observation.ProducerExecutionID)
+	require.Equal(t, "bas-readable-text-v1", observation.ExtractionRevision)
+}
+
 func TestBASFetcherErrorsOnEmptyDom(t *testing.T) {
 	client := &fakeCaptureClient{resp: &capturev1.CaptureResponse{ExecutionId: "exec-1"}}
 	f := basWithClient(client, nil)

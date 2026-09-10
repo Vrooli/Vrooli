@@ -109,6 +109,32 @@ func TestServiceCacheHitSkipsClient(t *testing.T) {
 	require.Equal(t, 1, client.callCount, "cache hit must not call searxng")
 }
 
+func TestServiceRecordsCacheAndGovernorMetrics(t *testing.T) {
+	client := &fakeClient{results: sampleRaw()}
+	metrics := livesearch.NewMetrics()
+	cache := livesearch.NewCache(time.Minute, nil)
+	svc := livesearch.NewService(livesearch.Deps{Client: client, Cache: cache, Metrics: metrics})
+	_, err := svc.Search(context.Background(), livesearch.SearchInput{Query: "metrics", Limit: 5})
+	require.NoError(t, err)
+	_, err = svc.Search(context.Background(), livesearch.SearchInput{Query: "metrics", Limit: 5})
+	require.NoError(t, err)
+	counts, complete := metrics.Snapshot(time.Now().Add(-time.Minute), time.Now().Add(time.Minute))
+	require.True(t, complete)
+	require.Equal(t, 1, counts[livesearch.MetricCacheMiss])
+	require.Equal(t, 1, counts[livesearch.MetricCacheHit])
+	require.Equal(t, 1, counts[livesearch.MetricUpstreamCall])
+
+	limited := livesearch.NewMetrics()
+	limitedSvc := livesearch.NewService(livesearch.Deps{Client: client, Governor: livesearch.NewGovernor(1, time.Hour, nil), Metrics: limited})
+	_, err = limitedSvc.Search(context.Background(), livesearch.SearchInput{Query: "first", Limit: 1})
+	require.NoError(t, err)
+	_, err = limitedSvc.Search(context.Background(), livesearch.SearchInput{Query: "second", Limit: 1})
+	require.NoError(t, err)
+	counts, complete = limited.Snapshot(time.Now().Add(-time.Minute), time.Now().Add(time.Minute))
+	require.True(t, complete)
+	require.Equal(t, 1, counts[livesearch.MetricGovernorRefusal])
+}
+
 func TestServiceCacheExpiryRefetches(t *testing.T) {
 	clk := scheduletest.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	client := &fakeClient{results: sampleRaw()}

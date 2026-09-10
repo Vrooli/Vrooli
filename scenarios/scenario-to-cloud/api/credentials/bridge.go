@@ -59,7 +59,7 @@ func (t bearerTransport) Do(req *http.Request) (*http.Response, error) {
 			req.Header.Set("Authorization", token)
 		}
 	}
-	return t.base.Do(req)
+	return t.base.Do(req) // #nosec G704 -- request URL comes from the validated Bridge service resolver.
 }
 
 func (b *BridgeClient) grants(ctx context.Context) (credentialgrant_v1connect.CredentialGrantServiceClient, error) {

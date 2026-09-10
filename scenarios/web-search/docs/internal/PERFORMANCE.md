@@ -3,10 +3,8 @@
 This document records performance budgets, current measurements, known
 constraints, and regression procedures.
 
-> **Scaffold status (2026-06-09):** The budgets below are *intended*
-> targets derived from `PRD.md` / requirements. None are implemented or
-> measured yet — they are the design targets the implementation should
-> be validated against, not observations.
+> Budgets below are controlled targets. Measurements are labeled by provenance
+> and workload; a controlled fixture never becomes an operator-benefit claim.
 
 ## Purpose Of This Document
 
@@ -44,18 +42,20 @@ set when each level lands and a real corpus exists.
 | Default federated query (learnings) | **Zero external HTTP calls** — served entirely from the findings index + cache. | request-trace: external-call count == 0 on non-gated queries | intended (OT-P0-004) |
 | Findings semantic recall | Low p95 (local Qdrant + reranker; target on the order of single-digit-hundreds of ms p95) — fast enough to join default routing without slowing the blend. | aisearch-go query timing; per-query p95 | intended (OT-P0-005) |
 | L0 live web search | Bounded live-search latency (dominated by SearXNG aggregation + network); cache hit short-circuits it. | livesearch request timing; cache-hit vs miss split | intended (OT-P0-001) |
-| Live-web cache hit-rate | High hit-rate target on repeated/near-repeated queries — the cache is the first line of external-call avoidance. | cache hit/miss counter exposed in the ops panel | intended (OT-P0-007) |
+| Live-web cache hit-rate | High hit-rate target on repeated/near-repeated queries — the cache is the first line of external-call avoidance. | fixed-window `research.cache-hit-rate` owner measure | active (OT-P0-007) |
 | External QPS (budget governor) | Capped per time window by a token-bucket; on empty bucket → graceful "rate-limited, try later" with **no** external call. | governor token-bucket state; rate-limited-response count | intended (OT-P0-007) |
 | L1 snippet synthesis | **Additive, never blocking** — raw hits return regardless; synthesis is an optional overlay that abstains on conflict/thin sources. | synthesis latency measured independently of raw-hit return | intended (OT-P0-002) |
 | L2/L3 research runs | Long-running and asynchronous (browserless fetch + multi-pass synthesis / agentic loop); not on any interactive query path. Budget-ordered: answer first, curate as a bounded post-step. | run-duration + per-phase timing | intended (P1) |
 | UI build | 5–10 minutes accepted for the current Vite module graph | lifecycle / test-genie build logs | inherited |
-| API / UI health | responsive under lifecycle health timeout | `/health` check | active (scaffold) |
+| API / UI health | responsive under lifecycle health timeout | `/health` check | active |
 
 ## Current Measurements
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| None captured yet. | n/a | n/a | 2026-06-09 |
+| Paired evaluation retains cold and warm strata independently; a warm-only gain is not labeled as a cold-start gain. | `TestCompareReportsColdAndWarmStrataSeparately` | controlled fixture | 2026-09-05 |
+| Frozen four-case paired comparison preserved support and required coverage while reducing mean effort from 9.00 to 7.25 across cold and warm strata. | `TestAcceptedPairedImprovementReceiptUsesFrozenPopulation`; report `7a42cb5487d8110046af1e53b869e54c16994e301cb38cf9a6de265e237c4d91` | controlled fixture | 2026-09-06 |
+| Operational benefit without eligible operator observations | unknown | `MeasureOperational` | 2026-09-05 |
 
 Measurements land as each level (L0 → L3) is implemented and exercised
 against a real corpus and a live SearXNG resource.

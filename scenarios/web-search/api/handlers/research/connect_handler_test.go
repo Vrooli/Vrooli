@@ -4,13 +4,19 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
+	testdb "github.com/vrooli/api-core/databasetest"
 
 	researchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research"
 
 	handler "web-search/handlers/research"
+	"web-search/internal/capture"
+	"web-search/internal/evaluation"
+	"web-search/internal/evidence"
 	internalresearch "web-search/internal/research"
 	"web-search/internal/research/agentmanager"
 )
@@ -33,9 +39,31 @@ func (f fakeSynth) Synthesize(_ context.Context, _ string, _ []internalresearch.
 	return f.out, nil
 }
 
+type recordingSynth struct {
+	docs []internalresearch.Document
+}
+
+func (s *recordingSynth) Synthesize(_ context.Context, _ string, docs []internalresearch.Document) (internalresearch.Synthesis, error) {
+	s.docs = append([]internalresearch.Document(nil), docs...)
+	return internalresearch.Synthesis{Text: "bounded", Citations: []internalresearch.Citation{{ResultIndex: 0, URL: "https://a.example"}}}, nil
+}
+
 type fakeAgent struct {
 	spawn agentmanager.RunResult
 	state agentmanager.RunState
+}
+
+type recordingAgent struct {
+	request agentmanager.SpawnRequest
+}
+
+func (a *recordingAgent) Spawn(_ context.Context, request agentmanager.SpawnRequest) (agentmanager.RunResult, error) {
+	a.request = request
+	return agentmanager.RunResult{RunID: "run-policy", Status: "pending"}, nil
+}
+
+func (a *recordingAgent) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
+	return agentmanager.RunState{RunID: "run-policy", Status: "pending"}, nil
 }
 
 func (f fakeAgent) Spawn(_ context.Context, _ agentmanager.SpawnRequest) (agentmanager.RunResult, error) {
@@ -48,6 +76,54 @@ func (f fakeAgent) GetRunState(_ context.Context, _ string) (agentmanager.RunSta
 
 func newHandler(svc *internalresearch.Service) *handler.Deps {
 	return &handler.Deps{Service: svc}
+}
+
+type evidenceReader struct{}
+
+func (evidenceReader) CreateReceipt(context.Context, evidence.NewObservation) (evidence.Receipt, error) {
+	return evidence.Receipt{}, nil
+}
+func (evidenceReader) GetReceipt(context.Context, string) (evidence.Receipt, error) {
+	return evidence.Receipt{ReceiptID: "receipt-1", ObservationID: "observation-1", URL: "https://source.example", RetrievedAt: time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC), ContentHash: "hash", ArtifactID: "artifact-1", ExtractionRevision: "text-v1", Retention: "standard"}, nil
+}
+func (evidenceReader) CreatePassage(context.Context, string, int, int) (evidence.Passage, error) {
+	return evidence.Passage{}, nil
+}
+func (evidenceReader) GetPassage(context.Context, string) (evidence.Passage, error) {
+	return evidence.Passage{PassageID: "passage-1", ReceiptID: "receipt-1", StartByte: 0, EndByte: 5, Content: "claim", Hash: "hash"}, nil
+}
+func (evidenceReader) ExpireContent(context.Context, time.Time) (int, error) { return 0, nil }
+
+func TestEvidenceReadsProjectOpaqueOwnerRecords(t *testing.T) {
+	svc := internalresearch.NewService(internalresearch.Deps{ReceiptStore: evidenceReader{}})
+	h := handler.NewConnectHandler(*newHandler(svc))
+	receipt, err := h.GetEvidenceReceipt(context.Background(), connect.NewRequest(&researchv1.GetEvidenceReceiptRequest{ReceiptId: "receipt-1"}))
+	require.NoError(t, err)
+	require.Equal(t, "receipt-1", receipt.Msg.ReceiptId)
+	require.Equal(t, "https://source.example", receipt.Msg.OriginalUrl)
+	passage, err := h.GetEvidencePassage(context.Background(), connect.NewRequest(&researchv1.GetEvidencePassageRequest{PassageId: "passage-1"}))
+	require.NoError(t, err)
+	require.Equal(t, "claim", passage.Msg.Content)
+	require.Equal(t, "receipt-1", passage.Msg.ReceiptId)
+}
+
+func TestMethodReleaseRequiresGrantAndSupportsCurrentRead(t *testing.T) {
+	revision := evaluation.MethodRevision{ID: "candidate", ProgramHash: "program", ConfigHash: "config"}
+	report := evaluation.Report{Accepted: true, BaselineMethod: "base", CandidateMethod: "candidate", Population: 1, MeanBaselineEffort: 10, MeanCandidateEffort: 8}
+	receipt := evaluation.EvaluationReceipt{ID: "receipt-1", CandidateHash: evaluation.RevisionHash(revision), ReportHash: evaluation.ReportHash(report), Accepted: true}
+	registry := &evaluation.MethodRegistry{}
+	h := handler.NewConnectHandler(handler.Deps{Service: internalresearch.NewService(internalresearch.Deps{}), Registry: registry})
+	request := func(grant string) *connect.Request[researchv1.PromoteMethodRequest] {
+		return connect.NewRequest(&researchv1.PromoteMethodRequest{Revision: &researchv1.MethodRevision{Id: revision.ID, ProgramHash: revision.ProgramHash, ConfigHash: revision.ConfigHash}, Receipt: &researchv1.EvaluationReceipt{Id: receipt.ID, CandidateHash: receipt.CandidateHash, ReportHash: receipt.ReportHash, Accepted: true}, Report: &researchv1.EvaluationReport{Accepted: true, BaselineMethod: report.BaselineMethod, CandidateMethod: report.CandidateMethod, Population: 1, MeanBaselineEffort: 10, MeanCandidateEffort: 8}, Grant: grant})
+	}
+	_, err := h.PromoteMethod(context.Background(), request(""))
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	promoted, err := h.PromoteMethod(context.Background(), request("grant-1"))
+	require.NoError(t, err)
+	require.Equal(t, evaluation.RevisionHash(revision), promoted.Msg.Release.RevisionHash)
+	current, err := h.GetMethodRelease(context.Background(), connect.NewRequest(&researchv1.GetMethodReleaseRequest{}))
+	require.NoError(t, err)
+	require.True(t, current.Msg.Found)
 }
 
 func TestRunL2ProjectsBriefToProto(t *testing.T) {
@@ -71,6 +147,21 @@ func TestRunL2ProjectsBriefToProto(t *testing.T) {
 	require.Equal(t, "https://a.example", resp.Msg.Brief.Citations[0].Url)
 }
 
+func TestRunL2PropagatesEvidenceBytePolicy(t *testing.T) {
+	synth := &recordingSynth{}
+	svc := internalresearch.NewService(internalresearch.Deps{
+		Searcher: fakeSearcher{cands: []internalresearch.Candidate{{URL: "https://a.example", Title: "A"}}},
+		Fetcher:  fakeFetcher{text: "0123456789"}, Synthesizer: synth,
+	})
+	h := handler.NewConnectHandler(*newHandler(svc))
+	_, err := h.RunL2(context.Background(), connect.NewRequest(&researchv1.RunL2Request{
+		Query: "q", TopN: 1, Policy: &researchv1.EvidencePolicy{MaxEvidenceBytes: 5},
+	}))
+	require.NoError(t, err)
+	require.Len(t, synth.docs, 1)
+	require.Equal(t, "01234", synth.docs[0].Text)
+}
+
 func TestRunL3AndStatusProjectToProto(t *testing.T) {
 	svc := internalresearch.NewService(internalresearch.Deps{
 		AgentManager: fakeAgent{
@@ -89,6 +180,47 @@ func TestRunL3AndStatusProjectToProto(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "complete", st.Msg.Status)
 	require.Equal(t, "ok", st.Msg.Summary)
+}
+
+func TestCaptureStatusProjectsPendingAndFailedSeparately(t *testing.T) {
+	db := testdb.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(capture.Schema)))
+	clock := time.Date(2026, 9, 6, 4, 0, 0, 0, time.UTC)
+	outbox := capture.NewRepository(db, func() time.Time { return clock })
+	_, _, err := outbox.Enqueue(context.Background(), "pending", "task-pending", "delivery-pending", []byte("pending"))
+	require.NoError(t, err)
+	_, _, err = outbox.Enqueue(context.Background(), "failed", "task-failed", "delivery-failed", []byte("failed"))
+	require.NoError(t, err)
+	claimed, err := outbox.Claim(context.Background(), 1)
+	require.NoError(t, err)
+	require.Len(t, claimed, 1)
+	require.NoError(t, outbox.MarkFailed(context.Background(), claimed[0].AttemptID, "memory unavailable", clock.Add(time.Minute)))
+
+	svc := internalresearch.NewService(internalresearch.Deps{AttemptOutbox: outbox})
+	h := handler.NewConnectHandler(*newHandler(svc))
+	response, err := h.GetCaptureStatus(context.Background(), connect.NewRequest(&researchv1.GetCaptureStatusRequest{}))
+	require.NoError(t, err)
+	require.EqualValues(t, 1, response.Msg.Pending)
+	require.EqualValues(t, 1, response.Msg.Failed)
+	require.Equal(t, "pending", response.Msg.Status)
+}
+
+func TestRunL3PropagatesTypedEvidencePolicyAndQuestions(t *testing.T) {
+	agent := &recordingAgent{}
+	svc := internalresearch.NewService(internalresearch.Deps{AgentManager: agent})
+	h := handler.NewConnectHandler(*newHandler(svc))
+	_, err := h.RunL3(context.Background(), connect.NewRequest(&researchv1.RunL3Request{
+		Query: "policy query", IdempotencyKey: "retry-1",
+		Policy:    &researchv1.EvidencePolicy{MinimumSources: 2, TopN: 3, MaxEvidenceBytes: 4096},
+		Questions: []*researchv1.ResearchQuestion{{Id: "release", Prompt: "When?", Required: true}},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "policy query", agent.request.Query)
+	require.Equal(t, "retry-1", agent.request.IdempotencyKey)
+	require.Equal(t, 2, agent.request.Policy["minimum_sources"])
+	require.Equal(t, 3, agent.request.Policy["top_n"])
+	require.Equal(t, 4096, agent.request.Policy["max_evidence_bytes"])
+	require.Equal(t, []map[string]any{{"id": "release", "prompt": "When?", "required": true}}, agent.request.Questions)
 }
 
 // recordingSearcher captures the topN the service actually used so the

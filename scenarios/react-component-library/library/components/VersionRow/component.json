@@ -12,9 +12,9 @@
   ],
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
   "draft": "",
@@ -24,7 +24,8 @@
     "1.0.3",
     "1.0.4",
     "1.0.5",
-    "1.0.0"
+    "1.0.0",
+    "1.0.6"
   ],
   "latest": "1.0.7",
   "libraryId": "react-component-library:VersionRow"

@@ -15,9 +15,9 @@
   ],
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
   "draft": "",
@@ -30,7 +30,9 @@
     "2.2.1",
     "2.2.5",
     "2.2.7",
-    "2.2.8"
+    "2.2.8",
+    "2.2.11",
+    "2.2.10"
   ],
   "latest": "2.2.12",
   "libraryId": "react-component-library:Button"

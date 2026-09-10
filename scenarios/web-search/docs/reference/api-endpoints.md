@@ -6,14 +6,12 @@ doc generators, Postman collection builders, and SDK stubs read it
 directly. The CI gate fails if the JSON drifts from the registered
 handlers or from the CLI commands it claims to mirror.
 
-> **Scaffold status (2026-06-09):** Only `GET /health` and the template
-> `notes` CRUD service exist. The product endpoints in **Intended
-> Surface** below are *planned* — they are generated from proto services
-> as each domain (`livesearch`, `findings`, `research`, `federation`) is
-> implemented. The `notes` section is the worked example to copy and will
-> be removed once the first real domain is green.
+> **Current status (2026-09-06):** Product endpoints are registered for
+> livesearch, findings, research, federation, and health. The generated
+> endpoint manifest is authoritative; this document supplies operator
+> context and known validation limits.
 
-## Intended Surface (planned)
+## Current Surface
 
 These are the endpoints the four product domains will expose. Exact
 proto message shapes are authored when each domain lands; the table is

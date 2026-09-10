@@ -189,6 +189,14 @@
             ]
           }
         }
+      },
+      "vrooli-memory": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Attempt capture for record-attempt and learning-read.",
+        "degraded_behavior": "Programs run without advice; captures queue in program-runtime's outbox until memory returns.",
+        "bundle_policy": "either"
       }
     }
   },

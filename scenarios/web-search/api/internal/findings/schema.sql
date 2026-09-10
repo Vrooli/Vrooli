@@ -62,6 +62,28 @@ CREATE TABLE IF NOT EXISTS finding_audit (
 CREATE INDEX IF NOT EXISTS idx_finding_audit_finding
   ON finding_audit(finding_id, created_at DESC);
 
+-- Corrections are caller observations linked to an original finding. They are
+-- immutable and independently addressable so effective state can be derived
+-- without changing historical evidence.
+CREATE TABLE IF NOT EXISTS finding_corrections (
+  id                  TEXT PRIMARY KEY,
+  finding_id          TEXT NOT NULL,
+  identity            TEXT NOT NULL,
+  original_claim_hash TEXT NOT NULL,
+  disposition         TEXT NOT NULL,
+  reason              TEXT NOT NULL DEFAULT '',
+  evidence_refs       TEXT NOT NULL DEFAULT '[]',
+  investigation_ids   TEXT NOT NULL DEFAULT '[]',
+  method_revisions    TEXT NOT NULL DEFAULT '[]',
+  actor               TEXT NOT NULL DEFAULT '',
+  created_at          TEXT NOT NULL,
+  UNIQUE(finding_id, identity),
+  FOREIGN KEY (finding_id) REFERENCES findings(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_finding_corrections_finding
+  ON finding_corrections(finding_id, created_at ASC, id ASC);
+
 -- finding_usage is the usage-telemetry side table (OT-P2-001). It is kept
 -- SEPARATE from the findings row so surfacing events never mutate the
 -- provenance-bearing finding (claim/confidence/audit stay immutable). A row is

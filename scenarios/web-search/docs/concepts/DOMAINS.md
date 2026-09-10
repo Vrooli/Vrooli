@@ -4,13 +4,13 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-> **Scaffold status (2026-06-09):** This map describes the *intended*
-> bounded contexts derived from `PRD.md` and the requirements registry.
-> No product domain is implemented yet — the `notes` worked example and
-> the `health` infra domain are still present from the template and will
-> be removed once the first real domain (`livesearch`) is green
-> (orientation Gate 6/7). Domain source paths below are the planned
-> layout, not yet on disk.
+> **Implementation status (2026-09-05):** The first-pass product domains are
+> implemented and validated at their declared surfaces. This map remains the
+> ownership reference for the assurance successor: evidence identity,
+> question coverage, claim assessment, method release, and measurement work
+> are planned extensions of the existing `research`, `findings`, and
+> `curation` boundaries. The historical scaffold note is retained in
+> `docs/internal/PROGRESS.md` as an audit record, not as current state.
 
 ## Purpose Of This Document
 
@@ -46,7 +46,7 @@ ever firing a rate-limited live web call (external scope).
 |---|---|---|---|---|---|---|
 | livesearch | Live web results from SearXNG (L0) + optional cited snippet synthesis (L1), guarded by a TTL cache and a token-bucket budget governor. | External query / passthrough | Cache entries only (ephemeral, TTL'd). No durable corpus. | API, UI | OT-P0-001, OT-P0-002, OT-P0-007 | `api/internal/livesearch/`, `api/handlers/livesearch/`, `ui/src/features/search/`, `packages/proto/schemas/web-search/v1/livesearch/` |
 | findings | The learnings store: durable `finding` + `brief` records in own SQLite (api-core storage) with an aisearch-go semantic index; CRUD, status lifecycle, freshness decay, visibility filtering, audit trail. | Knowledge store / entity | Findings, briefs, citations, audit log. | API, CLI, UI | OT-P0-005, OT-P0-006, OT-P1-006 | `api/internal/findings/`, `api/handlers/findings/`, `cli/domains/findings/`, `ui/src/features/findings/`, `packages/proto/schemas/web-search/v1/findings/` |
-| research | Orchestrates L2 (fetch top-N via browserless → extract → single-pass cited synthesis) and L3 (agent-manager research-and-reconcile run); LLM distillation into findings; contradiction handling + dispute queue. | Orchestration / agentic workflow | Research run state (briefs are co-owned with findings). | API, CLI, UI | OT-P1-001, OT-P1-002, OT-P1-003, OT-P1-004, OT-P1-005, OT-P1-007 | `api/internal/research/`, `api/handlers/research/`, `cli/domains/research/`, `ui/src/features/research/`, `packages/proto/schemas/web-search/v1/research/` |
+| research | Orchestrates L2 (fetch top-N via browserless → extract → bounded cited synthesis, one pass per declared question) and L3 (agent-manager research-and-reconcile run); LLM distillation into findings; contradiction handling + dispute queue. | Orchestration / agentic workflow | Research run state (briefs are co-owned with findings). | API, CLI, UI | OT-P1-001, OT-P1-002, OT-P1-003, OT-P1-004, OT-P1-005, OT-P1-007 | `api/internal/research/`, `api/handlers/research/`, `cli/domains/research/`, `ui/src/features/research/`, `packages/proto/schemas/web-search/v1/research/` |
 | federation | search-hub provider descriptors + self-registration of `web-search.live` (SCOPE_EXTERNAL) and `web-search.learnings` (SCOPE_PROJECT); the scope-aware blending contract. | Integration / registration | Provider descriptors (`.vrooli/search.json`); control token (in-memory). | API (the two provider Search endpoints), boot registration | OT-P0-003, OT-P0-004 | `api/internal/federation/`, `.vrooli/search.json`, `api/handlers/{livesearch,findings}/` (the provider endpoints) |
 | curation *(deferred, P2)* | Usage-telemetry-driven finding curation, classifier auto-routing to live web, periodic full-store consistency GC. | Background maintenance | Usage/effectiveness telemetry. | API, CLI | OT-P2-001, OT-P2-002, OT-P2-003 | `api/internal/curation/` (not yet) |
 | health *(infra)* | Report runtime readiness and dependency reachability (SearXNG/Qdrant/Ollama/search-hub). | Reporting / query | No product data. | API, UI | Scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/web-search/v1/health/` |
@@ -95,7 +95,7 @@ ever firing a rate-limited live web call (external scope).
   store, while keeping the store consistent.
 - Primary archetype: orchestration / agentic workflow.
 - Owns: L2 pipeline (fetch top-N via browserless → extract readable text →
-  single-pass cited synthesis), L3 run orchestration (delegated to
+  bounded cited synthesis, one pass per declared question), L3 run orchestration (delegated to
   agent-manager), the research-and-reconcile loop (gather-existing-first
   → reconcile), the LLM distillation pass that emits structured findings,
   auto-capture policy (L3 on by default, L2 opt-in, L0/L1 never),

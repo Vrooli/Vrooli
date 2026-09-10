@@ -116,10 +116,19 @@ func (q *QdrantClient) UpsertPoints(collectionName string, points []VectorPoint)
 
 // SearchSimilar searches for similar vectors
 func (q *QdrantClient) SearchSimilar(collectionName string, vector []float32, limit int) ([]SearchResult, error) {
+	return q.SearchSimilarWithThreshold(collectionName, vector, limit, 0)
+}
+
+// SearchSimilarWithThreshold searches Qdrant and asks it to exclude results
+// below the caller's independently selected similarity threshold.
+func (q *QdrantClient) SearchSimilarWithThreshold(collectionName string, vector []float32, limit int, threshold float32) ([]SearchResult, error) {
 	payload := map[string]interface{}{
 		"vector":       vector,
 		"limit":        limit,
 		"with_payload": true,
+	}
+	if threshold > 0 {
+		payload["score_threshold"] = threshold
 	}
 
 	jsonData, err := json.Marshal(payload)
@@ -251,6 +260,12 @@ func InitializeVectorSearch() error {
 
 // FindSimilarInjections finds injection techniques similar to the given text
 func FindSimilarInjections(queryText string, limit int) ([]map[string]interface{}, error) {
+	return FindSimilarInjectionsWithThreshold(queryText, limit, 0)
+}
+
+// FindSimilarInjectionsWithThreshold finds techniques while enforcing a
+// caller-provided Qdrant score threshold.
+func FindSimilarInjectionsWithThreshold(queryText string, limit int, threshold float32) ([]map[string]interface{}, error) {
 	// Generate embedding for the query
 	embedding, err := GenerateEmbedding(queryText)
 	if err != nil {
@@ -259,7 +274,7 @@ func FindSimilarInjections(queryText string, limit int) ([]map[string]interface{
 
 	// Search for similar vectors
 	client := NewQdrantClient()
-	results, err := client.SearchSimilar("injection_techniques", embedding, limit)
+	results, err := client.SearchSimilarWithThreshold("injection_techniques", embedding, limit, threshold)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search similar: %v", err)
 	}

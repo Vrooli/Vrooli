@@ -9,14 +9,17 @@ vi.mock("../../api/health", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/health")>();
   return { ...actual, ...makeApiMocks() };
 });
+vi.mock("../../api/clients", () => ({ researchClient: { getCaptureStatus: vi.fn() } }));
 
 import { fetchHealth } from "../../api/health";
+import { researchClient } from "../../api/clients";
 import { recordLiveSearchHealth } from "../../lib/liveSearchHealth";
 import { OpsPanel } from "./OpsPanel";
 
 describe("OpsPanel", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    vi.mocked(researchClient.getCaptureStatus).mockResolvedValue({ status: "pending", pending: 2, delivered: 4, failed: 1, oldestPendingAt: "" } as never);
   });
   afterEach(() => {
     cleanup();
@@ -82,5 +85,15 @@ describe("OpsPanel", () => {
     });
     expect(screen.getByText(strings.ops.degradedYes)).toBeInTheDocument();
     expect(screen.getByText(/budget exhausted/)).toBeInTheDocument();
+  });
+
+  it("shows durable research capture delivery counts", async () => {
+    vi.mocked(fetchHealth).mockResolvedValue(makeHealthResponse());
+    renderWithProviders(<OpsPanel />);
+    const panel = await screen.findByTestId(selectors.ops.captureStatus);
+    await waitFor(() => expect(within(panel).getByText("pending")).toBeInTheDocument());
+    expect(within(panel).getByText("2")).toBeInTheDocument();
+    expect(within(panel).getByText("4")).toBeInTheDocument();
+    expect(within(panel).getByText("1")).toBeInTheDocument();
   });
 });

@@ -13,6 +13,7 @@ import (
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
 	captureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
 
+	"web-search/internal/evidence"
 	internalresearch "web-search/internal/research"
 )
 
@@ -80,9 +81,14 @@ func (f *BASFetcher) captureClient(ctx context.Context) (CaptureClient, error) {
 
 // Fetch implements the research.Fetcher contract for the browser leg.
 func (f *BASFetcher) Fetch(ctx context.Context, url string) (string, error) {
+	text, _, err := f.fetchCapture(ctx, url)
+	return text, err
+}
+
+func (f *BASFetcher) fetchCapture(ctx context.Context, url string) (string, string, error) {
 	url = strings.TrimSpace(url)
 	if url == "" {
-		return "", fmt.Errorf("research: fetch: empty url")
+		return "", "", fmt.Errorf("research: fetch: empty url")
 	}
 	timeout := f.Timeout
 	if timeout <= 0 {
@@ -93,7 +99,7 @@ func (f *BASFetcher) Fetch(ctx context.Context, url string) (string, error) {
 
 	client, err := f.captureClient(ctx)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	resp, err := client.Capture(ctx, connect.NewRequest(&capturev1.CaptureRequest{
@@ -108,15 +114,24 @@ func (f *BASFetcher) Fetch(ctx context.Context, url string) (string, error) {
 		f.mu.Lock()
 		f.client = nil
 		f.mu.Unlock()
-		return "", fmt.Errorf("research: browser capture: %w", err)
+		return "", "", fmt.Errorf("research: browser capture: %w", err)
 	}
 
 	dom := resp.Msg.GetDomHtml()
 	if strings.TrimSpace(dom) == "" {
-		return "", fmt.Errorf("research: browser capture returned no DOM for %q", url)
+		return "", "", fmt.Errorf("research: browser capture returned no DOM for %q", url)
 	}
-	return internalresearch.ExtractReadableText(dom), nil
+	return internalresearch.ExtractReadableText(dom), resp.Msg.GetExecutionId(), nil
+}
+
+func (f *BASFetcher) FetchObservation(ctx context.Context, url string) (evidence.NewObservation, error) {
+	text, executionID, err := f.fetchCapture(ctx, url)
+	if err != nil {
+		return evidence.NewObservation{}, err
+	}
+	return evidence.NewObservation{URL: url, RetrievedAt: time.Now().UTC(), ProducerExecutionID: executionID, Content: []byte(text), ExtractionRevision: "bas-readable-text-v1", Retention: "metadata-and-extracted-content"}, nil
 }
 
 // Compile-time guarantee the leg satisfies the package seam.
 var _ Fetcher = (*BASFetcher)(nil)
+var _ internalresearch.ObservationFetcher = (*BASFetcher)(nil)

@@ -34,6 +34,17 @@
       "icon": "rocket",
       "documents": [
         {
+          "path": "../README.md",
+          "docType": "scenario-readme",
+          "title": "Scenario README",
+          "description": "Scenario overview, supported surfaces, and the operator-facing cloud deployment contract",
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required"
+        },
+        {
           "path": "QUICKSTART.md",
           "docType": "quickstart",
           "title": "Quick Start",
@@ -109,7 +120,7 @@
         },
         {
           "path": "guides/incident-runbook.md",
-          "docType": "guide",
+          "docType": "incident-guide",
           "title": "Incident Runbook",
           "description": "Diagnose, contain, recover, verify and record a deployment incident using only supported CLI/API operations (health and edge observations, operation cancel/reconcile, start, governed rollback, recovery-point restore)",
           "maturity": "active",
@@ -120,7 +131,7 @@
         },
         {
           "path": "guides/next-scenario-onboarding.md",
-          "docType": "guide",
+          "docType": "onboarding-guide",
           "title": "Next-Scenario Onboarding",
           "description": "Exact declarations (service.json deployment block, resource artifacts, credentials) and operator configuration a new scenario needs to use the cloud ramp without any cloud code edit; how closure and plan preview explain gaps",
           "maturity": "active",
@@ -142,7 +153,7 @@
         },
         {
           "path": "guides/runbooks/deploy.md",
-          "docType": "runbook",
+          "docType": "deploy-runbook",
           "title": "Runbook: Deploy",
           "description": "First deployment of a scenario onto a prepared target: manifest, preflight, create, plan review, apply, verify",
           "maturity": "active",
@@ -153,7 +164,7 @@
         },
         {
           "path": "guides/runbooks/update.md",
-          "docType": "runbook",
+          "docType": "update-runbook",
           "title": "Runbook: Update",
           "description": "New release onto an existing deployment: recovery point, plan review with rollback eligibility, apply, verify, governed rollback or restore",
           "maturity": "active",
@@ -164,7 +175,7 @@
         },
         {
           "path": "guides/runbooks/rotate.md",
-          "docType": "runbook",
+          "docType": "rotate-runbook",
           "title": "Runbook: Rotate",
           "description": "Credential rotation, resume of parked rotations, revocation and credential-store recovery with values only on standard input",
           "maturity": "active",
@@ -175,7 +186,7 @@
         },
         {
           "path": "guides/runbooks/restore.md",
-          "docType": "runbook",
+          "docType": "restore-runbook",
           "title": "Runbook: Restore",
           "description": "Verify and restore a recovery point onto the same or a replacement host with measured RTO/RPO",
           "maturity": "active",
@@ -186,7 +197,7 @@
         },
         {
           "path": "guides/runbooks/incident.md",
-          "docType": "runbook",
+          "docType": "incident-card",
           "title": "Runbook: Incident",
           "description": "First ten minutes of an incident: diagnose, contain, recover, verify, record",
           "maturity": "active",
@@ -197,7 +208,7 @@
         },
         {
           "path": "guides/runbooks/retire.md",
-          "docType": "runbook",
+          "docType": "retire-runbook",
           "title": "Runbook: Retire",
           "description": "Retire a deployment through the retire plan/apply routes with an explicit retention policy",
           "maturity": "active",
@@ -216,7 +227,7 @@
       "documents": [
         {
           "path": "reference/api-endpoints.md",
-          "docType": "api-reference",
+          "docType": "endpoint-reference",
           "title": "API Reference",
           "description": "REST API endpoint documentation",
           "maturity": "active",
@@ -227,7 +238,7 @@
         },
         {
           "path": "reference/identity-and-selectors.md",
-          "docType": "api-reference",
+          "docType": "identity-reference",
           "title": "Identity and Selectors",
           "description": "Stable deployment, target, release and operation identities; selector forms; schema version negotiation; typed error codes",
           "maturity": "active",
@@ -238,7 +249,7 @@
         },
         {
           "path": "reference/credential-lifecycle.md",
-          "docType": "api-reference",
+          "docType": "credential-reference",
           "title": "Credential Lifecycle",
           "description": "Descriptor-exact credential bindings, versioned rotation state machine, provider hooks per class, grant-aware distribution, target ingest/acknowledge/revoke verbs, revocation semantics, recovery and break-glass",
           "maturity": "active",
@@ -249,7 +260,7 @@
         },
         {
           "path": "reference/activation-and-reconciliation.md",
-          "docType": "api-reference",
+          "docType": "activation-reference",
           "title": "Activation and Reconciliation",
           "description": "Typed target verbs per action, release identity on the target, activation strategies and declared downtime, recoverable runtime->pointer->route ordering, predecessor retention and rollback eligibility, persistent data and legacy conversion, the desired/observed reconciliation model, desired-state contract for autoheal, retirement order and protected cleanup",
           "maturity": "active",
@@ -260,7 +271,7 @@
         },
         {
           "path": "reference/health-contract.md",
-          "docType": "api-reference",
+          "docType": "health-reference",
           "title": "Health Contract",
           "description": "HTTP transport semantics versus deployment health semantics; the typed HealthObservation (identity, release, observed_at, status, freshness, checks) and the fail-closed consumer rules",
           "maturity": "active",
@@ -293,7 +304,7 @@
         },
         {
           "path": "reference/executable-plan.md",
-          "docType": "api-reference",
+          "docType": "plan-reference",
           "title": "Executable Plan",
           "description": "One typed action graph for preview, policy and apply: envelope, semantic digest, action vocabulary, outcomes, endpoints",
           "maturity": "active",
@@ -304,7 +315,7 @@
         },
         {
           "path": "reference/operation-lifecycle.md",
-          "docType": "api-reference",
+          "docType": "operation-reference",
           "title": "Operation Lifecycle",
           "description": "Durable, fenced, recoverable cloud operations: state vocabulary and transitions, fence/lease ownership, step receipts and unknown effects, timeouts, startup reconciliation, wait/cancel/attach contract",
           "maturity": "active",
@@ -337,7 +348,7 @@
         },
         {
           "path": "reference/authorization-matrix.md",
-          "docType": "api-reference",
+          "docType": "authorization-reference",
           "title": "Authorization Matrix",
           "description": "Generated route/effect/scope/target table enforced by the management boundary; served at GET /api/v1/authz/matrix",
           "maturity": "active",
@@ -359,7 +370,7 @@
         },
         {
           "path": "reference/service-objectives.md",
-          "docType": "api-reference",
+          "docType": "objectives-reference",
           "title": "Service Objectives",
           "description": "Frozen phase-23 SLOs from certification/budgets.json: latency/error/resource budgets per fixture profile, management-process ceilings, queue/retry/timeout bounds, retention windows, alert conditions and the scenario-to-cloud.deployment.alert.v1 delivery contract",
           "maturity": "active",

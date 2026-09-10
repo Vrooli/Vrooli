@@ -9,11 +9,9 @@ without asking the user for a path.
 
 ## Intended Surfaces (web-search)
 
-> **Scaffold status (2026-06-09):** None of the surfaces below are built
-> yet. They are the *intended* UI from `PRD.md` (OT-P0-008, OT-P1-007).
-> The template `notes` feature is still present and will be removed once
-> the first real feature lands. The generic slot/manifest conventions in
-> the rest of this document apply unchanged.
+> **Current status (2026-09-06):** The search, findings, research,
+> operations, and dispute surfaces below are implemented. Historical
+> template scaffold notes belong in `docs/internal/PROGRESS.md`.
 
 web-search's UI is a vrooli-default operational-console surface
 (light + dark, WCAG AA) made of these planned feature folders under

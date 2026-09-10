@@ -18,9 +18,9 @@
   ],
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
   "draft": "",
@@ -37,7 +37,8 @@
     "1.0.1",
     "1.0.0",
     "1.0.11",
-    "1.0.12"
+    "1.0.12",
+    "1.0.13"
   ],
   "latest": "1.0.14",
   "libraryId": "react-component-library:Banner"

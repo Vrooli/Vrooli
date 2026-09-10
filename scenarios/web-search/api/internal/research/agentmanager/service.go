@@ -19,6 +19,10 @@ type Service interface {
 	GetRunState(context.Context, string) (RunState, error)
 }
 
+type Canceller interface {
+	Cancel(context.Context, string, string, string) (RunState, error)
+}
+
 // Waiting is a separate capability so unavailable transports cannot simulate polling.
 type (
 	Waiter interface {
@@ -29,6 +33,8 @@ type (
 		GatherCap, MaxLoops int
 		ConfidenceGate      float64
 		IdempotencyKey      string
+		Policy              map[string]any
+		Questions           []map[string]any
 	}
 	RunResult struct{ TaskID, RunID, Status string }
 	RunState  struct {
@@ -48,7 +54,18 @@ func (s *agentService) Spawn(ctx context.Context, r SpawnRequest) (RunResult, er
 	if key == "" {
 		key = uuid.NewString()
 	}
-	input, err := structpb.NewValue(map[string]any{"query": r.Query, "gather_cap": r.GatherCap, "confidence_gate": r.ConfidenceGate, "max_loops": r.MaxLoops})
+	inputMap := map[string]any{"query": r.Query, "gather_cap": r.GatherCap, "confidence_gate": r.ConfidenceGate, "max_loops": r.MaxLoops}
+	if r.Policy != nil {
+		inputMap["evidence_policy"] = r.Policy
+	}
+	if r.Questions != nil {
+		questions := make([]any, len(r.Questions))
+		for i, question := range r.Questions {
+			questions[i] = question
+		}
+		inputMap["questions"] = questions
+	}
+	input, err := structpb.NewValue(inputMap)
 	if err != nil {
 		return RunResult{}, err
 	}
@@ -87,6 +104,30 @@ func (s *agentService) Wait(ctx context.Context, id string, seconds int) (RunSta
 		return RunState{}, err
 	}
 	return s.state(ctx, e, timedOut)
+}
+
+func (s *agentService) Cancel(ctx context.Context, id, reason, idempotencyKey string) (RunState, error) {
+	e, err := s.client.Get(ctx, id)
+	if err != nil {
+		return RunState{}, err
+	}
+	if err = owned(e); err != nil {
+		return RunState{}, err
+	}
+	if strings.TrimSpace(idempotencyKey) == "" {
+		idempotencyKey = "cancel-" + id
+	}
+	canceller, ok := s.client.(CancelClient)
+	if !ok {
+		return RunState{}, fmt.Errorf("%w: owner cancellation is not configured", ErrNotAvailable)
+	}
+	e, err = canceller.Cancel(ctx, &apipb.WorkflowExecutionOperationRequest{
+		ExecutionId: id, IdempotencyKey: idempotencyKey, Reason: strings.TrimSpace(reason),
+	})
+	if err != nil {
+		return RunState{}, err
+	}
+	return s.state(ctx, e, false)
 }
 
 func owned(e *domainpb.WorkflowExecution) error {

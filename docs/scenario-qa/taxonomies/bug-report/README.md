@@ -111,6 +111,6 @@ Reporter and investigator may set:
 - [`README.md`](README.md) — scenario-qa team plan-of-record overview.
 - [`../../methods/investigation/README.md`](../../methods/investigation/README.md) — registry of techniques the investigator may apply.
 - [`../../methods/investigation/scientific-debugging.md`](../../methods/investigation/scientific-debugging.md) — the default technique for every signal type.
-- [`docs/agent-system/INTAKE_PIPELINE.md`](../agent-system/INTAKE_PIPELINE.md) — the inbox-router-drain pattern; bug-inbox uses *deterministic-prefix routing* (no classifier skill).
-- [`docs/agent-system/TOPICS.md`](../agent-system/TOPICS.md) — scenario-qa registry; bug-inbox listing.
-- [`scenarios/prompt-manager/store/skills/packs/core/report-bug/SKILL.md`](../../scenarios/prompt-manager/store/skills/packs/core/report-bug/SKILL.md) — the universal writer skill any agent invokes to file a bug.
+- [`docs/agent-system/INTAKE_PIPELINE.md`](../../../agent-system/INTAKE_PIPELINE.md) — the inbox-router-drain pattern; bug-inbox uses *deterministic-prefix routing* (no classifier skill).
+- [`docs/agent-system/TOPICS.md`](../../../agent-system/TOPICS.md) — scenario-qa registry; bug-inbox listing.
+- [`scenarios/prompt-manager/store/skills/packs/core/report-bug/SKILL.md`](../../../../scenarios/prompt-manager/store/skills/packs/core/report-bug/SKILL.md) — the universal writer skill any agent invokes to file a bug.
