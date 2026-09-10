@@ -543,3 +543,43 @@ func TestTriggerReviewAgent_RoutesToDeclaredWorkflow(t *testing.T) {
 		t.Errorf("round missing workflow association: %#v", round)
 	}
 }
+
+func TestStartReviewRetainsOwnerExecutionEvidenceAndUnavailableReason(t *testing.T) {
+	for _, unavailable := range []bool{false, true} {
+		t.Run(fmt.Sprint(unavailable), func(t *testing.T) {
+			svc := newTestService(&capturingSpawner{enabled: true}, "instructions")
+			itemDir := t.TempDir()
+			svc.itemDirFn = func(_, _ string) string { return itemDir }
+			svc.loadExecutionEvidence = func(_ context.Context, id string) (json.RawMessage, error) {
+				if id != "exec-evidence" {
+					t.Fatalf("wrong execution: %s", id)
+				}
+				if unavailable {
+					return nil, fmt.Errorf("owner run receipt unavailable")
+				}
+				return json.RawMessage(`{"state":"available","workflowExecutionId":"owner-1","workflows":[{"status":"SUCCEEDED","attempts":[{"runId":"worker-1"}]}]}`), nil
+			}
+			setTestReviewRunner(t, svc, &fakeReviewWorkflow{})
+			if err := svc.StartReviewForExecution(context.Background(), "exec-evidence", "execute", "evidence-item", "Evidence", "Outcome", itemDir, nil, nil, nil, nil, "", ""); err != nil {
+				t.Fatal(err)
+			}
+			round, err := LoadRound(itemDir, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var snapshot struct {
+				ExecutionEvidence map[string]any `json:"executionEvidence"`
+			}
+			if err := json.Unmarshal(round.AgentWorkflowSnapshot, &snapshot); err != nil {
+				t.Fatal(err)
+			}
+			if unavailable {
+				if snapshot.ExecutionEvidence["state"] != "unavailable" || snapshot.ExecutionEvidence["reason"] != "owner run receipt unavailable" {
+					t.Fatalf("missing owner failure: %s", round.AgentWorkflowSnapshot)
+				}
+			} else if snapshot.ExecutionEvidence["workflowExecutionId"] != "owner-1" || snapshot.ExecutionEvidence["workflows"] == nil {
+				t.Fatalf("dropped owner evidence: %s", round.AgentWorkflowSnapshot)
+			}
+		})
+	}
+}

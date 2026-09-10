@@ -8,7 +8,11 @@ package machines_v1
 
 import (
 	credentialgrant "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant"
+	machines "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines"
 	onboard "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
+	apply "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/apply"
+	operatorinputs "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorinputs"
+	readiness "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/readiness"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -131,16 +135,16 @@ func (x *GetConfigurationRequest) GetMachineId() string {
 }
 
 type GetConfigurationResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	QuestionsJson []byte                 `protobuf:"bytes,1,opt,name=questions_json,json=questionsJson,proto3" json:"questions_json,omitempty"`
-	ReadinessJson []byte                 `protobuf:"bytes,2,opt,name=readiness_json,json=readinessJson,proto3" json:"readiness_json,omitempty"`
-	TargetId      string                 `protobuf:"bytes,3,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
-	// The Bridge machine projection is returned as JSON so this surface can
-	// render desired/applied policy, drift, audit, and outcome evidence without
-	// inventing a second machine model.
-	MachineDetailJson []byte `protobuf:"bytes,4,opt,name=machine_detail_json,json=machineDetailJson,proto3" json:"machine_detail_json,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state     protoimpl.MessageState                     `protogen:"open.v1"`
+	Questions *operatorinputs.ListOperatorInputsResponse `protobuf:"bytes,1,opt,name=questions,proto3" json:"questions,omitempty"`
+	Readiness *readiness.GetReadinessResponse            `protobuf:"bytes,2,opt,name=readiness,proto3" json:"readiness,omitempty"`
+	TargetId  string                                     `protobuf:"bytes,3,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	// The Bridge machine projection is returned as the source-owned typed
+	// message so this surface can render policy, drift, audit, and outcome
+	// evidence without inventing a second machine model.
+	MachineDetail *machines.GetMachineResponse `protobuf:"bytes,4,opt,name=machine_detail,json=machineDetail,proto3" json:"machine_detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetConfigurationResponse) Reset() {
@@ -173,16 +177,16 @@ func (*GetConfigurationResponse) Descriptor() ([]byte, []int) {
 	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetConfigurationResponse) GetQuestionsJson() []byte {
+func (x *GetConfigurationResponse) GetQuestions() *operatorinputs.ListOperatorInputsResponse {
 	if x != nil {
-		return x.QuestionsJson
+		return x.Questions
 	}
 	return nil
 }
 
-func (x *GetConfigurationResponse) GetReadinessJson() []byte {
+func (x *GetConfigurationResponse) GetReadiness() *readiness.GetReadinessResponse {
 	if x != nil {
-		return x.ReadinessJson
+		return x.Readiness
 	}
 	return nil
 }
@@ -194,19 +198,22 @@ func (x *GetConfigurationResponse) GetTargetId() string {
 	return ""
 }
 
-func (x *GetConfigurationResponse) GetMachineDetailJson() []byte {
+func (x *GetConfigurationResponse) GetMachineDetail() *machines.GetMachineResponse {
 	if x != nil {
-		return x.MachineDetailJson
+		return x.MachineDetail
 	}
 	return nil
 }
 
 type ResolveConfigurationRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MachineId     string                 `protobuf:"bytes,1,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
-	AnswersJson   []byte                 `protobuf:"bytes,2,opt,name=answers_json,json=answersJson,proto3" json:"answers_json,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState   `protogen:"open.v1"`
+	MachineId string                   `protobuf:"bytes,1,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	Answers   []*operatorinputs.Answer `protobuf:"bytes,2,rep,name=answers,proto3" json:"answers,omitempty"`
+	// Configuration revision observed by the console with its questions and
+	// readiness. The target onboarding service rejects stale submissions.
+	ExpectedRevision string `protobuf:"bytes,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ResolveConfigurationRequest) Reset() {
@@ -246,17 +253,24 @@ func (x *ResolveConfigurationRequest) GetMachineId() string {
 	return ""
 }
 
-func (x *ResolveConfigurationRequest) GetAnswersJson() []byte {
+func (x *ResolveConfigurationRequest) GetAnswers() []*operatorinputs.Answer {
 	if x != nil {
-		return x.AnswersJson
+		return x.Answers
 	}
 	return nil
 }
 
+func (x *ResolveConfigurationRequest) GetExpectedRevision() string {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return ""
+}
+
 type ResolveConfigurationResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResultJson    []byte                 `protobuf:"bytes,1,opt,name=result_json,json=resultJson,proto3" json:"result_json,omitempty"`
-	TargetId      string                 `protobuf:"bytes,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	state         protoimpl.MessageState                        `protogen:"open.v1"`
+	Result        *operatorinputs.ResolveOperatorInputsResponse `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
+	TargetId      string                                        `protobuf:"bytes,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -291,9 +305,9 @@ func (*ResolveConfigurationResponse) Descriptor() ([]byte, []int) {
 	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ResolveConfigurationResponse) GetResultJson() []byte {
+func (x *ResolveConfigurationResponse) GetResult() *operatorinputs.ResolveOperatorInputsResponse {
 	if x != nil {
-		return x.ResultJson
+		return x.Result
 	}
 	return nil
 }
@@ -394,9 +408,9 @@ func (x *ReapplyConfigurationRequest) GetMachineId() string {
 }
 
 type ReapplyConfigurationResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResultJson    []byte                 `protobuf:"bytes,1,opt,name=result_json,json=resultJson,proto3" json:"result_json,omitempty"`
-	TargetId      string                 `protobuf:"bytes,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Result        *apply.StartApplyResponse `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
+	TargetId      string                    `protobuf:"bytes,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -431,9 +445,9 @@ func (*ReapplyConfigurationResponse) Descriptor() ([]byte, []int) {
 	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *ReapplyConfigurationResponse) GetResultJson() []byte {
+func (x *ReapplyConfigurationResponse) GetResult() *apply.StartApplyResponse {
 	if x != nil {
-		return x.ResultJson
+		return x.Result
 	}
 	return nil
 }
@@ -1614,32 +1628,31 @@ var File_web_console_v1_machines_machines_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_machines_machines_proto_rawDesc = "" +
 	"\n" +
-	"&web-console/v1/machines/machines.proto\x12\x1evrooli.web_console.v1.machines\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&vrooli-bridge/v1/onboard/onboard.proto\x1a\"web-console/v1/shared/target.proto\x1a6vrooli-bridge/v1/credentialgrant/credentialgrant.proto\"8\n" +
+	"&web-console/v1/machines/machines.proto\x12\x1evrooli.web_console.v1.machines\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&vrooli-bridge/v1/onboard/onboard.proto\x1a\"web-console/v1/shared/target.proto\x1a6vrooli-bridge/v1/credentialgrant/credentialgrant.proto\x1a(vrooli-bridge/v1/machines/machines.proto\x1a8vrooli-onboarding/v1/operatorinputs/operatorinputs.proto\x1a.vrooli-onboarding/v1/readiness/readiness.proto\x1a&vrooli-onboarding/v1/apply/apply.proto\"8\n" +
 	"\x17GetConfigurationRequest\x12\x1d\n" +
 	"\n" +
-	"machine_id\x18\x01 \x01(\tR\tmachineId\"\xb5\x01\n" +
-	"\x18GetConfigurationResponse\x12%\n" +
-	"\x0equestions_json\x18\x01 \x01(\fR\rquestionsJson\x12%\n" +
-	"\x0ereadiness_json\x18\x02 \x01(\fR\rreadinessJson\x12\x1b\n" +
-	"\ttarget_id\x18\x03 \x01(\tR\btargetId\x12.\n" +
-	"\x13machine_detail_json\x18\x04 \x01(\fR\x11machineDetailJson\"_\n" +
+	"machine_id\x18\x01 \x01(\tR\tmachineId\"\xd5\x02\n" +
+	"\x18GetConfigurationResponse\x12d\n" +
+	"\tquestions\x18\x01 \x01(\v2F.vrooli.vrooli_onboarding.v1.operatorinputs.ListOperatorInputsResponseR\tquestions\x12Y\n" +
+	"\treadiness\x18\x02 \x01(\v2;.vrooli.vrooli_onboarding.v1.readiness.GetReadinessResponseR\treadiness\x12\x1b\n" +
+	"\ttarget_id\x18\x03 \x01(\tR\btargetId\x12[\n" +
+	"\x0emachine_detail\x18\x04 \x01(\v24.vrooli.vrooli_bridge.v1.machines.GetMachineResponseR\rmachineDetail\"\xb7\x01\n" +
 	"\x1bResolveConfigurationRequest\x12\x1d\n" +
 	"\n" +
-	"machine_id\x18\x01 \x01(\tR\tmachineId\x12!\n" +
-	"\fanswers_json\x18\x02 \x01(\fR\vanswersJson\"\\\n" +
-	"\x1cResolveConfigurationResponse\x12\x1f\n" +
-	"\vresult_json\x18\x01 \x01(\fR\n" +
-	"resultJson\x12\x1b\n" +
+	"machine_id\x18\x01 \x01(\tR\tmachineId\x12L\n" +
+	"\aanswers\x18\x02 \x03(\v22.vrooli.vrooli_onboarding.v1.operatorinputs.AnswerR\aanswers\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\tR\x10expectedRevision\"\x9e\x01\n" +
+	"\x1cResolveConfigurationResponse\x12a\n" +
+	"\x06result\x18\x01 \x01(\v2I.vrooli.vrooli_onboarding.v1.operatorinputs.ResolveOperatorInputsResponseR\x06result\x12\x1b\n" +
 	"\ttarget_id\x18\x02 \x01(\tR\btargetId\"<\n" +
 	"\x1bListCredentialGrantsRequest\x12\x1d\n" +
 	"\n" +
 	"machine_id\x18\x01 \x01(\tR\tmachineId\"<\n" +
 	"\x1bReapplyConfigurationRequest\x12\x1d\n" +
 	"\n" +
-	"machine_id\x18\x01 \x01(\tR\tmachineId\"\\\n" +
-	"\x1cReapplyConfigurationResponse\x12\x1f\n" +
-	"\vresult_json\x18\x01 \x01(\fR\n" +
-	"resultJson\x12\x1b\n" +
+	"machine_id\x18\x01 \x01(\tR\tmachineId\"\x8a\x01\n" +
+	"\x1cReapplyConfigurationResponse\x12M\n" +
+	"\x06result\x18\x01 \x01(\v25.vrooli.vrooli_onboarding.v1.apply.StartApplyResponseR\x06result\x12\x1b\n" +
 	"\ttarget_id\x18\x02 \x01(\tR\btargetId\"Z\n" +
 	"\"GetConfigurationApplyStatusRequest\x12\x1d\n" +
 	"\n" +
@@ -1733,7 +1746,7 @@ const file_web_console_v1_machines_machines_proto_rawDesc = "" +
 	"\x11FLEET_STATE_READY\x10\x01\x12\x15\n" +
 	"\x11FLEET_STATE_EMPTY\x10\x02\x12\x1a\n" +
 	"\x16FLEET_STATE_UNENROLLED\x10\x03\x12\x1b\n" +
-	"\x17FLEET_STATE_UNREACHABLE\x10\x042\xde\x12\n" +
+	"\x17FLEET_STATE_UNREACHABLE\x10\x042\xd8\x12\n" +
 	"\x0eMachineService\x12a\n" +
 	"\x04List\x12+.vrooli.web_console.v1.machines.ListRequest\x1a,.vrooli.web_console.v1.machines.ListResponse\x12p\n" +
 	"\tIssueCode\x120.vrooli.web_console.v1.machines.IssueCodeRequest\x1a1.vrooli.web_console.v1.machines.IssueCodeResponse\x12g\n" +
@@ -1750,8 +1763,8 @@ const file_web_console_v1_machines_machines_proto_rawDesc = "" +
 	"\x14ListCredentialGrants\x12;.vrooli.web_console.v1.machines.ListCredentialGrantsRequest\x1a;.vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse\x12\x8e\x01\n" +
 	"\x15CreateCredentialGrant\x12;.vrooli.vrooli_bridge.v1.credentialgrant.CreateGrantRequest\x1a8.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant\x12\x8e\x01\n" +
 	"\x15RevokeCredentialGrant\x12;.vrooli.vrooli_bridge.v1.credentialgrant.RevokeGrantRequest\x1a8.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant\x12\x91\x01\n" +
-	"\x14ReapplyConfiguration\x12;.vrooli.web_console.v1.machines.ReapplyConfigurationRequest\x1a<.vrooli.web_console.v1.machines.ReapplyConfigurationResponse\x12\x9f\x01\n" +
-	"\x1bGetConfigurationApplyStatus\x12B.vrooli.web_console.v1.machines.GetConfigurationApplyStatusRequest\x1a<.vrooli.web_console.v1.machines.ReapplyConfigurationResponse\x12\x86\x01\n" +
+	"\x14ReapplyConfiguration\x12;.vrooli.web_console.v1.machines.ReapplyConfigurationRequest\x1a<.vrooli.web_console.v1.machines.ReapplyConfigurationResponse\x12\x99\x01\n" +
+	"\x1bGetConfigurationApplyStatus\x12B.vrooli.web_console.v1.machines.GetConfigurationApplyStatusRequest\x1a6.vrooli.vrooli_onboarding.v1.apply.GetApplyRunResponse\x12\x86\x01\n" +
 	"\fAnswerSecret\x12<.vrooli.vrooli_bridge.v1.credentialgrant.AnswerSecretRequest\x1a8.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/machines;machines_v1b\x06proto3"
 
 var (
@@ -1769,103 +1782,116 @@ func file_web_console_v1_machines_machines_proto_rawDescGZIP() []byte {
 var file_web_console_v1_machines_machines_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_web_console_v1_machines_machines_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_web_console_v1_machines_machines_proto_goTypes = []any{
-	(FleetState)(0),                             // 0: vrooli.web_console.v1.machines.FleetState
-	(*GetConfigurationRequest)(nil),             // 1: vrooli.web_console.v1.machines.GetConfigurationRequest
-	(*GetConfigurationResponse)(nil),            // 2: vrooli.web_console.v1.machines.GetConfigurationResponse
-	(*ResolveConfigurationRequest)(nil),         // 3: vrooli.web_console.v1.machines.ResolveConfigurationRequest
-	(*ResolveConfigurationResponse)(nil),        // 4: vrooli.web_console.v1.machines.ResolveConfigurationResponse
-	(*ListCredentialGrantsRequest)(nil),         // 5: vrooli.web_console.v1.machines.ListCredentialGrantsRequest
-	(*ReapplyConfigurationRequest)(nil),         // 6: vrooli.web_console.v1.machines.ReapplyConfigurationRequest
-	(*ReapplyConfigurationResponse)(nil),        // 7: vrooli.web_console.v1.machines.ReapplyConfigurationResponse
-	(*GetConfigurationApplyStatusRequest)(nil),  // 8: vrooli.web_console.v1.machines.GetConfigurationApplyStatusRequest
-	(*Grant)(nil),                               // 9: vrooli.web_console.v1.machines.Grant
-	(*MachineDrift)(nil),                        // 10: vrooli.web_console.v1.machines.MachineDrift
-	(*Machine)(nil),                             // 11: vrooli.web_console.v1.machines.Machine
-	(*JoinRequest)(nil),                         // 12: vrooli.web_console.v1.machines.JoinRequest
-	(*PermissionPreset)(nil),                    // 13: vrooli.web_console.v1.machines.PermissionPreset
-	(*ControlPlane)(nil),                        // 14: vrooli.web_console.v1.machines.ControlPlane
-	(*ListRequest)(nil),                         // 15: vrooli.web_console.v1.machines.ListRequest
-	(*ListResponse)(nil),                        // 16: vrooli.web_console.v1.machines.ListResponse
-	(*IssueCodeRequest)(nil),                    // 17: vrooli.web_console.v1.machines.IssueCodeRequest
-	(*IssueCodeResponse)(nil),                   // 18: vrooli.web_console.v1.machines.IssueCodeResponse
-	(*DecideRequest)(nil),                       // 19: vrooli.web_console.v1.machines.DecideRequest
-	(*DecideResponse)(nil),                      // 20: vrooli.web_console.v1.machines.DecideResponse
-	(*SetGrantRequest)(nil),                     // 21: vrooli.web_console.v1.machines.SetGrantRequest
-	(*SetGrantResponse)(nil),                    // 22: vrooli.web_console.v1.machines.SetGrantResponse
-	(*ForgetRequest)(nil),                       // 23: vrooli.web_console.v1.machines.ForgetRequest
-	(*ForgetResponse)(nil),                      // 24: vrooli.web_console.v1.machines.ForgetResponse
-	(*shared.Target)(nil),                       // 25: vrooli.web_console.v1.shared.Target
-	(*timestamppb.Timestamp)(nil),               // 26: google.protobuf.Timestamp
-	(*onboard.PreflightOnboardingRequest)(nil),  // 27: vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingRequest
-	(*onboard.StartOnboardingRequest)(nil),      // 28: vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest
-	(*onboard.GetOnboardingRequest)(nil),        // 29: vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest
-	(*onboard.WaitOnboardingRequest)(nil),       // 30: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest
-	(*onboard.CancelOnboardingRequest)(nil),     // 31: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest
-	(*credentialgrant.CreateGrantRequest)(nil),  // 32: vrooli.vrooli_bridge.v1.credentialgrant.CreateGrantRequest
-	(*credentialgrant.RevokeGrantRequest)(nil),  // 33: vrooli.vrooli_bridge.v1.credentialgrant.RevokeGrantRequest
-	(*credentialgrant.AnswerSecretRequest)(nil), // 34: vrooli.vrooli_bridge.v1.credentialgrant.AnswerSecretRequest
-	(*onboard.PreflightOnboardingResponse)(nil), // 35: vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingResponse
-	(*onboard.StartOnboardingResponse)(nil),     // 36: vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
-	(*onboard.GetOnboardingResponse)(nil),       // 37: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
-	(*onboard.WaitOnboardingResponse)(nil),      // 38: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
-	(*onboard.CancelOnboardingResponse)(nil),    // 39: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
-	(*credentialgrant.ListGrantsResponse)(nil),  // 40: vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse
-	(*credentialgrant.CredentialGrant)(nil),     // 41: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
+	(FleetState)(0),                                      // 0: vrooli.web_console.v1.machines.FleetState
+	(*GetConfigurationRequest)(nil),                      // 1: vrooli.web_console.v1.machines.GetConfigurationRequest
+	(*GetConfigurationResponse)(nil),                     // 2: vrooli.web_console.v1.machines.GetConfigurationResponse
+	(*ResolveConfigurationRequest)(nil),                  // 3: vrooli.web_console.v1.machines.ResolveConfigurationRequest
+	(*ResolveConfigurationResponse)(nil),                 // 4: vrooli.web_console.v1.machines.ResolveConfigurationResponse
+	(*ListCredentialGrantsRequest)(nil),                  // 5: vrooli.web_console.v1.machines.ListCredentialGrantsRequest
+	(*ReapplyConfigurationRequest)(nil),                  // 6: vrooli.web_console.v1.machines.ReapplyConfigurationRequest
+	(*ReapplyConfigurationResponse)(nil),                 // 7: vrooli.web_console.v1.machines.ReapplyConfigurationResponse
+	(*GetConfigurationApplyStatusRequest)(nil),           // 8: vrooli.web_console.v1.machines.GetConfigurationApplyStatusRequest
+	(*Grant)(nil),                                        // 9: vrooli.web_console.v1.machines.Grant
+	(*MachineDrift)(nil),                                 // 10: vrooli.web_console.v1.machines.MachineDrift
+	(*Machine)(nil),                                      // 11: vrooli.web_console.v1.machines.Machine
+	(*JoinRequest)(nil),                                  // 12: vrooli.web_console.v1.machines.JoinRequest
+	(*PermissionPreset)(nil),                             // 13: vrooli.web_console.v1.machines.PermissionPreset
+	(*ControlPlane)(nil),                                 // 14: vrooli.web_console.v1.machines.ControlPlane
+	(*ListRequest)(nil),                                  // 15: vrooli.web_console.v1.machines.ListRequest
+	(*ListResponse)(nil),                                 // 16: vrooli.web_console.v1.machines.ListResponse
+	(*IssueCodeRequest)(nil),                             // 17: vrooli.web_console.v1.machines.IssueCodeRequest
+	(*IssueCodeResponse)(nil),                            // 18: vrooli.web_console.v1.machines.IssueCodeResponse
+	(*DecideRequest)(nil),                                // 19: vrooli.web_console.v1.machines.DecideRequest
+	(*DecideResponse)(nil),                               // 20: vrooli.web_console.v1.machines.DecideResponse
+	(*SetGrantRequest)(nil),                              // 21: vrooli.web_console.v1.machines.SetGrantRequest
+	(*SetGrantResponse)(nil),                             // 22: vrooli.web_console.v1.machines.SetGrantResponse
+	(*ForgetRequest)(nil),                                // 23: vrooli.web_console.v1.machines.ForgetRequest
+	(*ForgetResponse)(nil),                               // 24: vrooli.web_console.v1.machines.ForgetResponse
+	(*operatorinputs.ListOperatorInputsResponse)(nil),    // 25: vrooli.vrooli_onboarding.v1.operatorinputs.ListOperatorInputsResponse
+	(*readiness.GetReadinessResponse)(nil),               // 26: vrooli.vrooli_onboarding.v1.readiness.GetReadinessResponse
+	(*machines.GetMachineResponse)(nil),                  // 27: vrooli.vrooli_bridge.v1.machines.GetMachineResponse
+	(*operatorinputs.Answer)(nil),                        // 28: vrooli.vrooli_onboarding.v1.operatorinputs.Answer
+	(*operatorinputs.ResolveOperatorInputsResponse)(nil), // 29: vrooli.vrooli_onboarding.v1.operatorinputs.ResolveOperatorInputsResponse
+	(*apply.StartApplyResponse)(nil),                     // 30: vrooli.vrooli_onboarding.v1.apply.StartApplyResponse
+	(*shared.Target)(nil),                                // 31: vrooli.web_console.v1.shared.Target
+	(*timestamppb.Timestamp)(nil),                        // 32: google.protobuf.Timestamp
+	(*onboard.PreflightOnboardingRequest)(nil),           // 33: vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingRequest
+	(*onboard.StartOnboardingRequest)(nil),               // 34: vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest
+	(*onboard.GetOnboardingRequest)(nil),                 // 35: vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest
+	(*onboard.WaitOnboardingRequest)(nil),                // 36: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest
+	(*onboard.CancelOnboardingRequest)(nil),              // 37: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest
+	(*credentialgrant.CreateGrantRequest)(nil),           // 38: vrooli.vrooli_bridge.v1.credentialgrant.CreateGrantRequest
+	(*credentialgrant.RevokeGrantRequest)(nil),           // 39: vrooli.vrooli_bridge.v1.credentialgrant.RevokeGrantRequest
+	(*credentialgrant.AnswerSecretRequest)(nil),          // 40: vrooli.vrooli_bridge.v1.credentialgrant.AnswerSecretRequest
+	(*onboard.PreflightOnboardingResponse)(nil),          // 41: vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingResponse
+	(*onboard.StartOnboardingResponse)(nil),              // 42: vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
+	(*onboard.GetOnboardingResponse)(nil),                // 43: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
+	(*onboard.WaitOnboardingResponse)(nil),               // 44: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
+	(*onboard.CancelOnboardingResponse)(nil),             // 45: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
+	(*credentialgrant.ListGrantsResponse)(nil),           // 46: vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse
+	(*credentialgrant.CredentialGrant)(nil),              // 47: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
+	(*apply.GetApplyRunResponse)(nil),                    // 48: vrooli.vrooli_onboarding.v1.apply.GetApplyRunResponse
 }
 var file_web_console_v1_machines_machines_proto_depIdxs = []int32{
-	25, // 0: vrooli.web_console.v1.machines.Machine.target:type_name -> vrooli.web_console.v1.shared.Target
-	9,  // 1: vrooli.web_console.v1.machines.Machine.grant:type_name -> vrooli.web_console.v1.machines.Grant
-	10, // 2: vrooli.web_console.v1.machines.Machine.drift:type_name -> vrooli.web_console.v1.machines.MachineDrift
-	26, // 3: vrooli.web_console.v1.machines.JoinRequest.requested_at:type_name -> google.protobuf.Timestamp
-	0,  // 4: vrooli.web_console.v1.machines.ListResponse.state:type_name -> vrooli.web_console.v1.machines.FleetState
-	11, // 5: vrooli.web_console.v1.machines.ListResponse.machines:type_name -> vrooli.web_console.v1.machines.Machine
-	12, // 6: vrooli.web_console.v1.machines.ListResponse.join_requests:type_name -> vrooli.web_console.v1.machines.JoinRequest
-	13, // 7: vrooli.web_console.v1.machines.ListResponse.presets:type_name -> vrooli.web_console.v1.machines.PermissionPreset
-	14, // 8: vrooli.web_console.v1.machines.ListResponse.control_plane:type_name -> vrooli.web_console.v1.machines.ControlPlane
-	26, // 9: vrooli.web_console.v1.machines.IssueCodeResponse.expires_at:type_name -> google.protobuf.Timestamp
-	11, // 10: vrooli.web_console.v1.machines.DecideResponse.machine:type_name -> vrooli.web_console.v1.machines.Machine
-	11, // 11: vrooli.web_console.v1.machines.SetGrantResponse.machine:type_name -> vrooli.web_console.v1.machines.Machine
-	15, // 12: vrooli.web_console.v1.machines.MachineService.List:input_type -> vrooli.web_console.v1.machines.ListRequest
-	17, // 13: vrooli.web_console.v1.machines.MachineService.IssueCode:input_type -> vrooli.web_console.v1.machines.IssueCodeRequest
-	19, // 14: vrooli.web_console.v1.machines.MachineService.Decide:input_type -> vrooli.web_console.v1.machines.DecideRequest
-	21, // 15: vrooli.web_console.v1.machines.MachineService.SetGrant:input_type -> vrooli.web_console.v1.machines.SetGrantRequest
-	23, // 16: vrooli.web_console.v1.machines.MachineService.Forget:input_type -> vrooli.web_console.v1.machines.ForgetRequest
-	27, // 17: vrooli.web_console.v1.machines.MachineService.PreflightOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingRequest
-	28, // 18: vrooli.web_console.v1.machines.MachineService.StartOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest
-	29, // 19: vrooli.web_console.v1.machines.MachineService.GetOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest
-	30, // 20: vrooli.web_console.v1.machines.MachineService.WaitOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest
-	31, // 21: vrooli.web_console.v1.machines.MachineService.CancelOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest
-	1,  // 22: vrooli.web_console.v1.machines.MachineService.GetConfiguration:input_type -> vrooli.web_console.v1.machines.GetConfigurationRequest
-	3,  // 23: vrooli.web_console.v1.machines.MachineService.ResolveConfiguration:input_type -> vrooli.web_console.v1.machines.ResolveConfigurationRequest
-	5,  // 24: vrooli.web_console.v1.machines.MachineService.ListCredentialGrants:input_type -> vrooli.web_console.v1.machines.ListCredentialGrantsRequest
-	32, // 25: vrooli.web_console.v1.machines.MachineService.CreateCredentialGrant:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.CreateGrantRequest
-	33, // 26: vrooli.web_console.v1.machines.MachineService.RevokeCredentialGrant:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.RevokeGrantRequest
-	6,  // 27: vrooli.web_console.v1.machines.MachineService.ReapplyConfiguration:input_type -> vrooli.web_console.v1.machines.ReapplyConfigurationRequest
-	8,  // 28: vrooli.web_console.v1.machines.MachineService.GetConfigurationApplyStatus:input_type -> vrooli.web_console.v1.machines.GetConfigurationApplyStatusRequest
-	34, // 29: vrooli.web_console.v1.machines.MachineService.AnswerSecret:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.AnswerSecretRequest
-	16, // 30: vrooli.web_console.v1.machines.MachineService.List:output_type -> vrooli.web_console.v1.machines.ListResponse
-	18, // 31: vrooli.web_console.v1.machines.MachineService.IssueCode:output_type -> vrooli.web_console.v1.machines.IssueCodeResponse
-	20, // 32: vrooli.web_console.v1.machines.MachineService.Decide:output_type -> vrooli.web_console.v1.machines.DecideResponse
-	22, // 33: vrooli.web_console.v1.machines.MachineService.SetGrant:output_type -> vrooli.web_console.v1.machines.SetGrantResponse
-	24, // 34: vrooli.web_console.v1.machines.MachineService.Forget:output_type -> vrooli.web_console.v1.machines.ForgetResponse
-	35, // 35: vrooli.web_console.v1.machines.MachineService.PreflightOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingResponse
-	36, // 36: vrooli.web_console.v1.machines.MachineService.StartOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
-	37, // 37: vrooli.web_console.v1.machines.MachineService.GetOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
-	38, // 38: vrooli.web_console.v1.machines.MachineService.WaitOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
-	39, // 39: vrooli.web_console.v1.machines.MachineService.CancelOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
-	2,  // 40: vrooli.web_console.v1.machines.MachineService.GetConfiguration:output_type -> vrooli.web_console.v1.machines.GetConfigurationResponse
-	4,  // 41: vrooli.web_console.v1.machines.MachineService.ResolveConfiguration:output_type -> vrooli.web_console.v1.machines.ResolveConfigurationResponse
-	40, // 42: vrooli.web_console.v1.machines.MachineService.ListCredentialGrants:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse
-	41, // 43: vrooli.web_console.v1.machines.MachineService.CreateCredentialGrant:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
-	41, // 44: vrooli.web_console.v1.machines.MachineService.RevokeCredentialGrant:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
-	7,  // 45: vrooli.web_console.v1.machines.MachineService.ReapplyConfiguration:output_type -> vrooli.web_console.v1.machines.ReapplyConfigurationResponse
-	7,  // 46: vrooli.web_console.v1.machines.MachineService.GetConfigurationApplyStatus:output_type -> vrooli.web_console.v1.machines.ReapplyConfigurationResponse
-	41, // 47: vrooli.web_console.v1.machines.MachineService.AnswerSecret:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
-	30, // [30:48] is the sub-list for method output_type
-	12, // [12:30] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	25, // 0: vrooli.web_console.v1.machines.GetConfigurationResponse.questions:type_name -> vrooli.vrooli_onboarding.v1.operatorinputs.ListOperatorInputsResponse
+	26, // 1: vrooli.web_console.v1.machines.GetConfigurationResponse.readiness:type_name -> vrooli.vrooli_onboarding.v1.readiness.GetReadinessResponse
+	27, // 2: vrooli.web_console.v1.machines.GetConfigurationResponse.machine_detail:type_name -> vrooli.vrooli_bridge.v1.machines.GetMachineResponse
+	28, // 3: vrooli.web_console.v1.machines.ResolveConfigurationRequest.answers:type_name -> vrooli.vrooli_onboarding.v1.operatorinputs.Answer
+	29, // 4: vrooli.web_console.v1.machines.ResolveConfigurationResponse.result:type_name -> vrooli.vrooli_onboarding.v1.operatorinputs.ResolveOperatorInputsResponse
+	30, // 5: vrooli.web_console.v1.machines.ReapplyConfigurationResponse.result:type_name -> vrooli.vrooli_onboarding.v1.apply.StartApplyResponse
+	31, // 6: vrooli.web_console.v1.machines.Machine.target:type_name -> vrooli.web_console.v1.shared.Target
+	9,  // 7: vrooli.web_console.v1.machines.Machine.grant:type_name -> vrooli.web_console.v1.machines.Grant
+	10, // 8: vrooli.web_console.v1.machines.Machine.drift:type_name -> vrooli.web_console.v1.machines.MachineDrift
+	32, // 9: vrooli.web_console.v1.machines.JoinRequest.requested_at:type_name -> google.protobuf.Timestamp
+	0,  // 10: vrooli.web_console.v1.machines.ListResponse.state:type_name -> vrooli.web_console.v1.machines.FleetState
+	11, // 11: vrooli.web_console.v1.machines.ListResponse.machines:type_name -> vrooli.web_console.v1.machines.Machine
+	12, // 12: vrooli.web_console.v1.machines.ListResponse.join_requests:type_name -> vrooli.web_console.v1.machines.JoinRequest
+	13, // 13: vrooli.web_console.v1.machines.ListResponse.presets:type_name -> vrooli.web_console.v1.machines.PermissionPreset
+	14, // 14: vrooli.web_console.v1.machines.ListResponse.control_plane:type_name -> vrooli.web_console.v1.machines.ControlPlane
+	32, // 15: vrooli.web_console.v1.machines.IssueCodeResponse.expires_at:type_name -> google.protobuf.Timestamp
+	11, // 16: vrooli.web_console.v1.machines.DecideResponse.machine:type_name -> vrooli.web_console.v1.machines.Machine
+	11, // 17: vrooli.web_console.v1.machines.SetGrantResponse.machine:type_name -> vrooli.web_console.v1.machines.Machine
+	15, // 18: vrooli.web_console.v1.machines.MachineService.List:input_type -> vrooli.web_console.v1.machines.ListRequest
+	17, // 19: vrooli.web_console.v1.machines.MachineService.IssueCode:input_type -> vrooli.web_console.v1.machines.IssueCodeRequest
+	19, // 20: vrooli.web_console.v1.machines.MachineService.Decide:input_type -> vrooli.web_console.v1.machines.DecideRequest
+	21, // 21: vrooli.web_console.v1.machines.MachineService.SetGrant:input_type -> vrooli.web_console.v1.machines.SetGrantRequest
+	23, // 22: vrooli.web_console.v1.machines.MachineService.Forget:input_type -> vrooli.web_console.v1.machines.ForgetRequest
+	33, // 23: vrooli.web_console.v1.machines.MachineService.PreflightOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingRequest
+	34, // 24: vrooli.web_console.v1.machines.MachineService.StartOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest
+	35, // 25: vrooli.web_console.v1.machines.MachineService.GetOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest
+	36, // 26: vrooli.web_console.v1.machines.MachineService.WaitOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest
+	37, // 27: vrooli.web_console.v1.machines.MachineService.CancelOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest
+	1,  // 28: vrooli.web_console.v1.machines.MachineService.GetConfiguration:input_type -> vrooli.web_console.v1.machines.GetConfigurationRequest
+	3,  // 29: vrooli.web_console.v1.machines.MachineService.ResolveConfiguration:input_type -> vrooli.web_console.v1.machines.ResolveConfigurationRequest
+	5,  // 30: vrooli.web_console.v1.machines.MachineService.ListCredentialGrants:input_type -> vrooli.web_console.v1.machines.ListCredentialGrantsRequest
+	38, // 31: vrooli.web_console.v1.machines.MachineService.CreateCredentialGrant:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.CreateGrantRequest
+	39, // 32: vrooli.web_console.v1.machines.MachineService.RevokeCredentialGrant:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.RevokeGrantRequest
+	6,  // 33: vrooli.web_console.v1.machines.MachineService.ReapplyConfiguration:input_type -> vrooli.web_console.v1.machines.ReapplyConfigurationRequest
+	8,  // 34: vrooli.web_console.v1.machines.MachineService.GetConfigurationApplyStatus:input_type -> vrooli.web_console.v1.machines.GetConfigurationApplyStatusRequest
+	40, // 35: vrooli.web_console.v1.machines.MachineService.AnswerSecret:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.AnswerSecretRequest
+	16, // 36: vrooli.web_console.v1.machines.MachineService.List:output_type -> vrooli.web_console.v1.machines.ListResponse
+	18, // 37: vrooli.web_console.v1.machines.MachineService.IssueCode:output_type -> vrooli.web_console.v1.machines.IssueCodeResponse
+	20, // 38: vrooli.web_console.v1.machines.MachineService.Decide:output_type -> vrooli.web_console.v1.machines.DecideResponse
+	22, // 39: vrooli.web_console.v1.machines.MachineService.SetGrant:output_type -> vrooli.web_console.v1.machines.SetGrantResponse
+	24, // 40: vrooli.web_console.v1.machines.MachineService.Forget:output_type -> vrooli.web_console.v1.machines.ForgetResponse
+	41, // 41: vrooli.web_console.v1.machines.MachineService.PreflightOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingResponse
+	42, // 42: vrooli.web_console.v1.machines.MachineService.StartOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
+	43, // 43: vrooli.web_console.v1.machines.MachineService.GetOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
+	44, // 44: vrooli.web_console.v1.machines.MachineService.WaitOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
+	45, // 45: vrooli.web_console.v1.machines.MachineService.CancelOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
+	2,  // 46: vrooli.web_console.v1.machines.MachineService.GetConfiguration:output_type -> vrooli.web_console.v1.machines.GetConfigurationResponse
+	4,  // 47: vrooli.web_console.v1.machines.MachineService.ResolveConfiguration:output_type -> vrooli.web_console.v1.machines.ResolveConfigurationResponse
+	46, // 48: vrooli.web_console.v1.machines.MachineService.ListCredentialGrants:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse
+	47, // 49: vrooli.web_console.v1.machines.MachineService.CreateCredentialGrant:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
+	47, // 50: vrooli.web_console.v1.machines.MachineService.RevokeCredentialGrant:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
+	7,  // 51: vrooli.web_console.v1.machines.MachineService.ReapplyConfiguration:output_type -> vrooli.web_console.v1.machines.ReapplyConfigurationResponse
+	48, // 52: vrooli.web_console.v1.machines.MachineService.GetConfigurationApplyStatus:output_type -> vrooli.vrooli_onboarding.v1.apply.GetApplyRunResponse
+	47, // 53: vrooli.web_console.v1.machines.MachineService.AnswerSecret:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
+	36, // [36:54] is the sub-list for method output_type
+	18, // [18:36] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_machines_machines_proto_init() }

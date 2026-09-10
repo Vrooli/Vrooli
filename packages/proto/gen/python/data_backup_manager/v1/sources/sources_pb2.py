@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n,data-backup-manager/v1/sources/sources.proto\x12%vrooli.data_backup_manager.v1.sources*\xc6\x01\n\nSourceKind\x12\x1b\n\x17SOURCE_KIND_UNSPECIFIED\x10\x00\x12\x1a\n\x16SOURCE_KIND_FILESYSTEM\x10\x01\x12\x16\n\x12SOURCE_KIND_SQLITE\x10\x02\x12\x18\n\x14SOURCE_KIND_POSTGRES\x10\x03\x12\x15\n\x11SOURCE_KIND_REDIS\x10\x04\x12\x16\n\x12SOURCE_KIND_QDRANT\x10\x05\x12\x1e\n\x1aSOURCE_KIND_OBJECT_STORAGE\x10\x06\x42ZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/sources;sources_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n,data-backup-manager/v1/sources/sources.proto\x12%vrooli.data_backup_manager.v1.sources*\xec\x01\n\nSourceKind\x12\x1b\n\x17SOURCE_KIND_UNSPECIFIED\x10\x00\x12\x1a\n\x16SOURCE_KIND_FILESYSTEM\x10\x01\x12\x16\n\x12SOURCE_KIND_SQLITE\x10\x02\x12\x18\n\x14SOURCE_KIND_POSTGRES\x10\x03\x12\x15\n\x11SOURCE_KIND_REDIS\x10\x04\x12\x16\n\x12SOURCE_KIND_QDRANT\x10\x05\x12\x1e\n\x1aSOURCE_KIND_OBJECT_STORAGE\x10\x06\x12$\n SOURCE_KIND_WORKSPACE_CHECKPOINT\x10\x07\x42ZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/sources;sources_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,5 +33,5 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZXgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/sources;sources_v1'
   _globals['_SOURCEKIND']._serialized_start=88
-  _globals['_SOURCEKIND']._serialized_end=286
+  _globals['_SOURCEKIND']._serialized_end=324
 # @@protoc_insertion_point(module_scope)

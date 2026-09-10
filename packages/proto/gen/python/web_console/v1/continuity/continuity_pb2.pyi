@@ -11,7 +11,7 @@ class IntegrityRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class IntegrityResponse(_message.Message):
-    __slots__ = ("sessions", "conversation_sessions", "conversation_events", "checkpoints", "workspace_panes", "orphan_conversations", "orphan_checkpoints", "orphan_workspace_panes", "generation", "event_content_hash")
+    __slots__ = ("sessions", "conversation_sessions", "conversation_events", "checkpoints", "workspace_panes", "orphan_conversations", "orphan_checkpoints", "orphan_workspace_panes", "generation", "event_content_hash", "uncataloged_conversations")
     SESSIONS_FIELD_NUMBER: _ClassVar[int]
     CONVERSATION_SESSIONS_FIELD_NUMBER: _ClassVar[int]
     CONVERSATION_EVENTS_FIELD_NUMBER: _ClassVar[int]
@@ -22,6 +22,7 @@ class IntegrityResponse(_message.Message):
     ORPHAN_WORKSPACE_PANES_FIELD_NUMBER: _ClassVar[int]
     GENERATION_FIELD_NUMBER: _ClassVar[int]
     EVENT_CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
+    UNCATALOGED_CONVERSATIONS_FIELD_NUMBER: _ClassVar[int]
     sessions: int
     conversation_sessions: int
     conversation_events: int
@@ -32,7 +33,8 @@ class IntegrityResponse(_message.Message):
     orphan_workspace_panes: int
     generation: str
     event_content_hash: str
-    def __init__(self, sessions: _Optional[int] = ..., conversation_sessions: _Optional[int] = ..., conversation_events: _Optional[int] = ..., checkpoints: _Optional[int] = ..., workspace_panes: _Optional[int] = ..., orphan_conversations: _Optional[int] = ..., orphan_checkpoints: _Optional[int] = ..., orphan_workspace_panes: _Optional[int] = ..., generation: _Optional[str] = ..., event_content_hash: _Optional[str] = ...) -> None: ...
+    uncataloged_conversations: int
+    def __init__(self, sessions: _Optional[int] = ..., conversation_sessions: _Optional[int] = ..., conversation_events: _Optional[int] = ..., checkpoints: _Optional[int] = ..., workspace_panes: _Optional[int] = ..., orphan_conversations: _Optional[int] = ..., orphan_checkpoints: _Optional[int] = ..., orphan_workspace_panes: _Optional[int] = ..., generation: _Optional[str] = ..., event_content_hash: _Optional[str] = ..., uncataloged_conversations: _Optional[int] = ...) -> None: ...
 
 class ReconcileRequest(_message.Message):
     __slots__ = ("apply", "generation", "operation_id", "manifest_hash", "offset", "batch_size")
@@ -145,20 +147,28 @@ class ListCatalogResponse(_message.Message):
     def __init__(self, records: _Optional[_Iterable[_Union[CatalogRecord, _Mapping]]] = ..., truncated: _Optional[bool] = ...) -> None: ...
 
 class SearchRequest(_message.Message):
-    __slots__ = ("query", "created_after", "agent_type", "lifecycle_state", "limit", "cwd")
+    __slots__ = ("query", "created_after", "agent_type", "lifecycle_state", "limit", "cwd", "session_id", "agent_session_id", "title", "topic_summary")
     QUERY_FIELD_NUMBER: _ClassVar[int]
     CREATED_AFTER_FIELD_NUMBER: _ClassVar[int]
     AGENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     LIFECYCLE_STATE_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     CWD_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    AGENT_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    TOPIC_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     query: str
     created_after: str
     agent_type: str
     lifecycle_state: str
     limit: int
     cwd: str
-    def __init__(self, query: _Optional[str] = ..., created_after: _Optional[str] = ..., agent_type: _Optional[str] = ..., lifecycle_state: _Optional[str] = ..., limit: _Optional[int] = ..., cwd: _Optional[str] = ...) -> None: ...
+    session_id: str
+    agent_session_id: str
+    title: str
+    topic_summary: str
+    def __init__(self, query: _Optional[str] = ..., created_after: _Optional[str] = ..., agent_type: _Optional[str] = ..., lifecycle_state: _Optional[str] = ..., limit: _Optional[int] = ..., cwd: _Optional[str] = ..., session_id: _Optional[str] = ..., agent_session_id: _Optional[str] = ..., title: _Optional[str] = ..., topic_summary: _Optional[str] = ...) -> None: ...
 
 class SearchMatch(_message.Message):
     __slots__ = ("event_id", "session_id", "sequence", "role", "created_at", "excerpt", "lifecycle_state")

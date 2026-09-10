@@ -334,8 +334,14 @@ func (s *Service) ItemGoalPriorities() (map[string]int, error) {
 		gin := in
 		gin.Targets = g.Targets
 		gin.Milestones = g.Milestones
-		for _, ref := range ComputeScope(gin).Closure {
-			priority := s.priorityForGoal(g)
+		closure := ComputeScope(gin).Closure
+		if len(closure) == 0 {
+			continue
+		}
+		// Goal priority is invariant across refs and may cost an Offer Desk
+		// read, so resolve it once per goal, and only for goals with refs.
+		priority := s.priorityForGoal(g)
+		for _, ref := range closure {
 			if p, ok := out[ref]; !ok || priority < p {
 				out[ref] = priority
 			}
@@ -365,8 +371,12 @@ func (s *Service) ReadyGoalItems() ([]ReadyGoalItem, error) {
 		gin := in
 		gin.Targets = g.Targets
 		gin.Milestones = g.Milestones
-		for _, ref := range ComputeScope(gin).Ready {
-			priority := s.priorityForGoal(g)
+		ready := ComputeScope(gin).Ready
+		if len(ready) == 0 {
+			continue
+		}
+		priority := s.priorityForGoal(g)
+		for _, ref := range ready {
 			if p, ok := best[ref]; !ok || priority < p {
 				best[ref] = priority
 			}

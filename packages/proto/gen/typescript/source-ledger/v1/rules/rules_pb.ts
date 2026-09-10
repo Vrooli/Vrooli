@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file source-ledger/v1/rules/rules.proto.
  */
 export const file_source_ledger_v1_rules_rules: GenFile = /*@__PURE__*/
-  fileDesc("CiJzb3VyY2UtbGVkZ2VyL3YxL3J1bGVzL3J1bGVzLnByb3RvEh12cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcyKsAQoEUnVsZRIKCgJpZBgBIAEoCRINCgVzY29wZRgCIAEoCRIQCghwcmlvcml0eRgDIAEoBRIQCghmYWNldF9pZBgEIAEoCRIWCg5zb3VyY2VfcnVudGltZRgFIAEoCRIMCgRraW5kGAYgASgJEhgKEHNvdXJjZV9wYXRoX2dsb2IYByABKAkSFAoMYm9keV9wYXR0ZXJuGAggASgJEg8KB2VuYWJsZWQYCSABKAgiIQoQTGlzdFJ1bGVzUmVxdWVzdBINCgVzY29wZRgBIAEoCSJHChFMaXN0UnVsZXNSZXNwb25zZRIyCgVydWxlcxgBIAMoCzIjLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnJ1bGVzLlJ1bGUiRgoRQ3JlYXRlUnVsZVJlcXVlc3QSMQoEcnVsZRgBIAEoCzIjLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnJ1bGVzLlJ1bGUiRwoSQ3JlYXRlUnVsZVJlc3BvbnNlEjEKBHJ1bGUYASABKAsyIy52cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcy5SdWxlIjMKEURyeVJ1blJ1bGVSZXF1ZXN0Eg8KB3J1bGVfaWQYASABKAkSDQoFc2NvcGUYAiABKAkiZwoSRHJ5UnVuUnVsZVJlc3BvbnNlEg8KB3J1bGVfaWQYASABKAkSGgoSY29ycHVzX2ZpbmdlcnByaW50GAIgASgJEhMKC21hdGNoX2NvdW50GAMgASgFEg8KB3NhbXBsZXMYBCADKAkiMwoRRW5hYmxlUnVsZVJlcXVlc3QSDwoHcnVsZV9pZBgBIAEoCRINCgVzY29wZRgCIAEoCSIUChJFbmFibGVSdWxlUmVzcG9uc2UiMwoRUmV2ZXJ0UnVsZVJlcXVlc3QSDwoHcnVsZV9pZBgBIAEoCRINCgVzY29wZRgCIAEoCSIsChJSZXZlcnRSdWxlUmVzcG9uc2USFgoOcmVzdG9yZWRfY291bnQYASABKAUiTAoUUmVmYWNldENvcnB1c1JlcXVlc3QSDQoFc2NvcGUYASABKAkSFgoOYWZ0ZXJfZW50cnlfaWQYAiABKAkSDQoFbGltaXQYAyABKAUinAEKFVJlZmFjZXRDb3JwdXNSZXNwb25zZRINCgV0b3RhbBgBIAEoBRIQCghhc3NpZ25lZBgCIAEoBRIVCg1ydWxlX2Fzc2lnbmVkGAMgASgFEhIKCmNsYXNzaWZpZWQYBCABKAUSDgoGZmFpbGVkGAUgASgFEhUKDW5leHRfZW50cnlfaWQYBiABKAkSEAoIY29tcGxldGUYByABKAgiKwoaTWVhc3VyZURpc3RyaWJ1dGlvblJlcXVlc3QSDQoFc2NvcGUYASABKAkingQKG01lYXN1cmVEaXN0cmlidXRpb25SZXNwb25zZRINCgVzY29wZRgBIAEoCRINCgV0b3RhbBgCIAEoBRIUCgxydWxlX21hdGNoZWQYAyABKAUSFwoPY2xhc3NpZmllcl90YWlsGAQgASgFEmMKDXJ1bGVfY292ZXJhZ2UYBSADKAsyTC52cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcy5NZWFzdXJlRGlzdHJpYnV0aW9uUmVzcG9uc2UuUnVsZUNvdmVyYWdlRW50cnkSdwoYY2xhc3NpZmllcl90YWlsX2J5X2ZhY2V0GAYgAygLMlUudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEucnVsZXMuTWVhc3VyZURpc3RyaWJ1dGlvblJlc3BvbnNlLkNsYXNzaWZpZXJUYWlsQnlGYWNldEVudHJ5EhcKD2NlaWxpbmdfcGVyY2VudBgHIAEoARIWCg5tYXhfdGFpbF9mYWNldBgIIAEoCRIYChBtYXhfdGFpbF9wZXJjZW50GAkgASgBEhYKDndpdGhpbl9jZWlsaW5nGAogASgIGjMKEVJ1bGVDb3ZlcmFnZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEaPAoaQ2xhc3NpZmllclRhaWxCeUZhY2V0RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgFOgI4ATLjBgoaQ2xhc3NpZmljYXRpb25SdWxlc1NlcnZpY2USbgoJTGlzdFJ1bGVzEi8udnJvb2xpLnNvdXJjZV9sZWRnZXIudjEucnVsZXMuTGlzdFJ1bGVzUmVxdWVzdBowLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnJ1bGVzLkxpc3RSdWxlc1Jlc3BvbnNlEnEKCkNyZWF0ZVJ1bGUSMC52cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcy5DcmVhdGVSdWxlUmVxdWVzdBoxLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnJ1bGVzLkNyZWF0ZVJ1bGVSZXNwb25zZRJxCgpEcnlSdW5SdWxlEjAudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEucnVsZXMuRHJ5UnVuUnVsZVJlcXVlc3QaMS52cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcy5EcnlSdW5SdWxlUmVzcG9uc2UScQoKRW5hYmxlUnVsZRIwLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnJ1bGVzLkVuYWJsZVJ1bGVSZXF1ZXN0GjEudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEucnVsZXMuRW5hYmxlUnVsZVJlc3BvbnNlEnEKClJldmVydFJ1bGUSMC52cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcy5SZXZlcnRSdWxlUmVxdWVzdBoxLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnJ1bGVzLlJldmVydFJ1bGVSZXNwb25zZRJ6Cg1SZWZhY2V0Q29ycHVzEjMudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEucnVsZXMuUmVmYWNldENvcnB1c1JlcXVlc3QaNC52cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcy5SZWZhY2V0Q29ycHVzUmVzcG9uc2USjAEKE01lYXN1cmVEaXN0cmlidXRpb24SOS52cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcy5NZWFzdXJlRGlzdHJpYnV0aW9uUmVxdWVzdBo6LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnJ1bGVzLk1lYXN1cmVEaXN0cmlidXRpb25SZXNwb25zZUJQWk5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NvdXJjZS1sZWRnZXIvdjEvcnVsZXM7cnVsZXNfdjFiBnByb3RvMw");
+  fileDesc("CiJzb3VyY2UtbGVkZ2VyL3YxL3J1bGVzL3J1bGVzLnByb3RvEh12cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcyK/AQoEUnVsZRIKCgJpZBgBIAEoCRINCgVzY29wZRgCIAEoCRIQCghwcmlvcml0eRgDIAEoBRIQCghmYWNldF9pZBgEIAEoCRIWCg5zb3VyY2VfcnVudGltZRgFIAEoCRIMCgRraW5kGAYgASgJEhgKEHNvdXJjZV9wYXRoX2dsb2IYByABKAkSFAoMYm9keV9wYXR0ZXJuGAggASgJEg8KB2VuYWJsZWQYCSABKAgSEQoJa2luZF9nbG9iGAogASgJIiEKEExpc3RSdWxlc1JlcXVlc3QSDQoFc2NvcGUYASABKAkiRwoRTGlzdFJ1bGVzUmVzcG9uc2USMgoFcnVsZXMYASADKAsyIy52cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcy5SdWxlIkYKEUNyZWF0ZVJ1bGVSZXF1ZXN0EjEKBHJ1bGUYASABKAsyIy52cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcy5SdWxlIkcKEkNyZWF0ZVJ1bGVSZXNwb25zZRIxCgRydWxlGAEgASgLMiMudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEucnVsZXMuUnVsZSIzChFEZWxldGVSdWxlUmVxdWVzdBIPCgdydWxlX2lkGAEgASgJEg0KBXNjb3BlGAIgASgJIhQKEkRlbGV0ZVJ1bGVSZXNwb25zZSIzChFEcnlSdW5SdWxlUmVxdWVzdBIPCgdydWxlX2lkGAEgASgJEg0KBXNjb3BlGAIgASgJImcKEkRyeVJ1blJ1bGVSZXNwb25zZRIPCgdydWxlX2lkGAEgASgJEhoKEmNvcnB1c19maW5nZXJwcmludBgCIAEoCRITCgttYXRjaF9jb3VudBgDIAEoBRIPCgdzYW1wbGVzGAQgAygJIjMKEUVuYWJsZVJ1bGVSZXF1ZXN0Eg8KB3J1bGVfaWQYASABKAkSDQoFc2NvcGUYAiABKAkiFAoSRW5hYmxlUnVsZVJlc3BvbnNlIjMKEVJldmVydFJ1bGVSZXF1ZXN0Eg8KB3J1bGVfaWQYASABKAkSDQoFc2NvcGUYAiABKAkiLAoSUmV2ZXJ0UnVsZVJlc3BvbnNlEhYKDnJlc3RvcmVkX2NvdW50GAEgASgFIkwKFFJlZmFjZXRDb3JwdXNSZXF1ZXN0Eg0KBXNjb3BlGAEgASgJEhYKDmFmdGVyX2VudHJ5X2lkGAIgASgJEg0KBWxpbWl0GAMgASgFIpwBChVSZWZhY2V0Q29ycHVzUmVzcG9uc2USDQoFdG90YWwYASABKAUSEAoIYXNzaWduZWQYAiABKAUSFQoNcnVsZV9hc3NpZ25lZBgDIAEoBRISCgpjbGFzc2lmaWVkGAQgASgFEg4KBmZhaWxlZBgFIAEoBRIVCg1uZXh0X2VudHJ5X2lkGAYgASgJEhAKCGNvbXBsZXRlGAcgASgIIisKGk1lYXN1cmVEaXN0cmlidXRpb25SZXF1ZXN0Eg0KBXNjb3BlGAEgASgJIp4EChtNZWFzdXJlRGlzdHJpYnV0aW9uUmVzcG9uc2USDQoFc2NvcGUYASABKAkSDQoFdG90YWwYAiABKAUSFAoMcnVsZV9tYXRjaGVkGAMgASgFEhcKD2NsYXNzaWZpZXJfdGFpbBgEIAEoBRJjCg1ydWxlX2NvdmVyYWdlGAUgAygLMkwudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEucnVsZXMuTWVhc3VyZURpc3RyaWJ1dGlvblJlc3BvbnNlLlJ1bGVDb3ZlcmFnZUVudHJ5EncKGGNsYXNzaWZpZXJfdGFpbF9ieV9mYWNldBgGIAMoCzJVLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnJ1bGVzLk1lYXN1cmVEaXN0cmlidXRpb25SZXNwb25zZS5DbGFzc2lmaWVyVGFpbEJ5RmFjZXRFbnRyeRIXCg9jZWlsaW5nX3BlcmNlbnQYByABKAESFgoObWF4X3RhaWxfZmFjZXQYCCABKAkSGAoQbWF4X3RhaWxfcGVyY2VudBgJIAEoARIWCg53aXRoaW5fY2VpbGluZxgKIAEoCBozChFSdWxlQ292ZXJhZ2VFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBGjwKGkNsYXNzaWZpZXJUYWlsQnlGYWNldEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEy1gcKGkNsYXNzaWZpY2F0aW9uUnVsZXNTZXJ2aWNlEm4KCUxpc3RSdWxlcxIvLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnJ1bGVzLkxpc3RSdWxlc1JlcXVlc3QaMC52cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcy5MaXN0UnVsZXNSZXNwb25zZRJxCgpDcmVhdGVSdWxlEjAudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEucnVsZXMuQ3JlYXRlUnVsZVJlcXVlc3QaMS52cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcy5DcmVhdGVSdWxlUmVzcG9uc2UScQoKRGVsZXRlUnVsZRIwLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnJ1bGVzLkRlbGV0ZVJ1bGVSZXF1ZXN0GjEudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEucnVsZXMuRGVsZXRlUnVsZVJlc3BvbnNlEnEKCkRyeVJ1blJ1bGUSMC52cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcy5EcnlSdW5SdWxlUmVxdWVzdBoxLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnJ1bGVzLkRyeVJ1blJ1bGVSZXNwb25zZRJxCgpFbmFibGVSdWxlEjAudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEucnVsZXMuRW5hYmxlUnVsZVJlcXVlc3QaMS52cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcy5FbmFibGVSdWxlUmVzcG9uc2UScQoKUmV2ZXJ0UnVsZRIwLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnJ1bGVzLlJldmVydFJ1bGVSZXF1ZXN0GjEudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEucnVsZXMuUmV2ZXJ0UnVsZVJlc3BvbnNlEnoKDVJlZmFjZXRDb3JwdXMSMy52cm9vbGkuc291cmNlX2xlZGdlci52MS5ydWxlcy5SZWZhY2V0Q29ycHVzUmVxdWVzdBo0LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnJ1bGVzLlJlZmFjZXRDb3JwdXNSZXNwb25zZRKMAQoTTWVhc3VyZURpc3RyaWJ1dGlvbhI5LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnJ1bGVzLk1lYXN1cmVEaXN0cmlidXRpb25SZXF1ZXN0GjoudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEucnVsZXMuTWVhc3VyZURpc3RyaWJ1dGlvblJlc3BvbnNlQlBaTmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc291cmNlLWxlZGdlci92MS9ydWxlcztydWxlc192MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.source_ledger.v1.rules.Rule
@@ -60,6 +60,11 @@ export type Rule = Message<"vrooli.source_ledger.v1.rules.Rule"> & {
    * @generated from field: bool enabled = 9;
    */
   enabled: boolean;
+
+  /**
+   * @generated from field: string kind_glob = 10;
+   */
+  kindGlob: string;
 };
 
 /**
@@ -138,6 +143,41 @@ export const CreateRuleResponseSchema: GenMessage<CreateRuleResponse> = /*@__PUR
   messageDesc(file_source_ledger_v1_rules_rules, 4);
 
 /**
+ * @generated from message vrooli.source_ledger.v1.rules.DeleteRuleRequest
+ */
+export type DeleteRuleRequest = Message<"vrooli.source_ledger.v1.rules.DeleteRuleRequest"> & {
+  /**
+   * @generated from field: string rule_id = 1;
+   */
+  ruleId: string;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.rules.DeleteRuleRequest.
+ * Use `create(DeleteRuleRequestSchema)` to create a new message.
+ */
+export const DeleteRuleRequestSchema: GenMessage<DeleteRuleRequest> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_rules_rules, 5);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.rules.DeleteRuleResponse
+ */
+export type DeleteRuleResponse = Message<"vrooli.source_ledger.v1.rules.DeleteRuleResponse"> & {
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.rules.DeleteRuleResponse.
+ * Use `create(DeleteRuleResponseSchema)` to create a new message.
+ */
+export const DeleteRuleResponseSchema: GenMessage<DeleteRuleResponse> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_rules_rules, 6);
+
+/**
  * @generated from message vrooli.source_ledger.v1.rules.DryRunRuleRequest
  */
 export type DryRunRuleRequest = Message<"vrooli.source_ledger.v1.rules.DryRunRuleRequest"> & {
@@ -157,7 +197,7 @@ export type DryRunRuleRequest = Message<"vrooli.source_ledger.v1.rules.DryRunRul
  * Use `create(DryRunRuleRequestSchema)` to create a new message.
  */
 export const DryRunRuleRequestSchema: GenMessage<DryRunRuleRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_rules_rules, 5);
+  messageDesc(file_source_ledger_v1_rules_rules, 7);
 
 /**
  * @generated from message vrooli.source_ledger.v1.rules.DryRunRuleResponse
@@ -189,7 +229,7 @@ export type DryRunRuleResponse = Message<"vrooli.source_ledger.v1.rules.DryRunRu
  * Use `create(DryRunRuleResponseSchema)` to create a new message.
  */
 export const DryRunRuleResponseSchema: GenMessage<DryRunRuleResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_rules_rules, 6);
+  messageDesc(file_source_ledger_v1_rules_rules, 8);
 
 /**
  * @generated from message vrooli.source_ledger.v1.rules.EnableRuleRequest
@@ -211,7 +251,7 @@ export type EnableRuleRequest = Message<"vrooli.source_ledger.v1.rules.EnableRul
  * Use `create(EnableRuleRequestSchema)` to create a new message.
  */
 export const EnableRuleRequestSchema: GenMessage<EnableRuleRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_rules_rules, 7);
+  messageDesc(file_source_ledger_v1_rules_rules, 9);
 
 /**
  * @generated from message vrooli.source_ledger.v1.rules.EnableRuleResponse
@@ -224,7 +264,7 @@ export type EnableRuleResponse = Message<"vrooli.source_ledger.v1.rules.EnableRu
  * Use `create(EnableRuleResponseSchema)` to create a new message.
  */
 export const EnableRuleResponseSchema: GenMessage<EnableRuleResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_rules_rules, 8);
+  messageDesc(file_source_ledger_v1_rules_rules, 10);
 
 /**
  * @generated from message vrooli.source_ledger.v1.rules.RevertRuleRequest
@@ -246,7 +286,7 @@ export type RevertRuleRequest = Message<"vrooli.source_ledger.v1.rules.RevertRul
  * Use `create(RevertRuleRequestSchema)` to create a new message.
  */
 export const RevertRuleRequestSchema: GenMessage<RevertRuleRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_rules_rules, 9);
+  messageDesc(file_source_ledger_v1_rules_rules, 11);
 
 /**
  * @generated from message vrooli.source_ledger.v1.rules.RevertRuleResponse
@@ -263,7 +303,7 @@ export type RevertRuleResponse = Message<"vrooli.source_ledger.v1.rules.RevertRu
  * Use `create(RevertRuleResponseSchema)` to create a new message.
  */
 export const RevertRuleResponseSchema: GenMessage<RevertRuleResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_rules_rules, 10);
+  messageDesc(file_source_ledger_v1_rules_rules, 12);
 
 /**
  * @generated from message vrooli.source_ledger.v1.rules.RefacetCorpusRequest
@@ -290,7 +330,7 @@ export type RefacetCorpusRequest = Message<"vrooli.source_ledger.v1.rules.Reface
  * Use `create(RefacetCorpusRequestSchema)` to create a new message.
  */
 export const RefacetCorpusRequestSchema: GenMessage<RefacetCorpusRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_rules_rules, 11);
+  messageDesc(file_source_ledger_v1_rules_rules, 13);
 
 /**
  * @generated from message vrooli.source_ledger.v1.rules.RefacetCorpusResponse
@@ -337,7 +377,7 @@ export type RefacetCorpusResponse = Message<"vrooli.source_ledger.v1.rules.Refac
  * Use `create(RefacetCorpusResponseSchema)` to create a new message.
  */
 export const RefacetCorpusResponseSchema: GenMessage<RefacetCorpusResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_rules_rules, 12);
+  messageDesc(file_source_ledger_v1_rules_rules, 14);
 
 /**
  * @generated from message vrooli.source_ledger.v1.rules.MeasureDistributionRequest
@@ -354,7 +394,7 @@ export type MeasureDistributionRequest = Message<"vrooli.source_ledger.v1.rules.
  * Use `create(MeasureDistributionRequestSchema)` to create a new message.
  */
 export const MeasureDistributionRequestSchema: GenMessage<MeasureDistributionRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_rules_rules, 13);
+  messageDesc(file_source_ledger_v1_rules_rules, 15);
 
 /**
  * @generated from message vrooli.source_ledger.v1.rules.MeasureDistributionResponse
@@ -416,7 +456,7 @@ export type MeasureDistributionResponse = Message<"vrooli.source_ledger.v1.rules
  * Use `create(MeasureDistributionResponseSchema)` to create a new message.
  */
 export const MeasureDistributionResponseSchema: GenMessage<MeasureDistributionResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_rules_rules, 14);
+  messageDesc(file_source_ledger_v1_rules_rules, 16);
 
 /**
  * @generated from service vrooli.source_ledger.v1.rules.ClassificationRulesService
@@ -437,6 +477,14 @@ export const ClassificationRulesService: GenService<{
     methodKind: "unary";
     input: typeof CreateRuleRequestSchema;
     output: typeof CreateRuleResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.source_ledger.v1.rules.ClassificationRulesService.DeleteRule
+   */
+  deleteRule: {
+    methodKind: "unary";
+    input: typeof DeleteRuleRequestSchema;
+    output: typeof DeleteRuleResponseSchema;
   },
   /**
    * @generated from rpc vrooli.source_ledger.v1.rules.ClassificationRulesService.DryRunRule

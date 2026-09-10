@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"swarm-manager/internal/agentmanager"
 
 	"google.golang.org/protobuf/types/known/structpb"
@@ -86,6 +87,39 @@ func (r *WorkflowRouter) CancelWorkflow(ctx context.Context, executionID, idempo
 		return canceler.CancelWorkflow(ctx, executionID, idempotencyKey, reason)
 	}
 	return fmt.Errorf("workflow cancellation is not supported")
+}
+
+func (r *WorkflowRouter) GetWorkflowExecutionByIdempotencyKey(ctx context.Context, key string) (agentmanager.WorkflowStart, error) {
+	if r == nil || r.defaultInvoker == nil {
+		return agentmanager.WorkflowStart{}, agentmanager.ErrNotAvailable
+	}
+	reconciler, ok := r.defaultInvoker.(interface {
+		GetWorkflowExecutionByIdempotencyKey(context.Context, string) (agentmanager.WorkflowStart, error)
+	})
+	if !ok {
+		return agentmanager.WorkflowStart{}, fmt.Errorf("workflow start reconciliation is not supported")
+	}
+	return reconciler.GetWorkflowExecutionByIdempotencyKey(ctx, key)
+}
+
+func (r *WorkflowRouter) InspectWorkflowStart(ctx context.Context, workflowKey, key string) (*domainpb.WorkflowExecution, error) {
+	invoker, err := r.forKey(workflowKey)
+	if err != nil {
+		return nil, err
+	}
+	reader, ok := invoker.(interface {
+		InspectWorkflowStart(context.Context, string, string) (*domainpb.WorkflowExecution, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("workflow start inspection is not supported")
+	}
+	execution, err := reader.InspectWorkflowStart(ctx, workflowKey, key)
+	if err == nil && execution != nil && execution.Id != "" {
+		r.mu.Lock()
+		r.byExecution[execution.Id] = invoker
+		r.mu.Unlock()
+	}
+	return execution, err
 }
 
 func (r *WorkflowRouter) forKey(key string) (agentmanager.WorkflowInvoker, error) {

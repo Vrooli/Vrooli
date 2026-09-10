@@ -39,6 +39,7 @@ const (
 	NextActionDefineCriteria      = nextaction.DefineCriteria
 	NextActionCloseOut            = nextaction.CloseOut
 	NextActionChain               = nextaction.Chain
+	NextActionReviewDevelopment   = nextaction.ReviewDevelopment
 )
 
 // NextActionProjection is a read-only resolution. Existing backlog, plan,
@@ -147,6 +148,15 @@ func (h *Handler) ResolveNextActionWith(ctx context.Context, item BacklogItem, i
 	if item.Status == StatusSuggested {
 		return nextAction(NextActionAcceptSuggestion, "Accept", "Accept suggestion", true, "Accept this suggestion before planning or execution.", nil, "suggestion_accept"), nil
 	}
+	if h.developmentLookup != nil {
+		development, err := h.developmentLookup(ctx, ItemRef(item))
+		if err != nil {
+			return NextActionProjection{}, fmt.Errorf("resolve retained development work shape: %w", err)
+		}
+		if development {
+			return nextAction(NextActionReviewDevelopment, "Adaptive plan", "Review adaptive plan", true, "Review the retained plan strategy, guidance, amendments, usage and outcome evidence. This action does not launch an agent.", nil, "development_contract"), nil
+		}
+	}
 	if item.Status == StatusNeedsFollowup {
 		if item.PendingFollowUp != nil {
 			action := nextAction(NextActionDispatchFollowup, "Dispatch", "Dispatch follow-up", true, "This review decision has pending recovery work.", nil, "follow_up_dispatch")
@@ -214,6 +224,8 @@ func preflightSpec(item BacklogItem) execution.PreflightSpec {
 		AcceptanceDeny:     item.AcceptanceDeny,
 		Creates:            item.Creates,
 		ArchivedAt:         item.ArchivedAt,
+		ExecutionStrategy:  item.ExecutionStrategy,
+		ExecutionLimits:    item.ExecutionLimits.Clone(),
 	}
 	if item.PlanRef != nil {
 		spec.PlanRef = &execution.PlanRefSpec{Provider: item.PlanRef.Provider, PlanID: item.PlanRef.PlanID, Slug: item.PlanRef.Slug, Role: item.PlanRef.Role}

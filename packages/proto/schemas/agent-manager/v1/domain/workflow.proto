@@ -63,6 +63,28 @@ message WorkflowBudgetUsage {
   int32 node_attempts = 4;
   int32 children = 5;
   int32 retries = 6;
+  // True only when every settled child has terminal token and charge accounting.
+  bool accounting_complete = 7;
+}
+
+// WorkflowEngagementGrant is an owner-issued aggregate allowance. Zero leaves
+// that dimension at the workflow's declared limit. When present, token and
+// wall-time limits are required and every supplied dimension can only narrow
+// the pinned workflow revision.
+message WorkflowEngagementGrant {
+  int32 max_turns = 1;
+  int32 max_tokens = 2;
+  int64 max_charge_micro_usd = 3;
+  int32 max_wall_time_seconds = 4;
+  int32 max_node_attempts = 5;
+  int32 max_children = 6;
+  int32 max_concurrency = 7;
+  int32 max_recursion = 8;
+  // Omitted retains the declaration; an explicit zero forbids retries.
+  optional int32 max_retries = 9;
+  int32 max_wait_seconds = 10;
+	// Immutable effect ceiling inherited by every workflow child.
+	repeated string allowed_effects = 11;
 }
 
 // ChargeReceipt is the per-execution billing projection exposed to an
@@ -103,6 +125,12 @@ message WorkflowExecution {
   // Present on terminal executions, including an explicit unmeasured marker
   // when the child billing basis cannot be attributed to this execution.
   ChargeReceipt charge_receipt = 21;
+  // Immutable owner allowance retained for audit and restart reconciliation.
+  WorkflowEngagementGrant engagement_grant = 22;
+  // Reviewed Swarm engagement identity, when supplied by an owning adapter.
+  string approval_digest = 23;
+  // Exact grant identity, kept separate from the workflow definition digest.
+  string grant_digest = 24;
 }
 
 // WorkflowNodeAttempt is the durable, per-node execution identity. Prompt

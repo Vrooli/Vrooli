@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "scenario": "visited-tracker",
+  "input_digest": "sha256:0929931ffe5375ac00e97a08662b7dcc2ab38d8033c36f188221ac76adc57349",
+  "input_files": [
+    "schemas/visited-tracker/v1/attention/attention.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/visited-tracker/v1/attention/attention.pb.go": "sha256:13e83ee5d3089bee0101ff4c8951640a30d653f063965cc5561b477adb89da17",
+    "gen/go/visited-tracker/v1/attention/attentionv1connect/attention.connect.go": "sha256:46092af98fc60259dc61f80ae1554237ec73f390ecc609cfdb2828c6b13c253e",
+    "gen/python/visited_tracker/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/visited_tracker/v1/attention/attention_pb2.py": "sha256:98c0ba36b00c37c7a490587827b43d7a039596574aca04e55ef33d53f38c85de",
+    "gen/python/visited_tracker/v1/attention/attention_pb2.pyi": "sha256:3114e3c9dfe4d06d938c0b2690b7269f0448de91106657bc189bbd2df67b744b",
+    "gen/python/visited_tracker/v1/attention/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/visited_tracker/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/visited-tracker/v1/attention/attention_pb.ts": "sha256:b117d01473ef103558aafa2b65d74cf492887190b6af137ce29853c4f9e84a25"
+  }
+}

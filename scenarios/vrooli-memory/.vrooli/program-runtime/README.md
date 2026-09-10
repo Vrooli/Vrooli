@@ -214,6 +214,9 @@ reads return `partial`; they cannot be treated as healthy observations. If full
 identities would exceed the output budget, readings become null with
 `unreliable:output_bound`; identities are never truncated into apparent matches.
 
+Learning comparisons retain operator, test, and agent provenance in cohort
+identity and expose per-provenance attempt counts in `signals.reliability`.
+
 ## Focused validation
 
 ```sh

@@ -1234,8 +1234,12 @@ type RegionVerdict struct {
 	AvailabilityReasonCode string                 `protobuf:"bytes,17,opt,name=availability_reason_code,json=availabilityReasonCode,proto3" json:"availability_reason_code,omitempty"`
 	BuildHash              string                 `protobuf:"bytes,18,opt,name=build_hash,json=buildHash,proto3" json:"build_hash,omitempty"`
 	SourceHash             string                 `protobuf:"bytes,19,opt,name=source_hash,json=sourceHash,proto3" json:"source_hash,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Authored implementation intent, separate from observed source and sketch selection.
+	LibraryAsset   string `protobuf:"bytes,20,opt,name=library_asset,json=libraryAsset,proto3" json:"library_asset,omitempty"`
+	LibraryVersion string `protobuf:"bytes,21,opt,name=library_version,json=libraryVersion,proto3" json:"library_version,omitempty"`
+	LocalComponent string `protobuf:"bytes,22,opt,name=local_component,json=localComponent,proto3" json:"local_component,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RegionVerdict) Reset() {
@@ -1401,16 +1405,44 @@ func (x *RegionVerdict) GetSourceHash() string {
 	return ""
 }
 
+func (x *RegionVerdict) GetLibraryAsset() string {
+	if x != nil {
+		return x.LibraryAsset
+	}
+	return ""
+}
+
+func (x *RegionVerdict) GetLibraryVersion() string {
+	if x != nil {
+		return x.LibraryVersion
+	}
+	return ""
+}
+
+func (x *RegionVerdict) GetLocalComponent() string {
+	if x != nil {
+		return x.LocalComponent
+	}
+	return ""
+}
+
 type Coverage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Built         int32                  `protobuf:"varint,1,opt,name=built,proto3" json:"built,omitempty"`
-	Declared      int32                  `protobuf:"varint,2,opt,name=declared,proto3" json:"declared,omitempty"`
-	Invented      int32                  `protobuf:"varint,3,opt,name=invented,proto3" json:"invented,omitempty"`
-	BuiltPercent  float64                `protobuf:"fixed64,4,opt,name=built_percent,json=builtPercent,proto3" json:"built_percent,omitempty"`
-	Missing       int32                  `protobuf:"varint,5,opt,name=missing,proto3" json:"missing,omitempty"`
-	Unresolved    int32                  `protobuf:"varint,6,opt,name=unresolved,proto3" json:"unresolved,omitempty"`
-	Total         int32                  `protobuf:"varint,7,opt,name=total,proto3" json:"total,omitempty"`
-	Status        string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Built        int32                  `protobuf:"varint,1,opt,name=built,proto3" json:"built,omitempty"`
+	Declared     int32                  `protobuf:"varint,2,opt,name=declared,proto3" json:"declared,omitempty"`
+	Invented     int32                  `protobuf:"varint,3,opt,name=invented,proto3" json:"invented,omitempty"`
+	BuiltPercent float64                `protobuf:"fixed64,4,opt,name=built_percent,json=builtPercent,proto3" json:"built_percent,omitempty"`
+	Missing      int32                  `protobuf:"varint,5,opt,name=missing,proto3" json:"missing,omitempty"`
+	Unresolved   int32                  `protobuf:"varint,6,opt,name=unresolved,proto3" json:"unresolved,omitempty"`
+	Total        int32                  `protobuf:"varint,7,opt,name=total,proto3" json:"total,omitempty"`
+	Status       string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
+	// Declared implementation references; these counts do not imply a built asset.
+	LibraryBacked int32 `protobuf:"varint,9,opt,name=library_backed,json=libraryBacked,proto3" json:"library_backed,omitempty"`
+	Local         int32 `protobuf:"varint,10,opt,name=local,proto3" json:"local,omitempty"`
+	// Unique proven source bindings, independent of library build/adoption status.
+	Resolved int32 `protobuf:"varint,11,opt,name=resolved,proto3" json:"resolved,omitempty"`
+	// Proven custom implementations without a conflicting sketch asset selection.
+	ResolvedLocal int32 `protobuf:"varint,12,opt,name=resolved_local,json=resolvedLocal,proto3" json:"resolved_local,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1499,6 +1531,34 @@ func (x *Coverage) GetStatus() string {
 		return x.Status
 	}
 	return ""
+}
+
+func (x *Coverage) GetLibraryBacked() int32 {
+	if x != nil {
+		return x.LibraryBacked
+	}
+	return 0
+}
+
+func (x *Coverage) GetLocal() int32 {
+	if x != nil {
+		return x.Local
+	}
+	return 0
+}
+
+func (x *Coverage) GetResolved() int32 {
+	if x != nil {
+		return x.Resolved
+	}
+	return 0
+}
+
+func (x *Coverage) GetResolvedLocal() int32 {
+	if x != nil {
+		return x.ResolvedLocal
+	}
+	return 0
 }
 
 type VerifySketchRequest struct {
@@ -7216,7 +7276,7 @@ const file_react_component_library_v1_sketch_sketch_proto_rawDesc = "" +
 	"\bblocking\x18\x03 \x01(\bR\bblocking\x12\x14\n" +
 	"\x05owner\x18\x04 \x01(\tR\x05owner\x12%\n" +
 	"\x0eseverity_class\x18\x05 \x01(\tR\rseverityClass\x12\x18\n" +
-	"\amessage\x18\x06 \x01(\tR\amessage\"\xd8\x05\n" +
+	"\amessage\x18\x06 \x01(\tR\amessage\"\xcf\x06\n" +
 	"\rRegionVerdict\x12\x16\n" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x12\x18\n" +
 	"\averdict\x18\x02 \x01(\tR\averdict\x12\x1b\n" +
@@ -7242,7 +7302,10 @@ const file_react_component_library_v1_sketch_sketch_proto_rawDesc = "" +
 	"\n" +
 	"build_hash\x18\x12 \x01(\tR\tbuildHash\x12\x1f\n" +
 	"\vsource_hash\x18\x13 \x01(\tR\n" +
-	"sourceHash\"\xe5\x01\n" +
+	"sourceHash\x12#\n" +
+	"\rlibrary_asset\x18\x14 \x01(\tR\flibraryAsset\x12'\n" +
+	"\x0flibrary_version\x18\x15 \x01(\tR\x0elibraryVersion\x12'\n" +
+	"\x0flocal_component\x18\x16 \x01(\tR\x0elocalComponent\"\xe5\x02\n" +
 	"\bCoverage\x12\x14\n" +
 	"\x05built\x18\x01 \x01(\x05R\x05built\x12\x1a\n" +
 	"\bdeclared\x18\x02 \x01(\x05R\bdeclared\x12\x1a\n" +
@@ -7253,7 +7316,12 @@ const file_react_component_library_v1_sketch_sketch_proto_rawDesc = "" +
 	"unresolved\x18\x06 \x01(\x05R\n" +
 	"unresolved\x12\x14\n" +
 	"\x05total\x18\a \x01(\x05R\x05total\x12\x16\n" +
-	"\x06status\x18\b \x01(\tR\x06status\"e\n" +
+	"\x06status\x18\b \x01(\tR\x06status\x12%\n" +
+	"\x0elibrary_backed\x18\t \x01(\x05R\rlibraryBacked\x12\x14\n" +
+	"\x05local\x18\n" +
+	" \x01(\x05R\x05local\x12\x1a\n" +
+	"\bresolved\x18\v \x01(\x05R\bresolved\x12%\n" +
+	"\x0eresolved_local\x18\f \x01(\x05R\rresolvedLocal\"e\n" +
 	"\x13VerifySketchRequest\x12N\n" +
 	"\x06target\x18\x01 \x01(\v26.vrooli.react_component_library.v1.sketch.SketchTargetR\x06target\"\xa0\x02\n" +
 	"\x14VerifySketchResponse\x12Q\n" +

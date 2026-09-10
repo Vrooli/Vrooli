@@ -10,6 +10,7 @@ import (
 	errors "errors"
 	credentialgrant "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant"
 	onboard "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
+	apply "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/apply"
 	machines "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/machines"
 	http "net/http"
 	strings "strings"
@@ -115,7 +116,7 @@ type MachineServiceClient interface {
 	CreateCredentialGrant(context.Context, *connect.Request[credentialgrant.CreateGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
 	RevokeCredentialGrant(context.Context, *connect.Request[credentialgrant.RevokeGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
 	ReapplyConfiguration(context.Context, *connect.Request[machines.ReapplyConfigurationRequest]) (*connect.Response[machines.ReapplyConfigurationResponse], error)
-	GetConfigurationApplyStatus(context.Context, *connect.Request[machines.GetConfigurationApplyStatusRequest]) (*connect.Response[machines.ReapplyConfigurationResponse], error)
+	GetConfigurationApplyStatus(context.Context, *connect.Request[machines.GetConfigurationApplyStatusRequest]) (*connect.Response[apply.GetApplyRunResponse], error)
 	AnswerSecret(context.Context, *connect.Request[credentialgrant.AnswerSecretRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
 }
 
@@ -226,7 +227,7 @@ func NewMachineServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(machineServiceMethods.ByName("ReapplyConfiguration")),
 			connect.WithClientOptions(opts...),
 		),
-		getConfigurationApplyStatus: connect.NewClient[machines.GetConfigurationApplyStatusRequest, machines.ReapplyConfigurationResponse](
+		getConfigurationApplyStatus: connect.NewClient[machines.GetConfigurationApplyStatusRequest, apply.GetApplyRunResponse](
 			httpClient,
 			baseURL+MachineServiceGetConfigurationApplyStatusProcedure,
 			connect.WithSchema(machineServiceMethods.ByName("GetConfigurationApplyStatus")),
@@ -259,7 +260,7 @@ type machineServiceClient struct {
 	createCredentialGrant       *connect.Client[credentialgrant.CreateGrantRequest, credentialgrant.CredentialGrant]
 	revokeCredentialGrant       *connect.Client[credentialgrant.RevokeGrantRequest, credentialgrant.CredentialGrant]
 	reapplyConfiguration        *connect.Client[machines.ReapplyConfigurationRequest, machines.ReapplyConfigurationResponse]
-	getConfigurationApplyStatus *connect.Client[machines.GetConfigurationApplyStatusRequest, machines.ReapplyConfigurationResponse]
+	getConfigurationApplyStatus *connect.Client[machines.GetConfigurationApplyStatusRequest, apply.GetApplyRunResponse]
 	answerSecret                *connect.Client[credentialgrant.AnswerSecretRequest, credentialgrant.CredentialGrant]
 }
 
@@ -345,7 +346,7 @@ func (c *machineServiceClient) ReapplyConfiguration(ctx context.Context, req *co
 
 // GetConfigurationApplyStatus calls
 // vrooli.web_console.v1.machines.MachineService.GetConfigurationApplyStatus.
-func (c *machineServiceClient) GetConfigurationApplyStatus(ctx context.Context, req *connect.Request[machines.GetConfigurationApplyStatusRequest]) (*connect.Response[machines.ReapplyConfigurationResponse], error) {
+func (c *machineServiceClient) GetConfigurationApplyStatus(ctx context.Context, req *connect.Request[machines.GetConfigurationApplyStatusRequest]) (*connect.Response[apply.GetApplyRunResponse], error) {
 	return c.getConfigurationApplyStatus.CallUnary(ctx, req)
 }
 
@@ -383,7 +384,7 @@ type MachineServiceHandler interface {
 	CreateCredentialGrant(context.Context, *connect.Request[credentialgrant.CreateGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
 	RevokeCredentialGrant(context.Context, *connect.Request[credentialgrant.RevokeGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
 	ReapplyConfiguration(context.Context, *connect.Request[machines.ReapplyConfigurationRequest]) (*connect.Response[machines.ReapplyConfigurationResponse], error)
-	GetConfigurationApplyStatus(context.Context, *connect.Request[machines.GetConfigurationApplyStatusRequest]) (*connect.Response[machines.ReapplyConfigurationResponse], error)
+	GetConfigurationApplyStatus(context.Context, *connect.Request[machines.GetConfigurationApplyStatusRequest]) (*connect.Response[apply.GetApplyRunResponse], error)
 	AnswerSecret(context.Context, *connect.Request[credentialgrant.AnswerSecretRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
 }
 
@@ -613,7 +614,7 @@ func (UnimplementedMachineServiceHandler) ReapplyConfiguration(context.Context, 
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.ReapplyConfiguration is not implemented"))
 }
 
-func (UnimplementedMachineServiceHandler) GetConfigurationApplyStatus(context.Context, *connect.Request[machines.GetConfigurationApplyStatusRequest]) (*connect.Response[machines.ReapplyConfigurationResponse], error) {
+func (UnimplementedMachineServiceHandler) GetConfigurationApplyStatus(context.Context, *connect.Request[machines.GetConfigurationApplyStatusRequest]) (*connect.Response[apply.GetApplyRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.GetConfigurationApplyStatus is not implemented"))
 }
 

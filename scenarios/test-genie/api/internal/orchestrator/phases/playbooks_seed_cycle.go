@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"test-genie/internal/orchestrator/phases/dbdetect"
 	"test-genie/internal/orchestrator/phases/isolation"
 	"test-genie/internal/orchestrator/phases/seeds"
@@ -20,6 +22,8 @@ import (
 	"test-genie/internal/storage/sqlfiles"
 
 	"github.com/vrooli/api-core/database"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing"
+	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing/routing_v1connect"
 	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
 	_ "modernc.org/sqlite"
 
@@ -33,7 +37,15 @@ type PlaybooksSeedSession struct {
 	Resources  []isolation.ResourceInfo
 	SeedState  map[string]any
 	CleanupRef string
+	routing    routedLease
 	cleanup    func(ctx context.Context) error
+}
+
+type routedLease struct {
+	client           routingconnect.RoutingServiceClient
+	leaseID          string
+	heartbeatCancel  context.CancelFunc
+	heartbeatStopped chan struct{}
 }
 
 type resourceNeeds struct {
@@ -58,7 +70,8 @@ var isolationManagerFactory = func(cfg isolation.Config) isolationProvider {
 	return isolation.NewManager(cfg)
 }
 
-// Cleanup tears down isolation resources and restarts the scenario to normal resources.
+// Cleanup clears the live target routing lease and tears down the leased
+// backing resources. The target remains on its primary configuration.
 func (s *PlaybooksSeedSession) Cleanup(ctx context.Context) error {
 	if s == nil || s.cleanup == nil {
 		return nil
@@ -66,8 +79,9 @@ func (s *PlaybooksSeedSession) Cleanup(ctx context.Context) error {
 	return s.cleanup(ctx)
 }
 
-// ApplyPlaybooksSeed provisions isolated resources, restarts the scenario, runs seed scripts,
-// and returns seed state for BAS workflow execution.
+// ApplyPlaybooksSeed provisions isolated resources, installs a runtime routing
+// lease on the live target, runs seed scripts, and returns seed state for BAS
+// workflow execution. It refuses when the paired routing surface is absent.
 func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWriter io.Writer, retain bool) (*PlaybooksSeedSession, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
@@ -109,24 +123,14 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 		return nil, fmt.Errorf("failed to apply playbooks migrations: %w", err)
 	}
 
-	if env.TargetRuntime == nil {
-		if envApplied {
-			restoreEnv()
-		}
-		_ = isoResult.Cleanup(context.Background())
-		return nil, fmt.Errorf("target runtime manager is not configured")
-	}
-
-	if err := env.TargetRuntime.RestartWithEnv(ctx, isoResult.Env, logWriter); err != nil {
-		if envApplied {
-			restoreEnv()
-		}
-		_ = isoResult.Cleanup(context.Background())
-		return nil, fmt.Errorf("failed to restart scenario with playbooks isolation: %w", err)
-	}
-
 	if envApplied {
 		restoreEnv()
+	}
+
+	routing, err := installRoutedLease(ctx, env, needs, isoResult, logWriter)
+	if err != nil {
+		_ = isoResult.Cleanup(context.Background())
+		return nil, err
 	}
 
 	seedCtx, cancel := context.WithTimeout(ctx, playbooksCfg.Seeds.SeedTimeout())
@@ -137,12 +141,14 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 	_, seedErr := seedManager.Apply(seedCtx)
 	restoreSeedEnv()
 	if seedErr != nil {
+		_ = clearRoutedLease(context.Background(), routing, logWriter)
 		_ = isoResult.Cleanup(context.Background())
 		return nil, fmt.Errorf("seed execution failed: %w", seedErr)
 	}
 
 	seedState, err := loadSeedState(env.ScenarioDir)
 	if err != nil {
+		_ = clearRoutedLease(context.Background(), routing, logWriter)
 		_ = isoResult.Cleanup(context.Background())
 		return nil, err
 	}
@@ -152,18 +158,97 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 		Env:       isoResult.Env,
 		Resources: isoResult.Resources,
 		SeedState: seedState,
+		routing:   routing,
 	}
 	session.cleanup = func(cleanupCtx context.Context) error {
-		if err := env.TargetRuntime.Restore(cleanupCtx, logWriter); err != nil {
-			shared.LogWarn(logWriter, "failed to restart scenario back to normal resources: %v", err)
+		var firstErr error
+		if err := clearRoutedLease(cleanupCtx, routing, logWriter); err != nil {
+			firstErr = err
 		}
-		if err := isoResult.Cleanup(cleanupCtx); err != nil {
-			return fmt.Errorf("failed to clean up playbooks isolation resources: %w", err)
+		if err := isoResult.Cleanup(cleanupCtx); err != nil && firstErr == nil {
+			firstErr = fmt.Errorf("failed to clean up playbooks isolation resources: %w", err)
+		}
+		if firstErr != nil {
+			return firstErr
 		}
 		return nil
 	}
 
 	return session, nil
+}
+
+func installRoutedLease(ctx context.Context, env workspace.Environment, needs resourceNeeds, result *isolation.Result, logWriter io.Writer) (routedLease, error) {
+	if result == nil || strings.TrimSpace(env.APIURL) == "" {
+		return routedLease{}, fmt.Errorf("routed qualification requires a live target API URL")
+	}
+	dsn := routedDSN(needs, result.Env)
+	if dsn == "" {
+		return routedLease{}, fmt.Errorf("routed qualification requires a DSN matching the detected primary database driver")
+	}
+	client := routingconnect.NewRoutingServiceClient(&http.Client{Timeout: 15 * time.Second}, strings.TrimRight(env.APIURL, "/"))
+	response, err := client.InstallTestPool(ctx, connect.NewRequest(&routingv1.InstallTestPoolRequest{Dsn: dsn, LeaseId: result.RunID, LeaseTtlMs: int64((3 * time.Minute) / time.Millisecond)}))
+	if err != nil {
+		return routedLease{}, fmt.Errorf("install routed qualification lease: %w", err)
+	}
+	if response == nil || response.Msg == nil || response.Msg.GetActiveLeaseId() != result.RunID || !response.Msg.GetFileRootsInstalled() {
+		return routedLease{}, fmt.Errorf("routed qualification lease did not prove both database and file roots are installed")
+	}
+	shared.LogInfo(logWriter, "installed routed qualification lease %s on %s", result.RunID, env.APIURL)
+	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
+	heartbeatStopped := make(chan struct{})
+	go heartbeatRoutedLease(heartbeatCtx, client, result.RunID, logWriter, heartbeatStopped)
+	return routedLease{client: client, leaseID: result.RunID, heartbeatCancel: heartbeatCancel, heartbeatStopped: heartbeatStopped}, nil
+}
+
+func clearRoutedLease(ctx context.Context, lease routedLease, logWriter io.Writer) error {
+	if lease.client == nil || lease.leaseID == "" {
+		return nil
+	}
+	if lease.heartbeatCancel != nil {
+		lease.heartbeatCancel()
+		if lease.heartbeatStopped != nil {
+			<-lease.heartbeatStopped
+		}
+	}
+	response, err := lease.client.ClearTestPool(ctx, connect.NewRequest(&routingv1.ClearTestPoolRequest{LeaseId: lease.leaseID}))
+	if err != nil {
+		return fmt.Errorf("clear routed qualification lease: %w", err)
+	}
+	if response == nil || response.Msg == nil || response.Msg.GetStats() == nil {
+		return fmt.Errorf("clear routed qualification lease returned no routing statistics")
+	}
+	stats := response.Msg.GetStats()
+	shared.LogInfo(logWriter, "cleared routed qualification lease %s: test_pool_requests=%d primary_during_test_mode_requests=%d test_root_writes=%d primary_root_writes_during_test_mode=%d", lease.leaseID, stats.GetTestPoolRequests(), stats.GetPrimaryDuringTestModeRequests(), stats.GetTestRootWrites(), stats.GetPrimaryRootWritesDuringTestMode())
+	if stats.GetPrimaryDuringTestModeRequests() != 0 || stats.GetPrimaryRootWritesDuringTestMode() != 0 {
+		return fmt.Errorf("routed qualification detected primary storage use during test mode: db=%d files=%d", stats.GetPrimaryDuringTestModeRequests(), stats.GetPrimaryRootWritesDuringTestMode())
+	}
+	return nil
+}
+
+func heartbeatRoutedLease(ctx context.Context, client routingconnect.RoutingServiceClient, leaseID string, logWriter io.Writer, stopped chan<- struct{}) {
+	defer close(stopped)
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if _, err := client.HeartbeatTestPool(ctx, connect.NewRequest(&routingv1.HeartbeatTestPoolRequest{LeaseId: leaseID})); err != nil {
+				shared.LogWarn(logWriter, "routed qualification lease heartbeat failed for %s: %v", leaseID, err)
+			}
+		}
+	}
+}
+
+func routedDSN(needs resourceNeeds, env map[string]string) string {
+	if needs.PrimaryDriver == "postgres" {
+		return firstNonEmpty(env["DATABASE_URL"], env["POSTGRES_URL"])
+	}
+	if needs.PrimaryDriver == "sqlite" {
+		return firstNonEmpty(env["PLAYBOOKS_SQLITE_DSN"], env["PLAYBOOKS_SQLITE_PATH"])
+	}
+	return ""
 }
 
 // applyPlaybooksMigrations applies optional .sql files under bas/seeds/migrations

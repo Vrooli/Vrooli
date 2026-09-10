@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.unit_health.v1.validation;
 
 import "common/v1/maturity.proto";
+import "unit-health/v1/validation/test_quality.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation;validation_v1";
 
@@ -36,6 +37,16 @@ service ValidationService {
   // canonical test commands, analyzes coverage/architecture/quality, and
   // returns normalized findings plus a shared maturity assessment.
   rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
+
+  // RunCalibration compares the authored development corpus, or a reviewed
+  // holdout when explicitly requested, with adapter observations.
+  rpc RunCalibration(RunCalibrationRequest) returns (RunCalibrationResponse);
+
+  // Read one bounded, redacted test body for governed sampled review.
+  rpc ReadTestBody(ReadTestBodyRequest) returns (ReadTestBodyResponse);
+
+  // Run a bounded owner-side mutation pilot in disposable workspaces.
+  rpc RunMutationPilot(RunMutationPilotRequest) returns (RunMutationPilotResponse);
 }
 
 // ValidateScenarioRequest identifies the target to validate.
@@ -61,6 +72,13 @@ message ValidateScenarioRequest {
   // lets callers collect lightweight test evidence separately from coverage
   // evidence without weakening either cache contract.
   bool fast_test_only = 6;
+
+  // Optional sampled-review cohort attached to this validation run. Review
+  // evidence is supplied only when the cohort has a source identity and at
+  // least one observed label.
+  string reviewed_cohort_id = 7;
+  string reviewed_source_identity = 8;
+  uint32 reviewed_observation_count = 9;
 }
 
 message ValidateScenarioResponse {
@@ -112,6 +130,143 @@ message ValidateScenarioResponse {
   int64 cache_saved_wall_time_ms = 25;
   int64 cache_saved_cpu_time_ms = 26;
   int64 cache_retained_bytes = 27;
+  // Optional scoped test-quality analysis. Absent historical data is unknown.
+  TestQualityReport test_quality = 28;
+  RequirementTraceabilityReport traceability = 29;
+  EvidenceStages evidence_stages = 30;
+}
+
+// RunCalibrationRequest selects a governed calibration read.
+message RunCalibrationRequest {
+  // Corpus partition: development, reviewed-holdout, or inventory.
+  string partition = 1;
+  // Reviewed holdout identity. Required for the reviewed-holdout partition.
+  string holdout_id = 2;
+  // Include native-profile observations when the selected corpus supports them.
+  bool include_native = 3;
+  // Restrict holdout comparison to one catalog rule.
+  string rule_id = 4;
+}
+
+// FamilyCount is the bounded case count for one calibration family.
+message FamilyCount {
+  string family = 1;
+  uint32 specified = 2;
+  uint32 implemented = 3;
+  uint32 retired = 4;
+}
+
+// CorpusInventory describes the authored calibration surface.
+message CorpusInventory {
+  uint32 specified = 1;
+  uint32 implemented = 2;
+  uint32 retired = 3;
+  repeated FamilyCount families = 4;
+  uint32 spec_codes_without_emitter = 5;
+  string development_floor = 6;
+}
+
+// CaseOutcome is the bounded result for one calibration case.
+message CaseOutcome {
+  string id = 1;
+  string rule_id = 2;
+  bool matched = 3;
+  repeated string differences = 4;
+  string status = 5;
+}
+
+// HoldoutComparison contains independent-label agreement metrics.
+message HoldoutComparison {
+  string rule_id = 1;
+  string holdout_id = 2;
+  uint32 labelled = 3;
+  uint32 observed = 4;
+  uint32 false_positives = 5;
+  uint32 false_negatives = 6;
+  uint32 unknown = 7;
+  double fp_rate = 8;
+  double fn_rate = 9;
+  double budget = 10;
+  bool within_budget = 11;
+  bool promotion_allowed = 12;
+}
+
+// RunCalibrationResponse is a governed, non-promoting calibration report.
+message RunCalibrationResponse {
+  string run_id = 1;
+  string partition = 2;
+  CorpusInventory corpus = 3;
+  repeated CaseOutcome cases = 4;
+  repeated HoldoutComparison holdout = 5;
+  repeated string limitations = 6;
+}
+
+// ReadTestBodyRequest identifies one test body within a discovered workspace.
+message ReadTestBodyRequest {
+  string scenario = 1;
+  string workspace = 2;
+  string file = 3;
+  string test_id = 4;
+  uint32 max_bytes = 5;
+}
+
+// ReadTestBodyResponse is a bounded source excerpt. The full file never leaves
+// the owner boundary and privacy-pattern files are refused.
+message ReadTestBodyResponse {
+  string test_identity = 1;
+  string body_excerpt = 2;
+  uint32 body_bytes = 3;
+  uint32 redactions = 4;
+  bool refused = 5;
+  string refusal_reason = 6;
+}
+
+message RunMutationPilotRequest {
+  string scenario = 1;
+  string workspace = 2;
+  string package = 3;
+  repeated string operators = 4;
+  uint32 max_mutants = 5;
+  string seed = 6;
+}
+
+message MutantReceipt {
+  string id = 1;
+  string operator = 2;
+  string file = 3;
+  uint32 line = 4;
+  string disposition = 5;
+  string detail = 6;
+  string owning_test = 7;
+}
+
+message MutationSummary {
+  uint32 generated = 1;
+  uint32 killed = 2;
+  uint32 survived = 3;
+  uint32 invalid = 4;
+  uint32 equivalent = 5;
+  uint32 out_of_contract = 6;
+  uint32 infrastructure_failure = 7;
+  uint32 unknown = 8;
+  double kill_rate = 9;
+}
+
+message RunMutationPilotResponse {
+  string run_id = 1;
+  string workspace_path = 2;
+  repeated MutantReceipt receipts = 3;
+  MutationSummary summary = 4;
+  repeated string limitations = 5;
+}
+
+// Missing historical stages are unknown, not executed or reviewed evidence.
+message EvidenceStages {
+  string configured = 1;
+  string analyzed = 2;
+  string executed = 3;
+  string reviewed = 4;
+  string source_run_id = 5;
 }
 
 // ProjectionCheck is one policy-vs-native comparison for unit-test
@@ -294,6 +449,16 @@ message ValidationFinding {
   string remediation = 17;
   string source_command = 18;
   string created_at = 19;
+  // Validated exceptions, separate from the original finding evidence.
+  repeated SuppressionReason suppression_reasons = 20;
+}
+
+message SuppressionReason {
+  string reason = 1;
+  string owner = 2;
+  string evidence = 3;
+  string expires_at = 4;
+  string revisit = 5;
 }
 
 message Diagnostic {
@@ -303,6 +468,21 @@ message Diagnostic {
   string message = 3;
   string evidence = 4;
   string severity = 5;
+  ReliabilityObservation reliability = 6;
+}
+
+// Explicitly command-scoped history; absence is unknown, never proof of stability.
+message ReliabilityObservation {
+  string state = 1;
+  string scope = 2;
+  string cohort_digest = 3;
+  int32 sample_count = 4;
+  int32 passed = 5;
+  int32 failed = 6;
+  int32 excluded_infrastructure = 7;
+  int32 excluded_incompatible = 8;
+  optional string seed = 9;
+  optional int32 retry_ordinal = 10;
 }
 
 message MaturitySummary {

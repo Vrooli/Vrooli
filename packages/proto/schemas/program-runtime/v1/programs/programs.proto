@@ -37,6 +37,18 @@ enum FailureCause {
   FAILURE_CAUSE_BRIDGE_TRANSPORT = 12;
   FAILURE_CAUSE_UNCLASSIFIED = 13;
   FAILURE_CAUSE_PROTECTED_NAME_MISUSE = 14;
+  // The process that owned execution stopped before recording a terminal result.
+  // Downstream effects may have occurred; automatic replay is unsafe.
+  FAILURE_CAUSE_RUNTIME_INTERRUPTED = 15;
+}
+
+// Caller is optional metadata supplied by the caller. It is never inferred
+// from timing, process state, host identity, or transcript content.
+message Caller {
+  string run_id = 1;
+  string agent_profile = 2;
+  string skill_id = 3;
+  string harness = 4;
 }
 
 message Program {
@@ -57,6 +69,19 @@ message Program {
   int64 cpu_time_millis = 15;
   string library_version = 16;
   FailureCause failure_cause = 17;
+  // Durable declared-program identity. The session is reclaimed after a run,
+  // so it cannot carry the identity for portfolio queries or lifecycle events.
+  string program_name = 18;
+  string program_digest = 19;
+  string caller_run_id = 20;
+  string caller_agent_profile = 21;
+  string caller_skill_id = 22;
+  string caller_harness = 23;
+  // The kernel's learning receipt as JSON: task_id, attempt_id, attempt_number,
+  // outcome, delivery, last_error, advice, steps, attempts. Empty when the
+  // program used no learn.* verb. The persisted receipt never carries the
+  // resume_token; the task store keeps only its hash.
+  string learning_json = 24;
 }
 
 message Diagnostic {
@@ -74,6 +99,7 @@ message SubmitProgramRequest {
   bool include_materialized = 4;
   bool async = 5;
   bool explain = 6;
+  Caller caller = 7;
 }
 message SubmitProgramResponse {
   Program program = 1;
@@ -121,9 +147,54 @@ message ListProgramsRequest {
   string until = 5;
   // Maximum rows returned; zero uses the server default.
   int32 limit = 6;
+  string program_name = 7;
+  string program_digest = 8;
 }
 message ListProgramsResponse {
   repeated Program programs = 1;
+}
+
+message PortfolioStatsRequest {
+  int32 window_days = 1;
+  string scenario = 2;
+  string provenance = 3;
+  bool include_ad_hoc = 4;
+}
+
+message ProgramPortfolioRow {
+  string name = 1;
+  string scenario = 2;
+  int64 runs = 3;
+  int64 succeeded = 4;
+  int64 failed = 5;
+  double success_rate = 6;
+  int64 p50_millis = 7;
+  int64 p95_millis = 8;
+  int64 declared_wall_millis = 9;
+  double budget_pressure = 10;
+  int64 agent_runs = 11;
+  int64 operator_runs = 12;
+  int64 test_runs = 13;
+  int64 distinct_callers = 14;
+  int64 distinct_days = 15;
+  string first_seen = 16;
+  string last_seen = 17;
+  string top_failure_cause = 18;
+  int64 called_by_programs = 19;
+  string current_digest = 20;
+  bool digest_drifted = 21;
+}
+
+message PortfolioStatsResponse {
+  repeated ProgramPortfolioRow rows = 1;
+  int64 programs_declared = 2;
+  int64 programs_executed = 3;
+  repeated string never_executed = 4;
+  int64 rows_without_identity = 5;
+  int64 unattributed_agent_runs = 6;
+  string window_start = 7;
+  string window_end = 8;
+  string contract_index_reason = 9;
 }
 message MineFailuresRequest {
   bool include_operator = 1;
@@ -268,15 +339,39 @@ message RunDiscoveryEvalResponse {
   bool floor_met = 12;
 }
 
+// Bounded learning work projection. Feedback bearer references and raw task
+// contents remain in the owner store and are never included in this read.
+message LearningFinding {
+  string finding_id = 1;
+  string owner = 2;
+  string state = 3;
+  string dimension = 4;
+  string correction = 5;
+  repeated string evidence = 6;
+  string updated_at = 7;
+}
+
+message ListLearningFindingsRequest {
+  string owner = 1;
+  int32 limit = 2;
+}
+
+message ListLearningFindingsResponse {
+  repeated LearningFinding findings = 1;
+  bool truncated = 2;
+}
+
 service ProgramService {
   rpc SubmitProgram(SubmitProgramRequest) returns (SubmitProgramResponse);
   rpc GetProgram(GetProgramRequest) returns (GetProgramResponse);
   rpc WaitForProgram(WaitForProgramRequest) returns (WaitForProgramResponse);
   rpc ListPrograms(ListProgramsRequest) returns (ListProgramsResponse);
+  rpc PortfolioStats(PortfolioStatsRequest) returns (PortfolioStatsResponse);
   rpc MineFailures(MineFailuresRequest) returns (MineFailuresResponse);
   rpc MineRefusals(MineRefusalsRequest) returns (MineRefusalsResponse);
   rpc MineUnresolvedBindings(MineUnresolvedBindingsRequest) returns (MineUnresolvedBindingsResponse);
   rpc GovernanceShare(GovernanceShareRequest) returns (GovernanceShareResponse);
   rpc RunAuthoringEval(RunAuthoringEvalRequest) returns (RunAuthoringEvalResponse);
   rpc RunDiscoveryEval(RunDiscoveryEvalRequest) returns (RunDiscoveryEvalResponse);
+  rpc ListLearningFindings(ListLearningFindingsRequest) returns (ListLearningFindingsResponse);
 }

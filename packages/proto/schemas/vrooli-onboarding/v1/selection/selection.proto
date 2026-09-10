@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.selection;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/selection;selectionv1";
+
+import "setup/v1/selection.proto";
+
+service SelectionService {
+  rpc ListScenarios(ListScenariosRequest) returns (ListScenariosResponse);
+  rpc GetCoreSet(GetCoreSetRequest) returns (GetCoreSetResponse);
+  rpc GetRecommendation(GetRecommendationRequest) returns (GetRecommendationResponse);
+  rpc AcceptRecommendation(AcceptRecommendationRequest) returns (AcceptRecommendationResponse);
+  rpc GetClosure(GetClosureRequest) returns (GetClosureResponse);
+  rpc GetUnion(GetUnionRequest) returns (GetUnionResponse);
+  rpc CreateHandoff(CreateHandoffRequest) returns (CreateHandoffResponse);
+}
+
+message ListScenariosRequest { string target = 1; }
+message GetCoreSetRequest {
+  string target = 1;
+  repeated string seed = 2;
+}
+message GetRecommendationRequest { string target = 1; }
+message AcceptRecommendationRequest {
+  string target = 1;
+  setup.v1.Selection selection = 2;
+  string profile = 3;
+}
+message GetClosureRequest { string target = 1; }
+message GetUnionRequest { string target = 1; }
+message CreateHandoffRequest {
+  string target = 1;
+  string machine_id = 2;
+  string node_id = 3;
+  string node_kind = 4;
+  setup.v1.Selection desired_selection = 5;
+}
+
+message Scenario {
+  string name = 1;
+  string description = 2;
+  bool system_required = 3;
+  bool enabled = 4;
+  bool auto_restart = 5;
+  repeated string resources = 6;
+}
+message ListScenariosResponse {
+  repeated Scenario scenarios = 1;
+  int32 count = 2;
+}
+
+message SupervisionAttributionStep {
+  string name = 1;
+  string kind = 2;
+  string declared_by = 3;
+  string supervision_intent = 4;
+  string source = 5;
+}
+message SupervisionMember {
+  string name = 1;
+  string kind = 2;
+  string supervision_intent = 3;
+  repeated SupervisionAttributionStep attribution_chain = 4;
+}
+message GetCoreSetResponse {
+  bool available = 1;
+  repeated string seed = 2;
+  repeated string trusted_base = 3;
+  repeated SupervisionMember members = 4;
+  map<string, int32> member_counts = 5;
+  map<string, string> load_errors = 6;
+  string error = 7;
+}
+
+message GetRecommendationResponse {
+  string profile = 1;
+  repeated string scenarios = 2;
+  repeated string resources = 3;
+  string explanation = 4;
+}
+message AcceptRecommendationResponse {
+  setup.v1.Selection selection = 1;
+  int32 first_unsatisfied_step = 2;
+}
+
+message ClosureProvenance {
+  string kind = 1;
+  string from = 2;
+}
+message ClosureMember {
+  string name = 1;
+  repeated ClosureProvenance provenance = 2;
+  bool required = 3;
+  bool direct = 4;
+  string state = 5;
+  string reason = 6;
+  string policy = 7;
+}
+message GetClosureResponse {
+  repeated ClosureMember scenarios = 1;
+  repeated ClosureMember resources = 2;
+}
+
+message GetUnionResponse {
+  repeated ClosureMember scenarios = 1;
+  repeated ClosureMember resources = 2;
+  repeated string host_tools = 3;
+  repeated string safeguards = 4;
+  repeated string catalog_paths = 5;
+  repeated Resource resource_models = 6;
+  repeated Resource required_resources = 7;
+  repeated Resource optional_resources = 8;
+  repeated Resource standalone_resources = 9;
+}
+message Resource {
+  string name = 1;
+  string display_name = 2;
+  string description = 3;
+  string category = 4;
+  bool enabled = 5;
+  bool installed = 6;
+}
+message CreateHandoffResponse { setup.v1.Selection selection = 1; }

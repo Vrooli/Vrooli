@@ -680,6 +680,189 @@ func (x *DeliveryAck) GetReceivedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// ArtifactReceipt is emitted after the target agent has downloaded and
+// atomically placed an ArtifactDelivery. It contains placement metadata only;
+// artifact bytes never cross back to the control plane. It is shared because
+// both the channel envelope and the presence receipt RPC carry this value.
+type ArtifactReceipt struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	DistributionId  string                 `protobuf:"bytes,1,opt,name=distribution_id,json=distributionId,proto3" json:"distribution_id,omitempty"`
+	NodeId          string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	ItemId          string                 `protobuf:"bytes,3,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	DestinationPath string                 `protobuf:"bytes,4,opt,name=destination_path,json=destinationPath,proto3" json:"destination_path,omitempty"`
+	Accepted        bool                   `protobuf:"varint,5,opt,name=accepted,proto3" json:"accepted,omitempty"`
+	Reason          string                 `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`
+	Sha256          string                 `protobuf:"bytes,7,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	SizeBytes       int64                  `protobuf:"varint,8,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ArtifactReceipt) Reset() {
+	*x = ArtifactReceipt{}
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArtifactReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArtifactReceipt) ProtoMessage() {}
+
+func (x *ArtifactReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArtifactReceipt.ProtoReflect.Descriptor instead.
+func (*ArtifactReceipt) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ArtifactReceipt) GetDistributionId() string {
+	if x != nil {
+		return x.DistributionId
+	}
+	return ""
+}
+
+func (x *ArtifactReceipt) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *ArtifactReceipt) GetItemId() string {
+	if x != nil {
+		return x.ItemId
+	}
+	return ""
+}
+
+func (x *ArtifactReceipt) GetDestinationPath() string {
+	if x != nil {
+		return x.DestinationPath
+	}
+	return ""
+}
+
+func (x *ArtifactReceipt) GetAccepted() bool {
+	if x != nil {
+		return x.Accepted
+	}
+	return false
+}
+
+func (x *ArtifactReceipt) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *ArtifactReceipt) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+func (x *ArtifactReceipt) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+// ScenarioResponse is the bounded unary response to ScenarioRequest. It is
+// shared because the channel envelope and presence report RPC carry the same
+// node-local scenario result.
+type ScenarioResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CorrelationId string                 `protobuf:"bytes,1,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"`
+	Response      []byte                 `protobuf:"bytes,2,opt,name=response,proto3" json:"response,omitempty"`
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	TimedOut      bool                   `protobuf:"varint,4,opt,name=timed_out,json=timedOut,proto3" json:"timed_out,omitempty"`
+	Truncated     bool                   `protobuf:"varint,5,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioResponse) Reset() {
+	*x = ScenarioResponse{}
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioResponse) ProtoMessage() {}
+
+func (x *ScenarioResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioResponse.ProtoReflect.Descriptor instead.
+func (*ScenarioResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ScenarioResponse) GetCorrelationId() string {
+	if x != nil {
+		return x.CorrelationId
+	}
+	return ""
+}
+
+func (x *ScenarioResponse) GetResponse() []byte {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+func (x *ScenarioResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *ScenarioResponse) GetTimedOut() bool {
+	if x != nil {
+		return x.TimedOut
+	}
+	return false
+}
+
+func (x *ScenarioResponse) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
 type RelayResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CorrelationId string                 `protobuf:"bytes,1,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"`
@@ -695,7 +878,7 @@ type RelayResponse struct {
 
 func (x *RelayResponse) Reset() {
 	*x = RelayResponse{}
-	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[5]
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -707,7 +890,7 @@ func (x *RelayResponse) String() string {
 func (*RelayResponse) ProtoMessage() {}
 
 func (x *RelayResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[5]
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -720,7 +903,7 @@ func (x *RelayResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RelayResponse.ProtoReflect.Descriptor instead.
 func (*RelayResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP(), []int{5}
+	return file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RelayResponse) GetCorrelationId() string {
@@ -786,7 +969,7 @@ type SessionFrame struct {
 
 func (x *SessionFrame) Reset() {
 	*x = SessionFrame{}
-	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[6]
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -798,7 +981,7 @@ func (x *SessionFrame) String() string {
 func (*SessionFrame) ProtoMessage() {}
 
 func (x *SessionFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[6]
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -811,7 +994,7 @@ func (x *SessionFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionFrame.ProtoReflect.Descriptor instead.
 func (*SessionFrame) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP(), []int{6}
+	return file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SessionFrame) GetSessionId() string {
@@ -876,7 +1059,23 @@ const file_vrooli_bridge_v1_shared_shared_proto_rawDesc = "" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x13\n" +
 	"\x05op_id\x18\x03 \x01(\tR\x04opId\x12;\n" +
 	"\vreceived_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"receivedAt\"\x89\x02\n" +
+	"receivedAt\"\x82\x02\n" +
+	"\x0fArtifactReceipt\x12'\n" +
+	"\x0fdistribution_id\x18\x01 \x01(\tR\x0edistributionId\x12\x17\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x17\n" +
+	"\aitem_id\x18\x03 \x01(\tR\x06itemId\x12)\n" +
+	"\x10destination_path\x18\x04 \x01(\tR\x0fdestinationPath\x12\x1a\n" +
+	"\baccepted\x18\x05 \x01(\bR\baccepted\x12\x16\n" +
+	"\x06reason\x18\x06 \x01(\tR\x06reason\x12\x16\n" +
+	"\x06sha256\x18\a \x01(\tR\x06sha256\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\b \x01(\x03R\tsizeBytes\"\xac\x01\n" +
+	"\x10ScenarioResponse\x12%\n" +
+	"\x0ecorrelation_id\x18\x01 \x01(\tR\rcorrelationId\x12\x1a\n" +
+	"\bresponse\x18\x02 \x01(\fR\bresponse\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1b\n" +
+	"\ttimed_out\x18\x04 \x01(\bR\btimedOut\x12\x1c\n" +
+	"\ttruncated\x18\x05 \x01(\bR\ttruncatedJ\x04\b\x06\x10\x10\"\x89\x02\n" +
 	"\rRelayResponse\x12%\n" +
 	"\x0ecorrelation_id\x18\x01 \x01(\tR\rcorrelationId\x12E\n" +
 	"\x04kind\x18\x02 \x01(\x0e21.vrooli.vrooli_bridge.v1.shared.RelayResponseKindR\x04kind\x12\x1a\n" +
@@ -928,7 +1127,7 @@ func file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP() []byte {
 }
 
 var file_vrooli_bridge_v1_shared_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_vrooli_bridge_v1_shared_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_vrooli_bridge_v1_shared_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_vrooli_bridge_v1_shared_shared_proto_goTypes = []any{
 	(CompatibilityStatus)(0),        // 0: vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
 	(RunEventKind)(0),               // 1: vrooli.vrooli_bridge.v1.shared.RunEventKind
@@ -939,25 +1138,27 @@ var file_vrooli_bridge_v1_shared_shared_proto_goTypes = []any{
 	(*Heartbeat)(nil),               // 6: vrooli.vrooli_bridge.v1.shared.Heartbeat
 	(*RunEvent)(nil),                // 7: vrooli.vrooli_bridge.v1.shared.RunEvent
 	(*DeliveryAck)(nil),             // 8: vrooli.vrooli_bridge.v1.shared.DeliveryAck
-	(*RelayResponse)(nil),           // 9: vrooli.vrooli_bridge.v1.shared.RelayResponse
-	(*SessionFrame)(nil),            // 10: vrooli.vrooli_bridge.v1.shared.SessionFrame
-	nil,                             // 11: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.DetailsEntry
-	(*timestamppb.Timestamp)(nil),   // 12: google.protobuf.Timestamp
-	(*session.Frame)(nil),           // 13: vrooli.vrooli_bridge.v1.session.Frame
+	(*ArtifactReceipt)(nil),         // 9: vrooli.vrooli_bridge.v1.shared.ArtifactReceipt
+	(*ScenarioResponse)(nil),        // 10: vrooli.vrooli_bridge.v1.shared.ScenarioResponse
+	(*RelayResponse)(nil),           // 11: vrooli.vrooli_bridge.v1.shared.RelayResponse
+	(*SessionFrame)(nil),            // 12: vrooli.vrooli_bridge.v1.shared.SessionFrame
+	nil,                             // 13: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.DetailsEntry
+	(*timestamppb.Timestamp)(nil),   // 14: google.protobuf.Timestamp
+	(*session.Frame)(nil),           // 15: vrooli.vrooli_bridge.v1.session.Frame
 }
 var file_vrooli_bridge_v1_shared_shared_proto_depIdxs = []int32{
-	11, // 0: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.details:type_name -> vrooli.vrooli_bridge.v1.shared.HealthSnapshot.DetailsEntry
-	12, // 1: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.reported_at:type_name -> google.protobuf.Timestamp
+	13, // 0: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.details:type_name -> vrooli.vrooli_bridge.v1.shared.HealthSnapshot.DetailsEntry
+	14, // 1: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.reported_at:type_name -> google.protobuf.Timestamp
 	5,  // 2: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.capabilities:type_name -> vrooli.vrooli_bridge.v1.shared.CapabilityObservation
 	2,  // 3: vrooli.vrooli_bridge.v1.shared.CapabilityObservation.state:type_name -> vrooli.vrooli_bridge.v1.shared.CapabilityObservationState
-	12, // 4: vrooli.vrooli_bridge.v1.shared.CapabilityObservation.probed_at:type_name -> google.protobuf.Timestamp
+	14, // 4: vrooli.vrooli_bridge.v1.shared.CapabilityObservation.probed_at:type_name -> google.protobuf.Timestamp
 	4,  // 5: vrooli.vrooli_bridge.v1.shared.Heartbeat.health:type_name -> vrooli.vrooli_bridge.v1.shared.HealthSnapshot
-	12, // 6: vrooli.vrooli_bridge.v1.shared.Heartbeat.sent_at:type_name -> google.protobuf.Timestamp
+	14, // 6: vrooli.vrooli_bridge.v1.shared.Heartbeat.sent_at:type_name -> google.protobuf.Timestamp
 	1,  // 7: vrooli.vrooli_bridge.v1.shared.RunEvent.kind:type_name -> vrooli.vrooli_bridge.v1.shared.RunEventKind
-	12, // 8: vrooli.vrooli_bridge.v1.shared.RunEvent.emitted_at:type_name -> google.protobuf.Timestamp
-	12, // 9: vrooli.vrooli_bridge.v1.shared.DeliveryAck.received_at:type_name -> google.protobuf.Timestamp
+	14, // 8: vrooli.vrooli_bridge.v1.shared.RunEvent.emitted_at:type_name -> google.protobuf.Timestamp
+	14, // 9: vrooli.vrooli_bridge.v1.shared.DeliveryAck.received_at:type_name -> google.protobuf.Timestamp
 	3,  // 10: vrooli.vrooli_bridge.v1.shared.RelayResponse.kind:type_name -> vrooli.vrooli_bridge.v1.shared.RelayResponseKind
-	13, // 11: vrooli.vrooli_bridge.v1.shared.SessionFrame.frame:type_name -> vrooli.vrooli_bridge.v1.session.Frame
+	15, // 11: vrooli.vrooli_bridge.v1.shared.SessionFrame.frame:type_name -> vrooli.vrooli_bridge.v1.session.Frame
 	12, // [12:12] is the sub-list for method output_type
 	12, // [12:12] is the sub-list for method input_type
 	12, // [12:12] is the sub-list for extension type_name
@@ -976,7 +1177,7 @@ func file_vrooli_bridge_v1_shared_shared_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_shared_shared_proto_rawDesc), len(file_vrooli_bridge_v1_shared_shared_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

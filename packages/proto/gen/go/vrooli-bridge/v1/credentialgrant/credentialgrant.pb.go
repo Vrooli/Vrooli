@@ -23,22 +23,26 @@ const (
 )
 
 type CredentialGrant struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	NodeId          string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	LogicalId       string                 `protobuf:"bytes,3,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
-	Field           string                 `protobuf:"bytes,4,opt,name=field,proto3" json:"field,omitempty"`
-	Class           string                 `protobuf:"bytes,5,opt,name=class,proto3" json:"class,omitempty"`
-	Retention       string                 `protobuf:"bytes,6,opt,name=retention,proto3" json:"retention,omitempty"`
-	Generation      int64                  `protobuf:"varint,7,opt,name=generation,proto3" json:"generation,omitempty"`
-	AckedGeneration int64                  `protobuf:"varint,8,opt,name=acked_generation,json=ackedGeneration,proto3" json:"acked_generation,omitempty"`
-	GrantedAt       *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=granted_at,json=grantedAt,proto3" json:"granted_at,omitempty"`
-	RevokedAt       *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
-	ReceiptAt       *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=receipt_at,json=receiptAt,proto3" json:"receipt_at,omitempty"`
-	ReceiptAccepted bool                   `protobuf:"varint,12,opt,name=receipt_accepted,json=receiptAccepted,proto3" json:"receipt_accepted,omitempty"`
-	ReceiptReason   string                 `protobuf:"bytes,13,opt,name=receipt_reason,json=receiptReason,proto3" json:"receipt_reason,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	NodeId               string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	LogicalId            string                 `protobuf:"bytes,3,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
+	Field                string                 `protobuf:"bytes,4,opt,name=field,proto3" json:"field,omitempty"`
+	Class                string                 `protobuf:"bytes,5,opt,name=class,proto3" json:"class,omitempty"`
+	Retention            string                 `protobuf:"bytes,6,opt,name=retention,proto3" json:"retention,omitempty"`
+	Generation           int64                  `protobuf:"varint,7,opt,name=generation,proto3" json:"generation,omitempty"`
+	AckedGeneration      int64                  `protobuf:"varint,8,opt,name=acked_generation,json=ackedGeneration,proto3" json:"acked_generation,omitempty"`
+	GrantedAt            *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=granted_at,json=grantedAt,proto3" json:"granted_at,omitempty"`
+	RevokedAt            *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
+	ReceiptAt            *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=receipt_at,json=receiptAt,proto3" json:"receipt_at,omitempty"`
+	ReceiptAccepted      bool                   `protobuf:"varint,12,opt,name=receipt_accepted,json=receiptAccepted,proto3" json:"receipt_accepted,omitempty"`
+	ReceiptReason        string                 `protobuf:"bytes,13,opt,name=receipt_reason,json=receiptReason,proto3" json:"receipt_reason,omitempty"`
+	PurgeState           string                 `protobuf:"bytes,14,opt,name=purge_state,json=purgeState,proto3" json:"purge_state,omitempty"`
+	PurgeReceiptAt       *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=purge_receipt_at,json=purgeReceiptAt,proto3" json:"purge_receipt_at,omitempty"`
+	PurgeReceiptAccepted bool                   `protobuf:"varint,16,opt,name=purge_receipt_accepted,json=purgeReceiptAccepted,proto3" json:"purge_receipt_accepted,omitempty"`
+	PurgeReceiptReason   string                 `protobuf:"bytes,17,opt,name=purge_receipt_reason,json=purgeReceiptReason,proto3" json:"purge_receipt_reason,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *CredentialGrant) Reset() {
@@ -158,6 +162,34 @@ func (x *CredentialGrant) GetReceiptAccepted() bool {
 func (x *CredentialGrant) GetReceiptReason() string {
 	if x != nil {
 		return x.ReceiptReason
+	}
+	return ""
+}
+
+func (x *CredentialGrant) GetPurgeState() string {
+	if x != nil {
+		return x.PurgeState
+	}
+	return ""
+}
+
+func (x *CredentialGrant) GetPurgeReceiptAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PurgeReceiptAt
+	}
+	return nil
+}
+
+func (x *CredentialGrant) GetPurgeReceiptAccepted() bool {
+	if x != nil {
+		return x.PurgeReceiptAccepted
+	}
+	return false
+}
+
+func (x *CredentialGrant) GetPurgeReceiptReason() string {
+	if x != nil {
+		return x.PurgeReceiptReason
 	}
 	return ""
 }
@@ -559,11 +591,14 @@ func (x *RotateAddressRequest) GetField() string {
 }
 
 type RotationResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	LogicalId     string                 `protobuf:"bytes,1,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
-	Field         string                 `protobuf:"bytes,2,opt,name=field,proto3" json:"field,omitempty"`
-	Generation    int64                  `protobuf:"varint,3,opt,name=generation,proto3" json:"generation,omitempty"`
-	Grants        []*CredentialGrant     `protobuf:"bytes,4,rep,name=grants,proto3" json:"grants,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	LogicalId  string                 `protobuf:"bytes,1,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
+	Field      string                 `protobuf:"bytes,2,opt,name=field,proto3" json:"field,omitempty"`
+	Generation int64                  `protobuf:"varint,3,opt,name=generation,proto3" json:"generation,omitempty"`
+	Grants     []*CredentialGrant     `protobuf:"bytes,4,rep,name=grants,proto3" json:"grants,omitempty"`
+	// Rotation here advances Bridge's local delivery generation. The upstream
+	// provider may still require its own credential rotation operation.
+	RotationScope string `protobuf:"bytes,5,opt,name=rotation_scope,json=rotationScope,proto3" json:"rotation_scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -626,11 +661,18 @@ func (x *RotationResponse) GetGrants() []*CredentialGrant {
 	return nil
 }
 
+func (x *RotationResponse) GetRotationScope() string {
+	if x != nil {
+		return x.RotationScope
+	}
+	return ""
+}
+
 var File_vrooli_bridge_v1_credentialgrant_credentialgrant_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_credentialgrant_credentialgrant_proto_rawDesc = "" +
 	"\n" +
-	"6vrooli-bridge/v1/credentialgrant/credentialgrant.proto\x12'vrooli.vrooli_bridge.v1.credentialgrant\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf1\x03\n" +
+	"6vrooli-bridge/v1/credentialgrant/credentialgrant.proto\x12'vrooli.vrooli_bridge.v1.credentialgrant\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc0\x05\n" +
 	"\x0fCredentialGrant\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x1d\n" +
@@ -651,7 +693,12 @@ const file_vrooli_bridge_v1_credentialgrant_credentialgrant_proto_rawDesc = "" +
 	"\n" +
 	"receipt_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\treceiptAt\x12)\n" +
 	"\x10receipt_accepted\x18\f \x01(\bR\x0freceiptAccepted\x12%\n" +
-	"\x0ereceipt_reason\x18\r \x01(\tR\rreceiptReason\"\xb6\x01\n" +
+	"\x0ereceipt_reason\x18\r \x01(\tR\rreceiptReason\x12\x1f\n" +
+	"\vpurge_state\x18\x0e \x01(\tR\n" +
+	"purgeState\x12D\n" +
+	"\x10purge_receipt_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\x0epurgeReceiptAt\x124\n" +
+	"\x16purge_receipt_accepted\x18\x10 \x01(\bR\x14purgeReceiptAccepted\x120\n" +
+	"\x14purge_receipt_reason\x18\x11 \x01(\tR\x12purgeReceiptReason\"\xb6\x01\n" +
 	"\x12CreateGrantRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1d\n" +
 	"\n" +
@@ -681,7 +728,7 @@ const file_vrooli_bridge_v1_credentialgrant_credentialgrant_proto_rawDesc = "" +
 	"\x14RotateAddressRequest\x12\x1d\n" +
 	"\n" +
 	"logical_id\x18\x01 \x01(\tR\tlogicalId\x12\x14\n" +
-	"\x05field\x18\x02 \x01(\tR\x05field\"\xb9\x01\n" +
+	"\x05field\x18\x02 \x01(\tR\x05field\"\xe0\x01\n" +
 	"\x10RotationResponse\x12\x1d\n" +
 	"\n" +
 	"logical_id\x18\x01 \x01(\tR\tlogicalId\x12\x14\n" +
@@ -689,7 +736,8 @@ const file_vrooli_bridge_v1_credentialgrant_credentialgrant_proto_rawDesc = "" +
 	"\n" +
 	"generation\x18\x03 \x01(\x03R\n" +
 	"generation\x12P\n" +
-	"\x06grants\x18\x04 \x03(\v28.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantR\x06grants2\xd3\x06\n" +
+	"\x06grants\x18\x04 \x03(\v28.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantR\x06grants\x12%\n" +
+	"\x0erotation_scope\x18\x05 \x01(\tR\rrotationScope2\xd3\x06\n" +
 	"\x16CredentialGrantService\x12\x84\x01\n" +
 	"\vCreateGrant\x12;.vrooli.vrooli_bridge.v1.credentialgrant.CreateGrantRequest\x1a8.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant\x12\x86\x01\n" +
 	"\fAnswerSecret\x12<.vrooli.vrooli_bridge.v1.credentialgrant.AnswerSecretRequest\x1a8.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant\x12\x85\x01\n" +
@@ -728,25 +776,26 @@ var file_vrooli_bridge_v1_credentialgrant_credentialgrant_proto_depIdxs = []int3
 	9,  // 0: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant.granted_at:type_name -> google.protobuf.Timestamp
 	9,  // 1: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant.revoked_at:type_name -> google.protobuf.Timestamp
 	9,  // 2: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant.receipt_at:type_name -> google.protobuf.Timestamp
-	0,  // 3: vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse.grants:type_name -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
-	0,  // 4: vrooli.vrooli_bridge.v1.credentialgrant.RotationResponse.grants:type_name -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
-	1,  // 5: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.CreateGrant:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.CreateGrantRequest
-	2,  // 6: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.AnswerSecret:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.AnswerSecretRequest
-	3,  // 7: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.ListGrants:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsRequest
-	5,  // 8: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.RevokeGrant:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.RevokeGrantRequest
-	7,  // 9: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.RotateAddress:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.RotateAddressRequest
-	6,  // 10: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.SyncNodeGrants:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.SyncNodeGrantsRequest
-	0,  // 11: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.CreateGrant:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
-	0,  // 12: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.AnswerSecret:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
-	4,  // 13: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.ListGrants:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse
-	0,  // 14: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.RevokeGrant:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
-	8,  // 15: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.RotateAddress:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.RotationResponse
-	4,  // 16: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.SyncNodeGrants:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse
-	11, // [11:17] is the sub-list for method output_type
-	5,  // [5:11] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	9,  // 3: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant.purge_receipt_at:type_name -> google.protobuf.Timestamp
+	0,  // 4: vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse.grants:type_name -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
+	0,  // 5: vrooli.vrooli_bridge.v1.credentialgrant.RotationResponse.grants:type_name -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
+	1,  // 6: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.CreateGrant:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.CreateGrantRequest
+	2,  // 7: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.AnswerSecret:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.AnswerSecretRequest
+	3,  // 8: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.ListGrants:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsRequest
+	5,  // 9: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.RevokeGrant:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.RevokeGrantRequest
+	7,  // 10: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.RotateAddress:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.RotateAddressRequest
+	6,  // 11: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.SyncNodeGrants:input_type -> vrooli.vrooli_bridge.v1.credentialgrant.SyncNodeGrantsRequest
+	0,  // 12: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.CreateGrant:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
+	0,  // 13: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.AnswerSecret:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
+	4,  // 14: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.ListGrants:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse
+	0,  // 15: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.RevokeGrant:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
+	8,  // 16: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.RotateAddress:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.RotationResponse
+	4,  // 17: vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.SyncNodeGrants:output_type -> vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse
+	12, // [12:18] is the sub-list for method output_type
+	6,  // [6:12] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_credentialgrant_credentialgrant_proto_init() }

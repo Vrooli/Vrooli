@@ -13,7 +13,34 @@ import (
 )
 
 func Register(_ support.Dependencies) cliapp.SubcommandGroup {
-	return cliapp.SubcommandGroup{Name: "transitions", Description: "Declared agent transition catalog", Subcommands: []cliapp.Command{listCommand(), startCommand(), applyCommand()}}
+	return cliapp.SubcommandGroup{Name: "transitions", Description: "Declared agent transition catalog", Subcommands: []cliapp.Command{listCommand(), previewDevelopmentCommand(), startCommand(), applyCommand()}}
+}
+
+func previewDevelopmentCommand() cliapp.Command {
+	cmd := cliapp.Command{Name: "preview-development", NeedsAPI: true, Description: "Review a development proposal without approving or launching it", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "file", Description: "Proposal JSON using PreviewDevelopmentRequest fields", Required: true}}}}
+	return cmd.WithPrimitive(cliapp.ProtoList(
+		func(op cliapp.OperationContext) (*api.PreviewDevelopmentResponse, error) {
+			var req api.PreviewDevelopmentRequest
+			if err := support.ReadProtoFile(op.Flag("file"), &req); err != nil {
+				return nil, err
+			}
+			response, err := client(op).PreviewDevelopment(context.Background(), connect.NewRequest(&req))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		},
+		func(_ cliapp.OperationContext, response *api.PreviewDevelopmentResponse) cliapp.ListReport {
+			rows := []string{response.GetGoalMessage()}
+			for _, f := range response.GetFindings() {
+				rows = append(rows, f.GetCode()+": "+f.GetDetail())
+			}
+			for _, reason := range response.GetLaunchBlockers() {
+				rows = append(rows, "Launch blocked: "+reason)
+			}
+			return cliapp.ListReport{Summary: []string{fmt.Sprintf("Development proposal: %s", response.GetProposalDigest()), fmt.Sprintf("Review fields complete: %t; launch ready: %t. Nothing approved or started.", response.GetReviewComplete(), response.GetLaunchReady())}, ResultsHeading: "Review packet", Results: rows}
+		},
+	))
 }
 
 func client(op cliapp.OperationContext) apiconnect.TransitionServiceClient {

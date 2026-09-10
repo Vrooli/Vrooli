@@ -566,8 +566,12 @@ type RunDeclaredProgramRequest struct {
 	Provenance programs.Provenance    `protobuf:"varint,3,opt,name=provenance,proto3,enum=vrooli.program_runtime.v1.programs.Provenance" json:"provenance,omitempty"`
 	// Optional content identity from GetLibrary. Refuse drift before creating a session.
 	ExpectedDigest string `protobuf:"bytes,4,opt,name=expected_digest,json=expectedDigest,proto3" json:"expected_digest,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Return the accepted durable program immediately. The caller attaches with
+	// WaitForProgram; disconnecting never reclaims a running session.
+	Async         bool             `protobuf:"varint,5,opt,name=async,proto3" json:"async,omitempty"`
+	Caller        *programs.Caller `protobuf:"bytes,6,opt,name=caller,proto3" json:"caller,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunDeclaredProgramRequest) Reset() {
@@ -626,6 +630,20 @@ func (x *RunDeclaredProgramRequest) GetExpectedDigest() string {
 		return x.ExpectedDigest
 	}
 	return ""
+}
+
+func (x *RunDeclaredProgramRequest) GetAsync() bool {
+	if x != nil {
+		return x.Async
+	}
+	return false
+}
+
+func (x *RunDeclaredProgramRequest) GetCaller() *programs.Caller {
+	if x != nil {
+		return x.Caller
+	}
+	return nil
 }
 
 type RunDeclaredProgramResponse struct {
@@ -730,14 +748,16 @@ const file_program_runtime_v1_library_library_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\"g\n" +
 	"\x19SetCurrentLibraryResponse\x12J\n" +
-	"\aprogram\x18\x01 \x01(\v20.vrooli.program_runtime.v1.shared.LibraryProgramR\aprogram\"\xd9\x01\n" +
+	"\aprogram\x18\x01 \x01(\v20.vrooli.program_runtime.v1.shared.LibraryProgramR\aprogram\"\xb3\x02\n" +
 	"\x19RunDeclaredProgramRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12/\n" +
 	"\x06inputs\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06inputs\x12N\n" +
 	"\n" +
 	"provenance\x18\x03 \x01(\x0e2..vrooli.program_runtime.v1.programs.ProvenanceR\n" +
 	"provenance\x12'\n" +
-	"\x0fexpected_digest\x18\x04 \x01(\tR\x0eexpectedDigest\"\xa4\x01\n" +
+	"\x0fexpected_digest\x18\x04 \x01(\tR\x0eexpectedDigest\x12\x14\n" +
+	"\x05async\x18\x05 \x01(\bR\x05async\x12B\n" +
+	"\x06caller\x18\x06 \x01(\v2*.vrooli.program_runtime.v1.programs.CallerR\x06caller\"\xa4\x01\n" +
 	"\x1aRunDeclaredProgramResponse\x12E\n" +
 	"\aprogram\x18\x01 \x01(\v2+.vrooli.program_runtime.v1.programs.ProgramR\aprogram\x12\x1a\n" +
 	"\bterminal\x18\x02 \x01(\bR\bterminal\x12#\n" +
@@ -778,7 +798,8 @@ var file_program_runtime_v1_library_library_proto_goTypes = []any{
 	(*shared.LibraryProgram)(nil),      // 11: vrooli.program_runtime.v1.shared.LibraryProgram
 	(*structpb.Struct)(nil),            // 12: google.protobuf.Struct
 	(programs.Provenance)(0),           // 13: vrooli.program_runtime.v1.programs.Provenance
-	(*programs.Program)(nil),           // 14: vrooli.program_runtime.v1.programs.Program
+	(*programs.Caller)(nil),            // 14: vrooli.program_runtime.v1.programs.Caller
+	(*programs.Program)(nil),           // 15: vrooli.program_runtime.v1.programs.Program
 }
 var file_program_runtime_v1_library_library_proto_depIdxs = []int32{
 	11, // 0: vrooli.program_runtime.v1.library.ListLibraryResponse.programs:type_name -> vrooli.program_runtime.v1.shared.LibraryProgram
@@ -788,22 +809,23 @@ var file_program_runtime_v1_library_library_proto_depIdxs = []int32{
 	11, // 4: vrooli.program_runtime.v1.library.SetCurrentLibraryResponse.program:type_name -> vrooli.program_runtime.v1.shared.LibraryProgram
 	12, // 5: vrooli.program_runtime.v1.library.RunDeclaredProgramRequest.inputs:type_name -> google.protobuf.Struct
 	13, // 6: vrooli.program_runtime.v1.library.RunDeclaredProgramRequest.provenance:type_name -> vrooli.program_runtime.v1.programs.Provenance
-	14, // 7: vrooli.program_runtime.v1.library.RunDeclaredProgramResponse.program:type_name -> vrooli.program_runtime.v1.programs.Program
-	0,  // 8: vrooli.program_runtime.v1.library.LibraryService.ListLibrary:input_type -> vrooli.program_runtime.v1.library.ListLibraryRequest
-	2,  // 9: vrooli.program_runtime.v1.library.LibraryService.GetLibrary:input_type -> vrooli.program_runtime.v1.library.GetLibraryRequest
-	5,  // 10: vrooli.program_runtime.v1.library.LibraryService.PromoteLibrary:input_type -> vrooli.program_runtime.v1.library.PromoteLibraryRequest
-	7,  // 11: vrooli.program_runtime.v1.library.LibraryService.SetCurrentLibrary:input_type -> vrooli.program_runtime.v1.library.SetCurrentLibraryRequest
-	9,  // 12: vrooli.program_runtime.v1.library.LibraryService.RunDeclaredProgram:input_type -> vrooli.program_runtime.v1.library.RunDeclaredProgramRequest
-	1,  // 13: vrooli.program_runtime.v1.library.LibraryService.ListLibrary:output_type -> vrooli.program_runtime.v1.library.ListLibraryResponse
-	4,  // 14: vrooli.program_runtime.v1.library.LibraryService.GetLibrary:output_type -> vrooli.program_runtime.v1.library.GetLibraryResponse
-	6,  // 15: vrooli.program_runtime.v1.library.LibraryService.PromoteLibrary:output_type -> vrooli.program_runtime.v1.library.PromoteLibraryResponse
-	8,  // 16: vrooli.program_runtime.v1.library.LibraryService.SetCurrentLibrary:output_type -> vrooli.program_runtime.v1.library.SetCurrentLibraryResponse
-	10, // 17: vrooli.program_runtime.v1.library.LibraryService.RunDeclaredProgram:output_type -> vrooli.program_runtime.v1.library.RunDeclaredProgramResponse
-	13, // [13:18] is the sub-list for method output_type
-	8,  // [8:13] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	14, // 7: vrooli.program_runtime.v1.library.RunDeclaredProgramRequest.caller:type_name -> vrooli.program_runtime.v1.programs.Caller
+	15, // 8: vrooli.program_runtime.v1.library.RunDeclaredProgramResponse.program:type_name -> vrooli.program_runtime.v1.programs.Program
+	0,  // 9: vrooli.program_runtime.v1.library.LibraryService.ListLibrary:input_type -> vrooli.program_runtime.v1.library.ListLibraryRequest
+	2,  // 10: vrooli.program_runtime.v1.library.LibraryService.GetLibrary:input_type -> vrooli.program_runtime.v1.library.GetLibraryRequest
+	5,  // 11: vrooli.program_runtime.v1.library.LibraryService.PromoteLibrary:input_type -> vrooli.program_runtime.v1.library.PromoteLibraryRequest
+	7,  // 12: vrooli.program_runtime.v1.library.LibraryService.SetCurrentLibrary:input_type -> vrooli.program_runtime.v1.library.SetCurrentLibraryRequest
+	9,  // 13: vrooli.program_runtime.v1.library.LibraryService.RunDeclaredProgram:input_type -> vrooli.program_runtime.v1.library.RunDeclaredProgramRequest
+	1,  // 14: vrooli.program_runtime.v1.library.LibraryService.ListLibrary:output_type -> vrooli.program_runtime.v1.library.ListLibraryResponse
+	4,  // 15: vrooli.program_runtime.v1.library.LibraryService.GetLibrary:output_type -> vrooli.program_runtime.v1.library.GetLibraryResponse
+	6,  // 16: vrooli.program_runtime.v1.library.LibraryService.PromoteLibrary:output_type -> vrooli.program_runtime.v1.library.PromoteLibraryResponse
+	8,  // 17: vrooli.program_runtime.v1.library.LibraryService.SetCurrentLibrary:output_type -> vrooli.program_runtime.v1.library.SetCurrentLibraryResponse
+	10, // 18: vrooli.program_runtime.v1.library.LibraryService.RunDeclaredProgram:output_type -> vrooli.program_runtime.v1.library.RunDeclaredProgramResponse
+	14, // [14:19] is the sub-list for method output_type
+	9,  // [9:14] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_program_runtime_v1_library_library_proto_init() }

@@ -1,0 +1,116 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.session;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/session;sessionv1";
+
+// SessionService owns the durable wizard pointer and the public step model.
+// The step id is the stable cross surface identity; ordinal remains a display
+// and compatibility field for the current wizard layout.
+service SessionService {
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+  rpc AdvanceSessionStep(AdvanceSessionStepRequest) returns (GetSessionResponse);
+  rpc GetStepModel(GetStepModelRequest) returns (GetStepModelResponse);
+  rpc GetDraft(GetDraftRequest) returns (GetDraftResponse);
+  rpc SaveDraft(SaveDraftRequest) returns (GetDraftResponse);
+  rpc DiscardDraft(DiscardDraftRequest) returns (GetDraftResponse);
+  rpc GetProfileSession(GetProfileSessionRequest) returns (GetProfileSessionResponse);
+  rpc SaveProfileSession(SaveProfileSessionRequest) returns (GetProfileSessionResponse);
+}
+
+message GetSessionRequest { string target = 1; }
+
+message AdvanceSessionStepRequest {
+  string target = 1;
+  string step_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetStepModelRequest { string target = 1; }
+
+message GetSessionResponse {
+  int32 step = 1;
+  string step_id = 2;
+  int32 first_unsatisfied_step = 3;
+  bool completion = 4;
+}
+
+message Step {
+  string id = 1;
+  int32 ordinal = 2;
+  string title = 3;
+  string route = 4;
+  bool deferred = 5;
+}
+
+message GetStepModelResponse { repeated Step steps = 1; }
+
+message Draft {
+  string target = 1;
+  string actor = 2;
+  string base_revision = 3;
+  string revision = 4;
+  string step_id = 5;
+  map<string, string> choices = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message GetDraftRequest {
+  string target = 1 [(buf.validate.field).string.min_len = 1];
+  string actor = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message SaveDraftRequest {
+  string target = 1 [(buf.validate.field).string.min_len = 1];
+  string actor = 2 [(buf.validate.field).string.min_len = 1];
+  string expected_revision = 3;
+  string base_revision = 4 [(buf.validate.field).string.min_len = 1];
+  string step_id = 5;
+  map<string, string> choices = 6;
+}
+
+message DiscardDraftRequest {
+  string target = 1 [(buf.validate.field).string.min_len = 1];
+  string actor = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetDraftResponse { Draft draft = 1; }
+
+// ProfileSession is the durable non-secret purpose-selection context. The
+// actor field is returned for provenance; mutation ownership comes from the
+// verified transport session, not from caller-provided actor text.
+message ProfileSession {
+  string target = 1;
+  string actor = 2;
+  string mode = 3;
+  string profile_id = 4;
+  string profile_version = 5;
+  string catalog_revision = 6;
+  string base_revision = 7;
+  google.protobuf.Struct answers = 8;
+  map<string, bool> manual_decisions = 9;
+  google.protobuf.Struct target_context = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  // Current operator-state revision used for the next optimistic save.
+  string revision = 12;
+  string reconciliation_state = 13;
+  string current_profile_version = 14;
+  repeated string reconciliation_reasons = 15;
+}
+
+message GetProfileSessionRequest {
+  string target = 1 [(buf.validate.field).string.min_len = 1];
+  string actor = 2; // legacy compatibility; verified transport identity wins
+}
+
+message SaveProfileSessionRequest {
+  string target = 1 [(buf.validate.field).string.min_len = 1];
+  string actor = 2; // legacy compatibility; verified transport identity wins
+  string expected_revision = 3;
+  ProfileSession session = 4 [(buf.validate.field).required = true];
+}
+
+message GetProfileSessionResponse { ProfileSession session = 1; }

@@ -158,6 +158,41 @@ func TestShellOwnershipDetectsRootBrowserEntryChrome(t *testing.T) {
 	t.Fatalf("root browser entry escaped ownership analysis: %+v", result)
 }
 
+func TestShellOwnershipProvesDeclaredEntryIsBrowserReachable(t *testing.T) {
+	root := t.TempDir()
+	writeShellFixture(t, root, "ui/src/layout/AppShell.tsx", `import {AppShell as LibraryShell} from '@vrooli/react-component-library/AppShell/2'; export function AppShell(){return <LibraryShell/>}`)
+	writeShellFixture(t, root, "ui/src/main.tsx", `import {AppShell} from './layout/AppShell'; export function mount(){return <AppShell/>}`)
+	ctx := uiinterop.CheckContext{ScenarioRoot: root, Sources: uiinterop.WalkUISource(root, "ui")}
+	result, err := analyzeShellOwnership(ctx, shellDeclaration{Archetype: "navigated-console", Asset: "AppShell", Entry: "ui/src/layout/AppShell.tsx", Export: "AppShell"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.EntryReachable == nil || !*result.EntryReachable || !result.Mounted {
+		t.Fatalf("reachable shell was not proven: %+v", result)
+	}
+}
+
+func TestShellOwnershipRejectsDeclaredEntryOutsideBrowserGraph(t *testing.T) {
+	root := t.TempDir()
+	writeShellFixture(t, root, "ui/manifest.json", `{"shell":{"archetype":"navigated-console","asset":"AppShell","entry":"ui/src/layout/AppShell.tsx","export":"AppShell"}}`)
+	writeShellFixture(t, root, "ui/src/layout/AppShell.tsx", `import {AppShell as LibraryShell} from '@vrooli/react-component-library/AppShell/2'; export function AppShell(){return <LibraryShell/>}`)
+	writeShellFixture(t, root, "ui/src/main.tsx", `export function mount(){return <main/>}`)
+	ctx := uiinterop.CheckContext{ScenarioRoot: root, Sources: uiinterop.WalkUISource(root, "ui")}
+	result := checkShellOwnership(ctx)
+	if result.Passed || !strings.Contains(result.Message, "could not be verified") {
+		t.Fatalf("unreachable shell passed: %+v", result)
+	}
+	found := false
+	for _, violation := range result.Violations {
+		if strings.Contains(violation.Description, "not reachable from the browser entry") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing browser reachability violation: %+v", result)
+	}
+}
+
 func TestShellOwnershipStaticHTML(t *testing.T) {
 	cases := []struct {
 		name, markup string

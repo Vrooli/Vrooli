@@ -11,7 +11,7 @@ import (
 
 // TestNewDetector tests detector creation.
 func TestNewDetector(t *testing.T) {
-	cfg := appconfig.Config{
+	cfg := appconfig.RuntimeConfig{
 		ScenariosDir: "/tmp/scenarios",
 	}
 	detector := New(cfg)
@@ -32,7 +32,7 @@ func TestNewDetector(t *testing.T) {
 // TestCatalogManager tests catalog management functionality.
 func TestCatalogManager(t *testing.T) {
 	t.Run("RefreshClears", func(t *testing.T) {
-		catalog := newCatalogManager(appconfig.Config{})
+		catalog := newCatalogManager(appconfig.RuntimeConfig{})
 		// Force load
 		catalog.ensureLoaded()
 		if !catalog.loaded {
@@ -47,7 +47,7 @@ func TestCatalogManager(t *testing.T) {
 	})
 
 	t.Run("ThreadSafeLoad", func(t *testing.T) {
-		catalog := newCatalogManager(appconfig.Config{})
+		catalog := newCatalogManager(appconfig.RuntimeConfig{})
 		done := make(chan bool, 10)
 
 		// Concurrent access
@@ -65,7 +65,7 @@ func TestCatalogManager(t *testing.T) {
 	})
 
 	t.Run("PermissiveModeWhenEmpty", func(t *testing.T) {
-		catalog := newCatalogManager(appconfig.Config{})
+		catalog := newCatalogManager(appconfig.RuntimeConfig{})
 		catalog.mu.Lock()
 		catalog.loaded = true
 		catalog.knownScenarios = map[string]struct{}{}
@@ -82,7 +82,7 @@ func TestCatalogManager(t *testing.T) {
 	})
 
 	t.Run("GetScenarioCatalogReturnsCopy", func(t *testing.T) {
-		catalog := newCatalogManager(appconfig.Config{})
+		catalog := newCatalogManager(appconfig.RuntimeConfig{})
 		catalog.mu.Lock()
 		catalog.loaded = true
 		catalog.knownScenarios = map[string]struct{}{"test-scenario": {}}
@@ -203,7 +203,7 @@ func TestDetectorIntegration(t *testing.T) {
 	os.MkdirAll(filepath.Join(resourcesDir, "postgres"), 0o755)
 	os.MkdirAll(filepath.Join(resourcesDir, "redis"), 0o755)
 
-	cfg := appconfig.Config{
+	cfg := appconfig.RuntimeConfig{
 		ScenariosDir: scenariosDir,
 	}
 	detector := New(cfg)
@@ -253,7 +253,7 @@ PGHOST=localhost
 `
 	os.WriteFile(filepath.Join(scenarioPath, "api", "setup.sh"), []byte(scriptContent), 0o644)
 
-	cfg := appconfig.Config{
+	cfg := appconfig.RuntimeConfig{
 		ScenariosDir: scenariosDir,
 	}
 	detector := New(cfg)
@@ -286,7 +286,7 @@ vrooli scenario run dependency-scenario
 `
 	os.WriteFile(filepath.Join(testScenario, "api", "start.sh"), []byte(scriptContent), 0o644)
 
-	cfg := appconfig.Config{
+	cfg := appconfig.RuntimeConfig{
 		ScenariosDir: scenariosDir,
 	}
 	detector := New(cfg)

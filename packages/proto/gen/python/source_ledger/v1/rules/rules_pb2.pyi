@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Rule(_message.Message):
-    __slots__ = ("id", "scope", "priority", "facet_id", "source_runtime", "kind", "source_path_glob", "body_pattern", "enabled")
+    __slots__ = ("id", "scope", "priority", "facet_id", "source_runtime", "kind", "source_path_glob", "body_pattern", "enabled", "kind_glob")
     ID_FIELD_NUMBER: _ClassVar[int]
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     PRIORITY_FIELD_NUMBER: _ClassVar[int]
@@ -17,6 +17,7 @@ class Rule(_message.Message):
     SOURCE_PATH_GLOB_FIELD_NUMBER: _ClassVar[int]
     BODY_PATTERN_FIELD_NUMBER: _ClassVar[int]
     ENABLED_FIELD_NUMBER: _ClassVar[int]
+    KIND_GLOB_FIELD_NUMBER: _ClassVar[int]
     id: str
     scope: str
     priority: int
@@ -26,7 +27,8 @@ class Rule(_message.Message):
     source_path_glob: str
     body_pattern: str
     enabled: bool
-    def __init__(self, id: _Optional[str] = ..., scope: _Optional[str] = ..., priority: _Optional[int] = ..., facet_id: _Optional[str] = ..., source_runtime: _Optional[str] = ..., kind: _Optional[str] = ..., source_path_glob: _Optional[str] = ..., body_pattern: _Optional[str] = ..., enabled: _Optional[bool] = ...) -> None: ...
+    kind_glob: str
+    def __init__(self, id: _Optional[str] = ..., scope: _Optional[str] = ..., priority: _Optional[int] = ..., facet_id: _Optional[str] = ..., source_runtime: _Optional[str] = ..., kind: _Optional[str] = ..., source_path_glob: _Optional[str] = ..., body_pattern: _Optional[str] = ..., enabled: _Optional[bool] = ..., kind_glob: _Optional[str] = ...) -> None: ...
 
 class ListRulesRequest(_message.Message):
     __slots__ = ("scope",)
@@ -51,6 +53,18 @@ class CreateRuleResponse(_message.Message):
     RULE_FIELD_NUMBER: _ClassVar[int]
     rule: Rule
     def __init__(self, rule: _Optional[_Union[Rule, _Mapping]] = ...) -> None: ...
+
+class DeleteRuleRequest(_message.Message):
+    __slots__ = ("rule_id", "scope")
+    RULE_ID_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    rule_id: str
+    scope: str
+    def __init__(self, rule_id: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
+
+class DeleteRuleResponse(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
 
 class DryRunRuleRequest(_message.Message):
     __slots__ = ("rule_id", "scope")

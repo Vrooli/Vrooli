@@ -69,6 +69,47 @@ function analyze(input, ts) {
   const seen = new Set();
   const ownedNodes = new Set();
   let mounted = false;
+  // A declaration can point at a valid exported shell that is never imported
+  // by the browser entry. Keep the mount proof tied to the serving graph when
+  // an HTML/script entry is available; fixture-only callers without an entry
+  // retain the older isolated-module behavior.
+  function browserRoots() {
+    const roots = new Set();
+    const conventional = [
+      'ui/src/main.tsx', 'ui/src/main.ts', 'ui/src/main.jsx', 'ui/src/main.js',
+      'ui/src/index.tsx', 'ui/src/index.ts', 'ui/src/index.jsx', 'ui/src/index.js',
+      'ui/app.js', 'ui/script.js', 'ui/main.js', 'ui/index.js',
+    ];
+    for (const candidate of conventional) if (files.has(candidate)) roots.add(candidate);
+    for (const [file, content] of files) if (file.endsWith('.html')) {
+      for (const match of content.matchAll(/<script[^>]+src=["']([^"']+)["']/gi)) {
+        const src = match[1].split(/[?#]/, 1)[0];
+        const candidate = src.startsWith('/') ? `ui${src}` :
+          src.startsWith('./') ? path.normalize(path.join(path.dirname(file), src)) :
+          path.normalize(path.join(path.dirname(file), src));
+        if (files.has(candidate)) roots.add(candidate);
+      }
+    }
+    return [...roots];
+  }
+  function reachableFromBrowserEntry(target) {
+    const roots = browserRoots();
+    if (roots.length === 0) return null;
+    const visited = new Set();
+    function visit(file) {
+      if (visited.has(file)) return false;
+      visited.add(file);
+      if (file === target) return true;
+      const mod = modules.get(file);
+      if (!mod) return false;
+      for (const imp of mod.imports.values()) {
+        const child = resolve(file, imp.source);
+        if (child && visit(child)) return true;
+      }
+      return false;
+    }
+    return roots.some(visit);
+  }
   function isLibraryShell(source, name) {
     const match = source.match(/^@vrooli\/react-component-library\/([^/]+)(?:\/([0-9]+)(?:\.[0-9]+\.[0-9]+)?)?$/);
     return Boolean(match && match[1] === shell.asset && (name === shell.asset || name === 'default'));
@@ -179,7 +220,8 @@ function analyze(input, ts) {
     }
     inspect(mod.ast);
   }
-  return { mounted, findings };
+  const entryReachable = reachableFromBrowserEntry(shell.entry);
+  return { mounted, findings, entryReachable };
 }
 
 module.exports = { analyze };

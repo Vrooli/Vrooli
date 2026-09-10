@@ -3,6 +3,7 @@ package transitionrunner
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,8 +13,10 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/transitionrun"
 	"swarm-manager/internal/transitions"
+	"swarm-manager/internal/workflowcontract"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -22,6 +25,122 @@ type fakeWorkflow struct {
 	completion agentmanager.InvocationCompletion
 	collectErr error
 	invocation agentmanager.Invocation
+}
+
+type lostStartAcknowledgementWorkflow struct {
+	fakeWorkflow
+	store             transitionrun.DispatchStore
+	execution         *domainpb.WorkflowExecution
+	lookupErr         error
+	startCalls        int
+	intentBeforeStart bool
+}
+
+func (w *lostStartAcknowledgementWorkflow) StartWorkflow(_ context.Context, in agentmanager.Invocation) (agentmanager.WorkflowStart, error) {
+	w.startCalls++
+	intent, err := w.store.GetDispatch("plan.execute", "consumer-execution")
+	w.intentBeforeStart = err == nil && intent.State == "submitting" && intent.IdempotencyKey == in.IdempotencyKey
+	w.execution = &domainpb.WorkflowExecution{Id: "original-owner", Owner: in.Owner, WorkflowKey: in.WorkflowKey, IdempotencyKey: in.IdempotencyKey, DefinitionDigest: "sha256:original-definition", ApprovalDigest: in.ApprovalDigest, GrantDigest: in.GrantDigest, EngagementGrant: in.EngagementGrant, Input: in.Input, Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_WAITING}
+	return agentmanager.WorkflowStart{}, io.ErrUnexpectedEOF
+}
+
+func (w *lostStartAcknowledgementWorkflow) InspectWorkflowStart(context.Context, string, string) (*domainpb.WorkflowExecution, error) {
+	return w.execution, w.lookupErr
+}
+
+func lostStartFixture(t *testing.T) (*Runner, *lostStartAcknowledgementWorkflow, transitions.Definition, PreparedInput) {
+	t.Helper()
+	store := transitionrun.NewFileStore(t.TempDir())
+	w := &lostStartAcknowledgementWorkflow{store: store}
+	r := New(testRegistry(t), w, store, nil)
+	definition := transitions.Definition{Key: "plan.execute", Subject: "backlog-item", Kind: transitions.KindWorkflow, Workflow: &transitions.Locator{Owner: "swarm-manager", Key: "swarm-manager/phased-plan-drain"}, TerminalOutcomes: []string{"complete"}}
+	input, err := structpb.NewValue(map[string]any{"consumer": map[string]any{"executionId": "consumer-execution", "entityKind": "execute", "entityName": "fixture", "entityVersion": "subject-v1"}, "plan": map[string]any{"frontierDigest": "frontier-v1"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared := PreparedInput{Input: input, EntityVersion: "subject-v1", FrontierDigest: "frontier-v1", ApprovalDigest: "reviewed-item", Grant: &workflowcontract.Grant{MaxTokens: 100, MaxWallTimeSeconds: 60, RetryLimitSet: true}}
+	if _, err := r.startPrepared(t.Context(), definition, "consumer-execution", prepared); !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("failed transport=%v", err)
+	}
+	if !w.intentBeforeStart {
+		t.Fatal("owner accepted work before its original dispatch locator was durable")
+	}
+	return r, w, definition, prepared
+}
+
+func TestLostStartAcknowledgementRecoversOriginalOwnerWithoutCreation(t *testing.T) {
+	r, w, definition, prepared := lostStartFixture(t)
+	intent, err := r.GetDispatchIntent("plan.execute", "consumer-execution")
+	if err != nil || intent.State != "unknown" || intent.Correlation.ExecutionID != "" {
+		t.Fatalf("lost acknowledgement was not retained: %+v %v", intent, err)
+	}
+	// Recovery has a fresh runner and only its durable journal plus owner reads.
+	restarted := New(r.registry, w, r.store, nil)
+	if err := restarted.RecoverDispatches(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	correlation, err := restarted.FindCorrelation("plan.execute", "consumer-execution")
+	if err != nil || correlation.ExecutionID != "original-owner" || correlation.EntityVersion != prepared.EntityVersion || correlation.FrontierDigest != prepared.FrontierDigest {
+		t.Fatalf("recovered correlation=%+v %v", correlation, err)
+	}
+	if _, err := restarted.startPrepared(t.Context(), definition, "consumer-execution", prepared); err != nil {
+		t.Fatal(err)
+	}
+	if w.startCalls != 1 {
+		t.Fatalf("recovery issued %d creation calls", w.startCalls)
+	}
+	intents, err := w.store.ListUnresolvedDispatches()
+	if err != nil || len(intents) != 0 {
+		t.Fatalf("acknowledged intent remains unresolved: %+v %v", intents, err)
+	}
+}
+
+func TestLostStartAcknowledgementAbsenceRetainsReservationWithoutResubmission(t *testing.T) {
+	r, w, definition, prepared := lostStartFixture(t)
+	w.execution, w.lookupErr = nil, agentmanager.ErrWorkflowNotFound
+	if _, err := r.startPrepared(t.Context(), definition, "consumer-execution", prepared); !errors.Is(err, agentmanager.ErrWorkflowNotFound) {
+		t.Fatalf("absence=%v", err)
+	}
+	if err := r.RecoverDispatches(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	intents, err := w.store.ListUnresolvedDispatches()
+	if err != nil || len(intents) != 1 || intents[0].State != "unknown" || intents[0].LastError == "" || w.startCalls != 1 {
+		t.Fatalf("absence freed or resubmitted uncertain work: intents=%+v starts=%d err=%v", intents, w.startCalls, err)
+	}
+	if _, err := r.FindCorrelation("plan.execute", "consumer-execution"); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("absence invented an owner correlation: %v", err)
+	}
+}
+
+func TestRecoveredStartRejectsDifferentConsumerOrGrantBinding(t *testing.T) {
+	mutations := map[string]func(*domainpb.WorkflowExecution){
+		"owner":     func(x *domainpb.WorkflowExecution) { x.Owner = "other" },
+		"workflow":  func(x *domainpb.WorkflowExecution) { x.WorkflowKey = "other/flow" },
+		"start key": func(x *domainpb.WorkflowExecution) { x.IdempotencyKey = "different" },
+		"consumer and frontier": func(x *domainpb.WorkflowExecution) {
+			x.Input, _ = structpb.NewValue(map[string]any{"consumer": "different", "plan": "changed"})
+		},
+		"approval":     func(x *domainpb.WorkflowExecution) { x.ApprovalDigest = "other" },
+		"grant digest": func(x *domainpb.WorkflowExecution) { x.GrantDigest = "other" },
+		"actual grant": func(x *domainpb.WorkflowExecution) { x.EngagementGrant.MaxTokens++ },
+	}
+	for name, mutate := range mutations {
+		t.Run(name, func(t *testing.T) {
+			r, w, _, _ := lostStartFixture(t)
+			w.execution = proto.Clone(w.execution).(*domainpb.WorkflowExecution)
+			mutate(w.execution)
+			if _, err := r.ResolveDispatch(t.Context(), "plan.execute", "consumer-execution"); err == nil {
+				t.Fatal("foreign owner binding accepted")
+			}
+			if _, err := r.FindCorrelation("plan.execute", "consumer-execution"); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("foreign owner was bound: %v", err)
+			}
+			if w.startCalls != 1 {
+				t.Fatal("binding mismatch resubmitted work")
+			}
+		})
+	}
 }
 
 func (f *fakeWorkflow) StartWorkflow(_ context.Context, in agentmanager.Invocation) (agentmanager.WorkflowStart, error) {

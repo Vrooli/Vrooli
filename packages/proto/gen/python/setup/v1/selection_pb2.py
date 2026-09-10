@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x18setup/v1/selection.proto\x12\x0fvrooli.setup.v1\"\xb3\x07\n\tSelection\x12%\n\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\x16\n\x06target\x18\x02 \x01(\tR\x06target\x12\x1c\n\tscenarios\x18\x03 \x03(\tR\tscenarios\x12-\n\x12optional_resources\x18\x04 \x03(\tR\x11optionalResources\x12\x1b\n\tcore_seed\x18\x05 \x03(\tR\x08\x63oreSeed\x12!\n\x0ctrusted_base\x18\x06 \x03(\tR\x0btrustedBase\x12\x1d\n\nhost_tools\x18\x07 \x03(\tR\thostTools\x12\'\n\x0fhost_safeguards\x18\x08 \x03(\tR\x0ehostSafeguards\x12\x31\n\x14\x63redential_addresses\x18\t \x03(\tR\x13\x63redentialAddresses\x12#\n\rtrust_posture\x18\n \x01(\tR\x0ctrustPosture\x12%\n\x0eupdate_control\x18\x0b \x01(\tR\rupdateControl\x12!\n\x0csession_mode\x18\x0c \x01(\tR\x0bsessionMode\x12T\n\x0eoperating_mode\x18\r \x03(\x0b\x32-.vrooli.setup.v1.Selection.OperatingModeEntryR\roperatingMode\x12\x14\n\x05\x61pply\x18\x0e \x01(\x08R\x05\x61pply\x12)\n\x10\x63\x61pacity_posture\x18\x0f \x01(\tR\x0f\x63\x61pacityPosture\x12G\n transient_headroom_reserve_bytes\x18\x10 \x01(\x04R\x1dtransientHeadroomReserveBytes\x12]\n\x11resource_capacity\x18\x11 \x03(\x0b\x32\x30.vrooli.setup.v1.Selection.ResourceCapacityEntryR\x10resourceCapacity\x1a@\n\x12OperatingModeEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\x1ao\n\x15ResourceCapacityEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12@\n\x05value\x18\x02 \x01(\x0b\x32*.vrooli.setup.v1.ResourceCapacitySelectionR\x05value:\x02\x38\x01\"\xd1\x02\n\x19ResourceCapacitySelection\x12\x12\n\x04rung\x18\x01 \x01(\tR\x04rung\x12T\n\x08tunables\x18\x02 \x03(\x0b\x32\x38.vrooli.setup.v1.ResourceCapacitySelection.TunablesEntryR\x08tunables\x12\x1b\n\tgpu_index\x18\x03 \x01(\rR\x08gpuIndex\x12\x1a\n\x08priority\x18\x04 \x01(\tR\x08priority\x12&\n\x0fyield_when_idle\x18\x05 \x01(\x08R\ryieldWhenIdle\x12,\n\x12idle_grace_seconds\x18\x06 \x01(\rR\x10idleGraceSeconds\x1a;\n\rTunablesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\x42\x42Z@github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1;setup_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x18setup/v1/selection.proto\x12\x0fvrooli.setup.v1\"\xf4\x08\n\tSelection\x12%\n\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\x16\n\x06target\x18\x02 \x01(\tR\x06target\x12\x1c\n\tscenarios\x18\x03 \x03(\tR\tscenarios\x12-\n\x12optional_resources\x18\x04 \x03(\tR\x11optionalResources\x12\x1b\n\tcore_seed\x18\x05 \x03(\tR\x08\x63oreSeed\x12!\n\x0ctrusted_base\x18\x06 \x03(\tR\x0btrustedBase\x12\x1d\n\nhost_tools\x18\x07 \x03(\tR\thostTools\x12\'\n\x0fhost_safeguards\x18\x08 \x03(\tR\x0ehostSafeguards\x12\x31\n\x14\x63redential_addresses\x18\t \x03(\tR\x13\x63redentialAddresses\x12#\n\rtrust_posture\x18\n \x01(\tR\x0ctrustPosture\x12%\n\x0eupdate_control\x18\x0b \x01(\tR\rupdateControl\x12!\n\x0csession_mode\x18\x0c \x01(\tR\x0bsessionMode\x12T\n\x0eoperating_mode\x18\r \x03(\x0b\x32-.vrooli.setup.v1.Selection.OperatingModeEntryR\roperatingMode\x12\x14\n\x05\x61pply\x18\x0e \x01(\x08R\x05\x61pply\x12)\n\x10\x63\x61pacity_posture\x18\x0f \x01(\tR\x0f\x63\x61pacityPosture\x12G\n transient_headroom_reserve_bytes\x18\x10 \x01(\x04R\x1dtransientHeadroomReserveBytes\x12]\n\x11resource_capacity\x18\x11 \x03(\x0b\x32\x30.vrooli.setup.v1.Selection.ResourceCapacityEntryR\x10resourceCapacity\x12T\n\x0e\x66ield_presence\x18\x12 \x03(\x0b\x32-.vrooli.setup.v1.Selection.FieldPresenceEntryR\rfieldPresence\x1a@\n\x12OperatingModeEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\x1ao\n\x15ResourceCapacityEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12@\n\x05value\x18\x02 \x01(\x0b\x32*.vrooli.setup.v1.ResourceCapacitySelectionR\x05value:\x02\x38\x01\x1ai\n\x12\x46ieldPresenceEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12=\n\x05value\x18\x02 \x01(\x0e\x32\'.vrooli.setup.v1.SelectionFieldPresenceR\x05value:\x02\x38\x01\"\xd1\x02\n\x19ResourceCapacitySelection\x12\x12\n\x04rung\x18\x01 \x01(\tR\x04rung\x12T\n\x08tunables\x18\x02 \x03(\x0b\x32\x38.vrooli.setup.v1.ResourceCapacitySelection.TunablesEntryR\x08tunables\x12\x1b\n\tgpu_index\x18\x03 \x01(\rR\x08gpuIndex\x12\x1a\n\x08priority\x18\x04 \x01(\tR\x08priority\x12&\n\x0fyield_when_idle\x18\x05 \x01(\x08R\ryieldWhenIdle\x12,\n\x12idle_grace_seconds\x18\x06 \x01(\rR\x10idleGraceSeconds\x1a;\n\rTunablesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01*\xac\x01\n\x16SelectionFieldPresence\x12(\n$SELECTION_FIELD_PRESENCE_UNSPECIFIED\x10\x00\x12 \n\x1cSELECTION_FIELD_PRESENCE_SET\x10\x01\x12\"\n\x1eSELECTION_FIELD_PRESENCE_CLEAR\x10\x02\x12\"\n\x1eSELECTION_FIELD_PRESENCE_RESET\x10\x03\x42\x42Z@github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1;setup_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,16 +36,22 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SELECTION_OPERATINGMODEENTRY']._serialized_options = b'8\001'
   _globals['_SELECTION_RESOURCECAPACITYENTRY']._loaded_options = None
   _globals['_SELECTION_RESOURCECAPACITYENTRY']._serialized_options = b'8\001'
+  _globals['_SELECTION_FIELDPRESENCEENTRY']._loaded_options = None
+  _globals['_SELECTION_FIELDPRESENCEENTRY']._serialized_options = b'8\001'
   _globals['_RESOURCECAPACITYSELECTION_TUNABLESENTRY']._loaded_options = None
   _globals['_RESOURCECAPACITYSELECTION_TUNABLESENTRY']._serialized_options = b'8\001'
+  _globals['_SELECTIONFIELDPRESENCE']._serialized_start=1529
+  _globals['_SELECTIONFIELDPRESENCE']._serialized_end=1701
   _globals['_SELECTION']._serialized_start=46
-  _globals['_SELECTION']._serialized_end=993
-  _globals['_SELECTION_OPERATINGMODEENTRY']._serialized_start=816
-  _globals['_SELECTION_OPERATINGMODEENTRY']._serialized_end=880
-  _globals['_SELECTION_RESOURCECAPACITYENTRY']._serialized_start=882
-  _globals['_SELECTION_RESOURCECAPACITYENTRY']._serialized_end=993
-  _globals['_RESOURCECAPACITYSELECTION']._serialized_start=996
-  _globals['_RESOURCECAPACITYSELECTION']._serialized_end=1333
-  _globals['_RESOURCECAPACITYSELECTION_TUNABLESENTRY']._serialized_start=1274
-  _globals['_RESOURCECAPACITYSELECTION_TUNABLESENTRY']._serialized_end=1333
+  _globals['_SELECTION']._serialized_end=1186
+  _globals['_SELECTION_OPERATINGMODEENTRY']._serialized_start=902
+  _globals['_SELECTION_OPERATINGMODEENTRY']._serialized_end=966
+  _globals['_SELECTION_RESOURCECAPACITYENTRY']._serialized_start=968
+  _globals['_SELECTION_RESOURCECAPACITYENTRY']._serialized_end=1079
+  _globals['_SELECTION_FIELDPRESENCEENTRY']._serialized_start=1081
+  _globals['_SELECTION_FIELDPRESENCEENTRY']._serialized_end=1186
+  _globals['_RESOURCECAPACITYSELECTION']._serialized_start=1189
+  _globals['_RESOURCECAPACITYSELECTION']._serialized_end=1526
+  _globals['_RESOURCECAPACITYSELECTION_TUNABLESENTRY']._serialized_start=1467
+  _globals['_RESOURCECAPACITYSELECTION_TUNABLESENTRY']._serialized_end=1526
 # @@protoc_insertion_point(module_scope)

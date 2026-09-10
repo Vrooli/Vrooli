@@ -25,16 +25,19 @@ const (
 )
 
 type ReviewIdentity struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Scenario        string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	ProfileId       string                 `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
-	CandidateCommit string                 `protobuf:"bytes,3,opt,name=candidate_commit,json=candidateCommit,proto3" json:"candidate_commit,omitempty"`
-	ArtifactDigest  string                 `protobuf:"bytes,4,opt,name=artifact_digest,json=artifactDigest,proto3" json:"artifact_digest,omitempty"`
-	Targets         []string               `protobuf:"bytes,5,rep,name=targets,proto3" json:"targets,omitempty"`
-	Channel         string                 `protobuf:"bytes,6,opt,name=channel,proto3" json:"channel,omitempty"`
-	PolicyVersion   int32                  `protobuf:"varint,7,opt,name=policy_version,json=policyVersion,proto3" json:"policy_version,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Scenario              string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	ProfileId             string                 `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	CandidateCommit       string                 `protobuf:"bytes,3,opt,name=candidate_commit,json=candidateCommit,proto3" json:"candidate_commit,omitempty"`
+	ArtifactDigest        string                 `protobuf:"bytes,4,opt,name=artifact_digest,json=artifactDigest,proto3" json:"artifact_digest,omitempty"`
+	Targets               []string               `protobuf:"bytes,5,rep,name=targets,proto3" json:"targets,omitempty"`
+	Channel               string                 `protobuf:"bytes,6,opt,name=channel,proto3" json:"channel,omitempty"`
+	PolicyVersion         int32                  `protobuf:"varint,7,opt,name=policy_version,json=policyVersion,proto3" json:"policy_version,omitempty"`
+	CandidateId           string                 `protobuf:"bytes,8,opt,name=candidate_id,json=candidateId,proto3" json:"candidate_id,omitempty"`
+	DestinationRevisionId string                 `protobuf:"bytes,9,opt,name=destination_revision_id,json=destinationRevisionId,proto3" json:"destination_revision_id,omitempty"`
+	AuthorizationEpoch    uint64                 `protobuf:"varint,10,opt,name=authorization_epoch,json=authorizationEpoch,proto3" json:"authorization_epoch,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ReviewIdentity) Reset() {
@@ -116,6 +119,27 @@ func (x *ReviewIdentity) GetPolicyVersion() int32 {
 	return 0
 }
 
+func (x *ReviewIdentity) GetCandidateId() string {
+	if x != nil {
+		return x.CandidateId
+	}
+	return ""
+}
+
+func (x *ReviewIdentity) GetDestinationRevisionId() string {
+	if x != nil {
+		return x.DestinationRevisionId
+	}
+	return ""
+}
+
+func (x *ReviewIdentity) GetAuthorizationEpoch() uint64 {
+	if x != nil {
+		return x.AuthorizationEpoch
+	}
+	return 0
+}
+
 type PrepareReviewRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Scenario        string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -129,9 +153,12 @@ type PrepareReviewRequest struct {
 	Trigger         string                 `protobuf:"bytes,9,opt,name=trigger,proto3" json:"trigger,omitempty"`
 	// Facts are attributable release-shape observations used only to decide
 	// criterion applicability. Unknown facts remain unknown and fail closed.
-	Facts         map[string]string `protobuf:"bytes,10,rep,name=facts,proto3" json:"facts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Facts                 map[string]string `protobuf:"bytes,10,rep,name=facts,proto3" json:"facts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	CandidateId           string            `protobuf:"bytes,11,opt,name=candidate_id,json=candidateId,proto3" json:"candidate_id,omitempty"`
+	DestinationRevisionId string            `protobuf:"bytes,12,opt,name=destination_revision_id,json=destinationRevisionId,proto3" json:"destination_revision_id,omitempty"`
+	AuthorizationEpoch    uint64            `protobuf:"varint,13,opt,name=authorization_epoch,json=authorizationEpoch,proto3" json:"authorization_epoch,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *PrepareReviewRequest) Reset() {
@@ -232,6 +259,27 @@ func (x *PrepareReviewRequest) GetFacts() map[string]string {
 		return x.Facts
 	}
 	return nil
+}
+
+func (x *PrepareReviewRequest) GetCandidateId() string {
+	if x != nil {
+		return x.CandidateId
+	}
+	return ""
+}
+
+func (x *PrepareReviewRequest) GetDestinationRevisionId() string {
+	if x != nil {
+		return x.DestinationRevisionId
+	}
+	return ""
+}
+
+func (x *PrepareReviewRequest) GetAuthorizationEpoch() uint64 {
+	if x != nil {
+		return x.AuthorizationEpoch
+	}
+	return 0
 }
 
 type ReviewResponse struct {
@@ -1114,23 +1162,26 @@ func (x *CheckPolicyProjectionResponse) GetMatches() bool {
 // identity. Preparation consumes it only when criterion_id and the policy's
 // declared producer binding match.
 type ReportEvidenceRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	Scenario          string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	ProfileId         string                 `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
-	CandidateCommit   string                 `protobuf:"bytes,3,opt,name=candidate_commit,json=candidateCommit,proto3" json:"candidate_commit,omitempty"`
-	ArtifactDigest    string                 `protobuf:"bytes,4,opt,name=artifact_digest,json=artifactDigest,proto3" json:"artifact_digest,omitempty"`
-	Targets           []string               `protobuf:"bytes,5,rep,name=targets,proto3" json:"targets,omitempty"`
-	Channel           string                 `protobuf:"bytes,6,opt,name=channel,proto3" json:"channel,omitempty"`
-	PolicyVersion     int32                  `protobuf:"varint,7,opt,name=policy_version,json=policyVersion,proto3" json:"policy_version,omitempty"`
-	CriterionId       string                 `protobuf:"bytes,8,opt,name=criterion_id,json=criterionId,proto3" json:"criterion_id,omitempty"`
-	ProducerBinding   string                 `protobuf:"bytes,9,opt,name=producer_binding,json=producerBinding,proto3" json:"producer_binding,omitempty"`
-	ProducerVersion   string                 `protobuf:"bytes,10,opt,name=producer_version,json=producerVersion,proto3" json:"producer_version,omitempty"`
-	Status            string                 `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
-	ObservedAt        *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
-	EvidenceReference string                 `protobuf:"bytes,13,opt,name=evidence_reference,json=evidenceReference,proto3" json:"evidence_reference,omitempty"`
-	Detail            string                 `protobuf:"bytes,14,opt,name=detail,proto3" json:"detail,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Scenario              string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	ProfileId             string                 `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	CandidateCommit       string                 `protobuf:"bytes,3,opt,name=candidate_commit,json=candidateCommit,proto3" json:"candidate_commit,omitempty"`
+	ArtifactDigest        string                 `protobuf:"bytes,4,opt,name=artifact_digest,json=artifactDigest,proto3" json:"artifact_digest,omitempty"`
+	Targets               []string               `protobuf:"bytes,5,rep,name=targets,proto3" json:"targets,omitempty"`
+	Channel               string                 `protobuf:"bytes,6,opt,name=channel,proto3" json:"channel,omitempty"`
+	PolicyVersion         int32                  `protobuf:"varint,7,opt,name=policy_version,json=policyVersion,proto3" json:"policy_version,omitempty"`
+	CriterionId           string                 `protobuf:"bytes,8,opt,name=criterion_id,json=criterionId,proto3" json:"criterion_id,omitempty"`
+	ProducerBinding       string                 `protobuf:"bytes,9,opt,name=producer_binding,json=producerBinding,proto3" json:"producer_binding,omitempty"`
+	ProducerVersion       string                 `protobuf:"bytes,10,opt,name=producer_version,json=producerVersion,proto3" json:"producer_version,omitempty"`
+	Status                string                 `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
+	ObservedAt            *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	EvidenceReference     string                 `protobuf:"bytes,13,opt,name=evidence_reference,json=evidenceReference,proto3" json:"evidence_reference,omitempty"`
+	Detail                string                 `protobuf:"bytes,14,opt,name=detail,proto3" json:"detail,omitempty"`
+	CandidateId           string                 `protobuf:"bytes,15,opt,name=candidate_id,json=candidateId,proto3" json:"candidate_id,omitempty"`
+	DestinationRevisionId string                 `protobuf:"bytes,16,opt,name=destination_revision_id,json=destinationRevisionId,proto3" json:"destination_revision_id,omitempty"`
+	AuthorizationEpoch    uint64                 `protobuf:"varint,17,opt,name=authorization_epoch,json=authorizationEpoch,proto3" json:"authorization_epoch,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ReportEvidenceRequest) Reset() {
@@ -1261,6 +1312,27 @@ func (x *ReportEvidenceRequest) GetDetail() string {
 	return ""
 }
 
+func (x *ReportEvidenceRequest) GetCandidateId() string {
+	if x != nil {
+		return x.CandidateId
+	}
+	return ""
+}
+
+func (x *ReportEvidenceRequest) GetDestinationRevisionId() string {
+	if x != nil {
+		return x.DestinationRevisionId
+	}
+	return ""
+}
+
+func (x *ReportEvidenceRequest) GetAuthorizationEpoch() uint64 {
+	if x != nil {
+		return x.AuthorizationEpoch
+	}
+	return 0
+}
+
 type ReportEvidenceResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	IdentityKey     string                 `protobuf:"bytes,1,opt,name=identity_key,json=identityKey,proto3" json:"identity_key,omitempty"`
@@ -1333,7 +1405,7 @@ var File_deployment_manager_v1_readiness_readiness_proto protoreflect.FileDescri
 
 const file_deployment_manager_v1_readiness_readiness_proto_rawDesc = "" +
 	"\n" +
-	"/deployment-manager/v1/readiness/readiness.proto\x12&vrooli.deployment_manager.v1.readiness\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\x02\n" +
+	"/deployment-manager/v1/readiness/readiness.proto\x12&vrooli.deployment_manager.v1.readiness\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc6\x03\n" +
 	"\x0eReviewIdentity\x12#\n" +
 	"\bscenario\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bscenario\x12&\n" +
 	"\n" +
@@ -1342,7 +1414,11 @@ const file_deployment_manager_v1_readiness_readiness_proto_rawDesc = "" +
 	"\x0fartifact_digest\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0eartifactDigest\x12\"\n" +
 	"\atargets\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\b\x01R\atargets\x12!\n" +
 	"\achannel\x18\x06 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\achannel\x12.\n" +
-	"\x0epolicy_version\x18\a \x01(\x05B\a\xbaH\x04\x1a\x02 \x00R\rpolicyVersion\"\x95\x04\n" +
+	"\x0epolicy_version\x18\a \x01(\x05B\a\xbaH\x04\x1a\x02 \x00R\rpolicyVersion\x12!\n" +
+	"\fcandidate_id\x18\b \x01(\tR\vcandidateId\x126\n" +
+	"\x17destination_revision_id\x18\t \x01(\tR\x15destinationRevisionId\x12/\n" +
+	"\x13authorization_epoch\x18\n" +
+	" \x01(\x04R\x12authorizationEpoch\"\xa1\x05\n" +
 	"\x14PrepareReviewRequest\x12#\n" +
 	"\bscenario\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bscenario\x12&\n" +
 	"\n" +
@@ -1355,7 +1431,10 @@ const file_deployment_manager_v1_readiness_readiness_proto_rawDesc = "" +
 	"\vdeliverable\x18\b \x01(\tR\vdeliverable\x12\x18\n" +
 	"\atrigger\x18\t \x01(\tR\atrigger\x12]\n" +
 	"\x05facts\x18\n" +
-	" \x03(\v2G.vrooli.deployment_manager.v1.readiness.PrepareReviewRequest.FactsEntryR\x05facts\x1a8\n" +
+	" \x03(\v2G.vrooli.deployment_manager.v1.readiness.PrepareReviewRequest.FactsEntryR\x05facts\x12!\n" +
+	"\fcandidate_id\x18\v \x01(\tR\vcandidateId\x126\n" +
+	"\x17destination_revision_id\x18\f \x01(\tR\x15destinationRevisionId\x12/\n" +
+	"\x13authorization_epoch\x18\r \x01(\x04R\x12authorizationEpoch\x1a8\n" +
 	"\n" +
 	"FactsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
@@ -1441,7 +1520,7 @@ const file_deployment_manager_v1_readiness_readiness_proto_rawDesc = "" +
 	"\x1dCheckPolicyProjectionResponse\x12%\n" +
 	"\x0epolicy_version\x18\x01 \x01(\x05R\rpolicyVersion\x12'\n" +
 	"\x0fcriterion_count\x18\x02 \x01(\x05R\x0ecriterionCount\x12\x18\n" +
-	"\amatches\x18\x03 \x01(\bR\amatches\"\x82\x05\n" +
+	"\amatches\x18\x03 \x01(\bR\amatches\"\x8e\x06\n" +
 	"\x15ReportEvidenceRequest\x12#\n" +
 	"\bscenario\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bscenario\x12&\n" +
 	"\n" +
@@ -1459,7 +1538,10 @@ const file_deployment_manager_v1_readiness_readiness_proto_rawDesc = "" +
 	"\vobserved_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\n" +
 	"observedAt\x126\n" +
 	"\x12evidence_reference\x18\r \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11evidenceReference\x12\x16\n" +
-	"\x06detail\x18\x0e \x01(\tR\x06detail\"\xa5\x01\n" +
+	"\x06detail\x18\x0e \x01(\tR\x06detail\x12!\n" +
+	"\fcandidate_id\x18\x0f \x01(\tR\vcandidateId\x126\n" +
+	"\x17destination_revision_id\x18\x10 \x01(\tR\x15destinationRevisionId\x12/\n" +
+	"\x13authorization_epoch\x18\x11 \x01(\x04R\x12authorizationEpoch\"\xa5\x01\n" +
 	"\x16ReportEvidenceResponse\x12!\n" +
 	"\fidentity_key\x18\x01 \x01(\tR\videntityKey\x12!\n" +
 	"\fcriterion_id\x18\x02 \x01(\tR\vcriterionId\x12)\n" +

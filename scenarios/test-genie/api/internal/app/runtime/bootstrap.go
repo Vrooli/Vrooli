@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"test-genie/agentmanager"
 	appelig "test-genie/internal/app/eligibility"
 	apprun "test-genie/internal/app/runs"
@@ -33,6 +34,7 @@ import (
 	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/vrooli/packages/artifactpaths"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 
 	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
 	_ "modernc.org/sqlite"
@@ -136,6 +138,14 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	scenarioService := scenarios.NewScenarioDirectoryService(scenarioRepo, scenarioLister, cfg.ScenariosRoot)
 
 	executionSvc := execution.NewSuiteExecutionService(runner, executionRepo)
+	var readinessReporter *execution.DeploymentManagerReadinessReporter
+	configuredReporter, reporterErr := execution.NewConfiguredDeploymentManagerReadinessReporter(context.Background())
+	if reporterErr != nil {
+		log.Printf("[test-genie] deployment-manager readiness reporter unavailable: %v", reporterErr)
+	} else if configuredReporter != nil {
+		readinessReporter = configuredReporter
+		executionSvc.SetReadinessReporter(readinessReporter)
+	}
 	executionSvc.SetRetentionCollector(func(ctx context.Context, scenario string) {
 		artifactRoot, resolveErr := artifactpaths.ScenarioRoot(scenario)
 		if resolveErr != nil {
@@ -176,6 +186,9 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	// lifecycle (start/follow/wait/abort/status) over Connect-RPC, delegating
 	// execution to the run manager.
 	runsService := apprun.NewService(cfg.ScenariosRoot, runManager, executionPlanner, executionRepo)
+	if readinessReporter != nil {
+		readinessReporter.SetReleaseComparator(releaseComparator{service: runsService})
+	}
 	runsService.SetCostSource(executionRepo)
 	runsService.SetStoredMetricsProbe(func(ctx context.Context, phase string) bool {
 		present, err := executionRepo.HasPersistedMetrics(ctx, phase)
@@ -287,6 +300,27 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		ReceiptService:      receiptService,
 		StartBackground:     background.Start,
 		SweepStatus:         sweepStatus,
+	}, nil
+}
+
+type releaseComparator struct {
+	service *apprun.Service
+}
+
+func (c releaseComparator) CompareRelease(ctx context.Context, target, predecessor, current string) (execution.ReleaseComparison, error) {
+	if c.service == nil {
+		return execution.ReleaseComparison{}, fmt.Errorf("runs service is not configured")
+	}
+	response, err := c.service.CompareRuns(ctx, connect.NewRequest(&runspb.CompareRunsRequest{Target: target, RunIdA: predecessor, RunIdB: current}))
+	if err != nil {
+		return execution.ReleaseComparison{}, err
+	}
+	return execution.ReleaseComparison{
+		Verdict:       response.Msg.GetVerdict(),
+		Behavior:      response.Msg.GetBehavior(),
+		Coverage:      response.Msg.GetCoverage(),
+		Compatibility: response.Msg.GetCompatibility(),
+		Provenance:    response.Msg.GetProvenance(),
 	}, nil
 }
 

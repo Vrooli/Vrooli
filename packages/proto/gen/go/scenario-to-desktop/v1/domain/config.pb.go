@@ -1976,7 +1976,8 @@ type NativeExtension struct {
 	Permissions []string               `protobuf:"bytes,3,rep,name=permissions,proto3" json:"permissions,omitempty"`
 	Platforms   []string               `protobuf:"bytes,4,rep,name=platforms,proto3" json:"platforms,omitempty"`
 	// Version 2 global activation; requires global-shortcut permission.
-	ActivationShortcut string `protobuf:"bytes,5,opt,name=activation_shortcut,json=activationShortcut,proto3" json:"activation_shortcut,omitempty"`
+	ActivationShortcut string            `protobuf:"bytes,5,opt,name=activation_shortcut,json=activationShortcut,proto3" json:"activation_shortcut,omitempty"`
+	HelperProviders    []*HelperProvider `protobuf:"bytes,6,rep,name=helper_providers,json=helperProviders,proto3" json:"helper_providers,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -2042,6 +2043,65 @@ func (x *NativeExtension) GetPlatforms() []string {
 func (x *NativeExtension) GetActivationShortcut() string {
 	if x != nil {
 		return x.ActivationShortcut
+	}
+	return ""
+}
+
+func (x *NativeExtension) GetHelperProviders() []*HelperProvider {
+	if x != nil {
+		return x.HelperProviders
+	}
+	return nil
+}
+
+type HelperProvider struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Owner         string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	Capability    string                 `protobuf:"bytes,2,opt,name=capability,proto3" json:"capability,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HelperProvider) Reset() {
+	*x = HelperProvider{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HelperProvider) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HelperProvider) ProtoMessage() {}
+
+func (x *HelperProvider) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HelperProvider.ProtoReflect.Descriptor instead.
+func (*HelperProvider) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *HelperProvider) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *HelperProvider) GetCapability() string {
+	if x != nil {
+		return x.Capability
 	}
 	return ""
 }
@@ -2269,13 +2329,19 @@ const file_scenario_to_desktop_v1_domain_config_proto_rawDesc = "" +
 	"\fcompleted_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\vcompletedAt\x88\x01\x01\x12\x10\n" +
 	"\x03log\x18\x06 \x03(\tR\x03log\x12\x1b\n" +
 	"\terror_log\x18\a \x03(\tR\berrorLogB\x0f\n" +
-	"\r_completed_at\"\xb4\x01\n" +
+	"\r_completed_at\"\x95\x02\n" +
 	"\x0fNativeExtension\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\rR\aversion\x12\x16\n" +
 	"\x06module\x18\x02 \x01(\tR\x06module\x12 \n" +
 	"\vpermissions\x18\x03 \x03(\tR\vpermissions\x12\x1c\n" +
 	"\tplatforms\x18\x04 \x03(\tR\tplatforms\x12/\n" +
-	"\x13activation_shortcut\x18\x05 \x01(\tR\x12activationShortcut2\xb0\x02\n" +
+	"\x13activation_shortcut\x18\x05 \x01(\tR\x12activationShortcut\x12_\n" +
+	"\x10helper_providers\x18\x06 \x03(\v24.vrooli.scenario_to_desktop.v1.domain.HelperProviderR\x0fhelperProviders\"F\n" +
+	"\x0eHelperProvider\x12\x14\n" +
+	"\x05owner\x18\x01 \x01(\tR\x05owner\x12\x1e\n" +
+	"\n" +
+	"capability\x18\x02 \x01(\tR\n" +
+	"capability2\xb0\x02\n" +
 	"\rConfigService\x12\x8f\x01\n" +
 	"\x13GetScenarioMetadata\x12@.vrooli.scenario_to_desktop.v1.domain.GetScenarioMetadataRequest\x1a6.vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata\x12\x8c\x01\n" +
 	"\x13CreateDesktopConfig\x12@.vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest\x1a3.vrooli.scenario_to_desktop.v1.domain.DesktopConfig2\xd0\x06\n" +
@@ -2299,7 +2365,7 @@ func file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP() []byte {
 	return file_scenario_to_desktop_v1_domain_config_proto_rawDescData
 }
 
-var file_scenario_to_desktop_v1_domain_config_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_scenario_to_desktop_v1_domain_config_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_scenario_to_desktop_v1_domain_config_proto_goTypes = []any{
 	(*AppIdentity)(nil),                 // 0: vrooli.scenario_to_desktop.v1.domain.AppIdentity
 	(*ServerConfig)(nil),                // 1: vrooli.scenario_to_desktop.v1.domain.ServerConfig
@@ -2327,62 +2393,64 @@ var file_scenario_to_desktop_v1_domain_config_proto_goTypes = []any{
 	(*GetWineInstallStatusRequest)(nil), // 23: vrooli.scenario_to_desktop.v1.domain.GetWineInstallStatusRequest
 	(*WineInstallStatusResponse)(nil),   // 24: vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse
 	(*NativeExtension)(nil),             // 25: vrooli.scenario_to_desktop.v1.domain.NativeExtension
-	nil,                                 // 26: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.FeaturesEntry
-	nil,                                 // 27: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.StylingEntry
-	(shared.DeploymentMode)(0),          // 28: vrooli.scenario_to_desktop.v1.shared.DeploymentMode
-	(*shared.UpdateConfig)(nil),         // 29: vrooli.scenario_to_desktop.v1.shared.UpdateConfig
-	(shared.Framework)(0),               // 30: vrooli.scenario_to_desktop.v1.shared.Framework
-	(shared.TemplateType)(0),            // 31: vrooli.scenario_to_desktop.v1.shared.TemplateType
-	(shared.Platform)(0),                // 32: vrooli.scenario_to_desktop.v1.shared.Platform
-	(*shared.ScenarioMetadata)(nil),     // 33: vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
-	(*structpb.Struct)(nil),             // 34: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),       // 35: google.protobuf.Timestamp
+	(*HelperProvider)(nil),              // 26: vrooli.scenario_to_desktop.v1.domain.HelperProvider
+	nil,                                 // 27: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.FeaturesEntry
+	nil,                                 // 28: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.StylingEntry
+	(shared.DeploymentMode)(0),          // 29: vrooli.scenario_to_desktop.v1.shared.DeploymentMode
+	(*shared.UpdateConfig)(nil),         // 30: vrooli.scenario_to_desktop.v1.shared.UpdateConfig
+	(shared.Framework)(0),               // 31: vrooli.scenario_to_desktop.v1.shared.Framework
+	(shared.TemplateType)(0),            // 32: vrooli.scenario_to_desktop.v1.shared.TemplateType
+	(shared.Platform)(0),                // 33: vrooli.scenario_to_desktop.v1.shared.Platform
+	(*shared.ScenarioMetadata)(nil),     // 34: vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
+	(*structpb.Struct)(nil),             // 35: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),       // 36: google.protobuf.Timestamp
 }
 var file_scenario_to_desktop_v1_domain_config_proto_depIdxs = []int32{
-	28, // 0: vrooli.scenario_to_desktop.v1.domain.ServerConfig.deployment_mode:type_name -> vrooli.scenario_to_desktop.v1.shared.DeploymentMode
+	29, // 0: vrooli.scenario_to_desktop.v1.domain.ServerConfig.deployment_mode:type_name -> vrooli.scenario_to_desktop.v1.shared.DeploymentMode
 	2,  // 1: vrooli.scenario_to_desktop.v1.domain.BundleConfig.ipc:type_name -> vrooli.scenario_to_desktop.v1.domain.BundleIPCConfig
 	0,  // 2: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.app:type_name -> vrooli.scenario_to_desktop.v1.domain.AppIdentity
 	1,  // 3: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.server:type_name -> vrooli.scenario_to_desktop.v1.domain.ServerConfig
 	3,  // 4: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.bundle:type_name -> vrooli.scenario_to_desktop.v1.domain.BundleConfig
-	29, // 5: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.update:type_name -> vrooli.scenario_to_desktop.v1.shared.UpdateConfig
+	30, // 5: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.update:type_name -> vrooli.scenario_to_desktop.v1.shared.UpdateConfig
 	4,  // 6: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.window:type_name -> vrooli.scenario_to_desktop.v1.domain.WindowConfig
-	30, // 7: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.framework:type_name -> vrooli.scenario_to_desktop.v1.shared.Framework
-	31, // 8: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
-	32, // 9: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
-	26, // 10: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.features:type_name -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig.FeaturesEntry
-	27, // 11: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.styling:type_name -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig.StylingEntry
+	31, // 7: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.framework:type_name -> vrooli.scenario_to_desktop.v1.shared.Framework
+	32, // 8: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
+	33, // 9: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	27, // 10: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.features:type_name -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig.FeaturesEntry
+	28, // 11: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.styling:type_name -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig.StylingEntry
 	25, // 12: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.native_extension:type_name -> vrooli.scenario_to_desktop.v1.domain.NativeExtension
-	28, // 13: vrooli.scenario_to_desktop.v1.domain.ConnectionConfig.deployment_mode:type_name -> vrooli.scenario_to_desktop.v1.shared.DeploymentMode
-	33, // 14: vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest.metadata:type_name -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
-	31, // 15: vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
+	29, // 13: vrooli.scenario_to_desktop.v1.domain.ConnectionConfig.deployment_mode:type_name -> vrooli.scenario_to_desktop.v1.shared.DeploymentMode
+	34, // 14: vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest.metadata:type_name -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
+	32, // 15: vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
 	10, // 16: vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse.service:type_name -> vrooli.scenario_to_desktop.v1.domain.SystemServiceInfo
 	11, // 17: vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse.statistics:type_name -> vrooli.scenario_to_desktop.v1.domain.SystemBuildStatistics
 	14, // 18: vrooli.scenario_to_desktop.v1.domain.ListTemplatesResponse.templates:type_name -> vrooli.scenario_to_desktop.v1.domain.TemplateInfo
-	34, // 19: vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse.config:type_name -> google.protobuf.Struct
+	35, // 19: vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse.config:type_name -> google.protobuf.Struct
 	19, // 20: vrooli.scenario_to_desktop.v1.domain.WineCheckResponse.install_methods:type_name -> vrooli.scenario_to_desktop.v1.domain.WineInstallMethod
-	35, // 21: vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse.started_at:type_name -> google.protobuf.Timestamp
-	35, // 22: vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
-	7,  // 23: vrooli.scenario_to_desktop.v1.domain.ConfigService.GetScenarioMetadata:input_type -> vrooli.scenario_to_desktop.v1.domain.GetScenarioMetadataRequest
-	8,  // 24: vrooli.scenario_to_desktop.v1.domain.ConfigService.CreateDesktopConfig:input_type -> vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest
-	9,  // 25: vrooli.scenario_to_desktop.v1.domain.SystemService.GetSystemStatus:input_type -> vrooli.scenario_to_desktop.v1.domain.GetSystemStatusRequest
-	13, // 26: vrooli.scenario_to_desktop.v1.domain.SystemService.ListTemplates:input_type -> vrooli.scenario_to_desktop.v1.domain.ListTemplatesRequest
-	16, // 27: vrooli.scenario_to_desktop.v1.domain.SystemService.GetTemplate:input_type -> vrooli.scenario_to_desktop.v1.domain.GetTemplateRequest
-	18, // 28: vrooli.scenario_to_desktop.v1.domain.SystemService.CheckWine:input_type -> vrooli.scenario_to_desktop.v1.domain.CheckWineRequest
-	21, // 29: vrooli.scenario_to_desktop.v1.domain.SystemService.InstallWine:input_type -> vrooli.scenario_to_desktop.v1.domain.InstallWineRequest
-	23, // 30: vrooli.scenario_to_desktop.v1.domain.SystemService.GetWineInstallStatus:input_type -> vrooli.scenario_to_desktop.v1.domain.GetWineInstallStatusRequest
-	33, // 31: vrooli.scenario_to_desktop.v1.domain.ConfigService.GetScenarioMetadata:output_type -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
-	5,  // 32: vrooli.scenario_to_desktop.v1.domain.ConfigService.CreateDesktopConfig:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig
-	12, // 33: vrooli.scenario_to_desktop.v1.domain.SystemService.GetSystemStatus:output_type -> vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse
-	15, // 34: vrooli.scenario_to_desktop.v1.domain.SystemService.ListTemplates:output_type -> vrooli.scenario_to_desktop.v1.domain.ListTemplatesResponse
-	17, // 35: vrooli.scenario_to_desktop.v1.domain.SystemService.GetTemplate:output_type -> vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse
-	20, // 36: vrooli.scenario_to_desktop.v1.domain.SystemService.CheckWine:output_type -> vrooli.scenario_to_desktop.v1.domain.WineCheckResponse
-	22, // 37: vrooli.scenario_to_desktop.v1.domain.SystemService.InstallWine:output_type -> vrooli.scenario_to_desktop.v1.domain.WineInstallResponse
-	24, // 38: vrooli.scenario_to_desktop.v1.domain.SystemService.GetWineInstallStatus:output_type -> vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse
-	31, // [31:39] is the sub-list for method output_type
-	23, // [23:31] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	36, // 21: vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse.started_at:type_name -> google.protobuf.Timestamp
+	36, // 22: vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
+	26, // 23: vrooli.scenario_to_desktop.v1.domain.NativeExtension.helper_providers:type_name -> vrooli.scenario_to_desktop.v1.domain.HelperProvider
+	7,  // 24: vrooli.scenario_to_desktop.v1.domain.ConfigService.GetScenarioMetadata:input_type -> vrooli.scenario_to_desktop.v1.domain.GetScenarioMetadataRequest
+	8,  // 25: vrooli.scenario_to_desktop.v1.domain.ConfigService.CreateDesktopConfig:input_type -> vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest
+	9,  // 26: vrooli.scenario_to_desktop.v1.domain.SystemService.GetSystemStatus:input_type -> vrooli.scenario_to_desktop.v1.domain.GetSystemStatusRequest
+	13, // 27: vrooli.scenario_to_desktop.v1.domain.SystemService.ListTemplates:input_type -> vrooli.scenario_to_desktop.v1.domain.ListTemplatesRequest
+	16, // 28: vrooli.scenario_to_desktop.v1.domain.SystemService.GetTemplate:input_type -> vrooli.scenario_to_desktop.v1.domain.GetTemplateRequest
+	18, // 29: vrooli.scenario_to_desktop.v1.domain.SystemService.CheckWine:input_type -> vrooli.scenario_to_desktop.v1.domain.CheckWineRequest
+	21, // 30: vrooli.scenario_to_desktop.v1.domain.SystemService.InstallWine:input_type -> vrooli.scenario_to_desktop.v1.domain.InstallWineRequest
+	23, // 31: vrooli.scenario_to_desktop.v1.domain.SystemService.GetWineInstallStatus:input_type -> vrooli.scenario_to_desktop.v1.domain.GetWineInstallStatusRequest
+	34, // 32: vrooli.scenario_to_desktop.v1.domain.ConfigService.GetScenarioMetadata:output_type -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
+	5,  // 33: vrooli.scenario_to_desktop.v1.domain.ConfigService.CreateDesktopConfig:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig
+	12, // 34: vrooli.scenario_to_desktop.v1.domain.SystemService.GetSystemStatus:output_type -> vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse
+	15, // 35: vrooli.scenario_to_desktop.v1.domain.SystemService.ListTemplates:output_type -> vrooli.scenario_to_desktop.v1.domain.ListTemplatesResponse
+	17, // 36: vrooli.scenario_to_desktop.v1.domain.SystemService.GetTemplate:output_type -> vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse
+	20, // 37: vrooli.scenario_to_desktop.v1.domain.SystemService.CheckWine:output_type -> vrooli.scenario_to_desktop.v1.domain.WineCheckResponse
+	22, // 38: vrooli.scenario_to_desktop.v1.domain.SystemService.InstallWine:output_type -> vrooli.scenario_to_desktop.v1.domain.WineInstallResponse
+	24, // 39: vrooli.scenario_to_desktop.v1.domain.SystemService.GetWineInstallStatus:output_type -> vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse
+	32, // [32:40] is the sub-list for method output_type
+	24, // [24:32] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_desktop_v1_domain_config_proto_init() }
@@ -2405,7 +2473,7 @@ func file_scenario_to_desktop_v1_domain_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_desktop_v1_domain_config_proto_rawDesc), len(file_scenario_to_desktop_v1_domain_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   28,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

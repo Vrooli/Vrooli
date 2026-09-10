@@ -1,140 +1,65 @@
 package phases
 
 import (
-	"bytes"
 	"context"
-	"os"
-	"path/filepath"
-	"strings"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"connectrpc.com/connect"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing"
+	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing/routing_v1connect"
+	"test-genie/internal/orchestrator/phases/isolation"
 	"test-genie/internal/orchestrator/workspace"
 )
 
-func TestDetectResourceNeedsManifestPostgresOnly(t *testing.T) {
-	scenarioDir := t.TempDir()
-	writeServiceJSON(t, scenarioDir, `{
-  "dependencies": {
-    "resources": {
-      "pg": { "type": "postgres", "required": true, "enabled": true }
-    }
-  }
-}`)
-
-	var log bytes.Buffer
-	needs := resolveDBNeeds(context.Background(), workspace.Environment{ScenarioDir: scenarioDir}, &log)
-	if !needs.RequirePostgres {
-		t.Fatalf("expected postgres required, got %#v", needs)
-	}
-	if needs.RequireRedis || needs.RequireSQLite {
-		t.Fatalf("expected only postgres, got %#v", needs)
-	}
-	if !strings.Contains(log.String(), "db-detect:") {
-		t.Fatalf("expected evidence chain in log, got: %s", log.String())
-	}
-	if !strings.Contains(log.String(), "postgres:") {
-		t.Fatalf("expected postgres line, got: %s", log.String())
-	}
+type routedLeaseFixture struct {
+	installed bool
+	cleared   bool
+	dsn       string
 }
 
-func TestDetectResourceNeedsSQLiteFromGoMod(t *testing.T) {
-	scenarioDir := t.TempDir()
-	writeServiceJSON(t, scenarioDir, `{
-  "dependencies": {
-    "resources": {
-      "openrouter": { "type": "openrouter", "required": true, "enabled": true }
-    }
-  },
-  "environment": {
-    "MY_SQLITE_PATH": "${SCENARIO_DATA_DIR}/my.db"
-  }
-}`)
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "api"), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	goMod := "module bas-fixture\n\ngo 1.24\n\nrequire modernc.org/sqlite v1.40.1\n"
-	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"), []byte(goMod), 0o644); err != nil {
-		t.Fatalf("write go.mod: %v", err)
-	}
-
-	var log bytes.Buffer
-	needs := resolveDBNeeds(context.Background(), workspace.Environment{ScenarioDir: scenarioDir}, &log)
-	if !needs.RequireSQLite {
-		t.Fatalf("expected sqlite required, got %#v (log: %s)", needs, log.String())
-	}
-	if needs.RequirePostgres || needs.RequireRedis {
-		t.Fatalf("did not expect postgres/redis, got %#v", needs)
-	}
-	if len(needs.SQLiteEnvVars) != 1 || needs.SQLiteEnvVars[0] != "MY_SQLITE_PATH" {
-		t.Fatalf("expected sqlite env var passthrough, got %#v", needs.SQLiteEnvVars)
-	}
+func (f *routedLeaseFixture) InstallTestPool(_ context.Context, req *connect.Request[routingv1.InstallTestPoolRequest]) (*connect.Response[routingv1.InstallTestPoolResponse], error) {
+	f.installed = true
+	f.dsn = req.Msg.GetDsn()
+	return connect.NewResponse(&routingv1.InstallTestPoolResponse{ActiveLeaseId: req.Msg.GetLeaseId(), FileRootsInstalled: true}), nil
 }
 
-func TestDetectResourceNeedsNoEvidenceProvisionsNothing(t *testing.T) {
-	var log bytes.Buffer
-	needs := resolveDBNeeds(context.Background(), workspace.Environment{ScenarioDir: t.TempDir()}, &log)
-	if needs.RequirePostgres || needs.RequireRedis || needs.RequireSQLite {
-		t.Fatalf("expected no provisioning when no evidence, got %#v", needs)
-	}
-	if !strings.Contains(log.String(), "db-detect:") {
-		t.Fatalf("expected evidence chain in log, got: %s", log.String())
-	}
+func (f *routedLeaseFixture) ClearTestPool(_ context.Context, _ *connect.Request[routingv1.ClearTestPoolRequest]) (*connect.Response[routingv1.ClearTestPoolResponse], error) {
+	f.cleared = true
+	return connect.NewResponse(&routingv1.ClearTestPoolResponse{Stats: &routingv1.LeaseStats{TestPoolRequests: 3, TestRootWrites: 2}}), nil
 }
 
-func TestDetectResourceNeedsMultiDB(t *testing.T) {
-	scenarioDir := t.TempDir()
-	writeServiceJSON(t, scenarioDir, `{
-  "dependencies": {
-    "resources": {
-      "pg": { "type": "postgres", "required": true, "enabled": true }
-    }
-  }
-}`)
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "api"), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	goMod := "module x\n\ngo 1.24\n\nrequire modernc.org/sqlite v1.40.1\n"
-	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"), []byte(goMod), 0o644); err != nil {
-		t.Fatalf("write go.mod: %v", err)
-	}
-
-	var log bytes.Buffer
-	needs := resolveDBNeeds(context.Background(), workspace.Environment{ScenarioDir: scenarioDir}, &log)
-	if !needs.RequirePostgres || !needs.RequireSQLite {
-		t.Fatalf("expected postgres+sqlite, got %#v (log: %s)", needs, log.String())
-	}
-	if needs.RequireRedis {
-		t.Fatalf("did not expect redis, got %#v", needs)
-	}
+func (*routedLeaseFixture) HeartbeatTestPool(context.Context, *connect.Request[routingv1.HeartbeatTestPoolRequest]) (*connect.Response[routingv1.HeartbeatTestPoolResponse], error) {
+	return connect.NewResponse(&routingv1.HeartbeatTestPoolResponse{}), nil
 }
 
-func TestCollectMigrationFilesMergesLegacyAndScopedDirectories(t *testing.T) {
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "001-legacy.sql"), []byte("SELECT 1;"), 0o644); err != nil {
-		t.Fatalf("write legacy migration: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Join(root, "common"), 0o755); err != nil {
-		t.Fatalf("mkdir common migrations: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "common", "002-common.sql"), []byte("SELECT 2;"), 0o644); err != nil {
-		t.Fatalf("write common migration: %v", err)
-	}
+func TestRoutedQualificationLeaseInstallsAndClearsPairedOwnerRoute(t *testing.T) {
+	fixture := &routedLeaseFixture{}
+	path, handler := routingconnect.NewRoutingServiceHandler(fixture)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	defer server.Close()
 
-	files, err := collectMigrationFiles(root, "common")
+	lease, err := installRoutedLease(context.Background(), workspace.Environment{APIURL: server.URL}, resourceNeeds{PrimaryDriver: "sqlite"}, &isolation.Result{RunID: "qualification-1", Env: map[string]string{"PLAYBOOKS_SQLITE_DSN": "file:test-qualification"}}, nil)
 	if err != nil {
-		t.Fatalf("collectMigrationFiles: %v", err)
+		t.Fatal(err)
 	}
-	if len(files) != 2 {
-		t.Fatalf("expected merged migration files, got %#v", files)
+	if !fixture.installed || fixture.dsn != "file:test-qualification" || lease.leaseID != "qualification-1" {
+		t.Fatalf("install fixture=%+v lease=%+v", fixture, lease)
+	}
+	if err := clearRoutedLease(context.Background(), lease, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !fixture.cleared {
+		t.Fatal("routed lease was not cleared")
 	}
 }
 
-func writeServiceJSON(t *testing.T, scenarioDir, body string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("mkdir .vrooli: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "service.json"), []byte(body), 0o644); err != nil {
-		t.Fatalf("write service.json: %v", err)
+func TestRoutedQualificationRefusesWithoutLiveTargetAPI(t *testing.T) {
+	_, err := installRoutedLease(context.Background(), workspace.Environment{}, resourceNeeds{PrimaryDriver: "sqlite"}, &isolation.Result{RunID: "qualification-2", Env: map[string]string{"PLAYBOOKS_SQLITE_DSN": "file:test-qualification"}}, nil)
+	if err == nil {
+		t.Fatal("qualification accepted without a live target API")
 	}
 }

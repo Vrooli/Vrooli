@@ -33,14 +33,209 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// RepoServiceListRepositoriesProcedure is the fully-qualified name of the RepoService's
+	// ListRepositories RPC.
+	RepoServiceListRepositoriesProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/ListRepositories"
+	// RepoServiceGetActiveRepositoryProcedure is the fully-qualified name of the RepoService's
+	// GetActiveRepository RPC.
+	RepoServiceGetActiveRepositoryProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetActiveRepository"
+	// RepoServiceSetActiveRepositoryProcedure is the fully-qualified name of the RepoService's
+	// SetActiveRepository RPC.
+	RepoServiceSetActiveRepositoryProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/SetActiveRepository"
+	// RepoServiceOpenRepositoryProcedure is the fully-qualified name of the RepoService's
+	// OpenRepository RPC.
+	RepoServiceOpenRepositoryProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/OpenRepository"
+	// RepoServiceCloneRepositoryProcedure is the fully-qualified name of the RepoService's
+	// CloneRepository RPC.
+	RepoServiceCloneRepositoryProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/CloneRepository"
+	// RepoServiceRemoveRepositoryProcedure is the fully-qualified name of the RepoService's
+	// RemoveRepository RPC.
+	RepoServiceRemoveRepositoryProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/RemoveRepository"
 	// RepoServiceGetRepoStatusProcedure is the fully-qualified name of the RepoService's GetRepoStatus
 	// RPC.
 	RepoServiceGetRepoStatusProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetRepoStatus"
+	// RepoServiceGetRepoDiffProcedure is the fully-qualified name of the RepoService's GetRepoDiff RPC.
+	RepoServiceGetRepoDiffProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetRepoDiff"
+	// RepoServiceGetRepoGroupsProcedure is the fully-qualified name of the RepoService's GetRepoGroups
+	// RPC.
+	RepoServiceGetRepoGroupsProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetRepoGroups"
+	// RepoServiceGetSyncStatusProcedure is the fully-qualified name of the RepoService's GetSyncStatus
+	// RPC.
+	RepoServiceGetSyncStatusProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetSyncStatus"
+	// RepoServiceGetRepoHistoryProcedure is the fully-qualified name of the RepoService's
+	// GetRepoHistory RPC.
+	RepoServiceGetRepoHistoryProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetRepoHistory"
+	// RepoServiceGetApprovedChangesProcedure is the fully-qualified name of the RepoService's
+	// GetApprovedChanges RPC.
+	RepoServiceGetApprovedChangesProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetApprovedChanges"
+	// RepoServiceGetProvenanceProcedure is the fully-qualified name of the RepoService's GetProvenance
+	// RPC.
+	RepoServiceGetProvenanceProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetProvenance"
+	// RepoServiceGetBlameProcedure is the fully-qualified name of the RepoService's GetBlame RPC.
+	RepoServiceGetBlameProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetBlame"
+	// RepoServiceSearchProvenanceProcedure is the fully-qualified name of the RepoService's
+	// SearchProvenance RPC.
+	RepoServiceSearchProvenanceProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/SearchProvenance"
+	// RepoServiceGetFilesProcedure is the fully-qualified name of the RepoService's GetFiles RPC.
+	RepoServiceGetFilesProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetFiles"
+	// RepoServiceGetDirectoryContentsProcedure is the fully-qualified name of the RepoService's
+	// GetDirectoryContents RPC.
+	RepoServiceGetDirectoryContentsProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetDirectoryContents"
+	// RepoServiceGetRelatedFilesProcedure is the fully-qualified name of the RepoService's
+	// GetRelatedFiles RPC.
+	RepoServiceGetRelatedFilesProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetRelatedFiles"
+	// RepoServiceSearchContentProcedure is the fully-qualified name of the RepoService's SearchContent
+	// RPC.
+	RepoServiceSearchContentProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/SearchContent"
+	// RepoServiceDeletePathProcedure is the fully-qualified name of the RepoService's DeletePath RPC.
+	RepoServiceDeletePathProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/DeletePath"
+	// RepoServiceSaveFileContentProcedure is the fully-qualified name of the RepoService's
+	// SaveFileContent RPC.
+	RepoServiceSaveFileContentProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/SaveFileContent"
+	// RepoServiceDiscardFilesProcedure is the fully-qualified name of the RepoService's DiscardFiles
+	// RPC.
+	RepoServiceDiscardFilesProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/DiscardFiles"
+	// RepoServiceIgnorePathProcedure is the fully-qualified name of the RepoService's IgnorePath RPC.
+	RepoServiceIgnorePathProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/IgnorePath"
+	// RepoServiceInspectPushSafetyProcedure is the fully-qualified name of the RepoService's
+	// InspectPushSafety RPC.
+	RepoServiceInspectPushSafetyProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/InspectPushSafety"
+	// RepoServiceGetPushRecoveryProcedure is the fully-qualified name of the RepoService's
+	// GetPushRecovery RPC.
+	RepoServiceGetPushRecoveryProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetPushRecovery"
+	// RepoServicePreparePushRecoveryProcedure is the fully-qualified name of the RepoService's
+	// PreparePushRecovery RPC.
+	RepoServicePreparePushRecoveryProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/PreparePushRecovery"
+	// RepoServicePushToRemoteProcedure is the fully-qualified name of the RepoService's PushToRemote
+	// RPC.
+	RepoServicePushToRemoteProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/PushToRemote"
+	// RepoServicePullFromRemoteProcedure is the fully-qualified name of the RepoService's
+	// PullFromRemote RPC.
+	RepoServicePullFromRemoteProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/PullFromRemote"
+	// RepoServiceRunUpstreamActionProcedure is the fully-qualified name of the RepoService's
+	// RunUpstreamAction RPC.
+	RepoServiceRunUpstreamActionProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/RunUpstreamAction"
+	// RepoServiceGetGroupingRulesProcedure is the fully-qualified name of the RepoService's
+	// GetGroupingRules RPC.
+	RepoServiceGetGroupingRulesProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetGroupingRules"
+	// RepoServiceSaveGroupingRulesProcedure is the fully-qualified name of the RepoService's
+	// SaveGroupingRules RPC.
+	RepoServiceSaveGroupingRulesProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/SaveGroupingRules"
+	// RepoServiceGetGitignoreHealthProcedure is the fully-qualified name of the RepoService's
+	// GetGitignoreHealth RPC.
+	RepoServiceGetGitignoreHealthProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetGitignoreHealth"
+	// RepoServiceMoveGitignoreEntryProcedure is the fully-qualified name of the RepoService's
+	// MoveGitignoreEntry RPC.
+	RepoServiceMoveGitignoreEntryProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/MoveGitignoreEntry"
+	// RepoServiceGetTrackedBinariesProcedure is the fully-qualified name of the RepoService's
+	// GetTrackedBinaries RPC.
+	RepoServiceGetTrackedBinariesProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetTrackedBinaries"
+	// RepoServiceUntrackBinaryProcedure is the fully-qualified name of the RepoService's UntrackBinary
+	// RPC.
+	RepoServiceUntrackBinaryProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/UntrackBinary"
+	// RepoServiceGetPrecommitConfigProcedure is the fully-qualified name of the RepoService's
+	// GetPrecommitConfig RPC.
+	RepoServiceGetPrecommitConfigProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetPrecommitConfig"
+	// RepoServiceSavePrecommitConfigProcedure is the fully-qualified name of the RepoService's
+	// SavePrecommitConfig RPC.
+	RepoServiceSavePrecommitConfigProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/SavePrecommitConfig"
+	// RepoServiceRunPrecommitProcedure is the fully-qualified name of the RepoService's RunPrecommit
+	// RPC.
+	RepoServiceRunPrecommitProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/RunPrecommit"
+	// RepoServiceStageFilesProcedure is the fully-qualified name of the RepoService's StageFiles RPC.
+	RepoServiceStageFilesProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/StageFiles"
+	// RepoServiceUnstageFilesProcedure is the fully-qualified name of the RepoService's UnstageFiles
+	// RPC.
+	RepoServiceUnstageFilesProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/UnstageFiles"
+	// RepoServiceCreateCommitProcedure is the fully-qualified name of the RepoService's CreateCommit
+	// RPC.
+	RepoServiceCreateCommitProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/CreateCommit"
+	// RepoServiceListCredentialsProcedure is the fully-qualified name of the RepoService's
+	// ListCredentials RPC.
+	RepoServiceListCredentialsProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/ListCredentials"
+	// RepoServiceSaveCredentialProcedure is the fully-qualified name of the RepoService's
+	// SaveCredential RPC.
+	RepoServiceSaveCredentialProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/SaveCredential"
+	// RepoServiceDeleteCredentialProcedure is the fully-qualified name of the RepoService's
+	// DeleteCredential RPC.
+	RepoServiceDeleteCredentialProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/DeleteCredential"
+	// RepoServiceTestCredentialProcedure is the fully-qualified name of the RepoService's
+	// TestCredential RPC.
+	RepoServiceTestCredentialProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/TestCredential"
+	// RepoServiceUpdateRemoteURLProcedure is the fully-qualified name of the RepoService's
+	// UpdateRemoteURL RPC.
+	RepoServiceUpdateRemoteURLProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/UpdateRemoteURL"
+	// RepoServiceListSSHKeysProcedure is the fully-qualified name of the RepoService's ListSSHKeys RPC.
+	RepoServiceListSSHKeysProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/ListSSHKeys"
+	// RepoServiceGenerateSSHKeyProcedure is the fully-qualified name of the RepoService's
+	// GenerateSSHKey RPC.
+	RepoServiceGenerateSSHKeyProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GenerateSSHKey"
+	// RepoServiceGetSSHPublicKeyProcedure is the fully-qualified name of the RepoService's
+	// GetSSHPublicKey RPC.
+	RepoServiceGetSSHPublicKeyProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetSSHPublicKey"
+	// RepoServiceTestSSHConnectionProcedure is the fully-qualified name of the RepoService's
+	// TestSSHConnection RPC.
+	RepoServiceTestSSHConnectionProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/TestSSHConnection"
+	// RepoServiceDeleteSSHKeyProcedure is the fully-qualified name of the RepoService's DeleteSSHKey
+	// RPC.
+	RepoServiceDeleteSSHKeyProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/DeleteSSHKey"
 )
 
 // RepoServiceClient is a client for the vrooli.git_control_tower.v1.repo.RepoService service.
 type RepoServiceClient interface {
+	ListRepositories(context.Context, *connect.Request[repo.ListRepositoriesRequest]) (*connect.Response[repo.ListRepositoriesResponse], error)
+	GetActiveRepository(context.Context, *connect.Request[repo.GetActiveRepositoryRequest]) (*connect.Response[repo.GetActiveRepositoryResponse], error)
+	SetActiveRepository(context.Context, *connect.Request[repo.SetActiveRepositoryRequest]) (*connect.Response[repo.RepoMutationResponse], error)
+	OpenRepository(context.Context, *connect.Request[repo.OpenRepositoryRequest]) (*connect.Response[repo.RepoMutationResponse], error)
+	CloneRepository(context.Context, *connect.Request[repo.CloneRepositoryRequest]) (*connect.Response[repo.RepoMutationResponse], error)
+	RemoveRepository(context.Context, *connect.Request[repo.RemoveRepositoryRequest]) (*connect.Response[repo.RemoveRepositoryResponse], error)
 	GetRepoStatus(context.Context, *connect.Request[repo.GetRepoStatusRequest]) (*connect.Response[repo.GetRepoStatusResponse], error)
+	GetRepoDiff(context.Context, *connect.Request[repo.GetRepoDiffRequest]) (*connect.Response[repo.GetRepoDiffResponse], error)
+	GetRepoGroups(context.Context, *connect.Request[repo.GetRepoGroupsRequest]) (*connect.Response[repo.GetRepoGroupsResponse], error)
+	GetSyncStatus(context.Context, *connect.Request[repo.GetSyncStatusRequest]) (*connect.Response[repo.GetSyncStatusResponse], error)
+	GetRepoHistory(context.Context, *connect.Request[repo.GetRepoHistoryRequest]) (*connect.Response[repo.GetRepoHistoryResponse], error)
+	GetApprovedChanges(context.Context, *connect.Request[repo.GetApprovedChangesRequest]) (*connect.Response[repo.GetApprovedChangesResponse], error)
+	GetProvenance(context.Context, *connect.Request[repo.GetProvenanceRequest]) (*connect.Response[repo.GetProvenanceResponse], error)
+	// GetBlame is the bounded typed provenance contract. Native line blame,
+	// file/change evidence, and maintenance context remain separate fields.
+	GetBlame(context.Context, *connect.Request[repo.GetBlameRequest]) (*connect.Response[repo.GetBlameResponse], error)
+	SearchProvenance(context.Context, *connect.Request[repo.SearchProvenanceRequest]) (*connect.Response[repo.SearchProvenanceResponse], error)
+	GetFiles(context.Context, *connect.Request[repo.GetFilesRequest]) (*connect.Response[repo.GetFilesResponse], error)
+	GetDirectoryContents(context.Context, *connect.Request[repo.GetDirectoryContentsRequest]) (*connect.Response[repo.GetDirectoryContentsResponse], error)
+	GetRelatedFiles(context.Context, *connect.Request[repo.GetRelatedFilesRequest]) (*connect.Response[repo.GetRelatedFilesResponse], error)
+	SearchContent(context.Context, *connect.Request[repo.SearchContentRequest]) (*connect.Response[repo.SearchContentResponse], error)
+	DeletePath(context.Context, *connect.Request[repo.DeletePathRequest]) (*connect.Response[repo.DeletePathResponse], error)
+	SaveFileContent(context.Context, *connect.Request[repo.SaveFileContentRequest]) (*connect.Response[repo.SaveFileContentResponse], error)
+	DiscardFiles(context.Context, *connect.Request[repo.DiscardFilesRequest]) (*connect.Response[repo.DiscardFilesResponse], error)
+	IgnorePath(context.Context, *connect.Request[repo.IgnorePathRequest]) (*connect.Response[repo.IgnorePathResponse], error)
+	InspectPushSafety(context.Context, *connect.Request[repo.InspectPushSafetyRequest]) (*connect.Response[repo.PushSafetyReport], error)
+	GetPushRecovery(context.Context, *connect.Request[repo.GetPushRecoveryRequest]) (*connect.Response[repo.PushRecoveryArtifact], error)
+	PreparePushRecovery(context.Context, *connect.Request[repo.PreparePushRecoveryRequest]) (*connect.Response[repo.PushRecoveryArtifact], error)
+	PushToRemote(context.Context, *connect.Request[repo.PushToRemoteRequest]) (*connect.Response[repo.PushToRemoteResponse], error)
+	PullFromRemote(context.Context, *connect.Request[repo.PullFromRemoteRequest]) (*connect.Response[repo.PullFromRemoteResponse], error)
+	RunUpstreamAction(context.Context, *connect.Request[repo.RunUpstreamActionRequest]) (*connect.Response[repo.RunUpstreamActionResponse], error)
+	GetGroupingRules(context.Context, *connect.Request[repo.GetGroupingRulesRequest]) (*connect.Response[repo.GroupingRulesResponse], error)
+	SaveGroupingRules(context.Context, *connect.Request[repo.SaveGroupingRulesRequest]) (*connect.Response[repo.GroupingRulesResponse], error)
+	GetGitignoreHealth(context.Context, *connect.Request[repo.GetGitignoreHealthRequest]) (*connect.Response[repo.GitignoreHealthResponse], error)
+	MoveGitignoreEntry(context.Context, *connect.Request[repo.MoveGitignoreEntryRequest]) (*connect.Response[repo.MoveGitignoreEntryResponse], error)
+	GetTrackedBinaries(context.Context, *connect.Request[repo.GetTrackedBinariesRequest]) (*connect.Response[repo.TrackedBinariesResponse], error)
+	UntrackBinary(context.Context, *connect.Request[repo.UntrackBinaryRequest]) (*connect.Response[repo.UntrackBinaryResponse], error)
+	GetPrecommitConfig(context.Context, *connect.Request[repo.GetPrecommitConfigRequest]) (*connect.Response[repo.PrecommitConfigResponse], error)
+	SavePrecommitConfig(context.Context, *connect.Request[repo.SavePrecommitConfigRequest]) (*connect.Response[repo.PrecommitConfigResponse], error)
+	RunPrecommit(context.Context, *connect.Request[repo.RunPrecommitRequest]) (*connect.Response[repo.PrecommitRunResponse], error)
+	StageFiles(context.Context, *connect.Request[repo.StageFilesRequest]) (*connect.Response[repo.StageFilesResponse], error)
+	UnstageFiles(context.Context, *connect.Request[repo.UnstageFilesRequest]) (*connect.Response[repo.UnstageFilesResponse], error)
+	CreateCommit(context.Context, *connect.Request[repo.CreateCommitRequest]) (*connect.Response[repo.CreateCommitResponse], error)
+	ListCredentials(context.Context, *connect.Request[repo.ListCredentialsRequest]) (*connect.Response[repo.CredentialsListResponse], error)
+	SaveCredential(context.Context, *connect.Request[repo.SaveCredentialRequest]) (*connect.Response[repo.CredentialSaveResponse], error)
+	DeleteCredential(context.Context, *connect.Request[repo.DeleteCredentialRequest]) (*connect.Response[repo.CredentialDeleteResponse], error)
+	TestCredential(context.Context, *connect.Request[repo.TestCredentialRequest]) (*connect.Response[repo.CredentialTestResponse], error)
+	UpdateRemoteURL(context.Context, *connect.Request[repo.UpdateRemoteURLRequest]) (*connect.Response[repo.RemoteURLUpdateResponse], error)
+	ListSSHKeys(context.Context, *connect.Request[repo.ListSSHKeysRequest]) (*connect.Response[repo.SSHListKeysResponse], error)
+	GenerateSSHKey(context.Context, *connect.Request[repo.GenerateSSHKeyRequest]) (*connect.Response[repo.SSHGenerateKeyResponse], error)
+	GetSSHPublicKey(context.Context, *connect.Request[repo.GetSSHPublicKeyRequest]) (*connect.Response[repo.SSHGetPublicKeyResponse], error)
+	TestSSHConnection(context.Context, *connect.Request[repo.TestSSHConnectionRequest]) (*connect.Response[repo.SSHTestConnectionResponse], error)
+	DeleteSSHKey(context.Context, *connect.Request[repo.DeleteSSHKeyRequest]) (*connect.Response[repo.SSHDeleteKeyResponse], error)
 }
 
 // NewRepoServiceClient constructs a client for the vrooli.git_control_tower.v1.repo.RepoService
@@ -54,10 +249,310 @@ func NewRepoServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 	baseURL = strings.TrimRight(baseURL, "/")
 	repoServiceMethods := repo.File_git_control_tower_v1_repo_repo_proto.Services().ByName("RepoService").Methods()
 	return &repoServiceClient{
+		listRepositories: connect.NewClient[repo.ListRepositoriesRequest, repo.ListRepositoriesResponse](
+			httpClient,
+			baseURL+RepoServiceListRepositoriesProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("ListRepositories")),
+			connect.WithClientOptions(opts...),
+		),
+		getActiveRepository: connect.NewClient[repo.GetActiveRepositoryRequest, repo.GetActiveRepositoryResponse](
+			httpClient,
+			baseURL+RepoServiceGetActiveRepositoryProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetActiveRepository")),
+			connect.WithClientOptions(opts...),
+		),
+		setActiveRepository: connect.NewClient[repo.SetActiveRepositoryRequest, repo.RepoMutationResponse](
+			httpClient,
+			baseURL+RepoServiceSetActiveRepositoryProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("SetActiveRepository")),
+			connect.WithClientOptions(opts...),
+		),
+		openRepository: connect.NewClient[repo.OpenRepositoryRequest, repo.RepoMutationResponse](
+			httpClient,
+			baseURL+RepoServiceOpenRepositoryProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("OpenRepository")),
+			connect.WithClientOptions(opts...),
+		),
+		cloneRepository: connect.NewClient[repo.CloneRepositoryRequest, repo.RepoMutationResponse](
+			httpClient,
+			baseURL+RepoServiceCloneRepositoryProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("CloneRepository")),
+			connect.WithClientOptions(opts...),
+		),
+		removeRepository: connect.NewClient[repo.RemoveRepositoryRequest, repo.RemoveRepositoryResponse](
+			httpClient,
+			baseURL+RepoServiceRemoveRepositoryProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("RemoveRepository")),
+			connect.WithClientOptions(opts...),
+		),
 		getRepoStatus: connect.NewClient[repo.GetRepoStatusRequest, repo.GetRepoStatusResponse](
 			httpClient,
 			baseURL+RepoServiceGetRepoStatusProcedure,
 			connect.WithSchema(repoServiceMethods.ByName("GetRepoStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		getRepoDiff: connect.NewClient[repo.GetRepoDiffRequest, repo.GetRepoDiffResponse](
+			httpClient,
+			baseURL+RepoServiceGetRepoDiffProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetRepoDiff")),
+			connect.WithClientOptions(opts...),
+		),
+		getRepoGroups: connect.NewClient[repo.GetRepoGroupsRequest, repo.GetRepoGroupsResponse](
+			httpClient,
+			baseURL+RepoServiceGetRepoGroupsProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetRepoGroups")),
+			connect.WithClientOptions(opts...),
+		),
+		getSyncStatus: connect.NewClient[repo.GetSyncStatusRequest, repo.GetSyncStatusResponse](
+			httpClient,
+			baseURL+RepoServiceGetSyncStatusProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetSyncStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		getRepoHistory: connect.NewClient[repo.GetRepoHistoryRequest, repo.GetRepoHistoryResponse](
+			httpClient,
+			baseURL+RepoServiceGetRepoHistoryProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetRepoHistory")),
+			connect.WithClientOptions(opts...),
+		),
+		getApprovedChanges: connect.NewClient[repo.GetApprovedChangesRequest, repo.GetApprovedChangesResponse](
+			httpClient,
+			baseURL+RepoServiceGetApprovedChangesProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetApprovedChanges")),
+			connect.WithClientOptions(opts...),
+		),
+		getProvenance: connect.NewClient[repo.GetProvenanceRequest, repo.GetProvenanceResponse](
+			httpClient,
+			baseURL+RepoServiceGetProvenanceProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetProvenance")),
+			connect.WithClientOptions(opts...),
+		),
+		getBlame: connect.NewClient[repo.GetBlameRequest, repo.GetBlameResponse](
+			httpClient,
+			baseURL+RepoServiceGetBlameProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetBlame")),
+			connect.WithClientOptions(opts...),
+		),
+		searchProvenance: connect.NewClient[repo.SearchProvenanceRequest, repo.SearchProvenanceResponse](
+			httpClient,
+			baseURL+RepoServiceSearchProvenanceProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("SearchProvenance")),
+			connect.WithClientOptions(opts...),
+		),
+		getFiles: connect.NewClient[repo.GetFilesRequest, repo.GetFilesResponse](
+			httpClient,
+			baseURL+RepoServiceGetFilesProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetFiles")),
+			connect.WithClientOptions(opts...),
+		),
+		getDirectoryContents: connect.NewClient[repo.GetDirectoryContentsRequest, repo.GetDirectoryContentsResponse](
+			httpClient,
+			baseURL+RepoServiceGetDirectoryContentsProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetDirectoryContents")),
+			connect.WithClientOptions(opts...),
+		),
+		getRelatedFiles: connect.NewClient[repo.GetRelatedFilesRequest, repo.GetRelatedFilesResponse](
+			httpClient,
+			baseURL+RepoServiceGetRelatedFilesProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetRelatedFiles")),
+			connect.WithClientOptions(opts...),
+		),
+		searchContent: connect.NewClient[repo.SearchContentRequest, repo.SearchContentResponse](
+			httpClient,
+			baseURL+RepoServiceSearchContentProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("SearchContent")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePath: connect.NewClient[repo.DeletePathRequest, repo.DeletePathResponse](
+			httpClient,
+			baseURL+RepoServiceDeletePathProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("DeletePath")),
+			connect.WithClientOptions(opts...),
+		),
+		saveFileContent: connect.NewClient[repo.SaveFileContentRequest, repo.SaveFileContentResponse](
+			httpClient,
+			baseURL+RepoServiceSaveFileContentProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("SaveFileContent")),
+			connect.WithClientOptions(opts...),
+		),
+		discardFiles: connect.NewClient[repo.DiscardFilesRequest, repo.DiscardFilesResponse](
+			httpClient,
+			baseURL+RepoServiceDiscardFilesProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("DiscardFiles")),
+			connect.WithClientOptions(opts...),
+		),
+		ignorePath: connect.NewClient[repo.IgnorePathRequest, repo.IgnorePathResponse](
+			httpClient,
+			baseURL+RepoServiceIgnorePathProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("IgnorePath")),
+			connect.WithClientOptions(opts...),
+		),
+		inspectPushSafety: connect.NewClient[repo.InspectPushSafetyRequest, repo.PushSafetyReport](
+			httpClient,
+			baseURL+RepoServiceInspectPushSafetyProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("InspectPushSafety")),
+			connect.WithClientOptions(opts...),
+		),
+		getPushRecovery: connect.NewClient[repo.GetPushRecoveryRequest, repo.PushRecoveryArtifact](
+			httpClient,
+			baseURL+RepoServiceGetPushRecoveryProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetPushRecovery")),
+			connect.WithClientOptions(opts...),
+		),
+		preparePushRecovery: connect.NewClient[repo.PreparePushRecoveryRequest, repo.PushRecoveryArtifact](
+			httpClient,
+			baseURL+RepoServicePreparePushRecoveryProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("PreparePushRecovery")),
+			connect.WithClientOptions(opts...),
+		),
+		pushToRemote: connect.NewClient[repo.PushToRemoteRequest, repo.PushToRemoteResponse](
+			httpClient,
+			baseURL+RepoServicePushToRemoteProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("PushToRemote")),
+			connect.WithClientOptions(opts...),
+		),
+		pullFromRemote: connect.NewClient[repo.PullFromRemoteRequest, repo.PullFromRemoteResponse](
+			httpClient,
+			baseURL+RepoServicePullFromRemoteProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("PullFromRemote")),
+			connect.WithClientOptions(opts...),
+		),
+		runUpstreamAction: connect.NewClient[repo.RunUpstreamActionRequest, repo.RunUpstreamActionResponse](
+			httpClient,
+			baseURL+RepoServiceRunUpstreamActionProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("RunUpstreamAction")),
+			connect.WithClientOptions(opts...),
+		),
+		getGroupingRules: connect.NewClient[repo.GetGroupingRulesRequest, repo.GroupingRulesResponse](
+			httpClient,
+			baseURL+RepoServiceGetGroupingRulesProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetGroupingRules")),
+			connect.WithClientOptions(opts...),
+		),
+		saveGroupingRules: connect.NewClient[repo.SaveGroupingRulesRequest, repo.GroupingRulesResponse](
+			httpClient,
+			baseURL+RepoServiceSaveGroupingRulesProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("SaveGroupingRules")),
+			connect.WithClientOptions(opts...),
+		),
+		getGitignoreHealth: connect.NewClient[repo.GetGitignoreHealthRequest, repo.GitignoreHealthResponse](
+			httpClient,
+			baseURL+RepoServiceGetGitignoreHealthProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetGitignoreHealth")),
+			connect.WithClientOptions(opts...),
+		),
+		moveGitignoreEntry: connect.NewClient[repo.MoveGitignoreEntryRequest, repo.MoveGitignoreEntryResponse](
+			httpClient,
+			baseURL+RepoServiceMoveGitignoreEntryProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("MoveGitignoreEntry")),
+			connect.WithClientOptions(opts...),
+		),
+		getTrackedBinaries: connect.NewClient[repo.GetTrackedBinariesRequest, repo.TrackedBinariesResponse](
+			httpClient,
+			baseURL+RepoServiceGetTrackedBinariesProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetTrackedBinaries")),
+			connect.WithClientOptions(opts...),
+		),
+		untrackBinary: connect.NewClient[repo.UntrackBinaryRequest, repo.UntrackBinaryResponse](
+			httpClient,
+			baseURL+RepoServiceUntrackBinaryProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("UntrackBinary")),
+			connect.WithClientOptions(opts...),
+		),
+		getPrecommitConfig: connect.NewClient[repo.GetPrecommitConfigRequest, repo.PrecommitConfigResponse](
+			httpClient,
+			baseURL+RepoServiceGetPrecommitConfigProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetPrecommitConfig")),
+			connect.WithClientOptions(opts...),
+		),
+		savePrecommitConfig: connect.NewClient[repo.SavePrecommitConfigRequest, repo.PrecommitConfigResponse](
+			httpClient,
+			baseURL+RepoServiceSavePrecommitConfigProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("SavePrecommitConfig")),
+			connect.WithClientOptions(opts...),
+		),
+		runPrecommit: connect.NewClient[repo.RunPrecommitRequest, repo.PrecommitRunResponse](
+			httpClient,
+			baseURL+RepoServiceRunPrecommitProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("RunPrecommit")),
+			connect.WithClientOptions(opts...),
+		),
+		stageFiles: connect.NewClient[repo.StageFilesRequest, repo.StageFilesResponse](
+			httpClient,
+			baseURL+RepoServiceStageFilesProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("StageFiles")),
+			connect.WithClientOptions(opts...),
+		),
+		unstageFiles: connect.NewClient[repo.UnstageFilesRequest, repo.UnstageFilesResponse](
+			httpClient,
+			baseURL+RepoServiceUnstageFilesProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("UnstageFiles")),
+			connect.WithClientOptions(opts...),
+		),
+		createCommit: connect.NewClient[repo.CreateCommitRequest, repo.CreateCommitResponse](
+			httpClient,
+			baseURL+RepoServiceCreateCommitProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("CreateCommit")),
+			connect.WithClientOptions(opts...),
+		),
+		listCredentials: connect.NewClient[repo.ListCredentialsRequest, repo.CredentialsListResponse](
+			httpClient,
+			baseURL+RepoServiceListCredentialsProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("ListCredentials")),
+			connect.WithClientOptions(opts...),
+		),
+		saveCredential: connect.NewClient[repo.SaveCredentialRequest, repo.CredentialSaveResponse](
+			httpClient,
+			baseURL+RepoServiceSaveCredentialProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("SaveCredential")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteCredential: connect.NewClient[repo.DeleteCredentialRequest, repo.CredentialDeleteResponse](
+			httpClient,
+			baseURL+RepoServiceDeleteCredentialProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("DeleteCredential")),
+			connect.WithClientOptions(opts...),
+		),
+		testCredential: connect.NewClient[repo.TestCredentialRequest, repo.CredentialTestResponse](
+			httpClient,
+			baseURL+RepoServiceTestCredentialProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("TestCredential")),
+			connect.WithClientOptions(opts...),
+		),
+		updateRemoteURL: connect.NewClient[repo.UpdateRemoteURLRequest, repo.RemoteURLUpdateResponse](
+			httpClient,
+			baseURL+RepoServiceUpdateRemoteURLProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("UpdateRemoteURL")),
+			connect.WithClientOptions(opts...),
+		),
+		listSSHKeys: connect.NewClient[repo.ListSSHKeysRequest, repo.SSHListKeysResponse](
+			httpClient,
+			baseURL+RepoServiceListSSHKeysProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("ListSSHKeys")),
+			connect.WithClientOptions(opts...),
+		),
+		generateSSHKey: connect.NewClient[repo.GenerateSSHKeyRequest, repo.SSHGenerateKeyResponse](
+			httpClient,
+			baseURL+RepoServiceGenerateSSHKeyProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GenerateSSHKey")),
+			connect.WithClientOptions(opts...),
+		),
+		getSSHPublicKey: connect.NewClient[repo.GetSSHPublicKeyRequest, repo.SSHGetPublicKeyResponse](
+			httpClient,
+			baseURL+RepoServiceGetSSHPublicKeyProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetSSHPublicKey")),
+			connect.WithClientOptions(opts...),
+		),
+		testSSHConnection: connect.NewClient[repo.TestSSHConnectionRequest, repo.SSHTestConnectionResponse](
+			httpClient,
+			baseURL+RepoServiceTestSSHConnectionProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("TestSSHConnection")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteSSHKey: connect.NewClient[repo.DeleteSSHKeyRequest, repo.SSHDeleteKeyResponse](
+			httpClient,
+			baseURL+RepoServiceDeleteSSHKeyProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("DeleteSSHKey")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -65,7 +560,87 @@ func NewRepoServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // repoServiceClient implements RepoServiceClient.
 type repoServiceClient struct {
-	getRepoStatus *connect.Client[repo.GetRepoStatusRequest, repo.GetRepoStatusResponse]
+	listRepositories     *connect.Client[repo.ListRepositoriesRequest, repo.ListRepositoriesResponse]
+	getActiveRepository  *connect.Client[repo.GetActiveRepositoryRequest, repo.GetActiveRepositoryResponse]
+	setActiveRepository  *connect.Client[repo.SetActiveRepositoryRequest, repo.RepoMutationResponse]
+	openRepository       *connect.Client[repo.OpenRepositoryRequest, repo.RepoMutationResponse]
+	cloneRepository      *connect.Client[repo.CloneRepositoryRequest, repo.RepoMutationResponse]
+	removeRepository     *connect.Client[repo.RemoveRepositoryRequest, repo.RemoveRepositoryResponse]
+	getRepoStatus        *connect.Client[repo.GetRepoStatusRequest, repo.GetRepoStatusResponse]
+	getRepoDiff          *connect.Client[repo.GetRepoDiffRequest, repo.GetRepoDiffResponse]
+	getRepoGroups        *connect.Client[repo.GetRepoGroupsRequest, repo.GetRepoGroupsResponse]
+	getSyncStatus        *connect.Client[repo.GetSyncStatusRequest, repo.GetSyncStatusResponse]
+	getRepoHistory       *connect.Client[repo.GetRepoHistoryRequest, repo.GetRepoHistoryResponse]
+	getApprovedChanges   *connect.Client[repo.GetApprovedChangesRequest, repo.GetApprovedChangesResponse]
+	getProvenance        *connect.Client[repo.GetProvenanceRequest, repo.GetProvenanceResponse]
+	getBlame             *connect.Client[repo.GetBlameRequest, repo.GetBlameResponse]
+	searchProvenance     *connect.Client[repo.SearchProvenanceRequest, repo.SearchProvenanceResponse]
+	getFiles             *connect.Client[repo.GetFilesRequest, repo.GetFilesResponse]
+	getDirectoryContents *connect.Client[repo.GetDirectoryContentsRequest, repo.GetDirectoryContentsResponse]
+	getRelatedFiles      *connect.Client[repo.GetRelatedFilesRequest, repo.GetRelatedFilesResponse]
+	searchContent        *connect.Client[repo.SearchContentRequest, repo.SearchContentResponse]
+	deletePath           *connect.Client[repo.DeletePathRequest, repo.DeletePathResponse]
+	saveFileContent      *connect.Client[repo.SaveFileContentRequest, repo.SaveFileContentResponse]
+	discardFiles         *connect.Client[repo.DiscardFilesRequest, repo.DiscardFilesResponse]
+	ignorePath           *connect.Client[repo.IgnorePathRequest, repo.IgnorePathResponse]
+	inspectPushSafety    *connect.Client[repo.InspectPushSafetyRequest, repo.PushSafetyReport]
+	getPushRecovery      *connect.Client[repo.GetPushRecoveryRequest, repo.PushRecoveryArtifact]
+	preparePushRecovery  *connect.Client[repo.PreparePushRecoveryRequest, repo.PushRecoveryArtifact]
+	pushToRemote         *connect.Client[repo.PushToRemoteRequest, repo.PushToRemoteResponse]
+	pullFromRemote       *connect.Client[repo.PullFromRemoteRequest, repo.PullFromRemoteResponse]
+	runUpstreamAction    *connect.Client[repo.RunUpstreamActionRequest, repo.RunUpstreamActionResponse]
+	getGroupingRules     *connect.Client[repo.GetGroupingRulesRequest, repo.GroupingRulesResponse]
+	saveGroupingRules    *connect.Client[repo.SaveGroupingRulesRequest, repo.GroupingRulesResponse]
+	getGitignoreHealth   *connect.Client[repo.GetGitignoreHealthRequest, repo.GitignoreHealthResponse]
+	moveGitignoreEntry   *connect.Client[repo.MoveGitignoreEntryRequest, repo.MoveGitignoreEntryResponse]
+	getTrackedBinaries   *connect.Client[repo.GetTrackedBinariesRequest, repo.TrackedBinariesResponse]
+	untrackBinary        *connect.Client[repo.UntrackBinaryRequest, repo.UntrackBinaryResponse]
+	getPrecommitConfig   *connect.Client[repo.GetPrecommitConfigRequest, repo.PrecommitConfigResponse]
+	savePrecommitConfig  *connect.Client[repo.SavePrecommitConfigRequest, repo.PrecommitConfigResponse]
+	runPrecommit         *connect.Client[repo.RunPrecommitRequest, repo.PrecommitRunResponse]
+	stageFiles           *connect.Client[repo.StageFilesRequest, repo.StageFilesResponse]
+	unstageFiles         *connect.Client[repo.UnstageFilesRequest, repo.UnstageFilesResponse]
+	createCommit         *connect.Client[repo.CreateCommitRequest, repo.CreateCommitResponse]
+	listCredentials      *connect.Client[repo.ListCredentialsRequest, repo.CredentialsListResponse]
+	saveCredential       *connect.Client[repo.SaveCredentialRequest, repo.CredentialSaveResponse]
+	deleteCredential     *connect.Client[repo.DeleteCredentialRequest, repo.CredentialDeleteResponse]
+	testCredential       *connect.Client[repo.TestCredentialRequest, repo.CredentialTestResponse]
+	updateRemoteURL      *connect.Client[repo.UpdateRemoteURLRequest, repo.RemoteURLUpdateResponse]
+	listSSHKeys          *connect.Client[repo.ListSSHKeysRequest, repo.SSHListKeysResponse]
+	generateSSHKey       *connect.Client[repo.GenerateSSHKeyRequest, repo.SSHGenerateKeyResponse]
+	getSSHPublicKey      *connect.Client[repo.GetSSHPublicKeyRequest, repo.SSHGetPublicKeyResponse]
+	testSSHConnection    *connect.Client[repo.TestSSHConnectionRequest, repo.SSHTestConnectionResponse]
+	deleteSSHKey         *connect.Client[repo.DeleteSSHKeyRequest, repo.SSHDeleteKeyResponse]
+}
+
+// ListRepositories calls vrooli.git_control_tower.v1.repo.RepoService.ListRepositories.
+func (c *repoServiceClient) ListRepositories(ctx context.Context, req *connect.Request[repo.ListRepositoriesRequest]) (*connect.Response[repo.ListRepositoriesResponse], error) {
+	return c.listRepositories.CallUnary(ctx, req)
+}
+
+// GetActiveRepository calls vrooli.git_control_tower.v1.repo.RepoService.GetActiveRepository.
+func (c *repoServiceClient) GetActiveRepository(ctx context.Context, req *connect.Request[repo.GetActiveRepositoryRequest]) (*connect.Response[repo.GetActiveRepositoryResponse], error) {
+	return c.getActiveRepository.CallUnary(ctx, req)
+}
+
+// SetActiveRepository calls vrooli.git_control_tower.v1.repo.RepoService.SetActiveRepository.
+func (c *repoServiceClient) SetActiveRepository(ctx context.Context, req *connect.Request[repo.SetActiveRepositoryRequest]) (*connect.Response[repo.RepoMutationResponse], error) {
+	return c.setActiveRepository.CallUnary(ctx, req)
+}
+
+// OpenRepository calls vrooli.git_control_tower.v1.repo.RepoService.OpenRepository.
+func (c *repoServiceClient) OpenRepository(ctx context.Context, req *connect.Request[repo.OpenRepositoryRequest]) (*connect.Response[repo.RepoMutationResponse], error) {
+	return c.openRepository.CallUnary(ctx, req)
+}
+
+// CloneRepository calls vrooli.git_control_tower.v1.repo.RepoService.CloneRepository.
+func (c *repoServiceClient) CloneRepository(ctx context.Context, req *connect.Request[repo.CloneRepositoryRequest]) (*connect.Response[repo.RepoMutationResponse], error) {
+	return c.cloneRepository.CallUnary(ctx, req)
+}
+
+// RemoveRepository calls vrooli.git_control_tower.v1.repo.RepoService.RemoveRepository.
+func (c *repoServiceClient) RemoveRepository(ctx context.Context, req *connect.Request[repo.RemoveRepositoryRequest]) (*connect.Response[repo.RemoveRepositoryResponse], error) {
+	return c.removeRepository.CallUnary(ctx, req)
 }
 
 // GetRepoStatus calls vrooli.git_control_tower.v1.repo.RepoService.GetRepoStatus.
@@ -73,10 +648,282 @@ func (c *repoServiceClient) GetRepoStatus(ctx context.Context, req *connect.Requ
 	return c.getRepoStatus.CallUnary(ctx, req)
 }
 
+// GetRepoDiff calls vrooli.git_control_tower.v1.repo.RepoService.GetRepoDiff.
+func (c *repoServiceClient) GetRepoDiff(ctx context.Context, req *connect.Request[repo.GetRepoDiffRequest]) (*connect.Response[repo.GetRepoDiffResponse], error) {
+	return c.getRepoDiff.CallUnary(ctx, req)
+}
+
+// GetRepoGroups calls vrooli.git_control_tower.v1.repo.RepoService.GetRepoGroups.
+func (c *repoServiceClient) GetRepoGroups(ctx context.Context, req *connect.Request[repo.GetRepoGroupsRequest]) (*connect.Response[repo.GetRepoGroupsResponse], error) {
+	return c.getRepoGroups.CallUnary(ctx, req)
+}
+
+// GetSyncStatus calls vrooli.git_control_tower.v1.repo.RepoService.GetSyncStatus.
+func (c *repoServiceClient) GetSyncStatus(ctx context.Context, req *connect.Request[repo.GetSyncStatusRequest]) (*connect.Response[repo.GetSyncStatusResponse], error) {
+	return c.getSyncStatus.CallUnary(ctx, req)
+}
+
+// GetRepoHistory calls vrooli.git_control_tower.v1.repo.RepoService.GetRepoHistory.
+func (c *repoServiceClient) GetRepoHistory(ctx context.Context, req *connect.Request[repo.GetRepoHistoryRequest]) (*connect.Response[repo.GetRepoHistoryResponse], error) {
+	return c.getRepoHistory.CallUnary(ctx, req)
+}
+
+// GetApprovedChanges calls vrooli.git_control_tower.v1.repo.RepoService.GetApprovedChanges.
+func (c *repoServiceClient) GetApprovedChanges(ctx context.Context, req *connect.Request[repo.GetApprovedChangesRequest]) (*connect.Response[repo.GetApprovedChangesResponse], error) {
+	return c.getApprovedChanges.CallUnary(ctx, req)
+}
+
+// GetProvenance calls vrooli.git_control_tower.v1.repo.RepoService.GetProvenance.
+func (c *repoServiceClient) GetProvenance(ctx context.Context, req *connect.Request[repo.GetProvenanceRequest]) (*connect.Response[repo.GetProvenanceResponse], error) {
+	return c.getProvenance.CallUnary(ctx, req)
+}
+
+// GetBlame calls vrooli.git_control_tower.v1.repo.RepoService.GetBlame.
+func (c *repoServiceClient) GetBlame(ctx context.Context, req *connect.Request[repo.GetBlameRequest]) (*connect.Response[repo.GetBlameResponse], error) {
+	return c.getBlame.CallUnary(ctx, req)
+}
+
+// SearchProvenance calls vrooli.git_control_tower.v1.repo.RepoService.SearchProvenance.
+func (c *repoServiceClient) SearchProvenance(ctx context.Context, req *connect.Request[repo.SearchProvenanceRequest]) (*connect.Response[repo.SearchProvenanceResponse], error) {
+	return c.searchProvenance.CallUnary(ctx, req)
+}
+
+// GetFiles calls vrooli.git_control_tower.v1.repo.RepoService.GetFiles.
+func (c *repoServiceClient) GetFiles(ctx context.Context, req *connect.Request[repo.GetFilesRequest]) (*connect.Response[repo.GetFilesResponse], error) {
+	return c.getFiles.CallUnary(ctx, req)
+}
+
+// GetDirectoryContents calls vrooli.git_control_tower.v1.repo.RepoService.GetDirectoryContents.
+func (c *repoServiceClient) GetDirectoryContents(ctx context.Context, req *connect.Request[repo.GetDirectoryContentsRequest]) (*connect.Response[repo.GetDirectoryContentsResponse], error) {
+	return c.getDirectoryContents.CallUnary(ctx, req)
+}
+
+// GetRelatedFiles calls vrooli.git_control_tower.v1.repo.RepoService.GetRelatedFiles.
+func (c *repoServiceClient) GetRelatedFiles(ctx context.Context, req *connect.Request[repo.GetRelatedFilesRequest]) (*connect.Response[repo.GetRelatedFilesResponse], error) {
+	return c.getRelatedFiles.CallUnary(ctx, req)
+}
+
+// SearchContent calls vrooli.git_control_tower.v1.repo.RepoService.SearchContent.
+func (c *repoServiceClient) SearchContent(ctx context.Context, req *connect.Request[repo.SearchContentRequest]) (*connect.Response[repo.SearchContentResponse], error) {
+	return c.searchContent.CallUnary(ctx, req)
+}
+
+// DeletePath calls vrooli.git_control_tower.v1.repo.RepoService.DeletePath.
+func (c *repoServiceClient) DeletePath(ctx context.Context, req *connect.Request[repo.DeletePathRequest]) (*connect.Response[repo.DeletePathResponse], error) {
+	return c.deletePath.CallUnary(ctx, req)
+}
+
+// SaveFileContent calls vrooli.git_control_tower.v1.repo.RepoService.SaveFileContent.
+func (c *repoServiceClient) SaveFileContent(ctx context.Context, req *connect.Request[repo.SaveFileContentRequest]) (*connect.Response[repo.SaveFileContentResponse], error) {
+	return c.saveFileContent.CallUnary(ctx, req)
+}
+
+// DiscardFiles calls vrooli.git_control_tower.v1.repo.RepoService.DiscardFiles.
+func (c *repoServiceClient) DiscardFiles(ctx context.Context, req *connect.Request[repo.DiscardFilesRequest]) (*connect.Response[repo.DiscardFilesResponse], error) {
+	return c.discardFiles.CallUnary(ctx, req)
+}
+
+// IgnorePath calls vrooli.git_control_tower.v1.repo.RepoService.IgnorePath.
+func (c *repoServiceClient) IgnorePath(ctx context.Context, req *connect.Request[repo.IgnorePathRequest]) (*connect.Response[repo.IgnorePathResponse], error) {
+	return c.ignorePath.CallUnary(ctx, req)
+}
+
+// InspectPushSafety calls vrooli.git_control_tower.v1.repo.RepoService.InspectPushSafety.
+func (c *repoServiceClient) InspectPushSafety(ctx context.Context, req *connect.Request[repo.InspectPushSafetyRequest]) (*connect.Response[repo.PushSafetyReport], error) {
+	return c.inspectPushSafety.CallUnary(ctx, req)
+}
+
+// GetPushRecovery calls vrooli.git_control_tower.v1.repo.RepoService.GetPushRecovery.
+func (c *repoServiceClient) GetPushRecovery(ctx context.Context, req *connect.Request[repo.GetPushRecoveryRequest]) (*connect.Response[repo.PushRecoveryArtifact], error) {
+	return c.getPushRecovery.CallUnary(ctx, req)
+}
+
+// PreparePushRecovery calls vrooli.git_control_tower.v1.repo.RepoService.PreparePushRecovery.
+func (c *repoServiceClient) PreparePushRecovery(ctx context.Context, req *connect.Request[repo.PreparePushRecoveryRequest]) (*connect.Response[repo.PushRecoveryArtifact], error) {
+	return c.preparePushRecovery.CallUnary(ctx, req)
+}
+
+// PushToRemote calls vrooli.git_control_tower.v1.repo.RepoService.PushToRemote.
+func (c *repoServiceClient) PushToRemote(ctx context.Context, req *connect.Request[repo.PushToRemoteRequest]) (*connect.Response[repo.PushToRemoteResponse], error) {
+	return c.pushToRemote.CallUnary(ctx, req)
+}
+
+// PullFromRemote calls vrooli.git_control_tower.v1.repo.RepoService.PullFromRemote.
+func (c *repoServiceClient) PullFromRemote(ctx context.Context, req *connect.Request[repo.PullFromRemoteRequest]) (*connect.Response[repo.PullFromRemoteResponse], error) {
+	return c.pullFromRemote.CallUnary(ctx, req)
+}
+
+// RunUpstreamAction calls vrooli.git_control_tower.v1.repo.RepoService.RunUpstreamAction.
+func (c *repoServiceClient) RunUpstreamAction(ctx context.Context, req *connect.Request[repo.RunUpstreamActionRequest]) (*connect.Response[repo.RunUpstreamActionResponse], error) {
+	return c.runUpstreamAction.CallUnary(ctx, req)
+}
+
+// GetGroupingRules calls vrooli.git_control_tower.v1.repo.RepoService.GetGroupingRules.
+func (c *repoServiceClient) GetGroupingRules(ctx context.Context, req *connect.Request[repo.GetGroupingRulesRequest]) (*connect.Response[repo.GroupingRulesResponse], error) {
+	return c.getGroupingRules.CallUnary(ctx, req)
+}
+
+// SaveGroupingRules calls vrooli.git_control_tower.v1.repo.RepoService.SaveGroupingRules.
+func (c *repoServiceClient) SaveGroupingRules(ctx context.Context, req *connect.Request[repo.SaveGroupingRulesRequest]) (*connect.Response[repo.GroupingRulesResponse], error) {
+	return c.saveGroupingRules.CallUnary(ctx, req)
+}
+
+// GetGitignoreHealth calls vrooli.git_control_tower.v1.repo.RepoService.GetGitignoreHealth.
+func (c *repoServiceClient) GetGitignoreHealth(ctx context.Context, req *connect.Request[repo.GetGitignoreHealthRequest]) (*connect.Response[repo.GitignoreHealthResponse], error) {
+	return c.getGitignoreHealth.CallUnary(ctx, req)
+}
+
+// MoveGitignoreEntry calls vrooli.git_control_tower.v1.repo.RepoService.MoveGitignoreEntry.
+func (c *repoServiceClient) MoveGitignoreEntry(ctx context.Context, req *connect.Request[repo.MoveGitignoreEntryRequest]) (*connect.Response[repo.MoveGitignoreEntryResponse], error) {
+	return c.moveGitignoreEntry.CallUnary(ctx, req)
+}
+
+// GetTrackedBinaries calls vrooli.git_control_tower.v1.repo.RepoService.GetTrackedBinaries.
+func (c *repoServiceClient) GetTrackedBinaries(ctx context.Context, req *connect.Request[repo.GetTrackedBinariesRequest]) (*connect.Response[repo.TrackedBinariesResponse], error) {
+	return c.getTrackedBinaries.CallUnary(ctx, req)
+}
+
+// UntrackBinary calls vrooli.git_control_tower.v1.repo.RepoService.UntrackBinary.
+func (c *repoServiceClient) UntrackBinary(ctx context.Context, req *connect.Request[repo.UntrackBinaryRequest]) (*connect.Response[repo.UntrackBinaryResponse], error) {
+	return c.untrackBinary.CallUnary(ctx, req)
+}
+
+// GetPrecommitConfig calls vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitConfig.
+func (c *repoServiceClient) GetPrecommitConfig(ctx context.Context, req *connect.Request[repo.GetPrecommitConfigRequest]) (*connect.Response[repo.PrecommitConfigResponse], error) {
+	return c.getPrecommitConfig.CallUnary(ctx, req)
+}
+
+// SavePrecommitConfig calls vrooli.git_control_tower.v1.repo.RepoService.SavePrecommitConfig.
+func (c *repoServiceClient) SavePrecommitConfig(ctx context.Context, req *connect.Request[repo.SavePrecommitConfigRequest]) (*connect.Response[repo.PrecommitConfigResponse], error) {
+	return c.savePrecommitConfig.CallUnary(ctx, req)
+}
+
+// RunPrecommit calls vrooli.git_control_tower.v1.repo.RepoService.RunPrecommit.
+func (c *repoServiceClient) RunPrecommit(ctx context.Context, req *connect.Request[repo.RunPrecommitRequest]) (*connect.Response[repo.PrecommitRunResponse], error) {
+	return c.runPrecommit.CallUnary(ctx, req)
+}
+
+// StageFiles calls vrooli.git_control_tower.v1.repo.RepoService.StageFiles.
+func (c *repoServiceClient) StageFiles(ctx context.Context, req *connect.Request[repo.StageFilesRequest]) (*connect.Response[repo.StageFilesResponse], error) {
+	return c.stageFiles.CallUnary(ctx, req)
+}
+
+// UnstageFiles calls vrooli.git_control_tower.v1.repo.RepoService.UnstageFiles.
+func (c *repoServiceClient) UnstageFiles(ctx context.Context, req *connect.Request[repo.UnstageFilesRequest]) (*connect.Response[repo.UnstageFilesResponse], error) {
+	return c.unstageFiles.CallUnary(ctx, req)
+}
+
+// CreateCommit calls vrooli.git_control_tower.v1.repo.RepoService.CreateCommit.
+func (c *repoServiceClient) CreateCommit(ctx context.Context, req *connect.Request[repo.CreateCommitRequest]) (*connect.Response[repo.CreateCommitResponse], error) {
+	return c.createCommit.CallUnary(ctx, req)
+}
+
+// ListCredentials calls vrooli.git_control_tower.v1.repo.RepoService.ListCredentials.
+func (c *repoServiceClient) ListCredentials(ctx context.Context, req *connect.Request[repo.ListCredentialsRequest]) (*connect.Response[repo.CredentialsListResponse], error) {
+	return c.listCredentials.CallUnary(ctx, req)
+}
+
+// SaveCredential calls vrooli.git_control_tower.v1.repo.RepoService.SaveCredential.
+func (c *repoServiceClient) SaveCredential(ctx context.Context, req *connect.Request[repo.SaveCredentialRequest]) (*connect.Response[repo.CredentialSaveResponse], error) {
+	return c.saveCredential.CallUnary(ctx, req)
+}
+
+// DeleteCredential calls vrooli.git_control_tower.v1.repo.RepoService.DeleteCredential.
+func (c *repoServiceClient) DeleteCredential(ctx context.Context, req *connect.Request[repo.DeleteCredentialRequest]) (*connect.Response[repo.CredentialDeleteResponse], error) {
+	return c.deleteCredential.CallUnary(ctx, req)
+}
+
+// TestCredential calls vrooli.git_control_tower.v1.repo.RepoService.TestCredential.
+func (c *repoServiceClient) TestCredential(ctx context.Context, req *connect.Request[repo.TestCredentialRequest]) (*connect.Response[repo.CredentialTestResponse], error) {
+	return c.testCredential.CallUnary(ctx, req)
+}
+
+// UpdateRemoteURL calls vrooli.git_control_tower.v1.repo.RepoService.UpdateRemoteURL.
+func (c *repoServiceClient) UpdateRemoteURL(ctx context.Context, req *connect.Request[repo.UpdateRemoteURLRequest]) (*connect.Response[repo.RemoteURLUpdateResponse], error) {
+	return c.updateRemoteURL.CallUnary(ctx, req)
+}
+
+// ListSSHKeys calls vrooli.git_control_tower.v1.repo.RepoService.ListSSHKeys.
+func (c *repoServiceClient) ListSSHKeys(ctx context.Context, req *connect.Request[repo.ListSSHKeysRequest]) (*connect.Response[repo.SSHListKeysResponse], error) {
+	return c.listSSHKeys.CallUnary(ctx, req)
+}
+
+// GenerateSSHKey calls vrooli.git_control_tower.v1.repo.RepoService.GenerateSSHKey.
+func (c *repoServiceClient) GenerateSSHKey(ctx context.Context, req *connect.Request[repo.GenerateSSHKeyRequest]) (*connect.Response[repo.SSHGenerateKeyResponse], error) {
+	return c.generateSSHKey.CallUnary(ctx, req)
+}
+
+// GetSSHPublicKey calls vrooli.git_control_tower.v1.repo.RepoService.GetSSHPublicKey.
+func (c *repoServiceClient) GetSSHPublicKey(ctx context.Context, req *connect.Request[repo.GetSSHPublicKeyRequest]) (*connect.Response[repo.SSHGetPublicKeyResponse], error) {
+	return c.getSSHPublicKey.CallUnary(ctx, req)
+}
+
+// TestSSHConnection calls vrooli.git_control_tower.v1.repo.RepoService.TestSSHConnection.
+func (c *repoServiceClient) TestSSHConnection(ctx context.Context, req *connect.Request[repo.TestSSHConnectionRequest]) (*connect.Response[repo.SSHTestConnectionResponse], error) {
+	return c.testSSHConnection.CallUnary(ctx, req)
+}
+
+// DeleteSSHKey calls vrooli.git_control_tower.v1.repo.RepoService.DeleteSSHKey.
+func (c *repoServiceClient) DeleteSSHKey(ctx context.Context, req *connect.Request[repo.DeleteSSHKeyRequest]) (*connect.Response[repo.SSHDeleteKeyResponse], error) {
+	return c.deleteSSHKey.CallUnary(ctx, req)
+}
+
 // RepoServiceHandler is an implementation of the vrooli.git_control_tower.v1.repo.RepoService
 // service.
 type RepoServiceHandler interface {
+	ListRepositories(context.Context, *connect.Request[repo.ListRepositoriesRequest]) (*connect.Response[repo.ListRepositoriesResponse], error)
+	GetActiveRepository(context.Context, *connect.Request[repo.GetActiveRepositoryRequest]) (*connect.Response[repo.GetActiveRepositoryResponse], error)
+	SetActiveRepository(context.Context, *connect.Request[repo.SetActiveRepositoryRequest]) (*connect.Response[repo.RepoMutationResponse], error)
+	OpenRepository(context.Context, *connect.Request[repo.OpenRepositoryRequest]) (*connect.Response[repo.RepoMutationResponse], error)
+	CloneRepository(context.Context, *connect.Request[repo.CloneRepositoryRequest]) (*connect.Response[repo.RepoMutationResponse], error)
+	RemoveRepository(context.Context, *connect.Request[repo.RemoveRepositoryRequest]) (*connect.Response[repo.RemoveRepositoryResponse], error)
 	GetRepoStatus(context.Context, *connect.Request[repo.GetRepoStatusRequest]) (*connect.Response[repo.GetRepoStatusResponse], error)
+	GetRepoDiff(context.Context, *connect.Request[repo.GetRepoDiffRequest]) (*connect.Response[repo.GetRepoDiffResponse], error)
+	GetRepoGroups(context.Context, *connect.Request[repo.GetRepoGroupsRequest]) (*connect.Response[repo.GetRepoGroupsResponse], error)
+	GetSyncStatus(context.Context, *connect.Request[repo.GetSyncStatusRequest]) (*connect.Response[repo.GetSyncStatusResponse], error)
+	GetRepoHistory(context.Context, *connect.Request[repo.GetRepoHistoryRequest]) (*connect.Response[repo.GetRepoHistoryResponse], error)
+	GetApprovedChanges(context.Context, *connect.Request[repo.GetApprovedChangesRequest]) (*connect.Response[repo.GetApprovedChangesResponse], error)
+	GetProvenance(context.Context, *connect.Request[repo.GetProvenanceRequest]) (*connect.Response[repo.GetProvenanceResponse], error)
+	// GetBlame is the bounded typed provenance contract. Native line blame,
+	// file/change evidence, and maintenance context remain separate fields.
+	GetBlame(context.Context, *connect.Request[repo.GetBlameRequest]) (*connect.Response[repo.GetBlameResponse], error)
+	SearchProvenance(context.Context, *connect.Request[repo.SearchProvenanceRequest]) (*connect.Response[repo.SearchProvenanceResponse], error)
+	GetFiles(context.Context, *connect.Request[repo.GetFilesRequest]) (*connect.Response[repo.GetFilesResponse], error)
+	GetDirectoryContents(context.Context, *connect.Request[repo.GetDirectoryContentsRequest]) (*connect.Response[repo.GetDirectoryContentsResponse], error)
+	GetRelatedFiles(context.Context, *connect.Request[repo.GetRelatedFilesRequest]) (*connect.Response[repo.GetRelatedFilesResponse], error)
+	SearchContent(context.Context, *connect.Request[repo.SearchContentRequest]) (*connect.Response[repo.SearchContentResponse], error)
+	DeletePath(context.Context, *connect.Request[repo.DeletePathRequest]) (*connect.Response[repo.DeletePathResponse], error)
+	SaveFileContent(context.Context, *connect.Request[repo.SaveFileContentRequest]) (*connect.Response[repo.SaveFileContentResponse], error)
+	DiscardFiles(context.Context, *connect.Request[repo.DiscardFilesRequest]) (*connect.Response[repo.DiscardFilesResponse], error)
+	IgnorePath(context.Context, *connect.Request[repo.IgnorePathRequest]) (*connect.Response[repo.IgnorePathResponse], error)
+	InspectPushSafety(context.Context, *connect.Request[repo.InspectPushSafetyRequest]) (*connect.Response[repo.PushSafetyReport], error)
+	GetPushRecovery(context.Context, *connect.Request[repo.GetPushRecoveryRequest]) (*connect.Response[repo.PushRecoveryArtifact], error)
+	PreparePushRecovery(context.Context, *connect.Request[repo.PreparePushRecoveryRequest]) (*connect.Response[repo.PushRecoveryArtifact], error)
+	PushToRemote(context.Context, *connect.Request[repo.PushToRemoteRequest]) (*connect.Response[repo.PushToRemoteResponse], error)
+	PullFromRemote(context.Context, *connect.Request[repo.PullFromRemoteRequest]) (*connect.Response[repo.PullFromRemoteResponse], error)
+	RunUpstreamAction(context.Context, *connect.Request[repo.RunUpstreamActionRequest]) (*connect.Response[repo.RunUpstreamActionResponse], error)
+	GetGroupingRules(context.Context, *connect.Request[repo.GetGroupingRulesRequest]) (*connect.Response[repo.GroupingRulesResponse], error)
+	SaveGroupingRules(context.Context, *connect.Request[repo.SaveGroupingRulesRequest]) (*connect.Response[repo.GroupingRulesResponse], error)
+	GetGitignoreHealth(context.Context, *connect.Request[repo.GetGitignoreHealthRequest]) (*connect.Response[repo.GitignoreHealthResponse], error)
+	MoveGitignoreEntry(context.Context, *connect.Request[repo.MoveGitignoreEntryRequest]) (*connect.Response[repo.MoveGitignoreEntryResponse], error)
+	GetTrackedBinaries(context.Context, *connect.Request[repo.GetTrackedBinariesRequest]) (*connect.Response[repo.TrackedBinariesResponse], error)
+	UntrackBinary(context.Context, *connect.Request[repo.UntrackBinaryRequest]) (*connect.Response[repo.UntrackBinaryResponse], error)
+	GetPrecommitConfig(context.Context, *connect.Request[repo.GetPrecommitConfigRequest]) (*connect.Response[repo.PrecommitConfigResponse], error)
+	SavePrecommitConfig(context.Context, *connect.Request[repo.SavePrecommitConfigRequest]) (*connect.Response[repo.PrecommitConfigResponse], error)
+	RunPrecommit(context.Context, *connect.Request[repo.RunPrecommitRequest]) (*connect.Response[repo.PrecommitRunResponse], error)
+	StageFiles(context.Context, *connect.Request[repo.StageFilesRequest]) (*connect.Response[repo.StageFilesResponse], error)
+	UnstageFiles(context.Context, *connect.Request[repo.UnstageFilesRequest]) (*connect.Response[repo.UnstageFilesResponse], error)
+	CreateCommit(context.Context, *connect.Request[repo.CreateCommitRequest]) (*connect.Response[repo.CreateCommitResponse], error)
+	ListCredentials(context.Context, *connect.Request[repo.ListCredentialsRequest]) (*connect.Response[repo.CredentialsListResponse], error)
+	SaveCredential(context.Context, *connect.Request[repo.SaveCredentialRequest]) (*connect.Response[repo.CredentialSaveResponse], error)
+	DeleteCredential(context.Context, *connect.Request[repo.DeleteCredentialRequest]) (*connect.Response[repo.CredentialDeleteResponse], error)
+	TestCredential(context.Context, *connect.Request[repo.TestCredentialRequest]) (*connect.Response[repo.CredentialTestResponse], error)
+	UpdateRemoteURL(context.Context, *connect.Request[repo.UpdateRemoteURLRequest]) (*connect.Response[repo.RemoteURLUpdateResponse], error)
+	ListSSHKeys(context.Context, *connect.Request[repo.ListSSHKeysRequest]) (*connect.Response[repo.SSHListKeysResponse], error)
+	GenerateSSHKey(context.Context, *connect.Request[repo.GenerateSSHKeyRequest]) (*connect.Response[repo.SSHGenerateKeyResponse], error)
+	GetSSHPublicKey(context.Context, *connect.Request[repo.GetSSHPublicKeyRequest]) (*connect.Response[repo.SSHGetPublicKeyResponse], error)
+	TestSSHConnection(context.Context, *connect.Request[repo.TestSSHConnectionRequest]) (*connect.Response[repo.SSHTestConnectionResponse], error)
+	DeleteSSHKey(context.Context, *connect.Request[repo.DeleteSSHKeyRequest]) (*connect.Response[repo.SSHDeleteKeyResponse], error)
 }
 
 // NewRepoServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -86,16 +933,416 @@ type RepoServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewRepoServiceHandler(svc RepoServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	repoServiceMethods := repo.File_git_control_tower_v1_repo_repo_proto.Services().ByName("RepoService").Methods()
+	repoServiceListRepositoriesHandler := connect.NewUnaryHandler(
+		RepoServiceListRepositoriesProcedure,
+		svc.ListRepositories,
+		connect.WithSchema(repoServiceMethods.ByName("ListRepositories")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetActiveRepositoryHandler := connect.NewUnaryHandler(
+		RepoServiceGetActiveRepositoryProcedure,
+		svc.GetActiveRepository,
+		connect.WithSchema(repoServiceMethods.ByName("GetActiveRepository")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceSetActiveRepositoryHandler := connect.NewUnaryHandler(
+		RepoServiceSetActiveRepositoryProcedure,
+		svc.SetActiveRepository,
+		connect.WithSchema(repoServiceMethods.ByName("SetActiveRepository")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceOpenRepositoryHandler := connect.NewUnaryHandler(
+		RepoServiceOpenRepositoryProcedure,
+		svc.OpenRepository,
+		connect.WithSchema(repoServiceMethods.ByName("OpenRepository")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceCloneRepositoryHandler := connect.NewUnaryHandler(
+		RepoServiceCloneRepositoryProcedure,
+		svc.CloneRepository,
+		connect.WithSchema(repoServiceMethods.ByName("CloneRepository")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceRemoveRepositoryHandler := connect.NewUnaryHandler(
+		RepoServiceRemoveRepositoryProcedure,
+		svc.RemoveRepository,
+		connect.WithSchema(repoServiceMethods.ByName("RemoveRepository")),
+		connect.WithHandlerOptions(opts...),
+	)
 	repoServiceGetRepoStatusHandler := connect.NewUnaryHandler(
 		RepoServiceGetRepoStatusProcedure,
 		svc.GetRepoStatus,
 		connect.WithSchema(repoServiceMethods.ByName("GetRepoStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	repoServiceGetRepoDiffHandler := connect.NewUnaryHandler(
+		RepoServiceGetRepoDiffProcedure,
+		svc.GetRepoDiff,
+		connect.WithSchema(repoServiceMethods.ByName("GetRepoDiff")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetRepoGroupsHandler := connect.NewUnaryHandler(
+		RepoServiceGetRepoGroupsProcedure,
+		svc.GetRepoGroups,
+		connect.WithSchema(repoServiceMethods.ByName("GetRepoGroups")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetSyncStatusHandler := connect.NewUnaryHandler(
+		RepoServiceGetSyncStatusProcedure,
+		svc.GetSyncStatus,
+		connect.WithSchema(repoServiceMethods.ByName("GetSyncStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetRepoHistoryHandler := connect.NewUnaryHandler(
+		RepoServiceGetRepoHistoryProcedure,
+		svc.GetRepoHistory,
+		connect.WithSchema(repoServiceMethods.ByName("GetRepoHistory")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetApprovedChangesHandler := connect.NewUnaryHandler(
+		RepoServiceGetApprovedChangesProcedure,
+		svc.GetApprovedChanges,
+		connect.WithSchema(repoServiceMethods.ByName("GetApprovedChanges")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetProvenanceHandler := connect.NewUnaryHandler(
+		RepoServiceGetProvenanceProcedure,
+		svc.GetProvenance,
+		connect.WithSchema(repoServiceMethods.ByName("GetProvenance")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetBlameHandler := connect.NewUnaryHandler(
+		RepoServiceGetBlameProcedure,
+		svc.GetBlame,
+		connect.WithSchema(repoServiceMethods.ByName("GetBlame")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceSearchProvenanceHandler := connect.NewUnaryHandler(
+		RepoServiceSearchProvenanceProcedure,
+		svc.SearchProvenance,
+		connect.WithSchema(repoServiceMethods.ByName("SearchProvenance")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetFilesHandler := connect.NewUnaryHandler(
+		RepoServiceGetFilesProcedure,
+		svc.GetFiles,
+		connect.WithSchema(repoServiceMethods.ByName("GetFiles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetDirectoryContentsHandler := connect.NewUnaryHandler(
+		RepoServiceGetDirectoryContentsProcedure,
+		svc.GetDirectoryContents,
+		connect.WithSchema(repoServiceMethods.ByName("GetDirectoryContents")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetRelatedFilesHandler := connect.NewUnaryHandler(
+		RepoServiceGetRelatedFilesProcedure,
+		svc.GetRelatedFiles,
+		connect.WithSchema(repoServiceMethods.ByName("GetRelatedFiles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceSearchContentHandler := connect.NewUnaryHandler(
+		RepoServiceSearchContentProcedure,
+		svc.SearchContent,
+		connect.WithSchema(repoServiceMethods.ByName("SearchContent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceDeletePathHandler := connect.NewUnaryHandler(
+		RepoServiceDeletePathProcedure,
+		svc.DeletePath,
+		connect.WithSchema(repoServiceMethods.ByName("DeletePath")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceSaveFileContentHandler := connect.NewUnaryHandler(
+		RepoServiceSaveFileContentProcedure,
+		svc.SaveFileContent,
+		connect.WithSchema(repoServiceMethods.ByName("SaveFileContent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceDiscardFilesHandler := connect.NewUnaryHandler(
+		RepoServiceDiscardFilesProcedure,
+		svc.DiscardFiles,
+		connect.WithSchema(repoServiceMethods.ByName("DiscardFiles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceIgnorePathHandler := connect.NewUnaryHandler(
+		RepoServiceIgnorePathProcedure,
+		svc.IgnorePath,
+		connect.WithSchema(repoServiceMethods.ByName("IgnorePath")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceInspectPushSafetyHandler := connect.NewUnaryHandler(
+		RepoServiceInspectPushSafetyProcedure,
+		svc.InspectPushSafety,
+		connect.WithSchema(repoServiceMethods.ByName("InspectPushSafety")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetPushRecoveryHandler := connect.NewUnaryHandler(
+		RepoServiceGetPushRecoveryProcedure,
+		svc.GetPushRecovery,
+		connect.WithSchema(repoServiceMethods.ByName("GetPushRecovery")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServicePreparePushRecoveryHandler := connect.NewUnaryHandler(
+		RepoServicePreparePushRecoveryProcedure,
+		svc.PreparePushRecovery,
+		connect.WithSchema(repoServiceMethods.ByName("PreparePushRecovery")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServicePushToRemoteHandler := connect.NewUnaryHandler(
+		RepoServicePushToRemoteProcedure,
+		svc.PushToRemote,
+		connect.WithSchema(repoServiceMethods.ByName("PushToRemote")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServicePullFromRemoteHandler := connect.NewUnaryHandler(
+		RepoServicePullFromRemoteProcedure,
+		svc.PullFromRemote,
+		connect.WithSchema(repoServiceMethods.ByName("PullFromRemote")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceRunUpstreamActionHandler := connect.NewUnaryHandler(
+		RepoServiceRunUpstreamActionProcedure,
+		svc.RunUpstreamAction,
+		connect.WithSchema(repoServiceMethods.ByName("RunUpstreamAction")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetGroupingRulesHandler := connect.NewUnaryHandler(
+		RepoServiceGetGroupingRulesProcedure,
+		svc.GetGroupingRules,
+		connect.WithSchema(repoServiceMethods.ByName("GetGroupingRules")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceSaveGroupingRulesHandler := connect.NewUnaryHandler(
+		RepoServiceSaveGroupingRulesProcedure,
+		svc.SaveGroupingRules,
+		connect.WithSchema(repoServiceMethods.ByName("SaveGroupingRules")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetGitignoreHealthHandler := connect.NewUnaryHandler(
+		RepoServiceGetGitignoreHealthProcedure,
+		svc.GetGitignoreHealth,
+		connect.WithSchema(repoServiceMethods.ByName("GetGitignoreHealth")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceMoveGitignoreEntryHandler := connect.NewUnaryHandler(
+		RepoServiceMoveGitignoreEntryProcedure,
+		svc.MoveGitignoreEntry,
+		connect.WithSchema(repoServiceMethods.ByName("MoveGitignoreEntry")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetTrackedBinariesHandler := connect.NewUnaryHandler(
+		RepoServiceGetTrackedBinariesProcedure,
+		svc.GetTrackedBinaries,
+		connect.WithSchema(repoServiceMethods.ByName("GetTrackedBinaries")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceUntrackBinaryHandler := connect.NewUnaryHandler(
+		RepoServiceUntrackBinaryProcedure,
+		svc.UntrackBinary,
+		connect.WithSchema(repoServiceMethods.ByName("UntrackBinary")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetPrecommitConfigHandler := connect.NewUnaryHandler(
+		RepoServiceGetPrecommitConfigProcedure,
+		svc.GetPrecommitConfig,
+		connect.WithSchema(repoServiceMethods.ByName("GetPrecommitConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceSavePrecommitConfigHandler := connect.NewUnaryHandler(
+		RepoServiceSavePrecommitConfigProcedure,
+		svc.SavePrecommitConfig,
+		connect.WithSchema(repoServiceMethods.ByName("SavePrecommitConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceRunPrecommitHandler := connect.NewUnaryHandler(
+		RepoServiceRunPrecommitProcedure,
+		svc.RunPrecommit,
+		connect.WithSchema(repoServiceMethods.ByName("RunPrecommit")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceStageFilesHandler := connect.NewUnaryHandler(
+		RepoServiceStageFilesProcedure,
+		svc.StageFiles,
+		connect.WithSchema(repoServiceMethods.ByName("StageFiles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceUnstageFilesHandler := connect.NewUnaryHandler(
+		RepoServiceUnstageFilesProcedure,
+		svc.UnstageFiles,
+		connect.WithSchema(repoServiceMethods.ByName("UnstageFiles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceCreateCommitHandler := connect.NewUnaryHandler(
+		RepoServiceCreateCommitProcedure,
+		svc.CreateCommit,
+		connect.WithSchema(repoServiceMethods.ByName("CreateCommit")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceListCredentialsHandler := connect.NewUnaryHandler(
+		RepoServiceListCredentialsProcedure,
+		svc.ListCredentials,
+		connect.WithSchema(repoServiceMethods.ByName("ListCredentials")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceSaveCredentialHandler := connect.NewUnaryHandler(
+		RepoServiceSaveCredentialProcedure,
+		svc.SaveCredential,
+		connect.WithSchema(repoServiceMethods.ByName("SaveCredential")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceDeleteCredentialHandler := connect.NewUnaryHandler(
+		RepoServiceDeleteCredentialProcedure,
+		svc.DeleteCredential,
+		connect.WithSchema(repoServiceMethods.ByName("DeleteCredential")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceTestCredentialHandler := connect.NewUnaryHandler(
+		RepoServiceTestCredentialProcedure,
+		svc.TestCredential,
+		connect.WithSchema(repoServiceMethods.ByName("TestCredential")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceUpdateRemoteURLHandler := connect.NewUnaryHandler(
+		RepoServiceUpdateRemoteURLProcedure,
+		svc.UpdateRemoteURL,
+		connect.WithSchema(repoServiceMethods.ByName("UpdateRemoteURL")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceListSSHKeysHandler := connect.NewUnaryHandler(
+		RepoServiceListSSHKeysProcedure,
+		svc.ListSSHKeys,
+		connect.WithSchema(repoServiceMethods.ByName("ListSSHKeys")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGenerateSSHKeyHandler := connect.NewUnaryHandler(
+		RepoServiceGenerateSSHKeyProcedure,
+		svc.GenerateSSHKey,
+		connect.WithSchema(repoServiceMethods.ByName("GenerateSSHKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetSSHPublicKeyHandler := connect.NewUnaryHandler(
+		RepoServiceGetSSHPublicKeyProcedure,
+		svc.GetSSHPublicKey,
+		connect.WithSchema(repoServiceMethods.ByName("GetSSHPublicKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceTestSSHConnectionHandler := connect.NewUnaryHandler(
+		RepoServiceTestSSHConnectionProcedure,
+		svc.TestSSHConnection,
+		connect.WithSchema(repoServiceMethods.ByName("TestSSHConnection")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceDeleteSSHKeyHandler := connect.NewUnaryHandler(
+		RepoServiceDeleteSSHKeyProcedure,
+		svc.DeleteSSHKey,
+		connect.WithSchema(repoServiceMethods.ByName("DeleteSSHKey")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.git_control_tower.v1.repo.RepoService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case RepoServiceListRepositoriesProcedure:
+			repoServiceListRepositoriesHandler.ServeHTTP(w, r)
+		case RepoServiceGetActiveRepositoryProcedure:
+			repoServiceGetActiveRepositoryHandler.ServeHTTP(w, r)
+		case RepoServiceSetActiveRepositoryProcedure:
+			repoServiceSetActiveRepositoryHandler.ServeHTTP(w, r)
+		case RepoServiceOpenRepositoryProcedure:
+			repoServiceOpenRepositoryHandler.ServeHTTP(w, r)
+		case RepoServiceCloneRepositoryProcedure:
+			repoServiceCloneRepositoryHandler.ServeHTTP(w, r)
+		case RepoServiceRemoveRepositoryProcedure:
+			repoServiceRemoveRepositoryHandler.ServeHTTP(w, r)
 		case RepoServiceGetRepoStatusProcedure:
 			repoServiceGetRepoStatusHandler.ServeHTTP(w, r)
+		case RepoServiceGetRepoDiffProcedure:
+			repoServiceGetRepoDiffHandler.ServeHTTP(w, r)
+		case RepoServiceGetRepoGroupsProcedure:
+			repoServiceGetRepoGroupsHandler.ServeHTTP(w, r)
+		case RepoServiceGetSyncStatusProcedure:
+			repoServiceGetSyncStatusHandler.ServeHTTP(w, r)
+		case RepoServiceGetRepoHistoryProcedure:
+			repoServiceGetRepoHistoryHandler.ServeHTTP(w, r)
+		case RepoServiceGetApprovedChangesProcedure:
+			repoServiceGetApprovedChangesHandler.ServeHTTP(w, r)
+		case RepoServiceGetProvenanceProcedure:
+			repoServiceGetProvenanceHandler.ServeHTTP(w, r)
+		case RepoServiceGetBlameProcedure:
+			repoServiceGetBlameHandler.ServeHTTP(w, r)
+		case RepoServiceSearchProvenanceProcedure:
+			repoServiceSearchProvenanceHandler.ServeHTTP(w, r)
+		case RepoServiceGetFilesProcedure:
+			repoServiceGetFilesHandler.ServeHTTP(w, r)
+		case RepoServiceGetDirectoryContentsProcedure:
+			repoServiceGetDirectoryContentsHandler.ServeHTTP(w, r)
+		case RepoServiceGetRelatedFilesProcedure:
+			repoServiceGetRelatedFilesHandler.ServeHTTP(w, r)
+		case RepoServiceSearchContentProcedure:
+			repoServiceSearchContentHandler.ServeHTTP(w, r)
+		case RepoServiceDeletePathProcedure:
+			repoServiceDeletePathHandler.ServeHTTP(w, r)
+		case RepoServiceSaveFileContentProcedure:
+			repoServiceSaveFileContentHandler.ServeHTTP(w, r)
+		case RepoServiceDiscardFilesProcedure:
+			repoServiceDiscardFilesHandler.ServeHTTP(w, r)
+		case RepoServiceIgnorePathProcedure:
+			repoServiceIgnorePathHandler.ServeHTTP(w, r)
+		case RepoServiceInspectPushSafetyProcedure:
+			repoServiceInspectPushSafetyHandler.ServeHTTP(w, r)
+		case RepoServiceGetPushRecoveryProcedure:
+			repoServiceGetPushRecoveryHandler.ServeHTTP(w, r)
+		case RepoServicePreparePushRecoveryProcedure:
+			repoServicePreparePushRecoveryHandler.ServeHTTP(w, r)
+		case RepoServicePushToRemoteProcedure:
+			repoServicePushToRemoteHandler.ServeHTTP(w, r)
+		case RepoServicePullFromRemoteProcedure:
+			repoServicePullFromRemoteHandler.ServeHTTP(w, r)
+		case RepoServiceRunUpstreamActionProcedure:
+			repoServiceRunUpstreamActionHandler.ServeHTTP(w, r)
+		case RepoServiceGetGroupingRulesProcedure:
+			repoServiceGetGroupingRulesHandler.ServeHTTP(w, r)
+		case RepoServiceSaveGroupingRulesProcedure:
+			repoServiceSaveGroupingRulesHandler.ServeHTTP(w, r)
+		case RepoServiceGetGitignoreHealthProcedure:
+			repoServiceGetGitignoreHealthHandler.ServeHTTP(w, r)
+		case RepoServiceMoveGitignoreEntryProcedure:
+			repoServiceMoveGitignoreEntryHandler.ServeHTTP(w, r)
+		case RepoServiceGetTrackedBinariesProcedure:
+			repoServiceGetTrackedBinariesHandler.ServeHTTP(w, r)
+		case RepoServiceUntrackBinaryProcedure:
+			repoServiceUntrackBinaryHandler.ServeHTTP(w, r)
+		case RepoServiceGetPrecommitConfigProcedure:
+			repoServiceGetPrecommitConfigHandler.ServeHTTP(w, r)
+		case RepoServiceSavePrecommitConfigProcedure:
+			repoServiceSavePrecommitConfigHandler.ServeHTTP(w, r)
+		case RepoServiceRunPrecommitProcedure:
+			repoServiceRunPrecommitHandler.ServeHTTP(w, r)
+		case RepoServiceStageFilesProcedure:
+			repoServiceStageFilesHandler.ServeHTTP(w, r)
+		case RepoServiceUnstageFilesProcedure:
+			repoServiceUnstageFilesHandler.ServeHTTP(w, r)
+		case RepoServiceCreateCommitProcedure:
+			repoServiceCreateCommitHandler.ServeHTTP(w, r)
+		case RepoServiceListCredentialsProcedure:
+			repoServiceListCredentialsHandler.ServeHTTP(w, r)
+		case RepoServiceSaveCredentialProcedure:
+			repoServiceSaveCredentialHandler.ServeHTTP(w, r)
+		case RepoServiceDeleteCredentialProcedure:
+			repoServiceDeleteCredentialHandler.ServeHTTP(w, r)
+		case RepoServiceTestCredentialProcedure:
+			repoServiceTestCredentialHandler.ServeHTTP(w, r)
+		case RepoServiceUpdateRemoteURLProcedure:
+			repoServiceUpdateRemoteURLHandler.ServeHTTP(w, r)
+		case RepoServiceListSSHKeysProcedure:
+			repoServiceListSSHKeysHandler.ServeHTTP(w, r)
+		case RepoServiceGenerateSSHKeyProcedure:
+			repoServiceGenerateSSHKeyHandler.ServeHTTP(w, r)
+		case RepoServiceGetSSHPublicKeyProcedure:
+			repoServiceGetSSHPublicKeyHandler.ServeHTTP(w, r)
+		case RepoServiceTestSSHConnectionProcedure:
+			repoServiceTestSSHConnectionHandler.ServeHTTP(w, r)
+		case RepoServiceDeleteSSHKeyProcedure:
+			repoServiceDeleteSSHKeyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -105,6 +1352,206 @@ func NewRepoServiceHandler(svc RepoServiceHandler, opts ...connect.HandlerOption
 // UnimplementedRepoServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedRepoServiceHandler struct{}
 
+func (UnimplementedRepoServiceHandler) ListRepositories(context.Context, *connect.Request[repo.ListRepositoriesRequest]) (*connect.Response[repo.ListRepositoriesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.ListRepositories is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetActiveRepository(context.Context, *connect.Request[repo.GetActiveRepositoryRequest]) (*connect.Response[repo.GetActiveRepositoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetActiveRepository is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) SetActiveRepository(context.Context, *connect.Request[repo.SetActiveRepositoryRequest]) (*connect.Response[repo.RepoMutationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.SetActiveRepository is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) OpenRepository(context.Context, *connect.Request[repo.OpenRepositoryRequest]) (*connect.Response[repo.RepoMutationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.OpenRepository is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) CloneRepository(context.Context, *connect.Request[repo.CloneRepositoryRequest]) (*connect.Response[repo.RepoMutationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.CloneRepository is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) RemoveRepository(context.Context, *connect.Request[repo.RemoveRepositoryRequest]) (*connect.Response[repo.RemoveRepositoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.RemoveRepository is not implemented"))
+}
+
 func (UnimplementedRepoServiceHandler) GetRepoStatus(context.Context, *connect.Request[repo.GetRepoStatusRequest]) (*connect.Response[repo.GetRepoStatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetRepoStatus is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetRepoDiff(context.Context, *connect.Request[repo.GetRepoDiffRequest]) (*connect.Response[repo.GetRepoDiffResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetRepoDiff is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetRepoGroups(context.Context, *connect.Request[repo.GetRepoGroupsRequest]) (*connect.Response[repo.GetRepoGroupsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetRepoGroups is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetSyncStatus(context.Context, *connect.Request[repo.GetSyncStatusRequest]) (*connect.Response[repo.GetSyncStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetSyncStatus is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetRepoHistory(context.Context, *connect.Request[repo.GetRepoHistoryRequest]) (*connect.Response[repo.GetRepoHistoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetRepoHistory is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetApprovedChanges(context.Context, *connect.Request[repo.GetApprovedChangesRequest]) (*connect.Response[repo.GetApprovedChangesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetApprovedChanges is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetProvenance(context.Context, *connect.Request[repo.GetProvenanceRequest]) (*connect.Response[repo.GetProvenanceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetProvenance is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetBlame(context.Context, *connect.Request[repo.GetBlameRequest]) (*connect.Response[repo.GetBlameResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetBlame is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) SearchProvenance(context.Context, *connect.Request[repo.SearchProvenanceRequest]) (*connect.Response[repo.SearchProvenanceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.SearchProvenance is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetFiles(context.Context, *connect.Request[repo.GetFilesRequest]) (*connect.Response[repo.GetFilesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetFiles is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetDirectoryContents(context.Context, *connect.Request[repo.GetDirectoryContentsRequest]) (*connect.Response[repo.GetDirectoryContentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetDirectoryContents is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetRelatedFiles(context.Context, *connect.Request[repo.GetRelatedFilesRequest]) (*connect.Response[repo.GetRelatedFilesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetRelatedFiles is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) SearchContent(context.Context, *connect.Request[repo.SearchContentRequest]) (*connect.Response[repo.SearchContentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.SearchContent is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) DeletePath(context.Context, *connect.Request[repo.DeletePathRequest]) (*connect.Response[repo.DeletePathResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.DeletePath is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) SaveFileContent(context.Context, *connect.Request[repo.SaveFileContentRequest]) (*connect.Response[repo.SaveFileContentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.SaveFileContent is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) DiscardFiles(context.Context, *connect.Request[repo.DiscardFilesRequest]) (*connect.Response[repo.DiscardFilesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.DiscardFiles is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) IgnorePath(context.Context, *connect.Request[repo.IgnorePathRequest]) (*connect.Response[repo.IgnorePathResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.IgnorePath is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) InspectPushSafety(context.Context, *connect.Request[repo.InspectPushSafetyRequest]) (*connect.Response[repo.PushSafetyReport], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.InspectPushSafety is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetPushRecovery(context.Context, *connect.Request[repo.GetPushRecoveryRequest]) (*connect.Response[repo.PushRecoveryArtifact], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetPushRecovery is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) PreparePushRecovery(context.Context, *connect.Request[repo.PreparePushRecoveryRequest]) (*connect.Response[repo.PushRecoveryArtifact], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.PreparePushRecovery is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) PushToRemote(context.Context, *connect.Request[repo.PushToRemoteRequest]) (*connect.Response[repo.PushToRemoteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.PushToRemote is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) PullFromRemote(context.Context, *connect.Request[repo.PullFromRemoteRequest]) (*connect.Response[repo.PullFromRemoteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.PullFromRemote is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) RunUpstreamAction(context.Context, *connect.Request[repo.RunUpstreamActionRequest]) (*connect.Response[repo.RunUpstreamActionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.RunUpstreamAction is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetGroupingRules(context.Context, *connect.Request[repo.GetGroupingRulesRequest]) (*connect.Response[repo.GroupingRulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetGroupingRules is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) SaveGroupingRules(context.Context, *connect.Request[repo.SaveGroupingRulesRequest]) (*connect.Response[repo.GroupingRulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.SaveGroupingRules is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetGitignoreHealth(context.Context, *connect.Request[repo.GetGitignoreHealthRequest]) (*connect.Response[repo.GitignoreHealthResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetGitignoreHealth is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) MoveGitignoreEntry(context.Context, *connect.Request[repo.MoveGitignoreEntryRequest]) (*connect.Response[repo.MoveGitignoreEntryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.MoveGitignoreEntry is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetTrackedBinaries(context.Context, *connect.Request[repo.GetTrackedBinariesRequest]) (*connect.Response[repo.TrackedBinariesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetTrackedBinaries is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) UntrackBinary(context.Context, *connect.Request[repo.UntrackBinaryRequest]) (*connect.Response[repo.UntrackBinaryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.UntrackBinary is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetPrecommitConfig(context.Context, *connect.Request[repo.GetPrecommitConfigRequest]) (*connect.Response[repo.PrecommitConfigResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitConfig is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) SavePrecommitConfig(context.Context, *connect.Request[repo.SavePrecommitConfigRequest]) (*connect.Response[repo.PrecommitConfigResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.SavePrecommitConfig is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) RunPrecommit(context.Context, *connect.Request[repo.RunPrecommitRequest]) (*connect.Response[repo.PrecommitRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.RunPrecommit is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) StageFiles(context.Context, *connect.Request[repo.StageFilesRequest]) (*connect.Response[repo.StageFilesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.StageFiles is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) UnstageFiles(context.Context, *connect.Request[repo.UnstageFilesRequest]) (*connect.Response[repo.UnstageFilesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.UnstageFiles is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) CreateCommit(context.Context, *connect.Request[repo.CreateCommitRequest]) (*connect.Response[repo.CreateCommitResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.CreateCommit is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) ListCredentials(context.Context, *connect.Request[repo.ListCredentialsRequest]) (*connect.Response[repo.CredentialsListResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.ListCredentials is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) SaveCredential(context.Context, *connect.Request[repo.SaveCredentialRequest]) (*connect.Response[repo.CredentialSaveResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.SaveCredential is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) DeleteCredential(context.Context, *connect.Request[repo.DeleteCredentialRequest]) (*connect.Response[repo.CredentialDeleteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.DeleteCredential is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) TestCredential(context.Context, *connect.Request[repo.TestCredentialRequest]) (*connect.Response[repo.CredentialTestResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.TestCredential is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) UpdateRemoteURL(context.Context, *connect.Request[repo.UpdateRemoteURLRequest]) (*connect.Response[repo.RemoteURLUpdateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.UpdateRemoteURL is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) ListSSHKeys(context.Context, *connect.Request[repo.ListSSHKeysRequest]) (*connect.Response[repo.SSHListKeysResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.ListSSHKeys is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GenerateSSHKey(context.Context, *connect.Request[repo.GenerateSSHKeyRequest]) (*connect.Response[repo.SSHGenerateKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GenerateSSHKey is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetSSHPublicKey(context.Context, *connect.Request[repo.GetSSHPublicKeyRequest]) (*connect.Response[repo.SSHGetPublicKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetSSHPublicKey is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) TestSSHConnection(context.Context, *connect.Request[repo.TestSSHConnectionRequest]) (*connect.Response[repo.SSHTestConnectionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.TestSSHConnection is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) DeleteSSHKey(context.Context, *connect.Request[repo.DeleteSSHKeyRequest]) (*connect.Response[repo.SSHDeleteKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.DeleteSSHKey is not implemented"))
 }

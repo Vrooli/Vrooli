@@ -151,8 +151,10 @@ type Service struct {
 	workWorkflow             agentmanager.WorkflowInvoker
 	specSyncWorkflow         agentmanager.WorkflowInvoker
 	workflowStateReader      WorkflowStateReader
+	reconcileTracker         *reconcileTracker
 	transitionRegistry       transitions.Registry
 	transitionRunner         *transitionrunner.Runner
+	planWorkGuard            func(context.Context, string) error
 	engagementStore          *EngagementStore
 	differ                   RunDiffer
 	stopper                  RunStopper

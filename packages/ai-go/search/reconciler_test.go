@@ -368,6 +368,7 @@ func (s generatedPagedSource) LoadPage(_ context.Context, request PageRequest) (
 }
 
 type fakeGenerationStore struct {
+	begins     int
 	maxLookup  int
 	active     map[string]StoredSourceState
 	staged     int
@@ -405,6 +406,7 @@ func (s *resumableGenerationStore) LookupGenerationSources(_ context.Context, _ 
 
 func (s *fakeGenerationStore) BeginGeneration(context.Context, GenerationMetadata) error {
 	s.begin = true
+	s.begins++
 	return nil
 }
 
@@ -608,5 +610,72 @@ func TestStreamingReconcilerResumesCompleteCandidateSources(t *testing.T) {
 	}
 	if result.Embedded != 0 || result.Reused != 1 || embedder.calls != 0 || store.staged != 0 {
 		t.Fatalf("resume must preserve complete candidate source: result=%+v calls=%d staged=%d", result, embedder.calls, store.staged)
+	}
+}
+
+// cleanupFailingGenerationStore promotes normally but cannot retire old
+// generations, the shape of a Qdrant that is serving but slow to delete.
+type cleanupFailingGenerationStore struct {
+	*fakeGenerationStore
+}
+
+func (s *cleanupFailingGenerationStore) CleanupGenerations(context.Context, int) error {
+	return errors.New("qdrant busy")
+}
+
+func TestStreamingRunChangesStagesEveryPageInOneGeneration(t *testing.T) {
+	store := &fakeGenerationStore{}
+	reconciler := NewStreamingReconciler(&countingEmbedder{})
+	changes := ChangeSet{}
+	for index := range 5 {
+		id := "fixture:" + strconv.Itoa(index)
+		changes.Changes = append(changes.Changes, SourceChange{Operation: ChangeUpsert, Document: SourceDoc{ID: id, Kind: "fixture", ContentHash: id, Body: "body " + id}})
+	}
+	changes.Changes = append(changes.Changes, SourceChange{Operation: ChangeDelete, SourceID: "fixture:gone"})
+	result, err := reconciler.RunChanges(context.Background(), StreamingBinding{
+		Kind: "fixture", Store: store, Source: generatedPagedSource{total: 0}, PageSize: 2,
+	}, GenerationMetadata{ID: "generation-changes"}, changes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if store.begins != 1 {
+		t.Fatalf("a change set must cost exactly one generation, began %d", store.begins)
+	}
+	if result.Pages != 3 || result.MaxPageDocuments != 2 {
+		t.Fatalf("6 changes at page size 2 must stage as 3 pages of at most 2, got pages=%d max=%d", result.Pages, result.MaxPageDocuments)
+	}
+	if result.Sources != 5 || result.Deleted != 1 || !result.Promoted || !store.promoted || store.rolledBack {
+		t.Fatalf("unexpected result %+v store %+v", result, store)
+	}
+	if result.CleanupError != "" {
+		t.Fatalf("unexpected cleanup error %q", result.CleanupError)
+	}
+}
+
+func TestStreamingRunChangesAcceptsEmptyChangeSet(t *testing.T) {
+	store := &fakeGenerationStore{}
+	reconciler := NewStreamingReconciler(&countingEmbedder{})
+	result, err := reconciler.RunChanges(context.Background(), StreamingBinding{
+		Kind: "fixture", Store: store, Source: generatedPagedSource{total: 0}, PageSize: 2,
+	}, GenerationMetadata{ID: "generation-empty"}, ChangeSet{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if store.begins != 1 || !result.Promoted || result.Pages != 1 {
+		t.Fatalf("empty change set must still run one generation, got %+v store %+v", result, store)
+	}
+}
+
+func TestStreamingCleanupFailureDoesNotFailPromotedRun(t *testing.T) {
+	store := &cleanupFailingGenerationStore{fakeGenerationStore: &fakeGenerationStore{}}
+	reconciler := NewStreamingReconciler(&countingEmbedder{})
+	result, err := reconciler.RunFull(context.Background(), StreamingBinding{
+		Kind: "fixture", Store: store, Source: generatedPagedSource{total: 3}, IDPrefix: "fixture:", PageSize: 2,
+	}, GenerationMetadata{ID: "generation-1"})
+	if err != nil {
+		t.Fatalf("a promoted generation must not fail on retirement cleanup: %v", err)
+	}
+	if !result.Promoted || result.CleanupError == "" || store.rolledBack {
+		t.Fatalf("cleanup failure must be surfaced on the promoted result, got %+v", result)
 	}
 }

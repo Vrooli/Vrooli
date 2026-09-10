@@ -8,9 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 
 	"workspace-sandbox/internal/repository"
+	"workspace-sandbox/internal/types"
 
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/scheduletest"
@@ -80,6 +82,79 @@ func TestEnsureSchema_IdempotentReinit(t *testing.T) {
 	}
 	if rows != 1 {
 		t.Errorf("schema_version row count = %d, want 1 (idempotent)", rows)
+	}
+}
+
+func TestEnsureSchema_ReconcilesProvenanceColumnsAtCurrentVersion(t *testing.T) {
+	db := openRawSQLite(t)
+	ctx := context.Background()
+	clk := scheduletest.New(time.Date(2026, 9, 10, 8, 0, 0, 0, time.UTC))
+	// These columns were introduced after deployed databases had already
+	// reached v4. Replaying CREATE TABLE or the v4 migration cannot repair
+	// that state: startup must reconcile the declared schema at every version.
+	legacySchema := strings.NewReplacer(
+		"\tcontent_digest        TEXT,\n", "",
+		"\tevidence_revision     TEXT,\n", "",
+	).Replace(repository.SchemaSQL)
+	if legacySchema == repository.SchemaSQL {
+		t.Fatal("legacy schema fixture did not remove provenance columns")
+	}
+	if _, err := db.Exec(legacySchema); err != nil {
+		t.Fatal(err)
+	}
+	const originalStamp = "2026-08-22T18:38:29Z"
+	if _, err := db.Exec(`INSERT INTO schema_version(version, applied_at) VALUES (?, ?)`, repository.ExpectedSchemaVersion, originalStamp); err != nil {
+		t.Fatal(err)
+	}
+	sandboxID := uuid.New()
+	if _, err := db.Exec(`INSERT INTO sandboxes(id, scope_path, project_root, created_at, last_used_at, updated_at) VALUES (?, '/project', '/project', ?, ?, ?)`, sandboxID.String(), originalStamp, originalStamp, originalStamp); err != nil {
+		t.Fatal(err)
+	}
+	oldID := uuid.New()
+	if _, err := db.Exec(`INSERT INTO applied_changes(id, sandbox_id, file_path, project_root, change_type, file_size, applied_at) VALUES (?, ?, '/project/old.txt', '/project', 'added', 12, ?)`, oldID.String(), sandboxID.String(), originalStamp); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if err := repository.EnsureSchema(ctx, db, clk); err != nil {
+			t.Fatalf("EnsureSchema pass %d: %v", i+1, err)
+		}
+	}
+	repo := repository.NewSandboxRepository(db, clk)
+	newChange := &types.AppliedChange{
+		SandboxID: sandboxID, FilePath: "/project/new.txt", ProjectRoot: "/project",
+		ChangeType: "added", FileSize: 24, ContentDigest: "sha256:new-content",
+		EvidenceRevision: "checkpoint:turn-1", AgentManagerRunID: uuid.NewString(),
+	}
+	if err := repo.RecordAppliedChanges(ctx, []*types.AppliedChange{newChange}); err != nil {
+		t.Fatalf("record provenance after upgrading existing database: %v", err)
+	}
+	changes, err := repo.GetPendingChangeFiles(ctx, "/project", []uuid.UUID{sandboxID})
+	if err != nil {
+		t.Fatalf("read retained and new provenance: %v", err)
+	}
+	if len(changes) != 2 {
+		t.Fatalf("got %d changes, want old and new rows", len(changes))
+	}
+	for _, change := range changes {
+		switch change.ID {
+		case oldID:
+			if change.FilePath != "/project/old.txt" || change.FileSize != 12 || change.ContentDigest != "" || change.EvidenceRevision != "" {
+				t.Errorf("existing row changed or gained fabricated provenance: %+v", change)
+			}
+		case newChange.ID:
+			if change.ContentDigest != newChange.ContentDigest || change.EvidenceRevision != newChange.EvidenceRevision || change.AgentManagerRunID != newChange.AgentManagerRunID {
+				t.Errorf("new provenance was not retained: %+v", change)
+			}
+		default:
+			t.Errorf("unexpected row %s", change.ID)
+		}
+	}
+	var stamp string
+	if err := db.QueryRow(`SELECT applied_at FROM schema_version WHERE version = ?`, repository.ExpectedSchemaVersion).Scan(&stamp); err != nil {
+		t.Fatal(err)
+	}
+	if stamp != originalStamp {
+		t.Errorf("existing version timestamp changed from %q to %q", originalStamp, stamp)
 	}
 }
 

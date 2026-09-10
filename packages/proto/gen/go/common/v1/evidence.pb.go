@@ -312,9 +312,10 @@ type TargetVerdict struct {
 	Refs        []*EvidenceRef         `protobuf:"bytes,3,rep,name=refs,proto3" json:"refs,omitempty"`
 	RunId       string                 `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	Detail      string                 `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
-	// Structural provenance used by release gates. This must not be inferred
-	// from free-form detail text because advisory strategies are not
-	// promotable to release evidence.
+	// Structural provenance used by release gates. Passed verdicts must include
+	// this field and at least one EvidenceRef. This must not be inferred from
+	// free-form detail text because advisory strategies are not promotable to
+	// release evidence.
 	EvidenceClass string `protobuf:"bytes,6,opt,name=evidence_class,json=evidenceClass,proto3" json:"evidence_class,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

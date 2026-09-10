@@ -46,16 +46,18 @@ class SearchDocumentsResponse(_message.Message):
     def __init__(self, results: _Optional[_Iterable[_Union[DocumentHit, _Mapping]]] = ..., method: _Optional[str] = ..., reranker: _Optional[str] = ...) -> None: ...
 
 class InspectDocumentRequest(_message.Message):
-    __slots__ = ("path", "offset", "limit", "expected_sha256")
+    __slots__ = ("path", "offset", "limit", "expected_sha256", "allow_missing")
     PATH_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_SHA256_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_MISSING_FIELD_NUMBER: _ClassVar[int]
     path: str
     offset: int
     limit: int
     expected_sha256: str
-    def __init__(self, path: _Optional[str] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ..., expected_sha256: _Optional[str] = ...) -> None: ...
+    allow_missing: bool
+    def __init__(self, path: _Optional[str] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ..., expected_sha256: _Optional[str] = ..., allow_missing: _Optional[bool] = ...) -> None: ...
 
 class DocumentReference(_message.Message):
     __slots__ = ("target", "path", "exists", "kind")
@@ -70,7 +72,7 @@ class DocumentReference(_message.Message):
     def __init__(self, target: _Optional[str] = ..., path: _Optional[str] = ..., exists: _Optional[bool] = ..., kind: _Optional[str] = ...) -> None: ...
 
 class InspectDocumentResponse(_message.Message):
-    __slots__ = ("path", "sha256", "content", "offset", "next_offset", "truncated", "size_bytes", "metadata", "references", "references_truncated")
+    __slots__ = ("path", "sha256", "content", "offset", "next_offset", "truncated", "size_bytes", "metadata", "references", "references_truncated", "missing")
     PATH_FIELD_NUMBER: _ClassVar[int]
     SHA256_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
@@ -81,6 +83,7 @@ class InspectDocumentResponse(_message.Message):
     METADATA_FIELD_NUMBER: _ClassVar[int]
     REFERENCES_FIELD_NUMBER: _ClassVar[int]
     REFERENCES_TRUNCATED_FIELD_NUMBER: _ClassVar[int]
+    MISSING_FIELD_NUMBER: _ClassVar[int]
     path: str
     sha256: str
     content: str
@@ -91,7 +94,8 @@ class InspectDocumentResponse(_message.Message):
     metadata: _struct_pb2.Struct
     references: _containers.RepeatedCompositeFieldContainer[DocumentReference]
     references_truncated: bool
-    def __init__(self, path: _Optional[str] = ..., sha256: _Optional[str] = ..., content: _Optional[str] = ..., offset: _Optional[int] = ..., next_offset: _Optional[int] = ..., truncated: _Optional[bool] = ..., size_bytes: _Optional[int] = ..., metadata: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., references: _Optional[_Iterable[_Union[DocumentReference, _Mapping]]] = ..., references_truncated: _Optional[bool] = ...) -> None: ...
+    missing: bool
+    def __init__(self, path: _Optional[str] = ..., sha256: _Optional[str] = ..., content: _Optional[str] = ..., offset: _Optional[int] = ..., next_offset: _Optional[int] = ..., truncated: _Optional[bool] = ..., size_bytes: _Optional[int] = ..., metadata: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., references: _Optional[_Iterable[_Union[DocumentReference, _Mapping]]] = ..., references_truncated: _Optional[bool] = ..., missing: _Optional[bool] = ...) -> None: ...
 
 class ReviewDocumentsRequest(_message.Message):
     __slots__ = ("paths", "base_path", "max_files")

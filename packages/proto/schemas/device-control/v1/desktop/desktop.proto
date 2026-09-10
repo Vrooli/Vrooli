@@ -1,7 +1,7 @@
 syntax = "proto3";
 package vrooli.device_control.v1.desktop;
 import "common/v1/surface.proto";
-import "device-control/v1/flows/flows.proto";
+import "device-control/v1/shared/flow.proto";
 import "google/protobuf/timestamp.proto";
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/desktop;desktopv1";
 // @stability experimental
@@ -116,12 +116,37 @@ message AssertTextAction {
  string element_id = 2;
  string observation_revision = 3;
 }
-message SemanticElement { string element_id = 1; string name = 2; bool editable = 3; string parent_id = 4; string window_id = 5; uint32 role = 6; }
+// Invokes a semantic control such as a button from a current observation.
+// Element IDs remain opaque, helper-issued, and lease-scoped.
+message InvokeAction {
+ string element_id = 1;
+ string observation_revision = 2;
+ string action_name = 3;
+}
+message SemanticElement {
+ string element_id = 1;
+ string name = 2;
+ bool editable = 3;
+ string parent_id = 4;
+ string window_id = 5;
+ uint32 role = 6;
+ string label = 7;
+ repeated string states = 8;
+ int32 x = 9;
+ int32 y = 10;
+ uint32 width = 11;
+ uint32 height = 12;
+ repeated string supported_actions = 13;
+ bool bounds_known = 14;
+ bool state_known = 15;
+ string fingerprint = 16;
+}
 message SemanticObservation {
  string revision = 1;
  google.protobuf.Timestamp expires_at = 2;
  uint32 process_id = 3;
  repeated SemanticElement elements = 4;
+ uint64 refresh_epoch = 5;
 }
 // Discrete wheel detents at an observed desktop position. Positive horizontal
 // ticks scroll right; positive vertical ticks scroll down. Each action permits
@@ -134,7 +159,7 @@ message WheelAction {
  sint32 vertical_ticks = 5;
 }
 message Action {
- oneof action { PointerAction pointer = 1; KeyAction key = 2; TextAction text = 3; WheelAction wheel = 4; AssertTextAction assert_text = 5; }
+ oneof action { PointerAction pointer = 1; KeyAction key = 2; TextAction text = 3; WheelAction wheel = 4; AssertTextAction assert_text = 5; InvokeAction invoke = 6; }
 }
 message ActRequest { Lease lease = 1; string command_id = 2; string geometry_revision = 3; Action action = 4; }
 message Receipt { string command_id = 1; string digest = 2; string outcome = 3; }
@@ -159,8 +184,27 @@ message ApplicationsRequest { Lease lease = 1; }
 message OwnerApplicationsRequest { common.v1.SessionRef session = 1; }
 message ApplicationsResponse { string revision = 1; google.protobuf.Timestamp expires_at = 2; repeated Application applications = 3; }
 
-// Exact match within a window from the caller's current semantic observation.
-message SemanticSelector { string observation_revision = 1; string window_id = 2; string name = 3; bool editable_only = 4; }
+// Match policy for a semantic selector. Exact is the backwards-compatible
+// default; broader policies are explicit so a caller never receives a fuzzy
+// target merely because an exact name was absent.
+enum SemanticMatchMode {
+ SEMANTIC_MATCH_MODE_EXACT = 0;
+ SEMANTIC_MATCH_MODE_NORMALIZED = 1;
+ SEMANTIC_MATCH_MODE_FUZZY = 2;
+}
+// Resolves within one window from the caller's current semantic observation.
+message SemanticSelector {
+ string observation_revision = 1;
+ string window_id = 2;
+ string name = 3;
+ bool editable_only = 4;
+ SemanticMatchMode match_mode = 5;
+ uint32 role = 6;
+ uint64 refresh_epoch = 7;
+ bool allow_hidden = 8;
+ bool allow_disabled = 9;
+ bool allow_offscreen = 10;
+}
 message ResolveRequest { Lease lease = 1; SemanticSelector selector = 2; }
 message OwnerResolveRequest { common.v1.SessionRef session = 1; SemanticSelector selector = 2; }
 message ResolveResponse {
@@ -186,14 +230,14 @@ message FlowRecord {
  google.protobuf.Timestamp finished_at = 7;
 }
 
-message OwnerRunFlowRequest { common.v1.SessionRef session = 1; string run_id = 2; string application_id = 3; string application_revision = 4; vrooli.device_control.v1.flows.Flow flow = 5; }
+message OwnerRunFlowRequest { common.v1.SessionRef session = 1; string run_id = 2; string application_id = 3; string application_revision = 4; vrooli.device_control.v1.shared.Flow flow = 5; }
 
 // Every library operation requires current owner admission. A source session is
 // provenance only; it cannot grant access to another actor or surface.
 message OwnerPromoteFlowRequest { common.v1.SessionRef session = 1; common.v1.SessionRef source_session = 2; string source_run_id = 3; string context_key = 4; string id = 5; int32 expected_version = 6; }
 message OwnerGetSavedFlowRequest { common.v1.SessionRef session = 1; string id = 2; int32 version = 3; string context_key = 4; }
 message OwnerRunSavedFlowRequest { common.v1.SessionRef session = 1; string id = 2; int32 version = 3; string context_key = 4; string run_id = 5; string application_id = 6; string application_revision = 7; }
-message SavedDesktopFlow { string id = 1; int32 version = 2; string context_key = 3; vrooli.device_control.v1.flows.Flow flow = 4; string source_run_id = 5; string source_digest = 6; string created_at = 7; }
+message SavedDesktopFlow { string id = 1; int32 version = 2; string context_key = 3; vrooli.device_control.v1.shared.Flow flow = 4; string source_run_id = 5; string source_digest = 6; string created_at = 7; }
 
 // Missing or failed reads are unknown, never confirmed release.
 message CleanupResponse {

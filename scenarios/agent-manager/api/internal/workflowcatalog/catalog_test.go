@@ -608,3 +608,17 @@ func TestValidateChargeBudgetAcceptsMeasurementScale(t *testing.T) {
 		t.Fatalf("measurement-scale charge budget rejected: %+v", diagnostics)
 	}
 }
+
+func TestFullPlanReviewBindingCapacityRemainsFinite(t *testing.T) {
+	d := validDefinition()
+	d.Nodes[0].Run.Bindings[0].MaxBytes = 1 << 20
+	got, err := Validate(d, nil)
+	if err != nil || got.Digest == "" {
+		t.Fatalf("bounded full-plan input rejected: %+v %v", got, err)
+	}
+	d.Nodes[0].Run.Bindings[0].MaxBytes++
+	got, err = Validate(d, nil)
+	if err != nil || got.Digest != "" {
+		t.Fatalf("binding above 1 MiB admitted: %+v %v", got, err)
+	}
+}

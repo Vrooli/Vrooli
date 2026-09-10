@@ -36,6 +36,7 @@ class CheckState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CHECK_STATE_MISSING: _ClassVar[CheckState]
     CHECK_STATE_INVALID: _ClassVar[CheckState]
     CHECK_STATE_INSUFFICIENT_SCOPE: _ClassVar[CheckState]
+    CHECK_STATE_UNAVAILABLE: _ClassVar[CheckState]
 OWNERSHIP_STATE_UNSPECIFIED: OwnershipState
 OWNERSHIP_STATE_MANAGED: OwnershipState
 OWNERSHIP_STATE_MISSING: OwnershipState
@@ -54,6 +55,7 @@ CHECK_STATE_OK: CheckState
 CHECK_STATE_MISSING: CheckState
 CHECK_STATE_INVALID: CheckState
 CHECK_STATE_INSUFFICIENT_SCOPE: CheckState
+CHECK_STATE_UNAVAILABLE: CheckState
 
 class IngressEntry(_message.Message):
     __slots__ = ("hostname", "service_target", "state", "source", "scenario", "lease_id", "note")
@@ -178,28 +180,50 @@ class GetCredentialStatusResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[CredentialStatus, _Mapping]] = ...) -> None: ...
 
 class CredentialCheck(_message.Message):
-    __slots__ = ("name", "state", "detail", "remediation")
+    __slots__ = ("name", "state", "detail", "remediation", "capability", "required")
     NAME_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
     REMEDIATION_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
     name: str
     state: CheckState
     detail: str
     remediation: str
-    def __init__(self, name: _Optional[str] = ..., state: _Optional[_Union[CheckState, str]] = ..., detail: _Optional[str] = ..., remediation: _Optional[str] = ...) -> None: ...
+    capability: str
+    required: bool
+    def __init__(self, name: _Optional[str] = ..., state: _Optional[_Union[CheckState, str]] = ..., detail: _Optional[str] = ..., remediation: _Optional[str] = ..., capability: _Optional[str] = ..., required: _Optional[bool] = ...) -> None: ...
+
+class CredentialCapability(_message.Message):
+    __slots__ = ("name", "ready", "required", "check_names", "reason")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    READY_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    CHECK_NAMES_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    ready: bool
+    required: bool
+    check_names: _containers.RepeatedScalarFieldContainer[str]
+    reason: str
+    def __init__(self, name: _Optional[str] = ..., ready: _Optional[bool] = ..., required: _Optional[bool] = ..., check_names: _Optional[_Iterable[str]] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class VerifyCredentialsRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
 class VerifyCredentialsResponse(_message.Message):
-    __slots__ = ("checks", "ready")
+    __slots__ = ("checks", "ready", "capabilities", "all_checks_ok")
     CHECKS_FIELD_NUMBER: _ClassVar[int]
     READY_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
+    ALL_CHECKS_OK_FIELD_NUMBER: _ClassVar[int]
     checks: _containers.RepeatedCompositeFieldContainer[CredentialCheck]
     ready: bool
-    def __init__(self, checks: _Optional[_Iterable[_Union[CredentialCheck, _Mapping]]] = ..., ready: _Optional[bool] = ...) -> None: ...
+    capabilities: _containers.RepeatedCompositeFieldContainer[CredentialCapability]
+    all_checks_ok: bool
+    def __init__(self, checks: _Optional[_Iterable[_Union[CredentialCheck, _Mapping]]] = ..., ready: _Optional[bool] = ..., capabilities: _Optional[_Iterable[_Union[CredentialCapability, _Mapping]]] = ..., all_checks_ok: _Optional[bool] = ...) -> None: ...
 
 class BootstrapCloudflareRequest(_message.Message):
     __slots__ = ("api_token", "account_id", "tunnel_id", "tunnel_name", "dry_run")
@@ -408,3 +432,27 @@ class GetAccessStatusResponse(_message.Message):
     STATUS_FIELD_NUMBER: _ClassVar[int]
     status: AccessStatus
     def __init__(self, status: _Optional[_Union[AccessStatus, _Mapping]] = ...) -> None: ...
+
+class GetAuthenticationBindingRequest(_message.Message):
+    __slots__ = ("scenario", "hostname")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    HOSTNAME_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    hostname: str
+    def __init__(self, scenario: _Optional[str] = ..., hostname: _Optional[str] = ...) -> None: ...
+
+class AuthenticationBinding(_message.Message):
+    __slots__ = ("team_domain", "audience", "recovery_url")
+    TEAM_DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    AUDIENCE_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_URL_FIELD_NUMBER: _ClassVar[int]
+    team_domain: str
+    audience: str
+    recovery_url: str
+    def __init__(self, team_domain: _Optional[str] = ..., audience: _Optional[str] = ..., recovery_url: _Optional[str] = ...) -> None: ...
+
+class GetAuthenticationBindingResponse(_message.Message):
+    __slots__ = ("binding",)
+    BINDING_FIELD_NUMBER: _ClassVar[int]
+    binding: AuthenticationBinding
+    def __init__(self, binding: _Optional[_Union[AuthenticationBinding, _Mapping]] = ...) -> None: ...

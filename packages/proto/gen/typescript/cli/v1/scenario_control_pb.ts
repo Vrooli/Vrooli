@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli/v1/scenario_control.proto.
  */
 export const file_cli_v1_scenario_control: GenFile = /*@__PURE__*/
-  fileDesc("Ch1jbGkvdjEvc2NlbmFyaW9fY29udHJvbC5wcm90bxINdnJvb2xpLmNsaS52MSItChRMaXN0U2NlbmFyaW9zUmVxdWVzdBIVCg1pbmNsdWRlX3BvcnRzGAEgASgIIigKGEdldFNjZW5hcmlvU3RhdHVzUmVxdWVzdBIMCgRuYW1lGAEgASgJIjoKFkdldFNjZW5hcmlvTG9nc1JlcXVlc3QSDAoEbmFtZRgBIAEoCRISCgp0YWlsX2xpbmVzGAIgASgFIj0KFFN0YXJ0U2NlbmFyaW9SZXF1ZXN0EgwKBG5hbWUYASABKAkSFwoPdGltZW91dF9zZWNvbmRzGAIgASgFIiMKE1N0b3BTY2VuYXJpb1JlcXVlc3QSDAoEbmFtZRgBIAEoCSI/ChZSZXN0YXJ0U2NlbmFyaW9SZXF1ZXN0EgwKBG5hbWUYASABKAkSFwoPdGltZW91dF9zZWNvbmRzGAIgASgFIiQKFFNldHVwU2NlbmFyaW9SZXF1ZXN0EgwKBG5hbWUYASABKAkyuAUKG1NjZW5hcmlvQ29udHJvbFBsYW5lU2VydmljZRJZCg1MaXN0U2NlbmFyaW9zEiMudnJvb2xpLmNsaS52MS5MaXN0U2NlbmFyaW9zUmVxdWVzdBojLnZyb29saS5jbGkudjEuU2NlbmFyaW9MaXN0UmVzcG9uc2USYQoRR2V0U2NlbmFyaW9TdGF0dXMSJy52cm9vbGkuY2xpLnYxLkdldFNjZW5hcmlvU3RhdHVzUmVxdWVzdBojLnZyb29saS5jbGkudjEuU2NlbmFyaW9TdGF0dXNTaW5nbGUSXQoPR2V0U2NlbmFyaW9Mb2dzEiUudnJvb2xpLmNsaS52MS5HZXRTY2VuYXJpb0xvZ3NSZXF1ZXN0GiMudnJvb2xpLmNsaS52MS5TY2VuYXJpb0xvZ3NSZXNwb25zZRJeCg1TdGFydFNjZW5hcmlvEiMudnJvb2xpLmNsaS52MS5TdGFydFNjZW5hcmlvUmVxdWVzdBooLnZyb29saS5jbGkudjEuU2NlbmFyaW9MaWZlY3ljbGVSZXNwb25zZRJcCgxTdG9wU2NlbmFyaW8SIi52cm9vbGkuY2xpLnYxLlN0b3BTY2VuYXJpb1JlcXVlc3QaKC52cm9vbGkuY2xpLnYxLlNjZW5hcmlvTGlmZWN5Y2xlUmVzcG9uc2USYgoPUmVzdGFydFNjZW5hcmlvEiUudnJvb2xpLmNsaS52MS5SZXN0YXJ0U2NlbmFyaW9SZXF1ZXN0GigudnJvb2xpLmNsaS52MS5TY2VuYXJpb0xpZmVjeWNsZVJlc3BvbnNlEloKDVNldHVwU2NlbmFyaW8SIy52cm9vbGkuY2xpLnYxLlNldHVwU2NlbmFyaW9SZXF1ZXN0GiQudnJvb2xpLmNsaS52MS5TY2VuYXJpb1NldHVwUmVzcG9uc2VCPVo7Z2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jbGkvdjE7Y2xpdjFiBnByb3RvMw", [file_cli_v1_scenario_list, file_cli_v1_scenario_status]);
+  fileDesc("Ch1jbGkvdjEvc2NlbmFyaW9fY29udHJvbC5wcm90bxINdnJvb2xpLmNsaS52MSItChRMaXN0U2NlbmFyaW9zUmVxdWVzdBIVCg1pbmNsdWRlX3BvcnRzGAEgASgIIigKGEdldFNjZW5hcmlvU3RhdHVzUmVxdWVzdBIMCgRuYW1lGAEgASgJIn4KFkdldFNjZW5hcmlvTG9nc1JlcXVlc3QSDAoEbmFtZRgBIAEoCRISCgp0YWlsX2xpbmVzGAIgASgFEgwKBHN0ZXAYAyABKAkSDwoHcnVudGltZRgEIAEoCBIRCglsaWZlY3ljbGUYBSABKAgSEAoIcHJldmlvdXMYBiABKAgivAEKFFN0YXJ0U2NlbmFyaW9SZXF1ZXN0EgwKBG5hbWUYASABKAkSFwoPdGltZW91dF9zZWNvbmRzGAIgASgFEgwKBHBhdGgYAyABKAkSEwoLYmVzdF9lZmZvcnQYBCABKAgSEwoLY2xlYW5fc3RhbGUYBSABKAgSDQoFZm9yY2UYBiABKAgSHgoWYWNjZXB0X2NyZWRlbnRpYWxfbG9zcxgHIAEoCBIWCg5kZW1hbmRfbWFuYWdlZBgIIAEoCCIjChNTdG9wU2NlbmFyaW9SZXF1ZXN0EgwKBG5hbWUYASABKAkivgEKFlJlc3RhcnRTY2VuYXJpb1JlcXVlc3QSDAoEbmFtZRgBIAEoCRIXCg90aW1lb3V0X3NlY29uZHMYAiABKAUSDAoEcGF0aBgDIAEoCRITCgtiZXN0X2VmZm9ydBgEIAEoCBITCgtjbGVhbl9zdGFsZRgFIAEoCBINCgVmb3JjZRgGIAEoCBIeChZhY2NlcHRfY3JlZGVudGlhbF9sb3NzGAcgASgIEhYKDmRlbWFuZF9tYW5hZ2VkGAggASgIIjIKFFNldHVwU2NlbmFyaW9SZXF1ZXN0EgwKBG5hbWUYASABKAkSDAoEcGF0aBgCIAEoCTK4BQobU2NlbmFyaW9Db250cm9sUGxhbmVTZXJ2aWNlElkKDUxpc3RTY2VuYXJpb3MSIy52cm9vbGkuY2xpLnYxLkxpc3RTY2VuYXJpb3NSZXF1ZXN0GiMudnJvb2xpLmNsaS52MS5TY2VuYXJpb0xpc3RSZXNwb25zZRJhChFHZXRTY2VuYXJpb1N0YXR1cxInLnZyb29saS5jbGkudjEuR2V0U2NlbmFyaW9TdGF0dXNSZXF1ZXN0GiMudnJvb2xpLmNsaS52MS5TY2VuYXJpb1N0YXR1c1NpbmdsZRJdCg9HZXRTY2VuYXJpb0xvZ3MSJS52cm9vbGkuY2xpLnYxLkdldFNjZW5hcmlvTG9nc1JlcXVlc3QaIy52cm9vbGkuY2xpLnYxLlNjZW5hcmlvTG9nc1Jlc3BvbnNlEl4KDVN0YXJ0U2NlbmFyaW8SIy52cm9vbGkuY2xpLnYxLlN0YXJ0U2NlbmFyaW9SZXF1ZXN0GigudnJvb2xpLmNsaS52MS5TY2VuYXJpb0xpZmVjeWNsZVJlc3BvbnNlElwKDFN0b3BTY2VuYXJpbxIiLnZyb29saS5jbGkudjEuU3RvcFNjZW5hcmlvUmVxdWVzdBooLnZyb29saS5jbGkudjEuU2NlbmFyaW9MaWZlY3ljbGVSZXNwb25zZRJiCg9SZXN0YXJ0U2NlbmFyaW8SJS52cm9vbGkuY2xpLnYxLlJlc3RhcnRTY2VuYXJpb1JlcXVlc3QaKC52cm9vbGkuY2xpLnYxLlNjZW5hcmlvTGlmZWN5Y2xlUmVzcG9uc2USWgoNU2V0dXBTY2VuYXJpbxIjLnZyb29saS5jbGkudjEuU2V0dXBTY2VuYXJpb1JlcXVlc3QaJC52cm9vbGkuY2xpLnYxLlNjZW5hcmlvU2V0dXBSZXNwb25zZUI9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z", [file_cli_v1_scenario_list, file_cli_v1_scenario_status]);
 
 /**
  * Typed control-plane surface consumed by program-runtime. The request
@@ -67,6 +67,26 @@ export type GetScenarioLogsRequest = Message<"vrooli.cli.v1.GetScenarioLogsReque
    * @generated from field: int32 tail_lines = 2;
    */
   tailLines: number;
+
+  /**
+   * @generated from field: string step = 3;
+   */
+  step: string;
+
+  /**
+   * @generated from field: bool runtime = 4;
+   */
+  runtime: boolean;
+
+  /**
+   * @generated from field: bool lifecycle = 5;
+   */
+  lifecycle: boolean;
+
+  /**
+   * @generated from field: bool previous = 6;
+   */
+  previous: boolean;
 };
 
 /**
@@ -89,6 +109,38 @@ export type StartScenarioRequest = Message<"vrooli.cli.v1.StartScenarioRequest">
    * @generated from field: int32 timeout_seconds = 2;
    */
   timeoutSeconds: number;
+
+  /**
+   * @generated from field: string path = 3;
+   */
+  path: string;
+
+  /**
+   * @generated from field: bool best_effort = 4;
+   */
+  bestEffort: boolean;
+
+  /**
+   * @generated from field: bool clean_stale = 5;
+   */
+  cleanStale: boolean;
+
+  /**
+   * @generated from field: bool force = 6;
+   */
+  force: boolean;
+
+  /**
+   * @generated from field: bool accept_credential_loss = 7;
+   */
+  acceptCredentialLoss: boolean;
+
+  /**
+   * Caller must retain renewable demand while using this instance.
+   *
+   * @generated from field: bool demand_managed = 8;
+   */
+  demandManaged: boolean;
 };
 
 /**
@@ -128,6 +180,38 @@ export type RestartScenarioRequest = Message<"vrooli.cli.v1.RestartScenarioReque
    * @generated from field: int32 timeout_seconds = 2;
    */
   timeoutSeconds: number;
+
+  /**
+   * @generated from field: string path = 3;
+   */
+  path: string;
+
+  /**
+   * @generated from field: bool best_effort = 4;
+   */
+  bestEffort: boolean;
+
+  /**
+   * @generated from field: bool clean_stale = 5;
+   */
+  cleanStale: boolean;
+
+  /**
+   * @generated from field: bool force = 6;
+   */
+  force: boolean;
+
+  /**
+   * @generated from field: bool accept_credential_loss = 7;
+   */
+  acceptCredentialLoss: boolean;
+
+  /**
+   * Caller must retain renewable demand while using this instance.
+   *
+   * @generated from field: bool demand_managed = 8;
+   */
+  demandManaged: boolean;
 };
 
 /**
@@ -145,6 +229,11 @@ export type SetupScenarioRequest = Message<"vrooli.cli.v1.SetupScenarioRequest">
    * @generated from field: string name = 1;
    */
   name: string;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
 };
 
 /**

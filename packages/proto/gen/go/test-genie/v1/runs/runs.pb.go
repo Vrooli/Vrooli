@@ -816,8 +816,23 @@ type StartRunRequest struct {
 	// ordinary executions remain subject to normal retention.
 	RetainForEvidence bool   `protobuf:"varint,19,opt,name=retain_for_evidence,json=retainForEvidence,proto3" json:"retain_for_evidence,omitempty"`
 	RetentionReason   string `protobuf:"bytes,20,opt,name=retention_reason,json=retentionReason,proto3" json:"retention_reason,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Optional candidate identity for owner-reported deployment-manager
+	// readiness evidence. Runs without this complete release identity remain
+	// valid Test Genie runs but cannot be attributed to a release review.
+	ReleaseProfileId             string   `protobuf:"bytes,21,opt,name=release_profile_id,json=releaseProfileId,proto3" json:"release_profile_id,omitempty"`
+	ReleaseCandidateCommit       string   `protobuf:"bytes,22,opt,name=release_candidate_commit,json=releaseCandidateCommit,proto3" json:"release_candidate_commit,omitempty"`
+	ReleaseArtifactDigest        string   `protobuf:"bytes,23,opt,name=release_artifact_digest,json=releaseArtifactDigest,proto3" json:"release_artifact_digest,omitempty"`
+	ReleaseTargets               []string `protobuf:"bytes,24,rep,name=release_targets,json=releaseTargets,proto3" json:"release_targets,omitempty"`
+	ReleaseChannel               string   `protobuf:"bytes,25,opt,name=release_channel,json=releaseChannel,proto3" json:"release_channel,omitempty"`
+	ReleasePolicyVersion         int32    `protobuf:"varint,26,opt,name=release_policy_version,json=releasePolicyVersion,proto3" json:"release_policy_version,omitempty"`
+	ReleaseCandidateId           string   `protobuf:"bytes,27,opt,name=release_candidate_id,json=releaseCandidateId,proto3" json:"release_candidate_id,omitempty"`
+	ReleaseDestinationRevisionId string   `protobuf:"bytes,28,opt,name=release_destination_revision_id,json=releaseDestinationRevisionId,proto3" json:"release_destination_revision_id,omitempty"`
+	ReleaseAuthorizationEpoch    uint64   `protobuf:"varint,29,opt,name=release_authorization_epoch,json=releaseAuthorizationEpoch,proto3" json:"release_authorization_epoch,omitempty"`
+	// Optional predecessor run used to produce owner-owned regression evidence.
+	// An omitted predecessor leaves test-regression-proof unavailable.
+	ReleasePredecessorRunId string `protobuf:"bytes,30,opt,name=release_predecessor_run_id,json=releasePredecessorRunId,proto3" json:"release_predecessor_run_id,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *StartRunRequest) Reset() {
@@ -979,6 +994,76 @@ func (x *StartRunRequest) GetRetainForEvidence() bool {
 func (x *StartRunRequest) GetRetentionReason() string {
 	if x != nil {
 		return x.RetentionReason
+	}
+	return ""
+}
+
+func (x *StartRunRequest) GetReleaseProfileId() string {
+	if x != nil {
+		return x.ReleaseProfileId
+	}
+	return ""
+}
+
+func (x *StartRunRequest) GetReleaseCandidateCommit() string {
+	if x != nil {
+		return x.ReleaseCandidateCommit
+	}
+	return ""
+}
+
+func (x *StartRunRequest) GetReleaseArtifactDigest() string {
+	if x != nil {
+		return x.ReleaseArtifactDigest
+	}
+	return ""
+}
+
+func (x *StartRunRequest) GetReleaseTargets() []string {
+	if x != nil {
+		return x.ReleaseTargets
+	}
+	return nil
+}
+
+func (x *StartRunRequest) GetReleaseChannel() string {
+	if x != nil {
+		return x.ReleaseChannel
+	}
+	return ""
+}
+
+func (x *StartRunRequest) GetReleasePolicyVersion() int32 {
+	if x != nil {
+		return x.ReleasePolicyVersion
+	}
+	return 0
+}
+
+func (x *StartRunRequest) GetReleaseCandidateId() string {
+	if x != nil {
+		return x.ReleaseCandidateId
+	}
+	return ""
+}
+
+func (x *StartRunRequest) GetReleaseDestinationRevisionId() string {
+	if x != nil {
+		return x.ReleaseDestinationRevisionId
+	}
+	return ""
+}
+
+func (x *StartRunRequest) GetReleaseAuthorizationEpoch() uint64 {
+	if x != nil {
+		return x.ReleaseAuthorizationEpoch
+	}
+	return 0
+}
+
+func (x *StartRunRequest) GetReleasePredecessorRunId() string {
+	if x != nil {
+		return x.ReleasePredecessorRunId
 	}
 	return ""
 }
@@ -8377,7 +8462,8 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\toccupancy\x18\x02 \x01(\x05R\toccupancy\x12)\n" +
 	"\x10configured_limit\x18\x03 \x01(\x05R\x0fconfiguredLimit\x12#\n" +
 	"\rfifo_position\x18\x04 \x01(\x05R\ffifoPosition\x12.\n" +
-	"\x13retry_after_seconds\x18\x05 \x01(\x05R\x11retryAfterSeconds\"\xb3\x06\n" +
+	"\x13retry_after_seconds\x18\x05 \x01(\x05R\x11retryAfterSeconds\"\xd1\n" +
+	"\n" +
 	"\x0fStartRunRequest\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\x12\x16\n" +
 	"\x06preset\x18\x02 \x01(\tR\x06preset\x12\x16\n" +
@@ -8399,7 +8485,17 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x19collection_reservation_id\x18\x11 \x01(\tR\x17collectionReservationId\x12M\n" +
 	"#collection_reservation_member_count\x18\x12 \x01(\x05R collectionReservationMemberCount\x12.\n" +
 	"\x13retain_for_evidence\x18\x13 \x01(\bR\x11retainForEvidence\x12)\n" +
-	"\x10retention_reason\x18\x14 \x01(\tR\x0fretentionReasonJ\x04\b\t\x10\n" +
+	"\x10retention_reason\x18\x14 \x01(\tR\x0fretentionReason\x12,\n" +
+	"\x12release_profile_id\x18\x15 \x01(\tR\x10releaseProfileId\x128\n" +
+	"\x18release_candidate_commit\x18\x16 \x01(\tR\x16releaseCandidateCommit\x126\n" +
+	"\x17release_artifact_digest\x18\x17 \x01(\tR\x15releaseArtifactDigest\x12'\n" +
+	"\x0frelease_targets\x18\x18 \x03(\tR\x0ereleaseTargets\x12'\n" +
+	"\x0frelease_channel\x18\x19 \x01(\tR\x0ereleaseChannel\x124\n" +
+	"\x16release_policy_version\x18\x1a \x01(\x05R\x14releasePolicyVersion\x120\n" +
+	"\x14release_candidate_id\x18\x1b \x01(\tR\x12releaseCandidateId\x12E\n" +
+	"\x1frelease_destination_revision_id\x18\x1c \x01(\tR\x1creleaseDestinationRevisionId\x12>\n" +
+	"\x1brelease_authorization_epoch\x18\x1d \x01(\x04R\x19releaseAuthorizationEpoch\x12;\n" +
+	"\x1arelease_predecessor_run_id\x18\x1e \x01(\tR\x17releasePredecessorRunIdJ\x04\b\t\x10\n" +
 	"R\x0fbrowserless_url\"\xf0\x01\n" +
 	"\x10StartRunResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +

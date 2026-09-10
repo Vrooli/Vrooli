@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"vrooli-bridge/v1/relay/relay.proto\x12\x1dvrooli.vrooli_bridge.v1.relay\"\xd2\x01\n\x10RelayCallRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x18\n\x07\x63ommand\x18\x03 \x01(\tR\x07\x63ommand\x12\x12\n\x04\x61rgs\x18\x04 \x03(\tR\x04\x61rgs\x12\'\n\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\x12,\n\x12max_response_bytes\x18\x06 \x01(\x04R\x10maxResponseBytesJ\x04\x08\x07\x10\x10\"\xf5\x01\n\x11RelayCallResponse\x12%\n\x0e\x63orrelation_id\x18\x01 \x01(\tR\rcorrelationId\x12I\n\x07outcome\x18\x02 \x01(\x0e\x32/.vrooli.vrooli_bridge.v1.relay.RelayCallOutcomeR\x07outcome\x12\x12\n\x04\x64\x61ta\x18\x03 \x01(\x0cR\x04\x64\x61ta\x12\x16\n\x06reason\x18\x04 \x01(\tR\x06reason\x12\x1b\n\texit_code\x18\x05 \x01(\x05R\x08\x65xitCode\x12\x1f\n\x0btotal_bytes\x18\x06 \x01(\x04R\ntotalBytesJ\x04\x08\x07\x10\x10*\x9a\x01\n\x10RelayCallOutcome\x12\"\n\x1eRELAY_CALL_OUTCOME_UNSPECIFIED\x10\x00\x12 \n\x1cRELAY_CALL_OUTCOME_COMPLETED\x10\x01\x12\x1d\n\x19RELAY_CALL_OUTCOME_FAILED\x10\x02\x12!\n\x1dRELAY_CALL_OUTCOME_TERMINATED\x10\x03\x32y\n\x0cRelayService\x12i\n\x04\x43\x61ll\x12/.vrooli.vrooli_bridge.v1.relay.RelayCallRequest\x1a\x30.vrooli.vrooli_bridge.v1.relay.RelayCallResponseBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay;relayv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"vrooli-bridge/v1/relay/relay.proto\x12\x1dvrooli.vrooli_bridge.v1.relay\"\xf1\x01\n\x10RelayCallRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x18\n\x07\x63ommand\x18\x03 \x01(\tR\x07\x63ommand\x12\x12\n\x04\x61rgs\x18\x04 \x03(\tR\x04\x61rgs\x12\'\n\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\x12,\n\x12max_response_bytes\x18\x06 \x01(\x04R\x10maxResponseBytes\x12\x1d\n\ncommand_id\x18\x07 \x01(\tR\tcommandIdJ\x04\x08\x08\x10\x10\"\xfe\x02\n\x11RelayCallResponse\x12%\n\x0e\x63orrelation_id\x18\x01 \x01(\tR\rcorrelationId\x12I\n\x07outcome\x18\x02 \x01(\x0e\x32/.vrooli.vrooli_bridge.v1.relay.RelayCallOutcomeR\x07outcome\x12\x12\n\x04\x64\x61ta\x18\x03 \x01(\x0cR\x04\x64\x61ta\x12\x16\n\x06reason\x18\x04 \x01(\tR\x06reason\x12\x1b\n\texit_code\x18\x05 \x01(\x05R\x08\x65xitCode\x12\x1f\n\x0btotal_bytes\x18\x06 \x01(\x04R\ntotalBytes\x12\x1d\n\ncommand_id\x18\x07 \x01(\tR\tcommandId\x12\x14\n\x05route\x18\x08 \x01(\tR\x05route\x12(\n\x10route_cost_units\x18\t \x01(\x04R\x0erouteCostUnits\x12(\n\x10route_latency_ms\x18\n \x01(\x04R\x0erouteLatencyMsJ\x04\x08\x0b\x10\x10\"O\n\x15RelayReconcileRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x1d\n\ncommand_id\x18\x02 \x01(\tR\tcommandId\"\xe7\x01\n\x16RelayReconcileResponse\x12\x1d\n\ncommand_id\x18\x01 \x01(\tR\tcommandId\x12H\n\x05state\x18\x02 \x01(\x0e\x32\x32.vrooli.vrooli_bridge.v1.relay.RelayReconcileStateR\x05state\x12L\n\x08response\x18\x03 \x01(\x0b\x32\x30.vrooli.vrooli_bridge.v1.relay.RelayCallResponseR\x08response\x12\x16\n\x06reason\x18\x04 \x01(\tR\x06reason*\x9a\x01\n\x10RelayCallOutcome\x12\"\n\x1eRELAY_CALL_OUTCOME_UNSPECIFIED\x10\x00\x12 \n\x1cRELAY_CALL_OUTCOME_COMPLETED\x10\x01\x12\x1d\n\x19RELAY_CALL_OUTCOME_FAILED\x10\x02\x12!\n\x1dRELAY_CALL_OUTCOME_TERMINATED\x10\x03*\xfb\x01\n\x13RelayReconcileState\x12%\n!RELAY_RECONCILE_STATE_UNSPECIFIED\x10\x00\x12&\n\"RELAY_RECONCILE_STATE_NOT_ADMITTED\x10\x01\x12#\n\x1fRELAY_RECONCILE_STATE_SUBMITTED\x10\x02\x12#\n\x1fRELAY_RECONCILE_STATE_COMPLETED\x10\x03\x12 \n\x1cRELAY_RECONCILE_STATE_FAILED\x10\x04\x12)\n%RELAY_RECONCILE_STATE_OUTCOME_UNKNOWN\x10\x05\x32\xf3\x01\n\x0cRelayService\x12i\n\x04\x43\x61ll\x12/.vrooli.vrooli_bridge.v1.relay.RelayCallRequest\x1a\x30.vrooli.vrooli_bridge.v1.relay.RelayCallResponse\x12x\n\tReconcile\x12\x34.vrooli.vrooli_bridge.v1.relay.RelayReconcileRequest\x1a\x35.vrooli.vrooli_bridge.v1.relay.RelayReconcileResponseBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay;relayv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,12 +32,18 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'vrooli_bridge.v1.relay.rela
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay;relayv1'
-  _globals['_RELAYCALLOUTCOME']._serialized_start=531
-  _globals['_RELAYCALLOUTCOME']._serialized_end=685
+  _globals['_RELAYCALLOUTCOME']._serialized_start=1014
+  _globals['_RELAYCALLOUTCOME']._serialized_end=1168
+  _globals['_RELAYRECONCILESTATE']._serialized_start=1171
+  _globals['_RELAYRECONCILESTATE']._serialized_end=1422
   _globals['_RELAYCALLREQUEST']._serialized_start=70
-  _globals['_RELAYCALLREQUEST']._serialized_end=280
-  _globals['_RELAYCALLRESPONSE']._serialized_start=283
-  _globals['_RELAYCALLRESPONSE']._serialized_end=528
-  _globals['_RELAYSERVICE']._serialized_start=687
-  _globals['_RELAYSERVICE']._serialized_end=808
+  _globals['_RELAYCALLREQUEST']._serialized_end=311
+  _globals['_RELAYCALLRESPONSE']._serialized_start=314
+  _globals['_RELAYCALLRESPONSE']._serialized_end=696
+  _globals['_RELAYRECONCILEREQUEST']._serialized_start=698
+  _globals['_RELAYRECONCILEREQUEST']._serialized_end=777
+  _globals['_RELAYRECONCILERESPONSE']._serialized_start=780
+  _globals['_RELAYRECONCILERESPONSE']._serialized_end=1011
+  _globals['_RELAYSERVICE']._serialized_start=1425
+  _globals['_RELAYSERVICE']._serialized_end=1668
 # @@protoc_insertion_point(module_scope)

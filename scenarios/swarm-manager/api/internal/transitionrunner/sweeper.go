@@ -50,6 +50,9 @@ func (s *Sweeper) RunOnce(ctx context.Context) (int, error) {
 	if s == nil || s.Runner == nil {
 		return 0, nil
 	}
+	if err := s.Runner.RecoverDispatches(ctx); err != nil {
+		return 0, err
+	}
 	candidates, err := s.Runner.ListUnapplied()
 	if err != nil {
 		return 0, err

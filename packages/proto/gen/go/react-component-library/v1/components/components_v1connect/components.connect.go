@@ -66,6 +66,9 @@ const (
 	// ComponentsServiceUpdateComponentManifestProcedure is the fully-qualified name of the
 	// ComponentsService's UpdateComponentManifest RPC.
 	ComponentsServiceUpdateComponentManifestProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/UpdateComponentManifest"
+	// ComponentsServiceRetireComponentProcedure is the fully-qualified name of the ComponentsService's
+	// RetireComponent RPC.
+	ComponentsServiceRetireComponentProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/RetireComponent"
 	// ComponentsServiceGetComponentContentProcedure is the fully-qualified name of the
 	// ComponentsService's GetComponentContent RPC.
 	ComponentsServiceGetComponentContentProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentContent"
@@ -112,6 +115,7 @@ type ComponentsServiceClient interface {
 	PublishComponentVersion(context.Context, *connect.Request[components.PublishComponentVersionRequest]) (*connect.Response[components.PublishComponentVersionResponse], error)
 	CreateComponentVersion(context.Context, *connect.Request[components.CreateComponentVersionRequest]) (*connect.Response[components.CreateComponentVersionResponse], error)
 	UpdateComponentManifest(context.Context, *connect.Request[components.UpdateComponentManifestRequest]) (*connect.Response[components.UpdateComponentManifestResponse], error)
+	RetireComponent(context.Context, *connect.Request[components.RetireComponentRequest]) (*connect.Response[components.RetireComponentResponse], error)
 	GetComponentContent(context.Context, *connect.Request[components.GetComponentContentRequest]) (*connect.Response[components.GetComponentContentResponse], error)
 	UpdateComponentContent(context.Context, *connect.Request[components.UpdateComponentContentRequest]) (*connect.Response[components.UpdateComponentContentResponse], error)
 	ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error)
@@ -202,6 +206,12 @@ func NewComponentsServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(componentsServiceMethods.ByName("UpdateComponentManifest")),
 			connect.WithClientOptions(opts...),
 		),
+		retireComponent: connect.NewClient[components.RetireComponentRequest, components.RetireComponentResponse](
+			httpClient,
+			baseURL+ComponentsServiceRetireComponentProcedure,
+			connect.WithSchema(componentsServiceMethods.ByName("RetireComponent")),
+			connect.WithClientOptions(opts...),
+		),
 		getComponentContent: connect.NewClient[components.GetComponentContentRequest, components.GetComponentContentResponse](
 			httpClient,
 			baseURL+ComponentsServiceGetComponentContentProcedure,
@@ -278,6 +288,7 @@ type componentsServiceClient struct {
 	publishComponentVersion    *connect.Client[components.PublishComponentVersionRequest, components.PublishComponentVersionResponse]
 	createComponentVersion     *connect.Client[components.CreateComponentVersionRequest, components.CreateComponentVersionResponse]
 	updateComponentManifest    *connect.Client[components.UpdateComponentManifestRequest, components.UpdateComponentManifestResponse]
+	retireComponent            *connect.Client[components.RetireComponentRequest, components.RetireComponentResponse]
 	getComponentContent        *connect.Client[components.GetComponentContentRequest, components.GetComponentContentResponse]
 	updateComponentContent     *connect.Client[components.UpdateComponentContentRequest, components.UpdateComponentContentResponse]
 	listComponentVersions      *connect.Client[components.ListComponentVersionsRequest, components.ListComponentVersionsResponse]
@@ -355,6 +366,12 @@ func (c *componentsServiceClient) UpdateComponentManifest(ctx context.Context, r
 	return c.updateComponentManifest.CallUnary(ctx, req)
 }
 
+// RetireComponent calls
+// vrooli.react_component_library.v1.components.ComponentsService.RetireComponent.
+func (c *componentsServiceClient) RetireComponent(ctx context.Context, req *connect.Request[components.RetireComponentRequest]) (*connect.Response[components.RetireComponentResponse], error) {
+	return c.retireComponent.CallUnary(ctx, req)
+}
+
 // GetComponentContent calls
 // vrooli.react_component_library.v1.components.ComponentsService.GetComponentContent.
 func (c *componentsServiceClient) GetComponentContent(ctx context.Context, req *connect.Request[components.GetComponentContentRequest]) (*connect.Response[components.GetComponentContentResponse], error) {
@@ -429,6 +446,7 @@ type ComponentsServiceHandler interface {
 	PublishComponentVersion(context.Context, *connect.Request[components.PublishComponentVersionRequest]) (*connect.Response[components.PublishComponentVersionResponse], error)
 	CreateComponentVersion(context.Context, *connect.Request[components.CreateComponentVersionRequest]) (*connect.Response[components.CreateComponentVersionResponse], error)
 	UpdateComponentManifest(context.Context, *connect.Request[components.UpdateComponentManifestRequest]) (*connect.Response[components.UpdateComponentManifestResponse], error)
+	RetireComponent(context.Context, *connect.Request[components.RetireComponentRequest]) (*connect.Response[components.RetireComponentResponse], error)
 	GetComponentContent(context.Context, *connect.Request[components.GetComponentContentRequest]) (*connect.Response[components.GetComponentContentResponse], error)
 	UpdateComponentContent(context.Context, *connect.Request[components.UpdateComponentContentRequest]) (*connect.Response[components.UpdateComponentContentResponse], error)
 	ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error)
@@ -512,6 +530,12 @@ func NewComponentsServiceHandler(svc ComponentsServiceHandler, opts ...connect.H
 		ComponentsServiceUpdateComponentManifestProcedure,
 		svc.UpdateComponentManifest,
 		connect.WithSchema(componentsServiceMethods.ByName("UpdateComponentManifest")),
+		connect.WithHandlerOptions(opts...),
+	)
+	componentsServiceRetireComponentHandler := connect.NewUnaryHandler(
+		ComponentsServiceRetireComponentProcedure,
+		svc.RetireComponent,
+		connect.WithSchema(componentsServiceMethods.ByName("RetireComponent")),
 		connect.WithHandlerOptions(opts...),
 	)
 	componentsServiceGetComponentContentHandler := connect.NewUnaryHandler(
@@ -598,6 +622,8 @@ func NewComponentsServiceHandler(svc ComponentsServiceHandler, opts ...connect.H
 			componentsServiceCreateComponentVersionHandler.ServeHTTP(w, r)
 		case ComponentsServiceUpdateComponentManifestProcedure:
 			componentsServiceUpdateComponentManifestHandler.ServeHTTP(w, r)
+		case ComponentsServiceRetireComponentProcedure:
+			componentsServiceRetireComponentHandler.ServeHTTP(w, r)
 		case ComponentsServiceGetComponentContentProcedure:
 			componentsServiceGetComponentContentHandler.ServeHTTP(w, r)
 		case ComponentsServiceUpdateComponentContentProcedure:
@@ -669,6 +695,10 @@ func (UnimplementedComponentsServiceHandler) CreateComponentVersion(context.Cont
 
 func (UnimplementedComponentsServiceHandler) UpdateComponentManifest(context.Context, *connect.Request[components.UpdateComponentManifestRequest]) (*connect.Response[components.UpdateComponentManifestResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.UpdateComponentManifest is not implemented"))
+}
+
+func (UnimplementedComponentsServiceHandler) RetireComponent(context.Context, *connect.Request[components.RetireComponentRequest]) (*connect.Response[components.RetireComponentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.RetireComponent is not implemented"))
 }
 
 func (UnimplementedComponentsServiceHandler) GetComponentContent(context.Context, *connect.Request[components.GetComponentContentRequest]) (*connect.Response[components.GetComponentContentResponse], error) {

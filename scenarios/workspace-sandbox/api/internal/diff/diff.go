@@ -8,9 +8,9 @@
 //     Invoked via process.Starter.
 //     Required for modified file comparisons.
 //
-//   - git: Used for patch application in git repositories.
+//   - git: Used for binary diff generation and patch application.
 //     Invoked via process.Starter.
-//     Only used when target directory is a git repository.
+//     Binary patches also use git apply outside a git repository.
 //
 //   - patch: Fallback for patch application in non-git directories.
 //     Invoked via process.Starter.
@@ -26,8 +26,8 @@
 // # Binary File Handling
 //
 // Binary files are detected by checking for null bytes in the first 8KB.
-// Binary files are reported in the diff output but their content is not
-// included (only a "Binary file <path>" marker).
+// Regular binary files carry Git binary patches, including original and new
+// blob identities, so review, application and retained archives use exact bytes.
 //
 // # Assumptions
 //
@@ -45,6 +45,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -293,8 +294,7 @@ func (g *Generator) diffNewFile(ctx context.Context, upperDir, relPath, pathPref
 
 	// Check if binary
 	if g.isBinary(content) {
-		return fmt.Sprintf("diff --git a/%s b/%s\nnew file mode %06o\nBinary file %s\n",
-			diffPath, diffPath, gitFileMode(info), diffPath), nil
+		return g.diffBinaryFile(ctx, os.DevNull, filePath, diffPath)
 	}
 
 	// Create unified diff header
@@ -367,8 +367,7 @@ func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath, path
 	}
 
 	if g.isBinary(content) {
-		return fmt.Sprintf("diff --git a/%s b/%s\ndeleted file mode %06o\nBinary file %s\n",
-			diffPath, diffPath, gitFileMode(info), diffPath), nil
+		return g.diffBinaryFile(ctx, filePath, os.DevNull, diffPath)
 	}
 
 	var builder strings.Builder
@@ -419,6 +418,16 @@ func (g *Generator) diffModifiedFile(ctx context.Context, lowerDir, upperDir, re
 		diffPath = filepath.ToSlash(filepath.Join(pathPrefix, relPath))
 	}
 
+	for _, path := range []string{oldPath, newPath} {
+		binary, err := IsBinaryFile(path)
+		if err != nil {
+			return "", err
+		}
+		if binary {
+			return g.diffBinaryFile(ctx, oldPath, newPath, diffPath)
+		}
+	}
+
 	// Use the command runner for external diff command
 	// Note: We use diffPath for labels so the diff output has correct project-relative paths
 	result := g.runner.Run(ctx, "", "", "diff", "-u", "--label", "a/"+diffPath, "--label", "b/"+diffPath, oldPath, newPath)
@@ -438,6 +447,23 @@ func (g *Generator) diffModifiedFile(ctx context.Context, lowerDir, upperDir, re
 
 	// No difference (exit code 0, no error)
 	return "", nil
+}
+
+// diffBinaryFile retains Git's binary payload and blob identities, replacing
+// only its external filesystem header with the accepted project-relative path.
+func (g *Generator) diffBinaryFile(ctx context.Context, oldPath, newPath, diffPath string) (string, error) {
+	result := g.runner.Run(ctx, "", "", "git", "diff", "--no-index", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", "--", oldPath, newPath)
+	if result.ExitCode == 0 && result.Err == nil {
+		return "", nil
+	}
+	if result.ExitCode != 1 {
+		return "", fmt.Errorf("binary diff failed: %v: %s", result.Err, result.Stderr)
+	}
+	header, payload, ok := strings.Cut(result.Stdout, "\n")
+	if !ok || !strings.HasPrefix(header, "diff --git ") || !strings.Contains(payload, "\nGIT binary patch\n") {
+		return "", fmt.Errorf("binary diff did not return an applicable binary patch")
+	}
+	return fmt.Sprintf("diff --git %s %s\n%s", strconv.Quote("a/"+diffPath), strconv.Quote("b/"+diffPath), payload), nil
 }
 
 // isBinary checks if content appears to be binary.
@@ -778,8 +804,8 @@ func (p *Patcher) ApplyDiff(ctx context.Context, targetDir, diff string, opts Ap
 		return result, nil
 	}
 
-	// Use git apply if in a git repo
-	if p.isGitRepo(ctx, targetDir) {
+	// Git binary patches require git apply, which also supports non-repo roots.
+	if strings.Contains(diff, "\nGIT binary patch\n") || p.isGitRepo(ctx, targetDir) {
 		return p.applyWithGit(ctx, targetDir, diff, opts)
 	}
 
@@ -1048,7 +1074,11 @@ func ParseUnifiedDiff(diff string) []*ParsedFileDiff {
 			hunkIdx = 0
 
 			// Extract path from header
-			if idx := strings.Index(line, " b/"); idx > 0 {
+			if idx := strings.Index(line, " \"b/"); idx > 0 {
+				if path, err := strconv.Unquote(line[idx+1:]); err == nil {
+					currentFile.Path = strings.TrimPrefix(path, "b/")
+				}
+			} else if idx := strings.Index(line, " b/"); idx > 0 {
 				currentFile.Path = line[idx+3:]
 			}
 			continue

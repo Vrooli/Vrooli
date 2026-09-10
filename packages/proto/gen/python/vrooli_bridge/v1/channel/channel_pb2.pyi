@@ -88,6 +88,18 @@ class JobPush(_message.Message):
     credential_injections: _containers.RepeatedCompositeFieldContainer[CredentialInjection]
     def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., verb: _Optional[str] = ..., args: _Optional[_Iterable[str]] = ..., timeout_seconds: _Optional[int] = ..., outputs: _Optional[_Iterable[_Union[ArtifactOutput, _Mapping]]] = ..., credential_injections: _Optional[_Iterable[_Union[CredentialInjection, _Mapping]]] = ...) -> None: ...
 
+class ArtifactDelivery(_message.Message):
+    __slots__ = ("distribution_id", "item_id", "name", "destination_path")
+    DISTRIBUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    ITEM_ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_PATH_FIELD_NUMBER: _ClassVar[int]
+    distribution_id: str
+    item_id: str
+    name: str
+    destination_path: str
+    def __init__(self, distribution_id: _Optional[str] = ..., item_id: _Optional[str] = ..., name: _Optional[str] = ..., destination_path: _Optional[str] = ...) -> None: ...
+
 class CredentialInjection(_message.Message):
     __slots__ = ("logical_id", "field", "env_name")
     LOGICAL_ID_FIELD_NUMBER: _ClassVar[int]
@@ -147,12 +159,16 @@ class CredentialPush(_message.Message):
     def __init__(self, grant_id: _Optional[str] = ..., node_id: _Optional[str] = ..., logical_id: _Optional[str] = ..., field: _Optional[str] = ..., generation: _Optional[int] = ..., retention: _Optional[str] = ..., sealed_value: _Optional[bytes] = ..., aad: _Optional[bytes] = ...) -> None: ...
 
 class CredentialPurge(_message.Message):
-    __slots__ = ("node_id", "addresses")
+    __slots__ = ("node_id", "addresses", "grant_id", "generation")
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     ADDRESSES_FIELD_NUMBER: _ClassVar[int]
+    GRANT_ID_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
     node_id: str
     addresses: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, node_id: _Optional[str] = ..., addresses: _Optional[_Iterable[str]] = ...) -> None: ...
+    grant_id: str
+    generation: int
+    def __init__(self, node_id: _Optional[str] = ..., addresses: _Optional[_Iterable[str]] = ..., grant_id: _Optional[str] = ..., generation: _Optional[int] = ...) -> None: ...
 
 class CredentialGrant(_message.Message):
     __slots__ = ("grant_id", "node_id", "logical_id", "field", "retention", "generation", "revoked")
@@ -174,7 +190,7 @@ class CredentialGrant(_message.Message):
     def __init__(self, grant_id: _Optional[str] = ..., node_id: _Optional[str] = ..., logical_id: _Optional[str] = ..., field: _Optional[str] = ..., retention: _Optional[str] = ..., generation: _Optional[int] = ..., revoked: _Optional[bool] = ..., **kwargs) -> None: ...
 
 class CredentialReceipt(_message.Message):
-    __slots__ = ("grant_id", "node_id", "logical_id", "field", "generation", "accepted", "reason")
+    __slots__ = ("grant_id", "node_id", "logical_id", "field", "generation", "accepted", "reason", "operation")
     GRANT_ID_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     LOGICAL_ID_FIELD_NUMBER: _ClassVar[int]
@@ -182,6 +198,7 @@ class CredentialReceipt(_message.Message):
     GENERATION_FIELD_NUMBER: _ClassVar[int]
     ACCEPTED_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
     grant_id: str
     node_id: str
     logical_id: str
@@ -189,7 +206,8 @@ class CredentialReceipt(_message.Message):
     generation: int
     accepted: bool
     reason: str
-    def __init__(self, grant_id: _Optional[str] = ..., node_id: _Optional[str] = ..., logical_id: _Optional[str] = ..., field: _Optional[str] = ..., generation: _Optional[int] = ..., accepted: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
+    operation: str
+    def __init__(self, grant_id: _Optional[str] = ..., node_id: _Optional[str] = ..., logical_id: _Optional[str] = ..., field: _Optional[str] = ..., generation: _Optional[int] = ..., accepted: _Optional[bool] = ..., reason: _Optional[str] = ..., operation: _Optional[str] = ...) -> None: ...
 
 class ScenarioRequest(_message.Message):
     __slots__ = ("correlation_id", "scenario", "service", "method", "request", "timeout_seconds", "max_response_bytes", "http_method", "http_path")
@@ -212,20 +230,6 @@ class ScenarioRequest(_message.Message):
     http_method: str
     http_path: str
     def __init__(self, correlation_id: _Optional[str] = ..., scenario: _Optional[str] = ..., service: _Optional[str] = ..., method: _Optional[str] = ..., request: _Optional[bytes] = ..., timeout_seconds: _Optional[int] = ..., max_response_bytes: _Optional[int] = ..., http_method: _Optional[str] = ..., http_path: _Optional[str] = ...) -> None: ...
-
-class ScenarioResponse(_message.Message):
-    __slots__ = ("correlation_id", "response", "error", "timed_out", "truncated")
-    CORRELATION_ID_FIELD_NUMBER: _ClassVar[int]
-    RESPONSE_FIELD_NUMBER: _ClassVar[int]
-    ERROR_FIELD_NUMBER: _ClassVar[int]
-    TIMED_OUT_FIELD_NUMBER: _ClassVar[int]
-    TRUNCATED_FIELD_NUMBER: _ClassVar[int]
-    correlation_id: str
-    response: bytes
-    error: str
-    timed_out: bool
-    truncated: bool
-    def __init__(self, correlation_id: _Optional[str] = ..., response: _Optional[bytes] = ..., error: _Optional[str] = ..., timed_out: _Optional[bool] = ..., truncated: _Optional[bool] = ...) -> None: ...
 
 class ArtifactOutput(_message.Message):
     __slots__ = ("name", "media_type", "output_flag", "max_bytes")
@@ -288,7 +292,7 @@ class RelayCancel(_message.Message):
     def __init__(self, correlation_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class ServerFrame(_message.Message):
-    __slots__ = ("frame_id", "ack", "job", "provision", "ping", "abort", "session", "relay", "relay_cancel", "cleanup", "credential_push", "credential_purge", "credential_grant", "scenario_request")
+    __slots__ = ("frame_id", "ack", "job", "provision", "ping", "abort", "session", "relay", "relay_cancel", "cleanup", "credential_push", "credential_purge", "credential_grant", "scenario_request", "artifact_delivery")
     FRAME_ID_FIELD_NUMBER: _ClassVar[int]
     ACK_FIELD_NUMBER: _ClassVar[int]
     JOB_FIELD_NUMBER: _ClassVar[int]
@@ -303,6 +307,7 @@ class ServerFrame(_message.Message):
     CREDENTIAL_PURGE_FIELD_NUMBER: _ClassVar[int]
     CREDENTIAL_GRANT_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_REQUEST_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_DELIVERY_FIELD_NUMBER: _ClassVar[int]
     frame_id: str
     ack: HandshakeAck
     job: JobPush
@@ -317,7 +322,8 @@ class ServerFrame(_message.Message):
     credential_purge: CredentialPurge
     credential_grant: CredentialGrant
     scenario_request: ScenarioRequest
-    def __init__(self, frame_id: _Optional[str] = ..., ack: _Optional[_Union[HandshakeAck, _Mapping]] = ..., job: _Optional[_Union[JobPush, _Mapping]] = ..., provision: _Optional[_Union[ProvisionCommand, _Mapping]] = ..., ping: _Optional[_Union[ControlPing, _Mapping]] = ..., abort: _Optional[_Union[AbortJob, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ..., relay: _Optional[_Union[RelayRequest, _Mapping]] = ..., relay_cancel: _Optional[_Union[RelayCancel, _Mapping]] = ..., cleanup: _Optional[_Union[CleanupCommand, _Mapping]] = ..., credential_push: _Optional[_Union[CredentialPush, _Mapping]] = ..., credential_purge: _Optional[_Union[CredentialPurge, _Mapping]] = ..., credential_grant: _Optional[_Union[CredentialGrant, _Mapping]] = ..., scenario_request: _Optional[_Union[ScenarioRequest, _Mapping]] = ...) -> None: ...
+    artifact_delivery: ArtifactDelivery
+    def __init__(self, frame_id: _Optional[str] = ..., ack: _Optional[_Union[HandshakeAck, _Mapping]] = ..., job: _Optional[_Union[JobPush, _Mapping]] = ..., provision: _Optional[_Union[ProvisionCommand, _Mapping]] = ..., ping: _Optional[_Union[ControlPing, _Mapping]] = ..., abort: _Optional[_Union[AbortJob, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ..., relay: _Optional[_Union[RelayRequest, _Mapping]] = ..., relay_cancel: _Optional[_Union[RelayCancel, _Mapping]] = ..., cleanup: _Optional[_Union[CleanupCommand, _Mapping]] = ..., credential_push: _Optional[_Union[CredentialPush, _Mapping]] = ..., credential_purge: _Optional[_Union[CredentialPurge, _Mapping]] = ..., credential_grant: _Optional[_Union[CredentialGrant, _Mapping]] = ..., scenario_request: _Optional[_Union[ScenarioRequest, _Mapping]] = ..., artifact_delivery: _Optional[_Union[ArtifactDelivery, _Mapping]] = ...) -> None: ...
 
 class SignedServerFrame(_message.Message):
     __slots__ = ("frame", "signature")
@@ -328,7 +334,7 @@ class SignedServerFrame(_message.Message):
     def __init__(self, frame: _Optional[bytes] = ..., signature: _Optional[bytes] = ...) -> None: ...
 
 class NodeFrame(_message.Message):
-    __slots__ = ("handshake", "heartbeat", "run_event", "delivery_ack", "session", "relay_response", "credential_receipt", "scenario_response")
+    __slots__ = ("handshake", "heartbeat", "run_event", "delivery_ack", "session", "relay_response", "credential_receipt", "scenario_response", "artifact_receipt")
     HANDSHAKE_FIELD_NUMBER: _ClassVar[int]
     HEARTBEAT_FIELD_NUMBER: _ClassVar[int]
     RUN_EVENT_FIELD_NUMBER: _ClassVar[int]
@@ -337,6 +343,7 @@ class NodeFrame(_message.Message):
     RELAY_RESPONSE_FIELD_NUMBER: _ClassVar[int]
     CREDENTIAL_RECEIPT_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_RESPONSE_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_RECEIPT_FIELD_NUMBER: _ClassVar[int]
     handshake: Handshake
     heartbeat: _shared_pb2.Heartbeat
     run_event: _shared_pb2.RunEvent
@@ -344,5 +351,6 @@ class NodeFrame(_message.Message):
     session: _shared_pb2.SessionFrame
     relay_response: _shared_pb2.RelayResponse
     credential_receipt: CredentialReceipt
-    scenario_response: ScenarioResponse
-    def __init__(self, handshake: _Optional[_Union[Handshake, _Mapping]] = ..., heartbeat: _Optional[_Union[_shared_pb2.Heartbeat, _Mapping]] = ..., run_event: _Optional[_Union[_shared_pb2.RunEvent, _Mapping]] = ..., delivery_ack: _Optional[_Union[_shared_pb2.DeliveryAck, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ..., relay_response: _Optional[_Union[_shared_pb2.RelayResponse, _Mapping]] = ..., credential_receipt: _Optional[_Union[CredentialReceipt, _Mapping]] = ..., scenario_response: _Optional[_Union[ScenarioResponse, _Mapping]] = ...) -> None: ...
+    scenario_response: _shared_pb2.ScenarioResponse
+    artifact_receipt: _shared_pb2.ArtifactReceipt
+    def __init__(self, handshake: _Optional[_Union[Handshake, _Mapping]] = ..., heartbeat: _Optional[_Union[_shared_pb2.Heartbeat, _Mapping]] = ..., run_event: _Optional[_Union[_shared_pb2.RunEvent, _Mapping]] = ..., delivery_ack: _Optional[_Union[_shared_pb2.DeliveryAck, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ..., relay_response: _Optional[_Union[_shared_pb2.RelayResponse, _Mapping]] = ..., credential_receipt: _Optional[_Union[CredentialReceipt, _Mapping]] = ..., scenario_response: _Optional[_Union[_shared_pb2.ScenarioResponse, _Mapping]] = ..., artifact_receipt: _Optional[_Union[_shared_pb2.ArtifactReceipt, _Mapping]] = ...) -> None: ...

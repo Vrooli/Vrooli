@@ -137,9 +137,10 @@ export type TargetVerdict = Message<"common.v1.TargetVerdict"> & {
   detail: string;
 
   /**
-   * Structural provenance used by release gates. This must not be inferred
-   * from free-form detail text because advisory strategies are not
-   * promotable to release evidence.
+   * Structural provenance used by release gates. Passed verdicts must include
+   * this field and at least one EvidenceRef. This must not be inferred from
+   * free-form detail text because advisory strategies are not promotable to
+   * release evidence.
    *
    * @generated from field: string evidence_class = 6;
    */

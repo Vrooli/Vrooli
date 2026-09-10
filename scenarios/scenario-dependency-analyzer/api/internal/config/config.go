@@ -14,8 +14,8 @@ import (
 	"github.com/vrooli/api-core/storage"
 )
 
-// Config captures runtime configuration resolved from the environment.
-type Config struct {
+// RuntimeConfig captures runtime configuration resolved from the environment.
+type RuntimeConfig struct {
 	Port                       string
 	DatabaseDSN                string
 	ScenariosDir               string
@@ -23,8 +23,8 @@ type Config struct {
 	InterfaceGraphBuildTimeout time.Duration
 }
 
-// Load reads environment variables (and .env files) to build the Config.
-func Load() Config {
+// Load reads environment variables (and .env files) to build the RuntimeConfig.
+func Load() RuntimeConfig {
 	_ = godotenv.Load()
 
 	port := os.Getenv("API_PORT")
@@ -46,7 +46,7 @@ func Load() Config {
 		log.Fatalf("❌ Scenario directory configuration failed: %v", err)
 	}
 
-	return Config{
+	return RuntimeConfig{
 		Port:                       port,
 		DatabaseDSN:                dbDSN,
 		ScenariosDir:               scenariosDir,

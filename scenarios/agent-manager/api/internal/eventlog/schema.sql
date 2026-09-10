@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS run_events (
 CREATE INDEX IF NOT EXISTS idx_run_events_run_id ON run_events(run_id);
 CREATE INDEX IF NOT EXISTS idx_run_events_run_sequence ON run_events(run_id, sequence);
 CREATE INDEX IF NOT EXISTS idx_run_events_type ON run_events(run_id, event_type);
+-- Retention covers every event type. Its read-only candidate scan must not
+-- sort the full event payload table on each reconciler pass.
+CREATE INDEX IF NOT EXISTS idx_run_events_retention ON run_events(timestamp);
 -- Conversation projection walks use this exact stable cursor order. Keeping
 -- the partial index with the authoritative event table prevents a backfill
 -- from repeatedly sorting the full append-only stream.

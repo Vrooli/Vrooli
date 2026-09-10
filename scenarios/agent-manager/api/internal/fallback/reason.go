@@ -120,12 +120,13 @@ func AllReasons() []Reason {
 	}
 }
 
-// IsModelUnavailable reports whether this Reason indicates the runner
-// rejected the requested model (and the chain walker should try the next
-// preset entry). Replaces the old runner.ModelErrorUnavailable boolean.
+// IsModelUnavailable reports whether the chain walker should try the next
+// model or runner candidate. Provider throttling and exhausted quota are
+// included: an unattended run must be able to leave a depleted billing lane
+// for a later model, including a local model, instead of terminating.
 func (r Reason) IsModelUnavailable() bool {
 	switch r {
-	case ReasonModelDeprecated, ReasonModelUnknown, ReasonModelUnavailable, ReasonContextLengthExceeded:
+	case ReasonRateLimit, ReasonQuotaExhausted, ReasonModelDeprecated, ReasonModelUnknown, ReasonModelUnavailable, ReasonContextLengthExceeded:
 		return true
 	}
 	return false

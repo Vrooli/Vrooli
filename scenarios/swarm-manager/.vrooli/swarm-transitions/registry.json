@@ -1,6 +1,29 @@
 [
   {
     "schemaVersion": "swarm-transition/v1",
+    "key": "contract-development",
+    "subject": "backlog-item",
+    "kind": "workflow",
+    "workflow": {
+      "owner": "swarm-manager",
+      "key": "swarm-manager/contract-development"
+    },
+    "requires": [
+      "agent-manager",
+      "prompt-manager"
+    ],
+    "inputContract": "contract-development-input/v1",
+    "terminalOutcomes": [
+      "repaired",
+      "needs_attention",
+      "abstained",
+      "budget_exhausted",
+      "failed"
+    ],
+    "applyAction": "apply_development_outcome"
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
     "key": "session.meta_orchestration",
     "subject": "agent-session",
     "kind": "session",
@@ -184,13 +207,22 @@
       "cancelled"
     ],
     "strategies": [
-      {
-        "id": "phased-plan-drain",
-        "displayName": "Phased plan drain",
+    {
+      "id": "phased-plan-drain",
+      "workflowKey": "swarm-manager/phased-plan-drain",
+      "displayName": "Phased plan drain",
         "description": "Executes the accepted plan one verified phase at a time, with review and operator approval where needed.",
         "whenToUse": "Use for accepted plans that need durable phase-by-phase progress and resumability.",
-        "costBand": "Governed by the configured per-turn estimate and workflow budget."
-      }
+      "costBand": "Governed by the configured per-turn estimate and workflow budget."
+    },
+    {
+      "id": "adaptive-improvement",
+      "workflowKey": "swarm-manager/phased-plan-drain",
+      "displayName": "Adaptive improvement campaign",
+      "description": "Executes the accepted plan through the self-improvement campaign while retaining the same plan, grant, budget, and evidence controls.",
+      "whenToUse": "Use when one approved plan should let the agent choose successive in-scope scenario improvements without creating per-repair backlog approvals.",
+      "costBand": "Uses the same governed plan-slice budget and aggregate limits as phased plan drain."
+    }
     ],
     "applyAction": "apply_plan_execution",
     "humanGates": [{"id": "ready-to-engaged", "decides": "Approve engaging the selected workflow", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}, {"id": "slice-approval", "decides": "Approve the next verified execution slice", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]

@@ -14,7 +14,8 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	kindFlag := fs.String("kind", "", "Backlog item kind")
 	nameFlag := fs.String("name", "", "Backlog item name")
 	executeFlag := fs.Bool("execute", false, "Execute queue mutation (default is preview-only)")
-	strategyFlag := fs.String("strategy", "", "Plan execution strategy: phased-plan-drain")
+	strategyFlag := fs.String("strategy", "", "Plan execution strategy declared by the server; omitted inherits the reviewed item")
+	maxSlicesFlag := fs.Int("max-slices", 0, "Optional slice limit within the reviewed item allowance")
 	forceFlag := fs.Bool("force", false, "Override unanswered feedback gates (questions/suggestions)")
 	mode, delaySeconds, operation, startedBy := addExecutionOptionsFlags(fs)
 	jsonOut := cliutil.JSONFlag(fs)
@@ -22,12 +23,9 @@ func (a *App) cmdBacklogQueue(args []string) error {
 		return err
 	}
 	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
-		return fmt.Errorf("usage: backlog queue --kind KIND --name NAME [--strategy phased-plan-drain] [--execute] [--force] [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
+		return fmt.Errorf("usage: backlog queue --kind KIND --name NAME [--strategy STRATEGY] [--max-slices N] [--execute] [--force] [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
 	}
 	strategy := strings.TrimSpace(*strategyFlag)
-	if strategy != "" && strategy != "phased-plan-drain" {
-		return fmt.Errorf("invalid strategy %q (expected phased-plan-drain)", strategy)
-	}
 
 	opts, err := parseExecutionOptions(mode, delaySeconds, operation, startedBy, false)
 	if err != nil {
@@ -49,6 +47,11 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	if strategy != "" {
 		payloadMap["strategy"] = strategy
 	}
+	fs.Visit(func(field *flag.Flag) {
+		if field.Name == "max-slices" {
+			payloadMap["max_slices"] = *maxSlicesFlag
+		}
+	})
 	payload, err := json.Marshal(payloadMap)
 	if err != nil {
 		return fmt.Errorf("failed to encode request: %w", err)

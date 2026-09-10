@@ -4,9 +4,65 @@
   "description": "Single source of truth for the complete Swarm Manager CLI surface. Commands remain local until their typed Connect-RPC migration is complete.",
   "groups": [
     {
+      "name": "development",
+      "description": "Retained development contracts and operator decisions (never launches work)",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Inspect retained approval, limits, goal message and launch blockers",
+          "binding": {"kind": "connect-rpc", "service": "DevelopmentService", "method": "GetDevelopment"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "artifact",
+          "description": "Read exact retained artifact bytes",
+          "binding": {"kind": "connect-rpc", "service": "DevelopmentService", "method": "GetDevelopmentArtifact"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "approve",
+          "description": "Retain a reviewed development target without launching work",
+          "binding": {"kind": "connect-rpc", "service": "DevelopmentService", "method": "ApproveDevelopment"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:read"]}
+        },
+        {
+          "name": "revoke",
+          "description": "Close new dispatch without discarding unresolved usage",
+          "binding": {"kind": "connect-rpc", "service": "DevelopmentService", "method": "RevokeDevelopment"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:read"]}
+        },
+        {
+          "name": "accept",
+          "description": "Accept only independently resolved outcome evidence",
+          "binding": {"kind": "connect-rpc", "service": "DevelopmentService", "method": "AcceptDevelopment"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:read"]}
+        }
+      ]
+    },
+    {
       "name": "transitions",
       "description": "Declared agent transition catalog",
       "commands": [
+        {
+          "name": "preview-development",
+          "description": "Review a development proposal without approving or launching it",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TransitionService",
+            "method": "PreviewDevelopment"
+          },
+          "architecture": { "primitive": "proto_list" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read"]
+          }
+        },
         {
           "name": "list",
           "description": "List declared transition capabilities",

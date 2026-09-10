@@ -152,6 +152,40 @@ class DeliveryAck(_message.Message):
     received_at: _timestamp_pb2.Timestamp
     def __init__(self, frame_id: _Optional[str] = ..., run_id: _Optional[str] = ..., op_id: _Optional[str] = ..., received_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
+class ArtifactReceipt(_message.Message):
+    __slots__ = ("distribution_id", "node_id", "item_id", "destination_path", "accepted", "reason", "sha256", "size_bytes")
+    DISTRIBUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    ITEM_ID_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_PATH_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    SHA256_FIELD_NUMBER: _ClassVar[int]
+    SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    distribution_id: str
+    node_id: str
+    item_id: str
+    destination_path: str
+    accepted: bool
+    reason: str
+    sha256: str
+    size_bytes: int
+    def __init__(self, distribution_id: _Optional[str] = ..., node_id: _Optional[str] = ..., item_id: _Optional[str] = ..., destination_path: _Optional[str] = ..., accepted: _Optional[bool] = ..., reason: _Optional[str] = ..., sha256: _Optional[str] = ..., size_bytes: _Optional[int] = ...) -> None: ...
+
+class ScenarioResponse(_message.Message):
+    __slots__ = ("correlation_id", "response", "error", "timed_out", "truncated")
+    CORRELATION_ID_FIELD_NUMBER: _ClassVar[int]
+    RESPONSE_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    TIMED_OUT_FIELD_NUMBER: _ClassVar[int]
+    TRUNCATED_FIELD_NUMBER: _ClassVar[int]
+    correlation_id: str
+    response: bytes
+    error: str
+    timed_out: bool
+    truncated: bool
+    def __init__(self, correlation_id: _Optional[str] = ..., response: _Optional[bytes] = ..., error: _Optional[str] = ..., timed_out: _Optional[bool] = ..., truncated: _Optional[bool] = ...) -> None: ...
+
 class RelayResponse(_message.Message):
     __slots__ = ("correlation_id", "kind", "sequence", "data", "reason", "exit_code", "total_bytes")
     CORRELATION_ID_FIELD_NUMBER: _ClassVar[int]

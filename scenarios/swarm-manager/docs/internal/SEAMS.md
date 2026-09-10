@@ -16,6 +16,62 @@ registry selects `session`, `workflow`, or `deterministic` behavior and
 cannot contain prompts or execution mechanics. Its declared workflow and
 deterministic apply actions are verified as a complete dispatch table at boot.
 
+## Development review boundary
+
+`internal/development.Reviewer` is a read-only domain service, exposed through
+the generated Connect `TransitionService.PreviewDevelopment` contract. The CLI
+uses that API; it does not render its own goal or read server target files.
+The service has no runner, approval store, shell, or provider dependency.
+
+The server selects the repository root. Candidate paths must be reviewable
+repository-relative artifact types. Reads use `os.OpenRoot`, reject non-regular
+files and final symlinks, and enforce 512 KiB per file and 64 resolved files.
+Requests bound inventories and text; CLI JSON is limited to 128 KiB. Only
+hashes, sizes, paths and caller-proposed text are returned, not file contents.
+
+The preview is not a semantic contract validator, target publisher, immutable
+snapshot owner, work-item resolver, budget ledger, or authority grant. Its
+launch blockers remain explicit even when every field is present. The separate
+`development.Service` now owns retained approval and accounting, described below;
+adding a second execution loop here is not permitted.
+
+Focused tests cover stable fingerprints, relevant-target/budget/criterion
+changes, missing fields, path traversal, escaping symlinks, oversized files,
+transport mapping, and CLI rendering. Runner fakes assert that preview never
+calls start or apply. These tests do not qualify mandate execution.
+
+### Retained development domain
+
+- `development.Repository`: immutable snapshot reads and atomic aggregate
+  compare-and-swap. `SQLiteRepository` uses the existing routed DB; schema lives
+  beside its owner and is registered at boot. There is no private data root.
+- `development.Service`: approved target revisions, aggregate reservations,
+  owner execution binding, known-usage settlement, revocation and evidence-bound
+  acceptance. Internal Reserve/BindExecution/Settle methods are not public RPCs.
+- `development.WorkValidator`: composition-root callback resolves an existing
+  backlog item through its routed data root and refuses incompatible plan work.
+- `development.EvidenceResolver`: production adapter still absent. Resolve must
+  fetch owner receipts; CurrentRevision must identify the tested product state.
+  Agent-submitted status, a readable test file and a passing harness event are
+  not implementations of this boundary.
+- `development.Coordinator`: fallback owner adapter now reserves before start,
+  carries the Agent Manager engagement grant, fences execution/digest binding,
+  propagates cancellation, and settles measured terminal usage. It is not yet
+  registered as a transition; native-goal parity and provider-owned evidence
+  remain explicit launch blockers.
+- `DevelopmentService` Connect API and generated CLI/UI consumers: typed review
+  and decision transport only. Human decisions use `api-core/authn` and require
+  `swarm-manager:write`. The service manifest requires
+  `scenario-authenticator`; provider unavailability and missing credentials
+  still fail closed.
+- `Server.guardDevelopmentWorkShape`: prevents a retained development item from
+  reaching an ordinary plan workflow. It is not the future development launcher.
+
+Runtime integration must use the sole transition runner, reserve actual owner
+limits before dispatch, reconcile ambiguous starts with the same identity, and
+settle measured usage after owner cancellation. The current core tests exercise
+these state transitions with explicit owner fixtures, not actual harness runs.
+
 ## Human sessions
 
 `internal/agentsessions` is the human-conversation boundary. It creates and
@@ -108,3 +164,27 @@ propagate context with bounded timeouts. File-content endpoints remain raw or
 streamed by design, and the ecosystem client remains JSON-based until a
 behavior-equivalent swarm-manager proto exists. These exceptions are contract
 decisions, not evidence that the retired audit snapshots are still required.
+
+
+## Completed execution evidence in independent review
+
+Automatic finalization and manual review both load bounded Agent Manager evidence
+before persisting the review round snapshot. The owner reads bind the Swarm
+execution, approval and grant, follow exact child attempts, and retain terminal
+results, fresh-worker identities, finalization status and aggregate usage.
+Run summaries remain reported evidence; lifecycle success does not establish a
+test result or applied-change provenance. Owner failures and read/size limits are
+explicit unavailable observations. The reader performs no start or wait mutation.
+
+The reader caps one snapshot at 45 seconds, 1024 owner reads and 512 KiB. The independent review binding permits 1 MiB total snapshot input and Agent
+Manager bounds the rendered prompt at 2 MiB. The skill inserts each snapshot
+once. The read count covers
+the ordinary 128-slice shape; large payloads or slow owners can still exceed a
+bound. Such a result requires a separate owner evidence inspection, not a
+silently truncated passing review.
+
+Self-restart checks remain in the affected scenario inventory as skipped.
+Their aggregate is `not_assessable` with external restart, health and review
+follow-up; deferral alone never requests an automatic coding fixup. A real
+failure or enabled baseline regression still yields `needs_work`. Execution
+finalization finishing does not mean that the operator accepted the item.

@@ -46,7 +46,7 @@ class SearchRequest(_message.Message):
     def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ..., mode: _Optional[_Union[Mode, str]] = ...) -> None: ...
 
 class SearchResult(_message.Message):
-    __slots__ = ("scenario", "slot", "kind", "display_name", "description", "file_path", "score", "provenance", "widget")
+    __slots__ = ("scenario", "slot", "kind", "display_name", "description", "file_path", "score", "provenance", "widget", "observed_route", "observed_link_text", "observed_page_title", "observed_at", "reachable", "http_status")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     SLOT_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -56,6 +56,12 @@ class SearchResult(_message.Message):
     SCORE_FIELD_NUMBER: _ClassVar[int]
     PROVENANCE_FIELD_NUMBER: _ClassVar[int]
     WIDGET_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_ROUTE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_LINK_TEXT_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_PAGE_TITLE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    REACHABLE_FIELD_NUMBER: _ClassVar[int]
+    HTTP_STATUS_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     slot: str
     kind: SurfaceKind
@@ -65,7 +71,13 @@ class SearchResult(_message.Message):
     score: float
     provenance: _provenance_pb2.ComponentProvenance
     widget: _widget_pb2.WidgetDeclaration
-    def __init__(self, scenario: _Optional[str] = ..., slot: _Optional[str] = ..., kind: _Optional[_Union[SurfaceKind, str]] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., file_path: _Optional[str] = ..., score: _Optional[float] = ..., provenance: _Optional[_Union[_provenance_pb2.ComponentProvenance, _Mapping]] = ..., widget: _Optional[_Union[_widget_pb2.WidgetDeclaration, _Mapping]] = ...) -> None: ...
+    observed_route: str
+    observed_link_text: str
+    observed_page_title: str
+    observed_at: str
+    reachable: bool
+    http_status: int
+    def __init__(self, scenario: _Optional[str] = ..., slot: _Optional[str] = ..., kind: _Optional[_Union[SurfaceKind, str]] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., file_path: _Optional[str] = ..., score: _Optional[float] = ..., provenance: _Optional[_Union[_provenance_pb2.ComponentProvenance, _Mapping]] = ..., widget: _Optional[_Union[_widget_pb2.WidgetDeclaration, _Mapping]] = ..., observed_route: _Optional[str] = ..., observed_link_text: _Optional[str] = ..., observed_page_title: _Optional[str] = ..., observed_at: _Optional[str] = ..., reachable: _Optional[bool] = ..., http_status: _Optional[int] = ...) -> None: ...
 
 class SearchResponse(_message.Message):
     __slots__ = ("results", "mode_used", "indexed_count")

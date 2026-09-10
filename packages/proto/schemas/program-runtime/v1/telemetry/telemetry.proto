@@ -39,6 +39,13 @@ message ProgramEvent {
   int64 shape_sessions = 17;
   string dominant_scenario = 18;
   string covering_contract_id = 19;
+  // Copied from the durable Program row; session identity is reclaimed.
+  string program_name = 20;
+  string program_digest = 21;
+  string caller_run_id = 22;
+  string caller_agent_profile = 23;
+  string caller_skill_id = 24;
+  string caller_harness = 25;
 }
 
 message ListEventsRequest {

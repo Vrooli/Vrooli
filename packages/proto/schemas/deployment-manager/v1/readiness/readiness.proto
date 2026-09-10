@@ -16,6 +16,9 @@ message ReviewIdentity {
   repeated string targets = 5 [(buf.validate.field).repeated.min_items = 1];
   string channel = 6 [(buf.validate.field).string.min_len = 1];
   int32 policy_version = 7 [(buf.validate.field).int32.gt = 0];
+  string candidate_id = 8;
+  string destination_revision_id = 9;
+  uint64 authorization_epoch = 10;
 }
 
 message PrepareReviewRequest {
@@ -31,6 +34,9 @@ message PrepareReviewRequest {
   // Facts are attributable release-shape observations used only to decide
   // criterion applicability. Unknown facts remain unknown and fail closed.
   map<string, string> facts = 10;
+  string candidate_id = 11;
+  string destination_revision_id = 12;
+  uint64 authorization_epoch = 13;
 }
 
 message ReviewResponse {
@@ -141,6 +147,9 @@ message ReportEvidenceRequest {
   google.protobuf.Timestamp observed_at = 12 [(buf.validate.field).required = true];
   string evidence_reference = 13 [(buf.validate.field).string.min_len = 1];
   string detail = 14;
+  string candidate_id = 15;
+  string destination_revision_id = 16;
+  uint64 authorization_epoch = 17;
 }
 
 message ReportEvidenceResponse {

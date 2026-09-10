@@ -23,9 +23,10 @@ _sym_db = _symbol_database.Default()
 
 
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
+from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'device-control/v1/devices/devices.proto\x12 vrooli.device_control.v1.devices\x1a\x1fgoogle/protobuf/timestamp.proto\"\x14\n\x12ListDevicesRequest\"Y\n\x13ListDevicesResponse\x12\x42\n\x07\x64\x65vices\x18\x01 \x03(\x0b\x32(.vrooli.device_control.v1.devices.DeviceR\x07\x64\x65vices\"*\n\x14\x43onnectDeviceRequest\x12\x12\n\x04kind\x18\x01 \x01(\tR\x04kind\"\x8b\x01\n\x15\x43onnectDeviceResponse\x12\x46\n\x05rungs\x18\x01 \x03(\x0b\x32\x30.vrooli.device_control.v1.devices.OnboardingRungR\x05rungs\x12*\n\x11\x66irst_next_action\x18\x02 \x01(\tR\x0f\x66irstNextAction\"5\n\x16ReconnectDeviceRequest\x12\x1b\n\tdevice_id\x18\x01 \x01(\tR\x08\x64\x65viceId\"[\n\x17ReconnectDeviceResponse\x12@\n\x06\x64\x65vice\x18\x01 \x01(\x0b\x32(.vrooli.device_control.v1.devices.DeviceR\x06\x64\x65vice\"\xa0\x04\n\x06\x44\x65vice\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n\x04kind\x18\x03 \x01(\tR\x04kind\x12\x1f\n\x0bstrategy_id\x18\x04 \x01(\tR\nstrategyId\x12\x16\n\x06status\x18\x05 \x01(\tR\x06status\x12#\n\rhealth_reason\x18\x06 \x01(\tR\x0chealthReason\x12 \n\x0chost_node_id\x18\x07 \x01(\tR\nhostNodeId\x12X\n\x0c\x63\x61pabilities\x18\x08 \x03(\x0b\x32\x34.vrooli.device_control.v1.devices.CapabilitySnapshotR\x0c\x63\x61pabilities\x12;\n\x0bobserved_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nobservedAt\x12\x16\n\x06serial\x18\n \x01(\tR\x06serial\x12\x14\n\x05model\x18\x0b \x01(\tR\x05model\x12\x1d\n\nos_version\x18\x0c \x01(\tR\tosVersion\x12\x1c\n\ttransport\x18\r \x01(\tR\ttransport\x12\x16\n\x06health\x18\x0e \x01(\tR\x06health\x12\"\n\rfirst_seen_at\x18\x0f \x01(\tR\x0b\x66irstSeenAt\x12 \n\x0clast_seen_at\x18\x10 \x01(\tR\nlastSeenAt\"\x85\x01\n\x12\x43\x61pabilitySnapshot\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\x12\"\n\x0cprerequisite\x18\x03 \x01(\tR\x0cprerequisite\x12\x1f\n\x0bnext_action\x18\x04 \x01(\tR\nnextAction\"\x93\x01\n\x0eOnboardingRung\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\"\n\x0cprerequisite\x18\x02 \x01(\tR\x0cprerequisite\x12\x14\n\x05owner\x18\x03 \x01(\tR\x05owner\x12\x16\n\x06status\x18\x04 \x01(\tR\x06status\x12\x1f\n\x0bnext_action\x18\x05 \x01(\tR\nnextAction2\x97\x03\n\rDeviceService\x12z\n\x0bListDevices\x12\x34.vrooli.device_control.v1.devices.ListDevicesRequest\x1a\x35.vrooli.device_control.v1.devices.ListDevicesResponse\x12\x80\x01\n\rConnectDevice\x12\x36.vrooli.device_control.v1.devices.ConnectDeviceRequest\x1a\x37.vrooli.device_control.v1.devices.ConnectDeviceResponse\x12\x86\x01\n\x0fReconnectDevice\x12\x38.vrooli.device_control.v1.devices.ReconnectDeviceRequest\x1a\x39.vrooli.device_control.v1.devices.ReconnectDeviceResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices;devices_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'device-control/v1/devices/devices.proto\x12 vrooli.device_control.v1.devices\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\"\x14\n\x12ListDevicesRequest\"Y\n\x13ListDevicesResponse\x12\x42\n\x07\x64\x65vices\x18\x01 \x03(\x0b\x32(.vrooli.device_control.v1.devices.DeviceR\x07\x64\x65vices\"*\n\x14\x43onnectDeviceRequest\x12\x12\n\x04kind\x18\x01 \x01(\tR\x04kind\"\x8b\x01\n\x15\x43onnectDeviceResponse\x12\x46\n\x05rungs\x18\x01 \x03(\x0b\x32\x30.vrooli.device_control.v1.devices.OnboardingRungR\x05rungs\x12*\n\x11\x66irst_next_action\x18\x02 \x01(\tR\x0f\x66irstNextAction\"5\n\x16ReconnectDeviceRequest\x12\x1b\n\tdevice_id\x18\x01 \x01(\tR\x08\x64\x65viceId\"[\n\x17ReconnectDeviceResponse\x12@\n\x06\x64\x65vice\x18\x01 \x01(\x0b\x32(.vrooli.device_control.v1.devices.DeviceR\x06\x64\x65vice\"\x8d\x02\n\x14\x45xecuteVolumeRequest\x12\x16\n\x06\x64\x65vice\x18\x01 \x01(\tR\x06\x64\x65vice\x12\x14\n\x05\x61\x63tor\x18\x02 \x01(\tR\x05\x61\x63tor\x12\x12\n\x04goal\x18\x03 \x01(\tR\x04goal\x12\x1c\n\toperation\x18\x04 \x01(\tR\toperation\x12\x19\n\x05value\x18\x05 \x01(\x01H\x00R\x05value\x88\x01\x01\x12\x1c\n\tdirection\x18\x06 \x01(\tR\tdirection\x12/\n\x13verification_policy\x18\x07 \x01(\tR\x12verificationPolicy\x12!\n\x0coperation_id\x18\x08 \x01(\tR\x0boperationIdB\x08\n\x06_value\"\xb6\x03\n\x15\x45xecuteVolumeResponse\x12\x16\n\x06status\x18\x01 \x01(\tR\x06status\x12!\n\x0coperation_id\x18\x02 \x01(\tR\x0boperationId\x12\x1b\n\tdevice_id\x18\x03 \x01(\tR\x08\x64\x65viceId\x12\x1f\n\x0b\x64\x65vice_name\x18\x04 \x01(\tR\ndeviceName\x12+\n\x04plan\x18\x05 \x01(\x0b\x32\x17.google.protobuf.StructR\x04plan\x12/\n\x06\x62\x65\x66ore\x18\x06 \x01(\x0b\x32\x17.google.protobuf.StructR\x06\x62\x65\x66ore\x12-\n\x05\x61\x66ter\x18\x07 \x01(\x0b\x32\x17.google.protobuf.StructR\x05\x61\x66ter\x12-\n\x12verification_class\x18\x08 \x01(\tR\x11verificationClass\x12\x1a\n\x08\x65vidence\x18\t \x03(\tR\x08\x65vidence\x12+\n\x11recovery_attempts\x18\n \x01(\x05R\x10recoveryAttempts\x12\x1f\n\x0bnext_action\x18\x0b \x01(\tR\nnextAction\"\xc0\x05\n\x06\x44\x65vice\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n\x04kind\x18\x03 \x01(\tR\x04kind\x12\x1f\n\x0bstrategy_id\x18\x04 \x01(\tR\nstrategyId\x12\x16\n\x06status\x18\x05 \x01(\tR\x06status\x12#\n\rhealth_reason\x18\x06 \x01(\tR\x0chealthReason\x12 \n\x0chost_node_id\x18\x07 \x01(\tR\nhostNodeId\x12X\n\x0c\x63\x61pabilities\x18\x08 \x03(\x0b\x32\x34.vrooli.device_control.v1.devices.CapabilitySnapshotR\x0c\x63\x61pabilities\x12;\n\x0bobserved_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nobservedAt\x12\x16\n\x06serial\x18\n \x01(\tR\x06serial\x12\x14\n\x05model\x18\x0b \x01(\tR\x05model\x12\x1d\n\nos_version\x18\x0c \x01(\tR\tosVersion\x12\x1c\n\ttransport\x18\r \x01(\tR\ttransport\x12\x16\n\x06health\x18\x0e \x01(\tR\x06health\x12\"\n\rfirst_seen_at\x18\x0f \x01(\tR\x0b\x66irstSeenAt\x12 \n\x0clast_seen_at\x18\x10 \x01(\tR\nlastSeenAt\x12R\n\ntransports\x18\x11 \x03(\x0b\x32\x32.vrooli.device_control.v1.devices.TransportProfileR\ntransports\x12!\n\x0cidentity_key\x18\x12 \x01(\tR\x0bidentityKey\x12\'\n\x0fidentity_reason\x18\x13 \x01(\tR\x0eidentityReason\"\x85\x01\n\x12\x43\x61pabilitySnapshot\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\x12\"\n\x0cprerequisite\x18\x03 \x01(\tR\x0cprerequisite\x12\x1f\n\x0bnext_action\x18\x04 \x01(\tR\nnextAction\"\xcc\x02\n\x10TransportProfile\x12\x1f\n\x0bstrategy_id\x18\x01 \x01(\tR\nstrategyId\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n\x04role\x18\x03 \x01(\tR\x04role\x12\x1a\n\x08\x65ndpoint\x18\x04 \x01(\tR\x08\x65ndpoint\x12\x16\n\x06health\x18\x05 \x01(\tR\x06health\x12#\n\rhealth_reason\x18\x06 \x01(\tR\x0chealthReason\x12X\n\x0c\x63\x61pabilities\x18\x07 \x03(\x0b\x32\x34.vrooli.device_control.v1.devices.CapabilitySnapshotR\x0c\x63\x61pabilities\x12\x1e\n\noperations\x18\x08 \x03(\tR\noperations\x12\x1c\n\tendpoints\x18\t \x03(\tR\tendpoints\"\x93\x01\n\x0eOnboardingRung\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\"\n\x0cprerequisite\x18\x02 \x01(\tR\x0cprerequisite\x12\x14\n\x05owner\x18\x03 \x01(\tR\x05owner\x12\x16\n\x06status\x18\x04 \x01(\tR\x06status\x12\x1f\n\x0bnext_action\x18\x05 \x01(\tR\nnextAction2\x9a\x04\n\rDeviceService\x12z\n\x0bListDevices\x12\x34.vrooli.device_control.v1.devices.ListDevicesRequest\x1a\x35.vrooli.device_control.v1.devices.ListDevicesResponse\x12\x80\x01\n\rConnectDevice\x12\x36.vrooli.device_control.v1.devices.ConnectDeviceRequest\x1a\x37.vrooli.device_control.v1.devices.ConnectDeviceResponse\x12\x86\x01\n\x0fReconnectDevice\x12\x38.vrooli.device_control.v1.devices.ReconnectDeviceRequest\x1a\x39.vrooli.device_control.v1.devices.ReconnectDeviceResponse\x12\x80\x01\n\rExecuteVolume\x12\x36.vrooli.device_control.v1.devices.ExecuteVolumeRequest\x1a\x37.vrooli.device_control.v1.devices.ExecuteVolumeResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices;devices_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,24 +34,30 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'device_control.v1.devices.d
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZSgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices;devices_v1'
-  _globals['_LISTDEVICESREQUEST']._serialized_start=110
-  _globals['_LISTDEVICESREQUEST']._serialized_end=130
-  _globals['_LISTDEVICESRESPONSE']._serialized_start=132
-  _globals['_LISTDEVICESRESPONSE']._serialized_end=221
-  _globals['_CONNECTDEVICEREQUEST']._serialized_start=223
-  _globals['_CONNECTDEVICEREQUEST']._serialized_end=265
-  _globals['_CONNECTDEVICERESPONSE']._serialized_start=268
-  _globals['_CONNECTDEVICERESPONSE']._serialized_end=407
-  _globals['_RECONNECTDEVICEREQUEST']._serialized_start=409
-  _globals['_RECONNECTDEVICEREQUEST']._serialized_end=462
-  _globals['_RECONNECTDEVICERESPONSE']._serialized_start=464
-  _globals['_RECONNECTDEVICERESPONSE']._serialized_end=555
-  _globals['_DEVICE']._serialized_start=558
-  _globals['_DEVICE']._serialized_end=1102
-  _globals['_CAPABILITYSNAPSHOT']._serialized_start=1105
-  _globals['_CAPABILITYSNAPSHOT']._serialized_end=1238
-  _globals['_ONBOARDINGRUNG']._serialized_start=1241
-  _globals['_ONBOARDINGRUNG']._serialized_end=1388
-  _globals['_DEVICESERVICE']._serialized_start=1391
-  _globals['_DEVICESERVICE']._serialized_end=1798
+  _globals['_LISTDEVICESREQUEST']._serialized_start=140
+  _globals['_LISTDEVICESREQUEST']._serialized_end=160
+  _globals['_LISTDEVICESRESPONSE']._serialized_start=162
+  _globals['_LISTDEVICESRESPONSE']._serialized_end=251
+  _globals['_CONNECTDEVICEREQUEST']._serialized_start=253
+  _globals['_CONNECTDEVICEREQUEST']._serialized_end=295
+  _globals['_CONNECTDEVICERESPONSE']._serialized_start=298
+  _globals['_CONNECTDEVICERESPONSE']._serialized_end=437
+  _globals['_RECONNECTDEVICEREQUEST']._serialized_start=439
+  _globals['_RECONNECTDEVICEREQUEST']._serialized_end=492
+  _globals['_RECONNECTDEVICERESPONSE']._serialized_start=494
+  _globals['_RECONNECTDEVICERESPONSE']._serialized_end=585
+  _globals['_EXECUTEVOLUMEREQUEST']._serialized_start=588
+  _globals['_EXECUTEVOLUMEREQUEST']._serialized_end=857
+  _globals['_EXECUTEVOLUMERESPONSE']._serialized_start=860
+  _globals['_EXECUTEVOLUMERESPONSE']._serialized_end=1298
+  _globals['_DEVICE']._serialized_start=1301
+  _globals['_DEVICE']._serialized_end=2005
+  _globals['_CAPABILITYSNAPSHOT']._serialized_start=2008
+  _globals['_CAPABILITYSNAPSHOT']._serialized_end=2141
+  _globals['_TRANSPORTPROFILE']._serialized_start=2144
+  _globals['_TRANSPORTPROFILE']._serialized_end=2476
+  _globals['_ONBOARDINGRUNG']._serialized_start=2479
+  _globals['_ONBOARDINGRUNG']._serialized_end=2626
+  _globals['_DEVICESERVICE']._serialized_start=2629
+  _globals['_DEVICESERVICE']._serialized_end=3167
 # @@protoc_insertion_point(module_scope)

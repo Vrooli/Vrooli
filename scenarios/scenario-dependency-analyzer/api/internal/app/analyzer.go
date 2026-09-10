@@ -17,7 +17,7 @@ import (
 
 // Analyzer coordinates scenario analysis capabilities and shared state.
 type Analyzer struct {
-	cfg       appconfig.Config
+	cfg       appconfig.RuntimeConfig
 	db        *sql.DB
 	store     *store.Store
 	detector  *detection.Detector
@@ -37,7 +37,7 @@ func WithSeams(s *seams.Dependencies) AnalyzerOption {
 }
 
 // NewAnalyzer constructs an Analyzer bound to the provided configuration and database handle.
-func NewAnalyzer(cfg appconfig.Config, db *sql.DB, workspace *scenarioWorkspace, opts ...AnalyzerOption) *Analyzer {
+func NewAnalyzer(cfg appconfig.RuntimeConfig, db *sql.DB, workspace *scenarioWorkspace, opts ...AnalyzerOption) *Analyzer {
 	var backingStore *store.Store
 	if db != nil {
 		backingStore = store.New(db)

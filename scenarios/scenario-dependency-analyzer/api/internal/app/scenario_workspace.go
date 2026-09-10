@@ -16,7 +16,7 @@ type scenarioWorkspace struct {
 
 // newScenarioWorkspace builds a workspace rooted at the configured scenarios directory.
 // Falls back to environment-loaded config to remain compatible with legacy callers.
-func newScenarioWorkspace(cfg appconfig.Config) *scenarioWorkspace {
+func newScenarioWorkspace(cfg appconfig.RuntimeConfig) *scenarioWorkspace {
 	root := cfg.ScenariosDir
 	if root == "" {
 		root = appconfig.Load().ScenariosDir

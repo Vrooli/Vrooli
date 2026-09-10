@@ -36,6 +36,10 @@ type WorkflowReconcileReport struct {
 func (s *Service) ReconcileWorkflowExecutions(ctx context.Context) (WorkflowReconcileReport, error) {
 	s.mu.Lock()
 	reader := s.workflowStateReader
+	if s.reconcileTracker == nil {
+		s.reconcileTracker = newReconcileTracker()
+	}
+	tracker := s.reconcileTracker
 	records, err := s.store.Load()
 	s.mu.Unlock()
 	if err != nil {
@@ -45,10 +49,19 @@ func (s *Service) ReconcileWorkflowExecutions(ctx context.Context) (WorkflowReco
 	if reader == nil {
 		return report, nil
 	}
+	// Several records can share one workflow (retries, follow-ups); trace each
+	// workflow at most once per pass and let every record read the same answer.
+	type observed struct {
+		state agentmanager.WorkflowExecutionState
+		err   error
+	}
+	traced := make(map[string]observed)
+	live := make(map[string]struct{})
 	for _, candidate := range records {
 		if !isInspectableStatus(candidate.Status) {
 			continue
 		}
+		live[candidate.ExecutionID] = struct{}{}
 		workflowID := strings.TrimSpace(candidate.OpWorkflowID)
 		if workflowID == "" {
 			if correlation, correlationErr := s.transitionCorrelation(candidate); correlationErr == nil {
@@ -59,9 +72,18 @@ func (s *Service) ReconcileWorkflowExecutions(ctx context.Context) (WorkflowReco
 			report.Skipped = append(report.Skipped, candidate.ExecutionID)
 			continue
 		}
-		stateCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		state, stateErr := reader.GetWorkflowExecutionState(stateCtx, workflowID)
-		cancel()
+		if !tracker.due(candidate, workflowID) {
+			continue
+		}
+		result, ok := traced[workflowID]
+		if !ok {
+			stateCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			result.state, result.err = reader.GetWorkflowExecutionState(stateCtx, workflowID)
+			cancel()
+			traced[workflowID] = result
+		}
+		tracker.observe(candidate, workflowID, result.state, result.err)
+		state, stateErr := result.state, result.err
 		if stateErr != nil {
 			report.Errors = append(report.Errors, candidate.ExecutionID+": "+stateErr.Error())
 			continue
@@ -79,6 +101,7 @@ func (s *Service) ReconcileWorkflowExecutions(ctx context.Context) (WorkflowReco
 			report.Reconciled = append(report.Reconciled, candidate.ExecutionID)
 		}
 	}
+	tracker.retain(live)
 	return report, nil
 }
 
@@ -192,6 +215,11 @@ func (s *Service) saveReconciledProjection(record Record) error {
 	for i := range records {
 		if records[i].ExecutionID != record.ExecutionID {
 			continue
+		}
+		// Completion projection can run outside the mutex. A cancellation
+		// accepted since that snapshot revoked its authority to replace state.
+		if records[i].Cancellation != nil {
+			return nil
 		}
 		record.UpdatedAt = nowRFC3339()
 		records[i] = record

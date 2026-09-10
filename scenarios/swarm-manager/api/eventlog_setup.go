@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"swarm-manager/internal/development"
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/stats"
@@ -61,6 +62,7 @@ func (s *Server) initEventLog() {
 	// the "primary schema application" seam storage-manager requires.
 	if err := database.EnsureSchemas(context.Background(), eventDB.Primary(),
 		database.SchemaProviderFunc(eventlog.Schema),
+		database.SchemaProviderFunc(development.Schema),
 	); err != nil {
 		slog.Error("event log schema init error", "error", err)
 		s.eventDB = eventDB

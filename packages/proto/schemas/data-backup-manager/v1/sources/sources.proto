@@ -50,4 +50,8 @@ enum SourceKind {
 
   // An object-storage bucket/prefix (S3/MinIO), captured by mirroring objects.
   SOURCE_KIND_OBJECT_STORAGE = 6;
+
+  // Staged workspace with a versioned metadata manifest. Detects observed
+  // source drift; does not assert an atomic snapshot of concurrent writers.
+  SOURCE_KIND_WORKSPACE_CHECKPOINT = 7;
 }

@@ -22,17 +22,2358 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type GetRepoStatusRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Absolute path on disk; may be a main or linked worktree of the repo.
-	RepoPath      string `protobuf:"bytes,1,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+type RepoRecord struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	RemoteUrl     string                 `protobuf:"bytes,4,opt,name=remote_url,json=remoteUrl,proto3" json:"remote_url,omitempty"`
+	AddedAt       string                 `protobuf:"bytes,5,opt,name=added_at,json=addedAt,proto3" json:"added_at,omitempty"`
+	LastOpenedAt  string                 `protobuf:"bytes,6,opt,name=last_opened_at,json=lastOpenedAt,proto3" json:"last_opened_at,omitempty"`
+	Favorite      bool                   `protobuf:"varint,7,opt,name=favorite,proto3" json:"favorite,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *RepoRecord) Reset() {
+	*x = RepoRecord{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RepoRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RepoRecord) ProtoMessage() {}
+
+func (x *RepoRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RepoRecord.ProtoReflect.Descriptor instead.
+func (*RepoRecord) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *RepoRecord) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *RepoRecord) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *RepoRecord) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *RepoRecord) GetRemoteUrl() string {
+	if x != nil {
+		return x.RemoteUrl
+	}
+	return ""
+}
+
+func (x *RepoRecord) GetAddedAt() string {
+	if x != nil {
+		return x.AddedAt
+	}
+	return ""
+}
+
+func (x *RepoRecord) GetLastOpenedAt() string {
+	if x != nil {
+		return x.LastOpenedAt
+	}
+	return ""
+}
+
+func (x *RepoRecord) GetFavorite() bool {
+	if x != nil {
+		return x.Favorite
+	}
+	return false
+}
+
+type ListRepositoriesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRepositoriesRequest) Reset() {
+	*x = ListRepositoriesRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRepositoriesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRepositoriesRequest) ProtoMessage() {}
+
+func (x *ListRepositoriesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRepositoriesRequest.ProtoReflect.Descriptor instead.
+func (*ListRepositoriesRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{1}
+}
+
+type ListRepositoriesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Repos         []*RepoRecord          `protobuf:"bytes,1,rep,name=repos,proto3" json:"repos,omitempty"`
+	ActiveId      int64                  `protobuf:"varint,2,opt,name=active_id,json=activeId,proto3" json:"active_id,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRepositoriesResponse) Reset() {
+	*x = ListRepositoriesResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRepositoriesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRepositoriesResponse) ProtoMessage() {}
+
+func (x *ListRepositoriesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRepositoriesResponse.ProtoReflect.Descriptor instead.
+func (*ListRepositoriesResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ListRepositoriesResponse) GetRepos() []*RepoRecord {
+	if x != nil {
+		return x.Repos
+	}
+	return nil
+}
+
+func (x *ListRepositoriesResponse) GetActiveId() int64 {
+	if x != nil {
+		return x.ActiveId
+	}
+	return 0
+}
+
+func (x *ListRepositoriesResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type GetActiveRepositoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetActiveRepositoryRequest) Reset() {
+	*x = GetActiveRepositoryRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetActiveRepositoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetActiveRepositoryRequest) ProtoMessage() {}
+
+func (x *GetActiveRepositoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetActiveRepositoryRequest.ProtoReflect.Descriptor instead.
+func (*GetActiveRepositoryRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{3}
+}
+
+type GetActiveRepositoryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Repo          *RepoRecord            `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetActiveRepositoryResponse) Reset() {
+	*x = GetActiveRepositoryResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetActiveRepositoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetActiveRepositoryResponse) ProtoMessage() {}
+
+func (x *GetActiveRepositoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetActiveRepositoryResponse.ProtoReflect.Descriptor instead.
+func (*GetActiveRepositoryResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetActiveRepositoryResponse) GetRepo() *RepoRecord {
+	if x != nil {
+		return x.Repo
+	}
+	return nil
+}
+
+func (x *GetActiveRepositoryResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type GetRepoHistoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	IncludeFiles  bool                   `protobuf:"varint,3,opt,name=include_files,json=includeFiles,proto3" json:"include_files,omitempty"`
+	IncludeChecks bool                   `protobuf:"varint,4,opt,name=include_checks,json=includeChecks,proto3" json:"include_checks,omitempty"`
+	GrepPattern   string                 `protobuf:"bytes,5,opt,name=grep_pattern,json=grepPattern,proto3" json:"grep_pattern,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRepoHistoryRequest) Reset() {
+	*x = GetRepoHistoryRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRepoHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRepoHistoryRequest) ProtoMessage() {}
+
+func (x *GetRepoHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRepoHistoryRequest.ProtoReflect.Descriptor instead.
+func (*GetRepoHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetRepoHistoryRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *GetRepoHistoryRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *GetRepoHistoryRequest) GetIncludeFiles() bool {
+	if x != nil {
+		return x.IncludeFiles
+	}
+	return false
+}
+
+func (x *GetRepoHistoryRequest) GetIncludeChecks() bool {
+	if x != nil {
+		return x.IncludeChecks
+	}
+	return false
+}
+
+func (x *GetRepoHistoryRequest) GetGrepPattern() string {
+	if x != nil {
+		return x.GrepPattern
+	}
+	return ""
+}
+
+type CommitCheckRun struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Command       string                 `protobuf:"bytes,3,opt,name=command,proto3" json:"command,omitempty"`
+	ExitCode      int32                  `protobuf:"varint,4,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	Summary       string                 `protobuf:"bytes,5,opt,name=summary,proto3" json:"summary,omitempty"`
+	Stdout        string                 `protobuf:"bytes,6,opt,name=stdout,proto3" json:"stdout,omitempty"`
+	Stderr        string                 `protobuf:"bytes,7,opt,name=stderr,proto3" json:"stderr,omitempty"`
+	DurationMs    int64                  `protobuf:"varint,8,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,9,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CommitCheckRun) Reset() {
+	*x = CommitCheckRun{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommitCheckRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommitCheckRun) ProtoMessage() {}
+
+func (x *CommitCheckRun) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommitCheckRun.ProtoReflect.Descriptor instead.
+func (*CommitCheckRun) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *CommitCheckRun) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *CommitCheckRun) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *CommitCheckRun) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+func (x *CommitCheckRun) GetExitCode() int32 {
+	if x != nil {
+		return x.ExitCode
+	}
+	return 0
+}
+
+func (x *CommitCheckRun) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *CommitCheckRun) GetStdout() string {
+	if x != nil {
+		return x.Stdout
+	}
+	return ""
+}
+
+func (x *CommitCheckRun) GetStderr() string {
+	if x != nil {
+		return x.Stderr
+	}
+	return ""
+}
+
+func (x *CommitCheckRun) GetDurationMs() int64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *CommitCheckRun) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type RepoHistoryEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Hash          string                 `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
+	Author        string                 `protobuf:"bytes,2,opt,name=author,proto3" json:"author,omitempty"`
+	Date          string                 `protobuf:"bytes,3,opt,name=date,proto3" json:"date,omitempty"`
+	Subject       string                 `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
+	Files         []string               `protobuf:"bytes,5,rep,name=files,proto3" json:"files,omitempty"`
+	Checks        []*CommitCheckRun      `protobuf:"bytes,6,rep,name=checks,proto3" json:"checks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RepoHistoryEntry) Reset() {
+	*x = RepoHistoryEntry{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RepoHistoryEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RepoHistoryEntry) ProtoMessage() {}
+
+func (x *RepoHistoryEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RepoHistoryEntry.ProtoReflect.Descriptor instead.
+func (*RepoHistoryEntry) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *RepoHistoryEntry) GetHash() string {
+	if x != nil {
+		return x.Hash
+	}
+	return ""
+}
+
+func (x *RepoHistoryEntry) GetAuthor() string {
+	if x != nil {
+		return x.Author
+	}
+	return ""
+}
+
+func (x *RepoHistoryEntry) GetDate() string {
+	if x != nil {
+		return x.Date
+	}
+	return ""
+}
+
+func (x *RepoHistoryEntry) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *RepoHistoryEntry) GetFiles() []string {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *RepoHistoryEntry) GetChecks() []*CommitCheckRun {
+	if x != nil {
+		return x.Checks
+	}
+	return nil
+}
+
+type GetRepoHistoryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepoDir       string                 `protobuf:"bytes,1,opt,name=repo_dir,json=repoDir,proto3" json:"repo_dir,omitempty"`
+	Lines         []string               `protobuf:"bytes,2,rep,name=lines,proto3" json:"lines,omitempty"`
+	Entries       []*RepoHistoryEntry    `protobuf:"bytes,3,rep,name=entries,proto3" json:"entries,omitempty"`
+	Limit         int32                  `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	GrepPattern   string                 `protobuf:"bytes,5,opt,name=grep_pattern,json=grepPattern,proto3" json:"grep_pattern,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,6,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRepoHistoryResponse) Reset() {
+	*x = GetRepoHistoryResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRepoHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRepoHistoryResponse) ProtoMessage() {}
+
+func (x *GetRepoHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRepoHistoryResponse.ProtoReflect.Descriptor instead.
+func (*GetRepoHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetRepoHistoryResponse) GetRepoDir() string {
+	if x != nil {
+		return x.RepoDir
+	}
+	return ""
+}
+
+func (x *GetRepoHistoryResponse) GetLines() []string {
+	if x != nil {
+		return x.Lines
+	}
+	return nil
+}
+
+func (x *GetRepoHistoryResponse) GetEntries() []*RepoHistoryEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+func (x *GetRepoHistoryResponse) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *GetRepoHistoryResponse) GetGrepPattern() string {
+	if x != nil {
+		return x.GrepPattern
+	}
+	return ""
+}
+
+func (x *GetRepoHistoryResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type GetApprovedChangesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Paths         []string               `protobuf:"bytes,2,rep,name=paths,proto3" json:"paths,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetApprovedChangesRequest) Reset() {
+	*x = GetApprovedChangesRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetApprovedChangesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetApprovedChangesRequest) ProtoMessage() {}
+
+func (x *GetApprovedChangesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetApprovedChangesRequest.ProtoReflect.Descriptor instead.
+func (*GetApprovedChangesRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetApprovedChangesRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *GetApprovedChangesRequest) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+type ApprovedChangeFile struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RelativePath      string                 `protobuf:"bytes,1,opt,name=relative_path,json=relativePath,proto3" json:"relative_path,omitempty"`
+	Status            string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	SandboxId         string                 `protobuf:"bytes,3,opt,name=sandbox_id,json=sandboxId,proto3" json:"sandbox_id,omitempty"`
+	SandboxOwner      string                 `protobuf:"bytes,4,opt,name=sandbox_owner,json=sandboxOwner,proto3" json:"sandbox_owner,omitempty"`
+	ChangeType        string                 `protobuf:"bytes,5,opt,name=change_type,json=changeType,proto3" json:"change_type,omitempty"`
+	AgentManagerRunId string                 `protobuf:"bytes,6,opt,name=agent_manager_run_id,json=agentManagerRunId,proto3" json:"agent_manager_run_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ApprovedChangeFile) Reset() {
+	*x = ApprovedChangeFile{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApprovedChangeFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApprovedChangeFile) ProtoMessage() {}
+
+func (x *ApprovedChangeFile) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApprovedChangeFile.ProtoReflect.Descriptor instead.
+func (*ApprovedChangeFile) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ApprovedChangeFile) GetRelativePath() string {
+	if x != nil {
+		return x.RelativePath
+	}
+	return ""
+}
+
+func (x *ApprovedChangeFile) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ApprovedChangeFile) GetSandboxId() string {
+	if x != nil {
+		return x.SandboxId
+	}
+	return ""
+}
+
+func (x *ApprovedChangeFile) GetSandboxOwner() string {
+	if x != nil {
+		return x.SandboxOwner
+	}
+	return ""
+}
+
+func (x *ApprovedChangeFile) GetChangeType() string {
+	if x != nil {
+		return x.ChangeType
+	}
+	return ""
+}
+
+func (x *ApprovedChangeFile) GetAgentManagerRunId() string {
+	if x != nil {
+		return x.AgentManagerRunId
+	}
+	return ""
+}
+
+type GetApprovedChangesResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Available        bool                   `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
+	CommittableFiles int32                  `protobuf:"varint,2,opt,name=committable_files,json=committableFiles,proto3" json:"committable_files,omitempty"`
+	SuggestedMessage string                 `protobuf:"bytes,3,opt,name=suggested_message,json=suggestedMessage,proto3" json:"suggested_message,omitempty"`
+	Files            []*ApprovedChangeFile  `protobuf:"bytes,4,rep,name=files,proto3" json:"files,omitempty"`
+	Warning          string                 `protobuf:"bytes,5,opt,name=warning,proto3" json:"warning,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *GetApprovedChangesResponse) Reset() {
+	*x = GetApprovedChangesResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetApprovedChangesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetApprovedChangesResponse) ProtoMessage() {}
+
+func (x *GetApprovedChangesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetApprovedChangesResponse.ProtoReflect.Descriptor instead.
+func (*GetApprovedChangesResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetApprovedChangesResponse) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+func (x *GetApprovedChangesResponse) GetCommittableFiles() int32 {
+	if x != nil {
+		return x.CommittableFiles
+	}
+	return 0
+}
+
+func (x *GetApprovedChangesResponse) GetSuggestedMessage() string {
+	if x != nil {
+		return x.SuggestedMessage
+	}
+	return ""
+}
+
+func (x *GetApprovedChangesResponse) GetFiles() []*ApprovedChangeFile {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *GetApprovedChangesResponse) GetWarning() string {
+	if x != nil {
+		return x.Warning
+	}
+	return ""
+}
+
+type GetProvenanceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProvenanceRequest) Reset() {
+	*x = GetProvenanceRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProvenanceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProvenanceRequest) ProtoMessage() {}
+
+func (x *GetProvenanceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProvenanceRequest.ProtoReflect.Descriptor instead.
+func (*GetProvenanceRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetProvenanceRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+type ProvenanceFile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FilePath      string                 `protobuf:"bytes,1,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
+	RelativePath  string                 `protobuf:"bytes,2,opt,name=relative_path,json=relativePath,proto3" json:"relative_path,omitempty"`
+	ChangeType    string                 `protobuf:"bytes,3,opt,name=change_type,json=changeType,proto3" json:"change_type,omitempty"`
+	AppliedAt     string                 `protobuf:"bytes,4,opt,name=applied_at,json=appliedAt,proto3" json:"applied_at,omitempty"`
+	Visibility    string                 `protobuf:"bytes,5,opt,name=visibility,proto3" json:"visibility,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProvenanceFile) Reset() {
+	*x = ProvenanceFile{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProvenanceFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProvenanceFile) ProtoMessage() {}
+
+func (x *ProvenanceFile) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProvenanceFile.ProtoReflect.Descriptor instead.
+func (*ProvenanceFile) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ProvenanceFile) GetFilePath() string {
+	if x != nil {
+		return x.FilePath
+	}
+	return ""
+}
+
+func (x *ProvenanceFile) GetRelativePath() string {
+	if x != nil {
+		return x.RelativePath
+	}
+	return ""
+}
+
+func (x *ProvenanceFile) GetChangeType() string {
+	if x != nil {
+		return x.ChangeType
+	}
+	return ""
+}
+
+func (x *ProvenanceFile) GetAppliedAt() string {
+	if x != nil {
+		return x.AppliedAt
+	}
+	return ""
+}
+
+func (x *ProvenanceFile) GetVisibility() string {
+	if x != nil {
+		return x.Visibility
+	}
+	return ""
+}
+
+type ProvenanceRunGroup struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	RunId           string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	SandboxId       string                 `protobuf:"bytes,2,opt,name=sandbox_id,json=sandboxId,proto3" json:"sandbox_id,omitempty"`
+	SandboxOwner    string                 `protobuf:"bytes,3,opt,name=sandbox_owner,json=sandboxOwner,proto3" json:"sandbox_owner,omitempty"`
+	Files           []*ProvenanceFile      `protobuf:"bytes,4,rep,name=files,proto3" json:"files,omitempty"`
+	LatestAppliedAt string                 `protobuf:"bytes,5,opt,name=latest_applied_at,json=latestAppliedAt,proto3" json:"latest_applied_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ProvenanceRunGroup) Reset() {
+	*x = ProvenanceRunGroup{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProvenanceRunGroup) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProvenanceRunGroup) ProtoMessage() {}
+
+func (x *ProvenanceRunGroup) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProvenanceRunGroup.ProtoReflect.Descriptor instead.
+func (*ProvenanceRunGroup) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ProvenanceRunGroup) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *ProvenanceRunGroup) GetSandboxId() string {
+	if x != nil {
+		return x.SandboxId
+	}
+	return ""
+}
+
+func (x *ProvenanceRunGroup) GetSandboxOwner() string {
+	if x != nil {
+		return x.SandboxOwner
+	}
+	return ""
+}
+
+func (x *ProvenanceRunGroup) GetFiles() []*ProvenanceFile {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *ProvenanceRunGroup) GetLatestAppliedAt() string {
+	if x != nil {
+		return x.LatestAppliedAt
+	}
+	return ""
+}
+
+type GetProvenanceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Available     bool                   `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
+	RunGroups     []*ProvenanceRunGroup  `protobuf:"bytes,2,rep,name=run_groups,json=runGroups,proto3" json:"run_groups,omitempty"`
+	Warning       string                 `protobuf:"bytes,3,opt,name=warning,proto3" json:"warning,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProvenanceResponse) Reset() {
+	*x = GetProvenanceResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProvenanceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProvenanceResponse) ProtoMessage() {}
+
+func (x *GetProvenanceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProvenanceResponse.ProtoReflect.Descriptor instead.
+func (*GetProvenanceResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetProvenanceResponse) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+func (x *GetProvenanceResponse) GetRunGroups() []*ProvenanceRunGroup {
+	if x != nil {
+		return x.RunGroups
+	}
+	return nil
+}
+
+func (x *GetProvenanceResponse) GetWarning() string {
+	if x != nil {
+		return x.Warning
+	}
+	return ""
+}
+
+type GetBlameRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Paths         []string               `protobuf:"bytes,2,rep,name=paths,proto3" json:"paths,omitempty"`
+	Revision      string                 `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	StartLine     int32                  `protobuf:"varint,4,opt,name=start_line,json=startLine,proto3" json:"start_line,omitempty"`
+	EndLine       int32                  `protobuf:"varint,5,opt,name=end_line,json=endLine,proto3" json:"end_line,omitempty"`
+	MaxPaths      int32                  `protobuf:"varint,6,opt,name=max_paths,json=maxPaths,proto3" json:"max_paths,omitempty"`
+	MaxLines      int32                  `protobuf:"varint,7,opt,name=max_lines,json=maxLines,proto3" json:"max_lines,omitempty"`
+	MaxBytes      int32                  `protobuf:"varint,8,opt,name=max_bytes,json=maxBytes,proto3" json:"max_bytes,omitempty"`
+	Enrich        bool                   `protobuf:"varint,9,opt,name=enrich,proto3" json:"enrich,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBlameRequest) Reset() {
+	*x = GetBlameRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBlameRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBlameRequest) ProtoMessage() {}
+
+func (x *GetBlameRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBlameRequest.ProtoReflect.Descriptor instead.
+func (*GetBlameRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetBlameRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *GetBlameRequest) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *GetBlameRequest) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+func (x *GetBlameRequest) GetStartLine() int32 {
+	if x != nil {
+		return x.StartLine
+	}
+	return 0
+}
+
+func (x *GetBlameRequest) GetEndLine() int32 {
+	if x != nil {
+		return x.EndLine
+	}
+	return 0
+}
+
+func (x *GetBlameRequest) GetMaxPaths() int32 {
+	if x != nil {
+		return x.MaxPaths
+	}
+	return 0
+}
+
+func (x *GetBlameRequest) GetMaxLines() int32 {
+	if x != nil {
+		return x.MaxLines
+	}
+	return 0
+}
+
+func (x *GetBlameRequest) GetMaxBytes() int32 {
+	if x != nil {
+		return x.MaxBytes
+	}
+	return 0
+}
+
+func (x *GetBlameRequest) GetEnrich() bool {
+	if x != nil {
+		return x.Enrich
+	}
+	return false
+}
+
+type BlameLine struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Line          int32                  `protobuf:"varint,1,opt,name=line,proto3" json:"line,omitempty"`
+	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	Commit        string                 `protobuf:"bytes,3,opt,name=commit,proto3" json:"commit,omitempty"`
+	Author        string                 `protobuf:"bytes,4,opt,name=author,proto3" json:"author,omitempty"`
+	AuthorTime    string                 `protobuf:"bytes,5,opt,name=author_time,json=authorTime,proto3" json:"author_time,omitempty"`
+	Subject       string                 `protobuf:"bytes,6,opt,name=subject,proto3" json:"subject,omitempty"`
+	OriginalLine  int32                  `protobuf:"varint,7,opt,name=original_line,json=originalLine,proto3" json:"original_line,omitempty"`
+	OriginalPath  string                 `protobuf:"bytes,8,opt,name=original_path,json=originalPath,proto3" json:"original_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BlameLine) Reset() {
+	*x = BlameLine{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BlameLine) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BlameLine) ProtoMessage() {}
+
+func (x *BlameLine) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BlameLine.ProtoReflect.Descriptor instead.
+func (*BlameLine) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *BlameLine) GetLine() int32 {
+	if x != nil {
+		return x.Line
+	}
+	return 0
+}
+
+func (x *BlameLine) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *BlameLine) GetCommit() string {
+	if x != nil {
+		return x.Commit
+	}
+	return ""
+}
+
+func (x *BlameLine) GetAuthor() string {
+	if x != nil {
+		return x.Author
+	}
+	return ""
+}
+
+func (x *BlameLine) GetAuthorTime() string {
+	if x != nil {
+		return x.AuthorTime
+	}
+	return ""
+}
+
+func (x *BlameLine) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *BlameLine) GetOriginalLine() int32 {
+	if x != nil {
+		return x.OriginalLine
+	}
+	return 0
+}
+
+func (x *BlameLine) GetOriginalPath() string {
+	if x != nil {
+		return x.OriginalPath
+	}
+	return ""
+}
+
+type ProvenanceWorkReference struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Kind              string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Id                string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Revision          string                 `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	Relationship      string                 `protobuf:"bytes,4,opt,name=relationship,proto3" json:"relationship,omitempty"`
+	Verified          bool                   `protobuf:"varint,5,opt,name=verified,proto3" json:"verified,omitempty"`
+	Visibility        string                 `protobuf:"bytes,6,opt,name=visibility,proto3" json:"visibility,omitempty"`
+	State             string                 `protobuf:"bytes,7,opt,name=state,proto3" json:"state,omitempty"`
+	UnavailableReason string                 `protobuf:"bytes,8,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ProvenanceWorkReference) Reset() {
+	*x = ProvenanceWorkReference{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProvenanceWorkReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProvenanceWorkReference) ProtoMessage() {}
+
+func (x *ProvenanceWorkReference) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProvenanceWorkReference.ProtoReflect.Descriptor instead.
+func (*ProvenanceWorkReference) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ProvenanceWorkReference) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ProvenanceWorkReference) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ProvenanceWorkReference) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+func (x *ProvenanceWorkReference) GetRelationship() string {
+	if x != nil {
+		return x.Relationship
+	}
+	return ""
+}
+
+func (x *ProvenanceWorkReference) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
+}
+
+func (x *ProvenanceWorkReference) GetVisibility() string {
+	if x != nil {
+		return x.Visibility
+	}
+	return ""
+}
+
+func (x *ProvenanceWorkReference) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *ProvenanceWorkReference) GetUnavailableReason() string {
+	if x != nil {
+		return x.UnavailableReason
+	}
+	return ""
+}
+
+type BlameEvidence struct {
+	state              protoimpl.MessageState     `protogen:"open.v1"`
+	RunId              string                     `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	SandboxId          string                     `protobuf:"bytes,2,opt,name=sandbox_id,json=sandboxId,proto3" json:"sandbox_id,omitempty"`
+	ApplicationReceipt string                     `protobuf:"bytes,3,opt,name=application_receipt,json=applicationReceipt,proto3" json:"application_receipt,omitempty"`
+	ContentDigest      string                     `protobuf:"bytes,4,opt,name=content_digest,json=contentDigest,proto3" json:"content_digest,omitempty"`
+	CommitId           string                     `protobuf:"bytes,5,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
+	Visibility         string                     `protobuf:"bytes,6,opt,name=visibility,proto3" json:"visibility,omitempty"`
+	CommitState        string                     `protobuf:"bytes,7,opt,name=commit_state,json=commitState,proto3" json:"commit_state,omitempty"`
+	RunOutcome         string                     `protobuf:"bytes,8,opt,name=run_outcome,json=runOutcome,proto3" json:"run_outcome,omitempty"`
+	ConversationId     string                     `protobuf:"bytes,9,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	CostUsd            float64                    `protobuf:"fixed64,10,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
+	CommittedAt        string                     `protobuf:"bytes,11,opt,name=committed_at,json=committedAt,proto3" json:"committed_at,omitempty"`
+	Unavailable        []string                   `protobuf:"bytes,12,rep,name=unavailable,proto3" json:"unavailable,omitempty"`
+	WorkReferences     []*ProvenanceWorkReference `protobuf:"bytes,13,rep,name=work_references,json=workReferences,proto3" json:"work_references,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *BlameEvidence) Reset() {
+	*x = BlameEvidence{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BlameEvidence) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BlameEvidence) ProtoMessage() {}
+
+func (x *BlameEvidence) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BlameEvidence.ProtoReflect.Descriptor instead.
+func (*BlameEvidence) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *BlameEvidence) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *BlameEvidence) GetSandboxId() string {
+	if x != nil {
+		return x.SandboxId
+	}
+	return ""
+}
+
+func (x *BlameEvidence) GetApplicationReceipt() string {
+	if x != nil {
+		return x.ApplicationReceipt
+	}
+	return ""
+}
+
+func (x *BlameEvidence) GetContentDigest() string {
+	if x != nil {
+		return x.ContentDigest
+	}
+	return ""
+}
+
+func (x *BlameEvidence) GetCommitId() string {
+	if x != nil {
+		return x.CommitId
+	}
+	return ""
+}
+
+func (x *BlameEvidence) GetVisibility() string {
+	if x != nil {
+		return x.Visibility
+	}
+	return ""
+}
+
+func (x *BlameEvidence) GetCommitState() string {
+	if x != nil {
+		return x.CommitState
+	}
+	return ""
+}
+
+func (x *BlameEvidence) GetRunOutcome() string {
+	if x != nil {
+		return x.RunOutcome
+	}
+	return ""
+}
+
+func (x *BlameEvidence) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *BlameEvidence) GetCostUsd() float64 {
+	if x != nil {
+		return x.CostUsd
+	}
+	return 0
+}
+
+func (x *BlameEvidence) GetCommittedAt() string {
+	if x != nil {
+		return x.CommittedAt
+	}
+	return ""
+}
+
+func (x *BlameEvidence) GetUnavailable() []string {
+	if x != nil {
+		return x.Unavailable
+	}
+	return nil
+}
+
+func (x *BlameEvidence) GetWorkReferences() []*ProvenanceWorkReference {
+	if x != nil {
+		return x.WorkReferences
+	}
+	return nil
+}
+
+type BlameFile struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Path             string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Status           string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Lines            []*BlameLine           `protobuf:"bytes,3,rep,name=lines,proto3" json:"lines,omitempty"`
+	ContentDigest    string                 `protobuf:"bytes,4,opt,name=content_digest,json=contentDigest,proto3" json:"content_digest,omitempty"`
+	Reason           string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	Standing         string                 `protobuf:"bytes,6,opt,name=standing,proto3" json:"standing,omitempty"`
+	DowngradeReasons []string               `protobuf:"bytes,7,rep,name=downgrade_reasons,json=downgradeReasons,proto3" json:"downgrade_reasons,omitempty"`
+	Evidence         []*BlameEvidence       `protobuf:"bytes,8,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *BlameFile) Reset() {
+	*x = BlameFile{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BlameFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BlameFile) ProtoMessage() {}
+
+func (x *BlameFile) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BlameFile.ProtoReflect.Descriptor instead.
+func (*BlameFile) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *BlameFile) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *BlameFile) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *BlameFile) GetLines() []*BlameLine {
+	if x != nil {
+		return x.Lines
+	}
+	return nil
+}
+
+func (x *BlameFile) GetContentDigest() string {
+	if x != nil {
+		return x.ContentDigest
+	}
+	return ""
+}
+
+func (x *BlameFile) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *BlameFile) GetStanding() string {
+	if x != nil {
+		return x.Standing
+	}
+	return ""
+}
+
+func (x *BlameFile) GetDowngradeReasons() []string {
+	if x != nil {
+		return x.DowngradeReasons
+	}
+	return nil
+}
+
+func (x *BlameFile) GetEvidence() []*BlameEvidence {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+type ProvenanceChangeBundle struct {
+	state          protoimpl.MessageState     `protogen:"open.v1"`
+	RunId          string                     `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	SandboxId      string                     `protobuf:"bytes,2,opt,name=sandbox_id,json=sandboxId,proto3" json:"sandbox_id,omitempty"`
+	Files          []string                   `protobuf:"bytes,3,rep,name=files,proto3" json:"files,omitempty"`
+	RunOutcome     string                     `protobuf:"bytes,4,opt,name=run_outcome,json=runOutcome,proto3" json:"run_outcome,omitempty"`
+	ConversationId string                     `protobuf:"bytes,5,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	CostUsd        float64                    `protobuf:"fixed64,6,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
+	WorkReferences []*ProvenanceWorkReference `protobuf:"bytes,7,rep,name=work_references,json=workReferences,proto3" json:"work_references,omitempty"`
+	Gaps           []string                   `protobuf:"bytes,8,rep,name=gaps,proto3" json:"gaps,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ProvenanceChangeBundle) Reset() {
+	*x = ProvenanceChangeBundle{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProvenanceChangeBundle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProvenanceChangeBundle) ProtoMessage() {}
+
+func (x *ProvenanceChangeBundle) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProvenanceChangeBundle.ProtoReflect.Descriptor instead.
+func (*ProvenanceChangeBundle) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ProvenanceChangeBundle) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *ProvenanceChangeBundle) GetSandboxId() string {
+	if x != nil {
+		return x.SandboxId
+	}
+	return ""
+}
+
+func (x *ProvenanceChangeBundle) GetFiles() []string {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *ProvenanceChangeBundle) GetRunOutcome() string {
+	if x != nil {
+		return x.RunOutcome
+	}
+	return ""
+}
+
+func (x *ProvenanceChangeBundle) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *ProvenanceChangeBundle) GetCostUsd() float64 {
+	if x != nil {
+		return x.CostUsd
+	}
+	return 0
+}
+
+func (x *ProvenanceChangeBundle) GetWorkReferences() []*ProvenanceWorkReference {
+	if x != nil {
+		return x.WorkReferences
+	}
+	return nil
+}
+
+func (x *ProvenanceChangeBundle) GetGaps() []string {
+	if x != nil {
+		return x.Gaps
+	}
+	return nil
+}
+
+type GetBlameResponse struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Revision      string                    `protobuf:"bytes,1,opt,name=revision,proto3" json:"revision,omitempty"`
+	Files         []*BlameFile              `protobuf:"bytes,2,rep,name=files,proto3" json:"files,omitempty"`
+	Truncated     bool                      `protobuf:"varint,3,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	Warnings      []string                  `protobuf:"bytes,4,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	ChangeBundles []*ProvenanceChangeBundle `protobuf:"bytes,5,rep,name=change_bundles,json=changeBundles,proto3" json:"change_bundles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBlameResponse) Reset() {
+	*x = GetBlameResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBlameResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBlameResponse) ProtoMessage() {}
+
+func (x *GetBlameResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBlameResponse.ProtoReflect.Descriptor instead.
+func (*GetBlameResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetBlameResponse) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+func (x *GetBlameResponse) GetFiles() []*BlameFile {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *GetBlameResponse) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+func (x *GetBlameResponse) GetWarnings() []string {
+	if x != nil {
+		return x.Warnings
+	}
+	return nil
+}
+
+func (x *GetBlameResponse) GetChangeBundles() []*ProvenanceChangeBundle {
+	if x != nil {
+		return x.ChangeBundles
+	}
+	return nil
+}
+
+type SearchProvenanceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  int64                  `protobuf:"varint,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Query         string                 `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Scope         string                 `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchProvenanceRequest) Reset() {
+	*x = SearchProvenanceRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchProvenanceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchProvenanceRequest) ProtoMessage() {}
+
+func (x *SearchProvenanceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchProvenanceRequest.ProtoReflect.Descriptor instead.
+func (*SearchProvenanceRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *SearchProvenanceRequest) GetRepositoryId() int64 {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return 0
+}
+
+func (x *SearchProvenanceRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *SearchProvenanceRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *SearchProvenanceRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+type ProvenanceSearchHit struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title            string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Snippet          string                 `protobuf:"bytes,3,opt,name=snippet,proto3" json:"snippet,omitempty"`
+	Score            float64                `protobuf:"fixed64,4,opt,name=score,proto3" json:"score,omitempty"`
+	RunId            string                 `protobuf:"bytes,5,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	SandboxId        string                 `protobuf:"bytes,6,opt,name=sandbox_id,json=sandboxId,proto3" json:"sandbox_id,omitempty"`
+	RelativePath     string                 `protobuf:"bytes,7,opt,name=relative_path,json=relativePath,proto3" json:"relative_path,omitempty"`
+	EvidenceStanding string                 `protobuf:"bytes,8,opt,name=evidence_standing,json=evidenceStanding,proto3" json:"evidence_standing,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ProvenanceSearchHit) Reset() {
+	*x = ProvenanceSearchHit{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProvenanceSearchHit) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProvenanceSearchHit) ProtoMessage() {}
+
+func (x *ProvenanceSearchHit) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProvenanceSearchHit.ProtoReflect.Descriptor instead.
+func (*ProvenanceSearchHit) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ProvenanceSearchHit) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ProvenanceSearchHit) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *ProvenanceSearchHit) GetSnippet() string {
+	if x != nil {
+		return x.Snippet
+	}
+	return ""
+}
+
+func (x *ProvenanceSearchHit) GetScore() float64 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+func (x *ProvenanceSearchHit) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *ProvenanceSearchHit) GetSandboxId() string {
+	if x != nil {
+		return x.SandboxId
+	}
+	return ""
+}
+
+func (x *ProvenanceSearchHit) GetRelativePath() string {
+	if x != nil {
+		return x.RelativePath
+	}
+	return ""
+}
+
+func (x *ProvenanceSearchHit) GetEvidenceStanding() string {
+	if x != nil {
+		return x.EvidenceStanding
+	}
+	return ""
+}
+
+type SearchProvenanceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Available     bool                   `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
+	Results       []*ProvenanceSearchHit `protobuf:"bytes,2,rep,name=results,proto3" json:"results,omitempty"`
+	Warning       string                 `protobuf:"bytes,3,opt,name=warning,proto3" json:"warning,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchProvenanceResponse) Reset() {
+	*x = SearchProvenanceResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchProvenanceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchProvenanceResponse) ProtoMessage() {}
+
+func (x *SearchProvenanceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchProvenanceResponse.ProtoReflect.Descriptor instead.
+func (*SearchProvenanceResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *SearchProvenanceResponse) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+func (x *SearchProvenanceResponse) GetResults() []*ProvenanceSearchHit {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+func (x *SearchProvenanceResponse) GetWarning() string {
+	if x != nil {
+		return x.Warning
+	}
+	return ""
+}
+
+type SetActiveRepositoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  int64                  `protobuf:"varint,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetActiveRepositoryRequest) Reset() {
+	*x = SetActiveRepositoryRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetActiveRepositoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetActiveRepositoryRequest) ProtoMessage() {}
+
+func (x *SetActiveRepositoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetActiveRepositoryRequest.ProtoReflect.Descriptor instead.
+func (*SetActiveRepositoryRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *SetActiveRepositoryRequest) GetRepositoryId() int64 {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return 0
+}
+
+type OpenRepositoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenRepositoryRequest) Reset() {
+	*x = OpenRepositoryRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenRepositoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenRepositoryRequest) ProtoMessage() {}
+
+func (x *OpenRepositoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenRepositoryRequest.ProtoReflect.Descriptor instead.
+func (*OpenRepositoryRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *OpenRepositoryRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type CloneRepositoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Destination   string                 `protobuf:"bytes,2,opt,name=destination,proto3" json:"destination,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloneRepositoryRequest) Reset() {
+	*x = CloneRepositoryRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloneRepositoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloneRepositoryRequest) ProtoMessage() {}
+
+func (x *CloneRepositoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloneRepositoryRequest.ProtoReflect.Descriptor instead.
+func (*CloneRepositoryRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *CloneRepositoryRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *CloneRepositoryRequest) GetDestination() string {
+	if x != nil {
+		return x.Destination
+	}
+	return ""
+}
+
+type RepoMutationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Repo          *RepoRecord            `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RepoMutationResponse) Reset() {
+	*x = RepoMutationResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RepoMutationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RepoMutationResponse) ProtoMessage() {}
+
+func (x *RepoMutationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RepoMutationResponse.ProtoReflect.Descriptor instead.
+func (*RepoMutationResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *RepoMutationResponse) GetRepo() *RepoRecord {
+	if x != nil {
+		return x.Repo
+	}
+	return nil
+}
+
+func (x *RepoMutationResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type RemoveRepositoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  int64                  `protobuf:"varint,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveRepositoryRequest) Reset() {
+	*x = RemoveRepositoryRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveRepositoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveRepositoryRequest) ProtoMessage() {}
+
+func (x *RemoveRepositoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveRepositoryRequest.ProtoReflect.Descriptor instead.
+func (*RemoveRepositoryRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *RemoveRepositoryRequest) GetRepositoryId() int64 {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return 0
+}
+
+type RemoveRepositoryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Removed       bool                   `protobuf:"varint,1,opt,name=removed,proto3" json:"removed,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveRepositoryResponse) Reset() {
+	*x = RemoveRepositoryResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveRepositoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveRepositoryResponse) ProtoMessage() {}
+
+func (x *RemoveRepositoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveRepositoryResponse.ProtoReflect.Descriptor instead.
+func (*RemoveRepositoryResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *RemoveRepositoryResponse) GetRemoved() bool {
+	if x != nil {
+		return x.Removed
+	}
+	return false
+}
+
+func (x *RemoveRepositoryResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type GetRepoStatusRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Registered repository id. When empty, the server resolves the active
+	// repository or the repository containing the request's working directory.
+	RepositoryId string `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	// Absolute path on disk; may be a main or linked worktree of the repo.
+	RepoPath string `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+	// Include the more expensive per-file log-frequency map.
+	IncludeHotspots bool `protobuf:"varint,3,opt,name=include_hotspots,json=includeHotspots,proto3" json:"include_hotspots,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
 func (x *GetRepoStatusRequest) Reset() {
 	*x = GetRepoStatusRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[0]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44,7 +2385,7 @@ func (x *GetRepoStatusRequest) String() string {
 func (*GetRepoStatusRequest) ProtoMessage() {}
 
 func (x *GetRepoStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[0]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -57,7 +2398,14 @@ func (x *GetRepoStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRepoStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetRepoStatusRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{0}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *GetRepoStatusRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
 }
 
 func (x *GetRepoStatusRequest) GetRepoPath() string {
@@ -65,6 +2413,13 @@ func (x *GetRepoStatusRequest) GetRepoPath() string {
 		return x.RepoPath
 	}
 	return ""
+}
+
+func (x *GetRepoStatusRequest) GetIncludeHotspots() bool {
+	if x != nil {
+		return x.IncludeHotspots
+	}
+	return false
 }
 
 // WorktreeIdentity captures the Tier-1 passive-awareness fields about
@@ -88,7 +2443,7 @@ type WorktreeIdentity struct {
 
 func (x *WorktreeIdentity) Reset() {
 	*x = WorktreeIdentity{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[1]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -100,7 +2455,7 @@ func (x *WorktreeIdentity) String() string {
 func (*WorktreeIdentity) ProtoMessage() {}
 
 func (x *WorktreeIdentity) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[1]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -113,7 +2468,7 @@ func (x *WorktreeIdentity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorktreeIdentity.ProtoReflect.Descriptor instead.
 func (*WorktreeIdentity) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{1}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *WorktreeIdentity) GetIsLinkedWorktree() bool {
@@ -158,14 +2513,23 @@ type GetRepoStatusResponse struct {
 	// True when HEAD is detached.
 	Detached bool `protobuf:"varint,2,opt,name=detached,proto3" json:"detached,omitempty"`
 	// Worktree identity fields (Tier 1 passive awareness).
-	Worktree      *WorktreeIdentity `protobuf:"bytes,3,opt,name=worktree,proto3" json:"worktree,omitempty"`
+	Worktree      *WorktreeIdentity      `protobuf:"bytes,3,opt,name=worktree,proto3" json:"worktree,omitempty"`
+	BranchStatus  *BranchStatus          `protobuf:"bytes,4,opt,name=branch_status,json=branchStatus,proto3" json:"branch_status,omitempty"`
+	Files         *FilesStatus           `protobuf:"bytes,5,opt,name=files,proto3" json:"files,omitempty"`
+	FileStats     *FileStats             `protobuf:"bytes,6,opt,name=file_stats,json=fileStats,proto3" json:"file_stats,omitempty"`
+	FileHotspots  map[string]int32       `protobuf:"bytes,7,rep,name=file_hotspots,json=fileHotspots,proto3" json:"file_hotspots,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	Scopes        map[string]*StringList `protobuf:"bytes,8,rep,name=scopes,proto3" json:"scopes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Summary       *StatusSummary         `protobuf:"bytes,9,opt,name=summary,proto3" json:"summary,omitempty"`
+	Author        *AuthorStatus          `protobuf:"bytes,10,opt,name=author,proto3" json:"author,omitempty"`
+	RepoDir       string                 `protobuf:"bytes,11,opt,name=repo_dir,json=repoDir,proto3" json:"repo_dir,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,12,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetRepoStatusResponse) Reset() {
 	*x = GetRepoStatusResponse{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[2]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -177,7 +2541,7 @@ func (x *GetRepoStatusResponse) String() string {
 func (*GetRepoStatusResponse) ProtoMessage() {}
 
 func (x *GetRepoStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[2]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -190,7 +2554,7 @@ func (x *GetRepoStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRepoStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetRepoStatusResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{2}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *GetRepoStatusResponse) GetBranch() string {
@@ -214,25 +2578,8452 @@ func (x *GetRepoStatusResponse) GetWorktree() *WorktreeIdentity {
 	return nil
 }
 
+func (x *GetRepoStatusResponse) GetBranchStatus() *BranchStatus {
+	if x != nil {
+		return x.BranchStatus
+	}
+	return nil
+}
+
+func (x *GetRepoStatusResponse) GetFiles() *FilesStatus {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *GetRepoStatusResponse) GetFileStats() *FileStats {
+	if x != nil {
+		return x.FileStats
+	}
+	return nil
+}
+
+func (x *GetRepoStatusResponse) GetFileHotspots() map[string]int32 {
+	if x != nil {
+		return x.FileHotspots
+	}
+	return nil
+}
+
+func (x *GetRepoStatusResponse) GetScopes() map[string]*StringList {
+	if x != nil {
+		return x.Scopes
+	}
+	return nil
+}
+
+func (x *GetRepoStatusResponse) GetSummary() *StatusSummary {
+	if x != nil {
+		return x.Summary
+	}
+	return nil
+}
+
+func (x *GetRepoStatusResponse) GetAuthor() *AuthorStatus {
+	if x != nil {
+		return x.Author
+	}
+	return nil
+}
+
+func (x *GetRepoStatusResponse) GetRepoDir() string {
+	if x != nil {
+		return x.RepoDir
+	}
+	return ""
+}
+
+func (x *GetRepoStatusResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type BranchStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Head          string                 `protobuf:"bytes,1,opt,name=head,proto3" json:"head,omitempty"`
+	Upstream      string                 `protobuf:"bytes,2,opt,name=upstream,proto3" json:"upstream,omitempty"`
+	Ahead         int32                  `protobuf:"varint,3,opt,name=ahead,proto3" json:"ahead,omitempty"`
+	Behind        int32                  `protobuf:"varint,4,opt,name=behind,proto3" json:"behind,omitempty"`
+	Oid           string                 `protobuf:"bytes,5,opt,name=oid,proto3" json:"oid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BranchStatus) Reset() {
+	*x = BranchStatus{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BranchStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BranchStatus) ProtoMessage() {}
+
+func (x *BranchStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BranchStatus.ProtoReflect.Descriptor instead.
+func (*BranchStatus) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *BranchStatus) GetHead() string {
+	if x != nil {
+		return x.Head
+	}
+	return ""
+}
+
+func (x *BranchStatus) GetUpstream() string {
+	if x != nil {
+		return x.Upstream
+	}
+	return ""
+}
+
+func (x *BranchStatus) GetAhead() int32 {
+	if x != nil {
+		return x.Ahead
+	}
+	return 0
+}
+
+func (x *BranchStatus) GetBehind() int32 {
+	if x != nil {
+		return x.Behind
+	}
+	return 0
+}
+
+func (x *BranchStatus) GetOid() string {
+	if x != nil {
+		return x.Oid
+	}
+	return ""
+}
+
+type FilesStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Staged        []string               `protobuf:"bytes,1,rep,name=staged,proto3" json:"staged,omitempty"`
+	Unstaged      []string               `protobuf:"bytes,2,rep,name=unstaged,proto3" json:"unstaged,omitempty"`
+	Untracked     []string               `protobuf:"bytes,3,rep,name=untracked,proto3" json:"untracked,omitempty"`
+	Conflicts     []string               `protobuf:"bytes,4,rep,name=conflicts,proto3" json:"conflicts,omitempty"`
+	Binary        []string               `protobuf:"bytes,5,rep,name=binary,proto3" json:"binary,omitempty"`
+	Ignored       []string               `protobuf:"bytes,6,rep,name=ignored,proto3" json:"ignored,omitempty"`
+	Statuses      map[string]string      `protobuf:"bytes,7,rep,name=statuses,proto3" json:"statuses,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Renames       map[string]string      `protobuf:"bytes,8,rep,name=renames,proto3" json:"renames,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilesStatus) Reset() {
+	*x = FilesStatus{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilesStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilesStatus) ProtoMessage() {}
+
+func (x *FilesStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilesStatus.ProtoReflect.Descriptor instead.
+func (*FilesStatus) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *FilesStatus) GetStaged() []string {
+	if x != nil {
+		return x.Staged
+	}
+	return nil
+}
+
+func (x *FilesStatus) GetUnstaged() []string {
+	if x != nil {
+		return x.Unstaged
+	}
+	return nil
+}
+
+func (x *FilesStatus) GetUntracked() []string {
+	if x != nil {
+		return x.Untracked
+	}
+	return nil
+}
+
+func (x *FilesStatus) GetConflicts() []string {
+	if x != nil {
+		return x.Conflicts
+	}
+	return nil
+}
+
+func (x *FilesStatus) GetBinary() []string {
+	if x != nil {
+		return x.Binary
+	}
+	return nil
+}
+
+func (x *FilesStatus) GetIgnored() []string {
+	if x != nil {
+		return x.Ignored
+	}
+	return nil
+}
+
+func (x *FilesStatus) GetStatuses() map[string]string {
+	if x != nil {
+		return x.Statuses
+	}
+	return nil
+}
+
+func (x *FilesStatus) GetRenames() map[string]string {
+	if x != nil {
+		return x.Renames
+	}
+	return nil
+}
+
+type FileStats struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Staged        map[string]*DiffStats  `protobuf:"bytes,1,rep,name=staged,proto3" json:"staged,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Unstaged      map[string]*DiffStats  `protobuf:"bytes,2,rep,name=unstaged,proto3" json:"unstaged,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Untracked     map[string]*DiffStats  `protobuf:"bytes,3,rep,name=untracked,proto3" json:"untracked,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FileStats) Reset() {
+	*x = FileStats{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FileStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FileStats) ProtoMessage() {}
+
+func (x *FileStats) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FileStats.ProtoReflect.Descriptor instead.
+func (*FileStats) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *FileStats) GetStaged() map[string]*DiffStats {
+	if x != nil {
+		return x.Staged
+	}
+	return nil
+}
+
+func (x *FileStats) GetUnstaged() map[string]*DiffStats {
+	if x != nil {
+		return x.Unstaged
+	}
+	return nil
+}
+
+func (x *FileStats) GetUntracked() map[string]*DiffStats {
+	if x != nil {
+		return x.Untracked
+	}
+	return nil
+}
+
+type DiffStats struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Additions        int32                  `protobuf:"varint,1,opt,name=additions,proto3" json:"additions,omitempty"`
+	Deletions        int32                  `protobuf:"varint,2,opt,name=deletions,proto3" json:"deletions,omitempty"`
+	Files            int32                  `protobuf:"varint,3,opt,name=files,proto3" json:"files,omitempty"`
+	NetLines         int32                  `protobuf:"varint,4,opt,name=net_lines,json=netLines,proto3" json:"net_lines,omitempty"`
+	HunkCount        int32                  `protobuf:"varint,5,opt,name=hunk_count,json=hunkCount,proto3" json:"hunk_count,omitempty"`
+	LargestHunk      int32                  `protobuf:"varint,6,opt,name=largest_hunk,json=largestHunk,proto3" json:"largest_hunk,omitempty"`
+	Density          float64                `protobuf:"fixed64,7,opt,name=density,proto3" json:"density,omitempty"`
+	IsBinary         bool                   `protobuf:"varint,8,opt,name=is_binary,json=isBinary,proto3" json:"is_binary,omitempty"`
+	IsRename         bool                   `protobuf:"varint,9,opt,name=is_rename,json=isRename,proto3" json:"is_rename,omitempty"`
+	OldPath          string                 `protobuf:"bytes,10,opt,name=old_path,json=oldPath,proto3" json:"old_path,omitempty"`
+	CommentAdditions int32                  `protobuf:"varint,11,opt,name=comment_additions,json=commentAdditions,proto3" json:"comment_additions,omitempty"`
+	CommentDeletions int32                  `protobuf:"varint,12,opt,name=comment_deletions,json=commentDeletions,proto3" json:"comment_deletions,omitempty"`
+	IsNewFile        bool                   `protobuf:"varint,13,opt,name=is_new_file,json=isNewFile,proto3" json:"is_new_file,omitempty"`
+	IsDeletedFile    bool                   `protobuf:"varint,14,opt,name=is_deleted_file,json=isDeletedFile,proto3" json:"is_deleted_file,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *DiffStats) Reset() {
+	*x = DiffStats{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiffStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiffStats) ProtoMessage() {}
+
+func (x *DiffStats) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiffStats.ProtoReflect.Descriptor instead.
+func (*DiffStats) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *DiffStats) GetAdditions() int32 {
+	if x != nil {
+		return x.Additions
+	}
+	return 0
+}
+
+func (x *DiffStats) GetDeletions() int32 {
+	if x != nil {
+		return x.Deletions
+	}
+	return 0
+}
+
+func (x *DiffStats) GetFiles() int32 {
+	if x != nil {
+		return x.Files
+	}
+	return 0
+}
+
+func (x *DiffStats) GetNetLines() int32 {
+	if x != nil {
+		return x.NetLines
+	}
+	return 0
+}
+
+func (x *DiffStats) GetHunkCount() int32 {
+	if x != nil {
+		return x.HunkCount
+	}
+	return 0
+}
+
+func (x *DiffStats) GetLargestHunk() int32 {
+	if x != nil {
+		return x.LargestHunk
+	}
+	return 0
+}
+
+func (x *DiffStats) GetDensity() float64 {
+	if x != nil {
+		return x.Density
+	}
+	return 0
+}
+
+func (x *DiffStats) GetIsBinary() bool {
+	if x != nil {
+		return x.IsBinary
+	}
+	return false
+}
+
+func (x *DiffStats) GetIsRename() bool {
+	if x != nil {
+		return x.IsRename
+	}
+	return false
+}
+
+func (x *DiffStats) GetOldPath() string {
+	if x != nil {
+		return x.OldPath
+	}
+	return ""
+}
+
+func (x *DiffStats) GetCommentAdditions() int32 {
+	if x != nil {
+		return x.CommentAdditions
+	}
+	return 0
+}
+
+func (x *DiffStats) GetCommentDeletions() int32 {
+	if x != nil {
+		return x.CommentDeletions
+	}
+	return 0
+}
+
+func (x *DiffStats) GetIsNewFile() bool {
+	if x != nil {
+		return x.IsNewFile
+	}
+	return false
+}
+
+func (x *DiffStats) GetIsDeletedFile() bool {
+	if x != nil {
+		return x.IsDeletedFile
+	}
+	return false
+}
+
+type StringList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Values        []string               `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StringList) Reset() {
+	*x = StringList{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StringList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StringList) ProtoMessage() {}
+
+func (x *StringList) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StringList.ProtoReflect.Descriptor instead.
+func (*StringList) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *StringList) GetValues() []string {
+	if x != nil {
+		return x.Values
+	}
+	return nil
+}
+
+type StatusSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Staged        int32                  `protobuf:"varint,1,opt,name=staged,proto3" json:"staged,omitempty"`
+	Unstaged      int32                  `protobuf:"varint,2,opt,name=unstaged,proto3" json:"unstaged,omitempty"`
+	Untracked     int32                  `protobuf:"varint,3,opt,name=untracked,proto3" json:"untracked,omitempty"`
+	Conflicts     int32                  `protobuf:"varint,4,opt,name=conflicts,proto3" json:"conflicts,omitempty"`
+	Ignored       int32                  `protobuf:"varint,5,opt,name=ignored,proto3" json:"ignored,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StatusSummary) Reset() {
+	*x = StatusSummary{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StatusSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StatusSummary) ProtoMessage() {}
+
+func (x *StatusSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StatusSummary.ProtoReflect.Descriptor instead.
+func (*StatusSummary) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *StatusSummary) GetStaged() int32 {
+	if x != nil {
+		return x.Staged
+	}
+	return 0
+}
+
+func (x *StatusSummary) GetUnstaged() int32 {
+	if x != nil {
+		return x.Unstaged
+	}
+	return 0
+}
+
+func (x *StatusSummary) GetUntracked() int32 {
+	if x != nil {
+		return x.Untracked
+	}
+	return 0
+}
+
+func (x *StatusSummary) GetConflicts() int32 {
+	if x != nil {
+		return x.Conflicts
+	}
+	return 0
+}
+
+func (x *StatusSummary) GetIgnored() int32 {
+	if x != nil {
+		return x.Ignored
+	}
+	return 0
+}
+
+type AuthorStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthorStatus) Reset() {
+	*x = AuthorStatus{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthorStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthorStatus) ProtoMessage() {}
+
+func (x *AuthorStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthorStatus.ProtoReflect.Descriptor instead.
+func (*AuthorStatus) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *AuthorStatus) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AuthorStatus) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+type GetRepoDiffRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	RepoPath      string                 `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+	Path          string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Staged        bool                   `protobuf:"varint,4,opt,name=staged,proto3" json:"staged,omitempty"`
+	Untracked     bool                   `protobuf:"varint,5,opt,name=untracked,proto3" json:"untracked,omitempty"`
+	Base          string                 `protobuf:"bytes,6,opt,name=base,proto3" json:"base,omitempty"`
+	Commit        string                 `protobuf:"bytes,7,opt,name=commit,proto3" json:"commit,omitempty"`
+	Mode          string                 `protobuf:"bytes,8,opt,name=mode,proto3" json:"mode,omitempty"`
+	Any           bool                   `protobuf:"varint,9,opt,name=any,proto3" json:"any,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRepoDiffRequest) Reset() {
+	*x = GetRepoDiffRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRepoDiffRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRepoDiffRequest) ProtoMessage() {}
+
+func (x *GetRepoDiffRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRepoDiffRequest.ProtoReflect.Descriptor instead.
+func (*GetRepoDiffRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *GetRepoDiffRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *GetRepoDiffRequest) GetRepoPath() string {
+	if x != nil {
+		return x.RepoPath
+	}
+	return ""
+}
+
+func (x *GetRepoDiffRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *GetRepoDiffRequest) GetStaged() bool {
+	if x != nil {
+		return x.Staged
+	}
+	return false
+}
+
+func (x *GetRepoDiffRequest) GetUntracked() bool {
+	if x != nil {
+		return x.Untracked
+	}
+	return false
+}
+
+func (x *GetRepoDiffRequest) GetBase() string {
+	if x != nil {
+		return x.Base
+	}
+	return ""
+}
+
+func (x *GetRepoDiffRequest) GetCommit() string {
+	if x != nil {
+		return x.Commit
+	}
+	return ""
+}
+
+func (x *GetRepoDiffRequest) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *GetRepoDiffRequest) GetAny() bool {
+	if x != nil {
+		return x.Any
+	}
+	return false
+}
+
+type GetRepoDiffResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RepoDir        string                 `protobuf:"bytes,1,opt,name=repo_dir,json=repoDir,proto3" json:"repo_dir,omitempty"`
+	Path           string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Staged         bool                   `protobuf:"varint,3,opt,name=staged,proto3" json:"staged,omitempty"`
+	Untracked      bool                   `protobuf:"varint,4,opt,name=untracked,proto3" json:"untracked,omitempty"`
+	Base           string                 `protobuf:"bytes,5,opt,name=base,proto3" json:"base,omitempty"`
+	HasDiff        bool                   `protobuf:"varint,6,opt,name=has_diff,json=hasDiff,proto3" json:"has_diff,omitempty"`
+	Hunks          []*DiffHunk            `protobuf:"bytes,7,rep,name=hunks,proto3" json:"hunks,omitempty"`
+	Stats          *DiffStats             `protobuf:"bytes,8,opt,name=stats,proto3" json:"stats,omitempty"`
+	Raw            string                 `protobuf:"bytes,9,opt,name=raw,proto3" json:"raw,omitempty"`
+	FullContent    string                 `protobuf:"bytes,10,opt,name=full_content,json=fullContent,proto3" json:"full_content,omitempty"`
+	ContentHash    string                 `protobuf:"bytes,11,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
+	AnnotatedLines []*AnnotatedLine       `protobuf:"bytes,12,rep,name=annotated_lines,json=annotatedLines,proto3" json:"annotated_lines,omitempty"`
+	Mode           string                 `protobuf:"bytes,13,opt,name=mode,proto3" json:"mode,omitempty"`
+	Timestamp      string                 `protobuf:"bytes,14,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetRepoDiffResponse) Reset() {
+	*x = GetRepoDiffResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRepoDiffResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRepoDiffResponse) ProtoMessage() {}
+
+func (x *GetRepoDiffResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRepoDiffResponse.ProtoReflect.Descriptor instead.
+func (*GetRepoDiffResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *GetRepoDiffResponse) GetRepoDir() string {
+	if x != nil {
+		return x.RepoDir
+	}
+	return ""
+}
+
+func (x *GetRepoDiffResponse) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *GetRepoDiffResponse) GetStaged() bool {
+	if x != nil {
+		return x.Staged
+	}
+	return false
+}
+
+func (x *GetRepoDiffResponse) GetUntracked() bool {
+	if x != nil {
+		return x.Untracked
+	}
+	return false
+}
+
+func (x *GetRepoDiffResponse) GetBase() string {
+	if x != nil {
+		return x.Base
+	}
+	return ""
+}
+
+func (x *GetRepoDiffResponse) GetHasDiff() bool {
+	if x != nil {
+		return x.HasDiff
+	}
+	return false
+}
+
+func (x *GetRepoDiffResponse) GetHunks() []*DiffHunk {
+	if x != nil {
+		return x.Hunks
+	}
+	return nil
+}
+
+func (x *GetRepoDiffResponse) GetStats() *DiffStats {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+func (x *GetRepoDiffResponse) GetRaw() string {
+	if x != nil {
+		return x.Raw
+	}
+	return ""
+}
+
+func (x *GetRepoDiffResponse) GetFullContent() string {
+	if x != nil {
+		return x.FullContent
+	}
+	return ""
+}
+
+func (x *GetRepoDiffResponse) GetContentHash() string {
+	if x != nil {
+		return x.ContentHash
+	}
+	return ""
+}
+
+func (x *GetRepoDiffResponse) GetAnnotatedLines() []*AnnotatedLine {
+	if x != nil {
+		return x.AnnotatedLines
+	}
+	return nil
+}
+
+func (x *GetRepoDiffResponse) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *GetRepoDiffResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type DiffHunk struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OldStart      int32                  `protobuf:"varint,1,opt,name=old_start,json=oldStart,proto3" json:"old_start,omitempty"`
+	OldCount      int32                  `protobuf:"varint,2,opt,name=old_count,json=oldCount,proto3" json:"old_count,omitempty"`
+	NewStart      int32                  `protobuf:"varint,3,opt,name=new_start,json=newStart,proto3" json:"new_start,omitempty"`
+	NewCount      int32                  `protobuf:"varint,4,opt,name=new_count,json=newCount,proto3" json:"new_count,omitempty"`
+	Header        string                 `protobuf:"bytes,5,opt,name=header,proto3" json:"header,omitempty"`
+	Lines         []string               `protobuf:"bytes,6,rep,name=lines,proto3" json:"lines,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiffHunk) Reset() {
+	*x = DiffHunk{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiffHunk) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiffHunk) ProtoMessage() {}
+
+func (x *DiffHunk) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiffHunk.ProtoReflect.Descriptor instead.
+func (*DiffHunk) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *DiffHunk) GetOldStart() int32 {
+	if x != nil {
+		return x.OldStart
+	}
+	return 0
+}
+
+func (x *DiffHunk) GetOldCount() int32 {
+	if x != nil {
+		return x.OldCount
+	}
+	return 0
+}
+
+func (x *DiffHunk) GetNewStart() int32 {
+	if x != nil {
+		return x.NewStart
+	}
+	return 0
+}
+
+func (x *DiffHunk) GetNewCount() int32 {
+	if x != nil {
+		return x.NewCount
+	}
+	return 0
+}
+
+func (x *DiffHunk) GetHeader() string {
+	if x != nil {
+		return x.Header
+	}
+	return ""
+}
+
+func (x *DiffHunk) GetLines() []string {
+	if x != nil {
+		return x.Lines
+	}
+	return nil
+}
+
+type AnnotatedLine struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Number        int32                  `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
+	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	Change        string                 `protobuf:"bytes,3,opt,name=change,proto3" json:"change,omitempty"`
+	OldNumber     int32                  `protobuf:"varint,4,opt,name=old_number,json=oldNumber,proto3" json:"old_number,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnnotatedLine) Reset() {
+	*x = AnnotatedLine{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnnotatedLine) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnnotatedLine) ProtoMessage() {}
+
+func (x *AnnotatedLine) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnnotatedLine.ProtoReflect.Descriptor instead.
+func (*AnnotatedLine) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *AnnotatedLine) GetNumber() int32 {
+	if x != nil {
+		return x.Number
+	}
+	return 0
+}
+
+func (x *AnnotatedLine) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *AnnotatedLine) GetChange() string {
+	if x != nil {
+		return x.Change
+	}
+	return ""
+}
+
+func (x *AnnotatedLine) GetOldNumber() int32 {
+	if x != nil {
+		return x.OldNumber
+	}
+	return 0
+}
+
+type GetRepoGroupsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	RepoPath      string                 `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRepoGroupsRequest) Reset() {
+	*x = GetRepoGroupsRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRepoGroupsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRepoGroupsRequest) ProtoMessage() {}
+
+func (x *GetRepoGroupsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRepoGroupsRequest.ProtoReflect.Descriptor instead.
+func (*GetRepoGroupsRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *GetRepoGroupsRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *GetRepoGroupsRequest) GetRepoPath() string {
+	if x != nil {
+		return x.RepoPath
+	}
+	return ""
+}
+
+type GetRepoGroupsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Groups        []*ChangeGroup         `protobuf:"bytes,1,rep,name=groups,proto3" json:"groups,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRepoGroupsResponse) Reset() {
+	*x = GetRepoGroupsResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRepoGroupsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRepoGroupsResponse) ProtoMessage() {}
+
+func (x *GetRepoGroupsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRepoGroupsResponse.ProtoReflect.Descriptor instead.
+func (*GetRepoGroupsResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *GetRepoGroupsResponse) GetGroups() []*ChangeGroup {
+	if x != nil {
+		return x.Groups
+	}
+	return nil
+}
+
+type ChangeGroup struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Id            string                 `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
+	Label         string                 `protobuf:"bytes,4,opt,name=label,proto3" json:"label,omitempty"`
+	Root          string                 `protobuf:"bytes,5,opt,name=root,proto3" json:"root,omitempty"`
+	Source        string                 `protobuf:"bytes,6,opt,name=source,proto3" json:"source,omitempty"`
+	Files         []string               `protobuf:"bytes,7,rep,name=files,proto3" json:"files,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChangeGroup) Reset() {
+	*x = ChangeGroup{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChangeGroup) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChangeGroup) ProtoMessage() {}
+
+func (x *ChangeGroup) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChangeGroup.ProtoReflect.Descriptor instead.
+func (*ChangeGroup) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *ChangeGroup) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *ChangeGroup) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ChangeGroup) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ChangeGroup) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *ChangeGroup) GetRoot() string {
+	if x != nil {
+		return x.Root
+	}
+	return ""
+}
+
+func (x *ChangeGroup) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *ChangeGroup) GetFiles() []string {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+type GetSyncStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	RepoPath      string                 `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+	Fetch         bool                   `protobuf:"varint,3,opt,name=fetch,proto3" json:"fetch,omitempty"`
+	Remote        string                 `protobuf:"bytes,4,opt,name=remote,proto3" json:"remote,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSyncStatusRequest) Reset() {
+	*x = GetSyncStatusRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSyncStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSyncStatusRequest) ProtoMessage() {}
+
+func (x *GetSyncStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSyncStatusRequest.ProtoReflect.Descriptor instead.
+func (*GetSyncStatusRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *GetSyncStatusRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *GetSyncStatusRequest) GetRepoPath() string {
+	if x != nil {
+		return x.RepoPath
+	}
+	return ""
+}
+
+func (x *GetSyncStatusRequest) GetFetch() bool {
+	if x != nil {
+		return x.Fetch
+	}
+	return false
+}
+
+func (x *GetSyncStatusRequest) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+type GetSyncStatusResponse struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Branch                string                 `protobuf:"bytes,1,opt,name=branch,proto3" json:"branch,omitempty"`
+	Upstream              string                 `protobuf:"bytes,2,opt,name=upstream,proto3" json:"upstream,omitempty"`
+	RemoteUrl             string                 `protobuf:"bytes,3,opt,name=remote_url,json=remoteUrl,proto3" json:"remote_url,omitempty"`
+	Ahead                 int32                  `protobuf:"varint,4,opt,name=ahead,proto3" json:"ahead,omitempty"`
+	Behind                int32                  `protobuf:"varint,5,opt,name=behind,proto3" json:"behind,omitempty"`
+	HasUpstream           bool                   `protobuf:"varint,6,opt,name=has_upstream,json=hasUpstream,proto3" json:"has_upstream,omitempty"`
+	CanPush               bool                   `protobuf:"varint,7,opt,name=can_push,json=canPush,proto3" json:"can_push,omitempty"`
+	CanPull               bool                   `protobuf:"varint,8,opt,name=can_pull,json=canPull,proto3" json:"can_pull,omitempty"`
+	NeedsPull             bool                   `protobuf:"varint,9,opt,name=needs_pull,json=needsPull,proto3" json:"needs_pull,omitempty"`
+	NeedsPush             bool                   `protobuf:"varint,10,opt,name=needs_push,json=needsPush,proto3" json:"needs_push,omitempty"`
+	HasUncommittedChanges bool                   `protobuf:"varint,11,opt,name=has_uncommitted_changes,json=hasUncommittedChanges,proto3" json:"has_uncommitted_changes,omitempty"`
+	SafetyWarnings        []string               `protobuf:"bytes,12,rep,name=safety_warnings,json=safetyWarnings,proto3" json:"safety_warnings,omitempty"`
+	Recommendations       []string               `protobuf:"bytes,13,rep,name=recommendations,proto3" json:"recommendations,omitempty"`
+	Fetched               bool                   `protobuf:"varint,14,opt,name=fetched,proto3" json:"fetched,omitempty"`
+	FetchError            string                 `protobuf:"bytes,15,opt,name=fetch_error,json=fetchError,proto3" json:"fetch_error,omitempty"`
+	Timestamp             string                 `protobuf:"bytes,16,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *GetSyncStatusResponse) Reset() {
+	*x = GetSyncStatusResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSyncStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSyncStatusResponse) ProtoMessage() {}
+
+func (x *GetSyncStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSyncStatusResponse.ProtoReflect.Descriptor instead.
+func (*GetSyncStatusResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *GetSyncStatusResponse) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *GetSyncStatusResponse) GetUpstream() string {
+	if x != nil {
+		return x.Upstream
+	}
+	return ""
+}
+
+func (x *GetSyncStatusResponse) GetRemoteUrl() string {
+	if x != nil {
+		return x.RemoteUrl
+	}
+	return ""
+}
+
+func (x *GetSyncStatusResponse) GetAhead() int32 {
+	if x != nil {
+		return x.Ahead
+	}
+	return 0
+}
+
+func (x *GetSyncStatusResponse) GetBehind() int32 {
+	if x != nil {
+		return x.Behind
+	}
+	return 0
+}
+
+func (x *GetSyncStatusResponse) GetHasUpstream() bool {
+	if x != nil {
+		return x.HasUpstream
+	}
+	return false
+}
+
+func (x *GetSyncStatusResponse) GetCanPush() bool {
+	if x != nil {
+		return x.CanPush
+	}
+	return false
+}
+
+func (x *GetSyncStatusResponse) GetCanPull() bool {
+	if x != nil {
+		return x.CanPull
+	}
+	return false
+}
+
+func (x *GetSyncStatusResponse) GetNeedsPull() bool {
+	if x != nil {
+		return x.NeedsPull
+	}
+	return false
+}
+
+func (x *GetSyncStatusResponse) GetNeedsPush() bool {
+	if x != nil {
+		return x.NeedsPush
+	}
+	return false
+}
+
+func (x *GetSyncStatusResponse) GetHasUncommittedChanges() bool {
+	if x != nil {
+		return x.HasUncommittedChanges
+	}
+	return false
+}
+
+func (x *GetSyncStatusResponse) GetSafetyWarnings() []string {
+	if x != nil {
+		return x.SafetyWarnings
+	}
+	return nil
+}
+
+func (x *GetSyncStatusResponse) GetRecommendations() []string {
+	if x != nil {
+		return x.Recommendations
+	}
+	return nil
+}
+
+func (x *GetSyncStatusResponse) GetFetched() bool {
+	if x != nil {
+		return x.Fetched
+	}
+	return false
+}
+
+func (x *GetSyncStatusResponse) GetFetchError() string {
+	if x != nil {
+		return x.FetchError
+	}
+	return ""
+}
+
+func (x *GetSyncStatusResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type GetFilesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Pattern       string                 `protobuf:"bytes,2,opt,name=pattern,proto3" json:"pattern,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Deep          bool                   `protobuf:"varint,4,opt,name=deep,proto3" json:"deep,omitempty"`
+	TimeoutMs     int32                  `protobuf:"varint,5,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFilesRequest) Reset() {
+	*x = GetFilesRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFilesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFilesRequest) ProtoMessage() {}
+
+func (x *GetFilesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFilesRequest.ProtoReflect.Descriptor instead.
+func (*GetFilesRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *GetFilesRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *GetFilesRequest) GetPattern() string {
+	if x != nil {
+		return x.Pattern
+	}
+	return ""
+}
+
+func (x *GetFilesRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *GetFilesRequest) GetDeep() bool {
+	if x != nil {
+		return x.Deep
+	}
+	return false
+}
+
+func (x *GetFilesRequest) GetTimeoutMs() int32 {
+	if x != nil {
+		return x.TimeoutMs
+	}
+	return 0
+}
+
+type RepoFileInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Language      string                 `protobuf:"bytes,2,opt,name=language,proto3" json:"language,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RepoFileInfo) Reset() {
+	*x = RepoFileInfo{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RepoFileInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RepoFileInfo) ProtoMessage() {}
+
+func (x *RepoFileInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RepoFileInfo.ProtoReflect.Descriptor instead.
+func (*RepoFileInfo) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *RepoFileInfo) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *RepoFileInfo) GetLanguage() string {
+	if x != nil {
+		return x.Language
+	}
+	return ""
+}
+
+func (x *RepoFileInfo) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+type GetFilesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Files         []*RepoFileInfo        `protobuf:"bytes,1,rep,name=files,proto3" json:"files,omitempty"`
+	Truncated     bool                   `protobuf:"varint,2,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	Cancelled     bool                   `protobuf:"varint,3,opt,name=cancelled,proto3" json:"cancelled,omitempty"`
+	SearchMode    string                 `protobuf:"bytes,4,opt,name=search_mode,json=searchMode,proto3" json:"search_mode,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFilesResponse) Reset() {
+	*x = GetFilesResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFilesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFilesResponse) ProtoMessage() {}
+
+func (x *GetFilesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFilesResponse.ProtoReflect.Descriptor instead.
+func (*GetFilesResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *GetFilesResponse) GetFiles() []*RepoFileInfo {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *GetFilesResponse) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+func (x *GetFilesResponse) GetCancelled() bool {
+	if x != nil {
+		return x.Cancelled
+	}
+	return false
+}
+
+func (x *GetFilesResponse) GetSearchMode() string {
+	if x != nil {
+		return x.SearchMode
+	}
+	return ""
+}
+
+func (x *GetFilesResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type GetDirectoryContentsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDirectoryContentsRequest) Reset() {
+	*x = GetDirectoryContentsRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDirectoryContentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDirectoryContentsRequest) ProtoMessage() {}
+
+func (x *GetDirectoryContentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDirectoryContentsRequest.ProtoReflect.Descriptor instead.
+func (*GetDirectoryContentsRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *GetDirectoryContentsRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *GetDirectoryContentsRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type DirectoryEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	IsDir         bool                   `protobuf:"varint,3,opt,name=is_dir,json=isDir,proto3" json:"is_dir,omitempty"`
+	Language      string                 `protobuf:"bytes,4,opt,name=language,proto3" json:"language,omitempty"`
+	Tracked       bool                   `protobuf:"varint,5,opt,name=tracked,proto3" json:"tracked,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DirectoryEntry) Reset() {
+	*x = DirectoryEntry{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DirectoryEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DirectoryEntry) ProtoMessage() {}
+
+func (x *DirectoryEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DirectoryEntry.ProtoReflect.Descriptor instead.
+func (*DirectoryEntry) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *DirectoryEntry) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *DirectoryEntry) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *DirectoryEntry) GetIsDir() bool {
+	if x != nil {
+		return x.IsDir
+	}
+	return false
+}
+
+func (x *DirectoryEntry) GetLanguage() string {
+	if x != nil {
+		return x.Language
+	}
+	return ""
+}
+
+func (x *DirectoryEntry) GetTracked() bool {
+	if x != nil {
+		return x.Tracked
+	}
+	return false
+}
+
+type GetDirectoryContentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Entries       []*DirectoryEntry      `protobuf:"bytes,2,rep,name=entries,proto3" json:"entries,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDirectoryContentsResponse) Reset() {
+	*x = GetDirectoryContentsResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDirectoryContentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDirectoryContentsResponse) ProtoMessage() {}
+
+func (x *GetDirectoryContentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDirectoryContentsResponse.ProtoReflect.Descriptor instead.
+func (*GetDirectoryContentsResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *GetDirectoryContentsResponse) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *GetDirectoryContentsResponse) GetEntries() []*DirectoryEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+func (x *GetDirectoryContentsResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type GetRelatedFilesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRelatedFilesRequest) Reset() {
+	*x = GetRelatedFilesRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRelatedFilesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRelatedFilesRequest) ProtoMessage() {}
+
+func (x *GetRelatedFilesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRelatedFilesRequest.ProtoReflect.Descriptor instead.
+func (*GetRelatedFilesRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *GetRelatedFilesRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *GetRelatedFilesRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type RelatedFile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	RelationType  string                 `protobuf:"bytes,2,opt,name=relation_type,json=relationType,proto3" json:"relation_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RelatedFile) Reset() {
+	*x = RelatedFile{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RelatedFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RelatedFile) ProtoMessage() {}
+
+func (x *RelatedFile) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RelatedFile.ProtoReflect.Descriptor instead.
+func (*RelatedFile) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *RelatedFile) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *RelatedFile) GetRelationType() string {
+	if x != nil {
+		return x.RelationType
+	}
+	return ""
+}
+
+type GetRelatedFilesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Related       []*RelatedFile         `protobuf:"bytes,2,rep,name=related,proto3" json:"related,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRelatedFilesResponse) Reset() {
+	*x = GetRelatedFilesResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRelatedFilesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRelatedFilesResponse) ProtoMessage() {}
+
+func (x *GetRelatedFilesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRelatedFilesResponse.ProtoReflect.Descriptor instead.
+func (*GetRelatedFilesResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *GetRelatedFilesResponse) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *GetRelatedFilesResponse) GetRelated() []*RelatedFile {
+	if x != nil {
+		return x.Related
+	}
+	return nil
+}
+
+func (x *GetRelatedFilesResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type SearchContentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Query         string                 `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`
+	CaseSensitive bool                   `protobuf:"varint,3,opt,name=case_sensitive,json=caseSensitive,proto3" json:"case_sensitive,omitempty"`
+	WholeWord     bool                   `protobuf:"varint,4,opt,name=whole_word,json=wholeWord,proto3" json:"whole_word,omitempty"`
+	Regex         bool                   `protobuf:"varint,5,opt,name=regex,proto3" json:"regex,omitempty"`
+	Include       string                 `protobuf:"bytes,6,opt,name=include,proto3" json:"include,omitempty"`
+	Exclude       string                 `protobuf:"bytes,7,opt,name=exclude,proto3" json:"exclude,omitempty"`
+	ContextLines  int32                  `protobuf:"varint,8,opt,name=context_lines,json=contextLines,proto3" json:"context_lines,omitempty"`
+	Limit         int32                  `protobuf:"varint,9,opt,name=limit,proto3" json:"limit,omitempty"`
+	TimeoutMs     int32                  `protobuf:"varint,10,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchContentRequest) Reset() {
+	*x = SearchContentRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchContentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchContentRequest) ProtoMessage() {}
+
+func (x *SearchContentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchContentRequest.ProtoReflect.Descriptor instead.
+func (*SearchContentRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *SearchContentRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *SearchContentRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *SearchContentRequest) GetCaseSensitive() bool {
+	if x != nil {
+		return x.CaseSensitive
+	}
+	return false
+}
+
+func (x *SearchContentRequest) GetWholeWord() bool {
+	if x != nil {
+		return x.WholeWord
+	}
+	return false
+}
+
+func (x *SearchContentRequest) GetRegex() bool {
+	if x != nil {
+		return x.Regex
+	}
+	return false
+}
+
+func (x *SearchContentRequest) GetInclude() string {
+	if x != nil {
+		return x.Include
+	}
+	return ""
+}
+
+func (x *SearchContentRequest) GetExclude() string {
+	if x != nil {
+		return x.Exclude
+	}
+	return ""
+}
+
+func (x *SearchContentRequest) GetContextLines() int32 {
+	if x != nil {
+		return x.ContextLines
+	}
+	return 0
+}
+
+func (x *SearchContentRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *SearchContentRequest) GetTimeoutMs() int32 {
+	if x != nil {
+		return x.TimeoutMs
+	}
+	return 0
+}
+
+type ContentMatch struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	LineNumber    int32                  `protobuf:"varint,2,opt,name=line_number,json=lineNumber,proto3" json:"line_number,omitempty"`
+	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	ContextBefore string                 `protobuf:"bytes,4,opt,name=context_before,json=contextBefore,proto3" json:"context_before,omitempty"`
+	ContextAfter  string                 `protobuf:"bytes,5,opt,name=context_after,json=contextAfter,proto3" json:"context_after,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContentMatch) Reset() {
+	*x = ContentMatch{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContentMatch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContentMatch) ProtoMessage() {}
+
+func (x *ContentMatch) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContentMatch.ProtoReflect.Descriptor instead.
+func (*ContentMatch) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *ContentMatch) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ContentMatch) GetLineNumber() int32 {
+	if x != nil {
+		return x.LineNumber
+	}
+	return 0
+}
+
+func (x *ContentMatch) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *ContentMatch) GetContextBefore() string {
+	if x != nil {
+		return x.ContextBefore
+	}
+	return ""
+}
+
+func (x *ContentMatch) GetContextAfter() string {
+	if x != nil {
+		return x.ContextAfter
+	}
+	return ""
+}
+
+type SearchContentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Matches       []*ContentMatch        `protobuf:"bytes,1,rep,name=matches,proto3" json:"matches,omitempty"`
+	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	Truncated     bool                   `protobuf:"varint,3,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	Cancelled     bool                   `protobuf:"varint,4,opt,name=cancelled,proto3" json:"cancelled,omitempty"`
+	Query         string                 `protobuf:"bytes,5,opt,name=query,proto3" json:"query,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,6,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchContentResponse) Reset() {
+	*x = SearchContentResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchContentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchContentResponse) ProtoMessage() {}
+
+func (x *SearchContentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchContentResponse.ProtoReflect.Descriptor instead.
+func (*SearchContentResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *SearchContentResponse) GetMatches() []*ContentMatch {
+	if x != nil {
+		return x.Matches
+	}
+	return nil
+}
+
+func (x *SearchContentResponse) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *SearchContentResponse) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+func (x *SearchContentResponse) GetCancelled() bool {
+	if x != nil {
+		return x.Cancelled
+	}
+	return false
+}
+
+func (x *SearchContentResponse) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *SearchContentResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type DeletePathRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Path          string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletePathRequest) Reset() {
+	*x = DeletePathRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePathRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePathRequest) ProtoMessage() {}
+
+func (x *DeletePathRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePathRequest.ProtoReflect.Descriptor instead.
+func (*DeletePathRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *DeletePathRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *DeletePathRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *DeletePathRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type DeletePathResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	IsDir         bool                   `protobuf:"varint,3,opt,name=is_dir,json=isDir,proto3" json:"is_dir,omitempty"`
+	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletePathResponse) Reset() {
+	*x = DeletePathResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePathResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePathResponse) ProtoMessage() {}
+
+func (x *DeletePathResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePathResponse.ProtoReflect.Descriptor instead.
+func (*DeletePathResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *DeletePathResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *DeletePathResponse) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *DeletePathResponse) GetIsDir() bool {
+	if x != nil {
+		return x.IsDir
+	}
+	return false
+}
+
+func (x *DeletePathResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *DeletePathResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type SaveFileContentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Path          string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Content       string                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
+	ExpectedHash  string                 `protobuf:"bytes,5,opt,name=expected_hash,json=expectedHash,proto3" json:"expected_hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveFileContentRequest) Reset() {
+	*x = SaveFileContentRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveFileContentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveFileContentRequest) ProtoMessage() {}
+
+func (x *SaveFileContentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveFileContentRequest.ProtoReflect.Descriptor instead.
+func (*SaveFileContentRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *SaveFileContentRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *SaveFileContentRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *SaveFileContentRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *SaveFileContentRequest) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *SaveFileContentRequest) GetExpectedHash() string {
+	if x != nil {
+		return x.ExpectedHash
+	}
+	return ""
+}
+
+type SaveFileContentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	ContentHash   string                 `protobuf:"bytes,3,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
+	BytesWritten  int32                  `protobuf:"varint,4,opt,name=bytes_written,json=bytesWritten,proto3" json:"bytes_written,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveFileContentResponse) Reset() {
+	*x = SaveFileContentResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveFileContentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveFileContentResponse) ProtoMessage() {}
+
+func (x *SaveFileContentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveFileContentResponse.ProtoReflect.Descriptor instead.
+func (*SaveFileContentResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *SaveFileContentResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *SaveFileContentResponse) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *SaveFileContentResponse) GetContentHash() string {
+	if x != nil {
+		return x.ContentHash
+	}
+	return ""
+}
+
+func (x *SaveFileContentResponse) GetBytesWritten() int32 {
+	if x != nil {
+		return x.BytesWritten
+	}
+	return 0
+}
+
+func (x *SaveFileContentResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type DiscardFilesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Paths         []string               `protobuf:"bytes,3,rep,name=paths,proto3" json:"paths,omitempty"`
+	Untracked     bool                   `protobuf:"varint,4,opt,name=untracked,proto3" json:"untracked,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiscardFilesRequest) Reset() {
+	*x = DiscardFilesRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscardFilesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscardFilesRequest) ProtoMessage() {}
+
+func (x *DiscardFilesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscardFilesRequest.ProtoReflect.Descriptor instead.
+func (*DiscardFilesRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *DiscardFilesRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *DiscardFilesRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *DiscardFilesRequest) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *DiscardFilesRequest) GetUntracked() bool {
+	if x != nil {
+		return x.Untracked
+	}
+	return false
+}
+
+type DiscardFilesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Discarded     []string               `protobuf:"bytes,2,rep,name=discarded,proto3" json:"discarded,omitempty"`
+	Failed        []string               `protobuf:"bytes,3,rep,name=failed,proto3" json:"failed,omitempty"`
+	Errors        []string               `protobuf:"bytes,4,rep,name=errors,proto3" json:"errors,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiscardFilesResponse) Reset() {
+	*x = DiscardFilesResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscardFilesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscardFilesResponse) ProtoMessage() {}
+
+func (x *DiscardFilesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscardFilesResponse.ProtoReflect.Descriptor instead.
+func (*DiscardFilesResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *DiscardFilesResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *DiscardFilesResponse) GetDiscarded() []string {
+	if x != nil {
+		return x.Discarded
+	}
+	return nil
+}
+
+func (x *DiscardFilesResponse) GetFailed() []string {
+	if x != nil {
+		return x.Failed
+	}
+	return nil
+}
+
+func (x *DiscardFilesResponse) GetErrors() []string {
+	if x != nil {
+		return x.Errors
+	}
+	return nil
+}
+
+func (x *DiscardFilesResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type IgnorePathRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Path          string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Level         string                 `protobuf:"bytes,4,opt,name=level,proto3" json:"level,omitempty"`
+	GroupDir      string                 `protobuf:"bytes,5,opt,name=group_dir,json=groupDir,proto3" json:"group_dir,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IgnorePathRequest) Reset() {
+	*x = IgnorePathRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IgnorePathRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IgnorePathRequest) ProtoMessage() {}
+
+func (x *IgnorePathRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IgnorePathRequest.ProtoReflect.Descriptor instead.
+func (*IgnorePathRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *IgnorePathRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *IgnorePathRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *IgnorePathRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *IgnorePathRequest) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *IgnorePathRequest) GetGroupDir() string {
+	if x != nil {
+		return x.GroupDir
+	}
+	return ""
+}
+
+type IgnorePathResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Ignored       []string               `protobuf:"bytes,2,rep,name=ignored,proto3" json:"ignored,omitempty"`
+	Failed        []string               `protobuf:"bytes,3,rep,name=failed,proto3" json:"failed,omitempty"`
+	Errors        []string               `protobuf:"bytes,4,rep,name=errors,proto3" json:"errors,omitempty"`
+	GitignorePath string                 `protobuf:"bytes,5,opt,name=gitignore_path,json=gitignorePath,proto3" json:"gitignore_path,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,6,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IgnorePathResponse) Reset() {
+	*x = IgnorePathResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IgnorePathResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IgnorePathResponse) ProtoMessage() {}
+
+func (x *IgnorePathResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IgnorePathResponse.ProtoReflect.Descriptor instead.
+func (*IgnorePathResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *IgnorePathResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *IgnorePathResponse) GetIgnored() []string {
+	if x != nil {
+		return x.Ignored
+	}
+	return nil
+}
+
+func (x *IgnorePathResponse) GetFailed() []string {
+	if x != nil {
+		return x.Failed
+	}
+	return nil
+}
+
+func (x *IgnorePathResponse) GetErrors() []string {
+	if x != nil {
+		return x.Errors
+	}
+	return nil
+}
+
+func (x *IgnorePathResponse) GetGitignorePath() string {
+	if x != nil {
+		return x.GitignorePath
+	}
+	return ""
+}
+
+func (x *IgnorePathResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type PushToRemoteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Remote        string                 `protobuf:"bytes,3,opt,name=remote,proto3" json:"remote,omitempty"`
+	Branch        string                 `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	SetUpstream   bool                   `protobuf:"varint,5,opt,name=set_upstream,json=setUpstream,proto3" json:"set_upstream,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PushToRemoteRequest) Reset() {
+	*x = PushToRemoteRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PushToRemoteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PushToRemoteRequest) ProtoMessage() {}
+
+func (x *PushToRemoteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PushToRemoteRequest.ProtoReflect.Descriptor instead.
+func (*PushToRemoteRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *PushToRemoteRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *PushToRemoteRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *PushToRemoteRequest) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *PushToRemoteRequest) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *PushToRemoteRequest) GetSetUpstream() bool {
+	if x != nil {
+		return x.SetUpstream
+	}
+	return false
+}
+
+type PushToRemoteResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Success           bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Remote            string                 `protobuf:"bytes,2,opt,name=remote,proto3" json:"remote,omitempty"`
+	Branch            string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
+	Pushed            bool                   `protobuf:"varint,4,opt,name=pushed,proto3" json:"pushed,omitempty"`
+	UpToDate          bool                   `protobuf:"varint,5,opt,name=up_to_date,json=upToDate,proto3" json:"up_to_date,omitempty"`
+	Verified          bool                   `protobuf:"varint,6,opt,name=verified,proto3" json:"verified,omitempty"`
+	VerificationError string                 `protobuf:"bytes,7,opt,name=verification_error,json=verificationError,proto3" json:"verification_error,omitempty"`
+	Error             string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	Timestamp         string                 `protobuf:"bytes,9,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *PushToRemoteResponse) Reset() {
+	*x = PushToRemoteResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PushToRemoteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PushToRemoteResponse) ProtoMessage() {}
+
+func (x *PushToRemoteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PushToRemoteResponse.ProtoReflect.Descriptor instead.
+func (*PushToRemoteResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *PushToRemoteResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *PushToRemoteResponse) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *PushToRemoteResponse) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *PushToRemoteResponse) GetPushed() bool {
+	if x != nil {
+		return x.Pushed
+	}
+	return false
+}
+
+func (x *PushToRemoteResponse) GetUpToDate() bool {
+	if x != nil {
+		return x.UpToDate
+	}
+	return false
+}
+
+func (x *PushToRemoteResponse) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
+}
+
+func (x *PushToRemoteResponse) GetVerificationError() string {
+	if x != nil {
+		return x.VerificationError
+	}
+	return ""
+}
+
+func (x *PushToRemoteResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *PushToRemoteResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type PullFromRemoteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Remote        string                 `protobuf:"bytes,3,opt,name=remote,proto3" json:"remote,omitempty"`
+	Branch        string                 `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullFromRemoteRequest) Reset() {
+	*x = PullFromRemoteRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[73]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullFromRemoteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullFromRemoteRequest) ProtoMessage() {}
+
+func (x *PullFromRemoteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[73]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullFromRemoteRequest.ProtoReflect.Descriptor instead.
+func (*PullFromRemoteRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{73}
+}
+
+func (x *PullFromRemoteRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *PullFromRemoteRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *PullFromRemoteRequest) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *PullFromRemoteRequest) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+type PullFromRemoteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Remote        string                 `protobuf:"bytes,2,opt,name=remote,proto3" json:"remote,omitempty"`
+	Branch        string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
+	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	HasConflicts  bool                   `protobuf:"varint,5,opt,name=has_conflicts,json=hasConflicts,proto3" json:"has_conflicts,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,6,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullFromRemoteResponse) Reset() {
+	*x = PullFromRemoteResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullFromRemoteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullFromRemoteResponse) ProtoMessage() {}
+
+func (x *PullFromRemoteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullFromRemoteResponse.ProtoReflect.Descriptor instead.
+func (*PullFromRemoteResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *PullFromRemoteResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *PullFromRemoteResponse) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *PullFromRemoteResponse) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *PullFromRemoteResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *PullFromRemoteResponse) GetHasConflicts() bool {
+	if x != nil {
+		return x.HasConflicts
+	}
+	return false
+}
+
+func (x *PullFromRemoteResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type RunUpstreamActionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Action        string                 `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	Remote        string                 `protobuf:"bytes,4,opt,name=remote,proto3" json:"remote,omitempty"`
+	Branch        string                 `protobuf:"bytes,5,opt,name=branch,proto3" json:"branch,omitempty"`
+	Upstream      string                 `protobuf:"bytes,6,opt,name=upstream,proto3" json:"upstream,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunUpstreamActionRequest) Reset() {
+	*x = RunUpstreamActionRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[75]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunUpstreamActionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunUpstreamActionRequest) ProtoMessage() {}
+
+func (x *RunUpstreamActionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[75]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunUpstreamActionRequest.ProtoReflect.Descriptor instead.
+func (*RunUpstreamActionRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{75}
+}
+
+func (x *RunUpstreamActionRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *RunUpstreamActionRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *RunUpstreamActionRequest) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *RunUpstreamActionRequest) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *RunUpstreamActionRequest) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *RunUpstreamActionRequest) GetUpstream() string {
+	if x != nil {
+		return x.Upstream
+	}
+	return ""
+}
+
+type RunUpstreamActionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Action        string                 `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
+	Remote        string                 `protobuf:"bytes,3,opt,name=remote,proto3" json:"remote,omitempty"`
+	Branch        string                 `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	Upstream      string                 `protobuf:"bytes,5,opt,name=upstream,proto3" json:"upstream,omitempty"`
+	Error         string                 `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,7,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunUpstreamActionResponse) Reset() {
+	*x = RunUpstreamActionResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[76]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunUpstreamActionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunUpstreamActionResponse) ProtoMessage() {}
+
+func (x *RunUpstreamActionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[76]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunUpstreamActionResponse.ProtoReflect.Descriptor instead.
+func (*RunUpstreamActionResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{76}
+}
+
+func (x *RunUpstreamActionResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *RunUpstreamActionResponse) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *RunUpstreamActionResponse) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *RunUpstreamActionResponse) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *RunUpstreamActionResponse) GetUpstream() string {
+	if x != nil {
+		return x.Upstream
+	}
+	return ""
+}
+
+func (x *RunUpstreamActionResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *RunUpstreamActionResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type GetGroupingRulesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetGroupingRulesRequest) Reset() {
+	*x = GetGroupingRulesRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetGroupingRulesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetGroupingRulesRequest) ProtoMessage() {}
+
+func (x *GetGroupingRulesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetGroupingRulesRequest.ProtoReflect.Descriptor instead.
+func (*GetGroupingRulesRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *GetGroupingRulesRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+type GroupingRule struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Prefixes      []string               `protobuf:"bytes,3,rep,name=prefixes,proto3" json:"prefixes,omitempty"`
+	Mode          string                 `protobuf:"bytes,4,opt,name=mode,proto3" json:"mode,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GroupingRule) Reset() {
+	*x = GroupingRule{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GroupingRule) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GroupingRule) ProtoMessage() {}
+
+func (x *GroupingRule) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GroupingRule.ProtoReflect.Descriptor instead.
+func (*GroupingRule) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{78}
+}
+
+func (x *GroupingRule) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *GroupingRule) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *GroupingRule) GetPrefixes() []string {
+	if x != nil {
+		return x.Prefixes
+	}
+	return nil
+}
+
+func (x *GroupingRule) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+type GroupingRulesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Rules         []*GroupingRule        `protobuf:"bytes,2,rep,name=rules,proto3" json:"rules,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GroupingRulesResponse) Reset() {
+	*x = GroupingRulesResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[79]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GroupingRulesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GroupingRulesResponse) ProtoMessage() {}
+
+func (x *GroupingRulesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[79]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GroupingRulesResponse.ProtoReflect.Descriptor instead.
+func (*GroupingRulesResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{79}
+}
+
+func (x *GroupingRulesResponse) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *GroupingRulesResponse) GetRules() []*GroupingRule {
+	if x != nil {
+		return x.Rules
+	}
+	return nil
+}
+
+type SaveGroupingRulesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Enabled       bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Rules         []*GroupingRule        `protobuf:"bytes,4,rep,name=rules,proto3" json:"rules,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveGroupingRulesRequest) Reset() {
+	*x = SaveGroupingRulesRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveGroupingRulesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveGroupingRulesRequest) ProtoMessage() {}
+
+func (x *SaveGroupingRulesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveGroupingRulesRequest.ProtoReflect.Descriptor instead.
+func (*SaveGroupingRulesRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *SaveGroupingRulesRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *SaveGroupingRulesRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *SaveGroupingRulesRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *SaveGroupingRulesRequest) GetRules() []*GroupingRule {
+	if x != nil {
+		return x.Rules
+	}
+	return nil
+}
+
+type GetGitignoreHealthRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetGitignoreHealthRequest) Reset() {
+	*x = GetGitignoreHealthRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetGitignoreHealthRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetGitignoreHealthRequest) ProtoMessage() {}
+
+func (x *GetGitignoreHealthRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetGitignoreHealthRequest.ProtoReflect.Descriptor instead.
+func (*GetGitignoreHealthRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *GetGitignoreHealthRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+type GitignoreSuggestion struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Line          int32                  `protobuf:"varint,1,opt,name=line,proto3" json:"line,omitempty"`
+	Pattern       string                 `protobuf:"bytes,2,opt,name=pattern,proto3" json:"pattern,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	GroupLabel    string                 `protobuf:"bytes,4,opt,name=group_label,json=groupLabel,proto3" json:"group_label,omitempty"`
+	GroupDir      string                 `protobuf:"bytes,5,opt,name=group_dir,json=groupDir,proto3" json:"group_dir,omitempty"`
+	TargetPattern string                 `protobuf:"bytes,6,opt,name=target_pattern,json=targetPattern,proto3" json:"target_pattern,omitempty"`
+	HasGitignore  bool                   `protobuf:"varint,7,opt,name=has_gitignore,json=hasGitignore,proto3" json:"has_gitignore,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitignoreSuggestion) Reset() {
+	*x = GitignoreSuggestion{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitignoreSuggestion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitignoreSuggestion) ProtoMessage() {}
+
+func (x *GitignoreSuggestion) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitignoreSuggestion.ProtoReflect.Descriptor instead.
+func (*GitignoreSuggestion) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *GitignoreSuggestion) GetLine() int32 {
+	if x != nil {
+		return x.Line
+	}
+	return 0
+}
+
+func (x *GitignoreSuggestion) GetPattern() string {
+	if x != nil {
+		return x.Pattern
+	}
+	return ""
+}
+
+func (x *GitignoreSuggestion) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *GitignoreSuggestion) GetGroupLabel() string {
+	if x != nil {
+		return x.GroupLabel
+	}
+	return ""
+}
+
+func (x *GitignoreSuggestion) GetGroupDir() string {
+	if x != nil {
+		return x.GroupDir
+	}
+	return ""
+}
+
+func (x *GitignoreSuggestion) GetTargetPattern() string {
+	if x != nil {
+		return x.TargetPattern
+	}
+	return ""
+}
+
+func (x *GitignoreSuggestion) GetHasGitignore() bool {
+	if x != nil {
+		return x.HasGitignore
+	}
+	return false
+}
+
+type GitignoreHealthResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RootEntryCount int32                  `protobuf:"varint,1,opt,name=root_entry_count,json=rootEntryCount,proto3" json:"root_entry_count,omitempty"`
+	Suggestions    []*GitignoreSuggestion `protobuf:"bytes,2,rep,name=suggestions,proto3" json:"suggestions,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GitignoreHealthResponse) Reset() {
+	*x = GitignoreHealthResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitignoreHealthResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitignoreHealthResponse) ProtoMessage() {}
+
+func (x *GitignoreHealthResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitignoreHealthResponse.ProtoReflect.Descriptor instead.
+func (*GitignoreHealthResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *GitignoreHealthResponse) GetRootEntryCount() int32 {
+	if x != nil {
+		return x.RootEntryCount
+	}
+	return 0
+}
+
+func (x *GitignoreHealthResponse) GetSuggestions() []*GitignoreSuggestion {
+	if x != nil {
+		return x.Suggestions
+	}
+	return nil
+}
+
+type MoveGitignoreEntryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Line          int32                  `protobuf:"varint,3,opt,name=line,proto3" json:"line,omitempty"`
+	Pattern       string                 `protobuf:"bytes,4,opt,name=pattern,proto3" json:"pattern,omitempty"`
+	GroupDir      string                 `protobuf:"bytes,5,opt,name=group_dir,json=groupDir,proto3" json:"group_dir,omitempty"`
+	TargetPattern string                 `protobuf:"bytes,6,opt,name=target_pattern,json=targetPattern,proto3" json:"target_pattern,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MoveGitignoreEntryRequest) Reset() {
+	*x = MoveGitignoreEntryRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MoveGitignoreEntryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoveGitignoreEntryRequest) ProtoMessage() {}
+
+func (x *MoveGitignoreEntryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoveGitignoreEntryRequest.ProtoReflect.Descriptor instead.
+func (*MoveGitignoreEntryRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *MoveGitignoreEntryRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *MoveGitignoreEntryRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *MoveGitignoreEntryRequest) GetLine() int32 {
+	if x != nil {
+		return x.Line
+	}
+	return 0
+}
+
+func (x *MoveGitignoreEntryRequest) GetPattern() string {
+	if x != nil {
+		return x.Pattern
+	}
+	return ""
+}
+
+func (x *MoveGitignoreEntryRequest) GetGroupDir() string {
+	if x != nil {
+		return x.GroupDir
+	}
+	return ""
+}
+
+func (x *MoveGitignoreEntryRequest) GetTargetPattern() string {
+	if x != nil {
+		return x.TargetPattern
+	}
+	return ""
+}
+
+type MoveGitignoreEntryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	RemovedFrom   string                 `protobuf:"bytes,2,opt,name=removed_from,json=removedFrom,proto3" json:"removed_from,omitempty"`
+	AddedTo       string                 `protobuf:"bytes,3,opt,name=added_to,json=addedTo,proto3" json:"added_to,omitempty"`
+	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MoveGitignoreEntryResponse) Reset() {
+	*x = MoveGitignoreEntryResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MoveGitignoreEntryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoveGitignoreEntryResponse) ProtoMessage() {}
+
+func (x *MoveGitignoreEntryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoveGitignoreEntryResponse.ProtoReflect.Descriptor instead.
+func (*MoveGitignoreEntryResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *MoveGitignoreEntryResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *MoveGitignoreEntryResponse) GetRemovedFrom() string {
+	if x != nil {
+		return x.RemovedFrom
+	}
+	return ""
+}
+
+func (x *MoveGitignoreEntryResponse) GetAddedTo() string {
+	if x != nil {
+		return x.AddedTo
+	}
+	return ""
+}
+
+func (x *MoveGitignoreEntryResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type GetTrackedBinariesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTrackedBinariesRequest) Reset() {
+	*x = GetTrackedBinariesRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTrackedBinariesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTrackedBinariesRequest) ProtoMessage() {}
+
+func (x *GetTrackedBinariesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTrackedBinariesRequest.ProtoReflect.Descriptor instead.
+func (*GetTrackedBinariesRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{86}
+}
+
+func (x *GetTrackedBinariesRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+type TrackedBinary struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Path           string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Bytes          int64                  `protobuf:"varint,2,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	Format         string                 `protobuf:"bytes,3,opt,name=format,proto3" json:"format,omitempty"`
+	OwnerDir       string                 `protobuf:"bytes,4,opt,name=owner_dir,json=ownerDir,proto3" json:"owner_dir,omitempty"`
+	IgnorePattern  string                 `protobuf:"bytes,5,opt,name=ignore_pattern,json=ignorePattern,proto3" json:"ignore_pattern,omitempty"`
+	AlreadyIgnored bool                   `protobuf:"varint,6,opt,name=already_ignored,json=alreadyIgnored,proto3" json:"already_ignored,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *TrackedBinary) Reset() {
+	*x = TrackedBinary{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TrackedBinary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TrackedBinary) ProtoMessage() {}
+
+func (x *TrackedBinary) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TrackedBinary.ProtoReflect.Descriptor instead.
+func (*TrackedBinary) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *TrackedBinary) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *TrackedBinary) GetBytes() int64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+func (x *TrackedBinary) GetFormat() string {
+	if x != nil {
+		return x.Format
+	}
+	return ""
+}
+
+func (x *TrackedBinary) GetOwnerDir() string {
+	if x != nil {
+		return x.OwnerDir
+	}
+	return ""
+}
+
+func (x *TrackedBinary) GetIgnorePattern() string {
+	if x != nil {
+		return x.IgnorePattern
+	}
+	return ""
+}
+
+func (x *TrackedBinary) GetAlreadyIgnored() bool {
+	if x != nil {
+		return x.AlreadyIgnored
+	}
+	return false
+}
+
+type TrackedBinariesResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Binaries       []*TrackedBinary       `protobuf:"bytes,1,rep,name=binaries,proto3" json:"binaries,omitempty"`
+	TotalBytes     int64                  `protobuf:"varint,2,opt,name=total_bytes,json=totalBytes,proto3" json:"total_bytes,omitempty"`
+	HistoryWarning string                 `protobuf:"bytes,3,opt,name=history_warning,json=historyWarning,proto3" json:"history_warning,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *TrackedBinariesResponse) Reset() {
+	*x = TrackedBinariesResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TrackedBinariesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TrackedBinariesResponse) ProtoMessage() {}
+
+func (x *TrackedBinariesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TrackedBinariesResponse.ProtoReflect.Descriptor instead.
+func (*TrackedBinariesResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{88}
+}
+
+func (x *TrackedBinariesResponse) GetBinaries() []*TrackedBinary {
+	if x != nil {
+		return x.Binaries
+	}
+	return nil
+}
+
+func (x *TrackedBinariesResponse) GetTotalBytes() int64 {
+	if x != nil {
+		return x.TotalBytes
+	}
+	return 0
+}
+
+func (x *TrackedBinariesResponse) GetHistoryWarning() string {
+	if x != nil {
+		return x.HistoryWarning
+	}
+	return ""
+}
+
+type UntrackBinaryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Path          string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	OwnerDir      string                 `protobuf:"bytes,4,opt,name=owner_dir,json=ownerDir,proto3" json:"owner_dir,omitempty"`
+	IgnorePattern string                 `protobuf:"bytes,5,opt,name=ignore_pattern,json=ignorePattern,proto3" json:"ignore_pattern,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UntrackBinaryRequest) Reset() {
+	*x = UntrackBinaryRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UntrackBinaryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UntrackBinaryRequest) ProtoMessage() {}
+
+func (x *UntrackBinaryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UntrackBinaryRequest.ProtoReflect.Descriptor instead.
+func (*UntrackBinaryRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *UntrackBinaryRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *UntrackBinaryRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *UntrackBinaryRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *UntrackBinaryRequest) GetOwnerDir() string {
+	if x != nil {
+		return x.OwnerDir
+	}
+	return ""
+}
+
+func (x *UntrackBinaryRequest) GetIgnorePattern() string {
+	if x != nil {
+		return x.IgnorePattern
+	}
+	return ""
+}
+
+type UntrackBinaryResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Success          bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	RemovedFromIndex bool                   `protobuf:"varint,2,opt,name=removed_from_index,json=removedFromIndex,proto3" json:"removed_from_index,omitempty"`
+	IgnoreAddedTo    string                 `protobuf:"bytes,3,opt,name=ignore_added_to,json=ignoreAddedTo,proto3" json:"ignore_added_to,omitempty"`
+	Error            string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *UntrackBinaryResponse) Reset() {
+	*x = UntrackBinaryResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[90]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UntrackBinaryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UntrackBinaryResponse) ProtoMessage() {}
+
+func (x *UntrackBinaryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[90]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UntrackBinaryResponse.ProtoReflect.Descriptor instead.
+func (*UntrackBinaryResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{90}
+}
+
+func (x *UntrackBinaryResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *UntrackBinaryResponse) GetRemovedFromIndex() bool {
+	if x != nil {
+		return x.RemovedFromIndex
+	}
+	return false
+}
+
+func (x *UntrackBinaryResponse) GetIgnoreAddedTo() string {
+	if x != nil {
+		return x.IgnoreAddedTo
+	}
+	return ""
+}
+
+func (x *UntrackBinaryResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type GetPrecommitConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPrecommitConfigRequest) Reset() {
+	*x = GetPrecommitConfigRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[91]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPrecommitConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPrecommitConfigRequest) ProtoMessage() {}
+
+func (x *GetPrecommitConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[91]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPrecommitConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetPrecommitConfigRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *GetPrecommitConfigRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+type PrecommitHookState struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Status              string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Reason              string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	ExistingKind        string                 `protobuf:"bytes,3,opt,name=existing_kind,json=existingKind,proto3" json:"existing_kind,omitempty"`
+	ExistingHookPreview string                 `protobuf:"bytes,4,opt,name=existing_hook_preview,json=existingHookPreview,proto3" json:"existing_hook_preview,omitempty"`
+	Path                string                 `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
+	HooksPath           string                 `protobuf:"bytes,6,opt,name=hooks_path,json=hooksPath,proto3" json:"hooks_path,omitempty"`
+	InstalledAt         string                 `protobuf:"bytes,7,opt,name=installed_at,json=installedAt,proto3" json:"installed_at,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *PrecommitHookState) Reset() {
+	*x = PrecommitHookState{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[92]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrecommitHookState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrecommitHookState) ProtoMessage() {}
+
+func (x *PrecommitHookState) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[92]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrecommitHookState.ProtoReflect.Descriptor instead.
+func (*PrecommitHookState) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{92}
+}
+
+func (x *PrecommitHookState) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *PrecommitHookState) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *PrecommitHookState) GetExistingKind() string {
+	if x != nil {
+		return x.ExistingKind
+	}
+	return ""
+}
+
+func (x *PrecommitHookState) GetExistingHookPreview() string {
+	if x != nil {
+		return x.ExistingHookPreview
+	}
+	return ""
+}
+
+func (x *PrecommitHookState) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *PrecommitHookState) GetHooksPath() string {
+	if x != nil {
+		return x.HooksPath
+	}
+	return ""
+}
+
+func (x *PrecommitHookState) GetInstalledAt() string {
+	if x != nil {
+		return x.InstalledAt
+	}
+	return ""
+}
+
+type PrecommitConfigResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Enabled          bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Command          string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
+	WorkingDirectory string                 `protobuf:"bytes,3,opt,name=working_directory,json=workingDirectory,proto3" json:"working_directory,omitempty"`
+	TimeoutSeconds   int32                  `protobuf:"varint,4,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	RunBeforeCommit  bool                   `protobuf:"varint,5,opt,name=run_before_commit,json=runBeforeCommit,proto3" json:"run_before_commit,omitempty"`
+	AllowOverride    bool                   `protobuf:"varint,6,opt,name=allow_override,json=allowOverride,proto3" json:"allow_override,omitempty"`
+	LastResult       *PrecommitRunResult    `protobuf:"bytes,7,opt,name=last_result,json=lastResult,proto3" json:"last_result,omitempty"`
+	Hook             *PrecommitHookState    `protobuf:"bytes,8,opt,name=hook,proto3" json:"hook,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *PrecommitConfigResponse) Reset() {
+	*x = PrecommitConfigResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[93]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrecommitConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrecommitConfigResponse) ProtoMessage() {}
+
+func (x *PrecommitConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[93]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrecommitConfigResponse.ProtoReflect.Descriptor instead.
+func (*PrecommitConfigResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{93}
+}
+
+func (x *PrecommitConfigResponse) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *PrecommitConfigResponse) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+func (x *PrecommitConfigResponse) GetWorkingDirectory() string {
+	if x != nil {
+		return x.WorkingDirectory
+	}
+	return ""
+}
+
+func (x *PrecommitConfigResponse) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+func (x *PrecommitConfigResponse) GetRunBeforeCommit() bool {
+	if x != nil {
+		return x.RunBeforeCommit
+	}
+	return false
+}
+
+func (x *PrecommitConfigResponse) GetAllowOverride() bool {
+	if x != nil {
+		return x.AllowOverride
+	}
+	return false
+}
+
+func (x *PrecommitConfigResponse) GetLastResult() *PrecommitRunResult {
+	if x != nil {
+		return x.LastResult
+	}
+	return nil
+}
+
+func (x *PrecommitConfigResponse) GetHook() *PrecommitHookState {
+	if x != nil {
+		return x.Hook
+	}
+	return nil
+}
+
+type SavePrecommitConfigRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId     string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId         string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Enabled          bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Command          string                 `protobuf:"bytes,4,opt,name=command,proto3" json:"command,omitempty"`
+	WorkingDirectory string                 `protobuf:"bytes,5,opt,name=working_directory,json=workingDirectory,proto3" json:"working_directory,omitempty"`
+	TimeoutSeconds   int32                  `protobuf:"varint,6,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	RunBeforeCommit  bool                   `protobuf:"varint,7,opt,name=run_before_commit,json=runBeforeCommit,proto3" json:"run_before_commit,omitempty"`
+	AllowOverride    bool                   `protobuf:"varint,8,opt,name=allow_override,json=allowOverride,proto3" json:"allow_override,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SavePrecommitConfigRequest) Reset() {
+	*x = SavePrecommitConfigRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[94]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SavePrecommitConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SavePrecommitConfigRequest) ProtoMessage() {}
+
+func (x *SavePrecommitConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[94]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SavePrecommitConfigRequest.ProtoReflect.Descriptor instead.
+func (*SavePrecommitConfigRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{94}
+}
+
+func (x *SavePrecommitConfigRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *SavePrecommitConfigRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *SavePrecommitConfigRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *SavePrecommitConfigRequest) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+func (x *SavePrecommitConfigRequest) GetWorkingDirectory() string {
+	if x != nil {
+		return x.WorkingDirectory
+	}
+	return ""
+}
+
+func (x *SavePrecommitConfigRequest) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+func (x *SavePrecommitConfigRequest) GetRunBeforeCommit() bool {
+	if x != nil {
+		return x.RunBeforeCommit
+	}
+	return false
+}
+
+func (x *SavePrecommitConfigRequest) GetAllowOverride() bool {
+	if x != nil {
+		return x.AllowOverride
+	}
+	return false
+}
+
+type RunPrecommitRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId     string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Command          string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
+	WorkingDirectory string                 `protobuf:"bytes,3,opt,name=working_directory,json=workingDirectory,proto3" json:"working_directory,omitempty"`
+	TimeoutSeconds   int32                  `protobuf:"varint,4,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RunPrecommitRequest) Reset() {
+	*x = RunPrecommitRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[95]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunPrecommitRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunPrecommitRequest) ProtoMessage() {}
+
+func (x *RunPrecommitRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[95]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunPrecommitRequest.ProtoReflect.Descriptor instead.
+func (*RunPrecommitRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{95}
+}
+
+func (x *RunPrecommitRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *RunPrecommitRequest) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+func (x *RunPrecommitRequest) GetWorkingDirectory() string {
+	if x != nil {
+		return x.WorkingDirectory
+	}
+	return ""
+}
+
+func (x *RunPrecommitRequest) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+type PrecommitRunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Result        *PrecommitRunResult    `protobuf:"bytes,2,opt,name=result,proto3" json:"result,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PrecommitRunResponse) Reset() {
+	*x = PrecommitRunResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[96]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrecommitRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrecommitRunResponse) ProtoMessage() {}
+
+func (x *PrecommitRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[96]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrecommitRunResponse.ProtoReflect.Descriptor instead.
+func (*PrecommitRunResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{96}
+}
+
+func (x *PrecommitRunResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *PrecommitRunResponse) GetResult() *PrecommitRunResult {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
+type StageFilesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Paths         []string               `protobuf:"bytes,3,rep,name=paths,proto3" json:"paths,omitempty"`
+	Scope         string                 `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StageFilesRequest) Reset() {
+	*x = StageFilesRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[97]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StageFilesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StageFilesRequest) ProtoMessage() {}
+
+func (x *StageFilesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[97]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StageFilesRequest.ProtoReflect.Descriptor instead.
+func (*StageFilesRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{97}
+}
+
+func (x *StageFilesRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *StageFilesRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *StageFilesRequest) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *StageFilesRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+type StageFilesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Staged        []string               `protobuf:"bytes,2,rep,name=staged,proto3" json:"staged,omitempty"`
+	Unstaged      []string               `protobuf:"bytes,3,rep,name=unstaged,proto3" json:"unstaged,omitempty"`
+	Failed        []string               `protobuf:"bytes,4,rep,name=failed,proto3" json:"failed,omitempty"`
+	Errors        []string               `protobuf:"bytes,5,rep,name=errors,proto3" json:"errors,omitempty"`
+	Warnings      []string               `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,7,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StageFilesResponse) Reset() {
+	*x = StageFilesResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[98]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StageFilesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StageFilesResponse) ProtoMessage() {}
+
+func (x *StageFilesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[98]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StageFilesResponse.ProtoReflect.Descriptor instead.
+func (*StageFilesResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{98}
+}
+
+func (x *StageFilesResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *StageFilesResponse) GetStaged() []string {
+	if x != nil {
+		return x.Staged
+	}
+	return nil
+}
+
+func (x *StageFilesResponse) GetUnstaged() []string {
+	if x != nil {
+		return x.Unstaged
+	}
+	return nil
+}
+
+func (x *StageFilesResponse) GetFailed() []string {
+	if x != nil {
+		return x.Failed
+	}
+	return nil
+}
+
+func (x *StageFilesResponse) GetErrors() []string {
+	if x != nil {
+		return x.Errors
+	}
+	return nil
+}
+
+func (x *StageFilesResponse) GetWarnings() []string {
+	if x != nil {
+		return x.Warnings
+	}
+	return nil
+}
+
+func (x *StageFilesResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type UnstageFilesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Paths         []string               `protobuf:"bytes,3,rep,name=paths,proto3" json:"paths,omitempty"`
+	Scope         string                 `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnstageFilesRequest) Reset() {
+	*x = UnstageFilesRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[99]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnstageFilesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnstageFilesRequest) ProtoMessage() {}
+
+func (x *UnstageFilesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[99]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnstageFilesRequest.ProtoReflect.Descriptor instead.
+func (*UnstageFilesRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{99}
+}
+
+func (x *UnstageFilesRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *UnstageFilesRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *UnstageFilesRequest) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *UnstageFilesRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+type UnstageFilesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Unstaged      []string               `protobuf:"bytes,2,rep,name=unstaged,proto3" json:"unstaged,omitempty"`
+	Failed        []string               `protobuf:"bytes,3,rep,name=failed,proto3" json:"failed,omitempty"`
+	Errors        []string               `protobuf:"bytes,4,rep,name=errors,proto3" json:"errors,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnstageFilesResponse) Reset() {
+	*x = UnstageFilesResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[100]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnstageFilesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnstageFilesResponse) ProtoMessage() {}
+
+func (x *UnstageFilesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[100]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnstageFilesResponse.ProtoReflect.Descriptor instead.
+func (*UnstageFilesResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{100}
+}
+
+func (x *UnstageFilesResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *UnstageFilesResponse) GetUnstaged() []string {
+	if x != nil {
+		return x.Unstaged
+	}
+	return nil
+}
+
+func (x *UnstageFilesResponse) GetFailed() []string {
+	if x != nil {
+		return x.Failed
+	}
+	return nil
+}
+
+func (x *UnstageFilesResponse) GetErrors() []string {
+	if x != nil {
+		return x.Errors
+	}
+	return nil
+}
+
+func (x *UnstageFilesResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type CreateCommitRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId         string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId             string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Message              string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	ValidateConventional bool                   `protobuf:"varint,4,opt,name=validate_conventional,json=validateConventional,proto3" json:"validate_conventional,omitempty"`
+	Amend                bool                   `protobuf:"varint,5,opt,name=amend,proto3" json:"amend,omitempty"`
+	AuthorName           string                 `protobuf:"bytes,6,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
+	AuthorEmail          string                 `protobuf:"bytes,7,opt,name=author_email,json=authorEmail,proto3" json:"author_email,omitempty"`
+	SkipPrecommitOnce    bool                   `protobuf:"varint,8,opt,name=skip_precommit_once,json=skipPrecommitOnce,proto3" json:"skip_precommit_once,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *CreateCommitRequest) Reset() {
+	*x = CreateCommitRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[101]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateCommitRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCommitRequest) ProtoMessage() {}
+
+func (x *CreateCommitRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[101]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCommitRequest.ProtoReflect.Descriptor instead.
+func (*CreateCommitRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{101}
+}
+
+func (x *CreateCommitRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *CreateCommitRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *CreateCommitRequest) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *CreateCommitRequest) GetValidateConventional() bool {
+	if x != nil {
+		return x.ValidateConventional
+	}
+	return false
+}
+
+func (x *CreateCommitRequest) GetAmend() bool {
+	if x != nil {
+		return x.Amend
+	}
+	return false
+}
+
+func (x *CreateCommitRequest) GetAuthorName() string {
+	if x != nil {
+		return x.AuthorName
+	}
+	return ""
+}
+
+func (x *CreateCommitRequest) GetAuthorEmail() string {
+	if x != nil {
+		return x.AuthorEmail
+	}
+	return ""
+}
+
+func (x *CreateCommitRequest) GetSkipPrecommitOnce() bool {
+	if x != nil {
+		return x.SkipPrecommitOnce
+	}
+	return false
+}
+
+type PrecommitRunResult struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Status          string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Command         string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
+	ExitCode        int32                  `protobuf:"varint,3,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	Summary         string                 `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
+	Stdout          string                 `protobuf:"bytes,5,opt,name=stdout,proto3" json:"stdout,omitempty"`
+	Stderr          string                 `protobuf:"bytes,6,opt,name=stderr,proto3" json:"stderr,omitempty"`
+	DurationMs      int64                  `protobuf:"varint,7,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	OverrideAllowed bool                   `protobuf:"varint,8,opt,name=override_allowed,json=overrideAllowed,proto3" json:"override_allowed,omitempty"`
+	Timestamp       string                 `protobuf:"bytes,9,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PrecommitRunResult) Reset() {
+	*x = PrecommitRunResult{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[102]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrecommitRunResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrecommitRunResult) ProtoMessage() {}
+
+func (x *PrecommitRunResult) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[102]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrecommitRunResult.ProtoReflect.Descriptor instead.
+func (*PrecommitRunResult) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{102}
+}
+
+func (x *PrecommitRunResult) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *PrecommitRunResult) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+func (x *PrecommitRunResult) GetExitCode() int32 {
+	if x != nil {
+		return x.ExitCode
+	}
+	return 0
+}
+
+func (x *PrecommitRunResult) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *PrecommitRunResult) GetStdout() string {
+	if x != nil {
+		return x.Stdout
+	}
+	return ""
+}
+
+func (x *PrecommitRunResult) GetStderr() string {
+	if x != nil {
+		return x.Stderr
+	}
+	return ""
+}
+
+func (x *PrecommitRunResult) GetDurationMs() int64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *PrecommitRunResult) GetOverrideAllowed() bool {
+	if x != nil {
+		return x.OverrideAllowed
+	}
+	return false
+}
+
+func (x *PrecommitRunResult) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type CreateCommitResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Success          bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Hash             string                 `protobuf:"bytes,2,opt,name=hash,proto3" json:"hash,omitempty"`
+	Message          string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Amended          bool                   `protobuf:"varint,4,opt,name=amended,proto3" json:"amended,omitempty"`
+	ValidationErrors []string               `protobuf:"bytes,5,rep,name=validation_errors,json=validationErrors,proto3" json:"validation_errors,omitempty"`
+	Error            string                 `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
+	Precommit        *PrecommitRunResult    `protobuf:"bytes,7,opt,name=precommit,proto3" json:"precommit,omitempty"`
+	Timestamp        string                 `protobuf:"bytes,8,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *CreateCommitResponse) Reset() {
+	*x = CreateCommitResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[103]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateCommitResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCommitResponse) ProtoMessage() {}
+
+func (x *CreateCommitResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[103]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCommitResponse.ProtoReflect.Descriptor instead.
+func (*CreateCommitResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{103}
+}
+
+func (x *CreateCommitResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *CreateCommitResponse) GetHash() string {
+	if x != nil {
+		return x.Hash
+	}
+	return ""
+}
+
+func (x *CreateCommitResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *CreateCommitResponse) GetAmended() bool {
+	if x != nil {
+		return x.Amended
+	}
+	return false
+}
+
+func (x *CreateCommitResponse) GetValidationErrors() []string {
+	if x != nil {
+		return x.ValidationErrors
+	}
+	return nil
+}
+
+func (x *CreateCommitResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *CreateCommitResponse) GetPrecommit() *PrecommitRunResult {
+	if x != nil {
+		return x.Precommit
+	}
+	return nil
+}
+
+func (x *CreateCommitResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type Credential struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Remote        string                 `protobuf:"bytes,2,opt,name=remote,proto3" json:"remote,omitempty"`
+	Url           string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	Type          string                 `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
+	Username      string                 `protobuf:"bytes,5,opt,name=username,proto3" json:"username,omitempty"`
+	TokenMasked   string                 `protobuf:"bytes,6,opt,name=token_masked,json=tokenMasked,proto3" json:"token_masked,omitempty"`
+	SshKeyPath    string                 `protobuf:"bytes,7,opt,name=ssh_key_path,json=sshKeyPath,proto3" json:"ssh_key_path,omitempty"`
+	IsConfigured  bool                   `protobuf:"varint,8,opt,name=is_configured,json=isConfigured,proto3" json:"is_configured,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Credential) Reset() {
+	*x = Credential{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[104]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Credential) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Credential) ProtoMessage() {}
+
+func (x *Credential) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[104]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Credential.ProtoReflect.Descriptor instead.
+func (*Credential) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{104}
+}
+
+func (x *Credential) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Credential) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *Credential) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *Credential) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *Credential) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *Credential) GetTokenMasked() string {
+	if x != nil {
+		return x.TokenMasked
+	}
+	return ""
+}
+
+func (x *Credential) GetSshKeyPath() string {
+	if x != nil {
+		return x.SshKeyPath
+	}
+	return ""
+}
+
+func (x *Credential) GetIsConfigured() bool {
+	if x != nil {
+		return x.IsConfigured
+	}
+	return false
+}
+
+func (x *Credential) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *Credential) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+type ListCredentialsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCredentialsRequest) Reset() {
+	*x = ListCredentialsRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[105]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCredentialsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCredentialsRequest) ProtoMessage() {}
+
+func (x *ListCredentialsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[105]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCredentialsRequest.ProtoReflect.Descriptor instead.
+func (*ListCredentialsRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{105}
+}
+
+func (x *ListCredentialsRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+type CredentialsListResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Credentials   []*Credential          `protobuf:"bytes,1,rep,name=credentials,proto3" json:"credentials,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CredentialsListResponse) Reset() {
+	*x = CredentialsListResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[106]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CredentialsListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CredentialsListResponse) ProtoMessage() {}
+
+func (x *CredentialsListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[106]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CredentialsListResponse.ProtoReflect.Descriptor instead.
+func (*CredentialsListResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{106}
+}
+
+func (x *CredentialsListResponse) GetCredentials() []*Credential {
+	if x != nil {
+		return x.Credentials
+	}
+	return nil
+}
+
+func (x *CredentialsListResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type SaveCredentialRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Remote        string                 `protobuf:"bytes,3,opt,name=remote,proto3" json:"remote,omitempty"`
+	Url           string                 `protobuf:"bytes,4,opt,name=url,proto3" json:"url,omitempty"`
+	Username      string                 `protobuf:"bytes,5,opt,name=username,proto3" json:"username,omitempty"`
+	Token         string                 `protobuf:"bytes,6,opt,name=token,proto3" json:"token,omitempty"`
+	SshKeyPath    string                 `protobuf:"bytes,7,opt,name=ssh_key_path,json=sshKeyPath,proto3" json:"ssh_key_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveCredentialRequest) Reset() {
+	*x = SaveCredentialRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[107]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveCredentialRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveCredentialRequest) ProtoMessage() {}
+
+func (x *SaveCredentialRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[107]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveCredentialRequest.ProtoReflect.Descriptor instead.
+func (*SaveCredentialRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{107}
+}
+
+func (x *SaveCredentialRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *SaveCredentialRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *SaveCredentialRequest) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *SaveCredentialRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *SaveCredentialRequest) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *SaveCredentialRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *SaveCredentialRequest) GetSshKeyPath() string {
+	if x != nil {
+		return x.SshKeyPath
+	}
+	return ""
+}
+
+type CredentialSaveResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Credential    *Credential            `protobuf:"bytes,2,opt,name=credential,proto3" json:"credential,omitempty"`
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CredentialSaveResponse) Reset() {
+	*x = CredentialSaveResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[108]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CredentialSaveResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CredentialSaveResponse) ProtoMessage() {}
+
+func (x *CredentialSaveResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[108]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CredentialSaveResponse.ProtoReflect.Descriptor instead.
+func (*CredentialSaveResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{108}
+}
+
+func (x *CredentialSaveResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *CredentialSaveResponse) GetCredential() *Credential {
+	if x != nil {
+		return x.Credential
+	}
+	return nil
+}
+
+func (x *CredentialSaveResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *CredentialSaveResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type DeleteCredentialRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Id            string                 `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteCredentialRequest) Reset() {
+	*x = DeleteCredentialRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[109]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteCredentialRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteCredentialRequest) ProtoMessage() {}
+
+func (x *DeleteCredentialRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[109]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteCredentialRequest.ProtoReflect.Descriptor instead.
+func (*DeleteCredentialRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{109}
+}
+
+func (x *DeleteCredentialRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *DeleteCredentialRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *DeleteCredentialRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type CredentialDeleteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CredentialDeleteResponse) Reset() {
+	*x = CredentialDeleteResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[110]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CredentialDeleteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CredentialDeleteResponse) ProtoMessage() {}
+
+func (x *CredentialDeleteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[110]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CredentialDeleteResponse.ProtoReflect.Descriptor instead.
+func (*CredentialDeleteResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{110}
+}
+
+func (x *CredentialDeleteResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *CredentialDeleteResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *CredentialDeleteResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type TestCredentialRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Remote        string                 `protobuf:"bytes,2,opt,name=remote,proto3" json:"remote,omitempty"`
+	UseStored     bool                   `protobuf:"varint,3,opt,name=use_stored,json=useStored,proto3" json:"use_stored,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestCredentialRequest) Reset() {
+	*x = TestCredentialRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[111]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestCredentialRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestCredentialRequest) ProtoMessage() {}
+
+func (x *TestCredentialRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[111]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestCredentialRequest.ProtoReflect.Descriptor instead.
+func (*TestCredentialRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{111}
+}
+
+func (x *TestCredentialRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *TestCredentialRequest) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *TestCredentialRequest) GetUseStored() bool {
+	if x != nil {
+		return x.UseStored
+	}
+	return false
+}
+
+type CredentialTestResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Reachable     bool                   `protobuf:"varint,2,opt,name=reachable,proto3" json:"reachable,omitempty"`
+	Authorized    bool                   `protobuf:"varint,3,opt,name=authorized,proto3" json:"authorized,omitempty"`
+	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CredentialTestResponse) Reset() {
+	*x = CredentialTestResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[112]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CredentialTestResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CredentialTestResponse) ProtoMessage() {}
+
+func (x *CredentialTestResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[112]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CredentialTestResponse.ProtoReflect.Descriptor instead.
+func (*CredentialTestResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{112}
+}
+
+func (x *CredentialTestResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *CredentialTestResponse) GetReachable() bool {
+	if x != nil {
+		return x.Reachable
+	}
+	return false
+}
+
+func (x *CredentialTestResponse) GetAuthorized() bool {
+	if x != nil {
+		return x.Authorized
+	}
+	return false
+}
+
+func (x *CredentialTestResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *CredentialTestResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type UpdateRemoteURLRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Remote        string                 `protobuf:"bytes,3,opt,name=remote,proto3" json:"remote,omitempty"`
+	Url           string                 `protobuf:"bytes,4,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateRemoteURLRequest) Reset() {
+	*x = UpdateRemoteURLRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[113]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateRemoteURLRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateRemoteURLRequest) ProtoMessage() {}
+
+func (x *UpdateRemoteURLRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[113]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateRemoteURLRequest.ProtoReflect.Descriptor instead.
+func (*UpdateRemoteURLRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{113}
+}
+
+func (x *UpdateRemoteURLRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *UpdateRemoteURLRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *UpdateRemoteURLRequest) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *UpdateRemoteURLRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+type RemoteURLUpdateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	OldUrl        string                 `protobuf:"bytes,2,opt,name=old_url,json=oldUrl,proto3" json:"old_url,omitempty"`
+	NewUrl        string                 `protobuf:"bytes,3,opt,name=new_url,json=newUrl,proto3" json:"new_url,omitempty"`
+	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoteURLUpdateResponse) Reset() {
+	*x = RemoteURLUpdateResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[114]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoteURLUpdateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoteURLUpdateResponse) ProtoMessage() {}
+
+func (x *RemoteURLUpdateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[114]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoteURLUpdateResponse.ProtoReflect.Descriptor instead.
+func (*RemoteURLUpdateResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{114}
+}
+
+func (x *RemoteURLUpdateResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *RemoteURLUpdateResponse) GetOldUrl() string {
+	if x != nil {
+		return x.OldUrl
+	}
+	return ""
+}
+
+func (x *RemoteURLUpdateResponse) GetNewUrl() string {
+	if x != nil {
+		return x.NewUrl
+	}
+	return ""
+}
+
+func (x *RemoteURLUpdateResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *RemoteURLUpdateResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type SSHKeyInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Filename      string                 `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Bits          int32                  `protobuf:"varint,4,opt,name=bits,proto3" json:"bits,omitempty"`
+	Fingerprint   string                 `protobuf:"bytes,5,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	Comment       string                 `protobuf:"bytes,6,opt,name=comment,proto3" json:"comment,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	HasPublic     bool                   `protobuf:"varint,8,opt,name=has_public,json=hasPublic,proto3" json:"has_public,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SSHKeyInfo) Reset() {
+	*x = SSHKeyInfo{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[115]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SSHKeyInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SSHKeyInfo) ProtoMessage() {}
+
+func (x *SSHKeyInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[115]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SSHKeyInfo.ProtoReflect.Descriptor instead.
+func (*SSHKeyInfo) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{115}
+}
+
+func (x *SSHKeyInfo) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *SSHKeyInfo) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *SSHKeyInfo) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *SSHKeyInfo) GetBits() int32 {
+	if x != nil {
+		return x.Bits
+	}
+	return 0
+}
+
+func (x *SSHKeyInfo) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *SSHKeyInfo) GetComment() string {
+	if x != nil {
+		return x.Comment
+	}
+	return ""
+}
+
+func (x *SSHKeyInfo) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *SSHKeyInfo) GetHasPublic() bool {
+	if x != nil {
+		return x.HasPublic
+	}
+	return false
+}
+
+type ListSSHKeysRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSSHKeysRequest) Reset() {
+	*x = ListSSHKeysRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[116]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSSHKeysRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSSHKeysRequest) ProtoMessage() {}
+
+func (x *ListSSHKeysRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[116]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSSHKeysRequest.ProtoReflect.Descriptor instead.
+func (*ListSSHKeysRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{116}
+}
+
+type SSHListKeysResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Keys          []*SSHKeyInfo          `protobuf:"bytes,1,rep,name=keys,proto3" json:"keys,omitempty"`
+	SshDir        string                 `protobuf:"bytes,2,opt,name=ssh_dir,json=sshDir,proto3" json:"ssh_dir,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SSHListKeysResponse) Reset() {
+	*x = SSHListKeysResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[117]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SSHListKeysResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SSHListKeysResponse) ProtoMessage() {}
+
+func (x *SSHListKeysResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[117]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SSHListKeysResponse.ProtoReflect.Descriptor instead.
+func (*SSHListKeysResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{117}
+}
+
+func (x *SSHListKeysResponse) GetKeys() []*SSHKeyInfo {
+	if x != nil {
+		return x.Keys
+	}
+	return nil
+}
+
+func (x *SSHListKeysResponse) GetSshDir() string {
+	if x != nil {
+		return x.SshDir
+	}
+	return ""
+}
+
+func (x *SSHListKeysResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type GenerateSSHKeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Bits          int32                  `protobuf:"varint,4,opt,name=bits,proto3" json:"bits,omitempty"`
+	Comment       string                 `protobuf:"bytes,5,opt,name=comment,proto3" json:"comment,omitempty"`
+	Filename      string                 `protobuf:"bytes,6,opt,name=filename,proto3" json:"filename,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GenerateSSHKeyRequest) Reset() {
+	*x = GenerateSSHKeyRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[118]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GenerateSSHKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerateSSHKeyRequest) ProtoMessage() {}
+
+func (x *GenerateSSHKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[118]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerateSSHKeyRequest.ProtoReflect.Descriptor instead.
+func (*GenerateSSHKeyRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{118}
+}
+
+func (x *GenerateSSHKeyRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *GenerateSSHKeyRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *GenerateSSHKeyRequest) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *GenerateSSHKeyRequest) GetBits() int32 {
+	if x != nil {
+		return x.Bits
+	}
+	return 0
+}
+
+func (x *GenerateSSHKeyRequest) GetComment() string {
+	if x != nil {
+		return x.Comment
+	}
+	return ""
+}
+
+func (x *GenerateSSHKeyRequest) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+type SSHGenerateKeyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Key           *SSHKeyInfo            `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	PublicKey     string                 `protobuf:"bytes,3,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
+	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SSHGenerateKeyResponse) Reset() {
+	*x = SSHGenerateKeyResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[119]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SSHGenerateKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SSHGenerateKeyResponse) ProtoMessage() {}
+
+func (x *SSHGenerateKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[119]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SSHGenerateKeyResponse.ProtoReflect.Descriptor instead.
+func (*SSHGenerateKeyResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{119}
+}
+
+func (x *SSHGenerateKeyResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *SSHGenerateKeyResponse) GetKey() *SSHKeyInfo {
+	if x != nil {
+		return x.Key
+	}
+	return nil
+}
+
+func (x *SSHGenerateKeyResponse) GetPublicKey() string {
+	if x != nil {
+		return x.PublicKey
+	}
+	return ""
+}
+
+func (x *SSHGenerateKeyResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *SSHGenerateKeyResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type GetSSHPublicKeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	KeyPath       string                 `protobuf:"bytes,1,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSSHPublicKeyRequest) Reset() {
+	*x = GetSSHPublicKeyRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[120]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSSHPublicKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSSHPublicKeyRequest) ProtoMessage() {}
+
+func (x *GetSSHPublicKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[120]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSSHPublicKeyRequest.ProtoReflect.Descriptor instead.
+func (*GetSSHPublicKeyRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{120}
+}
+
+func (x *GetSSHPublicKeyRequest) GetKeyPath() string {
+	if x != nil {
+		return x.KeyPath
+	}
+	return ""
+}
+
+type SSHGetPublicKeyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	PublicKey     string                 `protobuf:"bytes,2,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
+	Fingerprint   string                 `protobuf:"bytes,3,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SSHGetPublicKeyResponse) Reset() {
+	*x = SSHGetPublicKeyResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[121]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SSHGetPublicKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SSHGetPublicKeyResponse) ProtoMessage() {}
+
+func (x *SSHGetPublicKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[121]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SSHGetPublicKeyResponse.ProtoReflect.Descriptor instead.
+func (*SSHGetPublicKeyResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{121}
+}
+
+func (x *SSHGetPublicKeyResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *SSHGetPublicKeyResponse) GetPublicKey() string {
+	if x != nil {
+		return x.PublicKey
+	}
+	return ""
+}
+
+func (x *SSHGetPublicKeyResponse) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *SSHGetPublicKeyResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *SSHGetPublicKeyResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type TestSSHConnectionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	KeyPath       string                 `protobuf:"bytes,1,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestSSHConnectionRequest) Reset() {
+	*x = TestSSHConnectionRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[122]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestSSHConnectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestSSHConnectionRequest) ProtoMessage() {}
+
+func (x *TestSSHConnectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[122]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestSSHConnectionRequest.ProtoReflect.Descriptor instead.
+func (*TestSSHConnectionRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{122}
+}
+
+func (x *TestSSHConnectionRequest) GetKeyPath() string {
+	if x != nil {
+		return x.KeyPath
+	}
+	return ""
+}
+
+type SSHTestConnectionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Hint          string                 `protobuf:"bytes,4,opt,name=hint,proto3" json:"hint,omitempty"`
+	GithubUser    string                 `protobuf:"bytes,5,opt,name=github_user,json=githubUser,proto3" json:"github_user,omitempty"`
+	Fingerprint   string                 `protobuf:"bytes,6,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	LatencyMs     int64                  `protobuf:"varint,7,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
+	Timestamp     string                 `protobuf:"bytes,8,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SSHTestConnectionResponse) Reset() {
+	*x = SSHTestConnectionResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[123]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SSHTestConnectionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SSHTestConnectionResponse) ProtoMessage() {}
+
+func (x *SSHTestConnectionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[123]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SSHTestConnectionResponse.ProtoReflect.Descriptor instead.
+func (*SSHTestConnectionResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{123}
+}
+
+func (x *SSHTestConnectionResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *SSHTestConnectionResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *SSHTestConnectionResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *SSHTestConnectionResponse) GetHint() string {
+	if x != nil {
+		return x.Hint
+	}
+	return ""
+}
+
+func (x *SSHTestConnectionResponse) GetGithubUser() string {
+	if x != nil {
+		return x.GithubUser
+	}
+	return ""
+}
+
+func (x *SSHTestConnectionResponse) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *SSHTestConnectionResponse) GetLatencyMs() int64 {
+	if x != nil {
+		return x.LatencyMs
+	}
+	return 0
+}
+
+func (x *SSHTestConnectionResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+type DeleteSSHKeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	KeyPath       string                 `protobuf:"bytes,3,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteSSHKeyRequest) Reset() {
+	*x = DeleteSSHKeyRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[124]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteSSHKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteSSHKeyRequest) ProtoMessage() {}
+
+func (x *DeleteSSHKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[124]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteSSHKeyRequest.ProtoReflect.Descriptor instead.
+func (*DeleteSSHKeyRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{124}
+}
+
+func (x *DeleteSSHKeyRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *DeleteSSHKeyRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *DeleteSSHKeyRequest) GetKeyPath() string {
+	if x != nil {
+		return x.KeyPath
+	}
+	return ""
+}
+
+type SSHDeleteKeyResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Success        bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message        string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Error          string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	PrivateDeleted bool                   `protobuf:"varint,4,opt,name=private_deleted,json=privateDeleted,proto3" json:"private_deleted,omitempty"`
+	PublicDeleted  bool                   `protobuf:"varint,5,opt,name=public_deleted,json=publicDeleted,proto3" json:"public_deleted,omitempty"`
+	Timestamp      string                 `protobuf:"bytes,6,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SSHDeleteKeyResponse) Reset() {
+	*x = SSHDeleteKeyResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[125]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SSHDeleteKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SSHDeleteKeyResponse) ProtoMessage() {}
+
+func (x *SSHDeleteKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[125]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SSHDeleteKeyResponse.ProtoReflect.Descriptor instead.
+func (*SSHDeleteKeyResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{125}
+}
+
+func (x *SSHDeleteKeyResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *SSHDeleteKeyResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *SSHDeleteKeyResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *SSHDeleteKeyResponse) GetPrivateDeleted() bool {
+	if x != nil {
+		return x.PrivateDeleted
+	}
+	return false
+}
+
+func (x *SSHDeleteKeyResponse) GetPublicDeleted() bool {
+	if x != nil {
+		return x.PublicDeleted
+	}
+	return false
+}
+
+func (x *SSHDeleteKeyResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+// Unknown never means safe. Complete covers file sizes, not all remote policies.
+type InspectPushSafetyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Remote        string                 `protobuf:"bytes,2,opt,name=remote,proto3" json:"remote,omitempty"`
+	Branch        string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InspectPushSafetyRequest) Reset() {
+	*x = InspectPushSafetyRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[126]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InspectPushSafetyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InspectPushSafetyRequest) ProtoMessage() {}
+
+func (x *InspectPushSafetyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[126]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InspectPushSafetyRequest.ProtoReflect.Descriptor instead.
+func (*InspectPushSafetyRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{126}
+}
+
+func (x *InspectPushSafetyRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *InspectPushSafetyRequest) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *InspectPushSafetyRequest) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+type PushSafetyFile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Oid           string                 `protobuf:"bytes,1,opt,name=oid,proto3" json:"oid,omitempty"`
+	Bytes         int64                  `protobuf:"varint,2,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	Paths         []string               `protobuf:"bytes,3,rep,name=paths,proto3" json:"paths,omitempty"`
+	Commits       []string               `protobuf:"bytes,4,rep,name=commits,proto3" json:"commits,omitempty"`
+	Blocked       bool                   `protobuf:"varint,5,opt,name=blocked,proto3" json:"blocked,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PushSafetyFile) Reset() {
+	*x = PushSafetyFile{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[127]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PushSafetyFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PushSafetyFile) ProtoMessage() {}
+
+func (x *PushSafetyFile) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[127]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PushSafetyFile.ProtoReflect.Descriptor instead.
+func (*PushSafetyFile) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{127}
+}
+
+func (x *PushSafetyFile) GetOid() string {
+	if x != nil {
+		return x.Oid
+	}
+	return ""
+}
+
+func (x *PushSafetyFile) GetBytes() int64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+func (x *PushSafetyFile) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *PushSafetyFile) GetCommits() []string {
+	if x != nil {
+		return x.Commits
+	}
+	return nil
+}
+
+func (x *PushSafetyFile) GetBlocked() bool {
+	if x != nil {
+		return x.Blocked
+	}
+	return false
+}
+
+type PushSafetyReport struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Complete       bool                   `protobuf:"varint,1,opt,name=complete,proto3" json:"complete,omitempty"`
+	State          string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	Reason         string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	Head           string                 `protobuf:"bytes,4,opt,name=head,proto3" json:"head,omitempty"`
+	Base           string                 `protobuf:"bytes,5,opt,name=base,proto3" json:"base,omitempty"`
+	Remote         string                 `protobuf:"bytes,6,opt,name=remote,proto3" json:"remote,omitempty"`
+	Branch         string                 `protobuf:"bytes,7,opt,name=branch,proto3" json:"branch,omitempty"`
+	Limit          int64                  `protobuf:"varint,8,opt,name=limit,proto3" json:"limit,omitempty"`
+	Commits        []string               `protobuf:"bytes,9,rep,name=commits,proto3" json:"commits,omitempty"`
+	Files          []*PushSafetyFile      `protobuf:"bytes,10,rep,name=files,proto3" json:"files,omitempty"`
+	Fingerprint    string                 `protobuf:"bytes,11,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	CanPrepare     bool                   `protobuf:"varint,12,opt,name=can_prepare,json=canPrepare,proto3" json:"can_prepare,omitempty"`
+	RecoveryReason string                 `protobuf:"bytes,13,opt,name=recovery_reason,json=recoveryReason,proto3" json:"recovery_reason,omitempty"`
+	// Advisory index snapshot, separate from immutable recovery approval.
+	StagedComplete bool              `protobuf:"varint,14,opt,name=staged_complete,json=stagedComplete,proto3" json:"staged_complete,omitempty"`
+	StagedReason   string            `protobuf:"bytes,15,opt,name=staged_reason,json=stagedReason,proto3" json:"staged_reason,omitempty"`
+	StagedFiles    []*PushSafetyFile `protobuf:"bytes,16,rep,name=staged_files,json=stagedFiles,proto3" json:"staged_files,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PushSafetyReport) Reset() {
+	*x = PushSafetyReport{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[128]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PushSafetyReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PushSafetyReport) ProtoMessage() {}
+
+func (x *PushSafetyReport) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[128]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PushSafetyReport.ProtoReflect.Descriptor instead.
+func (*PushSafetyReport) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{128}
+}
+
+func (x *PushSafetyReport) GetComplete() bool {
+	if x != nil {
+		return x.Complete
+	}
+	return false
+}
+
+func (x *PushSafetyReport) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *PushSafetyReport) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *PushSafetyReport) GetHead() string {
+	if x != nil {
+		return x.Head
+	}
+	return ""
+}
+
+func (x *PushSafetyReport) GetBase() string {
+	if x != nil {
+		return x.Base
+	}
+	return ""
+}
+
+func (x *PushSafetyReport) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *PushSafetyReport) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *PushSafetyReport) GetLimit() int64 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *PushSafetyReport) GetCommits() []string {
+	if x != nil {
+		return x.Commits
+	}
+	return nil
+}
+
+func (x *PushSafetyReport) GetFiles() []*PushSafetyFile {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *PushSafetyReport) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *PushSafetyReport) GetCanPrepare() bool {
+	if x != nil {
+		return x.CanPrepare
+	}
+	return false
+}
+
+func (x *PushSafetyReport) GetRecoveryReason() string {
+	if x != nil {
+		return x.RecoveryReason
+	}
+	return ""
+}
+
+func (x *PushSafetyReport) GetStagedComplete() bool {
+	if x != nil {
+		return x.StagedComplete
+	}
+	return false
+}
+
+func (x *PushSafetyReport) GetStagedReason() string {
+	if x != nil {
+		return x.StagedReason
+	}
+	return ""
+}
+
+func (x *PushSafetyReport) GetStagedFiles() []*PushSafetyFile {
+	if x != nil {
+		return x.StagedFiles
+	}
+	return nil
+}
+
+// Writes only owner-managed isolated artifacts. Never activates or publishes.
+type PreparePushRecoveryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Remote        string                 `protobuf:"bytes,3,opt,name=remote,proto3" json:"remote,omitempty"`
+	Branch        string                 `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	Fingerprint   string                 `protobuf:"bytes,5,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PreparePushRecoveryRequest) Reset() {
+	*x = PreparePushRecoveryRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[129]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreparePushRecoveryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreparePushRecoveryRequest) ProtoMessage() {}
+
+func (x *PreparePushRecoveryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[129]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreparePushRecoveryRequest.ProtoReflect.Descriptor instead.
+func (*PreparePushRecoveryRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{129}
+}
+
+func (x *PreparePushRecoveryRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *PreparePushRecoveryRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *PreparePushRecoveryRequest) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *PreparePushRecoveryRequest) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *PreparePushRecoveryRequest) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+type RecoveryCommitMapping struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Original      string                 `protobuf:"bytes,1,opt,name=original,proto3" json:"original,omitempty"`
+	Replacement   string                 `protobuf:"bytes,2,opt,name=replacement,proto3" json:"replacement,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecoveryCommitMapping) Reset() {
+	*x = RecoveryCommitMapping{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[130]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecoveryCommitMapping) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecoveryCommitMapping) ProtoMessage() {}
+
+func (x *RecoveryCommitMapping) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[130]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecoveryCommitMapping.ProtoReflect.Descriptor instead.
+func (*RecoveryCommitMapping) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{130}
+}
+
+func (x *RecoveryCommitMapping) GetOriginal() string {
+	if x != nil {
+		return x.Original
+	}
+	return ""
+}
+
+func (x *RecoveryCommitMapping) GetReplacement() string {
+	if x != nil {
+		return x.Replacement
+	}
+	return ""
+}
+
+type PushRecoveryArtifact struct {
+	state             protoimpl.MessageState   `protogen:"open.v1"`
+	State             string                   `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	Message           string                   `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Fingerprint       string                   `protobuf:"bytes,3,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	Head              string                   `protobuf:"bytes,4,opt,name=head,proto3" json:"head,omitempty"`
+	Base              string                   `protobuf:"bytes,5,opt,name=base,proto3" json:"base,omitempty"`
+	Candidate         string                   `protobuf:"bytes,6,opt,name=candidate,proto3" json:"candidate,omitempty"`
+	OriginalBundle    string                   `protobuf:"bytes,7,opt,name=original_bundle,json=originalBundle,proto3" json:"original_bundle,omitempty"`
+	RepairedBundle    string                   `protobuf:"bytes,8,opt,name=repaired_bundle,json=repairedBundle,proto3" json:"repaired_bundle,omitempty"`
+	Mappings          []*RecoveryCommitMapping `protobuf:"bytes,9,rep,name=mappings,proto3" json:"mappings,omitempty"`
+	Paths             []string                 `protobuf:"bytes,10,rep,name=paths,proto3" json:"paths,omitempty"`
+	SignaturesRemoved bool                     `protobuf:"varint,11,opt,name=signatures_removed,json=signaturesRemoved,proto3" json:"signatures_removed,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *PushRecoveryArtifact) Reset() {
+	*x = PushRecoveryArtifact{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[131]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PushRecoveryArtifact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PushRecoveryArtifact) ProtoMessage() {}
+
+func (x *PushRecoveryArtifact) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[131]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PushRecoveryArtifact.ProtoReflect.Descriptor instead.
+func (*PushRecoveryArtifact) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{131}
+}
+
+func (x *PushRecoveryArtifact) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *PushRecoveryArtifact) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *PushRecoveryArtifact) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *PushRecoveryArtifact) GetHead() string {
+	if x != nil {
+		return x.Head
+	}
+	return ""
+}
+
+func (x *PushRecoveryArtifact) GetBase() string {
+	if x != nil {
+		return x.Base
+	}
+	return ""
+}
+
+func (x *PushRecoveryArtifact) GetCandidate() string {
+	if x != nil {
+		return x.Candidate
+	}
+	return ""
+}
+
+func (x *PushRecoveryArtifact) GetOriginalBundle() string {
+	if x != nil {
+		return x.OriginalBundle
+	}
+	return ""
+}
+
+func (x *PushRecoveryArtifact) GetRepairedBundle() string {
+	if x != nil {
+		return x.RepairedBundle
+	}
+	return ""
+}
+
+func (x *PushRecoveryArtifact) GetMappings() []*RecoveryCommitMapping {
+	if x != nil {
+		return x.Mappings
+	}
+	return nil
+}
+
+func (x *PushRecoveryArtifact) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *PushRecoveryArtifact) GetSignaturesRemoved() bool {
+	if x != nil {
+		return x.SignaturesRemoved
+	}
+	return false
+}
+
+type GetPushRecoveryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Fingerprint   string                 `protobuf:"bytes,2,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPushRecoveryRequest) Reset() {
+	*x = GetPushRecoveryRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[132]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPushRecoveryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPushRecoveryRequest) ProtoMessage() {}
+
+func (x *GetPushRecoveryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[132]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPushRecoveryRequest.ProtoReflect.Descriptor instead.
+func (*GetPushRecoveryRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{132}
+}
+
+func (x *GetPushRecoveryRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *GetPushRecoveryRequest) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
 var File_git_control_tower_v1_repo_repo_proto protoreflect.FileDescriptor
 
 const file_git_control_tower_v1_repo_repo_proto_rawDesc = "" +
 	"\n" +
-	"$git-control-tower/v1/repo/repo.proto\x12 vrooli.git_control_tower.v1.repo\x1a\x1bbuf/validate/validate.proto\"<\n" +
-	"\x14GetRepoStatusRequest\x12$\n" +
-	"\trepo_path\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\brepoPath\"\xe8\x01\n" +
+	"$git-control-tower/v1/repo/repo.proto\x12 vrooli.git_control_tower.v1.repo\x1a\x1bbuf/validate/validate.proto\"\xc0\x01\n" +
+	"\n" +
+	"RepoRecord\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"remote_url\x18\x04 \x01(\tR\tremoteUrl\x12\x19\n" +
+	"\badded_at\x18\x05 \x01(\tR\aaddedAt\x12$\n" +
+	"\x0elast_opened_at\x18\x06 \x01(\tR\flastOpenedAt\x12\x1a\n" +
+	"\bfavorite\x18\a \x01(\bR\bfavorite\"\x19\n" +
+	"\x17ListRepositoriesRequest\"\x99\x01\n" +
+	"\x18ListRepositoriesResponse\x12B\n" +
+	"\x05repos\x18\x01 \x03(\v2,.vrooli.git_control_tower.v1.repo.RepoRecordR\x05repos\x12\x1b\n" +
+	"\tactive_id\x18\x02 \x01(\x03R\bactiveId\x12\x1c\n" +
+	"\ttimestamp\x18\x03 \x01(\tR\ttimestamp\"\x1c\n" +
+	"\x1aGetActiveRepositoryRequest\"}\n" +
+	"\x1bGetActiveRepositoryResponse\x12@\n" +
+	"\x04repo\x18\x01 \x01(\v2,.vrooli.git_control_tower.v1.repo.RepoRecordR\x04repo\x12\x1c\n" +
+	"\ttimestamp\x18\x02 \x01(\tR\ttimestamp\"\xc1\x01\n" +
+	"\x15GetRepoHistoryRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12#\n" +
+	"\rinclude_files\x18\x03 \x01(\bR\fincludeFiles\x12%\n" +
+	"\x0einclude_checks\x18\x04 \x01(\bR\rincludeChecks\x12!\n" +
+	"\fgrep_pattern\x18\x05 \x01(\tR\vgrepPattern\"\xfc\x01\n" +
+	"\x0eCommitCheckRun\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
+	"\acommand\x18\x03 \x01(\tR\acommand\x12\x1b\n" +
+	"\texit_code\x18\x04 \x01(\x05R\bexitCode\x12\x18\n" +
+	"\asummary\x18\x05 \x01(\tR\asummary\x12\x16\n" +
+	"\x06stdout\x18\x06 \x01(\tR\x06stdout\x12\x16\n" +
+	"\x06stderr\x18\a \x01(\tR\x06stderr\x12\x1f\n" +
+	"\vduration_ms\x18\b \x01(\x03R\n" +
+	"durationMs\x12\x1c\n" +
+	"\ttimestamp\x18\t \x01(\tR\ttimestamp\"\xcc\x01\n" +
+	"\x10RepoHistoryEntry\x12\x12\n" +
+	"\x04hash\x18\x01 \x01(\tR\x04hash\x12\x16\n" +
+	"\x06author\x18\x02 \x01(\tR\x06author\x12\x12\n" +
+	"\x04date\x18\x03 \x01(\tR\x04date\x12\x18\n" +
+	"\asubject\x18\x04 \x01(\tR\asubject\x12\x14\n" +
+	"\x05files\x18\x05 \x03(\tR\x05files\x12H\n" +
+	"\x06checks\x18\x06 \x03(\v20.vrooli.git_control_tower.v1.repo.CommitCheckRunR\x06checks\"\xee\x01\n" +
+	"\x16GetRepoHistoryResponse\x12\x19\n" +
+	"\brepo_dir\x18\x01 \x01(\tR\arepoDir\x12\x14\n" +
+	"\x05lines\x18\x02 \x03(\tR\x05lines\x12L\n" +
+	"\aentries\x18\x03 \x03(\v22.vrooli.git_control_tower.v1.repo.RepoHistoryEntryR\aentries\x12\x14\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\x12!\n" +
+	"\fgrep_pattern\x18\x05 \x01(\tR\vgrepPattern\x12\x1c\n" +
+	"\ttimestamp\x18\x06 \x01(\tR\ttimestamp\"V\n" +
+	"\x19GetApprovedChangesRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x14\n" +
+	"\x05paths\x18\x02 \x03(\tR\x05paths\"\xe7\x01\n" +
+	"\x12ApprovedChangeFile\x12#\n" +
+	"\rrelative_path\x18\x01 \x01(\tR\frelativePath\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"sandbox_id\x18\x03 \x01(\tR\tsandboxId\x12#\n" +
+	"\rsandbox_owner\x18\x04 \x01(\tR\fsandboxOwner\x12\x1f\n" +
+	"\vchange_type\x18\x05 \x01(\tR\n" +
+	"changeType\x12/\n" +
+	"\x14agent_manager_run_id\x18\x06 \x01(\tR\x11agentManagerRunId\"\xfa\x01\n" +
+	"\x1aGetApprovedChangesResponse\x12\x1c\n" +
+	"\tavailable\x18\x01 \x01(\bR\tavailable\x12+\n" +
+	"\x11committable_files\x18\x02 \x01(\x05R\x10committableFiles\x12+\n" +
+	"\x11suggested_message\x18\x03 \x01(\tR\x10suggestedMessage\x12J\n" +
+	"\x05files\x18\x04 \x03(\v24.vrooli.git_control_tower.v1.repo.ApprovedChangeFileR\x05files\x12\x18\n" +
+	"\awarning\x18\x05 \x01(\tR\awarning\";\n" +
+	"\x14GetProvenanceRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\"\xb2\x01\n" +
+	"\x0eProvenanceFile\x12\x1b\n" +
+	"\tfile_path\x18\x01 \x01(\tR\bfilePath\x12#\n" +
+	"\rrelative_path\x18\x02 \x01(\tR\frelativePath\x12\x1f\n" +
+	"\vchange_type\x18\x03 \x01(\tR\n" +
+	"changeType\x12\x1d\n" +
+	"\n" +
+	"applied_at\x18\x04 \x01(\tR\tappliedAt\x12\x1e\n" +
+	"\n" +
+	"visibility\x18\x05 \x01(\tR\n" +
+	"visibility\"\xe3\x01\n" +
+	"\x12ProvenanceRunGroup\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1d\n" +
+	"\n" +
+	"sandbox_id\x18\x02 \x01(\tR\tsandboxId\x12#\n" +
+	"\rsandbox_owner\x18\x03 \x01(\tR\fsandboxOwner\x12F\n" +
+	"\x05files\x18\x04 \x03(\v20.vrooli.git_control_tower.v1.repo.ProvenanceFileR\x05files\x12*\n" +
+	"\x11latest_applied_at\x18\x05 \x01(\tR\x0flatestAppliedAt\"\xa4\x01\n" +
+	"\x15GetProvenanceResponse\x12\x1c\n" +
+	"\tavailable\x18\x01 \x01(\bR\tavailable\x12S\n" +
+	"\n" +
+	"run_groups\x18\x02 \x03(\v24.vrooli.git_control_tower.v1.repo.ProvenanceRunGroupR\trunGroups\x12\x18\n" +
+	"\awarning\x18\x03 \x01(\tR\awarning\"\x91\x02\n" +
+	"\x0fGetBlameRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x14\n" +
+	"\x05paths\x18\x02 \x03(\tR\x05paths\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\tR\brevision\x12\x1d\n" +
+	"\n" +
+	"start_line\x18\x04 \x01(\x05R\tstartLine\x12\x19\n" +
+	"\bend_line\x18\x05 \x01(\x05R\aendLine\x12\x1b\n" +
+	"\tmax_paths\x18\x06 \x01(\x05R\bmaxPaths\x12\x1b\n" +
+	"\tmax_lines\x18\a \x01(\x05R\bmaxLines\x12\x1b\n" +
+	"\tmax_bytes\x18\b \x01(\x05R\bmaxBytes\x12\x16\n" +
+	"\x06enrich\x18\t \x01(\bR\x06enrich\"\xee\x01\n" +
+	"\tBlameLine\x12\x12\n" +
+	"\x04line\x18\x01 \x01(\x05R\x04line\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\x12\x16\n" +
+	"\x06commit\x18\x03 \x01(\tR\x06commit\x12\x16\n" +
+	"\x06author\x18\x04 \x01(\tR\x06author\x12\x1f\n" +
+	"\vauthor_time\x18\x05 \x01(\tR\n" +
+	"authorTime\x12\x18\n" +
+	"\asubject\x18\x06 \x01(\tR\asubject\x12#\n" +
+	"\roriginal_line\x18\a \x01(\x05R\foriginalLine\x12#\n" +
+	"\roriginal_path\x18\b \x01(\tR\foriginalPath\"\xfe\x01\n" +
+	"\x17ProvenanceWorkReference\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\tR\brevision\x12\"\n" +
+	"\frelationship\x18\x04 \x01(\tR\frelationship\x12\x1a\n" +
+	"\bverified\x18\x05 \x01(\bR\bverified\x12\x1e\n" +
+	"\n" +
+	"visibility\x18\x06 \x01(\tR\n" +
+	"visibility\x12\x14\n" +
+	"\x05state\x18\a \x01(\tR\x05state\x12-\n" +
+	"\x12unavailable_reason\x18\b \x01(\tR\x11unavailableReason\"\x8b\x04\n" +
+	"\rBlameEvidence\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1d\n" +
+	"\n" +
+	"sandbox_id\x18\x02 \x01(\tR\tsandboxId\x12/\n" +
+	"\x13application_receipt\x18\x03 \x01(\tR\x12applicationReceipt\x12%\n" +
+	"\x0econtent_digest\x18\x04 \x01(\tR\rcontentDigest\x12\x1b\n" +
+	"\tcommit_id\x18\x05 \x01(\tR\bcommitId\x12\x1e\n" +
+	"\n" +
+	"visibility\x18\x06 \x01(\tR\n" +
+	"visibility\x12!\n" +
+	"\fcommit_state\x18\a \x01(\tR\vcommitState\x12\x1f\n" +
+	"\vrun_outcome\x18\b \x01(\tR\n" +
+	"runOutcome\x12'\n" +
+	"\x0fconversation_id\x18\t \x01(\tR\x0econversationId\x12\x19\n" +
+	"\bcost_usd\x18\n" +
+	" \x01(\x01R\acostUsd\x12!\n" +
+	"\fcommitted_at\x18\v \x01(\tR\vcommittedAt\x12 \n" +
+	"\vunavailable\x18\f \x03(\tR\vunavailable\x12b\n" +
+	"\x0fwork_references\x18\r \x03(\v29.vrooli.git_control_tower.v1.repo.ProvenanceWorkReferenceR\x0eworkReferences\"\xcf\x02\n" +
+	"\tBlameFile\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12A\n" +
+	"\x05lines\x18\x03 \x03(\v2+.vrooli.git_control_tower.v1.repo.BlameLineR\x05lines\x12%\n" +
+	"\x0econtent_digest\x18\x04 \x01(\tR\rcontentDigest\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\x12\x1a\n" +
+	"\bstanding\x18\x06 \x01(\tR\bstanding\x12+\n" +
+	"\x11downgrade_reasons\x18\a \x03(\tR\x10downgradeReasons\x12K\n" +
+	"\bevidence\x18\b \x03(\v2/.vrooli.git_control_tower.v1.repo.BlameEvidenceR\bevidence\"\xc1\x02\n" +
+	"\x16ProvenanceChangeBundle\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1d\n" +
+	"\n" +
+	"sandbox_id\x18\x02 \x01(\tR\tsandboxId\x12\x14\n" +
+	"\x05files\x18\x03 \x03(\tR\x05files\x12\x1f\n" +
+	"\vrun_outcome\x18\x04 \x01(\tR\n" +
+	"runOutcome\x12'\n" +
+	"\x0fconversation_id\x18\x05 \x01(\tR\x0econversationId\x12\x19\n" +
+	"\bcost_usd\x18\x06 \x01(\x01R\acostUsd\x12b\n" +
+	"\x0fwork_references\x18\a \x03(\v29.vrooli.git_control_tower.v1.repo.ProvenanceWorkReferenceR\x0eworkReferences\x12\x12\n" +
+	"\x04gaps\x18\b \x03(\tR\x04gaps\"\x8c\x02\n" +
+	"\x10GetBlameResponse\x12\x1a\n" +
+	"\brevision\x18\x01 \x01(\tR\brevision\x12A\n" +
+	"\x05files\x18\x02 \x03(\v2+.vrooli.git_control_tower.v1.repo.BlameFileR\x05files\x12\x1c\n" +
+	"\ttruncated\x18\x03 \x01(\bR\ttruncated\x12\x1a\n" +
+	"\bwarnings\x18\x04 \x03(\tR\bwarnings\x12_\n" +
+	"\x0echange_bundles\x18\x05 \x03(\v28.vrooli.git_control_tower.v1.repo.ProvenanceChangeBundleR\rchangeBundles\"\x80\x01\n" +
+	"\x17SearchProvenanceRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\x03R\frepositoryId\x12\x14\n" +
+	"\x05query\x18\x02 \x01(\tR\x05query\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x14\n" +
+	"\x05scope\x18\x04 \x01(\tR\x05scope\"\xf3\x01\n" +
+	"\x13ProvenanceSearchHit\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
+	"\asnippet\x18\x03 \x01(\tR\asnippet\x12\x14\n" +
+	"\x05score\x18\x04 \x01(\x01R\x05score\x12\x15\n" +
+	"\x06run_id\x18\x05 \x01(\tR\x05runId\x12\x1d\n" +
+	"\n" +
+	"sandbox_id\x18\x06 \x01(\tR\tsandboxId\x12#\n" +
+	"\rrelative_path\x18\a \x01(\tR\frelativePath\x12+\n" +
+	"\x11evidence_standing\x18\b \x01(\tR\x10evidenceStanding\"\xa3\x01\n" +
+	"\x18SearchProvenanceResponse\x12\x1c\n" +
+	"\tavailable\x18\x01 \x01(\bR\tavailable\x12O\n" +
+	"\aresults\x18\x02 \x03(\v25.vrooli.git_control_tower.v1.repo.ProvenanceSearchHitR\aresults\x12\x18\n" +
+	"\awarning\x18\x03 \x01(\tR\awarning\"A\n" +
+	"\x1aSetActiveRepositoryRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\x03R\frepositoryId\"+\n" +
+	"\x15OpenRepositoryRequest\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\"L\n" +
+	"\x16CloneRepositoryRequest\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12 \n" +
+	"\vdestination\x18\x02 \x01(\tR\vdestination\"v\n" +
+	"\x14RepoMutationResponse\x12@\n" +
+	"\x04repo\x18\x01 \x01(\v2,.vrooli.git_control_tower.v1.repo.RepoRecordR\x04repo\x12\x1c\n" +
+	"\ttimestamp\x18\x02 \x01(\tR\ttimestamp\">\n" +
+	"\x17RemoveRepositoryRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\x03R\frepositoryId\"R\n" +
+	"\x18RemoveRepositoryResponse\x12\x18\n" +
+	"\aremoved\x18\x01 \x01(\bR\aremoved\x12\x1c\n" +
+	"\ttimestamp\x18\x02 \x01(\tR\ttimestamp\"\x83\x01\n" +
+	"\x14GetRepoStatusRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\trepo_path\x18\x02 \x01(\tR\brepoPath\x12)\n" +
+	"\x10include_hotspots\x18\x03 \x01(\bR\x0fincludeHotspots\"\xe8\x01\n" +
 	"\x10WorktreeIdentity\x12,\n" +
 	"\x12is_linked_worktree\x18\x01 \x01(\bR\x10isLinkedWorktree\x12(\n" +
 	"\x10common_repo_root\x18\x02 \x01(\tR\x0ecommonRepoRoot\x12#\n" +
 	"\rworktree_name\x18\x03 \x01(\tR\fworktreeName\x12#\n" +
 	"\rworktree_head\x18\x04 \x01(\tR\fworktreeHead\x122\n" +
-	"\x15linked_worktree_count\x18\x05 \x01(\x05R\x13linkedWorktreeCount\"\x9b\x01\n" +
+	"\x15linked_worktree_count\x18\x05 \x01(\x05R\x13linkedWorktreeCount\"\xc4\a\n" +
 	"\x15GetRepoStatusResponse\x12\x16\n" +
 	"\x06branch\x18\x01 \x01(\tR\x06branch\x12\x1a\n" +
 	"\bdetached\x18\x02 \x01(\bR\bdetached\x12N\n" +
-	"\bworktree\x18\x03 \x01(\v22.vrooli.git_control_tower.v1.repo.WorktreeIdentityR\bworktree2\x90\x01\n" +
-	"\vRepoService\x12\x80\x01\n" +
-	"\rGetRepoStatus\x126.vrooli.git_control_tower.v1.repo.GetRepoStatusRequest\x1a7.vrooli.git_control_tower.v1.repo.GetRepoStatusResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo;repo_v1b\x06proto3"
+	"\bworktree\x18\x03 \x01(\v22.vrooli.git_control_tower.v1.repo.WorktreeIdentityR\bworktree\x12S\n" +
+	"\rbranch_status\x18\x04 \x01(\v2..vrooli.git_control_tower.v1.repo.BranchStatusR\fbranchStatus\x12C\n" +
+	"\x05files\x18\x05 \x01(\v2-.vrooli.git_control_tower.v1.repo.FilesStatusR\x05files\x12J\n" +
+	"\n" +
+	"file_stats\x18\x06 \x01(\v2+.vrooli.git_control_tower.v1.repo.FileStatsR\tfileStats\x12n\n" +
+	"\rfile_hotspots\x18\a \x03(\v2I.vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.FileHotspotsEntryR\ffileHotspots\x12[\n" +
+	"\x06scopes\x18\b \x03(\v2C.vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.ScopesEntryR\x06scopes\x12I\n" +
+	"\asummary\x18\t \x01(\v2/.vrooli.git_control_tower.v1.repo.StatusSummaryR\asummary\x12F\n" +
+	"\x06author\x18\n" +
+	" \x01(\v2..vrooli.git_control_tower.v1.repo.AuthorStatusR\x06author\x12\x19\n" +
+	"\brepo_dir\x18\v \x01(\tR\arepoDir\x12\x1c\n" +
+	"\ttimestamp\x18\f \x01(\tR\ttimestamp\x1a?\n" +
+	"\x11FileHotspotsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1ag\n" +
+	"\vScopesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12B\n" +
+	"\x05value\x18\x02 \x01(\v2,.vrooli.git_control_tower.v1.repo.StringListR\x05value:\x028\x01\"~\n" +
+	"\fBranchStatus\x12\x12\n" +
+	"\x04head\x18\x01 \x01(\tR\x04head\x12\x1a\n" +
+	"\bupstream\x18\x02 \x01(\tR\bupstream\x12\x14\n" +
+	"\x05ahead\x18\x03 \x01(\x05R\x05ahead\x12\x16\n" +
+	"\x06behind\x18\x04 \x01(\x05R\x06behind\x12\x10\n" +
+	"\x03oid\x18\x05 \x01(\tR\x03oid\"\xd7\x03\n" +
+	"\vFilesStatus\x12\x16\n" +
+	"\x06staged\x18\x01 \x03(\tR\x06staged\x12\x1a\n" +
+	"\bunstaged\x18\x02 \x03(\tR\bunstaged\x12\x1c\n" +
+	"\tuntracked\x18\x03 \x03(\tR\tuntracked\x12\x1c\n" +
+	"\tconflicts\x18\x04 \x03(\tR\tconflicts\x12\x16\n" +
+	"\x06binary\x18\x05 \x03(\tR\x06binary\x12\x18\n" +
+	"\aignored\x18\x06 \x03(\tR\aignored\x12W\n" +
+	"\bstatuses\x18\a \x03(\v2;.vrooli.git_control_tower.v1.repo.FilesStatus.StatusesEntryR\bstatuses\x12T\n" +
+	"\arenames\x18\b \x03(\v2:.vrooli.git_control_tower.v1.repo.FilesStatus.RenamesEntryR\arenames\x1a;\n" +
+	"\rStatusesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a:\n" +
+	"\fRenamesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xca\x04\n" +
+	"\tFileStats\x12O\n" +
+	"\x06staged\x18\x01 \x03(\v27.vrooli.git_control_tower.v1.repo.FileStats.StagedEntryR\x06staged\x12U\n" +
+	"\bunstaged\x18\x02 \x03(\v29.vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntryR\bunstaged\x12X\n" +
+	"\tuntracked\x18\x03 \x03(\v2:.vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntryR\tuntracked\x1af\n" +
+	"\vStagedEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12A\n" +
+	"\x05value\x18\x02 \x01(\v2+.vrooli.git_control_tower.v1.repo.DiffStatsR\x05value:\x028\x01\x1ah\n" +
+	"\rUnstagedEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12A\n" +
+	"\x05value\x18\x02 \x01(\v2+.vrooli.git_control_tower.v1.repo.DiffStatsR\x05value:\x028\x01\x1ai\n" +
+	"\x0eUntrackedEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12A\n" +
+	"\x05value\x18\x02 \x01(\v2+.vrooli.git_control_tower.v1.repo.DiffStatsR\x05value:\x028\x01\"\xcd\x03\n" +
+	"\tDiffStats\x12\x1c\n" +
+	"\tadditions\x18\x01 \x01(\x05R\tadditions\x12\x1c\n" +
+	"\tdeletions\x18\x02 \x01(\x05R\tdeletions\x12\x14\n" +
+	"\x05files\x18\x03 \x01(\x05R\x05files\x12\x1b\n" +
+	"\tnet_lines\x18\x04 \x01(\x05R\bnetLines\x12\x1d\n" +
+	"\n" +
+	"hunk_count\x18\x05 \x01(\x05R\thunkCount\x12!\n" +
+	"\flargest_hunk\x18\x06 \x01(\x05R\vlargestHunk\x12\x18\n" +
+	"\adensity\x18\a \x01(\x01R\adensity\x12\x1b\n" +
+	"\tis_binary\x18\b \x01(\bR\bisBinary\x12\x1b\n" +
+	"\tis_rename\x18\t \x01(\bR\bisRename\x12\x19\n" +
+	"\bold_path\x18\n" +
+	" \x01(\tR\aoldPath\x12+\n" +
+	"\x11comment_additions\x18\v \x01(\x05R\x10commentAdditions\x12+\n" +
+	"\x11comment_deletions\x18\f \x01(\x05R\x10commentDeletions\x12\x1e\n" +
+	"\vis_new_file\x18\r \x01(\bR\tisNewFile\x12&\n" +
+	"\x0fis_deleted_file\x18\x0e \x01(\bR\risDeletedFile\"$\n" +
+	"\n" +
+	"StringList\x12\x16\n" +
+	"\x06values\x18\x01 \x03(\tR\x06values\"\x99\x01\n" +
+	"\rStatusSummary\x12\x16\n" +
+	"\x06staged\x18\x01 \x01(\x05R\x06staged\x12\x1a\n" +
+	"\bunstaged\x18\x02 \x01(\x05R\bunstaged\x12\x1c\n" +
+	"\tuntracked\x18\x03 \x01(\x05R\tuntracked\x12\x1c\n" +
+	"\tconflicts\x18\x04 \x01(\x05R\tconflicts\x12\x18\n" +
+	"\aignored\x18\x05 \x01(\x05R\aignored\"8\n" +
+	"\fAuthorStatus\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05email\x18\x02 \x01(\tR\x05email\"\xf2\x01\n" +
+	"\x12GetRepoDiffRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\trepo_path\x18\x02 \x01(\tR\brepoPath\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\x12\x16\n" +
+	"\x06staged\x18\x04 \x01(\bR\x06staged\x12\x1c\n" +
+	"\tuntracked\x18\x05 \x01(\bR\tuntracked\x12\x12\n" +
+	"\x04base\x18\x06 \x01(\tR\x04base\x12\x16\n" +
+	"\x06commit\x18\a \x01(\tR\x06commit\x12\x12\n" +
+	"\x04mode\x18\b \x01(\tR\x04mode\x12\x10\n" +
+	"\x03any\x18\t \x01(\bR\x03any\"\x92\x04\n" +
+	"\x13GetRepoDiffResponse\x12\x19\n" +
+	"\brepo_dir\x18\x01 \x01(\tR\arepoDir\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x16\n" +
+	"\x06staged\x18\x03 \x01(\bR\x06staged\x12\x1c\n" +
+	"\tuntracked\x18\x04 \x01(\bR\tuntracked\x12\x12\n" +
+	"\x04base\x18\x05 \x01(\tR\x04base\x12\x19\n" +
+	"\bhas_diff\x18\x06 \x01(\bR\ahasDiff\x12@\n" +
+	"\x05hunks\x18\a \x03(\v2*.vrooli.git_control_tower.v1.repo.DiffHunkR\x05hunks\x12A\n" +
+	"\x05stats\x18\b \x01(\v2+.vrooli.git_control_tower.v1.repo.DiffStatsR\x05stats\x12\x10\n" +
+	"\x03raw\x18\t \x01(\tR\x03raw\x12!\n" +
+	"\ffull_content\x18\n" +
+	" \x01(\tR\vfullContent\x12!\n" +
+	"\fcontent_hash\x18\v \x01(\tR\vcontentHash\x12X\n" +
+	"\x0fannotated_lines\x18\f \x03(\v2/.vrooli.git_control_tower.v1.repo.AnnotatedLineR\x0eannotatedLines\x12\x12\n" +
+	"\x04mode\x18\r \x01(\tR\x04mode\x12\x1c\n" +
+	"\ttimestamp\x18\x0e \x01(\tR\ttimestamp\"\xac\x01\n" +
+	"\bDiffHunk\x12\x1b\n" +
+	"\told_start\x18\x01 \x01(\x05R\boldStart\x12\x1b\n" +
+	"\told_count\x18\x02 \x01(\x05R\boldCount\x12\x1b\n" +
+	"\tnew_start\x18\x03 \x01(\x05R\bnewStart\x12\x1b\n" +
+	"\tnew_count\x18\x04 \x01(\x05R\bnewCount\x12\x16\n" +
+	"\x06header\x18\x05 \x01(\tR\x06header\x12\x14\n" +
+	"\x05lines\x18\x06 \x03(\tR\x05lines\"x\n" +
+	"\rAnnotatedLine\x12\x16\n" +
+	"\x06number\x18\x01 \x01(\x05R\x06number\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\x12\x16\n" +
+	"\x06change\x18\x03 \x01(\tR\x06change\x12\x1d\n" +
+	"\n" +
+	"old_number\x18\x04 \x01(\x05R\toldNumber\"X\n" +
+	"\x14GetRepoGroupsRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\trepo_path\x18\x02 \x01(\tR\brepoPath\"^\n" +
+	"\x15GetRepoGroupsResponse\x12E\n" +
+	"\x06groups\x18\x01 \x03(\v2-.vrooli.git_control_tower.v1.repo.ChangeGroupR\x06groups\"\x9b\x01\n" +
+	"\vChangeGroup\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x0e\n" +
+	"\x02id\x18\x03 \x01(\tR\x02id\x12\x14\n" +
+	"\x05label\x18\x04 \x01(\tR\x05label\x12\x12\n" +
+	"\x04root\x18\x05 \x01(\tR\x04root\x12\x16\n" +
+	"\x06source\x18\x06 \x01(\tR\x06source\x12\x14\n" +
+	"\x05files\x18\a \x03(\tR\x05files\"\x86\x01\n" +
+	"\x14GetSyncStatusRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\trepo_path\x18\x02 \x01(\tR\brepoPath\x12\x14\n" +
+	"\x05fetch\x18\x03 \x01(\bR\x05fetch\x12\x16\n" +
+	"\x06remote\x18\x04 \x01(\tR\x06remote\"\x93\x04\n" +
+	"\x15GetSyncStatusResponse\x12\x16\n" +
+	"\x06branch\x18\x01 \x01(\tR\x06branch\x12\x1a\n" +
+	"\bupstream\x18\x02 \x01(\tR\bupstream\x12\x1d\n" +
+	"\n" +
+	"remote_url\x18\x03 \x01(\tR\tremoteUrl\x12\x14\n" +
+	"\x05ahead\x18\x04 \x01(\x05R\x05ahead\x12\x16\n" +
+	"\x06behind\x18\x05 \x01(\x05R\x06behind\x12!\n" +
+	"\fhas_upstream\x18\x06 \x01(\bR\vhasUpstream\x12\x19\n" +
+	"\bcan_push\x18\a \x01(\bR\acanPush\x12\x19\n" +
+	"\bcan_pull\x18\b \x01(\bR\acanPull\x12\x1d\n" +
+	"\n" +
+	"needs_pull\x18\t \x01(\bR\tneedsPull\x12\x1d\n" +
+	"\n" +
+	"needs_push\x18\n" +
+	" \x01(\bR\tneedsPush\x126\n" +
+	"\x17has_uncommitted_changes\x18\v \x01(\bR\x15hasUncommittedChanges\x12'\n" +
+	"\x0fsafety_warnings\x18\f \x03(\tR\x0esafetyWarnings\x12(\n" +
+	"\x0frecommendations\x18\r \x03(\tR\x0frecommendations\x12\x18\n" +
+	"\afetched\x18\x0e \x01(\bR\afetched\x12\x1f\n" +
+	"\vfetch_error\x18\x0f \x01(\tR\n" +
+	"fetchError\x12\x1c\n" +
+	"\ttimestamp\x18\x10 \x01(\tR\ttimestamp\"\x99\x01\n" +
+	"\x0fGetFilesRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x18\n" +
+	"\apattern\x18\x02 \x01(\tR\apattern\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x12\n" +
+	"\x04deep\x18\x04 \x01(\bR\x04deep\x12\x1d\n" +
+	"\n" +
+	"timeout_ms\x18\x05 \x01(\x05R\ttimeoutMs\"V\n" +
+	"\fRepoFileInfo\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1a\n" +
+	"\blanguage\x18\x02 \x01(\tR\blanguage\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\"\xd3\x01\n" +
+	"\x10GetFilesResponse\x12D\n" +
+	"\x05files\x18\x01 \x03(\v2..vrooli.git_control_tower.v1.repo.RepoFileInfoR\x05files\x12\x1c\n" +
+	"\ttruncated\x18\x02 \x01(\bR\ttruncated\x12\x1c\n" +
+	"\tcancelled\x18\x03 \x01(\bR\tcancelled\x12\x1f\n" +
+	"\vsearch_mode\x18\x04 \x01(\tR\n" +
+	"searchMode\x12\x1c\n" +
+	"\ttimestamp\x18\x05 \x01(\tR\ttimestamp\"V\n" +
+	"\x1bGetDirectoryContentsRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\"\x85\x01\n" +
+	"\x0eDirectoryEntry\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x15\n" +
+	"\x06is_dir\x18\x03 \x01(\bR\x05isDir\x12\x1a\n" +
+	"\blanguage\x18\x04 \x01(\tR\blanguage\x12\x18\n" +
+	"\atracked\x18\x05 \x01(\bR\atracked\"\x9c\x01\n" +
+	"\x1cGetDirectoryContentsResponse\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12J\n" +
+	"\aentries\x18\x02 \x03(\v20.vrooli.git_control_tower.v1.repo.DirectoryEntryR\aentries\x12\x1c\n" +
+	"\ttimestamp\x18\x03 \x01(\tR\ttimestamp\"Q\n" +
+	"\x16GetRelatedFilesRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\"F\n" +
+	"\vRelatedFile\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12#\n" +
+	"\rrelation_type\x18\x02 \x01(\tR\frelationType\"\x94\x01\n" +
+	"\x17GetRelatedFilesResponse\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12G\n" +
+	"\arelated\x18\x02 \x03(\v2-.vrooli.git_control_tower.v1.repo.RelatedFileR\arelated\x12\x1c\n" +
+	"\ttimestamp\x18\x03 \x01(\tR\ttimestamp\"\xbb\x02\n" +
+	"\x14SearchContentRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x14\n" +
+	"\x05query\x18\x02 \x01(\tR\x05query\x12%\n" +
+	"\x0ecase_sensitive\x18\x03 \x01(\bR\rcaseSensitive\x12\x1d\n" +
+	"\n" +
+	"whole_word\x18\x04 \x01(\bR\twholeWord\x12\x14\n" +
+	"\x05regex\x18\x05 \x01(\bR\x05regex\x12\x18\n" +
+	"\ainclude\x18\x06 \x01(\tR\ainclude\x12\x18\n" +
+	"\aexclude\x18\a \x01(\tR\aexclude\x12#\n" +
+	"\rcontext_lines\x18\b \x01(\x05R\fcontextLines\x12\x14\n" +
+	"\x05limit\x18\t \x01(\x05R\x05limit\x12\x1d\n" +
+	"\n" +
+	"timeout_ms\x18\n" +
+	" \x01(\x05R\ttimeoutMs\"\xa9\x01\n" +
+	"\fContentMatch\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1f\n" +
+	"\vline_number\x18\x02 \x01(\x05R\n" +
+	"lineNumber\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\x12%\n" +
+	"\x0econtext_before\x18\x04 \x01(\tR\rcontextBefore\x12#\n" +
+	"\rcontext_after\x18\x05 \x01(\tR\fcontextAfter\"\xe7\x01\n" +
+	"\x15SearchContentResponse\x12H\n" +
+	"\amatches\x18\x01 \x03(\v2..vrooli.git_control_tower.v1.repo.ContentMatchR\amatches\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\x12\x1c\n" +
+	"\ttruncated\x18\x03 \x01(\bR\ttruncated\x12\x1c\n" +
+	"\tcancelled\x18\x04 \x01(\bR\tcancelled\x12\x14\n" +
+	"\x05query\x18\x05 \x01(\tR\x05query\x12\x1c\n" +
+	"\ttimestamp\x18\x06 \x01(\tR\ttimestamp\"i\n" +
+	"\x11DeletePathRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\"\x8d\x01\n" +
+	"\x12DeletePathResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x15\n" +
+	"\x06is_dir\x18\x03 \x01(\bR\x05isDir\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\x12\x1c\n" +
+	"\ttimestamp\x18\x05 \x01(\tR\ttimestamp\"\xad\x01\n" +
+	"\x16SaveFileContentRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\x12\x18\n" +
+	"\acontent\x18\x04 \x01(\tR\acontent\x12#\n" +
+	"\rexpected_hash\x18\x05 \x01(\tR\fexpectedHash\"\xad\x01\n" +
+	"\x17SaveFileContentResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12!\n" +
+	"\fcontent_hash\x18\x03 \x01(\tR\vcontentHash\x12#\n" +
+	"\rbytes_written\x18\x04 \x01(\x05R\fbytesWritten\x12\x1c\n" +
+	"\ttimestamp\x18\x05 \x01(\tR\ttimestamp\"\x8b\x01\n" +
+	"\x13DiscardFilesRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x14\n" +
+	"\x05paths\x18\x03 \x03(\tR\x05paths\x12\x1c\n" +
+	"\tuntracked\x18\x04 \x01(\bR\tuntracked\"\x9c\x01\n" +
+	"\x14DiscardFilesResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1c\n" +
+	"\tdiscarded\x18\x02 \x03(\tR\tdiscarded\x12\x16\n" +
+	"\x06failed\x18\x03 \x03(\tR\x06failed\x12\x16\n" +
+	"\x06errors\x18\x04 \x03(\tR\x06errors\x12\x1c\n" +
+	"\ttimestamp\x18\x05 \x01(\tR\ttimestamp\"\x9c\x01\n" +
+	"\x11IgnorePathRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\x12\x14\n" +
+	"\x05level\x18\x04 \x01(\tR\x05level\x12\x1b\n" +
+	"\tgroup_dir\x18\x05 \x01(\tR\bgroupDir\"\xbd\x01\n" +
+	"\x12IgnorePathResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\aignored\x18\x02 \x03(\tR\aignored\x12\x16\n" +
+	"\x06failed\x18\x03 \x03(\tR\x06failed\x12\x16\n" +
+	"\x06errors\x18\x04 \x03(\tR\x06errors\x12%\n" +
+	"\x0egitignore_path\x18\x05 \x01(\tR\rgitignorePath\x12\x1c\n" +
+	"\ttimestamp\x18\x06 \x01(\tR\ttimestamp\"\xaa\x01\n" +
+	"\x13PushToRemoteRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x16\n" +
+	"\x06remote\x18\x03 \x01(\tR\x06remote\x12\x16\n" +
+	"\x06branch\x18\x04 \x01(\tR\x06branch\x12!\n" +
+	"\fset_upstream\x18\x05 \x01(\bR\vsetUpstream\"\x95\x02\n" +
+	"\x14PushToRemoteResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x16\n" +
+	"\x06remote\x18\x02 \x01(\tR\x06remote\x12\x16\n" +
+	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x16\n" +
+	"\x06pushed\x18\x04 \x01(\bR\x06pushed\x12\x1c\n" +
+	"\n" +
+	"up_to_date\x18\x05 \x01(\bR\bupToDate\x12\x1a\n" +
+	"\bverified\x18\x06 \x01(\bR\bverified\x12-\n" +
+	"\x12verification_error\x18\a \x01(\tR\x11verificationError\x12\x14\n" +
+	"\x05error\x18\b \x01(\tR\x05error\x12\x1c\n" +
+	"\ttimestamp\x18\t \x01(\tR\ttimestamp\"\x89\x01\n" +
+	"\x15PullFromRemoteRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x16\n" +
+	"\x06remote\x18\x03 \x01(\tR\x06remote\x12\x16\n" +
+	"\x06branch\x18\x04 \x01(\tR\x06branch\"\xbb\x01\n" +
+	"\x16PullFromRemoteResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x16\n" +
+	"\x06remote\x18\x02 \x01(\tR\x06remote\x12\x16\n" +
+	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\x12#\n" +
+	"\rhas_conflicts\x18\x05 \x01(\bR\fhasConflicts\x12\x1c\n" +
+	"\ttimestamp\x18\x06 \x01(\tR\ttimestamp\"\xc0\x01\n" +
+	"\x18RunUpstreamActionRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x16\n" +
+	"\x06action\x18\x03 \x01(\tR\x06action\x12\x16\n" +
+	"\x06remote\x18\x04 \x01(\tR\x06remote\x12\x16\n" +
+	"\x06branch\x18\x05 \x01(\tR\x06branch\x12\x1a\n" +
+	"\bupstream\x18\x06 \x01(\tR\bupstream\"\xcd\x01\n" +
+	"\x19RunUpstreamActionResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x16\n" +
+	"\x06action\x18\x02 \x01(\tR\x06action\x12\x16\n" +
+	"\x06remote\x18\x03 \x01(\tR\x06remote\x12\x16\n" +
+	"\x06branch\x18\x04 \x01(\tR\x06branch\x12\x1a\n" +
+	"\bupstream\x18\x05 \x01(\tR\bupstream\x12\x14\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\x12\x1c\n" +
+	"\ttimestamp\x18\a \x01(\tR\ttimestamp\">\n" +
+	"\x17GetGroupingRulesRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\"d\n" +
+	"\fGroupingRule\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1a\n" +
+	"\bprefixes\x18\x03 \x03(\tR\bprefixes\x12\x12\n" +
+	"\x04mode\x18\x04 \x01(\tR\x04mode\"w\n" +
+	"\x15GroupingRulesResponse\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12D\n" +
+	"\x05rules\x18\x02 \x03(\v2..vrooli.git_control_tower.v1.repo.GroupingRuleR\x05rules\"\xbc\x01\n" +
+	"\x18SaveGroupingRulesRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x18\n" +
+	"\aenabled\x18\x03 \x01(\bR\aenabled\x12D\n" +
+	"\x05rules\x18\x04 \x03(\v2..vrooli.git_control_tower.v1.repo.GroupingRuleR\x05rules\"@\n" +
+	"\x19GetGitignoreHealthRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\"\xe1\x01\n" +
+	"\x13GitignoreSuggestion\x12\x12\n" +
+	"\x04line\x18\x01 \x01(\x05R\x04line\x12\x18\n" +
+	"\apattern\x18\x02 \x01(\tR\apattern\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12\x1f\n" +
+	"\vgroup_label\x18\x04 \x01(\tR\n" +
+	"groupLabel\x12\x1b\n" +
+	"\tgroup_dir\x18\x05 \x01(\tR\bgroupDir\x12%\n" +
+	"\x0etarget_pattern\x18\x06 \x01(\tR\rtargetPattern\x12#\n" +
+	"\rhas_gitignore\x18\a \x01(\bR\fhasGitignore\"\x9c\x01\n" +
+	"\x17GitignoreHealthResponse\x12(\n" +
+	"\x10root_entry_count\x18\x01 \x01(\x05R\x0erootEntryCount\x12W\n" +
+	"\vsuggestions\x18\x02 \x03(\v25.vrooli.git_control_tower.v1.repo.GitignoreSuggestionR\vsuggestions\"\xcf\x01\n" +
+	"\x19MoveGitignoreEntryRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x12\n" +
+	"\x04line\x18\x03 \x01(\x05R\x04line\x12\x18\n" +
+	"\apattern\x18\x04 \x01(\tR\apattern\x12\x1b\n" +
+	"\tgroup_dir\x18\x05 \x01(\tR\bgroupDir\x12%\n" +
+	"\x0etarget_pattern\x18\x06 \x01(\tR\rtargetPattern\"\x8a\x01\n" +
+	"\x1aMoveGitignoreEntryResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12!\n" +
+	"\fremoved_from\x18\x02 \x01(\tR\vremovedFrom\x12\x19\n" +
+	"\badded_to\x18\x03 \x01(\tR\aaddedTo\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\"@\n" +
+	"\x19GetTrackedBinariesRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\"\xbe\x01\n" +
+	"\rTrackedBinary\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x14\n" +
+	"\x05bytes\x18\x02 \x01(\x03R\x05bytes\x12\x16\n" +
+	"\x06format\x18\x03 \x01(\tR\x06format\x12\x1b\n" +
+	"\towner_dir\x18\x04 \x01(\tR\bownerDir\x12%\n" +
+	"\x0eignore_pattern\x18\x05 \x01(\tR\rignorePattern\x12'\n" +
+	"\x0falready_ignored\x18\x06 \x01(\bR\x0ealreadyIgnored\"\xb0\x01\n" +
+	"\x17TrackedBinariesResponse\x12K\n" +
+	"\bbinaries\x18\x01 \x03(\v2/.vrooli.git_control_tower.v1.repo.TrackedBinaryR\bbinaries\x12\x1f\n" +
+	"\vtotal_bytes\x18\x02 \x01(\x03R\n" +
+	"totalBytes\x12'\n" +
+	"\x0fhistory_warning\x18\x03 \x01(\tR\x0ehistoryWarning\"\xb0\x01\n" +
+	"\x14UntrackBinaryRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\x12\x1b\n" +
+	"\towner_dir\x18\x04 \x01(\tR\bownerDir\x12%\n" +
+	"\x0eignore_pattern\x18\x05 \x01(\tR\rignorePattern\"\x9d\x01\n" +
+	"\x15UntrackBinaryResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12,\n" +
+	"\x12removed_from_index\x18\x02 \x01(\bR\x10removedFromIndex\x12&\n" +
+	"\x0fignore_added_to\x18\x03 \x01(\tR\rignoreAddedTo\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\"@\n" +
+	"\x19GetPrecommitConfigRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\"\xf3\x01\n" +
+	"\x12PrecommitHookState\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\x12#\n" +
+	"\rexisting_kind\x18\x03 \x01(\tR\fexistingKind\x122\n" +
+	"\x15existing_hook_preview\x18\x04 \x01(\tR\x13existingHookPreview\x12\x12\n" +
+	"\x04path\x18\x05 \x01(\tR\x04path\x12\x1d\n" +
+	"\n" +
+	"hooks_path\x18\x06 \x01(\tR\thooksPath\x12!\n" +
+	"\finstalled_at\x18\a \x01(\tR\vinstalledAt\"\x97\x03\n" +
+	"\x17PrecommitConfigResponse\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x18\n" +
+	"\acommand\x18\x02 \x01(\tR\acommand\x12+\n" +
+	"\x11working_directory\x18\x03 \x01(\tR\x10workingDirectory\x12'\n" +
+	"\x0ftimeout_seconds\x18\x04 \x01(\x05R\x0etimeoutSeconds\x12*\n" +
+	"\x11run_before_commit\x18\x05 \x01(\bR\x0frunBeforeCommit\x12%\n" +
+	"\x0eallow_override\x18\x06 \x01(\bR\rallowOverride\x12U\n" +
+	"\vlast_result\x18\a \x01(\v24.vrooli.git_control_tower.v1.repo.PrecommitRunResultR\n" +
+	"lastResult\x12H\n" +
+	"\x04hook\x18\b \x01(\v24.vrooli.git_control_tower.v1.repo.PrecommitHookStateR\x04hook\"\xbb\x02\n" +
+	"\x1aSavePrecommitConfigRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x18\n" +
+	"\aenabled\x18\x03 \x01(\bR\aenabled\x12\x18\n" +
+	"\acommand\x18\x04 \x01(\tR\acommand\x12+\n" +
+	"\x11working_directory\x18\x05 \x01(\tR\x10workingDirectory\x12'\n" +
+	"\x0ftimeout_seconds\x18\x06 \x01(\x05R\x0etimeoutSeconds\x12*\n" +
+	"\x11run_before_commit\x18\a \x01(\bR\x0frunBeforeCommit\x12%\n" +
+	"\x0eallow_override\x18\b \x01(\bR\rallowOverride\"\xaa\x01\n" +
+	"\x13RunPrecommitRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x18\n" +
+	"\acommand\x18\x02 \x01(\tR\acommand\x12+\n" +
+	"\x11working_directory\x18\x03 \x01(\tR\x10workingDirectory\x12'\n" +
+	"\x0ftimeout_seconds\x18\x04 \x01(\x05R\x0etimeoutSeconds\"~\n" +
+	"\x14PrecommitRunResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12L\n" +
+	"\x06result\x18\x02 \x01(\v24.vrooli.git_control_tower.v1.repo.PrecommitRunResultR\x06result\"\x81\x01\n" +
+	"\x11StageFilesRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x14\n" +
+	"\x05paths\x18\x03 \x03(\tR\x05paths\x12\x14\n" +
+	"\x05scope\x18\x04 \x01(\tR\x05scope\"\xcc\x01\n" +
+	"\x12StageFilesResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x16\n" +
+	"\x06staged\x18\x02 \x03(\tR\x06staged\x12\x1a\n" +
+	"\bunstaged\x18\x03 \x03(\tR\bunstaged\x12\x16\n" +
+	"\x06failed\x18\x04 \x03(\tR\x06failed\x12\x16\n" +
+	"\x06errors\x18\x05 \x03(\tR\x06errors\x12\x1a\n" +
+	"\bwarnings\x18\x06 \x03(\tR\bwarnings\x12\x1c\n" +
+	"\ttimestamp\x18\a \x01(\tR\ttimestamp\"\x83\x01\n" +
+	"\x13UnstageFilesRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x14\n" +
+	"\x05paths\x18\x03 \x03(\tR\x05paths\x12\x14\n" +
+	"\x05scope\x18\x04 \x01(\tR\x05scope\"\x9a\x01\n" +
+	"\x14UnstageFilesResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1a\n" +
+	"\bunstaged\x18\x02 \x03(\tR\bunstaged\x12\x16\n" +
+	"\x06failed\x18\x03 \x03(\tR\x06failed\x12\x16\n" +
+	"\x06errors\x18\x04 \x03(\tR\x06errors\x12\x1c\n" +
+	"\ttimestamp\x18\x05 \x01(\tR\ttimestamp\"\xb0\x02\n" +
+	"\x13CreateCommitRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x123\n" +
+	"\x15validate_conventional\x18\x04 \x01(\bR\x14validateConventional\x12\x14\n" +
+	"\x05amend\x18\x05 \x01(\bR\x05amend\x12\x1f\n" +
+	"\vauthor_name\x18\x06 \x01(\tR\n" +
+	"authorName\x12!\n" +
+	"\fauthor_email\x18\a \x01(\tR\vauthorEmail\x12.\n" +
+	"\x13skip_precommit_once\x18\b \x01(\bR\x11skipPrecommitOnce\"\x97\x02\n" +
+	"\x12PrecommitRunResult\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
+	"\acommand\x18\x02 \x01(\tR\acommand\x12\x1b\n" +
+	"\texit_code\x18\x03 \x01(\x05R\bexitCode\x12\x18\n" +
+	"\asummary\x18\x04 \x01(\tR\asummary\x12\x16\n" +
+	"\x06stdout\x18\x05 \x01(\tR\x06stdout\x12\x16\n" +
+	"\x06stderr\x18\x06 \x01(\tR\x06stderr\x12\x1f\n" +
+	"\vduration_ms\x18\a \x01(\x03R\n" +
+	"durationMs\x12)\n" +
+	"\x10override_allowed\x18\b \x01(\bR\x0foverrideAllowed\x12\x1c\n" +
+	"\ttimestamp\x18\t \x01(\tR\ttimestamp\"\xad\x02\n" +
+	"\x14CreateCommitResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x12\n" +
+	"\x04hash\x18\x02 \x01(\tR\x04hash\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x18\n" +
+	"\aamended\x18\x04 \x01(\bR\aamended\x12+\n" +
+	"\x11validation_errors\x18\x05 \x03(\tR\x10validationErrors\x12\x14\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\x12R\n" +
+	"\tprecommit\x18\a \x01(\v24.vrooli.git_control_tower.v1.repo.PrecommitRunResultR\tprecommit\x12\x1c\n" +
+	"\ttimestamp\x18\b \x01(\tR\ttimestamp\"\x9e\x02\n" +
+	"\n" +
+	"Credential\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06remote\x18\x02 \x01(\tR\x06remote\x12\x10\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url\x12\x12\n" +
+	"\x04type\x18\x04 \x01(\tR\x04type\x12\x1a\n" +
+	"\busername\x18\x05 \x01(\tR\busername\x12!\n" +
+	"\ftoken_masked\x18\x06 \x01(\tR\vtokenMasked\x12 \n" +
+	"\fssh_key_path\x18\a \x01(\tR\n" +
+	"sshKeyPath\x12#\n" +
+	"\ris_configured\x18\b \x01(\bR\fisConfigured\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\t \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\n" +
+	" \x01(\tR\tupdatedAt\"=\n" +
+	"\x16ListCredentialsRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\"\x87\x01\n" +
+	"\x17CredentialsListResponse\x12N\n" +
+	"\vcredentials\x18\x01 \x03(\v2,.vrooli.git_control_tower.v1.repo.CredentialR\vcredentials\x12\x1c\n" +
+	"\ttimestamp\x18\x02 \x01(\tR\ttimestamp\"\xd7\x01\n" +
+	"\x15SaveCredentialRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x16\n" +
+	"\x06remote\x18\x03 \x01(\tR\x06remote\x12\x10\n" +
+	"\x03url\x18\x04 \x01(\tR\x03url\x12\x1a\n" +
+	"\busername\x18\x05 \x01(\tR\busername\x12\x14\n" +
+	"\x05token\x18\x06 \x01(\tR\x05token\x12 \n" +
+	"\fssh_key_path\x18\a \x01(\tR\n" +
+	"sshKeyPath\"\xb4\x01\n" +
+	"\x16CredentialSaveResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12L\n" +
+	"\n" +
+	"credential\x18\x02 \x01(\v2,.vrooli.git_control_tower.v1.repo.CredentialR\n" +
+	"credential\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1c\n" +
+	"\ttimestamp\x18\x04 \x01(\tR\ttimestamp\"k\n" +
+	"\x17DeleteCredentialRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x0e\n" +
+	"\x02id\x18\x03 \x01(\tR\x02id\"h\n" +
+	"\x18CredentialDeleteResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x14\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\x12\x1c\n" +
+	"\ttimestamp\x18\x03 \x01(\tR\ttimestamp\"s\n" +
+	"\x15TestCredentialRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x16\n" +
+	"\x06remote\x18\x02 \x01(\tR\x06remote\x12\x1d\n" +
+	"\n" +
+	"use_stored\x18\x03 \x01(\bR\tuseStored\"\xa4\x01\n" +
+	"\x16CredentialTestResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1c\n" +
+	"\treachable\x18\x02 \x01(\bR\treachable\x12\x1e\n" +
+	"\n" +
+	"authorized\x18\x03 \x01(\bR\n" +
+	"authorized\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\x12\x1c\n" +
+	"\ttimestamp\x18\x05 \x01(\tR\ttimestamp\"\x84\x01\n" +
+	"\x16UpdateRemoteURLRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x16\n" +
+	"\x06remote\x18\x03 \x01(\tR\x06remote\x12\x10\n" +
+	"\x03url\x18\x04 \x01(\tR\x03url\"\x99\x01\n" +
+	"\x17RemoteURLUpdateResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x17\n" +
+	"\aold_url\x18\x02 \x01(\tR\x06oldUrl\x12\x17\n" +
+	"\anew_url\x18\x03 \x01(\tR\x06newUrl\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\x12\x1c\n" +
+	"\ttimestamp\x18\x05 \x01(\tR\ttimestamp\"\xde\x01\n" +
+	"\n" +
+	"SSHKeyInfo\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1a\n" +
+	"\bfilename\x18\x02 \x01(\tR\bfilename\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12\x12\n" +
+	"\x04bits\x18\x04 \x01(\x05R\x04bits\x12 \n" +
+	"\vfingerprint\x18\x05 \x01(\tR\vfingerprint\x12\x18\n" +
+	"\acomment\x18\x06 \x01(\tR\acomment\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\a \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"has_public\x18\b \x01(\bR\thasPublic\"\x14\n" +
+	"\x12ListSSHKeysRequest\"\x8e\x01\n" +
+	"\x13SSHListKeysResponse\x12@\n" +
+	"\x04keys\x18\x01 \x03(\v2,.vrooli.git_control_tower.v1.repo.SSHKeyInfoR\x04keys\x12\x17\n" +
+	"\assh_dir\x18\x02 \x01(\tR\x06sshDir\x12\x1c\n" +
+	"\ttimestamp\x18\x03 \x01(\tR\ttimestamp\"\xb7\x01\n" +
+	"\x15GenerateSSHKeyRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12\x12\n" +
+	"\x04bits\x18\x04 \x01(\x05R\x04bits\x12\x18\n" +
+	"\acomment\x18\x05 \x01(\tR\acomment\x12\x1a\n" +
+	"\bfilename\x18\x06 \x01(\tR\bfilename\"\xc5\x01\n" +
+	"\x16SSHGenerateKeyResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12>\n" +
+	"\x03key\x18\x02 \x01(\v2,.vrooli.git_control_tower.v1.repo.SSHKeyInfoR\x03key\x12\x1d\n" +
+	"\n" +
+	"public_key\x18\x03 \x01(\tR\tpublicKey\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\x12\x1c\n" +
+	"\ttimestamp\x18\x05 \x01(\tR\ttimestamp\"3\n" +
+	"\x16GetSSHPublicKeyRequest\x12\x19\n" +
+	"\bkey_path\x18\x01 \x01(\tR\akeyPath\"\xa8\x01\n" +
+	"\x17SSHGetPublicKeyResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1d\n" +
+	"\n" +
+	"public_key\x18\x02 \x01(\tR\tpublicKey\x12 \n" +
+	"\vfingerprint\x18\x03 \x01(\tR\vfingerprint\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\x12\x1c\n" +
+	"\ttimestamp\x18\x05 \x01(\tR\ttimestamp\"5\n" +
+	"\x18TestSSHConnectionRequest\x12\x19\n" +
+	"\bkey_path\x18\x01 \x01(\tR\akeyPath\"\xfb\x01\n" +
+	"\x19SSHTestConnectionResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x12\n" +
+	"\x04hint\x18\x04 \x01(\tR\x04hint\x12\x1f\n" +
+	"\vgithub_user\x18\x05 \x01(\tR\n" +
+	"githubUser\x12 \n" +
+	"\vfingerprint\x18\x06 \x01(\tR\vfingerprint\x12\x1d\n" +
+	"\n" +
+	"latency_ms\x18\a \x01(\x03R\tlatencyMs\x12\x1c\n" +
+	"\ttimestamp\x18\b \x01(\tR\ttimestamp\"r\n" +
+	"\x13DeleteSSHKeyRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x19\n" +
+	"\bkey_path\x18\x03 \x01(\tR\akeyPath\"\xce\x01\n" +
+	"\x14SSHDeleteKeyResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\x12'\n" +
+	"\x0fprivate_deleted\x18\x04 \x01(\bR\x0eprivateDeleted\x12%\n" +
+	"\x0epublic_deleted\x18\x05 \x01(\bR\rpublicDeleted\x12\x1c\n" +
+	"\ttimestamp\x18\x06 \x01(\tR\ttimestamp\"o\n" +
+	"\x18InspectPushSafetyRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x16\n" +
+	"\x06remote\x18\x02 \x01(\tR\x06remote\x12\x16\n" +
+	"\x06branch\x18\x03 \x01(\tR\x06branch\"\x82\x01\n" +
+	"\x0ePushSafetyFile\x12\x10\n" +
+	"\x03oid\x18\x01 \x01(\tR\x03oid\x12\x14\n" +
+	"\x05bytes\x18\x02 \x01(\x03R\x05bytes\x12\x14\n" +
+	"\x05paths\x18\x03 \x03(\tR\x05paths\x12\x18\n" +
+	"\acommits\x18\x04 \x03(\tR\acommits\x12\x18\n" +
+	"\ablocked\x18\x05 \x01(\bR\ablocked\"\xbb\x04\n" +
+	"\x10PushSafetyReport\x12\x1a\n" +
+	"\bcomplete\x18\x01 \x01(\bR\bcomplete\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\x12\x12\n" +
+	"\x04head\x18\x04 \x01(\tR\x04head\x12\x12\n" +
+	"\x04base\x18\x05 \x01(\tR\x04base\x12\x16\n" +
+	"\x06remote\x18\x06 \x01(\tR\x06remote\x12\x16\n" +
+	"\x06branch\x18\a \x01(\tR\x06branch\x12\x14\n" +
+	"\x05limit\x18\b \x01(\x03R\x05limit\x12\x18\n" +
+	"\acommits\x18\t \x03(\tR\acommits\x12F\n" +
+	"\x05files\x18\n" +
+	" \x03(\v20.vrooli.git_control_tower.v1.repo.PushSafetyFileR\x05files\x12 \n" +
+	"\vfingerprint\x18\v \x01(\tR\vfingerprint\x12\x1f\n" +
+	"\vcan_prepare\x18\f \x01(\bR\n" +
+	"canPrepare\x12'\n" +
+	"\x0frecovery_reason\x18\r \x01(\tR\x0erecoveryReason\x12'\n" +
+	"\x0fstaged_complete\x18\x0e \x01(\bR\x0estagedComplete\x12#\n" +
+	"\rstaged_reason\x18\x0f \x01(\tR\fstagedReason\x12S\n" +
+	"\fstaged_files\x18\x10 \x03(\v20.vrooli.git_control_tower.v1.repo.PushSafetyFileR\vstagedFiles\"\xb0\x01\n" +
+	"\x1aPreparePushRecoveryRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x16\n" +
+	"\x06remote\x18\x03 \x01(\tR\x06remote\x12\x16\n" +
+	"\x06branch\x18\x04 \x01(\tR\x06branch\x12 \n" +
+	"\vfingerprint\x18\x05 \x01(\tR\vfingerprint\"U\n" +
+	"\x15RecoveryCommitMapping\x12\x1a\n" +
+	"\boriginal\x18\x01 \x01(\tR\boriginal\x12 \n" +
+	"\vreplacement\x18\x02 \x01(\tR\vreplacement\"\x9a\x03\n" +
+	"\x14PushRecoveryArtifact\x12\x14\n" +
+	"\x05state\x18\x01 \x01(\tR\x05state\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12 \n" +
+	"\vfingerprint\x18\x03 \x01(\tR\vfingerprint\x12\x12\n" +
+	"\x04head\x18\x04 \x01(\tR\x04head\x12\x12\n" +
+	"\x04base\x18\x05 \x01(\tR\x04base\x12\x1c\n" +
+	"\tcandidate\x18\x06 \x01(\tR\tcandidate\x12'\n" +
+	"\x0foriginal_bundle\x18\a \x01(\tR\x0eoriginalBundle\x12'\n" +
+	"\x0frepaired_bundle\x18\b \x01(\tR\x0erepairedBundle\x12S\n" +
+	"\bmappings\x18\t \x03(\v27.vrooli.git_control_tower.v1.repo.RecoveryCommitMappingR\bmappings\x12\x14\n" +
+	"\x05paths\x18\n" +
+	" \x03(\tR\x05paths\x12-\n" +
+	"\x12signatures_removed\x18\v \x01(\bR\x11signaturesRemoved\"_\n" +
+	"\x16GetPushRecoveryRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12 \n" +
+	"\vfingerprint\x18\x02 \x01(\tR\vfingerprint2\xd05\n" +
+	"\vRepoService\x12\x89\x01\n" +
+	"\x10ListRepositories\x129.vrooli.git_control_tower.v1.repo.ListRepositoriesRequest\x1a:.vrooli.git_control_tower.v1.repo.ListRepositoriesResponse\x12\x92\x01\n" +
+	"\x13GetActiveRepository\x12<.vrooli.git_control_tower.v1.repo.GetActiveRepositoryRequest\x1a=.vrooli.git_control_tower.v1.repo.GetActiveRepositoryResponse\x12\x8b\x01\n" +
+	"\x13SetActiveRepository\x12<.vrooli.git_control_tower.v1.repo.SetActiveRepositoryRequest\x1a6.vrooli.git_control_tower.v1.repo.RepoMutationResponse\x12\x81\x01\n" +
+	"\x0eOpenRepository\x127.vrooli.git_control_tower.v1.repo.OpenRepositoryRequest\x1a6.vrooli.git_control_tower.v1.repo.RepoMutationResponse\x12\x83\x01\n" +
+	"\x0fCloneRepository\x128.vrooli.git_control_tower.v1.repo.CloneRepositoryRequest\x1a6.vrooli.git_control_tower.v1.repo.RepoMutationResponse\x12\x89\x01\n" +
+	"\x10RemoveRepository\x129.vrooli.git_control_tower.v1.repo.RemoveRepositoryRequest\x1a:.vrooli.git_control_tower.v1.repo.RemoveRepositoryResponse\x12\x80\x01\n" +
+	"\rGetRepoStatus\x126.vrooli.git_control_tower.v1.repo.GetRepoStatusRequest\x1a7.vrooli.git_control_tower.v1.repo.GetRepoStatusResponse\x12z\n" +
+	"\vGetRepoDiff\x124.vrooli.git_control_tower.v1.repo.GetRepoDiffRequest\x1a5.vrooli.git_control_tower.v1.repo.GetRepoDiffResponse\x12\x80\x01\n" +
+	"\rGetRepoGroups\x126.vrooli.git_control_tower.v1.repo.GetRepoGroupsRequest\x1a7.vrooli.git_control_tower.v1.repo.GetRepoGroupsResponse\x12\x80\x01\n" +
+	"\rGetSyncStatus\x126.vrooli.git_control_tower.v1.repo.GetSyncStatusRequest\x1a7.vrooli.git_control_tower.v1.repo.GetSyncStatusResponse\x12\x83\x01\n" +
+	"\x0eGetRepoHistory\x127.vrooli.git_control_tower.v1.repo.GetRepoHistoryRequest\x1a8.vrooli.git_control_tower.v1.repo.GetRepoHistoryResponse\x12\x8f\x01\n" +
+	"\x12GetApprovedChanges\x12;.vrooli.git_control_tower.v1.repo.GetApprovedChangesRequest\x1a<.vrooli.git_control_tower.v1.repo.GetApprovedChangesResponse\x12\x80\x01\n" +
+	"\rGetProvenance\x126.vrooli.git_control_tower.v1.repo.GetProvenanceRequest\x1a7.vrooli.git_control_tower.v1.repo.GetProvenanceResponse\x12q\n" +
+	"\bGetBlame\x121.vrooli.git_control_tower.v1.repo.GetBlameRequest\x1a2.vrooli.git_control_tower.v1.repo.GetBlameResponse\x12\x89\x01\n" +
+	"\x10SearchProvenance\x129.vrooli.git_control_tower.v1.repo.SearchProvenanceRequest\x1a:.vrooli.git_control_tower.v1.repo.SearchProvenanceResponse\x12q\n" +
+	"\bGetFiles\x121.vrooli.git_control_tower.v1.repo.GetFilesRequest\x1a2.vrooli.git_control_tower.v1.repo.GetFilesResponse\x12\x95\x01\n" +
+	"\x14GetDirectoryContents\x12=.vrooli.git_control_tower.v1.repo.GetDirectoryContentsRequest\x1a>.vrooli.git_control_tower.v1.repo.GetDirectoryContentsResponse\x12\x86\x01\n" +
+	"\x0fGetRelatedFiles\x128.vrooli.git_control_tower.v1.repo.GetRelatedFilesRequest\x1a9.vrooli.git_control_tower.v1.repo.GetRelatedFilesResponse\x12\x80\x01\n" +
+	"\rSearchContent\x126.vrooli.git_control_tower.v1.repo.SearchContentRequest\x1a7.vrooli.git_control_tower.v1.repo.SearchContentResponse\x12w\n" +
+	"\n" +
+	"DeletePath\x123.vrooli.git_control_tower.v1.repo.DeletePathRequest\x1a4.vrooli.git_control_tower.v1.repo.DeletePathResponse\x12\x86\x01\n" +
+	"\x0fSaveFileContent\x128.vrooli.git_control_tower.v1.repo.SaveFileContentRequest\x1a9.vrooli.git_control_tower.v1.repo.SaveFileContentResponse\x12}\n" +
+	"\fDiscardFiles\x125.vrooli.git_control_tower.v1.repo.DiscardFilesRequest\x1a6.vrooli.git_control_tower.v1.repo.DiscardFilesResponse\x12w\n" +
+	"\n" +
+	"IgnorePath\x123.vrooli.git_control_tower.v1.repo.IgnorePathRequest\x1a4.vrooli.git_control_tower.v1.repo.IgnorePathResponse\x12\x83\x01\n" +
+	"\x11InspectPushSafety\x12:.vrooli.git_control_tower.v1.repo.InspectPushSafetyRequest\x1a2.vrooli.git_control_tower.v1.repo.PushSafetyReport\x12\x83\x01\n" +
+	"\x0fGetPushRecovery\x128.vrooli.git_control_tower.v1.repo.GetPushRecoveryRequest\x1a6.vrooli.git_control_tower.v1.repo.PushRecoveryArtifact\x12\x8b\x01\n" +
+	"\x13PreparePushRecovery\x12<.vrooli.git_control_tower.v1.repo.PreparePushRecoveryRequest\x1a6.vrooli.git_control_tower.v1.repo.PushRecoveryArtifact\x12}\n" +
+	"\fPushToRemote\x125.vrooli.git_control_tower.v1.repo.PushToRemoteRequest\x1a6.vrooli.git_control_tower.v1.repo.PushToRemoteResponse\x12\x83\x01\n" +
+	"\x0ePullFromRemote\x127.vrooli.git_control_tower.v1.repo.PullFromRemoteRequest\x1a8.vrooli.git_control_tower.v1.repo.PullFromRemoteResponse\x12\x8c\x01\n" +
+	"\x11RunUpstreamAction\x12:.vrooli.git_control_tower.v1.repo.RunUpstreamActionRequest\x1a;.vrooli.git_control_tower.v1.repo.RunUpstreamActionResponse\x12\x86\x01\n" +
+	"\x10GetGroupingRules\x129.vrooli.git_control_tower.v1.repo.GetGroupingRulesRequest\x1a7.vrooli.git_control_tower.v1.repo.GroupingRulesResponse\x12\x88\x01\n" +
+	"\x11SaveGroupingRules\x12:.vrooli.git_control_tower.v1.repo.SaveGroupingRulesRequest\x1a7.vrooli.git_control_tower.v1.repo.GroupingRulesResponse\x12\x8c\x01\n" +
+	"\x12GetGitignoreHealth\x12;.vrooli.git_control_tower.v1.repo.GetGitignoreHealthRequest\x1a9.vrooli.git_control_tower.v1.repo.GitignoreHealthResponse\x12\x8f\x01\n" +
+	"\x12MoveGitignoreEntry\x12;.vrooli.git_control_tower.v1.repo.MoveGitignoreEntryRequest\x1a<.vrooli.git_control_tower.v1.repo.MoveGitignoreEntryResponse\x12\x8c\x01\n" +
+	"\x12GetTrackedBinaries\x12;.vrooli.git_control_tower.v1.repo.GetTrackedBinariesRequest\x1a9.vrooli.git_control_tower.v1.repo.TrackedBinariesResponse\x12\x80\x01\n" +
+	"\rUntrackBinary\x126.vrooli.git_control_tower.v1.repo.UntrackBinaryRequest\x1a7.vrooli.git_control_tower.v1.repo.UntrackBinaryResponse\x12\x8c\x01\n" +
+	"\x12GetPrecommitConfig\x12;.vrooli.git_control_tower.v1.repo.GetPrecommitConfigRequest\x1a9.vrooli.git_control_tower.v1.repo.PrecommitConfigResponse\x12\x8e\x01\n" +
+	"\x13SavePrecommitConfig\x12<.vrooli.git_control_tower.v1.repo.SavePrecommitConfigRequest\x1a9.vrooli.git_control_tower.v1.repo.PrecommitConfigResponse\x12}\n" +
+	"\fRunPrecommit\x125.vrooli.git_control_tower.v1.repo.RunPrecommitRequest\x1a6.vrooli.git_control_tower.v1.repo.PrecommitRunResponse\x12w\n" +
+	"\n" +
+	"StageFiles\x123.vrooli.git_control_tower.v1.repo.StageFilesRequest\x1a4.vrooli.git_control_tower.v1.repo.StageFilesResponse\x12}\n" +
+	"\fUnstageFiles\x125.vrooli.git_control_tower.v1.repo.UnstageFilesRequest\x1a6.vrooli.git_control_tower.v1.repo.UnstageFilesResponse\x12}\n" +
+	"\fCreateCommit\x125.vrooli.git_control_tower.v1.repo.CreateCommitRequest\x1a6.vrooli.git_control_tower.v1.repo.CreateCommitResponse\x12\x86\x01\n" +
+	"\x0fListCredentials\x128.vrooli.git_control_tower.v1.repo.ListCredentialsRequest\x1a9.vrooli.git_control_tower.v1.repo.CredentialsListResponse\x12\x83\x01\n" +
+	"\x0eSaveCredential\x127.vrooli.git_control_tower.v1.repo.SaveCredentialRequest\x1a8.vrooli.git_control_tower.v1.repo.CredentialSaveResponse\x12\x89\x01\n" +
+	"\x10DeleteCredential\x129.vrooli.git_control_tower.v1.repo.DeleteCredentialRequest\x1a:.vrooli.git_control_tower.v1.repo.CredentialDeleteResponse\x12\x83\x01\n" +
+	"\x0eTestCredential\x127.vrooli.git_control_tower.v1.repo.TestCredentialRequest\x1a8.vrooli.git_control_tower.v1.repo.CredentialTestResponse\x12\x86\x01\n" +
+	"\x0fUpdateRemoteURL\x128.vrooli.git_control_tower.v1.repo.UpdateRemoteURLRequest\x1a9.vrooli.git_control_tower.v1.repo.RemoteURLUpdateResponse\x12z\n" +
+	"\vListSSHKeys\x124.vrooli.git_control_tower.v1.repo.ListSSHKeysRequest\x1a5.vrooli.git_control_tower.v1.repo.SSHListKeysResponse\x12\x83\x01\n" +
+	"\x0eGenerateSSHKey\x127.vrooli.git_control_tower.v1.repo.GenerateSSHKeyRequest\x1a8.vrooli.git_control_tower.v1.repo.SSHGenerateKeyResponse\x12\x86\x01\n" +
+	"\x0fGetSSHPublicKey\x128.vrooli.git_control_tower.v1.repo.GetSSHPublicKeyRequest\x1a9.vrooli.git_control_tower.v1.repo.SSHGetPublicKeyResponse\x12\x8c\x01\n" +
+	"\x11TestSSHConnection\x12:.vrooli.git_control_tower.v1.repo.TestSSHConnectionRequest\x1a;.vrooli.git_control_tower.v1.repo.SSHTestConnectionResponse\x12}\n" +
+	"\fDeleteSSHKey\x125.vrooli.git_control_tower.v1.repo.DeleteSSHKeyRequest\x1a6.vrooli.git_control_tower.v1.repo.SSHDeleteKeyResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo;repo_v1b\x06proto3"
 
 var (
 	file_git_control_tower_v1_repo_repo_proto_rawDescOnce sync.Once
@@ -246,21 +11037,312 @@ func file_git_control_tower_v1_repo_repo_proto_rawDescGZIP() []byte {
 	return file_git_control_tower_v1_repo_repo_proto_rawDescData
 }
 
-var file_git_control_tower_v1_repo_repo_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_git_control_tower_v1_repo_repo_proto_msgTypes = make([]protoimpl.MessageInfo, 140)
 var file_git_control_tower_v1_repo_repo_proto_goTypes = []any{
-	(*GetRepoStatusRequest)(nil),  // 0: vrooli.git_control_tower.v1.repo.GetRepoStatusRequest
-	(*WorktreeIdentity)(nil),      // 1: vrooli.git_control_tower.v1.repo.WorktreeIdentity
-	(*GetRepoStatusResponse)(nil), // 2: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse
+	(*RepoRecord)(nil),                   // 0: vrooli.git_control_tower.v1.repo.RepoRecord
+	(*ListRepositoriesRequest)(nil),      // 1: vrooli.git_control_tower.v1.repo.ListRepositoriesRequest
+	(*ListRepositoriesResponse)(nil),     // 2: vrooli.git_control_tower.v1.repo.ListRepositoriesResponse
+	(*GetActiveRepositoryRequest)(nil),   // 3: vrooli.git_control_tower.v1.repo.GetActiveRepositoryRequest
+	(*GetActiveRepositoryResponse)(nil),  // 4: vrooli.git_control_tower.v1.repo.GetActiveRepositoryResponse
+	(*GetRepoHistoryRequest)(nil),        // 5: vrooli.git_control_tower.v1.repo.GetRepoHistoryRequest
+	(*CommitCheckRun)(nil),               // 6: vrooli.git_control_tower.v1.repo.CommitCheckRun
+	(*RepoHistoryEntry)(nil),             // 7: vrooli.git_control_tower.v1.repo.RepoHistoryEntry
+	(*GetRepoHistoryResponse)(nil),       // 8: vrooli.git_control_tower.v1.repo.GetRepoHistoryResponse
+	(*GetApprovedChangesRequest)(nil),    // 9: vrooli.git_control_tower.v1.repo.GetApprovedChangesRequest
+	(*ApprovedChangeFile)(nil),           // 10: vrooli.git_control_tower.v1.repo.ApprovedChangeFile
+	(*GetApprovedChangesResponse)(nil),   // 11: vrooli.git_control_tower.v1.repo.GetApprovedChangesResponse
+	(*GetProvenanceRequest)(nil),         // 12: vrooli.git_control_tower.v1.repo.GetProvenanceRequest
+	(*ProvenanceFile)(nil),               // 13: vrooli.git_control_tower.v1.repo.ProvenanceFile
+	(*ProvenanceRunGroup)(nil),           // 14: vrooli.git_control_tower.v1.repo.ProvenanceRunGroup
+	(*GetProvenanceResponse)(nil),        // 15: vrooli.git_control_tower.v1.repo.GetProvenanceResponse
+	(*GetBlameRequest)(nil),              // 16: vrooli.git_control_tower.v1.repo.GetBlameRequest
+	(*BlameLine)(nil),                    // 17: vrooli.git_control_tower.v1.repo.BlameLine
+	(*ProvenanceWorkReference)(nil),      // 18: vrooli.git_control_tower.v1.repo.ProvenanceWorkReference
+	(*BlameEvidence)(nil),                // 19: vrooli.git_control_tower.v1.repo.BlameEvidence
+	(*BlameFile)(nil),                    // 20: vrooli.git_control_tower.v1.repo.BlameFile
+	(*ProvenanceChangeBundle)(nil),       // 21: vrooli.git_control_tower.v1.repo.ProvenanceChangeBundle
+	(*GetBlameResponse)(nil),             // 22: vrooli.git_control_tower.v1.repo.GetBlameResponse
+	(*SearchProvenanceRequest)(nil),      // 23: vrooli.git_control_tower.v1.repo.SearchProvenanceRequest
+	(*ProvenanceSearchHit)(nil),          // 24: vrooli.git_control_tower.v1.repo.ProvenanceSearchHit
+	(*SearchProvenanceResponse)(nil),     // 25: vrooli.git_control_tower.v1.repo.SearchProvenanceResponse
+	(*SetActiveRepositoryRequest)(nil),   // 26: vrooli.git_control_tower.v1.repo.SetActiveRepositoryRequest
+	(*OpenRepositoryRequest)(nil),        // 27: vrooli.git_control_tower.v1.repo.OpenRepositoryRequest
+	(*CloneRepositoryRequest)(nil),       // 28: vrooli.git_control_tower.v1.repo.CloneRepositoryRequest
+	(*RepoMutationResponse)(nil),         // 29: vrooli.git_control_tower.v1.repo.RepoMutationResponse
+	(*RemoveRepositoryRequest)(nil),      // 30: vrooli.git_control_tower.v1.repo.RemoveRepositoryRequest
+	(*RemoveRepositoryResponse)(nil),     // 31: vrooli.git_control_tower.v1.repo.RemoveRepositoryResponse
+	(*GetRepoStatusRequest)(nil),         // 32: vrooli.git_control_tower.v1.repo.GetRepoStatusRequest
+	(*WorktreeIdentity)(nil),             // 33: vrooli.git_control_tower.v1.repo.WorktreeIdentity
+	(*GetRepoStatusResponse)(nil),        // 34: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse
+	(*BranchStatus)(nil),                 // 35: vrooli.git_control_tower.v1.repo.BranchStatus
+	(*FilesStatus)(nil),                  // 36: vrooli.git_control_tower.v1.repo.FilesStatus
+	(*FileStats)(nil),                    // 37: vrooli.git_control_tower.v1.repo.FileStats
+	(*DiffStats)(nil),                    // 38: vrooli.git_control_tower.v1.repo.DiffStats
+	(*StringList)(nil),                   // 39: vrooli.git_control_tower.v1.repo.StringList
+	(*StatusSummary)(nil),                // 40: vrooli.git_control_tower.v1.repo.StatusSummary
+	(*AuthorStatus)(nil),                 // 41: vrooli.git_control_tower.v1.repo.AuthorStatus
+	(*GetRepoDiffRequest)(nil),           // 42: vrooli.git_control_tower.v1.repo.GetRepoDiffRequest
+	(*GetRepoDiffResponse)(nil),          // 43: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse
+	(*DiffHunk)(nil),                     // 44: vrooli.git_control_tower.v1.repo.DiffHunk
+	(*AnnotatedLine)(nil),                // 45: vrooli.git_control_tower.v1.repo.AnnotatedLine
+	(*GetRepoGroupsRequest)(nil),         // 46: vrooli.git_control_tower.v1.repo.GetRepoGroupsRequest
+	(*GetRepoGroupsResponse)(nil),        // 47: vrooli.git_control_tower.v1.repo.GetRepoGroupsResponse
+	(*ChangeGroup)(nil),                  // 48: vrooli.git_control_tower.v1.repo.ChangeGroup
+	(*GetSyncStatusRequest)(nil),         // 49: vrooli.git_control_tower.v1.repo.GetSyncStatusRequest
+	(*GetSyncStatusResponse)(nil),        // 50: vrooli.git_control_tower.v1.repo.GetSyncStatusResponse
+	(*GetFilesRequest)(nil),              // 51: vrooli.git_control_tower.v1.repo.GetFilesRequest
+	(*RepoFileInfo)(nil),                 // 52: vrooli.git_control_tower.v1.repo.RepoFileInfo
+	(*GetFilesResponse)(nil),             // 53: vrooli.git_control_tower.v1.repo.GetFilesResponse
+	(*GetDirectoryContentsRequest)(nil),  // 54: vrooli.git_control_tower.v1.repo.GetDirectoryContentsRequest
+	(*DirectoryEntry)(nil),               // 55: vrooli.git_control_tower.v1.repo.DirectoryEntry
+	(*GetDirectoryContentsResponse)(nil), // 56: vrooli.git_control_tower.v1.repo.GetDirectoryContentsResponse
+	(*GetRelatedFilesRequest)(nil),       // 57: vrooli.git_control_tower.v1.repo.GetRelatedFilesRequest
+	(*RelatedFile)(nil),                  // 58: vrooli.git_control_tower.v1.repo.RelatedFile
+	(*GetRelatedFilesResponse)(nil),      // 59: vrooli.git_control_tower.v1.repo.GetRelatedFilesResponse
+	(*SearchContentRequest)(nil),         // 60: vrooli.git_control_tower.v1.repo.SearchContentRequest
+	(*ContentMatch)(nil),                 // 61: vrooli.git_control_tower.v1.repo.ContentMatch
+	(*SearchContentResponse)(nil),        // 62: vrooli.git_control_tower.v1.repo.SearchContentResponse
+	(*DeletePathRequest)(nil),            // 63: vrooli.git_control_tower.v1.repo.DeletePathRequest
+	(*DeletePathResponse)(nil),           // 64: vrooli.git_control_tower.v1.repo.DeletePathResponse
+	(*SaveFileContentRequest)(nil),       // 65: vrooli.git_control_tower.v1.repo.SaveFileContentRequest
+	(*SaveFileContentResponse)(nil),      // 66: vrooli.git_control_tower.v1.repo.SaveFileContentResponse
+	(*DiscardFilesRequest)(nil),          // 67: vrooli.git_control_tower.v1.repo.DiscardFilesRequest
+	(*DiscardFilesResponse)(nil),         // 68: vrooli.git_control_tower.v1.repo.DiscardFilesResponse
+	(*IgnorePathRequest)(nil),            // 69: vrooli.git_control_tower.v1.repo.IgnorePathRequest
+	(*IgnorePathResponse)(nil),           // 70: vrooli.git_control_tower.v1.repo.IgnorePathResponse
+	(*PushToRemoteRequest)(nil),          // 71: vrooli.git_control_tower.v1.repo.PushToRemoteRequest
+	(*PushToRemoteResponse)(nil),         // 72: vrooli.git_control_tower.v1.repo.PushToRemoteResponse
+	(*PullFromRemoteRequest)(nil),        // 73: vrooli.git_control_tower.v1.repo.PullFromRemoteRequest
+	(*PullFromRemoteResponse)(nil),       // 74: vrooli.git_control_tower.v1.repo.PullFromRemoteResponse
+	(*RunUpstreamActionRequest)(nil),     // 75: vrooli.git_control_tower.v1.repo.RunUpstreamActionRequest
+	(*RunUpstreamActionResponse)(nil),    // 76: vrooli.git_control_tower.v1.repo.RunUpstreamActionResponse
+	(*GetGroupingRulesRequest)(nil),      // 77: vrooli.git_control_tower.v1.repo.GetGroupingRulesRequest
+	(*GroupingRule)(nil),                 // 78: vrooli.git_control_tower.v1.repo.GroupingRule
+	(*GroupingRulesResponse)(nil),        // 79: vrooli.git_control_tower.v1.repo.GroupingRulesResponse
+	(*SaveGroupingRulesRequest)(nil),     // 80: vrooli.git_control_tower.v1.repo.SaveGroupingRulesRequest
+	(*GetGitignoreHealthRequest)(nil),    // 81: vrooli.git_control_tower.v1.repo.GetGitignoreHealthRequest
+	(*GitignoreSuggestion)(nil),          // 82: vrooli.git_control_tower.v1.repo.GitignoreSuggestion
+	(*GitignoreHealthResponse)(nil),      // 83: vrooli.git_control_tower.v1.repo.GitignoreHealthResponse
+	(*MoveGitignoreEntryRequest)(nil),    // 84: vrooli.git_control_tower.v1.repo.MoveGitignoreEntryRequest
+	(*MoveGitignoreEntryResponse)(nil),   // 85: vrooli.git_control_tower.v1.repo.MoveGitignoreEntryResponse
+	(*GetTrackedBinariesRequest)(nil),    // 86: vrooli.git_control_tower.v1.repo.GetTrackedBinariesRequest
+	(*TrackedBinary)(nil),                // 87: vrooli.git_control_tower.v1.repo.TrackedBinary
+	(*TrackedBinariesResponse)(nil),      // 88: vrooli.git_control_tower.v1.repo.TrackedBinariesResponse
+	(*UntrackBinaryRequest)(nil),         // 89: vrooli.git_control_tower.v1.repo.UntrackBinaryRequest
+	(*UntrackBinaryResponse)(nil),        // 90: vrooli.git_control_tower.v1.repo.UntrackBinaryResponse
+	(*GetPrecommitConfigRequest)(nil),    // 91: vrooli.git_control_tower.v1.repo.GetPrecommitConfigRequest
+	(*PrecommitHookState)(nil),           // 92: vrooli.git_control_tower.v1.repo.PrecommitHookState
+	(*PrecommitConfigResponse)(nil),      // 93: vrooli.git_control_tower.v1.repo.PrecommitConfigResponse
+	(*SavePrecommitConfigRequest)(nil),   // 94: vrooli.git_control_tower.v1.repo.SavePrecommitConfigRequest
+	(*RunPrecommitRequest)(nil),          // 95: vrooli.git_control_tower.v1.repo.RunPrecommitRequest
+	(*PrecommitRunResponse)(nil),         // 96: vrooli.git_control_tower.v1.repo.PrecommitRunResponse
+	(*StageFilesRequest)(nil),            // 97: vrooli.git_control_tower.v1.repo.StageFilesRequest
+	(*StageFilesResponse)(nil),           // 98: vrooli.git_control_tower.v1.repo.StageFilesResponse
+	(*UnstageFilesRequest)(nil),          // 99: vrooli.git_control_tower.v1.repo.UnstageFilesRequest
+	(*UnstageFilesResponse)(nil),         // 100: vrooli.git_control_tower.v1.repo.UnstageFilesResponse
+	(*CreateCommitRequest)(nil),          // 101: vrooli.git_control_tower.v1.repo.CreateCommitRequest
+	(*PrecommitRunResult)(nil),           // 102: vrooli.git_control_tower.v1.repo.PrecommitRunResult
+	(*CreateCommitResponse)(nil),         // 103: vrooli.git_control_tower.v1.repo.CreateCommitResponse
+	(*Credential)(nil),                   // 104: vrooli.git_control_tower.v1.repo.Credential
+	(*ListCredentialsRequest)(nil),       // 105: vrooli.git_control_tower.v1.repo.ListCredentialsRequest
+	(*CredentialsListResponse)(nil),      // 106: vrooli.git_control_tower.v1.repo.CredentialsListResponse
+	(*SaveCredentialRequest)(nil),        // 107: vrooli.git_control_tower.v1.repo.SaveCredentialRequest
+	(*CredentialSaveResponse)(nil),       // 108: vrooli.git_control_tower.v1.repo.CredentialSaveResponse
+	(*DeleteCredentialRequest)(nil),      // 109: vrooli.git_control_tower.v1.repo.DeleteCredentialRequest
+	(*CredentialDeleteResponse)(nil),     // 110: vrooli.git_control_tower.v1.repo.CredentialDeleteResponse
+	(*TestCredentialRequest)(nil),        // 111: vrooli.git_control_tower.v1.repo.TestCredentialRequest
+	(*CredentialTestResponse)(nil),       // 112: vrooli.git_control_tower.v1.repo.CredentialTestResponse
+	(*UpdateRemoteURLRequest)(nil),       // 113: vrooli.git_control_tower.v1.repo.UpdateRemoteURLRequest
+	(*RemoteURLUpdateResponse)(nil),      // 114: vrooli.git_control_tower.v1.repo.RemoteURLUpdateResponse
+	(*SSHKeyInfo)(nil),                   // 115: vrooli.git_control_tower.v1.repo.SSHKeyInfo
+	(*ListSSHKeysRequest)(nil),           // 116: vrooli.git_control_tower.v1.repo.ListSSHKeysRequest
+	(*SSHListKeysResponse)(nil),          // 117: vrooli.git_control_tower.v1.repo.SSHListKeysResponse
+	(*GenerateSSHKeyRequest)(nil),        // 118: vrooli.git_control_tower.v1.repo.GenerateSSHKeyRequest
+	(*SSHGenerateKeyResponse)(nil),       // 119: vrooli.git_control_tower.v1.repo.SSHGenerateKeyResponse
+	(*GetSSHPublicKeyRequest)(nil),       // 120: vrooli.git_control_tower.v1.repo.GetSSHPublicKeyRequest
+	(*SSHGetPublicKeyResponse)(nil),      // 121: vrooli.git_control_tower.v1.repo.SSHGetPublicKeyResponse
+	(*TestSSHConnectionRequest)(nil),     // 122: vrooli.git_control_tower.v1.repo.TestSSHConnectionRequest
+	(*SSHTestConnectionResponse)(nil),    // 123: vrooli.git_control_tower.v1.repo.SSHTestConnectionResponse
+	(*DeleteSSHKeyRequest)(nil),          // 124: vrooli.git_control_tower.v1.repo.DeleteSSHKeyRequest
+	(*SSHDeleteKeyResponse)(nil),         // 125: vrooli.git_control_tower.v1.repo.SSHDeleteKeyResponse
+	(*InspectPushSafetyRequest)(nil),     // 126: vrooli.git_control_tower.v1.repo.InspectPushSafetyRequest
+	(*PushSafetyFile)(nil),               // 127: vrooli.git_control_tower.v1.repo.PushSafetyFile
+	(*PushSafetyReport)(nil),             // 128: vrooli.git_control_tower.v1.repo.PushSafetyReport
+	(*PreparePushRecoveryRequest)(nil),   // 129: vrooli.git_control_tower.v1.repo.PreparePushRecoveryRequest
+	(*RecoveryCommitMapping)(nil),        // 130: vrooli.git_control_tower.v1.repo.RecoveryCommitMapping
+	(*PushRecoveryArtifact)(nil),         // 131: vrooli.git_control_tower.v1.repo.PushRecoveryArtifact
+	(*GetPushRecoveryRequest)(nil),       // 132: vrooli.git_control_tower.v1.repo.GetPushRecoveryRequest
+	nil,                                  // 133: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.FileHotspotsEntry
+	nil,                                  // 134: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.ScopesEntry
+	nil,                                  // 135: vrooli.git_control_tower.v1.repo.FilesStatus.StatusesEntry
+	nil,                                  // 136: vrooli.git_control_tower.v1.repo.FilesStatus.RenamesEntry
+	nil,                                  // 137: vrooli.git_control_tower.v1.repo.FileStats.StagedEntry
+	nil,                                  // 138: vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntry
+	nil,                                  // 139: vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntry
 }
 var file_git_control_tower_v1_repo_repo_proto_depIdxs = []int32{
-	1, // 0: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.worktree:type_name -> vrooli.git_control_tower.v1.repo.WorktreeIdentity
-	0, // 1: vrooli.git_control_tower.v1.repo.RepoService.GetRepoStatus:input_type -> vrooli.git_control_tower.v1.repo.GetRepoStatusRequest
-	2, // 2: vrooli.git_control_tower.v1.repo.RepoService.GetRepoStatus:output_type -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	0,   // 0: vrooli.git_control_tower.v1.repo.ListRepositoriesResponse.repos:type_name -> vrooli.git_control_tower.v1.repo.RepoRecord
+	0,   // 1: vrooli.git_control_tower.v1.repo.GetActiveRepositoryResponse.repo:type_name -> vrooli.git_control_tower.v1.repo.RepoRecord
+	6,   // 2: vrooli.git_control_tower.v1.repo.RepoHistoryEntry.checks:type_name -> vrooli.git_control_tower.v1.repo.CommitCheckRun
+	7,   // 3: vrooli.git_control_tower.v1.repo.GetRepoHistoryResponse.entries:type_name -> vrooli.git_control_tower.v1.repo.RepoHistoryEntry
+	10,  // 4: vrooli.git_control_tower.v1.repo.GetApprovedChangesResponse.files:type_name -> vrooli.git_control_tower.v1.repo.ApprovedChangeFile
+	13,  // 5: vrooli.git_control_tower.v1.repo.ProvenanceRunGroup.files:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceFile
+	14,  // 6: vrooli.git_control_tower.v1.repo.GetProvenanceResponse.run_groups:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceRunGroup
+	18,  // 7: vrooli.git_control_tower.v1.repo.BlameEvidence.work_references:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceWorkReference
+	17,  // 8: vrooli.git_control_tower.v1.repo.BlameFile.lines:type_name -> vrooli.git_control_tower.v1.repo.BlameLine
+	19,  // 9: vrooli.git_control_tower.v1.repo.BlameFile.evidence:type_name -> vrooli.git_control_tower.v1.repo.BlameEvidence
+	18,  // 10: vrooli.git_control_tower.v1.repo.ProvenanceChangeBundle.work_references:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceWorkReference
+	20,  // 11: vrooli.git_control_tower.v1.repo.GetBlameResponse.files:type_name -> vrooli.git_control_tower.v1.repo.BlameFile
+	21,  // 12: vrooli.git_control_tower.v1.repo.GetBlameResponse.change_bundles:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceChangeBundle
+	24,  // 13: vrooli.git_control_tower.v1.repo.SearchProvenanceResponse.results:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceSearchHit
+	0,   // 14: vrooli.git_control_tower.v1.repo.RepoMutationResponse.repo:type_name -> vrooli.git_control_tower.v1.repo.RepoRecord
+	33,  // 15: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.worktree:type_name -> vrooli.git_control_tower.v1.repo.WorktreeIdentity
+	35,  // 16: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.branch_status:type_name -> vrooli.git_control_tower.v1.repo.BranchStatus
+	36,  // 17: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.files:type_name -> vrooli.git_control_tower.v1.repo.FilesStatus
+	37,  // 18: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.file_stats:type_name -> vrooli.git_control_tower.v1.repo.FileStats
+	133, // 19: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.file_hotspots:type_name -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.FileHotspotsEntry
+	134, // 20: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.scopes:type_name -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.ScopesEntry
+	40,  // 21: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.summary:type_name -> vrooli.git_control_tower.v1.repo.StatusSummary
+	41,  // 22: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.author:type_name -> vrooli.git_control_tower.v1.repo.AuthorStatus
+	135, // 23: vrooli.git_control_tower.v1.repo.FilesStatus.statuses:type_name -> vrooli.git_control_tower.v1.repo.FilesStatus.StatusesEntry
+	136, // 24: vrooli.git_control_tower.v1.repo.FilesStatus.renames:type_name -> vrooli.git_control_tower.v1.repo.FilesStatus.RenamesEntry
+	137, // 25: vrooli.git_control_tower.v1.repo.FileStats.staged:type_name -> vrooli.git_control_tower.v1.repo.FileStats.StagedEntry
+	138, // 26: vrooli.git_control_tower.v1.repo.FileStats.unstaged:type_name -> vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntry
+	139, // 27: vrooli.git_control_tower.v1.repo.FileStats.untracked:type_name -> vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntry
+	44,  // 28: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse.hunks:type_name -> vrooli.git_control_tower.v1.repo.DiffHunk
+	38,  // 29: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse.stats:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
+	45,  // 30: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse.annotated_lines:type_name -> vrooli.git_control_tower.v1.repo.AnnotatedLine
+	48,  // 31: vrooli.git_control_tower.v1.repo.GetRepoGroupsResponse.groups:type_name -> vrooli.git_control_tower.v1.repo.ChangeGroup
+	52,  // 32: vrooli.git_control_tower.v1.repo.GetFilesResponse.files:type_name -> vrooli.git_control_tower.v1.repo.RepoFileInfo
+	55,  // 33: vrooli.git_control_tower.v1.repo.GetDirectoryContentsResponse.entries:type_name -> vrooli.git_control_tower.v1.repo.DirectoryEntry
+	58,  // 34: vrooli.git_control_tower.v1.repo.GetRelatedFilesResponse.related:type_name -> vrooli.git_control_tower.v1.repo.RelatedFile
+	61,  // 35: vrooli.git_control_tower.v1.repo.SearchContentResponse.matches:type_name -> vrooli.git_control_tower.v1.repo.ContentMatch
+	78,  // 36: vrooli.git_control_tower.v1.repo.GroupingRulesResponse.rules:type_name -> vrooli.git_control_tower.v1.repo.GroupingRule
+	78,  // 37: vrooli.git_control_tower.v1.repo.SaveGroupingRulesRequest.rules:type_name -> vrooli.git_control_tower.v1.repo.GroupingRule
+	82,  // 38: vrooli.git_control_tower.v1.repo.GitignoreHealthResponse.suggestions:type_name -> vrooli.git_control_tower.v1.repo.GitignoreSuggestion
+	87,  // 39: vrooli.git_control_tower.v1.repo.TrackedBinariesResponse.binaries:type_name -> vrooli.git_control_tower.v1.repo.TrackedBinary
+	102, // 40: vrooli.git_control_tower.v1.repo.PrecommitConfigResponse.last_result:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
+	92,  // 41: vrooli.git_control_tower.v1.repo.PrecommitConfigResponse.hook:type_name -> vrooli.git_control_tower.v1.repo.PrecommitHookState
+	102, // 42: vrooli.git_control_tower.v1.repo.PrecommitRunResponse.result:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
+	102, // 43: vrooli.git_control_tower.v1.repo.CreateCommitResponse.precommit:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
+	104, // 44: vrooli.git_control_tower.v1.repo.CredentialsListResponse.credentials:type_name -> vrooli.git_control_tower.v1.repo.Credential
+	104, // 45: vrooli.git_control_tower.v1.repo.CredentialSaveResponse.credential:type_name -> vrooli.git_control_tower.v1.repo.Credential
+	115, // 46: vrooli.git_control_tower.v1.repo.SSHListKeysResponse.keys:type_name -> vrooli.git_control_tower.v1.repo.SSHKeyInfo
+	115, // 47: vrooli.git_control_tower.v1.repo.SSHGenerateKeyResponse.key:type_name -> vrooli.git_control_tower.v1.repo.SSHKeyInfo
+	127, // 48: vrooli.git_control_tower.v1.repo.PushSafetyReport.files:type_name -> vrooli.git_control_tower.v1.repo.PushSafetyFile
+	127, // 49: vrooli.git_control_tower.v1.repo.PushSafetyReport.staged_files:type_name -> vrooli.git_control_tower.v1.repo.PushSafetyFile
+	130, // 50: vrooli.git_control_tower.v1.repo.PushRecoveryArtifact.mappings:type_name -> vrooli.git_control_tower.v1.repo.RecoveryCommitMapping
+	39,  // 51: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.ScopesEntry.value:type_name -> vrooli.git_control_tower.v1.repo.StringList
+	38,  // 52: vrooli.git_control_tower.v1.repo.FileStats.StagedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
+	38,  // 53: vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
+	38,  // 54: vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
+	1,   // 55: vrooli.git_control_tower.v1.repo.RepoService.ListRepositories:input_type -> vrooli.git_control_tower.v1.repo.ListRepositoriesRequest
+	3,   // 56: vrooli.git_control_tower.v1.repo.RepoService.GetActiveRepository:input_type -> vrooli.git_control_tower.v1.repo.GetActiveRepositoryRequest
+	26,  // 57: vrooli.git_control_tower.v1.repo.RepoService.SetActiveRepository:input_type -> vrooli.git_control_tower.v1.repo.SetActiveRepositoryRequest
+	27,  // 58: vrooli.git_control_tower.v1.repo.RepoService.OpenRepository:input_type -> vrooli.git_control_tower.v1.repo.OpenRepositoryRequest
+	28,  // 59: vrooli.git_control_tower.v1.repo.RepoService.CloneRepository:input_type -> vrooli.git_control_tower.v1.repo.CloneRepositoryRequest
+	30,  // 60: vrooli.git_control_tower.v1.repo.RepoService.RemoveRepository:input_type -> vrooli.git_control_tower.v1.repo.RemoveRepositoryRequest
+	32,  // 61: vrooli.git_control_tower.v1.repo.RepoService.GetRepoStatus:input_type -> vrooli.git_control_tower.v1.repo.GetRepoStatusRequest
+	42,  // 62: vrooli.git_control_tower.v1.repo.RepoService.GetRepoDiff:input_type -> vrooli.git_control_tower.v1.repo.GetRepoDiffRequest
+	46,  // 63: vrooli.git_control_tower.v1.repo.RepoService.GetRepoGroups:input_type -> vrooli.git_control_tower.v1.repo.GetRepoGroupsRequest
+	49,  // 64: vrooli.git_control_tower.v1.repo.RepoService.GetSyncStatus:input_type -> vrooli.git_control_tower.v1.repo.GetSyncStatusRequest
+	5,   // 65: vrooli.git_control_tower.v1.repo.RepoService.GetRepoHistory:input_type -> vrooli.git_control_tower.v1.repo.GetRepoHistoryRequest
+	9,   // 66: vrooli.git_control_tower.v1.repo.RepoService.GetApprovedChanges:input_type -> vrooli.git_control_tower.v1.repo.GetApprovedChangesRequest
+	12,  // 67: vrooli.git_control_tower.v1.repo.RepoService.GetProvenance:input_type -> vrooli.git_control_tower.v1.repo.GetProvenanceRequest
+	16,  // 68: vrooli.git_control_tower.v1.repo.RepoService.GetBlame:input_type -> vrooli.git_control_tower.v1.repo.GetBlameRequest
+	23,  // 69: vrooli.git_control_tower.v1.repo.RepoService.SearchProvenance:input_type -> vrooli.git_control_tower.v1.repo.SearchProvenanceRequest
+	51,  // 70: vrooli.git_control_tower.v1.repo.RepoService.GetFiles:input_type -> vrooli.git_control_tower.v1.repo.GetFilesRequest
+	54,  // 71: vrooli.git_control_tower.v1.repo.RepoService.GetDirectoryContents:input_type -> vrooli.git_control_tower.v1.repo.GetDirectoryContentsRequest
+	57,  // 72: vrooli.git_control_tower.v1.repo.RepoService.GetRelatedFiles:input_type -> vrooli.git_control_tower.v1.repo.GetRelatedFilesRequest
+	60,  // 73: vrooli.git_control_tower.v1.repo.RepoService.SearchContent:input_type -> vrooli.git_control_tower.v1.repo.SearchContentRequest
+	63,  // 74: vrooli.git_control_tower.v1.repo.RepoService.DeletePath:input_type -> vrooli.git_control_tower.v1.repo.DeletePathRequest
+	65,  // 75: vrooli.git_control_tower.v1.repo.RepoService.SaveFileContent:input_type -> vrooli.git_control_tower.v1.repo.SaveFileContentRequest
+	67,  // 76: vrooli.git_control_tower.v1.repo.RepoService.DiscardFiles:input_type -> vrooli.git_control_tower.v1.repo.DiscardFilesRequest
+	69,  // 77: vrooli.git_control_tower.v1.repo.RepoService.IgnorePath:input_type -> vrooli.git_control_tower.v1.repo.IgnorePathRequest
+	126, // 78: vrooli.git_control_tower.v1.repo.RepoService.InspectPushSafety:input_type -> vrooli.git_control_tower.v1.repo.InspectPushSafetyRequest
+	132, // 79: vrooli.git_control_tower.v1.repo.RepoService.GetPushRecovery:input_type -> vrooli.git_control_tower.v1.repo.GetPushRecoveryRequest
+	129, // 80: vrooli.git_control_tower.v1.repo.RepoService.PreparePushRecovery:input_type -> vrooli.git_control_tower.v1.repo.PreparePushRecoveryRequest
+	71,  // 81: vrooli.git_control_tower.v1.repo.RepoService.PushToRemote:input_type -> vrooli.git_control_tower.v1.repo.PushToRemoteRequest
+	73,  // 82: vrooli.git_control_tower.v1.repo.RepoService.PullFromRemote:input_type -> vrooli.git_control_tower.v1.repo.PullFromRemoteRequest
+	75,  // 83: vrooli.git_control_tower.v1.repo.RepoService.RunUpstreamAction:input_type -> vrooli.git_control_tower.v1.repo.RunUpstreamActionRequest
+	77,  // 84: vrooli.git_control_tower.v1.repo.RepoService.GetGroupingRules:input_type -> vrooli.git_control_tower.v1.repo.GetGroupingRulesRequest
+	80,  // 85: vrooli.git_control_tower.v1.repo.RepoService.SaveGroupingRules:input_type -> vrooli.git_control_tower.v1.repo.SaveGroupingRulesRequest
+	81,  // 86: vrooli.git_control_tower.v1.repo.RepoService.GetGitignoreHealth:input_type -> vrooli.git_control_tower.v1.repo.GetGitignoreHealthRequest
+	84,  // 87: vrooli.git_control_tower.v1.repo.RepoService.MoveGitignoreEntry:input_type -> vrooli.git_control_tower.v1.repo.MoveGitignoreEntryRequest
+	86,  // 88: vrooli.git_control_tower.v1.repo.RepoService.GetTrackedBinaries:input_type -> vrooli.git_control_tower.v1.repo.GetTrackedBinariesRequest
+	89,  // 89: vrooli.git_control_tower.v1.repo.RepoService.UntrackBinary:input_type -> vrooli.git_control_tower.v1.repo.UntrackBinaryRequest
+	91,  // 90: vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitConfig:input_type -> vrooli.git_control_tower.v1.repo.GetPrecommitConfigRequest
+	94,  // 91: vrooli.git_control_tower.v1.repo.RepoService.SavePrecommitConfig:input_type -> vrooli.git_control_tower.v1.repo.SavePrecommitConfigRequest
+	95,  // 92: vrooli.git_control_tower.v1.repo.RepoService.RunPrecommit:input_type -> vrooli.git_control_tower.v1.repo.RunPrecommitRequest
+	97,  // 93: vrooli.git_control_tower.v1.repo.RepoService.StageFiles:input_type -> vrooli.git_control_tower.v1.repo.StageFilesRequest
+	99,  // 94: vrooli.git_control_tower.v1.repo.RepoService.UnstageFiles:input_type -> vrooli.git_control_tower.v1.repo.UnstageFilesRequest
+	101, // 95: vrooli.git_control_tower.v1.repo.RepoService.CreateCommit:input_type -> vrooli.git_control_tower.v1.repo.CreateCommitRequest
+	105, // 96: vrooli.git_control_tower.v1.repo.RepoService.ListCredentials:input_type -> vrooli.git_control_tower.v1.repo.ListCredentialsRequest
+	107, // 97: vrooli.git_control_tower.v1.repo.RepoService.SaveCredential:input_type -> vrooli.git_control_tower.v1.repo.SaveCredentialRequest
+	109, // 98: vrooli.git_control_tower.v1.repo.RepoService.DeleteCredential:input_type -> vrooli.git_control_tower.v1.repo.DeleteCredentialRequest
+	111, // 99: vrooli.git_control_tower.v1.repo.RepoService.TestCredential:input_type -> vrooli.git_control_tower.v1.repo.TestCredentialRequest
+	113, // 100: vrooli.git_control_tower.v1.repo.RepoService.UpdateRemoteURL:input_type -> vrooli.git_control_tower.v1.repo.UpdateRemoteURLRequest
+	116, // 101: vrooli.git_control_tower.v1.repo.RepoService.ListSSHKeys:input_type -> vrooli.git_control_tower.v1.repo.ListSSHKeysRequest
+	118, // 102: vrooli.git_control_tower.v1.repo.RepoService.GenerateSSHKey:input_type -> vrooli.git_control_tower.v1.repo.GenerateSSHKeyRequest
+	120, // 103: vrooli.git_control_tower.v1.repo.RepoService.GetSSHPublicKey:input_type -> vrooli.git_control_tower.v1.repo.GetSSHPublicKeyRequest
+	122, // 104: vrooli.git_control_tower.v1.repo.RepoService.TestSSHConnection:input_type -> vrooli.git_control_tower.v1.repo.TestSSHConnectionRequest
+	124, // 105: vrooli.git_control_tower.v1.repo.RepoService.DeleteSSHKey:input_type -> vrooli.git_control_tower.v1.repo.DeleteSSHKeyRequest
+	2,   // 106: vrooli.git_control_tower.v1.repo.RepoService.ListRepositories:output_type -> vrooli.git_control_tower.v1.repo.ListRepositoriesResponse
+	4,   // 107: vrooli.git_control_tower.v1.repo.RepoService.GetActiveRepository:output_type -> vrooli.git_control_tower.v1.repo.GetActiveRepositoryResponse
+	29,  // 108: vrooli.git_control_tower.v1.repo.RepoService.SetActiveRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
+	29,  // 109: vrooli.git_control_tower.v1.repo.RepoService.OpenRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
+	29,  // 110: vrooli.git_control_tower.v1.repo.RepoService.CloneRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
+	31,  // 111: vrooli.git_control_tower.v1.repo.RepoService.RemoveRepository:output_type -> vrooli.git_control_tower.v1.repo.RemoveRepositoryResponse
+	34,  // 112: vrooli.git_control_tower.v1.repo.RepoService.GetRepoStatus:output_type -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse
+	43,  // 113: vrooli.git_control_tower.v1.repo.RepoService.GetRepoDiff:output_type -> vrooli.git_control_tower.v1.repo.GetRepoDiffResponse
+	47,  // 114: vrooli.git_control_tower.v1.repo.RepoService.GetRepoGroups:output_type -> vrooli.git_control_tower.v1.repo.GetRepoGroupsResponse
+	50,  // 115: vrooli.git_control_tower.v1.repo.RepoService.GetSyncStatus:output_type -> vrooli.git_control_tower.v1.repo.GetSyncStatusResponse
+	8,   // 116: vrooli.git_control_tower.v1.repo.RepoService.GetRepoHistory:output_type -> vrooli.git_control_tower.v1.repo.GetRepoHistoryResponse
+	11,  // 117: vrooli.git_control_tower.v1.repo.RepoService.GetApprovedChanges:output_type -> vrooli.git_control_tower.v1.repo.GetApprovedChangesResponse
+	15,  // 118: vrooli.git_control_tower.v1.repo.RepoService.GetProvenance:output_type -> vrooli.git_control_tower.v1.repo.GetProvenanceResponse
+	22,  // 119: vrooli.git_control_tower.v1.repo.RepoService.GetBlame:output_type -> vrooli.git_control_tower.v1.repo.GetBlameResponse
+	25,  // 120: vrooli.git_control_tower.v1.repo.RepoService.SearchProvenance:output_type -> vrooli.git_control_tower.v1.repo.SearchProvenanceResponse
+	53,  // 121: vrooli.git_control_tower.v1.repo.RepoService.GetFiles:output_type -> vrooli.git_control_tower.v1.repo.GetFilesResponse
+	56,  // 122: vrooli.git_control_tower.v1.repo.RepoService.GetDirectoryContents:output_type -> vrooli.git_control_tower.v1.repo.GetDirectoryContentsResponse
+	59,  // 123: vrooli.git_control_tower.v1.repo.RepoService.GetRelatedFiles:output_type -> vrooli.git_control_tower.v1.repo.GetRelatedFilesResponse
+	62,  // 124: vrooli.git_control_tower.v1.repo.RepoService.SearchContent:output_type -> vrooli.git_control_tower.v1.repo.SearchContentResponse
+	64,  // 125: vrooli.git_control_tower.v1.repo.RepoService.DeletePath:output_type -> vrooli.git_control_tower.v1.repo.DeletePathResponse
+	66,  // 126: vrooli.git_control_tower.v1.repo.RepoService.SaveFileContent:output_type -> vrooli.git_control_tower.v1.repo.SaveFileContentResponse
+	68,  // 127: vrooli.git_control_tower.v1.repo.RepoService.DiscardFiles:output_type -> vrooli.git_control_tower.v1.repo.DiscardFilesResponse
+	70,  // 128: vrooli.git_control_tower.v1.repo.RepoService.IgnorePath:output_type -> vrooli.git_control_tower.v1.repo.IgnorePathResponse
+	128, // 129: vrooli.git_control_tower.v1.repo.RepoService.InspectPushSafety:output_type -> vrooli.git_control_tower.v1.repo.PushSafetyReport
+	131, // 130: vrooli.git_control_tower.v1.repo.RepoService.GetPushRecovery:output_type -> vrooli.git_control_tower.v1.repo.PushRecoveryArtifact
+	131, // 131: vrooli.git_control_tower.v1.repo.RepoService.PreparePushRecovery:output_type -> vrooli.git_control_tower.v1.repo.PushRecoveryArtifact
+	72,  // 132: vrooli.git_control_tower.v1.repo.RepoService.PushToRemote:output_type -> vrooli.git_control_tower.v1.repo.PushToRemoteResponse
+	74,  // 133: vrooli.git_control_tower.v1.repo.RepoService.PullFromRemote:output_type -> vrooli.git_control_tower.v1.repo.PullFromRemoteResponse
+	76,  // 134: vrooli.git_control_tower.v1.repo.RepoService.RunUpstreamAction:output_type -> vrooli.git_control_tower.v1.repo.RunUpstreamActionResponse
+	79,  // 135: vrooli.git_control_tower.v1.repo.RepoService.GetGroupingRules:output_type -> vrooli.git_control_tower.v1.repo.GroupingRulesResponse
+	79,  // 136: vrooli.git_control_tower.v1.repo.RepoService.SaveGroupingRules:output_type -> vrooli.git_control_tower.v1.repo.GroupingRulesResponse
+	83,  // 137: vrooli.git_control_tower.v1.repo.RepoService.GetGitignoreHealth:output_type -> vrooli.git_control_tower.v1.repo.GitignoreHealthResponse
+	85,  // 138: vrooli.git_control_tower.v1.repo.RepoService.MoveGitignoreEntry:output_type -> vrooli.git_control_tower.v1.repo.MoveGitignoreEntryResponse
+	88,  // 139: vrooli.git_control_tower.v1.repo.RepoService.GetTrackedBinaries:output_type -> vrooli.git_control_tower.v1.repo.TrackedBinariesResponse
+	90,  // 140: vrooli.git_control_tower.v1.repo.RepoService.UntrackBinary:output_type -> vrooli.git_control_tower.v1.repo.UntrackBinaryResponse
+	93,  // 141: vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitConfig:output_type -> vrooli.git_control_tower.v1.repo.PrecommitConfigResponse
+	93,  // 142: vrooli.git_control_tower.v1.repo.RepoService.SavePrecommitConfig:output_type -> vrooli.git_control_tower.v1.repo.PrecommitConfigResponse
+	96,  // 143: vrooli.git_control_tower.v1.repo.RepoService.RunPrecommit:output_type -> vrooli.git_control_tower.v1.repo.PrecommitRunResponse
+	98,  // 144: vrooli.git_control_tower.v1.repo.RepoService.StageFiles:output_type -> vrooli.git_control_tower.v1.repo.StageFilesResponse
+	100, // 145: vrooli.git_control_tower.v1.repo.RepoService.UnstageFiles:output_type -> vrooli.git_control_tower.v1.repo.UnstageFilesResponse
+	103, // 146: vrooli.git_control_tower.v1.repo.RepoService.CreateCommit:output_type -> vrooli.git_control_tower.v1.repo.CreateCommitResponse
+	106, // 147: vrooli.git_control_tower.v1.repo.RepoService.ListCredentials:output_type -> vrooli.git_control_tower.v1.repo.CredentialsListResponse
+	108, // 148: vrooli.git_control_tower.v1.repo.RepoService.SaveCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialSaveResponse
+	110, // 149: vrooli.git_control_tower.v1.repo.RepoService.DeleteCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialDeleteResponse
+	112, // 150: vrooli.git_control_tower.v1.repo.RepoService.TestCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialTestResponse
+	114, // 151: vrooli.git_control_tower.v1.repo.RepoService.UpdateRemoteURL:output_type -> vrooli.git_control_tower.v1.repo.RemoteURLUpdateResponse
+	117, // 152: vrooli.git_control_tower.v1.repo.RepoService.ListSSHKeys:output_type -> vrooli.git_control_tower.v1.repo.SSHListKeysResponse
+	119, // 153: vrooli.git_control_tower.v1.repo.RepoService.GenerateSSHKey:output_type -> vrooli.git_control_tower.v1.repo.SSHGenerateKeyResponse
+	121, // 154: vrooli.git_control_tower.v1.repo.RepoService.GetSSHPublicKey:output_type -> vrooli.git_control_tower.v1.repo.SSHGetPublicKeyResponse
+	123, // 155: vrooli.git_control_tower.v1.repo.RepoService.TestSSHConnection:output_type -> vrooli.git_control_tower.v1.repo.SSHTestConnectionResponse
+	125, // 156: vrooli.git_control_tower.v1.repo.RepoService.DeleteSSHKey:output_type -> vrooli.git_control_tower.v1.repo.SSHDeleteKeyResponse
+	106, // [106:157] is the sub-list for method output_type
+	55,  // [55:106] is the sub-list for method input_type
+	55,  // [55:55] is the sub-list for extension type_name
+	55,  // [55:55] is the sub-list for extension extendee
+	0,   // [0:55] is the sub-list for field type_name
 }
 
 func init() { file_git_control_tower_v1_repo_repo_proto_init() }
@@ -274,7 +11356,7 @@ func file_git_control_tower_v1_repo_repo_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_git_control_tower_v1_repo_repo_proto_rawDesc), len(file_git_control_tower_v1_repo_repo_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   140,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

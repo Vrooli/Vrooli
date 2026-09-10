@@ -84,6 +84,34 @@ message DeliveryAck {
   google.protobuf.Timestamp received_at = 4;
 }
 
+// ArtifactReceipt is emitted after the target agent has downloaded and
+// atomically placed an ArtifactDelivery. It contains placement metadata only;
+// artifact bytes never cross back to the control plane. It is shared because
+// both the channel envelope and the presence receipt RPC carry this value.
+message ArtifactReceipt {
+  string distribution_id = 1;
+  string node_id = 2;
+  string item_id = 3;
+  string destination_path = 4;
+  bool accepted = 5;
+  string reason = 6;
+  string sha256 = 7;
+  int64 size_bytes = 8;
+}
+
+// ScenarioResponse is the bounded unary response to ScenarioRequest. It is
+// shared because the channel envelope and presence report RPC carry the same
+// node-local scenario result.
+message ScenarioResponse {
+  string correlation_id = 1;
+  bytes response = 2;
+  string error = 3;
+  bool timed_out = 4;
+  bool truncated = 5;
+
+  reserved 6 to 15;
+}
+
 // RelayResponse is one bounded response chunk or terminal outcome for the
 // channel relay. It lives in shared because the channel envelope and the
 // presence response RPC both carry the same authenticated payload.

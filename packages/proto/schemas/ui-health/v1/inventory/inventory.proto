@@ -53,6 +53,12 @@ message SurfaceRecord {
   string display_name = 4;
   string description = 5;
   string file_path = 6;
+  string observed_route = 7;
+  string observed_link_text = 8;
+  string observed_page_title = 9;
+  string observed_at = 10;
+  bool reachable = 11;
+  int32 http_status = 12;
 }
 
 message ScanScenarioResponse {

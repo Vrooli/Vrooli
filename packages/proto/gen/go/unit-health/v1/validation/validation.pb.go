@@ -40,9 +40,15 @@ type ValidateScenarioRequest struct {
 	// remains the historical coverage-capable execution path; this explicit mode
 	// lets callers collect lightweight test evidence separately from coverage
 	// evidence without weakening either cache contract.
-	FastTestOnly  bool `protobuf:"varint,6,opt,name=fast_test_only,json=fastTestOnly,proto3" json:"fast_test_only,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	FastTestOnly bool `protobuf:"varint,6,opt,name=fast_test_only,json=fastTestOnly,proto3" json:"fast_test_only,omitempty"`
+	// Optional sampled-review cohort attached to this validation run. Review
+	// evidence is supplied only when the cohort has a source identity and at
+	// least one observed label.
+	ReviewedCohortId         string `protobuf:"bytes,7,opt,name=reviewed_cohort_id,json=reviewedCohortId,proto3" json:"reviewed_cohort_id,omitempty"`
+	ReviewedSourceIdentity   string `protobuf:"bytes,8,opt,name=reviewed_source_identity,json=reviewedSourceIdentity,proto3" json:"reviewed_source_identity,omitempty"`
+	ReviewedObservationCount uint32 `protobuf:"varint,9,opt,name=reviewed_observation_count,json=reviewedObservationCount,proto3" json:"reviewed_observation_count,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *ValidateScenarioRequest) Reset() {
@@ -117,6 +123,27 @@ func (x *ValidateScenarioRequest) GetFastTestOnly() bool {
 	return false
 }
 
+func (x *ValidateScenarioRequest) GetReviewedCohortId() string {
+	if x != nil {
+		return x.ReviewedCohortId
+	}
+	return ""
+}
+
+func (x *ValidateScenarioRequest) GetReviewedSourceIdentity() string {
+	if x != nil {
+		return x.ReviewedSourceIdentity
+	}
+	return ""
+}
+
+func (x *ValidateScenarioRequest) GetReviewedObservationCount() uint32 {
+	if x != nil {
+		return x.ReviewedObservationCount
+	}
+	return 0
+}
+
 type ValidateScenarioResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable run identifier for this validation invocation.
@@ -160,8 +187,12 @@ type ValidateScenarioResponse struct {
 	CacheSavedWallTimeMs       int64                `protobuf:"varint,25,opt,name=cache_saved_wall_time_ms,json=cacheSavedWallTimeMs,proto3" json:"cache_saved_wall_time_ms,omitempty"`
 	CacheSavedCpuTimeMs        int64                `protobuf:"varint,26,opt,name=cache_saved_cpu_time_ms,json=cacheSavedCpuTimeMs,proto3" json:"cache_saved_cpu_time_ms,omitempty"`
 	CacheRetainedBytes         int64                `protobuf:"varint,27,opt,name=cache_retained_bytes,json=cacheRetainedBytes,proto3" json:"cache_retained_bytes,omitempty"`
-	unknownFields              protoimpl.UnknownFields
-	sizeCache                  protoimpl.SizeCache
+	// Optional scoped test-quality analysis. Absent historical data is unknown.
+	TestQuality    *TestQualityReport             `protobuf:"bytes,28,opt,name=test_quality,json=testQuality,proto3" json:"test_quality,omitempty"`
+	Traceability   *RequirementTraceabilityReport `protobuf:"bytes,29,opt,name=traceability,proto3" json:"traceability,omitempty"`
+	EvidenceStages *EvidenceStages                `protobuf:"bytes,30,opt,name=evidence_stages,json=evidenceStages,proto3" json:"evidence_stages,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ValidateScenarioResponse) Reset() {
@@ -383,6 +414,1149 @@ func (x *ValidateScenarioResponse) GetCacheRetainedBytes() int64 {
 	return 0
 }
 
+func (x *ValidateScenarioResponse) GetTestQuality() *TestQualityReport {
+	if x != nil {
+		return x.TestQuality
+	}
+	return nil
+}
+
+func (x *ValidateScenarioResponse) GetTraceability() *RequirementTraceabilityReport {
+	if x != nil {
+		return x.Traceability
+	}
+	return nil
+}
+
+func (x *ValidateScenarioResponse) GetEvidenceStages() *EvidenceStages {
+	if x != nil {
+		return x.EvidenceStages
+	}
+	return nil
+}
+
+// RunCalibrationRequest selects a governed calibration read.
+type RunCalibrationRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Corpus partition: development, reviewed-holdout, or inventory.
+	Partition string `protobuf:"bytes,1,opt,name=partition,proto3" json:"partition,omitempty"`
+	// Reviewed holdout identity. Required for the reviewed-holdout partition.
+	HoldoutId string `protobuf:"bytes,2,opt,name=holdout_id,json=holdoutId,proto3" json:"holdout_id,omitempty"`
+	// Include native-profile observations when the selected corpus supports them.
+	IncludeNative bool `protobuf:"varint,3,opt,name=include_native,json=includeNative,proto3" json:"include_native,omitempty"`
+	// Restrict holdout comparison to one catalog rule.
+	RuleId        string `protobuf:"bytes,4,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunCalibrationRequest) Reset() {
+	*x = RunCalibrationRequest{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunCalibrationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunCalibrationRequest) ProtoMessage() {}
+
+func (x *RunCalibrationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunCalibrationRequest.ProtoReflect.Descriptor instead.
+func (*RunCalibrationRequest) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RunCalibrationRequest) GetPartition() string {
+	if x != nil {
+		return x.Partition
+	}
+	return ""
+}
+
+func (x *RunCalibrationRequest) GetHoldoutId() string {
+	if x != nil {
+		return x.HoldoutId
+	}
+	return ""
+}
+
+func (x *RunCalibrationRequest) GetIncludeNative() bool {
+	if x != nil {
+		return x.IncludeNative
+	}
+	return false
+}
+
+func (x *RunCalibrationRequest) GetRuleId() string {
+	if x != nil {
+		return x.RuleId
+	}
+	return ""
+}
+
+// FamilyCount is the bounded case count for one calibration family.
+type FamilyCount struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Family        string                 `protobuf:"bytes,1,opt,name=family,proto3" json:"family,omitempty"`
+	Specified     uint32                 `protobuf:"varint,2,opt,name=specified,proto3" json:"specified,omitempty"`
+	Implemented   uint32                 `protobuf:"varint,3,opt,name=implemented,proto3" json:"implemented,omitempty"`
+	Retired       uint32                 `protobuf:"varint,4,opt,name=retired,proto3" json:"retired,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FamilyCount) Reset() {
+	*x = FamilyCount{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FamilyCount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FamilyCount) ProtoMessage() {}
+
+func (x *FamilyCount) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FamilyCount.ProtoReflect.Descriptor instead.
+func (*FamilyCount) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *FamilyCount) GetFamily() string {
+	if x != nil {
+		return x.Family
+	}
+	return ""
+}
+
+func (x *FamilyCount) GetSpecified() uint32 {
+	if x != nil {
+		return x.Specified
+	}
+	return 0
+}
+
+func (x *FamilyCount) GetImplemented() uint32 {
+	if x != nil {
+		return x.Implemented
+	}
+	return 0
+}
+
+func (x *FamilyCount) GetRetired() uint32 {
+	if x != nil {
+		return x.Retired
+	}
+	return 0
+}
+
+// CorpusInventory describes the authored calibration surface.
+type CorpusInventory struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Specified               uint32                 `protobuf:"varint,1,opt,name=specified,proto3" json:"specified,omitempty"`
+	Implemented             uint32                 `protobuf:"varint,2,opt,name=implemented,proto3" json:"implemented,omitempty"`
+	Retired                 uint32                 `protobuf:"varint,3,opt,name=retired,proto3" json:"retired,omitempty"`
+	Families                []*FamilyCount         `protobuf:"bytes,4,rep,name=families,proto3" json:"families,omitempty"`
+	SpecCodesWithoutEmitter uint32                 `protobuf:"varint,5,opt,name=spec_codes_without_emitter,json=specCodesWithoutEmitter,proto3" json:"spec_codes_without_emitter,omitempty"`
+	DevelopmentFloor        string                 `protobuf:"bytes,6,opt,name=development_floor,json=developmentFloor,proto3" json:"development_floor,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *CorpusInventory) Reset() {
+	*x = CorpusInventory{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CorpusInventory) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CorpusInventory) ProtoMessage() {}
+
+func (x *CorpusInventory) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CorpusInventory.ProtoReflect.Descriptor instead.
+func (*CorpusInventory) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CorpusInventory) GetSpecified() uint32 {
+	if x != nil {
+		return x.Specified
+	}
+	return 0
+}
+
+func (x *CorpusInventory) GetImplemented() uint32 {
+	if x != nil {
+		return x.Implemented
+	}
+	return 0
+}
+
+func (x *CorpusInventory) GetRetired() uint32 {
+	if x != nil {
+		return x.Retired
+	}
+	return 0
+}
+
+func (x *CorpusInventory) GetFamilies() []*FamilyCount {
+	if x != nil {
+		return x.Families
+	}
+	return nil
+}
+
+func (x *CorpusInventory) GetSpecCodesWithoutEmitter() uint32 {
+	if x != nil {
+		return x.SpecCodesWithoutEmitter
+	}
+	return 0
+}
+
+func (x *CorpusInventory) GetDevelopmentFloor() string {
+	if x != nil {
+		return x.DevelopmentFloor
+	}
+	return ""
+}
+
+// CaseOutcome is the bounded result for one calibration case.
+type CaseOutcome struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	RuleId        string                 `protobuf:"bytes,2,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	Matched       bool                   `protobuf:"varint,3,opt,name=matched,proto3" json:"matched,omitempty"`
+	Differences   []string               `protobuf:"bytes,4,rep,name=differences,proto3" json:"differences,omitempty"`
+	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaseOutcome) Reset() {
+	*x = CaseOutcome{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaseOutcome) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaseOutcome) ProtoMessage() {}
+
+func (x *CaseOutcome) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaseOutcome.ProtoReflect.Descriptor instead.
+func (*CaseOutcome) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CaseOutcome) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *CaseOutcome) GetRuleId() string {
+	if x != nil {
+		return x.RuleId
+	}
+	return ""
+}
+
+func (x *CaseOutcome) GetMatched() bool {
+	if x != nil {
+		return x.Matched
+	}
+	return false
+}
+
+func (x *CaseOutcome) GetDifferences() []string {
+	if x != nil {
+		return x.Differences
+	}
+	return nil
+}
+
+func (x *CaseOutcome) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+// HoldoutComparison contains independent-label agreement metrics.
+type HoldoutComparison struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RuleId           string                 `protobuf:"bytes,1,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	HoldoutId        string                 `protobuf:"bytes,2,opt,name=holdout_id,json=holdoutId,proto3" json:"holdout_id,omitempty"`
+	Labelled         uint32                 `protobuf:"varint,3,opt,name=labelled,proto3" json:"labelled,omitempty"`
+	Observed         uint32                 `protobuf:"varint,4,opt,name=observed,proto3" json:"observed,omitempty"`
+	FalsePositives   uint32                 `protobuf:"varint,5,opt,name=false_positives,json=falsePositives,proto3" json:"false_positives,omitempty"`
+	FalseNegatives   uint32                 `protobuf:"varint,6,opt,name=false_negatives,json=falseNegatives,proto3" json:"false_negatives,omitempty"`
+	Unknown          uint32                 `protobuf:"varint,7,opt,name=unknown,proto3" json:"unknown,omitempty"`
+	FpRate           float64                `protobuf:"fixed64,8,opt,name=fp_rate,json=fpRate,proto3" json:"fp_rate,omitempty"`
+	FnRate           float64                `protobuf:"fixed64,9,opt,name=fn_rate,json=fnRate,proto3" json:"fn_rate,omitempty"`
+	Budget           float64                `protobuf:"fixed64,10,opt,name=budget,proto3" json:"budget,omitempty"`
+	WithinBudget     bool                   `protobuf:"varint,11,opt,name=within_budget,json=withinBudget,proto3" json:"within_budget,omitempty"`
+	PromotionAllowed bool                   `protobuf:"varint,12,opt,name=promotion_allowed,json=promotionAllowed,proto3" json:"promotion_allowed,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *HoldoutComparison) Reset() {
+	*x = HoldoutComparison{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HoldoutComparison) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HoldoutComparison) ProtoMessage() {}
+
+func (x *HoldoutComparison) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HoldoutComparison.ProtoReflect.Descriptor instead.
+func (*HoldoutComparison) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *HoldoutComparison) GetRuleId() string {
+	if x != nil {
+		return x.RuleId
+	}
+	return ""
+}
+
+func (x *HoldoutComparison) GetHoldoutId() string {
+	if x != nil {
+		return x.HoldoutId
+	}
+	return ""
+}
+
+func (x *HoldoutComparison) GetLabelled() uint32 {
+	if x != nil {
+		return x.Labelled
+	}
+	return 0
+}
+
+func (x *HoldoutComparison) GetObserved() uint32 {
+	if x != nil {
+		return x.Observed
+	}
+	return 0
+}
+
+func (x *HoldoutComparison) GetFalsePositives() uint32 {
+	if x != nil {
+		return x.FalsePositives
+	}
+	return 0
+}
+
+func (x *HoldoutComparison) GetFalseNegatives() uint32 {
+	if x != nil {
+		return x.FalseNegatives
+	}
+	return 0
+}
+
+func (x *HoldoutComparison) GetUnknown() uint32 {
+	if x != nil {
+		return x.Unknown
+	}
+	return 0
+}
+
+func (x *HoldoutComparison) GetFpRate() float64 {
+	if x != nil {
+		return x.FpRate
+	}
+	return 0
+}
+
+func (x *HoldoutComparison) GetFnRate() float64 {
+	if x != nil {
+		return x.FnRate
+	}
+	return 0
+}
+
+func (x *HoldoutComparison) GetBudget() float64 {
+	if x != nil {
+		return x.Budget
+	}
+	return 0
+}
+
+func (x *HoldoutComparison) GetWithinBudget() bool {
+	if x != nil {
+		return x.WithinBudget
+	}
+	return false
+}
+
+func (x *HoldoutComparison) GetPromotionAllowed() bool {
+	if x != nil {
+		return x.PromotionAllowed
+	}
+	return false
+}
+
+// RunCalibrationResponse is a governed, non-promoting calibration report.
+type RunCalibrationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Partition     string                 `protobuf:"bytes,2,opt,name=partition,proto3" json:"partition,omitempty"`
+	Corpus        *CorpusInventory       `protobuf:"bytes,3,opt,name=corpus,proto3" json:"corpus,omitempty"`
+	Cases         []*CaseOutcome         `protobuf:"bytes,4,rep,name=cases,proto3" json:"cases,omitempty"`
+	Holdout       []*HoldoutComparison   `protobuf:"bytes,5,rep,name=holdout,proto3" json:"holdout,omitempty"`
+	Limitations   []string               `protobuf:"bytes,6,rep,name=limitations,proto3" json:"limitations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunCalibrationResponse) Reset() {
+	*x = RunCalibrationResponse{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunCalibrationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunCalibrationResponse) ProtoMessage() {}
+
+func (x *RunCalibrationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunCalibrationResponse.ProtoReflect.Descriptor instead.
+func (*RunCalibrationResponse) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *RunCalibrationResponse) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *RunCalibrationResponse) GetPartition() string {
+	if x != nil {
+		return x.Partition
+	}
+	return ""
+}
+
+func (x *RunCalibrationResponse) GetCorpus() *CorpusInventory {
+	if x != nil {
+		return x.Corpus
+	}
+	return nil
+}
+
+func (x *RunCalibrationResponse) GetCases() []*CaseOutcome {
+	if x != nil {
+		return x.Cases
+	}
+	return nil
+}
+
+func (x *RunCalibrationResponse) GetHoldout() []*HoldoutComparison {
+	if x != nil {
+		return x.Holdout
+	}
+	return nil
+}
+
+func (x *RunCalibrationResponse) GetLimitations() []string {
+	if x != nil {
+		return x.Limitations
+	}
+	return nil
+}
+
+// ReadTestBodyRequest identifies one test body within a discovered workspace.
+type ReadTestBodyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Workspace     string                 `protobuf:"bytes,2,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	File          string                 `protobuf:"bytes,3,opt,name=file,proto3" json:"file,omitempty"`
+	TestId        string                 `protobuf:"bytes,4,opt,name=test_id,json=testId,proto3" json:"test_id,omitempty"`
+	MaxBytes      uint32                 `protobuf:"varint,5,opt,name=max_bytes,json=maxBytes,proto3" json:"max_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReadTestBodyRequest) Reset() {
+	*x = ReadTestBodyRequest{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReadTestBodyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadTestBodyRequest) ProtoMessage() {}
+
+func (x *ReadTestBodyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadTestBodyRequest.ProtoReflect.Descriptor instead.
+func (*ReadTestBodyRequest) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ReadTestBodyRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *ReadTestBodyRequest) GetWorkspace() string {
+	if x != nil {
+		return x.Workspace
+	}
+	return ""
+}
+
+func (x *ReadTestBodyRequest) GetFile() string {
+	if x != nil {
+		return x.File
+	}
+	return ""
+}
+
+func (x *ReadTestBodyRequest) GetTestId() string {
+	if x != nil {
+		return x.TestId
+	}
+	return ""
+}
+
+func (x *ReadTestBodyRequest) GetMaxBytes() uint32 {
+	if x != nil {
+		return x.MaxBytes
+	}
+	return 0
+}
+
+// ReadTestBodyResponse is a bounded source excerpt. The full file never leaves
+// the owner boundary and privacy-pattern files are refused.
+type ReadTestBodyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TestIdentity  string                 `protobuf:"bytes,1,opt,name=test_identity,json=testIdentity,proto3" json:"test_identity,omitempty"`
+	BodyExcerpt   string                 `protobuf:"bytes,2,opt,name=body_excerpt,json=bodyExcerpt,proto3" json:"body_excerpt,omitempty"`
+	BodyBytes     uint32                 `protobuf:"varint,3,opt,name=body_bytes,json=bodyBytes,proto3" json:"body_bytes,omitempty"`
+	Redactions    uint32                 `protobuf:"varint,4,opt,name=redactions,proto3" json:"redactions,omitempty"`
+	Refused       bool                   `protobuf:"varint,5,opt,name=refused,proto3" json:"refused,omitempty"`
+	RefusalReason string                 `protobuf:"bytes,6,opt,name=refusal_reason,json=refusalReason,proto3" json:"refusal_reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReadTestBodyResponse) Reset() {
+	*x = ReadTestBodyResponse{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReadTestBodyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadTestBodyResponse) ProtoMessage() {}
+
+func (x *ReadTestBodyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadTestBodyResponse.ProtoReflect.Descriptor instead.
+func (*ReadTestBodyResponse) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ReadTestBodyResponse) GetTestIdentity() string {
+	if x != nil {
+		return x.TestIdentity
+	}
+	return ""
+}
+
+func (x *ReadTestBodyResponse) GetBodyExcerpt() string {
+	if x != nil {
+		return x.BodyExcerpt
+	}
+	return ""
+}
+
+func (x *ReadTestBodyResponse) GetBodyBytes() uint32 {
+	if x != nil {
+		return x.BodyBytes
+	}
+	return 0
+}
+
+func (x *ReadTestBodyResponse) GetRedactions() uint32 {
+	if x != nil {
+		return x.Redactions
+	}
+	return 0
+}
+
+func (x *ReadTestBodyResponse) GetRefused() bool {
+	if x != nil {
+		return x.Refused
+	}
+	return false
+}
+
+func (x *ReadTestBodyResponse) GetRefusalReason() string {
+	if x != nil {
+		return x.RefusalReason
+	}
+	return ""
+}
+
+type RunMutationPilotRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Workspace     string                 `protobuf:"bytes,2,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	Package       string                 `protobuf:"bytes,3,opt,name=package,proto3" json:"package,omitempty"`
+	Operators     []string               `protobuf:"bytes,4,rep,name=operators,proto3" json:"operators,omitempty"`
+	MaxMutants    uint32                 `protobuf:"varint,5,opt,name=max_mutants,json=maxMutants,proto3" json:"max_mutants,omitempty"`
+	Seed          string                 `protobuf:"bytes,6,opt,name=seed,proto3" json:"seed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunMutationPilotRequest) Reset() {
+	*x = RunMutationPilotRequest{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunMutationPilotRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunMutationPilotRequest) ProtoMessage() {}
+
+func (x *RunMutationPilotRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunMutationPilotRequest.ProtoReflect.Descriptor instead.
+func (*RunMutationPilotRequest) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *RunMutationPilotRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *RunMutationPilotRequest) GetWorkspace() string {
+	if x != nil {
+		return x.Workspace
+	}
+	return ""
+}
+
+func (x *RunMutationPilotRequest) GetPackage() string {
+	if x != nil {
+		return x.Package
+	}
+	return ""
+}
+
+func (x *RunMutationPilotRequest) GetOperators() []string {
+	if x != nil {
+		return x.Operators
+	}
+	return nil
+}
+
+func (x *RunMutationPilotRequest) GetMaxMutants() uint32 {
+	if x != nil {
+		return x.MaxMutants
+	}
+	return 0
+}
+
+func (x *RunMutationPilotRequest) GetSeed() string {
+	if x != nil {
+		return x.Seed
+	}
+	return ""
+}
+
+type MutantReceipt struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Operator      string                 `protobuf:"bytes,2,opt,name=operator,proto3" json:"operator,omitempty"`
+	File          string                 `protobuf:"bytes,3,opt,name=file,proto3" json:"file,omitempty"`
+	Line          uint32                 `protobuf:"varint,4,opt,name=line,proto3" json:"line,omitempty"`
+	Disposition   string                 `protobuf:"bytes,5,opt,name=disposition,proto3" json:"disposition,omitempty"`
+	Detail        string                 `protobuf:"bytes,6,opt,name=detail,proto3" json:"detail,omitempty"`
+	OwningTest    string                 `protobuf:"bytes,7,opt,name=owning_test,json=owningTest,proto3" json:"owning_test,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MutantReceipt) Reset() {
+	*x = MutantReceipt{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MutantReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MutantReceipt) ProtoMessage() {}
+
+func (x *MutantReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MutantReceipt.ProtoReflect.Descriptor instead.
+func (*MutantReceipt) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *MutantReceipt) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *MutantReceipt) GetOperator() string {
+	if x != nil {
+		return x.Operator
+	}
+	return ""
+}
+
+func (x *MutantReceipt) GetFile() string {
+	if x != nil {
+		return x.File
+	}
+	return ""
+}
+
+func (x *MutantReceipt) GetLine() uint32 {
+	if x != nil {
+		return x.Line
+	}
+	return 0
+}
+
+func (x *MutantReceipt) GetDisposition() string {
+	if x != nil {
+		return x.Disposition
+	}
+	return ""
+}
+
+func (x *MutantReceipt) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *MutantReceipt) GetOwningTest() string {
+	if x != nil {
+		return x.OwningTest
+	}
+	return ""
+}
+
+type MutationSummary struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Generated             uint32                 `protobuf:"varint,1,opt,name=generated,proto3" json:"generated,omitempty"`
+	Killed                uint32                 `protobuf:"varint,2,opt,name=killed,proto3" json:"killed,omitempty"`
+	Survived              uint32                 `protobuf:"varint,3,opt,name=survived,proto3" json:"survived,omitempty"`
+	Invalid               uint32                 `protobuf:"varint,4,opt,name=invalid,proto3" json:"invalid,omitempty"`
+	Equivalent            uint32                 `protobuf:"varint,5,opt,name=equivalent,proto3" json:"equivalent,omitempty"`
+	OutOfContract         uint32                 `protobuf:"varint,6,opt,name=out_of_contract,json=outOfContract,proto3" json:"out_of_contract,omitempty"`
+	InfrastructureFailure uint32                 `protobuf:"varint,7,opt,name=infrastructure_failure,json=infrastructureFailure,proto3" json:"infrastructure_failure,omitempty"`
+	Unknown               uint32                 `protobuf:"varint,8,opt,name=unknown,proto3" json:"unknown,omitempty"`
+	KillRate              float64                `protobuf:"fixed64,9,opt,name=kill_rate,json=killRate,proto3" json:"kill_rate,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *MutationSummary) Reset() {
+	*x = MutationSummary{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MutationSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MutationSummary) ProtoMessage() {}
+
+func (x *MutationSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MutationSummary.ProtoReflect.Descriptor instead.
+func (*MutationSummary) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *MutationSummary) GetGenerated() uint32 {
+	if x != nil {
+		return x.Generated
+	}
+	return 0
+}
+
+func (x *MutationSummary) GetKilled() uint32 {
+	if x != nil {
+		return x.Killed
+	}
+	return 0
+}
+
+func (x *MutationSummary) GetSurvived() uint32 {
+	if x != nil {
+		return x.Survived
+	}
+	return 0
+}
+
+func (x *MutationSummary) GetInvalid() uint32 {
+	if x != nil {
+		return x.Invalid
+	}
+	return 0
+}
+
+func (x *MutationSummary) GetEquivalent() uint32 {
+	if x != nil {
+		return x.Equivalent
+	}
+	return 0
+}
+
+func (x *MutationSummary) GetOutOfContract() uint32 {
+	if x != nil {
+		return x.OutOfContract
+	}
+	return 0
+}
+
+func (x *MutationSummary) GetInfrastructureFailure() uint32 {
+	if x != nil {
+		return x.InfrastructureFailure
+	}
+	return 0
+}
+
+func (x *MutationSummary) GetUnknown() uint32 {
+	if x != nil {
+		return x.Unknown
+	}
+	return 0
+}
+
+func (x *MutationSummary) GetKillRate() float64 {
+	if x != nil {
+		return x.KillRate
+	}
+	return 0
+}
+
+type RunMutationPilotResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	WorkspacePath string                 `protobuf:"bytes,2,opt,name=workspace_path,json=workspacePath,proto3" json:"workspace_path,omitempty"`
+	Receipts      []*MutantReceipt       `protobuf:"bytes,3,rep,name=receipts,proto3" json:"receipts,omitempty"`
+	Summary       *MutationSummary       `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
+	Limitations   []string               `protobuf:"bytes,5,rep,name=limitations,proto3" json:"limitations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunMutationPilotResponse) Reset() {
+	*x = RunMutationPilotResponse{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunMutationPilotResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunMutationPilotResponse) ProtoMessage() {}
+
+func (x *RunMutationPilotResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunMutationPilotResponse.ProtoReflect.Descriptor instead.
+func (*RunMutationPilotResponse) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *RunMutationPilotResponse) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *RunMutationPilotResponse) GetWorkspacePath() string {
+	if x != nil {
+		return x.WorkspacePath
+	}
+	return ""
+}
+
+func (x *RunMutationPilotResponse) GetReceipts() []*MutantReceipt {
+	if x != nil {
+		return x.Receipts
+	}
+	return nil
+}
+
+func (x *RunMutationPilotResponse) GetSummary() *MutationSummary {
+	if x != nil {
+		return x.Summary
+	}
+	return nil
+}
+
+func (x *RunMutationPilotResponse) GetLimitations() []string {
+	if x != nil {
+		return x.Limitations
+	}
+	return nil
+}
+
+// Missing historical stages are unknown, not executed or reviewed evidence.
+type EvidenceStages struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Configured    string                 `protobuf:"bytes,1,opt,name=configured,proto3" json:"configured,omitempty"`
+	Analyzed      string                 `protobuf:"bytes,2,opt,name=analyzed,proto3" json:"analyzed,omitempty"`
+	Executed      string                 `protobuf:"bytes,3,opt,name=executed,proto3" json:"executed,omitempty"`
+	Reviewed      string                 `protobuf:"bytes,4,opt,name=reviewed,proto3" json:"reviewed,omitempty"`
+	SourceRunId   string                 `protobuf:"bytes,5,opt,name=source_run_id,json=sourceRunId,proto3" json:"source_run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EvidenceStages) Reset() {
+	*x = EvidenceStages{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EvidenceStages) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EvidenceStages) ProtoMessage() {}
+
+func (x *EvidenceStages) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EvidenceStages.ProtoReflect.Descriptor instead.
+func (*EvidenceStages) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *EvidenceStages) GetConfigured() string {
+	if x != nil {
+		return x.Configured
+	}
+	return ""
+}
+
+func (x *EvidenceStages) GetAnalyzed() string {
+	if x != nil {
+		return x.Analyzed
+	}
+	return ""
+}
+
+func (x *EvidenceStages) GetExecuted() string {
+	if x != nil {
+		return x.Executed
+	}
+	return ""
+}
+
+func (x *EvidenceStages) GetReviewed() string {
+	if x != nil {
+		return x.Reviewed
+	}
+	return ""
+}
+
+func (x *EvidenceStages) GetSourceRunId() string {
+	if x != nil {
+		return x.SourceRunId
+	}
+	return ""
+}
+
 // ProjectionCheck is one policy-vs-native comparison for unit-test
 // infrastructure.
 type ProjectionCheck struct {
@@ -414,7 +1588,7 @@ type ProjectionCheck struct {
 
 func (x *ProjectionCheck) Reset() {
 	*x = ProjectionCheck{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[2]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -426,7 +1600,7 @@ func (x *ProjectionCheck) String() string {
 func (*ProjectionCheck) ProtoMessage() {}
 
 func (x *ProjectionCheck) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[2]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -439,7 +1613,7 @@ func (x *ProjectionCheck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectionCheck.ProtoReflect.Descriptor instead.
 func (*ProjectionCheck) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{2}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ProjectionCheck) GetId() string {
@@ -535,7 +1709,7 @@ type Artifact struct {
 
 func (x *Artifact) Reset() {
 	*x = Artifact{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[3]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -547,7 +1721,7 @@ func (x *Artifact) String() string {
 func (*Artifact) ProtoMessage() {}
 
 func (x *Artifact) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[3]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -560,7 +1734,7 @@ func (x *Artifact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Artifact.ProtoReflect.Descriptor instead.
 func (*Artifact) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{3}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Artifact) GetLabel() string {
@@ -602,7 +1776,7 @@ type TestSurface struct {
 
 func (x *TestSurface) Reset() {
 	*x = TestSurface{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[4]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -614,7 +1788,7 @@ func (x *TestSurface) String() string {
 func (*TestSurface) ProtoMessage() {}
 
 func (x *TestSurface) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[4]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -627,7 +1801,7 @@ func (x *TestSurface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestSurface.ProtoReflect.Descriptor instead.
 func (*TestSurface) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{4}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *TestSurface) GetId() string {
@@ -711,7 +1885,7 @@ type TestWorkspace struct {
 
 func (x *TestWorkspace) Reset() {
 	*x = TestWorkspace{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[5]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -723,7 +1897,7 @@ func (x *TestWorkspace) String() string {
 func (*TestWorkspace) ProtoMessage() {}
 
 func (x *TestWorkspace) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[5]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -736,7 +1910,7 @@ func (x *TestWorkspace) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestWorkspace.ProtoReflect.Descriptor instead.
 func (*TestWorkspace) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{5}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *TestWorkspace) GetId() string {
@@ -855,7 +2029,7 @@ type ExecutionPlan struct {
 
 func (x *ExecutionPlan) Reset() {
 	*x = ExecutionPlan{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[6]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -867,7 +2041,7 @@ func (x *ExecutionPlan) String() string {
 func (*ExecutionPlan) ProtoMessage() {}
 
 func (x *ExecutionPlan) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[6]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -880,7 +2054,7 @@ func (x *ExecutionPlan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionPlan.ProtoReflect.Descriptor instead.
 func (*ExecutionPlan) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{6}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ExecutionPlan) GetCommands() []*PlannedCommand {
@@ -922,7 +2096,7 @@ type PlannedCommand struct {
 
 func (x *PlannedCommand) Reset() {
 	*x = PlannedCommand{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[7]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -934,7 +2108,7 @@ func (x *PlannedCommand) String() string {
 func (*PlannedCommand) ProtoMessage() {}
 
 func (x *PlannedCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[7]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -947,7 +2121,7 @@ func (x *PlannedCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlannedCommand.ProtoReflect.Descriptor instead.
 func (*PlannedCommand) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{7}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *PlannedCommand) GetWorkspaceId() string {
@@ -1059,7 +2233,7 @@ type CommandArtifact struct {
 
 func (x *CommandArtifact) Reset() {
 	*x = CommandArtifact{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[8]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1071,7 +2245,7 @@ func (x *CommandArtifact) String() string {
 func (*CommandArtifact) ProtoMessage() {}
 
 func (x *CommandArtifact) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[8]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1084,7 +2258,7 @@ func (x *CommandArtifact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommandArtifact.ProtoReflect.Descriptor instead.
 func (*CommandArtifact) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{8}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CommandArtifact) GetLabel() string {
@@ -1119,7 +2293,7 @@ type ResourceLimits struct {
 
 func (x *ResourceLimits) Reset() {
 	*x = ResourceLimits{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[9]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1131,7 +2305,7 @@ func (x *ResourceLimits) String() string {
 func (*ResourceLimits) ProtoMessage() {}
 
 func (x *ResourceLimits) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[9]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1144,7 +2318,7 @@ func (x *ResourceLimits) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceLimits.ProtoReflect.Descriptor instead.
 func (*ResourceLimits) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{9}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ResourceLimits) GetCpuWeight() int32 {
@@ -1183,7 +2357,7 @@ type HermeticPolicy struct {
 
 func (x *HermeticPolicy) Reset() {
 	*x = HermeticPolicy{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[10]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1195,7 +2369,7 @@ func (x *HermeticPolicy) String() string {
 func (*HermeticPolicy) ProtoMessage() {}
 
 func (x *HermeticPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[10]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1208,7 +2382,7 @@ func (x *HermeticPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HermeticPolicy.ProtoReflect.Descriptor instead.
 func (*HermeticPolicy) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{10}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *HermeticPolicy) GetNetwork() string {
@@ -1283,7 +2457,7 @@ type CommandResult struct {
 
 func (x *CommandResult) Reset() {
 	*x = CommandResult{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[11]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1295,7 +2469,7 @@ func (x *CommandResult) String() string {
 func (*CommandResult) ProtoMessage() {}
 
 func (x *CommandResult) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[11]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1308,7 +2482,7 @@ func (x *CommandResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommandResult.ProtoReflect.Descriptor instead.
 func (*CommandResult) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{11}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CommandResult) GetName() string {
@@ -1419,7 +2593,7 @@ type CoverageTarget struct {
 
 func (x *CoverageTarget) Reset() {
 	*x = CoverageTarget{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[12]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1431,7 +2605,7 @@ func (x *CoverageTarget) String() string {
 func (*CoverageTarget) ProtoMessage() {}
 
 func (x *CoverageTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[12]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1444,7 +2618,7 @@ func (x *CoverageTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoverageTarget.ProtoReflect.Descriptor instead.
 func (*CoverageTarget) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{12}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CoverageTarget) GetId() string {
@@ -1532,13 +2706,15 @@ type ValidationFinding struct {
 	Remediation   string `protobuf:"bytes,17,opt,name=remediation,proto3" json:"remediation,omitempty"`
 	SourceCommand string `protobuf:"bytes,18,opt,name=source_command,json=sourceCommand,proto3" json:"source_command,omitempty"`
 	CreatedAt     string `protobuf:"bytes,19,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Validated exceptions, separate from the original finding evidence.
+	SuppressionReasons []*SuppressionReason `protobuf:"bytes,20,rep,name=suppression_reasons,json=suppressionReasons,proto3" json:"suppression_reasons,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ValidationFinding) Reset() {
 	*x = ValidationFinding{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[13]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1550,7 +2726,7 @@ func (x *ValidationFinding) String() string {
 func (*ValidationFinding) ProtoMessage() {}
 
 func (x *ValidationFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[13]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1563,7 +2739,7 @@ func (x *ValidationFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationFinding.ProtoReflect.Descriptor instead.
 func (*ValidationFinding) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{13}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ValidationFinding) GetId() string {
@@ -1699,21 +2875,105 @@ func (x *ValidationFinding) GetCreatedAt() string {
 	return ""
 }
 
+func (x *ValidationFinding) GetSuppressionReasons() []*SuppressionReason {
+	if x != nil {
+		return x.SuppressionReasons
+	}
+	return nil
+}
+
+type SuppressionReason struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Reason        string                 `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"`
+	Owner         string                 `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
+	Evidence      string                 `protobuf:"bytes,3,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	ExpiresAt     string                 `protobuf:"bytes,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Revisit       string                 `protobuf:"bytes,5,opt,name=revisit,proto3" json:"revisit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SuppressionReason) Reset() {
+	*x = SuppressionReason{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SuppressionReason) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SuppressionReason) ProtoMessage() {}
+
+func (x *SuppressionReason) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SuppressionReason.ProtoReflect.Descriptor instead.
+func (*SuppressionReason) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *SuppressionReason) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *SuppressionReason) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *SuppressionReason) GetEvidence() string {
+	if x != nil {
+		return x.Evidence
+	}
+	return ""
+}
+
+func (x *SuppressionReason) GetExpiresAt() string {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return ""
+}
+
+func (x *SuppressionReason) GetRevisit() string {
+	if x != nil {
+		return x.Revisit
+	}
+	return ""
+}
+
 type Diagnostic struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Canonical kinds: flake, runtime_growth, hang_culprit, slow_command.
-	Kind          string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
-	WorkspaceId   string `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
-	Evidence      string `protobuf:"bytes,4,opt,name=evidence,proto3" json:"evidence,omitempty"`
-	Severity      string `protobuf:"bytes,5,opt,name=severity,proto3" json:"severity,omitempty"`
+	Kind          string                  `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	WorkspaceId   string                  `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Message       string                  `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Evidence      string                  `protobuf:"bytes,4,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	Severity      string                  `protobuf:"bytes,5,opt,name=severity,proto3" json:"severity,omitempty"`
+	Reliability   *ReliabilityObservation `protobuf:"bytes,6,opt,name=reliability,proto3" json:"reliability,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Diagnostic) Reset() {
 	*x = Diagnostic{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[14]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1725,7 +2985,7 @@ func (x *Diagnostic) String() string {
 func (*Diagnostic) ProtoMessage() {}
 
 func (x *Diagnostic) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[14]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1738,7 +2998,7 @@ func (x *Diagnostic) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Diagnostic.ProtoReflect.Descriptor instead.
 func (*Diagnostic) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{14}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *Diagnostic) GetKind() string {
@@ -1776,6 +3036,130 @@ func (x *Diagnostic) GetSeverity() string {
 	return ""
 }
 
+func (x *Diagnostic) GetReliability() *ReliabilityObservation {
+	if x != nil {
+		return x.Reliability
+	}
+	return nil
+}
+
+// Explicitly command-scoped history; absence is unknown, never proof of stability.
+type ReliabilityObservation struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	State                  string                 `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	Scope                  string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
+	CohortDigest           string                 `protobuf:"bytes,3,opt,name=cohort_digest,json=cohortDigest,proto3" json:"cohort_digest,omitempty"`
+	SampleCount            int32                  `protobuf:"varint,4,opt,name=sample_count,json=sampleCount,proto3" json:"sample_count,omitempty"`
+	Passed                 int32                  `protobuf:"varint,5,opt,name=passed,proto3" json:"passed,omitempty"`
+	Failed                 int32                  `protobuf:"varint,6,opt,name=failed,proto3" json:"failed,omitempty"`
+	ExcludedInfrastructure int32                  `protobuf:"varint,7,opt,name=excluded_infrastructure,json=excludedInfrastructure,proto3" json:"excluded_infrastructure,omitempty"`
+	ExcludedIncompatible   int32                  `protobuf:"varint,8,opt,name=excluded_incompatible,json=excludedIncompatible,proto3" json:"excluded_incompatible,omitempty"`
+	Seed                   *string                `protobuf:"bytes,9,opt,name=seed,proto3,oneof" json:"seed,omitempty"`
+	RetryOrdinal           *int32                 `protobuf:"varint,10,opt,name=retry_ordinal,json=retryOrdinal,proto3,oneof" json:"retry_ordinal,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *ReliabilityObservation) Reset() {
+	*x = ReliabilityObservation{}
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReliabilityObservation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReliabilityObservation) ProtoMessage() {}
+
+func (x *ReliabilityObservation) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReliabilityObservation.ProtoReflect.Descriptor instead.
+func (*ReliabilityObservation) Descriptor() ([]byte, []int) {
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *ReliabilityObservation) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *ReliabilityObservation) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *ReliabilityObservation) GetCohortDigest() string {
+	if x != nil {
+		return x.CohortDigest
+	}
+	return ""
+}
+
+func (x *ReliabilityObservation) GetSampleCount() int32 {
+	if x != nil {
+		return x.SampleCount
+	}
+	return 0
+}
+
+func (x *ReliabilityObservation) GetPassed() int32 {
+	if x != nil {
+		return x.Passed
+	}
+	return 0
+}
+
+func (x *ReliabilityObservation) GetFailed() int32 {
+	if x != nil {
+		return x.Failed
+	}
+	return 0
+}
+
+func (x *ReliabilityObservation) GetExcludedInfrastructure() int32 {
+	if x != nil {
+		return x.ExcludedInfrastructure
+	}
+	return 0
+}
+
+func (x *ReliabilityObservation) GetExcludedIncompatible() int32 {
+	if x != nil {
+		return x.ExcludedIncompatible
+	}
+	return 0
+}
+
+func (x *ReliabilityObservation) GetSeed() string {
+	if x != nil && x.Seed != nil {
+		return *x.Seed
+	}
+	return ""
+}
+
+func (x *ReliabilityObservation) GetRetryOrdinal() int32 {
+	if x != nil && x.RetryOrdinal != nil {
+		return *x.RetryOrdinal
+	}
+	return 0
+}
+
 type MaturitySummary struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rung          int32                  `protobuf:"varint,1,opt,name=rung,proto3" json:"rung,omitempty"`
@@ -1787,7 +3171,7 @@ type MaturitySummary struct {
 
 func (x *MaturitySummary) Reset() {
 	*x = MaturitySummary{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[15]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1799,7 +3183,7 @@ func (x *MaturitySummary) String() string {
 func (*MaturitySummary) ProtoMessage() {}
 
 func (x *MaturitySummary) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[15]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1812,7 +3196,7 @@ func (x *MaturitySummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaturitySummary.ProtoReflect.Descriptor instead.
 func (*MaturitySummary) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{15}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *MaturitySummary) GetRung() int32 {
@@ -1851,7 +3235,7 @@ type ValidationCounts struct {
 
 func (x *ValidationCounts) Reset() {
 	*x = ValidationCounts{}
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[16]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1863,7 +3247,7 @@ func (x *ValidationCounts) String() string {
 func (*ValidationCounts) ProtoMessage() {}
 
 func (x *ValidationCounts) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[16]
+	mi := &file_unit_health_v1_validation_validation_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1876,7 +3260,7 @@ func (x *ValidationCounts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationCounts.ProtoReflect.Descriptor instead.
 func (*ValidationCounts) Descriptor() ([]byte, []int) {
-	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{16}
+	return file_unit_health_v1_validation_validation_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ValidationCounts) GetErrors() int32 {
@@ -1932,7 +3316,7 @@ var File_unit_health_v1_validation_validation_proto protoreflect.FileDescriptor
 
 const file_unit_health_v1_validation_validation_proto_rawDesc = "" +
 	"\n" +
-	"*unit-health/v1/validation/validation.proto\x12 vrooli.unit_health.v1.validation\x1a\x18common/v1/maturity.proto\"\xd9\x01\n" +
+	"*unit-health/v1/validation/validation.proto\x12 vrooli.unit_health.v1.validation\x1a\x18common/v1/maturity.proto\x1a,unit-health/v1/validation/test_quality.proto\"\xff\x02\n" +
 	"\x17ValidateScenarioRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1e\n" +
@@ -1941,7 +3325,10 @@ const file_unit_health_v1_validation_validation_proto_rawDesc = "" +
 	"workspaces\x12+\n" +
 	"\x11include_execution\x18\x04 \x01(\bR\x10includeExecution\x12\x1b\n" +
 	"\tuse_cache\x18\x05 \x01(\bR\buseCache\x12$\n" +
-	"\x0efast_test_only\x18\x06 \x01(\bR\ffastTestOnly\"\xc8\f\n" +
+	"\x0efast_test_only\x18\x06 \x01(\bR\ffastTestOnly\x12,\n" +
+	"\x12reviewed_cohort_id\x18\a \x01(\tR\x10reviewedCohortId\x128\n" +
+	"\x18reviewed_source_identity\x18\b \x01(\tR\x16reviewedSourceIdentity\x12<\n" +
+	"\x1areviewed_observation_count\x18\t \x01(\rR\x18reviewedObservationCount\"\xe0\x0e\n" +
 	"\x18ValidateScenarioResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
@@ -1977,7 +3364,115 @@ const file_unit_health_v1_validation_validation_proto_rawDesc = "" +
 	"\x1ccache_invalidated_dimensions\x18\x18 \x03(\tR\x1acacheInvalidatedDimensions\x126\n" +
 	"\x18cache_saved_wall_time_ms\x18\x19 \x01(\x03R\x14cacheSavedWallTimeMs\x124\n" +
 	"\x17cache_saved_cpu_time_ms\x18\x1a \x01(\x03R\x13cacheSavedCpuTimeMs\x120\n" +
-	"\x14cache_retained_bytes\x18\x1b \x01(\x03R\x12cacheRetainedBytes\"\xcb\x02\n" +
+	"\x14cache_retained_bytes\x18\x1b \x01(\x03R\x12cacheRetainedBytes\x12V\n" +
+	"\ftest_quality\x18\x1c \x01(\v23.vrooli.unit_health.v1.validation.TestQualityReportR\vtestQuality\x12c\n" +
+	"\ftraceability\x18\x1d \x01(\v2?.vrooli.unit_health.v1.validation.RequirementTraceabilityReportR\ftraceability\x12Y\n" +
+	"\x0fevidence_stages\x18\x1e \x01(\v20.vrooli.unit_health.v1.validation.EvidenceStagesR\x0eevidenceStages\"\x94\x01\n" +
+	"\x15RunCalibrationRequest\x12\x1c\n" +
+	"\tpartition\x18\x01 \x01(\tR\tpartition\x12\x1d\n" +
+	"\n" +
+	"holdout_id\x18\x02 \x01(\tR\tholdoutId\x12%\n" +
+	"\x0einclude_native\x18\x03 \x01(\bR\rincludeNative\x12\x17\n" +
+	"\arule_id\x18\x04 \x01(\tR\x06ruleId\"\x7f\n" +
+	"\vFamilyCount\x12\x16\n" +
+	"\x06family\x18\x01 \x01(\tR\x06family\x12\x1c\n" +
+	"\tspecified\x18\x02 \x01(\rR\tspecified\x12 \n" +
+	"\vimplemented\x18\x03 \x01(\rR\vimplemented\x12\x18\n" +
+	"\aretired\x18\x04 \x01(\rR\aretired\"\xa0\x02\n" +
+	"\x0fCorpusInventory\x12\x1c\n" +
+	"\tspecified\x18\x01 \x01(\rR\tspecified\x12 \n" +
+	"\vimplemented\x18\x02 \x01(\rR\vimplemented\x12\x18\n" +
+	"\aretired\x18\x03 \x01(\rR\aretired\x12I\n" +
+	"\bfamilies\x18\x04 \x03(\v2-.vrooli.unit_health.v1.validation.FamilyCountR\bfamilies\x12;\n" +
+	"\x1aspec_codes_without_emitter\x18\x05 \x01(\rR\x17specCodesWithoutEmitter\x12+\n" +
+	"\x11development_floor\x18\x06 \x01(\tR\x10developmentFloor\"\x8a\x01\n" +
+	"\vCaseOutcome\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\arule_id\x18\x02 \x01(\tR\x06ruleId\x12\x18\n" +
+	"\amatched\x18\x03 \x01(\bR\amatched\x12 \n" +
+	"\vdifferences\x18\x04 \x03(\tR\vdifferences\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\"\x8b\x03\n" +
+	"\x11HoldoutComparison\x12\x17\n" +
+	"\arule_id\x18\x01 \x01(\tR\x06ruleId\x12\x1d\n" +
+	"\n" +
+	"holdout_id\x18\x02 \x01(\tR\tholdoutId\x12\x1a\n" +
+	"\blabelled\x18\x03 \x01(\rR\blabelled\x12\x1a\n" +
+	"\bobserved\x18\x04 \x01(\rR\bobserved\x12'\n" +
+	"\x0ffalse_positives\x18\x05 \x01(\rR\x0efalsePositives\x12'\n" +
+	"\x0ffalse_negatives\x18\x06 \x01(\rR\x0efalseNegatives\x12\x18\n" +
+	"\aunknown\x18\a \x01(\rR\aunknown\x12\x17\n" +
+	"\afp_rate\x18\b \x01(\x01R\x06fpRate\x12\x17\n" +
+	"\afn_rate\x18\t \x01(\x01R\x06fnRate\x12\x16\n" +
+	"\x06budget\x18\n" +
+	" \x01(\x01R\x06budget\x12#\n" +
+	"\rwithin_budget\x18\v \x01(\bR\fwithinBudget\x12+\n" +
+	"\x11promotion_allowed\x18\f \x01(\bR\x10promotionAllowed\"\xce\x02\n" +
+	"\x16RunCalibrationResponse\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1c\n" +
+	"\tpartition\x18\x02 \x01(\tR\tpartition\x12I\n" +
+	"\x06corpus\x18\x03 \x01(\v21.vrooli.unit_health.v1.validation.CorpusInventoryR\x06corpus\x12C\n" +
+	"\x05cases\x18\x04 \x03(\v2-.vrooli.unit_health.v1.validation.CaseOutcomeR\x05cases\x12M\n" +
+	"\aholdout\x18\x05 \x03(\v23.vrooli.unit_health.v1.validation.HoldoutComparisonR\aholdout\x12 \n" +
+	"\vlimitations\x18\x06 \x03(\tR\vlimitations\"\x99\x01\n" +
+	"\x13ReadTestBodyRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1c\n" +
+	"\tworkspace\x18\x02 \x01(\tR\tworkspace\x12\x12\n" +
+	"\x04file\x18\x03 \x01(\tR\x04file\x12\x17\n" +
+	"\atest_id\x18\x04 \x01(\tR\x06testId\x12\x1b\n" +
+	"\tmax_bytes\x18\x05 \x01(\rR\bmaxBytes\"\xde\x01\n" +
+	"\x14ReadTestBodyResponse\x12#\n" +
+	"\rtest_identity\x18\x01 \x01(\tR\ftestIdentity\x12!\n" +
+	"\fbody_excerpt\x18\x02 \x01(\tR\vbodyExcerpt\x12\x1d\n" +
+	"\n" +
+	"body_bytes\x18\x03 \x01(\rR\tbodyBytes\x12\x1e\n" +
+	"\n" +
+	"redactions\x18\x04 \x01(\rR\n" +
+	"redactions\x12\x18\n" +
+	"\arefused\x18\x05 \x01(\bR\arefused\x12%\n" +
+	"\x0erefusal_reason\x18\x06 \x01(\tR\rrefusalReason\"\xc0\x01\n" +
+	"\x17RunMutationPilotRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1c\n" +
+	"\tworkspace\x18\x02 \x01(\tR\tworkspace\x12\x18\n" +
+	"\apackage\x18\x03 \x01(\tR\apackage\x12\x1c\n" +
+	"\toperators\x18\x04 \x03(\tR\toperators\x12\x1f\n" +
+	"\vmax_mutants\x18\x05 \x01(\rR\n" +
+	"maxMutants\x12\x12\n" +
+	"\x04seed\x18\x06 \x01(\tR\x04seed\"\xbe\x01\n" +
+	"\rMutantReceipt\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\boperator\x18\x02 \x01(\tR\boperator\x12\x12\n" +
+	"\x04file\x18\x03 \x01(\tR\x04file\x12\x12\n" +
+	"\x04line\x18\x04 \x01(\rR\x04line\x12 \n" +
+	"\vdisposition\x18\x05 \x01(\tR\vdisposition\x12\x16\n" +
+	"\x06detail\x18\x06 \x01(\tR\x06detail\x12\x1f\n" +
+	"\vowning_test\x18\a \x01(\tR\n" +
+	"owningTest\"\xb3\x02\n" +
+	"\x0fMutationSummary\x12\x1c\n" +
+	"\tgenerated\x18\x01 \x01(\rR\tgenerated\x12\x16\n" +
+	"\x06killed\x18\x02 \x01(\rR\x06killed\x12\x1a\n" +
+	"\bsurvived\x18\x03 \x01(\rR\bsurvived\x12\x18\n" +
+	"\ainvalid\x18\x04 \x01(\rR\ainvalid\x12\x1e\n" +
+	"\n" +
+	"equivalent\x18\x05 \x01(\rR\n" +
+	"equivalent\x12&\n" +
+	"\x0fout_of_contract\x18\x06 \x01(\rR\routOfContract\x125\n" +
+	"\x16infrastructure_failure\x18\a \x01(\rR\x15infrastructureFailure\x12\x18\n" +
+	"\aunknown\x18\b \x01(\rR\aunknown\x12\x1b\n" +
+	"\tkill_rate\x18\t \x01(\x01R\bkillRate\"\x94\x02\n" +
+	"\x18RunMutationPilotResponse\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12%\n" +
+	"\x0eworkspace_path\x18\x02 \x01(\tR\rworkspacePath\x12K\n" +
+	"\breceipts\x18\x03 \x03(\v2/.vrooli.unit_health.v1.validation.MutantReceiptR\breceipts\x12K\n" +
+	"\asummary\x18\x04 \x01(\v21.vrooli.unit_health.v1.validation.MutationSummaryR\asummary\x12 \n" +
+	"\vlimitations\x18\x05 \x03(\tR\vlimitations\"\xa8\x01\n" +
+	"\x0eEvidenceStages\x12\x1e\n" +
+	"\n" +
+	"configured\x18\x01 \x01(\tR\n" +
+	"configured\x12\x1a\n" +
+	"\banalyzed\x18\x02 \x01(\tR\banalyzed\x12\x1a\n" +
+	"\bexecuted\x18\x03 \x01(\tR\bexecuted\x12\x1a\n" +
+	"\breviewed\x18\x04 \x01(\tR\breviewed\x12\"\n" +
+	"\rsource_run_id\x18\x05 \x01(\tR\vsourceRunId\"\xcb\x02\n" +
 	"\x0fProjectionCheck\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x1d\n" +
@@ -2096,7 +3591,7 @@ const file_unit_health_v1_validation_validation_proto_rawDesc = "" +
 	"totalLines\x12)\n" +
 	"\x10coverage_percent\x18\a \x01(\x01R\x0fcoveragePercent\x12\x1c\n" +
 	"\tthreshold\x18\b \x01(\x01R\tthreshold\x12\x16\n" +
-	"\x06status\x18\t \x01(\tR\x06status\"\xb8\x04\n" +
+	"\x06status\x18\t \x01(\tR\x06status\"\x9e\x05\n" +
 	"\x11ValidationFinding\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x1d\n" +
@@ -2119,14 +3614,37 @@ const file_unit_health_v1_validation_validation_proto_rawDesc = "" +
 	"\vremediation\x18\x11 \x01(\tR\vremediation\x12%\n" +
 	"\x0esource_command\x18\x12 \x01(\tR\rsourceCommand\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x13 \x01(\tR\tcreatedAt\"\x95\x01\n" +
+	"created_at\x18\x13 \x01(\tR\tcreatedAt\x12d\n" +
+	"\x13suppression_reasons\x18\x14 \x03(\v23.vrooli.unit_health.v1.validation.SuppressionReasonR\x12suppressionReasons\"\x96\x01\n" +
+	"\x11SuppressionReason\x12\x16\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason\x12\x14\n" +
+	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x1a\n" +
+	"\bevidence\x18\x03 \x01(\tR\bevidence\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\x04 \x01(\tR\texpiresAt\x12\x18\n" +
+	"\arevisit\x18\x05 \x01(\tR\arevisit\"\xf1\x01\n" +
 	"\n" +
 	"Diagnostic\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1a\n" +
 	"\bevidence\x18\x04 \x01(\tR\bevidence\x12\x1a\n" +
-	"\bseverity\x18\x05 \x01(\tR\bseverity\"Y\n" +
+	"\bseverity\x18\x05 \x01(\tR\bseverity\x12Z\n" +
+	"\vreliability\x18\x06 \x01(\v28.vrooli.unit_health.v1.validation.ReliabilityObservationR\vreliability\"\x88\x03\n" +
+	"\x16ReliabilityObservation\x12\x14\n" +
+	"\x05state\x18\x01 \x01(\tR\x05state\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\x12#\n" +
+	"\rcohort_digest\x18\x03 \x01(\tR\fcohortDigest\x12!\n" +
+	"\fsample_count\x18\x04 \x01(\x05R\vsampleCount\x12\x16\n" +
+	"\x06passed\x18\x05 \x01(\x05R\x06passed\x12\x16\n" +
+	"\x06failed\x18\x06 \x01(\x05R\x06failed\x127\n" +
+	"\x17excluded_infrastructure\x18\a \x01(\x05R\x16excludedInfrastructure\x123\n" +
+	"\x15excluded_incompatible\x18\b \x01(\x05R\x14excludedIncompatible\x12\x17\n" +
+	"\x04seed\x18\t \x01(\tH\x00R\x04seed\x88\x01\x01\x12(\n" +
+	"\rretry_ordinal\x18\n" +
+	" \x01(\x05H\x01R\fretryOrdinal\x88\x01\x01B\a\n" +
+	"\x05_seedB\x10\n" +
+	"\x0e_retry_ordinal\"Y\n" +
 	"\x0fMaturitySummary\x12\x12\n" +
 	"\x04rung\x18\x01 \x01(\x05R\x04rung\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1c\n" +
@@ -2140,9 +3658,12 @@ const file_unit_health_v1_validation_validation_proto_rawDesc = "" +
 	"workspaces\x18\x05 \x01(\x05R\n" +
 	"workspaces\x12)\n" +
 	"\x10coverage_targets\x18\x06 \x01(\x05R\x0fcoverageTargets\x12/\n" +
-	"\x13suppressed_findings\x18\a \x01(\x05R\x12suppressedFindings2\x9f\x01\n" +
+	"\x13suppressed_findings\x18\a \x01(\x05R\x12suppressedFindings2\xb0\x04\n" +
 	"\x11ValidationService\x12\x89\x01\n" +
-	"\x10ValidateScenario\x129.vrooli.unit_health.v1.validation.ValidateScenarioRequest\x1a:.vrooli.unit_health.v1.validation.ValidateScenarioResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation;validation_v1b\x06proto3"
+	"\x10ValidateScenario\x129.vrooli.unit_health.v1.validation.ValidateScenarioRequest\x1a:.vrooli.unit_health.v1.validation.ValidateScenarioResponse\x12\x83\x01\n" +
+	"\x0eRunCalibration\x127.vrooli.unit_health.v1.validation.RunCalibrationRequest\x1a8.vrooli.unit_health.v1.validation.RunCalibrationResponse\x12}\n" +
+	"\fReadTestBody\x125.vrooli.unit_health.v1.validation.ReadTestBodyRequest\x1a6.vrooli.unit_health.v1.validation.ReadTestBodyResponse\x12\x89\x01\n" +
+	"\x10RunMutationPilot\x129.vrooli.unit_health.v1.validation.RunMutationPilotRequest\x1a:.vrooli.unit_health.v1.validation.RunMutationPilotResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation;validation_v1b\x06proto3"
 
 var (
 	file_unit_health_v1_validation_validation_proto_rawDescOnce sync.Once
@@ -2156,55 +3677,89 @@ func file_unit_health_v1_validation_validation_proto_rawDescGZIP() []byte {
 	return file_unit_health_v1_validation_validation_proto_rawDescData
 }
 
-var file_unit_health_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_unit_health_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_unit_health_v1_validation_validation_proto_goTypes = []any{
-	(*ValidateScenarioRequest)(nil),  // 0: vrooli.unit_health.v1.validation.ValidateScenarioRequest
-	(*ValidateScenarioResponse)(nil), // 1: vrooli.unit_health.v1.validation.ValidateScenarioResponse
-	(*ProjectionCheck)(nil),          // 2: vrooli.unit_health.v1.validation.ProjectionCheck
-	(*Artifact)(nil),                 // 3: vrooli.unit_health.v1.validation.Artifact
-	(*TestSurface)(nil),              // 4: vrooli.unit_health.v1.validation.TestSurface
-	(*TestWorkspace)(nil),            // 5: vrooli.unit_health.v1.validation.TestWorkspace
-	(*ExecutionPlan)(nil),            // 6: vrooli.unit_health.v1.validation.ExecutionPlan
-	(*PlannedCommand)(nil),           // 7: vrooli.unit_health.v1.validation.PlannedCommand
-	(*CommandArtifact)(nil),          // 8: vrooli.unit_health.v1.validation.CommandArtifact
-	(*ResourceLimits)(nil),           // 9: vrooli.unit_health.v1.validation.ResourceLimits
-	(*HermeticPolicy)(nil),           // 10: vrooli.unit_health.v1.validation.HermeticPolicy
-	(*CommandResult)(nil),            // 11: vrooli.unit_health.v1.validation.CommandResult
-	(*CoverageTarget)(nil),           // 12: vrooli.unit_health.v1.validation.CoverageTarget
-	(*ValidationFinding)(nil),        // 13: vrooli.unit_health.v1.validation.ValidationFinding
-	(*Diagnostic)(nil),               // 14: vrooli.unit_health.v1.validation.Diagnostic
-	(*MaturitySummary)(nil),          // 15: vrooli.unit_health.v1.validation.MaturitySummary
-	(*ValidationCounts)(nil),         // 16: vrooli.unit_health.v1.validation.ValidationCounts
-	nil,                              // 17: vrooli.unit_health.v1.validation.PlannedCommand.EnvironmentEntry
-	(*v1.MaturityAssessment)(nil),    // 18: common.v1.MaturityAssessment
+	(*ValidateScenarioRequest)(nil),       // 0: vrooli.unit_health.v1.validation.ValidateScenarioRequest
+	(*ValidateScenarioResponse)(nil),      // 1: vrooli.unit_health.v1.validation.ValidateScenarioResponse
+	(*RunCalibrationRequest)(nil),         // 2: vrooli.unit_health.v1.validation.RunCalibrationRequest
+	(*FamilyCount)(nil),                   // 3: vrooli.unit_health.v1.validation.FamilyCount
+	(*CorpusInventory)(nil),               // 4: vrooli.unit_health.v1.validation.CorpusInventory
+	(*CaseOutcome)(nil),                   // 5: vrooli.unit_health.v1.validation.CaseOutcome
+	(*HoldoutComparison)(nil),             // 6: vrooli.unit_health.v1.validation.HoldoutComparison
+	(*RunCalibrationResponse)(nil),        // 7: vrooli.unit_health.v1.validation.RunCalibrationResponse
+	(*ReadTestBodyRequest)(nil),           // 8: vrooli.unit_health.v1.validation.ReadTestBodyRequest
+	(*ReadTestBodyResponse)(nil),          // 9: vrooli.unit_health.v1.validation.ReadTestBodyResponse
+	(*RunMutationPilotRequest)(nil),       // 10: vrooli.unit_health.v1.validation.RunMutationPilotRequest
+	(*MutantReceipt)(nil),                 // 11: vrooli.unit_health.v1.validation.MutantReceipt
+	(*MutationSummary)(nil),               // 12: vrooli.unit_health.v1.validation.MutationSummary
+	(*RunMutationPilotResponse)(nil),      // 13: vrooli.unit_health.v1.validation.RunMutationPilotResponse
+	(*EvidenceStages)(nil),                // 14: vrooli.unit_health.v1.validation.EvidenceStages
+	(*ProjectionCheck)(nil),               // 15: vrooli.unit_health.v1.validation.ProjectionCheck
+	(*Artifact)(nil),                      // 16: vrooli.unit_health.v1.validation.Artifact
+	(*TestSurface)(nil),                   // 17: vrooli.unit_health.v1.validation.TestSurface
+	(*TestWorkspace)(nil),                 // 18: vrooli.unit_health.v1.validation.TestWorkspace
+	(*ExecutionPlan)(nil),                 // 19: vrooli.unit_health.v1.validation.ExecutionPlan
+	(*PlannedCommand)(nil),                // 20: vrooli.unit_health.v1.validation.PlannedCommand
+	(*CommandArtifact)(nil),               // 21: vrooli.unit_health.v1.validation.CommandArtifact
+	(*ResourceLimits)(nil),                // 22: vrooli.unit_health.v1.validation.ResourceLimits
+	(*HermeticPolicy)(nil),                // 23: vrooli.unit_health.v1.validation.HermeticPolicy
+	(*CommandResult)(nil),                 // 24: vrooli.unit_health.v1.validation.CommandResult
+	(*CoverageTarget)(nil),                // 25: vrooli.unit_health.v1.validation.CoverageTarget
+	(*ValidationFinding)(nil),             // 26: vrooli.unit_health.v1.validation.ValidationFinding
+	(*SuppressionReason)(nil),             // 27: vrooli.unit_health.v1.validation.SuppressionReason
+	(*Diagnostic)(nil),                    // 28: vrooli.unit_health.v1.validation.Diagnostic
+	(*ReliabilityObservation)(nil),        // 29: vrooli.unit_health.v1.validation.ReliabilityObservation
+	(*MaturitySummary)(nil),               // 30: vrooli.unit_health.v1.validation.MaturitySummary
+	(*ValidationCounts)(nil),              // 31: vrooli.unit_health.v1.validation.ValidationCounts
+	nil,                                   // 32: vrooli.unit_health.v1.validation.PlannedCommand.EnvironmentEntry
+	(*v1.MaturityAssessment)(nil),         // 33: common.v1.MaturityAssessment
+	(*TestQualityReport)(nil),             // 34: vrooli.unit_health.v1.validation.TestQualityReport
+	(*RequirementTraceabilityReport)(nil), // 35: vrooli.unit_health.v1.validation.RequirementTraceabilityReport
 }
 var file_unit_health_v1_validation_validation_proto_depIdxs = []int32{
-	4,  // 0: vrooli.unit_health.v1.validation.ValidateScenarioResponse.surfaces:type_name -> vrooli.unit_health.v1.validation.TestSurface
-	5,  // 1: vrooli.unit_health.v1.validation.ValidateScenarioResponse.workspaces:type_name -> vrooli.unit_health.v1.validation.TestWorkspace
-	6,  // 2: vrooli.unit_health.v1.validation.ValidateScenarioResponse.plan:type_name -> vrooli.unit_health.v1.validation.ExecutionPlan
-	11, // 3: vrooli.unit_health.v1.validation.ValidateScenarioResponse.command_results:type_name -> vrooli.unit_health.v1.validation.CommandResult
-	12, // 4: vrooli.unit_health.v1.validation.ValidateScenarioResponse.coverage:type_name -> vrooli.unit_health.v1.validation.CoverageTarget
-	13, // 5: vrooli.unit_health.v1.validation.ValidateScenarioResponse.findings:type_name -> vrooli.unit_health.v1.validation.ValidationFinding
-	14, // 6: vrooli.unit_health.v1.validation.ValidateScenarioResponse.diagnostics:type_name -> vrooli.unit_health.v1.validation.Diagnostic
-	15, // 7: vrooli.unit_health.v1.validation.ValidateScenarioResponse.maturity:type_name -> vrooli.unit_health.v1.validation.MaturitySummary
-	16, // 8: vrooli.unit_health.v1.validation.ValidateScenarioResponse.counts:type_name -> vrooli.unit_health.v1.validation.ValidationCounts
-	18, // 9: vrooli.unit_health.v1.validation.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
-	3,  // 10: vrooli.unit_health.v1.validation.ValidateScenarioResponse.artifacts:type_name -> vrooli.unit_health.v1.validation.Artifact
-	2,  // 11: vrooli.unit_health.v1.validation.ValidateScenarioResponse.projection_checks:type_name -> vrooli.unit_health.v1.validation.ProjectionCheck
-	13, // 12: vrooli.unit_health.v1.validation.ValidateScenarioResponse.suppressed_findings:type_name -> vrooli.unit_health.v1.validation.ValidationFinding
-	9,  // 13: vrooli.unit_health.v1.validation.TestWorkspace.resources:type_name -> vrooli.unit_health.v1.validation.ResourceLimits
-	7,  // 14: vrooli.unit_health.v1.validation.ExecutionPlan.commands:type_name -> vrooli.unit_health.v1.validation.PlannedCommand
-	17, // 15: vrooli.unit_health.v1.validation.PlannedCommand.environment:type_name -> vrooli.unit_health.v1.validation.PlannedCommand.EnvironmentEntry
-	8,  // 16: vrooli.unit_health.v1.validation.PlannedCommand.artifacts:type_name -> vrooli.unit_health.v1.validation.CommandArtifact
-	9,  // 17: vrooli.unit_health.v1.validation.PlannedCommand.resources:type_name -> vrooli.unit_health.v1.validation.ResourceLimits
-	10, // 18: vrooli.unit_health.v1.validation.PlannedCommand.hermetic:type_name -> vrooli.unit_health.v1.validation.HermeticPolicy
-	0,  // 19: vrooli.unit_health.v1.validation.ValidationService.ValidateScenario:input_type -> vrooli.unit_health.v1.validation.ValidateScenarioRequest
-	1,  // 20: vrooli.unit_health.v1.validation.ValidationService.ValidateScenario:output_type -> vrooli.unit_health.v1.validation.ValidateScenarioResponse
-	20, // [20:21] is the sub-list for method output_type
-	19, // [19:20] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	17, // 0: vrooli.unit_health.v1.validation.ValidateScenarioResponse.surfaces:type_name -> vrooli.unit_health.v1.validation.TestSurface
+	18, // 1: vrooli.unit_health.v1.validation.ValidateScenarioResponse.workspaces:type_name -> vrooli.unit_health.v1.validation.TestWorkspace
+	19, // 2: vrooli.unit_health.v1.validation.ValidateScenarioResponse.plan:type_name -> vrooli.unit_health.v1.validation.ExecutionPlan
+	24, // 3: vrooli.unit_health.v1.validation.ValidateScenarioResponse.command_results:type_name -> vrooli.unit_health.v1.validation.CommandResult
+	25, // 4: vrooli.unit_health.v1.validation.ValidateScenarioResponse.coverage:type_name -> vrooli.unit_health.v1.validation.CoverageTarget
+	26, // 5: vrooli.unit_health.v1.validation.ValidateScenarioResponse.findings:type_name -> vrooli.unit_health.v1.validation.ValidationFinding
+	28, // 6: vrooli.unit_health.v1.validation.ValidateScenarioResponse.diagnostics:type_name -> vrooli.unit_health.v1.validation.Diagnostic
+	30, // 7: vrooli.unit_health.v1.validation.ValidateScenarioResponse.maturity:type_name -> vrooli.unit_health.v1.validation.MaturitySummary
+	31, // 8: vrooli.unit_health.v1.validation.ValidateScenarioResponse.counts:type_name -> vrooli.unit_health.v1.validation.ValidationCounts
+	33, // 9: vrooli.unit_health.v1.validation.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
+	16, // 10: vrooli.unit_health.v1.validation.ValidateScenarioResponse.artifacts:type_name -> vrooli.unit_health.v1.validation.Artifact
+	15, // 11: vrooli.unit_health.v1.validation.ValidateScenarioResponse.projection_checks:type_name -> vrooli.unit_health.v1.validation.ProjectionCheck
+	26, // 12: vrooli.unit_health.v1.validation.ValidateScenarioResponse.suppressed_findings:type_name -> vrooli.unit_health.v1.validation.ValidationFinding
+	34, // 13: vrooli.unit_health.v1.validation.ValidateScenarioResponse.test_quality:type_name -> vrooli.unit_health.v1.validation.TestQualityReport
+	35, // 14: vrooli.unit_health.v1.validation.ValidateScenarioResponse.traceability:type_name -> vrooli.unit_health.v1.validation.RequirementTraceabilityReport
+	14, // 15: vrooli.unit_health.v1.validation.ValidateScenarioResponse.evidence_stages:type_name -> vrooli.unit_health.v1.validation.EvidenceStages
+	3,  // 16: vrooli.unit_health.v1.validation.CorpusInventory.families:type_name -> vrooli.unit_health.v1.validation.FamilyCount
+	4,  // 17: vrooli.unit_health.v1.validation.RunCalibrationResponse.corpus:type_name -> vrooli.unit_health.v1.validation.CorpusInventory
+	5,  // 18: vrooli.unit_health.v1.validation.RunCalibrationResponse.cases:type_name -> vrooli.unit_health.v1.validation.CaseOutcome
+	6,  // 19: vrooli.unit_health.v1.validation.RunCalibrationResponse.holdout:type_name -> vrooli.unit_health.v1.validation.HoldoutComparison
+	11, // 20: vrooli.unit_health.v1.validation.RunMutationPilotResponse.receipts:type_name -> vrooli.unit_health.v1.validation.MutantReceipt
+	12, // 21: vrooli.unit_health.v1.validation.RunMutationPilotResponse.summary:type_name -> vrooli.unit_health.v1.validation.MutationSummary
+	22, // 22: vrooli.unit_health.v1.validation.TestWorkspace.resources:type_name -> vrooli.unit_health.v1.validation.ResourceLimits
+	20, // 23: vrooli.unit_health.v1.validation.ExecutionPlan.commands:type_name -> vrooli.unit_health.v1.validation.PlannedCommand
+	32, // 24: vrooli.unit_health.v1.validation.PlannedCommand.environment:type_name -> vrooli.unit_health.v1.validation.PlannedCommand.EnvironmentEntry
+	21, // 25: vrooli.unit_health.v1.validation.PlannedCommand.artifacts:type_name -> vrooli.unit_health.v1.validation.CommandArtifact
+	22, // 26: vrooli.unit_health.v1.validation.PlannedCommand.resources:type_name -> vrooli.unit_health.v1.validation.ResourceLimits
+	23, // 27: vrooli.unit_health.v1.validation.PlannedCommand.hermetic:type_name -> vrooli.unit_health.v1.validation.HermeticPolicy
+	27, // 28: vrooli.unit_health.v1.validation.ValidationFinding.suppression_reasons:type_name -> vrooli.unit_health.v1.validation.SuppressionReason
+	29, // 29: vrooli.unit_health.v1.validation.Diagnostic.reliability:type_name -> vrooli.unit_health.v1.validation.ReliabilityObservation
+	0,  // 30: vrooli.unit_health.v1.validation.ValidationService.ValidateScenario:input_type -> vrooli.unit_health.v1.validation.ValidateScenarioRequest
+	2,  // 31: vrooli.unit_health.v1.validation.ValidationService.RunCalibration:input_type -> vrooli.unit_health.v1.validation.RunCalibrationRequest
+	8,  // 32: vrooli.unit_health.v1.validation.ValidationService.ReadTestBody:input_type -> vrooli.unit_health.v1.validation.ReadTestBodyRequest
+	10, // 33: vrooli.unit_health.v1.validation.ValidationService.RunMutationPilot:input_type -> vrooli.unit_health.v1.validation.RunMutationPilotRequest
+	1,  // 34: vrooli.unit_health.v1.validation.ValidationService.ValidateScenario:output_type -> vrooli.unit_health.v1.validation.ValidateScenarioResponse
+	7,  // 35: vrooli.unit_health.v1.validation.ValidationService.RunCalibration:output_type -> vrooli.unit_health.v1.validation.RunCalibrationResponse
+	9,  // 36: vrooli.unit_health.v1.validation.ValidationService.ReadTestBody:output_type -> vrooli.unit_health.v1.validation.ReadTestBodyResponse
+	13, // 37: vrooli.unit_health.v1.validation.ValidationService.RunMutationPilot:output_type -> vrooli.unit_health.v1.validation.RunMutationPilotResponse
+	34, // [34:38] is the sub-list for method output_type
+	30, // [30:34] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_unit_health_v1_validation_validation_proto_init() }
@@ -2212,13 +3767,15 @@ func file_unit_health_v1_validation_validation_proto_init() {
 	if File_unit_health_v1_validation_validation_proto != nil {
 		return
 	}
+	file_unit_health_v1_validation_test_quality_proto_init()
+	file_unit_health_v1_validation_validation_proto_msgTypes[29].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_unit_health_v1_validation_validation_proto_rawDesc), len(file_unit_health_v1_validation_validation_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

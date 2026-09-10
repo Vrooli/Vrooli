@@ -58,19 +58,20 @@ func (*IntegrityRequest) Descriptor() ([]byte, []int) {
 }
 
 type IntegrityResponse struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Sessions             int64                  `protobuf:"varint,1,opt,name=sessions,proto3" json:"sessions,omitempty"`
-	ConversationSessions int64                  `protobuf:"varint,2,opt,name=conversation_sessions,json=conversationSessions,proto3" json:"conversation_sessions,omitempty"`
-	ConversationEvents   int64                  `protobuf:"varint,3,opt,name=conversation_events,json=conversationEvents,proto3" json:"conversation_events,omitempty"`
-	Checkpoints          int64                  `protobuf:"varint,4,opt,name=checkpoints,proto3" json:"checkpoints,omitempty"`
-	WorkspacePanes       int64                  `protobuf:"varint,5,opt,name=workspace_panes,json=workspacePanes,proto3" json:"workspace_panes,omitempty"`
-	OrphanConversations  int64                  `protobuf:"varint,6,opt,name=orphan_conversations,json=orphanConversations,proto3" json:"orphan_conversations,omitempty"`
-	OrphanCheckpoints    int64                  `protobuf:"varint,7,opt,name=orphan_checkpoints,json=orphanCheckpoints,proto3" json:"orphan_checkpoints,omitempty"`
-	OrphanWorkspacePanes int64                  `protobuf:"varint,8,opt,name=orphan_workspace_panes,json=orphanWorkspacePanes,proto3" json:"orphan_workspace_panes,omitempty"`
-	Generation           string                 `protobuf:"bytes,9,opt,name=generation,proto3" json:"generation,omitempty"`
-	EventContentHash     string                 `protobuf:"bytes,10,opt,name=event_content_hash,json=eventContentHash,proto3" json:"event_content_hash,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	Sessions                 int64                  `protobuf:"varint,1,opt,name=sessions,proto3" json:"sessions,omitempty"`
+	ConversationSessions     int64                  `protobuf:"varint,2,opt,name=conversation_sessions,json=conversationSessions,proto3" json:"conversation_sessions,omitempty"`
+	ConversationEvents       int64                  `protobuf:"varint,3,opt,name=conversation_events,json=conversationEvents,proto3" json:"conversation_events,omitempty"`
+	Checkpoints              int64                  `protobuf:"varint,4,opt,name=checkpoints,proto3" json:"checkpoints,omitempty"`
+	WorkspacePanes           int64                  `protobuf:"varint,5,opt,name=workspace_panes,json=workspacePanes,proto3" json:"workspace_panes,omitempty"`
+	OrphanConversations      int64                  `protobuf:"varint,6,opt,name=orphan_conversations,json=orphanConversations,proto3" json:"orphan_conversations,omitempty"`
+	OrphanCheckpoints        int64                  `protobuf:"varint,7,opt,name=orphan_checkpoints,json=orphanCheckpoints,proto3" json:"orphan_checkpoints,omitempty"`
+	OrphanWorkspacePanes     int64                  `protobuf:"varint,8,opt,name=orphan_workspace_panes,json=orphanWorkspacePanes,proto3" json:"orphan_workspace_panes,omitempty"`
+	Generation               string                 `protobuf:"bytes,9,opt,name=generation,proto3" json:"generation,omitempty"`
+	EventContentHash         string                 `protobuf:"bytes,10,opt,name=event_content_hash,json=eventContentHash,proto3" json:"event_content_hash,omitempty"`
+	UncatalogedConversations int64                  `protobuf:"varint,11,opt,name=uncataloged_conversations,json=uncatalogedConversations,proto3" json:"uncataloged_conversations,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *IntegrityResponse) Reset() {
@@ -171,6 +172,13 @@ func (x *IntegrityResponse) GetEventContentHash() string {
 		return x.EventContentHash
 	}
 	return ""
+}
+
+func (x *IntegrityResponse) GetUncatalogedConversations() int64 {
+	if x != nil {
+		return x.UncatalogedConversations
+	}
+	return 0
 }
 
 type ReconcileRequest struct {
@@ -761,6 +769,10 @@ type SearchRequest struct {
 	LifecycleState string                 `protobuf:"bytes,4,opt,name=lifecycle_state,json=lifecycleState,proto3" json:"lifecycle_state,omitempty"`
 	Limit          int32                  `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
 	Cwd            string                 `protobuf:"bytes,6,opt,name=cwd,proto3" json:"cwd,omitempty"`
+	SessionId      string                 `protobuf:"bytes,7,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	AgentSessionId string                 `protobuf:"bytes,8,opt,name=agent_session_id,json=agentSessionId,proto3" json:"agent_session_id,omitempty"`
+	Title          string                 `protobuf:"bytes,9,opt,name=title,proto3" json:"title,omitempty"`
+	TopicSummary   string                 `protobuf:"bytes,10,opt,name=topic_summary,json=topicSummary,proto3" json:"topic_summary,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -833,6 +845,34 @@ func (x *SearchRequest) GetLimit() int32 {
 func (x *SearchRequest) GetCwd() string {
 	if x != nil {
 		return x.Cwd
+	}
+	return ""
+}
+
+func (x *SearchRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *SearchRequest) GetAgentSessionId() string {
+	if x != nil {
+		return x.AgentSessionId
+	}
+	return ""
+}
+
+func (x *SearchRequest) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *SearchRequest) GetTopicSummary() string {
+	if x != nil {
+		return x.TopicSummary
 	}
 	return ""
 }
@@ -1378,7 +1418,7 @@ var File_web_console_v1_continuity_continuity_proto protoreflect.FileDescriptor
 const file_web_console_v1_continuity_continuity_proto_rawDesc = "" +
 	"\n" +
 	"*web-console/v1/continuity/continuity.proto\x12 vrooli.web_console.v1.continuity\"\x12\n" +
-	"\x10IntegrityRequest\"\xc6\x03\n" +
+	"\x10IntegrityRequest\"\x83\x04\n" +
 	"\x11IntegrityResponse\x12\x1a\n" +
 	"\bsessions\x18\x01 \x01(\x03R\bsessions\x123\n" +
 	"\x15conversation_sessions\x18\x02 \x01(\x03R\x14conversationSessions\x12/\n" +
@@ -1392,7 +1432,8 @@ const file_web_console_v1_continuity_continuity_proto_rawDesc = "" +
 	"generation\x18\t \x01(\tR\n" +
 	"generation\x12,\n" +
 	"\x12event_content_hash\x18\n" +
-	" \x01(\tR\x10eventContentHash\"\xc7\x01\n" +
+	" \x01(\tR\x10eventContentHash\x12;\n" +
+	"\x19uncataloged_conversations\x18\v \x01(\x03R\x18uncatalogedConversations\"\xc7\x01\n" +
 	"\x10ReconcileRequest\x12\x14\n" +
 	"\x05apply\x18\x01 \x01(\bR\x05apply\x12\x1e\n" +
 	"\n" +
@@ -1451,7 +1492,7 @@ const file_web_console_v1_continuity_continuity_proto_rawDesc = "" +
 	"\aaliases\x18\x0f \x03(\v2..vrooli.web_console.v1.continuity.CatalogAliasR\aaliases\"~\n" +
 	"\x13ListCatalogResponse\x12I\n" +
 	"\arecords\x18\x01 \x03(\v2/.vrooli.web_console.v1.continuity.CatalogRecordR\arecords\x12\x1c\n" +
-	"\ttruncated\x18\x02 \x01(\bR\ttruncated\"\xba\x01\n" +
+	"\ttruncated\x18\x02 \x01(\bR\ttruncated\"\xbe\x02\n" +
 	"\rSearchRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12#\n" +
 	"\rcreated_after\x18\x02 \x01(\tR\fcreatedAfter\x12\x1d\n" +
@@ -1459,7 +1500,13 @@ const file_web_console_v1_continuity_continuity_proto_rawDesc = "" +
 	"agent_type\x18\x03 \x01(\tR\tagentType\x12'\n" +
 	"\x0flifecycle_state\x18\x04 \x01(\tR\x0elifecycleState\x12\x14\n" +
 	"\x05limit\x18\x05 \x01(\x05R\x05limit\x12\x10\n" +
-	"\x03cwd\x18\x06 \x01(\tR\x03cwd\"\xd9\x01\n" +
+	"\x03cwd\x18\x06 \x01(\tR\x03cwd\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\a \x01(\tR\tsessionId\x12(\n" +
+	"\x10agent_session_id\x18\b \x01(\tR\x0eagentSessionId\x12\x14\n" +
+	"\x05title\x18\t \x01(\tR\x05title\x12#\n" +
+	"\rtopic_summary\x18\n" +
+	" \x01(\tR\ftopicSummary\"\xd9\x01\n" +
 	"\vSearchMatch\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1d\n" +
 	"\n" +

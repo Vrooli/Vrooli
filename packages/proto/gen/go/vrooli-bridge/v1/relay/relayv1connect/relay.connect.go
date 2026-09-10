@@ -35,11 +35,16 @@ const (
 const (
 	// RelayServiceCallProcedure is the fully-qualified name of the RelayService's Call RPC.
 	RelayServiceCallProcedure = "/vrooli.vrooli_bridge.v1.relay.RelayService/Call"
+	// RelayServiceReconcileProcedure is the fully-qualified name of the RelayService's Reconcile RPC.
+	RelayServiceReconcileProcedure = "/vrooli.vrooli_bridge.v1.relay.RelayService/Reconcile"
 )
 
 // RelayServiceClient is a client for the vrooli.vrooli_bridge.v1.relay.RelayService service.
 type RelayServiceClient interface {
 	Call(context.Context, *connect.Request[relay.RelayCallRequest]) (*connect.Response[relay.RelayCallResponse], error)
+	// Reconcile a command after the response route was interrupted. This is a
+	// read-only lookup and must precede any fallback execution.
+	Reconcile(context.Context, *connect.Request[relay.RelayReconcileRequest]) (*connect.Response[relay.RelayReconcileResponse], error)
 }
 
 // NewRelayServiceClient constructs a client for the vrooli.vrooli_bridge.v1.relay.RelayService
@@ -59,12 +64,19 @@ func NewRelayServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(relayServiceMethods.ByName("Call")),
 			connect.WithClientOptions(opts...),
 		),
+		reconcile: connect.NewClient[relay.RelayReconcileRequest, relay.RelayReconcileResponse](
+			httpClient,
+			baseURL+RelayServiceReconcileProcedure,
+			connect.WithSchema(relayServiceMethods.ByName("Reconcile")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // relayServiceClient implements RelayServiceClient.
 type relayServiceClient struct {
-	call *connect.Client[relay.RelayCallRequest, relay.RelayCallResponse]
+	call      *connect.Client[relay.RelayCallRequest, relay.RelayCallResponse]
+	reconcile *connect.Client[relay.RelayReconcileRequest, relay.RelayReconcileResponse]
 }
 
 // Call calls vrooli.vrooli_bridge.v1.relay.RelayService.Call.
@@ -72,10 +84,18 @@ func (c *relayServiceClient) Call(ctx context.Context, req *connect.Request[rela
 	return c.call.CallUnary(ctx, req)
 }
 
+// Reconcile calls vrooli.vrooli_bridge.v1.relay.RelayService.Reconcile.
+func (c *relayServiceClient) Reconcile(ctx context.Context, req *connect.Request[relay.RelayReconcileRequest]) (*connect.Response[relay.RelayReconcileResponse], error) {
+	return c.reconcile.CallUnary(ctx, req)
+}
+
 // RelayServiceHandler is an implementation of the vrooli.vrooli_bridge.v1.relay.RelayService
 // service.
 type RelayServiceHandler interface {
 	Call(context.Context, *connect.Request[relay.RelayCallRequest]) (*connect.Response[relay.RelayCallResponse], error)
+	// Reconcile a command after the response route was interrupted. This is a
+	// read-only lookup and must precede any fallback execution.
+	Reconcile(context.Context, *connect.Request[relay.RelayReconcileRequest]) (*connect.Response[relay.RelayReconcileResponse], error)
 }
 
 // NewRelayServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -91,10 +111,18 @@ func NewRelayServiceHandler(svc RelayServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(relayServiceMethods.ByName("Call")),
 		connect.WithHandlerOptions(opts...),
 	)
+	relayServiceReconcileHandler := connect.NewUnaryHandler(
+		RelayServiceReconcileProcedure,
+		svc.Reconcile,
+		connect.WithSchema(relayServiceMethods.ByName("Reconcile")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_bridge.v1.relay.RelayService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RelayServiceCallProcedure:
 			relayServiceCallHandler.ServeHTTP(w, r)
+		case RelayServiceReconcileProcedure:
+			relayServiceReconcileHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -106,4 +134,8 @@ type UnimplementedRelayServiceHandler struct{}
 
 func (UnimplementedRelayServiceHandler) Call(context.Context, *connect.Request[relay.RelayCallRequest]) (*connect.Response[relay.RelayCallResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.relay.RelayService.Call is not implemented"))
+}
+
+func (UnimplementedRelayServiceHandler) Reconcile(context.Context, *connect.Request[relay.RelayReconcileRequest]) (*connect.Response[relay.RelayReconcileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.relay.RelayService.Reconcile is not implemented"))
 }

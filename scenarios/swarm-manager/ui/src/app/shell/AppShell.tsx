@@ -7,6 +7,7 @@ import { CapturePanel } from "../../surfaces/graph/components/CapturePanel";
 import { SettingsDrawer } from "../../surfaces/graph/components/SettingsDrawer";
 import { useGraphUIStore } from "../../surfaces/graph/stores/graph-ui-store";
 import { defaultQueryOptions } from "../../lib";
+import { applyTheme, watchSystemTheme } from "../../lib/theme-utils";
 import { settingsService } from "../../services";
 import { useAgentActivitiesStore, useAgentSessionStore, useBacklogStore, useCaptureStore, useExecutionStore } from "../../stores";
 import { useGovernanceStore } from "../../stores/governance-store";
@@ -54,11 +55,21 @@ export function AppShell() {
   useCapturePolling();
   useAgentSessionPolling();
 
-  useQuery({
+  const { data: settings } = useQuery({
     queryKey: ["settings"],
     queryFn: () => settingsService.get(),
     ...defaultQueryOptions,
   });
+
+  // Direct detail links share the same saved theme as the graph routes.
+  useEffect(() => {
+    const theme = settings?.theme ?? "dark";
+    applyTheme(theme);
+    if (theme === "system") {
+      return watchSystemTheme(() => applyTheme("system"));
+    }
+    return undefined;
+  }, [settings?.theme]);
 
   useEffect(() => {
     void fetchBacklog();

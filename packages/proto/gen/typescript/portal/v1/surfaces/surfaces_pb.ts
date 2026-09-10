@@ -141,7 +141,7 @@ export const ResolveResponseSchema: GenMessage<ResolveResponse> = /*@__PURE__*/
   messageDesc(file_portal_v1_surfaces_surfaces, 4);
 
 /**
- * @stability experimental
+ * @stability stable
  * Portal aggregates safe references; execution authority stays with providers.
  *
  * @generated from service vrooli.portal.v1.surfaces.SurfaceCatalogService
@@ -167,7 +167,7 @@ export const SurfaceCatalogService: GenService<{
   serviceDesc(file_portal_v1_surfaces_surfaces, 0);
 
 /**
- * @stability experimental
+ * @stability stable
  * Authenticated transport to destination-owned desktop admission. Portal never
  * substitutes its local process identity for a caller's bearer credential.
  *
@@ -282,7 +282,7 @@ export const DesktopSessionService: GenService<{
   serviceDesc(file_portal_v1_surfaces_surfaces, 1);
 
 /**
- * @stability experimental
+ * @stability stable
  * Same-origin account transport. Identity and credential ownership stay with
  * scenario-authenticator; Portal neither stores passwords nor mints tokens.
  *

@@ -179,7 +179,7 @@ func (p *RunProducer) ExecuteValidation(ctx context.Context, current *validation
 			}
 			updated, err := transition(ctx, receiptID, validationv1.ReceiptState_RECEIPT_STATE_RUNNING, func(receipt *validationv1.ValidationReceipt) error {
 				setChildState(receipt, runID, childState, status.Error)
-				if !hasEvidence(receipt, runID) {
+				if !hasEvidence(receipt, runID, "test-genie-run") {
 					receipt.Evidence = append(receipt.Evidence, &validationv1.EvidenceReference{EvidenceId: runID, Kind: "test-genie-run", Owner: "test-genie", SubjectId: scenario, Uri: fmt.Sprintf("test-genie://runs/%s/%s", scenario, runID)})
 				}
 				return nil
@@ -313,7 +313,7 @@ func (p *RunProducer) driveGCTChild(ctx context.Context, current *validationv1.V
 	updated, err := transition(ctx, current.GetReceiptId(), validationv1.ReceiptState_RECEIPT_STATE_RUNNING, func(receipt *validationv1.ValidationReceipt) error {
 		setChildState(receipt, operationID, state, result.Detail)
 		for _, evidence := range result.Evidence {
-			if evidence != nil && !hasEvidence(receipt, evidence.GetEvidenceId()) {
+			if evidence != nil && !hasEvidence(receipt, evidence.GetEvidenceId(), evidence.GetKind()) {
 				receipt.Evidence = append(receipt.Evidence, evidence)
 			}
 			if evidence != nil && evidence.GetKind() == "gct-source-snapshot" && childByID(receipt, "gct-source:"+evidence.GetEvidenceId()) == nil {
@@ -465,9 +465,9 @@ func latestChild(receipt *validationv1.ValidationReceipt, prefix string) (*valid
 	return latest, count
 }
 
-func hasEvidence(receipt *validationv1.ValidationReceipt, evidenceID string) bool {
+func hasEvidence(receipt *validationv1.ValidationReceipt, evidenceID, kind string) bool {
 	for _, evidence := range receipt.GetEvidence() {
-		if evidence.GetEvidenceId() == evidenceID {
+		if evidence.GetEvidenceId() == evidenceID && evidence.GetKind() == kind {
 			return true
 		}
 	}

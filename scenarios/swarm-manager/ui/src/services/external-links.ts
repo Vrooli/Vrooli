@@ -78,6 +78,11 @@ export function buildSkillUrl(
   return joinUrl(promptManagerUiUrl, `/skills/${encodeURIComponent(skillId)}`);
 }
 
+export function usePlanUrl(planId: string | null | undefined): string | null {
+  const { url } = useEmbeddedServiceUrl("plan-manager");
+  return useMemo(() => planId ? joinUrl(url, `/plans/${encodeURIComponent(planId)}`) : null, [url, planId]);
+}
+
 /**
  * Resolve the agent-manager UI URL for a single run.
  * Returns null when runId is missing or the agent-manager service URL has not resolved.

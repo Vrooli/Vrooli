@@ -11,6 +11,7 @@ import "agent-manager/v1/domain/watch.proto";
 import "agent-manager/v1/domain/workflow.proto";
 import "buf/validate/validate.proto";
 import "common/v1/types.proto";
+import "vrooli-events/v1/domain/envelope.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
@@ -53,6 +54,24 @@ service AgentManagerService {
   // Health returns the service health status.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {get: "/health"};
+  }
+
+  // Caller-neutral finite investigation lifecycle. Diagnosis is separate
+  // from repair and is safe to reattach after a client disconnect.
+  rpc StartInvestigation(StartInvestigationRequest) returns (StartInvestigationResponse) {
+    option (google.api.http) = { post: "/api/v1/investigations" body: "*" };
+  }
+  rpc GetInvestigation(GetInvestigationRequest) returns (InvestigationRecord) {
+    option (google.api.http) = { get: "/api/v1/investigations/{investigation_id}" };
+  }
+  rpc ListInvestigations(ListInvestigationsRequest) returns (ListInvestigationsResponse) {
+    option (google.api.http) = { get: "/api/v1/investigations" };
+  }
+  rpc WaitInvestigation(WaitInvestigationRequest) returns (WaitInvestigationResponse) {
+    option (google.api.http) = { post: "/api/v1/investigations/{investigation_id}/wait" body: "*" };
+  }
+  rpc CancelInvestigation(CancelInvestigationRequest) returns (InvestigationRecord) {
+    option (google.api.http) = { post: "/api/v1/investigations/{investigation_id}/cancel" body: "*" };
   }
 
   // ========================================================================
@@ -813,6 +832,13 @@ message StartWorkflowExecutionRequest {
     min_len: 1
     max_len: 255
   }];
+  // Optional immutable ceiling supplied by an owning engagement. The execution
+  // owner only narrows the workflow declaration; it never expands it.
+  WorkflowEngagementGrant engagement_grant = 6;
+  // Reviewed Swarm engagement identity; distinct from definition_digest.
+  string approval_digest = 7;
+  // Digest of the exact grant values sent with this invocation.
+  string grant_digest = 8;
 }
 
 message GetWorkflowExecutionRequest {
@@ -1334,6 +1360,7 @@ message RunReport {
   int32 files_read_more_than_once = 24;
   RunTimeAccounting time_accounting = 25;
   RunGoalOutcome goal_outcome = 26;
+  repeated vrooli.vrooli_events.v1.domain.WorkReference work_references = 27;
 }
 
 // RunGoalOutcome is copied from Codex's rolling external goal store when a
@@ -1995,3 +2022,95 @@ message PurgeDataResponse {
   // Echoes dry_run for clarity.
   bool dry_run = 3;
 }
+
+// =============================================================================
+// FINITE INVESTIGATION MESSAGES
+// =============================================================================
+
+message InvestigationSubject {
+  string owner = 1 [(buf.validate.field).string.min_len = 1, (buf.validate.field).string.max_len = 128];
+  string kind = 2 [(buf.validate.field).string.min_len = 1, (buf.validate.field).string.max_len = 128];
+  string ref = 3 [(buf.validate.field).string.min_len = 1, (buf.validate.field).string.max_len = 512];
+  string revision = 4 [(buf.validate.field).string.min_len = 1, (buf.validate.field).string.max_len = 256];
+  repeated string run_ids = 5;
+}
+
+message InvestigationEvidenceReference {
+  string owner = 1 [(buf.validate.field).string.min_len = 1];
+  string kind = 2 [(buf.validate.field).string.min_len = 1];
+  string ref = 3 [(buf.validate.field).string.min_len = 1];
+  string revision = 4 [(buf.validate.field).string.min_len = 1];
+  string schema_version = 5 [(buf.validate.field).string.min_len = 1];
+  // When present, identifies the requested subject runs that produced this
+  // evidence. A consumer cannot apply the reference to a non-overlapping run.
+  repeated string subject_run_ids = 6;
+}
+
+message InvestigationMethodReference {
+  string skill_id = 1 [(buf.validate.field).string.min_len = 1];
+  string revision = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message InvestigationEvidencePolicy {
+  string mode = 1 [(buf.validate.field).string.min_len = 1];
+  repeated string required_planes = 2;
+  repeated string optional_planes = 3;
+  int32 max_events = 4 [(buf.validate.field).int32.gt = 0, (buf.validate.field).int32.lte = 10000];
+  int32 max_evidence_bytes = 5 [(buf.validate.field).int32.gt = 0, (buf.validate.field).int32.lte = 16777216];
+  int32 max_reconciliations = 6 [(buf.validate.field).int32.gte = 0, (buf.validate.field).int32.lte = 1];
+}
+
+message InvestigationBudget {
+  int32 max_delegated_runs = 1 [(buf.validate.field).int32.gte = 0, (buf.validate.field).int32.lte = 1];
+  int32 max_turns = 2 [(buf.validate.field).int32.gt = 0];
+  int32 wall_seconds = 3 [(buf.validate.field).int32.gt = 0];
+  int64 max_charge_micro_usd = 4 [(buf.validate.field).int64.gte = 0];
+}
+
+message InvestigationRecommendationPolicy {
+  repeated string allowed_kinds = 1;
+  bool allow_subject_mutation = 2;
+}
+
+message InvestigationProvenance {
+  string kind = 1;
+  string trigger_occurrence_ref = 2;
+}
+
+message InvestigationRequest {
+  string schema_version = 1 [(buf.validate.field).string.const = "investigation-request/v1"];
+  string request_key = 2 [(buf.validate.field).string.min_len = 1, (buf.validate.field).string.max_len = 256];
+  string caller_authority = 3;
+  InvestigationSubject subject = 4 [(buf.validate.field).required = true];
+  string question = 5;
+  InvestigationMethodReference method_ref = 6;
+  repeated InvestigationEvidenceReference domain_evidence = 7;
+  InvestigationEvidencePolicy evidence_policy = 8 [(buf.validate.field).required = true];
+  InvestigationBudget budget = 9 [(buf.validate.field).required = true];
+  InvestigationRecommendationPolicy recommendation_policy = 10 [(buf.validate.field).required = true];
+  InvestigationProvenance provenance = 11;
+}
+
+message InvestigationRecord {
+  string investigation_id = 1;
+  InvestigationRequest request = 2;
+  string request_digest = 3;
+  string operation_status = 4;
+  string result_json = 5;
+  string source_cut_json = 6;
+  string workflow_ref = 7;
+  bool cancel_requested = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+  google.protobuf.Timestamp completed_at = 11;
+  google.protobuf.Timestamp cancelled_at = 12;
+}
+
+message StartInvestigationRequest { InvestigationRequest request = 1 [(buf.validate.field).required = true]; }
+message StartInvestigationResponse { InvestigationRecord investigation = 1; bool reused = 2; }
+message GetInvestigationRequest { string investigation_id = 1 [(buf.validate.field).string.min_len = 1]; }
+message ListInvestigationsRequest { string operation_status = 1; int32 limit = 2; }
+message ListInvestigationsResponse { repeated InvestigationRecord investigations = 1; }
+message WaitInvestigationRequest { string investigation_id = 1 [(buf.validate.field).string.min_len = 1]; int32 timeout_seconds = 2; }
+message WaitInvestigationResponse { InvestigationRecord investigation = 1; bool terminal = 2; }
+message CancelInvestigationRequest { string investigation_id = 1 [(buf.validate.field).string.min_len = 1]; }

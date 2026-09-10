@@ -81,8 +81,8 @@ func TestNewServerComposesMigratedAdaptersOnSharedTransitionRunner(t *testing.T)
 		t.Fatal("transition runner and capture handler must be composed")
 	}
 	applies, inputs := srv.transitionRunner.Counts()
-	if applies != 12 || inputs != 14 {
-		t.Fatalf("shared transition runner registrations = applies:%d inputs:%d, want applies:12 inputs:14", applies, inputs)
+	if applies != 13 || inputs != 15 {
+		t.Fatalf("shared transition runner registrations = applies:%d inputs:%d, want applies:13 inputs:15", applies, inputs)
 	}
 }
 

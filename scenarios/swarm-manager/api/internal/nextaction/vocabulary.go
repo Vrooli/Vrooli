@@ -26,6 +26,7 @@ const (
 	DefineCriteria      ID = "define_criteria"
 	CloseOut            ID = "close_out"
 	Chain               ID = "chain"
+	ReviewDevelopment   ID = "review_development"
 )
 
 type BlockerCode string
@@ -98,7 +99,7 @@ const (
 // a side effect is safer than implying there is none.
 func EffectFor(id ID) Effect {
 	switch id {
-	case None, Decide, ResolveDependencies, ViewExecution, Chain:
+	case None, Decide, ResolveDependencies, ViewExecution, Chain, ReviewDevelopment:
 		return EffectNone
 	case Run, Retry, Review, AuthorPlan, RepairPlan, PlanGoal, AuthorFollowup:
 		// Each of these ends in a declared `workflow` transition:

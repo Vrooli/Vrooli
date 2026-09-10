@@ -3,6 +3,7 @@ package backlog
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,6 +15,33 @@ import (
 )
 
 type fixedDecisionCount struct{ counts map[string]int }
+
+func TestDevelopmentActionUsesRetainedOwnerState(t *testing.T) {
+	h, _ := setupTestHandler(t)
+	item := BacklogItem{Name: "development", Kind: KindIdea, Status: StatusBacklog}
+	h.SetDevelopmentLookup(func(_ context.Context, ref string) (bool, error) {
+		if ref != "idea/development" {
+			t.Fatalf("lookup ref = %s", ref)
+		}
+		return true, nil
+	})
+	for _, status := range []BacklogStatus{StatusBacklog, StatusReady, StatusFailed, StatusReviewPending, StatusInProgress, StatusNeedsFollowup} {
+		item.Status = status
+		got, err := h.ResolveNextActionWith(t.Context(), item, NextActionInput{})
+		if err != nil || got.ID != NextActionReviewDevelopment || got.Effect != "none" || got.TransitionKey != "" || got.Target != "development_contract" {
+			t.Fatalf("status=%s got=%+v err=%v", status, got, err)
+		}
+	}
+	got, err := h.ResolveNextActionWith(t.Context(), item, NextActionInput{PendingDecisions: 1})
+	if err != nil || got.ID != NextActionDecide {
+		t.Fatalf("pending decision lost precedence: %+v, %v", got, err)
+	}
+	want := errors.New("approval store unavailable")
+	h.SetDevelopmentLookup(func(context.Context, string) (bool, error) { return false, want })
+	if _, err := h.ResolveNextActionWith(t.Context(), item, NextActionInput{}); !errors.Is(err, want) {
+		t.Fatalf("lookup failure became plan work: %v", err)
+	}
+}
 
 func (p fixedDecisionCount) PendingDecisionCounts(context.Context) (map[string]int, error) {
 	return p.counts, nil

@@ -73,21 +73,31 @@ func Run(client *Client, args []string) error {
 	}
 
 	req := Request{
-		ScenarioName:           parsed.Scenario,
-		Target:                 targetExpression(parsed.Scenario),
-		Preset:                 parsed.Preset,
-		Phases:                 parsed.Phases,
-		Skip:                   parsed.Skip,
-		FailFast:               parsed.FailFast,
-		DiagnosticsPreset:      parsed.DiagnosticsPreset,
-		CaptureProfile:         parsed.CaptureProfile,
-		RetainForEvidence:      parsed.RetainForEvidence,
-		RetentionReason:        parsed.RetentionReason,
-		UIURL:                  parsed.UIURL,
-		APIURL:                 parsed.APIURL,
-		ScenarioPath:           scenarioPath,
-		LogicalRepoRoot:        parsed.LogicalRepoRoot,
-		LogicalScenarioRelPath: parsed.LogicalScenarioRelPath,
+		ScenarioName:                 parsed.Scenario,
+		Target:                       targetExpression(parsed.Scenario),
+		Preset:                       parsed.Preset,
+		Phases:                       parsed.Phases,
+		Skip:                         parsed.Skip,
+		FailFast:                     parsed.FailFast,
+		DiagnosticsPreset:            parsed.DiagnosticsPreset,
+		CaptureProfile:               parsed.CaptureProfile,
+		RetainForEvidence:            parsed.RetainForEvidence,
+		RetentionReason:              parsed.RetentionReason,
+		UIURL:                        parsed.UIURL,
+		APIURL:                       parsed.APIURL,
+		ScenarioPath:                 scenarioPath,
+		LogicalRepoRoot:              parsed.LogicalRepoRoot,
+		LogicalScenarioRelPath:       parsed.LogicalScenarioRelPath,
+		ReleaseProfileID:             parsed.ReleaseProfileID,
+		ReleaseCandidateCommit:       parsed.ReleaseCandidateCommit,
+		ReleaseArtifactDigest:        parsed.ReleaseArtifactDigest,
+		ReleaseTargets:               cliutil.ParseCSV(parsed.ReleaseTargetsCSV),
+		ReleaseChannel:               parsed.ReleaseChannel,
+		ReleasePolicyVersion:         int32(parsed.ReleasePolicyVersion),
+		ReleaseCandidateID:           parsed.ReleaseCandidateID,
+		ReleaseDestinationRevisionID: parsed.ReleaseDestinationRevisionID,
+		ReleaseAuthorizationEpoch:    parsed.ReleaseAuthorizationEpoch,
+		ReleasePredecessorRunID:      parsed.ReleasePredecessorRunID,
 	}
 
 	baseURL := client.BaseURL()
@@ -210,6 +220,16 @@ func ParseArgs(args []string) (Args, error) {
 	fs.StringVar(&out.LogicalScenarioRelPath, "logical-scenario-relpath", "", "Logical scenario directory relative to --logical-repo-root")
 	fs.StringVar(&out.UIURL, "ui-url", "", "UI URL for Lighthouse audits (e.g., http://localhost:3000)")
 	fs.StringVar(&out.APIURL, "api-url", "", "API URL for integration checks (e.g., http://localhost:8080)")
+	fs.StringVar(&out.ReleaseProfileID, "release-profile-id", "", "Release profile identity for owner readiness evidence")
+	fs.StringVar(&out.ReleaseCandidateCommit, "release-candidate-commit", "", "Exact release candidate commit")
+	fs.StringVar(&out.ReleaseArtifactDigest, "release-artifact-digest", "", "Exact release artifact digest")
+	fs.StringVar(&out.ReleaseTargetsCSV, "release-targets", "", "Comma-separated release targets")
+	fs.StringVar(&out.ReleaseChannel, "release-channel", "", "Release channel")
+	fs.IntVar(&out.ReleasePolicyVersion, "release-policy-version", 0, "Release policy version")
+	fs.StringVar(&out.ReleaseCandidateID, "release-candidate-id", "", "Release candidate identity")
+	fs.StringVar(&out.ReleaseDestinationRevisionID, "release-destination-revision-id", "", "Approved destination revision identity")
+	fs.Uint64Var(&out.ReleaseAuthorizationEpoch, "release-authorization-epoch", 0, "Release authorization epoch")
+	fs.StringVar(&out.ReleasePredecessorRunID, "release-predecessor-run-id", "", "Predecessor Test Genie run used for regression evidence")
 	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())
 	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {

@@ -3267,6 +3267,7 @@ type CheckAssetRequest struct {
 	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
 	RunTests      bool                   `protobuf:"varint,3,opt,name=run_tests,json=runTests,proto3" json:"run_tests,omitempty"`
+	Profile       string                 `protobuf:"bytes,4,opt,name=profile,proto3" json:"profile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3320,6 +3321,13 @@ func (x *CheckAssetRequest) GetRunTests() bool {
 		return x.RunTests
 	}
 	return false
+}
+
+func (x *CheckAssetRequest) GetProfile() string {
+	if x != nil {
+		return x.Profile
+	}
+	return ""
 }
 
 type CheckAssetResponse struct {
@@ -5054,11 +5062,12 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
 	"\aseconds\x18\x03 \x01(\x01R\aseconds\x12\x16\n" +
-	"\x06detail\x18\x04 \x01(\tR\x06detail\"e\n" +
+	"\x06detail\x18\x04 \x01(\tR\x06detail\"\x7f\n" +
 	"\x11CheckAssetRequest\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1b\n" +
-	"\trun_tests\x18\x03 \x01(\bR\brunTests\"\xc4\x02\n" +
+	"\trun_tests\x18\x03 \x01(\bR\brunTests\x12\x18\n" +
+	"\aprofile\x18\x04 \x01(\tR\aprofile\"\xc4\x02\n" +
 	"\x12CheckAssetResponse\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x18\n" +
 	"\averdict\x18\x02 \x01(\tR\averdict\x12R\n" +

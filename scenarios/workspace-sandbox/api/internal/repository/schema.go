@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 )
 
@@ -42,9 +43,12 @@ const ExpectedSchemaVersion = 4
 //  1. Apply schema.sql (idempotent — every CREATE is IF NOT EXISTS).
 //  2. Run legacy column migrations (idempotent — both probe before
 //     mutating).
-//  3. Inspect schema_version. If empty, write ExpectedSchemaVersion
-//     stamped via clk. If present and < expected, refuse to start.
-//     If > expected, refuse to start (binary older than DB).
+//  3. Reject a database newer than this binary; otherwise walk the
+//     registered forward migrations from its persisted version.
+//  4. Reconcile additive columns from schema.sql through api-core,
+//     including databases already at ExpectedSchemaVersion.
+//  5. Stamp ExpectedSchemaVersion via clk without rewriting an existing
+//     matching version or its timestamp.
 //
 // The version check is the loud-failure guard. Forward-only by design:
 // there is no rollback path because we never need one — single-tenant
@@ -61,7 +65,8 @@ func EnsureSchema(ctx context.Context, db *sql.DB, clk schedule.Clock) error {
 		return fmt.Errorf("EnsureSchema: clock is nil")
 	}
 
-	if _, err := db.ExecContext(ctx, SchemaSQL); err != nil {
+	provider := database.SchemaProviderFunc(func() string { return SchemaSQL })
+	if err := database.ApplySchemas(ctx, db, provider); err != nil {
 		return fmt.Errorf("apply schema: %w", err)
 	}
 	if err := migrateDriverColumn(ctx, db); err != nil {
@@ -81,10 +86,6 @@ func EnsureSchema(ctx context.Context, db *sql.DB, clk schedule.Clock) error {
 			"schema_version %d > expected %d: binary is older than database — refusing to start",
 			current, ExpectedSchemaVersion,
 		)
-	}
-
-	if current == ExpectedSchemaVersion {
-		return nil
 	}
 
 	// Walk forward through every required version step. Each migrator
@@ -107,6 +108,14 @@ func EnsureSchema(ctx context.Context, db *sql.DB, clk schedule.Clock) error {
 		if err := mig(ctx, db); err != nil {
 			return fmt.Errorf("migrate schema to v%d: %w", v, err)
 		}
+	}
+
+	// A version marker does not prove the declared columns are present.
+	// In particular, new nullable provenance columns can be introduced
+	// after this version has already shipped. Keep legacy renames above
+	// this shared additive reconciliation and never invent historical data.
+	if err := database.ReconcileDeclaredColumns(ctx, db, provider); err != nil {
+		return fmt.Errorf("reconcile declared schema: %w", err)
 	}
 
 	if err := stampSchemaVersion(ctx, db, ExpectedSchemaVersion, clk.Now()); err != nil {
@@ -151,6 +160,8 @@ func migrateToV4(ctx context.Context, db *sql.DB) error {
 	for _, statement := range []string{
 		"ALTER TABLE applied_changes ADD COLUMN resolution_attempts INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE applied_changes ADD COLUMN unresolvable_at TEXT",
+		"ALTER TABLE applied_changes ADD COLUMN content_digest TEXT",
+		"ALTER TABLE applied_changes ADD COLUMN evidence_revision TEXT",
 	} {
 		if _, err := db.ExecContext(ctx, statement); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 			return err

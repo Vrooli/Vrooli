@@ -423,6 +423,84 @@ func (x *JobPush) GetCredentialInjections() []*CredentialInjection {
 	return nil
 }
 
+// ArtifactDelivery is a signed, node-facing placement instruction. The
+// device-sync-hub item carries the bytes; the node agent, acting as the target
+// hub device, downloads that item and atomically places it at destination_path.
+// This keeps the generic hub contract free of filesystem semantics and keeps
+// placement on the target node rather than in the control plane.
+type ArtifactDelivery struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Bridge's durable distribution id, used to correlate placement evidence.
+	DistributionId string `protobuf:"bytes,1,opt,name=distribution_id,json=distributionId,proto3" json:"distribution_id,omitempty"`
+	// UUID of the directed file item in device-sync-hub.
+	ItemId string `protobuf:"bytes,2,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	// Operator-visible filename used for diagnostics and fallback naming.
+	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	// Target-local path. The agent applies its local permission policy when it
+	// creates or replaces this path; it never executes the artifact.
+	DestinationPath string `protobuf:"bytes,4,opt,name=destination_path,json=destinationPath,proto3" json:"destination_path,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ArtifactDelivery) Reset() {
+	*x = ArtifactDelivery{}
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArtifactDelivery) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArtifactDelivery) ProtoMessage() {}
+
+func (x *ArtifactDelivery) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArtifactDelivery.ProtoReflect.Descriptor instead.
+func (*ArtifactDelivery) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ArtifactDelivery) GetDistributionId() string {
+	if x != nil {
+		return x.DistributionId
+	}
+	return ""
+}
+
+func (x *ArtifactDelivery) GetItemId() string {
+	if x != nil {
+		return x.ItemId
+	}
+	return ""
+}
+
+func (x *ArtifactDelivery) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ArtifactDelivery) GetDestinationPath() string {
+	if x != nil {
+		return x.DestinationPath
+	}
+	return ""
+}
+
 type CredentialInjection struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	LogicalId     string                 `protobuf:"bytes,1,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
@@ -434,7 +512,7 @@ type CredentialInjection struct {
 
 func (x *CredentialInjection) Reset() {
 	*x = CredentialInjection{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[3]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -446,7 +524,7 @@ func (x *CredentialInjection) String() string {
 func (*CredentialInjection) ProtoMessage() {}
 
 func (x *CredentialInjection) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[3]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -459,7 +537,7 @@ func (x *CredentialInjection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialInjection.ProtoReflect.Descriptor instead.
 func (*CredentialInjection) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{3}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CredentialInjection) GetLogicalId() string {
@@ -507,7 +585,7 @@ type CleanupCommand struct {
 
 func (x *CleanupCommand) Reset() {
 	*x = CleanupCommand{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[4]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -519,7 +597,7 @@ func (x *CleanupCommand) String() string {
 func (*CleanupCommand) ProtoMessage() {}
 
 func (x *CleanupCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[4]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -532,7 +610,7 @@ func (x *CleanupCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CleanupCommand.ProtoReflect.Descriptor instead.
 func (*CleanupCommand) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{4}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CleanupCommand) GetOperation() PrivilegedOperation {
@@ -635,7 +713,7 @@ type CredentialPush struct {
 
 func (x *CredentialPush) Reset() {
 	*x = CredentialPush{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[5]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -647,7 +725,7 @@ func (x *CredentialPush) String() string {
 func (*CredentialPush) ProtoMessage() {}
 
 func (x *CredentialPush) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[5]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -660,7 +738,7 @@ func (x *CredentialPush) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialPush.ProtoReflect.Descriptor instead.
 func (*CredentialPush) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{5}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CredentialPush) GetGrantId() string {
@@ -723,13 +801,15 @@ type CredentialPurge struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
 	Addresses     []string               `protobuf:"bytes,2,rep,name=addresses,proto3" json:"addresses,omitempty"`
+	GrantId       string                 `protobuf:"bytes,3,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
+	Generation    int64                  `protobuf:"varint,4,opt,name=generation,proto3" json:"generation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CredentialPurge) Reset() {
 	*x = CredentialPurge{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[6]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -741,7 +821,7 @@ func (x *CredentialPurge) String() string {
 func (*CredentialPurge) ProtoMessage() {}
 
 func (x *CredentialPurge) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[6]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -754,7 +834,7 @@ func (x *CredentialPurge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialPurge.ProtoReflect.Descriptor instead.
 func (*CredentialPurge) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{6}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CredentialPurge) GetNodeId() string {
@@ -769,6 +849,20 @@ func (x *CredentialPurge) GetAddresses() []string {
 		return x.Addresses
 	}
 	return nil
+}
+
+func (x *CredentialPurge) GetGrantId() string {
+	if x != nil {
+		return x.GrantId
+	}
+	return ""
+}
+
+func (x *CredentialPurge) GetGeneration() int64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
 }
 
 // CredentialGrant carries metadata-only local consent to a node. It never
@@ -790,7 +884,7 @@ type CredentialGrant struct {
 
 func (x *CredentialGrant) Reset() {
 	*x = CredentialGrant{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[7]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -802,7 +896,7 @@ func (x *CredentialGrant) String() string {
 func (*CredentialGrant) ProtoMessage() {}
 
 func (x *CredentialGrant) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[7]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -815,7 +909,7 @@ func (x *CredentialGrant) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialGrant.ProtoReflect.Descriptor instead.
 func (*CredentialGrant) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{7}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CredentialGrant) GetGrantId() string {
@@ -883,13 +977,14 @@ type CredentialReceipt struct {
 	Generation    int64                  `protobuf:"varint,5,opt,name=generation,proto3" json:"generation,omitempty"`
 	Accepted      bool                   `protobuf:"varint,6,opt,name=accepted,proto3" json:"accepted,omitempty"`
 	Reason        string                 `protobuf:"bytes,7,opt,name=reason,proto3" json:"reason,omitempty"`
+	Operation     string                 `protobuf:"bytes,8,opt,name=operation,proto3" json:"operation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CredentialReceipt) Reset() {
 	*x = CredentialReceipt{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[8]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -901,7 +996,7 @@ func (x *CredentialReceipt) String() string {
 func (*CredentialReceipt) ProtoMessage() {}
 
 func (x *CredentialReceipt) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[8]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -914,7 +1009,7 @@ func (x *CredentialReceipt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialReceipt.ProtoReflect.Descriptor instead.
 func (*CredentialReceipt) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{8}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CredentialReceipt) GetGrantId() string {
@@ -966,6 +1061,13 @@ func (x *CredentialReceipt) GetReason() string {
 	return ""
 }
 
+func (x *CredentialReceipt) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
 // ScenarioRequest is a bounded unary RPC request proxied from the control
 // plane to a scenario API on the node. The request bytes are the serialized
 // Connect/protobuf payload; the node never receives browser or owner
@@ -989,7 +1091,7 @@ type ScenarioRequest struct {
 
 func (x *ScenarioRequest) Reset() {
 	*x = ScenarioRequest{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[9]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1001,7 +1103,7 @@ func (x *ScenarioRequest) String() string {
 func (*ScenarioRequest) ProtoMessage() {}
 
 func (x *ScenarioRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[9]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1014,7 +1116,7 @@ func (x *ScenarioRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioRequest.ProtoReflect.Descriptor instead.
 func (*ScenarioRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{9}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ScenarioRequest) GetCorrelationId() string {
@@ -1078,83 +1180,6 @@ func (x *ScenarioRequest) GetHttpPath() string {
 		return x.HttpPath
 	}
 	return ""
-}
-
-// ScenarioResponse is the bounded unary response to ScenarioRequest.
-type ScenarioResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CorrelationId string                 `protobuf:"bytes,1,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"`
-	Response      []byte                 `protobuf:"bytes,2,opt,name=response,proto3" json:"response,omitempty"`
-	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
-	TimedOut      bool                   `protobuf:"varint,4,opt,name=timed_out,json=timedOut,proto3" json:"timed_out,omitempty"`
-	Truncated     bool                   `protobuf:"varint,5,opt,name=truncated,proto3" json:"truncated,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ScenarioResponse) Reset() {
-	*x = ScenarioResponse{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ScenarioResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ScenarioResponse) ProtoMessage() {}
-
-func (x *ScenarioResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ScenarioResponse.ProtoReflect.Descriptor instead.
-func (*ScenarioResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *ScenarioResponse) GetCorrelationId() string {
-	if x != nil {
-		return x.CorrelationId
-	}
-	return ""
-}
-
-func (x *ScenarioResponse) GetResponse() []byte {
-	if x != nil {
-		return x.Response
-	}
-	return nil
-}
-
-func (x *ScenarioResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
-}
-
-func (x *ScenarioResponse) GetTimedOut() bool {
-	if x != nil {
-		return x.TimedOut
-	}
-	return false
-}
-
-func (x *ScenarioResponse) GetTruncated() bool {
-	if x != nil {
-		return x.Truncated
-	}
-	return false
 }
 
 // ArtifactOutput describes one bounded file a typed job is allowed to produce.
@@ -1579,6 +1604,7 @@ type ServerFrame struct {
 	//	*ServerFrame_CredentialPurge
 	//	*ServerFrame_CredentialGrant
 	//	*ServerFrame_ScenarioRequest
+	//	*ServerFrame_ArtifactDelivery
 	Payload       isServerFrame_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1745,6 +1771,15 @@ func (x *ServerFrame) GetScenarioRequest() *ScenarioRequest {
 	return nil
 }
 
+func (x *ServerFrame) GetArtifactDelivery() *ArtifactDelivery {
+	if x != nil {
+		if x, ok := x.Payload.(*ServerFrame_ArtifactDelivery); ok {
+			return x.ArtifactDelivery
+		}
+	}
+	return nil
+}
+
 type isServerFrame_Payload interface {
 	isServerFrame_Payload()
 }
@@ -1801,6 +1836,10 @@ type ServerFrame_ScenarioRequest struct {
 	ScenarioRequest *ScenarioRequest `protobuf:"bytes,14,opt,name=scenario_request,json=scenarioRequest,proto3,oneof"`
 }
 
+type ServerFrame_ArtifactDelivery struct {
+	ArtifactDelivery *ArtifactDelivery `protobuf:"bytes,15,opt,name=artifact_delivery,json=artifactDelivery,proto3,oneof"`
+}
+
 func (*ServerFrame_Ack) isServerFrame_Payload() {}
 
 func (*ServerFrame_Job) isServerFrame_Payload() {}
@@ -1826,6 +1865,8 @@ func (*ServerFrame_CredentialPurge) isServerFrame_Payload() {}
 func (*ServerFrame_CredentialGrant) isServerFrame_Payload() {}
 
 func (*ServerFrame_ScenarioRequest) isServerFrame_Payload() {}
+
+func (*ServerFrame_ArtifactDelivery) isServerFrame_Payload() {}
 
 // SignedServerFrame is the mutual-auth envelope EVERY control-plane → node push
 // is wrapped in (SECURITY.md boundary 2, DECISIONS.md 2026-06-18). The control
@@ -1912,6 +1953,7 @@ type NodeFrame struct {
 	//	*NodeFrame_RelayResponse
 	//	*NodeFrame_CredentialReceipt
 	//	*NodeFrame_ScenarioResponse
+	//	*NodeFrame_ArtifactReceipt
 	Payload       isNodeFrame_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2017,10 +2059,19 @@ func (x *NodeFrame) GetCredentialReceipt() *CredentialReceipt {
 	return nil
 }
 
-func (x *NodeFrame) GetScenarioResponse() *ScenarioResponse {
+func (x *NodeFrame) GetScenarioResponse() *shared.ScenarioResponse {
 	if x != nil {
 		if x, ok := x.Payload.(*NodeFrame_ScenarioResponse); ok {
 			return x.ScenarioResponse
+		}
+	}
+	return nil
+}
+
+func (x *NodeFrame) GetArtifactReceipt() *shared.ArtifactReceipt {
+	if x != nil {
+		if x, ok := x.Payload.(*NodeFrame_ArtifactReceipt); ok {
+			return x.ArtifactReceipt
 		}
 	}
 	return nil
@@ -2059,7 +2110,11 @@ type NodeFrame_CredentialReceipt struct {
 }
 
 type NodeFrame_ScenarioResponse struct {
-	ScenarioResponse *ScenarioResponse `protobuf:"bytes,8,opt,name=scenario_response,json=scenarioResponse,proto3,oneof"`
+	ScenarioResponse *shared.ScenarioResponse `protobuf:"bytes,8,opt,name=scenario_response,json=scenarioResponse,proto3,oneof"`
+}
+
+type NodeFrame_ArtifactReceipt struct {
+	ArtifactReceipt *shared.ArtifactReceipt `protobuf:"bytes,9,opt,name=artifact_receipt,json=artifactReceipt,proto3,oneof"`
 }
 
 func (*NodeFrame_Handshake) isNodeFrame_Payload() {}
@@ -2077,6 +2132,8 @@ func (*NodeFrame_RelayResponse) isNodeFrame_Payload() {}
 func (*NodeFrame_CredentialReceipt) isNodeFrame_Payload() {}
 
 func (*NodeFrame_ScenarioResponse) isNodeFrame_Payload() {}
+
+func (*NodeFrame_ArtifactReceipt) isNodeFrame_Payload() {}
 
 var File_vrooli_bridge_v1_channel_channel_proto protoreflect.FileDescriptor
 
@@ -2109,7 +2166,12 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\x04args\x18\x04 \x03(\tR\x04args\x12'\n" +
 	"\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\x12I\n" +
 	"\aoutputs\x18\x06 \x03(\v2/.vrooli.vrooli_bridge.v1.channel.ArtifactOutputR\aoutputs\x12i\n" +
-	"\x15credential_injections\x18\a \x03(\v24.vrooli.vrooli_bridge.v1.channel.CredentialInjectionR\x14credentialInjectionsJ\x04\b\b\x10\x10\"e\n" +
+	"\x15credential_injections\x18\a \x03(\v24.vrooli.vrooli_bridge.v1.channel.CredentialInjectionR\x14credentialInjectionsJ\x04\b\b\x10\x10\"\x93\x01\n" +
+	"\x10ArtifactDelivery\x12'\n" +
+	"\x0fdistribution_id\x18\x01 \x01(\tR\x0edistributionId\x12\x17\n" +
+	"\aitem_id\x18\x02 \x01(\tR\x06itemId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12)\n" +
+	"\x10destination_path\x18\x04 \x01(\tR\x0fdestinationPath\"e\n" +
 	"\x13CredentialInjection\x12\x1d\n" +
 	"\n" +
 	"logical_id\x18\x01 \x01(\tR\tlogicalId\x12\x14\n" +
@@ -2144,10 +2206,14 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"generation\x12\x1c\n" +
 	"\tretention\x18\x06 \x01(\tR\tretention\x12!\n" +
 	"\fsealed_value\x18\a \x01(\fR\vsealedValue\x12\x10\n" +
-	"\x03aad\x18\b \x01(\fR\x03aad\"H\n" +
+	"\x03aad\x18\b \x01(\fR\x03aad\"\x83\x01\n" +
 	"\x0fCredentialPurge\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1c\n" +
-	"\taddresses\x18\x02 \x03(\tR\taddresses\"\xe8\x01\n" +
+	"\taddresses\x18\x02 \x03(\tR\taddresses\x12\x19\n" +
+	"\bgrant_id\x18\x03 \x01(\tR\agrantId\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x04 \x01(\x03R\n" +
+	"generation\"\xe8\x01\n" +
 	"\x0fCredentialGrant\x12\x19\n" +
 	"\bgrant_id\x18\x01 \x01(\tR\agrantId\x12\x17\n" +
 	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x1d\n" +
@@ -2159,7 +2225,7 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\n" +
 	"generation\x18\a \x01(\x03R\n" +
 	"generation\x12\x18\n" +
-	"\arevoked\x18\b \x01(\bR\arevoked\"\xd0\x01\n" +
+	"\arevoked\x18\b \x01(\bR\arevoked\"\xee\x01\n" +
 	"\x11CredentialReceipt\x12\x19\n" +
 	"\bgrant_id\x18\x01 \x01(\tR\agrantId\x12\x17\n" +
 	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x1d\n" +
@@ -2170,7 +2236,8 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"generation\x18\x05 \x01(\x03R\n" +
 	"generation\x12\x1a\n" +
 	"\baccepted\x18\x06 \x01(\bR\baccepted\x12\x16\n" +
-	"\x06reason\x18\a \x01(\tR\x06reason\"\xbb\x02\n" +
+	"\x06reason\x18\a \x01(\tR\x06reason\x12\x1c\n" +
+	"\toperation\x18\b \x01(\tR\toperation\"\xbb\x02\n" +
 	"\x0fScenarioRequest\x12%\n" +
 	"\x0ecorrelation_id\x18\x01 \x01(\tR\rcorrelationId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x18\n" +
@@ -2182,13 +2249,7 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\vhttp_method\x18\b \x01(\tR\n" +
 	"httpMethod\x12\x1b\n" +
 	"\thttp_path\x18\t \x01(\tR\bhttpPathJ\x04\b\n" +
-	"\x10\x10\"\xac\x01\n" +
-	"\x10ScenarioResponse\x12%\n" +
-	"\x0ecorrelation_id\x18\x01 \x01(\tR\rcorrelationId\x12\x1a\n" +
-	"\bresponse\x18\x02 \x01(\fR\bresponse\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1b\n" +
-	"\ttimed_out\x18\x04 \x01(\bR\btimedOut\x12\x1c\n" +
-	"\ttruncated\x18\x05 \x01(\bR\ttruncatedJ\x04\b\x06\x10\x10\"\x81\x01\n" +
+	"\x10\x10\"\x81\x01\n" +
 	"\x0eArtifactOutput\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
@@ -2214,7 +2275,7 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\x12max_response_bytes\x18\x06 \x01(\x04R\x10maxResponseBytesJ\x04\b\a\x10\x10\"R\n" +
 	"\vRelayCancel\x12%\n" +
 	"\x0ecorrelation_id\x18\x01 \x01(\tR\rcorrelationId\x12\x16\n" +
-	"\x06reason\x18\x02 \x01(\tR\x06reasonJ\x04\b\x03\x10\x10\"\xb8\b\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reasonJ\x04\b\x03\x10\x10\"\x9a\t\n" +
 	"\vServerFrame\x12\x19\n" +
 	"\bframe_id\x18\x06 \x01(\tR\aframeId\x12A\n" +
 	"\x03ack\x18\x01 \x01(\v2-.vrooli.vrooli_bridge.v1.channel.HandshakeAckH\x00R\x03ack\x12<\n" +
@@ -2230,11 +2291,12 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\x0fcredential_push\x18\v \x01(\v2/.vrooli.vrooli_bridge.v1.channel.CredentialPushH\x00R\x0ecredentialPush\x12]\n" +
 	"\x10credential_purge\x18\f \x01(\v20.vrooli.vrooli_bridge.v1.channel.CredentialPurgeH\x00R\x0fcredentialPurge\x12]\n" +
 	"\x10credential_grant\x18\r \x01(\v20.vrooli.vrooli_bridge.v1.channel.CredentialGrantH\x00R\x0fcredentialGrant\x12]\n" +
-	"\x10scenario_request\x18\x0e \x01(\v20.vrooli.vrooli_bridge.v1.channel.ScenarioRequestH\x00R\x0fscenarioRequestB\t\n" +
+	"\x10scenario_request\x18\x0e \x01(\v20.vrooli.vrooli_bridge.v1.channel.ScenarioRequestH\x00R\x0fscenarioRequest\x12`\n" +
+	"\x11artifact_delivery\x18\x0f \x01(\v21.vrooli.vrooli_bridge.v1.channel.ArtifactDeliveryH\x00R\x10artifactDeliveryB\t\n" +
 	"\apayload\"G\n" +
 	"\x11SignedServerFrame\x12\x14\n" +
 	"\x05frame\x18\x01 \x01(\fR\x05frame\x12\x1c\n" +
-	"\tsignature\x18\x02 \x01(\fR\tsignature\"\xb1\x05\n" +
+	"\tsignature\x18\x02 \x01(\fR\tsignature\"\x8e\x06\n" +
 	"\tNodeFrame\x12J\n" +
 	"\thandshake\x18\x01 \x01(\v2*.vrooli.vrooli_bridge.v1.channel.HandshakeH\x00R\thandshake\x12I\n" +
 	"\theartbeat\x18\x02 \x01(\v2).vrooli.vrooli_bridge.v1.shared.HeartbeatH\x00R\theartbeat\x12G\n" +
@@ -2242,8 +2304,9 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\fdelivery_ack\x18\x04 \x01(\v2+.vrooli.vrooli_bridge.v1.shared.DeliveryAckH\x00R\vdeliveryAck\x12H\n" +
 	"\asession\x18\x05 \x01(\v2,.vrooli.vrooli_bridge.v1.shared.SessionFrameH\x00R\asession\x12V\n" +
 	"\x0erelay_response\x18\x06 \x01(\v2-.vrooli.vrooli_bridge.v1.shared.RelayResponseH\x00R\rrelayResponse\x12c\n" +
-	"\x12credential_receipt\x18\a \x01(\v22.vrooli.vrooli_bridge.v1.channel.CredentialReceiptH\x00R\x11credentialReceipt\x12`\n" +
-	"\x11scenario_response\x18\b \x01(\v21.vrooli.vrooli_bridge.v1.channel.ScenarioResponseH\x00R\x10scenarioResponseB\t\n" +
+	"\x12credential_receipt\x18\a \x01(\v22.vrooli.vrooli_bridge.v1.channel.CredentialReceiptH\x00R\x11credentialReceipt\x12_\n" +
+	"\x11scenario_response\x18\b \x01(\v20.vrooli.vrooli_bridge.v1.shared.ScenarioResponseH\x00R\x10scenarioResponse\x12\\\n" +
+	"\x10artifact_receipt\x18\t \x01(\v2/.vrooli.vrooli_bridge.v1.shared.ArtifactReceiptH\x00R\x0fartifactReceiptB\t\n" +
 	"\apayload*\xc9\x03\n" +
 	"\x13PrivilegedOperation\x12$\n" +
 	" PRIVILEGED_OPERATION_UNSPECIFIED\x10\x00\x12\"\n" +
@@ -2276,14 +2339,14 @@ var file_vrooli_bridge_v1_channel_channel_proto_goTypes = []any{
 	(*Handshake)(nil),               // 1: vrooli.vrooli_bridge.v1.channel.Handshake
 	(*HandshakeAck)(nil),            // 2: vrooli.vrooli_bridge.v1.channel.HandshakeAck
 	(*JobPush)(nil),                 // 3: vrooli.vrooli_bridge.v1.channel.JobPush
-	(*CredentialInjection)(nil),     // 4: vrooli.vrooli_bridge.v1.channel.CredentialInjection
-	(*CleanupCommand)(nil),          // 5: vrooli.vrooli_bridge.v1.channel.CleanupCommand
-	(*CredentialPush)(nil),          // 6: vrooli.vrooli_bridge.v1.channel.CredentialPush
-	(*CredentialPurge)(nil),         // 7: vrooli.vrooli_bridge.v1.channel.CredentialPurge
-	(*CredentialGrant)(nil),         // 8: vrooli.vrooli_bridge.v1.channel.CredentialGrant
-	(*CredentialReceipt)(nil),       // 9: vrooli.vrooli_bridge.v1.channel.CredentialReceipt
-	(*ScenarioRequest)(nil),         // 10: vrooli.vrooli_bridge.v1.channel.ScenarioRequest
-	(*ScenarioResponse)(nil),        // 11: vrooli.vrooli_bridge.v1.channel.ScenarioResponse
+	(*ArtifactDelivery)(nil),        // 4: vrooli.vrooli_bridge.v1.channel.ArtifactDelivery
+	(*CredentialInjection)(nil),     // 5: vrooli.vrooli_bridge.v1.channel.CredentialInjection
+	(*CleanupCommand)(nil),          // 6: vrooli.vrooli_bridge.v1.channel.CleanupCommand
+	(*CredentialPush)(nil),          // 7: vrooli.vrooli_bridge.v1.channel.CredentialPush
+	(*CredentialPurge)(nil),         // 8: vrooli.vrooli_bridge.v1.channel.CredentialPurge
+	(*CredentialGrant)(nil),         // 9: vrooli.vrooli_bridge.v1.channel.CredentialGrant
+	(*CredentialReceipt)(nil),       // 10: vrooli.vrooli_bridge.v1.channel.CredentialReceipt
+	(*ScenarioRequest)(nil),         // 11: vrooli.vrooli_bridge.v1.channel.ScenarioRequest
 	(*ArtifactOutput)(nil),          // 12: vrooli.vrooli_bridge.v1.channel.ArtifactOutput
 	(*ProvisionCommand)(nil),        // 13: vrooli.vrooli_bridge.v1.channel.ProvisionCommand
 	(*ControlPing)(nil),             // 14: vrooli.vrooli_bridge.v1.channel.ControlPing
@@ -2300,11 +2363,13 @@ var file_vrooli_bridge_v1_channel_channel_proto_goTypes = []any{
 	(*shared.RunEvent)(nil),         // 25: vrooli.vrooli_bridge.v1.shared.RunEvent
 	(*shared.DeliveryAck)(nil),      // 26: vrooli.vrooli_bridge.v1.shared.DeliveryAck
 	(*shared.RelayResponse)(nil),    // 27: vrooli.vrooli_bridge.v1.shared.RelayResponse
+	(*shared.ScenarioResponse)(nil), // 28: vrooli.vrooli_bridge.v1.shared.ScenarioResponse
+	(*shared.ArtifactReceipt)(nil),  // 29: vrooli.vrooli_bridge.v1.shared.ArtifactReceipt
 }
 var file_vrooli_bridge_v1_channel_channel_proto_depIdxs = []int32{
 	21, // 0: vrooli.vrooli_bridge.v1.channel.HandshakeAck.compatibility:type_name -> vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
 	12, // 1: vrooli.vrooli_bridge.v1.channel.JobPush.outputs:type_name -> vrooli.vrooli_bridge.v1.channel.ArtifactOutput
-	4,  // 2: vrooli.vrooli_bridge.v1.channel.JobPush.credential_injections:type_name -> vrooli.vrooli_bridge.v1.channel.CredentialInjection
+	5,  // 2: vrooli.vrooli_bridge.v1.channel.JobPush.credential_injections:type_name -> vrooli.vrooli_bridge.v1.channel.CredentialInjection
 	0,  // 3: vrooli.vrooli_bridge.v1.channel.CleanupCommand.operation:type_name -> vrooli.vrooli_bridge.v1.channel.PrivilegedOperation
 	22, // 4: vrooli.vrooli_bridge.v1.channel.ControlPing.sent_at:type_name -> google.protobuf.Timestamp
 	2,  // 5: vrooli.vrooli_bridge.v1.channel.ServerFrame.ack:type_name -> vrooli.vrooli_bridge.v1.channel.HandshakeAck
@@ -2315,24 +2380,26 @@ var file_vrooli_bridge_v1_channel_channel_proto_depIdxs = []int32{
 	23, // 10: vrooli.vrooli_bridge.v1.channel.ServerFrame.session:type_name -> vrooli.vrooli_bridge.v1.shared.SessionFrame
 	16, // 11: vrooli.vrooli_bridge.v1.channel.ServerFrame.relay:type_name -> vrooli.vrooli_bridge.v1.channel.RelayRequest
 	17, // 12: vrooli.vrooli_bridge.v1.channel.ServerFrame.relay_cancel:type_name -> vrooli.vrooli_bridge.v1.channel.RelayCancel
-	5,  // 13: vrooli.vrooli_bridge.v1.channel.ServerFrame.cleanup:type_name -> vrooli.vrooli_bridge.v1.channel.CleanupCommand
-	6,  // 14: vrooli.vrooli_bridge.v1.channel.ServerFrame.credential_push:type_name -> vrooli.vrooli_bridge.v1.channel.CredentialPush
-	7,  // 15: vrooli.vrooli_bridge.v1.channel.ServerFrame.credential_purge:type_name -> vrooli.vrooli_bridge.v1.channel.CredentialPurge
-	8,  // 16: vrooli.vrooli_bridge.v1.channel.ServerFrame.credential_grant:type_name -> vrooli.vrooli_bridge.v1.channel.CredentialGrant
-	10, // 17: vrooli.vrooli_bridge.v1.channel.ServerFrame.scenario_request:type_name -> vrooli.vrooli_bridge.v1.channel.ScenarioRequest
-	1,  // 18: vrooli.vrooli_bridge.v1.channel.NodeFrame.handshake:type_name -> vrooli.vrooli_bridge.v1.channel.Handshake
-	24, // 19: vrooli.vrooli_bridge.v1.channel.NodeFrame.heartbeat:type_name -> vrooli.vrooli_bridge.v1.shared.Heartbeat
-	25, // 20: vrooli.vrooli_bridge.v1.channel.NodeFrame.run_event:type_name -> vrooli.vrooli_bridge.v1.shared.RunEvent
-	26, // 21: vrooli.vrooli_bridge.v1.channel.NodeFrame.delivery_ack:type_name -> vrooli.vrooli_bridge.v1.shared.DeliveryAck
-	23, // 22: vrooli.vrooli_bridge.v1.channel.NodeFrame.session:type_name -> vrooli.vrooli_bridge.v1.shared.SessionFrame
-	27, // 23: vrooli.vrooli_bridge.v1.channel.NodeFrame.relay_response:type_name -> vrooli.vrooli_bridge.v1.shared.RelayResponse
-	9,  // 24: vrooli.vrooli_bridge.v1.channel.NodeFrame.credential_receipt:type_name -> vrooli.vrooli_bridge.v1.channel.CredentialReceipt
-	11, // 25: vrooli.vrooli_bridge.v1.channel.NodeFrame.scenario_response:type_name -> vrooli.vrooli_bridge.v1.channel.ScenarioResponse
-	26, // [26:26] is the sub-list for method output_type
-	26, // [26:26] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	6,  // 13: vrooli.vrooli_bridge.v1.channel.ServerFrame.cleanup:type_name -> vrooli.vrooli_bridge.v1.channel.CleanupCommand
+	7,  // 14: vrooli.vrooli_bridge.v1.channel.ServerFrame.credential_push:type_name -> vrooli.vrooli_bridge.v1.channel.CredentialPush
+	8,  // 15: vrooli.vrooli_bridge.v1.channel.ServerFrame.credential_purge:type_name -> vrooli.vrooli_bridge.v1.channel.CredentialPurge
+	9,  // 16: vrooli.vrooli_bridge.v1.channel.ServerFrame.credential_grant:type_name -> vrooli.vrooli_bridge.v1.channel.CredentialGrant
+	11, // 17: vrooli.vrooli_bridge.v1.channel.ServerFrame.scenario_request:type_name -> vrooli.vrooli_bridge.v1.channel.ScenarioRequest
+	4,  // 18: vrooli.vrooli_bridge.v1.channel.ServerFrame.artifact_delivery:type_name -> vrooli.vrooli_bridge.v1.channel.ArtifactDelivery
+	1,  // 19: vrooli.vrooli_bridge.v1.channel.NodeFrame.handshake:type_name -> vrooli.vrooli_bridge.v1.channel.Handshake
+	24, // 20: vrooli.vrooli_bridge.v1.channel.NodeFrame.heartbeat:type_name -> vrooli.vrooli_bridge.v1.shared.Heartbeat
+	25, // 21: vrooli.vrooli_bridge.v1.channel.NodeFrame.run_event:type_name -> vrooli.vrooli_bridge.v1.shared.RunEvent
+	26, // 22: vrooli.vrooli_bridge.v1.channel.NodeFrame.delivery_ack:type_name -> vrooli.vrooli_bridge.v1.shared.DeliveryAck
+	23, // 23: vrooli.vrooli_bridge.v1.channel.NodeFrame.session:type_name -> vrooli.vrooli_bridge.v1.shared.SessionFrame
+	27, // 24: vrooli.vrooli_bridge.v1.channel.NodeFrame.relay_response:type_name -> vrooli.vrooli_bridge.v1.shared.RelayResponse
+	10, // 25: vrooli.vrooli_bridge.v1.channel.NodeFrame.credential_receipt:type_name -> vrooli.vrooli_bridge.v1.channel.CredentialReceipt
+	28, // 26: vrooli.vrooli_bridge.v1.channel.NodeFrame.scenario_response:type_name -> vrooli.vrooli_bridge.v1.shared.ScenarioResponse
+	29, // 27: vrooli.vrooli_bridge.v1.channel.NodeFrame.artifact_receipt:type_name -> vrooli.vrooli_bridge.v1.shared.ArtifactReceipt
+	28, // [28:28] is the sub-list for method output_type
+	28, // [28:28] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_channel_channel_proto_init() }
@@ -2354,6 +2421,7 @@ func file_vrooli_bridge_v1_channel_channel_proto_init() {
 		(*ServerFrame_CredentialPurge)(nil),
 		(*ServerFrame_CredentialGrant)(nil),
 		(*ServerFrame_ScenarioRequest)(nil),
+		(*ServerFrame_ArtifactDelivery)(nil),
 	}
 	file_vrooli_bridge_v1_channel_channel_proto_msgTypes[19].OneofWrappers = []any{
 		(*NodeFrame_Handshake)(nil),
@@ -2364,6 +2432,7 @@ func file_vrooli_bridge_v1_channel_channel_proto_init() {
 		(*NodeFrame_RelayResponse)(nil),
 		(*NodeFrame_CredentialReceipt)(nil),
 		(*NodeFrame_ScenarioResponse)(nil),
+		(*NodeFrame_ArtifactReceipt)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

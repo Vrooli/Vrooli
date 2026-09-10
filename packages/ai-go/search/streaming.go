@@ -13,12 +13,18 @@ import (
 // GenerationMetadata identifies one immutable candidate index generation.
 // SourceDigest, Model, and ChunkPolicy make freshness decisions inspectable.
 type GenerationMetadata struct {
-	ID           string    `json:"id"`
-	CreatedAt    time.Time `json:"createdAt"`
-	SourceDigest string    `json:"sourceDigest,omitempty"`
-	Model        string    `json:"model,omitempty"`
-	ChunkPolicy  string    `json:"chunkPolicy,omitempty"`
-	Full         bool      `json:"full"`
+	ID              string    `json:"id"`
+	CreatedAt       time.Time `json:"createdAt"`
+	SourceDigest    string    `json:"sourceDigest,omitempty"`
+	Model           string    `json:"model,omitempty"`
+	ChunkPolicy     string    `json:"chunkPolicy,omitempty"`
+	Owner           string    `json:"owner,omitempty"`
+	Namespace       string    `json:"namespace,omitempty"`
+	Alias           string    `json:"alias,omitempty"`
+	ContentIdentity string    `json:"contentIdentity,omitempty"`
+	LeaseID         string    `json:"leaseId,omitempty"`
+	LeaseExpiresAt  time.Time `json:"leaseExpiresAt,omitempty"`
+	Full            bool      `json:"full"`
 }
 
 // StoredSourceState is the bounded projection needed to reconcile one source.
@@ -138,6 +144,11 @@ type StreamingResult struct {
 	Deleted          int                  `json:"deleted"`
 	MaxPageDocuments int                  `json:"maxPageDocuments"`
 	Promoted         bool                 `json:"promoted"`
+	// CleanupError records a failure to delete retired generations after this
+	// generation was promoted. Promotion already succeeded and the alias serves
+	// the new generation, so the run is reported as promoted and the failure is
+	// surfaced here instead of failing a run whose index is live.
+	CleanupError string `json:"cleanupError,omitempty"`
 }
 
 // StreamingReconciler builds a shadow generation one bounded source page at a
@@ -264,21 +275,25 @@ func (r *StreamingReconciler) RunFull(ctx context.Context, binding StreamingBind
 	}
 	promoted = true
 	result.Promoted = true
-	if err := binding.Store.CleanupGenerations(ctx, 2); err != nil {
-		return result, fmt.Errorf("cleanup generations after promotion: %w", err)
+	if err := binding.Store.CleanupGenerations(ctx, retainedGenerations); err != nil {
+		result.CleanupError = err.Error()
 	}
 	return result, nil
 }
 
-// RunChanges applies one bounded explicit change set through the same shadow
-// generation lifecycle. Deletions are source-level and cannot leave ghost
-// chunks behind.
+// retainedGenerations is how many retired generations a store keeps after a
+// promotion: the previous serving generation for an operator rollback, plus
+// one more so a rollback target is never the generation being retired.
+const retainedGenerations = 2
+
+// RunChanges applies one explicit change set through the same shadow
+// generation lifecycle. The change set is staged one bounded page at a time
+// inside a single candidate generation, so an incremental run costs one
+// generation regardless of how many changes it carries. Deletions are
+// source-level and cannot leave ghost chunks behind.
 func (r *StreamingReconciler) RunChanges(ctx context.Context, binding StreamingBinding, metadata GenerationMetadata, changes ChangeSet) (*StreamingResult, error) {
 	if err := validateStreamingBinding(binding, r.Embedder); err != nil {
 		return nil, err
-	}
-	if len(changes.Changes) > binding.pageSize() {
-		return nil, fmt.Errorf("change set contains %d changes, limit is %d", len(changes.Changes), binding.pageSize())
 	}
 	metadata.Full = false
 	if metadata.ID == "" {
@@ -297,39 +312,54 @@ func (r *StreamingReconciler) RunChanges(ctx context.Context, binding StreamingB
 		}
 	}()
 
-	result := &StreamingResult{Generation: metadata, Pages: 1, MaxPageDocuments: len(changes.Changes)}
-	var upserts []SourceDoc
-	for _, change := range changes.Changes {
-		switch change.Operation {
-		case ChangeUpsert:
-			upserts = append(upserts, change.Document)
-		case ChangeDelete:
-			if strings.TrimSpace(change.SourceID) == "" {
-				return result, fmt.Errorf("delete change requires source id")
+	result := &StreamingResult{Generation: metadata}
+	pageSize := binding.pageSize()
+	for offset := 0; offset < len(changes.Changes) || offset == 0; offset += pageSize {
+		if err := ctx.Err(); err != nil {
+			return result, err
+		}
+		end := min(offset+pageSize, len(changes.Changes))
+		page := changes.Changes[offset:end]
+		result.Pages++
+		if len(page) > result.MaxPageDocuments {
+			result.MaxPageDocuments = len(page)
+		}
+		var upserts []SourceDoc
+		for _, change := range page {
+			switch change.Operation {
+			case ChangeUpsert:
+				upserts = append(upserts, change.Document)
+			case ChangeDelete:
+				if strings.TrimSpace(change.SourceID) == "" {
+					return result, fmt.Errorf("delete change requires source id")
+				}
+				if err := binding.Store.StageDelete(ctx, metadata.ID, change.SourceID); err != nil {
+					return result, fmt.Errorf("stage delete %q: %w", change.SourceID, err)
+				}
+				result.Deleted++
+			default:
+				return result, fmt.Errorf("unsupported change operation %q", change.Operation)
 			}
-			if err := binding.Store.StageDelete(ctx, metadata.ID, change.SourceID); err != nil {
-				return result, fmt.Errorf("stage delete %q: %w", change.SourceID, err)
-			}
-			result.Deleted++
-		default:
-			return result, fmt.Errorf("unsupported change operation %q", change.Operation)
+		}
+		ids, err := pageSourceIDs(upserts)
+		if err != nil {
+			return result, err
+		}
+		stored, err := binding.Store.LookupActiveSources(ctx, ids)
+		if err != nil {
+			return result, fmt.Errorf("lookup active sources: %w", err)
+		}
+		embedded, reused, err := r.stageDocuments(ctx, binding, metadata, upserts, stored)
+		if err != nil {
+			return result, err
+		}
+		result.Sources += len(upserts)
+		result.Embedded += embedded
+		result.Reused += reused
+		if end >= len(changes.Changes) {
+			break
 		}
 	}
-	ids, err := pageSourceIDs(upserts)
-	if err != nil {
-		return result, err
-	}
-	stored, err := binding.Store.LookupActiveSources(ctx, ids)
-	if err != nil {
-		return result, fmt.Errorf("lookup active sources: %w", err)
-	}
-	embedded, reused, err := r.stageDocuments(ctx, binding, metadata, upserts, stored)
-	if err != nil {
-		return result, err
-	}
-	result.Sources += len(upserts)
-	result.Embedded += embedded
-	result.Reused += reused
 	validation, err := binding.Store.ValidateGeneration(ctx, metadata.ID)
 	if err != nil {
 		return result, fmt.Errorf("validate generation %q: %w", metadata.ID, err)
@@ -348,8 +378,8 @@ func (r *StreamingReconciler) RunChanges(ctx context.Context, binding StreamingB
 	}
 	promoted = true
 	result.Promoted = true
-	if err := binding.Store.CleanupGenerations(ctx, 2); err != nil {
-		return result, fmt.Errorf("cleanup generations after promotion: %w", err)
+	if err := binding.Store.CleanupGenerations(ctx, retainedGenerations); err != nil {
+		result.CleanupError = err.Error()
 	}
 	return result, nil
 }

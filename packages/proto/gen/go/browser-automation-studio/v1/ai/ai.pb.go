@@ -24,6 +24,61 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// WaitUntil controls the browser navigation readiness signal used by one-shot
+// AI captures. Callers may add an explicit selector and bounded settle delay
+// after this signal for applications whose content renders asynchronously.
+type WaitUntil int32
+
+const (
+	WaitUntil_WAIT_UNTIL_UNSPECIFIED      WaitUntil = 0
+	WaitUntil_WAIT_UNTIL_LOAD             WaitUntil = 1
+	WaitUntil_WAIT_UNTIL_DOMCONTENTLOADED WaitUntil = 2
+	WaitUntil_WAIT_UNTIL_NETWORKIDLE      WaitUntil = 3
+)
+
+// Enum value maps for WaitUntil.
+var (
+	WaitUntil_name = map[int32]string{
+		0: "WAIT_UNTIL_UNSPECIFIED",
+		1: "WAIT_UNTIL_LOAD",
+		2: "WAIT_UNTIL_DOMCONTENTLOADED",
+		3: "WAIT_UNTIL_NETWORKIDLE",
+	}
+	WaitUntil_value = map[string]int32{
+		"WAIT_UNTIL_UNSPECIFIED":      0,
+		"WAIT_UNTIL_LOAD":             1,
+		"WAIT_UNTIL_DOMCONTENTLOADED": 2,
+		"WAIT_UNTIL_NETWORKIDLE":      3,
+	}
+)
+
+func (x WaitUntil) Enum() *WaitUntil {
+	p := new(WaitUntil)
+	*p = x
+	return p
+}
+
+func (x WaitUntil) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WaitUntil) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_ai_ai_proto_enumTypes[0].Descriptor()
+}
+
+func (WaitUntil) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_ai_ai_proto_enumTypes[0]
+}
+
+func (x WaitUntil) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WaitUntil.Descriptor instead.
+func (WaitUntil) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{0}
+}
+
 // Viewport mirrors the optional browser viewport hint accepted by the
 // screenshot endpoint. Server clamps dimensions to [200, 10000] and device
 // scale factor to [0.5, 4.0].
@@ -725,7 +780,13 @@ type TakePreviewScreenshotRequest struct {
 	// Required. Absolute URL to navigate to (http or https).
 	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
 	// Optional viewport hint; each dimension clamped to [200, 10000].
-	Viewport      *Viewport `protobuf:"bytes,2,opt,name=viewport,proto3" json:"viewport,omitempty"`
+	Viewport *Viewport `protobuf:"bytes,2,opt,name=viewport,proto3" json:"viewport,omitempty"`
+	// Optional CSS selector that must exist before the screenshot is taken.
+	WaitFor string `protobuf:"bytes,3,opt,name=wait_for,json=waitFor,proto3" json:"wait_for,omitempty"`
+	// Navigation readiness signal. Unspecified defaults to load.
+	WaitUntil WaitUntil `protobuf:"varint,4,opt,name=wait_until,json=waitUntil,proto3,enum=browser_automation_studio.v1.ai.WaitUntil" json:"wait_until,omitempty"`
+	// Fixed delay after wait_until and wait_for, bounded to 15 seconds.
+	SettleMs      int32 `protobuf:"varint,5,opt,name=settle_ms,json=settleMs,proto3" json:"settle_ms,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -772,6 +833,27 @@ func (x *TakePreviewScreenshotRequest) GetViewport() *Viewport {
 		return x.Viewport
 	}
 	return nil
+}
+
+func (x *TakePreviewScreenshotRequest) GetWaitFor() string {
+	if x != nil {
+		return x.WaitFor
+	}
+	return ""
+}
+
+func (x *TakePreviewScreenshotRequest) GetWaitUntil() WaitUntil {
+	if x != nil {
+		return x.WaitUntil
+	}
+	return WaitUntil_WAIT_UNTIL_UNSPECIFIED
+}
+
+func (x *TakePreviewScreenshotRequest) GetSettleMs() int32 {
+	if x != nil {
+		return x.SettleMs
+	}
+	return 0
 }
 
 type TakePreviewScreenshotResponse struct {
@@ -1361,8 +1443,18 @@ func (x *AIAnalyzeElementsResponse) GetSuggestions() []*ElementInfo {
 }
 
 type GetDOMTreeRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Url   string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	// Optional CSS selector that must exist before the DOM snapshot is taken.
+	WaitFor string `protobuf:"bytes,2,opt,name=wait_for,json=waitFor,proto3" json:"wait_for,omitempty"`
+	// Navigation readiness signal. Unspecified defaults to load.
+	WaitUntil WaitUntil `protobuf:"varint,3,opt,name=wait_until,json=waitUntil,proto3,enum=browser_automation_studio.v1.ai.WaitUntil" json:"wait_until,omitempty"`
+	// Fixed delay after wait_until and wait_for, bounded to 15 seconds.
+	SettleMs int32 `protobuf:"varint,4,opt,name=settle_ms,json=settleMs,proto3" json:"settle_ms,omitempty"`
+	// Include computed style and geometry metadata on every element node.
+	Computed bool `protobuf:"varint,5,opt,name=computed,proto3" json:"computed,omitempty"`
+	// Maximum number of element nodes to include; defaults to 4000.
+	MaxNodes      int32 `protobuf:"varint,6,opt,name=max_nodes,json=maxNodes,proto3" json:"max_nodes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1402,6 +1494,41 @@ func (x *GetDOMTreeRequest) GetUrl() string {
 		return x.Url
 	}
 	return ""
+}
+
+func (x *GetDOMTreeRequest) GetWaitFor() string {
+	if x != nil {
+		return x.WaitFor
+	}
+	return ""
+}
+
+func (x *GetDOMTreeRequest) GetWaitUntil() WaitUntil {
+	if x != nil {
+		return x.WaitUntil
+	}
+	return WaitUntil_WAIT_UNTIL_UNSPECIFIED
+}
+
+func (x *GetDOMTreeRequest) GetSettleMs() int32 {
+	if x != nil {
+		return x.SettleMs
+	}
+	return 0
+}
+
+func (x *GetDOMTreeRequest) GetComputed() bool {
+	if x != nil {
+		return x.Computed
+	}
+	return false
+}
+
+func (x *GetDOMTreeRequest) GetMaxNodes() int32 {
+	if x != nil {
+		return x.MaxNodes
+	}
+	return 0
 }
 
 type GetDOMTreeResponse struct {
@@ -1706,6 +1833,137 @@ func (x *ListNavigatorsResponse) GetDefault() string {
 	return ""
 }
 
+// Caller-defined, independently executed observation on the final page.
+type NavigationPostcondition struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Selector string                 `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
+	// exists, text_equals, text_contains, count_equals (or BAS assertion enum spelling).
+	Mode          string `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
+	Expected      string `protobuf:"bytes,3,opt,name=expected,proto3" json:"expected,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NavigationPostcondition) Reset() {
+	*x = NavigationPostcondition{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NavigationPostcondition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NavigationPostcondition) ProtoMessage() {}
+
+func (x *NavigationPostcondition) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NavigationPostcondition.ProtoReflect.Descriptor instead.
+func (*NavigationPostcondition) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *NavigationPostcondition) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
+func (x *NavigationPostcondition) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *NavigationPostcondition) GetExpected() string {
+	if x != nil {
+		return x.Expected
+	}
+	return ""
+}
+
+type NavigationExtraction struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Name     string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Selector string                 `protobuf:"bytes,2,opt,name=selector,proto3" json:"selector,omitempty"`
+	// Empty reads text; otherwise reads this DOM attribute.
+	Attribute     string `protobuf:"bytes,3,opt,name=attribute,proto3" json:"attribute,omitempty"`
+	Limit         int32  `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NavigationExtraction) Reset() {
+	*x = NavigationExtraction{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NavigationExtraction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NavigationExtraction) ProtoMessage() {}
+
+func (x *NavigationExtraction) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NavigationExtraction.ProtoReflect.Descriptor instead.
+func (*NavigationExtraction) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *NavigationExtraction) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *NavigationExtraction) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
+func (x *NavigationExtraction) GetAttribute() string {
+	if x != nil {
+		return x.Attribute
+	}
+	return ""
+}
+
+func (x *NavigationExtraction) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
 type StartNavigationRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Existing browser session id to navigate.
@@ -1723,14 +1981,18 @@ type StartNavigationRequest struct {
 	NavigatorType string `protobuf:"bytes,6,opt,name=navigator_type,json=navigatorType,proto3" json:"navigator_type,omitempty"`
 	// Optional client source override; defaults to "api". Mirrors the
 	// X-Client-Source header.
-	ClientSource  string `protobuf:"bytes,7,opt,name=client_source,json=clientSource,proto3" json:"client_source,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ClientSource string `protobuf:"bytes,7,opt,name=client_source,json=clientSource,proto3" json:"client_source,omitempty"`
+	// explicit (default) or read_only. Enforced before every navigator action.
+	EffectPolicy   string                     `protobuf:"bytes,8,opt,name=effect_policy,json=effectPolicy,proto3" json:"effect_policy,omitempty"`
+	Postconditions []*NavigationPostcondition `protobuf:"bytes,9,rep,name=postconditions,proto3" json:"postconditions,omitempty"`
+	Extraction     []*NavigationExtraction    `protobuf:"bytes,10,rep,name=extraction,proto3" json:"extraction,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *StartNavigationRequest) Reset() {
 	*x = StartNavigationRequest{}
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[25]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1742,7 +2004,7 @@ func (x *StartNavigationRequest) String() string {
 func (*StartNavigationRequest) ProtoMessage() {}
 
 func (x *StartNavigationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[25]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1755,7 +2017,7 @@ func (x *StartNavigationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartNavigationRequest.ProtoReflect.Descriptor instead.
 func (*StartNavigationRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{25}
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *StartNavigationRequest) GetSessionId() string {
@@ -1807,6 +2069,27 @@ func (x *StartNavigationRequest) GetClientSource() string {
 	return ""
 }
 
+func (x *StartNavigationRequest) GetEffectPolicy() string {
+	if x != nil {
+		return x.EffectPolicy
+	}
+	return ""
+}
+
+func (x *StartNavigationRequest) GetPostconditions() []*NavigationPostcondition {
+	if x != nil {
+		return x.Postconditions
+	}
+	return nil
+}
+
+func (x *StartNavigationRequest) GetExtraction() []*NavigationExtraction {
+	if x != nil {
+		return x.Extraction
+	}
+	return nil
+}
+
 type StartNavigationResponse struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	NavigationId string                 `protobuf:"bytes,1,opt,name=navigation_id,json=navigationId,proto3" json:"navigation_id,omitempty"`
@@ -1821,7 +2104,7 @@ type StartNavigationResponse struct {
 
 func (x *StartNavigationResponse) Reset() {
 	*x = StartNavigationResponse{}
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[26]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1833,7 +2116,7 @@ func (x *StartNavigationResponse) String() string {
 func (*StartNavigationResponse) ProtoMessage() {}
 
 func (x *StartNavigationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[26]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1846,7 +2129,7 @@ func (x *StartNavigationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartNavigationResponse.ProtoReflect.Descriptor instead.
 func (*StartNavigationResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{26}
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *StartNavigationResponse) GetNavigationId() string {
@@ -1885,15 +2168,21 @@ func (x *StartNavigationResponse) GetNavigatorType() string {
 }
 
 type GetNavigationStatusRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	NavigationId  string                 `protobuf:"bytes,1,opt,name=navigation_id,json=navigationId,proto3" json:"navigation_id,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	NavigationId string                 `protobuf:"bytes,1,opt,name=navigation_id,json=navigationId,proto3" json:"navigation_id,omitempty"`
+	// wait_millis makes the call a server-side wait: 0 returns the current
+	// state immediately; otherwise the server blocks up to this long (capped
+	// at 300000) until the navigation reaches a terminal state (completed |
+	// failed | aborted | max_steps_reached | loop_detected | awaiting_human).
+	// Waiting is a server primitive, never a client poll loop.
+	WaitMillis    int64 `protobuf:"varint,2,opt,name=wait_millis,json=waitMillis,proto3" json:"wait_millis,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetNavigationStatusRequest) Reset() {
 	*x = GetNavigationStatusRequest{}
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[27]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1905,7 +2194,7 @@ func (x *GetNavigationStatusRequest) String() string {
 func (*GetNavigationStatusRequest) ProtoMessage() {}
 
 func (x *GetNavigationStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[27]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1918,7 +2207,7 @@ func (x *GetNavigationStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNavigationStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetNavigationStatusRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{27}
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetNavigationStatusRequest) GetNavigationId() string {
@@ -1926,6 +2215,131 @@ func (x *GetNavigationStatusRequest) GetNavigationId() string {
 		return x.NavigationId
 	}
 	return ""
+}
+
+func (x *GetNavigationStatusRequest) GetWaitMillis() int64 {
+	if x != nil {
+		return x.WaitMillis
+	}
+	return 0
+}
+
+// NavigationStep is one recorded navigator action. The tracker keeps a
+// bounded history (200 most recent) so a finished navigation can be turned
+// into a saved workflow.
+type NavigationStep struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 1-based step number as reported by the navigator.
+	Index int32 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
+	// Normalised action type: navigate | click | type | scroll | keypress |
+	// screenshot | find | read | evaluate | ...
+	ActionType string `protobuf:"bytes,2,opt,name=action_type,json=actionType,proto3" json:"action_type,omitempty"`
+	// CSS selector, element ref, or coordinate the action targeted.
+	Selector string `protobuf:"bytes,3,opt,name=selector,proto3" json:"selector,omitempty"`
+	// Text typed, key pressed, or other action payload.
+	Value string `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
+	// URL navigated to, or the page URL at the time of the action when known.
+	Url string `protobuf:"bytes,5,opt,name=url,proto3" json:"url,omitempty"`
+	// Navigator reasoning / human-readable description of the step.
+	Description   string                 `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
+	Success       bool                   `protobuf:"varint,7,opt,name=success,proto3" json:"success,omitempty"`
+	Error         string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	At            *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=at,proto3" json:"at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NavigationStep) Reset() {
+	*x = NavigationStep{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NavigationStep) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NavigationStep) ProtoMessage() {}
+
+func (x *NavigationStep) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NavigationStep.ProtoReflect.Descriptor instead.
+func (*NavigationStep) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *NavigationStep) GetIndex() int32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+func (x *NavigationStep) GetActionType() string {
+	if x != nil {
+		return x.ActionType
+	}
+	return ""
+}
+
+func (x *NavigationStep) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
+func (x *NavigationStep) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *NavigationStep) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *NavigationStep) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *NavigationStep) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *NavigationStep) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *NavigationStep) GetAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.At
+	}
+	return nil
 }
 
 type GetNavigationStatusResponse struct {
@@ -1940,13 +2354,22 @@ type GetNavigationStatusResponse struct {
 	TotalTokens   int32                  `protobuf:"varint,5,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
 	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	NavigatorType string                 `protobuf:"bytes,7,opt,name=navigator_type,json=navigatorType,proto3" json:"navigator_type,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// terminal is true when status is one of completed | failed | aborted |
+	// max_steps_reached | loop_detected | awaiting_human.
+	Terminal bool `protobuf:"varint,8,opt,name=terminal,proto3" json:"terminal,omitempty"`
+	// steps is the bounded action history recorded by the tracker.
+	Steps           []*NavigationStep `protobuf:"bytes,9,rep,name=steps,proto3" json:"steps,omitempty"`
+	VerifiedSuccess bool              `protobuf:"varint,10,opt,name=verified_success,json=verifiedSuccess,proto3" json:"verified_success,omitempty"`
+	// Bounded named arrays extracted from the final page without replay.
+	ExtractedData     *structpb.Struct `protobuf:"bytes,11,opt,name=extracted_data,json=extractedData,proto3" json:"extracted_data,omitempty"`
+	VerificationError string           `protobuf:"bytes,12,opt,name=verification_error,json=verificationError,proto3" json:"verification_error,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GetNavigationStatusResponse) Reset() {
 	*x = GetNavigationStatusResponse{}
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[28]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1958,7 +2381,7 @@ func (x *GetNavigationStatusResponse) String() string {
 func (*GetNavigationStatusResponse) ProtoMessage() {}
 
 func (x *GetNavigationStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[28]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1971,7 +2394,7 @@ func (x *GetNavigationStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNavigationStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetNavigationStatusResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{28}
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetNavigationStatusResponse) GetNavigationId() string {
@@ -2023,6 +2446,41 @@ func (x *GetNavigationStatusResponse) GetNavigatorType() string {
 	return ""
 }
 
+func (x *GetNavigationStatusResponse) GetTerminal() bool {
+	if x != nil {
+		return x.Terminal
+	}
+	return false
+}
+
+func (x *GetNavigationStatusResponse) GetSteps() []*NavigationStep {
+	if x != nil {
+		return x.Steps
+	}
+	return nil
+}
+
+func (x *GetNavigationStatusResponse) GetVerifiedSuccess() bool {
+	if x != nil {
+		return x.VerifiedSuccess
+	}
+	return false
+}
+
+func (x *GetNavigationStatusResponse) GetExtractedData() *structpb.Struct {
+	if x != nil {
+		return x.ExtractedData
+	}
+	return nil
+}
+
+func (x *GetNavigationStatusResponse) GetVerificationError() string {
+	if x != nil {
+		return x.VerificationError
+	}
+	return ""
+}
+
 type AbortNavigationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NavigationId  string                 `protobuf:"bytes,1,opt,name=navigation_id,json=navigationId,proto3" json:"navigation_id,omitempty"`
@@ -2032,7 +2490,7 @@ type AbortNavigationRequest struct {
 
 func (x *AbortNavigationRequest) Reset() {
 	*x = AbortNavigationRequest{}
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[29]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2044,7 +2502,7 @@ func (x *AbortNavigationRequest) String() string {
 func (*AbortNavigationRequest) ProtoMessage() {}
 
 func (x *AbortNavigationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[29]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2057,7 +2515,7 @@ func (x *AbortNavigationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AbortNavigationRequest.ProtoReflect.Descriptor instead.
 func (*AbortNavigationRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{29}
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *AbortNavigationRequest) GetNavigationId() string {
@@ -2078,7 +2536,7 @@ type AbortNavigationResponse struct {
 
 func (x *AbortNavigationResponse) Reset() {
 	*x = AbortNavigationResponse{}
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[30]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2090,7 +2548,7 @@ func (x *AbortNavigationResponse) String() string {
 func (*AbortNavigationResponse) ProtoMessage() {}
 
 func (x *AbortNavigationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[30]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2103,7 +2561,7 @@ func (x *AbortNavigationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AbortNavigationResponse.ProtoReflect.Descriptor instead.
 func (*AbortNavigationResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{30}
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *AbortNavigationResponse) GetNavigationId() string {
@@ -2136,7 +2594,7 @@ type ResumeNavigationRequest struct {
 
 func (x *ResumeNavigationRequest) Reset() {
 	*x = ResumeNavigationRequest{}
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[31]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2148,7 +2606,7 @@ func (x *ResumeNavigationRequest) String() string {
 func (*ResumeNavigationRequest) ProtoMessage() {}
 
 func (x *ResumeNavigationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[31]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2161,7 +2619,7 @@ func (x *ResumeNavigationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeNavigationRequest.ProtoReflect.Descriptor instead.
 func (*ResumeNavigationRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{31}
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ResumeNavigationRequest) GetNavigationId() string {
@@ -2182,7 +2640,7 @@ type ResumeNavigationResponse struct {
 
 func (x *ResumeNavigationResponse) Reset() {
 	*x = ResumeNavigationResponse{}
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[32]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2194,7 +2652,7 @@ func (x *ResumeNavigationResponse) String() string {
 func (*ResumeNavigationResponse) ProtoMessage() {}
 
 func (x *ResumeNavigationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[32]
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2207,7 +2665,7 @@ func (x *ResumeNavigationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeNavigationResponse.ProtoReflect.Descriptor instead.
 func (*ResumeNavigationResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{32}
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ResumeNavigationResponse) GetNavigationId() string {
@@ -2306,10 +2764,15 @@ const file_browser_automation_studio_v1_ai_ai_proto_rawDesc = "" +
 	"\n" +
 	"candidates\x18\x02 \x03(\v26.browser_automation_studio.v1.ai.ElementHierarchyEntryR\n" +
 	"candidates\x12%\n" +
-	"\x0eselected_index\x18\x03 \x01(\x05R\rselectedIndex\"\x80\x01\n" +
+	"\x0eselected_index\x18\x03 \x01(\x05R\rselectedIndex\"\x8f\x02\n" +
 	"\x1cTakePreviewScreenshotRequest\x12\x19\n" +
 	"\x03url\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\x12E\n" +
-	"\bviewport\x18\x02 \x01(\v2).browser_automation_studio.v1.ai.ViewportR\bviewport\"\xaa\x03\n" +
+	"\bviewport\x18\x02 \x01(\v2).browser_automation_studio.v1.ai.ViewportR\bviewport\x12\x19\n" +
+	"\bwait_for\x18\x03 \x01(\tR\awaitFor\x12I\n" +
+	"\n" +
+	"wait_until\x18\x04 \x01(\x0e2*.browser_automation_studio.v1.ai.WaitUntilR\twaitUntil\x12'\n" +
+	"\tsettle_ms\x18\x05 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x98u(\x00R\bsettleMs\"\xaa\x03\n" +
 	"\x1dTakePreviewScreenshotResponse\x12%\n" +
 	"\x0escreenshot_png\x18\x01 \x01(\fR\rscreenshotPng\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12N\n" +
@@ -2356,9 +2819,17 @@ const file_browser_automation_studio_v1_ai_ai_proto_rawDesc = "" +
 	"screenshot\x18\x03 \x01(\tR\n" +
 	"screenshot\"k\n" +
 	"\x19AIAnalyzeElementsResponse\x12N\n" +
-	"\vsuggestions\x18\x01 \x03(\v2,.browser_automation_studio.v1.ai.ElementInfoR\vsuggestions\".\n" +
+	"\vsuggestions\x18\x01 \x03(\v2,.browser_automation_studio.v1.ai.ElementInfoR\vsuggestions\"\x82\x02\n" +
 	"\x11GetDOMTreeRequest\x12\x19\n" +
-	"\x03url\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\"A\n" +
+	"\x03url\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\x12\x19\n" +
+	"\bwait_for\x18\x02 \x01(\tR\awaitFor\x12I\n" +
+	"\n" +
+	"wait_until\x18\x03 \x01(\x0e2*.browser_automation_studio.v1.ai.WaitUntilR\twaitUntil\x12'\n" +
+	"\tsettle_ms\x18\x04 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x98u(\x00R\bsettleMs\x12\x1a\n" +
+	"\bcomputed\x18\x05 \x01(\bR\bcomputed\x12'\n" +
+	"\tmax_nodes\x18\x06 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xa0\x1f(\x01R\bmaxNodes\"A\n" +
 	"\x12GetDOMTreeResponse\x12+\n" +
 	"\x04tree\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x04tree\"\x94\x01\n" +
 	"\x10CreditPolicyInfo\x12)\n" +
@@ -2378,7 +2849,16 @@ const file_browser_automation_studio_v1_ai_ai_proto_rawDesc = "" +
 	"\n" +
 	"navigators\x18\x01 \x03(\v2..browser_automation_studio.v1.ai.NavigatorInfoR\n" +
 	"navigators\x12\x18\n" +
-	"\adefault\x18\x02 \x01(\tR\adefault\"\x82\x02\n" +
+	"\adefault\x18\x02 \x01(\tR\adefault\"e\n" +
+	"\x17NavigationPostcondition\x12\x1a\n" +
+	"\bselector\x18\x01 \x01(\tR\bselector\x12\x12\n" +
+	"\x04mode\x18\x02 \x01(\tR\x04mode\x12\x1a\n" +
+	"\bexpected\x18\x03 \x01(\tR\bexpected\"z\n" +
+	"\x14NavigationExtraction\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
+	"\bselector\x18\x02 \x01(\tR\bselector\x12\x1c\n" +
+	"\tattribute\x18\x03 \x01(\tR\tattribute\x12\x14\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\"\xe0\x03\n" +
 	"\x16StartNavigationRequest\x12&\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12\x1f\n" +
@@ -2387,15 +2867,34 @@ const file_browser_automation_studio_v1_ai_ai_proto_rawDesc = "" +
 	"\tmax_steps\x18\x04 \x01(\x05R\bmaxSteps\x12\x17\n" +
 	"\aapi_key\x18\x05 \x01(\tR\x06apiKey\x12%\n" +
 	"\x0enavigator_type\x18\x06 \x01(\tR\rnavigatorType\x12#\n" +
-	"\rclient_source\x18\a \x01(\tR\fclientSource\"\xb0\x01\n" +
+	"\rclient_source\x18\a \x01(\tR\fclientSource\x12#\n" +
+	"\reffect_policy\x18\b \x01(\tR\feffectPolicy\x12`\n" +
+	"\x0epostconditions\x18\t \x03(\v28.browser_automation_studio.v1.ai.NavigationPostconditionR\x0epostconditions\x12U\n" +
+	"\n" +
+	"extraction\x18\n" +
+	" \x03(\v25.browser_automation_studio.v1.ai.NavigationExtractionR\n" +
+	"extraction\"\xb0\x01\n" +
 	"\x17StartNavigationResponse\x12#\n" +
 	"\rnavigation_id\x18\x01 \x01(\tR\fnavigationId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x14\n" +
 	"\x05model\x18\x03 \x01(\tR\x05model\x12\x1b\n" +
 	"\tmax_steps\x18\x04 \x01(\x05R\bmaxSteps\x12%\n" +
-	"\x0enavigator_type\x18\x05 \x01(\tR\rnavigatorType\"J\n" +
+	"\x0enavigator_type\x18\x05 \x01(\tR\rnavigatorType\"k\n" +
 	"\x1aGetNavigationStatusRequest\x12,\n" +
-	"\rnavigation_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fnavigationId\"\x9d\x02\n" +
+	"\rnavigation_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fnavigationId\x12\x1f\n" +
+	"\vwait_millis\x18\x02 \x01(\x03R\n" +
+	"waitMillis\"\x89\x02\n" +
+	"\x0eNavigationStep\x12\x14\n" +
+	"\x05index\x18\x01 \x01(\x05R\x05index\x12\x1f\n" +
+	"\vaction_type\x18\x02 \x01(\tR\n" +
+	"actionType\x12\x1a\n" +
+	"\bselector\x18\x03 \x01(\tR\bselector\x12\x14\n" +
+	"\x05value\x18\x04 \x01(\tR\x05value\x12\x10\n" +
+	"\x03url\x18\x05 \x01(\tR\x03url\x12 \n" +
+	"\vdescription\x18\x06 \x01(\tR\vdescription\x12\x18\n" +
+	"\asuccess\x18\a \x01(\bR\asuccess\x12\x14\n" +
+	"\x05error\x18\b \x01(\tR\x05error\x12*\n" +
+	"\x02at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x02at\"\x9a\x04\n" +
 	"\x1bGetNavigationStatusResponse\x12#\n" +
 	"\rnavigation_id\x18\x01 \x01(\tR\fnavigationId\x12\x1d\n" +
 	"\n" +
@@ -2406,7 +2905,13 @@ const file_browser_automation_studio_v1_ai_ai_proto_rawDesc = "" +
 	"\ftotal_tokens\x18\x05 \x01(\x05R\vtotalTokens\x129\n" +
 	"\n" +
 	"started_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12%\n" +
-	"\x0enavigator_type\x18\a \x01(\tR\rnavigatorType\"F\n" +
+	"\x0enavigator_type\x18\a \x01(\tR\rnavigatorType\x12\x1a\n" +
+	"\bterminal\x18\b \x01(\bR\bterminal\x12E\n" +
+	"\x05steps\x18\t \x03(\v2/.browser_automation_studio.v1.ai.NavigationStepR\x05steps\x12)\n" +
+	"\x10verified_success\x18\n" +
+	" \x01(\bR\x0fverifiedSuccess\x12>\n" +
+	"\x0eextracted_data\x18\v \x01(\v2\x17.google.protobuf.StructR\rextractedData\x12-\n" +
+	"\x12verification_error\x18\f \x01(\tR\x11verificationError\"F\n" +
 	"\x16AbortNavigationRequest\x12,\n" +
 	"\rnavigation_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fnavigationId\"p\n" +
 	"\x17AbortNavigationResponse\x12#\n" +
@@ -2418,7 +2923,12 @@ const file_browser_automation_studio_v1_ai_ai_proto_rawDesc = "" +
 	"\x18ResumeNavigationResponse\x12#\n" +
 	"\rnavigation_id\x18\x01 \x01(\tR\fnavigationId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage2\xcf\x06\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage*y\n" +
+	"\tWaitUntil\x12\x1a\n" +
+	"\x16WAIT_UNTIL_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fWAIT_UNTIL_LOAD\x10\x01\x12\x1f\n" +
+	"\x1bWAIT_UNTIL_DOMCONTENTLOADED\x10\x02\x12\x1a\n" +
+	"\x16WAIT_UNTIL_NETWORKIDLE\x10\x032\xcf\x06\n" +
 	"\tAIService\x12\x96\x01\n" +
 	"\x15TakePreviewScreenshot\x12=.browser_automation_studio.v1.ai.TakePreviewScreenshotRequest\x1a>.browser_automation_studio.v1.ai.TakePreviewScreenshotResponse\x12\x81\x01\n" +
 	"\x0eGetLinkPreview\x126.browser_automation_studio.v1.ai.GetLinkPreviewRequest\x1a7.browser_automation_studio.v1.ai.GetLinkPreviewResponse\x12\x84\x01\n" +
@@ -2446,94 +2956,106 @@ func file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_ai_ai_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_ai_ai_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_browser_automation_studio_v1_ai_ai_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_browser_automation_studio_v1_ai_ai_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_browser_automation_studio_v1_ai_ai_proto_goTypes = []any{
-	(*Viewport)(nil),                       // 0: browser_automation_studio.v1.ai.Viewport
-	(*Rectangle)(nil),                      // 1: browser_automation_studio.v1.ai.Rectangle
-	(*SelectorOption)(nil),                 // 2: browser_automation_studio.v1.ai.SelectorOption
-	(*ElementInfo)(nil),                    // 3: browser_automation_studio.v1.ai.ElementInfo
-	(*PageContext)(nil),                    // 4: browser_automation_studio.v1.ai.PageContext
-	(*AISuggestion)(nil),                   // 5: browser_automation_studio.v1.ai.AISuggestion
-	(*ConsoleLog)(nil),                     // 6: browser_automation_studio.v1.ai.ConsoleLog
-	(*ElementHierarchyEntry)(nil),          // 7: browser_automation_studio.v1.ai.ElementHierarchyEntry
-	(*ElementSelectionResult)(nil),         // 8: browser_automation_studio.v1.ai.ElementSelectionResult
-	(*TakePreviewScreenshotRequest)(nil),   // 9: browser_automation_studio.v1.ai.TakePreviewScreenshotRequest
-	(*TakePreviewScreenshotResponse)(nil),  // 10: browser_automation_studio.v1.ai.TakePreviewScreenshotResponse
-	(*GetLinkPreviewRequest)(nil),          // 11: browser_automation_studio.v1.ai.GetLinkPreviewRequest
-	(*GetLinkPreviewResponse)(nil),         // 12: browser_automation_studio.v1.ai.GetLinkPreviewResponse
-	(*AnalyzeElementsRequest)(nil),         // 13: browser_automation_studio.v1.ai.AnalyzeElementsRequest
-	(*AnalyzeElementsResponse)(nil),        // 14: browser_automation_studio.v1.ai.AnalyzeElementsResponse
-	(*GetElementAtCoordinateRequest)(nil),  // 15: browser_automation_studio.v1.ai.GetElementAtCoordinateRequest
-	(*GetElementAtCoordinateResponse)(nil), // 16: browser_automation_studio.v1.ai.GetElementAtCoordinateResponse
-	(*AIAnalyzeElementsRequest)(nil),       // 17: browser_automation_studio.v1.ai.AIAnalyzeElementsRequest
-	(*AIAnalyzeElementsResponse)(nil),      // 18: browser_automation_studio.v1.ai.AIAnalyzeElementsResponse
-	(*GetDOMTreeRequest)(nil),              // 19: browser_automation_studio.v1.ai.GetDOMTreeRequest
-	(*GetDOMTreeResponse)(nil),             // 20: browser_automation_studio.v1.ai.GetDOMTreeResponse
-	(*CreditPolicyInfo)(nil),               // 21: browser_automation_studio.v1.ai.CreditPolicyInfo
-	(*NavigatorInfo)(nil),                  // 22: browser_automation_studio.v1.ai.NavigatorInfo
-	(*ListNavigatorsRequest)(nil),          // 23: browser_automation_studio.v1.ai.ListNavigatorsRequest
-	(*ListNavigatorsResponse)(nil),         // 24: browser_automation_studio.v1.ai.ListNavigatorsResponse
-	(*StartNavigationRequest)(nil),         // 25: browser_automation_studio.v1.ai.StartNavigationRequest
-	(*StartNavigationResponse)(nil),        // 26: browser_automation_studio.v1.ai.StartNavigationResponse
-	(*GetNavigationStatusRequest)(nil),     // 27: browser_automation_studio.v1.ai.GetNavigationStatusRequest
-	(*GetNavigationStatusResponse)(nil),    // 28: browser_automation_studio.v1.ai.GetNavigationStatusResponse
-	(*AbortNavigationRequest)(nil),         // 29: browser_automation_studio.v1.ai.AbortNavigationRequest
-	(*AbortNavigationResponse)(nil),        // 30: browser_automation_studio.v1.ai.AbortNavigationResponse
-	(*ResumeNavigationRequest)(nil),        // 31: browser_automation_studio.v1.ai.ResumeNavigationRequest
-	(*ResumeNavigationResponse)(nil),       // 32: browser_automation_studio.v1.ai.ResumeNavigationResponse
-	nil,                                    // 33: browser_automation_studio.v1.ai.ElementInfo.AttributesEntry
-	(*timestamppb.Timestamp)(nil),          // 34: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),                // 35: google.protobuf.Struct
+	(WaitUntil)(0),                         // 0: browser_automation_studio.v1.ai.WaitUntil
+	(*Viewport)(nil),                       // 1: browser_automation_studio.v1.ai.Viewport
+	(*Rectangle)(nil),                      // 2: browser_automation_studio.v1.ai.Rectangle
+	(*SelectorOption)(nil),                 // 3: browser_automation_studio.v1.ai.SelectorOption
+	(*ElementInfo)(nil),                    // 4: browser_automation_studio.v1.ai.ElementInfo
+	(*PageContext)(nil),                    // 5: browser_automation_studio.v1.ai.PageContext
+	(*AISuggestion)(nil),                   // 6: browser_automation_studio.v1.ai.AISuggestion
+	(*ConsoleLog)(nil),                     // 7: browser_automation_studio.v1.ai.ConsoleLog
+	(*ElementHierarchyEntry)(nil),          // 8: browser_automation_studio.v1.ai.ElementHierarchyEntry
+	(*ElementSelectionResult)(nil),         // 9: browser_automation_studio.v1.ai.ElementSelectionResult
+	(*TakePreviewScreenshotRequest)(nil),   // 10: browser_automation_studio.v1.ai.TakePreviewScreenshotRequest
+	(*TakePreviewScreenshotResponse)(nil),  // 11: browser_automation_studio.v1.ai.TakePreviewScreenshotResponse
+	(*GetLinkPreviewRequest)(nil),          // 12: browser_automation_studio.v1.ai.GetLinkPreviewRequest
+	(*GetLinkPreviewResponse)(nil),         // 13: browser_automation_studio.v1.ai.GetLinkPreviewResponse
+	(*AnalyzeElementsRequest)(nil),         // 14: browser_automation_studio.v1.ai.AnalyzeElementsRequest
+	(*AnalyzeElementsResponse)(nil),        // 15: browser_automation_studio.v1.ai.AnalyzeElementsResponse
+	(*GetElementAtCoordinateRequest)(nil),  // 16: browser_automation_studio.v1.ai.GetElementAtCoordinateRequest
+	(*GetElementAtCoordinateResponse)(nil), // 17: browser_automation_studio.v1.ai.GetElementAtCoordinateResponse
+	(*AIAnalyzeElementsRequest)(nil),       // 18: browser_automation_studio.v1.ai.AIAnalyzeElementsRequest
+	(*AIAnalyzeElementsResponse)(nil),      // 19: browser_automation_studio.v1.ai.AIAnalyzeElementsResponse
+	(*GetDOMTreeRequest)(nil),              // 20: browser_automation_studio.v1.ai.GetDOMTreeRequest
+	(*GetDOMTreeResponse)(nil),             // 21: browser_automation_studio.v1.ai.GetDOMTreeResponse
+	(*CreditPolicyInfo)(nil),               // 22: browser_automation_studio.v1.ai.CreditPolicyInfo
+	(*NavigatorInfo)(nil),                  // 23: browser_automation_studio.v1.ai.NavigatorInfo
+	(*ListNavigatorsRequest)(nil),          // 24: browser_automation_studio.v1.ai.ListNavigatorsRequest
+	(*ListNavigatorsResponse)(nil),         // 25: browser_automation_studio.v1.ai.ListNavigatorsResponse
+	(*NavigationPostcondition)(nil),        // 26: browser_automation_studio.v1.ai.NavigationPostcondition
+	(*NavigationExtraction)(nil),           // 27: browser_automation_studio.v1.ai.NavigationExtraction
+	(*StartNavigationRequest)(nil),         // 28: browser_automation_studio.v1.ai.StartNavigationRequest
+	(*StartNavigationResponse)(nil),        // 29: browser_automation_studio.v1.ai.StartNavigationResponse
+	(*GetNavigationStatusRequest)(nil),     // 30: browser_automation_studio.v1.ai.GetNavigationStatusRequest
+	(*NavigationStep)(nil),                 // 31: browser_automation_studio.v1.ai.NavigationStep
+	(*GetNavigationStatusResponse)(nil),    // 32: browser_automation_studio.v1.ai.GetNavigationStatusResponse
+	(*AbortNavigationRequest)(nil),         // 33: browser_automation_studio.v1.ai.AbortNavigationRequest
+	(*AbortNavigationResponse)(nil),        // 34: browser_automation_studio.v1.ai.AbortNavigationResponse
+	(*ResumeNavigationRequest)(nil),        // 35: browser_automation_studio.v1.ai.ResumeNavigationRequest
+	(*ResumeNavigationResponse)(nil),       // 36: browser_automation_studio.v1.ai.ResumeNavigationResponse
+	nil,                                    // 37: browser_automation_studio.v1.ai.ElementInfo.AttributesEntry
+	(*timestamppb.Timestamp)(nil),          // 38: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),                // 39: google.protobuf.Struct
 }
 var file_browser_automation_studio_v1_ai_ai_proto_depIdxs = []int32{
-	2,  // 0: browser_automation_studio.v1.ai.ElementInfo.selectors:type_name -> browser_automation_studio.v1.ai.SelectorOption
-	1,  // 1: browser_automation_studio.v1.ai.ElementInfo.bounding_box:type_name -> browser_automation_studio.v1.ai.Rectangle
-	33, // 2: browser_automation_studio.v1.ai.ElementInfo.attributes:type_name -> browser_automation_studio.v1.ai.ElementInfo.AttributesEntry
-	34, // 3: browser_automation_studio.v1.ai.ConsoleLog.timestamp:type_name -> google.protobuf.Timestamp
-	3,  // 4: browser_automation_studio.v1.ai.ElementHierarchyEntry.element:type_name -> browser_automation_studio.v1.ai.ElementInfo
-	3,  // 5: browser_automation_studio.v1.ai.ElementSelectionResult.element:type_name -> browser_automation_studio.v1.ai.ElementInfo
-	7,  // 6: browser_automation_studio.v1.ai.ElementSelectionResult.candidates:type_name -> browser_automation_studio.v1.ai.ElementHierarchyEntry
-	0,  // 7: browser_automation_studio.v1.ai.TakePreviewScreenshotRequest.viewport:type_name -> browser_automation_studio.v1.ai.Viewport
-	6,  // 8: browser_automation_studio.v1.ai.TakePreviewScreenshotResponse.console_logs:type_name -> browser_automation_studio.v1.ai.ConsoleLog
-	34, // 9: browser_automation_studio.v1.ai.TakePreviewScreenshotResponse.captured_at:type_name -> google.protobuf.Timestamp
-	35, // 10: browser_automation_studio.v1.ai.TakePreviewScreenshotResponse.events:type_name -> google.protobuf.Struct
-	3,  // 11: browser_automation_studio.v1.ai.AnalyzeElementsResponse.elements:type_name -> browser_automation_studio.v1.ai.ElementInfo
-	5,  // 12: browser_automation_studio.v1.ai.AnalyzeElementsResponse.ai_suggestions:type_name -> browser_automation_studio.v1.ai.AISuggestion
-	4,  // 13: browser_automation_studio.v1.ai.AnalyzeElementsResponse.page_context:type_name -> browser_automation_studio.v1.ai.PageContext
-	34, // 14: browser_automation_studio.v1.ai.AnalyzeElementsResponse.captured_at:type_name -> google.protobuf.Timestamp
-	8,  // 15: browser_automation_studio.v1.ai.GetElementAtCoordinateResponse.selection:type_name -> browser_automation_studio.v1.ai.ElementSelectionResult
-	3,  // 16: browser_automation_studio.v1.ai.AIAnalyzeElementsResponse.suggestions:type_name -> browser_automation_studio.v1.ai.ElementInfo
-	35, // 17: browser_automation_studio.v1.ai.GetDOMTreeResponse.tree:type_name -> google.protobuf.Struct
-	21, // 18: browser_automation_studio.v1.ai.NavigatorInfo.credit_policy:type_name -> browser_automation_studio.v1.ai.CreditPolicyInfo
-	22, // 19: browser_automation_studio.v1.ai.ListNavigatorsResponse.navigators:type_name -> browser_automation_studio.v1.ai.NavigatorInfo
-	34, // 20: browser_automation_studio.v1.ai.GetNavigationStatusResponse.started_at:type_name -> google.protobuf.Timestamp
-	9,  // 21: browser_automation_studio.v1.ai.AIService.TakePreviewScreenshot:input_type -> browser_automation_studio.v1.ai.TakePreviewScreenshotRequest
-	11, // 22: browser_automation_studio.v1.ai.AIService.GetLinkPreview:input_type -> browser_automation_studio.v1.ai.GetLinkPreviewRequest
-	13, // 23: browser_automation_studio.v1.ai.AIService.AnalyzeElements:input_type -> browser_automation_studio.v1.ai.AnalyzeElementsRequest
-	15, // 24: browser_automation_studio.v1.ai.AIService.GetElementAtCoordinate:input_type -> browser_automation_studio.v1.ai.GetElementAtCoordinateRequest
-	17, // 25: browser_automation_studio.v1.ai.AIService.AIAnalyzeElements:input_type -> browser_automation_studio.v1.ai.AIAnalyzeElementsRequest
-	19, // 26: browser_automation_studio.v1.ai.AIService.GetDOMTree:input_type -> browser_automation_studio.v1.ai.GetDOMTreeRequest
-	23, // 27: browser_automation_studio.v1.ai.VisionNavigationService.ListNavigators:input_type -> browser_automation_studio.v1.ai.ListNavigatorsRequest
-	25, // 28: browser_automation_studio.v1.ai.VisionNavigationService.StartNavigation:input_type -> browser_automation_studio.v1.ai.StartNavigationRequest
-	27, // 29: browser_automation_studio.v1.ai.VisionNavigationService.GetNavigationStatus:input_type -> browser_automation_studio.v1.ai.GetNavigationStatusRequest
-	29, // 30: browser_automation_studio.v1.ai.VisionNavigationService.AbortNavigation:input_type -> browser_automation_studio.v1.ai.AbortNavigationRequest
-	31, // 31: browser_automation_studio.v1.ai.VisionNavigationService.ResumeNavigation:input_type -> browser_automation_studio.v1.ai.ResumeNavigationRequest
-	10, // 32: browser_automation_studio.v1.ai.AIService.TakePreviewScreenshot:output_type -> browser_automation_studio.v1.ai.TakePreviewScreenshotResponse
-	12, // 33: browser_automation_studio.v1.ai.AIService.GetLinkPreview:output_type -> browser_automation_studio.v1.ai.GetLinkPreviewResponse
-	14, // 34: browser_automation_studio.v1.ai.AIService.AnalyzeElements:output_type -> browser_automation_studio.v1.ai.AnalyzeElementsResponse
-	16, // 35: browser_automation_studio.v1.ai.AIService.GetElementAtCoordinate:output_type -> browser_automation_studio.v1.ai.GetElementAtCoordinateResponse
-	18, // 36: browser_automation_studio.v1.ai.AIService.AIAnalyzeElements:output_type -> browser_automation_studio.v1.ai.AIAnalyzeElementsResponse
-	20, // 37: browser_automation_studio.v1.ai.AIService.GetDOMTree:output_type -> browser_automation_studio.v1.ai.GetDOMTreeResponse
-	24, // 38: browser_automation_studio.v1.ai.VisionNavigationService.ListNavigators:output_type -> browser_automation_studio.v1.ai.ListNavigatorsResponse
-	26, // 39: browser_automation_studio.v1.ai.VisionNavigationService.StartNavigation:output_type -> browser_automation_studio.v1.ai.StartNavigationResponse
-	28, // 40: browser_automation_studio.v1.ai.VisionNavigationService.GetNavigationStatus:output_type -> browser_automation_studio.v1.ai.GetNavigationStatusResponse
-	30, // 41: browser_automation_studio.v1.ai.VisionNavigationService.AbortNavigation:output_type -> browser_automation_studio.v1.ai.AbortNavigationResponse
-	32, // 42: browser_automation_studio.v1.ai.VisionNavigationService.ResumeNavigation:output_type -> browser_automation_studio.v1.ai.ResumeNavigationResponse
-	32, // [32:43] is the sub-list for method output_type
-	21, // [21:32] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	3,  // 0: browser_automation_studio.v1.ai.ElementInfo.selectors:type_name -> browser_automation_studio.v1.ai.SelectorOption
+	2,  // 1: browser_automation_studio.v1.ai.ElementInfo.bounding_box:type_name -> browser_automation_studio.v1.ai.Rectangle
+	37, // 2: browser_automation_studio.v1.ai.ElementInfo.attributes:type_name -> browser_automation_studio.v1.ai.ElementInfo.AttributesEntry
+	38, // 3: browser_automation_studio.v1.ai.ConsoleLog.timestamp:type_name -> google.protobuf.Timestamp
+	4,  // 4: browser_automation_studio.v1.ai.ElementHierarchyEntry.element:type_name -> browser_automation_studio.v1.ai.ElementInfo
+	4,  // 5: browser_automation_studio.v1.ai.ElementSelectionResult.element:type_name -> browser_automation_studio.v1.ai.ElementInfo
+	8,  // 6: browser_automation_studio.v1.ai.ElementSelectionResult.candidates:type_name -> browser_automation_studio.v1.ai.ElementHierarchyEntry
+	1,  // 7: browser_automation_studio.v1.ai.TakePreviewScreenshotRequest.viewport:type_name -> browser_automation_studio.v1.ai.Viewport
+	0,  // 8: browser_automation_studio.v1.ai.TakePreviewScreenshotRequest.wait_until:type_name -> browser_automation_studio.v1.ai.WaitUntil
+	7,  // 9: browser_automation_studio.v1.ai.TakePreviewScreenshotResponse.console_logs:type_name -> browser_automation_studio.v1.ai.ConsoleLog
+	38, // 10: browser_automation_studio.v1.ai.TakePreviewScreenshotResponse.captured_at:type_name -> google.protobuf.Timestamp
+	39, // 11: browser_automation_studio.v1.ai.TakePreviewScreenshotResponse.events:type_name -> google.protobuf.Struct
+	4,  // 12: browser_automation_studio.v1.ai.AnalyzeElementsResponse.elements:type_name -> browser_automation_studio.v1.ai.ElementInfo
+	6,  // 13: browser_automation_studio.v1.ai.AnalyzeElementsResponse.ai_suggestions:type_name -> browser_automation_studio.v1.ai.AISuggestion
+	5,  // 14: browser_automation_studio.v1.ai.AnalyzeElementsResponse.page_context:type_name -> browser_automation_studio.v1.ai.PageContext
+	38, // 15: browser_automation_studio.v1.ai.AnalyzeElementsResponse.captured_at:type_name -> google.protobuf.Timestamp
+	9,  // 16: browser_automation_studio.v1.ai.GetElementAtCoordinateResponse.selection:type_name -> browser_automation_studio.v1.ai.ElementSelectionResult
+	4,  // 17: browser_automation_studio.v1.ai.AIAnalyzeElementsResponse.suggestions:type_name -> browser_automation_studio.v1.ai.ElementInfo
+	0,  // 18: browser_automation_studio.v1.ai.GetDOMTreeRequest.wait_until:type_name -> browser_automation_studio.v1.ai.WaitUntil
+	39, // 19: browser_automation_studio.v1.ai.GetDOMTreeResponse.tree:type_name -> google.protobuf.Struct
+	22, // 20: browser_automation_studio.v1.ai.NavigatorInfo.credit_policy:type_name -> browser_automation_studio.v1.ai.CreditPolicyInfo
+	23, // 21: browser_automation_studio.v1.ai.ListNavigatorsResponse.navigators:type_name -> browser_automation_studio.v1.ai.NavigatorInfo
+	26, // 22: browser_automation_studio.v1.ai.StartNavigationRequest.postconditions:type_name -> browser_automation_studio.v1.ai.NavigationPostcondition
+	27, // 23: browser_automation_studio.v1.ai.StartNavigationRequest.extraction:type_name -> browser_automation_studio.v1.ai.NavigationExtraction
+	38, // 24: browser_automation_studio.v1.ai.NavigationStep.at:type_name -> google.protobuf.Timestamp
+	38, // 25: browser_automation_studio.v1.ai.GetNavigationStatusResponse.started_at:type_name -> google.protobuf.Timestamp
+	31, // 26: browser_automation_studio.v1.ai.GetNavigationStatusResponse.steps:type_name -> browser_automation_studio.v1.ai.NavigationStep
+	39, // 27: browser_automation_studio.v1.ai.GetNavigationStatusResponse.extracted_data:type_name -> google.protobuf.Struct
+	10, // 28: browser_automation_studio.v1.ai.AIService.TakePreviewScreenshot:input_type -> browser_automation_studio.v1.ai.TakePreviewScreenshotRequest
+	12, // 29: browser_automation_studio.v1.ai.AIService.GetLinkPreview:input_type -> browser_automation_studio.v1.ai.GetLinkPreviewRequest
+	14, // 30: browser_automation_studio.v1.ai.AIService.AnalyzeElements:input_type -> browser_automation_studio.v1.ai.AnalyzeElementsRequest
+	16, // 31: browser_automation_studio.v1.ai.AIService.GetElementAtCoordinate:input_type -> browser_automation_studio.v1.ai.GetElementAtCoordinateRequest
+	18, // 32: browser_automation_studio.v1.ai.AIService.AIAnalyzeElements:input_type -> browser_automation_studio.v1.ai.AIAnalyzeElementsRequest
+	20, // 33: browser_automation_studio.v1.ai.AIService.GetDOMTree:input_type -> browser_automation_studio.v1.ai.GetDOMTreeRequest
+	24, // 34: browser_automation_studio.v1.ai.VisionNavigationService.ListNavigators:input_type -> browser_automation_studio.v1.ai.ListNavigatorsRequest
+	28, // 35: browser_automation_studio.v1.ai.VisionNavigationService.StartNavigation:input_type -> browser_automation_studio.v1.ai.StartNavigationRequest
+	30, // 36: browser_automation_studio.v1.ai.VisionNavigationService.GetNavigationStatus:input_type -> browser_automation_studio.v1.ai.GetNavigationStatusRequest
+	33, // 37: browser_automation_studio.v1.ai.VisionNavigationService.AbortNavigation:input_type -> browser_automation_studio.v1.ai.AbortNavigationRequest
+	35, // 38: browser_automation_studio.v1.ai.VisionNavigationService.ResumeNavigation:input_type -> browser_automation_studio.v1.ai.ResumeNavigationRequest
+	11, // 39: browser_automation_studio.v1.ai.AIService.TakePreviewScreenshot:output_type -> browser_automation_studio.v1.ai.TakePreviewScreenshotResponse
+	13, // 40: browser_automation_studio.v1.ai.AIService.GetLinkPreview:output_type -> browser_automation_studio.v1.ai.GetLinkPreviewResponse
+	15, // 41: browser_automation_studio.v1.ai.AIService.AnalyzeElements:output_type -> browser_automation_studio.v1.ai.AnalyzeElementsResponse
+	17, // 42: browser_automation_studio.v1.ai.AIService.GetElementAtCoordinate:output_type -> browser_automation_studio.v1.ai.GetElementAtCoordinateResponse
+	19, // 43: browser_automation_studio.v1.ai.AIService.AIAnalyzeElements:output_type -> browser_automation_studio.v1.ai.AIAnalyzeElementsResponse
+	21, // 44: browser_automation_studio.v1.ai.AIService.GetDOMTree:output_type -> browser_automation_studio.v1.ai.GetDOMTreeResponse
+	25, // 45: browser_automation_studio.v1.ai.VisionNavigationService.ListNavigators:output_type -> browser_automation_studio.v1.ai.ListNavigatorsResponse
+	29, // 46: browser_automation_studio.v1.ai.VisionNavigationService.StartNavigation:output_type -> browser_automation_studio.v1.ai.StartNavigationResponse
+	32, // 47: browser_automation_studio.v1.ai.VisionNavigationService.GetNavigationStatus:output_type -> browser_automation_studio.v1.ai.GetNavigationStatusResponse
+	34, // 48: browser_automation_studio.v1.ai.VisionNavigationService.AbortNavigation:output_type -> browser_automation_studio.v1.ai.AbortNavigationResponse
+	36, // 49: browser_automation_studio.v1.ai.VisionNavigationService.ResumeNavigation:output_type -> browser_automation_studio.v1.ai.ResumeNavigationResponse
+	39, // [39:50] is the sub-list for method output_type
+	28, // [28:39] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_ai_ai_proto_init() }
@@ -2547,13 +3069,14 @@ func file_browser_automation_studio_v1_ai_ai_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_ai_ai_proto_rawDesc), len(file_browser_automation_studio_v1_ai_ai_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   34,
+			NumEnums:      1,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   2,
 		},
 		GoTypes:           file_browser_automation_studio_v1_ai_ai_proto_goTypes,
 		DependencyIndexes: file_browser_automation_studio_v1_ai_ai_proto_depIdxs,
+		EnumInfos:         file_browser_automation_studio_v1_ai_ai_proto_enumTypes,
 		MessageInfos:      file_browser_automation_studio_v1_ai_ai_proto_msgTypes,
 	}.Build()
 	File_browser_automation_studio_v1_ai_ai_proto = out.File

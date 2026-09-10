@@ -252,6 +252,8 @@ message UnarchiveResponse {
 
 message DeleteRequest {
   string id = 1;
+  // Explicit operator confirmation. The caller must send "DELETE:<id>".
+  string confirmation = 2;
 }
 
 message DeleteResponse {}

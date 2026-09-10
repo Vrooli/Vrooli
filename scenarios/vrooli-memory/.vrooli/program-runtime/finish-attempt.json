@@ -73,6 +73,12 @@
       "required": true,
       "description": "Snake-case Memory Attempt; deterministic attempt_id filled only if omitted."
     },
+    "attempts": {
+      "type": "array",
+      "required": false,
+      "description": "Optional parent-first attempt tree. Each child names parent_attempt_id and step_name.",
+      "default": []
+    },
     "observations": {
       "type": "array",
       "required": false,

@@ -19,8 +19,19 @@ import { API_ENDPOINTS } from "../../lib/api-endpoints";
 import { buildQueryString } from "../../lib/query-utils";
 import type { BacklogItem, BacklogKind, ItemBlockingInfo } from "../../types";
 import type { BacklogNextAction, BacklogUpdatePatch } from "./types";
+import { ExecutionLimitsSchema } from "@vrooli/proto-types/swarm-manager/v1/domain/backlog_pb";
+import type { ExecutionLimits } from "../../types/backlog";
 
 const MAX_NEXT_ACTION_BATCH_SIZE = 100;
+
+function buildExecutionLimits(limits: ExecutionLimits) {
+  return buildMessage(ExecutionLimitsSchema, {
+    ...limits,
+    maxTokens: BigInt(limits.maxTokens),
+    maxWallSeconds: BigInt(limits.maxWallSeconds),
+    maxChargeMicroUsd: BigInt(limits.maxChargeMicroUsd),
+  });
+}
 
 function stringField(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -56,6 +67,8 @@ export function buildBacklogUpdatePayload(patch: BacklogUpdatePatch): Record<str
   if (patch.acceptanceDeny !== undefined) payload.acceptance_deny = patch.acceptanceDeny;
   if (patch.acceptanceCriteria !== undefined) payload.acceptance_criteria = patch.acceptanceCriteria;
   if (patch.note !== undefined) payload.note = patch.note;
+  if (patch.executionStrategy !== undefined) payload.execution_strategy = patch.executionStrategy;
+  if (patch.executionLimits !== undefined) payload.execution_limits = toProtoJson(ExecutionLimitsSchema, buildExecutionLimits(patch.executionLimits));
   return payload;
 }
 
@@ -127,6 +140,8 @@ export function createCrudMethods(apiClient: IApiClient) {
         // actually supplied criteria; an explicit empty array remains useful
         // when a caller intentionally clears criteria through the update path.
         ...(item.acceptanceCriteria?.length ? { acceptanceCriteria: item.acceptanceCriteria } : {}),
+        ...(item.executionStrategy ? { executionStrategy: item.executionStrategy } : {}),
+        ...(item.executionLimits ? { executionLimits: buildExecutionLimits(item.executionLimits) } : {}),
       });
       const payload = toProtoJson(CreateBacklogItemRequestSchema, message) as Record<string, unknown>;
       if (!item.acceptanceCriteria?.length) delete payload.acceptance_criteria;

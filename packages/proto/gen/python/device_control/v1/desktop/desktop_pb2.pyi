@@ -1,7 +1,7 @@
 import datetime
 
 from common.v1 import surface_pb2 as _surface_pb2
-from device_control.v1.flows import flows_pb2 as _flows_pb2
+from device_control.v1.shared import flow_pb2 as _flow_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -11,6 +11,15 @@ from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class SemanticMatchMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SEMANTIC_MATCH_MODE_EXACT: _ClassVar[SemanticMatchMode]
+    SEMANTIC_MATCH_MODE_NORMALIZED: _ClassVar[SemanticMatchMode]
+    SEMANTIC_MATCH_MODE_FUZZY: _ClassVar[SemanticMatchMode]
+SEMANTIC_MATCH_MODE_EXACT: SemanticMatchMode
+SEMANTIC_MATCH_MODE_NORMALIZED: SemanticMatchMode
+SEMANTIC_MATCH_MODE_FUZZY: SemanticMatchMode
 
 class OwnerDescribeRequest(_message.Message):
     __slots__ = ()
@@ -182,33 +191,65 @@ class AssertTextAction(_message.Message):
     observation_revision: str
     def __init__(self, expected_text: _Optional[str] = ..., element_id: _Optional[str] = ..., observation_revision: _Optional[str] = ...) -> None: ...
 
+class InvokeAction(_message.Message):
+    __slots__ = ("element_id", "observation_revision", "action_name")
+    ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    OBSERVATION_REVISION_FIELD_NUMBER: _ClassVar[int]
+    ACTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    element_id: str
+    observation_revision: str
+    action_name: str
+    def __init__(self, element_id: _Optional[str] = ..., observation_revision: _Optional[str] = ..., action_name: _Optional[str] = ...) -> None: ...
+
 class SemanticElement(_message.Message):
-    __slots__ = ("element_id", "name", "editable", "parent_id", "window_id", "role")
+    __slots__ = ("element_id", "name", "editable", "parent_id", "window_id", "role", "label", "states", "x", "y", "width", "height", "supported_actions", "bounds_known", "state_known", "fingerprint")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     EDITABLE_FIELD_NUMBER: _ClassVar[int]
     PARENT_ID_FIELD_NUMBER: _ClassVar[int]
     WINDOW_ID_FIELD_NUMBER: _ClassVar[int]
     ROLE_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    STATES_FIELD_NUMBER: _ClassVar[int]
+    X_FIELD_NUMBER: _ClassVar[int]
+    Y_FIELD_NUMBER: _ClassVar[int]
+    WIDTH_FIELD_NUMBER: _ClassVar[int]
+    HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTED_ACTIONS_FIELD_NUMBER: _ClassVar[int]
+    BOUNDS_KNOWN_FIELD_NUMBER: _ClassVar[int]
+    STATE_KNOWN_FIELD_NUMBER: _ClassVar[int]
+    FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
     element_id: str
     name: str
     editable: bool
     parent_id: str
     window_id: str
     role: int
-    def __init__(self, element_id: _Optional[str] = ..., name: _Optional[str] = ..., editable: _Optional[bool] = ..., parent_id: _Optional[str] = ..., window_id: _Optional[str] = ..., role: _Optional[int] = ...) -> None: ...
+    label: str
+    states: _containers.RepeatedScalarFieldContainer[str]
+    x: int
+    y: int
+    width: int
+    height: int
+    supported_actions: _containers.RepeatedScalarFieldContainer[str]
+    bounds_known: bool
+    state_known: bool
+    fingerprint: str
+    def __init__(self, element_id: _Optional[str] = ..., name: _Optional[str] = ..., editable: _Optional[bool] = ..., parent_id: _Optional[str] = ..., window_id: _Optional[str] = ..., role: _Optional[int] = ..., label: _Optional[str] = ..., states: _Optional[_Iterable[str]] = ..., x: _Optional[int] = ..., y: _Optional[int] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., supported_actions: _Optional[_Iterable[str]] = ..., bounds_known: _Optional[bool] = ..., state_known: _Optional[bool] = ..., fingerprint: _Optional[str] = ...) -> None: ...
 
 class SemanticObservation(_message.Message):
-    __slots__ = ("revision", "expires_at", "process_id", "elements")
+    __slots__ = ("revision", "expires_at", "process_id", "elements", "refresh_epoch")
     REVISION_FIELD_NUMBER: _ClassVar[int]
     EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
     PROCESS_ID_FIELD_NUMBER: _ClassVar[int]
     ELEMENTS_FIELD_NUMBER: _ClassVar[int]
+    REFRESH_EPOCH_FIELD_NUMBER: _ClassVar[int]
     revision: str
     expires_at: _timestamp_pb2.Timestamp
     process_id: int
     elements: _containers.RepeatedCompositeFieldContainer[SemanticElement]
-    def __init__(self, revision: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., process_id: _Optional[int] = ..., elements: _Optional[_Iterable[_Union[SemanticElement, _Mapping]]] = ...) -> None: ...
+    refresh_epoch: int
+    def __init__(self, revision: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., process_id: _Optional[int] = ..., elements: _Optional[_Iterable[_Union[SemanticElement, _Mapping]]] = ..., refresh_epoch: _Optional[int] = ...) -> None: ...
 
 class WheelAction(_message.Message):
     __slots__ = ("display_id", "x", "y", "horizontal_ticks", "vertical_ticks")
@@ -225,18 +266,20 @@ class WheelAction(_message.Message):
     def __init__(self, display_id: _Optional[str] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., horizontal_ticks: _Optional[int] = ..., vertical_ticks: _Optional[int] = ...) -> None: ...
 
 class Action(_message.Message):
-    __slots__ = ("pointer", "key", "text", "wheel", "assert_text")
+    __slots__ = ("pointer", "key", "text", "wheel", "assert_text", "invoke")
     POINTER_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     WHEEL_FIELD_NUMBER: _ClassVar[int]
     ASSERT_TEXT_FIELD_NUMBER: _ClassVar[int]
+    INVOKE_FIELD_NUMBER: _ClassVar[int]
     pointer: PointerAction
     key: KeyAction
     text: TextAction
     wheel: WheelAction
     assert_text: AssertTextAction
-    def __init__(self, pointer: _Optional[_Union[PointerAction, _Mapping]] = ..., key: _Optional[_Union[KeyAction, _Mapping]] = ..., text: _Optional[_Union[TextAction, _Mapping]] = ..., wheel: _Optional[_Union[WheelAction, _Mapping]] = ..., assert_text: _Optional[_Union[AssertTextAction, _Mapping]] = ...) -> None: ...
+    invoke: InvokeAction
+    def __init__(self, pointer: _Optional[_Union[PointerAction, _Mapping]] = ..., key: _Optional[_Union[KeyAction, _Mapping]] = ..., text: _Optional[_Union[TextAction, _Mapping]] = ..., wheel: _Optional[_Union[WheelAction, _Mapping]] = ..., assert_text: _Optional[_Union[AssertTextAction, _Mapping]] = ..., invoke: _Optional[_Union[InvokeAction, _Mapping]] = ...) -> None: ...
 
 class ActRequest(_message.Message):
     __slots__ = ("lease", "command_id", "geometry_revision", "action")
@@ -339,16 +382,28 @@ class ApplicationsResponse(_message.Message):
     def __init__(self, revision: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., applications: _Optional[_Iterable[_Union[Application, _Mapping]]] = ...) -> None: ...
 
 class SemanticSelector(_message.Message):
-    __slots__ = ("observation_revision", "window_id", "name", "editable_only")
+    __slots__ = ("observation_revision", "window_id", "name", "editable_only", "match_mode", "role", "refresh_epoch", "allow_hidden", "allow_disabled", "allow_offscreen")
     OBSERVATION_REVISION_FIELD_NUMBER: _ClassVar[int]
     WINDOW_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     EDITABLE_ONLY_FIELD_NUMBER: _ClassVar[int]
+    MATCH_MODE_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    REFRESH_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_HIDDEN_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_DISABLED_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_OFFSCREEN_FIELD_NUMBER: _ClassVar[int]
     observation_revision: str
     window_id: str
     name: str
     editable_only: bool
-    def __init__(self, observation_revision: _Optional[str] = ..., window_id: _Optional[str] = ..., name: _Optional[str] = ..., editable_only: _Optional[bool] = ...) -> None: ...
+    match_mode: SemanticMatchMode
+    role: int
+    refresh_epoch: int
+    allow_hidden: bool
+    allow_disabled: bool
+    allow_offscreen: bool
+    def __init__(self, observation_revision: _Optional[str] = ..., window_id: _Optional[str] = ..., name: _Optional[str] = ..., editable_only: _Optional[bool] = ..., match_mode: _Optional[_Union[SemanticMatchMode, str]] = ..., role: _Optional[int] = ..., refresh_epoch: _Optional[int] = ..., allow_hidden: _Optional[bool] = ..., allow_disabled: _Optional[bool] = ..., allow_offscreen: _Optional[bool] = ...) -> None: ...
 
 class ResolveRequest(_message.Message):
     __slots__ = ("lease", "selector")
@@ -451,8 +506,8 @@ class OwnerRunFlowRequest(_message.Message):
     run_id: str
     application_id: str
     application_revision: str
-    flow: _flows_pb2.Flow
-    def __init__(self, session: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., run_id: _Optional[str] = ..., application_id: _Optional[str] = ..., application_revision: _Optional[str] = ..., flow: _Optional[_Union[_flows_pb2.Flow, _Mapping]] = ...) -> None: ...
+    flow: _flow_pb2.Flow
+    def __init__(self, session: _Optional[_Union[_surface_pb2.SessionRef, _Mapping]] = ..., run_id: _Optional[str] = ..., application_id: _Optional[str] = ..., application_revision: _Optional[str] = ..., flow: _Optional[_Union[_flow_pb2.Flow, _Mapping]] = ...) -> None: ...
 
 class OwnerPromoteFlowRequest(_message.Message):
     __slots__ = ("session", "source_session", "source_run_id", "context_key", "id", "expected_version")
@@ -512,11 +567,11 @@ class SavedDesktopFlow(_message.Message):
     id: str
     version: int
     context_key: str
-    flow: _flows_pb2.Flow
+    flow: _flow_pb2.Flow
     source_run_id: str
     source_digest: str
     created_at: str
-    def __init__(self, id: _Optional[str] = ..., version: _Optional[int] = ..., context_key: _Optional[str] = ..., flow: _Optional[_Union[_flows_pb2.Flow, _Mapping]] = ..., source_run_id: _Optional[str] = ..., source_digest: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., version: _Optional[int] = ..., context_key: _Optional[str] = ..., flow: _Optional[_Union[_flow_pb2.Flow, _Mapping]] = ..., source_run_id: _Optional[str] = ..., source_digest: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
 
 class CleanupResponse(_message.Message):
     __slots__ = ("lease", "released", "observed_at")

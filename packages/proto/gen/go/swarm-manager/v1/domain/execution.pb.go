@@ -1486,15 +1486,16 @@ var File_swarm_manager_v1_domain_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
-	"'swarm-manager/v1/domain/execution.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\"\xf0\b\n" +
+	"'swarm-manager/v1/domain/execution.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\"\xfd\b\n" +
 	"\x0fExecutionRecord\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12X\n" +
 	"\fbacklog_kind\x18\x02 \x01(\tB5\xbaH2r0R\x04ideaR\x03fixR\aexecuteR\bresearchR\x05choreR\tspec-syncR\vbacklogKind\x12*\n" +
 	"\fbacklog_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogName\x12\x1c\n" +
 	"\atask_id\x18\x04 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1a\n" +
-	"\x06run_id\x18\x05 \x01(\tH\x01R\x05runId\x88\x01\x01\x12}\n" +
-	"\x06status\x18\x06 \x01(\tBe\xbaHbr`R\apendingR\bstartingR\arunningR\fneeds_reviewR\n" +
-	"validatingR\vneeds_fixupR\tcompletedR\x06failedR\bcanceledR\x06status\x12'\n" +
+	"\x06run_id\x18\x05 \x01(\tH\x01R\x05runId\x88\x01\x01\x12\x89\x01\n" +
+	"\x06status\x18\x06 \x01(\tBq\xbaHnrlR\apendingR\bstartingR\arunningR\fneeds_reviewR\n" +
+	"validatingR\vneeds_fixupR\tcompletedR\x06failedR\n" +
+	"cancellingR\bcanceledR\x06status\x12'\n" +
 	"\x04mode\x18\a \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\x04mode\x12\"\n" +
 	"\n" +
 	"started_at\x18\t \x01(\tH\x02R\tstartedAt\x88\x01\x01\x12$\n" +

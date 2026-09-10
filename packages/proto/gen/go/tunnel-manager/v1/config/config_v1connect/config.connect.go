@@ -72,6 +72,9 @@ const (
 	// ConfigServiceGetAccessStatusProcedure is the fully-qualified name of the ConfigService's
 	// GetAccessStatus RPC.
 	ConfigServiceGetAccessStatusProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/GetAccessStatus"
+	// ConfigServiceGetAuthenticationBindingProcedure is the fully-qualified name of the ConfigService's
+	// GetAuthenticationBinding RPC.
+	ConfigServiceGetAuthenticationBindingProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/GetAuthenticationBinding"
 )
 
 // ConfigServiceClient is a client for the vrooli.tunnel_manager.v1.config.ConfigService service.
@@ -81,9 +84,10 @@ type ConfigServiceClient interface {
 	// It never returns credential values.
 	GetCredentialStatus(context.Context, *connect.Request[config.GetCredentialStatusRequest]) (*connect.Response[config.GetCredentialStatusResponse], error)
 	// VerifyCredentials performs LIVE read-only Cloudflare probes (token verify,
-	// account/tunnel read, apex zone lookup + DNS-records read) and returns a
-	// per-check verdict with remediation. It is the opt-in counterpart to the
-	// presence-only GetCredentialStatus and never returns credential values.
+	// account/tunnel read, apex zone lookup + DNS-records read, Access app read,
+	// and Access organization metadata read) and returns per-check plus
+	// capability-level verdicts with remediation. It is the opt-in counterpart
+	// to the presence-only GetCredentialStatus and never returns credential values.
 	VerifyCredentials(context.Context, *connect.Request[config.VerifyCredentialsRequest]) (*connect.Response[config.VerifyCredentialsResponse], error)
 	// BootstrapCloudflare adopts or creates the named tunnel from one
 	// write-only API token, then stores all derived authority fields. The token
@@ -126,6 +130,10 @@ type ConfigServiceClient interface {
 	// decisions, and the dry-run plan (apps a reconcile would create/remove).
 	// Pure — no mutation, no live Cloudflare calls.
 	GetAccessStatus(context.Context, *connect.Request[config.GetAccessStatusRequest]) (*connect.Response[config.GetAccessStatusResponse], error)
+	// GetAuthenticationBinding resolves non-secret primary Access verifier
+	// metadata for a managed scenario route. It never returns credentials or
+	// browser assertions and performs no Cloudflare writes.
+	GetAuthenticationBinding(context.Context, *connect.Request[config.GetAuthenticationBindingRequest]) (*connect.Response[config.GetAuthenticationBindingResponse], error)
 }
 
 // NewConfigServiceClient constructs a client for the vrooli.tunnel_manager.v1.config.ConfigService
@@ -223,6 +231,12 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(configServiceMethods.ByName("GetAccessStatus")),
 			connect.WithClientOptions(opts...),
 		),
+		getAuthenticationBinding: connect.NewClient[config.GetAuthenticationBindingRequest, config.GetAuthenticationBindingResponse](
+			httpClient,
+			baseURL+ConfigServiceGetAuthenticationBindingProcedure,
+			connect.WithSchema(configServiceMethods.ByName("GetAuthenticationBinding")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -242,6 +256,7 @@ type configServiceClient struct {
 	pruneIngress               *connect.Client[config.PruneIngressRequest, config.PruneIngressResponse]
 	setPublicExposure          *connect.Client[config.SetPublicExposureRequest, config.SetPublicExposureResponse]
 	getAccessStatus            *connect.Client[config.GetAccessStatusRequest, config.GetAccessStatusResponse]
+	getAuthenticationBinding   *connect.Client[config.GetAuthenticationBindingRequest, config.GetAuthenticationBindingResponse]
 }
 
 // GetConfig calls vrooli.tunnel_manager.v1.config.ConfigService.GetConfig.
@@ -316,6 +331,12 @@ func (c *configServiceClient) GetAccessStatus(ctx context.Context, req *connect.
 	return c.getAccessStatus.CallUnary(ctx, req)
 }
 
+// GetAuthenticationBinding calls
+// vrooli.tunnel_manager.v1.config.ConfigService.GetAuthenticationBinding.
+func (c *configServiceClient) GetAuthenticationBinding(ctx context.Context, req *connect.Request[config.GetAuthenticationBindingRequest]) (*connect.Response[config.GetAuthenticationBindingResponse], error) {
+	return c.getAuthenticationBinding.CallUnary(ctx, req)
+}
+
 // ConfigServiceHandler is an implementation of the vrooli.tunnel_manager.v1.config.ConfigService
 // service.
 type ConfigServiceHandler interface {
@@ -324,9 +345,10 @@ type ConfigServiceHandler interface {
 	// It never returns credential values.
 	GetCredentialStatus(context.Context, *connect.Request[config.GetCredentialStatusRequest]) (*connect.Response[config.GetCredentialStatusResponse], error)
 	// VerifyCredentials performs LIVE read-only Cloudflare probes (token verify,
-	// account/tunnel read, apex zone lookup + DNS-records read) and returns a
-	// per-check verdict with remediation. It is the opt-in counterpart to the
-	// presence-only GetCredentialStatus and never returns credential values.
+	// account/tunnel read, apex zone lookup + DNS-records read, Access app read,
+	// and Access organization metadata read) and returns per-check plus
+	// capability-level verdicts with remediation. It is the opt-in counterpart
+	// to the presence-only GetCredentialStatus and never returns credential values.
 	VerifyCredentials(context.Context, *connect.Request[config.VerifyCredentialsRequest]) (*connect.Response[config.VerifyCredentialsResponse], error)
 	// BootstrapCloudflare adopts or creates the named tunnel from one
 	// write-only API token, then stores all derived authority fields. The token
@@ -369,6 +391,10 @@ type ConfigServiceHandler interface {
 	// decisions, and the dry-run plan (apps a reconcile would create/remove).
 	// Pure — no mutation, no live Cloudflare calls.
 	GetAccessStatus(context.Context, *connect.Request[config.GetAccessStatusRequest]) (*connect.Response[config.GetAccessStatusResponse], error)
+	// GetAuthenticationBinding resolves non-secret primary Access verifier
+	// metadata for a managed scenario route. It never returns credentials or
+	// browser assertions and performs no Cloudflare writes.
+	GetAuthenticationBinding(context.Context, *connect.Request[config.GetAuthenticationBindingRequest]) (*connect.Response[config.GetAuthenticationBindingResponse], error)
 }
 
 // NewConfigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -462,6 +488,12 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(configServiceMethods.ByName("GetAccessStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	configServiceGetAuthenticationBindingHandler := connect.NewUnaryHandler(
+		ConfigServiceGetAuthenticationBindingProcedure,
+		svc.GetAuthenticationBinding,
+		connect.WithSchema(configServiceMethods.ByName("GetAuthenticationBinding")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.tunnel_manager.v1.config.ConfigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ConfigServiceGetConfigProcedure:
@@ -492,6 +524,8 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 			configServiceSetPublicExposureHandler.ServeHTTP(w, r)
 		case ConfigServiceGetAccessStatusProcedure:
 			configServiceGetAccessStatusHandler.ServeHTTP(w, r)
+		case ConfigServiceGetAuthenticationBindingProcedure:
+			configServiceGetAuthenticationBindingHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -555,4 +589,8 @@ func (UnimplementedConfigServiceHandler) SetPublicExposure(context.Context, *con
 
 func (UnimplementedConfigServiceHandler) GetAccessStatus(context.Context, *connect.Request[config.GetAccessStatusRequest]) (*connect.Response[config.GetAccessStatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.GetAccessStatus is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) GetAuthenticationBinding(context.Context, *connect.Request[config.GetAuthenticationBindingRequest]) (*connect.Response[config.GetAuthenticationBindingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.GetAuthenticationBinding is not implemented"))
 }

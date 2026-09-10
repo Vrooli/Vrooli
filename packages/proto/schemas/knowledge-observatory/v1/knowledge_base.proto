@@ -34,6 +34,8 @@ message InspectDocumentRequest {
   int32 offset = 2;
   int32 limit = 3;
   string expected_sha256 = 4;
+  // Return a typed missing observation; other read errors still fail.
+  bool allow_missing = 5;
 }
 message DocumentReference {
   string target = 1;
@@ -52,6 +54,7 @@ message InspectDocumentResponse {
   google.protobuf.Struct metadata = 8;
   repeated DocumentReference references = 9;
   bool references_truncated = 10;
+  bool missing = 11;
 }
 message ReviewDocumentsRequest {
   repeated string paths = 1;

@@ -4,6 +4,8 @@ package transitionrunner
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,8 +18,10 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/transitionrun"
 	"swarm-manager/internal/transitions"
+	"swarm-manager/internal/workflowcontract"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -25,6 +29,7 @@ type (
 	InputBuilder func(context.Context, string) (Snapshot, error)
 	ApplyFunc    func(context.Context, string, Outcome) error
 	StartGuard   func(context.Context, transitions.Definition, string) error
+	StartFunc    func(context.Context, StartInvocation) (agentmanager.WorkflowStart, error)
 )
 
 // Snapshot is the immutable subject projection a domain builds for one
@@ -36,6 +41,20 @@ type Snapshot struct {
 	Input          *structpb.Value
 	EntityVersion  string
 	FrontierDigest string
+	ApprovalDigest string
+	Grant          *workflowcontract.Grant
+}
+
+// StartInvocation is the composition-owned seam for a transition whose
+// subject must reserve and bind authority before the owner transport is called.
+// The ordinary path still calls Agent Manager directly; specialized starters
+// receive the same immutable snapshot and declared locator without taking over
+// correlation persistence.
+type StartInvocation struct {
+	Definition transitions.Definition
+	SubjectRef string
+	Snapshot   Snapshot
+	Invocation agentmanager.Invocation
 }
 
 // Outcome is the transport-neutral terminal result delivered to a subject's
@@ -49,6 +68,10 @@ type Outcome struct {
 	Name           string
 	TerminalCode   string
 	BudgetName     string
+	WorkflowDigest string
+	ApprovalDigest string
+	GrantDigest    string
+	Usage          *workflowcontract.Usage
 	Result         json.RawMessage
 	Attempts       []transitionrun.Attempt
 }
@@ -64,6 +87,8 @@ type PreparedInput struct {
 	FirstRunNodeID      string
 	Activity            *Activity
 	WorkflowKeyOverride string
+	ApprovalDigest      string
+	Grant               *workflowcontract.Grant
 }
 
 // Activity is domain-neutral launch attribution. The runner converts it at
@@ -83,21 +108,32 @@ type Runner struct {
 	guard      StartGuard
 	apply      map[string]ApplyFunc
 	input      map[string]InputBuilder
+	start      map[string]StartFunc
 	applyLocks sync.Map // map[string]*sync.Mutex, keyed by execution id
 }
 
 func New(registry transitions.Registry, workflows agentmanager.WorkflowInvoker, store transitionrun.Store, guard StartGuard) *Runner {
-	return &Runner{registry: registry, workflows: workflows, store: store, guard: guard, apply: map[string]ApplyFunc{}, input: map[string]InputBuilder{}}
+	return &Runner{registry: registry, workflows: workflows, store: store, guard: guard, apply: map[string]ApplyFunc{}, input: map[string]InputBuilder{}, start: map[string]StartFunc{}}
 }
 func (r *Runner) RegisterApply(action string, fn ApplyFunc) { r.apply[strings.TrimSpace(action)] = fn }
 func (r *Runner) RegisterInput(key string, builder InputBuilder) {
 	r.input[strings.TrimSpace(key)] = builder
+}
+
+func (r *Runner) RegisterStart(key string, starter StartFunc) {
+	r.start[strings.TrimSpace(key)] = starter
 }
 func (r *Runner) Counts() (int, int) { return len(r.apply), len(r.input) }
 
 // HasInput reports whether a transition has a registered input builder.
 func (r *Runner) HasInput(transitionKey string) bool {
 	return r.input[strings.TrimSpace(transitionKey)] != nil
+}
+
+// HasStart reports whether a transition has a registered domain admission
+// starter in addition to its input projection.
+func (r *Runner) HasStart(transitionKey string) bool {
+	return r.start[strings.TrimSpace(transitionKey)] != nil
 }
 
 // DeclaredOutcomes returns the current registry contract for a transition.
@@ -163,6 +199,99 @@ func (r *Runner) UpdateCorrelation(executionID string, mutate func(*transitionru
 // domains need not persist a second copy of the correlation execution ID.
 func (r *Runner) FindCorrelation(transitionKey, subjectRef string) (transitionrun.Correlation, error) {
 	return r.store.FindBySubject(strings.TrimSpace(transitionKey), strings.TrimSpace(subjectRef))
+}
+
+func (r *Runner) GetDispatchIntent(transitionKey, subjectRef string) (transitionrun.DispatchIntent, error) {
+	store, ok := r.store.(transitionrun.DispatchStore)
+	if !ok {
+		return transitionrun.DispatchIntent{}, fmt.Errorf("durable dispatch inspection is unavailable")
+	}
+	return store.GetDispatch(transitionKey, subjectRef)
+}
+
+func workflowInputDigest(input *structpb.Value) string {
+	if input == nil {
+		return ""
+	}
+	data, err := json.Marshal(input.AsInterface())
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(data)
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+// ResolveDispatch performs owner reads only. Even a proven current absence
+// leaves the pre-RPC intent unresolved: the original submit may still race.
+func (r *Runner) ResolveDispatch(ctx context.Context, transitionKey, subjectRef string) (transitionrun.Correlation, error) {
+	intent, err := r.GetDispatchIntent(transitionKey, subjectRef)
+	if err != nil {
+		return transitionrun.Correlation{}, err
+	}
+	reader, ok := r.workflows.(interface {
+		InspectWorkflowStart(context.Context, string, string) (*domainpb.WorkflowExecution, error)
+	})
+	if !ok {
+		return transitionrun.Correlation{}, fmt.Errorf("read-only original workflow lookup is unavailable")
+	}
+	execution, err := reader.InspectWorkflowStart(ctx, intent.Correlation.WorkflowKey, intent.IdempotencyKey)
+	if err != nil {
+		return transitionrun.Correlation{}, fmt.Errorf("original workflow submission remains unresolved: %w", err)
+	}
+	if execution == nil || execution.Id == "" || execution.DefinitionDigest == "" || execution.Owner != intent.Owner || execution.WorkflowKey != intent.Correlation.WorkflowKey || execution.IdempotencyKey != intent.IdempotencyKey || workflowInputDigest(execution.Input) != intent.InputDigest || execution.ApprovalDigest != intent.ApprovalDigest || execution.GrantDigest != intent.GrantDigest {
+		return transitionrun.Correlation{}, fmt.Errorf("recovered workflow does not match the retained owner, consumer input, approval, or grant binding")
+	}
+	grant, err := toAgentGrant(intent.Grant)
+	if err != nil || !proto.Equal(grant, execution.EngagementGrant) {
+		return transitionrun.Correlation{}, fmt.Errorf("recovered workflow allowance differs from the retained grant")
+	}
+	correlation := intent.Correlation
+	correlation.ExecutionID, correlation.DefinitionDigest = execution.Id, execution.DefinitionDigest
+	return r.bindDispatch(intent, correlation)
+}
+
+func (r *Runner) bindDispatch(intent transitionrun.DispatchIntent, correlation transitionrun.Correlation) (transitionrun.Correlation, error) {
+	if existing, err := r.store.Get(correlation.ExecutionID); err == nil {
+		if existing.TransitionKey != correlation.TransitionKey || existing.SubjectRef != correlation.SubjectRef || existing.EntityVersion != correlation.EntityVersion || existing.FrontierDigest != correlation.FrontierDigest || existing.WorkflowKey != correlation.WorkflowKey || existing.DefinitionDigest != correlation.DefinitionDigest {
+			return transitionrun.Correlation{}, fmt.Errorf("recovered owner conflicts with its retained transition correlation")
+		}
+		correlation = existing
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return transitionrun.Correlation{}, err
+	} else if err := r.store.Put(correlation); err != nil {
+		return transitionrun.Correlation{}, err
+	}
+	intent.Correlation = correlation
+	intent.State, intent.LastError = "acknowledged", ""
+	if err := r.store.(transitionrun.DispatchStore).PutDispatch(intent); err != nil {
+		return transitionrun.Correlation{}, err
+	}
+	return correlation, nil
+}
+
+// RecoverDispatches joins lost acknowledgements to their original owner. It
+// never retries creation and leaves absent or unreadable intents for recovery.
+func (r *Runner) RecoverDispatches(ctx context.Context) error {
+	store, ok := r.store.(transitionrun.DispatchStore)
+	if !ok {
+		return nil
+	}
+	intents, err := store.ListUnresolvedDispatches()
+	if err != nil {
+		return err
+	}
+	for _, intent := range intents {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if _, err := r.ResolveDispatch(ctx, intent.Correlation.TransitionKey, intent.Correlation.SubjectRef); err != nil {
+			intent.State, intent.LastError = "unknown", err.Error()
+			if err := store.PutDispatch(intent); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // Cancel stops a runner-owned workflow execution. Subjects route cancellation
@@ -234,6 +363,7 @@ func (r *Runner) StartWith(ctx context.Context, transitionKey, subjectRef string
 		return transitionrun.Correlation{}, fmt.Errorf("build transition input: %w", err)
 	}
 	options.Input, options.EntityVersion, options.FrontierDigest = snapshot.Input, snapshot.EntityVersion, snapshot.FrontierDigest
+	options.ApprovalDigest, options.Grant = snapshot.ApprovalDigest, snapshot.Grant
 	return r.startPrepared(ctx, definition, subjectRef, options)
 }
 
@@ -277,9 +407,58 @@ func (r *Runner) startPrepared(ctx context.Context, definition transitions.Defin
 	if strings.TrimSpace(prepared.WorkflowKeyOverride) != "" {
 		idempotencyKey += "/" + workflow.Key
 	}
-	started, err := r.workflows.StartWorkflow(ctx, agentmanager.Invocation{Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: prepared.Input, IdempotencyKey: idempotencyKey, FirstRunNodeID: prepared.FirstRunNodeID, Activity: activity})
+	invocation := agentmanager.Invocation{Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: prepared.Input, IdempotencyKey: idempotencyKey, FirstRunNodeID: prepared.FirstRunNodeID, Activity: activity}
+	if prepared.Grant != nil {
+		grant, err := toAgentGrant(prepared.Grant)
+		if err != nil {
+			return transitionrun.Correlation{}, err
+		}
+		invocation.EngagementGrant, invocation.ApprovalDigest, invocation.GrantDigest = grant, prepared.ApprovalDigest, workflowcontract.GrantDigest(prepared.Grant)
+	}
+	var dispatch *transitionrun.DispatchIntent
+	if definition.Key == "plan.execute" && r.start[definition.Key] == nil {
+		lock := r.applyLock("dispatch/" + definition.Key + "/" + subjectRef)
+		lock.Lock()
+		defer lock.Unlock()
+		store, ok := r.store.(transitionrun.DispatchStore)
+		if !ok {
+			return transitionrun.Correlation{}, fmt.Errorf("ordinary execution requires durable dispatch intent storage")
+		}
+		intent := transitionrun.DispatchIntent{State: "submitting", Correlation: transitionrun.Correlation{TransitionKey: definition.Key, SubjectKind: definition.Subject, SubjectRef: subjectRef, WorkflowKey: workflow.Key, EntityVersion: prepared.EntityVersion, FrontierDigest: prepared.FrontierDigest, ApplyState: transitionrun.ApplyStateClaimed, DeclaredOutcomes: append([]string(nil), definition.TerminalOutcomes...)}, Owner: workflow.Owner, IdempotencyKey: idempotencyKey, InputDigest: workflowInputDigest(prepared.Input), ApprovalDigest: invocation.ApprovalDigest, GrantDigest: invocation.GrantDigest, Grant: prepared.Grant, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+		if existing, err := store.GetDispatch(definition.Key, subjectRef); err == nil {
+			if existing.IdempotencyKey != intent.IdempotencyKey || existing.InputDigest != intent.InputDigest || existing.Owner != intent.Owner || existing.Correlation.WorkflowKey != intent.Correlation.WorkflowKey || existing.Correlation.EntityVersion != intent.Correlation.EntityVersion || existing.Correlation.FrontierDigest != intent.Correlation.FrontierDigest || existing.ApprovalDigest != intent.ApprovalDigest || existing.GrantDigest != intent.GrantDigest {
+				return transitionrun.Correlation{}, fmt.Errorf("execution already has a different immutable dispatch intent")
+			}
+			if existing.Correlation.ExecutionID != "" {
+				return r.store.Get(existing.Correlation.ExecutionID)
+			}
+			return r.ResolveDispatch(ctx, definition.Key, subjectRef)
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return transitionrun.Correlation{}, err
+		}
+		if err := store.PutDispatch(intent); err != nil {
+			return transitionrun.Correlation{}, fmt.Errorf("persist workflow submission before dispatch: %w", err)
+		}
+		dispatch = &intent
+	}
+	var started agentmanager.WorkflowStart
+	var err error
+	if starter := r.start[definition.Key]; starter != nil {
+		started, err = starter(ctx, StartInvocation{Definition: definition, SubjectRef: subjectRef, Snapshot: Snapshot{Input: prepared.Input, EntityVersion: prepared.EntityVersion, FrontierDigest: prepared.FrontierDigest}, Invocation: invocation})
+	} else {
+		started, err = r.workflows.StartWorkflow(ctx, invocation)
+	}
 	if err != nil {
+		if dispatch != nil {
+			dispatch.State, dispatch.LastError = "unknown", err.Error()
+			if saveErr := r.store.(transitionrun.DispatchStore).PutDispatch(*dispatch); saveErr != nil {
+				return transitionrun.Correlation{}, errors.Join(err, saveErr)
+			}
+		}
 		return transitionrun.Correlation{}, err
+	}
+	if prepared.Grant != nil && (started.ApprovalDigest != invocation.ApprovalDigest || started.GrantDigest != invocation.GrantDigest) {
+		return transitionrun.Correlation{}, fmt.Errorf("workflow owner did not retain the approved execution grant")
 	}
 	// Agent Manager may return the same execution for an unchanged
 	// idempotency key. Preserve its durable journal state: rewriting a complete
@@ -299,6 +478,9 @@ func (r *Runner) startPrepared(ctx context.Context, definition transitions.Defin
 	}
 	if err := r.store.Put(correlation); err != nil {
 		return transitionrun.Correlation{}, fmt.Errorf("persist transition correlation: %w", err)
+	}
+	if dispatch != nil {
+		return r.bindDispatch(*dispatch, correlation)
 	}
 	return correlation, nil
 }
@@ -433,13 +615,17 @@ func VerifyDispatchTable(registry transitions.Registry, apply map[string]ApplyFu
 }
 
 func completionOutcome(completion agentmanager.InvocationCompletion, correlation transitionrun.Correlation, current Snapshot) (Outcome, transitionrun.Completion, error) {
+	if current.Grant != nil && (completion.ApprovalDigest != current.ApprovalDigest || completion.GrantDigest != workflowcontract.GrantDigest(current.Grant)) {
+		return Outcome{}, transitionrun.Completion{}, fmt.Errorf("workflow completion does not match the retained execution grant")
+	}
 	status := ""
 	if completion.Status == domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
 		status = transitionrun.CompletionSucceeded
 	} else {
 		status = strings.ToLower(strings.TrimPrefix(completion.Status.String(), "WORKFLOW_EXECUTION_STATUS_"))
 	}
-	outcome := Outcome{ExecutionID: completion.ExecutionID, TransitionKey: correlation.TransitionKey, SubjectRef: correlation.SubjectRef, EntityVersion: correlation.EntityVersion, FrontierDigest: correlation.FrontierDigest, TerminalCode: completion.TerminalCode, BudgetName: completion.BudgetName}
+	outcome := Outcome{ExecutionID: completion.ExecutionID, TransitionKey: correlation.TransitionKey, SubjectRef: correlation.SubjectRef, EntityVersion: correlation.EntityVersion, FrontierDigest: correlation.FrontierDigest, TerminalCode: completion.TerminalCode, BudgetName: completion.BudgetName, WorkflowDigest: completion.WorkflowDigest, ApprovalDigest: completion.ApprovalDigest, GrantDigest: completion.GrantDigest}
+	outcome.Usage = workflowUsage(completion)
 	if completion.Output != nil {
 		raw, err := json.Marshal(completion.Output.AsInterface())
 		if err != nil {

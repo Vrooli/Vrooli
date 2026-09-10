@@ -133,14 +133,16 @@ class AppendEntryResponse(_message.Message):
     def __init__(self, entry: _Optional[_Union[Entry, _Mapping]] = ..., existing: _Optional[bool] = ...) -> None: ...
 
 class GetEntryRequest(_message.Message):
-    __slots__ = ("id", "scope", "request_key")
+    __slots__ = ("id", "scope", "request_key", "import_provenance")
     ID_FIELD_NUMBER: _ClassVar[int]
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     REQUEST_KEY_FIELD_NUMBER: _ClassVar[int]
+    IMPORT_PROVENANCE_FIELD_NUMBER: _ClassVar[int]
     id: str
     scope: str
     request_key: str
-    def __init__(self, id: _Optional[str] = ..., scope: _Optional[str] = ..., request_key: _Optional[str] = ...) -> None: ...
+    import_provenance: ImportProvenance
+    def __init__(self, id: _Optional[str] = ..., scope: _Optional[str] = ..., request_key: _Optional[str] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ...) -> None: ...
 
 class GetEntryResponse(_message.Message):
     __slots__ = ("entry",)

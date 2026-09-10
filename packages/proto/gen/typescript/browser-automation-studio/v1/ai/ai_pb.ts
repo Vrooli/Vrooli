@@ -2,8 +2,8 @@
 // @generated from file browser-automation-studio/v1/ai/ai.proto (package browser_automation_studio.v1.ai, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/ai/ai.proto.
  */
 export const file_browser_automation_studio_v1_ai_ai: GenFile = /*@__PURE__*/
-  fileDesc("Cihicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2FpL2FpLnByb3RvEh9icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpInwKCFZpZXdwb3J0Eg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBRI5ChNkZXZpY2Vfc2NhbGVfZmFjdG9yGAMgASgBQhe6SBQSEhkAAAAAAAAQQCkAAAAAAADgP0gAiAEBQhYKFF9kZXZpY2Vfc2NhbGVfZmFjdG9yIkAKCVJlY3RhbmdsZRIJCgF4GAEgASgBEgkKAXkYAiABKAESDQoFd2lkdGgYAyABKAESDgoGaGVpZ2h0GAQgASgBIlYKDlNlbGVjdG9yT3B0aW9uEhAKCHNlbGVjdG9yGAEgASgJEgwKBHR5cGUYAiABKAkSEgoKcm9idXN0bmVzcxgDIAEoARIQCghmYWxsYmFjaxgEIAEoCCLsAgoLRWxlbWVudEluZm8SDAoEdGV4dBgBIAEoCRIQCgh0YWdfbmFtZRgCIAEoCRIMCgR0eXBlGAMgASgJEkIKCXNlbGVjdG9ycxgEIAMoCzIvLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuU2VsZWN0b3JPcHRpb24SQAoMYm91bmRpbmdfYm94GAUgASgLMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5SZWN0YW5nbGUSEgoKY29uZmlkZW5jZRgGIAEoARIQCghjYXRlZ29yeRgHIAEoCRJQCgphdHRyaWJ1dGVzGAggAygLMjwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5FbGVtZW50SW5mby5BdHRyaWJ1dGVzRW50cnkaMQoPQXR0cmlidXRlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEijgEKC1BhZ2VDb250ZXh0Eg0KBXRpdGxlGAEgASgJEgsKA3VybBgCIAEoCRIRCgloYXNfbG9naW4YAyABKAgSEgoKaGFzX3NlYXJjaBgEIAEoCBISCgpmb3JtX2NvdW50GAUgASgFEhQKDGJ1dHRvbl9jb3VudBgGIAEoBRISCgpsaW5rX2NvdW50GAcgASgFIpQBCgxBSVN1Z2dlc3Rpb24SDgoGYWN0aW9uGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEhQKDGVsZW1lbnRfdGV4dBgDIAEoCRIQCghzZWxlY3RvchgEIAEoCRISCgpjb25maWRlbmNlGAUgASgBEhAKCGNhdGVnb3J5GAYgASgJEhEKCXJlYXNvbmluZxgHIAEoCSJbCgpDb25zb2xlTG9nEg0KBWxldmVsGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSLQoJdGltZXN0YW1wGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKbAQoVRWxlbWVudEhpZXJhcmNoeUVudHJ5Ej0KB2VsZW1lbnQYASABKAsyLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkVsZW1lbnRJbmZvEhAKCHNlbGVjdG9yGAIgASgJEg0KBWRlcHRoGAMgASgFEgwKBHBhdGgYBCADKAkSFAoMcGF0aF9zdW1tYXJ5GAUgASgJIrsBChZFbGVtZW50U2VsZWN0aW9uUmVzdWx0Ej0KB2VsZW1lbnQYASABKAsyLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkVsZW1lbnRJbmZvEkoKCmNhbmRpZGF0ZXMYAiADKAsyNi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkVsZW1lbnRIaWVyYXJjaHlFbnRyeRIWCg5zZWxlY3RlZF9pbmRleBgDIAEoBSJxChxUYWtlUHJldmlld1NjcmVlbnNob3RSZXF1ZXN0EhQKA3VybBgBIAEoCUIHukgEcgIQARI7Cgh2aWV3cG9ydBgCIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuVmlld3BvcnQivQIKHVRha2VQcmV2aWV3U2NyZWVuc2hvdFJlc3BvbnNlEhYKDnNjcmVlbnNob3RfcG5nGAEgASgMEhQKDGNvbnRlbnRfdHlwZRgCIAEoCRJBCgxjb25zb2xlX2xvZ3MYAyADKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkNvbnNvbGVMb2cSCwoDdXJsGAQgASgJEi8KC2NhcHR1cmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgtkdXJhdGlvbl9tcxgGIAEoAxIWCg52aWV3cG9ydF93aWR0aBgHIAEoBRIXCg92aWV3cG9ydF9oZWlnaHQYCCABKAUSJwoGZXZlbnRzGAkgAygLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCItChVHZXRMaW5rUHJldmlld1JlcXVlc3QSFAoDdXJsGAEgASgJQge6SARyAhABIn4KFkdldExpbmtQcmV2aWV3UmVzcG9uc2USDQoFZm91bmQYASABKAgSDQoFdGl0bGUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDQoFaW1hZ2UYBCABKAkSDwoHZmF2aWNvbhgFIAEoCRIRCglzaXRlX25hbWUYBiABKAkiLgoWQW5hbHl6ZUVsZW1lbnRzUmVxdWVzdBIUCgN1cmwYASABKAlCB7pIBHICEAEiugIKF0FuYWx5emVFbGVtZW50c1Jlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSPgoIZWxlbWVudHMYAiADKAsyLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkVsZW1lbnRJbmZvEkUKDmFpX3N1Z2dlc3Rpb25zGAMgAygLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5BSVN1Z2dlc3Rpb24SQgoMcGFnZV9jb250ZXh0GAQgASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5QYWdlQ29udGV4dBISCgpzY3JlZW5zaG90GAUgASgJEi8KC2NhcHR1cmVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJdCh1HZXRFbGVtZW50QXRDb29yZGluYXRlUmVxdWVzdBIUCgN1cmwYASABKAlCB7pIBHICEAESEgoBeBgCIAEoBUIHukgEGgIoABISCgF5GAMgASgFQge6SAQaAigAImwKHkdldEVsZW1lbnRBdENvb3JkaW5hdGVSZXNwb25zZRJKCglzZWxlY3Rpb24YASABKAsyNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkVsZW1lbnRTZWxlY3Rpb25SZXN1bHQiXQoYQUlBbmFseXplRWxlbWVudHNSZXF1ZXN0EhQKA3VybBgBIAEoCUIHukgEcgIQARIXCgZpbnRlbnQYAiABKAlCB7pIBHICEAESEgoKc2NyZWVuc2hvdBgDIAEoCSJeChlBSUFuYWx5emVFbGVtZW50c1Jlc3BvbnNlEkEKC3N1Z2dlc3Rpb25zGAEgAygLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5FbGVtZW50SW5mbyIpChFHZXRET01UcmVlUmVxdWVzdBIUCgN1cmwYASABKAlCB7pIBHICEAEiOwoSR2V0RE9NVHJlZVJlc3BvbnNlEiUKBHRyZWUYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0ImEKEENyZWRpdFBvbGljeUluZm8SGAoQcmVxdWlyZXNfY3JlZGl0cxgBIAEoCBIYChBjcmVkaXRzX3Blcl9zdGVwGAIgASgFEhkKEWJ5cGFzc19jb25kaXRpb25zGAMgAygJIsQBCg1OYXZpZ2F0b3JJbmZvEgwKBHR5cGUYASABKAkSEQoJYXZhaWxhYmxlGAIgASgIEhMKC2Rlc2NyaXB0aW9uGAMgASgJEkgKDWNyZWRpdF9wb2xpY3kYBCABKAsyMS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkNyZWRpdFBvbGljeUluZm8SFwoPYWxsb3dlZF9zb3VyY2VzGAUgAygJEhoKEnVuYXZhaWxhYmxlX3JlYXNvbhgGIAEoCSIuChVMaXN0TmF2aWdhdG9yc1JlcXVlc3QSFQoNY2xpZW50X3NvdXJjZRgBIAEoCSJtChZMaXN0TmF2aWdhdG9yc1Jlc3BvbnNlEkIKCm5hdmlnYXRvcnMYASADKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLk5hdmlnYXRvckluZm8SDwoHZGVmYXVsdBgCIAEoCSK5AQoWU3RhcnROYXZpZ2F0aW9uUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABEhcKBnByb21wdBgCIAEoCUIHukgEcgIQARIWCgVtb2RlbBgDIAEoCUIHukgEcgIQARIRCgltYXhfc3RlcHMYBCABKAUSDwoHYXBpX2tleRgFIAEoCRIWCg5uYXZpZ2F0b3JfdHlwZRgGIAEoCRIVCg1jbGllbnRfc291cmNlGAcgASgJInoKF1N0YXJ0TmF2aWdhdGlvblJlc3BvbnNlEhUKDW5hdmlnYXRpb25faWQYASABKAkSDgoGc3RhdHVzGAIgASgJEg0KBW1vZGVsGAMgASgJEhEKCW1heF9zdGVwcxgEIAEoBRIWCg5uYXZpZ2F0b3JfdHlwZRgFIAEoCSI8ChpHZXROYXZpZ2F0aW9uU3RhdHVzUmVxdWVzdBIeCg1uYXZpZ2F0aW9uX2lkGAEgASgJQge6SARyAhABIsoBChtHZXROYXZpZ2F0aW9uU3RhdHVzUmVzcG9uc2USFQoNbmF2aWdhdGlvbl9pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEg4KBnN0YXR1cxgDIAEoCRISCgpzdGVwX2NvdW50GAQgASgFEhQKDHRvdGFsX3Rva2VucxgFIAEoBRIuCgpzdGFydGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIWCg5uYXZpZ2F0b3JfdHlwZRgHIAEoCSI4ChZBYm9ydE5hdmlnYXRpb25SZXF1ZXN0Eh4KDW5hdmlnYXRpb25faWQYASABKAlCB7pIBHICEAEiUQoXQWJvcnROYXZpZ2F0aW9uUmVzcG9uc2USFQoNbmF2aWdhdGlvbl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDwoHbWVzc2FnZRgDIAEoCSI5ChdSZXN1bWVOYXZpZ2F0aW9uUmVxdWVzdBIeCg1uYXZpZ2F0aW9uX2lkGAEgASgJQge6SARyAhABIlIKGFJlc3VtZU5hdmlnYXRpb25SZXNwb25zZRIVCg1uYXZpZ2F0aW9uX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIPCgdtZXNzYWdlGAMgASgJMs8GCglBSVNlcnZpY2USlgEKFVRha2VQcmV2aWV3U2NyZWVuc2hvdBI9LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuVGFrZVByZXZpZXdTY3JlZW5zaG90UmVxdWVzdBo+LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuVGFrZVByZXZpZXdTY3JlZW5zaG90UmVzcG9uc2USgQEKDkdldExpbmtQcmV2aWV3EjYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5HZXRMaW5rUHJldmlld1JlcXVlc3QaNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkdldExpbmtQcmV2aWV3UmVzcG9uc2UShAEKD0FuYWx5emVFbGVtZW50cxI3LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuQW5hbHl6ZUVsZW1lbnRzUmVxdWVzdBo4LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuQW5hbHl6ZUVsZW1lbnRzUmVzcG9uc2USmQEKFkdldEVsZW1lbnRBdENvb3JkaW5hdGUSPi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkdldEVsZW1lbnRBdENvb3JkaW5hdGVSZXF1ZXN0Gj8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5HZXRFbGVtZW50QXRDb29yZGluYXRlUmVzcG9uc2USigEKEUFJQW5hbHl6ZUVsZW1lbnRzEjkuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5BSUFuYWx5emVFbGVtZW50c1JlcXVlc3QaOi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkFJQW5hbHl6ZUVsZW1lbnRzUmVzcG9uc2USdQoKR2V0RE9NVHJlZRIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuR2V0RE9NVHJlZVJlcXVlc3QaMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkdldERPTVRyZWVSZXNwb25zZTLIBQoXVmlzaW9uTmF2aWdhdGlvblNlcnZpY2USgQEKDkxpc3ROYXZpZ2F0b3JzEjYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5MaXN0TmF2aWdhdG9yc1JlcXVlc3QaNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkxpc3ROYXZpZ2F0b3JzUmVzcG9uc2UShAEKD1N0YXJ0TmF2aWdhdGlvbhI3LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuU3RhcnROYXZpZ2F0aW9uUmVxdWVzdBo4LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuU3RhcnROYXZpZ2F0aW9uUmVzcG9uc2USkAEKE0dldE5hdmlnYXRpb25TdGF0dXMSOy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkdldE5hdmlnYXRpb25TdGF0dXNSZXF1ZXN0GjwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5HZXROYXZpZ2F0aW9uU3RhdHVzUmVzcG9uc2UShAEKD0Fib3J0TmF2aWdhdGlvbhI3LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuQWJvcnROYXZpZ2F0aW9uUmVxdWVzdBo4LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuQWJvcnROYXZpZ2F0aW9uUmVzcG9uc2UShwEKEFJlc3VtZU5hdmlnYXRpb24SOC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlJlc3VtZU5hdmlnYXRpb25SZXF1ZXN0GjkuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5SZXN1bWVOYXZpZ2F0aW9uUmVzcG9uc2VCU1pRZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2FpO2FpYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("Cihicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2FpL2FpLnByb3RvEh9icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpInwKCFZpZXdwb3J0Eg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBRI5ChNkZXZpY2Vfc2NhbGVfZmFjdG9yGAMgASgBQhe6SBQSEhkAAAAAAAAQQCkAAAAAAADgP0gAiAEBQhYKFF9kZXZpY2Vfc2NhbGVfZmFjdG9yIkAKCVJlY3RhbmdsZRIJCgF4GAEgASgBEgkKAXkYAiABKAESDQoFd2lkdGgYAyABKAESDgoGaGVpZ2h0GAQgASgBIlYKDlNlbGVjdG9yT3B0aW9uEhAKCHNlbGVjdG9yGAEgASgJEgwKBHR5cGUYAiABKAkSEgoKcm9idXN0bmVzcxgDIAEoARIQCghmYWxsYmFjaxgEIAEoCCLsAgoLRWxlbWVudEluZm8SDAoEdGV4dBgBIAEoCRIQCgh0YWdfbmFtZRgCIAEoCRIMCgR0eXBlGAMgASgJEkIKCXNlbGVjdG9ycxgEIAMoCzIvLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuU2VsZWN0b3JPcHRpb24SQAoMYm91bmRpbmdfYm94GAUgASgLMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5SZWN0YW5nbGUSEgoKY29uZmlkZW5jZRgGIAEoARIQCghjYXRlZ29yeRgHIAEoCRJQCgphdHRyaWJ1dGVzGAggAygLMjwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5FbGVtZW50SW5mby5BdHRyaWJ1dGVzRW50cnkaMQoPQXR0cmlidXRlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEijgEKC1BhZ2VDb250ZXh0Eg0KBXRpdGxlGAEgASgJEgsKA3VybBgCIAEoCRIRCgloYXNfbG9naW4YAyABKAgSEgoKaGFzX3NlYXJjaBgEIAEoCBISCgpmb3JtX2NvdW50GAUgASgFEhQKDGJ1dHRvbl9jb3VudBgGIAEoBRISCgpsaW5rX2NvdW50GAcgASgFIpQBCgxBSVN1Z2dlc3Rpb24SDgoGYWN0aW9uGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEhQKDGVsZW1lbnRfdGV4dBgDIAEoCRIQCghzZWxlY3RvchgEIAEoCRISCgpjb25maWRlbmNlGAUgASgBEhAKCGNhdGVnb3J5GAYgASgJEhEKCXJlYXNvbmluZxgHIAEoCSJbCgpDb25zb2xlTG9nEg0KBWxldmVsGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSLQoJdGltZXN0YW1wGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKbAQoVRWxlbWVudEhpZXJhcmNoeUVudHJ5Ej0KB2VsZW1lbnQYASABKAsyLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkVsZW1lbnRJbmZvEhAKCHNlbGVjdG9yGAIgASgJEg0KBWRlcHRoGAMgASgFEgwKBHBhdGgYBCADKAkSFAoMcGF0aF9zdW1tYXJ5GAUgASgJIrsBChZFbGVtZW50U2VsZWN0aW9uUmVzdWx0Ej0KB2VsZW1lbnQYASABKAsyLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkVsZW1lbnRJbmZvEkoKCmNhbmRpZGF0ZXMYAiADKAsyNi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkVsZW1lbnRIaWVyYXJjaHlFbnRyeRIWCg5zZWxlY3RlZF9pbmRleBgDIAEoBSLiAQocVGFrZVByZXZpZXdTY3JlZW5zaG90UmVxdWVzdBIUCgN1cmwYASABKAlCB7pIBHICEAESOwoIdmlld3BvcnQYAiABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlZpZXdwb3J0EhAKCHdhaXRfZm9yGAMgASgJEj4KCndhaXRfdW50aWwYBCABKA4yKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLldhaXRVbnRpbBIdCglzZXR0bGVfbXMYBSABKAVCCrpIBxoFGJh1KAAivQIKHVRha2VQcmV2aWV3U2NyZWVuc2hvdFJlc3BvbnNlEhYKDnNjcmVlbnNob3RfcG5nGAEgASgMEhQKDGNvbnRlbnRfdHlwZRgCIAEoCRJBCgxjb25zb2xlX2xvZ3MYAyADKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkNvbnNvbGVMb2cSCwoDdXJsGAQgASgJEi8KC2NhcHR1cmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgtkdXJhdGlvbl9tcxgGIAEoAxIWCg52aWV3cG9ydF93aWR0aBgHIAEoBRIXCg92aWV3cG9ydF9oZWlnaHQYCCABKAUSJwoGZXZlbnRzGAkgAygLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCItChVHZXRMaW5rUHJldmlld1JlcXVlc3QSFAoDdXJsGAEgASgJQge6SARyAhABIn4KFkdldExpbmtQcmV2aWV3UmVzcG9uc2USDQoFZm91bmQYASABKAgSDQoFdGl0bGUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDQoFaW1hZ2UYBCABKAkSDwoHZmF2aWNvbhgFIAEoCRIRCglzaXRlX25hbWUYBiABKAkiLgoWQW5hbHl6ZUVsZW1lbnRzUmVxdWVzdBIUCgN1cmwYASABKAlCB7pIBHICEAEiugIKF0FuYWx5emVFbGVtZW50c1Jlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSPgoIZWxlbWVudHMYAiADKAsyLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkVsZW1lbnRJbmZvEkUKDmFpX3N1Z2dlc3Rpb25zGAMgAygLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5BSVN1Z2dlc3Rpb24SQgoMcGFnZV9jb250ZXh0GAQgASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5QYWdlQ29udGV4dBISCgpzY3JlZW5zaG90GAUgASgJEi8KC2NhcHR1cmVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJdCh1HZXRFbGVtZW50QXRDb29yZGluYXRlUmVxdWVzdBIUCgN1cmwYASABKAlCB7pIBHICEAESEgoBeBgCIAEoBUIHukgEGgIoABISCgF5GAMgASgFQge6SAQaAigAImwKHkdldEVsZW1lbnRBdENvb3JkaW5hdGVSZXNwb25zZRJKCglzZWxlY3Rpb24YASABKAsyNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkVsZW1lbnRTZWxlY3Rpb25SZXN1bHQiXQoYQUlBbmFseXplRWxlbWVudHNSZXF1ZXN0EhQKA3VybBgBIAEoCUIHukgEcgIQARIXCgZpbnRlbnQYAiABKAlCB7pIBHICEAESEgoKc2NyZWVuc2hvdBgDIAEoCSJeChlBSUFuYWx5emVFbGVtZW50c1Jlc3BvbnNlEkEKC3N1Z2dlc3Rpb25zGAEgAygLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5FbGVtZW50SW5mbyLLAQoRR2V0RE9NVHJlZVJlcXVlc3QSFAoDdXJsGAEgASgJQge6SARyAhABEhAKCHdhaXRfZm9yGAIgASgJEj4KCndhaXRfdW50aWwYAyABKA4yKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLldhaXRVbnRpbBIdCglzZXR0bGVfbXMYBCABKAVCCrpIBxoFGJh1KAASEAoIY29tcHV0ZWQYBSABKAgSHQoJbWF4X25vZGVzGAYgASgFQgq6SAcaBRigHygBIjsKEkdldERPTVRyZWVSZXNwb25zZRIlCgR0cmVlGAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCJhChBDcmVkaXRQb2xpY3lJbmZvEhgKEHJlcXVpcmVzX2NyZWRpdHMYASABKAgSGAoQY3JlZGl0c19wZXJfc3RlcBgCIAEoBRIZChFieXBhc3NfY29uZGl0aW9ucxgDIAMoCSLEAQoNTmF2aWdhdG9ySW5mbxIMCgR0eXBlGAEgASgJEhEKCWF2YWlsYWJsZRgCIAEoCBITCgtkZXNjcmlwdGlvbhgDIAEoCRJICg1jcmVkaXRfcG9saWN5GAQgASgLMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5DcmVkaXRQb2xpY3lJbmZvEhcKD2FsbG93ZWRfc291cmNlcxgFIAMoCRIaChJ1bmF2YWlsYWJsZV9yZWFzb24YBiABKAkiLgoVTGlzdE5hdmlnYXRvcnNSZXF1ZXN0EhUKDWNsaWVudF9zb3VyY2UYASABKAkibQoWTGlzdE5hdmlnYXRvcnNSZXNwb25zZRJCCgpuYXZpZ2F0b3JzGAEgAygLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5OYXZpZ2F0b3JJbmZvEg8KB2RlZmF1bHQYAiABKAkiSwoXTmF2aWdhdGlvblBvc3Rjb25kaXRpb24SEAoIc2VsZWN0b3IYASABKAkSDAoEbW9kZRgCIAEoCRIQCghleHBlY3RlZBgDIAEoCSJYChROYXZpZ2F0aW9uRXh0cmFjdGlvbhIMCgRuYW1lGAEgASgJEhAKCHNlbGVjdG9yGAIgASgJEhEKCWF0dHJpYnV0ZRgDIAEoCRINCgVsaW1pdBgEIAEoBSLtAgoWU3RhcnROYXZpZ2F0aW9uUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABEhcKBnByb21wdBgCIAEoCUIHukgEcgIQARIWCgVtb2RlbBgDIAEoCUIHukgEcgIQARIRCgltYXhfc3RlcHMYBCABKAUSDwoHYXBpX2tleRgFIAEoCRIWCg5uYXZpZ2F0b3JfdHlwZRgGIAEoCRIVCg1jbGllbnRfc291cmNlGAcgASgJEhUKDWVmZmVjdF9wb2xpY3kYCCABKAkSUAoOcG9zdGNvbmRpdGlvbnMYCSADKAsyOC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLk5hdmlnYXRpb25Qb3N0Y29uZGl0aW9uEkkKCmV4dHJhY3Rpb24YCiADKAsyNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLk5hdmlnYXRpb25FeHRyYWN0aW9uInoKF1N0YXJ0TmF2aWdhdGlvblJlc3BvbnNlEhUKDW5hdmlnYXRpb25faWQYASABKAkSDgoGc3RhdHVzGAIgASgJEg0KBW1vZGVsGAMgASgJEhEKCW1heF9zdGVwcxgEIAEoBRIWCg5uYXZpZ2F0b3JfdHlwZRgFIAEoCSJRChpHZXROYXZpZ2F0aW9uU3RhdHVzUmVxdWVzdBIeCg1uYXZpZ2F0aW9uX2lkGAEgASgJQge6SARyAhABEhMKC3dhaXRfbWlsbGlzGAIgASgDIr8BCg5OYXZpZ2F0aW9uU3RlcBINCgVpbmRleBgBIAEoBRITCgthY3Rpb25fdHlwZRgCIAEoCRIQCghzZWxlY3RvchgDIAEoCRINCgV2YWx1ZRgEIAEoCRILCgN1cmwYBSABKAkSEwoLZGVzY3JpcHRpb24YBiABKAkSDwoHc3VjY2VzcxgHIAEoCBINCgVlcnJvchgIIAEoCRImCgJhdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAigwMKG0dldE5hdmlnYXRpb25TdGF0dXNSZXNwb25zZRIVCg1uYXZpZ2F0aW9uX2lkGAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkSDgoGc3RhdHVzGAMgASgJEhIKCnN0ZXBfY291bnQYBCABKAUSFAoMdG90YWxfdG9rZW5zGAUgASgFEi4KCnN0YXJ0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDm5hdmlnYXRvcl90eXBlGAcgASgJEhAKCHRlcm1pbmFsGAggASgIEj4KBXN0ZXBzGAkgAygLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5OYXZpZ2F0aW9uU3RlcBIYChB2ZXJpZmllZF9zdWNjZXNzGAogASgIEi8KDmV4dHJhY3RlZF9kYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIaChJ2ZXJpZmljYXRpb25fZXJyb3IYDCABKAkiOAoWQWJvcnROYXZpZ2F0aW9uUmVxdWVzdBIeCg1uYXZpZ2F0aW9uX2lkGAEgASgJQge6SARyAhABIlEKF0Fib3J0TmF2aWdhdGlvblJlc3BvbnNlEhUKDW5hdmlnYXRpb25faWQYASABKAkSDgoGc3RhdHVzGAIgASgJEg8KB21lc3NhZ2UYAyABKAkiOQoXUmVzdW1lTmF2aWdhdGlvblJlcXVlc3QSHgoNbmF2aWdhdGlvbl9pZBgBIAEoCUIHukgEcgIQASJSChhSZXN1bWVOYXZpZ2F0aW9uUmVzcG9uc2USFQoNbmF2aWdhdGlvbl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDwoHbWVzc2FnZRgDIAEoCSp5CglXYWl0VW50aWwSGgoWV0FJVF9VTlRJTF9VTlNQRUNJRklFRBAAEhMKD1dBSVRfVU5USUxfTE9BRBABEh8KG1dBSVRfVU5USUxfRE9NQ09OVEVOVExPQURFRBACEhoKFldBSVRfVU5USUxfTkVUV09SS0lETEUQAzLPBgoJQUlTZXJ2aWNlEpYBChVUYWtlUHJldmlld1NjcmVlbnNob3QSPS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlRha2VQcmV2aWV3U2NyZWVuc2hvdFJlcXVlc3QaPi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlRha2VQcmV2aWV3U2NyZWVuc2hvdFJlc3BvbnNlEoEBCg5HZXRMaW5rUHJldmlldxI2LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuR2V0TGlua1ByZXZpZXdSZXF1ZXN0GjcuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5HZXRMaW5rUHJldmlld1Jlc3BvbnNlEoQBCg9BbmFseXplRWxlbWVudHMSNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkFuYWx5emVFbGVtZW50c1JlcXVlc3QaOC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkFuYWx5emVFbGVtZW50c1Jlc3BvbnNlEpkBChZHZXRFbGVtZW50QXRDb29yZGluYXRlEj4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5HZXRFbGVtZW50QXRDb29yZGluYXRlUmVxdWVzdBo/LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuR2V0RWxlbWVudEF0Q29vcmRpbmF0ZVJlc3BvbnNlEooBChFBSUFuYWx5emVFbGVtZW50cxI5LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuQUlBbmFseXplRWxlbWVudHNSZXF1ZXN0GjouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5BSUFuYWx5emVFbGVtZW50c1Jlc3BvbnNlEnUKCkdldERPTVRyZWUSMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkdldERPTVRyZWVSZXF1ZXN0GjMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5HZXRET01UcmVlUmVzcG9uc2UyyAUKF1Zpc2lvbk5hdmlnYXRpb25TZXJ2aWNlEoEBCg5MaXN0TmF2aWdhdG9ycxI2LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuTGlzdE5hdmlnYXRvcnNSZXF1ZXN0GjcuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5MaXN0TmF2aWdhdG9yc1Jlc3BvbnNlEoQBCg9TdGFydE5hdmlnYXRpb24SNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlN0YXJ0TmF2aWdhdGlvblJlcXVlc3QaOC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlN0YXJ0TmF2aWdhdGlvblJlc3BvbnNlEpABChNHZXROYXZpZ2F0aW9uU3RhdHVzEjsuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5HZXROYXZpZ2F0aW9uU3RhdHVzUmVxdWVzdBo8LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuR2V0TmF2aWdhdGlvblN0YXR1c1Jlc3BvbnNlEoQBCg9BYm9ydE5hdmlnYXRpb24SNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkFib3J0TmF2aWdhdGlvblJlcXVlc3QaOC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkFib3J0TmF2aWdhdGlvblJlc3BvbnNlEocBChBSZXN1bWVOYXZpZ2F0aW9uEjguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5SZXN1bWVOYXZpZ2F0aW9uUmVxdWVzdBo5LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuUmVzdW1lTmF2aWdhdGlvblJlc3BvbnNlQlNaUWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MS9haTthaWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * Viewport mirrors the optional browser viewport hint accepted by the
@@ -397,6 +397,27 @@ export type TakePreviewScreenshotRequest = Message<"browser_automation_studio.v1
    * @generated from field: browser_automation_studio.v1.ai.Viewport viewport = 2;
    */
   viewport?: Viewport | undefined;
+
+  /**
+   * Optional CSS selector that must exist before the screenshot is taken.
+   *
+   * @generated from field: string wait_for = 3;
+   */
+  waitFor: string;
+
+  /**
+   * Navigation readiness signal. Unspecified defaults to load.
+   *
+   * @generated from field: browser_automation_studio.v1.ai.WaitUntil wait_until = 4;
+   */
+  waitUntil: WaitUntil;
+
+  /**
+   * Fixed delay after wait_until and wait_for, bounded to 15 seconds.
+   *
+   * @generated from field: int32 settle_ms = 5;
+   */
+  settleMs: number;
 };
 
 /**
@@ -701,6 +722,41 @@ export type GetDOMTreeRequest = Message<"browser_automation_studio.v1.ai.GetDOMT
    * @generated from field: string url = 1;
    */
   url: string;
+
+  /**
+   * Optional CSS selector that must exist before the DOM snapshot is taken.
+   *
+   * @generated from field: string wait_for = 2;
+   */
+  waitFor: string;
+
+  /**
+   * Navigation readiness signal. Unspecified defaults to load.
+   *
+   * @generated from field: browser_automation_studio.v1.ai.WaitUntil wait_until = 3;
+   */
+  waitUntil: WaitUntil;
+
+  /**
+   * Fixed delay after wait_until and wait_for, bounded to 15 seconds.
+   *
+   * @generated from field: int32 settle_ms = 4;
+   */
+  settleMs: number;
+
+  /**
+   * Include computed style and geometry metadata on every element node.
+   *
+   * @generated from field: bool computed = 5;
+   */
+  computed: boolean;
+
+  /**
+   * Maximum number of element nodes to include; defaults to 4000.
+   *
+   * @generated from field: int32 max_nodes = 6;
+   */
+  maxNodes: number;
 };
 
 /**
@@ -862,6 +918,71 @@ export const ListNavigatorsResponseSchema: GenMessage<ListNavigatorsResponse> = 
   messageDesc(file_browser_automation_studio_v1_ai_ai, 24);
 
 /**
+ * Caller-defined, independently executed observation on the final page.
+ *
+ * @generated from message browser_automation_studio.v1.ai.NavigationPostcondition
+ */
+export type NavigationPostcondition = Message<"browser_automation_studio.v1.ai.NavigationPostcondition"> & {
+  /**
+   * @generated from field: string selector = 1;
+   */
+  selector: string;
+
+  /**
+   * exists, text_equals, text_contains, count_equals (or BAS assertion enum spelling).
+   *
+   * @generated from field: string mode = 2;
+   */
+  mode: string;
+
+  /**
+   * @generated from field: string expected = 3;
+   */
+  expected: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.NavigationPostcondition.
+ * Use `create(NavigationPostconditionSchema)` to create a new message.
+ */
+export const NavigationPostconditionSchema: GenMessage<NavigationPostcondition> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 25);
+
+/**
+ * @generated from message browser_automation_studio.v1.ai.NavigationExtraction
+ */
+export type NavigationExtraction = Message<"browser_automation_studio.v1.ai.NavigationExtraction"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string selector = 2;
+   */
+  selector: string;
+
+  /**
+   * Empty reads text; otherwise reads this DOM attribute.
+   *
+   * @generated from field: string attribute = 3;
+   */
+  attribute: string;
+
+  /**
+   * @generated from field: int32 limit = 4;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.NavigationExtraction.
+ * Use `create(NavigationExtractionSchema)` to create a new message.
+ */
+export const NavigationExtractionSchema: GenMessage<NavigationExtraction> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 26);
+
+/**
  * @generated from message browser_automation_studio.v1.ai.StartNavigationRequest
  */
 export type StartNavigationRequest = Message<"browser_automation_studio.v1.ai.StartNavigationRequest"> & {
@@ -915,6 +1036,23 @@ export type StartNavigationRequest = Message<"browser_automation_studio.v1.ai.St
    * @generated from field: string client_source = 7;
    */
   clientSource: string;
+
+  /**
+   * explicit (default) or read_only. Enforced before every navigator action.
+   *
+   * @generated from field: string effect_policy = 8;
+   */
+  effectPolicy: string;
+
+  /**
+   * @generated from field: repeated browser_automation_studio.v1.ai.NavigationPostcondition postconditions = 9;
+   */
+  postconditions: NavigationPostcondition[];
+
+  /**
+   * @generated from field: repeated browser_automation_studio.v1.ai.NavigationExtraction extraction = 10;
+   */
+  extraction: NavigationExtraction[];
 };
 
 /**
@@ -922,7 +1060,7 @@ export type StartNavigationRequest = Message<"browser_automation_studio.v1.ai.St
  * Use `create(StartNavigationRequestSchema)` to create a new message.
  */
 export const StartNavigationRequestSchema: GenMessage<StartNavigationRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_ai_ai, 25);
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 27);
 
 /**
  * @generated from message browser_automation_studio.v1.ai.StartNavigationResponse
@@ -961,7 +1099,7 @@ export type StartNavigationResponse = Message<"browser_automation_studio.v1.ai.S
  * Use `create(StartNavigationResponseSchema)` to create a new message.
  */
 export const StartNavigationResponseSchema: GenMessage<StartNavigationResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_ai_ai, 26);
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 28);
 
 /**
  * @generated from message browser_automation_studio.v1.ai.GetNavigationStatusRequest
@@ -971,6 +1109,17 @@ export type GetNavigationStatusRequest = Message<"browser_automation_studio.v1.a
    * @generated from field: string navigation_id = 1;
    */
   navigationId: string;
+
+  /**
+   * wait_millis makes the call a server-side wait: 0 returns the current
+   * state immediately; otherwise the server blocks up to this long (capped
+   * at 300000) until the navigation reaches a terminal state (completed |
+   * failed | aborted | max_steps_reached | loop_detected | awaiting_human).
+   * Waiting is a server primitive, never a client poll loop.
+   *
+   * @generated from field: int64 wait_millis = 2;
+   */
+  waitMillis: bigint;
 };
 
 /**
@@ -978,7 +1127,81 @@ export type GetNavigationStatusRequest = Message<"browser_automation_studio.v1.a
  * Use `create(GetNavigationStatusRequestSchema)` to create a new message.
  */
 export const GetNavigationStatusRequestSchema: GenMessage<GetNavigationStatusRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_ai_ai, 27);
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 29);
+
+/**
+ * NavigationStep is one recorded navigator action. The tracker keeps a
+ * bounded history (200 most recent) so a finished navigation can be turned
+ * into a saved workflow.
+ *
+ * @generated from message browser_automation_studio.v1.ai.NavigationStep
+ */
+export type NavigationStep = Message<"browser_automation_studio.v1.ai.NavigationStep"> & {
+  /**
+   * 1-based step number as reported by the navigator.
+   *
+   * @generated from field: int32 index = 1;
+   */
+  index: number;
+
+  /**
+   * Normalised action type: navigate | click | type | scroll | keypress |
+   * screenshot | find | read | evaluate | ...
+   *
+   * @generated from field: string action_type = 2;
+   */
+  actionType: string;
+
+  /**
+   * CSS selector, element ref, or coordinate the action targeted.
+   *
+   * @generated from field: string selector = 3;
+   */
+  selector: string;
+
+  /**
+   * Text typed, key pressed, or other action payload.
+   *
+   * @generated from field: string value = 4;
+   */
+  value: string;
+
+  /**
+   * URL navigated to, or the page URL at the time of the action when known.
+   *
+   * @generated from field: string url = 5;
+   */
+  url: string;
+
+  /**
+   * Navigator reasoning / human-readable description of the step.
+   *
+   * @generated from field: string description = 6;
+   */
+  description: string;
+
+  /**
+   * @generated from field: bool success = 7;
+   */
+  success: boolean;
+
+  /**
+   * @generated from field: string error = 8;
+   */
+  error: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp at = 9;
+   */
+  at?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.NavigationStep.
+ * Use `create(NavigationStepSchema)` to create a new message.
+ */
+export const NavigationStepSchema: GenMessage<NavigationStep> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 30);
 
 /**
  * @generated from message browser_automation_studio.v1.ai.GetNavigationStatusResponse
@@ -1022,6 +1245,38 @@ export type GetNavigationStatusResponse = Message<"browser_automation_studio.v1.
    * @generated from field: string navigator_type = 7;
    */
   navigatorType: string;
+
+  /**
+   * terminal is true when status is one of completed | failed | aborted |
+   * max_steps_reached | loop_detected | awaiting_human.
+   *
+   * @generated from field: bool terminal = 8;
+   */
+  terminal: boolean;
+
+  /**
+   * steps is the bounded action history recorded by the tracker.
+   *
+   * @generated from field: repeated browser_automation_studio.v1.ai.NavigationStep steps = 9;
+   */
+  steps: NavigationStep[];
+
+  /**
+   * @generated from field: bool verified_success = 10;
+   */
+  verifiedSuccess: boolean;
+
+  /**
+   * Bounded named arrays extracted from the final page without replay.
+   *
+   * @generated from field: google.protobuf.Struct extracted_data = 11;
+   */
+  extractedData?: JsonObject | undefined;
+
+  /**
+   * @generated from field: string verification_error = 12;
+   */
+  verificationError: string;
 };
 
 /**
@@ -1029,7 +1284,7 @@ export type GetNavigationStatusResponse = Message<"browser_automation_studio.v1.
  * Use `create(GetNavigationStatusResponseSchema)` to create a new message.
  */
 export const GetNavigationStatusResponseSchema: GenMessage<GetNavigationStatusResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_ai_ai, 28);
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 31);
 
 /**
  * @generated from message browser_automation_studio.v1.ai.AbortNavigationRequest
@@ -1046,7 +1301,7 @@ export type AbortNavigationRequest = Message<"browser_automation_studio.v1.ai.Ab
  * Use `create(AbortNavigationRequestSchema)` to create a new message.
  */
 export const AbortNavigationRequestSchema: GenMessage<AbortNavigationRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_ai_ai, 29);
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 32);
 
 /**
  * @generated from message browser_automation_studio.v1.ai.AbortNavigationResponse
@@ -1073,7 +1328,7 @@ export type AbortNavigationResponse = Message<"browser_automation_studio.v1.ai.A
  * Use `create(AbortNavigationResponseSchema)` to create a new message.
  */
 export const AbortNavigationResponseSchema: GenMessage<AbortNavigationResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_ai_ai, 30);
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 33);
 
 /**
  * @generated from message browser_automation_studio.v1.ai.ResumeNavigationRequest
@@ -1090,7 +1345,7 @@ export type ResumeNavigationRequest = Message<"browser_automation_studio.v1.ai.R
  * Use `create(ResumeNavigationRequestSchema)` to create a new message.
  */
 export const ResumeNavigationRequestSchema: GenMessage<ResumeNavigationRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_ai_ai, 31);
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 34);
 
 /**
  * @generated from message browser_automation_studio.v1.ai.ResumeNavigationResponse
@@ -1117,7 +1372,42 @@ export type ResumeNavigationResponse = Message<"browser_automation_studio.v1.ai.
  * Use `create(ResumeNavigationResponseSchema)` to create a new message.
  */
 export const ResumeNavigationResponseSchema: GenMessage<ResumeNavigationResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_ai_ai, 32);
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 35);
+
+/**
+ * WaitUntil controls the browser navigation readiness signal used by one-shot
+ * AI captures. Callers may add an explicit selector and bounded settle delay
+ * after this signal for applications whose content renders asynchronously.
+ *
+ * @generated from enum browser_automation_studio.v1.ai.WaitUntil
+ */
+export enum WaitUntil {
+  /**
+   * @generated from enum value: WAIT_UNTIL_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: WAIT_UNTIL_LOAD = 1;
+   */
+  LOAD = 1,
+
+  /**
+   * @generated from enum value: WAIT_UNTIL_DOMCONTENTLOADED = 2;
+   */
+  DOMCONTENTLOADED = 2,
+
+  /**
+   * @generated from enum value: WAIT_UNTIL_NETWORKIDLE = 3;
+   */
+  NETWORKIDLE = 3,
+}
+
+/**
+ * Describes the enum browser_automation_studio.v1.ai.WaitUntil.
+ */
+export const WaitUntilSchema: GenEnum<WaitUntil> = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_ai_ai, 0);
 
 /**
  * @generated from service browser_automation_studio.v1.ai.AIService

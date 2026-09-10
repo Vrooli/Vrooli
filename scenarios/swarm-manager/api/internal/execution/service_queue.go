@@ -14,7 +14,10 @@ import (
 	"swarm-manager/internal/transitions"
 )
 
-const defaultExecutionStrategy = "phased-plan-drain"
+const (
+	defaultExecutionStrategy    = "phased-plan-drain"
+	adaptiveImprovementStrategy = "adaptive-improvement"
+)
 
 func (s *Service) declaredExecutionStrategies() []transitions.ExecutionStrategy {
 	if definition, ok := s.transitionRegistry.Get("plan.execute"); ok && len(definition.Strategies) > 0 {
@@ -48,8 +51,8 @@ func (s *Service) normalizeExecutionSelection(req *CreateRequest) error {
 	if req.MaxSlices == 0 {
 		req.MaxSlices = 6
 	}
-	if req.MaxSlices < 1 || req.MaxSlices > 6 {
-		return apierr.BadRequest("max_slices must be between 1 and 6")
+	if req.MaxSlices < 1 || req.MaxSlices > 512 {
+		return apierr.BadRequest("max_slices must be between 1 and 512 within the accepted item allowance")
 	}
 	return nil
 }
@@ -58,6 +61,20 @@ func (s *Service) normalizeExecutionSelection(req *CreateRequest) error {
 func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := s.checkPlanWork(ctx, req.BacklogKind, req.BacklogName); err != nil {
+		return Record{}, err
+	}
+	// A plan-backed item may declare its execution strategy. The queue request
+	// remains an override for callers that explicitly choose one; otherwise the
+	// item's persisted strategy is the durable operator decision.
+	if item, loadErr := s.loadBacklogItem(req.BacklogKind, req.BacklogName); loadErr == nil {
+		if strings.TrimSpace(req.Strategy) == "" {
+			req.Strategy = item.ExecutionStrategy
+		}
+		if req.MaxSlices == 0 && item.ExecutionLimits != nil {
+			req.MaxSlices = item.ExecutionLimits.MaxSlices
+		}
+	}
 	if err := s.normalizeExecutionSelection(&req); err != nil {
 		return Record{}, err
 	}
@@ -65,6 +82,16 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	mode, item, preflight, err := s.validateAndLoadQueueRequest(ctx, req)
 	if err != nil {
 		return Record{}, err
+	}
+	if item.PlanAcceptance != nil && req.Strategy != firstNonEmpty(item.ExecutionStrategy, defaultExecutionStrategy) {
+		return Record{}, apierr.Conflict("execution strategy differs from the accepted item; save and review the changed strategy before starting")
+	}
+	maximumSlices := 6
+	if item.ExecutionLimits != nil {
+		maximumSlices = item.ExecutionLimits.MaxSlices
+	}
+	if req.MaxSlices > maximumSlices {
+		return Record{}, apierr.BadRequest("max_slices exceeds the accepted item allowance of %d", maximumSlices)
 	}
 	// Load governance settings for enforcement checks.
 	gov, govErr := s.governanceProvider.LoadGovernance()
@@ -175,9 +202,13 @@ func buildNewQueueRecord(ctx context.Context, req CreateRequest, item backlogIte
 		Force:             req.Force,
 		ExecutionStrategy: req.Strategy,
 		MaxSlices:         req.MaxSlices,
+		ExecutionLimits:   item.ExecutionLimits.Clone(),
 		QueuedAt:          now,
 		CreatedAt:         now,
 		UpdatedAt:         now,
+	}
+	if item.PlanAcceptance != nil {
+		record.ApprovalDigest = digestStrings(item.PlanAcceptance.SubjectVersion, item.PlanAcceptance.PlanContentHash)
 	}
 	if record.StartedBy == "" {
 		prov := identity.FromContext(ctx)

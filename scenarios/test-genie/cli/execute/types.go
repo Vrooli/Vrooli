@@ -36,6 +36,17 @@ type Args struct {
 	LogicalRepoRoot        string
 	LogicalScenarioRelPath string
 
+	ReleaseProfileID             string
+	ReleaseCandidateCommit       string
+	ReleaseArtifactDigest        string
+	ReleaseTargetsCSV            string
+	ReleaseChannel               string
+	ReleasePolicyVersion         int
+	ReleaseCandidateID           string
+	ReleaseDestinationRevisionID string
+	ReleaseAuthorizationEpoch    uint64
+	ReleasePredecessorRunID      string
+
 	// Runtime URLs for Lighthouse and integration testing
 	UIURL  string
 	APIURL string

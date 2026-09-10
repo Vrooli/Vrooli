@@ -93,6 +93,7 @@ func TestRegisteredBuildersCoverTheirDeclaredInputContract(t *testing.T) {
 		"work.correct":            {"entity", "snapshot"},
 		"work.follow_up":          {"entity", "snapshot"},
 		"scenario.spec_sync":      {"entity", "snapshot"},
+		"contract-development":    {"entity", "development"},
 		"goal.discover":           {"entity", "snapshot", "supported_ops"},
 		"goal.plan":               {"entity", "snapshot", "supported_ops"},
 		"milestone.review":        {"entity", "snapshot", "supported_ops"},

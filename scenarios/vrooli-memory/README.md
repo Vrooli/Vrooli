@@ -12,6 +12,24 @@ the standard full-stack Vrooli scenario shape:
 - Requirements registry, generated L0 experience contract, and progress log
   (`requirements/`, `experience/`, `docs/internal/PROGRESS.md`)
 
+## Learning capture contract
+
+Program Runtime captures one immutable attempt tree per learning task. The root
+attempt owns task identity; `learn.step` children retain names, inputs,
+outcomes, and parent order. Completion is delivered from a frozen finish
+intent, so a delivery retry never re-runs domain work. Each receipt preserves
+caller provenance (`operator`, `test`, or `agent`) and reports unavailable,
+uncertain, or blocked states explicitly.
+
+Notes use the typed vocabulary in
+[`note-kinds.json`](.vrooli/program-runtime/note-kinds.json): `preference`,
+`parameter`, `target-note`, `avoid`, `trace`, and `correction`. Recall returns
+bounded summaries first; `zoom` descends into a selected candidate. `choose`
+records which option was adopted and why, while outcome comparison can mark
+that advice as a derived supported or contradicted verdict. See
+[`program-contracts.md`](../program-runtime/docs/guides/program-contracts.md)
+for the caller-side nine-verb contract.
+
 > **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
 > owns the first-session initialization protocol — charter, requirements,
 > domain map, design language, placeholder replacement, and first real

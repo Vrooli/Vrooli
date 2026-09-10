@@ -27,9 +27,10 @@ service ConfigService {
   // It never returns credential values.
   rpc GetCredentialStatus(GetCredentialStatusRequest) returns (GetCredentialStatusResponse);
   // VerifyCredentials performs LIVE read-only Cloudflare probes (token verify,
-  // account/tunnel read, apex zone lookup + DNS-records read) and returns a
-  // per-check verdict with remediation. It is the opt-in counterpart to the
-  // presence-only GetCredentialStatus and never returns credential values.
+  // account/tunnel read, apex zone lookup + DNS-records read, Access app read,
+  // and Access organization metadata read) and returns per-check plus
+  // capability-level verdicts with remediation. It is the opt-in counterpart
+  // to the presence-only GetCredentialStatus and never returns credential values.
   rpc VerifyCredentials(VerifyCredentialsRequest) returns (VerifyCredentialsResponse);
   // BootstrapCloudflare adopts or creates the named tunnel from one
   // write-only API token, then stores all derived authority fields. The token
@@ -72,6 +73,10 @@ service ConfigService {
   // decisions, and the dry-run plan (apps a reconcile would create/remove).
   // Pure — no mutation, no live Cloudflare calls.
   rpc GetAccessStatus(GetAccessStatusRequest) returns (GetAccessStatusResponse);
+  // GetAuthenticationBinding resolves non-secret primary Access verifier
+  // metadata for a managed scenario route. It never returns credentials or
+  // browser assertions and performs no Cloudflare writes.
+  rpc GetAuthenticationBinding(GetAuthenticationBindingRequest) returns (GetAuthenticationBindingResponse);
 }
 
 // OwnershipState classifies one ingress hostname after reconciling the desired
@@ -222,6 +227,8 @@ enum CheckState {
   // The token authenticates but lacks the permission this check needs
   // (e.g. no Zone:DNS:Edit).
   CHECK_STATE_INSUFFICIENT_SCOPE = 4;
+  // The provider or network did not provide a stable verdict.
+  CHECK_STATE_UNAVAILABLE = 5;
 }
 
 // CredentialCheck is one live verification result. Browser/CLI safe: a verdict
@@ -234,6 +241,21 @@ message CredentialCheck {
   string detail = 3;
   // One-line operator next-step when state != OK.
   string remediation = 4;
+  // Capability established by this check.
+  string capability = 5;
+  // True when this check contributes to the core ready result.
+  bool required = 6;
+}
+
+// CredentialCapability is an operation-level roll-up of live checks. A
+// capability may be unavailable without blocking core tunnel/DNS readiness;
+// consumers should display both fields rather than collapsing them.
+message CredentialCapability {
+  string name = 1;
+  bool ready = 2;
+  bool required = 3;
+  repeated string check_names = 4;
+  string reason = 5;
 }
 
 message VerifyCredentialsRequest {}
@@ -241,8 +263,12 @@ message VerifyCredentialsRequest {}
 message VerifyCredentialsResponse {
   // Per-check live verification results, in a stable order.
   repeated CredentialCheck checks = 1;
-  // True only when every check is OK.
+  // True when every check marked required is OK.
   bool ready = 2;
+  // Operation-level readiness, including optional capabilities.
+  repeated CredentialCapability capabilities = 3;
+  // True only when every returned check is OK, including optional checks.
+  bool all_checks_ok = 4;
 }
 
 message BootstrapCloudflareRequest {
@@ -336,7 +362,7 @@ message GetDriftResponse {
 }
 
 message AdoptIngressRequest {
-  // Full hostname to adopt (e.g. api.itsagitime.com).
+  // Full hostname to adopt (e.g. api.example.invalid).
   string hostname = 1;
   // Adopt as this scenario route. When empty and target is empty, the service
   // resolves scenario vs external automatically.
@@ -411,4 +437,24 @@ message AccessStatus {
 
 message GetAccessStatusResponse {
   AccessStatus status = 1;
+}
+
+message GetAuthenticationBindingRequest {
+  // Scenario slug whose enabled route should supply the hostname.
+  string scenario = 1;
+  // Optional exact hostname disambiguator for scenarios with multiple routes.
+  string hostname = 2;
+}
+
+message AuthenticationBinding {
+  // HTTPS Cloudflare Access team authentication origin.
+  string team_domain = 1;
+  // Public audience tag of the primary Access application.
+  string audience = 2;
+  // Operator recovery/sign-in origin; currently the team domain.
+  string recovery_url = 3;
+}
+
+message GetAuthenticationBindingResponse {
+  AuthenticationBinding binding = 1;
 }

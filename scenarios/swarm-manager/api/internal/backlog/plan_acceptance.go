@@ -1,10 +1,9 @@
 package backlog
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -15,6 +14,39 @@ import (
 
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 )
+
+// ValidateAcceptedPlan is the shared admission check for execution strategies
+// that use a backlog item's canonical plan. It re-resolves the live Plan
+// Manager frontier so adaptive execution cannot run against a changed or
+// unaccepted plan.
+func (h *Handler) ValidateAcceptedPlan(ctx context.Context, item BacklogItem) error {
+	if err := validatePlanRef(item.PlanRef, PlanRefRoleExecutionSpec); err != nil {
+		return fmt.Errorf("canonical execution plan is required: %w", err)
+	}
+	if h.planClient == nil {
+		return fmt.Errorf("plan-manager client is not configured")
+	}
+	planID := firstNonBlank(item.PlanRef.PlanID, item.PlanRef.Slug)
+	plan, err := h.planClient.GetPlan(ctx, planID)
+	if err != nil {
+		return fmt.Errorf("resolve canonical plan: %w", err)
+	}
+	if plan.GetStatus() == sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED {
+		return fmt.Errorf("canonical plan is archived")
+	}
+	hash := strings.TrimSpace(plan.GetContentHash())
+	if hash == "" || !PlanAcceptanceMatches(item, hash) {
+		return fmt.Errorf("canonical plan is not accepted at its current content hash")
+	}
+	rendered, err := h.planClient.RenderMarkdown(ctx, planID, true)
+	if err != nil {
+		return fmt.Errorf("validate canonical plan: %w", err)
+	}
+	if strings.TrimSpace(rendered.QualityStatus) != "pass" {
+		return fmt.Errorf("canonical plan quality status is %q", rendered.QualityStatus)
+	}
+	return nil
+}
 
 type acceptPlanRequest struct {
 	Actor           string `json:"actor"`
@@ -136,23 +168,15 @@ func (h *Handler) UnacceptPlan(w http.ResponseWriter, r *http.Request) {
 // an already accepted plan stale, but changing scope or the plan reference
 // must.
 func PlanAcceptanceSubjectVersion(item BacklogItem) string {
-	payload := struct {
-		Kind            BacklogKind `json:"kind"`
-		Name            string      `json:"name"`
-		Title           string      `json:"title"`
-		Description     string      `json:"description"`
-		AcceptanceAllow []string    `json:"acceptance_allow,omitempty"`
-		AcceptanceDeny  []string    `json:"acceptance_deny,omitempty"`
-		Creates         []string    `json:"creates,omitempty"`
-		PlanRef         *PlanRef    `json:"plan_ref,omitempty"`
-	}{
-		Kind: item.Kind, Name: item.Name, Title: item.Title, Description: item.Description,
+	contract := identity.PlanAcceptanceContract{
+		Kind: string(item.Kind), Name: item.Name, Title: item.Title, Description: item.Description,
 		AcceptanceAllow: item.AcceptanceAllow, AcceptanceDeny: item.AcceptanceDeny,
-		Creates: item.Creates, PlanRef: item.PlanRef,
+		Creates: item.Creates, ExecutionStrategy: item.ExecutionStrategy, ExecutionLimits: item.ExecutionLimits,
 	}
-	raw, _ := json.Marshal(payload)
-	sum := sha256.Sum256(raw)
-	return "sha256:" + hex.EncodeToString(sum[:])
+	if item.PlanRef != nil {
+		contract.PlanRef = &identity.PlanAcceptanceReference{Provider: item.PlanRef.Provider, PlanID: item.PlanRef.PlanID, Slug: item.PlanRef.Slug, Role: item.PlanRef.Role}
+	}
+	return contract.Digest()
 }
 
 // PlanAcceptanceMatches reports whether the record authorizes this exact

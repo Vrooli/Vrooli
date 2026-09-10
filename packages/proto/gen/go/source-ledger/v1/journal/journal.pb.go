@@ -694,12 +694,15 @@ func (x *AppendEntryResponse) GetExisting() bool {
 }
 
 type GetEntryRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
-	RequestKey    string                 `protobuf:"bytes,3,opt,name=request_key,json=requestKey,proto3" json:"request_key,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Id         string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Scope      string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
+	RequestKey string                 `protobuf:"bytes,3,opt,name=request_key,json=requestKey,proto3" json:"request_key,omitempty"`
+	// Resolve an imported entry by its immutable identity within the scope.
+	// Exactly one of id, request_key, or import_provenance must be supplied.
+	ImportProvenance *ImportProvenance `protobuf:"bytes,4,opt,name=import_provenance,json=importProvenance,proto3" json:"import_provenance,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GetEntryRequest) Reset() {
@@ -751,6 +754,13 @@ func (x *GetEntryRequest) GetRequestKey() string {
 		return x.RequestKey
 	}
 	return ""
+}
+
+func (x *GetEntryRequest) GetImportProvenance() *ImportProvenance {
+	if x != nil {
+		return x.ImportProvenance
+	}
+	return nil
 }
 
 type GetEntryResponse struct {
@@ -1223,12 +1233,13 @@ const file_source_ledger_v1_journal_journal_proto_rawDesc = "" +
 	"\x13_expected_latest_id\"o\n" +
 	"\x13AppendEntryResponse\x12<\n" +
 	"\x05entry\x18\x01 \x01(\v2&.vrooli.source_ledger.v1.journal.EntryR\x05entry\x12\x1a\n" +
-	"\bexisting\x18\x02 \x01(\bR\bexisting\"X\n" +
+	"\bexisting\x18\x02 \x01(\bR\bexisting\"\xb8\x01\n" +
 	"\x0fGetEntryRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05scope\x18\x02 \x01(\tR\x05scope\x12\x1f\n" +
 	"\vrequest_key\x18\x03 \x01(\tR\n" +
-	"requestKey\"P\n" +
+	"requestKey\x12^\n" +
+	"\x11import_provenance\x18\x04 \x01(\v21.vrooli.source_ledger.v1.journal.ImportProvenanceR\x10importProvenance\"P\n" +
 	"\x10GetEntryResponse\x12<\n" +
 	"\x05entry\x18\x01 \x01(\v2&.vrooli.source_ledger.v1.journal.EntryR\x05entry\"\xaa\x01\n" +
 	"\x12ListEntriesRequest\x12\x19\n" +
@@ -1310,25 +1321,26 @@ var file_source_ledger_v1_journal_journal_proto_depIdxs = []int32{
 	4,  // 8: vrooli.source_ledger.v1.journal.AppendEntryRequest.correlation:type_name -> vrooli.source_ledger.v1.journal.Correlation
 	5,  // 9: vrooli.source_ledger.v1.journal.AppendEntryRequest.import_provenance:type_name -> vrooli.source_ledger.v1.journal.ImportProvenance
 	6,  // 10: vrooli.source_ledger.v1.journal.AppendEntryResponse.entry:type_name -> vrooli.source_ledger.v1.journal.Entry
-	6,  // 11: vrooli.source_ledger.v1.journal.GetEntryResponse.entry:type_name -> vrooli.source_ledger.v1.journal.Entry
-	6,  // 12: vrooli.source_ledger.v1.journal.ListEntriesResponse.entries:type_name -> vrooli.source_ledger.v1.journal.Entry
-	7,  // 13: vrooli.source_ledger.v1.journal.JournalService.AppendEntry:input_type -> vrooli.source_ledger.v1.journal.AppendEntryRequest
-	9,  // 14: vrooli.source_ledger.v1.journal.JournalService.GetEntry:input_type -> vrooli.source_ledger.v1.journal.GetEntryRequest
-	11, // 15: vrooli.source_ledger.v1.journal.JournalService.ListEntries:input_type -> vrooli.source_ledger.v1.journal.ListEntriesRequest
-	13, // 16: vrooli.source_ledger.v1.journal.JournalService.ProcessClassificationRetries:input_type -> vrooli.source_ledger.v1.journal.ProcessClassificationRetriesRequest
-	15, // 17: vrooli.source_ledger.v1.journal.JournalService.ProcessEmbeddingRetries:input_type -> vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesRequest
-	0,  // 18: vrooli.source_ledger.v1.journal.JournalService.CountEntries:input_type -> vrooli.source_ledger.v1.journal.CountEntriesRequest
-	8,  // 19: vrooli.source_ledger.v1.journal.JournalService.AppendEntry:output_type -> vrooli.source_ledger.v1.journal.AppendEntryResponse
-	10, // 20: vrooli.source_ledger.v1.journal.JournalService.GetEntry:output_type -> vrooli.source_ledger.v1.journal.GetEntryResponse
-	12, // 21: vrooli.source_ledger.v1.journal.JournalService.ListEntries:output_type -> vrooli.source_ledger.v1.journal.ListEntriesResponse
-	14, // 22: vrooli.source_ledger.v1.journal.JournalService.ProcessClassificationRetries:output_type -> vrooli.source_ledger.v1.journal.ProcessClassificationRetriesResponse
-	16, // 23: vrooli.source_ledger.v1.journal.JournalService.ProcessEmbeddingRetries:output_type -> vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesResponse
-	1,  // 24: vrooli.source_ledger.v1.journal.JournalService.CountEntries:output_type -> vrooli.source_ledger.v1.journal.CountEntriesResponse
-	19, // [19:25] is the sub-list for method output_type
-	13, // [13:19] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	5,  // 11: vrooli.source_ledger.v1.journal.GetEntryRequest.import_provenance:type_name -> vrooli.source_ledger.v1.journal.ImportProvenance
+	6,  // 12: vrooli.source_ledger.v1.journal.GetEntryResponse.entry:type_name -> vrooli.source_ledger.v1.journal.Entry
+	6,  // 13: vrooli.source_ledger.v1.journal.ListEntriesResponse.entries:type_name -> vrooli.source_ledger.v1.journal.Entry
+	7,  // 14: vrooli.source_ledger.v1.journal.JournalService.AppendEntry:input_type -> vrooli.source_ledger.v1.journal.AppendEntryRequest
+	9,  // 15: vrooli.source_ledger.v1.journal.JournalService.GetEntry:input_type -> vrooli.source_ledger.v1.journal.GetEntryRequest
+	11, // 16: vrooli.source_ledger.v1.journal.JournalService.ListEntries:input_type -> vrooli.source_ledger.v1.journal.ListEntriesRequest
+	13, // 17: vrooli.source_ledger.v1.journal.JournalService.ProcessClassificationRetries:input_type -> vrooli.source_ledger.v1.journal.ProcessClassificationRetriesRequest
+	15, // 18: vrooli.source_ledger.v1.journal.JournalService.ProcessEmbeddingRetries:input_type -> vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesRequest
+	0,  // 19: vrooli.source_ledger.v1.journal.JournalService.CountEntries:input_type -> vrooli.source_ledger.v1.journal.CountEntriesRequest
+	8,  // 20: vrooli.source_ledger.v1.journal.JournalService.AppendEntry:output_type -> vrooli.source_ledger.v1.journal.AppendEntryResponse
+	10, // 21: vrooli.source_ledger.v1.journal.JournalService.GetEntry:output_type -> vrooli.source_ledger.v1.journal.GetEntryResponse
+	12, // 22: vrooli.source_ledger.v1.journal.JournalService.ListEntries:output_type -> vrooli.source_ledger.v1.journal.ListEntriesResponse
+	14, // 23: vrooli.source_ledger.v1.journal.JournalService.ProcessClassificationRetries:output_type -> vrooli.source_ledger.v1.journal.ProcessClassificationRetriesResponse
+	16, // 24: vrooli.source_ledger.v1.journal.JournalService.ProcessEmbeddingRetries:output_type -> vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesResponse
+	1,  // 25: vrooli.source_ledger.v1.journal.JournalService.CountEntries:output_type -> vrooli.source_ledger.v1.journal.CountEntriesResponse
+	20, // [20:26] is the sub-list for method output_type
+	14, // [14:20] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_source_ledger_v1_journal_journal_proto_init() }

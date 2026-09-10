@@ -9,7 +9,7 @@ import { enumDesc, fileDesc } from "@bufbuild/protobuf/codegenv2";
  * Describes the file data-backup-manager/v1/sources/sources.proto.
  */
 export const file_data_backup_manager_v1_sources_sources: GenFile = /*@__PURE__*/
-  fileDesc("CixkYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL3NvdXJjZXMvc291cmNlcy5wcm90bxIldnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuc291cmNlcyrGAQoKU291cmNlS2luZBIbChdTT1VSQ0VfS0lORF9VTlNQRUNJRklFRBAAEhoKFlNPVVJDRV9LSU5EX0ZJTEVTWVNURU0QARIWChJTT1VSQ0VfS0lORF9TUUxJVEUQAhIYChRTT1VSQ0VfS0lORF9QT1NUR1JFUxADEhUKEVNPVVJDRV9LSU5EX1JFRElTEAQSFgoSU09VUkNFX0tJTkRfUURSQU5UEAUSHgoaU09VUkNFX0tJTkRfT0JKRUNUX1NUT1JBR0UQBkJaWlhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2RhdGEtYmFja3VwLW1hbmFnZXIvdjEvc291cmNlcztzb3VyY2VzX3YxYgZwcm90bzM");
+  fileDesc("CixkYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL3NvdXJjZXMvc291cmNlcy5wcm90bxIldnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuc291cmNlcyrsAQoKU291cmNlS2luZBIbChdTT1VSQ0VfS0lORF9VTlNQRUNJRklFRBAAEhoKFlNPVVJDRV9LSU5EX0ZJTEVTWVNURU0QARIWChJTT1VSQ0VfS0lORF9TUUxJVEUQAhIYChRTT1VSQ0VfS0lORF9QT1NUR1JFUxADEhUKEVNPVVJDRV9LSU5EX1JFRElTEAQSFgoSU09VUkNFX0tJTkRfUURSQU5UEAUSHgoaU09VUkNFX0tJTkRfT0JKRUNUX1NUT1JBR0UQBhIkCiBTT1VSQ0VfS0lORF9XT1JLU1BBQ0VfQ0hFQ0tQT0lOVBAHQlpaWGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZGF0YS1iYWNrdXAtbWFuYWdlci92MS9zb3VyY2VzO3NvdXJjZXNfdjFiBnByb3RvMw");
 
 /**
  * SourceKind enumerates the supported backup source kinds. The six v1 kinds
@@ -69,6 +69,14 @@ export enum SourceKind {
    * @generated from enum value: SOURCE_KIND_OBJECT_STORAGE = 6;
    */
   OBJECT_STORAGE = 6,
+
+  /**
+   * Staged workspace with a versioned metadata manifest. Detects observed
+   * source drift; does not assert an atomic snapshot of concurrent writers.
+   *
+   * @generated from enum value: SOURCE_KIND_WORKSPACE_CHECKPOINT = 7;
+   */
+  WORKSPACE_CHECKPOINT = 7,
 }
 
 /**

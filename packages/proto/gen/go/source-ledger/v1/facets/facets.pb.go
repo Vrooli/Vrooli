@@ -253,6 +253,286 @@ func (x *ListFacetsResponse) GetFacets() []*Facet {
 	return nil
 }
 
+type CountUnassignedRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CountUnassignedRequest) Reset() {
+	*x = CountUnassignedRequest{}
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CountUnassignedRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CountUnassignedRequest) ProtoMessage() {}
+
+func (x *CountUnassignedRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CountUnassignedRequest.ProtoReflect.Descriptor instead.
+func (*CountUnassignedRequest) Descriptor() ([]byte, []int) {
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CountUnassignedRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+type CountUnassignedResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	Count         int32                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CountUnassignedResponse) Reset() {
+	*x = CountUnassignedResponse{}
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CountUnassignedResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CountUnassignedResponse) ProtoMessage() {}
+
+func (x *CountUnassignedResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CountUnassignedResponse.ProtoReflect.Descriptor instead.
+func (*CountUnassignedResponse) Descriptor() ([]byte, []int) {
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CountUnassignedResponse) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *CountUnassignedResponse) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+type EnsureFacetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	Facet         *Facet                 `protobuf:"bytes,2,opt,name=facet,proto3" json:"facet,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnsureFacetRequest) Reset() {
+	*x = EnsureFacetRequest{}
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureFacetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureFacetRequest) ProtoMessage() {}
+
+func (x *EnsureFacetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureFacetRequest.ProtoReflect.Descriptor instead.
+func (*EnsureFacetRequest) Descriptor() ([]byte, []int) {
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *EnsureFacetRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *EnsureFacetRequest) GetFacet() *Facet {
+	if x != nil {
+		return x.Facet
+	}
+	return nil
+}
+
+type EnsureFacetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Facet         *Facet                 `protobuf:"bytes,1,opt,name=facet,proto3" json:"facet,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnsureFacetResponse) Reset() {
+	*x = EnsureFacetResponse{}
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureFacetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureFacetResponse) ProtoMessage() {}
+
+func (x *EnsureFacetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureFacetResponse.ProtoReflect.Descriptor instead.
+func (*EnsureFacetResponse) Descriptor() ([]byte, []int) {
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *EnsureFacetResponse) GetFacet() *Facet {
+	if x != nil {
+		return x.Facet
+	}
+	return nil
+}
+
+type DeleteFacetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	FacetId       string                 `protobuf:"bytes,2,opt,name=facet_id,json=facetId,proto3" json:"facet_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteFacetRequest) Reset() {
+	*x = DeleteFacetRequest{}
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteFacetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteFacetRequest) ProtoMessage() {}
+
+func (x *DeleteFacetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteFacetRequest.ProtoReflect.Descriptor instead.
+func (*DeleteFacetRequest) Descriptor() ([]byte, []int) {
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DeleteFacetRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *DeleteFacetRequest) GetFacetId() string {
+	if x != nil {
+		return x.FacetId
+	}
+	return ""
+}
+
+type DeleteFacetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteFacetResponse) Reset() {
+	*x = DeleteFacetResponse{}
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteFacetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteFacetResponse) ProtoMessage() {}
+
+func (x *DeleteFacetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteFacetResponse.ProtoReflect.Descriptor instead.
+func (*DeleteFacetResponse) Descriptor() ([]byte, []int) {
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{9}
+}
+
 type SetFacetPolicyRequest struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Scope              string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -266,7 +546,7 @@ type SetFacetPolicyRequest struct {
 
 func (x *SetFacetPolicyRequest) Reset() {
 	*x = SetFacetPolicyRequest{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[4]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -278,7 +558,7 @@ func (x *SetFacetPolicyRequest) String() string {
 func (*SetFacetPolicyRequest) ProtoMessage() {}
 
 func (x *SetFacetPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[4]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -291,7 +571,7 @@ func (x *SetFacetPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetFacetPolicyRequest.ProtoReflect.Descriptor instead.
 func (*SetFacetPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{4}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SetFacetPolicyRequest) GetScope() string {
@@ -338,7 +618,7 @@ type SetFacetPolicyResponse struct {
 
 func (x *SetFacetPolicyResponse) Reset() {
 	*x = SetFacetPolicyResponse{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[5]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -350,7 +630,7 @@ func (x *SetFacetPolicyResponse) String() string {
 func (*SetFacetPolicyResponse) ProtoMessage() {}
 
 func (x *SetFacetPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[5]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -363,7 +643,7 @@ func (x *SetFacetPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetFacetPolicyResponse.ProtoReflect.Descriptor instead.
 func (*SetFacetPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{5}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SetFacetPolicyResponse) GetFacet() *Facet {
@@ -384,7 +664,7 @@ type AssignFacetRequest struct {
 
 func (x *AssignFacetRequest) Reset() {
 	*x = AssignFacetRequest{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[6]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -396,7 +676,7 @@ func (x *AssignFacetRequest) String() string {
 func (*AssignFacetRequest) ProtoMessage() {}
 
 func (x *AssignFacetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[6]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -409,7 +689,7 @@ func (x *AssignFacetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssignFacetRequest.ProtoReflect.Descriptor instead.
 func (*AssignFacetRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{6}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *AssignFacetRequest) GetEntryId() string {
@@ -441,7 +721,7 @@ type AssignFacetResponse struct {
 
 func (x *AssignFacetResponse) Reset() {
 	*x = AssignFacetResponse{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[7]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -453,7 +733,7 @@ func (x *AssignFacetResponse) String() string {
 func (*AssignFacetResponse) ProtoMessage() {}
 
 func (x *AssignFacetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[7]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -466,7 +746,7 @@ func (x *AssignFacetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssignFacetResponse.ProtoReflect.Descriptor instead.
 func (*AssignFacetResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{7}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{13}
 }
 
 type SetPinRequest struct {
@@ -480,7 +760,7 @@ type SetPinRequest struct {
 
 func (x *SetPinRequest) Reset() {
 	*x = SetPinRequest{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[8]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -492,7 +772,7 @@ func (x *SetPinRequest) String() string {
 func (*SetPinRequest) ProtoMessage() {}
 
 func (x *SetPinRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[8]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -505,7 +785,7 @@ func (x *SetPinRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPinRequest.ProtoReflect.Descriptor instead.
 func (*SetPinRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{8}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SetPinRequest) GetEntryId() string {
@@ -537,7 +817,7 @@ type SetPinResponse struct {
 
 func (x *SetPinResponse) Reset() {
 	*x = SetPinResponse{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[9]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -549,7 +829,7 @@ func (x *SetPinResponse) String() string {
 func (*SetPinResponse) ProtoMessage() {}
 
 func (x *SetPinResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[9]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -562,7 +842,7 @@ func (x *SetPinResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPinResponse.ProtoReflect.Descriptor instead.
 func (*SetPinResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{9}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{15}
 }
 
 type ListPinProposalsRequest struct {
@@ -574,7 +854,7 @@ type ListPinProposalsRequest struct {
 
 func (x *ListPinProposalsRequest) Reset() {
 	*x = ListPinProposalsRequest{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[10]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -586,7 +866,7 @@ func (x *ListPinProposalsRequest) String() string {
 func (*ListPinProposalsRequest) ProtoMessage() {}
 
 func (x *ListPinProposalsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[10]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -599,7 +879,7 @@ func (x *ListPinProposalsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPinProposalsRequest.ProtoReflect.Descriptor instead.
 func (*ListPinProposalsRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{10}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListPinProposalsRequest) GetScope() string {
@@ -618,7 +898,7 @@ type ListPinProposalsResponse struct {
 
 func (x *ListPinProposalsResponse) Reset() {
 	*x = ListPinProposalsResponse{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[11]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -630,7 +910,7 @@ func (x *ListPinProposalsResponse) String() string {
 func (*ListPinProposalsResponse) ProtoMessage() {}
 
 func (x *ListPinProposalsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[11]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -643,7 +923,7 @@ func (x *ListPinProposalsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPinProposalsResponse.ProtoReflect.Descriptor instead.
 func (*ListPinProposalsResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{11}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListPinProposalsResponse) GetProposals() []*PinProposal {
@@ -666,7 +946,7 @@ type PinCandidate struct {
 
 func (x *PinCandidate) Reset() {
 	*x = PinCandidate{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[12]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -678,7 +958,7 @@ func (x *PinCandidate) String() string {
 func (*PinCandidate) ProtoMessage() {}
 
 func (x *PinCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[12]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -691,7 +971,7 @@ func (x *PinCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PinCandidate.ProtoReflect.Descriptor instead.
 func (*PinCandidate) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{12}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *PinCandidate) GetEntryId() string {
@@ -739,7 +1019,7 @@ type ListPinCandidatesRequest struct {
 
 func (x *ListPinCandidatesRequest) Reset() {
 	*x = ListPinCandidatesRequest{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[13]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -751,7 +1031,7 @@ func (x *ListPinCandidatesRequest) String() string {
 func (*ListPinCandidatesRequest) ProtoMessage() {}
 
 func (x *ListPinCandidatesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[13]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -764,7 +1044,7 @@ func (x *ListPinCandidatesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPinCandidatesRequest.ProtoReflect.Descriptor instead.
 func (*ListPinCandidatesRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{13}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ListPinCandidatesRequest) GetLimit() int32 {
@@ -790,7 +1070,7 @@ type ListPinCandidatesResponse struct {
 
 func (x *ListPinCandidatesResponse) Reset() {
 	*x = ListPinCandidatesResponse{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[14]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -802,7 +1082,7 @@ func (x *ListPinCandidatesResponse) String() string {
 func (*ListPinCandidatesResponse) ProtoMessage() {}
 
 func (x *ListPinCandidatesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[14]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -815,7 +1095,7 @@ func (x *ListPinCandidatesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPinCandidatesResponse.ProtoReflect.Descriptor instead.
 func (*ListPinCandidatesResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{14}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListPinCandidatesResponse) GetCandidates() []*PinCandidate {
@@ -836,7 +1116,7 @@ type ResolvePinProposalRequest struct {
 
 func (x *ResolvePinProposalRequest) Reset() {
 	*x = ResolvePinProposalRequest{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[15]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -848,7 +1128,7 @@ func (x *ResolvePinProposalRequest) String() string {
 func (*ResolvePinProposalRequest) ProtoMessage() {}
 
 func (x *ResolvePinProposalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[15]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -861,7 +1141,7 @@ func (x *ResolvePinProposalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolvePinProposalRequest.ProtoReflect.Descriptor instead.
 func (*ResolvePinProposalRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{15}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ResolvePinProposalRequest) GetProposalId() string {
@@ -893,7 +1173,7 @@ type ResolvePinProposalResponse struct {
 
 func (x *ResolvePinProposalResponse) Reset() {
 	*x = ResolvePinProposalResponse{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[16]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -905,7 +1185,7 @@ func (x *ResolvePinProposalResponse) String() string {
 func (*ResolvePinProposalResponse) ProtoMessage() {}
 
 func (x *ResolvePinProposalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[16]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -918,7 +1198,7 @@ func (x *ResolvePinProposalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolvePinProposalResponse.ProtoReflect.Descriptor instead.
 func (*ResolvePinProposalResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{16}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{22}
 }
 
 type MarkSupersededRequest struct {
@@ -932,7 +1212,7 @@ type MarkSupersededRequest struct {
 
 func (x *MarkSupersededRequest) Reset() {
 	*x = MarkSupersededRequest{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[17]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -944,7 +1224,7 @@ func (x *MarkSupersededRequest) String() string {
 func (*MarkSupersededRequest) ProtoMessage() {}
 
 func (x *MarkSupersededRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[17]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -957,7 +1237,7 @@ func (x *MarkSupersededRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkSupersededRequest.ProtoReflect.Descriptor instead.
 func (*MarkSupersededRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{17}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *MarkSupersededRequest) GetEntryId() string {
@@ -989,7 +1269,7 @@ type MarkSupersededResponse struct {
 
 func (x *MarkSupersededResponse) Reset() {
 	*x = MarkSupersededResponse{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[18]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1001,7 +1281,7 @@ func (x *MarkSupersededResponse) String() string {
 func (*MarkSupersededResponse) ProtoMessage() {}
 
 func (x *MarkSupersededResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[18]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1014,7 +1294,7 @@ func (x *MarkSupersededResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkSupersededResponse.ProtoReflect.Descriptor instead.
 func (*MarkSupersededResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{18}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{24}
 }
 
 type ResolveThreadRequest struct {
@@ -1027,7 +1307,7 @@ type ResolveThreadRequest struct {
 
 func (x *ResolveThreadRequest) Reset() {
 	*x = ResolveThreadRequest{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[19]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1039,7 +1319,7 @@ func (x *ResolveThreadRequest) String() string {
 func (*ResolveThreadRequest) ProtoMessage() {}
 
 func (x *ResolveThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[19]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1052,7 +1332,7 @@ func (x *ResolveThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveThreadRequest.ProtoReflect.Descriptor instead.
 func (*ResolveThreadRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{19}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ResolveThreadRequest) GetEntryId() string {
@@ -1077,7 +1357,7 @@ type ResolveThreadResponse struct {
 
 func (x *ResolveThreadResponse) Reset() {
 	*x = ResolveThreadResponse{}
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[20]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1089,7 +1369,7 @@ func (x *ResolveThreadResponse) String() string {
 func (*ResolveThreadResponse) ProtoMessage() {}
 
 func (x *ResolveThreadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[20]
+	mi := &file_source_ledger_v1_facets_facets_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1102,7 +1382,7 @@ func (x *ResolveThreadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveThreadResponse.ProtoReflect.Descriptor instead.
 func (*ResolveThreadResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{20}
+	return file_source_ledger_v1_facets_facets_proto_rawDescGZIP(), []int{26}
 }
 
 var File_source_ledger_v1_facets_facets_proto protoreflect.FileDescriptor
@@ -1124,7 +1404,21 @@ const file_source_ledger_v1_facets_facets_proto_rawDesc = "" +
 	"\x11ListFacetsRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\"S\n" +
 	"\x12ListFacetsResponse\x12=\n" +
-	"\x06facets\x18\x01 \x03(\v2%.vrooli.source_ledger.v1.facets.FacetR\x06facets\"\xcd\x01\n" +
+	"\x06facets\x18\x01 \x03(\v2%.vrooli.source_ledger.v1.facets.FacetR\x06facets\".\n" +
+	"\x16CountUnassignedRequest\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\"E\n" +
+	"\x17CountUnassignedResponse\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"g\n" +
+	"\x12EnsureFacetRequest\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12;\n" +
+	"\x05facet\x18\x02 \x01(\v2%.vrooli.source_ledger.v1.facets.FacetR\x05facet\"R\n" +
+	"\x13EnsureFacetResponse\x12;\n" +
+	"\x05facet\x18\x01 \x01(\v2%.vrooli.source_ledger.v1.facets.FacetR\x05facet\"E\n" +
+	"\x12DeleteFacetRequest\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x19\n" +
+	"\bfacet_id\x18\x02 \x01(\tR\afacetId\"\x15\n" +
+	"\x13DeleteFacetResponse\"\xcd\x01\n" +
 	"\x15SetFacetPolicyRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x19\n" +
 	"\bfacet_id\x18\x02 \x01(\tR\afacetId\x12)\n" +
@@ -1175,10 +1469,13 @@ const file_source_ledger_v1_facets_facets_proto_rawDesc = "" +
 	"\x14ResolveThreadRequest\x12\x19\n" +
 	"\bentry_id\x18\x01 \x01(\tR\aentryId\x12\x14\n" +
 	"\x05scope\x18\x02 \x01(\tR\x05scope\"\x17\n" +
-	"\x15ResolveThreadResponse2\x86\t\n" +
+	"\x15ResolveThreadResponse2\xfb\v\n" +
 	"\rFacetsService\x12s\n" +
 	"\n" +
-	"ListFacets\x121.vrooli.source_ledger.v1.facets.ListFacetsRequest\x1a2.vrooli.source_ledger.v1.facets.ListFacetsResponse\x12\x7f\n" +
+	"ListFacets\x121.vrooli.source_ledger.v1.facets.ListFacetsRequest\x1a2.vrooli.source_ledger.v1.facets.ListFacetsResponse\x12\x82\x01\n" +
+	"\x0fCountUnassigned\x126.vrooli.source_ledger.v1.facets.CountUnassignedRequest\x1a7.vrooli.source_ledger.v1.facets.CountUnassignedResponse\x12v\n" +
+	"\vEnsureFacet\x122.vrooli.source_ledger.v1.facets.EnsureFacetRequest\x1a3.vrooli.source_ledger.v1.facets.EnsureFacetResponse\x12v\n" +
+	"\vDeleteFacet\x122.vrooli.source_ledger.v1.facets.DeleteFacetRequest\x1a3.vrooli.source_ledger.v1.facets.DeleteFacetResponse\x12\x7f\n" +
 	"\x0eSetFacetPolicy\x125.vrooli.source_ledger.v1.facets.SetFacetPolicyRequest\x1a6.vrooli.source_ledger.v1.facets.SetFacetPolicyResponse\x12v\n" +
 	"\vAssignFacet\x122.vrooli.source_ledger.v1.facets.AssignFacetRequest\x1a3.vrooli.source_ledger.v1.facets.AssignFacetResponse\x12g\n" +
 	"\x06SetPin\x12-.vrooli.source_ledger.v1.facets.SetPinRequest\x1a..vrooli.source_ledger.v1.facets.SetPinResponse\x12\x85\x01\n" +
@@ -1200,58 +1497,72 @@ func file_source_ledger_v1_facets_facets_proto_rawDescGZIP() []byte {
 	return file_source_ledger_v1_facets_facets_proto_rawDescData
 }
 
-var file_source_ledger_v1_facets_facets_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_source_ledger_v1_facets_facets_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_source_ledger_v1_facets_facets_proto_goTypes = []any{
 	(*Facet)(nil),                      // 0: vrooli.source_ledger.v1.facets.Facet
 	(*PinProposal)(nil),                // 1: vrooli.source_ledger.v1.facets.PinProposal
 	(*ListFacetsRequest)(nil),          // 2: vrooli.source_ledger.v1.facets.ListFacetsRequest
 	(*ListFacetsResponse)(nil),         // 3: vrooli.source_ledger.v1.facets.ListFacetsResponse
-	(*SetFacetPolicyRequest)(nil),      // 4: vrooli.source_ledger.v1.facets.SetFacetPolicyRequest
-	(*SetFacetPolicyResponse)(nil),     // 5: vrooli.source_ledger.v1.facets.SetFacetPolicyResponse
-	(*AssignFacetRequest)(nil),         // 6: vrooli.source_ledger.v1.facets.AssignFacetRequest
-	(*AssignFacetResponse)(nil),        // 7: vrooli.source_ledger.v1.facets.AssignFacetResponse
-	(*SetPinRequest)(nil),              // 8: vrooli.source_ledger.v1.facets.SetPinRequest
-	(*SetPinResponse)(nil),             // 9: vrooli.source_ledger.v1.facets.SetPinResponse
-	(*ListPinProposalsRequest)(nil),    // 10: vrooli.source_ledger.v1.facets.ListPinProposalsRequest
-	(*ListPinProposalsResponse)(nil),   // 11: vrooli.source_ledger.v1.facets.ListPinProposalsResponse
-	(*PinCandidate)(nil),               // 12: vrooli.source_ledger.v1.facets.PinCandidate
-	(*ListPinCandidatesRequest)(nil),   // 13: vrooli.source_ledger.v1.facets.ListPinCandidatesRequest
-	(*ListPinCandidatesResponse)(nil),  // 14: vrooli.source_ledger.v1.facets.ListPinCandidatesResponse
-	(*ResolvePinProposalRequest)(nil),  // 15: vrooli.source_ledger.v1.facets.ResolvePinProposalRequest
-	(*ResolvePinProposalResponse)(nil), // 16: vrooli.source_ledger.v1.facets.ResolvePinProposalResponse
-	(*MarkSupersededRequest)(nil),      // 17: vrooli.source_ledger.v1.facets.MarkSupersededRequest
-	(*MarkSupersededResponse)(nil),     // 18: vrooli.source_ledger.v1.facets.MarkSupersededResponse
-	(*ResolveThreadRequest)(nil),       // 19: vrooli.source_ledger.v1.facets.ResolveThreadRequest
-	(*ResolveThreadResponse)(nil),      // 20: vrooli.source_ledger.v1.facets.ResolveThreadResponse
+	(*CountUnassignedRequest)(nil),     // 4: vrooli.source_ledger.v1.facets.CountUnassignedRequest
+	(*CountUnassignedResponse)(nil),    // 5: vrooli.source_ledger.v1.facets.CountUnassignedResponse
+	(*EnsureFacetRequest)(nil),         // 6: vrooli.source_ledger.v1.facets.EnsureFacetRequest
+	(*EnsureFacetResponse)(nil),        // 7: vrooli.source_ledger.v1.facets.EnsureFacetResponse
+	(*DeleteFacetRequest)(nil),         // 8: vrooli.source_ledger.v1.facets.DeleteFacetRequest
+	(*DeleteFacetResponse)(nil),        // 9: vrooli.source_ledger.v1.facets.DeleteFacetResponse
+	(*SetFacetPolicyRequest)(nil),      // 10: vrooli.source_ledger.v1.facets.SetFacetPolicyRequest
+	(*SetFacetPolicyResponse)(nil),     // 11: vrooli.source_ledger.v1.facets.SetFacetPolicyResponse
+	(*AssignFacetRequest)(nil),         // 12: vrooli.source_ledger.v1.facets.AssignFacetRequest
+	(*AssignFacetResponse)(nil),        // 13: vrooli.source_ledger.v1.facets.AssignFacetResponse
+	(*SetPinRequest)(nil),              // 14: vrooli.source_ledger.v1.facets.SetPinRequest
+	(*SetPinResponse)(nil),             // 15: vrooli.source_ledger.v1.facets.SetPinResponse
+	(*ListPinProposalsRequest)(nil),    // 16: vrooli.source_ledger.v1.facets.ListPinProposalsRequest
+	(*ListPinProposalsResponse)(nil),   // 17: vrooli.source_ledger.v1.facets.ListPinProposalsResponse
+	(*PinCandidate)(nil),               // 18: vrooli.source_ledger.v1.facets.PinCandidate
+	(*ListPinCandidatesRequest)(nil),   // 19: vrooli.source_ledger.v1.facets.ListPinCandidatesRequest
+	(*ListPinCandidatesResponse)(nil),  // 20: vrooli.source_ledger.v1.facets.ListPinCandidatesResponse
+	(*ResolvePinProposalRequest)(nil),  // 21: vrooli.source_ledger.v1.facets.ResolvePinProposalRequest
+	(*ResolvePinProposalResponse)(nil), // 22: vrooli.source_ledger.v1.facets.ResolvePinProposalResponse
+	(*MarkSupersededRequest)(nil),      // 23: vrooli.source_ledger.v1.facets.MarkSupersededRequest
+	(*MarkSupersededResponse)(nil),     // 24: vrooli.source_ledger.v1.facets.MarkSupersededResponse
+	(*ResolveThreadRequest)(nil),       // 25: vrooli.source_ledger.v1.facets.ResolveThreadRequest
+	(*ResolveThreadResponse)(nil),      // 26: vrooli.source_ledger.v1.facets.ResolveThreadResponse
 }
 var file_source_ledger_v1_facets_facets_proto_depIdxs = []int32{
 	0,  // 0: vrooli.source_ledger.v1.facets.ListFacetsResponse.facets:type_name -> vrooli.source_ledger.v1.facets.Facet
-	0,  // 1: vrooli.source_ledger.v1.facets.SetFacetPolicyResponse.facet:type_name -> vrooli.source_ledger.v1.facets.Facet
-	1,  // 2: vrooli.source_ledger.v1.facets.ListPinProposalsResponse.proposals:type_name -> vrooli.source_ledger.v1.facets.PinProposal
-	12, // 3: vrooli.source_ledger.v1.facets.ListPinCandidatesResponse.candidates:type_name -> vrooli.source_ledger.v1.facets.PinCandidate
-	2,  // 4: vrooli.source_ledger.v1.facets.FacetsService.ListFacets:input_type -> vrooli.source_ledger.v1.facets.ListFacetsRequest
-	4,  // 5: vrooli.source_ledger.v1.facets.FacetsService.SetFacetPolicy:input_type -> vrooli.source_ledger.v1.facets.SetFacetPolicyRequest
-	6,  // 6: vrooli.source_ledger.v1.facets.FacetsService.AssignFacet:input_type -> vrooli.source_ledger.v1.facets.AssignFacetRequest
-	8,  // 7: vrooli.source_ledger.v1.facets.FacetsService.SetPin:input_type -> vrooli.source_ledger.v1.facets.SetPinRequest
-	10, // 8: vrooli.source_ledger.v1.facets.FacetsService.ListPinProposals:input_type -> vrooli.source_ledger.v1.facets.ListPinProposalsRequest
-	13, // 9: vrooli.source_ledger.v1.facets.FacetsService.ListPinCandidates:input_type -> vrooli.source_ledger.v1.facets.ListPinCandidatesRequest
-	15, // 10: vrooli.source_ledger.v1.facets.FacetsService.ResolvePinProposal:input_type -> vrooli.source_ledger.v1.facets.ResolvePinProposalRequest
-	17, // 11: vrooli.source_ledger.v1.facets.FacetsService.MarkSuperseded:input_type -> vrooli.source_ledger.v1.facets.MarkSupersededRequest
-	19, // 12: vrooli.source_ledger.v1.facets.FacetsService.ResolveThread:input_type -> vrooli.source_ledger.v1.facets.ResolveThreadRequest
-	3,  // 13: vrooli.source_ledger.v1.facets.FacetsService.ListFacets:output_type -> vrooli.source_ledger.v1.facets.ListFacetsResponse
-	5,  // 14: vrooli.source_ledger.v1.facets.FacetsService.SetFacetPolicy:output_type -> vrooli.source_ledger.v1.facets.SetFacetPolicyResponse
-	7,  // 15: vrooli.source_ledger.v1.facets.FacetsService.AssignFacet:output_type -> vrooli.source_ledger.v1.facets.AssignFacetResponse
-	9,  // 16: vrooli.source_ledger.v1.facets.FacetsService.SetPin:output_type -> vrooli.source_ledger.v1.facets.SetPinResponse
-	11, // 17: vrooli.source_ledger.v1.facets.FacetsService.ListPinProposals:output_type -> vrooli.source_ledger.v1.facets.ListPinProposalsResponse
-	14, // 18: vrooli.source_ledger.v1.facets.FacetsService.ListPinCandidates:output_type -> vrooli.source_ledger.v1.facets.ListPinCandidatesResponse
-	16, // 19: vrooli.source_ledger.v1.facets.FacetsService.ResolvePinProposal:output_type -> vrooli.source_ledger.v1.facets.ResolvePinProposalResponse
-	18, // 20: vrooli.source_ledger.v1.facets.FacetsService.MarkSuperseded:output_type -> vrooli.source_ledger.v1.facets.MarkSupersededResponse
-	20, // 21: vrooli.source_ledger.v1.facets.FacetsService.ResolveThread:output_type -> vrooli.source_ledger.v1.facets.ResolveThreadResponse
-	13, // [13:22] is the sub-list for method output_type
-	4,  // [4:13] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	0,  // 1: vrooli.source_ledger.v1.facets.EnsureFacetRequest.facet:type_name -> vrooli.source_ledger.v1.facets.Facet
+	0,  // 2: vrooli.source_ledger.v1.facets.EnsureFacetResponse.facet:type_name -> vrooli.source_ledger.v1.facets.Facet
+	0,  // 3: vrooli.source_ledger.v1.facets.SetFacetPolicyResponse.facet:type_name -> vrooli.source_ledger.v1.facets.Facet
+	1,  // 4: vrooli.source_ledger.v1.facets.ListPinProposalsResponse.proposals:type_name -> vrooli.source_ledger.v1.facets.PinProposal
+	18, // 5: vrooli.source_ledger.v1.facets.ListPinCandidatesResponse.candidates:type_name -> vrooli.source_ledger.v1.facets.PinCandidate
+	2,  // 6: vrooli.source_ledger.v1.facets.FacetsService.ListFacets:input_type -> vrooli.source_ledger.v1.facets.ListFacetsRequest
+	4,  // 7: vrooli.source_ledger.v1.facets.FacetsService.CountUnassigned:input_type -> vrooli.source_ledger.v1.facets.CountUnassignedRequest
+	6,  // 8: vrooli.source_ledger.v1.facets.FacetsService.EnsureFacet:input_type -> vrooli.source_ledger.v1.facets.EnsureFacetRequest
+	8,  // 9: vrooli.source_ledger.v1.facets.FacetsService.DeleteFacet:input_type -> vrooli.source_ledger.v1.facets.DeleteFacetRequest
+	10, // 10: vrooli.source_ledger.v1.facets.FacetsService.SetFacetPolicy:input_type -> vrooli.source_ledger.v1.facets.SetFacetPolicyRequest
+	12, // 11: vrooli.source_ledger.v1.facets.FacetsService.AssignFacet:input_type -> vrooli.source_ledger.v1.facets.AssignFacetRequest
+	14, // 12: vrooli.source_ledger.v1.facets.FacetsService.SetPin:input_type -> vrooli.source_ledger.v1.facets.SetPinRequest
+	16, // 13: vrooli.source_ledger.v1.facets.FacetsService.ListPinProposals:input_type -> vrooli.source_ledger.v1.facets.ListPinProposalsRequest
+	19, // 14: vrooli.source_ledger.v1.facets.FacetsService.ListPinCandidates:input_type -> vrooli.source_ledger.v1.facets.ListPinCandidatesRequest
+	21, // 15: vrooli.source_ledger.v1.facets.FacetsService.ResolvePinProposal:input_type -> vrooli.source_ledger.v1.facets.ResolvePinProposalRequest
+	23, // 16: vrooli.source_ledger.v1.facets.FacetsService.MarkSuperseded:input_type -> vrooli.source_ledger.v1.facets.MarkSupersededRequest
+	25, // 17: vrooli.source_ledger.v1.facets.FacetsService.ResolveThread:input_type -> vrooli.source_ledger.v1.facets.ResolveThreadRequest
+	3,  // 18: vrooli.source_ledger.v1.facets.FacetsService.ListFacets:output_type -> vrooli.source_ledger.v1.facets.ListFacetsResponse
+	5,  // 19: vrooli.source_ledger.v1.facets.FacetsService.CountUnassigned:output_type -> vrooli.source_ledger.v1.facets.CountUnassignedResponse
+	7,  // 20: vrooli.source_ledger.v1.facets.FacetsService.EnsureFacet:output_type -> vrooli.source_ledger.v1.facets.EnsureFacetResponse
+	9,  // 21: vrooli.source_ledger.v1.facets.FacetsService.DeleteFacet:output_type -> vrooli.source_ledger.v1.facets.DeleteFacetResponse
+	11, // 22: vrooli.source_ledger.v1.facets.FacetsService.SetFacetPolicy:output_type -> vrooli.source_ledger.v1.facets.SetFacetPolicyResponse
+	13, // 23: vrooli.source_ledger.v1.facets.FacetsService.AssignFacet:output_type -> vrooli.source_ledger.v1.facets.AssignFacetResponse
+	15, // 24: vrooli.source_ledger.v1.facets.FacetsService.SetPin:output_type -> vrooli.source_ledger.v1.facets.SetPinResponse
+	17, // 25: vrooli.source_ledger.v1.facets.FacetsService.ListPinProposals:output_type -> vrooli.source_ledger.v1.facets.ListPinProposalsResponse
+	20, // 26: vrooli.source_ledger.v1.facets.FacetsService.ListPinCandidates:output_type -> vrooli.source_ledger.v1.facets.ListPinCandidatesResponse
+	22, // 27: vrooli.source_ledger.v1.facets.FacetsService.ResolvePinProposal:output_type -> vrooli.source_ledger.v1.facets.ResolvePinProposalResponse
+	24, // 28: vrooli.source_ledger.v1.facets.FacetsService.MarkSuperseded:output_type -> vrooli.source_ledger.v1.facets.MarkSupersededResponse
+	26, // 29: vrooli.source_ledger.v1.facets.FacetsService.ResolveThread:output_type -> vrooli.source_ledger.v1.facets.ResolveThreadResponse
+	18, // [18:30] is the sub-list for method output_type
+	6,  // [6:18] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_source_ledger_v1_facets_facets_proto_init() }
@@ -1265,7 +1576,7 @@ func file_source_ledger_v1_facets_facets_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_source_ledger_v1_facets_facets_proto_rawDesc), len(file_source_ledger_v1_facets_facets_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   21,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

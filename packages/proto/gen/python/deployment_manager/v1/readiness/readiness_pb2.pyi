@@ -12,7 +12,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ReviewIdentity(_message.Message):
-    __slots__ = ("scenario", "profile_id", "candidate_commit", "artifact_digest", "targets", "channel", "policy_version")
+    __slots__ = ("scenario", "profile_id", "candidate_commit", "artifact_digest", "targets", "channel", "policy_version", "candidate_id", "destination_revision_id", "authorization_epoch")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     CANDIDATE_COMMIT_FIELD_NUMBER: _ClassVar[int]
@@ -20,6 +20,9 @@ class ReviewIdentity(_message.Message):
     TARGETS_FIELD_NUMBER: _ClassVar[int]
     CHANNEL_FIELD_NUMBER: _ClassVar[int]
     POLICY_VERSION_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_REVISION_ID_FIELD_NUMBER: _ClassVar[int]
+    AUTHORIZATION_EPOCH_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     profile_id: str
     candidate_commit: str
@@ -27,10 +30,13 @@ class ReviewIdentity(_message.Message):
     targets: _containers.RepeatedScalarFieldContainer[str]
     channel: str
     policy_version: int
-    def __init__(self, scenario: _Optional[str] = ..., profile_id: _Optional[str] = ..., candidate_commit: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., targets: _Optional[_Iterable[str]] = ..., channel: _Optional[str] = ..., policy_version: _Optional[int] = ...) -> None: ...
+    candidate_id: str
+    destination_revision_id: str
+    authorization_epoch: int
+    def __init__(self, scenario: _Optional[str] = ..., profile_id: _Optional[str] = ..., candidate_commit: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., targets: _Optional[_Iterable[str]] = ..., channel: _Optional[str] = ..., policy_version: _Optional[int] = ..., candidate_id: _Optional[str] = ..., destination_revision_id: _Optional[str] = ..., authorization_epoch: _Optional[int] = ...) -> None: ...
 
 class PrepareReviewRequest(_message.Message):
-    __slots__ = ("scenario", "profile_id", "candidate_commit", "artifact_digest", "targets", "channel", "policy_version", "deliverable", "trigger", "facts")
+    __slots__ = ("scenario", "profile_id", "candidate_commit", "artifact_digest", "targets", "channel", "policy_version", "deliverable", "trigger", "facts", "candidate_id", "destination_revision_id", "authorization_epoch")
     class FactsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -48,6 +54,9 @@ class PrepareReviewRequest(_message.Message):
     DELIVERABLE_FIELD_NUMBER: _ClassVar[int]
     TRIGGER_FIELD_NUMBER: _ClassVar[int]
     FACTS_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_REVISION_ID_FIELD_NUMBER: _ClassVar[int]
+    AUTHORIZATION_EPOCH_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     profile_id: str
     candidate_commit: str
@@ -58,7 +67,10 @@ class PrepareReviewRequest(_message.Message):
     deliverable: str
     trigger: str
     facts: _containers.ScalarMap[str, str]
-    def __init__(self, scenario: _Optional[str] = ..., profile_id: _Optional[str] = ..., candidate_commit: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., targets: _Optional[_Iterable[str]] = ..., channel: _Optional[str] = ..., policy_version: _Optional[int] = ..., deliverable: _Optional[str] = ..., trigger: _Optional[str] = ..., facts: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    candidate_id: str
+    destination_revision_id: str
+    authorization_epoch: int
+    def __init__(self, scenario: _Optional[str] = ..., profile_id: _Optional[str] = ..., candidate_commit: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., targets: _Optional[_Iterable[str]] = ..., channel: _Optional[str] = ..., policy_version: _Optional[int] = ..., deliverable: _Optional[str] = ..., trigger: _Optional[str] = ..., facts: _Optional[_Mapping[str, str]] = ..., candidate_id: _Optional[str] = ..., destination_revision_id: _Optional[str] = ..., authorization_epoch: _Optional[int] = ...) -> None: ...
 
 class ReviewResponse(_message.Message):
     __slots__ = ("review_key", "status", "identity", "comparison_mode", "predecessor_release_id", "predecessor_commit", "predecessor_artifact_digest", "goal_ref", "goal_closed_at", "approved_at", "approved_by", "findings", "evidence", "next_actions", "deduped")
@@ -215,7 +227,7 @@ class CheckPolicyProjectionResponse(_message.Message):
     def __init__(self, policy_version: _Optional[int] = ..., criterion_count: _Optional[int] = ..., matches: _Optional[bool] = ...) -> None: ...
 
 class ReportEvidenceRequest(_message.Message):
-    __slots__ = ("scenario", "profile_id", "candidate_commit", "artifact_digest", "targets", "channel", "policy_version", "criterion_id", "producer_binding", "producer_version", "status", "observed_at", "evidence_reference", "detail")
+    __slots__ = ("scenario", "profile_id", "candidate_commit", "artifact_digest", "targets", "channel", "policy_version", "criterion_id", "producer_binding", "producer_version", "status", "observed_at", "evidence_reference", "detail", "candidate_id", "destination_revision_id", "authorization_epoch")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     CANDIDATE_COMMIT_FIELD_NUMBER: _ClassVar[int]
@@ -230,6 +242,9 @@ class ReportEvidenceRequest(_message.Message):
     OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_REFERENCE_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_REVISION_ID_FIELD_NUMBER: _ClassVar[int]
+    AUTHORIZATION_EPOCH_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     profile_id: str
     candidate_commit: str
@@ -244,7 +259,10 @@ class ReportEvidenceRequest(_message.Message):
     observed_at: _timestamp_pb2.Timestamp
     evidence_reference: str
     detail: str
-    def __init__(self, scenario: _Optional[str] = ..., profile_id: _Optional[str] = ..., candidate_commit: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., targets: _Optional[_Iterable[str]] = ..., channel: _Optional[str] = ..., policy_version: _Optional[int] = ..., criterion_id: _Optional[str] = ..., producer_binding: _Optional[str] = ..., producer_version: _Optional[str] = ..., status: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., evidence_reference: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
+    candidate_id: str
+    destination_revision_id: str
+    authorization_epoch: int
+    def __init__(self, scenario: _Optional[str] = ..., profile_id: _Optional[str] = ..., candidate_commit: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., targets: _Optional[_Iterable[str]] = ..., channel: _Optional[str] = ..., policy_version: _Optional[int] = ..., criterion_id: _Optional[str] = ..., producer_binding: _Optional[str] = ..., producer_version: _Optional[str] = ..., status: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., evidence_reference: _Optional[str] = ..., detail: _Optional[str] = ..., candidate_id: _Optional[str] = ..., destination_revision_id: _Optional[str] = ..., authorization_epoch: _Optional[int] = ...) -> None: ...
 
 class ReportEvidenceResponse(_message.Message):
     __slots__ = ("identity_key", "criterion_id", "producer_binding", "accepted")

@@ -4,6 +4,215 @@
 
 No cutover-specific open issue is known.
 
+### Owner-grant boundary — 2026-09-09
+
+- Agent Manager now accepts and durably stores `WorkflowEngagementGrant` on a
+  top-level workflow execution. Admission rejects grants that widen the pinned
+  declaration, advancement reapplies the grant after catalog reload, and an
+  idempotency replay cannot replace the original grant.
+- The operator projection exposes the retained grant. Swarm's development
+  coordinator reserves before dispatch, carries the exact token/wall envelope
+  into the owner request, binds the returned execution identity, and settles
+  only measured terminal usage. Unknown usage leaves the reservation held.
+- Native-goal dispatch is intentionally fail-closed. The coordinator is not
+  composed into a launch transition yet; provider cadence, restart routing,
+  native/fallback parity, and production evidence adapters remain open. No
+  Audio item, approval, goal, or agent was created.
+- Focused `-race` validation passes for `internal/development`,
+  `internal/agentmanager`, and `internal/transitionrunner`. Agent Manager's
+  workflow-runtime race suite and focused handler projection/start tests also
+  pass. Broader Test Genie failures recorded below remain separate and are not
+  reclassified as evidence for this owner-boundary change.
+
+## Contract-driven development readiness — 2026-09-08
+
+Latest continuation — adopted budget policy (supersedes the policy question below):
+
+- New reviews explicitly bind `metered-cancellation` (default) or `hard-ceiling`
+  to the goal, fingerprint and immutable approval. The drawer reviews this choice
+  without remembering authority. Historical approvals keep their prior semantics.
+- Swarm retains metered token overshoot and subtracts it from the next reservation.
+  Aggregate exhaustion prevents more work. Acceptance still requires owner evidence;
+  metered token overshoot alone does not invalidate an otherwise proven outcome.
+  Wall-time overruns and operator revocation retain strict disposition.
+- Agent Manager has a limited opt-in sequential fresh-run meter with durable stop
+  intent, restart retry, terminal usage settlement and cancellation accounting.
+  Unsupported graphs and hard ceilings fail admission. No live workflow declaration
+  has been opted in, and no Agent Manager process was restarted for this change.
+- The complete engagement loop remains unavailable. Required next work includes
+  per-engagement grant admission/fencing, lost-dispatch reconciliation, native versus
+  fresh-run fallback continuation, provider cadence qualification, production
+  outcome adapters, new-item shape selection and completion/acceptance controls.
+  The interpreter meter does not authorize Swarm launch. No Audio item or agent was
+  created. Numeric pilot budgets and acceptance bands remain unset.
+- Protocol generation was refreshed for Swarm. A focused UI test caught an installed
+  `file:` package still using the old schema; the governed dependency installer
+  refreshed it. This was a real serialization failure, not a waived test.
+
+Validation for the budget-policy continuation: Swarm development tests pass with
+race detection; Agent Manager's full workflow-runtime and workflow-catalog packages
+pass with race detection, as do focused orchestration metering checks. Swarm's
+main-package development/transition regressions and full trimpath CLI suite pass.
+The three development UI files pass 13 cases, TypeScript checking and focused lint.
+These are source-level checks; neither shared service was restarted and no live
+provider or Audio product run was used.
+
+Scoped Test Genie unit runs both returned FAIL:
+
+- Swarm `20260909-021934-27d5afc9`: terminal persistence degraded with `run not found
+  in index`; artifact retrieval also fails. This repeats the recorded owner issue
+  `knw-1788901003359886533`, not a new passing certificate or duplicate bug report.
+- Agent Manager `20260909-021934-8c499131`: API coverage command timed out, UI
+  coverage command failed, and architecture/coverage findings remain. The retained
+  findings artifact is `artifact_e6e2b75716f0791c82db1296e10a3b77`. No attribution
+  of these broad failures to unrelated code is claimed. Final focused tests include
+  edits made during that broad run; the broad observation is not exact-input proof
+  for the final mutable worktree.
+
+Continuation checkpoint — goal configuration and execution admission:
+
+- Added the goal-review drawer, server-owned fingerprinted guidance, protected
+  outcome/artifact editors, remembered non-authority defaults, stale-preview
+  protection and amendment field/artifact comparison. Bound development items
+  now route to contract review instead of plan authoring/retry. New-item shape
+  selection, runtime launch, completion submission and acceptance UI remain open.
+- Final boundary review found that the older transition guard only covered
+  backlog subjects, while plan execution uses an execution-record subject.
+  Added an execution-owned guard for direct/automatic/forced queue admission,
+  pending start and plan/correction/follow-up/spec-sync input builders. The
+  regression verifies refusal without queue status changes or agent dispatch.
+  Full execution package tests pass with `-race`. Atomic cross-store admission
+  and shape selection remain part of future launch qualification.
+- Agent Manager regression tests reproduced known-spend schema-repair bypass,
+  overlarge child turn/time requests and another agent admitted at exact token
+  exhaustion. The sequential interpreter now checks these boundaries before
+  dispatch/repair and clips supported child limits. Full workflow-runtime tests,
+  including race checks, pass. This is not a hard in-flight token ceiling or
+  qualification of concurrent/subworkflow reservations.
+- Hard token ceiling versus metered cancellation with possible in-flight
+  overshoot remains an explicit operator policy question. No new policy has
+  been adopted. Keep launch unavailable; do not infer a guarantee from prompts.
+- Swarm development/backlog/next-action packages pass with `-race`; focused
+  main-package development tests and the complete `go test -trimpath ./...`
+  CLI run pass. UI checks are recorded at the final checkpoint below.
+- Scoped Test Genie unit run `20260909-001739-53bf19fc` returned FAIL, including
+  API/CLI command failures and unit-policy findings. The subsequent CLI run
+  passed, but does not explain or erase that receipt. Artifact retrieval returned
+  `run not found in index`, matching the previously recorded owner persistence
+  issue (`knw-1788901003359886533`); detailed attribution remains limited.
+- Audio skill-set validation passes. Its 15 evidence-board tests initially failed
+  because the program adopted `program.inputs/classify` while its test fixture
+  still injected old globals. The fixture now injects that interface and uses
+  the real shared error classifier; all 15 tests pass without changing evidence
+  expectations. This does not certify a live kernel session or audio quality.
+- The Audio proposal now includes explicit proposed engineering guidance. Its
+  budgets remain unset and its SLO/corpus decisions remain proposals. No Audio
+  backlog item, approval, harness goal or development agent was created.
+
+Final focused checkpoint: 20 UI cases pass with type-check and focused lint;
+Swarm execution/development/backlog/next-action packages pass with race detection;
+the main-package development tests and complete CLI trimpath suite pass. Agent
+Manager's scoped Test Genie unit run `20260909-002357-03cecc07` returned FAIL
+with execution-readiness and architecture/coverage findings. Neither scenario
+has a passing broad unit certificate from this continuation. The generated live
+Audio preview resolves 16 artifacts, retains `budget_required` and all runtime
+blockers, and has fingerprint
+`22c7a1ac6bb6b84fef885568361a928e81c789db26ef101e11ccb02d2091eb5f`.
+The packet remains non-authorizing. No live browser interaction or positive
+operator-authentication acceptance flow was qualified by the component fixtures.
+
+Managed Swarm restart completed healthy at 2026-09-08 20:37 EDT, serving API
+port 16421 and UI port 21234. Lifecycle refreshed dependencies through their
+owners: Agent Manager was rebuilt without restarting its shared process; the
+earlier start refreshed Plan Manager through its managed lifecycle. No private
+process start, host repair, paid inference or Audio development launch was used.
+
+Status: retained decisions, accounting core and review panel implemented;
+general mandate execution is not ready. Do not queue the Audio Tools pilot or equate the review preview with an
+approval receipt. The operator requested review before any development-agent
+launch.
+
+| Gap | Owning repair and required proof |
+| --- | --- |
+| W0/W1 contract | Repaired through Business Health's generated PRD preview. OT-P0-002/004 distinguish plan and contract-development shapes; OT/SWM-P0-015–017 declare continuity, evidence-bound acceptance and review surfaces. Existing requirement evidence was preserved; new targets remain planned. |
+| Admission and snapshots | Implemented in `internal/development`: resolve an existing idle item without a plan, retain exact approved bytes and verified human attribution, atomically compare-and-swap one aggregate. Next actions consult retained shape; explicit selection at backlog creation remains open. |
+| Execution adapters | The declared `contract-development` transition and typed input/apply adapters are registered in `internal/transitionrunner`. Native harness-goal selection remains fail-closed and the governed fallback still needs live owner qualification. Do not rename `phased-plan-drain` or silently grant its slices broader authority. |
+| Accounting and continuation | Token/wall reservations, known-usage settlement, checkpoint persistence, restart recovery, overrun recording and amendment preservation are implemented and tested at the domain boundary. Owner dispatch/usage adapters, monetary and delegated-child accounting, cancellation propagation and native/fallback continuation remain unqualified. Swarm cannot implement hard owner limits by putting them in a prompt. |
+| Evidence-bound disposition | Acceptance predicate and negative controls are implemented. Production outcome resolvers and tested product/build/cohort identity are not configured. Audio's v1 setpoint reader deliberately has no acceptance-eligible outcome rows. Do not wrap its `status=ok` as a product receipt. |
+| Operator surface | Development contract panel and goal drawer, typed API and CLI expose review/retained bytes, approval history, configurable goal, budgets and blockers. Retained-item board routing and amendment comparison are implemented; completion-submission/acceptance controls remain. New decisions require the configured Scenario Authenticator provider and `swarm-manager:write`; owner dispatch, provider qualification and the bounded Q3 grant remain unqualified. |
+| Audio adoption | Review the [pilot decision sheet](../../../audio-tools/docs/internal/TESTING.md#pilot-decision-sheet-and-safe-first-slice). Numeric SLOs, corpus/device commitments and billing policy remain proposals. The initial local slice requires no paid inference. |
+
+Acceptance qualification must demonstrate two successive authorized repairs
+under one item, interruption recovery without renewed allowance, rejected target
+weakening, stale/unknown evidence refusal, and honest budget exhaustion. The
+fresh-agent proof is deliberately deferred until the operator reviews the goal
+and authorizes that launch. Tech Tree Designer draft bundles are a later
+enabler, not a prerequisite for read-only preparation.
+
+Latest implementation validation checkpoint:
+
+- Focused development/transition transport and work-shape guard tests pass with
+  `-race`, including two successive repairs under one approval, repository
+  reopen, concurrent decisions, unknown usage, cancellation, overrun and stale
+  or mismatched receipt rejection. The final check used a fresh test-only
+  `GOCACHE` after shared-cache failures; it passed all three selected packages.
+  These use owner fixtures, not live agents.
+- The complete CLI `go test -trimpath ./...` passes after adding the new command
+  group to the expected surface and refreshing primitive evidence. Five review
+  panel tests and two transition client tests pass; UI type-check and focused
+  lint pass. Audio Tools' existing 15 evidence-board tests pass.
+- Test Genie run `20260908-204608-e3b2ccba` returned FAIL during implementation.
+  It reported API/CLI execution failures and existing unit-policy/architecture
+  findings. The CLI group mismatch and an intermediate new-authentication
+  scope mismatch were fixed and rechecked locally; the suite is not claimed
+  green. The receipt also reports `canonical terminal persistence unavailable:
+  run not found in index`; filed as `knw-1788901003359886533`.
+- A later whole-API `go test -trimpath ./...` encountered missing Go cache
+  archives and `TestSearchJSONMapsToValidDescriptor` resolving a relative
+  `.vrooli/search.json`. It is not a passing whole-API certificate. The cache
+  symptom also interrupted governed package refresh; recorded in
+  `knw-1788900812734663930`. Do not add a private scenario host-repair script.
+  The trimpath descriptor failure is recorded in `knw-1788901354074452382`.
+- Package refresh stopped Swarm and failed its setup build. `make start`
+  restored a healthy service; a final managed rebuild served the current API.
+  Live negative controls returned not-found for the proposed Audio engagement
+  and refused an anonymous development revocation before any write. These do
+  not qualify a configured human authentication provider or a launched engagement.
+- The real Audio proposal still resolves 16 artifacts and returns
+  `budget_required`. Its refreshed live review fingerprint is
+  `65db4974eecaad97e7eac200e323243b4b77cf4b223b61758f7c5d23ab9608a8`;
+  the existing review packet and generated goal draft were refreshed, not approved.
+  No Audio backlog item, mandate approval, harness goal,
+  paid-provider call or development agent was created for this implementation.
+
+Storage audit before this change reported 108 findings, including undeclared
+durable paths and legacy direct file writers. This pass declares the existing
+event database and WAL/SHM sidecars and adds domain-owned tables without changing
+existing columns. It does not certify the other stores or perform a fleet
+storage migration. Review `ARCHITECTURE.md` for the remaining Agent Manager
+budget/continuation and evidence-owner work before removing launch blockers.
+
+Earlier preparation checkpoint (retained for provenance):
+
+- The real Audio proposal resolves 16 selected artifacts through the compiled
+  review handler. The unset budget remains a finding; launch readiness stays
+  false. The API/CLI preview does not create the proposed work item.
+- Focused development-domain, transport and repository-pilot tests pass with
+  `-race` and `-trimpath`. CLI preview and primitive-evidence tests pass; the
+  generated CLI evidence was refreshed after the new command was added.
+- Test Genie unit run `20260908-195739-7a220766` failed. Its result included API
+  and CLI execution failures and unit-policy projection drift. This is not a
+  green scenario certificate or a clean baseline comparison.
+- A subsequent full API check isolated
+  `TestEveryDeclaredWorkflowIsReachableFromATransition`: the separately declared
+  `swarm-manager/readiness-review` workflow has no transition/child binding or
+  recorded exception. Focused reproduction fails at `registry_test.go:288`.
+  Reported through scenario-qa as `knw-1788898117660187174`; the declaration was
+  preserved, not deleted or exempted to pass the gate.
+- The live service was not restarted over this unresolved declaration. The new
+  RPC is implemented and tested in source, but is not claimed to be served by
+  the running Swarm process. No development agent or harness goal was started.
+
 ## Measures projection convergence
 
 The operator-facing Stats projection is canonical: it retains the incremental
@@ -73,6 +282,21 @@ migration evidence is kept under
 [operations/migration](../operations/migration/).
 
 ## Work ladder
+
+### 2026-09-09 contract-development pilot execution
+
+- Rung: W3 (implementation)
+- Evidence: W0 comparison found the execution target consistent with the
+  governing development contract and Swarm OT-P0-002/004/015-017; `business-health
+  validate scenario swarm-manager` and `vrooli scenario requirements validate
+  swarm-manager` both pass; `go test -race ./internal/archtest` passes. The
+  current owner-grant, transition, evidence, and board records still identify
+  unqualified runtime behavior, including live owner qualification, provider
+  reconciliation, production evidence resolvers, and complete work-shape
+  routing.
+- Blocker: The implementation qualification work in this plan remains open;
+  no Audio pilot launch is authorized.
+- Measured: 2026-09-09
 
 ### 2026-08-19 session recall and resolution plan
 

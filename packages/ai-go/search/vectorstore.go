@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -183,6 +184,21 @@ type createCollectionRequest struct {
 	HNSWConfig         *hnswConfig                   `json:"hnsw_config,omitempty"`
 	OptimizersConfig   *optimizerConfig              `json:"optimizers_config,omitempty"`
 	QuantizationConfig *quantizationConfig           `json:"quantization_config,omitempty"`
+	// InitFrom asks Qdrant to seed the new collection from an existing one
+	// server-side (dense, sparse and payload), instead of scrolling every point
+	// through the client. Only set by EnsureCollectionFrom.
+	InitFrom *initFromRequest `json:"init_from,omitempty"`
+}
+
+type initFromRequest struct {
+	Collection string `json:"collection"`
+}
+
+// CollectionInitializer is an optional VectorStore seam for stores that can
+// seed a new collection from an existing one without moving the points through
+// the client. The qdrant store implements it with `init_from`.
+type CollectionInitializer interface {
+	EnsureCollectionFrom(ctx context.Context, spec CollectionSpec, source string) error
 }
 
 // --- schema inspection ------------------------------------------------------
@@ -388,6 +404,20 @@ func intPayload(payload map[string]any, key string) int {
 // rather than silently upserting named-vector points into an incompatible
 // collection. The guard never auto-drops; remediation is operator-initiated.
 func (v *qdrantVectorStore) EnsureCollection(ctx context.Context, spec CollectionSpec) error {
+	return v.ensureCollection(ctx, spec, "")
+}
+
+// EnsureCollectionFrom creates the collection seeded from source. When the
+// collection already exists it is layout-checked and left untouched, exactly
+// like EnsureCollection, so a resumed candidate is never re-seeded.
+func (v *qdrantVectorStore) EnsureCollectionFrom(ctx context.Context, spec CollectionSpec, source string) error {
+	if strings.TrimSpace(source) == "" {
+		return errors.New("aisearch: init_from source collection is required")
+	}
+	return v.ensureCollection(ctx, spec, source)
+}
+
+func (v *qdrantVectorStore) ensureCollection(ctx context.Context, spec CollectionSpec, initFrom string) error {
 	if err := validateStorageProfile(spec.Storage); err != nil {
 		return err
 	}
@@ -458,6 +488,12 @@ func (v *qdrantVectorStore) EnsureCollection(ctx context.Context, spec Collectio
 			params.Index = &sparseIndexParams{OnDisk: true}
 		}
 		create.SparseVectors = map[string]sparseVectorParams{sparseVectorName: params}
+	}
+	if initFrom != "" {
+		create.InitFrom = &initFromRequest{Collection: initFrom}
+		// A server-side seed of a large collection outlives the default commit
+		// wait; ask Qdrant to hold the request open until the copy is committed.
+		endpoint += "?timeout=" + strconv.Itoa(int(initFromCommitTimeout/time.Second))
 	}
 	body, err := json.Marshal(create)
 	if err != nil {

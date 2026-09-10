@@ -259,10 +259,12 @@ class UnarchiveResponse(_message.Message):
     def __init__(self, id: _Optional[str] = ...) -> None: ...
 
 class DeleteRequest(_message.Message):
-    __slots__ = ("id",)
+    __slots__ = ("id", "confirmation")
     ID_FIELD_NUMBER: _ClassVar[int]
+    CONFIRMATION_FIELD_NUMBER: _ClassVar[int]
     id: str
-    def __init__(self, id: _Optional[str] = ...) -> None: ...
+    confirmation: str
+    def __init__(self, id: _Optional[str] = ..., confirmation: _Optional[str] = ...) -> None: ...
 
 class DeleteResponse(_message.Message):
     __slots__ = ()

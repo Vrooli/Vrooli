@@ -7,14 +7,25 @@
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { render, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { createTestQueryClient } from "./test-utils";
+import { DEFAULT_SETTINGS } from "./services/settings-service";
 
-function renderAt(path: string) {
+// Exercise routing and the real shared shell without starting the unrelated
+// graph, voice capture, or settings-editor surfaces.
+vi.mock("./surfaces/graph/components/Sidebar", () => ({ Sidebar: () => null }));
+vi.mock("./surfaces/graph/components/CapturePanel", () => ({ CapturePanel: () => null }));
+vi.mock("./surfaces/graph/components/SettingsDrawer", () => ({ SettingsDrawer: () => null }));
+vi.mock("./surfaces/graph/components/GraphWorkspace", () => ({ GraphWorkspace: () => null }));
+vi.mock("./pages/BacklogDetailsPage", () => ({ BacklogDetailsPage: () => null }));
+
+function renderAt(path: string, theme?: "dark" | "light") {
   window.history.pushState({}, "", path);
+  const client = createTestQueryClient();
+  if (theme) client.setQueryData(["settings"], { ...DEFAULT_SETTINGS, theme });
   return render(
-    <QueryClientProvider client={createTestQueryClient()}>
+    <QueryClientProvider client={client}>
       <App />
     </QueryClientProvider>,
   );
@@ -23,6 +34,19 @@ function renderAt(path: string) {
 describe("retired-route redirects", () => {
   afterEach(() => {
     window.history.pushState({}, "", "/");
+    delete document.documentElement.dataset.theme;
+    delete document.documentElement.dataset.resolvedTheme;
+    document.documentElement.style.colorScheme = "";
+  });
+
+  it.each(["dark", "light"] as const)("applies the saved %s theme on a direct backlog review route", async (theme) => {
+    renderAt("/backlog/execute/approval-review?tab=prompt", theme);
+
+    await waitFor(() => {
+      expect(document.documentElement.dataset.resolvedTheme).toBe(theme);
+      expect(document.documentElement.style.colorScheme).toBe(theme);
+    });
+    expect(window.location.pathname).toBe("/backlog/execute/approval-review");
   });
 
   it("root redirects to the first-class Plan route", async () => {

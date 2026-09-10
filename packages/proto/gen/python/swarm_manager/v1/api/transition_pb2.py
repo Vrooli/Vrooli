@@ -23,9 +23,10 @@ _sym_db = _symbol_database.Default()
 
 
 from swarm_manager.v1.domain import transition_pb2 as swarm__manager_dot_v1_dot_domain_dot_transition__pb2
+from swarm_manager.v1.shared import plan_ref_pb2 as swarm__manager_dot_v1_dot_shared_dot_plan__ref__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%swarm-manager/v1/api/transition.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a(swarm-manager/v1/domain/transition.proto\"\x18\n\x16ListTransitionsRequest\"g\n\x17ListTransitionsResponse\x12L\n\x0btransitions\x18\x01 \x03(\x0b\x32*.vrooli.swarm_manager.v1.domain.TransitionR\x0btransitions\"\xc4\x02\n\x16StartTransitionRequest\x12%\n\x0etransition_key\x18\x01 \x01(\tR\rtransitionKey\x12N\n\x0bsubject_ref\x18\x02 \x01(\x0b\x32-.vrooli.swarm_manager.v1.api.SubjectReferenceR\nsubjectRef\x12p\n\x0foperator_inputs\x18\x03 \x03(\x0b\x32G.vrooli.swarm_manager.v1.api.StartTransitionRequest.OperatorInputsEntryR\x0eoperatorInputs\x1a\x41\n\x13OperatorInputsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"B\n\x10SubjectReference\x12\x18\n\x07subject\x18\x01 \x01(\tR\x07subject\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value\"\xf0\x01\n\x17StartTransitionResponse\x12!\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x0b\x65xecutionId\x12+\n\x11\x64\x65\x66inition_digest\x18\x02 \x01(\tR\x10\x64\x65\x66initionDigest\x12%\n\x0e\x65ntity_version\x18\x03 \x01(\tR\rentityVersion\x12\x1f\n\x0b\x61pply_state\x18\x04 \x01(\tR\napplyState\x12\x18\n\x07outcome\x18\x05 \x01(\tR\x07outcome\x12#\n\rterminal_code\x18\x06 \x01(\tR\x0cterminalCode\"b\n\x16\x41pplyTransitionRequest\x12%\n\x0etransition_key\x18\x01 \x01(\tR\rtransitionKey\x12!\n\x0c\x65xecution_id\x18\x02 \x01(\tR\x0b\x65xecutionId\"\xdb\x02\n\x17\x41pplyTransitionResponse\x12!\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x0b\x65xecutionId\x12%\n\x0etransition_key\x18\x02 \x01(\tR\rtransitionKey\x12\x1f\n\x0bsubject_ref\x18\x03 \x01(\tR\nsubjectRef\x12\x18\n\x07outcome\x18\x04 \x01(\tR\x07outcome\x12#\n\rterminal_code\x18\x05 \x01(\tR\x0cterminalCode\x12!\n\x0c\x61pplied_time\x18\x06 \x01(\tR\x0b\x61ppliedTime\x12+\n\x11\x64\x65\x66inition_digest\x18\x07 \x01(\tR\x10\x64\x65\x66initionDigest\x12%\n\x0e\x65ntity_version\x18\x08 \x01(\tR\rentityVersion\x12\x1f\n\x0b\x61pply_state\x18\t \x01(\tR\napplyState2\x8d\x03\n\x11TransitionService\x12|\n\x0fListTransitions\x12\x33.vrooli.swarm_manager.v1.api.ListTransitionsRequest\x1a\x34.vrooli.swarm_manager.v1.api.ListTransitionsResponse\x12|\n\x0fStartTransition\x12\x33.vrooli.swarm_manager.v1.api.StartTransitionRequest\x1a\x34.vrooli.swarm_manager.v1.api.StartTransitionResponse\x12|\n\x0f\x41pplyTransition\x12\x33.vrooli.swarm_manager.v1.api.ApplyTransitionRequest\x1a\x34.vrooli.swarm_manager.v1.api.ApplyTransitionResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%swarm-manager/v1/api/transition.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a(swarm-manager/v1/domain/transition.proto\x1a&swarm-manager/v1/shared/plan_ref.proto\"k\n\x12\x44\x65velopmentOutcome\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n\tcriterion\x18\x02 \x01(\tR\tcriterion\x12\'\n\x0f\x65vidence_source\x18\x03 \x01(\tR\x0e\x65videnceSource\"\xa4\x05\n\x19PreviewDevelopmentRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x1b\n\twork_item\x18\x02 \x01(\tR\x08workItem\x12\x1c\n\tobjective\x18\x03 \x01(\tR\tobjective\x12%\n\x0e\x61rtifact_paths\x18\x04 \x03(\tR\rartifactPaths\x12K\n\x08outcomes\x18\x05 \x03(\x0b\x32/.vrooli.swarm_manager.v1.api.DevelopmentOutcomeR\x08outcomes\x12)\n\x10\x61\x63\x63\x65ptance_allow\x18\x06 \x03(\tR\x0f\x61\x63\x63\x65ptanceAllow\x12\'\n\x0f\x61\x63\x63\x65ptance_deny\x18\x07 \x03(\tR\x0e\x61\x63\x63\x65ptanceDeny\x12\'\n\x0f\x61llowed_effects\x18\x08 \x03(\tR\x0e\x61llowedEffects\x12\x1d\n\nmax_tokens\x18\t \x01(\x03R\tmaxTokens\x12(\n\x10max_wall_seconds\x18\n \x01(\x03R\x0emaxWallSeconds\x12L\n\x08guidance\x18\x0b \x01(\x0b\x32\x30.vrooli.swarm_manager.v1.api.DevelopmentGuidanceR\x08guidance\x12#\n\rbudget_policy\x18\x0c \x01(\tR\x0c\x62udgetPolicy\x12G\n\x08plan_ref\x18\r \x01(\x0b\x32\'.vrooli.swarm_manager.v1.shared.PlanRefH\x00R\x07planRef\x88\x01\x01\x12-\n\x12\x65xecution_strategy\x18\x0e \x01(\tR\x11\x65xecutionStrategyB\x0b\n\t_plan_ref\"\xdd\x01\n\x13\x44\x65velopmentGuidance\x12\x16\n\x06\x65\x66\x66ort\x18\x01 \x01(\tR\x06\x65\x66\x66ort\x12%\n\x0estarting_state\x18\x02 \x01(\tR\rstartingState\x12\x1e\n\nvalidation\x18\x03 \x01(\tR\nvalidation\x12.\n\x13repair_related_code\x18\x04 \x01(\x08R\x11repairRelatedCode\x12\x37\n\x17\x61\x64\x64itional_instructions\x18\x05 \x01(\tR\x16\x61\x64\x64itionalInstructions\"`\n\x13\x44\x65velopmentArtifact\x12\x12\n\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n\x06sha256\x18\x02 \x01(\tR\x06sha256\x12\x1d\n\nsize_bytes\x18\x03 \x01(\x03R\tsizeBytes\"F\n\x18\x44\x65velopmentReviewFinding\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x16\n\x06\x64\x65tail\x18\x02 \x01(\tR\x06\x64\x65tail\"\x80\x03\n\x1aPreviewDevelopmentResponse\x12\'\n\x0fproposal_digest\x18\x01 \x01(\tR\x0eproposalDigest\x12!\n\x0cgoal_message\x18\x02 \x01(\tR\x0bgoalMessage\x12N\n\tartifacts\x18\x03 \x03(\x0b\x32\x30.vrooli.swarm_manager.v1.api.DevelopmentArtifactR\tartifacts\x12Q\n\x08\x66indings\x18\x04 \x03(\x0b\x32\x35.vrooli.swarm_manager.v1.api.DevelopmentReviewFindingR\x08\x66indings\x12\'\n\x0freview_complete\x18\x05 \x01(\x08R\x0ereviewComplete\x12!\n\x0claunch_ready\x18\x06 \x01(\x08R\x0blaunchReady\x12\'\n\x0flaunch_blockers\x18\x07 \x03(\tR\x0elaunchBlockers\"\x18\n\x16ListTransitionsRequest\"g\n\x17ListTransitionsResponse\x12L\n\x0btransitions\x18\x01 \x03(\x0b\x32*.vrooli.swarm_manager.v1.domain.TransitionR\x0btransitions\"\xc4\x02\n\x16StartTransitionRequest\x12%\n\x0etransition_key\x18\x01 \x01(\tR\rtransitionKey\x12N\n\x0bsubject_ref\x18\x02 \x01(\x0b\x32-.vrooli.swarm_manager.v1.api.SubjectReferenceR\nsubjectRef\x12p\n\x0foperator_inputs\x18\x03 \x03(\x0b\x32G.vrooli.swarm_manager.v1.api.StartTransitionRequest.OperatorInputsEntryR\x0eoperatorInputs\x1a\x41\n\x13OperatorInputsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"B\n\x10SubjectReference\x12\x18\n\x07subject\x18\x01 \x01(\tR\x07subject\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value\"\xf0\x01\n\x17StartTransitionResponse\x12!\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x0b\x65xecutionId\x12+\n\x11\x64\x65\x66inition_digest\x18\x02 \x01(\tR\x10\x64\x65\x66initionDigest\x12%\n\x0e\x65ntity_version\x18\x03 \x01(\tR\rentityVersion\x12\x1f\n\x0b\x61pply_state\x18\x04 \x01(\tR\napplyState\x12\x18\n\x07outcome\x18\x05 \x01(\tR\x07outcome\x12#\n\rterminal_code\x18\x06 \x01(\tR\x0cterminalCode\"b\n\x16\x41pplyTransitionRequest\x12%\n\x0etransition_key\x18\x01 \x01(\tR\rtransitionKey\x12!\n\x0c\x65xecution_id\x18\x02 \x01(\tR\x0b\x65xecutionId\"\xdb\x02\n\x17\x41pplyTransitionResponse\x12!\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x0b\x65xecutionId\x12%\n\x0etransition_key\x18\x02 \x01(\tR\rtransitionKey\x12\x1f\n\x0bsubject_ref\x18\x03 \x01(\tR\nsubjectRef\x12\x18\n\x07outcome\x18\x04 \x01(\tR\x07outcome\x12#\n\rterminal_code\x18\x05 \x01(\tR\x0cterminalCode\x12!\n\x0c\x61pplied_time\x18\x06 \x01(\tR\x0b\x61ppliedTime\x12+\n\x11\x64\x65\x66inition_digest\x18\x07 \x01(\tR\x10\x64\x65\x66initionDigest\x12%\n\x0e\x65ntity_version\x18\x08 \x01(\tR\rentityVersion\x12\x1f\n\x0b\x61pply_state\x18\t \x01(\tR\napplyState2\x95\x04\n\x11TransitionService\x12|\n\x0fListTransitions\x12\x33.vrooli.swarm_manager.v1.api.ListTransitionsRequest\x1a\x34.vrooli.swarm_manager.v1.api.ListTransitionsResponse\x12\x85\x01\n\x12PreviewDevelopment\x12\x36.vrooli.swarm_manager.v1.api.PreviewDevelopmentRequest\x1a\x37.vrooli.swarm_manager.v1.api.PreviewDevelopmentResponse\x12|\n\x0fStartTransition\x12\x33.vrooli.swarm_manager.v1.api.StartTransitionRequest\x1a\x34.vrooli.swarm_manager.v1.api.StartTransitionResponse\x12|\n\x0f\x41pplyTransition\x12\x33.vrooli.swarm_manager.v1.api.ApplyTransitionRequest\x1a\x34.vrooli.swarm_manager.v1.api.ApplyTransitionResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,22 +36,34 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api'
   _globals['_STARTTRANSITIONREQUEST_OPERATORINPUTSENTRY']._loaded_options = None
   _globals['_STARTTRANSITIONREQUEST_OPERATORINPUTSENTRY']._serialized_options = b'8\001'
-  _globals['_LISTTRANSITIONSREQUEST']._serialized_start=112
-  _globals['_LISTTRANSITIONSREQUEST']._serialized_end=136
-  _globals['_LISTTRANSITIONSRESPONSE']._serialized_start=138
-  _globals['_LISTTRANSITIONSRESPONSE']._serialized_end=241
-  _globals['_STARTTRANSITIONREQUEST']._serialized_start=244
-  _globals['_STARTTRANSITIONREQUEST']._serialized_end=568
-  _globals['_STARTTRANSITIONREQUEST_OPERATORINPUTSENTRY']._serialized_start=503
-  _globals['_STARTTRANSITIONREQUEST_OPERATORINPUTSENTRY']._serialized_end=568
-  _globals['_SUBJECTREFERENCE']._serialized_start=570
-  _globals['_SUBJECTREFERENCE']._serialized_end=636
-  _globals['_STARTTRANSITIONRESPONSE']._serialized_start=639
-  _globals['_STARTTRANSITIONRESPONSE']._serialized_end=879
-  _globals['_APPLYTRANSITIONREQUEST']._serialized_start=881
-  _globals['_APPLYTRANSITIONREQUEST']._serialized_end=979
-  _globals['_APPLYTRANSITIONRESPONSE']._serialized_start=982
-  _globals['_APPLYTRANSITIONRESPONSE']._serialized_end=1329
-  _globals['_TRANSITIONSERVICE']._serialized_start=1332
-  _globals['_TRANSITIONSERVICE']._serialized_end=1729
+  _globals['_DEVELOPMENTOUTCOME']._serialized_start=152
+  _globals['_DEVELOPMENTOUTCOME']._serialized_end=259
+  _globals['_PREVIEWDEVELOPMENTREQUEST']._serialized_start=262
+  _globals['_PREVIEWDEVELOPMENTREQUEST']._serialized_end=938
+  _globals['_DEVELOPMENTGUIDANCE']._serialized_start=941
+  _globals['_DEVELOPMENTGUIDANCE']._serialized_end=1162
+  _globals['_DEVELOPMENTARTIFACT']._serialized_start=1164
+  _globals['_DEVELOPMENTARTIFACT']._serialized_end=1260
+  _globals['_DEVELOPMENTREVIEWFINDING']._serialized_start=1262
+  _globals['_DEVELOPMENTREVIEWFINDING']._serialized_end=1332
+  _globals['_PREVIEWDEVELOPMENTRESPONSE']._serialized_start=1335
+  _globals['_PREVIEWDEVELOPMENTRESPONSE']._serialized_end=1719
+  _globals['_LISTTRANSITIONSREQUEST']._serialized_start=1721
+  _globals['_LISTTRANSITIONSREQUEST']._serialized_end=1745
+  _globals['_LISTTRANSITIONSRESPONSE']._serialized_start=1747
+  _globals['_LISTTRANSITIONSRESPONSE']._serialized_end=1850
+  _globals['_STARTTRANSITIONREQUEST']._serialized_start=1853
+  _globals['_STARTTRANSITIONREQUEST']._serialized_end=2177
+  _globals['_STARTTRANSITIONREQUEST_OPERATORINPUTSENTRY']._serialized_start=2112
+  _globals['_STARTTRANSITIONREQUEST_OPERATORINPUTSENTRY']._serialized_end=2177
+  _globals['_SUBJECTREFERENCE']._serialized_start=2179
+  _globals['_SUBJECTREFERENCE']._serialized_end=2245
+  _globals['_STARTTRANSITIONRESPONSE']._serialized_start=2248
+  _globals['_STARTTRANSITIONRESPONSE']._serialized_end=2488
+  _globals['_APPLYTRANSITIONREQUEST']._serialized_start=2490
+  _globals['_APPLYTRANSITIONREQUEST']._serialized_end=2588
+  _globals['_APPLYTRANSITIONRESPONSE']._serialized_start=2591
+  _globals['_APPLYTRANSITIONRESPONSE']._serialized_end=2938
+  _globals['_TRANSITIONSERVICE']._serialized_start=2941
+  _globals['_TRANSITIONSERVICE']._serialized_end=3474
 # @@protoc_insertion_point(module_scope)

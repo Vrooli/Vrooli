@@ -144,6 +144,26 @@ message JobPush {
   reserved 8 to 15; // future env scoping, artifact inputs, queue metadata
 }
 
+// ArtifactDelivery is a signed, node-facing placement instruction. The
+// device-sync-hub item carries the bytes; the node agent, acting as the target
+// hub device, downloads that item and atomically places it at destination_path.
+// This keeps the generic hub contract free of filesystem semantics and keeps
+// placement on the target node rather than in the control plane.
+message ArtifactDelivery {
+  // Bridge's durable distribution id, used to correlate placement evidence.
+  string distribution_id = 1;
+
+  // UUID of the directed file item in device-sync-hub.
+  string item_id = 2;
+
+  // Operator-visible filename used for diagnostics and fallback naming.
+  string name = 3;
+
+  // Target-local path. The agent applies its local permission policy when it
+  // creates or replaces this path; it never executes the artifact.
+  string destination_path = 4;
+}
+
 message CredentialInjection {
   string logical_id = 1;
   string field = 2;
@@ -202,6 +222,8 @@ message CredentialPush {
 message CredentialPurge {
   string node_id = 1;
   repeated string addresses = 2;
+  string grant_id = 3;
+  int64 generation = 4;
 }
 
 // CredentialGrant carries metadata-only local consent to a node. It never
@@ -226,6 +248,7 @@ message CredentialReceipt {
   int64 generation = 5;
   bool accepted = 6;
   string reason = 7;
+  string operation = 8;
 }
 
 // ScenarioRequest is a bounded unary RPC request proxied from the control
@@ -246,17 +269,6 @@ message ScenarioRequest {
   string http_path = 9;
 
   reserved 10 to 15;
-}
-
-// ScenarioResponse is the bounded unary response to ScenarioRequest.
-message ScenarioResponse {
-  string correlation_id = 1;
-  bytes response = 2;
-  string error = 3;
-  bool timed_out = 4;
-  bool truncated = 5;
-
-  reserved 6 to 15;
 }
 
 // ArtifactOutput describes one bounded file a typed job is allowed to produce.
@@ -370,6 +382,7 @@ message ServerFrame {
     CredentialPurge credential_purge = 12;
     CredentialGrant credential_grant = 13;
     ScenarioRequest scenario_request = 14;
+    ArtifactDelivery artifact_delivery = 15;
   }
 }
 
@@ -409,6 +422,7 @@ message NodeFrame {
     shared.SessionFrame session = 5;
     shared.RelayResponse relay_response = 6;
     CredentialReceipt credential_receipt = 7;
-    ScenarioResponse scenario_response = 8;
+    shared.ScenarioResponse scenario_response = 8;
+    shared.ArtifactReceipt artifact_receipt = 9;
   }
 }

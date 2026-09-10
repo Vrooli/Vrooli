@@ -79,7 +79,9 @@ func (PlanStatus) EnumDescriptor() ([]byte, []int) {
 }
 
 // PhaseStatus is the state of a single first-class phase. COMPUTED via a typed
-// transition or inferred from acceptance + validation passing.
+// transition. The transition's evidence rules depend on the execution's
+// captured completion policy: ordinary runs record an outcome assessment;
+// explicit certification requires the validation evidence contract.
 type PhaseStatus int32
 
 const (
@@ -3852,6 +3854,59 @@ func (x *PlanDefinition) GetMeaning() string {
 
 // Plan is the top-level structured record. See docs/concepts/PLAN-MODEL.md for
 // the authored/computed split per field.
+// Advisory is the ordinary shared-worktree default. Certification is explicit.
+type CompletionPolicy struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Mode          string                 `protobuf:"bytes,1,opt,name=mode,proto3" json:"mode,omitempty"`     // advisory (including unset) | certification
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"` // required for certification
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompletionPolicy) Reset() {
+	*x = CompletionPolicy{}
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompletionPolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompletionPolicy) ProtoMessage() {}
+
+func (x *CompletionPolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompletionPolicy.ProtoReflect.Descriptor instead.
+func (*CompletionPolicy) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *CompletionPolicy) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *CompletionPolicy) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 type Plan struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -3908,14 +3963,15 @@ type Plan struct {
 	BaselineSet *BaselineSetIntent `protobuf:"bytes,38,opt,name=baseline_set,json=baselineSet,proto3" json:"baseline_set,omitempty"`
 	// AUTHORED optional local terminology. Shared ecosystem terms are referenced
 	// from docs/concepts/GLOSSARY.md rather than duplicated here.
-	Definitions   []*PlanDefinition `protobuf:"bytes,39,rep,name=definitions,proto3" json:"definitions,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Definitions      []*PlanDefinition `protobuf:"bytes,39,rep,name=definitions,proto3" json:"definitions,omitempty"`
+	CompletionPolicy *CompletionPolicy `protobuf:"bytes,40,opt,name=completion_policy,json=completionPolicy,proto3" json:"completion_policy,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Plan) Reset() {
 	*x = Plan{}
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[26]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3927,7 +3983,7 @@ func (x *Plan) String() string {
 func (*Plan) ProtoMessage() {}
 
 func (x *Plan) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[26]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3940,7 +3996,7 @@ func (x *Plan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Plan.ProtoReflect.Descriptor instead.
 func (*Plan) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{26}
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *Plan) GetId() string {
@@ -4216,6 +4272,13 @@ func (x *Plan) GetDefinitions() []*PlanDefinition {
 	return nil
 }
 
+func (x *Plan) GetCompletionPolicy() *CompletionPolicy {
+	if x != nil {
+		return x.CompletionPolicy
+	}
+	return nil
+}
+
 // PlanEdge is one supersession/dependency edge between two plans (the plan
 // graph). Derived from supersedes/superseded_by + content_hash.
 type PlanEdge struct {
@@ -4229,7 +4292,7 @@ type PlanEdge struct {
 
 func (x *PlanEdge) Reset() {
 	*x = PlanEdge{}
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[27]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4241,7 +4304,7 @@ func (x *PlanEdge) String() string {
 func (*PlanEdge) ProtoMessage() {}
 
 func (x *PlanEdge) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[27]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4254,7 +4317,7 @@ func (x *PlanEdge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanEdge.ProtoReflect.Descriptor instead.
 func (*PlanEdge) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{27}
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *PlanEdge) GetFromPlanId() string {
@@ -4297,7 +4360,7 @@ type VelocityPoint struct {
 
 func (x *VelocityPoint) Reset() {
 	*x = VelocityPoint{}
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[28]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4309,7 +4372,7 @@ func (x *VelocityPoint) String() string {
 func (*VelocityPoint) ProtoMessage() {}
 
 func (x *VelocityPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[28]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4322,7 +4385,7 @@ func (x *VelocityPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VelocityPoint.ProtoReflect.Descriptor instead.
 func (*VelocityPoint) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{28}
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *VelocityPoint) GetId() string {
@@ -4385,6 +4448,83 @@ func (x *VelocityPoint) GetRecordedAt() string {
 // in-flow during a run. plan-manager owns ONLY this structured layer; the prose
 // final-message catch-all is owned by the orchestration layer and linked here by
 // reference (prose_handoff_ref).
+// Caller judgment, retained separately from immutable producer verdicts.
+type OutcomeAssessment struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Summary         string                 `protobuf:"bytes,1,opt,name=summary,proto3" json:"summary,omitempty"`
+	Evidence        []string               `protobuf:"bytes,2,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	Limitations     []string               `protobuf:"bytes,3,rep,name=limitations,proto3" json:"limitations,omitempty"`
+	UnmetOutcomes   []string               `protobuf:"bytes,4,rep,name=unmet_outcomes,json=unmetOutcomes,proto3" json:"unmet_outcomes,omitempty"`
+	ScopeGeneration int32                  `protobuf:"varint,5,opt,name=scope_generation,json=scopeGeneration,proto3" json:"scope_generation,omitempty"` // assigned by the server
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *OutcomeAssessment) Reset() {
+	*x = OutcomeAssessment{}
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OutcomeAssessment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OutcomeAssessment) ProtoMessage() {}
+
+func (x *OutcomeAssessment) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OutcomeAssessment.ProtoReflect.Descriptor instead.
+func (*OutcomeAssessment) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *OutcomeAssessment) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *OutcomeAssessment) GetEvidence() []string {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+func (x *OutcomeAssessment) GetLimitations() []string {
+	if x != nil {
+		return x.Limitations
+	}
+	return nil
+}
+
+func (x *OutcomeAssessment) GetUnmetOutcomes() []string {
+	if x != nil {
+		return x.UnmetOutcomes
+	}
+	return nil
+}
+
+func (x *OutcomeAssessment) GetScopeGeneration() int32 {
+	if x != nil {
+		return x.ScopeGeneration
+	}
+	return 0
+}
+
 type Handoff struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -4405,14 +4545,16 @@ type Handoff struct {
 	AssembledAt     string `protobuf:"bytes,11,opt,name=assembled_at,json=assembledAt,proto3" json:"assembled_at,omitempty"`
 	// The plan's change boundary, snapshotted into the handoff so the next agent
 	// sees what was allowed/denied and where validation coverage is informational.
-	ChangeBoundary *ChangeBoundary `protobuf:"bytes,12,opt,name=change_boundary,json=changeBoundary,proto3" json:"change_boundary,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	ChangeBoundary   *ChangeBoundary               `protobuf:"bytes,12,opt,name=change_boundary,json=changeBoundary,proto3" json:"change_boundary,omitempty"`
+	PhaseAssessments map[string]*OutcomeAssessment `protobuf:"bytes,13,rep,name=phase_assessments,json=phaseAssessments,proto3" json:"phase_assessments,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	CompletionPolicy *CompletionPolicy             `protobuf:"bytes,14,opt,name=completion_policy,json=completionPolicy,proto3" json:"completion_policy,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Handoff) Reset() {
 	*x = Handoff{}
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[29]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4424,7 +4566,7 @@ func (x *Handoff) String() string {
 func (*Handoff) ProtoMessage() {}
 
 func (x *Handoff) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[29]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4437,7 +4579,7 @@ func (x *Handoff) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Handoff.ProtoReflect.Descriptor instead.
 func (*Handoff) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{29}
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *Handoff) GetId() string {
@@ -4520,6 +4662,20 @@ func (x *Handoff) GetAssembledAt() string {
 func (x *Handoff) GetChangeBoundary() *ChangeBoundary {
 	if x != nil {
 		return x.ChangeBoundary
+	}
+	return nil
+}
+
+func (x *Handoff) GetPhaseAssessments() map[string]*OutcomeAssessment {
+	if x != nil {
+		return x.PhaseAssessments
+	}
+	return nil
+}
+
+func (x *Handoff) GetCompletionPolicy() *CompletionPolicy {
+	if x != nil {
+		return x.CompletionPolicy
 	}
 	return nil
 }
@@ -4793,7 +4949,10 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"mitigation\">\n" +
 	"\x0ePlanDefinition\x12\x12\n" +
 	"\x04term\x18\x01 \x01(\tR\x04term\x12\x18\n" +
-	"\ameaning\x18\x02 \x01(\tR\ameaning\"\xd8\x10\n" +
+	"\ameaning\x18\x02 \x01(\tR\ameaning\">\n" +
+	"\x10CompletionPolicy\x12\x12\n" +
+	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"\xb6\x11\n" +
 	"\x04Plan\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x14\n" +
@@ -4840,7 +4999,8 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"\tdecisions\x18$ \x03(\v2+.vrooli.plan_manager.v1.shared.PlanDecisionR\tdecisions\x12X\n" +
 	"\x10assumption_risks\x18% \x03(\v2-.vrooli.plan_manager.v1.shared.PlanAssumptionR\x0fassumptionRisks\x12S\n" +
 	"\fbaseline_set\x18& \x01(\v20.vrooli.plan_manager.v1.shared.BaselineSetIntentR\vbaselineSet\x12O\n" +
-	"\vdefinitions\x18' \x03(\v2-.vrooli.plan_manager.v1.shared.PlanDefinitionR\vdefinitions\"^\n" +
+	"\vdefinitions\x18' \x03(\v2-.vrooli.plan_manager.v1.shared.PlanDefinitionR\vdefinitions\x12\\\n" +
+	"\x11completion_policy\x18( \x01(\v2/.vrooli.plan_manager.v1.shared.CompletionPolicyR\x10completionPolicy\"^\n" +
 	"\bPlanEdge\x12 \n" +
 	"\ffrom_plan_id\x18\x01 \x01(\tR\n" +
 	"fromPlanId\x12\x1c\n" +
@@ -4858,7 +5018,13 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"iterations\x12O\n" +
 	"\fcompleteness\x18\a \x01(\x0e2+.vrooli.plan_manager.v1.shared.CompletenessR\fcompleteness\x12\x1f\n" +
 	"\vrecorded_at\x18\b \x01(\tR\n" +
-	"recordedAt\"\xb1\x05\n" +
+	"recordedAt\"\xbd\x01\n" +
+	"\x11OutcomeAssessment\x12\x18\n" +
+	"\asummary\x18\x01 \x01(\tR\asummary\x12\x1a\n" +
+	"\bevidence\x18\x02 \x03(\tR\bevidence\x12 \n" +
+	"\vlimitations\x18\x03 \x03(\tR\vlimitations\x12%\n" +
+	"\x0eunmet_outcomes\x18\x04 \x03(\tR\runmetOutcomes\x12)\n" +
+	"\x10scope_generation\x18\x05 \x01(\x05R\x0fscopeGeneration\"\xf1\a\n" +
 	"\aHandoff\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fexecution_id\x18\x02 \x01(\tR\vexecutionId\x12\x17\n" +
@@ -4874,7 +5040,12 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"\x11prose_handoff_ref\x18\n" +
 	" \x01(\tR\x0fproseHandoffRef\x12!\n" +
 	"\fassembled_at\x18\v \x01(\tR\vassembledAt\x12V\n" +
-	"\x0fchange_boundary\x18\f \x01(\v2-.vrooli.plan_manager.v1.shared.ChangeBoundaryR\x0echangeBoundary*\x8c\x01\n" +
+	"\x0fchange_boundary\x18\f \x01(\v2-.vrooli.plan_manager.v1.shared.ChangeBoundaryR\x0echangeBoundary\x12i\n" +
+	"\x11phase_assessments\x18\r \x03(\v2<.vrooli.plan_manager.v1.shared.Handoff.PhaseAssessmentsEntryR\x10phaseAssessments\x12\\\n" +
+	"\x11completion_policy\x18\x0e \x01(\v2/.vrooli.plan_manager.v1.shared.CompletionPolicyR\x10completionPolicy\x1au\n" +
+	"\x15PhaseAssessmentsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12F\n" +
+	"\x05value\x18\x02 \x01(\v20.vrooli.plan_manager.v1.shared.OutcomeAssessmentR\x05value:\x028\x01*\x8c\x01\n" +
 	"\n" +
 	"PlanStatus\x12\x1b\n" +
 	"\x17PLAN_STATUS_UNSPECIFIED\x10\x00\x12\x15\n" +
@@ -5010,7 +5181,7 @@ func file_plan_manager_v1_shared_model_proto_rawDescGZIP() []byte {
 }
 
 var file_plan_manager_v1_shared_model_proto_enumTypes = make([]protoimpl.EnumInfo, 21)
-var file_plan_manager_v1_shared_model_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_plan_manager_v1_shared_model_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_plan_manager_v1_shared_model_proto_goTypes = []any{
 	(PlanStatus)(0),                  // 0: vrooli.plan_manager.v1.shared.PlanStatus
 	(PhaseStatus)(0),                 // 1: vrooli.plan_manager.v1.shared.PhaseStatus
@@ -5059,11 +5230,14 @@ var file_plan_manager_v1_shared_model_proto_goTypes = []any{
 	(*PlanDecision)(nil),             // 44: vrooli.plan_manager.v1.shared.PlanDecision
 	(*PlanAssumption)(nil),           // 45: vrooli.plan_manager.v1.shared.PlanAssumption
 	(*PlanDefinition)(nil),           // 46: vrooli.plan_manager.v1.shared.PlanDefinition
-	(*Plan)(nil),                     // 47: vrooli.plan_manager.v1.shared.Plan
-	(*PlanEdge)(nil),                 // 48: vrooli.plan_manager.v1.shared.PlanEdge
-	(*VelocityPoint)(nil),            // 49: vrooli.plan_manager.v1.shared.VelocityPoint
-	(*Handoff)(nil),                  // 50: vrooli.plan_manager.v1.shared.Handoff
-	nil,                              // 51: vrooli.plan_manager.v1.shared.BugReportPayload.ContextEntry
+	(*CompletionPolicy)(nil),         // 47: vrooli.plan_manager.v1.shared.CompletionPolicy
+	(*Plan)(nil),                     // 48: vrooli.plan_manager.v1.shared.Plan
+	(*PlanEdge)(nil),                 // 49: vrooli.plan_manager.v1.shared.PlanEdge
+	(*VelocityPoint)(nil),            // 50: vrooli.plan_manager.v1.shared.VelocityPoint
+	(*OutcomeAssessment)(nil),        // 51: vrooli.plan_manager.v1.shared.OutcomeAssessment
+	(*Handoff)(nil),                  // 52: vrooli.plan_manager.v1.shared.Handoff
+	nil,                              // 53: vrooli.plan_manager.v1.shared.BugReportPayload.ContextEntry
+	nil,                              // 54: vrooli.plan_manager.v1.shared.Handoff.PhaseAssessmentsEntry
 }
 var file_plan_manager_v1_shared_model_proto_depIdxs = []int32{
 	14, // 0: vrooli.plan_manager.v1.shared.RenderedPlanMirror.status:type_name -> vrooli.plan_manager.v1.shared.RenderedMirrorStatus
@@ -5082,7 +5256,7 @@ var file_plan_manager_v1_shared_model_proto_depIdxs = []int32{
 	29, // 13: vrooli.plan_manager.v1.shared.ValidationScope.boundary:type_name -> vrooli.plan_manager.v1.shared.ChangeBoundary
 	35, // 14: vrooli.plan_manager.v1.shared.DownstreamRef.capture:type_name -> vrooli.plan_manager.v1.shared.CaptureDisposition
 	34, // 15: vrooli.plan_manager.v1.shared.CaptureDisposition.invalid:type_name -> vrooli.plan_manager.v1.shared.CaptureDiagnostic
-	51, // 16: vrooli.plan_manager.v1.shared.BugReportPayload.context:type_name -> vrooli.plan_manager.v1.shared.BugReportPayload.ContextEntry
+	53, // 16: vrooli.plan_manager.v1.shared.BugReportPayload.context:type_name -> vrooli.plan_manager.v1.shared.BugReportPayload.ContextEntry
 	18, // 17: vrooli.plan_manager.v1.shared.LogEntry.type:type_name -> vrooli.plan_manager.v1.shared.LogEntryType
 	20, // 18: vrooli.plan_manager.v1.shared.LogEntry.severity:type_name -> vrooli.plan_manager.v1.shared.LogSeverity
 	10, // 19: vrooli.plan_manager.v1.shared.LogEntry.triage:type_name -> vrooli.plan_manager.v1.shared.FindingTriage
@@ -5119,18 +5293,22 @@ var file_plan_manager_v1_shared_model_proto_depIdxs = []int32{
 	45, // 50: vrooli.plan_manager.v1.shared.Plan.assumption_risks:type_name -> vrooli.plan_manager.v1.shared.PlanAssumption
 	32, // 51: vrooli.plan_manager.v1.shared.Plan.baseline_set:type_name -> vrooli.plan_manager.v1.shared.BaselineSetIntent
 	46, // 52: vrooli.plan_manager.v1.shared.Plan.definitions:type_name -> vrooli.plan_manager.v1.shared.PlanDefinition
-	11, // 53: vrooli.plan_manager.v1.shared.VelocityPoint.completeness:type_name -> vrooli.plan_manager.v1.shared.Completeness
-	11, // 54: vrooli.plan_manager.v1.shared.Handoff.completeness:type_name -> vrooli.plan_manager.v1.shared.Completeness
-	40, // 55: vrooli.plan_manager.v1.shared.Handoff.log_summary:type_name -> vrooli.plan_manager.v1.shared.LogSummary
-	38, // 56: vrooli.plan_manager.v1.shared.Handoff.log_entries:type_name -> vrooli.plan_manager.v1.shared.LogEntry
-	41, // 57: vrooli.plan_manager.v1.shared.Handoff.last_validation:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
-	2,  // 58: vrooli.plan_manager.v1.shared.Handoff.staleness:type_name -> vrooli.plan_manager.v1.shared.StalenessTier
-	29, // 59: vrooli.plan_manager.v1.shared.Handoff.change_boundary:type_name -> vrooli.plan_manager.v1.shared.ChangeBoundary
-	60, // [60:60] is the sub-list for method output_type
-	60, // [60:60] is the sub-list for method input_type
-	60, // [60:60] is the sub-list for extension type_name
-	60, // [60:60] is the sub-list for extension extendee
-	0,  // [0:60] is the sub-list for field type_name
+	47, // 53: vrooli.plan_manager.v1.shared.Plan.completion_policy:type_name -> vrooli.plan_manager.v1.shared.CompletionPolicy
+	11, // 54: vrooli.plan_manager.v1.shared.VelocityPoint.completeness:type_name -> vrooli.plan_manager.v1.shared.Completeness
+	11, // 55: vrooli.plan_manager.v1.shared.Handoff.completeness:type_name -> vrooli.plan_manager.v1.shared.Completeness
+	40, // 56: vrooli.plan_manager.v1.shared.Handoff.log_summary:type_name -> vrooli.plan_manager.v1.shared.LogSummary
+	38, // 57: vrooli.plan_manager.v1.shared.Handoff.log_entries:type_name -> vrooli.plan_manager.v1.shared.LogEntry
+	41, // 58: vrooli.plan_manager.v1.shared.Handoff.last_validation:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
+	2,  // 59: vrooli.plan_manager.v1.shared.Handoff.staleness:type_name -> vrooli.plan_manager.v1.shared.StalenessTier
+	29, // 60: vrooli.plan_manager.v1.shared.Handoff.change_boundary:type_name -> vrooli.plan_manager.v1.shared.ChangeBoundary
+	54, // 61: vrooli.plan_manager.v1.shared.Handoff.phase_assessments:type_name -> vrooli.plan_manager.v1.shared.Handoff.PhaseAssessmentsEntry
+	47, // 62: vrooli.plan_manager.v1.shared.Handoff.completion_policy:type_name -> vrooli.plan_manager.v1.shared.CompletionPolicy
+	51, // 63: vrooli.plan_manager.v1.shared.Handoff.PhaseAssessmentsEntry.value:type_name -> vrooli.plan_manager.v1.shared.OutcomeAssessment
+	64, // [64:64] is the sub-list for method output_type
+	64, // [64:64] is the sub-list for method input_type
+	64, // [64:64] is the sub-list for extension type_name
+	64, // [64:64] is the sub-list for extension extendee
+	0,  // [0:64] is the sub-list for field type_name
 }
 
 func init() { file_plan_manager_v1_shared_model_proto_init() }
@@ -5144,7 +5322,7 @@ func file_plan_manager_v1_shared_model_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_plan_manager_v1_shared_model_proto_rawDesc), len(file_plan_manager_v1_shared_model_proto_rawDesc)),
 			NumEnums:      21,
-			NumMessages:   31,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

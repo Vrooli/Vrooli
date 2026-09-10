@@ -2,8 +2,8 @@
 // @generated from file vrooli-events/v1/domain/envelope.proto (package vrooli.vrooli_events.v1.domain, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Any, Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_any, file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { JsonObject, Message } from "@bufbuild/protobuf";
@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-events/v1/domain/envelope.proto.
  */
 export const file_vrooli_events_v1_domain_envelope: GenFile = /*@__PURE__*/
-  fileDesc("CiZ2cm9vbGktZXZlbnRzL3YxL2RvbWFpbi9lbnZlbG9wZS5wcm90bxIednJvb2xpLnZyb29saV9ldmVudHMudjEuZG9tYWluIpIDCg1FdmVudEVudmVsb3BlEhAKCGV2ZW50X2lkGAEgASgJEhIKCmV2ZW50X3R5cGUYAiABKAkSLwoLb2NjdXJyZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjsKBnNvdXJjZRgEIAEoCzIrLnZyb29saS52cm9vbGlfZXZlbnRzLnYxLmRvbWFpbi5FdmVudFNvdXJjZRI7CgZ0YXJnZXQYBSABKAsyKy52cm9vbGkudnJvb2xpX2V2ZW50cy52MS5kb21haW4uRXZlbnRUYXJnZXQSRQoLY29ycmVsYXRpb24YBiABKAsyMC52cm9vbGkudnJvb2xpX2V2ZW50cy52MS5kb21haW4uRXZlbnRDb3JyZWxhdGlvbhJFCgthdHRyaWJ1dGlvbhgHIAEoCzIwLnZyb29saS52cm9vbGlfZXZlbnRzLnYxLmRvbWFpbi5FdmVudEF0dHJpYnV0aW9uEiIKBGRhdGEYCCABKAsyFC5nb29nbGUucHJvdG9idWYuQW55IjMKC0V2ZW50U291cmNlEhAKCHNjZW5hcmlvGAEgASgJEhIKCmFjdG9yX2tpbmQYAiABKAkiRAoLRXZlbnRUYXJnZXQSEAoIc2NlbmFyaW8YASABKAkSEQoJb3BlcmF0aW9uGAIgASgJEhAKCHByb3RvY29sGAMgASgJIpcBChBFdmVudENvcnJlbGF0aW9uEhIKCnJlcXVlc3RfaWQYASABKAkSFAoMYWdlbnRfcnVuX2lkGAIgASgJEg8KB3Rhc2tfaWQYAyABKAkSHQoVd29ya2Zsb3dfZXhlY3V0aW9uX2lkGAQgASgJEhgKEHdvcmtmbG93X25vZGVfaWQYBSABKAkSDwoHYXR0ZW1wdBgGIAEoDSJOChBFdmVudEF0dHJpYnV0aW9uEhQKDHN1YmplY3Rfa2luZBgBIAEoCRISCgpzdWJqZWN0X2lkGAIgASgJEhAKCHZlcmlmaWVkGAMgASgIIqYBCgtSZWNlaXB0RGF0YRIPCgdvdXRjb21lGAEgASgJEhMKC3N0YXR1c19jb2RlGAIgASgNEhMKC2R1cmF0aW9uX21zGAMgASgEEhYKDnBvbGljeV92ZXJzaW9uGAQgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgFIAEoCRIrCgpwcm9qZWN0aW9uGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1ldmVudHMvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_google_protobuf_any, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("CiZ2cm9vbGktZXZlbnRzL3YxL2RvbWFpbi9lbnZlbG9wZS5wcm90bxIednJvb2xpLnZyb29saV9ldmVudHMudjEuZG9tYWluItoDCg1FdmVudEVudmVsb3BlEhAKCGV2ZW50X2lkGAEgASgJEhIKCmV2ZW50X3R5cGUYAiABKAkSLwoLb2NjdXJyZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjsKBnNvdXJjZRgEIAEoCzIrLnZyb29saS52cm9vbGlfZXZlbnRzLnYxLmRvbWFpbi5FdmVudFNvdXJjZRI7CgZ0YXJnZXQYBSABKAsyKy52cm9vbGkudnJvb2xpX2V2ZW50cy52MS5kb21haW4uRXZlbnRUYXJnZXQSRQoLY29ycmVsYXRpb24YBiABKAsyMC52cm9vbGkudnJvb2xpX2V2ZW50cy52MS5kb21haW4uRXZlbnRDb3JyZWxhdGlvbhJFCgthdHRyaWJ1dGlvbhgHIAEoCzIwLnZyb29saS52cm9vbGlfZXZlbnRzLnYxLmRvbWFpbi5FdmVudEF0dHJpYnV0aW9uEiIKBGRhdGEYCCABKAsyFC5nb29nbGUucHJvdG9idWYuQW55EkYKD3dvcmtfcmVmZXJlbmNlcxgJIAMoCzItLnZyb29saS52cm9vbGlfZXZlbnRzLnYxLmRvbWFpbi5Xb3JrUmVmZXJlbmNlIjMKC0V2ZW50U291cmNlEhAKCHNjZW5hcmlvGAEgASgJEhIKCmFjdG9yX2tpbmQYAiABKAkiRAoLRXZlbnRUYXJnZXQSEAoIc2NlbmFyaW8YASABKAkSEQoJb3BlcmF0aW9uGAIgASgJEhAKCHByb3RvY29sGAMgASgJIpcBChBFdmVudENvcnJlbGF0aW9uEhIKCnJlcXVlc3RfaWQYASABKAkSFAoMYWdlbnRfcnVuX2lkGAIgASgJEg8KB3Rhc2tfaWQYAyABKAkSHQoVd29ya2Zsb3dfZXhlY3V0aW9uX2lkGAQgASgJEhgKEHdvcmtmbG93X25vZGVfaWQYBSABKAkSDwoHYXR0ZW1wdBgGIAEoDSJOChBFdmVudEF0dHJpYnV0aW9uEhQKDHN1YmplY3Rfa2luZBgBIAEoCRISCgpzdWJqZWN0X2lkGAIgASgJEhAKCHZlcmlmaWVkGAMgASgIItgCCg1Xb3JrUmVmZXJlbmNlEgwKBGtpbmQYASABKAkSCgoCaWQYAiABKAkSEAoIcmV2aXNpb24YAyABKAkSFAoMcmVsYXRpb25zaGlwGAQgASgJEhcKD3NvdXJjZV9ldmVudF9pZBgFIAEoCRIVCg1zb3VyY2VfcnVuX2lkGAYgASgJEhAKCHZlcmlmaWVkGAcgASgIEksKCnZpc2liaWxpdHkYCCABKA4yNy52cm9vbGkudnJvb2xpX2V2ZW50cy52MS5kb21haW4uV29ya1JlZmVyZW5jZVZpc2liaWxpdHkSFwoPZXZpZGVuY2VfZGlnZXN0GAkgASgJEkEKBXN0YXRlGAogASgOMjIudnJvb2xpLnZyb29saV9ldmVudHMudjEuZG9tYWluLldvcmtSZWZlcmVuY2VTdGF0ZRIaChJ1bmF2YWlsYWJsZV9yZWFzb24YCyABKAkipgEKC1JlY2VpcHREYXRhEg8KB291dGNvbWUYASABKAkSEwoLc3RhdHVzX2NvZGUYAiABKA0SEwoLZHVyYXRpb25fbXMYAyABKAQSFgoOcG9saWN5X3ZlcnNpb24YBCABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAUgASgJEisKCnByb2plY3Rpb24YBiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0KpEBChdXb3JrUmVmZXJlbmNlVmlzaWJpbGl0eRIpCiVXT1JLX1JFRkVSRU5DRV9WSVNJQklMSVRZX1VOU1BFQ0lGSUVEEAASJAogV09SS19SRUZFUkVOQ0VfVklTSUJJTElUWV9QVUJMSUMQARIlCiFXT1JLX1JFRkVSRU5DRV9WSVNJQklMSVRZX1BSSVZBVEUQAirRAQoSV29ya1JlZmVyZW5jZVN0YXRlEiQKIFdPUktfUkVGRVJFTkNFX1NUQVRFX1VOU1BFQ0lGSUVEEAASHwobV09SS19SRUZFUkVOQ0VfU1RBVEVfQUNUSVZFEAESIAocV09SS19SRUZFUkVOQ0VfU1RBVEVfRVhQSVJFRBACEiQKIFdPUktfUkVGRVJFTkNFX1NUQVRFX1VOQVZBSUxBQkxFEAMSLAooV09SS19SRUZFUkVOQ0VfU1RBVEVfUFJPSkVDVElPTl9NSVNNQVRDSBAEQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWV2ZW50cy92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_google_protobuf_any, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * Canonical, typed audit observation contract. Event-specific facts are packed
@@ -60,6 +60,14 @@ export type EventEnvelope = Message<"vrooli.vrooli_events.v1.domain.EventEnvelop
    * @generated from field: google.protobuf.Any data = 8;
    */
   data?: Any | undefined;
+
+  /**
+   * Producer-declared, normalized links to external work systems. These links
+   * are evidence edges; they never imply ownership or authorship by themselves.
+   *
+   * @generated from field: repeated vrooli.vrooli_events.v1.domain.WorkReference work_references = 9;
+   */
+  workReferences: WorkReference[];
 };
 
 /**
@@ -188,6 +196,77 @@ export const EventAttributionSchema: GenMessage<EventAttribution> = /*@__PURE__*
   messageDesc(file_vrooli_events_v1_domain_envelope, 4);
 
 /**
+ * WorkReference is a producer-neutral relation to a work item. Producers may
+ * use plan, issue, incident, experiment, task, or future kinds without adding
+ * scenario-specific fields to the event contract.
+ *
+ * @generated from message vrooli.vrooli_events.v1.domain.WorkReference
+ */
+export type WorkReference = Message<"vrooli.vrooli_events.v1.domain.WorkReference"> & {
+  /**
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string id = 2;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string revision = 3;
+   */
+  revision: string;
+
+  /**
+   * @generated from field: string relationship = 4;
+   */
+  relationship: string;
+
+  /**
+   * @generated from field: string source_event_id = 5;
+   */
+  sourceEventId: string;
+
+  /**
+   * @generated from field: string source_run_id = 6;
+   */
+  sourceRunId: string;
+
+  /**
+   * @generated from field: bool verified = 7;
+   */
+  verified: boolean;
+
+  /**
+   * @generated from field: vrooli.vrooli_events.v1.domain.WorkReferenceVisibility visibility = 8;
+   */
+  visibility: WorkReferenceVisibility;
+
+  /**
+   * @generated from field: string evidence_digest = 9;
+   */
+  evidenceDigest: string;
+
+  /**
+   * @generated from field: vrooli.vrooli_events.v1.domain.WorkReferenceState state = 10;
+   */
+  state: WorkReferenceState;
+
+  /**
+   * @generated from field: string unavailable_reason = 11;
+   */
+  unavailableReason: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_events.v1.domain.WorkReference.
+ * Use `create(WorkReferenceSchema)` to create a new message.
+ */
+export const WorkReferenceSchema: GenMessage<WorkReference> = /*@__PURE__*/
+  messageDesc(file_vrooli_events_v1_domain_envelope, 5);
+
+/**
  * @generated from message vrooli.vrooli_events.v1.domain.ReceiptData
  */
 export type ReceiptData = Message<"vrooli.vrooli_events.v1.domain.ReceiptData"> & {
@@ -227,5 +306,67 @@ export type ReceiptData = Message<"vrooli.vrooli_events.v1.domain.ReceiptData"> 
  * Use `create(ReceiptDataSchema)` to create a new message.
  */
 export const ReceiptDataSchema: GenMessage<ReceiptData> = /*@__PURE__*/
-  messageDesc(file_vrooli_events_v1_domain_envelope, 5);
+  messageDesc(file_vrooli_events_v1_domain_envelope, 6);
+
+/**
+ * @generated from enum vrooli.vrooli_events.v1.domain.WorkReferenceVisibility
+ */
+export enum WorkReferenceVisibility {
+  /**
+   * @generated from enum value: WORK_REFERENCE_VISIBILITY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: WORK_REFERENCE_VISIBILITY_PUBLIC = 1;
+   */
+  PUBLIC = 1,
+
+  /**
+   * @generated from enum value: WORK_REFERENCE_VISIBILITY_PRIVATE = 2;
+   */
+  PRIVATE = 2,
+}
+
+/**
+ * Describes the enum vrooli.vrooli_events.v1.domain.WorkReferenceVisibility.
+ */
+export const WorkReferenceVisibilitySchema: GenEnum<WorkReferenceVisibility> = /*@__PURE__*/
+  enumDesc(file_vrooli_events_v1_domain_envelope, 0);
+
+/**
+ * @generated from enum vrooli.vrooli_events.v1.domain.WorkReferenceState
+ */
+export enum WorkReferenceState {
+  /**
+   * @generated from enum value: WORK_REFERENCE_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: WORK_REFERENCE_STATE_ACTIVE = 1;
+   */
+  ACTIVE = 1,
+
+  /**
+   * @generated from enum value: WORK_REFERENCE_STATE_EXPIRED = 2;
+   */
+  EXPIRED = 2,
+
+  /**
+   * @generated from enum value: WORK_REFERENCE_STATE_UNAVAILABLE = 3;
+   */
+  UNAVAILABLE = 3,
+
+  /**
+   * @generated from enum value: WORK_REFERENCE_STATE_PROJECTION_MISMATCH = 4;
+   */
+  PROJECTION_MISMATCH = 4,
+}
+
+/**
+ * Describes the enum vrooli.vrooli_events.v1.domain.WorkReferenceState.
+ */
+export const WorkReferenceStateSchema: GenEnum<WorkReferenceState> = /*@__PURE__*/
+  enumDesc(file_vrooli_events_v1_domain_envelope, 1);
 

@@ -5,13 +5,13 @@ import "device-control/v1/desktop/desktop.proto";
 import "scenario-authenticator/v1/accounts/accounts.proto";
 import "google/protobuf/timestamp.proto";
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/surfaces;surfacesv1";
-// @stability experimental
+// @stability stable
 // Portal aggregates safe references; execution authority stays with providers.
 service SurfaceCatalogService {
  rpc List(ListRequest) returns (ListResponse);
  rpc Resolve(ResolveRequest) returns (ResolveResponse);
 }
-// @stability experimental
+// @stability stable
 // Authenticated transport to destination-owned desktop admission. Portal never
 // substitutes its local process identity for a caller's bearer credential.
 service DesktopSessionService {
@@ -29,7 +29,7 @@ service DesktopSessionService {
  rpc Act(vrooli.device_control.v1.desktop.OwnerActRequest) returns (vrooli.device_control.v1.desktop.ActResponse);
  rpc Stop(vrooli.device_control.v1.desktop.OwnerStopRequest) returns (vrooli.device_control.v1.desktop.StopResponse);
 }
-// @stability experimental
+// @stability stable
 // Same-origin account transport. Identity and credential ownership stay with
 // scenario-authenticator; Portal neither stores passwords nor mints tokens.
 service OperatorSessionService {

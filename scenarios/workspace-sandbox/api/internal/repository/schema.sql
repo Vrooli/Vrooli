@@ -92,6 +92,8 @@ CREATE TABLE IF NOT EXISTS applied_changes (
     project_root          TEXT NOT NULL,
     change_type           TEXT NOT NULL,
     file_size             INTEGER NOT NULL DEFAULT 0,
+	content_digest        TEXT,
+	evidence_revision     TEXT,
     applied_at            TEXT NOT NULL,
     committed_at          TEXT,
     commit_hash           TEXT,

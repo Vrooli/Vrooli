@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file scenario-authenticator/v1/accounts/accounts.proto.
  */
 export const file_scenario_authenticator_v1_accounts_accounts: GenFile = /*@__PURE__*/
-  fileDesc("CjFzY2VuYXJpby1hdXRoZW50aWNhdG9yL3YxL2FjY291bnRzL2FjY291bnRzLnByb3RvEil2cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cyKsAQoHQWNjb3VudBIKCgJpZBgBIAEoCRINCgVlbWFpbBgCIAEoCRIQCgh1c2VybmFtZRgDIAEoCRINCgVyb2xlcxgEIAMoCRINCgVyZWFsbRgFIAEoCRIWCg5lbWFpbF92ZXJpZmllZBgGIAEoCBIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZzY29wZXMYCCADKAkidQoJVG9rZW5QYWlyEhQKDGFjY2Vzc190b2tlbhgBIAEoCRIVCg1yZWZyZXNoX3Rva2VuGAIgASgJEjsKF2FjY2Vzc190b2tlbl9leHBpcmVzX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJTCg9SZWdpc3RlclJlcXVlc3QSDQoFZW1haWwYASABKAkSEAoIcGFzc3dvcmQYAiABKAkSEAoIdXNlcm5hbWUYAyABKAkSDQoFcmVhbG0YBCABKAkinQEKEFJlZ2lzdGVyUmVzcG9uc2USQwoHYWNjb3VudBgBIAEoCzIyLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkFjY291bnQSRAoGdG9rZW5zGAIgASgLMjQudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuVG9rZW5QYWlyIj4KDExvZ2luUmVxdWVzdBINCgVlbWFpbBgBIAEoCRIQCghwYXNzd29yZBgCIAEoCRINCgVyZWFsbRgDIAEoCSKaAQoNTG9naW5SZXNwb25zZRJDCgdhY2NvdW50GAEgASgLMjIudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuQWNjb3VudBJECgZ0b2tlbnMYAiABKAsyNC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Ub2tlblBhaXIiXQoVQ2hhbmdlUGFzc3dvcmRSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCRIYChBjdXJyZW50X3Bhc3N3b3JkGAIgASgJEhQKDG5ld19wYXNzd29yZBgDIAEoCSIyChZDaGFuZ2VQYXNzd29yZFJlc3BvbnNlEhgKEHJldm9rZWRfc2Vzc2lvbnMYASABKAMiJwoOUmVmcmVzaFJlcXVlc3QSFQoNcmVmcmVzaF90b2tlbhgBIAEoCSJXCg9SZWZyZXNoUmVzcG9uc2USRAoGdG9rZW5zGAEgASgLMjQudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuVG9rZW5QYWlyIiUKDUxvZ291dFJlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJIhAKDkxvZ291dFJlc3BvbnNlIicKD1ZhbGlkYXRlUmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkinwEKEFZhbGlkYXRlUmVzcG9uc2USDQoFdmFsaWQYASABKAgSDwoHdXNlcl9pZBgCIAEoCRINCgVlbWFpbBgDIAEoCRINCgVyb2xlcxgEIAMoCRINCgVyZWFsbRgFIAEoCRIuCgpleHBpcmVzX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZzY29wZXMYByADKAkiTgoRR3JhbnRTY29wZVJlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJEhQKDHByaW5jaXBhbF9pZBgCIAEoCRINCgVzY29wZRgDIAEoCSJPChJSZXZva2VTY29wZVJlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJEhQKDHByaW5jaXBhbF9pZBgCIAEoCRINCgVzY29wZRgDIAEoCSI/ChFMaXN0U2NvcGVzUmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSFAoMcHJpbmNpcGFsX2lkGAIgASgJIjUKDVNjb3BlUmVzcG9uc2USFAoMcHJpbmNpcGFsX2lkGAEgASgJEg4KBnNjb3BlcxgCIAMoCSI6ChJMaXN0U2NvcGVzUmVzcG9uc2USFAoMcHJpbmNpcGFsX2lkGAEgASgJEg4KBnNjb3BlcxgCIAMoCSKBAQoZTGlua01hY2hpbmVBY2NvdW50UmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSEgoKbWFjaGluZV9pZBgCIAEoCRIXCg9sb2NhbF9wcmluY2lwYWwYAyABKAkSDQoFcmVhbG0YBCABKAkSEgoKaXNfZGVmYXVsdBgFIAEoCCKvAQoaTGlua01hY2hpbmVBY2NvdW50UmVzcG9uc2USEgoKbWFjaGluZV9pZBgBIAEoCRIXCg9sb2NhbF9wcmluY2lwYWwYAiABKAkSEgoKYWNjb3VudF9pZBgDIAEoCRINCgVyZWFsbRgEIAEoCRISCgppc19kZWZhdWx0GAUgASgIEi0KCWxpbmtlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiNQofRXhjaGFuZ2VNYWNoaW5lUHJpbmNpcGFsUmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJIj4KFklzc3VlQnJlYWtHbGFzc1JlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJEg4KBnNjb3BlcxgCIAMoCSJBChdJc3N1ZUJyZWFrR2xhc3NSZXNwb25zZRISCgpjcmVkZW50aWFsGAEgASgJEhIKCmV4cGlyZXNfYXQYAiABKAMysQ0KD0FjY291bnRzU2VydmljZRKDAQoIUmVnaXN0ZXISOi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWdpc3RlclJlcXVlc3QaOy52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWdpc3RlclJlc3BvbnNlEnoKBUxvZ2luEjcudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9naW5SZXF1ZXN0GjgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9naW5SZXNwb25zZRKVAQoOQ2hhbmdlUGFzc3dvcmQSQC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5DaGFuZ2VQYXNzd29yZFJlcXVlc3QaQS52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5DaGFuZ2VQYXNzd29yZFJlc3BvbnNlEoABCgdSZWZyZXNoEjkudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmVmcmVzaFJlcXVlc3QaOi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWZyZXNoUmVzcG9uc2USfQoGTG9nb3V0EjgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9nb3V0UmVxdWVzdBo5LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxvZ291dFJlc3BvbnNlEoMBCghWYWxpZGF0ZRI6LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlZhbGlkYXRlUmVxdWVzdBo7LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlZhbGlkYXRlUmVzcG9uc2UShAEKCkdyYW50U2NvcGUSPC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5HcmFudFNjb3BlUmVxdWVzdBo4LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlNjb3BlUmVzcG9uc2UShgEKC1Jldm9rZVNjb3BlEj0udnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmV2b2tlU2NvcGVSZXF1ZXN0GjgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuU2NvcGVSZXNwb25zZRKJAQoKTGlzdFNjb3BlcxI8LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxpc3RTY29wZXNSZXF1ZXN0Gj0udnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTGlzdFNjb3Blc1Jlc3BvbnNlEqEBChJMaW5rTWFjaGluZUFjY291bnQSRC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5MaW5rTWFjaGluZUFjY291bnRSZXF1ZXN0GkUudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTGlua01hY2hpbmVBY2NvdW50UmVzcG9uc2USoAEKGEV4Y2hhbmdlTWFjaGluZVByaW5jaXBhbBJKLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkV4Y2hhbmdlTWFjaGluZVByaW5jaXBhbFJlcXVlc3QaOC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Mb2dpblJlc3BvbnNlEpgBCg9Jc3N1ZUJyZWFrR2xhc3MSQS52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Jc3N1ZUJyZWFrR2xhc3NSZXF1ZXN0GkIudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuSXNzdWVCcmVha0dsYXNzUmVzcG9uc2VCX1pdZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zY2VuYXJpby1hdXRoZW50aWNhdG9yL3YxL2FjY291bnRzO2FjY291bnRzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("CjFzY2VuYXJpby1hdXRoZW50aWNhdG9yL3YxL2FjY291bnRzL2FjY291bnRzLnByb3RvEil2cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cyKsAQoHQWNjb3VudBIKCgJpZBgBIAEoCRINCgVlbWFpbBgCIAEoCRIQCgh1c2VybmFtZRgDIAEoCRINCgVyb2xlcxgEIAMoCRINCgVyZWFsbRgFIAEoCRIWCg5lbWFpbF92ZXJpZmllZBgGIAEoCBIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZzY29wZXMYCCADKAkihwEKCVRva2VuUGFpchIUCgxhY2Nlc3NfdG9rZW4YASABKAkSFQoNcmVmcmVzaF90b2tlbhgCIAEoCRI7ChdhY2Nlc3NfdG9rZW5fZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIYXVkaWVuY2UYBCABKAkiZQoPUmVnaXN0ZXJSZXF1ZXN0Eg0KBWVtYWlsGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJEhAKCHVzZXJuYW1lGAMgASgJEg0KBXJlYWxtGAQgASgJEhAKCHJlc291cmNlGAUgASgJIp0BChBSZWdpc3RlclJlc3BvbnNlEkMKB2FjY291bnQYASABKAsyMi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5BY2NvdW50EkQKBnRva2VucxgCIAEoCzI0LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlRva2VuUGFpciKRAQoMTG9naW5SZXF1ZXN0Eg0KBWVtYWlsGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJEg0KBXJlYWxtGAMgASgJEhEKCXRvdHBfY29kZRgEIAEoCRIVCg1yZWNvdmVyeV9jb2RlGAUgASgJEhUKDW1mYV9jaGFsbGVuZ2UYBiABKAkSEAoIcmVzb3VyY2UYByABKAkixwEKDUxvZ2luUmVzcG9uc2USQwoHYWNjb3VudBgBIAEoCzIyLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkFjY291bnQSRAoGdG9rZW5zGAIgASgLMjQudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuVG9rZW5QYWlyEhQKDG1mYV9yZXF1aXJlZBgDIAEoCBIVCg1tZmFfY2hhbGxlbmdlGAQgASgJIl0KFUNoYW5nZVBhc3N3b3JkUmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSGAoQY3VycmVudF9wYXNzd29yZBgCIAEoCRIUCgxuZXdfcGFzc3dvcmQYAyABKAkiMgoWQ2hhbmdlUGFzc3dvcmRSZXNwb25zZRIYChByZXZva2VkX3Nlc3Npb25zGAEgASgDIjkKDlJlZnJlc2hSZXF1ZXN0EhUKDXJlZnJlc2hfdG9rZW4YASABKAkSEAoIcmVzb3VyY2UYAiABKAkiVwoPUmVmcmVzaFJlc3BvbnNlEkQKBnRva2VucxgBIAEoCzI0LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlRva2VuUGFpciIlCg1Mb2dvdXRSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCSIQCg5Mb2dvdXRSZXNwb25zZSInCg9WYWxpZGF0ZVJlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJIrEBChBWYWxpZGF0ZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEg8KB3VzZXJfaWQYAiABKAkSDQoFZW1haWwYAyABKAkSDQoFcm9sZXMYBCADKAkSDQoFcmVhbG0YBSABKAkSLgoKZXhwaXJlc19hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGc2NvcGVzGAcgAygJEhAKCGF1ZGllbmNlGAggASgJIk4KEUdyYW50U2NvcGVSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCRIUCgxwcmluY2lwYWxfaWQYAiABKAkSDQoFc2NvcGUYAyABKAkiTwoSUmV2b2tlU2NvcGVSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCRIUCgxwcmluY2lwYWxfaWQYAiABKAkSDQoFc2NvcGUYAyABKAkiPwoRTGlzdFNjb3Blc1JlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJEhQKDHByaW5jaXBhbF9pZBgCIAEoCSI1Cg1TY29wZVJlc3BvbnNlEhQKDHByaW5jaXBhbF9pZBgBIAEoCRIOCgZzY29wZXMYAiADKAkiOgoSTGlzdFNjb3Blc1Jlc3BvbnNlEhQKDHByaW5jaXBhbF9pZBgBIAEoCRIOCgZzY29wZXMYAiADKAkiTAoPU2V0Um9sZXNSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCRIUCgxwcmluY2lwYWxfaWQYAiABKAkSDQoFcm9sZXMYAyADKAkigQEKGUxpbmtNYWNoaW5lQWNjb3VudFJlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJEhIKCm1hY2hpbmVfaWQYAiABKAkSFwoPbG9jYWxfcHJpbmNpcGFsGAMgASgJEg0KBXJlYWxtGAQgASgJEhIKCmlzX2RlZmF1bHQYBSABKAgirwEKGkxpbmtNYWNoaW5lQWNjb3VudFJlc3BvbnNlEhIKCm1hY2hpbmVfaWQYASABKAkSFwoPbG9jYWxfcHJpbmNpcGFsGAIgASgJEhIKCmFjY291bnRfaWQYAyABKAkSDQoFcmVhbG0YBCABKAkSEgoKaXNfZGVmYXVsdBgFIAEoCBItCglsaW5rZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInYKG1Jldm9rZU1hY2hpbmVBY2NvdW50UmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSEgoKbWFjaGluZV9pZBgCIAEoCRIXCg9sb2NhbF9wcmluY2lwYWwYAyABKAkSFAoMcHJpbmNpcGFsX2lkGAQgASgJIjUKHFJldm9rZU1hY2hpbmVBY2NvdW50UmVzcG9uc2USFQoNcmV2b2tlZF9jb3VudBgBIAEoAyI1Ch9FeGNoYW5nZU1hY2hpbmVQcmluY2lwYWxSZXF1ZXN0EhIKCm1hY2hpbmVfaWQYASABKAkiPgoWSXNzdWVCcmVha0dsYXNzUmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSDgoGc2NvcGVzGAIgAygJIkEKF0lzc3VlQnJlYWtHbGFzc1Jlc3BvbnNlEhIKCmNyZWRlbnRpYWwYASABKAkSEgoKZXhwaXJlc19hdBgCIAEoAzLXDwoPQWNjb3VudHNTZXJ2aWNlEoMBCghSZWdpc3RlchI6LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlJlZ2lzdGVyUmVxdWVzdBo7LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlJlZ2lzdGVyUmVzcG9uc2USegoFTG9naW4SNy52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Mb2dpblJlcXVlc3QaOC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Mb2dpblJlc3BvbnNlEpUBCg5DaGFuZ2VQYXNzd29yZBJALnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkNoYW5nZVBhc3N3b3JkUmVxdWVzdBpBLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkNoYW5nZVBhc3N3b3JkUmVzcG9uc2USgAEKB1JlZnJlc2gSOS52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWZyZXNoUmVxdWVzdBo6LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlJlZnJlc2hSZXNwb25zZRJ9CgZMb2dvdXQSOC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Mb2dvdXRSZXF1ZXN0GjkudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9nb3V0UmVzcG9uc2USgwEKCFZhbGlkYXRlEjoudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuVmFsaWRhdGVSZXF1ZXN0GjsudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuVmFsaWRhdGVSZXNwb25zZRKEAQoKR3JhbnRTY29wZRI8LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkdyYW50U2NvcGVSZXF1ZXN0GjgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuU2NvcGVSZXNwb25zZRKGAQoLUmV2b2tlU2NvcGUSPS52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZXZva2VTY29wZVJlcXVlc3QaOC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5TY29wZVJlc3BvbnNlEokBCgpMaXN0U2NvcGVzEjwudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTGlzdFNjb3Blc1JlcXVlc3QaPS52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5MaXN0U2NvcGVzUmVzcG9uc2USegoIU2V0Um9sZXMSOi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5TZXRSb2xlc1JlcXVlc3QaMi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5BY2NvdW50EqEBChJMaW5rTWFjaGluZUFjY291bnQSRC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5MaW5rTWFjaGluZUFjY291bnRSZXF1ZXN0GkUudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTGlua01hY2hpbmVBY2NvdW50UmVzcG9uc2USpwEKFFJldm9rZU1hY2hpbmVBY2NvdW50EkYudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmV2b2tlTWFjaGluZUFjY291bnRSZXF1ZXN0GkcudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmV2b2tlTWFjaGluZUFjY291bnRSZXNwb25zZRKgAQoYRXhjaGFuZ2VNYWNoaW5lUHJpbmNpcGFsEkoudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuRXhjaGFuZ2VNYWNoaW5lUHJpbmNpcGFsUmVxdWVzdBo4LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxvZ2luUmVzcG9uc2USmAEKD0lzc3VlQnJlYWtHbGFzcxJBLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLklzc3VlQnJlYWtHbGFzc1JlcXVlc3QaQi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Jc3N1ZUJyZWFrR2xhc3NSZXNwb25zZUJfWl1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NjZW5hcmlvLWF1dGhlbnRpY2F0b3IvdjEvYWNjb3VudHM7YWNjb3VudHNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * Account is the wire shape for a single account resource. Never carries a
@@ -113,6 +113,14 @@ export type TokenPair = Message<"vrooli.scenario_authenticator.v1.accounts.Token
    * @generated from field: google.protobuf.Timestamp access_token_expires_at = 3;
    */
   accessTokenExpiresAt?: Timestamp | undefined;
+
+  /**
+   * Audience stamped into the access token. Empty is never returned for a
+   * successful token issuance.
+   *
+   * @generated from field: string audience = 4;
+   */
+  audience: string;
 };
 
 /**
@@ -147,6 +155,14 @@ export type RegisterRequest = Message<"vrooli.scenario_authenticator.v1.accounts
    * @generated from field: string realm = 4;
    */
   realm: string;
+
+  /**
+   * Optional registered resource id. Empty preserves the default realm
+   * audience during the migration window.
+   *
+   * @generated from field: string resource = 5;
+   */
+  resource: string;
 };
 
 /**
@@ -198,6 +214,31 @@ export type LoginRequest = Message<"vrooli.scenario_authenticator.v1.accounts.Lo
    * @generated from field: string realm = 3;
    */
   realm: string;
+
+  /**
+   * Optional second-factor response for an MFA challenge returned by a prior
+   * password-valid login attempt.
+   *
+   * @generated from field: string totp_code = 4;
+   */
+  totpCode: string;
+
+  /**
+   * @generated from field: string recovery_code = 5;
+   */
+  recoveryCode: string;
+
+  /**
+   * @generated from field: string mfa_challenge = 6;
+   */
+  mfaChallenge: string;
+
+  /**
+   * Optional registered resource id.
+   *
+   * @generated from field: string resource = 7;
+   */
+  resource: string;
 };
 
 /**
@@ -220,6 +261,16 @@ export type LoginResponse = Message<"vrooli.scenario_authenticator.v1.accounts.L
    * @generated from field: vrooli.scenario_authenticator.v1.accounts.TokenPair tokens = 2;
    */
   tokens?: TokenPair | undefined;
+
+  /**
+   * @generated from field: bool mfa_required = 3;
+   */
+  mfaRequired: boolean;
+
+  /**
+   * @generated from field: string mfa_challenge = 4;
+   */
+  mfaChallenge: string;
 };
 
 /**
@@ -283,6 +334,14 @@ export type RefreshRequest = Message<"vrooli.scenario_authenticator.v1.accounts.
    * @generated from field: string refresh_token = 1;
    */
   refreshToken: string;
+
+  /**
+   * Reserved for additive clients; the refresh family preserves the original
+   * registered resource audience and ignores this field when empty.
+   *
+   * @generated from field: string resource = 2;
+   */
+  resource: string;
 };
 
 /**
@@ -407,6 +466,11 @@ export type ValidateResponse = Message<"vrooli.scenario_authenticator.v1.account
    * @generated from field: repeated string scopes = 7;
    */
   scopes: string[];
+
+  /**
+   * @generated from field: string audience = 8;
+   */
+  audience: string;
 };
 
 /**
@@ -537,6 +601,33 @@ export const ListScopesResponseSchema: GenMessage<ListScopesResponse> = /*@__PUR
   messageDesc(file_scenario_authenticator_v1_accounts_accounts, 18);
 
 /**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.SetRolesRequest
+ */
+export type SetRolesRequest = Message<"vrooli.scenario_authenticator.v1.accounts.SetRolesRequest"> & {
+  /**
+   * @generated from field: string access_token = 1;
+   */
+  accessToken: string;
+
+  /**
+   * @generated from field: string principal_id = 2;
+   */
+  principalId: string;
+
+  /**
+   * @generated from field: repeated string roles = 3;
+   */
+  roles: string[];
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.SetRolesRequest.
+ * Use `create(SetRolesRequestSchema)` to create a new message.
+ */
+export const SetRolesRequestSchema: GenMessage<SetRolesRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 19);
+
+/**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest
  */
 export type LinkMachineAccountRequest = Message<"vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest"> & {
@@ -571,7 +662,7 @@ export type LinkMachineAccountRequest = Message<"vrooli.scenario_authenticator.v
  * Use `create(LinkMachineAccountRequestSchema)` to create a new message.
  */
 export const LinkMachineAccountRequestSchema: GenMessage<LinkMachineAccountRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 19);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 20);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse
@@ -613,7 +704,56 @@ export type LinkMachineAccountResponse = Message<"vrooli.scenario_authenticator.
  * Use `create(LinkMachineAccountResponseSchema)` to create a new message.
  */
 export const LinkMachineAccountResponseSchema: GenMessage<LinkMachineAccountResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 20);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 21);
+
+/**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountRequest
+ */
+export type RevokeMachineAccountRequest = Message<"vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountRequest"> & {
+  /**
+   * @generated from field: string access_token = 1;
+   */
+  accessToken: string;
+
+  /**
+   * @generated from field: string machine_id = 2;
+   */
+  machineId: string;
+
+  /**
+   * @generated from field: string local_principal = 3;
+   */
+  localPrincipal: string;
+
+  /**
+   * @generated from field: string principal_id = 4;
+   */
+  principalId: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountRequest.
+ * Use `create(RevokeMachineAccountRequestSchema)` to create a new message.
+ */
+export const RevokeMachineAccountRequestSchema: GenMessage<RevokeMachineAccountRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 22);
+
+/**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountResponse
+ */
+export type RevokeMachineAccountResponse = Message<"vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountResponse"> & {
+  /**
+   * @generated from field: int64 revoked_count = 1;
+   */
+  revokedCount: bigint;
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountResponse.
+ * Use `create(RevokeMachineAccountResponseSchema)` to create a new message.
+ */
+export const RevokeMachineAccountResponseSchema: GenMessage<RevokeMachineAccountResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 23);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest
@@ -630,7 +770,7 @@ export type ExchangeMachinePrincipalRequest = Message<"vrooli.scenario_authentic
  * Use `create(ExchangeMachinePrincipalRequestSchema)` to create a new message.
  */
 export const ExchangeMachinePrincipalRequestSchema: GenMessage<ExchangeMachinePrincipalRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 21);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 24);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest
@@ -652,7 +792,7 @@ export type IssueBreakGlassRequest = Message<"vrooli.scenario_authenticator.v1.a
  * Use `create(IssueBreakGlassRequestSchema)` to create a new message.
  */
 export const IssueBreakGlassRequestSchema: GenMessage<IssueBreakGlassRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 22);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 25);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse
@@ -674,7 +814,7 @@ export type IssueBreakGlassResponse = Message<"vrooli.scenario_authenticator.v1.
  * Use `create(IssueBreakGlassResponseSchema)` to create a new message.
  */
 export const IssueBreakGlassResponseSchema: GenMessage<IssueBreakGlassResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 23);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 26);
 
 /**
  * @generated from service vrooli.scenario_authenticator.v1.accounts.AccountsService
@@ -784,6 +924,18 @@ export const AccountsService: GenService<{
     output: typeof ListScopesResponseSchema;
   },
   /**
+   * SetRoles replaces the coarse realm roles for a principal. Only an
+   * administrator may target another principal; the service prevents the
+   * last realm administrator from removing its own administrator role.
+   *
+   * @generated from rpc vrooli.scenario_authenticator.v1.accounts.AccountsService.SetRoles
+   */
+  setRoles: {
+    methodKind: "unary";
+    input: typeof SetRolesRequestSchema;
+    output: typeof AccountSchema;
+  },
+  /**
    * LinkMachineAccount binds an operator's current local principal to an
    * account. The local exchange listener supplies the peer credential; this
    * RPC is also exposed to the signed-in CLI for explicit linking.
@@ -794,6 +946,18 @@ export const AccountsService: GenService<{
     methodKind: "unary";
     input: typeof LinkMachineAccountRequestSchema;
     output: typeof LinkMachineAccountResponseSchema;
+  },
+  /**
+   * RevokeMachineAccount removes the selected machine binding. The caller may
+   * revoke its own binding; an administrator may target another principal.
+   * The operation is idempotent when the binding is already absent.
+   *
+   * @generated from rpc vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeMachineAccount
+   */
+  revokeMachineAccount: {
+    methodKind: "unary";
+    input: typeof RevokeMachineAccountRequestSchema;
+    output: typeof RevokeMachineAccountResponseSchema;
   },
   /**
    * ExchangeMachinePrincipal trades a verified local-socket peer credential

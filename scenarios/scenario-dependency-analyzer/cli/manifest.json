@@ -1034,14 +1034,16 @@
       "name": "deps",
       "commands": [
         {"name": "reconcile", "description": "Reconcile dependency records", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
-        {"name": "vendor", "description": "Synchronise a committed Go vendor tree", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}
+        {"name": "vendor", "description": "Synchronise a committed Go vendor tree", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
+        {"name": "resync", "description": "Restore a diverged JavaScript lockfile through the governed gateway (dry-run by default)", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}
       ]
     },
     {
       "name": "deps-approved",
       "commands": [
         {"name": "approve", "description": "Approve a dependency", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
-        {"name": "deny", "description": "Deny a dependency", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}
+        {"name": "deny", "description": "Deny a dependency", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
+        {"name": "check", "description": "Run repository dependency consistency checks", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}
       ]
     },
     {

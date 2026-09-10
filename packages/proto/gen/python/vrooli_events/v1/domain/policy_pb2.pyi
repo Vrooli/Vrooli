@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ReceiptCapturePolicy(_message.Message):
-    __slots__ = ("policy_id", "enabled", "selector", "response_type", "response_projection_paths", "retention_days", "access", "version")
+    __slots__ = ("policy_id", "enabled", "selector", "response_type", "response_projection_paths", "retention_days", "access", "version", "work_reference_projections")
     POLICY_ID_FIELD_NUMBER: _ClassVar[int]
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
@@ -17,6 +17,7 @@ class ReceiptCapturePolicy(_message.Message):
     RETENTION_DAYS_FIELD_NUMBER: _ClassVar[int]
     ACCESS_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
+    WORK_REFERENCE_PROJECTIONS_FIELD_NUMBER: _ClassVar[int]
     policy_id: str
     enabled: bool
     selector: ReceiptOperationSelector
@@ -25,7 +26,26 @@ class ReceiptCapturePolicy(_message.Message):
     retention_days: int
     access: ReceiptAccessPolicy
     version: str
-    def __init__(self, policy_id: _Optional[str] = ..., enabled: _Optional[bool] = ..., selector: _Optional[_Union[ReceiptOperationSelector, _Mapping]] = ..., response_type: _Optional[str] = ..., response_projection_paths: _Optional[_Iterable[str]] = ..., retention_days: _Optional[int] = ..., access: _Optional[_Union[ReceiptAccessPolicy, _Mapping]] = ..., version: _Optional[str] = ...) -> None: ...
+    work_reference_projections: _containers.RepeatedCompositeFieldContainer[WorkReferenceProjection]
+    def __init__(self, policy_id: _Optional[str] = ..., enabled: _Optional[bool] = ..., selector: _Optional[_Union[ReceiptOperationSelector, _Mapping]] = ..., response_type: _Optional[str] = ..., response_projection_paths: _Optional[_Iterable[str]] = ..., retention_days: _Optional[int] = ..., access: _Optional[_Union[ReceiptAccessPolicy, _Mapping]] = ..., version: _Optional[str] = ..., work_reference_projections: _Optional[_Iterable[_Union[WorkReferenceProjection, _Mapping]]] = ...) -> None: ...
+
+class WorkReferenceProjection(_message.Message):
+    __slots__ = ("kind_path", "id_path", "revision_path", "relationship", "verified_path", "visibility_path", "evidence_digest_path")
+    KIND_PATH_FIELD_NUMBER: _ClassVar[int]
+    ID_PATH_FIELD_NUMBER: _ClassVar[int]
+    REVISION_PATH_FIELD_NUMBER: _ClassVar[int]
+    RELATIONSHIP_FIELD_NUMBER: _ClassVar[int]
+    VERIFIED_PATH_FIELD_NUMBER: _ClassVar[int]
+    VISIBILITY_PATH_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_DIGEST_PATH_FIELD_NUMBER: _ClassVar[int]
+    kind_path: str
+    id_path: str
+    revision_path: str
+    relationship: str
+    verified_path: str
+    visibility_path: str
+    evidence_digest_path: str
+    def __init__(self, kind_path: _Optional[str] = ..., id_path: _Optional[str] = ..., revision_path: _Optional[str] = ..., relationship: _Optional[str] = ..., verified_path: _Optional[str] = ..., visibility_path: _Optional[str] = ..., evidence_digest_path: _Optional[str] = ...) -> None: ...
 
 class ReceiptOperationSelector(_message.Message):
     __slots__ = ("target_scenario", "operation", "protocol", "event_type")
@@ -46,7 +66,7 @@ class ReceiptAccessPolicy(_message.Message):
     def __init__(self, read_principals: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ReceiptQueryFilter(_message.Message):
-    __slots__ = ("event_type", "target_scenario", "operation", "agent_run_id", "task_id", "workflow_execution_id", "workflow_node_id", "attempt", "verified_only", "page_token", "page_size")
+    __slots__ = ("event_type", "target_scenario", "operation", "agent_run_id", "task_id", "workflow_execution_id", "workflow_node_id", "attempt", "verified_only", "page_token", "page_size", "event_id", "work_kind", "work_id", "visibility")
     EVENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     TARGET_SCENARIO_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
@@ -58,6 +78,10 @@ class ReceiptQueryFilter(_message.Message):
     VERIFIED_ONLY_FIELD_NUMBER: _ClassVar[int]
     PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
     PAGE_SIZE_FIELD_NUMBER: _ClassVar[int]
+    EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    WORK_KIND_FIELD_NUMBER: _ClassVar[int]
+    WORK_ID_FIELD_NUMBER: _ClassVar[int]
+    VISIBILITY_FIELD_NUMBER: _ClassVar[int]
     event_type: str
     target_scenario: str
     operation: str
@@ -69,7 +93,11 @@ class ReceiptQueryFilter(_message.Message):
     verified_only: bool
     page_token: str
     page_size: int
-    def __init__(self, event_type: _Optional[str] = ..., target_scenario: _Optional[str] = ..., operation: _Optional[str] = ..., agent_run_id: _Optional[str] = ..., task_id: _Optional[str] = ..., workflow_execution_id: _Optional[str] = ..., workflow_node_id: _Optional[str] = ..., attempt: _Optional[int] = ..., verified_only: _Optional[bool] = ..., page_token: _Optional[str] = ..., page_size: _Optional[int] = ...) -> None: ...
+    event_id: str
+    work_kind: str
+    work_id: str
+    visibility: _envelope_pb2.WorkReferenceVisibility
+    def __init__(self, event_type: _Optional[str] = ..., target_scenario: _Optional[str] = ..., operation: _Optional[str] = ..., agent_run_id: _Optional[str] = ..., task_id: _Optional[str] = ..., workflow_execution_id: _Optional[str] = ..., workflow_node_id: _Optional[str] = ..., attempt: _Optional[int] = ..., verified_only: _Optional[bool] = ..., page_token: _Optional[str] = ..., page_size: _Optional[int] = ..., event_id: _Optional[str] = ..., work_kind: _Optional[str] = ..., work_id: _Optional[str] = ..., visibility: _Optional[_Union[_envelope_pb2.WorkReferenceVisibility, str]] = ...) -> None: ...
 
 class ReceiptQueryResult(_message.Message):
     __slots__ = ("events", "next_page_token")

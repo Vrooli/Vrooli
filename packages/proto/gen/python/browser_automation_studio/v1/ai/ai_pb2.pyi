@@ -4,12 +4,24 @@ from buf.validate import validate_pb2 as _validate_pb2
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class WaitUntil(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    WAIT_UNTIL_UNSPECIFIED: _ClassVar[WaitUntil]
+    WAIT_UNTIL_LOAD: _ClassVar[WaitUntil]
+    WAIT_UNTIL_DOMCONTENTLOADED: _ClassVar[WaitUntil]
+    WAIT_UNTIL_NETWORKIDLE: _ClassVar[WaitUntil]
+WAIT_UNTIL_UNSPECIFIED: WaitUntil
+WAIT_UNTIL_LOAD: WaitUntil
+WAIT_UNTIL_DOMCONTENTLOADED: WaitUntil
+WAIT_UNTIL_NETWORKIDLE: WaitUntil
 
 class Viewport(_message.Message):
     __slots__ = ("width", "height", "device_scale_factor")
@@ -143,12 +155,18 @@ class ElementSelectionResult(_message.Message):
     def __init__(self, element: _Optional[_Union[ElementInfo, _Mapping]] = ..., candidates: _Optional[_Iterable[_Union[ElementHierarchyEntry, _Mapping]]] = ..., selected_index: _Optional[int] = ...) -> None: ...
 
 class TakePreviewScreenshotRequest(_message.Message):
-    __slots__ = ("url", "viewport")
+    __slots__ = ("url", "viewport", "wait_for", "wait_until", "settle_ms")
     URL_FIELD_NUMBER: _ClassVar[int]
     VIEWPORT_FIELD_NUMBER: _ClassVar[int]
+    WAIT_FOR_FIELD_NUMBER: _ClassVar[int]
+    WAIT_UNTIL_FIELD_NUMBER: _ClassVar[int]
+    SETTLE_MS_FIELD_NUMBER: _ClassVar[int]
     url: str
     viewport: Viewport
-    def __init__(self, url: _Optional[str] = ..., viewport: _Optional[_Union[Viewport, _Mapping]] = ...) -> None: ...
+    wait_for: str
+    wait_until: WaitUntil
+    settle_ms: int
+    def __init__(self, url: _Optional[str] = ..., viewport: _Optional[_Union[Viewport, _Mapping]] = ..., wait_for: _Optional[str] = ..., wait_until: _Optional[_Union[WaitUntil, str]] = ..., settle_ms: _Optional[int] = ...) -> None: ...
 
 class TakePreviewScreenshotResponse(_message.Message):
     __slots__ = ("screenshot_png", "content_type", "console_logs", "url", "captured_at", "duration_ms", "viewport_width", "viewport_height", "events")
@@ -249,10 +267,20 @@ class AIAnalyzeElementsResponse(_message.Message):
     def __init__(self, suggestions: _Optional[_Iterable[_Union[ElementInfo, _Mapping]]] = ...) -> None: ...
 
 class GetDOMTreeRequest(_message.Message):
-    __slots__ = ("url",)
+    __slots__ = ("url", "wait_for", "wait_until", "settle_ms", "computed", "max_nodes")
     URL_FIELD_NUMBER: _ClassVar[int]
+    WAIT_FOR_FIELD_NUMBER: _ClassVar[int]
+    WAIT_UNTIL_FIELD_NUMBER: _ClassVar[int]
+    SETTLE_MS_FIELD_NUMBER: _ClassVar[int]
+    COMPUTED_FIELD_NUMBER: _ClassVar[int]
+    MAX_NODES_FIELD_NUMBER: _ClassVar[int]
     url: str
-    def __init__(self, url: _Optional[str] = ...) -> None: ...
+    wait_for: str
+    wait_until: WaitUntil
+    settle_ms: int
+    computed: bool
+    max_nodes: int
+    def __init__(self, url: _Optional[str] = ..., wait_for: _Optional[str] = ..., wait_until: _Optional[_Union[WaitUntil, str]] = ..., settle_ms: _Optional[int] = ..., computed: _Optional[bool] = ..., max_nodes: _Optional[int] = ...) -> None: ...
 
 class GetDOMTreeResponse(_message.Message):
     __slots__ = ("tree",)
@@ -300,8 +328,30 @@ class ListNavigatorsResponse(_message.Message):
     default: str
     def __init__(self, navigators: _Optional[_Iterable[_Union[NavigatorInfo, _Mapping]]] = ..., default: _Optional[str] = ...) -> None: ...
 
+class NavigationPostcondition(_message.Message):
+    __slots__ = ("selector", "mode", "expected")
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_FIELD_NUMBER: _ClassVar[int]
+    selector: str
+    mode: str
+    expected: str
+    def __init__(self, selector: _Optional[str] = ..., mode: _Optional[str] = ..., expected: _Optional[str] = ...) -> None: ...
+
+class NavigationExtraction(_message.Message):
+    __slots__ = ("name", "selector", "attribute", "limit")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTE_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    selector: str
+    attribute: str
+    limit: int
+    def __init__(self, name: _Optional[str] = ..., selector: _Optional[str] = ..., attribute: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
 class StartNavigationRequest(_message.Message):
-    __slots__ = ("session_id", "prompt", "model", "max_steps", "api_key", "navigator_type", "client_source")
+    __slots__ = ("session_id", "prompt", "model", "max_steps", "api_key", "navigator_type", "client_source", "effect_policy", "postconditions", "extraction")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     PROMPT_FIELD_NUMBER: _ClassVar[int]
     MODEL_FIELD_NUMBER: _ClassVar[int]
@@ -309,6 +359,9 @@ class StartNavigationRequest(_message.Message):
     API_KEY_FIELD_NUMBER: _ClassVar[int]
     NAVIGATOR_TYPE_FIELD_NUMBER: _ClassVar[int]
     CLIENT_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    EFFECT_POLICY_FIELD_NUMBER: _ClassVar[int]
+    POSTCONDITIONS_FIELD_NUMBER: _ClassVar[int]
+    EXTRACTION_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     prompt: str
     model: str
@@ -316,7 +369,10 @@ class StartNavigationRequest(_message.Message):
     api_key: str
     navigator_type: str
     client_source: str
-    def __init__(self, session_id: _Optional[str] = ..., prompt: _Optional[str] = ..., model: _Optional[str] = ..., max_steps: _Optional[int] = ..., api_key: _Optional[str] = ..., navigator_type: _Optional[str] = ..., client_source: _Optional[str] = ...) -> None: ...
+    effect_policy: str
+    postconditions: _containers.RepeatedCompositeFieldContainer[NavigationPostcondition]
+    extraction: _containers.RepeatedCompositeFieldContainer[NavigationExtraction]
+    def __init__(self, session_id: _Optional[str] = ..., prompt: _Optional[str] = ..., model: _Optional[str] = ..., max_steps: _Optional[int] = ..., api_key: _Optional[str] = ..., navigator_type: _Optional[str] = ..., client_source: _Optional[str] = ..., effect_policy: _Optional[str] = ..., postconditions: _Optional[_Iterable[_Union[NavigationPostcondition, _Mapping]]] = ..., extraction: _Optional[_Iterable[_Union[NavigationExtraction, _Mapping]]] = ...) -> None: ...
 
 class StartNavigationResponse(_message.Message):
     __slots__ = ("navigation_id", "status", "model", "max_steps", "navigator_type")
@@ -333,13 +389,37 @@ class StartNavigationResponse(_message.Message):
     def __init__(self, navigation_id: _Optional[str] = ..., status: _Optional[str] = ..., model: _Optional[str] = ..., max_steps: _Optional[int] = ..., navigator_type: _Optional[str] = ...) -> None: ...
 
 class GetNavigationStatusRequest(_message.Message):
-    __slots__ = ("navigation_id",)
+    __slots__ = ("navigation_id", "wait_millis")
     NAVIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    WAIT_MILLIS_FIELD_NUMBER: _ClassVar[int]
     navigation_id: str
-    def __init__(self, navigation_id: _Optional[str] = ...) -> None: ...
+    wait_millis: int
+    def __init__(self, navigation_id: _Optional[str] = ..., wait_millis: _Optional[int] = ...) -> None: ...
+
+class NavigationStep(_message.Message):
+    __slots__ = ("index", "action_type", "selector", "value", "url", "description", "success", "error", "at")
+    INDEX_FIELD_NUMBER: _ClassVar[int]
+    ACTION_TYPE_FIELD_NUMBER: _ClassVar[int]
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    URL_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    AT_FIELD_NUMBER: _ClassVar[int]
+    index: int
+    action_type: str
+    selector: str
+    value: str
+    url: str
+    description: str
+    success: bool
+    error: str
+    at: _timestamp_pb2.Timestamp
+    def __init__(self, index: _Optional[int] = ..., action_type: _Optional[str] = ..., selector: _Optional[str] = ..., value: _Optional[str] = ..., url: _Optional[str] = ..., description: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class GetNavigationStatusResponse(_message.Message):
-    __slots__ = ("navigation_id", "session_id", "status", "step_count", "total_tokens", "started_at", "navigator_type")
+    __slots__ = ("navigation_id", "session_id", "status", "step_count", "total_tokens", "started_at", "navigator_type", "terminal", "steps", "verified_success", "extracted_data", "verification_error")
     NAVIGATION_ID_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -347,6 +427,11 @@ class GetNavigationStatusResponse(_message.Message):
     TOTAL_TOKENS_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     NAVIGATOR_TYPE_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_FIELD_NUMBER: _ClassVar[int]
+    STEPS_FIELD_NUMBER: _ClassVar[int]
+    VERIFIED_SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    EXTRACTED_DATA_FIELD_NUMBER: _ClassVar[int]
+    VERIFICATION_ERROR_FIELD_NUMBER: _ClassVar[int]
     navigation_id: str
     session_id: str
     status: str
@@ -354,7 +439,12 @@ class GetNavigationStatusResponse(_message.Message):
     total_tokens: int
     started_at: _timestamp_pb2.Timestamp
     navigator_type: str
-    def __init__(self, navigation_id: _Optional[str] = ..., session_id: _Optional[str] = ..., status: _Optional[str] = ..., step_count: _Optional[int] = ..., total_tokens: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., navigator_type: _Optional[str] = ...) -> None: ...
+    terminal: bool
+    steps: _containers.RepeatedCompositeFieldContainer[NavigationStep]
+    verified_success: bool
+    extracted_data: _struct_pb2.Struct
+    verification_error: str
+    def __init__(self, navigation_id: _Optional[str] = ..., session_id: _Optional[str] = ..., status: _Optional[str] = ..., step_count: _Optional[int] = ..., total_tokens: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., navigator_type: _Optional[str] = ..., terminal: _Optional[bool] = ..., steps: _Optional[_Iterable[_Union[NavigationStep, _Mapping]]] = ..., verified_success: _Optional[bool] = ..., extracted_data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., verification_error: _Optional[str] = ...) -> None: ...
 
 class AbortNavigationRequest(_message.Message):
     __slots__ = ("navigation_id",)

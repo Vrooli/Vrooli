@@ -155,13 +155,14 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	if resolved == nil {
 		env.Status = "partial"
 		env.Candidates = nil
-		env.Error = "surface did not resolve through selector, observed route, or corpus search"
+		env.Error = unresolvedRouteReason
 		return h.render(ctx, env, nil)
 	}
 	env.Resolved = resolved
-	if resolved.Route == "" && resolved.FollowUp != "" {
+	if resolved.Route == "" {
 		env.Status = "partial"
 		env.Candidates = resolved.Candidates
+		env.Error = firstError(resolved.FollowUp, unresolvedRouteReason)
 		return h.render(ctx, env, nil)
 	}
 
@@ -227,14 +228,20 @@ func (h *handlers) resolve(ctx context.Context, scenario, text, targetURL string
 		Selectors map[string]struct {
 			TestID   string `json:"testId"`
 			Selector string `json:"selector"`
+			Route    string `json:"route"`
 		} `json:"selectors"`
 	}
 	if raw, readErr := os.ReadFile(manifestPath); readErr == nil {
 		if json.Unmarshal(raw, &manifest) == nil {
-			if item, ok := manifest.Selectors[text]; ok {
-				return &resolution{Rung: 1, SurfaceID: text, Route: "/", Selector: item.Selector}, nil
+			if item, ok := manifest.Selectors[text]; ok && concreteRoute(item.Route) {
+				return &resolution{Rung: 1, SurfaceID: text, Route: item.Route, Selector: item.Selector}, nil
 			}
 		}
+	}
+	// A source declaration does not depend on corpus availability or recency.
+	// Only exact, unambiguous static routes qualify; no page-name-to-URL guess.
+	if route, routeErr := declaredRoute(ctx, root, scenario, text); routeErr == nil && route != "" {
+		return &resolution{Rung: 4, SurfaceID: text, Route: route}, nil
 	}
 
 	// Rung 2 is a deterministic lookup over the observed route payloads. Force
@@ -242,11 +249,11 @@ func (h *handlers) resolve(ctx context.Context, scenario, text, targetURL string
 	// hide an exact observed link/title match.
 	observedResp, err := h.search.Search(ctx, connect.NewRequest(&searchv1.SearchRequest{Query: text, Limit: 2500, Mode: searchv1.Mode_MODE_TEXT}))
 	if err != nil {
-		return nil, fmt.Errorf("search surface corpus: %w", err)
+		return nil, fmt.Errorf("selector and declared-route lookup did not resolve; observed-route search failed: %w", err)
 	}
 	var observed []candidate
 	for _, hit := range observedResp.Msg.GetResults() {
-		if hit.GetScenario() != scenario || strings.TrimSpace(hit.GetObservedRoute()) == "" {
+		if hit.GetScenario() != scenario || !concreteRoute(hit.GetObservedRoute()) {
 			continue
 		}
 		score := observedScore(text, hit)
@@ -295,10 +302,20 @@ func (h *handlers) resolve(ctx context.Context, scenario, text, targetURL string
 		return &resolution{Rung: 3, Candidates: corpus[:min(5, len(corpus))], FollowUp: disambiguationCommand(scenario, corpus[0].ID)}, nil
 	}
 	route := corpus[0].Route
-	if route == "" {
-		route = "/"
+	if !concreteRoute(route) {
+		if declared, routeErr := declaredRoute(ctx, root, scenario, corpus[0].FilePath); routeErr == nil && declared != "" {
+			return &resolution{Rung: 4, SurfaceID: corpus[0].ID, Route: declared}, nil
+		}
+		return &resolution{Rung: 3, SurfaceID: corpus[0].ID, Candidates: corpus[:1], FollowUp: unresolvedRouteReason}, nil
 	}
 	return &resolution{Rung: 3, SurfaceID: corpus[0].ID, Route: route}, nil
+}
+
+const unresolvedRouteReason = "surface route unresolved after selector, declared-route, observed-route, and corpus lookup; supply an exact same-origin URL or declare the page route"
+
+func concreteRoute(route string) bool {
+	u, err := url.Parse(route)
+	return err == nil && strings.HasPrefix(route, "/") && !strings.HasPrefix(route, "//") && u.Host == "" && !strings.ContainsAny(u.Path, ":*")
 }
 
 type observedLink struct {
@@ -346,6 +363,9 @@ func (h *handlers) observeBaseLink(ctx context.Context, targetURL, query string)
 }
 
 func (h *handlers) captureOne(ctx context.Context, client captureconnect.CaptureServiceClient, baseURL string, resolved *resolution, viewport, theme string, strictTokens bool) (captureArtifact, []finding, error) {
+	if resolved == nil || !concreteRoute(resolved.Route) {
+		return captureArtifact{}, nil, errors.New(unresolvedRouteReason)
+	}
 	dimensions, err := dimensionsFor(viewport)
 	if err != nil {
 		return captureArtifact{}, nil, err
@@ -535,6 +555,9 @@ func (h *handlers) render(ctx cliapp.RunContext, env envelope, _ error) error {
 
 func (h *handlers) renderHuman(ctx cliapp.RunContext, env envelope) error {
 	_, err := fmt.Fprintf(ctx.Stdout(), "Capture %s: %s\nResolved rung=%d route=%s artifacts=%d findings=%d\n", env.Surface, env.Status, env.ResolvedRung(), env.Route(), len(env.Artifacts), len(env.Findings))
+	if err == nil && env.Error != "" {
+		_, err = fmt.Fprintln(ctx.Stdout(), env.Error)
+	}
 	return err
 }
 

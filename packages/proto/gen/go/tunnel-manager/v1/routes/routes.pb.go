@@ -195,7 +195,7 @@ type Route struct {
 	// Name of the scenario this route exposes.
 	Scenario string `protobuf:"bytes,3,opt,name=scenario,proto3" json:"scenario,omitempty"`
 	// Apex domain the subdomain hangs off (a field, never hardcoded; default
-	// "itsagitime.com"). public_url is derived as https://<subdomain>.<domain>.
+	// "example.invalid"). public_url is derived as https://<subdomain>.<domain>.
 	Domain string `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
 	// Local port the tunnel forwards to. Must match the scenario's fixed UI port.
 	LocalPort int32 `protobuf:"varint,5,opt,name=local_port,json=localPort,proto3" json:"local_port,omitempty"`
@@ -540,7 +540,7 @@ func (x *GetRouteResponse) GetRoute() *Route {
 
 // CreateRouteRequest is the body accepted by RoutesService.CreateRoute.
 // subdomain, scenario and local_port are required; domain defaults to
-// "itsagitime.com", health_path to "/health", enabled to true, tier to LEASED.
+// the configured tunnel domain, health_path to "/health", enabled to true, tier to LEASED.
 type CreateRouteRequest struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	Subdomain  string                 `protobuf:"bytes,1,opt,name=subdomain,proto3" json:"subdomain,omitempty"`

@@ -44,6 +44,46 @@ class ListFacetsResponse(_message.Message):
     facets: _containers.RepeatedCompositeFieldContainer[Facet]
     def __init__(self, facets: _Optional[_Iterable[_Union[Facet, _Mapping]]] = ...) -> None: ...
 
+class CountUnassignedRequest(_message.Message):
+    __slots__ = ("scope",)
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    def __init__(self, scope: _Optional[str] = ...) -> None: ...
+
+class CountUnassignedResponse(_message.Message):
+    __slots__ = ("scope", "count")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    count: int
+    def __init__(self, scope: _Optional[str] = ..., count: _Optional[int] = ...) -> None: ...
+
+class EnsureFacetRequest(_message.Message):
+    __slots__ = ("scope", "facet")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    FACET_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    facet: Facet
+    def __init__(self, scope: _Optional[str] = ..., facet: _Optional[_Union[Facet, _Mapping]] = ...) -> None: ...
+
+class EnsureFacetResponse(_message.Message):
+    __slots__ = ("facet",)
+    FACET_FIELD_NUMBER: _ClassVar[int]
+    facet: Facet
+    def __init__(self, facet: _Optional[_Union[Facet, _Mapping]] = ...) -> None: ...
+
+class DeleteFacetRequest(_message.Message):
+    __slots__ = ("scope", "facet_id")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    FACET_ID_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    facet_id: str
+    def __init__(self, scope: _Optional[str] = ..., facet_id: _Optional[str] = ...) -> None: ...
+
+class DeleteFacetResponse(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
 class SetFacetPolicyRequest(_message.Message):
     __slots__ = ("scope", "facet_id", "retention_policy", "compaction_eligible", "resident_budget")
     SCOPE_FIELD_NUMBER: _ClassVar[int]

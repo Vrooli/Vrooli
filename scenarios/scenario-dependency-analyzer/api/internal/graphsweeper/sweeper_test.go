@@ -87,7 +87,7 @@ func (f *fakeIngestor) IngestScenario(_ context.Context, _, scenario string, _ b
 	return graphingest.ScenarioResult{Scenario: scenario, EdgesPersisted: 1}, nil
 }
 
-func newTestSweeper(cfg Config, ing Ingestor, digests DigestStore, lister Lister, digester Digester, clock Clock) *Sweeper {
+func newTestSweeper(cfg SweepConfig, ing Ingestor, digests DigestStore, lister Lister, digester Digester, clock Clock) *Sweeper {
 	return New(cfg, ing, digests, WithLister(lister), WithDigester(digester), WithClock(clock))
 }
 
@@ -97,7 +97,7 @@ func TestRunOnceFreshnessSkipsUnchanged(t *testing.T) {
 	store := newMemDigestStore()
 	store.m["a"] = "td:1" // a is fresh, b is new
 	ing := &fakeIngestor{failFor: map[string]bool{}}
-	cfg := Config{Concurrency: 1, ScenariosRoot: "/r"}
+	cfg := SweepConfig{Concurrency: 1, ScenariosRoot: "/r"}
 	sw := newTestSweeper(cfg, ing, store, fakeLister{scenarios: []Scenario{{Name: "a", Root: "/r/a"}, {Name: "b", Root: "/r/b"}}}, digester, clock)
 
 	report := sw.RunOnce(context.Background())
@@ -125,7 +125,7 @@ func TestRunOnceBreakerOpensUnderRepeatedFailure(t *testing.T) {
 	}
 	digester := &fakeDigester{digests: digests}
 	ing := &fakeIngestor{failFor: map[string]bool{"a": true, "b": true, "c": true, "d": true, "e": true}, degraded: true}
-	cfg := Config{Concurrency: 1, BreakerThreshold: 2, BreakerCooldown: time.Hour, ScenariosRoot: "/r"}
+	cfg := SweepConfig{Concurrency: 1, BreakerThreshold: 2, BreakerCooldown: time.Hour, ScenariosRoot: "/r"}
 	sw := newTestSweeper(cfg, ing, newMemDigestStore(), fakeLister{scenarios: scenarios}, digester, clock)
 
 	report := sw.RunOnce(context.Background())
@@ -148,7 +148,7 @@ func TestRunOnceBudgetHit(t *testing.T) {
 	// iteration's pre-launch budget check trips. Concurrency=1 serializes the
 	// ingest before the next iteration is considered.
 	ing := &fakeIngestor{failFor: map[string]bool{}, clock: clock, advance: 2 * time.Millisecond}
-	cfg := Config{Concurrency: 1, CycleBudget: time.Millisecond, ScenariosRoot: "/r"}
+	cfg := SweepConfig{Concurrency: 1, CycleBudget: time.Millisecond, ScenariosRoot: "/r"}
 	sw := newTestSweeper(cfg, ing, newMemDigestStore(),
 		fakeLister{scenarios: []Scenario{{Name: "a", Root: "/r/a"}, {Name: "b", Root: "/r/b"}, {Name: "c", Root: "/r/c"}}}, digester, clock)
 

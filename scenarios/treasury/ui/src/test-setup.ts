@@ -29,6 +29,19 @@ import { afterEach, beforeEach, vi } from "vitest";
 import { Providers } from "./app/providers";
 import { i18n } from "./i18n";
 
+if (!window.matchMedia) {
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  })) as typeof window.matchMedia;
+}
+
 // Keep scenario-owned contexts on the shared render path. This makes every
 // component test exercise the same theme composition as a production mount.
 configureTestProviders((children) => createElement(Providers, null, children));

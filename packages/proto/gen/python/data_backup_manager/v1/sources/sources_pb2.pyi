@@ -13,6 +13,7 @@ class SourceKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SOURCE_KIND_REDIS: _ClassVar[SourceKind]
     SOURCE_KIND_QDRANT: _ClassVar[SourceKind]
     SOURCE_KIND_OBJECT_STORAGE: _ClassVar[SourceKind]
+    SOURCE_KIND_WORKSPACE_CHECKPOINT: _ClassVar[SourceKind]
 SOURCE_KIND_UNSPECIFIED: SourceKind
 SOURCE_KIND_FILESYSTEM: SourceKind
 SOURCE_KIND_SQLITE: SourceKind
@@ -20,3 +21,4 @@ SOURCE_KIND_POSTGRES: SourceKind
 SOURCE_KIND_REDIS: SourceKind
 SOURCE_KIND_QDRANT: SourceKind
 SOURCE_KIND_OBJECT_STORAGE: SourceKind
+SOURCE_KIND_WORKSPACE_CHECKPOINT: SourceKind

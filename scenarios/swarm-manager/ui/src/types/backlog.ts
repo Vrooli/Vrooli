@@ -4,6 +4,7 @@
 
 import type {
   BacklogItem as ProtoBacklogItem,
+  ExecutionLimits as ProtoExecutionLimits,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/backlog_pb";
 import type { BacklogCriterion, BacklogFile as ProtoBacklogFile } from "@vrooli/proto-types/swarm-manager/v1/shared/backlog_pb";
 import type { ProtoMessage } from "./shared";
@@ -35,7 +36,10 @@ export type BacklogKind = "idea" | "research" | "fix" | "execute" | "chore";
 /**
  * A backlog item represents a unit of work for the swarm.
  */
-export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "milestone" | "acceptanceAllow" | "acceptanceDeny" | "acceptanceCriteria" | "creates" | "createdBy" | "stale"> & {
+// Server limits remain below Number.MAX_SAFE_INTEGER, including microdollars.
+export type ExecutionLimits = { [K in keyof ProtoMessage<ProtoExecutionLimits>]: number };
+
+export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "milestone" | "acceptanceAllow" | "acceptanceDeny" | "acceptanceCriteria" | "creates" | "createdBy" | "stale" | "executionLimits" | "planAcceptance"> & {
   /** Current lifecycle state */
   status: BacklogStatus;
   /** ISO timestamp when the item was archived, or undefined if not archived. */
@@ -58,6 +62,10 @@ export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind"
   createdBy?: AgentSessionAttribution;
   /** Canonical plan-manager plan backing this work item. */
   planRef?: PlanRef;
+  /** Plan runner selected for this ordinary plan-backed item. */
+  executionStrategy?: string;
+  /** Aggregate limits included in the reviewed work contract. */
+  executionLimits?: ExecutionLimits;
   /** Explicit authorization for the currently bound canonical plan revision. */
   planAcceptance?: {
     actor: string;

@@ -32,7 +32,7 @@ class ScenarioStatusSummary(_message.Message):
     def __init__(self, total_scenarios: _Optional[int] = ..., running: _Optional[int] = ..., stopped: _Optional[int] = ...) -> None: ...
 
 class ScenarioStatusItem(_message.Message):
-    __slots__ = ("name", "display_name", "description", "tags", "status", "processes", "runtime", "started_at", "ports", "port_bindings", "health_status", "health_error", "start_operation")
+    __slots__ = ("name", "display_name", "description", "tags", "status", "processes", "runtime", "started_at", "ports", "port_bindings", "health_status", "health_error", "start_operation", "build_identity")
     class PortsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -53,6 +53,7 @@ class ScenarioStatusItem(_message.Message):
     HEALTH_STATUS_FIELD_NUMBER: _ClassVar[int]
     HEALTH_ERROR_FIELD_NUMBER: _ClassVar[int]
     START_OPERATION_FIELD_NUMBER: _ClassVar[int]
+    BUILD_IDENTITY_FIELD_NUMBER: _ClassVar[int]
     name: str
     display_name: str
     description: str
@@ -66,7 +67,8 @@ class ScenarioStatusItem(_message.Message):
     health_status: _struct_pb2.Value
     health_error: str
     start_operation: ScenarioStartOperation
-    def __init__(self, name: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., status: _Optional[str] = ..., processes: _Optional[int] = ..., runtime: _Optional[str] = ..., started_at: _Optional[str] = ..., ports: _Optional[_Mapping[str, int]] = ..., port_bindings: _Optional[_Iterable[_Union[_scenario_list_pb2.ScenarioPort, _Mapping]]] = ..., health_status: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., health_error: _Optional[str] = ..., start_operation: _Optional[_Union[ScenarioStartOperation, _Mapping]] = ...) -> None: ...
+    build_identity: str
+    def __init__(self, name: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., status: _Optional[str] = ..., processes: _Optional[int] = ..., runtime: _Optional[str] = ..., started_at: _Optional[str] = ..., ports: _Optional[_Mapping[str, int]] = ..., port_bindings: _Optional[_Iterable[_Union[_scenario_list_pb2.ScenarioPort, _Mapping]]] = ..., health_status: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., health_error: _Optional[str] = ..., start_operation: _Optional[_Union[ScenarioStartOperation, _Mapping]] = ..., build_identity: _Optional[str] = ...) -> None: ...
 
 class ScenarioStartOperation(_message.Message):
     __slots__ = ("operation_id", "scenario", "variant", "operation", "status", "verdict", "error", "current_step", "dependency_current", "dependency_index", "dependency_total", "started_at", "finished_at", "elapsed_seconds", "steps", "eta_known", "eta_seconds", "recommended_next_check_seconds", "initiator_pid")
@@ -239,7 +241,7 @@ class ScenarioGenerationDesign(_message.Message):
     def __init__(self, id: _Optional[str] = ..., version: _Optional[str] = ..., adapter: _Optional[str] = ...) -> None: ...
 
 class ScenarioRuntimeData(_message.Message):
-    __slots__ = ("status", "processes", "runtime", "started_at", "ports", "process_records", "list_ports", "health_error")
+    __slots__ = ("status", "processes", "runtime", "started_at", "ports", "process_records", "list_ports", "health_error", "build_identity")
     class PortsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -255,6 +257,7 @@ class ScenarioRuntimeData(_message.Message):
     PROCESS_RECORDS_FIELD_NUMBER: _ClassVar[int]
     LIST_PORTS_FIELD_NUMBER: _ClassVar[int]
     HEALTH_ERROR_FIELD_NUMBER: _ClassVar[int]
+    BUILD_IDENTITY_FIELD_NUMBER: _ClassVar[int]
     status: str
     processes: int
     runtime: str
@@ -263,7 +266,8 @@ class ScenarioRuntimeData(_message.Message):
     process_records: _containers.RepeatedCompositeFieldContainer[ScenarioProcessRecord]
     list_ports: _containers.RepeatedCompositeFieldContainer[_scenario_list_pb2.ScenarioPort]
     health_error: str
-    def __init__(self, status: _Optional[str] = ..., processes: _Optional[int] = ..., runtime: _Optional[str] = ..., started_at: _Optional[str] = ..., ports: _Optional[_Mapping[str, int]] = ..., process_records: _Optional[_Iterable[_Union[ScenarioProcessRecord, _Mapping]]] = ..., list_ports: _Optional[_Iterable[_Union[_scenario_list_pb2.ScenarioPort, _Mapping]]] = ..., health_error: _Optional[str] = ...) -> None: ...
+    build_identity: str
+    def __init__(self, status: _Optional[str] = ..., processes: _Optional[int] = ..., runtime: _Optional[str] = ..., started_at: _Optional[str] = ..., ports: _Optional[_Mapping[str, int]] = ..., process_records: _Optional[_Iterable[_Union[ScenarioProcessRecord, _Mapping]]] = ..., list_ports: _Optional[_Iterable[_Union[_scenario_list_pb2.ScenarioPort, _Mapping]]] = ..., health_error: _Optional[str] = ..., build_identity: _Optional[str] = ...) -> None: ...
 
 class ScenarioProcessRecord(_message.Message):
     __slots__ = ("pid", "pgid", "process_id", "phase", "scenario", "step", "command", "working_dir", "log_file", "port", "started_at", "status")

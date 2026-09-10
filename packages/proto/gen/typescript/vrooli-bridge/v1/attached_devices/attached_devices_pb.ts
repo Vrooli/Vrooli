@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/attached_devices/attached_devices.proto.
  */
 export const file_vrooli_bridge_v1_attached_devices_attached_devices: GenFile = /*@__PURE__*/
-  fileDesc("Cjh2cm9vbGktYnJpZGdlL3YxL2F0dGFjaGVkX2RldmljZXMvYXR0YWNoZWRfZGV2aWNlcy5wcm90bxIodnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXR0YWNoZWRfZGV2aWNlcyKeAQoZUGFpckF0dGFjaGVkRGV2aWNlUmVxdWVzdBIMCgRuYW1lGAEgASgJEhQKDGhvc3Rfbm9kZV9pZBgCIAEoCRIMCgRraW5kGAMgASgJEhEKCXRyYW5zcG9ydBgEIAEoCRIOCgZzZXJpYWwYBSABKAkSEgoKb3NfdmVyc2lvbhgGIAEoCRIYChBob3N0X25vZGVfb25saW5lGAcgASgIIhwKGkxpc3RBdHRhY2hlZERldmljZXNSZXF1ZXN0ImgKG0xpc3RBdHRhY2hlZERldmljZXNSZXNwb25zZRJJCgdkZXZpY2VzGAEgAygLMjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXR0YWNoZWRfZGV2aWNlcy5BdHRhY2hlZERldmljZSIpChtSZXZva2VBdHRhY2hlZERldmljZVJlcXVlc3QSCgoCaWQYASABKAkiYgoWQXR0YWNoZWREZXZpY2VSZXNwb25zZRJICgZkZXZpY2UYASABKAsyOC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hdHRhY2hlZF9kZXZpY2VzLkF0dGFjaGVkRGV2aWNlIqcCCg5BdHRhY2hlZERldmljZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhQKDGhvc3Rfbm9kZV9pZBgDIAEoCRIMCgRraW5kGAQgASgJEhEKCXRyYW5zcG9ydBgFIAEoCRIOCgZzZXJpYWwYBiABKAkSEgoKb3NfdmVyc2lvbhgHIAEoCRITCgt0cnVzdF9zdGF0ZRgIIAEoCRIUCgxyZWFjaGFiaWxpdHkYCSABKAkSFQoNaGVhbHRoX3JlYXNvbhgKIAEoCRIuCgpjcmVhdGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpyZXZva2VkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcDL8AwoVQXR0YWNoZWREZXZpY2VTZXJ2aWNlEpsBChJQYWlyQXR0YWNoZWREZXZpY2USQy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hdHRhY2hlZF9kZXZpY2VzLlBhaXJBdHRhY2hlZERldmljZVJlcXVlc3QaQC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hdHRhY2hlZF9kZXZpY2VzLkF0dGFjaGVkRGV2aWNlUmVzcG9uc2USogEKE0xpc3RBdHRhY2hlZERldmljZXMSRC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hdHRhY2hlZF9kZXZpY2VzLkxpc3RBdHRhY2hlZERldmljZXNSZXF1ZXN0GkUudnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXR0YWNoZWRfZGV2aWNlcy5MaXN0QXR0YWNoZWREZXZpY2VzUmVzcG9uc2USnwEKFFJldm9rZUF0dGFjaGVkRGV2aWNlEkUudnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXR0YWNoZWRfZGV2aWNlcy5SZXZva2VBdHRhY2hlZERldmljZVJlcXVlc3QaQC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hdHRhY2hlZF9kZXZpY2VzLkF0dGFjaGVkRGV2aWNlUmVzcG9uc2VCZlpkZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL2F0dGFjaGVkX2RldmljZXM7YXR0YWNoZWRfZGV2aWNlc192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Cjh2cm9vbGktYnJpZGdlL3YxL2F0dGFjaGVkX2RldmljZXMvYXR0YWNoZWRfZGV2aWNlcy5wcm90bxIodnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXR0YWNoZWRfZGV2aWNlcyKeAQoZUGFpckF0dGFjaGVkRGV2aWNlUmVxdWVzdBIMCgRuYW1lGAEgASgJEhQKDGhvc3Rfbm9kZV9pZBgCIAEoCRIMCgRraW5kGAMgASgJEhEKCXRyYW5zcG9ydBgEIAEoCRIOCgZzZXJpYWwYBSABKAkSEgoKb3NfdmVyc2lvbhgGIAEoCRIYChBob3N0X25vZGVfb25saW5lGAcgASgIIhwKGkxpc3RBdHRhY2hlZERldmljZXNSZXF1ZXN0ImgKG0xpc3RBdHRhY2hlZERldmljZXNSZXNwb25zZRJJCgdkZXZpY2VzGAEgAygLMjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXR0YWNoZWRfZGV2aWNlcy5BdHRhY2hlZERldmljZSImChhHZXRBdHRhY2hlZERldmljZVJlcXVlc3QSCgoCaWQYASABKAkiKQobUmV2b2tlQXR0YWNoZWREZXZpY2VSZXF1ZXN0EgoKAmlkGAEgASgJImIKFkF0dGFjaGVkRGV2aWNlUmVzcG9uc2USSAoGZGV2aWNlGAEgASgLMjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXR0YWNoZWRfZGV2aWNlcy5BdHRhY2hlZERldmljZSK7AgoOQXR0YWNoZWREZXZpY2USCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIUCgxob3N0X25vZGVfaWQYAyABKAkSDAoEa2luZBgEIAEoCRIRCgl0cmFuc3BvcnQYBSABKAkSDgoGc2VyaWFsGAYgASgJEhIKCm9zX3ZlcnNpb24YByABKAkSEwoLdHJ1c3Rfc3RhdGUYCCABKAkSFAoMcmVhY2hhYmlsaXR5GAkgASgJEhUKDWhlYWx0aF9yZWFzb24YCiABKAkSLgoKY3JlYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKcmV2b2tlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKdHJhbnNwb3J0cxgNIAMoCTKYBQoVQXR0YWNoZWREZXZpY2VTZXJ2aWNlEpsBChJQYWlyQXR0YWNoZWREZXZpY2USQy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hdHRhY2hlZF9kZXZpY2VzLlBhaXJBdHRhY2hlZERldmljZVJlcXVlc3QaQC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hdHRhY2hlZF9kZXZpY2VzLkF0dGFjaGVkRGV2aWNlUmVzcG9uc2USogEKE0xpc3RBdHRhY2hlZERldmljZXMSRC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hdHRhY2hlZF9kZXZpY2VzLkxpc3RBdHRhY2hlZERldmljZXNSZXF1ZXN0GkUudnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXR0YWNoZWRfZGV2aWNlcy5MaXN0QXR0YWNoZWREZXZpY2VzUmVzcG9uc2USmQEKEUdldEF0dGFjaGVkRGV2aWNlEkIudnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXR0YWNoZWRfZGV2aWNlcy5HZXRBdHRhY2hlZERldmljZVJlcXVlc3QaQC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hdHRhY2hlZF9kZXZpY2VzLkF0dGFjaGVkRGV2aWNlUmVzcG9uc2USnwEKFFJldm9rZUF0dGFjaGVkRGV2aWNlEkUudnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXR0YWNoZWRfZGV2aWNlcy5SZXZva2VBdHRhY2hlZERldmljZVJlcXVlc3QaQC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hdHRhY2hlZF9kZXZpY2VzLkF0dGFjaGVkRGV2aWNlUmVzcG9uc2VCZlpkZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL2F0dGFjaGVkX2RldmljZXM7YXR0YWNoZWRfZGV2aWNlc192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.attached_devices.PairAttachedDeviceRequest
@@ -92,6 +92,23 @@ export const ListAttachedDevicesResponseSchema: GenMessage<ListAttachedDevicesRe
   messageDesc(file_vrooli_bridge_v1_attached_devices_attached_devices, 2);
 
 /**
+ * @generated from message vrooli.vrooli_bridge.v1.attached_devices.GetAttachedDeviceRequest
+ */
+export type GetAttachedDeviceRequest = Message<"vrooli.vrooli_bridge.v1.attached_devices.GetAttachedDeviceRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.attached_devices.GetAttachedDeviceRequest.
+ * Use `create(GetAttachedDeviceRequestSchema)` to create a new message.
+ */
+export const GetAttachedDeviceRequestSchema: GenMessage<GetAttachedDeviceRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_attached_devices_attached_devices, 3);
+
+/**
  * @generated from message vrooli.vrooli_bridge.v1.attached_devices.RevokeAttachedDeviceRequest
  */
 export type RevokeAttachedDeviceRequest = Message<"vrooli.vrooli_bridge.v1.attached_devices.RevokeAttachedDeviceRequest"> & {
@@ -106,7 +123,7 @@ export type RevokeAttachedDeviceRequest = Message<"vrooli.vrooli_bridge.v1.attac
  * Use `create(RevokeAttachedDeviceRequestSchema)` to create a new message.
  */
 export const RevokeAttachedDeviceRequestSchema: GenMessage<RevokeAttachedDeviceRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_attached_devices_attached_devices, 3);
+  messageDesc(file_vrooli_bridge_v1_attached_devices_attached_devices, 4);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceResponse
@@ -123,7 +140,7 @@ export type AttachedDeviceResponse = Message<"vrooli.vrooli_bridge.v1.attached_d
  * Use `create(AttachedDeviceResponseSchema)` to create a new message.
  */
 export const AttachedDeviceResponseSchema: GenMessage<AttachedDeviceResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_attached_devices_attached_devices, 4);
+  messageDesc(file_vrooli_bridge_v1_attached_devices_attached_devices, 5);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.attached_devices.AttachedDevice
@@ -188,6 +205,14 @@ export type AttachedDevice = Message<"vrooli.vrooli_bridge.v1.attached_devices.A
    * @generated from field: google.protobuf.Timestamp revoked_at = 12;
    */
   revokedAt?: Timestamp | undefined;
+
+  /**
+   * Every transport observed for this physical device. The legacy transport
+   * field remains populated with the primary transport for older consumers.
+   *
+   * @generated from field: repeated string transports = 13;
+   */
+  transports: string[];
 };
 
 /**
@@ -195,7 +220,7 @@ export type AttachedDevice = Message<"vrooli.vrooli_bridge.v1.attached_devices.A
  * Use `create(AttachedDeviceSchema)` to create a new message.
  */
 export const AttachedDeviceSchema: GenMessage<AttachedDevice> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_attached_devices_attached_devices, 5);
+  messageDesc(file_vrooli_bridge_v1_attached_devices_attached_devices, 6);
 
 /**
  * @generated from service vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService
@@ -216,6 +241,14 @@ export const AttachedDeviceService: GenService<{
     methodKind: "unary";
     input: typeof ListAttachedDevicesRequestSchema;
     output: typeof ListAttachedDevicesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.GetAttachedDevice
+   */
+  getAttachedDevice: {
+    methodKind: "unary";
+    input: typeof GetAttachedDeviceRequestSchema;
+    output: typeof AttachedDeviceResponseSchema;
   },
   /**
    * @generated from rpc vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.RevokeAttachedDevice

@@ -17,8 +17,15 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class PipelineConfig(_message.Message):
-    __slots__ = ("scenario_name", "platforms", "skip_preflight", "skip_smoke_test", "stop_on_failure", "deployment_mode", "framework", "template_type", "webhook_url", "proxy_url", "bundle_manifest_path", "resource_artifact_root", "tool_artifact_root", "location_mode", "clean", "sign", "publish", "distribute", "distribution_targets", "version", "preflight_timeout_seconds", "preflight_secrets", "stop_after_stage", "resume_from_stage", "parent_pipeline_id", "idempotency_key", "stages", "artifact_trust_mode", "update_config", "native_extension")
+    __slots__ = ("scenario_name", "platforms", "skip_preflight", "skip_smoke_test", "stop_on_failure", "deployment_mode", "framework", "template_type", "webhook_url", "proxy_url", "bundle_manifest_path", "resource_artifact_root", "tool_artifact_root", "location_mode", "clean", "sign", "publish", "distribute", "distribution_targets", "version", "preflight_timeout_seconds", "preflight_secrets", "stop_after_stage", "resume_from_stage", "parent_pipeline_id", "idempotency_key", "stages", "artifact_trust_mode", "update_config", "native_extension", "platform_targets", "expected_artifact_digests", "deploy", "artifact_manifest_digest")
     class PreflightSecretsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    class ExpectedArtifactDigestsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -55,6 +62,10 @@ class PipelineConfig(_message.Message):
     ARTIFACT_TRUST_MODE_FIELD_NUMBER: _ClassVar[int]
     UPDATE_CONFIG_FIELD_NUMBER: _ClassVar[int]
     NATIVE_EXTENSION_FIELD_NUMBER: _ClassVar[int]
+    PLATFORM_TARGETS_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_ARTIFACT_DIGESTS_FIELD_NUMBER: _ClassVar[int]
+    DEPLOY_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_MANIFEST_DIGEST_FIELD_NUMBER: _ClassVar[int]
     scenario_name: str
     platforms: _containers.RepeatedScalarFieldContainer[_common_pb2.Platform]
     skip_preflight: bool
@@ -85,7 +96,43 @@ class PipelineConfig(_message.Message):
     artifact_trust_mode: str
     update_config: _update_config_pb2.UpdateConfig
     native_extension: _config_pb2.NativeExtension
-    def __init__(self, scenario_name: _Optional[str] = ..., platforms: _Optional[_Iterable[_Union[_common_pb2.Platform, str]]] = ..., skip_preflight: _Optional[bool] = ..., skip_smoke_test: _Optional[bool] = ..., stop_on_failure: _Optional[bool] = ..., deployment_mode: _Optional[_Union[_common_pb2.DeploymentMode, str]] = ..., framework: _Optional[_Union[_common_pb2.Framework, str]] = ..., template_type: _Optional[_Union[_common_pb2.TemplateType, str]] = ..., webhook_url: _Optional[str] = ..., proxy_url: _Optional[str] = ..., bundle_manifest_path: _Optional[str] = ..., resource_artifact_root: _Optional[str] = ..., tool_artifact_root: _Optional[str] = ..., location_mode: _Optional[str] = ..., clean: _Optional[bool] = ..., sign: _Optional[bool] = ..., publish: _Optional[bool] = ..., distribute: _Optional[bool] = ..., distribution_targets: _Optional[_Iterable[str]] = ..., version: _Optional[str] = ..., preflight_timeout_seconds: _Optional[int] = ..., preflight_secrets: _Optional[_Mapping[str, str]] = ..., stop_after_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., resume_from_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., parent_pipeline_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., stages: _Optional[_Iterable[_Union[_common_pb2.StageName, str]]] = ..., artifact_trust_mode: _Optional[str] = ..., update_config: _Optional[_Union[_update_config_pb2.UpdateConfig, _Mapping]] = ..., native_extension: _Optional[_Union[_config_pb2.NativeExtension, _Mapping]] = ...) -> None: ...
+    platform_targets: _containers.RepeatedScalarFieldContainer[str]
+    expected_artifact_digests: _containers.ScalarMap[str, str]
+    deploy: DeployConfig
+    artifact_manifest_digest: str
+    def __init__(self, scenario_name: _Optional[str] = ..., platforms: _Optional[_Iterable[_Union[_common_pb2.Platform, str]]] = ..., skip_preflight: _Optional[bool] = ..., skip_smoke_test: _Optional[bool] = ..., stop_on_failure: _Optional[bool] = ..., deployment_mode: _Optional[_Union[_common_pb2.DeploymentMode, str]] = ..., framework: _Optional[_Union[_common_pb2.Framework, str]] = ..., template_type: _Optional[_Union[_common_pb2.TemplateType, str]] = ..., webhook_url: _Optional[str] = ..., proxy_url: _Optional[str] = ..., bundle_manifest_path: _Optional[str] = ..., resource_artifact_root: _Optional[str] = ..., tool_artifact_root: _Optional[str] = ..., location_mode: _Optional[str] = ..., clean: _Optional[bool] = ..., sign: _Optional[bool] = ..., publish: _Optional[bool] = ..., distribute: _Optional[bool] = ..., distribution_targets: _Optional[_Iterable[str]] = ..., version: _Optional[str] = ..., preflight_timeout_seconds: _Optional[int] = ..., preflight_secrets: _Optional[_Mapping[str, str]] = ..., stop_after_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., resume_from_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., parent_pipeline_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., stages: _Optional[_Iterable[_Union[_common_pb2.StageName, str]]] = ..., artifact_trust_mode: _Optional[str] = ..., update_config: _Optional[_Union[_update_config_pb2.UpdateConfig, _Mapping]] = ..., native_extension: _Optional[_Union[_config_pb2.NativeExtension, _Mapping]] = ..., platform_targets: _Optional[_Iterable[str]] = ..., expected_artifact_digests: _Optional[_Mapping[str, str]] = ..., deploy: _Optional[_Union[DeployConfig, _Mapping]] = ..., artifact_manifest_digest: _Optional[str] = ...) -> None: ...
+
+class DeployConfig(_message.Message):
+    __slots__ = ("target_name", "scenario_name", "remote_profile", "app_key", "update_url", "release_id", "channel", "deployment_manager_profile_id", "gate_timeout", "gate_poll_interval", "candidate_id", "destination_revision_id", "authorization_epoch", "readiness_review_key")
+    TARGET_NAME_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    REMOTE_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    APP_KEY_FIELD_NUMBER: _ClassVar[int]
+    UPDATE_URL_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    CHANNEL_FIELD_NUMBER: _ClassVar[int]
+    DEPLOYMENT_MANAGER_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    GATE_TIMEOUT_FIELD_NUMBER: _ClassVar[int]
+    GATE_POLL_INTERVAL_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_REVISION_ID_FIELD_NUMBER: _ClassVar[int]
+    AUTHORIZATION_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    READINESS_REVIEW_KEY_FIELD_NUMBER: _ClassVar[int]
+    target_name: str
+    scenario_name: str
+    remote_profile: str
+    app_key: str
+    update_url: str
+    release_id: str
+    channel: str
+    deployment_manager_profile_id: str
+    gate_timeout: str
+    gate_poll_interval: str
+    candidate_id: str
+    destination_revision_id: str
+    authorization_epoch: int
+    readiness_review_key: str
+    def __init__(self, target_name: _Optional[str] = ..., scenario_name: _Optional[str] = ..., remote_profile: _Optional[str] = ..., app_key: _Optional[str] = ..., update_url: _Optional[str] = ..., release_id: _Optional[str] = ..., channel: _Optional[str] = ..., deployment_manager_profile_id: _Optional[str] = ..., gate_timeout: _Optional[str] = ..., gate_poll_interval: _Optional[str] = ..., candidate_id: _Optional[str] = ..., destination_revision_id: _Optional[str] = ..., authorization_epoch: _Optional[int] = ..., readiness_review_key: _Optional[str] = ...) -> None: ...
 
 class StageResult(_message.Message):
     __slots__ = ("stage", "status", "started_at", "completed_at", "error", "logs", "details")
@@ -361,12 +408,18 @@ class DeployStageDetails(_message.Message):
     def __init__(self, artifacts: _Optional[_Iterable[_Union[DeployArtifactResult, _Mapping]]] = ..., update_url: _Optional[str] = ...) -> None: ...
 
 class DeployArtifactResult(_message.Message):
-    __slots__ = ("artifact_id", "platform")
+    __slots__ = ("artifact_id", "platform", "sha512", "destination_object", "target_id")
     ARTIFACT_ID_FIELD_NUMBER: _ClassVar[int]
     PLATFORM_FIELD_NUMBER: _ClassVar[int]
+    SHA512_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_OBJECT_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     artifact_id: int
     platform: _common_pb2.Platform
-    def __init__(self, artifact_id: _Optional[int] = ..., platform: _Optional[_Union[_common_pb2.Platform, str]] = ...) -> None: ...
+    sha512: str
+    destination_object: str
+    target_id: str
+    def __init__(self, artifact_id: _Optional[int] = ..., platform: _Optional[_Union[_common_pb2.Platform, str]] = ..., sha512: _Optional[str] = ..., destination_object: _Optional[str] = ..., target_id: _Optional[str] = ...) -> None: ...
 
 class PipelineStatus(_message.Message):
     __slots__ = ("pipeline_id", "scenario_name", "status", "current_stage", "progress_percent", "progress_message", "current_state", "stages", "stage_order", "config", "started_at", "completed_at", "error", "final_artifacts", "stopped_after_stage", "parent_pipeline_id", "idempotency_key")

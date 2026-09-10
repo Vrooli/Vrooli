@@ -2,8 +2,10 @@ package sandbox
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -484,6 +486,13 @@ func (s *Service) recordFileProvenance(ctx context.Context, sandbox *types.Sandb
 			RunOutcome:        req.RunOutcome,
 			ProvenanceState:   string(state),
 		}
+		if c.ChangeType != types.ChangeTypeDeleted {
+			if content, readErr := os.ReadFile(appliedChanges[i].FilePath); readErr == nil {
+				digest := sha256.Sum256(content)
+				appliedChanges[i].ContentDigest = fmt.Sprintf("sha256:%x", digest[:])
+			}
+		}
+		appliedChanges[i].EvidenceRevision = commitHash
 	}
 
 	if err := s.repo.RecordAppliedChanges(ctx, appliedChanges); err != nil {

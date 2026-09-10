@@ -10,6 +10,7 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	domain1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -1640,8 +1641,15 @@ type StartWorkflowExecutionRequest struct {
 	DefinitionDigest string                 `protobuf:"bytes,3,opt,name=definition_digest,json=definitionDigest,proto3" json:"definition_digest,omitempty"`
 	Input            *structpb.Value        `protobuf:"bytes,4,opt,name=input,proto3" json:"input,omitempty"`
 	IdempotencyKey   string                 `protobuf:"bytes,5,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Optional immutable ceiling supplied by an owning engagement. The execution
+	// owner only narrows the workflow declaration; it never expands it.
+	EngagementGrant *domain.WorkflowEngagementGrant `protobuf:"bytes,6,opt,name=engagement_grant,json=engagementGrant,proto3" json:"engagement_grant,omitempty"`
+	// Reviewed Swarm engagement identity; distinct from definition_digest.
+	ApprovalDigest string `protobuf:"bytes,7,opt,name=approval_digest,json=approvalDigest,proto3" json:"approval_digest,omitempty"`
+	// Digest of the exact grant values sent with this invocation.
+	GrantDigest   string `protobuf:"bytes,8,opt,name=grant_digest,json=grantDigest,proto3" json:"grant_digest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartWorkflowExecutionRequest) Reset() {
@@ -1705,6 +1713,27 @@ func (x *StartWorkflowExecutionRequest) GetInput() *structpb.Value {
 func (x *StartWorkflowExecutionRequest) GetIdempotencyKey() string {
 	if x != nil {
 		return x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *StartWorkflowExecutionRequest) GetEngagementGrant() *domain.WorkflowEngagementGrant {
+	if x != nil {
+		return x.EngagementGrant
+	}
+	return nil
+}
+
+func (x *StartWorkflowExecutionRequest) GetApprovalDigest() string {
+	if x != nil {
+		return x.ApprovalDigest
+	}
+	return ""
+}
+
+func (x *StartWorkflowExecutionRequest) GetGrantDigest() string {
+	if x != nil {
+		return x.GrantDigest
 	}
 	return ""
 }
@@ -4595,33 +4624,34 @@ func (x *GetRunReportRequest) GetRunId() string {
 
 // RunReport is the shared, cheap-to-read diagnosis surface for one run.
 type RunReport struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	RunId                 string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Status                string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
-	ExitCode              *int32                 `protobuf:"varint,3,opt,name=exit_code,json=exitCode,proto3,oneof" json:"exit_code,omitempty"`
-	Error                 string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
-	DurationMs            int64                  `protobuf:"varint,5,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	HeartbeatGapMs        int64                  `protobuf:"varint,6,opt,name=heartbeat_gap_ms,json=heartbeatGapMs,proto3" json:"heartbeat_gap_ms,omitempty"`
-	Turns                 int32                  `protobuf:"varint,7,opt,name=turns,proto3" json:"turns,omitempty"`
-	Tokens                int32                  `protobuf:"varint,8,opt,name=tokens,proto3" json:"tokens,omitempty"`
-	CostUsd               float64                `protobuf:"fixed64,9,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
-	Result                *RunReportResult       `protobuf:"bytes,10,opt,name=result,proto3" json:"result,omitempty"`
-	EventCounts           map[string]int32       `protobuf:"bytes,11,rep,name=event_counts,json=eventCounts,proto3" json:"event_counts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	Tools                 []*RunReportTool       `protobuf:"bytes,12,rep,name=tools,proto3" json:"tools,omitempty"`
-	ProjectOwnedToolCalls int32                  `protobuf:"varint,13,opt,name=project_owned_tool_calls,json=projectOwnedToolCalls,proto3" json:"project_owned_tool_calls,omitempty"`
-	ExternalToolCalls     int32                  `protobuf:"varint,14,opt,name=external_tool_calls,json=externalToolCalls,proto3" json:"external_tool_calls,omitempty"`
-	RequestedModel        string                 `protobuf:"bytes,15,opt,name=requested_model,json=requestedModel,proto3" json:"requested_model,omitempty"`
-	ActualModel           string                 `protobuf:"bytes,16,opt,name=actual_model,json=actualModel,proto3" json:"actual_model,omitempty"`
-	FallbackCount         int32                  `protobuf:"varint,17,opt,name=fallback_count,json=fallbackCount,proto3" json:"fallback_count,omitempty"`
-	Diff                  *RunReportDiff         `protobuf:"bytes,18,opt,name=diff,proto3" json:"diff,omitempty"`
-	EventsAvailability    *RunReportAvailability `protobuf:"bytes,19,opt,name=events_availability,json=eventsAvailability,proto3" json:"events_availability,omitempty"`
-	ReceiptsAvailability  *RunReportAvailability `protobuf:"bytes,20,opt,name=receipts_availability,json=receiptsAvailability,proto3" json:"receipts_availability,omitempty"`
-	ReceiptCount          int32                  `protobuf:"varint,21,opt,name=receipt_count,json=receiptCount,proto3" json:"receipt_count,omitempty"`
-	RepeatedToolCalls     int32                  `protobuf:"varint,22,opt,name=repeated_tool_calls,json=repeatedToolCalls,proto3" json:"repeated_tool_calls,omitempty"`
-	LongestEventGapMs     int64                  `protobuf:"varint,23,opt,name=longest_event_gap_ms,json=longestEventGapMs,proto3" json:"longest_event_gap_ms,omitempty"`
-	FilesReadMoreThanOnce int32                  `protobuf:"varint,24,opt,name=files_read_more_than_once,json=filesReadMoreThanOnce,proto3" json:"files_read_more_than_once,omitempty"`
-	TimeAccounting        *RunTimeAccounting     `protobuf:"bytes,25,opt,name=time_accounting,json=timeAccounting,proto3" json:"time_accounting,omitempty"`
-	GoalOutcome           *RunGoalOutcome        `protobuf:"bytes,26,opt,name=goal_outcome,json=goalOutcome,proto3" json:"goal_outcome,omitempty"`
+	state                 protoimpl.MessageState   `protogen:"open.v1"`
+	RunId                 string                   `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Status                string                   `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	ExitCode              *int32                   `protobuf:"varint,3,opt,name=exit_code,json=exitCode,proto3,oneof" json:"exit_code,omitempty"`
+	Error                 string                   `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	DurationMs            int64                    `protobuf:"varint,5,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	HeartbeatGapMs        int64                    `protobuf:"varint,6,opt,name=heartbeat_gap_ms,json=heartbeatGapMs,proto3" json:"heartbeat_gap_ms,omitempty"`
+	Turns                 int32                    `protobuf:"varint,7,opt,name=turns,proto3" json:"turns,omitempty"`
+	Tokens                int32                    `protobuf:"varint,8,opt,name=tokens,proto3" json:"tokens,omitempty"`
+	CostUsd               float64                  `protobuf:"fixed64,9,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
+	Result                *RunReportResult         `protobuf:"bytes,10,opt,name=result,proto3" json:"result,omitempty"`
+	EventCounts           map[string]int32         `protobuf:"bytes,11,rep,name=event_counts,json=eventCounts,proto3" json:"event_counts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	Tools                 []*RunReportTool         `protobuf:"bytes,12,rep,name=tools,proto3" json:"tools,omitempty"`
+	ProjectOwnedToolCalls int32                    `protobuf:"varint,13,opt,name=project_owned_tool_calls,json=projectOwnedToolCalls,proto3" json:"project_owned_tool_calls,omitempty"`
+	ExternalToolCalls     int32                    `protobuf:"varint,14,opt,name=external_tool_calls,json=externalToolCalls,proto3" json:"external_tool_calls,omitempty"`
+	RequestedModel        string                   `protobuf:"bytes,15,opt,name=requested_model,json=requestedModel,proto3" json:"requested_model,omitempty"`
+	ActualModel           string                   `protobuf:"bytes,16,opt,name=actual_model,json=actualModel,proto3" json:"actual_model,omitempty"`
+	FallbackCount         int32                    `protobuf:"varint,17,opt,name=fallback_count,json=fallbackCount,proto3" json:"fallback_count,omitempty"`
+	Diff                  *RunReportDiff           `protobuf:"bytes,18,opt,name=diff,proto3" json:"diff,omitempty"`
+	EventsAvailability    *RunReportAvailability   `protobuf:"bytes,19,opt,name=events_availability,json=eventsAvailability,proto3" json:"events_availability,omitempty"`
+	ReceiptsAvailability  *RunReportAvailability   `protobuf:"bytes,20,opt,name=receipts_availability,json=receiptsAvailability,proto3" json:"receipts_availability,omitempty"`
+	ReceiptCount          int32                    `protobuf:"varint,21,opt,name=receipt_count,json=receiptCount,proto3" json:"receipt_count,omitempty"`
+	RepeatedToolCalls     int32                    `protobuf:"varint,22,opt,name=repeated_tool_calls,json=repeatedToolCalls,proto3" json:"repeated_tool_calls,omitempty"`
+	LongestEventGapMs     int64                    `protobuf:"varint,23,opt,name=longest_event_gap_ms,json=longestEventGapMs,proto3" json:"longest_event_gap_ms,omitempty"`
+	FilesReadMoreThanOnce int32                    `protobuf:"varint,24,opt,name=files_read_more_than_once,json=filesReadMoreThanOnce,proto3" json:"files_read_more_than_once,omitempty"`
+	TimeAccounting        *RunTimeAccounting       `protobuf:"bytes,25,opt,name=time_accounting,json=timeAccounting,proto3" json:"time_accounting,omitempty"`
+	GoalOutcome           *RunGoalOutcome          `protobuf:"bytes,26,opt,name=goal_outcome,json=goalOutcome,proto3" json:"goal_outcome,omitempty"`
+	WorkReferences        []*domain1.WorkReference `protobuf:"bytes,27,rep,name=work_references,json=workReferences,proto3" json:"work_references,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -4834,6 +4864,13 @@ func (x *RunReport) GetTimeAccounting() *RunTimeAccounting {
 func (x *RunReport) GetGoalOutcome() *RunGoalOutcome {
 	if x != nil {
 		return x.GoalOutcome
+	}
+	return nil
+}
+
+func (x *RunReport) GetWorkReferences() []*domain1.WorkReference {
+	if x != nil {
+		return x.WorkReferences
 	}
 	return nil
 }
@@ -9807,11 +9844,1121 @@ func (x *PurgeDataResponse) GetDryRun() bool {
 	return false
 }
 
+type InvestigationSubject struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Owner         string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Ref           string                 `protobuf:"bytes,3,opt,name=ref,proto3" json:"ref,omitempty"`
+	Revision      string                 `protobuf:"bytes,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	RunIds        []string               `protobuf:"bytes,5,rep,name=run_ids,json=runIds,proto3" json:"run_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InvestigationSubject) Reset() {
+	*x = InvestigationSubject{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[154]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InvestigationSubject) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InvestigationSubject) ProtoMessage() {}
+
+func (x *InvestigationSubject) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[154]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InvestigationSubject.ProtoReflect.Descriptor instead.
+func (*InvestigationSubject) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{154}
+}
+
+func (x *InvestigationSubject) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *InvestigationSubject) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *InvestigationSubject) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+func (x *InvestigationSubject) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+func (x *InvestigationSubject) GetRunIds() []string {
+	if x != nil {
+		return x.RunIds
+	}
+	return nil
+}
+
+type InvestigationEvidenceReference struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Owner         string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Ref           string                 `protobuf:"bytes,3,opt,name=ref,proto3" json:"ref,omitempty"`
+	Revision      string                 `protobuf:"bytes,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	SchemaVersion string                 `protobuf:"bytes,5,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	// When present, identifies the requested subject runs that produced this
+	// evidence. A consumer cannot apply the reference to a non-overlapping run.
+	SubjectRunIds []string `protobuf:"bytes,6,rep,name=subject_run_ids,json=subjectRunIds,proto3" json:"subject_run_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InvestigationEvidenceReference) Reset() {
+	*x = InvestigationEvidenceReference{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[155]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InvestigationEvidenceReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InvestigationEvidenceReference) ProtoMessage() {}
+
+func (x *InvestigationEvidenceReference) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[155]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InvestigationEvidenceReference.ProtoReflect.Descriptor instead.
+func (*InvestigationEvidenceReference) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{155}
+}
+
+func (x *InvestigationEvidenceReference) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *InvestigationEvidenceReference) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *InvestigationEvidenceReference) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+func (x *InvestigationEvidenceReference) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+func (x *InvestigationEvidenceReference) GetSchemaVersion() string {
+	if x != nil {
+		return x.SchemaVersion
+	}
+	return ""
+}
+
+func (x *InvestigationEvidenceReference) GetSubjectRunIds() []string {
+	if x != nil {
+		return x.SubjectRunIds
+	}
+	return nil
+}
+
+type InvestigationMethodReference struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SkillId       string                 `protobuf:"bytes,1,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	Revision      string                 `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InvestigationMethodReference) Reset() {
+	*x = InvestigationMethodReference{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[156]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InvestigationMethodReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InvestigationMethodReference) ProtoMessage() {}
+
+func (x *InvestigationMethodReference) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[156]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InvestigationMethodReference.ProtoReflect.Descriptor instead.
+func (*InvestigationMethodReference) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{156}
+}
+
+func (x *InvestigationMethodReference) GetSkillId() string {
+	if x != nil {
+		return x.SkillId
+	}
+	return ""
+}
+
+func (x *InvestigationMethodReference) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+type InvestigationEvidencePolicy struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Mode               string                 `protobuf:"bytes,1,opt,name=mode,proto3" json:"mode,omitempty"`
+	RequiredPlanes     []string               `protobuf:"bytes,2,rep,name=required_planes,json=requiredPlanes,proto3" json:"required_planes,omitempty"`
+	OptionalPlanes     []string               `protobuf:"bytes,3,rep,name=optional_planes,json=optionalPlanes,proto3" json:"optional_planes,omitempty"`
+	MaxEvents          int32                  `protobuf:"varint,4,opt,name=max_events,json=maxEvents,proto3" json:"max_events,omitempty"`
+	MaxEvidenceBytes   int32                  `protobuf:"varint,5,opt,name=max_evidence_bytes,json=maxEvidenceBytes,proto3" json:"max_evidence_bytes,omitempty"`
+	MaxReconciliations int32                  `protobuf:"varint,6,opt,name=max_reconciliations,json=maxReconciliations,proto3" json:"max_reconciliations,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *InvestigationEvidencePolicy) Reset() {
+	*x = InvestigationEvidencePolicy{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[157]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InvestigationEvidencePolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InvestigationEvidencePolicy) ProtoMessage() {}
+
+func (x *InvestigationEvidencePolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[157]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InvestigationEvidencePolicy.ProtoReflect.Descriptor instead.
+func (*InvestigationEvidencePolicy) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{157}
+}
+
+func (x *InvestigationEvidencePolicy) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *InvestigationEvidencePolicy) GetRequiredPlanes() []string {
+	if x != nil {
+		return x.RequiredPlanes
+	}
+	return nil
+}
+
+func (x *InvestigationEvidencePolicy) GetOptionalPlanes() []string {
+	if x != nil {
+		return x.OptionalPlanes
+	}
+	return nil
+}
+
+func (x *InvestigationEvidencePolicy) GetMaxEvents() int32 {
+	if x != nil {
+		return x.MaxEvents
+	}
+	return 0
+}
+
+func (x *InvestigationEvidencePolicy) GetMaxEvidenceBytes() int32 {
+	if x != nil {
+		return x.MaxEvidenceBytes
+	}
+	return 0
+}
+
+func (x *InvestigationEvidencePolicy) GetMaxReconciliations() int32 {
+	if x != nil {
+		return x.MaxReconciliations
+	}
+	return 0
+}
+
+type InvestigationBudget struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	MaxDelegatedRuns  int32                  `protobuf:"varint,1,opt,name=max_delegated_runs,json=maxDelegatedRuns,proto3" json:"max_delegated_runs,omitempty"`
+	MaxTurns          int32                  `protobuf:"varint,2,opt,name=max_turns,json=maxTurns,proto3" json:"max_turns,omitempty"`
+	WallSeconds       int32                  `protobuf:"varint,3,opt,name=wall_seconds,json=wallSeconds,proto3" json:"wall_seconds,omitempty"`
+	MaxChargeMicroUsd int64                  `protobuf:"varint,4,opt,name=max_charge_micro_usd,json=maxChargeMicroUsd,proto3" json:"max_charge_micro_usd,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *InvestigationBudget) Reset() {
+	*x = InvestigationBudget{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[158]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InvestigationBudget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InvestigationBudget) ProtoMessage() {}
+
+func (x *InvestigationBudget) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[158]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InvestigationBudget.ProtoReflect.Descriptor instead.
+func (*InvestigationBudget) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{158}
+}
+
+func (x *InvestigationBudget) GetMaxDelegatedRuns() int32 {
+	if x != nil {
+		return x.MaxDelegatedRuns
+	}
+	return 0
+}
+
+func (x *InvestigationBudget) GetMaxTurns() int32 {
+	if x != nil {
+		return x.MaxTurns
+	}
+	return 0
+}
+
+func (x *InvestigationBudget) GetWallSeconds() int32 {
+	if x != nil {
+		return x.WallSeconds
+	}
+	return 0
+}
+
+func (x *InvestigationBudget) GetMaxChargeMicroUsd() int64 {
+	if x != nil {
+		return x.MaxChargeMicroUsd
+	}
+	return 0
+}
+
+type InvestigationRecommendationPolicy struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	AllowedKinds         []string               `protobuf:"bytes,1,rep,name=allowed_kinds,json=allowedKinds,proto3" json:"allowed_kinds,omitempty"`
+	AllowSubjectMutation bool                   `protobuf:"varint,2,opt,name=allow_subject_mutation,json=allowSubjectMutation,proto3" json:"allow_subject_mutation,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *InvestigationRecommendationPolicy) Reset() {
+	*x = InvestigationRecommendationPolicy{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[159]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InvestigationRecommendationPolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InvestigationRecommendationPolicy) ProtoMessage() {}
+
+func (x *InvestigationRecommendationPolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[159]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InvestigationRecommendationPolicy.ProtoReflect.Descriptor instead.
+func (*InvestigationRecommendationPolicy) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{159}
+}
+
+func (x *InvestigationRecommendationPolicy) GetAllowedKinds() []string {
+	if x != nil {
+		return x.AllowedKinds
+	}
+	return nil
+}
+
+func (x *InvestigationRecommendationPolicy) GetAllowSubjectMutation() bool {
+	if x != nil {
+		return x.AllowSubjectMutation
+	}
+	return false
+}
+
+type InvestigationProvenance struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Kind                 string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	TriggerOccurrenceRef string                 `protobuf:"bytes,2,opt,name=trigger_occurrence_ref,json=triggerOccurrenceRef,proto3" json:"trigger_occurrence_ref,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *InvestigationProvenance) Reset() {
+	*x = InvestigationProvenance{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[160]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InvestigationProvenance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InvestigationProvenance) ProtoMessage() {}
+
+func (x *InvestigationProvenance) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[160]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InvestigationProvenance.ProtoReflect.Descriptor instead.
+func (*InvestigationProvenance) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{160}
+}
+
+func (x *InvestigationProvenance) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *InvestigationProvenance) GetTriggerOccurrenceRef() string {
+	if x != nil {
+		return x.TriggerOccurrenceRef
+	}
+	return ""
+}
+
+type InvestigationRequest struct {
+	state                protoimpl.MessageState             `protogen:"open.v1"`
+	SchemaVersion        string                             `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	RequestKey           string                             `protobuf:"bytes,2,opt,name=request_key,json=requestKey,proto3" json:"request_key,omitempty"`
+	CallerAuthority      string                             `protobuf:"bytes,3,opt,name=caller_authority,json=callerAuthority,proto3" json:"caller_authority,omitempty"`
+	Subject              *InvestigationSubject              `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
+	Question             string                             `protobuf:"bytes,5,opt,name=question,proto3" json:"question,omitempty"`
+	MethodRef            *InvestigationMethodReference      `protobuf:"bytes,6,opt,name=method_ref,json=methodRef,proto3" json:"method_ref,omitempty"`
+	DomainEvidence       []*InvestigationEvidenceReference  `protobuf:"bytes,7,rep,name=domain_evidence,json=domainEvidence,proto3" json:"domain_evidence,omitempty"`
+	EvidencePolicy       *InvestigationEvidencePolicy       `protobuf:"bytes,8,opt,name=evidence_policy,json=evidencePolicy,proto3" json:"evidence_policy,omitempty"`
+	Budget               *InvestigationBudget               `protobuf:"bytes,9,opt,name=budget,proto3" json:"budget,omitempty"`
+	RecommendationPolicy *InvestigationRecommendationPolicy `protobuf:"bytes,10,opt,name=recommendation_policy,json=recommendationPolicy,proto3" json:"recommendation_policy,omitempty"`
+	Provenance           *InvestigationProvenance           `protobuf:"bytes,11,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *InvestigationRequest) Reset() {
+	*x = InvestigationRequest{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[161]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InvestigationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InvestigationRequest) ProtoMessage() {}
+
+func (x *InvestigationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[161]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InvestigationRequest.ProtoReflect.Descriptor instead.
+func (*InvestigationRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{161}
+}
+
+func (x *InvestigationRequest) GetSchemaVersion() string {
+	if x != nil {
+		return x.SchemaVersion
+	}
+	return ""
+}
+
+func (x *InvestigationRequest) GetRequestKey() string {
+	if x != nil {
+		return x.RequestKey
+	}
+	return ""
+}
+
+func (x *InvestigationRequest) GetCallerAuthority() string {
+	if x != nil {
+		return x.CallerAuthority
+	}
+	return ""
+}
+
+func (x *InvestigationRequest) GetSubject() *InvestigationSubject {
+	if x != nil {
+		return x.Subject
+	}
+	return nil
+}
+
+func (x *InvestigationRequest) GetQuestion() string {
+	if x != nil {
+		return x.Question
+	}
+	return ""
+}
+
+func (x *InvestigationRequest) GetMethodRef() *InvestigationMethodReference {
+	if x != nil {
+		return x.MethodRef
+	}
+	return nil
+}
+
+func (x *InvestigationRequest) GetDomainEvidence() []*InvestigationEvidenceReference {
+	if x != nil {
+		return x.DomainEvidence
+	}
+	return nil
+}
+
+func (x *InvestigationRequest) GetEvidencePolicy() *InvestigationEvidencePolicy {
+	if x != nil {
+		return x.EvidencePolicy
+	}
+	return nil
+}
+
+func (x *InvestigationRequest) GetBudget() *InvestigationBudget {
+	if x != nil {
+		return x.Budget
+	}
+	return nil
+}
+
+func (x *InvestigationRequest) GetRecommendationPolicy() *InvestigationRecommendationPolicy {
+	if x != nil {
+		return x.RecommendationPolicy
+	}
+	return nil
+}
+
+func (x *InvestigationRequest) GetProvenance() *InvestigationProvenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
+type InvestigationRecord struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	InvestigationId string                 `protobuf:"bytes,1,opt,name=investigation_id,json=investigationId,proto3" json:"investigation_id,omitempty"`
+	Request         *InvestigationRequest  `protobuf:"bytes,2,opt,name=request,proto3" json:"request,omitempty"`
+	RequestDigest   string                 `protobuf:"bytes,3,opt,name=request_digest,json=requestDigest,proto3" json:"request_digest,omitempty"`
+	OperationStatus string                 `protobuf:"bytes,4,opt,name=operation_status,json=operationStatus,proto3" json:"operation_status,omitempty"`
+	ResultJson      string                 `protobuf:"bytes,5,opt,name=result_json,json=resultJson,proto3" json:"result_json,omitempty"`
+	SourceCutJson   string                 `protobuf:"bytes,6,opt,name=source_cut_json,json=sourceCutJson,proto3" json:"source_cut_json,omitempty"`
+	WorkflowRef     string                 `protobuf:"bytes,7,opt,name=workflow_ref,json=workflowRef,proto3" json:"workflow_ref,omitempty"`
+	CancelRequested bool                   `protobuf:"varint,8,opt,name=cancel_requested,json=cancelRequested,proto3" json:"cancel_requested,omitempty"`
+	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	CompletedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	CancelledAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=cancelled_at,json=cancelledAt,proto3" json:"cancelled_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *InvestigationRecord) Reset() {
+	*x = InvestigationRecord{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[162]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InvestigationRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InvestigationRecord) ProtoMessage() {}
+
+func (x *InvestigationRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[162]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InvestigationRecord.ProtoReflect.Descriptor instead.
+func (*InvestigationRecord) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{162}
+}
+
+func (x *InvestigationRecord) GetInvestigationId() string {
+	if x != nil {
+		return x.InvestigationId
+	}
+	return ""
+}
+
+func (x *InvestigationRecord) GetRequest() *InvestigationRequest {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+func (x *InvestigationRecord) GetRequestDigest() string {
+	if x != nil {
+		return x.RequestDigest
+	}
+	return ""
+}
+
+func (x *InvestigationRecord) GetOperationStatus() string {
+	if x != nil {
+		return x.OperationStatus
+	}
+	return ""
+}
+
+func (x *InvestigationRecord) GetResultJson() string {
+	if x != nil {
+		return x.ResultJson
+	}
+	return ""
+}
+
+func (x *InvestigationRecord) GetSourceCutJson() string {
+	if x != nil {
+		return x.SourceCutJson
+	}
+	return ""
+}
+
+func (x *InvestigationRecord) GetWorkflowRef() string {
+	if x != nil {
+		return x.WorkflowRef
+	}
+	return ""
+}
+
+func (x *InvestigationRecord) GetCancelRequested() bool {
+	if x != nil {
+		return x.CancelRequested
+	}
+	return false
+}
+
+func (x *InvestigationRecord) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *InvestigationRecord) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *InvestigationRecord) GetCompletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CompletedAt
+	}
+	return nil
+}
+
+func (x *InvestigationRecord) GetCancelledAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CancelledAt
+	}
+	return nil
+}
+
+type StartInvestigationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Request       *InvestigationRequest  `protobuf:"bytes,1,opt,name=request,proto3" json:"request,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartInvestigationRequest) Reset() {
+	*x = StartInvestigationRequest{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[163]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartInvestigationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartInvestigationRequest) ProtoMessage() {}
+
+func (x *StartInvestigationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[163]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartInvestigationRequest.ProtoReflect.Descriptor instead.
+func (*StartInvestigationRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{163}
+}
+
+func (x *StartInvestigationRequest) GetRequest() *InvestigationRequest {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+type StartInvestigationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Investigation *InvestigationRecord   `protobuf:"bytes,1,opt,name=investigation,proto3" json:"investigation,omitempty"`
+	Reused        bool                   `protobuf:"varint,2,opt,name=reused,proto3" json:"reused,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartInvestigationResponse) Reset() {
+	*x = StartInvestigationResponse{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[164]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartInvestigationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartInvestigationResponse) ProtoMessage() {}
+
+func (x *StartInvestigationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[164]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartInvestigationResponse.ProtoReflect.Descriptor instead.
+func (*StartInvestigationResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{164}
+}
+
+func (x *StartInvestigationResponse) GetInvestigation() *InvestigationRecord {
+	if x != nil {
+		return x.Investigation
+	}
+	return nil
+}
+
+func (x *StartInvestigationResponse) GetReused() bool {
+	if x != nil {
+		return x.Reused
+	}
+	return false
+}
+
+type GetInvestigationRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	InvestigationId string                 `protobuf:"bytes,1,opt,name=investigation_id,json=investigationId,proto3" json:"investigation_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GetInvestigationRequest) Reset() {
+	*x = GetInvestigationRequest{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[165]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetInvestigationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetInvestigationRequest) ProtoMessage() {}
+
+func (x *GetInvestigationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[165]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetInvestigationRequest.ProtoReflect.Descriptor instead.
+func (*GetInvestigationRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{165}
+}
+
+func (x *GetInvestigationRequest) GetInvestigationId() string {
+	if x != nil {
+		return x.InvestigationId
+	}
+	return ""
+}
+
+type ListInvestigationsRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	OperationStatus string                 `protobuf:"bytes,1,opt,name=operation_status,json=operationStatus,proto3" json:"operation_status,omitempty"`
+	Limit           int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ListInvestigationsRequest) Reset() {
+	*x = ListInvestigationsRequest{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[166]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListInvestigationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListInvestigationsRequest) ProtoMessage() {}
+
+func (x *ListInvestigationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[166]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListInvestigationsRequest.ProtoReflect.Descriptor instead.
+func (*ListInvestigationsRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{166}
+}
+
+func (x *ListInvestigationsRequest) GetOperationStatus() string {
+	if x != nil {
+		return x.OperationStatus
+	}
+	return ""
+}
+
+func (x *ListInvestigationsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListInvestigationsResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Investigations []*InvestigationRecord `protobuf:"bytes,1,rep,name=investigations,proto3" json:"investigations,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListInvestigationsResponse) Reset() {
+	*x = ListInvestigationsResponse{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[167]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListInvestigationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListInvestigationsResponse) ProtoMessage() {}
+
+func (x *ListInvestigationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[167]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListInvestigationsResponse.ProtoReflect.Descriptor instead.
+func (*ListInvestigationsResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{167}
+}
+
+func (x *ListInvestigationsResponse) GetInvestigations() []*InvestigationRecord {
+	if x != nil {
+		return x.Investigations
+	}
+	return nil
+}
+
+type WaitInvestigationRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	InvestigationId string                 `protobuf:"bytes,1,opt,name=investigation_id,json=investigationId,proto3" json:"investigation_id,omitempty"`
+	TimeoutSeconds  int32                  `protobuf:"varint,2,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *WaitInvestigationRequest) Reset() {
+	*x = WaitInvestigationRequest{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[168]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WaitInvestigationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WaitInvestigationRequest) ProtoMessage() {}
+
+func (x *WaitInvestigationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[168]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WaitInvestigationRequest.ProtoReflect.Descriptor instead.
+func (*WaitInvestigationRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{168}
+}
+
+func (x *WaitInvestigationRequest) GetInvestigationId() string {
+	if x != nil {
+		return x.InvestigationId
+	}
+	return ""
+}
+
+func (x *WaitInvestigationRequest) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+type WaitInvestigationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Investigation *InvestigationRecord   `protobuf:"bytes,1,opt,name=investigation,proto3" json:"investigation,omitempty"`
+	Terminal      bool                   `protobuf:"varint,2,opt,name=terminal,proto3" json:"terminal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WaitInvestigationResponse) Reset() {
+	*x = WaitInvestigationResponse{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[169]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WaitInvestigationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WaitInvestigationResponse) ProtoMessage() {}
+
+func (x *WaitInvestigationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[169]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WaitInvestigationResponse.ProtoReflect.Descriptor instead.
+func (*WaitInvestigationResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{169}
+}
+
+func (x *WaitInvestigationResponse) GetInvestigation() *InvestigationRecord {
+	if x != nil {
+		return x.Investigation
+	}
+	return nil
+}
+
+func (x *WaitInvestigationResponse) GetTerminal() bool {
+	if x != nil {
+		return x.Terminal
+	}
+	return false
+}
+
+type CancelInvestigationRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	InvestigationId string                 `protobuf:"bytes,1,opt,name=investigation_id,json=investigationId,proto3" json:"investigation_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *CancelInvestigationRequest) Reset() {
+	*x = CancelInvestigationRequest{}
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[170]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelInvestigationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelInvestigationRequest) ProtoMessage() {}
+
+func (x *CancelInvestigationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_api_service_proto_msgTypes[170]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelInvestigationRequest.ProtoReflect.Descriptor instead.
+func (*CancelInvestigationRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_api_service_proto_rawDescGZIP(), []int{170}
+}
+
+func (x *CancelInvestigationRequest) GetInvestigationId() string {
+	if x != nil {
+		return x.InvestigationId
+	}
+	return ""
+}
+
 var File_agent_manager_v1_api_service_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\n" +
-	"\"agent-manager/v1/api/service.proto\x12\x10agent_manager.v1\x1a$agent-manager/v1/domain/events.proto\x1a%agent-manager/v1/domain/profile.proto\x1a!agent-manager/v1/domain/run.proto\x1a\"agent-manager/v1/domain/task.proto\x1a#agent-manager/v1/domain/types.proto\x1a#agent-manager/v1/domain/watch.proto\x1a&agent-manager/v1/domain/workflow.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x0f\n" +
+	"\"agent-manager/v1/api/service.proto\x12\x10agent_manager.v1\x1a$agent-manager/v1/domain/events.proto\x1a%agent-manager/v1/domain/profile.proto\x1a!agent-manager/v1/domain/run.proto\x1a\"agent-manager/v1/domain/task.proto\x1a#agent-manager/v1/domain/types.proto\x1a#agent-manager/v1/domain/watch.proto\x1a&agent-manager/v1/domain/workflow.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x0f\n" +
 	"\rHealthRequest\"\xae\x04\n" +
 	"\x0eHealthResponse\x12/\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x17.common.v1.HealthStatusR\x06status\x12\x18\n" +
@@ -9941,7 +11088,7 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x03key\x18\x02 \x01(\tR\x03key\x12\x16\n" +
 	"\x06digest\x18\x03 \x01(\tR\x06digest\"]\n" +
 	"\x1bGetWorkflowRevisionResponse\x12>\n" +
-	"\brevision\x18\x01 \x01(\v2\".agent_manager.v1.WorkflowRevisionR\brevision\"\xfc\x01\n" +
+	"\brevision\x18\x01 \x01(\v2\".agent_manager.v1.WorkflowRevisionR\brevision\"\x9e\x03\n" +
 	"\x1dStartWorkflowExecutionRequest\x12 \n" +
 	"\x05owner\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\x05owner\x12!\n" +
@@ -9949,7 +11096,10 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x11definition_digest\x18\x03 \x01(\tR\x10definitionDigest\x124\n" +
 	"\x05input\x18\x04 \x01(\v2\x16.google.protobuf.ValueB\x06\xbaH\x03\xc8\x01\x01R\x05input\x123\n" +
 	"\x0fidempotency_key\x18\x05 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\x0eidempotencyKey\"J\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\x0eidempotencyKey\x12T\n" +
+	"\x10engagement_grant\x18\x06 \x01(\v2).agent_manager.v1.WorkflowEngagementGrantR\x0fengagementGrant\x12'\n" +
+	"\x0fapproval_digest\x18\a \x01(\tR\x0eapprovalDigest\x12!\n" +
+	"\fgrant_digest\x18\b \x01(\tR\vgrantDigest\"J\n" +
 	"\x1bGetWorkflowExecutionRequest\x12+\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vexecutionId\"\x85\x01\n" +
 	"!GetWorkflowExecutionResultRequest\x12+\n" +
@@ -10175,8 +11325,7 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x0eGetRunResponse\x12'\n" +
 	"\x03run\x18\x01 \x01(\v2\x15.agent_manager.v1.RunR\x03run\"6\n" +
 	"\x13GetRunReportRequest\x12\x1f\n" +
-	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\"\xb3\n" +
-	"\n" +
+	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\"\x8b\v\n" +
 	"\tRunReport\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12 \n" +
@@ -10205,7 +11354,8 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x14longest_event_gap_ms\x18\x17 \x01(\x03R\x11longestEventGapMs\x128\n" +
 	"\x19files_read_more_than_once\x18\x18 \x01(\x05R\x15filesReadMoreThanOnce\x12L\n" +
 	"\x0ftime_accounting\x18\x19 \x01(\v2#.agent_manager.v1.RunTimeAccountingR\x0etimeAccounting\x12C\n" +
-	"\fgoal_outcome\x18\x1a \x01(\v2 .agent_manager.v1.RunGoalOutcomeR\vgoalOutcome\x1a>\n" +
+	"\fgoal_outcome\x18\x1a \x01(\v2 .agent_manager.v1.RunGoalOutcomeR\vgoalOutcome\x12V\n" +
+	"\x0fwork_references\x18\x1b \x03(\v2-.vrooli.vrooli_events.v1.domain.WorkReferenceR\x0eworkReferences\x1a>\n" +
 	"\x10EventCountsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01B\f\n" +
@@ -10588,7 +11738,103 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x11PurgeDataResponse\x127\n" +
 	"\amatched\x18\x01 \x01(\v2\x1d.agent_manager.v1.PurgeCountsR\amatched\x127\n" +
 	"\adeleted\x18\x02 \x01(\v2\x1d.agent_manager.v1.PurgeCountsR\adeleted\x12\x17\n" +
-	"\adry_run\x18\x03 \x01(\bR\x06dryRun*\xc4\x02\n" +
+	"\adry_run\x18\x03 \x01(\bR\x06dryRun\"\xb7\x01\n" +
+	"\x14InvestigationSubject\x12 \n" +
+	"\x05owner\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x05owner\x12\x1e\n" +
+	"\x04kind\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x04kind\x12\x1c\n" +
+	"\x03ref\x18\x03 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x04R\x03ref\x12&\n" +
+	"\brevision\x18\x04 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\brevision\x12\x17\n" +
+	"\arun_ids\x18\x05 \x03(\tR\x06runIds\"\xf4\x01\n" +
+	"\x1eInvestigationEvidenceReference\x12\x1d\n" +
+	"\x05owner\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05owner\x12\x1b\n" +
+	"\x04kind\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04kind\x12\x19\n" +
+	"\x03ref\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03ref\x12#\n" +
+	"\brevision\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\brevision\x12.\n" +
+	"\x0eschema_version\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\rschemaVersion\x12&\n" +
+	"\x0fsubject_run_ids\x18\x06 \x03(\tR\rsubjectRunIds\"g\n" +
+	"\x1cInvestigationMethodReference\x12\"\n" +
+	"\bskill_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\askillId\x12#\n" +
+	"\brevision\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\brevision\"\xaf\x02\n" +
+	"\x1bInvestigationEvidencePolicy\x12\x1b\n" +
+	"\x04mode\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04mode\x12'\n" +
+	"\x0frequired_planes\x18\x02 \x03(\tR\x0erequiredPlanes\x12'\n" +
+	"\x0foptional_planes\x18\x03 \x03(\tR\x0eoptionalPlanes\x12)\n" +
+	"\n" +
+	"max_events\x18\x04 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x90N \x00R\tmaxEvents\x12:\n" +
+	"\x12max_evidence_bytes\x18\x05 \x01(\x05B\f\xbaH\t\x1a\a\x18\x80\x80\x80\b \x00R\x10maxEvidenceBytes\x12:\n" +
+	"\x13max_reconciliations\x18\x06 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x01(\x00R\x12maxReconciliations\"\xda\x01\n" +
+	"\x13InvestigationBudget\x127\n" +
+	"\x12max_delegated_runs\x18\x01 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x01(\x00R\x10maxDelegatedRuns\x12$\n" +
+	"\tmax_turns\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00R\bmaxTurns\x12*\n" +
+	"\fwall_seconds\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00R\vwallSeconds\x128\n" +
+	"\x14max_charge_micro_usd\x18\x04 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\x11maxChargeMicroUsd\"~\n" +
+	"!InvestigationRecommendationPolicy\x12#\n" +
+	"\rallowed_kinds\x18\x01 \x03(\tR\fallowedKinds\x124\n" +
+	"\x16allow_subject_mutation\x18\x02 \x01(\bR\x14allowSubjectMutation\"c\n" +
+	"\x17InvestigationProvenance\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x124\n" +
+	"\x16trigger_occurrence_ref\x18\x02 \x01(\tR\x14triggerOccurrenceRef\"\xaa\x06\n" +
+	"\x14InvestigationRequest\x12F\n" +
+	"\x0eschema_version\x18\x01 \x01(\tB\x1f\xbaH\x1cr\x1a\n" +
+	"\x18investigation-request/v1R\rschemaVersion\x12+\n" +
+	"\vrequest_key\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\n" +
+	"requestKey\x12)\n" +
+	"\x10caller_authority\x18\x03 \x01(\tR\x0fcallerAuthority\x12H\n" +
+	"\asubject\x18\x04 \x01(\v2&.agent_manager.v1.InvestigationSubjectB\x06\xbaH\x03\xc8\x01\x01R\asubject\x12\x1a\n" +
+	"\bquestion\x18\x05 \x01(\tR\bquestion\x12M\n" +
+	"\n" +
+	"method_ref\x18\x06 \x01(\v2..agent_manager.v1.InvestigationMethodReferenceR\tmethodRef\x12Y\n" +
+	"\x0fdomain_evidence\x18\a \x03(\v20.agent_manager.v1.InvestigationEvidenceReferenceR\x0edomainEvidence\x12^\n" +
+	"\x0fevidence_policy\x18\b \x01(\v2-.agent_manager.v1.InvestigationEvidencePolicyB\x06\xbaH\x03\xc8\x01\x01R\x0eevidencePolicy\x12E\n" +
+	"\x06budget\x18\t \x01(\v2%.agent_manager.v1.InvestigationBudgetB\x06\xbaH\x03\xc8\x01\x01R\x06budget\x12p\n" +
+	"\x15recommendation_policy\x18\n" +
+	" \x01(\v23.agent_manager.v1.InvestigationRecommendationPolicyB\x06\xbaH\x03\xc8\x01\x01R\x14recommendationPolicy\x12I\n" +
+	"\n" +
+	"provenance\x18\v \x01(\v2).agent_manager.v1.InvestigationProvenanceR\n" +
+	"provenance\"\xdf\x04\n" +
+	"\x13InvestigationRecord\x12)\n" +
+	"\x10investigation_id\x18\x01 \x01(\tR\x0finvestigationId\x12@\n" +
+	"\arequest\x18\x02 \x01(\v2&.agent_manager.v1.InvestigationRequestR\arequest\x12%\n" +
+	"\x0erequest_digest\x18\x03 \x01(\tR\rrequestDigest\x12)\n" +
+	"\x10operation_status\x18\x04 \x01(\tR\x0foperationStatus\x12\x1f\n" +
+	"\vresult_json\x18\x05 \x01(\tR\n" +
+	"resultJson\x12&\n" +
+	"\x0fsource_cut_json\x18\x06 \x01(\tR\rsourceCutJson\x12!\n" +
+	"\fworkflow_ref\x18\a \x01(\tR\vworkflowRef\x12)\n" +
+	"\x10cancel_requested\x18\b \x01(\bR\x0fcancelRequested\x129\n" +
+	"\n" +
+	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12=\n" +
+	"\fcompleted_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12=\n" +
+	"\fcancelled_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\vcancelledAt\"e\n" +
+	"\x19StartInvestigationRequest\x12H\n" +
+	"\arequest\x18\x01 \x01(\v2&.agent_manager.v1.InvestigationRequestB\x06\xbaH\x03\xc8\x01\x01R\arequest\"\x81\x01\n" +
+	"\x1aStartInvestigationResponse\x12K\n" +
+	"\rinvestigation\x18\x01 \x01(\v2%.agent_manager.v1.InvestigationRecordR\rinvestigation\x12\x16\n" +
+	"\x06reused\x18\x02 \x01(\bR\x06reused\"M\n" +
+	"\x17GetInvestigationRequest\x122\n" +
+	"\x10investigation_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0finvestigationId\"\\\n" +
+	"\x19ListInvestigationsRequest\x12)\n" +
+	"\x10operation_status\x18\x01 \x01(\tR\x0foperationStatus\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\"k\n" +
+	"\x1aListInvestigationsResponse\x12M\n" +
+	"\x0einvestigations\x18\x01 \x03(\v2%.agent_manager.v1.InvestigationRecordR\x0einvestigations\"w\n" +
+	"\x18WaitInvestigationRequest\x122\n" +
+	"\x10investigation_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0finvestigationId\x12'\n" +
+	"\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\"\x84\x01\n" +
+	"\x19WaitInvestigationResponse\x12K\n" +
+	"\rinvestigation\x18\x01 \x01(\v2%.agent_manager.v1.InvestigationRecordR\rinvestigation\x12\x1a\n" +
+	"\bterminal\x18\x02 \x01(\bR\bterminal\"P\n" +
+	"\x1aCancelInvestigationRequest\x122\n" +
+	"\x10investigation_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0finvestigationId*\xc4\x02\n" +
 	"\x16ProfileReconcileStatus\x12(\n" +
 	"$PROFILE_RECONCILE_STATUS_UNSPECIFIED\x10\x00\x12$\n" +
 	" PROFILE_RECONCILE_STATUS_CREATED\x10\x01\x12$\n" +
@@ -10608,9 +11854,14 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x18PURGE_TARGET_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15PURGE_TARGET_PROFILES\x10\x01\x12\x16\n" +
 	"\x12PURGE_TARGET_TASKS\x10\x02\x12\x15\n" +
-	"\x11PURGE_TARGET_RUNS\x10\x032\xf5e\n" +
+	"\x11PURGE_TARGET_RUNS\x10\x032\x8al\n" +
 	"\x13AgentManagerService\x12\\\n" +
-	"\x06Health\x12\x1f.agent_manager.v1.HealthRequest\x1a .agent_manager.v1.HealthResponse\"\x0f\x82\xd3\xe4\x93\x02\t\x12\a/health\x12\x81\x01\n" +
+	"\x06Health\x12\x1f.agent_manager.v1.HealthRequest\x1a .agent_manager.v1.HealthResponse\"\x0f\x82\xd3\xe4\x93\x02\t\x12\a/health\x12\x92\x01\n" +
+	"\x12StartInvestigation\x12+.agent_manager.v1.StartInvestigationRequest\x1a,.agent_manager.v1.StartInvestigationResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/api/v1/investigations\x12\x97\x01\n" +
+	"\x10GetInvestigation\x12).agent_manager.v1.GetInvestigationRequest\x1a%.agent_manager.v1.InvestigationRecord\"1\x82\xd3\xe4\x93\x02+\x12)/api/v1/investigations/{investigation_id}\x12\x8f\x01\n" +
+	"\x12ListInvestigations\x12+.agent_manager.v1.ListInvestigationsRequest\x1a,.agent_manager.v1.ListInvestigationsResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/investigations\x12\xa7\x01\n" +
+	"\x11WaitInvestigation\x12*.agent_manager.v1.WaitInvestigationRequest\x1a+.agent_manager.v1.WaitInvestigationResponse\"9\x82\xd3\xe4\x93\x023:\x01*\"./api/v1/investigations/{investigation_id}/wait\x12\xa7\x01\n" +
+	"\x13CancelInvestigation\x12,.agent_manager.v1.CancelInvestigationRequest\x1a%.agent_manager.v1.InvestigationRecord\";\x82\xd3\xe4\x93\x025:\x01*\"0/api/v1/investigations/{investigation_id}/cancel\x12\x81\x01\n" +
 	"\x11CreateCohortWatch\x12*.agent_manager.v1.CreateCohortWatchRequest\x1a\x1d.agent_manager.v1.CohortWatch\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/api/v1/cohort-watches\x12\x83\x01\n" +
 	"\x0eGetCohortWatch\x12'.agent_manager.v1.GetCohortWatchRequest\x1a\x1d.agent_manager.v1.CohortWatch\")\x82\xd3\xe4\x93\x02#\x12!/api/v1/cohort-watches/{watch_id}\x12\x8c\x01\n" +
 	"\x11ListCohortWatches\x12*.agent_manager.v1.ListCohortWatchesRequest\x1a+.agent_manager.v1.ListCohortWatchesResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/cohort-watches\x12\x99\x01\n" +
@@ -10717,7 +11968,7 @@ func file_agent_manager_v1_api_service_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_manager_v1_api_service_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_agent_manager_v1_api_service_proto_msgTypes = make([]protoimpl.MessageInfo, 158)
+var file_agent_manager_v1_api_service_proto_msgTypes = make([]protoimpl.MessageInfo, 175)
 var file_agent_manager_v1_api_service_proto_goTypes = []any{
 	(ProfileReconcileStatus)(0),                            // 0: agent_manager.v1.ProfileReconcileStatus
 	(WorkflowReconcileStatus)(0),                           // 1: agent_manager.v1.WorkflowReconcileStatus
@@ -10876,373 +12127,420 @@ var file_agent_manager_v1_api_service_proto_goTypes = []any{
 	(*PurgeDataRequest)(nil),                               // 154: agent_manager.v1.PurgeDataRequest
 	(*PurgeCounts)(nil),                                    // 155: agent_manager.v1.PurgeCounts
 	(*PurgeDataResponse)(nil),                              // 156: agent_manager.v1.PurgeDataResponse
-	nil,                                                    // 157: agent_manager.v1.HealthResponse.DependenciesEntry
-	nil,                                                    // 158: agent_manager.v1.HealthResponse.MetricsEntry
-	nil,                                                    // 159: agent_manager.v1.CreateRunRequest.EnvironmentEntry
-	nil,                                                    // 160: agent_manager.v1.RunReport.EventCountsEntry
-	(v1.HealthStatus)(0),                                   // 161: common.v1.HealthStatus
-	(*domain.AgentProfile)(nil),                            // 162: agent_manager.v1.AgentProfile
-	(*domain.WorkflowDiagnostic)(nil),                      // 163: agent_manager.v1.WorkflowDiagnostic
-	(*structpb.Struct)(nil),                                // 164: google.protobuf.Struct
-	(*domain.WorkflowRevision)(nil),                        // 165: agent_manager.v1.WorkflowRevision
-	(*structpb.Value)(nil),                                 // 166: google.protobuf.Value
-	(*domain.WorkflowExecution)(nil),                       // 167: agent_manager.v1.WorkflowExecution
-	(domain.WorkflowExecutionStatus)(0),                    // 168: agent_manager.v1.WorkflowExecutionStatus
-	(*domain.WorkflowNodeAttempt)(nil),                     // 169: agent_manager.v1.WorkflowNodeAttempt
-	(*domain.WorkflowJournalEntry)(nil),                    // 170: agent_manager.v1.WorkflowJournalEntry
-	(*domain.Task)(nil),                                    // 171: agent_manager.v1.Task
-	(domain.TaskStatus)(0),                                 // 172: agent_manager.v1.TaskStatus
-	(domain.RunMode)(0),                                    // 173: agent_manager.v1.RunMode
-	(*domain.RunConfigOverrides)(nil),                      // 174: agent_manager.v1.RunConfigOverrides
-	(domain.ExecutionMode)(0),                              // 175: agent_manager.v1.ExecutionMode
-	(*domain.Run)(nil),                                     // 176: agent_manager.v1.Run
-	(*timestamppb.Timestamp)(nil),                          // 177: google.protobuf.Timestamp
-	(domain.RunStatus)(0),                                  // 178: agent_manager.v1.RunStatus
-	(*domain.StopAllResult)(nil),                           // 179: agent_manager.v1.StopAllResult
-	(domain.RunEventType)(0),                               // 180: agent_manager.v1.RunEventType
-	(*domain.RunEvent)(nil),                                // 181: agent_manager.v1.RunEvent
-	(*domain.RunDiff)(nil),                                 // 182: agent_manager.v1.RunDiff
-	(*domain.ApproveResult)(nil),                           // 183: agent_manager.v1.ApproveResult
-	(*domain.RunnerStatus)(nil),                            // 184: agent_manager.v1.RunnerStatus
-	(domain.RunnerType)(0),                                 // 185: agent_manager.v1.RunnerType
-	(*domain.ProbeResult)(nil),                             // 186: agent_manager.v1.ProbeResult
-	(*domain.ExecutionPolicySnapshot)(nil),                 // 187: agent_manager.v1.ExecutionPolicySnapshot
-	(*v1.JsonValue)(nil),                                   // 188: common.v1.JsonValue
-	(*domain.CreateCohortWatchRequest)(nil),                // 189: agent_manager.v1.CreateCohortWatchRequest
-	(*domain.GetCohortWatchRequest)(nil),                   // 190: agent_manager.v1.GetCohortWatchRequest
-	(*domain.ListCohortWatchesRequest)(nil),                // 191: agent_manager.v1.ListCohortWatchesRequest
-	(*domain.WaitCohortWatchRequest)(nil),                  // 192: agent_manager.v1.WaitCohortWatchRequest
-	(*domain.CancelCohortWatchRequest)(nil),                // 193: agent_manager.v1.CancelCohortWatchRequest
-	(*domain.InspectCohortWatchRequest)(nil),               // 194: agent_manager.v1.InspectCohortWatchRequest
-	(*domain.RequestCohortWatchActionRequest)(nil),         // 195: agent_manager.v1.RequestCohortWatchActionRequest
-	(*domain.ListCohortWatchActionsRequest)(nil),           // 196: agent_manager.v1.ListCohortWatchActionsRequest
-	(*domain.GetSupervisionPolicyRequest)(nil),             // 197: agent_manager.v1.GetSupervisionPolicyRequest
-	(*domain.CreateSupervisionPolicyCandidateRequest)(nil), // 198: agent_manager.v1.CreateSupervisionPolicyCandidateRequest
-	(*domain.RecordSupervisionOutcomeRequest)(nil),         // 199: agent_manager.v1.RecordSupervisionOutcomeRequest
-	(*domain.EvaluateSupervisionPolicyRequest)(nil),        // 200: agent_manager.v1.EvaluateSupervisionPolicyRequest
-	(*domain.PromoteSupervisionPolicyRequest)(nil),         // 201: agent_manager.v1.PromoteSupervisionPolicyRequest
-	(*domain.RejectSupervisionPolicyRequest)(nil),          // 202: agent_manager.v1.RejectSupervisionPolicyRequest
-	(*domain.RollbackSupervisionPolicyRequest)(nil),        // 203: agent_manager.v1.RollbackSupervisionPolicyRequest
-	(*domain.SetSupervisionPolicyDisabledRequest)(nil),     // 204: agent_manager.v1.SetSupervisionPolicyDisabledRequest
-	(*domain.ListSupervisionOutcomesRequest)(nil),          // 205: agent_manager.v1.ListSupervisionOutcomesRequest
-	(*domain.CohortWatch)(nil),                             // 206: agent_manager.v1.CohortWatch
-	(*domain.ListCohortWatchesResponse)(nil),               // 207: agent_manager.v1.ListCohortWatchesResponse
-	(*domain.WaitCohortWatchResponse)(nil),                 // 208: agent_manager.v1.WaitCohortWatchResponse
-	(*domain.InspectCohortWatchResponse)(nil),              // 209: agent_manager.v1.InspectCohortWatchResponse
-	(*domain.RequestCohortWatchActionResponse)(nil),        // 210: agent_manager.v1.RequestCohortWatchActionResponse
-	(*domain.ListCohortWatchActionsResponse)(nil),          // 211: agent_manager.v1.ListCohortWatchActionsResponse
-	(*domain.SupervisionPolicyRecord)(nil),                 // 212: agent_manager.v1.SupervisionPolicyRecord
-	(*domain.RecordSupervisionOutcomeResponse)(nil),        // 213: agent_manager.v1.RecordSupervisionOutcomeResponse
-	(*domain.SupervisionReplayReport)(nil),                 // 214: agent_manager.v1.SupervisionReplayReport
-	(*domain.SupervisionPolicyControl)(nil),                // 215: agent_manager.v1.SupervisionPolicyControl
-	(*domain.ListSupervisionOutcomesResponse)(nil),         // 216: agent_manager.v1.ListSupervisionOutcomesResponse
+	(*InvestigationSubject)(nil),                           // 157: agent_manager.v1.InvestigationSubject
+	(*InvestigationEvidenceReference)(nil),                 // 158: agent_manager.v1.InvestigationEvidenceReference
+	(*InvestigationMethodReference)(nil),                   // 159: agent_manager.v1.InvestigationMethodReference
+	(*InvestigationEvidencePolicy)(nil),                    // 160: agent_manager.v1.InvestigationEvidencePolicy
+	(*InvestigationBudget)(nil),                            // 161: agent_manager.v1.InvestigationBudget
+	(*InvestigationRecommendationPolicy)(nil),              // 162: agent_manager.v1.InvestigationRecommendationPolicy
+	(*InvestigationProvenance)(nil),                        // 163: agent_manager.v1.InvestigationProvenance
+	(*InvestigationRequest)(nil),                           // 164: agent_manager.v1.InvestigationRequest
+	(*InvestigationRecord)(nil),                            // 165: agent_manager.v1.InvestigationRecord
+	(*StartInvestigationRequest)(nil),                      // 166: agent_manager.v1.StartInvestigationRequest
+	(*StartInvestigationResponse)(nil),                     // 167: agent_manager.v1.StartInvestigationResponse
+	(*GetInvestigationRequest)(nil),                        // 168: agent_manager.v1.GetInvestigationRequest
+	(*ListInvestigationsRequest)(nil),                      // 169: agent_manager.v1.ListInvestigationsRequest
+	(*ListInvestigationsResponse)(nil),                     // 170: agent_manager.v1.ListInvestigationsResponse
+	(*WaitInvestigationRequest)(nil),                       // 171: agent_manager.v1.WaitInvestigationRequest
+	(*WaitInvestigationResponse)(nil),                      // 172: agent_manager.v1.WaitInvestigationResponse
+	(*CancelInvestigationRequest)(nil),                     // 173: agent_manager.v1.CancelInvestigationRequest
+	nil,                                                    // 174: agent_manager.v1.HealthResponse.DependenciesEntry
+	nil,                                                    // 175: agent_manager.v1.HealthResponse.MetricsEntry
+	nil,                                                    // 176: agent_manager.v1.CreateRunRequest.EnvironmentEntry
+	nil,                                                    // 177: agent_manager.v1.RunReport.EventCountsEntry
+	(v1.HealthStatus)(0),                                   // 178: common.v1.HealthStatus
+	(*domain.AgentProfile)(nil),                            // 179: agent_manager.v1.AgentProfile
+	(*domain.WorkflowDiagnostic)(nil),                      // 180: agent_manager.v1.WorkflowDiagnostic
+	(*structpb.Struct)(nil),                                // 181: google.protobuf.Struct
+	(*domain.WorkflowRevision)(nil),                        // 182: agent_manager.v1.WorkflowRevision
+	(*structpb.Value)(nil),                                 // 183: google.protobuf.Value
+	(*domain.WorkflowEngagementGrant)(nil),                 // 184: agent_manager.v1.WorkflowEngagementGrant
+	(*domain.WorkflowExecution)(nil),                       // 185: agent_manager.v1.WorkflowExecution
+	(domain.WorkflowExecutionStatus)(0),                    // 186: agent_manager.v1.WorkflowExecutionStatus
+	(*domain.WorkflowNodeAttempt)(nil),                     // 187: agent_manager.v1.WorkflowNodeAttempt
+	(*domain.WorkflowJournalEntry)(nil),                    // 188: agent_manager.v1.WorkflowJournalEntry
+	(*domain.Task)(nil),                                    // 189: agent_manager.v1.Task
+	(domain.TaskStatus)(0),                                 // 190: agent_manager.v1.TaskStatus
+	(domain.RunMode)(0),                                    // 191: agent_manager.v1.RunMode
+	(*domain.RunConfigOverrides)(nil),                      // 192: agent_manager.v1.RunConfigOverrides
+	(domain.ExecutionMode)(0),                              // 193: agent_manager.v1.ExecutionMode
+	(*domain.Run)(nil),                                     // 194: agent_manager.v1.Run
+	(*timestamppb.Timestamp)(nil),                          // 195: google.protobuf.Timestamp
+	(*domain1.WorkReference)(nil),                          // 196: vrooli.vrooli_events.v1.domain.WorkReference
+	(domain.RunStatus)(0),                                  // 197: agent_manager.v1.RunStatus
+	(*domain.StopAllResult)(nil),                           // 198: agent_manager.v1.StopAllResult
+	(domain.RunEventType)(0),                               // 199: agent_manager.v1.RunEventType
+	(*domain.RunEvent)(nil),                                // 200: agent_manager.v1.RunEvent
+	(*domain.RunDiff)(nil),                                 // 201: agent_manager.v1.RunDiff
+	(*domain.ApproveResult)(nil),                           // 202: agent_manager.v1.ApproveResult
+	(*domain.RunnerStatus)(nil),                            // 203: agent_manager.v1.RunnerStatus
+	(domain.RunnerType)(0),                                 // 204: agent_manager.v1.RunnerType
+	(*domain.ProbeResult)(nil),                             // 205: agent_manager.v1.ProbeResult
+	(*domain.ExecutionPolicySnapshot)(nil),                 // 206: agent_manager.v1.ExecutionPolicySnapshot
+	(*v1.JsonValue)(nil),                                   // 207: common.v1.JsonValue
+	(*domain.CreateCohortWatchRequest)(nil),                // 208: agent_manager.v1.CreateCohortWatchRequest
+	(*domain.GetCohortWatchRequest)(nil),                   // 209: agent_manager.v1.GetCohortWatchRequest
+	(*domain.ListCohortWatchesRequest)(nil),                // 210: agent_manager.v1.ListCohortWatchesRequest
+	(*domain.WaitCohortWatchRequest)(nil),                  // 211: agent_manager.v1.WaitCohortWatchRequest
+	(*domain.CancelCohortWatchRequest)(nil),                // 212: agent_manager.v1.CancelCohortWatchRequest
+	(*domain.InspectCohortWatchRequest)(nil),               // 213: agent_manager.v1.InspectCohortWatchRequest
+	(*domain.RequestCohortWatchActionRequest)(nil),         // 214: agent_manager.v1.RequestCohortWatchActionRequest
+	(*domain.ListCohortWatchActionsRequest)(nil),           // 215: agent_manager.v1.ListCohortWatchActionsRequest
+	(*domain.GetSupervisionPolicyRequest)(nil),             // 216: agent_manager.v1.GetSupervisionPolicyRequest
+	(*domain.CreateSupervisionPolicyCandidateRequest)(nil), // 217: agent_manager.v1.CreateSupervisionPolicyCandidateRequest
+	(*domain.RecordSupervisionOutcomeRequest)(nil),         // 218: agent_manager.v1.RecordSupervisionOutcomeRequest
+	(*domain.EvaluateSupervisionPolicyRequest)(nil),        // 219: agent_manager.v1.EvaluateSupervisionPolicyRequest
+	(*domain.PromoteSupervisionPolicyRequest)(nil),         // 220: agent_manager.v1.PromoteSupervisionPolicyRequest
+	(*domain.RejectSupervisionPolicyRequest)(nil),          // 221: agent_manager.v1.RejectSupervisionPolicyRequest
+	(*domain.RollbackSupervisionPolicyRequest)(nil),        // 222: agent_manager.v1.RollbackSupervisionPolicyRequest
+	(*domain.SetSupervisionPolicyDisabledRequest)(nil),     // 223: agent_manager.v1.SetSupervisionPolicyDisabledRequest
+	(*domain.ListSupervisionOutcomesRequest)(nil),          // 224: agent_manager.v1.ListSupervisionOutcomesRequest
+	(*domain.CohortWatch)(nil),                             // 225: agent_manager.v1.CohortWatch
+	(*domain.ListCohortWatchesResponse)(nil),               // 226: agent_manager.v1.ListCohortWatchesResponse
+	(*domain.WaitCohortWatchResponse)(nil),                 // 227: agent_manager.v1.WaitCohortWatchResponse
+	(*domain.InspectCohortWatchResponse)(nil),              // 228: agent_manager.v1.InspectCohortWatchResponse
+	(*domain.RequestCohortWatchActionResponse)(nil),        // 229: agent_manager.v1.RequestCohortWatchActionResponse
+	(*domain.ListCohortWatchActionsResponse)(nil),          // 230: agent_manager.v1.ListCohortWatchActionsResponse
+	(*domain.SupervisionPolicyRecord)(nil),                 // 231: agent_manager.v1.SupervisionPolicyRecord
+	(*domain.RecordSupervisionOutcomeResponse)(nil),        // 232: agent_manager.v1.RecordSupervisionOutcomeResponse
+	(*domain.SupervisionReplayReport)(nil),                 // 233: agent_manager.v1.SupervisionReplayReport
+	(*domain.SupervisionPolicyControl)(nil),                // 234: agent_manager.v1.SupervisionPolicyControl
+	(*domain.ListSupervisionOutcomesResponse)(nil),         // 235: agent_manager.v1.ListSupervisionOutcomesResponse
 }
 var file_agent_manager_v1_api_service_proto_depIdxs = []int32{
-	161, // 0: agent_manager.v1.HealthResponse.status:type_name -> common.v1.HealthStatus
-	157, // 1: agent_manager.v1.HealthResponse.dependencies:type_name -> agent_manager.v1.HealthResponse.DependenciesEntry
-	158, // 2: agent_manager.v1.HealthResponse.metrics:type_name -> agent_manager.v1.HealthResponse.MetricsEntry
-	162, // 3: agent_manager.v1.CreateProfileRequest.profile:type_name -> agent_manager.v1.AgentProfile
-	162, // 4: agent_manager.v1.CreateProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
-	162, // 5: agent_manager.v1.EnsureProfileRequest.defaults:type_name -> agent_manager.v1.AgentProfile
-	162, // 6: agent_manager.v1.EnsureProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
+	178, // 0: agent_manager.v1.HealthResponse.status:type_name -> common.v1.HealthStatus
+	174, // 1: agent_manager.v1.HealthResponse.dependencies:type_name -> agent_manager.v1.HealthResponse.DependenciesEntry
+	175, // 2: agent_manager.v1.HealthResponse.metrics:type_name -> agent_manager.v1.HealthResponse.MetricsEntry
+	179, // 3: agent_manager.v1.CreateProfileRequest.profile:type_name -> agent_manager.v1.AgentProfile
+	179, // 4: agent_manager.v1.CreateProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
+	179, // 5: agent_manager.v1.EnsureProfileRequest.defaults:type_name -> agent_manager.v1.AgentProfile
+	179, // 6: agent_manager.v1.EnsureProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
 	0,   // 7: agent_manager.v1.ProfileReconcileResult.status:type_name -> agent_manager.v1.ProfileReconcileStatus
-	163, // 8: agent_manager.v1.ProfileReconcileResult.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
+	180, // 8: agent_manager.v1.ProfileReconcileResult.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
 	10,  // 9: agent_manager.v1.ReconcileScenarioProfilesResponse.results:type_name -> agent_manager.v1.ProfileReconcileResult
-	164, // 10: agent_manager.v1.ValidateWorkflowRequest.definition:type_name -> google.protobuf.Struct
-	164, // 11: agent_manager.v1.ValidateWorkflowResponse.definition:type_name -> google.protobuf.Struct
-	163, // 12: agent_manager.v1.ValidateWorkflowResponse.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
+	181, // 10: agent_manager.v1.ValidateWorkflowRequest.definition:type_name -> google.protobuf.Struct
+	181, // 11: agent_manager.v1.ValidateWorkflowResponse.definition:type_name -> google.protobuf.Struct
+	180, // 12: agent_manager.v1.ValidateWorkflowResponse.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
 	1,   // 13: agent_manager.v1.WorkflowReconcileResult.status:type_name -> agent_manager.v1.WorkflowReconcileStatus
-	163, // 14: agent_manager.v1.WorkflowReconcileResult.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
+	180, // 14: agent_manager.v1.WorkflowReconcileResult.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
 	15,  // 15: agent_manager.v1.ReconcileScenarioWorkflowsResponse.results:type_name -> agent_manager.v1.WorkflowReconcileResult
 	10,  // 16: agent_manager.v1.ReconcileScenarioDeclarationsResponse.profile_results:type_name -> agent_manager.v1.ProfileReconcileResult
 	15,  // 17: agent_manager.v1.ReconcileScenarioDeclarationsResponse.workflow_results:type_name -> agent_manager.v1.WorkflowReconcileResult
-	165, // 18: agent_manager.v1.ListWorkflowRevisionsResponse.revisions:type_name -> agent_manager.v1.WorkflowRevision
-	165, // 19: agent_manager.v1.GetWorkflowRevisionResponse.revision:type_name -> agent_manager.v1.WorkflowRevision
-	166, // 20: agent_manager.v1.StartWorkflowExecutionRequest.input:type_name -> google.protobuf.Value
-	167, // 21: agent_manager.v1.WorkflowExecutionResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
-	167, // 22: agent_manager.v1.WaitWorkflowExecutionResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
-	168, // 23: agent_manager.v1.ListWorkflowExecutionsRequest.status:type_name -> agent_manager.v1.WorkflowExecutionStatus
-	167, // 24: agent_manager.v1.ListWorkflowExecutionsResponse.executions:type_name -> agent_manager.v1.WorkflowExecution
-	167, // 25: agent_manager.v1.GetWorkflowExecutionTraceResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
-	169, // 26: agent_manager.v1.GetWorkflowExecutionTraceResponse.attempts:type_name -> agent_manager.v1.WorkflowNodeAttempt
-	170, // 27: agent_manager.v1.GetWorkflowExecutionTraceResponse.journal:type_name -> agent_manager.v1.WorkflowJournalEntry
-	169, // 28: agent_manager.v1.ListWorkflowExecutionRunsResponse.attempts:type_name -> agent_manager.v1.WorkflowNodeAttempt
-	166, // 29: agent_manager.v1.SignalWorkflowExecutionRequest.payload:type_name -> google.protobuf.Value
-	167, // 30: agent_manager.v1.WorkflowExecutionOperationResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
-	166, // 31: agent_manager.v1.SimulateWorkflowRequest.input:type_name -> google.protobuf.Value
-	39,  // 32: agent_manager.v1.SimulateWorkflowResponse.nodes:type_name -> agent_manager.v1.WorkflowNodePlan
-	163, // 33: agent_manager.v1.SimulateWorkflowResponse.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
-	162, // 34: agent_manager.v1.GetProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
-	162, // 35: agent_manager.v1.ListProfilesResponse.profiles:type_name -> agent_manager.v1.AgentProfile
-	162, // 36: agent_manager.v1.UpdateProfileRequest.profile:type_name -> agent_manager.v1.AgentProfile
-	162, // 37: agent_manager.v1.UpdateProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
-	171, // 38: agent_manager.v1.CreateTaskRequest.task:type_name -> agent_manager.v1.Task
-	171, // 39: agent_manager.v1.CreateTaskResponse.task:type_name -> agent_manager.v1.Task
-	171, // 40: agent_manager.v1.GetTaskResponse.task:type_name -> agent_manager.v1.Task
-	172, // 41: agent_manager.v1.ListTasksRequest.status:type_name -> agent_manager.v1.TaskStatus
-	171, // 42: agent_manager.v1.ListTasksResponse.tasks:type_name -> agent_manager.v1.Task
-	171, // 43: agent_manager.v1.UpdateTaskRequest.task:type_name -> agent_manager.v1.Task
-	171, // 44: agent_manager.v1.UpdateTaskResponse.task:type_name -> agent_manager.v1.Task
-	162, // 45: agent_manager.v1.ProfileRef.defaults:type_name -> agent_manager.v1.AgentProfile
-	173, // 46: agent_manager.v1.CreateRunRequest.run_mode:type_name -> agent_manager.v1.RunMode
-	174, // 47: agent_manager.v1.CreateRunRequest.inline_config:type_name -> agent_manager.v1.RunConfigOverrides
-	61,  // 48: agent_manager.v1.CreateRunRequest.profile_ref:type_name -> agent_manager.v1.ProfileRef
-	159, // 49: agent_manager.v1.CreateRunRequest.environment:type_name -> agent_manager.v1.CreateRunRequest.EnvironmentEntry
-	175, // 50: agent_manager.v1.CreateRunRequest.execution_mode:type_name -> agent_manager.v1.ExecutionMode
-	176, // 51: agent_manager.v1.AttachRunResponse.run:type_name -> agent_manager.v1.Run
-	177, // 52: agent_manager.v1.AttachRunResponse.expires_at:type_name -> google.protobuf.Timestamp
-	176, // 53: agent_manager.v1.DetachRunResponse.run:type_name -> agent_manager.v1.Run
-	176, // 54: agent_manager.v1.CreateRunResponse.run:type_name -> agent_manager.v1.Run
-	176, // 55: agent_manager.v1.GetRunResponse.run:type_name -> agent_manager.v1.Run
-	76,  // 56: agent_manager.v1.RunReport.result:type_name -> agent_manager.v1.RunReportResult
-	160, // 57: agent_manager.v1.RunReport.event_counts:type_name -> agent_manager.v1.RunReport.EventCountsEntry
-	77,  // 58: agent_manager.v1.RunReport.tools:type_name -> agent_manager.v1.RunReportTool
-	78,  // 59: agent_manager.v1.RunReport.diff:type_name -> agent_manager.v1.RunReportDiff
-	79,  // 60: agent_manager.v1.RunReport.events_availability:type_name -> agent_manager.v1.RunReportAvailability
-	79,  // 61: agent_manager.v1.RunReport.receipts_availability:type_name -> agent_manager.v1.RunReportAvailability
-	75,  // 62: agent_manager.v1.RunReport.time_accounting:type_name -> agent_manager.v1.RunTimeAccounting
-	74,  // 63: agent_manager.v1.RunReport.goal_outcome:type_name -> agent_manager.v1.RunGoalOutcome
-	79,  // 64: agent_manager.v1.RunReportDiff.available:type_name -> agent_manager.v1.RunReportAvailability
-	176, // 65: agent_manager.v1.GetRunByTagResponse.run:type_name -> agent_manager.v1.Run
-	178, // 66: agent_manager.v1.ListRunsRequest.status:type_name -> agent_manager.v1.RunStatus
-	176, // 67: agent_manager.v1.ListRunsResponse.runs:type_name -> agent_manager.v1.Run
-	176, // 68: agent_manager.v1.StopRunResponse.run:type_name -> agent_manager.v1.Run
-	176, // 69: agent_manager.v1.StopRunByTagResponse.run:type_name -> agent_manager.v1.Run
-	179, // 70: agent_manager.v1.StopAllRunsResponse.result:type_name -> agent_manager.v1.StopAllResult
-	92,  // 71: agent_manager.v1.QuiesceScenarioResponse.result:type_name -> agent_manager.v1.QuiesceResult
-	93,  // 72: agent_manager.v1.QuiesceResult.in_flight:type_name -> agent_manager.v1.QuiesceRunRef
-	93,  // 73: agent_manager.v1.QuiesceResult.cancelled:type_name -> agent_manager.v1.QuiesceRunRef
-	176, // 74: agent_manager.v1.RecoverRunResponse.run:type_name -> agent_manager.v1.Run
-	180, // 75: agent_manager.v1.GetRunEventsRequest.event_types:type_name -> agent_manager.v1.RunEventType
-	181, // 76: agent_manager.v1.GetRunEventsResponse.events:type_name -> agent_manager.v1.RunEvent
-	182, // 77: agent_manager.v1.GetRunDiffResponse.diff:type_name -> agent_manager.v1.RunDiff
-	183, // 78: agent_manager.v1.ApproveRunResponse.result:type_name -> agent_manager.v1.ApproveResult
-	183, // 79: agent_manager.v1.PartialApproveRunResponse.result:type_name -> agent_manager.v1.ApproveResult
-	184, // 80: agent_manager.v1.GetRunnerStatusResponse.runners:type_name -> agent_manager.v1.RunnerStatus
-	185, // 81: agent_manager.v1.ProbeRunnerRequest.runner_type:type_name -> agent_manager.v1.RunnerType
-	186, // 82: agent_manager.v1.ProbeRunnerResponse.result:type_name -> agent_manager.v1.ProbeResult
-	177, // 83: agent_manager.v1.RolePolicyReloadAttempt.attempted_at:type_name -> google.protobuf.Timestamp
-	110, // 84: agent_manager.v1.RolePolicyReloadAttempt.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
-	111, // 85: agent_manager.v1.RolePolicyStatus.requirement:type_name -> agent_manager.v1.RolePolicyRequirement
-	177, // 86: agent_manager.v1.RolePolicyStatus.activated_at:type_name -> google.protobuf.Timestamp
-	112, // 87: agent_manager.v1.RolePolicyStatus.last_reload_attempt:type_name -> agent_manager.v1.RolePolicyReloadAttempt
-	185, // 88: agent_manager.v1.RolePolicyCandidate.runner_type:type_name -> agent_manager.v1.RunnerType
-	115, // 89: agent_manager.v1.RolePolicyDefinition.candidates:type_name -> agent_manager.v1.RolePolicyCandidate
-	114, // 90: agent_manager.v1.RolePolicyCatalog.metadata:type_name -> agent_manager.v1.RolePolicyCatalogMetadata
-	116, // 91: agent_manager.v1.RolePolicyCatalog.roles:type_name -> agent_manager.v1.RolePolicyDefinition
-	113, // 92: agent_manager.v1.GetRolePolicyStatusResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
-	113, // 93: agent_manager.v1.GetRolePolicyCatalogResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
-	117, // 94: agent_manager.v1.GetRolePolicyCatalogResponse.catalog:type_name -> agent_manager.v1.RolePolicyCatalog
-	110, // 95: agent_manager.v1.ValidateRolePolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
-	113, // 96: agent_manager.v1.ReloadRolePolicyCatalogResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
-	110, // 97: agent_manager.v1.ReloadRolePolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
-	187, // 98: agent_manager.v1.ExplainRolePolicyResponse.snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
-	177, // 99: agent_manager.v1.PermissionPolicyReloadAttempt.attempted_at:type_name -> google.protobuf.Timestamp
-	128, // 100: agent_manager.v1.PermissionPolicyReloadAttempt.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
-	129, // 101: agent_manager.v1.PermissionPolicyStatus.requirement:type_name -> agent_manager.v1.PermissionPolicyRequirement
-	177, // 102: agent_manager.v1.PermissionPolicyStatus.activated_at:type_name -> google.protobuf.Timestamp
-	130, // 103: agent_manager.v1.PermissionPolicyStatus.last_reload_attempt:type_name -> agent_manager.v1.PermissionPolicyReloadAttempt
-	133, // 104: agent_manager.v1.PermissionPolicyRule.matcher:type_name -> agent_manager.v1.PermissionPolicyMatcher
-	132, // 105: agent_manager.v1.PermissionPolicyCatalog.metadata:type_name -> agent_manager.v1.PermissionPolicyCatalogMetadata
-	134, // 106: agent_manager.v1.PermissionPolicyCatalog.rules:type_name -> agent_manager.v1.PermissionPolicyRule
-	185, // 107: agent_manager.v1.PermissionPolicyResourceResult.runner_type:type_name -> agent_manager.v1.RunnerType
-	136, // 108: agent_manager.v1.PermissionPolicyResourceResult.enforcement:type_name -> agent_manager.v1.PermissionPolicyEnforcement
-	133, // 109: agent_manager.v1.PermissionPolicyResourceResult.unsupported_matchers:type_name -> agent_manager.v1.PermissionPolicyMatcher
-	137, // 110: agent_manager.v1.PermissionPolicyPlan.resources:type_name -> agent_manager.v1.PermissionPolicyResourceResult
-	177, // 111: agent_manager.v1.PermissionPolicyReconcileResult.started_at:type_name -> google.protobuf.Timestamp
-	177, // 112: agent_manager.v1.PermissionPolicyReconcileResult.finished_at:type_name -> google.protobuf.Timestamp
-	137, // 113: agent_manager.v1.PermissionPolicyReconcileResult.resources:type_name -> agent_manager.v1.PermissionPolicyResourceResult
-	131, // 114: agent_manager.v1.GetPermissionPolicyStatusResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
-	139, // 115: agent_manager.v1.GetPermissionPolicyStatusResponse.last_reconcile:type_name -> agent_manager.v1.PermissionPolicyReconcileResult
-	131, // 116: agent_manager.v1.GetPermissionPolicyCatalogResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
-	135, // 117: agent_manager.v1.GetPermissionPolicyCatalogResponse.catalog:type_name -> agent_manager.v1.PermissionPolicyCatalog
-	128, // 118: agent_manager.v1.ValidatePermissionPolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
-	131, // 119: agent_manager.v1.ReloadPermissionPolicyCatalogResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
-	128, // 120: agent_manager.v1.ReloadPermissionPolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
-	138, // 121: agent_manager.v1.PlanPermissionPolicyResponse.plan:type_name -> agent_manager.v1.PermissionPolicyPlan
-	139, // 122: agent_manager.v1.ReconcilePermissionPolicyResponse.result:type_name -> agent_manager.v1.PermissionPolicyReconcileResult
-	131, // 123: agent_manager.v1.DoctorPermissionPolicyResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
-	138, // 124: agent_manager.v1.DoctorPermissionPolicyResponse.plan:type_name -> agent_manager.v1.PermissionPolicyPlan
-	2,   // 125: agent_manager.v1.PurgeDataRequest.targets:type_name -> agent_manager.v1.PurgeTarget
-	155, // 126: agent_manager.v1.PurgeDataResponse.matched:type_name -> agent_manager.v1.PurgeCounts
-	155, // 127: agent_manager.v1.PurgeDataResponse.deleted:type_name -> agent_manager.v1.PurgeCounts
-	188, // 128: agent_manager.v1.HealthResponse.DependenciesEntry.value:type_name -> common.v1.JsonValue
-	188, // 129: agent_manager.v1.HealthResponse.MetricsEntry.value:type_name -> common.v1.JsonValue
-	3,   // 130: agent_manager.v1.AgentManagerService.Health:input_type -> agent_manager.v1.HealthRequest
-	189, // 131: agent_manager.v1.AgentManagerService.CreateCohortWatch:input_type -> agent_manager.v1.CreateCohortWatchRequest
-	190, // 132: agent_manager.v1.AgentManagerService.GetCohortWatch:input_type -> agent_manager.v1.GetCohortWatchRequest
-	191, // 133: agent_manager.v1.AgentManagerService.ListCohortWatches:input_type -> agent_manager.v1.ListCohortWatchesRequest
-	192, // 134: agent_manager.v1.AgentManagerService.WaitCohortWatch:input_type -> agent_manager.v1.WaitCohortWatchRequest
-	193, // 135: agent_manager.v1.AgentManagerService.CancelCohortWatch:input_type -> agent_manager.v1.CancelCohortWatchRequest
-	194, // 136: agent_manager.v1.AgentManagerService.InspectCohortWatch:input_type -> agent_manager.v1.InspectCohortWatchRequest
-	195, // 137: agent_manager.v1.AgentManagerService.RequestCohortWatchAction:input_type -> agent_manager.v1.RequestCohortWatchActionRequest
-	196, // 138: agent_manager.v1.AgentManagerService.ListCohortWatchActions:input_type -> agent_manager.v1.ListCohortWatchActionsRequest
-	197, // 139: agent_manager.v1.AgentManagerService.GetSupervisionPolicy:input_type -> agent_manager.v1.GetSupervisionPolicyRequest
-	198, // 140: agent_manager.v1.AgentManagerService.CreateSupervisionPolicyCandidate:input_type -> agent_manager.v1.CreateSupervisionPolicyCandidateRequest
-	199, // 141: agent_manager.v1.AgentManagerService.RecordSupervisionOutcome:input_type -> agent_manager.v1.RecordSupervisionOutcomeRequest
-	200, // 142: agent_manager.v1.AgentManagerService.EvaluateSupervisionPolicy:input_type -> agent_manager.v1.EvaluateSupervisionPolicyRequest
-	201, // 143: agent_manager.v1.AgentManagerService.PromoteSupervisionPolicy:input_type -> agent_manager.v1.PromoteSupervisionPolicyRequest
-	202, // 144: agent_manager.v1.AgentManagerService.RejectSupervisionPolicy:input_type -> agent_manager.v1.RejectSupervisionPolicyRequest
-	203, // 145: agent_manager.v1.AgentManagerService.RollbackSupervisionPolicy:input_type -> agent_manager.v1.RollbackSupervisionPolicyRequest
-	204, // 146: agent_manager.v1.AgentManagerService.SetSupervisionPolicyDisabled:input_type -> agent_manager.v1.SetSupervisionPolicyDisabledRequest
-	205, // 147: agent_manager.v1.AgentManagerService.ListSupervisionOutcomes:input_type -> agent_manager.v1.ListSupervisionOutcomesRequest
-	5,   // 148: agent_manager.v1.AgentManagerService.CreateProfile:input_type -> agent_manager.v1.CreateProfileRequest
-	7,   // 149: agent_manager.v1.AgentManagerService.EnsureProfile:input_type -> agent_manager.v1.EnsureProfileRequest
-	9,   // 150: agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles:input_type -> agent_manager.v1.ReconcileScenarioProfilesRequest
-	12,  // 151: agent_manager.v1.AgentManagerService.ValidateWorkflow:input_type -> agent_manager.v1.ValidateWorkflowRequest
-	14,  // 152: agent_manager.v1.AgentManagerService.ReconcileScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
-	14,  // 153: agent_manager.v1.AgentManagerService.PlanScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
-	17,  // 154: agent_manager.v1.AgentManagerService.ReconcileScenarioDeclarations:input_type -> agent_manager.v1.ReconcileScenarioDeclarationsRequest
-	17,  // 155: agent_manager.v1.AgentManagerService.PlanScenarioDeclarations:input_type -> agent_manager.v1.ReconcileScenarioDeclarationsRequest
-	19,  // 156: agent_manager.v1.AgentManagerService.ListWorkflowRevisions:input_type -> agent_manager.v1.ListWorkflowRevisionsRequest
-	21,  // 157: agent_manager.v1.AgentManagerService.GetWorkflowRevision:input_type -> agent_manager.v1.GetWorkflowRevisionRequest
-	14,  // 158: agent_manager.v1.AgentManagerService.ReloadScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
-	21,  // 159: agent_manager.v1.AgentManagerService.ExplainWorkflow:input_type -> agent_manager.v1.GetWorkflowRevisionRequest
-	23,  // 160: agent_manager.v1.AgentManagerService.StartWorkflowExecution:input_type -> agent_manager.v1.StartWorkflowExecutionRequest
-	29,  // 161: agent_manager.v1.AgentManagerService.ListWorkflowExecutions:input_type -> agent_manager.v1.ListWorkflowExecutionsRequest
-	24,  // 162: agent_manager.v1.AgentManagerService.GetWorkflowExecution:input_type -> agent_manager.v1.GetWorkflowExecutionRequest
-	25,  // 163: agent_manager.v1.AgentManagerService.GetWorkflowExecutionResult:input_type -> agent_manager.v1.GetWorkflowExecutionResultRequest
-	24,  // 164: agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution:input_type -> agent_manager.v1.GetWorkflowExecutionRequest
-	27,  // 165: agent_manager.v1.AgentManagerService.WaitWorkflowExecution:input_type -> agent_manager.v1.WaitWorkflowExecutionRequest
-	31,  // 166: agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace:input_type -> agent_manager.v1.GetWorkflowExecutionTraceRequest
-	33,  // 167: agent_manager.v1.AgentManagerService.ListWorkflowExecutionRuns:input_type -> agent_manager.v1.ListWorkflowExecutionRunsRequest
-	35,  // 168: agent_manager.v1.AgentManagerService.SignalWorkflowExecution:input_type -> agent_manager.v1.SignalWorkflowExecutionRequest
-	36,  // 169: agent_manager.v1.AgentManagerService.CancelWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
-	36,  // 170: agent_manager.v1.AgentManagerService.RetryWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
-	36,  // 171: agent_manager.v1.AgentManagerService.ResumeWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
-	38,  // 172: agent_manager.v1.AgentManagerService.SimulateWorkflow:input_type -> agent_manager.v1.SimulateWorkflowRequest
-	41,  // 173: agent_manager.v1.AgentManagerService.GetProfile:input_type -> agent_manager.v1.GetProfileRequest
-	43,  // 174: agent_manager.v1.AgentManagerService.ListProfiles:input_type -> agent_manager.v1.ListProfilesRequest
-	45,  // 175: agent_manager.v1.AgentManagerService.UpdateProfile:input_type -> agent_manager.v1.UpdateProfileRequest
-	47,  // 176: agent_manager.v1.AgentManagerService.DeleteProfile:input_type -> agent_manager.v1.DeleteProfileRequest
-	49,  // 177: agent_manager.v1.AgentManagerService.CreateTask:input_type -> agent_manager.v1.CreateTaskRequest
-	51,  // 178: agent_manager.v1.AgentManagerService.GetTask:input_type -> agent_manager.v1.GetTaskRequest
-	53,  // 179: agent_manager.v1.AgentManagerService.ListTasks:input_type -> agent_manager.v1.ListTasksRequest
-	55,  // 180: agent_manager.v1.AgentManagerService.UpdateTask:input_type -> agent_manager.v1.UpdateTaskRequest
-	57,  // 181: agent_manager.v1.AgentManagerService.DeleteTask:input_type -> agent_manager.v1.DeleteTaskRequest
-	59,  // 182: agent_manager.v1.AgentManagerService.CancelTask:input_type -> agent_manager.v1.CancelTaskRequest
-	62,  // 183: agent_manager.v1.AgentManagerService.CreateRun:input_type -> agent_manager.v1.CreateRunRequest
-	63,  // 184: agent_manager.v1.AgentManagerService.AttachRun:input_type -> agent_manager.v1.AttachRunRequest
-	70,  // 185: agent_manager.v1.AgentManagerService.GetRun:input_type -> agent_manager.v1.GetRunRequest
-	72,  // 186: agent_manager.v1.AgentManagerService.GetRunReport:input_type -> agent_manager.v1.GetRunReportRequest
-	80,  // 187: agent_manager.v1.AgentManagerService.GetRunByTag:input_type -> agent_manager.v1.GetRunByTagRequest
-	82,  // 188: agent_manager.v1.AgentManagerService.ListRuns:input_type -> agent_manager.v1.ListRunsRequest
-	67,  // 189: agent_manager.v1.AgentManagerService.DeleteRun:input_type -> agent_manager.v1.DeleteRunRequest
-	84,  // 190: agent_manager.v1.AgentManagerService.StopRun:input_type -> agent_manager.v1.StopRunRequest
-	86,  // 191: agent_manager.v1.AgentManagerService.StopRunByTag:input_type -> agent_manager.v1.StopRunByTagRequest
-	88,  // 192: agent_manager.v1.AgentManagerService.StopAllRuns:input_type -> agent_manager.v1.StopAllRunsRequest
-	65,  // 193: agent_manager.v1.AgentManagerService.DetachRun:input_type -> agent_manager.v1.DetachRunRequest
-	90,  // 194: agent_manager.v1.AgentManagerService.QuiesceScenario:input_type -> agent_manager.v1.QuiesceScenarioRequest
-	94,  // 195: agent_manager.v1.AgentManagerService.RecoverRun:input_type -> agent_manager.v1.RecoverRunRequest
-	96,  // 196: agent_manager.v1.AgentManagerService.GetRunEvents:input_type -> agent_manager.v1.GetRunEventsRequest
-	98,  // 197: agent_manager.v1.AgentManagerService.GetRunDiff:input_type -> agent_manager.v1.GetRunDiffRequest
-	100, // 198: agent_manager.v1.AgentManagerService.ApproveRun:input_type -> agent_manager.v1.ApproveRunRequest
-	102, // 199: agent_manager.v1.AgentManagerService.RejectRun:input_type -> agent_manager.v1.RejectRunRequest
-	106, // 200: agent_manager.v1.AgentManagerService.GetRunnerStatus:input_type -> agent_manager.v1.GetRunnerStatusRequest
-	108, // 201: agent_manager.v1.AgentManagerService.ProbeRunner:input_type -> agent_manager.v1.ProbeRunnerRequest
-	118, // 202: agent_manager.v1.AgentManagerService.GetRolePolicyStatus:input_type -> agent_manager.v1.GetRolePolicyStatusRequest
-	120, // 203: agent_manager.v1.AgentManagerService.GetRolePolicyCatalog:input_type -> agent_manager.v1.GetRolePolicyCatalogRequest
-	122, // 204: agent_manager.v1.AgentManagerService.ValidateRolePolicyCatalog:input_type -> agent_manager.v1.ValidateRolePolicyCatalogRequest
-	124, // 205: agent_manager.v1.AgentManagerService.ReloadRolePolicyCatalog:input_type -> agent_manager.v1.ReloadRolePolicyCatalogRequest
-	126, // 206: agent_manager.v1.AgentManagerService.ExplainRolePolicy:input_type -> agent_manager.v1.ExplainRolePolicyRequest
-	140, // 207: agent_manager.v1.AgentManagerService.GetPermissionPolicyStatus:input_type -> agent_manager.v1.GetPermissionPolicyStatusRequest
-	142, // 208: agent_manager.v1.AgentManagerService.GetPermissionPolicyCatalog:input_type -> agent_manager.v1.GetPermissionPolicyCatalogRequest
-	144, // 209: agent_manager.v1.AgentManagerService.ValidatePermissionPolicyCatalog:input_type -> agent_manager.v1.ValidatePermissionPolicyCatalogRequest
-	146, // 210: agent_manager.v1.AgentManagerService.ReloadPermissionPolicyCatalog:input_type -> agent_manager.v1.ReloadPermissionPolicyCatalogRequest
-	148, // 211: agent_manager.v1.AgentManagerService.PlanPermissionPolicy:input_type -> agent_manager.v1.PlanPermissionPolicyRequest
-	150, // 212: agent_manager.v1.AgentManagerService.ReconcilePermissionPolicy:input_type -> agent_manager.v1.ReconcilePermissionPolicyRequest
-	152, // 213: agent_manager.v1.AgentManagerService.DoctorPermissionPolicy:input_type -> agent_manager.v1.DoctorPermissionPolicyRequest
-	154, // 214: agent_manager.v1.AgentManagerService.PurgeData:input_type -> agent_manager.v1.PurgeDataRequest
-	4,   // 215: agent_manager.v1.AgentManagerService.Health:output_type -> agent_manager.v1.HealthResponse
-	206, // 216: agent_manager.v1.AgentManagerService.CreateCohortWatch:output_type -> agent_manager.v1.CohortWatch
-	206, // 217: agent_manager.v1.AgentManagerService.GetCohortWatch:output_type -> agent_manager.v1.CohortWatch
-	207, // 218: agent_manager.v1.AgentManagerService.ListCohortWatches:output_type -> agent_manager.v1.ListCohortWatchesResponse
-	208, // 219: agent_manager.v1.AgentManagerService.WaitCohortWatch:output_type -> agent_manager.v1.WaitCohortWatchResponse
-	206, // 220: agent_manager.v1.AgentManagerService.CancelCohortWatch:output_type -> agent_manager.v1.CohortWatch
-	209, // 221: agent_manager.v1.AgentManagerService.InspectCohortWatch:output_type -> agent_manager.v1.InspectCohortWatchResponse
-	210, // 222: agent_manager.v1.AgentManagerService.RequestCohortWatchAction:output_type -> agent_manager.v1.RequestCohortWatchActionResponse
-	211, // 223: agent_manager.v1.AgentManagerService.ListCohortWatchActions:output_type -> agent_manager.v1.ListCohortWatchActionsResponse
-	212, // 224: agent_manager.v1.AgentManagerService.GetSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
-	212, // 225: agent_manager.v1.AgentManagerService.CreateSupervisionPolicyCandidate:output_type -> agent_manager.v1.SupervisionPolicyRecord
-	213, // 226: agent_manager.v1.AgentManagerService.RecordSupervisionOutcome:output_type -> agent_manager.v1.RecordSupervisionOutcomeResponse
-	214, // 227: agent_manager.v1.AgentManagerService.EvaluateSupervisionPolicy:output_type -> agent_manager.v1.SupervisionReplayReport
-	212, // 228: agent_manager.v1.AgentManagerService.PromoteSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
-	212, // 229: agent_manager.v1.AgentManagerService.RejectSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
-	212, // 230: agent_manager.v1.AgentManagerService.RollbackSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
-	215, // 231: agent_manager.v1.AgentManagerService.SetSupervisionPolicyDisabled:output_type -> agent_manager.v1.SupervisionPolicyControl
-	216, // 232: agent_manager.v1.AgentManagerService.ListSupervisionOutcomes:output_type -> agent_manager.v1.ListSupervisionOutcomesResponse
-	6,   // 233: agent_manager.v1.AgentManagerService.CreateProfile:output_type -> agent_manager.v1.CreateProfileResponse
-	8,   // 234: agent_manager.v1.AgentManagerService.EnsureProfile:output_type -> agent_manager.v1.EnsureProfileResponse
-	11,  // 235: agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles:output_type -> agent_manager.v1.ReconcileScenarioProfilesResponse
-	13,  // 236: agent_manager.v1.AgentManagerService.ValidateWorkflow:output_type -> agent_manager.v1.ValidateWorkflowResponse
-	16,  // 237: agent_manager.v1.AgentManagerService.ReconcileScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
-	16,  // 238: agent_manager.v1.AgentManagerService.PlanScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
-	18,  // 239: agent_manager.v1.AgentManagerService.ReconcileScenarioDeclarations:output_type -> agent_manager.v1.ReconcileScenarioDeclarationsResponse
-	18,  // 240: agent_manager.v1.AgentManagerService.PlanScenarioDeclarations:output_type -> agent_manager.v1.ReconcileScenarioDeclarationsResponse
-	20,  // 241: agent_manager.v1.AgentManagerService.ListWorkflowRevisions:output_type -> agent_manager.v1.ListWorkflowRevisionsResponse
-	22,  // 242: agent_manager.v1.AgentManagerService.GetWorkflowRevision:output_type -> agent_manager.v1.GetWorkflowRevisionResponse
-	16,  // 243: agent_manager.v1.AgentManagerService.ReloadScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
-	22,  // 244: agent_manager.v1.AgentManagerService.ExplainWorkflow:output_type -> agent_manager.v1.GetWorkflowRevisionResponse
-	26,  // 245: agent_manager.v1.AgentManagerService.StartWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
-	30,  // 246: agent_manager.v1.AgentManagerService.ListWorkflowExecutions:output_type -> agent_manager.v1.ListWorkflowExecutionsResponse
-	26,  // 247: agent_manager.v1.AgentManagerService.GetWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
-	26,  // 248: agent_manager.v1.AgentManagerService.GetWorkflowExecutionResult:output_type -> agent_manager.v1.WorkflowExecutionResponse
-	26,  // 249: agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
-	28,  // 250: agent_manager.v1.AgentManagerService.WaitWorkflowExecution:output_type -> agent_manager.v1.WaitWorkflowExecutionResponse
-	32,  // 251: agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace:output_type -> agent_manager.v1.GetWorkflowExecutionTraceResponse
-	34,  // 252: agent_manager.v1.AgentManagerService.ListWorkflowExecutionRuns:output_type -> agent_manager.v1.ListWorkflowExecutionRunsResponse
-	37,  // 253: agent_manager.v1.AgentManagerService.SignalWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
-	37,  // 254: agent_manager.v1.AgentManagerService.CancelWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
-	37,  // 255: agent_manager.v1.AgentManagerService.RetryWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
-	37,  // 256: agent_manager.v1.AgentManagerService.ResumeWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
-	40,  // 257: agent_manager.v1.AgentManagerService.SimulateWorkflow:output_type -> agent_manager.v1.SimulateWorkflowResponse
-	42,  // 258: agent_manager.v1.AgentManagerService.GetProfile:output_type -> agent_manager.v1.GetProfileResponse
-	44,  // 259: agent_manager.v1.AgentManagerService.ListProfiles:output_type -> agent_manager.v1.ListProfilesResponse
-	46,  // 260: agent_manager.v1.AgentManagerService.UpdateProfile:output_type -> agent_manager.v1.UpdateProfileResponse
-	48,  // 261: agent_manager.v1.AgentManagerService.DeleteProfile:output_type -> agent_manager.v1.DeleteProfileResponse
-	50,  // 262: agent_manager.v1.AgentManagerService.CreateTask:output_type -> agent_manager.v1.CreateTaskResponse
-	52,  // 263: agent_manager.v1.AgentManagerService.GetTask:output_type -> agent_manager.v1.GetTaskResponse
-	54,  // 264: agent_manager.v1.AgentManagerService.ListTasks:output_type -> agent_manager.v1.ListTasksResponse
-	56,  // 265: agent_manager.v1.AgentManagerService.UpdateTask:output_type -> agent_manager.v1.UpdateTaskResponse
-	58,  // 266: agent_manager.v1.AgentManagerService.DeleteTask:output_type -> agent_manager.v1.DeleteTaskResponse
-	60,  // 267: agent_manager.v1.AgentManagerService.CancelTask:output_type -> agent_manager.v1.CancelTaskResponse
-	69,  // 268: agent_manager.v1.AgentManagerService.CreateRun:output_type -> agent_manager.v1.CreateRunResponse
-	64,  // 269: agent_manager.v1.AgentManagerService.AttachRun:output_type -> agent_manager.v1.AttachRunResponse
-	71,  // 270: agent_manager.v1.AgentManagerService.GetRun:output_type -> agent_manager.v1.GetRunResponse
-	73,  // 271: agent_manager.v1.AgentManagerService.GetRunReport:output_type -> agent_manager.v1.RunReport
-	81,  // 272: agent_manager.v1.AgentManagerService.GetRunByTag:output_type -> agent_manager.v1.GetRunByTagResponse
-	83,  // 273: agent_manager.v1.AgentManagerService.ListRuns:output_type -> agent_manager.v1.ListRunsResponse
-	68,  // 274: agent_manager.v1.AgentManagerService.DeleteRun:output_type -> agent_manager.v1.DeleteRunResponse
-	85,  // 275: agent_manager.v1.AgentManagerService.StopRun:output_type -> agent_manager.v1.StopRunResponse
-	87,  // 276: agent_manager.v1.AgentManagerService.StopRunByTag:output_type -> agent_manager.v1.StopRunByTagResponse
-	89,  // 277: agent_manager.v1.AgentManagerService.StopAllRuns:output_type -> agent_manager.v1.StopAllRunsResponse
-	66,  // 278: agent_manager.v1.AgentManagerService.DetachRun:output_type -> agent_manager.v1.DetachRunResponse
-	91,  // 279: agent_manager.v1.AgentManagerService.QuiesceScenario:output_type -> agent_manager.v1.QuiesceScenarioResponse
-	95,  // 280: agent_manager.v1.AgentManagerService.RecoverRun:output_type -> agent_manager.v1.RecoverRunResponse
-	97,  // 281: agent_manager.v1.AgentManagerService.GetRunEvents:output_type -> agent_manager.v1.GetRunEventsResponse
-	99,  // 282: agent_manager.v1.AgentManagerService.GetRunDiff:output_type -> agent_manager.v1.GetRunDiffResponse
-	101, // 283: agent_manager.v1.AgentManagerService.ApproveRun:output_type -> agent_manager.v1.ApproveRunResponse
-	103, // 284: agent_manager.v1.AgentManagerService.RejectRun:output_type -> agent_manager.v1.RejectRunResponse
-	107, // 285: agent_manager.v1.AgentManagerService.GetRunnerStatus:output_type -> agent_manager.v1.GetRunnerStatusResponse
-	109, // 286: agent_manager.v1.AgentManagerService.ProbeRunner:output_type -> agent_manager.v1.ProbeRunnerResponse
-	119, // 287: agent_manager.v1.AgentManagerService.GetRolePolicyStatus:output_type -> agent_manager.v1.GetRolePolicyStatusResponse
-	121, // 288: agent_manager.v1.AgentManagerService.GetRolePolicyCatalog:output_type -> agent_manager.v1.GetRolePolicyCatalogResponse
-	123, // 289: agent_manager.v1.AgentManagerService.ValidateRolePolicyCatalog:output_type -> agent_manager.v1.ValidateRolePolicyCatalogResponse
-	125, // 290: agent_manager.v1.AgentManagerService.ReloadRolePolicyCatalog:output_type -> agent_manager.v1.ReloadRolePolicyCatalogResponse
-	127, // 291: agent_manager.v1.AgentManagerService.ExplainRolePolicy:output_type -> agent_manager.v1.ExplainRolePolicyResponse
-	141, // 292: agent_manager.v1.AgentManagerService.GetPermissionPolicyStatus:output_type -> agent_manager.v1.GetPermissionPolicyStatusResponse
-	143, // 293: agent_manager.v1.AgentManagerService.GetPermissionPolicyCatalog:output_type -> agent_manager.v1.GetPermissionPolicyCatalogResponse
-	145, // 294: agent_manager.v1.AgentManagerService.ValidatePermissionPolicyCatalog:output_type -> agent_manager.v1.ValidatePermissionPolicyCatalogResponse
-	147, // 295: agent_manager.v1.AgentManagerService.ReloadPermissionPolicyCatalog:output_type -> agent_manager.v1.ReloadPermissionPolicyCatalogResponse
-	149, // 296: agent_manager.v1.AgentManagerService.PlanPermissionPolicy:output_type -> agent_manager.v1.PlanPermissionPolicyResponse
-	151, // 297: agent_manager.v1.AgentManagerService.ReconcilePermissionPolicy:output_type -> agent_manager.v1.ReconcilePermissionPolicyResponse
-	153, // 298: agent_manager.v1.AgentManagerService.DoctorPermissionPolicy:output_type -> agent_manager.v1.DoctorPermissionPolicyResponse
-	156, // 299: agent_manager.v1.AgentManagerService.PurgeData:output_type -> agent_manager.v1.PurgeDataResponse
-	215, // [215:300] is the sub-list for method output_type
-	130, // [130:215] is the sub-list for method input_type
-	130, // [130:130] is the sub-list for extension type_name
-	130, // [130:130] is the sub-list for extension extendee
-	0,   // [0:130] is the sub-list for field type_name
+	182, // 18: agent_manager.v1.ListWorkflowRevisionsResponse.revisions:type_name -> agent_manager.v1.WorkflowRevision
+	182, // 19: agent_manager.v1.GetWorkflowRevisionResponse.revision:type_name -> agent_manager.v1.WorkflowRevision
+	183, // 20: agent_manager.v1.StartWorkflowExecutionRequest.input:type_name -> google.protobuf.Value
+	184, // 21: agent_manager.v1.StartWorkflowExecutionRequest.engagement_grant:type_name -> agent_manager.v1.WorkflowEngagementGrant
+	185, // 22: agent_manager.v1.WorkflowExecutionResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
+	185, // 23: agent_manager.v1.WaitWorkflowExecutionResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
+	186, // 24: agent_manager.v1.ListWorkflowExecutionsRequest.status:type_name -> agent_manager.v1.WorkflowExecutionStatus
+	185, // 25: agent_manager.v1.ListWorkflowExecutionsResponse.executions:type_name -> agent_manager.v1.WorkflowExecution
+	185, // 26: agent_manager.v1.GetWorkflowExecutionTraceResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
+	187, // 27: agent_manager.v1.GetWorkflowExecutionTraceResponse.attempts:type_name -> agent_manager.v1.WorkflowNodeAttempt
+	188, // 28: agent_manager.v1.GetWorkflowExecutionTraceResponse.journal:type_name -> agent_manager.v1.WorkflowJournalEntry
+	187, // 29: agent_manager.v1.ListWorkflowExecutionRunsResponse.attempts:type_name -> agent_manager.v1.WorkflowNodeAttempt
+	183, // 30: agent_manager.v1.SignalWorkflowExecutionRequest.payload:type_name -> google.protobuf.Value
+	185, // 31: agent_manager.v1.WorkflowExecutionOperationResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
+	183, // 32: agent_manager.v1.SimulateWorkflowRequest.input:type_name -> google.protobuf.Value
+	39,  // 33: agent_manager.v1.SimulateWorkflowResponse.nodes:type_name -> agent_manager.v1.WorkflowNodePlan
+	180, // 34: agent_manager.v1.SimulateWorkflowResponse.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
+	179, // 35: agent_manager.v1.GetProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
+	179, // 36: agent_manager.v1.ListProfilesResponse.profiles:type_name -> agent_manager.v1.AgentProfile
+	179, // 37: agent_manager.v1.UpdateProfileRequest.profile:type_name -> agent_manager.v1.AgentProfile
+	179, // 38: agent_manager.v1.UpdateProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
+	189, // 39: agent_manager.v1.CreateTaskRequest.task:type_name -> agent_manager.v1.Task
+	189, // 40: agent_manager.v1.CreateTaskResponse.task:type_name -> agent_manager.v1.Task
+	189, // 41: agent_manager.v1.GetTaskResponse.task:type_name -> agent_manager.v1.Task
+	190, // 42: agent_manager.v1.ListTasksRequest.status:type_name -> agent_manager.v1.TaskStatus
+	189, // 43: agent_manager.v1.ListTasksResponse.tasks:type_name -> agent_manager.v1.Task
+	189, // 44: agent_manager.v1.UpdateTaskRequest.task:type_name -> agent_manager.v1.Task
+	189, // 45: agent_manager.v1.UpdateTaskResponse.task:type_name -> agent_manager.v1.Task
+	179, // 46: agent_manager.v1.ProfileRef.defaults:type_name -> agent_manager.v1.AgentProfile
+	191, // 47: agent_manager.v1.CreateRunRequest.run_mode:type_name -> agent_manager.v1.RunMode
+	192, // 48: agent_manager.v1.CreateRunRequest.inline_config:type_name -> agent_manager.v1.RunConfigOverrides
+	61,  // 49: agent_manager.v1.CreateRunRequest.profile_ref:type_name -> agent_manager.v1.ProfileRef
+	176, // 50: agent_manager.v1.CreateRunRequest.environment:type_name -> agent_manager.v1.CreateRunRequest.EnvironmentEntry
+	193, // 51: agent_manager.v1.CreateRunRequest.execution_mode:type_name -> agent_manager.v1.ExecutionMode
+	194, // 52: agent_manager.v1.AttachRunResponse.run:type_name -> agent_manager.v1.Run
+	195, // 53: agent_manager.v1.AttachRunResponse.expires_at:type_name -> google.protobuf.Timestamp
+	194, // 54: agent_manager.v1.DetachRunResponse.run:type_name -> agent_manager.v1.Run
+	194, // 55: agent_manager.v1.CreateRunResponse.run:type_name -> agent_manager.v1.Run
+	194, // 56: agent_manager.v1.GetRunResponse.run:type_name -> agent_manager.v1.Run
+	76,  // 57: agent_manager.v1.RunReport.result:type_name -> agent_manager.v1.RunReportResult
+	177, // 58: agent_manager.v1.RunReport.event_counts:type_name -> agent_manager.v1.RunReport.EventCountsEntry
+	77,  // 59: agent_manager.v1.RunReport.tools:type_name -> agent_manager.v1.RunReportTool
+	78,  // 60: agent_manager.v1.RunReport.diff:type_name -> agent_manager.v1.RunReportDiff
+	79,  // 61: agent_manager.v1.RunReport.events_availability:type_name -> agent_manager.v1.RunReportAvailability
+	79,  // 62: agent_manager.v1.RunReport.receipts_availability:type_name -> agent_manager.v1.RunReportAvailability
+	75,  // 63: agent_manager.v1.RunReport.time_accounting:type_name -> agent_manager.v1.RunTimeAccounting
+	74,  // 64: agent_manager.v1.RunReport.goal_outcome:type_name -> agent_manager.v1.RunGoalOutcome
+	196, // 65: agent_manager.v1.RunReport.work_references:type_name -> vrooli.vrooli_events.v1.domain.WorkReference
+	79,  // 66: agent_manager.v1.RunReportDiff.available:type_name -> agent_manager.v1.RunReportAvailability
+	194, // 67: agent_manager.v1.GetRunByTagResponse.run:type_name -> agent_manager.v1.Run
+	197, // 68: agent_manager.v1.ListRunsRequest.status:type_name -> agent_manager.v1.RunStatus
+	194, // 69: agent_manager.v1.ListRunsResponse.runs:type_name -> agent_manager.v1.Run
+	194, // 70: agent_manager.v1.StopRunResponse.run:type_name -> agent_manager.v1.Run
+	194, // 71: agent_manager.v1.StopRunByTagResponse.run:type_name -> agent_manager.v1.Run
+	198, // 72: agent_manager.v1.StopAllRunsResponse.result:type_name -> agent_manager.v1.StopAllResult
+	92,  // 73: agent_manager.v1.QuiesceScenarioResponse.result:type_name -> agent_manager.v1.QuiesceResult
+	93,  // 74: agent_manager.v1.QuiesceResult.in_flight:type_name -> agent_manager.v1.QuiesceRunRef
+	93,  // 75: agent_manager.v1.QuiesceResult.cancelled:type_name -> agent_manager.v1.QuiesceRunRef
+	194, // 76: agent_manager.v1.RecoverRunResponse.run:type_name -> agent_manager.v1.Run
+	199, // 77: agent_manager.v1.GetRunEventsRequest.event_types:type_name -> agent_manager.v1.RunEventType
+	200, // 78: agent_manager.v1.GetRunEventsResponse.events:type_name -> agent_manager.v1.RunEvent
+	201, // 79: agent_manager.v1.GetRunDiffResponse.diff:type_name -> agent_manager.v1.RunDiff
+	202, // 80: agent_manager.v1.ApproveRunResponse.result:type_name -> agent_manager.v1.ApproveResult
+	202, // 81: agent_manager.v1.PartialApproveRunResponse.result:type_name -> agent_manager.v1.ApproveResult
+	203, // 82: agent_manager.v1.GetRunnerStatusResponse.runners:type_name -> agent_manager.v1.RunnerStatus
+	204, // 83: agent_manager.v1.ProbeRunnerRequest.runner_type:type_name -> agent_manager.v1.RunnerType
+	205, // 84: agent_manager.v1.ProbeRunnerResponse.result:type_name -> agent_manager.v1.ProbeResult
+	195, // 85: agent_manager.v1.RolePolicyReloadAttempt.attempted_at:type_name -> google.protobuf.Timestamp
+	110, // 86: agent_manager.v1.RolePolicyReloadAttempt.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
+	111, // 87: agent_manager.v1.RolePolicyStatus.requirement:type_name -> agent_manager.v1.RolePolicyRequirement
+	195, // 88: agent_manager.v1.RolePolicyStatus.activated_at:type_name -> google.protobuf.Timestamp
+	112, // 89: agent_manager.v1.RolePolicyStatus.last_reload_attempt:type_name -> agent_manager.v1.RolePolicyReloadAttempt
+	204, // 90: agent_manager.v1.RolePolicyCandidate.runner_type:type_name -> agent_manager.v1.RunnerType
+	115, // 91: agent_manager.v1.RolePolicyDefinition.candidates:type_name -> agent_manager.v1.RolePolicyCandidate
+	114, // 92: agent_manager.v1.RolePolicyCatalog.metadata:type_name -> agent_manager.v1.RolePolicyCatalogMetadata
+	116, // 93: agent_manager.v1.RolePolicyCatalog.roles:type_name -> agent_manager.v1.RolePolicyDefinition
+	113, // 94: agent_manager.v1.GetRolePolicyStatusResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
+	113, // 95: agent_manager.v1.GetRolePolicyCatalogResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
+	117, // 96: agent_manager.v1.GetRolePolicyCatalogResponse.catalog:type_name -> agent_manager.v1.RolePolicyCatalog
+	110, // 97: agent_manager.v1.ValidateRolePolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
+	113, // 98: agent_manager.v1.ReloadRolePolicyCatalogResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
+	110, // 99: agent_manager.v1.ReloadRolePolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
+	206, // 100: agent_manager.v1.ExplainRolePolicyResponse.snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
+	195, // 101: agent_manager.v1.PermissionPolicyReloadAttempt.attempted_at:type_name -> google.protobuf.Timestamp
+	128, // 102: agent_manager.v1.PermissionPolicyReloadAttempt.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
+	129, // 103: agent_manager.v1.PermissionPolicyStatus.requirement:type_name -> agent_manager.v1.PermissionPolicyRequirement
+	195, // 104: agent_manager.v1.PermissionPolicyStatus.activated_at:type_name -> google.protobuf.Timestamp
+	130, // 105: agent_manager.v1.PermissionPolicyStatus.last_reload_attempt:type_name -> agent_manager.v1.PermissionPolicyReloadAttempt
+	133, // 106: agent_manager.v1.PermissionPolicyRule.matcher:type_name -> agent_manager.v1.PermissionPolicyMatcher
+	132, // 107: agent_manager.v1.PermissionPolicyCatalog.metadata:type_name -> agent_manager.v1.PermissionPolicyCatalogMetadata
+	134, // 108: agent_manager.v1.PermissionPolicyCatalog.rules:type_name -> agent_manager.v1.PermissionPolicyRule
+	204, // 109: agent_manager.v1.PermissionPolicyResourceResult.runner_type:type_name -> agent_manager.v1.RunnerType
+	136, // 110: agent_manager.v1.PermissionPolicyResourceResult.enforcement:type_name -> agent_manager.v1.PermissionPolicyEnforcement
+	133, // 111: agent_manager.v1.PermissionPolicyResourceResult.unsupported_matchers:type_name -> agent_manager.v1.PermissionPolicyMatcher
+	137, // 112: agent_manager.v1.PermissionPolicyPlan.resources:type_name -> agent_manager.v1.PermissionPolicyResourceResult
+	195, // 113: agent_manager.v1.PermissionPolicyReconcileResult.started_at:type_name -> google.protobuf.Timestamp
+	195, // 114: agent_manager.v1.PermissionPolicyReconcileResult.finished_at:type_name -> google.protobuf.Timestamp
+	137, // 115: agent_manager.v1.PermissionPolicyReconcileResult.resources:type_name -> agent_manager.v1.PermissionPolicyResourceResult
+	131, // 116: agent_manager.v1.GetPermissionPolicyStatusResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
+	139, // 117: agent_manager.v1.GetPermissionPolicyStatusResponse.last_reconcile:type_name -> agent_manager.v1.PermissionPolicyReconcileResult
+	131, // 118: agent_manager.v1.GetPermissionPolicyCatalogResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
+	135, // 119: agent_manager.v1.GetPermissionPolicyCatalogResponse.catalog:type_name -> agent_manager.v1.PermissionPolicyCatalog
+	128, // 120: agent_manager.v1.ValidatePermissionPolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
+	131, // 121: agent_manager.v1.ReloadPermissionPolicyCatalogResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
+	128, // 122: agent_manager.v1.ReloadPermissionPolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
+	138, // 123: agent_manager.v1.PlanPermissionPolicyResponse.plan:type_name -> agent_manager.v1.PermissionPolicyPlan
+	139, // 124: agent_manager.v1.ReconcilePermissionPolicyResponse.result:type_name -> agent_manager.v1.PermissionPolicyReconcileResult
+	131, // 125: agent_manager.v1.DoctorPermissionPolicyResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
+	138, // 126: agent_manager.v1.DoctorPermissionPolicyResponse.plan:type_name -> agent_manager.v1.PermissionPolicyPlan
+	2,   // 127: agent_manager.v1.PurgeDataRequest.targets:type_name -> agent_manager.v1.PurgeTarget
+	155, // 128: agent_manager.v1.PurgeDataResponse.matched:type_name -> agent_manager.v1.PurgeCounts
+	155, // 129: agent_manager.v1.PurgeDataResponse.deleted:type_name -> agent_manager.v1.PurgeCounts
+	157, // 130: agent_manager.v1.InvestigationRequest.subject:type_name -> agent_manager.v1.InvestigationSubject
+	159, // 131: agent_manager.v1.InvestigationRequest.method_ref:type_name -> agent_manager.v1.InvestigationMethodReference
+	158, // 132: agent_manager.v1.InvestigationRequest.domain_evidence:type_name -> agent_manager.v1.InvestigationEvidenceReference
+	160, // 133: agent_manager.v1.InvestigationRequest.evidence_policy:type_name -> agent_manager.v1.InvestigationEvidencePolicy
+	161, // 134: agent_manager.v1.InvestigationRequest.budget:type_name -> agent_manager.v1.InvestigationBudget
+	162, // 135: agent_manager.v1.InvestigationRequest.recommendation_policy:type_name -> agent_manager.v1.InvestigationRecommendationPolicy
+	163, // 136: agent_manager.v1.InvestigationRequest.provenance:type_name -> agent_manager.v1.InvestigationProvenance
+	164, // 137: agent_manager.v1.InvestigationRecord.request:type_name -> agent_manager.v1.InvestigationRequest
+	195, // 138: agent_manager.v1.InvestigationRecord.created_at:type_name -> google.protobuf.Timestamp
+	195, // 139: agent_manager.v1.InvestigationRecord.updated_at:type_name -> google.protobuf.Timestamp
+	195, // 140: agent_manager.v1.InvestigationRecord.completed_at:type_name -> google.protobuf.Timestamp
+	195, // 141: agent_manager.v1.InvestigationRecord.cancelled_at:type_name -> google.protobuf.Timestamp
+	164, // 142: agent_manager.v1.StartInvestigationRequest.request:type_name -> agent_manager.v1.InvestigationRequest
+	165, // 143: agent_manager.v1.StartInvestigationResponse.investigation:type_name -> agent_manager.v1.InvestigationRecord
+	165, // 144: agent_manager.v1.ListInvestigationsResponse.investigations:type_name -> agent_manager.v1.InvestigationRecord
+	165, // 145: agent_manager.v1.WaitInvestigationResponse.investigation:type_name -> agent_manager.v1.InvestigationRecord
+	207, // 146: agent_manager.v1.HealthResponse.DependenciesEntry.value:type_name -> common.v1.JsonValue
+	207, // 147: agent_manager.v1.HealthResponse.MetricsEntry.value:type_name -> common.v1.JsonValue
+	3,   // 148: agent_manager.v1.AgentManagerService.Health:input_type -> agent_manager.v1.HealthRequest
+	166, // 149: agent_manager.v1.AgentManagerService.StartInvestigation:input_type -> agent_manager.v1.StartInvestigationRequest
+	168, // 150: agent_manager.v1.AgentManagerService.GetInvestigation:input_type -> agent_manager.v1.GetInvestigationRequest
+	169, // 151: agent_manager.v1.AgentManagerService.ListInvestigations:input_type -> agent_manager.v1.ListInvestigationsRequest
+	171, // 152: agent_manager.v1.AgentManagerService.WaitInvestigation:input_type -> agent_manager.v1.WaitInvestigationRequest
+	173, // 153: agent_manager.v1.AgentManagerService.CancelInvestigation:input_type -> agent_manager.v1.CancelInvestigationRequest
+	208, // 154: agent_manager.v1.AgentManagerService.CreateCohortWatch:input_type -> agent_manager.v1.CreateCohortWatchRequest
+	209, // 155: agent_manager.v1.AgentManagerService.GetCohortWatch:input_type -> agent_manager.v1.GetCohortWatchRequest
+	210, // 156: agent_manager.v1.AgentManagerService.ListCohortWatches:input_type -> agent_manager.v1.ListCohortWatchesRequest
+	211, // 157: agent_manager.v1.AgentManagerService.WaitCohortWatch:input_type -> agent_manager.v1.WaitCohortWatchRequest
+	212, // 158: agent_manager.v1.AgentManagerService.CancelCohortWatch:input_type -> agent_manager.v1.CancelCohortWatchRequest
+	213, // 159: agent_manager.v1.AgentManagerService.InspectCohortWatch:input_type -> agent_manager.v1.InspectCohortWatchRequest
+	214, // 160: agent_manager.v1.AgentManagerService.RequestCohortWatchAction:input_type -> agent_manager.v1.RequestCohortWatchActionRequest
+	215, // 161: agent_manager.v1.AgentManagerService.ListCohortWatchActions:input_type -> agent_manager.v1.ListCohortWatchActionsRequest
+	216, // 162: agent_manager.v1.AgentManagerService.GetSupervisionPolicy:input_type -> agent_manager.v1.GetSupervisionPolicyRequest
+	217, // 163: agent_manager.v1.AgentManagerService.CreateSupervisionPolicyCandidate:input_type -> agent_manager.v1.CreateSupervisionPolicyCandidateRequest
+	218, // 164: agent_manager.v1.AgentManagerService.RecordSupervisionOutcome:input_type -> agent_manager.v1.RecordSupervisionOutcomeRequest
+	219, // 165: agent_manager.v1.AgentManagerService.EvaluateSupervisionPolicy:input_type -> agent_manager.v1.EvaluateSupervisionPolicyRequest
+	220, // 166: agent_manager.v1.AgentManagerService.PromoteSupervisionPolicy:input_type -> agent_manager.v1.PromoteSupervisionPolicyRequest
+	221, // 167: agent_manager.v1.AgentManagerService.RejectSupervisionPolicy:input_type -> agent_manager.v1.RejectSupervisionPolicyRequest
+	222, // 168: agent_manager.v1.AgentManagerService.RollbackSupervisionPolicy:input_type -> agent_manager.v1.RollbackSupervisionPolicyRequest
+	223, // 169: agent_manager.v1.AgentManagerService.SetSupervisionPolicyDisabled:input_type -> agent_manager.v1.SetSupervisionPolicyDisabledRequest
+	224, // 170: agent_manager.v1.AgentManagerService.ListSupervisionOutcomes:input_type -> agent_manager.v1.ListSupervisionOutcomesRequest
+	5,   // 171: agent_manager.v1.AgentManagerService.CreateProfile:input_type -> agent_manager.v1.CreateProfileRequest
+	7,   // 172: agent_manager.v1.AgentManagerService.EnsureProfile:input_type -> agent_manager.v1.EnsureProfileRequest
+	9,   // 173: agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles:input_type -> agent_manager.v1.ReconcileScenarioProfilesRequest
+	12,  // 174: agent_manager.v1.AgentManagerService.ValidateWorkflow:input_type -> agent_manager.v1.ValidateWorkflowRequest
+	14,  // 175: agent_manager.v1.AgentManagerService.ReconcileScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
+	14,  // 176: agent_manager.v1.AgentManagerService.PlanScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
+	17,  // 177: agent_manager.v1.AgentManagerService.ReconcileScenarioDeclarations:input_type -> agent_manager.v1.ReconcileScenarioDeclarationsRequest
+	17,  // 178: agent_manager.v1.AgentManagerService.PlanScenarioDeclarations:input_type -> agent_manager.v1.ReconcileScenarioDeclarationsRequest
+	19,  // 179: agent_manager.v1.AgentManagerService.ListWorkflowRevisions:input_type -> agent_manager.v1.ListWorkflowRevisionsRequest
+	21,  // 180: agent_manager.v1.AgentManagerService.GetWorkflowRevision:input_type -> agent_manager.v1.GetWorkflowRevisionRequest
+	14,  // 181: agent_manager.v1.AgentManagerService.ReloadScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
+	21,  // 182: agent_manager.v1.AgentManagerService.ExplainWorkflow:input_type -> agent_manager.v1.GetWorkflowRevisionRequest
+	23,  // 183: agent_manager.v1.AgentManagerService.StartWorkflowExecution:input_type -> agent_manager.v1.StartWorkflowExecutionRequest
+	29,  // 184: agent_manager.v1.AgentManagerService.ListWorkflowExecutions:input_type -> agent_manager.v1.ListWorkflowExecutionsRequest
+	24,  // 185: agent_manager.v1.AgentManagerService.GetWorkflowExecution:input_type -> agent_manager.v1.GetWorkflowExecutionRequest
+	25,  // 186: agent_manager.v1.AgentManagerService.GetWorkflowExecutionResult:input_type -> agent_manager.v1.GetWorkflowExecutionResultRequest
+	24,  // 187: agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution:input_type -> agent_manager.v1.GetWorkflowExecutionRequest
+	27,  // 188: agent_manager.v1.AgentManagerService.WaitWorkflowExecution:input_type -> agent_manager.v1.WaitWorkflowExecutionRequest
+	31,  // 189: agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace:input_type -> agent_manager.v1.GetWorkflowExecutionTraceRequest
+	33,  // 190: agent_manager.v1.AgentManagerService.ListWorkflowExecutionRuns:input_type -> agent_manager.v1.ListWorkflowExecutionRunsRequest
+	35,  // 191: agent_manager.v1.AgentManagerService.SignalWorkflowExecution:input_type -> agent_manager.v1.SignalWorkflowExecutionRequest
+	36,  // 192: agent_manager.v1.AgentManagerService.CancelWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
+	36,  // 193: agent_manager.v1.AgentManagerService.RetryWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
+	36,  // 194: agent_manager.v1.AgentManagerService.ResumeWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
+	38,  // 195: agent_manager.v1.AgentManagerService.SimulateWorkflow:input_type -> agent_manager.v1.SimulateWorkflowRequest
+	41,  // 196: agent_manager.v1.AgentManagerService.GetProfile:input_type -> agent_manager.v1.GetProfileRequest
+	43,  // 197: agent_manager.v1.AgentManagerService.ListProfiles:input_type -> agent_manager.v1.ListProfilesRequest
+	45,  // 198: agent_manager.v1.AgentManagerService.UpdateProfile:input_type -> agent_manager.v1.UpdateProfileRequest
+	47,  // 199: agent_manager.v1.AgentManagerService.DeleteProfile:input_type -> agent_manager.v1.DeleteProfileRequest
+	49,  // 200: agent_manager.v1.AgentManagerService.CreateTask:input_type -> agent_manager.v1.CreateTaskRequest
+	51,  // 201: agent_manager.v1.AgentManagerService.GetTask:input_type -> agent_manager.v1.GetTaskRequest
+	53,  // 202: agent_manager.v1.AgentManagerService.ListTasks:input_type -> agent_manager.v1.ListTasksRequest
+	55,  // 203: agent_manager.v1.AgentManagerService.UpdateTask:input_type -> agent_manager.v1.UpdateTaskRequest
+	57,  // 204: agent_manager.v1.AgentManagerService.DeleteTask:input_type -> agent_manager.v1.DeleteTaskRequest
+	59,  // 205: agent_manager.v1.AgentManagerService.CancelTask:input_type -> agent_manager.v1.CancelTaskRequest
+	62,  // 206: agent_manager.v1.AgentManagerService.CreateRun:input_type -> agent_manager.v1.CreateRunRequest
+	63,  // 207: agent_manager.v1.AgentManagerService.AttachRun:input_type -> agent_manager.v1.AttachRunRequest
+	70,  // 208: agent_manager.v1.AgentManagerService.GetRun:input_type -> agent_manager.v1.GetRunRequest
+	72,  // 209: agent_manager.v1.AgentManagerService.GetRunReport:input_type -> agent_manager.v1.GetRunReportRequest
+	80,  // 210: agent_manager.v1.AgentManagerService.GetRunByTag:input_type -> agent_manager.v1.GetRunByTagRequest
+	82,  // 211: agent_manager.v1.AgentManagerService.ListRuns:input_type -> agent_manager.v1.ListRunsRequest
+	67,  // 212: agent_manager.v1.AgentManagerService.DeleteRun:input_type -> agent_manager.v1.DeleteRunRequest
+	84,  // 213: agent_manager.v1.AgentManagerService.StopRun:input_type -> agent_manager.v1.StopRunRequest
+	86,  // 214: agent_manager.v1.AgentManagerService.StopRunByTag:input_type -> agent_manager.v1.StopRunByTagRequest
+	88,  // 215: agent_manager.v1.AgentManagerService.StopAllRuns:input_type -> agent_manager.v1.StopAllRunsRequest
+	65,  // 216: agent_manager.v1.AgentManagerService.DetachRun:input_type -> agent_manager.v1.DetachRunRequest
+	90,  // 217: agent_manager.v1.AgentManagerService.QuiesceScenario:input_type -> agent_manager.v1.QuiesceScenarioRequest
+	94,  // 218: agent_manager.v1.AgentManagerService.RecoverRun:input_type -> agent_manager.v1.RecoverRunRequest
+	96,  // 219: agent_manager.v1.AgentManagerService.GetRunEvents:input_type -> agent_manager.v1.GetRunEventsRequest
+	98,  // 220: agent_manager.v1.AgentManagerService.GetRunDiff:input_type -> agent_manager.v1.GetRunDiffRequest
+	100, // 221: agent_manager.v1.AgentManagerService.ApproveRun:input_type -> agent_manager.v1.ApproveRunRequest
+	102, // 222: agent_manager.v1.AgentManagerService.RejectRun:input_type -> agent_manager.v1.RejectRunRequest
+	106, // 223: agent_manager.v1.AgentManagerService.GetRunnerStatus:input_type -> agent_manager.v1.GetRunnerStatusRequest
+	108, // 224: agent_manager.v1.AgentManagerService.ProbeRunner:input_type -> agent_manager.v1.ProbeRunnerRequest
+	118, // 225: agent_manager.v1.AgentManagerService.GetRolePolicyStatus:input_type -> agent_manager.v1.GetRolePolicyStatusRequest
+	120, // 226: agent_manager.v1.AgentManagerService.GetRolePolicyCatalog:input_type -> agent_manager.v1.GetRolePolicyCatalogRequest
+	122, // 227: agent_manager.v1.AgentManagerService.ValidateRolePolicyCatalog:input_type -> agent_manager.v1.ValidateRolePolicyCatalogRequest
+	124, // 228: agent_manager.v1.AgentManagerService.ReloadRolePolicyCatalog:input_type -> agent_manager.v1.ReloadRolePolicyCatalogRequest
+	126, // 229: agent_manager.v1.AgentManagerService.ExplainRolePolicy:input_type -> agent_manager.v1.ExplainRolePolicyRequest
+	140, // 230: agent_manager.v1.AgentManagerService.GetPermissionPolicyStatus:input_type -> agent_manager.v1.GetPermissionPolicyStatusRequest
+	142, // 231: agent_manager.v1.AgentManagerService.GetPermissionPolicyCatalog:input_type -> agent_manager.v1.GetPermissionPolicyCatalogRequest
+	144, // 232: agent_manager.v1.AgentManagerService.ValidatePermissionPolicyCatalog:input_type -> agent_manager.v1.ValidatePermissionPolicyCatalogRequest
+	146, // 233: agent_manager.v1.AgentManagerService.ReloadPermissionPolicyCatalog:input_type -> agent_manager.v1.ReloadPermissionPolicyCatalogRequest
+	148, // 234: agent_manager.v1.AgentManagerService.PlanPermissionPolicy:input_type -> agent_manager.v1.PlanPermissionPolicyRequest
+	150, // 235: agent_manager.v1.AgentManagerService.ReconcilePermissionPolicy:input_type -> agent_manager.v1.ReconcilePermissionPolicyRequest
+	152, // 236: agent_manager.v1.AgentManagerService.DoctorPermissionPolicy:input_type -> agent_manager.v1.DoctorPermissionPolicyRequest
+	154, // 237: agent_manager.v1.AgentManagerService.PurgeData:input_type -> agent_manager.v1.PurgeDataRequest
+	4,   // 238: agent_manager.v1.AgentManagerService.Health:output_type -> agent_manager.v1.HealthResponse
+	167, // 239: agent_manager.v1.AgentManagerService.StartInvestigation:output_type -> agent_manager.v1.StartInvestigationResponse
+	165, // 240: agent_manager.v1.AgentManagerService.GetInvestigation:output_type -> agent_manager.v1.InvestigationRecord
+	170, // 241: agent_manager.v1.AgentManagerService.ListInvestigations:output_type -> agent_manager.v1.ListInvestigationsResponse
+	172, // 242: agent_manager.v1.AgentManagerService.WaitInvestigation:output_type -> agent_manager.v1.WaitInvestigationResponse
+	165, // 243: agent_manager.v1.AgentManagerService.CancelInvestigation:output_type -> agent_manager.v1.InvestigationRecord
+	225, // 244: agent_manager.v1.AgentManagerService.CreateCohortWatch:output_type -> agent_manager.v1.CohortWatch
+	225, // 245: agent_manager.v1.AgentManagerService.GetCohortWatch:output_type -> agent_manager.v1.CohortWatch
+	226, // 246: agent_manager.v1.AgentManagerService.ListCohortWatches:output_type -> agent_manager.v1.ListCohortWatchesResponse
+	227, // 247: agent_manager.v1.AgentManagerService.WaitCohortWatch:output_type -> agent_manager.v1.WaitCohortWatchResponse
+	225, // 248: agent_manager.v1.AgentManagerService.CancelCohortWatch:output_type -> agent_manager.v1.CohortWatch
+	228, // 249: agent_manager.v1.AgentManagerService.InspectCohortWatch:output_type -> agent_manager.v1.InspectCohortWatchResponse
+	229, // 250: agent_manager.v1.AgentManagerService.RequestCohortWatchAction:output_type -> agent_manager.v1.RequestCohortWatchActionResponse
+	230, // 251: agent_manager.v1.AgentManagerService.ListCohortWatchActions:output_type -> agent_manager.v1.ListCohortWatchActionsResponse
+	231, // 252: agent_manager.v1.AgentManagerService.GetSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
+	231, // 253: agent_manager.v1.AgentManagerService.CreateSupervisionPolicyCandidate:output_type -> agent_manager.v1.SupervisionPolicyRecord
+	232, // 254: agent_manager.v1.AgentManagerService.RecordSupervisionOutcome:output_type -> agent_manager.v1.RecordSupervisionOutcomeResponse
+	233, // 255: agent_manager.v1.AgentManagerService.EvaluateSupervisionPolicy:output_type -> agent_manager.v1.SupervisionReplayReport
+	231, // 256: agent_manager.v1.AgentManagerService.PromoteSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
+	231, // 257: agent_manager.v1.AgentManagerService.RejectSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
+	231, // 258: agent_manager.v1.AgentManagerService.RollbackSupervisionPolicy:output_type -> agent_manager.v1.SupervisionPolicyRecord
+	234, // 259: agent_manager.v1.AgentManagerService.SetSupervisionPolicyDisabled:output_type -> agent_manager.v1.SupervisionPolicyControl
+	235, // 260: agent_manager.v1.AgentManagerService.ListSupervisionOutcomes:output_type -> agent_manager.v1.ListSupervisionOutcomesResponse
+	6,   // 261: agent_manager.v1.AgentManagerService.CreateProfile:output_type -> agent_manager.v1.CreateProfileResponse
+	8,   // 262: agent_manager.v1.AgentManagerService.EnsureProfile:output_type -> agent_manager.v1.EnsureProfileResponse
+	11,  // 263: agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles:output_type -> agent_manager.v1.ReconcileScenarioProfilesResponse
+	13,  // 264: agent_manager.v1.AgentManagerService.ValidateWorkflow:output_type -> agent_manager.v1.ValidateWorkflowResponse
+	16,  // 265: agent_manager.v1.AgentManagerService.ReconcileScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
+	16,  // 266: agent_manager.v1.AgentManagerService.PlanScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
+	18,  // 267: agent_manager.v1.AgentManagerService.ReconcileScenarioDeclarations:output_type -> agent_manager.v1.ReconcileScenarioDeclarationsResponse
+	18,  // 268: agent_manager.v1.AgentManagerService.PlanScenarioDeclarations:output_type -> agent_manager.v1.ReconcileScenarioDeclarationsResponse
+	20,  // 269: agent_manager.v1.AgentManagerService.ListWorkflowRevisions:output_type -> agent_manager.v1.ListWorkflowRevisionsResponse
+	22,  // 270: agent_manager.v1.AgentManagerService.GetWorkflowRevision:output_type -> agent_manager.v1.GetWorkflowRevisionResponse
+	16,  // 271: agent_manager.v1.AgentManagerService.ReloadScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
+	22,  // 272: agent_manager.v1.AgentManagerService.ExplainWorkflow:output_type -> agent_manager.v1.GetWorkflowRevisionResponse
+	26,  // 273: agent_manager.v1.AgentManagerService.StartWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
+	30,  // 274: agent_manager.v1.AgentManagerService.ListWorkflowExecutions:output_type -> agent_manager.v1.ListWorkflowExecutionsResponse
+	26,  // 275: agent_manager.v1.AgentManagerService.GetWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
+	26,  // 276: agent_manager.v1.AgentManagerService.GetWorkflowExecutionResult:output_type -> agent_manager.v1.WorkflowExecutionResponse
+	26,  // 277: agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
+	28,  // 278: agent_manager.v1.AgentManagerService.WaitWorkflowExecution:output_type -> agent_manager.v1.WaitWorkflowExecutionResponse
+	32,  // 279: agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace:output_type -> agent_manager.v1.GetWorkflowExecutionTraceResponse
+	34,  // 280: agent_manager.v1.AgentManagerService.ListWorkflowExecutionRuns:output_type -> agent_manager.v1.ListWorkflowExecutionRunsResponse
+	37,  // 281: agent_manager.v1.AgentManagerService.SignalWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
+	37,  // 282: agent_manager.v1.AgentManagerService.CancelWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
+	37,  // 283: agent_manager.v1.AgentManagerService.RetryWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
+	37,  // 284: agent_manager.v1.AgentManagerService.ResumeWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
+	40,  // 285: agent_manager.v1.AgentManagerService.SimulateWorkflow:output_type -> agent_manager.v1.SimulateWorkflowResponse
+	42,  // 286: agent_manager.v1.AgentManagerService.GetProfile:output_type -> agent_manager.v1.GetProfileResponse
+	44,  // 287: agent_manager.v1.AgentManagerService.ListProfiles:output_type -> agent_manager.v1.ListProfilesResponse
+	46,  // 288: agent_manager.v1.AgentManagerService.UpdateProfile:output_type -> agent_manager.v1.UpdateProfileResponse
+	48,  // 289: agent_manager.v1.AgentManagerService.DeleteProfile:output_type -> agent_manager.v1.DeleteProfileResponse
+	50,  // 290: agent_manager.v1.AgentManagerService.CreateTask:output_type -> agent_manager.v1.CreateTaskResponse
+	52,  // 291: agent_manager.v1.AgentManagerService.GetTask:output_type -> agent_manager.v1.GetTaskResponse
+	54,  // 292: agent_manager.v1.AgentManagerService.ListTasks:output_type -> agent_manager.v1.ListTasksResponse
+	56,  // 293: agent_manager.v1.AgentManagerService.UpdateTask:output_type -> agent_manager.v1.UpdateTaskResponse
+	58,  // 294: agent_manager.v1.AgentManagerService.DeleteTask:output_type -> agent_manager.v1.DeleteTaskResponse
+	60,  // 295: agent_manager.v1.AgentManagerService.CancelTask:output_type -> agent_manager.v1.CancelTaskResponse
+	69,  // 296: agent_manager.v1.AgentManagerService.CreateRun:output_type -> agent_manager.v1.CreateRunResponse
+	64,  // 297: agent_manager.v1.AgentManagerService.AttachRun:output_type -> agent_manager.v1.AttachRunResponse
+	71,  // 298: agent_manager.v1.AgentManagerService.GetRun:output_type -> agent_manager.v1.GetRunResponse
+	73,  // 299: agent_manager.v1.AgentManagerService.GetRunReport:output_type -> agent_manager.v1.RunReport
+	81,  // 300: agent_manager.v1.AgentManagerService.GetRunByTag:output_type -> agent_manager.v1.GetRunByTagResponse
+	83,  // 301: agent_manager.v1.AgentManagerService.ListRuns:output_type -> agent_manager.v1.ListRunsResponse
+	68,  // 302: agent_manager.v1.AgentManagerService.DeleteRun:output_type -> agent_manager.v1.DeleteRunResponse
+	85,  // 303: agent_manager.v1.AgentManagerService.StopRun:output_type -> agent_manager.v1.StopRunResponse
+	87,  // 304: agent_manager.v1.AgentManagerService.StopRunByTag:output_type -> agent_manager.v1.StopRunByTagResponse
+	89,  // 305: agent_manager.v1.AgentManagerService.StopAllRuns:output_type -> agent_manager.v1.StopAllRunsResponse
+	66,  // 306: agent_manager.v1.AgentManagerService.DetachRun:output_type -> agent_manager.v1.DetachRunResponse
+	91,  // 307: agent_manager.v1.AgentManagerService.QuiesceScenario:output_type -> agent_manager.v1.QuiesceScenarioResponse
+	95,  // 308: agent_manager.v1.AgentManagerService.RecoverRun:output_type -> agent_manager.v1.RecoverRunResponse
+	97,  // 309: agent_manager.v1.AgentManagerService.GetRunEvents:output_type -> agent_manager.v1.GetRunEventsResponse
+	99,  // 310: agent_manager.v1.AgentManagerService.GetRunDiff:output_type -> agent_manager.v1.GetRunDiffResponse
+	101, // 311: agent_manager.v1.AgentManagerService.ApproveRun:output_type -> agent_manager.v1.ApproveRunResponse
+	103, // 312: agent_manager.v1.AgentManagerService.RejectRun:output_type -> agent_manager.v1.RejectRunResponse
+	107, // 313: agent_manager.v1.AgentManagerService.GetRunnerStatus:output_type -> agent_manager.v1.GetRunnerStatusResponse
+	109, // 314: agent_manager.v1.AgentManagerService.ProbeRunner:output_type -> agent_manager.v1.ProbeRunnerResponse
+	119, // 315: agent_manager.v1.AgentManagerService.GetRolePolicyStatus:output_type -> agent_manager.v1.GetRolePolicyStatusResponse
+	121, // 316: agent_manager.v1.AgentManagerService.GetRolePolicyCatalog:output_type -> agent_manager.v1.GetRolePolicyCatalogResponse
+	123, // 317: agent_manager.v1.AgentManagerService.ValidateRolePolicyCatalog:output_type -> agent_manager.v1.ValidateRolePolicyCatalogResponse
+	125, // 318: agent_manager.v1.AgentManagerService.ReloadRolePolicyCatalog:output_type -> agent_manager.v1.ReloadRolePolicyCatalogResponse
+	127, // 319: agent_manager.v1.AgentManagerService.ExplainRolePolicy:output_type -> agent_manager.v1.ExplainRolePolicyResponse
+	141, // 320: agent_manager.v1.AgentManagerService.GetPermissionPolicyStatus:output_type -> agent_manager.v1.GetPermissionPolicyStatusResponse
+	143, // 321: agent_manager.v1.AgentManagerService.GetPermissionPolicyCatalog:output_type -> agent_manager.v1.GetPermissionPolicyCatalogResponse
+	145, // 322: agent_manager.v1.AgentManagerService.ValidatePermissionPolicyCatalog:output_type -> agent_manager.v1.ValidatePermissionPolicyCatalogResponse
+	147, // 323: agent_manager.v1.AgentManagerService.ReloadPermissionPolicyCatalog:output_type -> agent_manager.v1.ReloadPermissionPolicyCatalogResponse
+	149, // 324: agent_manager.v1.AgentManagerService.PlanPermissionPolicy:output_type -> agent_manager.v1.PlanPermissionPolicyResponse
+	151, // 325: agent_manager.v1.AgentManagerService.ReconcilePermissionPolicy:output_type -> agent_manager.v1.ReconcilePermissionPolicyResponse
+	153, // 326: agent_manager.v1.AgentManagerService.DoctorPermissionPolicy:output_type -> agent_manager.v1.DoctorPermissionPolicyResponse
+	156, // 327: agent_manager.v1.AgentManagerService.PurgeData:output_type -> agent_manager.v1.PurgeDataResponse
+	238, // [238:328] is the sub-list for method output_type
+	148, // [148:238] is the sub-list for method input_type
+	148, // [148:148] is the sub-list for extension type_name
+	148, // [148:148] is the sub-list for extension extendee
+	0,   // [0:148] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_api_service_proto_init() }
@@ -11274,7 +12572,7 @@ func file_agent_manager_v1_api_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_api_service_proto_rawDesc), len(file_agent_manager_v1_api_service_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   158,
+			NumMessages:   175,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -2341,8 +2341,12 @@ type SupervisionReplayReport struct {
 	IncumbentErrors  int32                  `protobuf:"varint,13,opt,name=incumbent_errors,json=incumbentErrors,proto3" json:"incumbent_errors,omitempty"`
 	ComparisonPassed bool                   `protobuf:"varint,14,opt,name=comparison_passed,json=comparisonPassed,proto3" json:"comparison_passed,omitempty"`
 	Selection        string                 `protobuf:"bytes,15,opt,name=selection,proto3" json:"selection,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The scalar is unknown until an independently observed completion-impact
+	// measurement exists; false is not a measured zero.
+	CompletionImpactObserved bool   `protobuf:"varint,16,opt,name=completion_impact_observed,json=completionImpactObserved,proto3" json:"completion_impact_observed,omitempty"`
+	CompletionImpactReason   string `protobuf:"bytes,17,opt,name=completion_impact_reason,json=completionImpactReason,proto3" json:"completion_impact_reason,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *SupervisionReplayReport) Reset() {
@@ -2476,6 +2480,20 @@ func (x *SupervisionReplayReport) GetComparisonPassed() bool {
 func (x *SupervisionReplayReport) GetSelection() string {
 	if x != nil {
 		return x.Selection
+	}
+	return ""
+}
+
+func (x *SupervisionReplayReport) GetCompletionImpactObserved() bool {
+	if x != nil {
+		return x.CompletionImpactObserved
+	}
+	return false
+}
+
+func (x *SupervisionReplayReport) GetCompletionImpactReason() string {
+	if x != nil {
+		return x.CompletionImpactReason
 	}
 	return ""
 }
@@ -3573,7 +3591,7 @@ const file_agent_manager_v1_domain_watch_proto_rawDesc = "" +
 	"created_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"expires_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12<\n" +
-	"\x1acompletion_impact_observed\x18\x13 \x01(\bR\x18completionImpactObserved\"\xf0\x04\n" +
+	"\x1acompletion_impact_observed\x18\x13 \x01(\bR\x18completionImpactObserved\"\xe8\x05\n" +
 	"\x17SupervisionReplayReport\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12!\n" +
 	"\fsample_count\x18\x02 \x01(\x05R\vsampleCount\x12'\n" +
@@ -3590,7 +3608,9 @@ const file_agent_manager_v1_domain_watch_proto_rawDesc = "" +
 	"\x10candidate_errors\x18\f \x01(\x05R\x0fcandidateErrors\x12)\n" +
 	"\x10incumbent_errors\x18\r \x01(\x05R\x0fincumbentErrors\x12+\n" +
 	"\x11comparison_passed\x18\x0e \x01(\bR\x10comparisonPassed\x12\x1c\n" +
-	"\tselection\x18\x0f \x01(\tR\tselection\"7\n" +
+	"\tselection\x18\x0f \x01(\tR\tselection\x12<\n" +
+	"\x1acompletion_impact_observed\x18\x10 \x01(\bR\x18completionImpactObserved\x128\n" +
+	"\x18completion_impact_reason\x18\x11 \x01(\tR\x16completionImpactReason\"7\n" +
 	"\x1bGetSupervisionPolicyRequest\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\"\xaf\x01\n" +
 	"'CreateSupervisionPolicyCandidateRequest\x12E\n" +

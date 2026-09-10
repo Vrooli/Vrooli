@@ -51,4 +51,17 @@ message OperatorInputRequest {
   string validation = 15;
   bool required = 16;
   string target = 17;
+  bool declinable = 18;
+  string decision = 19;
+  string credential_logical_id = 20;
+  string credential_field = 21;
+  string provider = 22;
+  string requirement_group = 23;
+  repeated string consumer_refs = 24;
+  repeated string companion_settings = 25;
+  string acquisition_ref = 26;
+  string verification_ref = 27;
+  string recovery_ref = 28;
+  string help_ref = 29;
+  string evidence_policy = 30;
 }

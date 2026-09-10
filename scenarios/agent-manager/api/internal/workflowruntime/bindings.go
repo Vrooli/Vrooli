@@ -12,7 +12,9 @@ import (
 	"agent-manager/internal/workflowexpr"
 )
 
-const MaxRenderedPromptBytes = 64 << 10
+// The complete prompt includes bounded bindings plus the skill envelope.
+// Full canonical plans and their retained evidence can exceed 64 KiB.
+const MaxRenderedPromptBytes = 2 << 20
 
 type BindingContext struct {
 	Input       json.RawMessage

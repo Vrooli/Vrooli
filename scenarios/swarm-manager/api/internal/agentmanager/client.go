@@ -74,6 +74,10 @@ var ErrNotAvailable = errors.New("agent-manager not available")
 // ErrRequestFailed is returned when agent-manager returns a non-2xx response.
 var ErrRequestFailed = errors.New("agent-manager request failed")
 
+// ErrWorkflowNotFound is returned when a start reconciliation key has no
+// durable owner execution yet. It is distinct from transport unavailability.
+var ErrWorkflowNotFound = errors.New("agent-manager workflow not found")
+
 // ErrWorkflowNotReady is returned when a workflow execution is healthy but
 // has not reached a terminal state yet. Callers may safely retry collection.
 var ErrWorkflowNotReady = errors.New("agent-manager workflow result not ready")

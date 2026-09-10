@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"test-genie/internal/orchestrator"
 
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 type identityPlannerFunc func(orchestrator.SuiteExecutionRequest) (*execution.ExecutionPlanPreview, error)
@@ -126,6 +128,51 @@ func TestOwnerBuildInputsInvalidateReuseOutsidePlanBoundary(t *testing.T) {
 	}
 	if _, err := resolver.Resolve(context.Background(), intent); err == nil {
 		t.Fatal("missing closure accepted")
+	}
+}
+
+func TestContentIdentityResolverResolvesBuildInputsWithBoundedConcurrency(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "scenarios/demo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "scenarios/demo/main.go"), []byte("package demo\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	intent := validIntent("plan-manager", "parallel-inputs")
+	for _, name := range []string{"one", "two", "three", "four", "five"} {
+		intent.Targets = append(intent.Targets, &commonv1.ValidationTarget{
+			Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO,
+			Id:   name,
+		})
+	}
+	resolver := NewContentIdentityResolver(root, 0)
+	var mu sync.Mutex
+	active, maxActive := 0, 0
+	resolver.buildInputs = func(ctx context.Context, name string) (*cliv1.ScenarioFreshnessInputs, error) {
+		mu.Lock()
+		active++
+		if active > maxActive {
+			maxActive = active
+		}
+		mu.Unlock()
+		defer func() {
+			mu.Lock()
+			active--
+			mu.Unlock()
+		}()
+		select {
+		case <-time.After(25 * time.Millisecond):
+			return &cliv1.ScenarioFreshnessInputs{BuildKeys: map[string]string{"target": name}}, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	if _, err := resolver.Resolve(context.Background(), intent); err != nil {
+		t.Fatal(err)
+	}
+	if maxActive < 2 {
+		t.Fatalf("build-input resolution was serialized; max concurrent calls = %d", maxActive)
 	}
 }
 

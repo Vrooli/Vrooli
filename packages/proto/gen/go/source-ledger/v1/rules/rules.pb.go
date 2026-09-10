@@ -32,6 +32,7 @@ type Rule struct {
 	SourcePathGlob string                 `protobuf:"bytes,7,opt,name=source_path_glob,json=sourcePathGlob,proto3" json:"source_path_glob,omitempty"`
 	BodyPattern    string                 `protobuf:"bytes,8,opt,name=body_pattern,json=bodyPattern,proto3" json:"body_pattern,omitempty"`
 	Enabled        bool                   `protobuf:"varint,9,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	KindGlob       string                 `protobuf:"bytes,10,opt,name=kind_glob,json=kindGlob,proto3" json:"kind_glob,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -127,6 +128,13 @@ func (x *Rule) GetEnabled() bool {
 		return x.Enabled
 	}
 	return false
+}
+
+func (x *Rule) GetKindGlob() string {
+	if x != nil {
+		return x.KindGlob
+	}
+	return ""
 }
 
 type ListRulesRequest struct {
@@ -305,6 +313,94 @@ func (x *CreateRuleResponse) GetRule() *Rule {
 	return nil
 }
 
+type DeleteRuleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RuleId        string                 `protobuf:"bytes,1,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteRuleRequest) Reset() {
+	*x = DeleteRuleRequest{}
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteRuleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteRuleRequest) ProtoMessage() {}
+
+func (x *DeleteRuleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteRuleRequest.ProtoReflect.Descriptor instead.
+func (*DeleteRuleRequest) Descriptor() ([]byte, []int) {
+	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *DeleteRuleRequest) GetRuleId() string {
+	if x != nil {
+		return x.RuleId
+	}
+	return ""
+}
+
+func (x *DeleteRuleRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+type DeleteRuleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteRuleResponse) Reset() {
+	*x = DeleteRuleResponse{}
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteRuleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteRuleResponse) ProtoMessage() {}
+
+func (x *DeleteRuleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteRuleResponse.ProtoReflect.Descriptor instead.
+func (*DeleteRuleResponse) Descriptor() ([]byte, []int) {
+	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{6}
+}
+
 type DryRunRuleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RuleId        string                 `protobuf:"bytes,1,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
@@ -315,7 +411,7 @@ type DryRunRuleRequest struct {
 
 func (x *DryRunRuleRequest) Reset() {
 	*x = DryRunRuleRequest{}
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[5]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -327,7 +423,7 @@ func (x *DryRunRuleRequest) String() string {
 func (*DryRunRuleRequest) ProtoMessage() {}
 
 func (x *DryRunRuleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[5]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -340,7 +436,7 @@ func (x *DryRunRuleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DryRunRuleRequest.ProtoReflect.Descriptor instead.
 func (*DryRunRuleRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{5}
+	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *DryRunRuleRequest) GetRuleId() string {
@@ -369,7 +465,7 @@ type DryRunRuleResponse struct {
 
 func (x *DryRunRuleResponse) Reset() {
 	*x = DryRunRuleResponse{}
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[6]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -381,7 +477,7 @@ func (x *DryRunRuleResponse) String() string {
 func (*DryRunRuleResponse) ProtoMessage() {}
 
 func (x *DryRunRuleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[6]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -394,7 +490,7 @@ func (x *DryRunRuleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DryRunRuleResponse.ProtoReflect.Descriptor instead.
 func (*DryRunRuleResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{6}
+	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *DryRunRuleResponse) GetRuleId() string {
@@ -435,7 +531,7 @@ type EnableRuleRequest struct {
 
 func (x *EnableRuleRequest) Reset() {
 	*x = EnableRuleRequest{}
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[7]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -447,7 +543,7 @@ func (x *EnableRuleRequest) String() string {
 func (*EnableRuleRequest) ProtoMessage() {}
 
 func (x *EnableRuleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[7]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -460,7 +556,7 @@ func (x *EnableRuleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnableRuleRequest.ProtoReflect.Descriptor instead.
 func (*EnableRuleRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{7}
+	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *EnableRuleRequest) GetRuleId() string {
@@ -485,7 +581,7 @@ type EnableRuleResponse struct {
 
 func (x *EnableRuleResponse) Reset() {
 	*x = EnableRuleResponse{}
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[8]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -497,7 +593,7 @@ func (x *EnableRuleResponse) String() string {
 func (*EnableRuleResponse) ProtoMessage() {}
 
 func (x *EnableRuleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[8]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -510,7 +606,7 @@ func (x *EnableRuleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnableRuleResponse.ProtoReflect.Descriptor instead.
 func (*EnableRuleResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{8}
+	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{10}
 }
 
 type RevertRuleRequest struct {
@@ -523,7 +619,7 @@ type RevertRuleRequest struct {
 
 func (x *RevertRuleRequest) Reset() {
 	*x = RevertRuleRequest{}
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[9]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -535,7 +631,7 @@ func (x *RevertRuleRequest) String() string {
 func (*RevertRuleRequest) ProtoMessage() {}
 
 func (x *RevertRuleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[9]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -548,7 +644,7 @@ func (x *RevertRuleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevertRuleRequest.ProtoReflect.Descriptor instead.
 func (*RevertRuleRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{9}
+	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RevertRuleRequest) GetRuleId() string {
@@ -574,7 +670,7 @@ type RevertRuleResponse struct {
 
 func (x *RevertRuleResponse) Reset() {
 	*x = RevertRuleResponse{}
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[10]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -586,7 +682,7 @@ func (x *RevertRuleResponse) String() string {
 func (*RevertRuleResponse) ProtoMessage() {}
 
 func (x *RevertRuleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[10]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -599,7 +695,7 @@ func (x *RevertRuleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevertRuleResponse.ProtoReflect.Descriptor instead.
 func (*RevertRuleResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{10}
+	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RevertRuleResponse) GetRestoredCount() int32 {
@@ -620,7 +716,7 @@ type RefacetCorpusRequest struct {
 
 func (x *RefacetCorpusRequest) Reset() {
 	*x = RefacetCorpusRequest{}
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[11]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -632,7 +728,7 @@ func (x *RefacetCorpusRequest) String() string {
 func (*RefacetCorpusRequest) ProtoMessage() {}
 
 func (x *RefacetCorpusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[11]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -645,7 +741,7 @@ func (x *RefacetCorpusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefacetCorpusRequest.ProtoReflect.Descriptor instead.
 func (*RefacetCorpusRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{11}
+	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RefacetCorpusRequest) GetScope() string {
@@ -684,7 +780,7 @@ type RefacetCorpusResponse struct {
 
 func (x *RefacetCorpusResponse) Reset() {
 	*x = RefacetCorpusResponse{}
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[12]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -696,7 +792,7 @@ func (x *RefacetCorpusResponse) String() string {
 func (*RefacetCorpusResponse) ProtoMessage() {}
 
 func (x *RefacetCorpusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[12]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -709,7 +805,7 @@ func (x *RefacetCorpusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefacetCorpusResponse.ProtoReflect.Descriptor instead.
 func (*RefacetCorpusResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{12}
+	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *RefacetCorpusResponse) GetTotal() int32 {
@@ -770,7 +866,7 @@ type MeasureDistributionRequest struct {
 
 func (x *MeasureDistributionRequest) Reset() {
 	*x = MeasureDistributionRequest{}
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[13]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -782,7 +878,7 @@ func (x *MeasureDistributionRequest) String() string {
 func (*MeasureDistributionRequest) ProtoMessage() {}
 
 func (x *MeasureDistributionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[13]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -795,7 +891,7 @@ func (x *MeasureDistributionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MeasureDistributionRequest.ProtoReflect.Descriptor instead.
 func (*MeasureDistributionRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{13}
+	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *MeasureDistributionRequest) GetScope() string {
@@ -823,7 +919,7 @@ type MeasureDistributionResponse struct {
 
 func (x *MeasureDistributionResponse) Reset() {
 	*x = MeasureDistributionResponse{}
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[14]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -835,7 +931,7 @@ func (x *MeasureDistributionResponse) String() string {
 func (*MeasureDistributionResponse) ProtoMessage() {}
 
 func (x *MeasureDistributionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[14]
+	mi := &file_source_ledger_v1_rules_rules_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -848,7 +944,7 @@ func (x *MeasureDistributionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MeasureDistributionResponse.ProtoReflect.Descriptor instead.
 func (*MeasureDistributionResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{14}
+	return file_source_ledger_v1_rules_rules_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *MeasureDistributionResponse) GetScope() string {
@@ -925,7 +1021,7 @@ var File_source_ledger_v1_rules_rules_proto protoreflect.FileDescriptor
 
 const file_source_ledger_v1_rules_rules_proto_rawDesc = "" +
 	"\n" +
-	"\"source-ledger/v1/rules/rules.proto\x12\x1dvrooli.source_ledger.v1.rules\"\x85\x02\n" +
+	"\"source-ledger/v1/rules/rules.proto\x12\x1dvrooli.source_ledger.v1.rules\"\xa2\x02\n" +
 	"\x04Rule\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05scope\x18\x02 \x01(\tR\x05scope\x12\x1a\n" +
@@ -935,7 +1031,9 @@ const file_source_ledger_v1_rules_rules_proto_rawDesc = "" +
 	"\x04kind\x18\x06 \x01(\tR\x04kind\x12(\n" +
 	"\x10source_path_glob\x18\a \x01(\tR\x0esourcePathGlob\x12!\n" +
 	"\fbody_pattern\x18\b \x01(\tR\vbodyPattern\x12\x18\n" +
-	"\aenabled\x18\t \x01(\bR\aenabled\"(\n" +
+	"\aenabled\x18\t \x01(\bR\aenabled\x12\x1b\n" +
+	"\tkind_glob\x18\n" +
+	" \x01(\tR\bkindGlob\"(\n" +
 	"\x10ListRulesRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\"N\n" +
 	"\x11ListRulesResponse\x129\n" +
@@ -944,6 +1042,10 @@ const file_source_ledger_v1_rules_rules_proto_rawDesc = "" +
 	"\x04rule\x18\x01 \x01(\v2#.vrooli.source_ledger.v1.rules.RuleR\x04rule\"M\n" +
 	"\x12CreateRuleResponse\x127\n" +
 	"\x04rule\x18\x01 \x01(\v2#.vrooli.source_ledger.v1.rules.RuleR\x04rule\"B\n" +
+	"\x11DeleteRuleRequest\x12\x17\n" +
+	"\arule_id\x18\x01 \x01(\tR\x06ruleId\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\"\x14\n" +
+	"\x12DeleteRuleResponse\"B\n" +
 	"\x11DryRunRuleRequest\x12\x17\n" +
 	"\arule_id\x18\x01 \x01(\tR\x06ruleId\x12\x14\n" +
 	"\x05scope\x18\x02 \x01(\tR\x05scope\"\x97\x01\n" +
@@ -995,11 +1097,13 @@ const file_source_ledger_v1_rules_rules_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aH\n" +
 	"\x1aClassifierTailByFacetEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x012\xe3\x06\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x012\xd6\a\n" +
 	"\x1aClassificationRulesService\x12n\n" +
 	"\tListRules\x12/.vrooli.source_ledger.v1.rules.ListRulesRequest\x1a0.vrooli.source_ledger.v1.rules.ListRulesResponse\x12q\n" +
 	"\n" +
 	"CreateRule\x120.vrooli.source_ledger.v1.rules.CreateRuleRequest\x1a1.vrooli.source_ledger.v1.rules.CreateRuleResponse\x12q\n" +
+	"\n" +
+	"DeleteRule\x120.vrooli.source_ledger.v1.rules.DeleteRuleRequest\x1a1.vrooli.source_ledger.v1.rules.DeleteRuleResponse\x12q\n" +
 	"\n" +
 	"DryRunRule\x120.vrooli.source_ledger.v1.rules.DryRunRuleRequest\x1a1.vrooli.source_ledger.v1.rules.DryRunRuleResponse\x12q\n" +
 	"\n" +
@@ -1021,48 +1125,52 @@ func file_source_ledger_v1_rules_rules_proto_rawDescGZIP() []byte {
 	return file_source_ledger_v1_rules_rules_proto_rawDescData
 }
 
-var file_source_ledger_v1_rules_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_source_ledger_v1_rules_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_source_ledger_v1_rules_rules_proto_goTypes = []any{
 	(*Rule)(nil),                        // 0: vrooli.source_ledger.v1.rules.Rule
 	(*ListRulesRequest)(nil),            // 1: vrooli.source_ledger.v1.rules.ListRulesRequest
 	(*ListRulesResponse)(nil),           // 2: vrooli.source_ledger.v1.rules.ListRulesResponse
 	(*CreateRuleRequest)(nil),           // 3: vrooli.source_ledger.v1.rules.CreateRuleRequest
 	(*CreateRuleResponse)(nil),          // 4: vrooli.source_ledger.v1.rules.CreateRuleResponse
-	(*DryRunRuleRequest)(nil),           // 5: vrooli.source_ledger.v1.rules.DryRunRuleRequest
-	(*DryRunRuleResponse)(nil),          // 6: vrooli.source_ledger.v1.rules.DryRunRuleResponse
-	(*EnableRuleRequest)(nil),           // 7: vrooli.source_ledger.v1.rules.EnableRuleRequest
-	(*EnableRuleResponse)(nil),          // 8: vrooli.source_ledger.v1.rules.EnableRuleResponse
-	(*RevertRuleRequest)(nil),           // 9: vrooli.source_ledger.v1.rules.RevertRuleRequest
-	(*RevertRuleResponse)(nil),          // 10: vrooli.source_ledger.v1.rules.RevertRuleResponse
-	(*RefacetCorpusRequest)(nil),        // 11: vrooli.source_ledger.v1.rules.RefacetCorpusRequest
-	(*RefacetCorpusResponse)(nil),       // 12: vrooli.source_ledger.v1.rules.RefacetCorpusResponse
-	(*MeasureDistributionRequest)(nil),  // 13: vrooli.source_ledger.v1.rules.MeasureDistributionRequest
-	(*MeasureDistributionResponse)(nil), // 14: vrooli.source_ledger.v1.rules.MeasureDistributionResponse
-	nil,                                 // 15: vrooli.source_ledger.v1.rules.MeasureDistributionResponse.RuleCoverageEntry
-	nil,                                 // 16: vrooli.source_ledger.v1.rules.MeasureDistributionResponse.ClassifierTailByFacetEntry
+	(*DeleteRuleRequest)(nil),           // 5: vrooli.source_ledger.v1.rules.DeleteRuleRequest
+	(*DeleteRuleResponse)(nil),          // 6: vrooli.source_ledger.v1.rules.DeleteRuleResponse
+	(*DryRunRuleRequest)(nil),           // 7: vrooli.source_ledger.v1.rules.DryRunRuleRequest
+	(*DryRunRuleResponse)(nil),          // 8: vrooli.source_ledger.v1.rules.DryRunRuleResponse
+	(*EnableRuleRequest)(nil),           // 9: vrooli.source_ledger.v1.rules.EnableRuleRequest
+	(*EnableRuleResponse)(nil),          // 10: vrooli.source_ledger.v1.rules.EnableRuleResponse
+	(*RevertRuleRequest)(nil),           // 11: vrooli.source_ledger.v1.rules.RevertRuleRequest
+	(*RevertRuleResponse)(nil),          // 12: vrooli.source_ledger.v1.rules.RevertRuleResponse
+	(*RefacetCorpusRequest)(nil),        // 13: vrooli.source_ledger.v1.rules.RefacetCorpusRequest
+	(*RefacetCorpusResponse)(nil),       // 14: vrooli.source_ledger.v1.rules.RefacetCorpusResponse
+	(*MeasureDistributionRequest)(nil),  // 15: vrooli.source_ledger.v1.rules.MeasureDistributionRequest
+	(*MeasureDistributionResponse)(nil), // 16: vrooli.source_ledger.v1.rules.MeasureDistributionResponse
+	nil,                                 // 17: vrooli.source_ledger.v1.rules.MeasureDistributionResponse.RuleCoverageEntry
+	nil,                                 // 18: vrooli.source_ledger.v1.rules.MeasureDistributionResponse.ClassifierTailByFacetEntry
 }
 var file_source_ledger_v1_rules_rules_proto_depIdxs = []int32{
 	0,  // 0: vrooli.source_ledger.v1.rules.ListRulesResponse.rules:type_name -> vrooli.source_ledger.v1.rules.Rule
 	0,  // 1: vrooli.source_ledger.v1.rules.CreateRuleRequest.rule:type_name -> vrooli.source_ledger.v1.rules.Rule
 	0,  // 2: vrooli.source_ledger.v1.rules.CreateRuleResponse.rule:type_name -> vrooli.source_ledger.v1.rules.Rule
-	15, // 3: vrooli.source_ledger.v1.rules.MeasureDistributionResponse.rule_coverage:type_name -> vrooli.source_ledger.v1.rules.MeasureDistributionResponse.RuleCoverageEntry
-	16, // 4: vrooli.source_ledger.v1.rules.MeasureDistributionResponse.classifier_tail_by_facet:type_name -> vrooli.source_ledger.v1.rules.MeasureDistributionResponse.ClassifierTailByFacetEntry
+	17, // 3: vrooli.source_ledger.v1.rules.MeasureDistributionResponse.rule_coverage:type_name -> vrooli.source_ledger.v1.rules.MeasureDistributionResponse.RuleCoverageEntry
+	18, // 4: vrooli.source_ledger.v1.rules.MeasureDistributionResponse.classifier_tail_by_facet:type_name -> vrooli.source_ledger.v1.rules.MeasureDistributionResponse.ClassifierTailByFacetEntry
 	1,  // 5: vrooli.source_ledger.v1.rules.ClassificationRulesService.ListRules:input_type -> vrooli.source_ledger.v1.rules.ListRulesRequest
 	3,  // 6: vrooli.source_ledger.v1.rules.ClassificationRulesService.CreateRule:input_type -> vrooli.source_ledger.v1.rules.CreateRuleRequest
-	5,  // 7: vrooli.source_ledger.v1.rules.ClassificationRulesService.DryRunRule:input_type -> vrooli.source_ledger.v1.rules.DryRunRuleRequest
-	7,  // 8: vrooli.source_ledger.v1.rules.ClassificationRulesService.EnableRule:input_type -> vrooli.source_ledger.v1.rules.EnableRuleRequest
-	9,  // 9: vrooli.source_ledger.v1.rules.ClassificationRulesService.RevertRule:input_type -> vrooli.source_ledger.v1.rules.RevertRuleRequest
-	11, // 10: vrooli.source_ledger.v1.rules.ClassificationRulesService.RefacetCorpus:input_type -> vrooli.source_ledger.v1.rules.RefacetCorpusRequest
-	13, // 11: vrooli.source_ledger.v1.rules.ClassificationRulesService.MeasureDistribution:input_type -> vrooli.source_ledger.v1.rules.MeasureDistributionRequest
-	2,  // 12: vrooli.source_ledger.v1.rules.ClassificationRulesService.ListRules:output_type -> vrooli.source_ledger.v1.rules.ListRulesResponse
-	4,  // 13: vrooli.source_ledger.v1.rules.ClassificationRulesService.CreateRule:output_type -> vrooli.source_ledger.v1.rules.CreateRuleResponse
-	6,  // 14: vrooli.source_ledger.v1.rules.ClassificationRulesService.DryRunRule:output_type -> vrooli.source_ledger.v1.rules.DryRunRuleResponse
-	8,  // 15: vrooli.source_ledger.v1.rules.ClassificationRulesService.EnableRule:output_type -> vrooli.source_ledger.v1.rules.EnableRuleResponse
-	10, // 16: vrooli.source_ledger.v1.rules.ClassificationRulesService.RevertRule:output_type -> vrooli.source_ledger.v1.rules.RevertRuleResponse
-	12, // 17: vrooli.source_ledger.v1.rules.ClassificationRulesService.RefacetCorpus:output_type -> vrooli.source_ledger.v1.rules.RefacetCorpusResponse
-	14, // 18: vrooli.source_ledger.v1.rules.ClassificationRulesService.MeasureDistribution:output_type -> vrooli.source_ledger.v1.rules.MeasureDistributionResponse
-	12, // [12:19] is the sub-list for method output_type
-	5,  // [5:12] is the sub-list for method input_type
+	5,  // 7: vrooli.source_ledger.v1.rules.ClassificationRulesService.DeleteRule:input_type -> vrooli.source_ledger.v1.rules.DeleteRuleRequest
+	7,  // 8: vrooli.source_ledger.v1.rules.ClassificationRulesService.DryRunRule:input_type -> vrooli.source_ledger.v1.rules.DryRunRuleRequest
+	9,  // 9: vrooli.source_ledger.v1.rules.ClassificationRulesService.EnableRule:input_type -> vrooli.source_ledger.v1.rules.EnableRuleRequest
+	11, // 10: vrooli.source_ledger.v1.rules.ClassificationRulesService.RevertRule:input_type -> vrooli.source_ledger.v1.rules.RevertRuleRequest
+	13, // 11: vrooli.source_ledger.v1.rules.ClassificationRulesService.RefacetCorpus:input_type -> vrooli.source_ledger.v1.rules.RefacetCorpusRequest
+	15, // 12: vrooli.source_ledger.v1.rules.ClassificationRulesService.MeasureDistribution:input_type -> vrooli.source_ledger.v1.rules.MeasureDistributionRequest
+	2,  // 13: vrooli.source_ledger.v1.rules.ClassificationRulesService.ListRules:output_type -> vrooli.source_ledger.v1.rules.ListRulesResponse
+	4,  // 14: vrooli.source_ledger.v1.rules.ClassificationRulesService.CreateRule:output_type -> vrooli.source_ledger.v1.rules.CreateRuleResponse
+	6,  // 15: vrooli.source_ledger.v1.rules.ClassificationRulesService.DeleteRule:output_type -> vrooli.source_ledger.v1.rules.DeleteRuleResponse
+	8,  // 16: vrooli.source_ledger.v1.rules.ClassificationRulesService.DryRunRule:output_type -> vrooli.source_ledger.v1.rules.DryRunRuleResponse
+	10, // 17: vrooli.source_ledger.v1.rules.ClassificationRulesService.EnableRule:output_type -> vrooli.source_ledger.v1.rules.EnableRuleResponse
+	12, // 18: vrooli.source_ledger.v1.rules.ClassificationRulesService.RevertRule:output_type -> vrooli.source_ledger.v1.rules.RevertRuleResponse
+	14, // 19: vrooli.source_ledger.v1.rules.ClassificationRulesService.RefacetCorpus:output_type -> vrooli.source_ledger.v1.rules.RefacetCorpusResponse
+	16, // 20: vrooli.source_ledger.v1.rules.ClassificationRulesService.MeasureDistribution:output_type -> vrooli.source_ledger.v1.rules.MeasureDistributionResponse
+	13, // [13:21] is the sub-list for method output_type
+	5,  // [5:13] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
@@ -1079,7 +1187,7 @@ func file_source_ledger_v1_rules_rules_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_source_ledger_v1_rules_rules_proto_rawDesc), len(file_source_ledger_v1_rules_rules_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

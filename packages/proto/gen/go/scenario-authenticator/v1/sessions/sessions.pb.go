@@ -278,6 +278,58 @@ func (*RevokeSessionResponse) Descriptor() ([]byte, []int) {
 	return file_scenario_authenticator_v1_sessions_sessions_proto_rawDescGZIP(), []int{4}
 }
 
+type RevokeAuthorizedSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccessToken   string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
+	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeAuthorizedSessionRequest) Reset() {
+	*x = RevokeAuthorizedSessionRequest{}
+	mi := &file_scenario_authenticator_v1_sessions_sessions_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeAuthorizedSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeAuthorizedSessionRequest) ProtoMessage() {}
+
+func (x *RevokeAuthorizedSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_authenticator_v1_sessions_sessions_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeAuthorizedSessionRequest.ProtoReflect.Descriptor instead.
+func (*RevokeAuthorizedSessionRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_authenticator_v1_sessions_sessions_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *RevokeAuthorizedSessionRequest) GetAccessToken() string {
+	if x != nil {
+		return x.AccessToken
+	}
+	return ""
+}
+
+func (x *RevokeAuthorizedSessionRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
 type RevokeAllSessionsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Access token identifying whose sessions to revoke.
@@ -288,7 +340,7 @@ type RevokeAllSessionsRequest struct {
 
 func (x *RevokeAllSessionsRequest) Reset() {
 	*x = RevokeAllSessionsRequest{}
-	mi := &file_scenario_authenticator_v1_sessions_sessions_proto_msgTypes[5]
+	mi := &file_scenario_authenticator_v1_sessions_sessions_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -300,7 +352,7 @@ func (x *RevokeAllSessionsRequest) String() string {
 func (*RevokeAllSessionsRequest) ProtoMessage() {}
 
 func (x *RevokeAllSessionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_sessions_sessions_proto_msgTypes[5]
+	mi := &file_scenario_authenticator_v1_sessions_sessions_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -313,7 +365,7 @@ func (x *RevokeAllSessionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeAllSessionsRequest.ProtoReflect.Descriptor instead.
 func (*RevokeAllSessionsRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_sessions_sessions_proto_rawDescGZIP(), []int{5}
+	return file_scenario_authenticator_v1_sessions_sessions_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RevokeAllSessionsRequest) GetAccessToken() string {
@@ -333,7 +385,7 @@ type RevokeAllSessionsResponse struct {
 
 func (x *RevokeAllSessionsResponse) Reset() {
 	*x = RevokeAllSessionsResponse{}
-	mi := &file_scenario_authenticator_v1_sessions_sessions_proto_msgTypes[6]
+	mi := &file_scenario_authenticator_v1_sessions_sessions_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -345,7 +397,7 @@ func (x *RevokeAllSessionsResponse) String() string {
 func (*RevokeAllSessionsResponse) ProtoMessage() {}
 
 func (x *RevokeAllSessionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_sessions_sessions_proto_msgTypes[6]
+	mi := &file_scenario_authenticator_v1_sessions_sessions_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -358,7 +410,7 @@ func (x *RevokeAllSessionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeAllSessionsResponse.ProtoReflect.Descriptor instead.
 func (*RevokeAllSessionsResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_sessions_sessions_proto_rawDescGZIP(), []int{6}
+	return file_scenario_authenticator_v1_sessions_sessions_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RevokeAllSessionsResponse) GetRevokedCount() int64 {
@@ -391,14 +443,19 @@ const file_scenario_authenticator_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x14RevokeSessionRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\"\x17\n" +
-	"\x15RevokeSessionResponse\"=\n" +
+	"\x15RevokeSessionResponse\"b\n" +
+	"\x1eRevokeAuthorizedSessionRequest\x12!\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\"=\n" +
 	"\x18RevokeAllSessionsRequest\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\"@\n" +
 	"\x19RevokeAllSessionsResponse\x12#\n" +
-	"\rrevoked_count\x18\x01 \x01(\x03R\frevokedCount2\xd9\x03\n" +
+	"\rrevoked_count\x18\x01 \x01(\x03R\frevokedCount2\x82\x05\n" +
 	"\x0fSessionsService\x12\x8f\x01\n" +
 	"\fListSessions\x12>.vrooli.scenario_authenticator.v1.sessions.ListSessionsRequest\x1a?.vrooli.scenario_authenticator.v1.sessions.ListSessionsResponse\x12\x92\x01\n" +
-	"\rRevokeSession\x12?.vrooli.scenario_authenticator.v1.sessions.RevokeSessionRequest\x1a@.vrooli.scenario_authenticator.v1.sessions.RevokeSessionResponse\x12\x9e\x01\n" +
+	"\rRevokeSession\x12?.vrooli.scenario_authenticator.v1.sessions.RevokeSessionRequest\x1a@.vrooli.scenario_authenticator.v1.sessions.RevokeSessionResponse\x12\xa6\x01\n" +
+	"\x17RevokeAuthorizedSession\x12I.vrooli.scenario_authenticator.v1.sessions.RevokeAuthorizedSessionRequest\x1a@.vrooli.scenario_authenticator.v1.sessions.RevokeSessionResponse\x12\x9e\x01\n" +
 	"\x11RevokeAllSessions\x12C.vrooli.scenario_authenticator.v1.sessions.RevokeAllSessionsRequest\x1aD.vrooli.scenario_authenticator.v1.sessions.RevokeAllSessionsResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/sessions;sessions_v1b\x06proto3"
 
 var (
@@ -413,29 +470,32 @@ func file_scenario_authenticator_v1_sessions_sessions_proto_rawDescGZIP() []byte
 	return file_scenario_authenticator_v1_sessions_sessions_proto_rawDescData
 }
 
-var file_scenario_authenticator_v1_sessions_sessions_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_scenario_authenticator_v1_sessions_sessions_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_scenario_authenticator_v1_sessions_sessions_proto_goTypes = []any{
-	(*Session)(nil),                   // 0: vrooli.scenario_authenticator.v1.sessions.Session
-	(*ListSessionsRequest)(nil),       // 1: vrooli.scenario_authenticator.v1.sessions.ListSessionsRequest
-	(*ListSessionsResponse)(nil),      // 2: vrooli.scenario_authenticator.v1.sessions.ListSessionsResponse
-	(*RevokeSessionRequest)(nil),      // 3: vrooli.scenario_authenticator.v1.sessions.RevokeSessionRequest
-	(*RevokeSessionResponse)(nil),     // 4: vrooli.scenario_authenticator.v1.sessions.RevokeSessionResponse
-	(*RevokeAllSessionsRequest)(nil),  // 5: vrooli.scenario_authenticator.v1.sessions.RevokeAllSessionsRequest
-	(*RevokeAllSessionsResponse)(nil), // 6: vrooli.scenario_authenticator.v1.sessions.RevokeAllSessionsResponse
-	(*timestamppb.Timestamp)(nil),     // 7: google.protobuf.Timestamp
+	(*Session)(nil),                        // 0: vrooli.scenario_authenticator.v1.sessions.Session
+	(*ListSessionsRequest)(nil),            // 1: vrooli.scenario_authenticator.v1.sessions.ListSessionsRequest
+	(*ListSessionsResponse)(nil),           // 2: vrooli.scenario_authenticator.v1.sessions.ListSessionsResponse
+	(*RevokeSessionRequest)(nil),           // 3: vrooli.scenario_authenticator.v1.sessions.RevokeSessionRequest
+	(*RevokeSessionResponse)(nil),          // 4: vrooli.scenario_authenticator.v1.sessions.RevokeSessionResponse
+	(*RevokeAuthorizedSessionRequest)(nil), // 5: vrooli.scenario_authenticator.v1.sessions.RevokeAuthorizedSessionRequest
+	(*RevokeAllSessionsRequest)(nil),       // 6: vrooli.scenario_authenticator.v1.sessions.RevokeAllSessionsRequest
+	(*RevokeAllSessionsResponse)(nil),      // 7: vrooli.scenario_authenticator.v1.sessions.RevokeAllSessionsResponse
+	(*timestamppb.Timestamp)(nil),          // 8: google.protobuf.Timestamp
 }
 var file_scenario_authenticator_v1_sessions_sessions_proto_depIdxs = []int32{
-	7, // 0: vrooli.scenario_authenticator.v1.sessions.Session.created_at:type_name -> google.protobuf.Timestamp
-	7, // 1: vrooli.scenario_authenticator.v1.sessions.Session.expires_at:type_name -> google.protobuf.Timestamp
+	8, // 0: vrooli.scenario_authenticator.v1.sessions.Session.created_at:type_name -> google.protobuf.Timestamp
+	8, // 1: vrooli.scenario_authenticator.v1.sessions.Session.expires_at:type_name -> google.protobuf.Timestamp
 	0, // 2: vrooli.scenario_authenticator.v1.sessions.ListSessionsResponse.sessions:type_name -> vrooli.scenario_authenticator.v1.sessions.Session
 	1, // 3: vrooli.scenario_authenticator.v1.sessions.SessionsService.ListSessions:input_type -> vrooli.scenario_authenticator.v1.sessions.ListSessionsRequest
 	3, // 4: vrooli.scenario_authenticator.v1.sessions.SessionsService.RevokeSession:input_type -> vrooli.scenario_authenticator.v1.sessions.RevokeSessionRequest
-	5, // 5: vrooli.scenario_authenticator.v1.sessions.SessionsService.RevokeAllSessions:input_type -> vrooli.scenario_authenticator.v1.sessions.RevokeAllSessionsRequest
-	2, // 6: vrooli.scenario_authenticator.v1.sessions.SessionsService.ListSessions:output_type -> vrooli.scenario_authenticator.v1.sessions.ListSessionsResponse
-	4, // 7: vrooli.scenario_authenticator.v1.sessions.SessionsService.RevokeSession:output_type -> vrooli.scenario_authenticator.v1.sessions.RevokeSessionResponse
-	6, // 8: vrooli.scenario_authenticator.v1.sessions.SessionsService.RevokeAllSessions:output_type -> vrooli.scenario_authenticator.v1.sessions.RevokeAllSessionsResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
+	5, // 5: vrooli.scenario_authenticator.v1.sessions.SessionsService.RevokeAuthorizedSession:input_type -> vrooli.scenario_authenticator.v1.sessions.RevokeAuthorizedSessionRequest
+	6, // 6: vrooli.scenario_authenticator.v1.sessions.SessionsService.RevokeAllSessions:input_type -> vrooli.scenario_authenticator.v1.sessions.RevokeAllSessionsRequest
+	2, // 7: vrooli.scenario_authenticator.v1.sessions.SessionsService.ListSessions:output_type -> vrooli.scenario_authenticator.v1.sessions.ListSessionsResponse
+	4, // 8: vrooli.scenario_authenticator.v1.sessions.SessionsService.RevokeSession:output_type -> vrooli.scenario_authenticator.v1.sessions.RevokeSessionResponse
+	4, // 9: vrooli.scenario_authenticator.v1.sessions.SessionsService.RevokeAuthorizedSession:output_type -> vrooli.scenario_authenticator.v1.sessions.RevokeSessionResponse
+	7, // 10: vrooli.scenario_authenticator.v1.sessions.SessionsService.RevokeAllSessions:output_type -> vrooli.scenario_authenticator.v1.sessions.RevokeAllSessionsResponse
+	7, // [7:11] is the sub-list for method output_type
+	3, // [3:7] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
 	3, // [3:3] is the sub-list for extension extendee
 	0, // [0:3] is the sub-list for field type_name
@@ -452,7 +512,7 @@ func file_scenario_authenticator_v1_sessions_sessions_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_authenticator_v1_sessions_sessions_proto_rawDesc), len(file_scenario_authenticator_v1_sessions_sessions_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

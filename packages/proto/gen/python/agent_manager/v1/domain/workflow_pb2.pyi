@@ -7,7 +7,7 @@ from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from collections.abc import Mapping as _Mapping
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
@@ -90,20 +90,48 @@ class WorkflowTerminalReason(_message.Message):
     def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., retryable: _Optional[bool] = ..., budget_name: _Optional[str] = ...) -> None: ...
 
 class WorkflowBudgetUsage(_message.Message):
-    __slots__ = ("turns", "tokens", "cost_usd", "node_attempts", "children", "retries")
+    __slots__ = ("turns", "tokens", "cost_usd", "node_attempts", "children", "retries", "accounting_complete")
     TURNS_FIELD_NUMBER: _ClassVar[int]
     TOKENS_FIELD_NUMBER: _ClassVar[int]
     COST_USD_FIELD_NUMBER: _ClassVar[int]
     NODE_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
     CHILDREN_FIELD_NUMBER: _ClassVar[int]
     RETRIES_FIELD_NUMBER: _ClassVar[int]
+    ACCOUNTING_COMPLETE_FIELD_NUMBER: _ClassVar[int]
     turns: int
     tokens: int
     cost_usd: float
     node_attempts: int
     children: int
     retries: int
-    def __init__(self, turns: _Optional[int] = ..., tokens: _Optional[int] = ..., cost_usd: _Optional[float] = ..., node_attempts: _Optional[int] = ..., children: _Optional[int] = ..., retries: _Optional[int] = ...) -> None: ...
+    accounting_complete: bool
+    def __init__(self, turns: _Optional[int] = ..., tokens: _Optional[int] = ..., cost_usd: _Optional[float] = ..., node_attempts: _Optional[int] = ..., children: _Optional[int] = ..., retries: _Optional[int] = ..., accounting_complete: _Optional[bool] = ...) -> None: ...
+
+class WorkflowEngagementGrant(_message.Message):
+    __slots__ = ("max_turns", "max_tokens", "max_charge_micro_usd", "max_wall_time_seconds", "max_node_attempts", "max_children", "max_concurrency", "max_recursion", "max_retries", "max_wait_seconds", "allowed_effects")
+    MAX_TURNS_FIELD_NUMBER: _ClassVar[int]
+    MAX_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    MAX_CHARGE_MICRO_USD_FIELD_NUMBER: _ClassVar[int]
+    MAX_WALL_TIME_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    MAX_NODE_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    MAX_CHILDREN_FIELD_NUMBER: _ClassVar[int]
+    MAX_CONCURRENCY_FIELD_NUMBER: _ClassVar[int]
+    MAX_RECURSION_FIELD_NUMBER: _ClassVar[int]
+    MAX_RETRIES_FIELD_NUMBER: _ClassVar[int]
+    MAX_WAIT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    ALLOWED_EFFECTS_FIELD_NUMBER: _ClassVar[int]
+    max_turns: int
+    max_tokens: int
+    max_charge_micro_usd: int
+    max_wall_time_seconds: int
+    max_node_attempts: int
+    max_children: int
+    max_concurrency: int
+    max_recursion: int
+    max_retries: int
+    max_wait_seconds: int
+    allowed_effects: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, max_turns: _Optional[int] = ..., max_tokens: _Optional[int] = ..., max_charge_micro_usd: _Optional[int] = ..., max_wall_time_seconds: _Optional[int] = ..., max_node_attempts: _Optional[int] = ..., max_children: _Optional[int] = ..., max_concurrency: _Optional[int] = ..., max_recursion: _Optional[int] = ..., max_retries: _Optional[int] = ..., max_wait_seconds: _Optional[int] = ..., allowed_effects: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ChargeReceipt(_message.Message):
     __slots__ = ("amount_micro_usd", "currency", "metering_basis", "measured", "note")
@@ -120,7 +148,7 @@ class ChargeReceipt(_message.Message):
     def __init__(self, amount_micro_usd: _Optional[int] = ..., currency: _Optional[str] = ..., metering_basis: _Optional[str] = ..., measured: _Optional[bool] = ..., note: _Optional[str] = ...) -> None: ...
 
 class WorkflowExecution(_message.Message):
-    __slots__ = ("id", "owner", "workflow_key", "definition_digest", "status", "current_node_id", "input", "output", "terminal_reason", "budget_usage", "edge_traversals", "version", "idempotency_key", "parent_execution_id", "created_at", "updated_at", "ended_at", "parent_attempt_id", "depth", "observations", "charge_receipt")
+    __slots__ = ("id", "owner", "workflow_key", "definition_digest", "status", "current_node_id", "input", "output", "terminal_reason", "budget_usage", "edge_traversals", "version", "idempotency_key", "parent_execution_id", "created_at", "updated_at", "ended_at", "parent_attempt_id", "depth", "observations", "charge_receipt", "engagement_grant", "approval_digest", "grant_digest")
     class EdgeTraversalsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -149,6 +177,9 @@ class WorkflowExecution(_message.Message):
     DEPTH_FIELD_NUMBER: _ClassVar[int]
     OBSERVATIONS_FIELD_NUMBER: _ClassVar[int]
     CHARGE_RECEIPT_FIELD_NUMBER: _ClassVar[int]
+    ENGAGEMENT_GRANT_FIELD_NUMBER: _ClassVar[int]
+    APPROVAL_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    GRANT_DIGEST_FIELD_NUMBER: _ClassVar[int]
     id: str
     owner: str
     workflow_key: str
@@ -170,7 +201,10 @@ class WorkflowExecution(_message.Message):
     depth: int
     observations: _run_pb2.ReceiptObservations
     charge_receipt: ChargeReceipt
-    def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., definition_digest: _Optional[str] = ..., status: _Optional[_Union[WorkflowExecutionStatus, str]] = ..., current_node_id: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., output: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., terminal_reason: _Optional[_Union[WorkflowTerminalReason, _Mapping]] = ..., budget_usage: _Optional[_Union[WorkflowBudgetUsage, _Mapping]] = ..., edge_traversals: _Optional[_Mapping[str, int]] = ..., version: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., parent_execution_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., parent_attempt_id: _Optional[str] = ..., depth: _Optional[int] = ..., observations: _Optional[_Union[_run_pb2.ReceiptObservations, _Mapping]] = ..., charge_receipt: _Optional[_Union[ChargeReceipt, _Mapping]] = ...) -> None: ...
+    engagement_grant: WorkflowEngagementGrant
+    approval_digest: str
+    grant_digest: str
+    def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., definition_digest: _Optional[str] = ..., status: _Optional[_Union[WorkflowExecutionStatus, str]] = ..., current_node_id: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., output: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., terminal_reason: _Optional[_Union[WorkflowTerminalReason, _Mapping]] = ..., budget_usage: _Optional[_Union[WorkflowBudgetUsage, _Mapping]] = ..., edge_traversals: _Optional[_Mapping[str, int]] = ..., version: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., parent_execution_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., parent_attempt_id: _Optional[str] = ..., depth: _Optional[int] = ..., observations: _Optional[_Union[_run_pb2.ReceiptObservations, _Mapping]] = ..., charge_receipt: _Optional[_Union[ChargeReceipt, _Mapping]] = ..., engagement_grant: _Optional[_Union[WorkflowEngagementGrant, _Mapping]] = ..., approval_digest: _Optional[str] = ..., grant_digest: _Optional[str] = ...) -> None: ...
 
 class WorkflowNodeAttempt(_message.Message):
     __slots__ = ("id", "execution_id", "node_id", "ordinal", "strategy", "status", "idempotency_key", "run_id", "conversation_id", "source_attempt_id", "error_code", "version", "created_at", "updated_at", "completed_at", "child_execution_id", "profile_identity", "input_snapshot_digest", "input_snapshot_size_bytes", "raw_output", "validation_error")

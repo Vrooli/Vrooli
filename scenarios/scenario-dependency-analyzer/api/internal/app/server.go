@@ -37,7 +37,7 @@ import (
 )
 
 // Run boots the HTTP API using the provided configuration and database connection.
-func Run(cfg appconfig.Config, dbConn *database.RoutedDB) error {
+func Run(cfg appconfig.RuntimeConfig, dbConn *database.RoutedDB) error {
 	primaryDB := dbConn.Primary()
 	db = primaryDB
 	rt := ensureRuntime(cfg, primaryDB)

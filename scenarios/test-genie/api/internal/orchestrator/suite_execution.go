@@ -257,8 +257,13 @@ type SuiteExecutionRequest struct {
 	CollectionReservationMemberCount int      `json:"collectionReservationMemberCount,omitempty"`
 	// RetainForEvidence requests a server-owned expiring lease before the run
 	// starts, preserving calibration measurements through ordinary retention.
-	RetainForEvidence                   bool             `json:"retainForEvidence,omitempty"`
-	RetentionReason                     string           `json:"retentionReason,omitempty"`
+	RetainForEvidence bool   `json:"retainForEvidence,omitempty"`
+	RetentionReason   string `json:"retentionReason,omitempty"`
+	// ReleaseIdentity is optional release attribution supplied by an external
+	// caller. It is carried through execution so the owner can report terminal
+	// evidence to deployment-manager without treating a commit-only run as a
+	// release qualification.
+	ReleaseIdentity                     *ReleaseIdentity `json:"releaseIdentity,omitempty"`
 	PredictedPhaseDurationsMilliseconds map[string]int64 `json:"predictedPhaseDurationsMilliseconds,omitempty"`
 	// ResolvedPhases is the phase set the planner selected for this request —
 	// notably an adaptive profile's budget-trimmed subset, which the executor
@@ -271,6 +276,21 @@ type SuiteExecutionRequest struct {
 	// durable run and made each one ineligible for the baseline reuse it had
 	// just earned.
 	ResolvedPhases []string `json:"resolvedPhases,omitempty"`
+}
+
+// ReleaseIdentity is the exact candidate identity required to attribute a
+// terminal suite result to a deployment-manager readiness review.
+type ReleaseIdentity struct {
+	ProfileID             string
+	CandidateCommit       string
+	ArtifactDigest        string
+	Targets               []string
+	Channel               string
+	PolicyVersion         int
+	CandidateID           string
+	DestinationRevisionID string
+	AuthorizationEpoch    uint64
+	PredecessorRunID      string
 }
 
 // SuiteExecutionResult captures the outcome of a run.

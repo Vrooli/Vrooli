@@ -227,9 +227,12 @@ type RunL2Request struct {
 	TopN int32 `protobuf:"varint,2,opt,name=top_n,json=topN,proto3" json:"top_n,omitempty"`
 	// capture opts in to persisting the distilled claims as findings (L2 default
 	// is OFF; L0/L1 never capture, L3 always does).
-	Capture       bool                `protobuf:"varint,3,opt,name=capture,proto3" json:"capture,omitempty"`
-	Policy        *EvidencePolicy     `protobuf:"bytes,4,opt,name=policy,proto3" json:"policy,omitempty"`
-	Questions     []*ResearchQuestion `protobuf:"bytes,5,rep,name=questions,proto3" json:"questions,omitempty"`
+	Capture   bool                `protobuf:"varint,3,opt,name=capture,proto3" json:"capture,omitempty"`
+	Policy    *EvidencePolicy     `protobuf:"bytes,4,opt,name=policy,proto3" json:"policy,omitempty"`
+	Questions []*ResearchQuestion `protobuf:"bytes,5,rep,name=questions,proto3" json:"questions,omitempty"`
+	// parent_run_id groups a bounded child L2 attempt under its owning L3
+	// Agent Manager execution. It is optional for direct callers.
+	ParentRunId   string `protobuf:"bytes,6,opt,name=parent_run_id,json=parentRunId,proto3" json:"parent_run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -297,6 +300,13 @@ func (x *RunL2Request) GetQuestions() []*ResearchQuestion {
 		return x.Questions
 	}
 	return nil
+}
+
+func (x *RunL2Request) GetParentRunId() string {
+	if x != nil {
+		return x.ParentRunId
+	}
+	return ""
 }
 
 type RunL2Response struct {
@@ -1213,6 +1223,8 @@ type GetEvidenceReceiptResponse struct {
 	Retention           string                 `protobuf:"bytes,8,opt,name=retention,proto3" json:"retention,omitempty"`
 	FailureCode         string                 `protobuf:"bytes,9,opt,name=failure_code,json=failureCode,proto3" json:"failure_code,omitempty"`
 	ProducerExecutionId string                 `protobuf:"bytes,10,opt,name=producer_execution_id,json=producerExecutionId,proto3" json:"producer_execution_id,omitempty"`
+	FinalUrl            string                 `protobuf:"bytes,11,opt,name=final_url,json=finalUrl,proto3" json:"final_url,omitempty"`
+	RedirectUrls        []string               `protobuf:"bytes,12,rep,name=redirect_urls,json=redirectUrls,proto3" json:"redirect_urls,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -1315,6 +1327,20 @@ func (x *GetEvidenceReceiptResponse) GetProducerExecutionId() string {
 		return x.ProducerExecutionId
 	}
 	return ""
+}
+
+func (x *GetEvidenceReceiptResponse) GetFinalUrl() string {
+	if x != nil {
+		return x.FinalUrl
+	}
+	return ""
+}
+
+func (x *GetEvidenceReceiptResponse) GetRedirectUrls() []string {
+	if x != nil {
+		return x.RedirectUrls
+	}
+	return nil
 }
 
 type GetEvidencePassageRequest struct {
@@ -2282,8 +2308,11 @@ type AnswerRequest struct {
 	FindingId      string                 `protobuf:"bytes,8,opt,name=finding_id,json=findingId,proto3" json:"finding_id,omitempty"` // Explicitly selected relevant finding; otherwise query must match exactly.
 	Policy         *EvidencePolicy        `protobuf:"bytes,9,opt,name=policy,proto3" json:"policy,omitempty"`
 	Questions      []*ResearchQuestion    `protobuf:"bytes,10,rep,name=questions,proto3" json:"questions,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// parent_run_id preserves L3-to-L2 lineage when Answer is used as the child
+	// research operation.
+	ParentRunId   string `protobuf:"bytes,11,opt,name=parent_run_id,json=parentRunId,proto3" json:"parent_run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AnswerRequest) Reset() {
@@ -2384,6 +2413,13 @@ func (x *AnswerRequest) GetQuestions() []*ResearchQuestion {
 		return x.Questions
 	}
 	return nil
+}
+
+func (x *AnswerRequest) GetParentRunId() string {
+	if x != nil {
+		return x.ParentRunId
+	}
+	return ""
 }
 
 type AnswerResponse struct {
@@ -3033,6 +3069,8 @@ type EvidenceReceipt struct {
 	ExtractionRevision string                 `protobuf:"bytes,6,opt,name=extraction_revision,json=extractionRevision,proto3" json:"extraction_revision,omitempty"`
 	Retention          string                 `protobuf:"bytes,7,opt,name=retention,proto3" json:"retention,omitempty"`
 	FailureCode        string                 `protobuf:"bytes,8,opt,name=failure_code,json=failureCode,proto3" json:"failure_code,omitempty"`
+	FinalUrl           string                 `protobuf:"bytes,9,opt,name=final_url,json=finalUrl,proto3" json:"final_url,omitempty"`
+	RedirectUrls       []string               `protobuf:"bytes,10,rep,name=redirect_urls,json=redirectUrls,proto3" json:"redirect_urls,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -3123,6 +3161,20 @@ func (x *EvidenceReceipt) GetFailureCode() string {
 	return ""
 }
 
+func (x *EvidenceReceipt) GetFinalUrl() string {
+	if x != nil {
+		return x.FinalUrl
+	}
+	return ""
+}
+
+func (x *EvidenceReceipt) GetRedirectUrls() []string {
+	if x != nil {
+		return x.RedirectUrls
+	}
+	return nil
+}
+
 var File_web_search_v1_research_research_proto protoreflect.FileDescriptor
 
 const file_web_search_v1_research_research_proto_rawDesc = "" +
@@ -3137,13 +3189,14 @@ const file_web_search_v1_research_research_proto_rawDesc = "" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
 	"\x05level\x18\x02 \x01(\tR\x05level\x12\x18\n" +
 	"\asummary\x18\x03 \x01(\tR\asummary\x12E\n" +
-	"\tcitations\x18\x04 \x03(\v2'.vrooli.web_search.v1.research.CitationR\tcitations\"\xe9\x01\n" +
+	"\tcitations\x18\x04 \x03(\v2'.vrooli.web_search.v1.research.CitationR\tcitations\"\x8d\x02\n" +
 	"\fRunL2Request\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x13\n" +
 	"\x05top_n\x18\x02 \x01(\x05R\x04topN\x12\x18\n" +
 	"\acapture\x18\x03 \x01(\bR\acapture\x12E\n" +
 	"\x06policy\x18\x04 \x01(\v2-.vrooli.web_search.v1.research.EvidencePolicyR\x06policy\x12M\n" +
-	"\tquestions\x18\x05 \x03(\v2/.vrooli.web_search.v1.research.ResearchQuestionR\tquestions\"\xa6\x05\n" +
+	"\tquestions\x18\x05 \x03(\v2/.vrooli.web_search.v1.research.ResearchQuestionR\tquestions\x12\"\n" +
+	"\rparent_run_id\x18\x06 \x01(\tR\vparentRunId\"\xa6\x05\n" +
 	"\rRunL2Response\x12:\n" +
 	"\x05brief\x18\x01 \x01(\v2$.vrooli.web_search.v1.research.BriefR\x05brief\x12\x1c\n" +
 	"\tsynthesis\x18\x02 \x01(\tR\tsynthesis\x12\x1c\n" +
@@ -3214,7 +3267,7 @@ const file_web_search_v1_research_research_proto_rawDesc = "" +
 	"\x06status\x18\x05 \x01(\tR\x06status\":\n" +
 	"\x19GetEvidenceReceiptRequest\x12\x1d\n" +
 	"\n" +
-	"receipt_id\x18\x01 \x01(\tR\treceiptId\"\x96\x03\n" +
+	"receipt_id\x18\x01 \x01(\tR\treceiptId\"\xd8\x03\n" +
 	"\x1aGetEvidenceReceiptResponse\x12\x1d\n" +
 	"\n" +
 	"receipt_id\x18\x01 \x01(\tR\treceiptId\x12%\n" +
@@ -3228,7 +3281,9 @@ const file_web_search_v1_research_research_proto_rawDesc = "" +
 	"\tretention\x18\b \x01(\tR\tretention\x12!\n" +
 	"\ffailure_code\x18\t \x01(\tR\vfailureCode\x122\n" +
 	"\x15producer_execution_id\x18\n" +
-	" \x01(\tR\x13producerExecutionId\":\n" +
+	" \x01(\tR\x13producerExecutionId\x12\x1b\n" +
+	"\tfinal_url\x18\v \x01(\tR\bfinalUrl\x12#\n" +
+	"\rredirect_urls\x18\f \x03(\tR\fredirectUrls\":\n" +
 	"\x19GetEvidencePassageRequest\x12\x1d\n" +
 	"\n" +
 	"passage_id\x18\x01 \x01(\tR\tpassageId\"\xd5\x01\n" +
@@ -3301,7 +3356,7 @@ const file_web_search_v1_research_research_proto_rawDesc = "" +
 	"\rrevision_hash\x18\x01 \x01(\tR\frevisionHash\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\"<\n" +
 	"\x15SuspendMethodResponse\x12#\n" +
-	"\rrevision_hash\x18\x01 \x01(\tR\frevisionHash\"\x99\x03\n" +
+	"\rrevision_hash\x18\x01 \x01(\tR\frevisionHash\"\xbd\x03\n" +
 	"\rAnswerRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x16\n" +
 	"\x06effort\x18\x02 \x01(\tR\x06effort\x12&\n" +
@@ -3314,7 +3369,8 @@ const file_web_search_v1_research_research_proto_rawDesc = "" +
 	"finding_id\x18\b \x01(\tR\tfindingId\x12E\n" +
 	"\x06policy\x18\t \x01(\v2-.vrooli.web_search.v1.research.EvidencePolicyR\x06policy\x12M\n" +
 	"\tquestions\x18\n" +
-	" \x03(\v2/.vrooli.web_search.v1.research.ResearchQuestionR\tquestions\"\xf8\x04\n" +
+	" \x03(\v2/.vrooli.web_search.v1.research.ResearchQuestionR\tquestions\x12\"\n" +
+	"\rparent_run_id\x18\v \x01(\tR\vparentRunId\"\xf8\x04\n" +
 	"\x0eAnswerResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1f\n" +
 	"\vanswer_kind\x18\x02 \x01(\tR\n" +
@@ -3373,7 +3429,7 @@ const file_web_search_v1_research_research_proto_rawDesc = "" +
 	"questionId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1b\n" +
 	"\tclaim_ids\x18\x03 \x03(\tR\bclaimIds\x12+\n" +
-	"\x11unresolved_reason\x18\x04 \x01(\tR\x10unresolvedReason\"\xa1\x02\n" +
+	"\x11unresolved_reason\x18\x04 \x01(\tR\x10unresolvedReason\"\xe3\x02\n" +
 	"\x0fEvidenceReceipt\x12\x1d\n" +
 	"\n" +
 	"receipt_id\x18\x01 \x01(\tR\treceiptId\x12%\n" +
@@ -3383,7 +3439,10 @@ const file_web_search_v1_research_research_proto_rawDesc = "" +
 	"\fcontent_hash\x18\x05 \x01(\tR\vcontentHash\x12/\n" +
 	"\x13extraction_revision\x18\x06 \x01(\tR\x12extractionRevision\x12\x1c\n" +
 	"\tretention\x18\a \x01(\tR\tretention\x12!\n" +
-	"\ffailure_code\x18\b \x01(\tR\vfailureCode*\xa9\x01\n" +
+	"\ffailure_code\x18\b \x01(\tR\vfailureCode\x12\x1b\n" +
+	"\tfinal_url\x18\t \x01(\tR\bfinalUrl\x12#\n" +
+	"\rredirect_urls\x18\n" +
+	" \x03(\tR\fredirectUrls*\xa9\x01\n" +
 	"\x15AssessmentDisposition\x12&\n" +
 	"\"ASSESSMENT_DISPOSITION_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14ASSESSMENT_SUPPORTED\x10\x01\x12\x1b\n" +

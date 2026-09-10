@@ -1082,9 +1082,9 @@ func recordAppliedChanges(ctx context.Context, exec dbExec, clk schedule.Clock, 
 	const query = `
 		INSERT INTO applied_changes (
 			id, sandbox_id, sandbox_owner, sandbox_owner_type,
-			file_path, project_root, change_type, file_size, applied_at, agent_manager_run_id,
+			file_path, project_root, change_type, file_size, content_digest, evidence_revision, applied_at, agent_manager_run_id,
 			run_outcome, provenance_state, conversation_id, cost_usd
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	for _, c := range changes {
 		if c.ID == uuid.Nil {
@@ -1106,6 +1106,8 @@ func recordAppliedChanges(ctx context.Context, exec dbExec, clk schedule.Clock, 
 			c.ProjectRoot,
 			c.ChangeType,
 			c.FileSize,
+			nullableString(c.ContentDigest),
+			nullableString(c.EvidenceRevision),
 			formatTime(c.AppliedAt),
 			nullableString(c.AgentManagerRunID),
 			nullableString(c.RunOutcome),
@@ -1214,7 +1216,7 @@ func (r *SandboxRepository) GetPendingChangeFiles(ctx context.Context, projectRo
 
 	query := `
 		SELECT id, sandbox_id, COALESCE(sandbox_owner, ''), COALESCE(sandbox_owner_type, ''),
-			   file_path, project_root, change_type, file_size, applied_at,
+			   file_path, project_root, change_type, file_size, COALESCE(content_digest, ''), COALESCE(evidence_revision, ''), applied_at,
 			   COALESCE(agent_manager_run_id, ''),
 			   COALESCE(run_outcome, ''),
 			   COALESCE(provenance_state, ''), COALESCE(conversation_id, ''),
@@ -1252,7 +1254,7 @@ func (r *SandboxRepository) GetUnresolvedCommitChanges(ctx context.Context, limi
 	}
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, sandbox_id, COALESCE(sandbox_owner, ''), COALESCE(sandbox_owner_type, ''),
-		       file_path, project_root, change_type, file_size, applied_at,
+		       file_path, project_root, change_type, file_size, COALESCE(content_digest, ''), COALESCE(evidence_revision, ''), applied_at,
 		       COALESCE(agent_manager_run_id, ''), COALESCE(run_outcome, ''),
 		       COALESCE(provenance_state, ''), COALESCE(conversation_id, ''), COALESCE(cost_usd, 0)
 		FROM applied_changes
@@ -1317,7 +1319,7 @@ func scanAppliedChangePending(rows *sql.Rows) (*types.AppliedChange, error) {
 	)
 	if err := rows.Scan(
 		&idStr, &sandboxIDStr, &c.SandboxOwner, &c.SandboxOwnerType,
-		&c.FilePath, &c.ProjectRoot, &c.ChangeType, &c.FileSize, &appliedAt,
+		&c.FilePath, &c.ProjectRoot, &c.ChangeType, &c.FileSize, &c.ContentDigest, &c.EvidenceRevision, &appliedAt,
 		&c.AgentManagerRunID,
 		&c.RunOutcome,
 		&c.ProvenanceState, &c.ConversationID,
@@ -1342,6 +1344,10 @@ func scanAppliedChangePending(rows *sql.Rows) (*types.AppliedChange, error) {
 }
 
 func (r *SandboxRepository) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
+	return getFileProvenance(ctx, r.db, filePath, projectRoot, limit)
+}
+
+func getFileProvenance(ctx context.Context, exec dbExec, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -1355,7 +1361,7 @@ func (r *SandboxRepository) GetFileProvenance(ctx context.Context, filePath, pro
 
 	query := `
 		SELECT id, sandbox_id, COALESCE(sandbox_owner, ''), COALESCE(sandbox_owner_type, ''),
-			   file_path, project_root, change_type, file_size, applied_at,
+			   file_path, project_root, change_type, file_size, COALESCE(content_digest, ''), COALESCE(evidence_revision, ''), applied_at,
 			   committed_at, COALESCE(commit_hash, ''), COALESCE(commit_message, ''),
 			   COALESCE(agent_manager_run_id, ''),
 			   COALESCE(run_outcome, ''),
@@ -1367,7 +1373,7 @@ func (r *SandboxRepository) GetFileProvenance(ctx context.Context, filePath, pro
 		LIMIT ?`
 	args = append(args, limit)
 
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query file provenance: %w", err)
 	}
@@ -1384,7 +1390,7 @@ func (r *SandboxRepository) GetFileProvenance(ctx context.Context, filePath, pro
 		)
 		if err := rows.Scan(
 			&idStr, &sandboxIDStr, &c.SandboxOwner, &c.SandboxOwnerType,
-			&c.FilePath, &c.ProjectRoot, &c.ChangeType, &c.FileSize, &appliedAt,
+			&c.FilePath, &c.ProjectRoot, &c.ChangeType, &c.FileSize, &c.ContentDigest, &c.EvidenceRevision, &appliedAt,
 			&committedAt, &c.CommitHash, &c.CommitMessage,
 			&c.AgentManagerRunID,
 			&c.RunOutcome,
@@ -1415,7 +1421,7 @@ func (r *SandboxRepository) GetFileProvenance(ctx context.Context, filePath, pro
 }
 
 func (r *TxSandboxRepository) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
-	return nil, errors.New("GetFileProvenance not implemented for transactions")
+	return getFileProvenance(ctx, r.tx, filePath, projectRoot, limit)
 }
 
 func (r *SandboxRepository) MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error {
@@ -1484,7 +1490,9 @@ func (r *TxSandboxRepository) MarkChangesCommittedByPath(ctx context.Context, pr
 
 func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error) {
 	args := []any{}
-	whereClause := "WHERE committed_at IS NULL"
+	// Historical reads intentionally include committed rows. The method name
+	// remains for compatibility with the existing service/API seam.
+	whereClause := "WHERE 1=1"
 	if projectRoot != "" {
 		whereClause += " AND project_root = ?"
 		args = append(args, projectRoot)
@@ -1492,7 +1500,8 @@ func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectR
 
 	query := `
 		SELECT COALESCE(agent_manager_run_id, ''), sandbox_id, COALESCE(sandbox_owner, ''),
-			   file_path, change_type, applied_at,
+			   file_path, change_type, COALESCE(content_digest, ''), COALESCE(evidence_revision, ''), applied_at,
+			   COALESCE(committed_at, ''), COALESCE(commit_hash, ''), COALESCE(commit_message, ''),
 			   COALESCE(run_outcome, ''), COALESCE(conversation_id, ''),
 			   COALESCE(cost_usd, 0), COALESCE(provenance_state, '')
 		FROM applied_changes
@@ -1510,12 +1519,13 @@ func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectR
 
 	for rows.Next() {
 		var (
-			runID, sandboxID, owner, filePath, changeType, runOutcome, convID, provState string
-			appliedAtStr                                                                 string
-			costUSD                                                                      float64
+			runID, sandboxID, owner, filePath, changeType, contentDigest, evidenceRevision, runOutcome, convID, provState string
+			appliedAtStr, committedAtStr                                                                                  string
+			commitHash, commitMessage                                                                                     string
+			costUSD                                                                                                       float64
 		)
-		if err := rows.Scan(&runID, &sandboxID, &owner, &filePath, &changeType, &appliedAtStr,
-			&runOutcome, &convID, &costUSD, &provState); err != nil {
+		if err := rows.Scan(&runID, &sandboxID, &owner, &filePath, &changeType, &contentDigest, &evidenceRevision, &appliedAtStr,
+			&committedAtStr, &commitHash, &commitMessage, &runOutcome, &convID, &costUSD, &provState); err != nil {
 			return nil, fmt.Errorf("scan pending change by run: %w", err)
 		}
 		appliedAt, err := parseTime(appliedAtStr)
@@ -1543,12 +1553,26 @@ func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectR
 		}
 
 		group.Files = append(group.Files, types.ProvenanceFile{
-			FilePath:     filePath,
-			RelativePath: relPath,
-			ChangeType:   changeType,
-			AppliedAt:    appliedAt,
-			State:        types.ProvenanceFileState(provState),
+			FilePath:         filePath,
+			RelativePath:     relPath,
+			ChangeType:       changeType,
+			ContentDigest:    contentDigest,
+			EvidenceRevision: evidenceRevision,
+			AppliedAt:        appliedAt,
+			CommitHash:       commitHash,
+			CommitMessage:    commitMessage,
+			RunOutcome:       runOutcome,
+			ConversationID:   convID,
+			CostUSD:          costUSD,
+			State:            types.ProvenanceFileState(provState),
 		})
+		if committedAtStr != "" {
+			committedAt, parseErr := parseTime(committedAtStr)
+			if parseErr != nil {
+				return nil, fmt.Errorf("parse committed provenance time: %w", parseErr)
+			}
+			group.Files[len(group.Files)-1].CommittedAt = &committedAt
+		}
 		if appliedAt.After(group.LatestAppliedAt) {
 			group.LatestAppliedAt = appliedAt
 		}

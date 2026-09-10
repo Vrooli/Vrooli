@@ -142,6 +142,69 @@ func TestPolicySnapshotFallbackUsesPersistedCandidatesAcrossRunners(t *testing.T
 	}
 }
 
+func TestPolicySnapshotFallbackWalksResourceOwnedModelsBeforeChangingRunners(t *testing.T) {
+	run := &domain.Run{
+		ID: uuid.New(),
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType: domain.RunnerTypeOpenCode,
+			Model:      "openrouter/primary",
+			PolicySnapshot: &domain.ExecutionPolicySnapshot{
+				CatalogDigest: "sha256:persisted",
+				Candidates: []domain.ExecutionCandidate{
+					{
+						RunnerType:    domain.RunnerTypeOpenCode,
+						SelectionType: domain.ModelSelectionTypeModel,
+						Model:         "openrouter/primary",
+						Fallbacks:     []string{"openrouter/secondary", "ollama/gemma4:12b"},
+					},
+					{RunnerType: domain.RunnerTypeClaudeCode, SelectionType: domain.ModelSelectionTypeRunnerDefault},
+				},
+				SelectedIndex: 0,
+			},
+		},
+	}
+	registry := runner.NewRegistry()
+	opencode := runner.NewMockRunner(domain.RunnerTypeOpenCode)
+	claude := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	var attempts []string
+	opencode.ExecuteFunc = func(_ context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		attempts = append(attempts, req.ResolvedConfig.Model)
+		if req.ResolvedConfig.Model != "ollama/gemma4:12b" {
+			return modelUnavailableResult(domain.RunnerTypeOpenCode), nil
+		}
+		return successResult(), nil
+	}
+	claude.ExecuteFunc = func(_ context.Context, _ runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		t.Fatal("cross-runner fallback should not be reached after local model succeeds")
+		return nil, nil
+	}
+	if err := registry.Register(opencode); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Register(claude); err != nil {
+		t.Fatal(err)
+	}
+
+	out := ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{
+		ExecuteAgentInput: ExecuteAgentInput{
+			Deps:         Deps{Events: &filterableEventStore{}, Levers: config.DefaultLevers()},
+			Run:          run,
+			RunStateRoot: t.TempDir(),
+			Runner:       opencode,
+			Runners:      registry,
+		},
+	})
+	if out.Result == nil || !out.Result.Success {
+		t.Fatalf("local model fallback result = %+v, err = %v", out.Result, out.ExecErr)
+	}
+	if got, want := strings.Join(attempts, ","), "openrouter/primary,openrouter/secondary,ollama/gemma4:12b"; got != want {
+		t.Fatalf("attempts = %q, want %q", got, want)
+	}
+	if run.ActualModel != "ollama/gemma4:12b" || run.ResolvedConfig.Model != "ollama/gemma4:12b" {
+		t.Fatalf("successful local model was not recorded: actual=%q resolved=%q", run.ActualModel, run.ResolvedConfig.Model)
+	}
+}
+
 func TestPolicySnapshotFallbackSkipsUnavailablePersistedCandidate(t *testing.T) {
 	run := &domain.Run{
 		ID:      uuid.New(),

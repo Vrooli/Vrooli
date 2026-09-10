@@ -30,26 +30,30 @@ class Account(_message.Message):
     def __init__(self, id: _Optional[str] = ..., email: _Optional[str] = ..., username: _Optional[str] = ..., roles: _Optional[_Iterable[str]] = ..., realm: _Optional[str] = ..., email_verified: _Optional[bool] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., scopes: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class TokenPair(_message.Message):
-    __slots__ = ("access_token", "refresh_token", "access_token_expires_at")
+    __slots__ = ("access_token", "refresh_token", "access_token_expires_at", "audience")
     ACCESS_TOKEN_FIELD_NUMBER: _ClassVar[int]
     REFRESH_TOKEN_FIELD_NUMBER: _ClassVar[int]
     ACCESS_TOKEN_EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    AUDIENCE_FIELD_NUMBER: _ClassVar[int]
     access_token: str
     refresh_token: str
     access_token_expires_at: _timestamp_pb2.Timestamp
-    def __init__(self, access_token: _Optional[str] = ..., refresh_token: _Optional[str] = ..., access_token_expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    audience: str
+    def __init__(self, access_token: _Optional[str] = ..., refresh_token: _Optional[str] = ..., access_token_expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., audience: _Optional[str] = ...) -> None: ...
 
 class RegisterRequest(_message.Message):
-    __slots__ = ("email", "password", "username", "realm")
+    __slots__ = ("email", "password", "username", "realm", "resource")
     EMAIL_FIELD_NUMBER: _ClassVar[int]
     PASSWORD_FIELD_NUMBER: _ClassVar[int]
     USERNAME_FIELD_NUMBER: _ClassVar[int]
     REALM_FIELD_NUMBER: _ClassVar[int]
+    RESOURCE_FIELD_NUMBER: _ClassVar[int]
     email: str
     password: str
     username: str
     realm: str
-    def __init__(self, email: _Optional[str] = ..., password: _Optional[str] = ..., username: _Optional[str] = ..., realm: _Optional[str] = ...) -> None: ...
+    resource: str
+    def __init__(self, email: _Optional[str] = ..., password: _Optional[str] = ..., username: _Optional[str] = ..., realm: _Optional[str] = ..., resource: _Optional[str] = ...) -> None: ...
 
 class RegisterResponse(_message.Message):
     __slots__ = ("account", "tokens")
@@ -60,22 +64,34 @@ class RegisterResponse(_message.Message):
     def __init__(self, account: _Optional[_Union[Account, _Mapping]] = ..., tokens: _Optional[_Union[TokenPair, _Mapping]] = ...) -> None: ...
 
 class LoginRequest(_message.Message):
-    __slots__ = ("email", "password", "realm")
+    __slots__ = ("email", "password", "realm", "totp_code", "recovery_code", "mfa_challenge", "resource")
     EMAIL_FIELD_NUMBER: _ClassVar[int]
     PASSWORD_FIELD_NUMBER: _ClassVar[int]
     REALM_FIELD_NUMBER: _ClassVar[int]
+    TOTP_CODE_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_CODE_FIELD_NUMBER: _ClassVar[int]
+    MFA_CHALLENGE_FIELD_NUMBER: _ClassVar[int]
+    RESOURCE_FIELD_NUMBER: _ClassVar[int]
     email: str
     password: str
     realm: str
-    def __init__(self, email: _Optional[str] = ..., password: _Optional[str] = ..., realm: _Optional[str] = ...) -> None: ...
+    totp_code: str
+    recovery_code: str
+    mfa_challenge: str
+    resource: str
+    def __init__(self, email: _Optional[str] = ..., password: _Optional[str] = ..., realm: _Optional[str] = ..., totp_code: _Optional[str] = ..., recovery_code: _Optional[str] = ..., mfa_challenge: _Optional[str] = ..., resource: _Optional[str] = ...) -> None: ...
 
 class LoginResponse(_message.Message):
-    __slots__ = ("account", "tokens")
+    __slots__ = ("account", "tokens", "mfa_required", "mfa_challenge")
     ACCOUNT_FIELD_NUMBER: _ClassVar[int]
     TOKENS_FIELD_NUMBER: _ClassVar[int]
+    MFA_REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    MFA_CHALLENGE_FIELD_NUMBER: _ClassVar[int]
     account: Account
     tokens: TokenPair
-    def __init__(self, account: _Optional[_Union[Account, _Mapping]] = ..., tokens: _Optional[_Union[TokenPair, _Mapping]] = ...) -> None: ...
+    mfa_required: bool
+    mfa_challenge: str
+    def __init__(self, account: _Optional[_Union[Account, _Mapping]] = ..., tokens: _Optional[_Union[TokenPair, _Mapping]] = ..., mfa_required: _Optional[bool] = ..., mfa_challenge: _Optional[str] = ...) -> None: ...
 
 class ChangePasswordRequest(_message.Message):
     __slots__ = ("access_token", "current_password", "new_password")
@@ -94,10 +110,12 @@ class ChangePasswordResponse(_message.Message):
     def __init__(self, revoked_sessions: _Optional[int] = ...) -> None: ...
 
 class RefreshRequest(_message.Message):
-    __slots__ = ("refresh_token",)
+    __slots__ = ("refresh_token", "resource")
     REFRESH_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    RESOURCE_FIELD_NUMBER: _ClassVar[int]
     refresh_token: str
-    def __init__(self, refresh_token: _Optional[str] = ...) -> None: ...
+    resource: str
+    def __init__(self, refresh_token: _Optional[str] = ..., resource: _Optional[str] = ...) -> None: ...
 
 class RefreshResponse(_message.Message):
     __slots__ = ("tokens",)
@@ -122,7 +140,7 @@ class ValidateRequest(_message.Message):
     def __init__(self, access_token: _Optional[str] = ...) -> None: ...
 
 class ValidateResponse(_message.Message):
-    __slots__ = ("valid", "user_id", "email", "roles", "realm", "expires_at", "scopes")
+    __slots__ = ("valid", "user_id", "email", "roles", "realm", "expires_at", "scopes", "audience")
     VALID_FIELD_NUMBER: _ClassVar[int]
     USER_ID_FIELD_NUMBER: _ClassVar[int]
     EMAIL_FIELD_NUMBER: _ClassVar[int]
@@ -130,6 +148,7 @@ class ValidateResponse(_message.Message):
     REALM_FIELD_NUMBER: _ClassVar[int]
     EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
     SCOPES_FIELD_NUMBER: _ClassVar[int]
+    AUDIENCE_FIELD_NUMBER: _ClassVar[int]
     valid: bool
     user_id: str
     email: str
@@ -137,7 +156,8 @@ class ValidateResponse(_message.Message):
     realm: str
     expires_at: _timestamp_pb2.Timestamp
     scopes: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, valid: _Optional[bool] = ..., user_id: _Optional[str] = ..., email: _Optional[str] = ..., roles: _Optional[_Iterable[str]] = ..., realm: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., scopes: _Optional[_Iterable[str]] = ...) -> None: ...
+    audience: str
+    def __init__(self, valid: _Optional[bool] = ..., user_id: _Optional[str] = ..., email: _Optional[str] = ..., roles: _Optional[_Iterable[str]] = ..., realm: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., scopes: _Optional[_Iterable[str]] = ..., audience: _Optional[str] = ...) -> None: ...
 
 class GrantScopeRequest(_message.Message):
     __slots__ = ("access_token", "principal_id", "scope")
@@ -183,6 +203,16 @@ class ListScopesResponse(_message.Message):
     scopes: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, principal_id: _Optional[str] = ..., scopes: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class SetRolesRequest(_message.Message):
+    __slots__ = ("access_token", "principal_id", "roles")
+    ACCESS_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    PRINCIPAL_ID_FIELD_NUMBER: _ClassVar[int]
+    ROLES_FIELD_NUMBER: _ClassVar[int]
+    access_token: str
+    principal_id: str
+    roles: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, access_token: _Optional[str] = ..., principal_id: _Optional[str] = ..., roles: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class LinkMachineAccountRequest(_message.Message):
     __slots__ = ("access_token", "machine_id", "local_principal", "realm", "is_default")
     ACCESS_TOKEN_FIELD_NUMBER: _ClassVar[int]
@@ -212,6 +242,24 @@ class LinkMachineAccountResponse(_message.Message):
     is_default: bool
     linked_at: _timestamp_pb2.Timestamp
     def __init__(self, machine_id: _Optional[str] = ..., local_principal: _Optional[str] = ..., account_id: _Optional[str] = ..., realm: _Optional[str] = ..., is_default: _Optional[bool] = ..., linked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class RevokeMachineAccountRequest(_message.Message):
+    __slots__ = ("access_token", "machine_id", "local_principal", "principal_id")
+    ACCESS_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    LOCAL_PRINCIPAL_FIELD_NUMBER: _ClassVar[int]
+    PRINCIPAL_ID_FIELD_NUMBER: _ClassVar[int]
+    access_token: str
+    machine_id: str
+    local_principal: str
+    principal_id: str
+    def __init__(self, access_token: _Optional[str] = ..., machine_id: _Optional[str] = ..., local_principal: _Optional[str] = ..., principal_id: _Optional[str] = ...) -> None: ...
+
+class RevokeMachineAccountResponse(_message.Message):
+    __slots__ = ("revoked_count",)
+    REVOKED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    revoked_count: int
+    def __init__(self, revoked_count: _Optional[int] = ...) -> None: ...
 
 class ExchangeMachinePrincipalRequest(_message.Message):
     __slots__ = ("machine_id",)

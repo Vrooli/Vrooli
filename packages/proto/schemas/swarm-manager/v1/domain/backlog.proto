@@ -159,6 +159,25 @@ message BacklogItem {
 
   // Independently settleable definitions of done for this item.
   repeated shared.BacklogCriterion acceptance_criteria = 30;
+
+  // Plan execution strategy. The strategy selects how the canonical plan is
+  // executed; it does not create a second backlog work type. Empty means the
+  // default phased-plan-drain strategy.
+  optional string execution_strategy = 31;
+
+  // Reviewed aggregate coding allowance. Product-provider spend is separate.
+  optional ExecutionLimits execution_limits = 32;
+}
+
+message ExecutionLimits {
+  int32 max_slices = 1 [(buf.validate.field).int32 = {gte: 1, lte: 512}];
+  int64 max_tokens = 2 [(buf.validate.field).int64 = {gte: 1, lte: 2147483647}];
+  int64 max_wall_seconds = 3 [(buf.validate.field).int64 = {gte: 1, lte: 604800}];
+  int32 max_turns = 4 [(buf.validate.field).int32 = {gte: 1, lte: 100000}];
+  int64 max_charge_micro_usd = 5 [(buf.validate.field).int64 = {gte: 1, lte: 1000000000000}];
+  int32 max_children = 6 [(buf.validate.field).int32 = {gte: 1, lte: 4096}];
+  int32 max_node_attempts = 7 [(buf.validate.field).int32 = {gte: 1, lte: 8192}];
+  int32 max_retries = 8 [(buf.validate.field).int32 = {gte: 1, lte: 4096}];
 }
 
 message PlanAcceptance {

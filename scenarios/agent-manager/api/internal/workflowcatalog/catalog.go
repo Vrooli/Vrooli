@@ -29,7 +29,7 @@ var sharedCELEnv = sync.OnceValues(workflowexpr.NewEnv)
 const (
 	MaxDefinitionBytes = 256 << 10
 	MaxSchemaBytes     = 32 << 10
-	MaxBindingBytes    = 64 << 10
+	MaxBindingBytes    = 1 << 20
 	MaxBindingLimit    = 1000
 	MaxEdgeTraversals  = 10_000
 	MaxWallTimeSeconds = 97_200

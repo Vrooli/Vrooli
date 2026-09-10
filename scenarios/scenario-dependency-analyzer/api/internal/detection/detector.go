@@ -14,14 +14,14 @@ import (
 // Detector encapsulates resource/scenario scanning and catalog discovery logic.
 // It coordinates between catalog management, resource detection, and scenario detection.
 type Detector struct {
-	cfg             appconfig.Config
+	cfg             appconfig.RuntimeConfig
 	catalog         *catalogManager
 	resourceScanner *resourceScanner
 	scenarioScanner *scenarioScanner
 }
 
 // New creates a detector bound to the provided configuration.
-func New(cfg appconfig.Config) *Detector {
+func New(cfg appconfig.RuntimeConfig) *Detector {
 	catalog := newCatalogManager(cfg)
 
 	return &Detector{

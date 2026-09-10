@@ -3,13 +3,82 @@ syntax = "proto3";
 package vrooli.swarm_manager.v1.api;
 
 import "swarm-manager/v1/domain/transition.proto";
+import "swarm-manager/v1/shared/plan_ref.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 
 service TransitionService {
   rpc ListTransitions(ListTransitionsRequest) returns (ListTransitionsResponse);
+  // Read-only preparation. This neither approves nor starts an engagement.
+  rpc PreviewDevelopment(PreviewDevelopmentRequest) returns (PreviewDevelopmentResponse);
   rpc StartTransition(StartTransitionRequest) returns (StartTransitionResponse);
   rpc ApplyTransition(ApplyTransitionRequest) returns (ApplyTransitionResponse);
+}
+
+message DevelopmentOutcome {
+  string id = 1;
+  string criterion = 2;
+  string evidence_source = 3;
+}
+
+message PreviewDevelopmentRequest {
+  string scenario = 1;
+  string work_item = 2;
+  string objective = 3;
+  repeated string artifact_paths = 4;
+  repeated DevelopmentOutcome outcomes = 5;
+  repeated string acceptance_allow = 6;
+  repeated string acceptance_deny = 7;
+  repeated string allowed_effects = 8;
+  int64 max_tokens = 9;
+  int64 max_wall_seconds = 10;
+  DevelopmentGuidance guidance = 11;
+  // metered-cancellation (default for new reviews) | hard-ceiling.
+  // This is reviewed authority, never a remembered guidance preference.
+  string budget_policy = 12;
+  // Canonical Plan Manager work package that this adaptive strategy executes.
+  // A development approval without this reference is incomplete.
+  optional shared.PlanRef plan_ref = 13;
+  // adaptive-improvement. Phased plan execution uses the ordinary plan
+  // execution request and does not create a development engagement.
+  string execution_strategy = 14;
+}
+
+// Reviewed execution guidance. These preferences never expand acceptance_allow,
+// override acceptance_deny, authorize effects, or replace an owner-enforced limit.
+message DevelopmentGuidance {
+  // focused | balanced | thorough; reasoning guidance, not an invented model setting.
+  string effort = 1;
+  // unknown | prototype | established | fragile; operator assessment, not evidence.
+  string starting_state = 2;
+  // targeted | balanced | certification; required outcome checks always remain required.
+  string validation = 3;
+  // Authorizes intent-serving repair only inside the explicitly reviewed change paths.
+  bool repair_related_code = 4;
+  string additional_instructions = 5;
+}
+
+message DevelopmentArtifact {
+  string path = 1;
+  string sha256 = 2;
+  int64 size_bytes = 3;
+}
+
+message DevelopmentReviewFinding {
+  string code = 1;
+  string detail = 2;
+}
+
+message PreviewDevelopmentResponse {
+  // Fingerprints the proposal and observed source bytes, not an approval receipt.
+  string proposal_digest = 1;
+  string goal_message = 2;
+  repeated DevelopmentArtifact artifacts = 3;
+  repeated DevelopmentReviewFinding findings = 4;
+  bool review_complete = 5;
+  // False until admission, accounting and evidence-bound completion are qualified.
+  bool launch_ready = 6;
+  repeated string launch_blockers = 7;
 }
 
 message ListTransitionsRequest {}

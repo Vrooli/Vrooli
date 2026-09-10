@@ -2,18 +2,39 @@
   "schemaVersion": "agent-workflow/v1",
   "owner": "swarm-manager",
   "key": "swarm-manager/readiness-review",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Review one deployment readiness checklist item using substance, correspondence, and unanchored evidence disciplines.",
   "inputSchema": {
     "type": "object",
     "properties": {
-      "scenario": { "type": "string", "minLength": 1 },
-      "commit": { "type": "string", "minLength": 1 },
-      "checklist_item": { "type": "string", "minLength": 1 },
-      "acceptance_criteria": { "type": "string", "minLength": 1 },
-      "snapshot": { "type": "object", "additionalProperties": true }
+      "scenario": {
+        "type": "string",
+        "minLength": 1
+      },
+      "commit": {
+        "type": "string",
+        "minLength": 1
+      },
+      "checklist_item": {
+        "type": "string",
+        "minLength": 1
+      },
+      "acceptance_criteria": {
+        "type": "string",
+        "minLength": 1
+      },
+      "snapshot": {
+        "type": "object",
+        "additionalProperties": true
+      }
     },
-    "required": ["scenario", "commit", "checklist_item", "acceptance_criteria", "snapshot"],
+    "required": [
+      "scenario",
+      "commit",
+      "checklist_item",
+      "acceptance_criteria",
+      "snapshot"
+    ],
     "additionalProperties": false
   },
   "outputSchema": {
@@ -22,17 +43,53 @@
       "result": {
         "type": "object",
         "properties": {
-          "status": { "type": "string", "enum": ["passed", "failed", "unavailable", "unknown"] },
-          "severity": { "type": "string", "enum": ["error", "advisory", "unknown"] },
-          "checklist_item": { "type": "string", "minLength": 1 },
-          "evidence": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
-          "detail": { "type": "string", "minLength": 1 }
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "unavailable",
+              "unknown"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "advisory",
+              "unknown"
+            ]
+          },
+          "checklist_item": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "required": ["status", "severity", "checklist_item", "evidence", "detail"],
+        "required": [
+          "status",
+          "severity",
+          "checklist_item",
+          "evidence",
+          "detail"
+        ],
         "additionalProperties": false
       }
     },
-    "required": ["result"],
+    "required": [
+      "result"
+    ],
     "additionalProperties": false
   },
   "nodes": [
@@ -41,9 +98,124 @@
       "kind": "run",
       "run": {
         "profileKey": "swarm-manager/analysis",
-        "prompt": "Read docs/scenario-qa/methods/readiness and the deployment-manager checklist before judging. Review the three jobs separately: substance, correspondence, and unanchored observation. Return exactly the result schema. A pass requires an evidence identifier and checksum in evidence. Never infer a pass from a declaration alone.\n\nScenario: {{scenario}}\nCommit: {{commit}}\nChecklist item: {{checklist_item}}\nAcceptance criteria: {{acceptance_criteria}}\nSnapshot: {{snapshot}}"
+        "promptRef": {
+          "skillId": "swarm-manager-workflow-readiness-review"
+        },
+        "bindings": [
+          {
+            "name": "scenario",
+            "source": "workflow_input",
+            "selector": "$.scenario",
+            "limit": 1,
+            "maxBytes": 8192,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "commit",
+            "source": "workflow_input",
+            "selector": "$.commit",
+            "limit": 1,
+            "maxBytes": 8192,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "checklist_item",
+            "source": "workflow_input",
+            "selector": "$.checklist_item",
+            "limit": 1,
+            "maxBytes": 8192,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "acceptance_criteria",
+            "source": "workflow_input",
+            "selector": "$.acceptance_criteria",
+            "limit": 1,
+            "maxBytes": 8192,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "snapshot",
+            "source": "workflow_input",
+            "selector": "$.snapshot",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ],
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schemaRepairAttempts": 0,
+          "schema": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "passed",
+                  "failed",
+                  "unavailable",
+                  "unknown"
+                ]
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "error",
+                  "advisory",
+                  "unknown"
+                ]
+              },
+              "checklist_item": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "detail": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "status",
+              "severity",
+              "checklist_item",
+              "evidence",
+              "detail"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "maxTurns": 4,
+        "timeoutSeconds": 300
       }
     }
   ],
-  "edges": []
+  "edges": [],
+  "budgets": {
+    "wallTimeSeconds": 420,
+    "maxTurns": 4,
+    "maxTokens": 200000,
+    "maxChargeMicroUsd": 1000000,
+    "maxNodeAttempts": 2,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 1,
+    "maxWaitSeconds": 30
+  }
 }

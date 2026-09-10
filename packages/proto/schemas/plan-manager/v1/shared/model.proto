@@ -39,7 +39,9 @@ enum PlanStatus {
 }
 
 // PhaseStatus is the state of a single first-class phase. COMPUTED via a typed
-// transition or inferred from acceptance + validation passing.
+// transition. The transition's evidence rules depend on the execution's
+// captured completion policy: ordinary runs record an outcome assessment;
+// explicit certification requires the validation evidence contract.
 enum PhaseStatus {
   PHASE_STATUS_UNSPECIFIED = 0;
   PHASE_STATUS_TODO = 1;
@@ -654,6 +656,12 @@ message PlanDefinition {
 
 // Plan is the top-level structured record. See docs/concepts/PLAN-MODEL.md for
 // the authored/computed split per field.
+// Advisory is the ordinary shared-worktree default. Certification is explicit.
+message CompletionPolicy {
+  string mode = 1; // advisory (including unset) | certification
+  string reason = 2; // required for certification
+}
+
 message Plan {
   string id = 1;
   string slug = 2;
@@ -710,6 +718,7 @@ message Plan {
   // AUTHORED optional local terminology. Shared ecosystem terms are referenced
   // from docs/concepts/GLOSSARY.md rather than duplicated here.
   repeated PlanDefinition definitions = 39;
+  CompletionPolicy completion_policy = 40;
 }
 
 // PlanEdge is one supersession/dependency edge between two plans (the plan
@@ -738,6 +747,15 @@ message VelocityPoint {
 // in-flow during a run. plan-manager owns ONLY this structured layer; the prose
 // final-message catch-all is owned by the orchestration layer and linked here by
 // reference (prose_handoff_ref).
+// Caller judgment, retained separately from immutable producer verdicts.
+message OutcomeAssessment {
+  string summary = 1;
+  repeated string evidence = 2;
+  repeated string limitations = 3;
+  repeated string unmet_outcomes = 4;
+  int32 scope_generation = 5; // assigned by the server
+}
+
 message Handoff {
   string id = 1;
   string execution_id = 2;
@@ -758,4 +776,6 @@ message Handoff {
   // The plan's change boundary, snapshotted into the handoff so the next agent
   // sees what was allowed/denied and where validation coverage is informational.
   ChangeBoundary change_boundary = 12;
+  map<string, OutcomeAssessment> phase_assessments = 13;
+  CompletionPolicy completion_policy = 14;
 }

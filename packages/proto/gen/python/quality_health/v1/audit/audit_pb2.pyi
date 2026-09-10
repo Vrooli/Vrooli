@@ -7,6 +7,86 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class ObserveTestSyntaxRequest(_message.Message):
+    __slots__ = ("root_path", "files")
+    ROOT_PATH_FIELD_NUMBER: _ClassVar[int]
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    root_path: str
+    files: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, root_path: _Optional[str] = ..., files: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ObserveTestSyntaxResponse(_message.Message):
+    __slots__ = ("schema_version", "observations", "unavailable_reason")
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    OBSERVATIONS_FIELD_NUMBER: _ClassVar[int]
+    UNAVAILABLE_REASON_FIELD_NUMBER: _ClassVar[int]
+    schema_version: str
+    observations: _containers.RepeatedCompositeFieldContainer[TestSyntaxObservation]
+    unavailable_reason: str
+    def __init__(self, schema_version: _Optional[str] = ..., observations: _Optional[_Iterable[_Union[TestSyntaxObservation, _Mapping]]] = ..., unavailable_reason: _Optional[str] = ...) -> None: ...
+
+class TestSyntaxObservation(_message.Message):
+    __slots__ = ("schema_version", "file", "source_digest", "profile", "plugin_version", "eslint_version", "parser_version", "status", "reason", "checks", "diagnostics", "limitations", "config_digest")
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    FILE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_FIELD_NUMBER: _ClassVar[int]
+    PLUGIN_VERSION_FIELD_NUMBER: _ClassVar[int]
+    ESLINT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    PARSER_VERSION_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    CHECKS_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
+    LIMITATIONS_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    schema_version: str
+    file: str
+    source_digest: str
+    profile: str
+    plugin_version: str
+    eslint_version: str
+    parser_version: str
+    status: str
+    reason: str
+    checks: _containers.RepeatedCompositeFieldContainer[TestSyntaxCheck]
+    diagnostics: _containers.RepeatedCompositeFieldContainer[TestSyntaxDiagnostic]
+    limitations: _containers.RepeatedScalarFieldContainer[str]
+    config_digest: str
+    def __init__(self, schema_version: _Optional[str] = ..., file: _Optional[str] = ..., source_digest: _Optional[str] = ..., profile: _Optional[str] = ..., plugin_version: _Optional[str] = ..., eslint_version: _Optional[str] = ..., parser_version: _Optional[str] = ..., status: _Optional[str] = ..., reason: _Optional[str] = ..., checks: _Optional[_Iterable[_Union[TestSyntaxCheck, _Mapping]]] = ..., diagnostics: _Optional[_Iterable[_Union[TestSyntaxDiagnostic, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ..., config_digest: _Optional[str] = ...) -> None: ...
+
+class TestSyntaxCheck(_message.Message):
+    __slots__ = ("rule", "status", "reason")
+    RULE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    rule: str
+    status: str
+    reason: str
+    def __init__(self, rule: _Optional[str] = ..., status: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class TestSyntaxDiagnostic(_message.Message):
+    __slots__ = ("native_rule_id", "canonical_rule", "message_id", "message", "line", "column", "end_line", "end_column", "native_severity")
+    NATIVE_RULE_ID_FIELD_NUMBER: _ClassVar[int]
+    CANONICAL_RULE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    LINE_FIELD_NUMBER: _ClassVar[int]
+    COLUMN_FIELD_NUMBER: _ClassVar[int]
+    END_LINE_FIELD_NUMBER: _ClassVar[int]
+    END_COLUMN_FIELD_NUMBER: _ClassVar[int]
+    NATIVE_SEVERITY_FIELD_NUMBER: _ClassVar[int]
+    native_rule_id: str
+    canonical_rule: str
+    message_id: str
+    message: str
+    line: int
+    column: int
+    end_line: int
+    end_column: int
+    native_severity: int
+    def __init__(self, native_rule_id: _Optional[str] = ..., canonical_rule: _Optional[str] = ..., message_id: _Optional[str] = ..., message: _Optional[str] = ..., line: _Optional[int] = ..., column: _Optional[int] = ..., end_line: _Optional[int] = ..., end_column: _Optional[int] = ..., native_severity: _Optional[int] = ...) -> None: ...
+
 class AuditQualityRequest(_message.Message):
     __slots__ = ("scenario", "path", "rule_ids", "surfaces", "include_command_execution", "include_autofix_preview", "use_cache")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]

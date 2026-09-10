@@ -2,12 +2,14 @@ syntax = "proto3";
 package vrooli.device_control.v1.devices;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices;devices_v1";
 service DeviceService {
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
   rpc ConnectDevice(ConnectDeviceRequest) returns (ConnectDeviceResponse);
   rpc ReconnectDevice(ReconnectDeviceRequest) returns (ReconnectDeviceResponse);
+  rpc ExecuteVolume(ExecuteVolumeRequest) returns (ExecuteVolumeResponse);
 }
 message ListDevicesRequest {}
 message ListDevicesResponse {
@@ -22,6 +24,29 @@ message ConnectDeviceResponse {
 }
 message ReconnectDeviceRequest { string device_id = 1; }
 message ReconnectDeviceResponse { Device device = 1; }
+message ExecuteVolumeRequest {
+  string device = 1;
+  string actor = 2;
+  string goal = 3;
+  string operation = 4;
+  optional double value = 5;
+  string direction = 6;
+  string verification_policy = 7;
+  string operation_id = 8;
+}
+message ExecuteVolumeResponse {
+  string status = 1;
+  string operation_id = 2;
+  string device_id = 3;
+  string device_name = 4;
+  google.protobuf.Struct plan = 5;
+  google.protobuf.Struct before = 6;
+  google.protobuf.Struct after = 7;
+  string verification_class = 8;
+  repeated string evidence = 9;
+  int32 recovery_attempts = 10;
+  string next_action = 11;
+}
 message Device {
   string id = 1;
   string name = 2;
@@ -39,12 +64,26 @@ message Device {
   string health = 14;
   string first_seen_at = 15;
   string last_seen_at = 16;
+  repeated TransportProfile transports = 17;
+  string identity_key = 18;
+  string identity_reason = 19;
 }
 message CapabilitySnapshot {
   string name = 1;
   string status = 2;
   string prerequisite = 3;
   string next_action = 4;
+}
+message TransportProfile {
+  string strategy_id = 1;
+  string name = 2;
+  string role = 3;
+  string endpoint = 4;
+  string health = 5;
+  string health_reason = 6;
+  repeated CapabilitySnapshot capabilities = 7;
+  repeated string operations = 8;
+  repeated string endpoints = 9;
 }
 message OnboardingRung {
   string id = 1;

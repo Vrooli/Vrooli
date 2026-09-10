@@ -9,6 +9,7 @@ from agent_manager.v1.domain import watch_pb2 as _watch_pb2
 from agent_manager.v1.domain import workflow_pb2 as _workflow_pb2
 from buf.validate import validate_pb2 as _validate_pb2
 from common.v1 import types_pb2 as _types_pb2_1
+from vrooli_events.v1.domain import envelope_pb2 as _envelope_pb2
 from google.api import annotations_pb2 as _annotations_pb2
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
@@ -329,18 +330,24 @@ class GetWorkflowRevisionResponse(_message.Message):
     def __init__(self, revision: _Optional[_Union[_workflow_pb2.WorkflowRevision, _Mapping]] = ...) -> None: ...
 
 class StartWorkflowExecutionRequest(_message.Message):
-    __slots__ = ("owner", "workflow_key", "definition_digest", "input", "idempotency_key")
+    __slots__ = ("owner", "workflow_key", "definition_digest", "input", "idempotency_key", "engagement_grant", "approval_digest", "grant_digest")
     OWNER_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_KEY_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_DIGEST_FIELD_NUMBER: _ClassVar[int]
     INPUT_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    ENGAGEMENT_GRANT_FIELD_NUMBER: _ClassVar[int]
+    APPROVAL_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    GRANT_DIGEST_FIELD_NUMBER: _ClassVar[int]
     owner: str
     workflow_key: str
     definition_digest: str
     input: _struct_pb2.Value
     idempotency_key: str
-    def __init__(self, owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., definition_digest: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+    engagement_grant: _workflow_pb2.WorkflowEngagementGrant
+    approval_digest: str
+    grant_digest: str
+    def __init__(self, owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., definition_digest: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., idempotency_key: _Optional[str] = ..., engagement_grant: _Optional[_Union[_workflow_pb2.WorkflowEngagementGrant, _Mapping]] = ..., approval_digest: _Optional[str] = ..., grant_digest: _Optional[str] = ...) -> None: ...
 
 class GetWorkflowExecutionRequest(_message.Message):
     __slots__ = ("execution_id",)
@@ -792,7 +799,7 @@ class GetRunReportRequest(_message.Message):
     def __init__(self, run_id: _Optional[str] = ...) -> None: ...
 
 class RunReport(_message.Message):
-    __slots__ = ("run_id", "status", "exit_code", "error", "duration_ms", "heartbeat_gap_ms", "turns", "tokens", "cost_usd", "result", "event_counts", "tools", "project_owned_tool_calls", "external_tool_calls", "requested_model", "actual_model", "fallback_count", "diff", "events_availability", "receipts_availability", "receipt_count", "repeated_tool_calls", "longest_event_gap_ms", "files_read_more_than_once", "time_accounting", "goal_outcome")
+    __slots__ = ("run_id", "status", "exit_code", "error", "duration_ms", "heartbeat_gap_ms", "turns", "tokens", "cost_usd", "result", "event_counts", "tools", "project_owned_tool_calls", "external_tool_calls", "requested_model", "actual_model", "fallback_count", "diff", "events_availability", "receipts_availability", "receipt_count", "repeated_tool_calls", "longest_event_gap_ms", "files_read_more_than_once", "time_accounting", "goal_outcome", "work_references")
     class EventCountsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -826,6 +833,7 @@ class RunReport(_message.Message):
     FILES_READ_MORE_THAN_ONCE_FIELD_NUMBER: _ClassVar[int]
     TIME_ACCOUNTING_FIELD_NUMBER: _ClassVar[int]
     GOAL_OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    WORK_REFERENCES_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     status: str
     exit_code: int
@@ -852,7 +860,8 @@ class RunReport(_message.Message):
     files_read_more_than_once: int
     time_accounting: RunTimeAccounting
     goal_outcome: RunGoalOutcome
-    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., exit_code: _Optional[int] = ..., error: _Optional[str] = ..., duration_ms: _Optional[int] = ..., heartbeat_gap_ms: _Optional[int] = ..., turns: _Optional[int] = ..., tokens: _Optional[int] = ..., cost_usd: _Optional[float] = ..., result: _Optional[_Union[RunReportResult, _Mapping]] = ..., event_counts: _Optional[_Mapping[str, int]] = ..., tools: _Optional[_Iterable[_Union[RunReportTool, _Mapping]]] = ..., project_owned_tool_calls: _Optional[int] = ..., external_tool_calls: _Optional[int] = ..., requested_model: _Optional[str] = ..., actual_model: _Optional[str] = ..., fallback_count: _Optional[int] = ..., diff: _Optional[_Union[RunReportDiff, _Mapping]] = ..., events_availability: _Optional[_Union[RunReportAvailability, _Mapping]] = ..., receipts_availability: _Optional[_Union[RunReportAvailability, _Mapping]] = ..., receipt_count: _Optional[int] = ..., repeated_tool_calls: _Optional[int] = ..., longest_event_gap_ms: _Optional[int] = ..., files_read_more_than_once: _Optional[int] = ..., time_accounting: _Optional[_Union[RunTimeAccounting, _Mapping]] = ..., goal_outcome: _Optional[_Union[RunGoalOutcome, _Mapping]] = ...) -> None: ...
+    work_references: _containers.RepeatedCompositeFieldContainer[_envelope_pb2.WorkReference]
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., exit_code: _Optional[int] = ..., error: _Optional[str] = ..., duration_ms: _Optional[int] = ..., heartbeat_gap_ms: _Optional[int] = ..., turns: _Optional[int] = ..., tokens: _Optional[int] = ..., cost_usd: _Optional[float] = ..., result: _Optional[_Union[RunReportResult, _Mapping]] = ..., event_counts: _Optional[_Mapping[str, int]] = ..., tools: _Optional[_Iterable[_Union[RunReportTool, _Mapping]]] = ..., project_owned_tool_calls: _Optional[int] = ..., external_tool_calls: _Optional[int] = ..., requested_model: _Optional[str] = ..., actual_model: _Optional[str] = ..., fallback_count: _Optional[int] = ..., diff: _Optional[_Union[RunReportDiff, _Mapping]] = ..., events_availability: _Optional[_Union[RunReportAvailability, _Mapping]] = ..., receipts_availability: _Optional[_Union[RunReportAvailability, _Mapping]] = ..., receipt_count: _Optional[int] = ..., repeated_tool_calls: _Optional[int] = ..., longest_event_gap_ms: _Optional[int] = ..., files_read_more_than_once: _Optional[int] = ..., time_accounting: _Optional[_Union[RunTimeAccounting, _Mapping]] = ..., goal_outcome: _Optional[_Union[RunGoalOutcome, _Mapping]] = ..., work_references: _Optional[_Iterable[_Union[_envelope_pb2.WorkReference, _Mapping]]] = ...) -> None: ...
 
 class RunGoalOutcome(_message.Message):
     __slots__ = ("goal_id", "status", "token_budget", "tokens_used", "time_used_seconds")
@@ -1643,3 +1652,195 @@ class PurgeDataResponse(_message.Message):
     deleted: PurgeCounts
     dry_run: bool
     def __init__(self, matched: _Optional[_Union[PurgeCounts, _Mapping]] = ..., deleted: _Optional[_Union[PurgeCounts, _Mapping]] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+
+class InvestigationSubject(_message.Message):
+    __slots__ = ("owner", "kind", "ref", "revision", "run_ids")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    REF_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    RUN_IDS_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    kind: str
+    ref: str
+    revision: str
+    run_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, owner: _Optional[str] = ..., kind: _Optional[str] = ..., ref: _Optional[str] = ..., revision: _Optional[str] = ..., run_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class InvestigationEvidenceReference(_message.Message):
+    __slots__ = ("owner", "kind", "ref", "revision", "schema_version", "subject_run_ids")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    REF_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_RUN_IDS_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    kind: str
+    ref: str
+    revision: str
+    schema_version: str
+    subject_run_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, owner: _Optional[str] = ..., kind: _Optional[str] = ..., ref: _Optional[str] = ..., revision: _Optional[str] = ..., schema_version: _Optional[str] = ..., subject_run_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class InvestigationMethodReference(_message.Message):
+    __slots__ = ("skill_id", "revision")
+    SKILL_ID_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    skill_id: str
+    revision: str
+    def __init__(self, skill_id: _Optional[str] = ..., revision: _Optional[str] = ...) -> None: ...
+
+class InvestigationEvidencePolicy(_message.Message):
+    __slots__ = ("mode", "required_planes", "optional_planes", "max_events", "max_evidence_bytes", "max_reconciliations")
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_PLANES_FIELD_NUMBER: _ClassVar[int]
+    OPTIONAL_PLANES_FIELD_NUMBER: _ClassVar[int]
+    MAX_EVENTS_FIELD_NUMBER: _ClassVar[int]
+    MAX_EVIDENCE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    MAX_RECONCILIATIONS_FIELD_NUMBER: _ClassVar[int]
+    mode: str
+    required_planes: _containers.RepeatedScalarFieldContainer[str]
+    optional_planes: _containers.RepeatedScalarFieldContainer[str]
+    max_events: int
+    max_evidence_bytes: int
+    max_reconciliations: int
+    def __init__(self, mode: _Optional[str] = ..., required_planes: _Optional[_Iterable[str]] = ..., optional_planes: _Optional[_Iterable[str]] = ..., max_events: _Optional[int] = ..., max_evidence_bytes: _Optional[int] = ..., max_reconciliations: _Optional[int] = ...) -> None: ...
+
+class InvestigationBudget(_message.Message):
+    __slots__ = ("max_delegated_runs", "max_turns", "wall_seconds", "max_charge_micro_usd")
+    MAX_DELEGATED_RUNS_FIELD_NUMBER: _ClassVar[int]
+    MAX_TURNS_FIELD_NUMBER: _ClassVar[int]
+    WALL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    MAX_CHARGE_MICRO_USD_FIELD_NUMBER: _ClassVar[int]
+    max_delegated_runs: int
+    max_turns: int
+    wall_seconds: int
+    max_charge_micro_usd: int
+    def __init__(self, max_delegated_runs: _Optional[int] = ..., max_turns: _Optional[int] = ..., wall_seconds: _Optional[int] = ..., max_charge_micro_usd: _Optional[int] = ...) -> None: ...
+
+class InvestigationRecommendationPolicy(_message.Message):
+    __slots__ = ("allowed_kinds", "allow_subject_mutation")
+    ALLOWED_KINDS_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_SUBJECT_MUTATION_FIELD_NUMBER: _ClassVar[int]
+    allowed_kinds: _containers.RepeatedScalarFieldContainer[str]
+    allow_subject_mutation: bool
+    def __init__(self, allowed_kinds: _Optional[_Iterable[str]] = ..., allow_subject_mutation: _Optional[bool] = ...) -> None: ...
+
+class InvestigationProvenance(_message.Message):
+    __slots__ = ("kind", "trigger_occurrence_ref")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    TRIGGER_OCCURRENCE_REF_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    trigger_occurrence_ref: str
+    def __init__(self, kind: _Optional[str] = ..., trigger_occurrence_ref: _Optional[str] = ...) -> None: ...
+
+class InvestigationRequest(_message.Message):
+    __slots__ = ("schema_version", "request_key", "caller_authority", "subject", "question", "method_ref", "domain_evidence", "evidence_policy", "budget", "recommendation_policy", "provenance")
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_KEY_FIELD_NUMBER: _ClassVar[int]
+    CALLER_AUTHORITY_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_FIELD_NUMBER: _ClassVar[int]
+    QUESTION_FIELD_NUMBER: _ClassVar[int]
+    METHOD_REF_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_POLICY_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_FIELD_NUMBER: _ClassVar[int]
+    RECOMMENDATION_POLICY_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    schema_version: str
+    request_key: str
+    caller_authority: str
+    subject: InvestigationSubject
+    question: str
+    method_ref: InvestigationMethodReference
+    domain_evidence: _containers.RepeatedCompositeFieldContainer[InvestigationEvidenceReference]
+    evidence_policy: InvestigationEvidencePolicy
+    budget: InvestigationBudget
+    recommendation_policy: InvestigationRecommendationPolicy
+    provenance: InvestigationProvenance
+    def __init__(self, schema_version: _Optional[str] = ..., request_key: _Optional[str] = ..., caller_authority: _Optional[str] = ..., subject: _Optional[_Union[InvestigationSubject, _Mapping]] = ..., question: _Optional[str] = ..., method_ref: _Optional[_Union[InvestigationMethodReference, _Mapping]] = ..., domain_evidence: _Optional[_Iterable[_Union[InvestigationEvidenceReference, _Mapping]]] = ..., evidence_policy: _Optional[_Union[InvestigationEvidencePolicy, _Mapping]] = ..., budget: _Optional[_Union[InvestigationBudget, _Mapping]] = ..., recommendation_policy: _Optional[_Union[InvestigationRecommendationPolicy, _Mapping]] = ..., provenance: _Optional[_Union[InvestigationProvenance, _Mapping]] = ...) -> None: ...
+
+class InvestigationRecord(_message.Message):
+    __slots__ = ("investigation_id", "request", "request_digest", "operation_status", "result_json", "source_cut_json", "workflow_ref", "cancel_requested", "created_at", "updated_at", "completed_at", "cancelled_at")
+    INVESTIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    RESULT_JSON_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_CUT_JSON_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_REF_FIELD_NUMBER: _ClassVar[int]
+    CANCEL_REQUESTED_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    CANCELLED_AT_FIELD_NUMBER: _ClassVar[int]
+    investigation_id: str
+    request: InvestigationRequest
+    request_digest: str
+    operation_status: str
+    result_json: str
+    source_cut_json: str
+    workflow_ref: str
+    cancel_requested: bool
+    created_at: _timestamp_pb2.Timestamp
+    updated_at: _timestamp_pb2.Timestamp
+    completed_at: _timestamp_pb2.Timestamp
+    cancelled_at: _timestamp_pb2.Timestamp
+    def __init__(self, investigation_id: _Optional[str] = ..., request: _Optional[_Union[InvestigationRequest, _Mapping]] = ..., request_digest: _Optional[str] = ..., operation_status: _Optional[str] = ..., result_json: _Optional[str] = ..., source_cut_json: _Optional[str] = ..., workflow_ref: _Optional[str] = ..., cancel_requested: _Optional[bool] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cancelled_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class StartInvestigationRequest(_message.Message):
+    __slots__ = ("request",)
+    REQUEST_FIELD_NUMBER: _ClassVar[int]
+    request: InvestigationRequest
+    def __init__(self, request: _Optional[_Union[InvestigationRequest, _Mapping]] = ...) -> None: ...
+
+class StartInvestigationResponse(_message.Message):
+    __slots__ = ("investigation", "reused")
+    INVESTIGATION_FIELD_NUMBER: _ClassVar[int]
+    REUSED_FIELD_NUMBER: _ClassVar[int]
+    investigation: InvestigationRecord
+    reused: bool
+    def __init__(self, investigation: _Optional[_Union[InvestigationRecord, _Mapping]] = ..., reused: _Optional[bool] = ...) -> None: ...
+
+class GetInvestigationRequest(_message.Message):
+    __slots__ = ("investigation_id",)
+    INVESTIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    investigation_id: str
+    def __init__(self, investigation_id: _Optional[str] = ...) -> None: ...
+
+class ListInvestigationsRequest(_message.Message):
+    __slots__ = ("operation_status", "limit")
+    OPERATION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    operation_status: str
+    limit: int
+    def __init__(self, operation_status: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class ListInvestigationsResponse(_message.Message):
+    __slots__ = ("investigations",)
+    INVESTIGATIONS_FIELD_NUMBER: _ClassVar[int]
+    investigations: _containers.RepeatedCompositeFieldContainer[InvestigationRecord]
+    def __init__(self, investigations: _Optional[_Iterable[_Union[InvestigationRecord, _Mapping]]] = ...) -> None: ...
+
+class WaitInvestigationRequest(_message.Message):
+    __slots__ = ("investigation_id", "timeout_seconds")
+    INVESTIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    investigation_id: str
+    timeout_seconds: int
+    def __init__(self, investigation_id: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+
+class WaitInvestigationResponse(_message.Message):
+    __slots__ = ("investigation", "terminal")
+    INVESTIGATION_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_FIELD_NUMBER: _ClassVar[int]
+    investigation: InvestigationRecord
+    terminal: bool
+    def __init__(self, investigation: _Optional[_Union[InvestigationRecord, _Mapping]] = ..., terminal: _Optional[bool] = ...) -> None: ...
+
+class CancelInvestigationRequest(_message.Message):
+    __slots__ = ("investigation_id",)
+    INVESTIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    investigation_id: str
+    def __init__(self, investigation_id: _Optional[str] = ...) -> None: ...

@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from portal.v1.shared import common_pb2 as portal_dot_v1_dot_shared_dot_common__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1fportal/v1/message/message.proto\x12\x18vrooli.portal.v1.message\x1a\x1dportal/v1/shared/common.proto\"\xb9\x03\n\x07Message\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n\x07\x63hat_id\x18\x02 \x01(\tR\x06\x63hatId\x12*\n\x11parent_message_id\x18\x03 \x01(\tR\x0fparentMessageId\x12#\n\rsibling_index\x18\x04 \x01(\x05R\x0csiblingIndex\x12\x39\n\x04role\x18\x05 \x01(\x0e\x32%.vrooli.portal.v1.message.MessageRoleR\x04role\x12\x18\n\x07\x63ontent\x18\x06 \x01(\tR\x07\x63ontent\x12\x14\n\x05model\x18\x07 \x01(\tR\x05model\x12\x1d\n\ncreated_at\x18\x08 \x01(\tR\tcreatedAt\x12\x1d\n\nupdated_at\x18\t \x01(\tR\tupdatedAt\x12Y\n\x12search_attachments\x18\n \x03(\x0b\x32*.vrooli.portal.v1.message.SearchAttachmentR\x11searchAttachments\x12\x30\n\x14\x63ontext_document_ids\x18\x0b \x03(\tR\x12\x63ontextDocumentIds\"\xe2\x01\n\x10SearchAttachment\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05query\x18\x02 \x01(\tR\x05query\x12\x36\n\x04hits\x18\x03 \x03(\x0b\x32\".vrooli.portal.v1.shared.SearchHitR\x04hits\x12\x1a\n\x08\x64\x65graded\x18\x04 \x01(\x08R\x08\x64\x65graded\x12\x16\n\x06reason\x18\x05 \x01(\tR\x06reason\x12\x1d\n\nlatency_ms\x18\x06 \x01(\x03R\tlatencyMs\x12\x1d\n\ncreated_at\x18\x07 \x01(\tR\tcreatedAt\"\xcb\x01\n\x0bUsageRecord\x12\x1d\n\nmessage_id\x18\x01 \x01(\tR\tmessageId\x12\x1a\n\x08provider\x18\x02 \x01(\tR\x08provider\x12\x14\n\x05model\x18\x03 \x01(\tR\x05model\x12#\n\rprompt_tokens\x18\x04 \x01(\x05R\x0cpromptTokens\x12+\n\x11\x63ompletion_tokens\x18\x05 \x01(\x05R\x10\x63ompletionTokens\x12\x19\n\x08\x63ost_usd\x18\x06 \x01(\x01R\x07\x63ostUsd\")\n\x0eGetTreeRequest\x12\x17\n\x07\x63hat_id\x18\x01 \x01(\tR\x06\x63hatId\"\x85\x01\n\x0fGetTreeResponse\x12=\n\x08messages\x18\x01 \x03(\x0b\x32!.vrooli.portal.v1.message.MessageR\x08messages\x12\x33\n\x16\x61\x63tive_leaf_message_id\x18\x02 \x01(\tR\x13\x61\x63tiveLeafMessageId\"\x97\x02\n\x12SendMessageRequest\x12\x17\n\x07\x63hat_id\x18\x01 \x01(\tR\x06\x63hatId\x12*\n\x11parent_message_id\x18\x02 \x01(\tR\x0fparentMessageId\x12\x18\n\x07\x63ontent\x18\x03 \x01(\tR\x07\x63ontent\x12\x14\n\x05model\x18\x04 \x01(\tR\x05model\x12,\n\x12web_search_enabled\x18\x05 \x01(\x08R\x10webSearchEnabled\x12,\n\x12selected_skill_ids\x18\x06 \x03(\tR\x10selectedSkillIds\x12\x30\n\x14\x63ontext_document_ids\x18\x07 \x03(\tR\x12\x63ontextDocumentIds\"[\n\x13SendMessageResponse\x12\x44\n\x0cuser_message\x18\x01 \x01(\x0b\x32!.vrooli.portal.v1.message.MessageR\x0buserMessage\"M\n\x12\x45\x64itMessageRequest\x12\x1d\n\nmessage_id\x18\x01 \x01(\tR\tmessageId\x12\x18\n\x07\x63ontent\x18\x02 \x01(\tR\x07\x63ontent\"R\n\x13\x45\x64itMessageResponse\x12;\n\x07message\x18\x01 \x01(\x0b\x32!.vrooli.portal.v1.message.MessageR\x07message\"H\n\x11RegenerateRequest\x12\x1d\n\nmessage_id\x18\x01 \x01(\tR\tmessageId\x12\x14\n\x05model\x18\x02 \x01(\tR\x05model\"d\n\x12RegenerateResponse\x12N\n\x11\x61ssistant_message\x18\x01 \x01(\x0b\x32!.vrooli.portal.v1.message.MessageR\x10\x61ssistantMessage\"\x83\x02\n\x17StreamCompletionRequest\x12\x17\n\x07\x63hat_id\x18\x01 \x01(\tR\x06\x63hatId\x12&\n\x0f\x66rom_message_id\x18\x02 \x01(\tR\rfromMessageId\x12\x14\n\x05model\x18\x03 \x01(\tR\x05model\x12,\n\x12web_search_enabled\x18\x04 \x01(\x08R\x10webSearchEnabled\x12,\n\x12selected_skill_ids\x18\x05 \x03(\tR\x10selectedSkillIds\x12\x35\n\x04mode\x18\x06 \x01(\x0e\x32!.vrooli.portal.v1.shared.ChatModeR\x04mode\"\xe1\x02\n\x0f\x43ompletionEvent\x12\x41\n\x04kind\x18\x01 \x01(\x0e\x32-.vrooli.portal.v1.message.CompletionEventKindR\x04kind\x12\x1d\n\nmessage_id\x18\x02 \x01(\tR\tmessageId\x12\x12\n\x04text\x18\x03 \x01(\tR\x04text\x12W\n\x11search_attachment\x18\x04 \x01(\x0b\x32*.vrooli.portal.v1.message.SearchAttachmentR\x10searchAttachment\x12;\n\x05usage\x18\x05 \x01(\x0b\x32%.vrooli.portal.v1.message.UsageRecordR\x05usage\x12\x1d\n\nerror_code\x18\x06 \x01(\tR\terrorCode\x12#\n\rerror_message\x18\x07 \x01(\tR\x0c\x65rrorMessage\"I\n\x0f\x41gentRunRequest\x12\x17\n\x07\x63hat_id\x18\x01 \x01(\tR\x06\x63hatId\x12\x1d\n\nmessage_id\x18\x02 \x01(\tR\tmessageId\"]\n\x10\x41gentRunResponse\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\x12\x1a\n\x08terminal\x18\x03 \x01(\x08R\x08terminal\"X\n\x1aListAgentAdmissionsRequest\x12\x1d\n\npage_token\x18\x01 \x01(\tR\tpageToken\x12\x1b\n\tpage_size\x18\x02 \x01(\x05R\x08pageSize\"H\n\x0e\x41gentAdmission\x12\x17\n\x07\x63hat_id\x18\x01 \x01(\tR\x06\x63hatId\x12\x1d\n\nmessage_id\x18\x02 \x01(\tR\tmessageId\"\x8f\x01\n\x1bListAgentAdmissionsResponse\x12H\n\nadmissions\x18\x01 \x03(\x0b\x32(.vrooli.portal.v1.message.AgentAdmissionR\nadmissions\x12&\n\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*\x8f\x01\n\x0bMessageRole\x12\x1c\n\x18MESSAGE_ROLE_UNSPECIFIED\x10\x00\x12\x17\n\x13MESSAGE_ROLE_SYSTEM\x10\x01\x12\x15\n\x11MESSAGE_ROLE_USER\x10\x02\x12\x1a\n\x16MESSAGE_ROLE_ASSISTANT\x10\x03\x12\x16\n\x12MESSAGE_ROLE_AGENT\x10\x04*\x97\x02\n\x13\x43ompletionEventKind\x12%\n!COMPLETION_EVENT_KIND_UNSPECIFIED\x10\x00\x12 \n\x1c\x43OMPLETION_EVENT_KIND_STATUS\x10\x01\x12\x1f\n\x1b\x43OMPLETION_EVENT_KIND_TOKEN\x10\x02\x12+\n\'COMPLETION_EVENT_KIND_SEARCH_ATTACHMENT\x10\x03\x12(\n$COMPLETION_EVENT_KIND_AGENT_ACTIVITY\x10\x04\x12\x1e\n\x1a\x43OMPLETION_EVENT_KIND_DONE\x10\x05\x12\x1f\n\x1b\x43OMPLETION_EVENT_KIND_ERROR\x10\x06\x32\xf7\x06\n\x0eMessageService\x12\x82\x01\n\x13ListAgentAdmissions\x12\x34.vrooli.portal.v1.message.ListAgentAdmissionsRequest\x1a\x35.vrooli.portal.v1.message.ListAgentAdmissionsResponse\x12\x64\n\x0bGetAgentRun\x12).vrooli.portal.v1.message.AgentRunRequest\x1a*.vrooli.portal.v1.message.AgentRunResponse\x12\x65\n\x0cStopAgentRun\x12).vrooli.portal.v1.message.AgentRunRequest\x1a*.vrooli.portal.v1.message.AgentRunResponse\x12^\n\x07GetTree\x12(.vrooli.portal.v1.message.GetTreeRequest\x1a).vrooli.portal.v1.message.GetTreeResponse\x12j\n\x0bSendMessage\x12,.vrooli.portal.v1.message.SendMessageRequest\x1a-.vrooli.portal.v1.message.SendMessageResponse\x12j\n\x0b\x45\x64itMessage\x12,.vrooli.portal.v1.message.EditMessageRequest\x1a-.vrooli.portal.v1.message.EditMessageResponse\x12g\n\nRegenerate\x12+.vrooli.portal.v1.message.RegenerateRequest\x1a,.vrooli.portal.v1.message.RegenerateResponse\x12r\n\x10StreamCompletion\x12\x31.vrooli.portal.v1.message.StreamCompletionRequest\x1a).vrooli.portal.v1.message.CompletionEvent0\x01\x42MZKgithub.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/message;message_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1fportal/v1/message/message.proto\x12\x18vrooli.portal.v1.message\x1a\x1dportal/v1/shared/common.proto\"\xd4\x03\n\x07Message\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n\x07\x63hat_id\x18\x02 \x01(\tR\x06\x63hatId\x12*\n\x11parent_message_id\x18\x03 \x01(\tR\x0fparentMessageId\x12#\n\rsibling_index\x18\x04 \x01(\x05R\x0csiblingIndex\x12\x39\n\x04role\x18\x05 \x01(\x0e\x32%.vrooli.portal.v1.message.MessageRoleR\x04role\x12\x18\n\x07\x63ontent\x18\x06 \x01(\tR\x07\x63ontent\x12\x14\n\x05model\x18\x07 \x01(\tR\x05model\x12\x1d\n\ncreated_at\x18\x08 \x01(\tR\tcreatedAt\x12\x1d\n\nupdated_at\x18\t \x01(\tR\tupdatedAt\x12Y\n\x12search_attachments\x18\n \x03(\x0b\x32*.vrooli.portal.v1.message.SearchAttachmentR\x11searchAttachments\x12\x30\n\x14\x63ontext_document_ids\x18\x0b \x03(\tR\x12\x63ontextDocumentIds\x12\x19\n\x08\x62rief_id\x18\x0c \x01(\tR\x07\x62riefId\"\xe2\x01\n\x10SearchAttachment\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05query\x18\x02 \x01(\tR\x05query\x12\x36\n\x04hits\x18\x03 \x03(\x0b\x32\".vrooli.portal.v1.shared.SearchHitR\x04hits\x12\x1a\n\x08\x64\x65graded\x18\x04 \x01(\x08R\x08\x64\x65graded\x12\x16\n\x06reason\x18\x05 \x01(\tR\x06reason\x12\x1d\n\nlatency_ms\x18\x06 \x01(\x03R\tlatencyMs\x12\x1d\n\ncreated_at\x18\x07 \x01(\tR\tcreatedAt\"\xcb\x01\n\x0bUsageRecord\x12\x1d\n\nmessage_id\x18\x01 \x01(\tR\tmessageId\x12\x1a\n\x08provider\x18\x02 \x01(\tR\x08provider\x12\x14\n\x05model\x18\x03 \x01(\tR\x05model\x12#\n\rprompt_tokens\x18\x04 \x01(\x05R\x0cpromptTokens\x12+\n\x11\x63ompletion_tokens\x18\x05 \x01(\x05R\x10\x63ompletionTokens\x12\x19\n\x08\x63ost_usd\x18\x06 \x01(\x01R\x07\x63ostUsd\")\n\x0eGetTreeRequest\x12\x17\n\x07\x63hat_id\x18\x01 \x01(\tR\x06\x63hatId\"\x85\x01\n\x0fGetTreeResponse\x12=\n\x08messages\x18\x01 \x03(\x0b\x32!.vrooli.portal.v1.message.MessageR\x08messages\x12\x33\n\x16\x61\x63tive_leaf_message_id\x18\x02 \x01(\tR\x13\x61\x63tiveLeafMessageId\"\x97\x02\n\x12SendMessageRequest\x12\x17\n\x07\x63hat_id\x18\x01 \x01(\tR\x06\x63hatId\x12*\n\x11parent_message_id\x18\x02 \x01(\tR\x0fparentMessageId\x12\x18\n\x07\x63ontent\x18\x03 \x01(\tR\x07\x63ontent\x12\x14\n\x05model\x18\x04 \x01(\tR\x05model\x12,\n\x12web_search_enabled\x18\x05 \x01(\x08R\x10webSearchEnabled\x12,\n\x12selected_skill_ids\x18\x06 \x03(\tR\x10selectedSkillIds\x12\x30\n\x14\x63ontext_document_ids\x18\x07 \x03(\tR\x12\x63ontextDocumentIds\"[\n\x13SendMessageResponse\x12\x44\n\x0cuser_message\x18\x01 \x01(\x0b\x32!.vrooli.portal.v1.message.MessageR\x0buserMessage\"M\n\x12\x45\x64itMessageRequest\x12\x1d\n\nmessage_id\x18\x01 \x01(\tR\tmessageId\x12\x18\n\x07\x63ontent\x18\x02 \x01(\tR\x07\x63ontent\"R\n\x13\x45\x64itMessageResponse\x12;\n\x07message\x18\x01 \x01(\x0b\x32!.vrooli.portal.v1.message.MessageR\x07message\"H\n\x11RegenerateRequest\x12\x1d\n\nmessage_id\x18\x01 \x01(\tR\tmessageId\x12\x14\n\x05model\x18\x02 \x01(\tR\x05model\"d\n\x12RegenerateResponse\x12N\n\x11\x61ssistant_message\x18\x01 \x01(\x0b\x32!.vrooli.portal.v1.message.MessageR\x10\x61ssistantMessage\"\x83\x02\n\x17StreamCompletionRequest\x12\x17\n\x07\x63hat_id\x18\x01 \x01(\tR\x06\x63hatId\x12&\n\x0f\x66rom_message_id\x18\x02 \x01(\tR\rfromMessageId\x12\x14\n\x05model\x18\x03 \x01(\tR\x05model\x12,\n\x12web_search_enabled\x18\x04 \x01(\x08R\x10webSearchEnabled\x12,\n\x12selected_skill_ids\x18\x05 \x03(\tR\x10selectedSkillIds\x12\x35\n\x04mode\x18\x06 \x01(\x0e\x32!.vrooli.portal.v1.shared.ChatModeR\x04mode\"\xe1\x02\n\x0f\x43ompletionEvent\x12\x41\n\x04kind\x18\x01 \x01(\x0e\x32-.vrooli.portal.v1.message.CompletionEventKindR\x04kind\x12\x1d\n\nmessage_id\x18\x02 \x01(\tR\tmessageId\x12\x12\n\x04text\x18\x03 \x01(\tR\x04text\x12W\n\x11search_attachment\x18\x04 \x01(\x0b\x32*.vrooli.portal.v1.message.SearchAttachmentR\x10searchAttachment\x12;\n\x05usage\x18\x05 \x01(\x0b\x32%.vrooli.portal.v1.message.UsageRecordR\x05usage\x12\x1d\n\nerror_code\x18\x06 \x01(\tR\terrorCode\x12#\n\rerror_message\x18\x07 \x01(\tR\x0c\x65rrorMessage\"I\n\x0f\x41gentRunRequest\x12\x17\n\x07\x63hat_id\x18\x01 \x01(\tR\x06\x63hatId\x12\x1d\n\nmessage_id\x18\x02 \x01(\tR\tmessageId\"]\n\x10\x41gentRunResponse\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\x12\x1a\n\x08terminal\x18\x03 \x01(\x08R\x08terminal\"X\n\x1aListAgentAdmissionsRequest\x12\x1d\n\npage_token\x18\x01 \x01(\tR\tpageToken\x12\x1b\n\tpage_size\x18\x02 \x01(\x05R\x08pageSize\"H\n\x0e\x41gentAdmission\x12\x17\n\x07\x63hat_id\x18\x01 \x01(\tR\x06\x63hatId\x12\x1d\n\nmessage_id\x18\x02 \x01(\tR\tmessageId\"\x8f\x01\n\x1bListAgentAdmissionsResponse\x12H\n\nadmissions\x18\x01 \x03(\x0b\x32(.vrooli.portal.v1.message.AgentAdmissionR\nadmissions\x12&\n\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*\x8f\x01\n\x0bMessageRole\x12\x1c\n\x18MESSAGE_ROLE_UNSPECIFIED\x10\x00\x12\x17\n\x13MESSAGE_ROLE_SYSTEM\x10\x01\x12\x15\n\x11MESSAGE_ROLE_USER\x10\x02\x12\x1a\n\x16MESSAGE_ROLE_ASSISTANT\x10\x03\x12\x16\n\x12MESSAGE_ROLE_AGENT\x10\x04*\x97\x02\n\x13\x43ompletionEventKind\x12%\n!COMPLETION_EVENT_KIND_UNSPECIFIED\x10\x00\x12 \n\x1c\x43OMPLETION_EVENT_KIND_STATUS\x10\x01\x12\x1f\n\x1b\x43OMPLETION_EVENT_KIND_TOKEN\x10\x02\x12+\n\'COMPLETION_EVENT_KIND_SEARCH_ATTACHMENT\x10\x03\x12(\n$COMPLETION_EVENT_KIND_AGENT_ACTIVITY\x10\x04\x12\x1e\n\x1a\x43OMPLETION_EVENT_KIND_DONE\x10\x05\x12\x1f\n\x1b\x43OMPLETION_EVENT_KIND_ERROR\x10\x06\x32\xf7\x06\n\x0eMessageService\x12\x82\x01\n\x13ListAgentAdmissions\x12\x34.vrooli.portal.v1.message.ListAgentAdmissionsRequest\x1a\x35.vrooli.portal.v1.message.ListAgentAdmissionsResponse\x12\x64\n\x0bGetAgentRun\x12).vrooli.portal.v1.message.AgentRunRequest\x1a*.vrooli.portal.v1.message.AgentRunResponse\x12\x65\n\x0cStopAgentRun\x12).vrooli.portal.v1.message.AgentRunRequest\x1a*.vrooli.portal.v1.message.AgentRunResponse\x12^\n\x07GetTree\x12(.vrooli.portal.v1.message.GetTreeRequest\x1a).vrooli.portal.v1.message.GetTreeResponse\x12j\n\x0bSendMessage\x12,.vrooli.portal.v1.message.SendMessageRequest\x1a-.vrooli.portal.v1.message.SendMessageResponse\x12j\n\x0b\x45\x64itMessage\x12,.vrooli.portal.v1.message.EditMessageRequest\x1a-.vrooli.portal.v1.message.EditMessageResponse\x12g\n\nRegenerate\x12+.vrooli.portal.v1.message.RegenerateRequest\x1a,.vrooli.portal.v1.message.RegenerateResponse\x12r\n\x10StreamCompletion\x12\x31.vrooli.portal.v1.message.StreamCompletionRequest\x1a).vrooli.portal.v1.message.CompletionEvent0\x01\x42MZKgithub.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/message;message_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,46 +33,46 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'portal.v1.message.message_p
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZKgithub.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/message;message_v1'
-  _globals['_MESSAGEROLE']._serialized_start=2963
-  _globals['_MESSAGEROLE']._serialized_end=3106
-  _globals['_COMPLETIONEVENTKIND']._serialized_start=3109
-  _globals['_COMPLETIONEVENTKIND']._serialized_end=3388
+  _globals['_MESSAGEROLE']._serialized_start=2990
+  _globals['_MESSAGEROLE']._serialized_end=3133
+  _globals['_COMPLETIONEVENTKIND']._serialized_start=3136
+  _globals['_COMPLETIONEVENTKIND']._serialized_end=3415
   _globals['_MESSAGE']._serialized_start=93
-  _globals['_MESSAGE']._serialized_end=534
-  _globals['_SEARCHATTACHMENT']._serialized_start=537
-  _globals['_SEARCHATTACHMENT']._serialized_end=763
-  _globals['_USAGERECORD']._serialized_start=766
-  _globals['_USAGERECORD']._serialized_end=969
-  _globals['_GETTREEREQUEST']._serialized_start=971
-  _globals['_GETTREEREQUEST']._serialized_end=1012
-  _globals['_GETTREERESPONSE']._serialized_start=1015
-  _globals['_GETTREERESPONSE']._serialized_end=1148
-  _globals['_SENDMESSAGEREQUEST']._serialized_start=1151
-  _globals['_SENDMESSAGEREQUEST']._serialized_end=1430
-  _globals['_SENDMESSAGERESPONSE']._serialized_start=1432
-  _globals['_SENDMESSAGERESPONSE']._serialized_end=1523
-  _globals['_EDITMESSAGEREQUEST']._serialized_start=1525
-  _globals['_EDITMESSAGEREQUEST']._serialized_end=1602
-  _globals['_EDITMESSAGERESPONSE']._serialized_start=1604
-  _globals['_EDITMESSAGERESPONSE']._serialized_end=1686
-  _globals['_REGENERATEREQUEST']._serialized_start=1688
-  _globals['_REGENERATEREQUEST']._serialized_end=1760
-  _globals['_REGENERATERESPONSE']._serialized_start=1762
-  _globals['_REGENERATERESPONSE']._serialized_end=1862
-  _globals['_STREAMCOMPLETIONREQUEST']._serialized_start=1865
-  _globals['_STREAMCOMPLETIONREQUEST']._serialized_end=2124
-  _globals['_COMPLETIONEVENT']._serialized_start=2127
-  _globals['_COMPLETIONEVENT']._serialized_end=2480
-  _globals['_AGENTRUNREQUEST']._serialized_start=2482
-  _globals['_AGENTRUNREQUEST']._serialized_end=2555
-  _globals['_AGENTRUNRESPONSE']._serialized_start=2557
-  _globals['_AGENTRUNRESPONSE']._serialized_end=2650
-  _globals['_LISTAGENTADMISSIONSREQUEST']._serialized_start=2652
-  _globals['_LISTAGENTADMISSIONSREQUEST']._serialized_end=2740
-  _globals['_AGENTADMISSION']._serialized_start=2742
-  _globals['_AGENTADMISSION']._serialized_end=2814
-  _globals['_LISTAGENTADMISSIONSRESPONSE']._serialized_start=2817
-  _globals['_LISTAGENTADMISSIONSRESPONSE']._serialized_end=2960
-  _globals['_MESSAGESERVICE']._serialized_start=3391
-  _globals['_MESSAGESERVICE']._serialized_end=4278
+  _globals['_MESSAGE']._serialized_end=561
+  _globals['_SEARCHATTACHMENT']._serialized_start=564
+  _globals['_SEARCHATTACHMENT']._serialized_end=790
+  _globals['_USAGERECORD']._serialized_start=793
+  _globals['_USAGERECORD']._serialized_end=996
+  _globals['_GETTREEREQUEST']._serialized_start=998
+  _globals['_GETTREEREQUEST']._serialized_end=1039
+  _globals['_GETTREERESPONSE']._serialized_start=1042
+  _globals['_GETTREERESPONSE']._serialized_end=1175
+  _globals['_SENDMESSAGEREQUEST']._serialized_start=1178
+  _globals['_SENDMESSAGEREQUEST']._serialized_end=1457
+  _globals['_SENDMESSAGERESPONSE']._serialized_start=1459
+  _globals['_SENDMESSAGERESPONSE']._serialized_end=1550
+  _globals['_EDITMESSAGEREQUEST']._serialized_start=1552
+  _globals['_EDITMESSAGEREQUEST']._serialized_end=1629
+  _globals['_EDITMESSAGERESPONSE']._serialized_start=1631
+  _globals['_EDITMESSAGERESPONSE']._serialized_end=1713
+  _globals['_REGENERATEREQUEST']._serialized_start=1715
+  _globals['_REGENERATEREQUEST']._serialized_end=1787
+  _globals['_REGENERATERESPONSE']._serialized_start=1789
+  _globals['_REGENERATERESPONSE']._serialized_end=1889
+  _globals['_STREAMCOMPLETIONREQUEST']._serialized_start=1892
+  _globals['_STREAMCOMPLETIONREQUEST']._serialized_end=2151
+  _globals['_COMPLETIONEVENT']._serialized_start=2154
+  _globals['_COMPLETIONEVENT']._serialized_end=2507
+  _globals['_AGENTRUNREQUEST']._serialized_start=2509
+  _globals['_AGENTRUNREQUEST']._serialized_end=2582
+  _globals['_AGENTRUNRESPONSE']._serialized_start=2584
+  _globals['_AGENTRUNRESPONSE']._serialized_end=2677
+  _globals['_LISTAGENTADMISSIONSREQUEST']._serialized_start=2679
+  _globals['_LISTAGENTADMISSIONSREQUEST']._serialized_end=2767
+  _globals['_AGENTADMISSION']._serialized_start=2769
+  _globals['_AGENTADMISSION']._serialized_end=2841
+  _globals['_LISTAGENTADMISSIONSRESPONSE']._serialized_start=2844
+  _globals['_LISTAGENTADMISSIONSRESPONSE']._serialized_end=2987
+  _globals['_MESSAGESERVICE']._serialized_start=3418
+  _globals['_MESSAGESERVICE']._serialized_end=4305
 # @@protoc_insertion_point(module_scope)

@@ -329,7 +329,7 @@ const file_swarm_manager_v1_api_execution_proto_rawDesc = "" +
 	"\x11ExecutionResponse\x12M\n" +
 	"\texecution\x18\x01 \x01(\v2/.vrooli.swarm_manager.v1.domain.ExecutionRecordR\texecution\"b\n" +
 	"\x17ExecutionPolicyResponse\x12G\n" +
-	"\x06policy\x18\x01 \x01(\v2/.vrooli.swarm_manager.v1.domain.ExecutionPolicyR\x06policy\"\xef\x02\n" +
+	"\x06policy\x18\x01 \x01(\v2/.vrooli.swarm_manager.v1.domain.ExecutionPolicyR\x06policy\"\xf0\x02\n" +
 	"\x16CreateExecutionRequest\x12*\n" +
 	"\fbacklog_kind\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogKind\x12*\n" +
 	"\fbacklog_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogName\x12'\n" +
@@ -337,9 +337,10 @@ const file_swarm_manager_v1_api_execution_proto_rawDesc = "" +
 	"\n" +
 	"started_by\x18\x05 \x01(\tH\x00R\tstartedBy\x88\x01\x01\x12!\n" +
 	"\toperation\x18\x06 \x01(\tH\x01R\toperation\x88\x01\x01\x12\x1f\n" +
-	"\bstrategy\x18\a \x01(\tH\x02R\bstrategy\x88\x01\x01\x12-\n" +
+	"\bstrategy\x18\a \x01(\tH\x02R\bstrategy\x88\x01\x01\x12.\n" +
 	"\n" +
-	"max_slices\x18\b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x06(\x01H\x03R\tmaxSlices\x88\x01\x01B\r\n" +
+	"max_slices\x18\b \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x80\x04(\x01H\x03R\tmaxSlices\x88\x01\x01B\r\n" +
 	"\v_started_byB\f\n" +
 	"\n" +
 	"_operationB\v\n" +

@@ -47,6 +47,14 @@ class RevokeSessionResponse(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
+class RevokeAuthorizedSessionRequest(_message.Message):
+    __slots__ = ("access_token", "session_id")
+    ACCESS_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    access_token: str
+    session_id: str
+    def __init__(self, access_token: _Optional[str] = ..., session_id: _Optional[str] = ...) -> None: ...
+
 class RevokeAllSessionsRequest(_message.Message):
     __slots__ = ("access_token",)
     ACCESS_TOKEN_FIELD_NUMBER: _ClassVar[int]

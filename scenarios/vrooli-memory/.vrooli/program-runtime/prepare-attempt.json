@@ -115,7 +115,8 @@
       "description": "Caller-declared provenance, not authenticated attribution.",
       "enum": [
         "operator",
-        "test"
+        "test",
+        "agent"
       ]
     },
     "query": {

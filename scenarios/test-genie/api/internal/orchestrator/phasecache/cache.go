@@ -124,6 +124,38 @@ func Cacheable(status string) bool {
 	return cacheableStatuses[strings.ToLower(strings.TrimSpace(status))]
 }
 
+// Reusable reports whether a phase result is safe to persist and serve from
+// the cache. Status alone is not enough: provider-backed phases can normalize
+// a readiness or dependency outage into a generic "failed" verdict while the
+// result still contains the evidence that the phase never had a fair chance
+// to execute. Those results must be recomputed after the provider recovers.
+//
+// A normal deterministic test failure remains reusable. This keeps the cache
+// useful for genuine, identity-covered failures without allowing an external
+// prerequisite outage to become durable validation evidence.
+func Reusable(result phases.ExecutionResult) bool {
+	if !Cacheable(result.Status) {
+		return false
+	}
+	if strings.EqualFold(strings.TrimSpace(result.RunnabilityVerdict), "skip") {
+		return false
+	}
+	if strings.EqualFold(strings.TrimSpace(result.Classification), phases.FailureClassMissingDependency) {
+		return false
+	}
+	for _, finding := range result.Findings {
+		if finding == nil {
+			continue
+		}
+		code := strings.ToUpper(strings.TrimSpace(finding.GetCode()))
+		switch code {
+		case "TEST_DEPENDENCY_MISSING", "DEPENDENCY_MISSING", "PROVIDER_UNAVAILABLE":
+			return false
+		}
+	}
+	return true
+}
+
 var demotionMu sync.Mutex
 
 func New(root string) *Store { return &Store{root: artifactpaths.PhaseCacheDir(root)} }
@@ -263,7 +295,7 @@ func (s *Store) Load(key string) (Entry, bool, error) {
 	if err := json.Unmarshal(data, &entry); err != nil {
 		return Entry{}, false, fmt.Errorf("decode phase cache entry: %w", err)
 	}
-	if entry.Key != key || !Cacheable(entry.Phase.Status) {
+	if entry.Key != key || !Reusable(entry.Phase) {
 		return Entry{}, false, nil
 	}
 	if s.IsDemoted(key) {
@@ -510,7 +542,7 @@ func assessmentStanding(result phases.ExecutionResult) string {
 // can legitimately differ between runs under queue pressure; allowing that
 // warning to poison a cache audit would demote deterministic provider results.
 func (s *Store) Save(key, runID string, phase phases.ExecutionResult) error {
-	if s == nil || strings.TrimSpace(key) == "" || !Cacheable(phase.Status) {
+	if s == nil || strings.TrimSpace(key) == "" || !Reusable(phase) {
 		return nil
 	}
 	if err := os.MkdirAll(s.root, 0o755); err != nil {

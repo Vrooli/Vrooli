@@ -2,7 +2,7 @@
   "schemaVersion": "agent-workflow/v1",
   "owner": "swarm-manager",
   "key": "swarm-manager/phased-plan-slice-review",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Reusable independent review of one compact phased-plan slice handoff.",
   "inputSchema": {
     "type": "object",
@@ -109,8 +109,8 @@
   "budgets": {
     "wallTimeSeconds": 420,
     "maxTurns": 4,
-    "maxTokens": 200000,
-    "maxChargeMicroUsd": 1000000,
+    "maxTokens": 2000000,
+    "maxChargeMicroUsd": 2000000,
     "maxNodeAttempts": 2,
     "maxChildren": 1,
     "maxConcurrency": 1,

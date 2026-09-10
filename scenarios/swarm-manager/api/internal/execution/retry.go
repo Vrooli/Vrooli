@@ -100,6 +100,10 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 		PreviousStatus:    string(parent.Status),
 		Status:            StatusPending,
 		Mode:              parent.Mode,
+		ExecutionStrategy: firstNonEmpty(parent.ExecutionStrategy, item.ExecutionStrategy, defaultExecutionStrategy),
+		MaxSlices:         firstPositive(parent.MaxSlices, 6),
+		ExecutionLimits:   parent.ExecutionLimits.Clone(),
+		ApprovalDigest:    parent.ApprovalDigest,
 		StartedBy:         "swarm-manager:retry",
 		Operation:         "retry",
 		ParentExecutionID: parent.ExecutionID,
@@ -119,7 +123,7 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 // the purpose of retry idempotency. Used to dedup concurrent retry calls.
 func isInFlightStatus(status Status) bool {
 	switch status {
-	case StatusPending, StatusStarting, StatusRunning, StatusNeedsReview, StatusValidating:
+	case StatusPending, StatusStarting, StatusRunning, StatusNeedsReview, StatusValidating, StatusCancelling:
 		return true
 	}
 	return false

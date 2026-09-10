@@ -98,16 +98,19 @@ class SetCurrentLibraryResponse(_message.Message):
     def __init__(self, program: _Optional[_Union[_library_pb2.LibraryProgram, _Mapping]] = ...) -> None: ...
 
 class RunDeclaredProgramRequest(_message.Message):
-    __slots__ = ("name", "inputs", "provenance", "expected_digest")
+    __slots__ = ("name", "inputs", "provenance", "expected_digest", "caller")
     NAME_FIELD_NUMBER: _ClassVar[int]
     INPUTS_FIELD_NUMBER: _ClassVar[int]
     PROVENANCE_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ASYNC_FIELD_NUMBER: _ClassVar[int]
+    CALLER_FIELD_NUMBER: _ClassVar[int]
     name: str
     inputs: _struct_pb2.Struct
     provenance: _programs_pb2.Provenance
     expected_digest: str
-    def __init__(self, name: _Optional[str] = ..., inputs: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., provenance: _Optional[_Union[_programs_pb2.Provenance, str]] = ..., expected_digest: _Optional[str] = ...) -> None: ...
+    caller: _programs_pb2.Caller
+    def __init__(self, name: _Optional[str] = ..., inputs: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., provenance: _Optional[_Union[_programs_pb2.Provenance, str]] = ..., expected_digest: _Optional[str] = ..., caller: _Optional[_Union[_programs_pb2.Caller, _Mapping]] = ..., **kwargs) -> None: ...
 
 class RunDeclaredProgramResponse(_message.Message):
     __slots__ = ("program", "terminal", "waited_millis")

@@ -2,15 +2,15 @@
 // @generated from file setup/v1/selection.proto (package vrooli.setup.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file setup/v1/selection.proto.
  */
 export const file_setup_v1_selection: GenFile = /*@__PURE__*/
-  fileDesc("ChhzZXR1cC92MS9zZWxlY3Rpb24ucHJvdG8SD3Zyb29saS5zZXR1cC52MSKdBQoJU2VsZWN0aW9uEhYKDnNjaGVtYV92ZXJzaW9uGAEgASgJEg4KBnRhcmdldBgCIAEoCRIRCglzY2VuYXJpb3MYAyADKAkSGgoSb3B0aW9uYWxfcmVzb3VyY2VzGAQgAygJEhEKCWNvcmVfc2VlZBgFIAMoCRIUCgx0cnVzdGVkX2Jhc2UYBiADKAkSEgoKaG9zdF90b29scxgHIAMoCRIXCg9ob3N0X3NhZmVndWFyZHMYCCADKAkSHAoUY3JlZGVudGlhbF9hZGRyZXNzZXMYCSADKAkSFQoNdHJ1c3RfcG9zdHVyZRgKIAEoCRIWCg51cGRhdGVfY29udHJvbBgLIAEoCRIUCgxzZXNzaW9uX21vZGUYDCABKAkSRQoOb3BlcmF0aW5nX21vZGUYDSADKAsyLS52cm9vbGkuc2V0dXAudjEuU2VsZWN0aW9uLk9wZXJhdGluZ01vZGVFbnRyeRINCgVhcHBseRgOIAEoCBIYChBjYXBhY2l0eV9wb3N0dXJlGA8gASgJEigKIHRyYW5zaWVudF9oZWFkcm9vbV9yZXNlcnZlX2J5dGVzGBAgASgEEksKEXJlc291cmNlX2NhcGFjaXR5GBEgAygLMjAudnJvb2xpLnNldHVwLnYxLlNlbGVjdGlvbi5SZXNvdXJjZUNhcGFjaXR5RW50cnkaNAoST3BlcmF0aW5nTW9kZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaYwoVUmVzb3VyY2VDYXBhY2l0eUVudHJ5EgsKA2tleRgBIAEoCRI5CgV2YWx1ZRgCIAEoCzIqLnZyb29saS5zZXR1cC52MS5SZXNvdXJjZUNhcGFjaXR5U2VsZWN0aW9uOgI4ASKAAgoZUmVzb3VyY2VDYXBhY2l0eVNlbGVjdGlvbhIMCgRydW5nGAEgASgJEkoKCHR1bmFibGVzGAIgAygLMjgudnJvb2xpLnNldHVwLnYxLlJlc291cmNlQ2FwYWNpdHlTZWxlY3Rpb24uVHVuYWJsZXNFbnRyeRIRCglncHVfaW5kZXgYAyABKA0SEAoIcHJpb3JpdHkYBCABKAkSFwoPeWllbGRfd2hlbl9pZGxlGAUgASgIEhoKEmlkbGVfZ3JhY2Vfc2Vjb25kcxgGIAEoDRovCg1UdW5hYmxlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCQlpAZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zZXR1cC92MTtzZXR1cF92MWIGcHJvdG8z");
+  fileDesc("ChhzZXR1cC92MS9zZWxlY3Rpb24ucHJvdG8SD3Zyb29saS5zZXR1cC52MSLDBgoJU2VsZWN0aW9uEhYKDnNjaGVtYV92ZXJzaW9uGAEgASgJEg4KBnRhcmdldBgCIAEoCRIRCglzY2VuYXJpb3MYAyADKAkSGgoSb3B0aW9uYWxfcmVzb3VyY2VzGAQgAygJEhEKCWNvcmVfc2VlZBgFIAMoCRIUCgx0cnVzdGVkX2Jhc2UYBiADKAkSEgoKaG9zdF90b29scxgHIAMoCRIXCg9ob3N0X3NhZmVndWFyZHMYCCADKAkSHAoUY3JlZGVudGlhbF9hZGRyZXNzZXMYCSADKAkSFQoNdHJ1c3RfcG9zdHVyZRgKIAEoCRIWCg51cGRhdGVfY29udHJvbBgLIAEoCRIUCgxzZXNzaW9uX21vZGUYDCABKAkSRQoOb3BlcmF0aW5nX21vZGUYDSADKAsyLS52cm9vbGkuc2V0dXAudjEuU2VsZWN0aW9uLk9wZXJhdGluZ01vZGVFbnRyeRINCgVhcHBseRgOIAEoCBIYChBjYXBhY2l0eV9wb3N0dXJlGA8gASgJEigKIHRyYW5zaWVudF9oZWFkcm9vbV9yZXNlcnZlX2J5dGVzGBAgASgEEksKEXJlc291cmNlX2NhcGFjaXR5GBEgAygLMjAudnJvb2xpLnNldHVwLnYxLlNlbGVjdGlvbi5SZXNvdXJjZUNhcGFjaXR5RW50cnkSRQoOZmllbGRfcHJlc2VuY2UYEiADKAsyLS52cm9vbGkuc2V0dXAudjEuU2VsZWN0aW9uLkZpZWxkUHJlc2VuY2VFbnRyeRo0ChJPcGVyYXRpbmdNb2RlRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARpjChVSZXNvdXJjZUNhcGFjaXR5RW50cnkSCwoDa2V5GAEgASgJEjkKBXZhbHVlGAIgASgLMioudnJvb2xpLnNldHVwLnYxLlJlc291cmNlQ2FwYWNpdHlTZWxlY3Rpb246AjgBGl0KEkZpZWxkUHJlc2VuY2VFbnRyeRILCgNrZXkYASABKAkSNgoFdmFsdWUYAiABKA4yJy52cm9vbGkuc2V0dXAudjEuU2VsZWN0aW9uRmllbGRQcmVzZW5jZToCOAEigAIKGVJlc291cmNlQ2FwYWNpdHlTZWxlY3Rpb24SDAoEcnVuZxgBIAEoCRJKCgh0dW5hYmxlcxgCIAMoCzI4LnZyb29saS5zZXR1cC52MS5SZXNvdXJjZUNhcGFjaXR5U2VsZWN0aW9uLlR1bmFibGVzRW50cnkSEQoJZ3B1X2luZGV4GAMgASgNEhAKCHByaW9yaXR5GAQgASgJEhcKD3lpZWxkX3doZW5faWRsZRgFIAEoCBIaChJpZGxlX2dyYWNlX3NlY29uZHMYBiABKA0aLwoNVHVuYWJsZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBKqwBChZTZWxlY3Rpb25GaWVsZFByZXNlbmNlEigKJFNFTEVDVElPTl9GSUVMRF9QUkVTRU5DRV9VTlNQRUNJRklFRBAAEiAKHFNFTEVDVElPTl9GSUVMRF9QUkVTRU5DRV9TRVQQARIiCh5TRUxFQ1RJT05fRklFTERfUFJFU0VOQ0VfQ0xFQVIQAhIiCh5TRUxFQ1RJT05fRklFTERfUFJFU0VOQ0VfUkVTRVQQA0JCWkBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NldHVwL3YxO3NldHVwX3YxYgZwcm90bzM");
 
 /**
  * Capability-shaped desired configuration. It intentionally does not expose
@@ -104,6 +104,14 @@ export type Selection = Message<"vrooli.setup.v1.Selection"> & {
    * @generated from field: map<string, vrooli.setup.v1.ResourceCapacitySelection> resource_capacity = 17;
    */
   resourceCapacity: { [key: string]: ResourceCapacitySelection };
+
+  /**
+   * Presence is explicit for adapters that must distinguish an omitted field,
+   * an intentional value, and a reset-to-default request.
+   *
+   * @generated from field: map<string, vrooli.setup.v1.SelectionFieldPresence> field_presence = 18;
+   */
+  fieldPresence: { [key: string]: SelectionFieldPresence };
 };
 
 /**
@@ -154,4 +162,35 @@ export type ResourceCapacitySelection = Message<"vrooli.setup.v1.ResourceCapacit
  */
 export const ResourceCapacitySelectionSchema: GenMessage<ResourceCapacitySelection> = /*@__PURE__*/
   messageDesc(file_setup_v1_selection, 1);
+
+/**
+ * @generated from enum vrooli.setup.v1.SelectionFieldPresence
+ */
+export enum SelectionFieldPresence {
+  /**
+   * @generated from enum value: SELECTION_FIELD_PRESENCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: SELECTION_FIELD_PRESENCE_SET = 1;
+   */
+  SET = 1,
+
+  /**
+   * @generated from enum value: SELECTION_FIELD_PRESENCE_CLEAR = 2;
+   */
+  CLEAR = 2,
+
+  /**
+   * @generated from enum value: SELECTION_FIELD_PRESENCE_RESET = 3;
+   */
+  RESET = 3,
+}
+
+/**
+ * Describes the enum vrooli.setup.v1.SelectionFieldPresence.
+ */
+export const SelectionFieldPresenceSchema: GenEnum<SelectionFieldPresence> = /*@__PURE__*/
+  enumDesc(file_setup_v1_selection, 0);
 

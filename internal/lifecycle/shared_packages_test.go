@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/packagegov"
+	"github.com/vrooli/vrooli/packages/proto/protogen"
 )
 
 func TestSharedPackageDependenciesDeriveGovernedFileDependencies(t *testing.T) {
@@ -368,6 +370,45 @@ func TestProvisionSharedPackageReportsMissingDeclaredOutput(t *testing.T) {
 	}
 	if !strings.Contains(provisioningErr.Error(), "@vrooli/example") || !strings.Contains(provisioningErr.Error(), "sh -c true") {
 		t.Fatalf("error = %v, want package and command", provisioningErr)
+	}
+}
+
+func TestProvisionSelectedProtoArtifactDoesNotRunMutableSourceGeneration(t *testing.T) {
+	home := t.TempDir()
+	packageRoot := t.TempDir()
+	generated := filepath.Join(t.TempDir(), "generated")
+	output := filepath.Join(generated, "typescript", "demo", "demo.ts")
+	if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(output, []byte("export const selected = true;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	metadata, err := protogen.BuildArtifactMetadata(generated, "sha256:source", "sha256:generator", []string{"schemas/demo/v1/demo.proto"}, []string{"demo"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := protogen.NewArtifactStore(protogen.DefaultArtifactRoot(home))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Publish(context.Background(), protogen.Candidate{Metadata: metadata, SourceRoot: generated}); err != nil {
+		t.Fatal(err)
+	}
+	dependency := sharedPackageDependency{Name: "proto", Root: packageRoot, Generation: []packagegov.CommandSpec{{Name: "generate", Run: []string{"this-command-must-not-run"}, Outputs: []string{"gen/**"}}}}
+	var log bytes.Buffer
+	if err := provisionSharedPackageWithOptions(dependency, &log, &log, sharedPackageProvisionOptions{Context: context.Background(), Home: home, Scenario: "command-center"}); err != nil {
+		t.Fatal(err)
+	}
+	selected, err := os.ReadFile(filepath.Join(packageRoot, "gen", "typescript", "demo", "demo.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(selected) != "export const selected = true;\n" {
+		t.Fatalf("materialized Proto output = %q", selected)
+	}
+	if !strings.Contains(log.String(), `proto-artifact event=selected`) {
+		t.Fatalf("selection event missing from lifecycle log: %s", log.String())
 	}
 }
 

@@ -1,7 +1,7 @@
 # Workspace Sandbox Storage Architecture Audit
 
 ## Last Updated
-2026-04-30 (added diff-archive hybrid storage section)
+2026-09-10 (existing-database additive schema reconciliation)
 
 ## Resource Configuration Status
 - [x] No shared database resource declared in `.vrooli/service.json`
@@ -32,8 +32,10 @@
   same `*sql.DB` handle.
 
 ## Schema Status
-- [x] One canonical runtime schema file (`api/internal/repository/schema.sql`); no
-  `migrations/` directory and no migration-numbering scheme.
+- [x] One canonical runtime schema file (`api/internal/repository/schema.sql`).
+  `repository.EnsureSchema` applies it through `api-core/database`, runs
+  existing legacy and versioned migrations, then reconciles declared additive
+  columns even when the database already has the expected version.
 - [x] All `CREATE TABLE` and `CREATE INDEX` statements use `IF NOT
   EXISTS` (idempotent on every startup).
 - [x] Type mapping is uniform:
@@ -46,13 +48,29 @@
     a JSON array.
   - Booleans: INTEGER 0/1.
   - Status enums: TEXT + CHECK constraint.
-- [x] Greenfield posture: no PL/pgSQL functions, no Postgres extensions,
-  no schema-version bookkeeping. The previous PG `check_scope_overlap()`
+- [x] Embedded SQLite: no PL/pgSQL functions or Postgres extensions.
+  Existing version bookkeeping remains a compatibility guard for older
+  migration steps and rejects a database newer than the binary.
+  The previous PG `check_scope_overlap()`
   and `get_sandbox_stats()` functions were inlined as Go logic in
   `api/internal/repository/sandbox_repo.go`.
-- [x] No brownfield migrations needed (greenfield cutover; no users yet).
+- [x] Additive columns use the shared declarative reconciliation substrate.
+  The populated current-version regression preserves old provenance rows,
+  leaves their unknown digests empty, accepts new digest/revision evidence,
+  and verifies repeated startup preserves the version timestamp. No database
+  reset, direct operator SQL repair, or new migration number is required.
 
 ## Abstraction Status
+
+Deleted-sandbox finalization recovery uses the retained complete archive and
+the original Agent Manager run ID. `TurnCheckpoint` verifies each accepted
+archive file against canonical content inside an `os.Root` boundary before
+opening a provenance transaction. It does not apply archive bytes or restore
+deleted sandbox state. Missing or changed evidence fails without provenance
+writes. Stable archive/path IDs and transactional provenance reads make repeat
+recovery idempotent, including a previous checkpoint that recorded only part
+of the exact run/file/digest set. Existing provenance timestamps and commit
+links are preserved.
 - [x] `Repository` interface defined in
   `api/internal/repository/sandbox_repo.go`; business logic talks to the
   interface, not directly to `*sql.DB`.

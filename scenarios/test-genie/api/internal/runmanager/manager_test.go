@@ -582,6 +582,20 @@ func inputWith(scenario, preset string, phases ...string) execution.SuiteExecuti
 	}}
 }
 
+func TestAdmissionKeyIncludesReleaseIdentity(t *testing.T) {
+	base := orchestrator.SuiteExecutionRequest{ScenarioName: "demo", Preset: "quick"}
+	first := base
+	first.ReleaseIdentity = &orchestrator.ReleaseIdentity{ProfileID: "profile-1", CandidateCommit: "commit-1", ArtifactDigest: "sha256:a", Targets: []string{"linux", "windows"}, Channel: "stable", PolicyVersion: 2}
+	second := base
+	second.ReleaseIdentity = &orchestrator.ReleaseIdentity{ProfileID: "profile-1", CandidateCommit: "commit-1", ArtifactDigest: "sha256:b", Targets: []string{"windows", "linux"}, Channel: "stable", PolicyVersion: 2}
+	if admissionKey(first) == admissionKey(second) {
+		t.Fatal("different release artifact identities were coalesced")
+	}
+	if admissionKey(first) != admissionKey(orchestrator.SuiteExecutionRequest{ScenarioName: "demo", Preset: "quick", ReleaseIdentity: &orchestrator.ReleaseIdentity{ProfileID: "profile-1", CandidateCommit: "commit-1", ArtifactDigest: "sha256:a", Targets: []string{"windows", "linux"}, Channel: "stable", PolicyVersion: 2}}) {
+		t.Fatal("equivalent target ordering changed release admission identity")
+	}
+}
+
 // blockingManager returns a manager whose runs block until released, plus the
 // fake executor (so tests can assert drive counts) and a cleanup that releases.
 func blockingManager(t *testing.T) (*Manager, *fakeExecutor, func()) {

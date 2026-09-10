@@ -19,6 +19,7 @@ class CaptureType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CAPTURE_TYPE_DOM: _ClassVar[CaptureType]
     CAPTURE_TYPE_PERFORMANCE: _ClassVar[CaptureType]
     CAPTURE_TYPE_ACCESSIBILITY: _ClassVar[CaptureType]
+    CAPTURE_TYPE_DOM_TREE: _ClassVar[CaptureType]
 
 class DimensionsPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -34,6 +35,7 @@ CAPTURE_TYPE_VIDEO: CaptureType
 CAPTURE_TYPE_DOM: CaptureType
 CAPTURE_TYPE_PERFORMANCE: CaptureType
 CAPTURE_TYPE_ACCESSIBILITY: CaptureType
+CAPTURE_TYPE_DOM_TREE: CaptureType
 DIMENSIONS_PRESET_UNSPECIFIED: DimensionsPreset
 DIMENSIONS_PRESET_MOBILE: DimensionsPreset
 DIMENSIONS_PRESET_TABLET: DimensionsPreset
@@ -62,7 +64,7 @@ class WaitFor(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., networkidle: _Optional[bool] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class CaptureRequest(_message.Message):
-    __slots__ = ("url", "captures", "dimensions", "wait_for", "out_dir", "label", "inline_dom", "interaction_flow_json", "inline_accessibility", "inline_computed_style", "browser_profile", "interaction_state", "screenshot_selector")
+    __slots__ = ("url", "captures", "dimensions", "wait_for", "out_dir", "label", "inline_dom", "interaction_flow_json", "inline_accessibility", "inline_computed_style", "browser_profile", "interaction_state", "screenshot_selector", "inline_dom_tree", "direction")
     URL_FIELD_NUMBER: _ClassVar[int]
     CAPTURES_FIELD_NUMBER: _ClassVar[int]
     DIMENSIONS_FIELD_NUMBER: _ClassVar[int]
@@ -76,6 +78,8 @@ class CaptureRequest(_message.Message):
     BROWSER_PROFILE_FIELD_NUMBER: _ClassVar[int]
     INTERACTION_STATE_FIELD_NUMBER: _ClassVar[int]
     SCREENSHOT_SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    INLINE_DOM_TREE_FIELD_NUMBER: _ClassVar[int]
+    DIRECTION_FIELD_NUMBER: _ClassVar[int]
     url: str
     captures: _containers.RepeatedScalarFieldContainer[CaptureType]
     dimensions: Dimensions
@@ -89,7 +93,9 @@ class CaptureRequest(_message.Message):
     browser_profile: _browser_profile_pb2.BrowserProfile
     interaction_state: str
     screenshot_selector: str
-    def __init__(self, url: _Optional[str] = ..., captures: _Optional[_Iterable[_Union[CaptureType, str]]] = ..., dimensions: _Optional[_Union[Dimensions, _Mapping]] = ..., wait_for: _Optional[_Union[WaitFor, _Mapping]] = ..., out_dir: _Optional[str] = ..., label: _Optional[str] = ..., inline_dom: _Optional[bool] = ..., interaction_flow_json: _Optional[str] = ..., inline_accessibility: _Optional[bool] = ..., inline_computed_style: _Optional[bool] = ..., browser_profile: _Optional[_Union[_browser_profile_pb2.BrowserProfile, _Mapping]] = ..., interaction_state: _Optional[str] = ..., screenshot_selector: _Optional[str] = ...) -> None: ...
+    inline_dom_tree: bool
+    direction: str
+    def __init__(self, url: _Optional[str] = ..., captures: _Optional[_Iterable[_Union[CaptureType, str]]] = ..., dimensions: _Optional[_Union[Dimensions, _Mapping]] = ..., wait_for: _Optional[_Union[WaitFor, _Mapping]] = ..., out_dir: _Optional[str] = ..., label: _Optional[str] = ..., inline_dom: _Optional[bool] = ..., interaction_flow_json: _Optional[str] = ..., inline_accessibility: _Optional[bool] = ..., inline_computed_style: _Optional[bool] = ..., browser_profile: _Optional[_Union[_browser_profile_pb2.BrowserProfile, _Mapping]] = ..., interaction_state: _Optional[str] = ..., screenshot_selector: _Optional[str] = ..., inline_dom_tree: _Optional[bool] = ..., direction: _Optional[str] = ...) -> None: ...
 
 class CaptureArtifact(_message.Message):
     __slots__ = ("type", "path", "size_bytes", "metadata", "primary", "reference")
@@ -115,7 +121,7 @@ class CaptureArtifact(_message.Message):
     def __init__(self, type: _Optional[_Union[CaptureType, str]] = ..., path: _Optional[str] = ..., size_bytes: _Optional[int] = ..., metadata: _Optional[_Mapping[str, str]] = ..., primary: _Optional[bool] = ..., reference: _Optional[str] = ...) -> None: ...
 
 class CaptureResponse(_message.Message):
-    __slots__ = ("execution_id", "out_dir", "artifacts", "duration_ms", "dry_run", "dom_html", "accessibility_json", "readiness")
+    __slots__ = ("execution_id", "out_dir", "artifacts", "duration_ms", "dry_run", "dom_html", "accessibility_json", "dom_tree_json", "readiness")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     OUT_DIR_FIELD_NUMBER: _ClassVar[int]
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
@@ -123,6 +129,7 @@ class CaptureResponse(_message.Message):
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     DOM_HTML_FIELD_NUMBER: _ClassVar[int]
     ACCESSIBILITY_JSON_FIELD_NUMBER: _ClassVar[int]
+    DOM_TREE_JSON_FIELD_NUMBER: _ClassVar[int]
     READINESS_FIELD_NUMBER: _ClassVar[int]
     execution_id: str
     out_dir: str
@@ -131,8 +138,9 @@ class CaptureResponse(_message.Message):
     dry_run: bool
     dom_html: str
     accessibility_json: str
+    dom_tree_json: str
     readiness: CaptureReadinessDiagnostics
-    def __init__(self, execution_id: _Optional[str] = ..., out_dir: _Optional[str] = ..., artifacts: _Optional[_Iterable[_Union[CaptureArtifact, _Mapping]]] = ..., duration_ms: _Optional[int] = ..., dry_run: _Optional[bool] = ..., dom_html: _Optional[str] = ..., accessibility_json: _Optional[str] = ..., readiness: _Optional[_Union[CaptureReadinessDiagnostics, _Mapping]] = ...) -> None: ...
+    def __init__(self, execution_id: _Optional[str] = ..., out_dir: _Optional[str] = ..., artifacts: _Optional[_Iterable[_Union[CaptureArtifact, _Mapping]]] = ..., duration_ms: _Optional[int] = ..., dry_run: _Optional[bool] = ..., dom_html: _Optional[str] = ..., accessibility_json: _Optional[str] = ..., dom_tree_json: _Optional[str] = ..., readiness: _Optional[_Union[CaptureReadinessDiagnostics, _Mapping]] = ...) -> None: ...
 
 class CaptureReadinessDiagnostics(_message.Message):
     __slots__ = ("requested_strategy", "selected_strategy", "outcome", "duration_ms", "fallback_reason", "profile_version", "route", "required_surface_ids", "navigation_duration_ms", "readiness_wait_duration_ms")

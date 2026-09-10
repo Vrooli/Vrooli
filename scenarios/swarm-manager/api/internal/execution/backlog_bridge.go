@@ -7,29 +7,32 @@ import (
 	"strings"
 
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/identity"
 	"swarm-manager/internal/storage"
 )
 
 // backlogItem represents a backlog entry loaded from spec.json.
 type backlogItem struct {
-	Name               string             `json:"name"`
-	Title              string             `json:"title"`
-	Description        string             `json:"description"`
-	Status             string             `json:"status"`
-	Priority           int                `json:"priority"`
-	Tags               []string           `json:"tags"`
-	Created            string             `json:"created"`
-	Updated            string             `json:"updated"`
-	Kind               string             `json:"kind"`
-	SourceScenarioName string             `json:"sourceScenarioName,omitempty"`
-	AcceptanceAllow    []string           `json:"acceptance_allow,omitempty"`
-	AcceptanceDeny     []string           `json:"acceptance_deny,omitempty"`
-	AcceptanceCriteria []backlogCriterion `json:"acceptance_criteria,omitempty"`
-	Creates            []string           `json:"creates,omitempty"`
-	ArchivedAt         *string            `json:"archived_at,omitempty"`
-	SuggestedSkills    []string           `json:"suggested_skills,omitempty"`
-	PlanRef            *planRef           `json:"plan_ref,omitempty"`
-	PlanAcceptance     *planAcceptance    `json:"plan_acceptance,omitempty"`
+	Name               string                    `json:"name"`
+	Title              string                    `json:"title"`
+	Description        string                    `json:"description"`
+	Status             string                    `json:"status"`
+	Priority           int                       `json:"priority"`
+	Tags               []string                  `json:"tags"`
+	Created            string                    `json:"created"`
+	Updated            string                    `json:"updated"`
+	Kind               string                    `json:"kind"`
+	SourceScenarioName string                    `json:"sourceScenarioName,omitempty"`
+	AcceptanceAllow    []string                  `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny     []string                  `json:"acceptance_deny,omitempty"`
+	AcceptanceCriteria []backlogCriterion        `json:"acceptance_criteria,omitempty"`
+	Creates            []string                  `json:"creates,omitempty"`
+	ArchivedAt         *string                   `json:"archived_at,omitempty"`
+	SuggestedSkills    []string                  `json:"suggested_skills,omitempty"`
+	PlanRef            *planRef                  `json:"plan_ref,omitempty"`
+	ExecutionStrategy  string                    `json:"execution_strategy,omitempty"`
+	ExecutionLimits    *identity.ExecutionLimits `json:"execution_limits,omitempty"`
+	PlanAcceptance     *planAcceptance           `json:"plan_acceptance,omitempty"`
 }
 
 // backlogCriterion mirrors the persisted, typed definition of done without

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"sync"
@@ -186,11 +187,21 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverex
 		return
 	}
 	ptmx := handle.PTY()
-	defer ptmx.Close()
 
-	// Use a context to manage shutdown
+	// Use a context to manage shutdown. Any party (PTY pump, WebSocket
+	// reader, or the process reaper below) may cancel it; cancellation
+	// closes the PTY master so a Read blocked in the pump is released
+	// rather than left parked (or, worse, spinning) forever.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	var closePTYOnce sync.Once
+	closePTY := func() { closePTYOnce.Do(func() { _ = ptmx.Close() }) }
+	defer closePTY()
+	go func() {
+		<-ctx.Done()
+		closePTY()
+	}()
 
 	var wg sync.WaitGroup
 
@@ -201,31 +212,14 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverex
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		buf := make([]byte, 4096)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-
-			n, err := ptmx.Read(buf)
-			if err != nil {
-				// PTY closed (process exited)
-				return
-			}
-			if n > 0 {
-				writeMu.Lock()
-				err := conn.WriteJSON(InteractiveMessage{
-					Type: MsgTypeStdout,
-					Data: string(buf[:n]),
-				})
-				writeMu.Unlock()
-				if err != nil {
-					return
-				}
-			}
-		}
+		pumpPTY(cancel, ptmx, func(chunk []byte) error {
+			writeMu.Lock()
+			defer writeMu.Unlock()
+			return conn.WriteJSON(InteractiveMessage{
+				Type: MsgTypeStdout,
+				Data: string(chunk),
+			})
+		})
 	}()
 
 	// Read from WebSocket and handle messages
@@ -297,6 +291,54 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverex
 	case <-done:
 	case <-time.After(time.Second):
 		// Timeout waiting for goroutines
+	}
+}
+
+// maxConsecutiveEmptyPTYReads bounds how many back-to-back (0, nil)
+// reads the PTY pump tolerates before treating the PTY as closed. A
+// well-behaved *os.File never returns (0, nil) for a non-empty buffer,
+// but a misbehaving reader must not be able to turn the pump into a
+// scheduler-thrashing busy loop.
+const maxConsecutiveEmptyPTYReads = 3
+
+// pumpPTY copies PTY output to send until the PTY is closed or send
+// fails, then calls done so the rest of the session is torn down. It
+// returns the number of Read calls it made.
+//
+// Exit conditions (all of them terminal — the pump never retries):
+//   - any read error, including io.EOF, os.ErrClosed and the EIO that
+//     Linux returns from a pty master once the slave side hangs up;
+//   - maxConsecutiveEmptyPTYReads reads in a row that return (0, nil);
+//   - a send failure (the WebSocket is gone).
+//
+// The pump deliberately has no non-blocking ctx poll: Read is the
+// blocking point, and the owner unblocks it by closing the PTY on
+// cancellation. Polling ctx with a `select { default: }` would re-enter
+// the scheduler on every iteration without adding a real exit path.
+func pumpPTY(done context.CancelFunc, r io.Reader, send func([]byte) error) (reads int) {
+	defer done()
+	buf := make([]byte, 4096)
+	empty := 0
+	for {
+		n, err := r.Read(buf)
+		reads++
+		if n > 0 {
+			empty = 0
+			if sendErr := send(buf[:n]); sendErr != nil {
+				return reads
+			}
+		}
+		if err != nil {
+			// PTY closed (process exited, slave hung up, or owner
+			// closed the master on cancellation).
+			return reads
+		}
+		if n == 0 {
+			empty++
+			if empty >= maxConsecutiveEmptyPTYReads {
+				return reads
+			}
+		}
 	}
 }
 

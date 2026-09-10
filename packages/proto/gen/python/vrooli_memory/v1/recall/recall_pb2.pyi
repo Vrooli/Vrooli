@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class RecallHit(_message.Message):
-    __slots__ = ("entry_id", "facet_id", "text", "score", "depth", "node_id", "summary", "span")
+    __slots__ = ("entry_id", "facet_id", "text", "score", "depth", "node_id", "summary", "span", "supported", "contradicted", "created_at", "evidence_reliable", "context_key", "operation", "provenance")
     ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
     FACET_ID_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
@@ -16,6 +16,13 @@ class RecallHit(_message.Message):
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
     SPAN_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTED_FIELD_NUMBER: _ClassVar[int]
+    CONTRADICTED_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_RELIABLE_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_KEY_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
     entry_id: str
     facet_id: str
     text: str
@@ -24,7 +31,14 @@ class RecallHit(_message.Message):
     node_id: str
     summary: bool
     span: int
-    def __init__(self, entry_id: _Optional[str] = ..., facet_id: _Optional[str] = ..., text: _Optional[str] = ..., score: _Optional[float] = ..., depth: _Optional[int] = ..., node_id: _Optional[str] = ..., summary: _Optional[bool] = ..., span: _Optional[int] = ...) -> None: ...
+    supported: int
+    contradicted: int
+    created_at: str
+    evidence_reliable: bool
+    context_key: str
+    operation: str
+    provenance: str
+    def __init__(self, entry_id: _Optional[str] = ..., facet_id: _Optional[str] = ..., text: _Optional[str] = ..., score: _Optional[float] = ..., depth: _Optional[int] = ..., node_id: _Optional[str] = ..., summary: _Optional[bool] = ..., span: _Optional[int] = ..., supported: _Optional[int] = ..., contradicted: _Optional[int] = ..., created_at: _Optional[str] = ..., evidence_reliable: _Optional[bool] = ..., context_key: _Optional[str] = ..., operation: _Optional[str] = ..., provenance: _Optional[str] = ...) -> None: ...
 
 class RecallRequest(_message.Message):
     __slots__ = ("query", "limit", "scope")

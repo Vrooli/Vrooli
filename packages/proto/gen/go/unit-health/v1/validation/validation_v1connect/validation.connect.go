@@ -36,6 +36,15 @@ const (
 	// ValidationServiceValidateScenarioProcedure is the fully-qualified name of the ValidationService's
 	// ValidateScenario RPC.
 	ValidationServiceValidateScenarioProcedure = "/vrooli.unit_health.v1.validation.ValidationService/ValidateScenario"
+	// ValidationServiceRunCalibrationProcedure is the fully-qualified name of the ValidationService's
+	// RunCalibration RPC.
+	ValidationServiceRunCalibrationProcedure = "/vrooli.unit_health.v1.validation.ValidationService/RunCalibration"
+	// ValidationServiceReadTestBodyProcedure is the fully-qualified name of the ValidationService's
+	// ReadTestBody RPC.
+	ValidationServiceReadTestBodyProcedure = "/vrooli.unit_health.v1.validation.ValidationService/ReadTestBody"
+	// ValidationServiceRunMutationPilotProcedure is the fully-qualified name of the ValidationService's
+	// RunMutationPilot RPC.
+	ValidationServiceRunMutationPilotProcedure = "/vrooli.unit_health.v1.validation.ValidationService/RunMutationPilot"
 )
 
 // ValidationServiceClient is a client for the vrooli.unit_health.v1.validation.ValidationService
@@ -45,6 +54,13 @@ type ValidationServiceClient interface {
 	// canonical test commands, analyzes coverage/architecture/quality, and
 	// returns normalized findings plus a shared maturity assessment.
 	ValidateScenario(context.Context, *connect.Request[validation.ValidateScenarioRequest]) (*connect.Response[validation.ValidateScenarioResponse], error)
+	// RunCalibration compares the authored development corpus, or a reviewed
+	// holdout when explicitly requested, with adapter observations.
+	RunCalibration(context.Context, *connect.Request[validation.RunCalibrationRequest]) (*connect.Response[validation.RunCalibrationResponse], error)
+	// Read one bounded, redacted test body for governed sampled review.
+	ReadTestBody(context.Context, *connect.Request[validation.ReadTestBodyRequest]) (*connect.Response[validation.ReadTestBodyResponse], error)
+	// Run a bounded owner-side mutation pilot in disposable workspaces.
+	RunMutationPilot(context.Context, *connect.Request[validation.RunMutationPilotRequest]) (*connect.Response[validation.RunMutationPilotResponse], error)
 }
 
 // NewValidationServiceClient constructs a client for the
@@ -65,17 +81,53 @@ func NewValidationServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(validationServiceMethods.ByName("ValidateScenario")),
 			connect.WithClientOptions(opts...),
 		),
+		runCalibration: connect.NewClient[validation.RunCalibrationRequest, validation.RunCalibrationResponse](
+			httpClient,
+			baseURL+ValidationServiceRunCalibrationProcedure,
+			connect.WithSchema(validationServiceMethods.ByName("RunCalibration")),
+			connect.WithClientOptions(opts...),
+		),
+		readTestBody: connect.NewClient[validation.ReadTestBodyRequest, validation.ReadTestBodyResponse](
+			httpClient,
+			baseURL+ValidationServiceReadTestBodyProcedure,
+			connect.WithSchema(validationServiceMethods.ByName("ReadTestBody")),
+			connect.WithClientOptions(opts...),
+		),
+		runMutationPilot: connect.NewClient[validation.RunMutationPilotRequest, validation.RunMutationPilotResponse](
+			httpClient,
+			baseURL+ValidationServiceRunMutationPilotProcedure,
+			connect.WithSchema(validationServiceMethods.ByName("RunMutationPilot")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // validationServiceClient implements ValidationServiceClient.
 type validationServiceClient struct {
 	validateScenario *connect.Client[validation.ValidateScenarioRequest, validation.ValidateScenarioResponse]
+	runCalibration   *connect.Client[validation.RunCalibrationRequest, validation.RunCalibrationResponse]
+	readTestBody     *connect.Client[validation.ReadTestBodyRequest, validation.ReadTestBodyResponse]
+	runMutationPilot *connect.Client[validation.RunMutationPilotRequest, validation.RunMutationPilotResponse]
 }
 
 // ValidateScenario calls vrooli.unit_health.v1.validation.ValidationService.ValidateScenario.
 func (c *validationServiceClient) ValidateScenario(ctx context.Context, req *connect.Request[validation.ValidateScenarioRequest]) (*connect.Response[validation.ValidateScenarioResponse], error) {
 	return c.validateScenario.CallUnary(ctx, req)
+}
+
+// RunCalibration calls vrooli.unit_health.v1.validation.ValidationService.RunCalibration.
+func (c *validationServiceClient) RunCalibration(ctx context.Context, req *connect.Request[validation.RunCalibrationRequest]) (*connect.Response[validation.RunCalibrationResponse], error) {
+	return c.runCalibration.CallUnary(ctx, req)
+}
+
+// ReadTestBody calls vrooli.unit_health.v1.validation.ValidationService.ReadTestBody.
+func (c *validationServiceClient) ReadTestBody(ctx context.Context, req *connect.Request[validation.ReadTestBodyRequest]) (*connect.Response[validation.ReadTestBodyResponse], error) {
+	return c.readTestBody.CallUnary(ctx, req)
+}
+
+// RunMutationPilot calls vrooli.unit_health.v1.validation.ValidationService.RunMutationPilot.
+func (c *validationServiceClient) RunMutationPilot(ctx context.Context, req *connect.Request[validation.RunMutationPilotRequest]) (*connect.Response[validation.RunMutationPilotResponse], error) {
+	return c.runMutationPilot.CallUnary(ctx, req)
 }
 
 // ValidationServiceHandler is an implementation of the
@@ -85,6 +137,13 @@ type ValidationServiceHandler interface {
 	// canonical test commands, analyzes coverage/architecture/quality, and
 	// returns normalized findings plus a shared maturity assessment.
 	ValidateScenario(context.Context, *connect.Request[validation.ValidateScenarioRequest]) (*connect.Response[validation.ValidateScenarioResponse], error)
+	// RunCalibration compares the authored development corpus, or a reviewed
+	// holdout when explicitly requested, with adapter observations.
+	RunCalibration(context.Context, *connect.Request[validation.RunCalibrationRequest]) (*connect.Response[validation.RunCalibrationResponse], error)
+	// Read one bounded, redacted test body for governed sampled review.
+	ReadTestBody(context.Context, *connect.Request[validation.ReadTestBodyRequest]) (*connect.Response[validation.ReadTestBodyResponse], error)
+	// Run a bounded owner-side mutation pilot in disposable workspaces.
+	RunMutationPilot(context.Context, *connect.Request[validation.RunMutationPilotRequest]) (*connect.Response[validation.RunMutationPilotResponse], error)
 }
 
 // NewValidationServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -100,10 +159,34 @@ func NewValidationServiceHandler(svc ValidationServiceHandler, opts ...connect.H
 		connect.WithSchema(validationServiceMethods.ByName("ValidateScenario")),
 		connect.WithHandlerOptions(opts...),
 	)
+	validationServiceRunCalibrationHandler := connect.NewUnaryHandler(
+		ValidationServiceRunCalibrationProcedure,
+		svc.RunCalibration,
+		connect.WithSchema(validationServiceMethods.ByName("RunCalibration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	validationServiceReadTestBodyHandler := connect.NewUnaryHandler(
+		ValidationServiceReadTestBodyProcedure,
+		svc.ReadTestBody,
+		connect.WithSchema(validationServiceMethods.ByName("ReadTestBody")),
+		connect.WithHandlerOptions(opts...),
+	)
+	validationServiceRunMutationPilotHandler := connect.NewUnaryHandler(
+		ValidationServiceRunMutationPilotProcedure,
+		svc.RunMutationPilot,
+		connect.WithSchema(validationServiceMethods.ByName("RunMutationPilot")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.unit_health.v1.validation.ValidationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ValidationServiceValidateScenarioProcedure:
 			validationServiceValidateScenarioHandler.ServeHTTP(w, r)
+		case ValidationServiceRunCalibrationProcedure:
+			validationServiceRunCalibrationHandler.ServeHTTP(w, r)
+		case ValidationServiceReadTestBodyProcedure:
+			validationServiceReadTestBodyHandler.ServeHTTP(w, r)
+		case ValidationServiceRunMutationPilotProcedure:
+			validationServiceRunMutationPilotHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -115,4 +198,16 @@ type UnimplementedValidationServiceHandler struct{}
 
 func (UnimplementedValidationServiceHandler) ValidateScenario(context.Context, *connect.Request[validation.ValidateScenarioRequest]) (*connect.Response[validation.ValidateScenarioResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.unit_health.v1.validation.ValidationService.ValidateScenario is not implemented"))
+}
+
+func (UnimplementedValidationServiceHandler) RunCalibration(context.Context, *connect.Request[validation.RunCalibrationRequest]) (*connect.Response[validation.RunCalibrationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.unit_health.v1.validation.ValidationService.RunCalibration is not implemented"))
+}
+
+func (UnimplementedValidationServiceHandler) ReadTestBody(context.Context, *connect.Request[validation.ReadTestBodyRequest]) (*connect.Response[validation.ReadTestBodyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.unit_health.v1.validation.ValidationService.ReadTestBody is not implemented"))
+}
+
+func (UnimplementedValidationServiceHandler) RunMutationPilot(context.Context, *connect.Request[validation.RunMutationPilotRequest]) (*connect.Response[validation.RunMutationPilotResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.unit_health.v1.validation.ValidationService.RunMutationPilot is not implemented"))
 }

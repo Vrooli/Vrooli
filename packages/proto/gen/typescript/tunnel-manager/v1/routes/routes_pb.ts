@@ -43,7 +43,7 @@ export type Route = Message<"vrooli.tunnel_manager.v1.routes.Route"> & {
 
   /**
    * Apex domain the subdomain hangs off (a field, never hardcoded; default
-   * "itsagitime.com"). public_url is derived as https://<subdomain>.<domain>.
+   * "example.invalid"). public_url is derived as https://<subdomain>.<domain>.
    *
    * @generated from field: string domain = 4;
    */
@@ -209,7 +209,7 @@ export const GetRouteResponseSchema: GenMessage<GetRouteResponse> = /*@__PURE__*
 /**
  * CreateRouteRequest is the body accepted by RoutesService.CreateRoute.
  * subdomain, scenario and local_port are required; domain defaults to
- * "itsagitime.com", health_path to "/health", enabled to true, tier to LEASED.
+ * the configured tunnel domain, health_path to "/health", enabled to true, tier to LEASED.
  *
  * @generated from message vrooli.tunnel_manager.v1.routes.CreateRouteRequest
  */

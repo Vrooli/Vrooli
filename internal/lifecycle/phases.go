@@ -278,6 +278,15 @@ func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenari
 		Defined:  true,
 		Status:   PhaseExecutionSkipped,
 	}
+	setupLockRelease := func() {}
+	if phaseName == phasesSetup {
+		var lockErr error
+		setupLockRelease, lockErr = r.acquireProtoSetupLock(ctx, item, env, logWriter)
+		if lockErr != nil {
+			return result, lockErr
+		}
+		defer setupLockRelease()
+	}
 	if phaseName == phasesSetup {
 		if err := r.provisionSharedPackages(ctx, item, env, logWriter, childWriter); err != nil {
 			return PhaseResult{}, err

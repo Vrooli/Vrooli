@@ -1,7 +1,9 @@
 package diff
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +15,86 @@ import (
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
+
+func TestBinaryChangesApplyExactBytes(t *testing.T) {
+	for _, gitRepo := range []bool{false, true} {
+		for _, kind := range []types.ChangeType{types.ChangeTypeAdded, types.ChangeTypeModified, types.ChangeTypeDeleted} {
+			t.Run(fmt.Sprintf("git=%t/%s", gitRepo, kind), func(t *testing.T) {
+				lower, upper, target := t.TempDir(), t.TempDir(), t.TempDir()
+				if gitRepo {
+					cmd := exec.Command("git", "init", "-q", target)
+					if out, err := cmd.CombinedOutput(); err != nil {
+						t.Fatalf("git init: %v: %s", err, out)
+					}
+				}
+				rel, prefix := "cached file.bin", "nested/scope"
+				old, want := []byte("old\x00binary\xffbytes"), []byte("new\x00binary\xfedata")
+				dest := filepath.Join(target, prefix, rel)
+				if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if kind != types.ChangeTypeAdded {
+					if err := os.WriteFile(filepath.Join(lower, rel), old, 0o755); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(dest, old, 0o755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if kind != types.ChangeTypeDeleted {
+					if err := os.WriteFile(filepath.Join(upper, rel), want, 0o755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				ctx := context.Background()
+				generated, err := NewGenerator(process.NewOSExecStarter()).GenerateDiff(ctx, &types.Sandbox{ID: uuid.New(), LowerDir: lower, UpperDir: upper}, []*types.FileChange{{FilePath: rel, ChangeType: kind}}, &GenerateOptions{PathPrefix: prefix})
+				if err != nil {
+					t.Fatal(err)
+				}
+				parsed := ParseUnifiedDiff(generated.UnifiedDiff)
+				if len(parsed) != 1 || parsed[0].Path != filepath.ToSlash(filepath.Join(prefix, rel)) || parsed[0].ChangeType != kind {
+					t.Fatalf("binary review path/type was lost: %+v", parsed)
+				}
+				patcher := NewPatcher(process.NewOSExecStarter())
+				if kind == types.ChangeTypeModified || kind == types.ChangeTypeDeleted {
+					diverged := []byte("different\x00original bytes")
+					if err := os.WriteFile(dest, diverged, 0o755); err != nil {
+						t.Fatal(err)
+					}
+					rejected, err := patcher.ApplyDiff(ctx, target, generated.UnifiedDiff, ApplyOptions{})
+					if err != nil || rejected.Success {
+						t.Fatalf("divergent original accepted: %+v, %v", rejected, err)
+					}
+					got, err := os.ReadFile(dest)
+					if err != nil || !bytes.Equal(got, diverged) {
+						t.Fatalf("conflict changed original: %x, %v", got, err)
+					}
+					if err := os.WriteFile(dest, old, 0o755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				applied, err := patcher.ApplyDiff(ctx, target, generated.UnifiedDiff, ApplyOptions{})
+				if err != nil || !applied.Success {
+					t.Fatalf("apply: %+v, %v; diff=%s", applied, err, generated.UnifiedDiff)
+				}
+				if kind == types.ChangeTypeDeleted {
+					if _, err := os.Stat(dest); !os.IsNotExist(err) {
+						t.Fatalf("deleted binary still exists: %v", err)
+					}
+					return
+				}
+				got, err := os.ReadFile(dest)
+				if err != nil || !bytes.Equal(got, want) {
+					t.Fatalf("binary bytes = %x, want %x: %v", got, want, err)
+				}
+				info, err := os.Stat(dest)
+				if err != nil || info.Mode().Perm()&0o111 == 0 {
+					t.Fatalf("executable mode not retained: %v", err)
+				}
+			})
+		}
+	}
+}
 
 // TestIsBinary tests binary file detection
 func TestIsBinary(t *testing.T) {
@@ -177,7 +259,7 @@ func TestDiffNewFile(t *testing.T) {
 			t.Fatalf("diffNewFile failed: %v", err)
 		}
 
-		if !strings.Contains(diff, "Binary file") {
+		if !strings.Contains(diff, "GIT binary patch") {
 			t.Error("binary file diff should indicate binary")
 		}
 		// Verify correct git file mode format for binary files
@@ -270,7 +352,7 @@ func TestDiffDeletedFile(t *testing.T) {
 			t.Fatalf("diffDeletedFile failed: %v", err)
 		}
 
-		if !strings.Contains(diff, "Binary file") {
+		if !strings.Contains(diff, "GIT binary patch") {
 			t.Error("binary file diff should indicate binary")
 		}
 		// Verify correct git file mode format for binary files
@@ -1458,12 +1540,11 @@ func TestGitApplyCheckIntegration(t *testing.T) {
 
 		t.Logf("Binary file diff:\n%s", diff)
 
-		// Binary diffs don't apply with git apply, but shouldn't cause assertion failures
-		// Just verify the format looks reasonable
+		// The binary payload is applicable, not only a display marker.
 		if !strings.Contains(diff, "new file mode 100644") {
 			t.Errorf("binary diff should have file mode")
 		}
-		if !strings.Contains(diff, "Binary file") {
+		if !strings.Contains(diff, "GIT binary patch") {
 			t.Errorf("binary diff should indicate binary")
 		}
 	})

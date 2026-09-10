@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/relay/relay.proto.
  */
 export const file_vrooli_bridge_v1_relay_relay: GenFile = /*@__PURE__*/
-  fileDesc("CiJ2cm9vbGktYnJpZGdlL3YxL3JlbGF5L3JlbGF5LnByb3RvEh12cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWxheSKPAQoQUmVsYXlDYWxsUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg8KB2NvbW1hbmQYAyABKAkSDAoEYXJncxgEIAMoCRIXCg90aW1lb3V0X3NlY29uZHMYBSABKAMSGgoSbWF4X3Jlc3BvbnNlX2J5dGVzGAYgASgESgQIBxAQIrkBChFSZWxheUNhbGxSZXNwb25zZRIWCg5jb3JyZWxhdGlvbl9pZBgBIAEoCRJACgdvdXRjb21lGAIgASgOMi8udnJvb2xpLnZyb29saV9icmlkZ2UudjEucmVsYXkuUmVsYXlDYWxsT3V0Y29tZRIMCgRkYXRhGAMgASgMEg4KBnJlYXNvbhgEIAEoCRIRCglleGl0X2NvZGUYBSABKAUSEwoLdG90YWxfYnl0ZXMYBiABKARKBAgHEBAqmgEKEFJlbGF5Q2FsbE91dGNvbWUSIgoeUkVMQVlfQ0FMTF9PVVRDT01FX1VOU1BFQ0lGSUVEEAASIAocUkVMQVlfQ0FMTF9PVVRDT01FX0NPTVBMRVRFRBABEh0KGVJFTEFZX0NBTExfT1VUQ09NRV9GQUlMRUQQAhIhCh1SRUxBWV9DQUxMX09VVENPTUVfVEVSTUlOQVRFRBADMnkKDFJlbGF5U2VydmljZRJpCgRDYWxsEi8udnJvb2xpLnZyb29saV9icmlkZ2UudjEucmVsYXkuUmVsYXlDYWxsUmVxdWVzdBowLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlbGF5LlJlbGF5Q2FsbFJlc3BvbnNlQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9yZWxheTtyZWxheXYxYgZwcm90bzM");
+  fileDesc("CiJ2cm9vbGktYnJpZGdlL3YxL3JlbGF5L3JlbGF5LnByb3RvEh12cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWxheSKjAQoQUmVsYXlDYWxsUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg8KB2NvbW1hbmQYAyABKAkSDAoEYXJncxgEIAMoCRIXCg90aW1lb3V0X3NlY29uZHMYBSABKAMSGgoSbWF4X3Jlc3BvbnNlX2J5dGVzGAYgASgEEhIKCmNvbW1hbmRfaWQYByABKAlKBAgIEBAikAIKEVJlbGF5Q2FsbFJlc3BvbnNlEhYKDmNvcnJlbGF0aW9uX2lkGAEgASgJEkAKB291dGNvbWUYAiABKA4yLy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWxheS5SZWxheUNhbGxPdXRjb21lEgwKBGRhdGEYAyABKAwSDgoGcmVhc29uGAQgASgJEhEKCWV4aXRfY29kZRgFIAEoBRITCgt0b3RhbF9ieXRlcxgGIAEoBBISCgpjb21tYW5kX2lkGAcgASgJEg0KBXJvdXRlGAggASgJEhgKEHJvdXRlX2Nvc3RfdW5pdHMYCSABKAQSGAoQcm91dGVfbGF0ZW5jeV9tcxgKIAEoBEoECAsQECI8ChVSZWxheVJlY29uY2lsZVJlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCRISCgpjb21tYW5kX2lkGAIgASgJIsMBChZSZWxheVJlY29uY2lsZVJlc3BvbnNlEhIKCmNvbW1hbmRfaWQYASABKAkSQQoFc3RhdGUYAiABKA4yMi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWxheS5SZWxheVJlY29uY2lsZVN0YXRlEkIKCHJlc3BvbnNlGAMgASgLMjAudnJvb2xpLnZyb29saV9icmlkZ2UudjEucmVsYXkuUmVsYXlDYWxsUmVzcG9uc2USDgoGcmVhc29uGAQgASgJKpoBChBSZWxheUNhbGxPdXRjb21lEiIKHlJFTEFZX0NBTExfT1VUQ09NRV9VTlNQRUNJRklFRBAAEiAKHFJFTEFZX0NBTExfT1VUQ09NRV9DT01QTEVURUQQARIdChlSRUxBWV9DQUxMX09VVENPTUVfRkFJTEVEEAISIQodUkVMQVlfQ0FMTF9PVVRDT01FX1RFUk1JTkFURUQQAyr7AQoTUmVsYXlSZWNvbmNpbGVTdGF0ZRIlCiFSRUxBWV9SRUNPTkNJTEVfU1RBVEVfVU5TUEVDSUZJRUQQABImCiJSRUxBWV9SRUNPTkNJTEVfU1RBVEVfTk9UX0FETUlUVEVEEAESIwofUkVMQVlfUkVDT05DSUxFX1NUQVRFX1NVQk1JVFRFRBACEiMKH1JFTEFZX1JFQ09OQ0lMRV9TVEFURV9DT01QTEVURUQQAxIgChxSRUxBWV9SRUNPTkNJTEVfU1RBVEVfRkFJTEVEEAQSKQolUkVMQVlfUkVDT05DSUxFX1NUQVRFX09VVENPTUVfVU5LTk9XThAFMvMBCgxSZWxheVNlcnZpY2USaQoEQ2FsbBIvLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlbGF5LlJlbGF5Q2FsbFJlcXVlc3QaMC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWxheS5SZWxheUNhbGxSZXNwb25zZRJ4CglSZWNvbmNpbGUSNC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWxheS5SZWxheVJlY29uY2lsZVJlcXVlc3QaNS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWxheS5SZWxheVJlY29uY2lsZVJlc3BvbnNlQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9yZWxheTtyZWxheXYxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.relay.RelayCallRequest
@@ -45,6 +45,11 @@ export type RelayCallRequest = Message<"vrooli.vrooli_bridge.v1.relay.RelayCallR
    * @generated from field: uint64 max_response_bytes = 6;
    */
   maxResponseBytes: bigint;
+
+  /**
+   * @generated from field: string command_id = 7;
+   */
+  commandId: string;
 };
 
 /**
@@ -87,6 +92,26 @@ export type RelayCallResponse = Message<"vrooli.vrooli_bridge.v1.relay.RelayCall
    * @generated from field: uint64 total_bytes = 6;
    */
   totalBytes: bigint;
+
+  /**
+   * @generated from field: string command_id = 7;
+   */
+  commandId: string;
+
+  /**
+   * @generated from field: string route = 8;
+   */
+  route: string;
+
+  /**
+   * @generated from field: uint64 route_cost_units = 9;
+   */
+  routeCostUnits: bigint;
+
+  /**
+   * @generated from field: uint64 route_latency_ms = 10;
+   */
+  routeLatencyMs: bigint;
 };
 
 /**
@@ -95,6 +120,60 @@ export type RelayCallResponse = Message<"vrooli.vrooli_bridge.v1.relay.RelayCall
  */
 export const RelayCallResponseSchema: GenMessage<RelayCallResponse> = /*@__PURE__*/
   messageDesc(file_vrooli_bridge_v1_relay_relay, 1);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.relay.RelayReconcileRequest
+ */
+export type RelayReconcileRequest = Message<"vrooli.vrooli_bridge.v1.relay.RelayReconcileRequest"> & {
+  /**
+   * @generated from field: string node_id = 1;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: string command_id = 2;
+   */
+  commandId: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.relay.RelayReconcileRequest.
+ * Use `create(RelayReconcileRequestSchema)` to create a new message.
+ */
+export const RelayReconcileRequestSchema: GenMessage<RelayReconcileRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_relay_relay, 2);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.relay.RelayReconcileResponse
+ */
+export type RelayReconcileResponse = Message<"vrooli.vrooli_bridge.v1.relay.RelayReconcileResponse"> & {
+  /**
+   * @generated from field: string command_id = 1;
+   */
+  commandId: string;
+
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.relay.RelayReconcileState state = 2;
+   */
+  state: RelayReconcileState;
+
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.relay.RelayCallResponse response = 3;
+   */
+  response?: RelayCallResponse | undefined;
+
+  /**
+   * @generated from field: string reason = 4;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.relay.RelayReconcileResponse.
+ * Use `create(RelayReconcileResponseSchema)` to create a new message.
+ */
+export const RelayReconcileResponseSchema: GenMessage<RelayReconcileResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_relay_relay, 3);
 
 /**
  * @generated from enum vrooli.vrooli_bridge.v1.relay.RelayCallOutcome
@@ -128,6 +207,47 @@ export const RelayCallOutcomeSchema: GenEnum<RelayCallOutcome> = /*@__PURE__*/
   enumDesc(file_vrooli_bridge_v1_relay_relay, 0);
 
 /**
+ * @generated from enum vrooli.vrooli_bridge.v1.relay.RelayReconcileState
+ */
+export enum RelayReconcileState {
+  /**
+   * @generated from enum value: RELAY_RECONCILE_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: RELAY_RECONCILE_STATE_NOT_ADMITTED = 1;
+   */
+  NOT_ADMITTED = 1,
+
+  /**
+   * @generated from enum value: RELAY_RECONCILE_STATE_SUBMITTED = 2;
+   */
+  SUBMITTED = 2,
+
+  /**
+   * @generated from enum value: RELAY_RECONCILE_STATE_COMPLETED = 3;
+   */
+  COMPLETED = 3,
+
+  /**
+   * @generated from enum value: RELAY_RECONCILE_STATE_FAILED = 4;
+   */
+  FAILED = 4,
+
+  /**
+   * @generated from enum value: RELAY_RECONCILE_STATE_OUTCOME_UNKNOWN = 5;
+   */
+  OUTCOME_UNKNOWN = 5,
+}
+
+/**
+ * Describes the enum vrooli.vrooli_bridge.v1.relay.RelayReconcileState.
+ */
+export const RelayReconcileStateSchema: GenEnum<RelayReconcileState> = /*@__PURE__*/
+  enumDesc(file_vrooli_bridge_v1_relay_relay, 1);
+
+/**
  * RelayService is the owner-facing request edge for a short-lived command
  * carried over a node's already-authenticated outbound channel. The command
  * is still admitted by Bridge's typed dispatch policy before a frame is sent.
@@ -142,6 +262,17 @@ export const RelayService: GenService<{
     methodKind: "unary";
     input: typeof RelayCallRequestSchema;
     output: typeof RelayCallResponseSchema;
+  },
+  /**
+   * Reconcile a command after the response route was interrupted. This is a
+   * read-only lookup and must precede any fallback execution.
+   *
+   * @generated from rpc vrooli.vrooli_bridge.v1.relay.RelayService.Reconcile
+   */
+  reconcile: {
+    methodKind: "unary";
+    input: typeof RelayReconcileRequestSchema;
+    output: typeof RelayReconcileResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_bridge_v1_relay_relay, 0);

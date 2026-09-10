@@ -10,12 +10,14 @@ service LearningService {
 }
 message AdviceUse {
   string entry_id = 1;
-  // applied or rejected; a retrieved hit with no decision is not an advice use.
+  // applied, rejected, or unassessed. Unassessed records exposure only:
+  // decision_change and evidence_refs must be empty and verdict must be unknown.
   string decision = 2;
   string decision_change = 3;
   // supported, contradicted, or unknown; support is observational, not causal.
   string verdict = 4;
-  repeated string evidence_refs = 5;
+	repeated string evidence_refs = 5;
+	optional bool derived = 6;
 }
 message Attempt {
   string attempt_id = 1;
@@ -30,9 +32,9 @@ message Attempt {
   string failure_fingerprint = 8;
   repeated string evidence_refs = 9;
   repeated AdviceUse advice = 10;
-  // matched, no_match, or unavailable.
+  // matched, no_match, unavailable, or not_requested (the attempt never asked memory).
   string recall_status = 11;
-  // operator or test. This is caller-declared, not authenticated provenance.
+  // operator, test, or agent. This is caller-declared, not authenticated provenance.
   string provenance = 12;
   string trigger = 13;
   string approach = 14;
@@ -44,6 +46,8 @@ message Attempt {
   optional int32 tool_round_trips = 18;
   optional int32 visual_reasoning_calls = 19;
   optional bool reused_workflow = 20;
+  optional string parent_attempt_id = 21;
+  optional string step_name = 22;
 }
 message RecordAttemptRequest { string scope = 1; Attempt attempt = 2; }
 message RecordAttemptResponse { string entry_id = 1; bool existing = 2; }
@@ -55,7 +59,7 @@ message Observation {
   repeated string evidence_refs = 4;
   string method_revision = 5;
   string correction = 6;
-  // operator or test; caller-declared and retained separately from actor metadata.
+  // operator, test, or agent; caller-declared and retained separately from actor metadata.
   string provenance = 7;
   string observed_at = 8;
 }
@@ -104,7 +108,15 @@ message Cohort {
   int32 reuse_samples = 31;
   int32 supported_feedback = 32;
   int32 contradicted_feedback = 33;
-  int32 unresolved_feedback = 34;
+	int32 unresolved_feedback = 34;
+  // Attempts that never asked memory; distinct from recall_unavailable (memory asked and failed).
+  int32 recall_not_requested = 35;
+	int32 derived_advice = 36;
+	int32 explicit_advice = 37;
+	// Cohort identity dimension; test attempts remain excluded from measures.
+	// Tag 35 is taken by recall_not_requested; both were added locally in the
+	// same uncommitted change and collided.
+	string provenance = 38;
 }
 message MeasureLearningResponse {
   string scope = 1;

@@ -27,10 +27,11 @@
       "generate": [
         {
           "name": "generate",
-          "run": ["go", "run", "-mod=mod", "./cmd/protogen", "generate", "--changed"],
+          "run": ["go", "run", "-mod=mod", "./cmd/protogen", "generate", "--changed", "--scenario", "{scenario}"],
           "inputs": ["schemas/**", "vendor/**", "buf.yaml", "buf.gen.yaml", "buf.lock", "cmd/protogen/**", "protogen/**", "genmanifest/**"],
           "ignore": ["**/*_test.go"],
-          "outputs": ["gen/**"]
+          "outputs": ["gen/**"],
+          "artifact_selection": "@vrooli/proto-types"
         }
       ]
     },

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file setup/v1/operator_input.proto.
  */
 export const file_setup_v1_operator_input: GenFile = /*@__PURE__*/
-  fileDesc("Ch1zZXR1cC92MS9vcGVyYXRvcl9pbnB1dC5wcm90bxIPdnJvb2xpLnNldHVwLnYxIqoCCglDYW5kaWRhdGUSCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRINCgVsYWJlbBgDIAEoCRIQCghsb2NhdGlvbhgEIAEoCRIXCg9zdGFibGVfaWRlbnRpdHkYBSABKAkSFwoPZGV2aWNlX2lkZW50aXR5GAYgASgJEhAKCHdyaXRhYmxlGAcgASgIEg4KBnN0YXR1cxgIIAEoCRIMCgRyaXNrGAkgASgJEhMKC3JlbWVkaWF0aW9uGAogASgJEjoKCG1ldGFkYXRhGAsgAygLMigudnJvb2xpLnNldHVwLnYxLkNhbmRpZGF0ZS5NZXRhZGF0YUVudHJ5Gi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKSAwoUT3BlcmF0b3JJbnB1dFJlcXVlc3QSCgoCaWQYASABKAkSMAoEa2luZBgCIAEoDjIiLnZyb29saS5zZXR1cC52MS5PcGVyYXRvcklucHV0S2luZBIYChBjb250cmFjdF92ZXJzaW9uGAMgASgJEg0KBW93bmVyGAQgASgJEhUKDWNhcGFiaWxpdHlfaWQYBSABKAkSEQoJYWN0aW9uX2lkGAYgASgJEhAKCGlucHV0X2lkGAcgASgJEg0KBXRpdGxlGAggASgJEhMKC2Rlc2NyaXB0aW9uGAkgASgJEhUKDWRlZmF1bHRfdmFsdWUYCiABKAkSDwoHb3B0aW9ucxgLIAMoCRIuCgpjYW5kaWRhdGVzGAwgAygLMhoudnJvb2xpLnNldHVwLnYxLkNhbmRpZGF0ZRITCgtyZW1lZGlhdGlvbhgNIAEoCRIQCgh1bmJsb2NrcxgOIAMoCRISCgp2YWxpZGF0aW9uGA8gASgJEhAKCHJlcXVpcmVkGBAgASgIEg4KBnRhcmdldBgRIAEoCSq+AgoRT3BlcmF0b3JJbnB1dEtpbmQSIwofT1BFUkFUT1JfSU5QVVRfS0lORF9VTlNQRUNJRklFRBAAEh4KGk9QRVJBVE9SX0lOUFVUX0tJTkRfU0VDUkVUEAESHgoaT1BFUkFUT1JfSU5QVVRfS0lORF9DSE9JQ0UQAhIfChtPUEVSQVRPUl9JTlBVVF9LSU5EX0NPTkZJUk0QAxIcChhPUEVSQVRPUl9JTlBVVF9LSU5EX1BBVEgQBBIcChhPUEVSQVRPUl9JTlBVVF9LSU5EX0VOVU0QBRIfChtPUEVSQVRPUl9JTlBVVF9LSU5EX0JPT0xFQU4QBhIgChxPUEVSQVRPUl9JTlBVVF9LSU5EX0RVUkFUSU9OEAcSJAogT1BFUkFUT1JfSU5QVVRfS0lORF9DT05GSVJNQVRJT04QCEJCWkBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NldHVwL3YxO3NldHVwX3YxYgZwcm90bzM");
+  fileDesc("Ch1zZXR1cC92MS9vcGVyYXRvcl9pbnB1dC5wcm90bxIPdnJvb2xpLnNldHVwLnYxIqoCCglDYW5kaWRhdGUSCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRINCgVsYWJlbBgDIAEoCRIQCghsb2NhdGlvbhgEIAEoCRIXCg9zdGFibGVfaWRlbnRpdHkYBSABKAkSFwoPZGV2aWNlX2lkZW50aXR5GAYgASgJEhAKCHdyaXRhYmxlGAcgASgIEg4KBnN0YXR1cxgIIAEoCRIMCgRyaXNrGAkgASgJEhMKC3JlbWVkaWF0aW9uGAogASgJEjoKCG1ldGFkYXRhGAsgAygLMigudnJvb2xpLnNldHVwLnYxLkNhbmRpZGF0ZS5NZXRhZGF0YUVudHJ5Gi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLFBQoUT3BlcmF0b3JJbnB1dFJlcXVlc3QSCgoCaWQYASABKAkSMAoEa2luZBgCIAEoDjIiLnZyb29saS5zZXR1cC52MS5PcGVyYXRvcklucHV0S2luZBIYChBjb250cmFjdF92ZXJzaW9uGAMgASgJEg0KBW93bmVyGAQgASgJEhUKDWNhcGFiaWxpdHlfaWQYBSABKAkSEQoJYWN0aW9uX2lkGAYgASgJEhAKCGlucHV0X2lkGAcgASgJEg0KBXRpdGxlGAggASgJEhMKC2Rlc2NyaXB0aW9uGAkgASgJEhUKDWRlZmF1bHRfdmFsdWUYCiABKAkSDwoHb3B0aW9ucxgLIAMoCRIuCgpjYW5kaWRhdGVzGAwgAygLMhoudnJvb2xpLnNldHVwLnYxLkNhbmRpZGF0ZRITCgtyZW1lZGlhdGlvbhgNIAEoCRIQCgh1bmJsb2NrcxgOIAMoCRISCgp2YWxpZGF0aW9uGA8gASgJEhAKCHJlcXVpcmVkGBAgASgIEg4KBnRhcmdldBgRIAEoCRISCgpkZWNsaW5hYmxlGBIgASgIEhAKCGRlY2lzaW9uGBMgASgJEh0KFWNyZWRlbnRpYWxfbG9naWNhbF9pZBgUIAEoCRIYChBjcmVkZW50aWFsX2ZpZWxkGBUgASgJEhAKCHByb3ZpZGVyGBYgASgJEhkKEXJlcXVpcmVtZW50X2dyb3VwGBcgASgJEhUKDWNvbnN1bWVyX3JlZnMYGCADKAkSGgoSY29tcGFuaW9uX3NldHRpbmdzGBkgAygJEhcKD2FjcXVpc2l0aW9uX3JlZhgaIAEoCRIYChB2ZXJpZmljYXRpb25fcmVmGBsgASgJEhQKDHJlY292ZXJ5X3JlZhgcIAEoCRIQCghoZWxwX3JlZhgdIAEoCRIXCg9ldmlkZW5jZV9wb2xpY3kYHiABKAkqvgIKEU9wZXJhdG9ySW5wdXRLaW5kEiMKH09QRVJBVE9SX0lOUFVUX0tJTkRfVU5TUEVDSUZJRUQQABIeChpPUEVSQVRPUl9JTlBVVF9LSU5EX1NFQ1JFVBABEh4KGk9QRVJBVE9SX0lOUFVUX0tJTkRfQ0hPSUNFEAISHwobT1BFUkFUT1JfSU5QVVRfS0lORF9DT05GSVJNEAMSHAoYT1BFUkFUT1JfSU5QVVRfS0lORF9QQVRIEAQSHAoYT1BFUkFUT1JfSU5QVVRfS0lORF9FTlVNEAUSHwobT1BFUkFUT1JfSU5QVVRfS0lORF9CT09MRUFOEAYSIAocT1BFUkFUT1JfSU5QVVRfS0lORF9EVVJBVElPThAHEiQKIE9QRVJBVE9SX0lOUFVUX0tJTkRfQ09ORklSTUFUSU9OEAhCQlpAZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zZXR1cC92MTtzZXR1cF92MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.setup.v1.Candidate
@@ -167,6 +167,71 @@ export type OperatorInputRequest = Message<"vrooli.setup.v1.OperatorInputRequest
    * @generated from field: string target = 17;
    */
   target: string;
+
+  /**
+   * @generated from field: bool declinable = 18;
+   */
+  declinable: boolean;
+
+  /**
+   * @generated from field: string decision = 19;
+   */
+  decision: string;
+
+  /**
+   * @generated from field: string credential_logical_id = 20;
+   */
+  credentialLogicalId: string;
+
+  /**
+   * @generated from field: string credential_field = 21;
+   */
+  credentialField: string;
+
+  /**
+   * @generated from field: string provider = 22;
+   */
+  provider: string;
+
+  /**
+   * @generated from field: string requirement_group = 23;
+   */
+  requirementGroup: string;
+
+  /**
+   * @generated from field: repeated string consumer_refs = 24;
+   */
+  consumerRefs: string[];
+
+  /**
+   * @generated from field: repeated string companion_settings = 25;
+   */
+  companionSettings: string[];
+
+  /**
+   * @generated from field: string acquisition_ref = 26;
+   */
+  acquisitionRef: string;
+
+  /**
+   * @generated from field: string verification_ref = 27;
+   */
+  verificationRef: string;
+
+  /**
+   * @generated from field: string recovery_ref = 28;
+   */
+  recoveryRef: string;
+
+  /**
+   * @generated from field: string help_ref = 29;
+   */
+  helpRef: string;
+
+  /**
+   * @generated from field: string evidence_policy = 30;
+   */
+  evidencePolicy: string;
 };
 
 /**

@@ -292,8 +292,12 @@ message SupervisionReplayReport {
  int32 heldout_families = 11;
  int32 candidate_errors = 12;
  int32 incumbent_errors = 13;
- bool comparison_passed = 14;
- string selection = 15;
+  bool comparison_passed = 14;
+  string selection = 15;
+  // The scalar is unknown until an independently observed completion-impact
+  // measurement exists; false is not a measured zero.
+  bool completion_impact_observed = 16;
+  string completion_impact_reason = 17;
 }
 
 message GetSupervisionPolicyRequest { string version = 1; }

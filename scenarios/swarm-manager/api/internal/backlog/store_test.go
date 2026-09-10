@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"swarm-manager/internal/identity"
 	"swarm-manager/internal/testutil"
 )
 
@@ -782,5 +783,32 @@ func TestCheckDependencies_FailOpen(t *testing.T) {
 				t.Fatalf("unmet dependencies = %q, want %q", got, want)
 			}
 		})
+	}
+}
+
+func TestStoreExecutionLimitsPersistUpdatesAndClears(t *testing.T) {
+	store, root := setupTestStore(t)
+	testutil.MakeDir(t, filepath.Join(root, "execute", "limits"))
+	item := BacklogItem{Kind: KindExecute, Name: "limits", Title: "Limits", Status: StatusBacklog, ExecutionStrategy: ExecutionStrategyAdaptiveImprovement, ExecutionLimits: &identity.ExecutionLimits{MaxSlices: 64, MaxTokens: 2000000, MaxWallSeconds: 604800, MaxTurns: 1000, MaxChargeMicroUSD: 30000000, MaxChildren: 256, MaxNodeAttempts: 512, MaxRetries: 64}}
+	for _, tokens := range []int64{2000000, 1000000, 0} {
+		if tokens == 0 {
+			item.ExecutionLimits = nil
+		} else {
+			item.ExecutionLimits.MaxTokens = tokens
+		}
+		if err := store.SaveItem(item); err != nil {
+			t.Fatal(err)
+		}
+		loaded, err := store.LoadItem(item.Kind, item.Name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tokens == 0 {
+			if loaded.ExecutionLimits != nil {
+				t.Fatal("explicit limits clear did not persist")
+			}
+		} else if loaded.ExecutionLimits == nil || *loaded.ExecutionLimits != *item.ExecutionLimits {
+			t.Fatalf("persisted limits=%+v want=%+v", loaded.ExecutionLimits, item.ExecutionLimits)
+		}
 	}
 }

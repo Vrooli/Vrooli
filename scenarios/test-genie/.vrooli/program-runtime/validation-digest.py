@@ -1,10 +1,7 @@
 """Bounded, read-only digest of Test Genie validation receipts."""
 import json
 
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 
 limit = int(inputs.get("limit", 100))
 caller_scenario = str(inputs.get("caller_scenario", "")).strip()

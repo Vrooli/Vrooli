@@ -100,6 +100,9 @@ message ScenarioStatusItem {
   // progress or last terminal outcome); absent when never started or the
   // runtime registry is unavailable. Single-scenario status only.
   ScenarioStartOperation start_operation = 13;
+
+  // Authored build identity served by the managed runtime.
+  string build_identity = 14;
 }
 
 // ScenarioStartOperation is the reader view of one durable start/restart
@@ -372,6 +375,9 @@ message ScenarioRuntimeData {
 
   // Health probe error detail; empty on success.
   string health_error = 8;
+
+  // Authored build identity served by the managed runtime.
+  string build_identity = 9;
 }
 
 // ScenarioProcessRecord mirrors a tracked OS process record (process.Record).

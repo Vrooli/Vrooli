@@ -1,45 +1,117 @@
 # Swarm Manager Architecture
 
-## Typed workflow pilots
+## Plan-backed execution
 
-The backlog workshop-round pilot uses Agent Manager as a consumer-neutral workflow runtime. A small scenario-owned definition captures one immutable backlog snapshot and returns one discriminated result. Agent Manager executes the graph and returns that result with run/profile provenance; it has no backlog vocabulary and performs no Swarm mutation.
+Swarm owns the backlog item, exact Plan Manager revision, acceptance, queue,
+execution identity and final disposition. Agent Manager owns the declared
+workflow, its child runs, budget accounting, cancellation and durable journal.
+Product evidence stays with the scenario and its evidence providers.
 
-Swarm Manager remains the domain owner. It validates the typed result and applies it exactly once through its backlog API, including stale-snapshot and replay protection. This boundary is intentionally narrow: it introduces no classifier, target registry, domain-action framework, compatibility wrapper, or duplicated result schema.
+Both ordinary execution strategies use `swarm-manager/phased-plan-drain`:
 
-Plan execution has one fallback of record: `phased-plan-drain`. It owns
-phase-by-phase review, validation evidence, and operator approval. The workflow
-owns slice composition:
-each visit to `slice` creates an independent Run using
-`swarm-manager/deep-work`; ordered compact handoffs come from the append-only
-journal; `correction` explicitly continues the named slice; and the reusable
-`phased-plan-slice-review` child uses `swarm-manager/analysis`. A rejected
-review is bound into a same-conversation correction and the corrected handoff
-is reviewed again before it can become terminal. The consumer-supplied
-`maxSlices` value is enforced from durable `slice` attempt entries; reaching it
-while more work is requested yields `budget_exhausted` without starting another
-Run. Cycle edges and global budgets are finite, and approval is a durable
-external signal. Blocked and abstained results retain their distinct Agent
-Manager workflow statuses rather than masquerading as success.
+| Strategy | Work selection and continuation |
+| --- | --- |
+| `phased-plan-drain` | Follow authored phases. A routine phase boundary uses the configured approval policy. |
+| `adaptive-improvement` | The scenario improve skill chooses successive repairs toward the approved target. A coherent repair can return while its evidence milestone remains open. Independently reviewed routine phase boundaries continue under the original approval. |
 
-Swarm still owns the plan frontier and execution lifecycle. It hashes the live
-Plan Manager rendering and backlog snapshot, starts idempotently, and accepts a
-terminal result only when workflow id, definition digest, consumer id, entity
-version, and frontier digest all match. A two-stage local claim applies the
-typed terminal transition exactly once. Retry, fixup, follow-up, research
-conclusion, legacy records, and UI paths are outside this pilot.
+Neither strategy can reinterpret a protected target or expand authority. The
+slice result identifies `approvalReason=operator-decision` for a target or grant
+change, an explicit operator pause, or another genuine authority boundary. That
+reason waits even when routine approval is automatic. Missing reasons remain
+conservative. The review child verifies actual cited evidence and the plan's
+completion policy; a worker's summary is not its own acceptance receipt.
 
-### Pilot decision
+Each new slice creates an independent run using `swarm-manager/deep-work`.
+A rejected review continues the named worker in a correction, then reviews the
+replacement result again. The append-only journal supplies bounded continuity.
+The workflow counts actual slice attempts, preserves waits and blocked outcomes,
+and returns `budget_exhausted` when it cannot start the next permitted slice.
 
-Decision: **use the generic Agent Manager workflow primitive with
-`phased-plan-drain` as the single governed fallback**. The evidence supports the execution-identity model: fresh Run
-per loop visit, node-local profiles, named continuation, child workflow,
-bounded journal context, finite cycles, durable waits, and consumer-owned
-exactly-once mutation all pass focused and race gates without domain vocabulary
-in Agent Manager. This is not authorization for a broad Swarm replacement.
-The legacy operating-mode and agent-operation runtime has been removed. Legacy
-records and event projections remain read-only for audit and migration history.
+Queue admission binds the canonical plan hash and item contract, including the
+saved execution strategy, path boundaries and any explicit `execution_limits`.
+Backlog acceptance and execution use the same subject-version contract. Editing
+that contract invalidates acceptance. The UI preserves these values through its
+API mapping, displays aggregate limits before acceptance and launch, and allows
+a run to narrow its slice allowance. Bulk launch retains each item's own settings.
+Opening review or a Run dialog does not start work.
 
-## Mental Model
+An item without explicit limits retains the bounded ordinary defaults. A larger
+item allowance requires explicit reviewed limits; workflow catalog capacity is
+an admission ceiling, not a larger allowance granted to every item. Agent Manager
+pins the supplied grant to an execution. Retry must account for earlier measured
+usage; missing authoritative terminal usage cannot become a fresh budget.
+Money for coding agents and money for product inference are separate authorities.
+
+This route is for trusted coding agents with ordinary workspace and owner scope
+controls. It does not claim a hard in-flight token ceiling or qualified containment
+of every external effect. Native-goal capability, tracking, protected containment,
+workflow admission, and accounting completeness are distinct facts. Use current
+owner capability evidence and executed qualification, rather than inferring one
+from another or from a declaration's existence.
+
+Swarm accepts a terminal workflow result only when workflow identity, definition
+digest, consumer identity, entity version and frontier digest match. A local claim
+applies the typed transition once. A successful worker result moves work toward
+review; it does not prove that every promised product outcome passed or authorize
+publication. Final review must inspect the approved outcome denominator and actual
+receipts, including unavailable, stale and failed evidence.
+
+## Retained development compatibility surface
+
+`TransitionService.PreviewDevelopment`, `swarm-manager development`, and the
+Development contract drawer retain the earlier proposal/engagement API. Existing
+retained items continue through their own owner. New ordinary adaptive plan items
+use the plan-backed route above; they do not need a second development approval.
+Do not bind both lifecycles to one item.
+
+Preview resolves selected skill/program/target files and reports field and source
+completeness. A complete preview is not launch qualification. The retained service
+can store immutable snapshots, compare-and-swap engagement revisions, reserve and
+settle usage, revoke authority, and resolve submitted evidence through injected
+owner adapters. Its `contract-development` transition is registered; registration
+alone does not qualify native/fallback behavior or its production evidence owners.
+
+The retained approval, amendment, revocation and acceptance endpoints require the
+configured verified-human identity and write capability. Agent provenance does
+not confer that authority. No implicit local bypass is enabled. This authentication
+boundary differs from ordinary plan acceptance; do not fabricate human identity
+while rehearsing either route.
+
+The retained coordinator reserves before dispatch, binds the owner execution,
+propagates cancellation and settles only known terminal usage. Lost dispatch
+responses and unavailable owner reconciliation retain reservations. Its metered
+cancellation policy charges observed overshoot and stops new dispatch; hard-ceiling
+claims need independent runtime qualification. Historical snapshots retain their
+original policy. The live retained route currently has no registered product
+evidence resolver; generic readable status cannot satisfy full product acceptance.
+
+## Qualification and target adoption
+
+[Contract-driven development](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md)
+owns the shared method. Qualify the selected route with one bounded disposable
+item before using it as evidence of approval-ready product execution:
+
+1. Accept and launch one exact plan revision; duplicate admission returns the same
+   work rather than another allowance.
+2. Repair two distinct defects with independently inspected evidence and no
+   intermediate operator approval. Recover the next repair from durable context.
+3. Preserve original authority and aggregate usage across correction, fresh runs,
+   interruption and retry. Stop new dispatch on revocation or exhausted allowance.
+4. Refuse a weaker target, stale approval, unknown required evidence and an
+   unsupported hard-ceiling request. Preserve uncertainty through owner outages.
+5. Verify actual workspace changes and apply provenance. A complete harness with
+   failed finalization remains a failed execution boundary until owner recovery.
+
+Source tests, catalog reconciliation, live workflow receipts and real provider
+observations establish different parts of this proof. Record the exact handles
+and limits in the active infrastructure plan. Product plans remain unapproved and
+unstarted while this infrastructure is qualified.
+
+Until Tech Tree Designer's generic revisioned bundles are implemented, a reviewed
+plan can retain proposed target text directly in its canonical content. Its hash
+then binds the target bytes. A mutable external path alone cannot carry approval;
+keep any file copy's digest and source role explicit. Future draft bundles replace
+this verbose fallback only after owner-mediated review/application is qualified.
 
 ### Transition dispatch
 

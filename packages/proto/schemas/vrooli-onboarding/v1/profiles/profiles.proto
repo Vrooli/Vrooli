@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.profiles;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/profiles;profilesv1";
+
+import "google/protobuf/struct.proto";
+
+service ProfileService {
+  rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse);
+  rpc EvaluateProfile(EvaluateProfileRequest) returns (EvaluateProfileResponse);
+}
+
+message ListProfilesRequest { string target = 1; }
+
+message EvaluateProfileRequest {
+  string target = 1;
+  string profile_id = 2;
+  map<string, google.protobuf.Value> answers = 3;
+  google.protobuf.Struct target_context = 4;
+  map<string, bool> manual_decisions = 5;
+}
+
+message ProfileOption {
+  string id = 1;
+  string label_key = 2;
+}
+
+message ProfileQuestion {
+  string id = 1;
+  string type = 2;
+  string prompt_key = 3;
+  bool required = 4;
+  repeated ProfileOption options = 5;
+  int32 min_selections = 6;
+  int32 max_selections = 7;
+  bool visible = 8;
+  google.protobuf.Value default_value = 9;
+}
+
+message ProfileRecommendation {
+  string capability_ref = 1;
+  repeated string scenario_refs = 2;
+  string reason_key = 3;
+  string rule_id = 4;
+  string key = 5;
+  bool selected = 6;
+  bool required = 7;
+}
+
+message ProfileExplanation {
+  string rule_id = 1;
+  string capability_ref = 2;
+  repeated string scenario_refs = 3;
+  string reason_key = 4;
+  bool selected = 5;
+}
+
+message ProfileValidationIssue {
+  string field = 1;
+  string code = 2;
+  string message = 3;
+}
+
+message Profile {
+  string id = 1;
+  string version = 2;
+  string title_key = 3;
+  string description_key = 4;
+  string owner = 5;
+  string provenance_source = 6;
+  string provenance_revision = 7;
+  string schema_version = 8;
+  int32 compatible_catalog_major = 9;
+  bool default = 10;
+  bool manual_selection_available = 11;
+}
+
+message ListProfilesResponse {
+  repeated Profile profiles = 1;
+}
+
+message EvaluateProfileResponse {
+  Profile profile = 1;
+  repeated ProfileQuestion questions = 2;
+  repeated ProfileRecommendation recommendations = 3;
+  repeated string scenarios = 4;
+  repeated string resources = 5;
+  repeated ProfileValidationIssue issues = 6;
+  bool valid = 7;
+  repeated ProfileExplanation explanations = 8;
+  string digest = 9;
+}

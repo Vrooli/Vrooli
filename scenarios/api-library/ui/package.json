@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.0",
+    "@vrooli/api-base": "file:../../../packages/api-base",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "axios": "^1.6.2",
     "lucide-react": "^0.294.0",
-    "@vrooli/api-base": "file:../../../packages/api-base",
-    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -18,12 +19,12 @@
     "eject": "react-scripts eject"
   },
   "devDependencies": {
-    "react-scripts": "5.0.1",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.5.1",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "@testing-library/react": "^14.0.0",
-    "@testing-library/jest-dom": "^6.1.5",
-    "@testing-library/user-event": "^14.5.1"
+    "react-scripts": "5.0.1"
   },
   "eslintConfig": {
     "extends": [

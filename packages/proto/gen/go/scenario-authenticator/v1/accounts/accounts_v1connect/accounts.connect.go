@@ -57,9 +57,15 @@ const (
 	// AccountsServiceListScopesProcedure is the fully-qualified name of the AccountsService's
 	// ListScopes RPC.
 	AccountsServiceListScopesProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ListScopes"
+	// AccountsServiceSetRolesProcedure is the fully-qualified name of the AccountsService's SetRoles
+	// RPC.
+	AccountsServiceSetRolesProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/SetRoles"
 	// AccountsServiceLinkMachineAccountProcedure is the fully-qualified name of the AccountsService's
 	// LinkMachineAccount RPC.
 	AccountsServiceLinkMachineAccountProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/LinkMachineAccount"
+	// AccountsServiceRevokeMachineAccountProcedure is the fully-qualified name of the AccountsService's
+	// RevokeMachineAccount RPC.
+	AccountsServiceRevokeMachineAccountProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/RevokeMachineAccount"
 	// AccountsServiceExchangeMachinePrincipalProcedure is the fully-qualified name of the
 	// AccountsService's ExchangeMachinePrincipal RPC.
 	AccountsServiceExchangeMachinePrincipalProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ExchangeMachinePrincipal"
@@ -102,10 +108,18 @@ type AccountsServiceClient interface {
 	RevokeScope(context.Context, *connect.Request[accounts.RevokeScopeRequest]) (*connect.Response[accounts.ScopeResponse], error)
 	// ListScopes returns the opaque scopes assigned to a principal.
 	ListScopes(context.Context, *connect.Request[accounts.ListScopesRequest]) (*connect.Response[accounts.ListScopesResponse], error)
+	// SetRoles replaces the coarse realm roles for a principal. Only an
+	// administrator may target another principal; the service prevents the
+	// last realm administrator from removing its own administrator role.
+	SetRoles(context.Context, *connect.Request[accounts.SetRolesRequest]) (*connect.Response[accounts.Account], error)
 	// LinkMachineAccount binds an operator's current local principal to an
 	// account. The local exchange listener supplies the peer credential; this
 	// RPC is also exposed to the signed-in CLI for explicit linking.
 	LinkMachineAccount(context.Context, *connect.Request[accounts.LinkMachineAccountRequest]) (*connect.Response[accounts.LinkMachineAccountResponse], error)
+	// RevokeMachineAccount removes the selected machine binding. The caller may
+	// revoke its own binding; an administrator may target another principal.
+	// The operation is idempotent when the binding is already absent.
+	RevokeMachineAccount(context.Context, *connect.Request[accounts.RevokeMachineAccountRequest]) (*connect.Response[accounts.RevokeMachineAccountResponse], error)
 	// ExchangeMachinePrincipal trades a verified local-socket peer credential
 	// for a normal short-lived JWT. It is refused unless the socket listener has
 	// injected a bound principal into the request context.
@@ -181,10 +195,22 @@ func NewAccountsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(accountsServiceMethods.ByName("ListScopes")),
 			connect.WithClientOptions(opts...),
 		),
+		setRoles: connect.NewClient[accounts.SetRolesRequest, accounts.Account](
+			httpClient,
+			baseURL+AccountsServiceSetRolesProcedure,
+			connect.WithSchema(accountsServiceMethods.ByName("SetRoles")),
+			connect.WithClientOptions(opts...),
+		),
 		linkMachineAccount: connect.NewClient[accounts.LinkMachineAccountRequest, accounts.LinkMachineAccountResponse](
 			httpClient,
 			baseURL+AccountsServiceLinkMachineAccountProcedure,
 			connect.WithSchema(accountsServiceMethods.ByName("LinkMachineAccount")),
+			connect.WithClientOptions(opts...),
+		),
+		revokeMachineAccount: connect.NewClient[accounts.RevokeMachineAccountRequest, accounts.RevokeMachineAccountResponse](
+			httpClient,
+			baseURL+AccountsServiceRevokeMachineAccountProcedure,
+			connect.WithSchema(accountsServiceMethods.ByName("RevokeMachineAccount")),
 			connect.WithClientOptions(opts...),
 		),
 		exchangeMachinePrincipal: connect.NewClient[accounts.ExchangeMachinePrincipalRequest, accounts.LoginResponse](
@@ -213,7 +239,9 @@ type accountsServiceClient struct {
 	grantScope               *connect.Client[accounts.GrantScopeRequest, accounts.ScopeResponse]
 	revokeScope              *connect.Client[accounts.RevokeScopeRequest, accounts.ScopeResponse]
 	listScopes               *connect.Client[accounts.ListScopesRequest, accounts.ListScopesResponse]
+	setRoles                 *connect.Client[accounts.SetRolesRequest, accounts.Account]
 	linkMachineAccount       *connect.Client[accounts.LinkMachineAccountRequest, accounts.LinkMachineAccountResponse]
+	revokeMachineAccount     *connect.Client[accounts.RevokeMachineAccountRequest, accounts.RevokeMachineAccountResponse]
 	exchangeMachinePrincipal *connect.Client[accounts.ExchangeMachinePrincipalRequest, accounts.LoginResponse]
 	issueBreakGlass          *connect.Client[accounts.IssueBreakGlassRequest, accounts.IssueBreakGlassResponse]
 }
@@ -263,10 +291,21 @@ func (c *accountsServiceClient) ListScopes(ctx context.Context, req *connect.Req
 	return c.listScopes.CallUnary(ctx, req)
 }
 
+// SetRoles calls vrooli.scenario_authenticator.v1.accounts.AccountsService.SetRoles.
+func (c *accountsServiceClient) SetRoles(ctx context.Context, req *connect.Request[accounts.SetRolesRequest]) (*connect.Response[accounts.Account], error) {
+	return c.setRoles.CallUnary(ctx, req)
+}
+
 // LinkMachineAccount calls
 // vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount.
 func (c *accountsServiceClient) LinkMachineAccount(ctx context.Context, req *connect.Request[accounts.LinkMachineAccountRequest]) (*connect.Response[accounts.LinkMachineAccountResponse], error) {
 	return c.linkMachineAccount.CallUnary(ctx, req)
+}
+
+// RevokeMachineAccount calls
+// vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeMachineAccount.
+func (c *accountsServiceClient) RevokeMachineAccount(ctx context.Context, req *connect.Request[accounts.RevokeMachineAccountRequest]) (*connect.Response[accounts.RevokeMachineAccountResponse], error) {
+	return c.revokeMachineAccount.CallUnary(ctx, req)
 }
 
 // ExchangeMachinePrincipal calls
@@ -314,10 +353,18 @@ type AccountsServiceHandler interface {
 	RevokeScope(context.Context, *connect.Request[accounts.RevokeScopeRequest]) (*connect.Response[accounts.ScopeResponse], error)
 	// ListScopes returns the opaque scopes assigned to a principal.
 	ListScopes(context.Context, *connect.Request[accounts.ListScopesRequest]) (*connect.Response[accounts.ListScopesResponse], error)
+	// SetRoles replaces the coarse realm roles for a principal. Only an
+	// administrator may target another principal; the service prevents the
+	// last realm administrator from removing its own administrator role.
+	SetRoles(context.Context, *connect.Request[accounts.SetRolesRequest]) (*connect.Response[accounts.Account], error)
 	// LinkMachineAccount binds an operator's current local principal to an
 	// account. The local exchange listener supplies the peer credential; this
 	// RPC is also exposed to the signed-in CLI for explicit linking.
 	LinkMachineAccount(context.Context, *connect.Request[accounts.LinkMachineAccountRequest]) (*connect.Response[accounts.LinkMachineAccountResponse], error)
+	// RevokeMachineAccount removes the selected machine binding. The caller may
+	// revoke its own binding; an administrator may target another principal.
+	// The operation is idempotent when the binding is already absent.
+	RevokeMachineAccount(context.Context, *connect.Request[accounts.RevokeMachineAccountRequest]) (*connect.Response[accounts.RevokeMachineAccountResponse], error)
 	// ExchangeMachinePrincipal trades a verified local-socket peer credential
 	// for a normal short-lived JWT. It is refused unless the socket listener has
 	// injected a bound principal into the request context.
@@ -388,10 +435,22 @@ func NewAccountsServiceHandler(svc AccountsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(accountsServiceMethods.ByName("ListScopes")),
 		connect.WithHandlerOptions(opts...),
 	)
+	accountsServiceSetRolesHandler := connect.NewUnaryHandler(
+		AccountsServiceSetRolesProcedure,
+		svc.SetRoles,
+		connect.WithSchema(accountsServiceMethods.ByName("SetRoles")),
+		connect.WithHandlerOptions(opts...),
+	)
 	accountsServiceLinkMachineAccountHandler := connect.NewUnaryHandler(
 		AccountsServiceLinkMachineAccountProcedure,
 		svc.LinkMachineAccount,
 		connect.WithSchema(accountsServiceMethods.ByName("LinkMachineAccount")),
+		connect.WithHandlerOptions(opts...),
+	)
+	accountsServiceRevokeMachineAccountHandler := connect.NewUnaryHandler(
+		AccountsServiceRevokeMachineAccountProcedure,
+		svc.RevokeMachineAccount,
+		connect.WithSchema(accountsServiceMethods.ByName("RevokeMachineAccount")),
 		connect.WithHandlerOptions(opts...),
 	)
 	accountsServiceExchangeMachinePrincipalHandler := connect.NewUnaryHandler(
@@ -426,8 +485,12 @@ func NewAccountsServiceHandler(svc AccountsServiceHandler, opts ...connect.Handl
 			accountsServiceRevokeScopeHandler.ServeHTTP(w, r)
 		case AccountsServiceListScopesProcedure:
 			accountsServiceListScopesHandler.ServeHTTP(w, r)
+		case AccountsServiceSetRolesProcedure:
+			accountsServiceSetRolesHandler.ServeHTTP(w, r)
 		case AccountsServiceLinkMachineAccountProcedure:
 			accountsServiceLinkMachineAccountHandler.ServeHTTP(w, r)
+		case AccountsServiceRevokeMachineAccountProcedure:
+			accountsServiceRevokeMachineAccountHandler.ServeHTTP(w, r)
 		case AccountsServiceExchangeMachinePrincipalProcedure:
 			accountsServiceExchangeMachinePrincipalHandler.ServeHTTP(w, r)
 		case AccountsServiceIssueBreakGlassProcedure:
@@ -477,8 +540,16 @@ func (UnimplementedAccountsServiceHandler) ListScopes(context.Context, *connect.
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes is not implemented"))
 }
 
+func (UnimplementedAccountsServiceHandler) SetRoles(context.Context, *connect.Request[accounts.SetRolesRequest]) (*connect.Response[accounts.Account], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.SetRoles is not implemented"))
+}
+
 func (UnimplementedAccountsServiceHandler) LinkMachineAccount(context.Context, *connect.Request[accounts.LinkMachineAccountRequest]) (*connect.Response[accounts.LinkMachineAccountResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount is not implemented"))
+}
+
+func (UnimplementedAccountsServiceHandler) RevokeMachineAccount(context.Context, *connect.Request[accounts.RevokeMachineAccountRequest]) (*connect.Response[accounts.RevokeMachineAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeMachineAccount is not implemented"))
 }
 
 func (UnimplementedAccountsServiceHandler) ExchangeMachinePrincipal(context.Context, *connect.Request[accounts.ExchangeMachinePrincipalRequest]) (*connect.Response[accounts.LoginResponse], error) {

@@ -5,6 +5,7 @@ package vrooli.prompt_manager.v1.skills;
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills;skills_v1";
 
 service SkillsService {
+  rpc RefreshProjection(RefreshProjectionRequest) returns (RefreshProjectionResponse);
   rpc ListSkills(ListSkillsRequest) returns (ListSkillsResponse);
   rpc GetSkill(GetSkillRequest) returns (GetSkillResponse);
   rpc ReadSkills(ReadSkillsRequest) returns (ReadSkillsResponse);
@@ -24,6 +25,32 @@ service SkillsService {
   rpc ImportSkill(ImportSkillRequest) returns (ImportSkillResponse);
   rpc ReviewImportedSkill(ReviewImportedSkillRequest) returns (ReviewImportedSkillResponse);
   rpc ReportImportedSkillStaleness(ReportImportedSkillStalenessRequest) returns (ReportImportedSkillStalenessResponse);
+}
+
+// Empty runtime/skills select configured targets/the governed base pack.
+// Preview is read-only. Apply requires the exact preview digest and policy.
+message RefreshProjectionRequest {
+  string runtime = 1;
+  repeated string skills = 2;
+  bool apply = 3;
+  string expected_digest = 4;
+  bool adopt_legacy = 5;
+}
+message ProjectionRow {
+  string runtime = 1;
+  string skill = 2;
+  string status = 3;
+  string source_hash = 4;
+  string installed_hash = 5;
+  string baseline_hash = 6;
+  string receipt_hash = 7;
+  string error = 8;
+  string backup_path = 9;
+  bool applied = 10;
+}
+message RefreshProjectionResponse {
+  string digest = 1;
+  repeated ProjectionRow rows = 2;
 }
 
 message Variable {

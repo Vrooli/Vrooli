@@ -153,6 +153,10 @@ type BacklogItem struct {
 	Creates            []string    `json:"creates,omitempty"`
 	SpawnedFrom        string      `json:"spawned_from,omitempty"`
 	PlanRef            *PlanRef    `json:"plan_ref,omitempty"`
+	// ExecutionStrategy selects the plan runner. It is deliberately part of
+	// the plan-backed item contract rather than a separate backlog kind.
+	ExecutionStrategy string                    `json:"execution_strategy,omitempty"`
+	ExecutionLimits   *identity.ExecutionLimits `json:"execution_limits,omitempty"`
 	// PlanAcceptance is the operator's explicit acceptance of the exact
 	// canonical plan revision this item may execute. It is intentionally
 	// separate from workshop history: workshops inform planning, while this
@@ -227,10 +231,25 @@ type PlanAcceptance struct {
 }
 
 const (
-	PlanRefProviderPlanManager = "plan-manager"
-	PlanRefRoleExecutionSpec   = "execution_spec"
-	PlanRefRoleOperatingMode   = "operating_mode_plan"
+	PlanRefProviderPlanManager           = "plan-manager"
+	PlanRefRoleExecutionSpec             = "execution_spec"
+	PlanRefRoleOperatingMode             = "operating_mode_plan"
+	ExecutionStrategyPhasedPlanDrain     = "phased-plan-drain"
+	ExecutionStrategyAdaptiveImprovement = "adaptive-improvement"
 )
+
+func normalizeExecutionStrategy(raw string) (string, error) {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	if value == "" {
+		return "", nil
+	}
+	switch value {
+	case ExecutionStrategyPhasedPlanDrain, ExecutionStrategyAdaptiveImprovement:
+		return value, nil
+	default:
+		return "", fmt.Errorf("execution_strategy must be %q or %q", ExecutionStrategyPhasedPlanDrain, ExecutionStrategyAdaptiveImprovement)
+	}
+}
 
 // BacklogFile represents a file or directory within a backlog item folder.
 type BacklogFile struct {
@@ -339,6 +358,10 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	if item.PlanRef != nil {
 		result.PlanRef = planRefToProto(item.PlanRef)
 	}
+	if strings.TrimSpace(item.ExecutionStrategy) != "" {
+		result.ExecutionStrategy = &item.ExecutionStrategy
+	}
+	result.ExecutionLimits = executionLimitsProto(item.ExecutionLimits)
 	if item.PlanAcceptance != nil {
 		result.PlanAcceptance = &domainpb.PlanAcceptance{
 			Actor:           item.PlanAcceptance.Actor,

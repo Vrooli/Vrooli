@@ -18,6 +18,20 @@ message ReceiptCapturePolicy {
   uint32 retention_days = 6;
   ReceiptAccessPolicy access = 7;
   string version = 8;
+  repeated WorkReferenceProjection work_reference_projections = 9;
+}
+
+// WorkReferenceProjection declares how a typed response becomes a generic
+// work-reference edge. Paths are explicit descriptor paths; no response field
+// is inferred from names, timestamps, or search metadata.
+message WorkReferenceProjection {
+  string kind_path = 1;
+  string id_path = 2;
+  string revision_path = 3;
+  string relationship = 4;
+  string verified_path = 5;
+  string visibility_path = 6;
+  string evidence_digest_path = 7;
 }
 
 message ReceiptOperationSelector {
@@ -43,6 +57,10 @@ message ReceiptQueryFilter {
   bool verified_only = 9;
   string page_token = 10;
   uint32 page_size = 11;
+  string event_id = 12;
+  string work_kind = 13;
+  string work_id = 14;
+  WorkReferenceVisibility visibility = 15;
 }
 
 message ReceiptQueryResult {

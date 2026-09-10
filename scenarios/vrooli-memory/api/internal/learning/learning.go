@@ -14,8 +14,10 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const Prefix = "learning-attempt/v1 "
-const ObservationPrefix = "learning-observation/v1 "
+const (
+	Prefix            = "learning-attempt/v1 "
+	ObservationPrefix = "learning-observation/v1 "
+)
 
 func ValidateObservation(o *pb.Observation) error {
 	if o == nil {
@@ -29,8 +31,8 @@ func ValidateObservation(o *pb.Observation) error {
 	if !oneOf(o.Disposition, "supported", "contradicted", "insufficient", "unavailable", "unresolved", "unknown") {
 		return fmt.Errorf("invalid observation disposition")
 	}
-	if !oneOf(o.Provenance, "operator", "test") {
-		return fmt.Errorf("provenance must be operator or test")
+	if !oneOf(o.Provenance, "operator", "test", "agent") {
+		return fmt.Errorf("provenance must be operator, test, or agent")
 	}
 	if len(o.MethodRevision) > 256 || len(o.Correction) > 2048 {
 		return fmt.Errorf("observation revision or correction is too large")
@@ -100,10 +102,10 @@ func Validate(a *pb.Attempt) error {
 	if !oneOf(a.Outcome, "verified_success", "failed", "unavailable", "unknown") {
 		return fmt.Errorf("invalid outcome")
 	}
-	if !oneOf(a.Provenance, "operator", "test") {
-		return fmt.Errorf("provenance must be operator or test")
+	if !oneOf(a.Provenance, "operator", "test", "agent") {
+		return fmt.Errorf("provenance must be operator, test, or agent")
 	}
-	if !oneOf(a.RecallStatus, "matched", "no_match", "unavailable") {
+	if !oneOf(a.RecallStatus, "matched", "no_match", "unavailable", "not_requested") {
 		return fmt.Errorf("invalid recall_status")
 	}
 	if a.Outcome == "failed" && strings.TrimSpace(a.FailureFingerprint) == "" {
@@ -114,6 +116,12 @@ func Validate(a *pb.Attempt) error {
 	}
 	if len(a.FailureFingerprint) > 256 {
 		return fmt.Errorf("failure_fingerprint exceeds 256 bytes")
+	}
+	if (a.ParentAttemptId == nil) != (a.StepName == nil) {
+		return fmt.Errorf("parent_attempt_id and step_name must be supplied together")
+	}
+	if a.ParentAttemptId != nil && (strings.TrimSpace(a.GetParentAttemptId()) == "" || len(a.GetParentAttemptId()) > 128 || strings.TrimSpace(a.GetStepName()) == "" || len(a.GetStepName()) > 1024) {
+		return fmt.Errorf("step parent identity is not bounded")
 	}
 	if err := refs(a.EvidenceRefs); err != nil {
 		return err
@@ -277,10 +285,10 @@ func Measure(entries []*source.Entry, scope string, from, to time.Time, operatio
 		if len(out.EvidenceRefs) < 10 {
 			out.EvidenceRefs = append(out.EvidenceRefs, e.Id)
 		}
-		key := a.Operation + "\x00" + a.ContextKey
+		key := a.Operation + "\x00" + a.ContextKey + "\x00" + a.Provenance
 		g := groups[key]
 		if g == nil {
-			g = &cohort{out: &pb.Cohort{Operation: a.Operation, ContextKey: a.ContextKey}, tasks: map[string]*task{}, failures: map[string]int{}}
+			g = &cohort{out: &pb.Cohort{Operation: a.Operation, ContextKey: a.ContextKey, Provenance: a.Provenance}, tasks: map[string]*task{}, failures: map[string]int{}}
 			groups[key] = g
 		}
 		c := g.out
@@ -309,8 +317,15 @@ func Measure(entries []*source.Entry, scope string, from, to time.Time, operatio
 			c.NoMatch++
 		case "unavailable":
 			c.RecallUnavailable++
+		case "not_requested":
+			c.RecallNotRequested++
 		}
 		for _, u := range a.Advice {
+			if u.Derived != nil && u.GetDerived() {
+				c.DerivedAdvice++
+			} else {
+				c.ExplicitAdvice++
+			}
 			if u.Decision == "applied" {
 				c.AppliedAdvice++
 			} else if u.Decision == "rejected" {
@@ -331,6 +346,22 @@ func Measure(entries []*source.Entry, scope string, from, to time.Time, operatio
 			g.tasks[a.TaskId] = t
 		}
 		t.attempts = append(t.attempts, a)
+	}
+	// A child is meaningful only when its parent was recorded in this same
+	// scope. Keep the individual records immutable, but mark orphaned trees
+	// unreliable instead of silently treating them as independent attempts.
+	for _, g := range groups {
+		for _, task := range g.tasks {
+			ids := map[string]bool{}
+			for _, a := range task.attempts {
+				ids[a.AttemptId] = true
+			}
+			for _, a := range task.attempts {
+				if a.ParentAttemptId != nil && !ids[a.GetParentAttemptId()] {
+					out.InvalidRecords++
+				}
+			}
+		}
 	}
 	keys := make([]string, 0, len(groups))
 	for key := range groups {

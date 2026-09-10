@@ -234,6 +234,7 @@ export const EXECUTION_STATUSES: ExecutionStatus[] = [
   "needs_fixup",
   "completed",
   "failed",
+  "cancelling",
   "canceled",
 ];
 
@@ -251,6 +252,7 @@ export const EXECUTION_STATUS_COLORS: Record<ExecutionStatus, string> = {
   needs_fixup: "bg-orange-500",
   completed: "bg-emerald-500",
   failed: "bg-red-500",
+  cancelling: "bg-amber-500",
   canceled: "bg-amber-500",
 };
 

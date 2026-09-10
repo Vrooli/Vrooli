@@ -22,6 +22,431 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ObserveTestSyntaxRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Absolute workspace root; files must remain within this root after symlinks.
+	RootPath string `protobuf:"bytes,1,opt,name=root_path,json=rootPath,proto3" json:"root_path,omitempty"`
+	// One to 100 root-relative test source paths, at most 8 MiB total.
+	Files         []string `protobuf:"bytes,2,rep,name=files,proto3" json:"files,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ObserveTestSyntaxRequest) Reset() {
+	*x = ObserveTestSyntaxRequest{}
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ObserveTestSyntaxRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ObserveTestSyntaxRequest) ProtoMessage() {}
+
+func (x *ObserveTestSyntaxRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ObserveTestSyntaxRequest.ProtoReflect.Descriptor instead.
+func (*ObserveTestSyntaxRequest) Descriptor() ([]byte, []int) {
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ObserveTestSyntaxRequest) GetRootPath() string {
+	if x != nil {
+		return x.RootPath
+	}
+	return ""
+}
+
+func (x *ObserveTestSyntaxRequest) GetFiles() []string {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+type ObserveTestSyntaxResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	SchemaVersion string                   `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	Observations  []*TestSyntaxObservation `protobuf:"bytes,2,rep,name=observations,proto3" json:"observations,omitempty"`
+	// Nonempty when the owner could not provide an observation; never a pass.
+	UnavailableReason string `protobuf:"bytes,3,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ObserveTestSyntaxResponse) Reset() {
+	*x = ObserveTestSyntaxResponse{}
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ObserveTestSyntaxResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ObserveTestSyntaxResponse) ProtoMessage() {}
+
+func (x *ObserveTestSyntaxResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ObserveTestSyntaxResponse.ProtoReflect.Descriptor instead.
+func (*ObserveTestSyntaxResponse) Descriptor() ([]byte, []int) {
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ObserveTestSyntaxResponse) GetSchemaVersion() string {
+	if x != nil {
+		return x.SchemaVersion
+	}
+	return ""
+}
+
+func (x *ObserveTestSyntaxResponse) GetObservations() []*TestSyntaxObservation {
+	if x != nil {
+		return x.Observations
+	}
+	return nil
+}
+
+func (x *ObserveTestSyntaxResponse) GetUnavailableReason() string {
+	if x != nil {
+		return x.UnavailableReason
+	}
+	return ""
+}
+
+type TestSyntaxObservation struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	SchemaVersion string                  `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	File          string                  `protobuf:"bytes,2,opt,name=file,proto3" json:"file,omitempty"`
+	SourceDigest  string                  `protobuf:"bytes,3,opt,name=source_digest,json=sourceDigest,proto3" json:"source_digest,omitempty"`
+	Profile       string                  `protobuf:"bytes,4,opt,name=profile,proto3" json:"profile,omitempty"`
+	PluginVersion string                  `protobuf:"bytes,5,opt,name=plugin_version,json=pluginVersion,proto3" json:"plugin_version,omitempty"`
+	EslintVersion string                  `protobuf:"bytes,6,opt,name=eslint_version,json=eslintVersion,proto3" json:"eslint_version,omitempty"`
+	ParserVersion string                  `protobuf:"bytes,7,opt,name=parser_version,json=parserVersion,proto3" json:"parser_version,omitempty"`
+	Status        string                  `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
+	Reason        string                  `protobuf:"bytes,9,opt,name=reason,proto3" json:"reason,omitempty"`
+	Checks        []*TestSyntaxCheck      `protobuf:"bytes,10,rep,name=checks,proto3" json:"checks,omitempty"`
+	Diagnostics   []*TestSyntaxDiagnostic `protobuf:"bytes,11,rep,name=diagnostics,proto3" json:"diagnostics,omitempty"`
+	Limitations   []string                `protobuf:"bytes,12,rep,name=limitations,proto3" json:"limitations,omitempty"`
+	// SHA-256 of the exact selected native rule configuration used by the owner.
+	ConfigDigest  string `protobuf:"bytes,13,opt,name=config_digest,json=configDigest,proto3" json:"config_digest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestSyntaxObservation) Reset() {
+	*x = TestSyntaxObservation{}
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestSyntaxObservation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestSyntaxObservation) ProtoMessage() {}
+
+func (x *TestSyntaxObservation) ProtoReflect() protoreflect.Message {
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestSyntaxObservation.ProtoReflect.Descriptor instead.
+func (*TestSyntaxObservation) Descriptor() ([]byte, []int) {
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *TestSyntaxObservation) GetSchemaVersion() string {
+	if x != nil {
+		return x.SchemaVersion
+	}
+	return ""
+}
+
+func (x *TestSyntaxObservation) GetFile() string {
+	if x != nil {
+		return x.File
+	}
+	return ""
+}
+
+func (x *TestSyntaxObservation) GetSourceDigest() string {
+	if x != nil {
+		return x.SourceDigest
+	}
+	return ""
+}
+
+func (x *TestSyntaxObservation) GetProfile() string {
+	if x != nil {
+		return x.Profile
+	}
+	return ""
+}
+
+func (x *TestSyntaxObservation) GetPluginVersion() string {
+	if x != nil {
+		return x.PluginVersion
+	}
+	return ""
+}
+
+func (x *TestSyntaxObservation) GetEslintVersion() string {
+	if x != nil {
+		return x.EslintVersion
+	}
+	return ""
+}
+
+func (x *TestSyntaxObservation) GetParserVersion() string {
+	if x != nil {
+		return x.ParserVersion
+	}
+	return ""
+}
+
+func (x *TestSyntaxObservation) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *TestSyntaxObservation) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *TestSyntaxObservation) GetChecks() []*TestSyntaxCheck {
+	if x != nil {
+		return x.Checks
+	}
+	return nil
+}
+
+func (x *TestSyntaxObservation) GetDiagnostics() []*TestSyntaxDiagnostic {
+	if x != nil {
+		return x.Diagnostics
+	}
+	return nil
+}
+
+func (x *TestSyntaxObservation) GetLimitations() []string {
+	if x != nil {
+		return x.Limitations
+	}
+	return nil
+}
+
+func (x *TestSyntaxObservation) GetConfigDigest() string {
+	if x != nil {
+		return x.ConfigDigest
+	}
+	return ""
+}
+
+type TestSyntaxCheck struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Rule  string                 `protobuf:"bytes,1,opt,name=rule,proto3" json:"rule,omitempty"`
+	// checked_clean is scoped to this syntax rule, file and supported profile.
+	Status        string `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Reason        string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestSyntaxCheck) Reset() {
+	*x = TestSyntaxCheck{}
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestSyntaxCheck) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestSyntaxCheck) ProtoMessage() {}
+
+func (x *TestSyntaxCheck) ProtoReflect() protoreflect.Message {
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestSyntaxCheck.ProtoReflect.Descriptor instead.
+func (*TestSyntaxCheck) Descriptor() ([]byte, []int) {
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *TestSyntaxCheck) GetRule() string {
+	if x != nil {
+		return x.Rule
+	}
+	return ""
+}
+
+func (x *TestSyntaxCheck) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *TestSyntaxCheck) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type TestSyntaxDiagnostic struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	NativeRuleId   string                 `protobuf:"bytes,1,opt,name=native_rule_id,json=nativeRuleId,proto3" json:"native_rule_id,omitempty"`
+	CanonicalRule  string                 `protobuf:"bytes,2,opt,name=canonical_rule,json=canonicalRule,proto3" json:"canonical_rule,omitempty"`
+	MessageId      string                 `protobuf:"bytes,3,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	Message        string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	Line           int32                  `protobuf:"varint,5,opt,name=line,proto3" json:"line,omitempty"`
+	Column         int32                  `protobuf:"varint,6,opt,name=column,proto3" json:"column,omitempty"`
+	EndLine        int32                  `protobuf:"varint,7,opt,name=end_line,json=endLine,proto3" json:"end_line,omitempty"`
+	EndColumn      int32                  `protobuf:"varint,8,opt,name=end_column,json=endColumn,proto3" json:"end_column,omitempty"`
+	NativeSeverity int32                  `protobuf:"varint,9,opt,name=native_severity,json=nativeSeverity,proto3" json:"native_severity,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *TestSyntaxDiagnostic) Reset() {
+	*x = TestSyntaxDiagnostic{}
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestSyntaxDiagnostic) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestSyntaxDiagnostic) ProtoMessage() {}
+
+func (x *TestSyntaxDiagnostic) ProtoReflect() protoreflect.Message {
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestSyntaxDiagnostic.ProtoReflect.Descriptor instead.
+func (*TestSyntaxDiagnostic) Descriptor() ([]byte, []int) {
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *TestSyntaxDiagnostic) GetNativeRuleId() string {
+	if x != nil {
+		return x.NativeRuleId
+	}
+	return ""
+}
+
+func (x *TestSyntaxDiagnostic) GetCanonicalRule() string {
+	if x != nil {
+		return x.CanonicalRule
+	}
+	return ""
+}
+
+func (x *TestSyntaxDiagnostic) GetMessageId() string {
+	if x != nil {
+		return x.MessageId
+	}
+	return ""
+}
+
+func (x *TestSyntaxDiagnostic) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *TestSyntaxDiagnostic) GetLine() int32 {
+	if x != nil {
+		return x.Line
+	}
+	return 0
+}
+
+func (x *TestSyntaxDiagnostic) GetColumn() int32 {
+	if x != nil {
+		return x.Column
+	}
+	return 0
+}
+
+func (x *TestSyntaxDiagnostic) GetEndLine() int32 {
+	if x != nil {
+		return x.EndLine
+	}
+	return 0
+}
+
+func (x *TestSyntaxDiagnostic) GetEndColumn() int32 {
+	if x != nil {
+		return x.EndColumn
+	}
+	return 0
+}
+
+func (x *TestSyntaxDiagnostic) GetNativeSeverity() int32 {
+	if x != nil {
+		return x.NativeSeverity
+	}
+	return 0
+}
+
 // AuditQualityRequest identifies the target to audit.
 type AuditQualityRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -45,7 +470,7 @@ type AuditQualityRequest struct {
 
 func (x *AuditQualityRequest) Reset() {
 	*x = AuditQualityRequest{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[0]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -57,7 +482,7 @@ func (x *AuditQualityRequest) String() string {
 func (*AuditQualityRequest) ProtoMessage() {}
 
 func (x *AuditQualityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[0]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -70,7 +495,7 @@ func (x *AuditQualityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditQualityRequest.ProtoReflect.Descriptor instead.
 func (*AuditQualityRequest) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{0}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *AuditQualityRequest) GetScenario() string {
@@ -149,7 +574,7 @@ type AuditQualityResponse struct {
 
 func (x *AuditQualityResponse) Reset() {
 	*x = AuditQualityResponse{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[1]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -161,7 +586,7 @@ func (x *AuditQualityResponse) String() string {
 func (*AuditQualityResponse) ProtoMessage() {}
 
 func (x *AuditQualityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[1]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -174,7 +599,7 @@ func (x *AuditQualityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditQualityResponse.ProtoReflect.Descriptor instead.
 func (*AuditQualityResponse) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{1}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AuditQualityResponse) GetRunId() string {
@@ -301,7 +726,7 @@ type ListContractsRequest struct {
 
 func (x *ListContractsRequest) Reset() {
 	*x = ListContractsRequest{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[2]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -313,7 +738,7 @@ func (x *ListContractsRequest) String() string {
 func (*ListContractsRequest) ProtoMessage() {}
 
 func (x *ListContractsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[2]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -326,7 +751,7 @@ func (x *ListContractsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListContractsRequest.ProtoReflect.Descriptor instead.
 func (*ListContractsRequest) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{2}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListContractsRequest) GetLanguage() string {
@@ -366,7 +791,7 @@ type ListContractsResponse struct {
 
 func (x *ListContractsResponse) Reset() {
 	*x = ListContractsResponse{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[3]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -378,7 +803,7 @@ func (x *ListContractsResponse) String() string {
 func (*ListContractsResponse) ProtoMessage() {}
 
 func (x *ListContractsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[3]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -391,7 +816,7 @@ func (x *ListContractsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListContractsResponse.ProtoReflect.Descriptor instead.
 func (*ListContractsResponse) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{3}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListContractsResponse) GetContracts() []*QualityContract {
@@ -412,7 +837,7 @@ type ExplainFindingRequest struct {
 
 func (x *ExplainFindingRequest) Reset() {
 	*x = ExplainFindingRequest{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[4]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -424,7 +849,7 @@ func (x *ExplainFindingRequest) String() string {
 func (*ExplainFindingRequest) ProtoMessage() {}
 
 func (x *ExplainFindingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[4]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -437,7 +862,7 @@ func (x *ExplainFindingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainFindingRequest.ProtoReflect.Descriptor instead.
 func (*ExplainFindingRequest) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{4}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ExplainFindingRequest) GetFindingId() string {
@@ -474,7 +899,7 @@ type ExplainFindingResponse struct {
 
 func (x *ExplainFindingResponse) Reset() {
 	*x = ExplainFindingResponse{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[5]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -486,7 +911,7 @@ func (x *ExplainFindingResponse) String() string {
 func (*ExplainFindingResponse) ProtoMessage() {}
 
 func (x *ExplainFindingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[5]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -499,7 +924,7 @@ func (x *ExplainFindingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainFindingResponse.ProtoReflect.Descriptor instead.
 func (*ExplainFindingResponse) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{5}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ExplainFindingResponse) GetFinding() *QualityFinding {
@@ -549,7 +974,7 @@ type FixConfigRequest struct {
 
 func (x *FixConfigRequest) Reset() {
 	*x = FixConfigRequest{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[6]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -561,7 +986,7 @@ func (x *FixConfigRequest) String() string {
 func (*FixConfigRequest) ProtoMessage() {}
 
 func (x *FixConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[6]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -574,7 +999,7 @@ func (x *FixConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FixConfigRequest.ProtoReflect.Descriptor instead.
 func (*FixConfigRequest) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{6}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *FixConfigRequest) GetScenario() string {
@@ -617,7 +1042,7 @@ type FixConfigResponse struct {
 
 func (x *FixConfigResponse) Reset() {
 	*x = FixConfigResponse{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[7]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -629,7 +1054,7 @@ func (x *FixConfigResponse) String() string {
 func (*FixConfigResponse) ProtoMessage() {}
 
 func (x *FixConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[7]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -642,7 +1067,7 @@ func (x *FixConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FixConfigResponse.ProtoReflect.Descriptor instead.
 func (*FixConfigResponse) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{7}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *FixConfigResponse) GetScenario() string {
@@ -689,7 +1114,7 @@ type QualitySurface struct {
 
 func (x *QualitySurface) Reset() {
 	*x = QualitySurface{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[8]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -701,7 +1126,7 @@ func (x *QualitySurface) String() string {
 func (*QualitySurface) ProtoMessage() {}
 
 func (x *QualitySurface) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[8]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -714,7 +1139,7 @@ func (x *QualitySurface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QualitySurface.ProtoReflect.Descriptor instead.
 func (*QualitySurface) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{8}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *QualitySurface) GetId() string {
@@ -794,7 +1219,7 @@ type QualityContract struct {
 
 func (x *QualityContract) Reset() {
 	*x = QualityContract{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[9]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -806,7 +1231,7 @@ func (x *QualityContract) String() string {
 func (*QualityContract) ProtoMessage() {}
 
 func (x *QualityContract) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[9]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -819,7 +1244,7 @@ func (x *QualityContract) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QualityContract.ProtoReflect.Descriptor instead.
 func (*QualityContract) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{9}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *QualityContract) GetId() string {
@@ -925,7 +1350,7 @@ type ContractEvaluation struct {
 
 func (x *ContractEvaluation) Reset() {
 	*x = ContractEvaluation{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[10]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -937,7 +1362,7 @@ func (x *ContractEvaluation) String() string {
 func (*ContractEvaluation) ProtoMessage() {}
 
 func (x *ContractEvaluation) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[10]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -950,7 +1375,7 @@ func (x *ContractEvaluation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContractEvaluation.ProtoReflect.Descriptor instead.
 func (*ContractEvaluation) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{10}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ContractEvaluation) GetContractId() string {
@@ -1012,7 +1437,7 @@ type QualityFinding struct {
 
 func (x *QualityFinding) Reset() {
 	*x = QualityFinding{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[11]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1024,7 +1449,7 @@ func (x *QualityFinding) String() string {
 func (*QualityFinding) ProtoMessage() {}
 
 func (x *QualityFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[11]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1037,7 +1462,7 @@ func (x *QualityFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QualityFinding.ProtoReflect.Descriptor instead.
 func (*QualityFinding) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{11}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *QualityFinding) GetId() string {
@@ -1218,7 +1643,7 @@ type CommandResult struct {
 
 func (x *CommandResult) Reset() {
 	*x = CommandResult{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[12]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1230,7 +1655,7 @@ func (x *CommandResult) String() string {
 func (*CommandResult) ProtoMessage() {}
 
 func (x *CommandResult) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[12]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1243,7 +1668,7 @@ func (x *CommandResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommandResult.ProtoReflect.Descriptor instead.
 func (*CommandResult) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{12}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CommandResult) GetName() string {
@@ -1320,7 +1745,7 @@ type MaturitySummary struct {
 
 func (x *MaturitySummary) Reset() {
 	*x = MaturitySummary{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[13]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1332,7 +1757,7 @@ func (x *MaturitySummary) String() string {
 func (*MaturitySummary) ProtoMessage() {}
 
 func (x *MaturitySummary) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[13]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1345,7 +1770,7 @@ func (x *MaturitySummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaturitySummary.ProtoReflect.Descriptor instead.
 func (*MaturitySummary) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{13}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *MaturitySummary) GetRung() int32 {
@@ -1383,7 +1808,7 @@ type AuditSummary struct {
 
 func (x *AuditSummary) Reset() {
 	*x = AuditSummary{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[14]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1395,7 +1820,7 @@ func (x *AuditSummary) String() string {
 func (*AuditSummary) ProtoMessage() {}
 
 func (x *AuditSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[14]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1408,7 +1833,7 @@ func (x *AuditSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditSummary.ProtoReflect.Descriptor instead.
 func (*AuditSummary) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{14}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *AuditSummary) GetErrors() int32 {
@@ -1467,7 +1892,7 @@ type AutofixCandidate struct {
 
 func (x *AutofixCandidate) Reset() {
 	*x = AutofixCandidate{}
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[15]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1479,7 +1904,7 @@ func (x *AutofixCandidate) String() string {
 func (*AutofixCandidate) ProtoMessage() {}
 
 func (x *AutofixCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[15]
+	mi := &file_quality_health_v1_audit_audit_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1492,7 +1917,7 @@ func (x *AutofixCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutofixCandidate.ProtoReflect.Descriptor instead.
 func (*AutofixCandidate) Descriptor() ([]byte, []int) {
-	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{15}
+	return file_quality_health_v1_audit_audit_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *AutofixCandidate) GetRuleId() string {
@@ -1541,7 +1966,45 @@ var File_quality_health_v1_audit_audit_proto protoreflect.FileDescriptor
 
 const file_quality_health_v1_audit_audit_proto_rawDesc = "" +
 	"\n" +
-	"#quality-health/v1/audit/audit.proto\x12\x1evrooli.quality_health.v1.audit\x1a\x18common/v1/maturity.proto\"\x8d\x02\n" +
+	"#quality-health/v1/audit/audit.proto\x12\x1evrooli.quality_health.v1.audit\x1a\x18common/v1/maturity.proto\"M\n" +
+	"\x18ObserveTestSyntaxRequest\x12\x1b\n" +
+	"\troot_path\x18\x01 \x01(\tR\brootPath\x12\x14\n" +
+	"\x05files\x18\x02 \x03(\tR\x05files\"\xcc\x01\n" +
+	"\x19ObserveTestSyntaxResponse\x12%\n" +
+	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12Y\n" +
+	"\fobservations\x18\x02 \x03(\v25.vrooli.quality_health.v1.audit.TestSyntaxObservationR\fobservations\x12-\n" +
+	"\x12unavailable_reason\x18\x03 \x01(\tR\x11unavailableReason\"\x9e\x04\n" +
+	"\x15TestSyntaxObservation\x12%\n" +
+	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\x12\n" +
+	"\x04file\x18\x02 \x01(\tR\x04file\x12#\n" +
+	"\rsource_digest\x18\x03 \x01(\tR\fsourceDigest\x12\x18\n" +
+	"\aprofile\x18\x04 \x01(\tR\aprofile\x12%\n" +
+	"\x0eplugin_version\x18\x05 \x01(\tR\rpluginVersion\x12%\n" +
+	"\x0eeslint_version\x18\x06 \x01(\tR\reslintVersion\x12%\n" +
+	"\x0eparser_version\x18\a \x01(\tR\rparserVersion\x12\x16\n" +
+	"\x06status\x18\b \x01(\tR\x06status\x12\x16\n" +
+	"\x06reason\x18\t \x01(\tR\x06reason\x12G\n" +
+	"\x06checks\x18\n" +
+	" \x03(\v2/.vrooli.quality_health.v1.audit.TestSyntaxCheckR\x06checks\x12V\n" +
+	"\vdiagnostics\x18\v \x03(\v24.vrooli.quality_health.v1.audit.TestSyntaxDiagnosticR\vdiagnostics\x12 \n" +
+	"\vlimitations\x18\f \x03(\tR\vlimitations\x12#\n" +
+	"\rconfig_digest\x18\r \x01(\tR\fconfigDigest\"U\n" +
+	"\x0fTestSyntaxCheck\x12\x12\n" +
+	"\x04rule\x18\x01 \x01(\tR\x04rule\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xab\x02\n" +
+	"\x14TestSyntaxDiagnostic\x12$\n" +
+	"\x0enative_rule_id\x18\x01 \x01(\tR\fnativeRuleId\x12%\n" +
+	"\x0ecanonical_rule\x18\x02 \x01(\tR\rcanonicalRule\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x03 \x01(\tR\tmessageId\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\x12\x12\n" +
+	"\x04line\x18\x05 \x01(\x05R\x04line\x12\x16\n" +
+	"\x06column\x18\x06 \x01(\x05R\x06column\x12\x19\n" +
+	"\bend_line\x18\a \x01(\x05R\aendLine\x12\x1d\n" +
+	"\n" +
+	"end_column\x18\b \x01(\x05R\tendColumn\x12'\n" +
+	"\x0fnative_severity\x18\t \x01(\x05R\x0enativeSeverity\"\x8d\x02\n" +
 	"\x13AuditQualityRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x19\n" +
@@ -1692,8 +2155,9 @@ const file_quality_health_v1_audit_audit_proto_rawDesc = "" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x16\n" +
 	"\x06before\x18\x04 \x01(\tR\x06before\x12\x14\n" +
 	"\x05after\x18\x05 \x01(\tR\x05after\x12\x18\n" +
-	"\aapplied\x18\x06 \x01(\bR\aapplied2\xf8\x04\n" +
-	"\fAuditService\x12y\n" +
+	"\aapplied\x18\x06 \x01(\bR\aapplied2\x83\x06\n" +
+	"\fAuditService\x12\x88\x01\n" +
+	"\x11ObserveTestSyntax\x128.vrooli.quality_health.v1.audit.ObserveTestSyntaxRequest\x1a9.vrooli.quality_health.v1.audit.ObserveTestSyntaxResponse\x12y\n" +
 	"\fAuditQuality\x123.vrooli.quality_health.v1.audit.AuditQualityRequest\x1a4.vrooli.quality_health.v1.audit.AuditQualityResponse\x12|\n" +
 	"\rListContracts\x124.vrooli.quality_health.v1.audit.ListContractsRequest\x1a5.vrooli.quality_health.v1.audit.ListContractsResponse\x12\x7f\n" +
 	"\x0eExplainFinding\x125.vrooli.quality_health.v1.audit.ExplainFindingRequest\x1a6.vrooli.quality_health.v1.audit.ExplainFindingResponse\x12w\n" +
@@ -1712,54 +2176,64 @@ func file_quality_health_v1_audit_audit_proto_rawDescGZIP() []byte {
 	return file_quality_health_v1_audit_audit_proto_rawDescData
 }
 
-var file_quality_health_v1_audit_audit_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_quality_health_v1_audit_audit_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_quality_health_v1_audit_audit_proto_goTypes = []any{
-	(*AuditQualityRequest)(nil),    // 0: vrooli.quality_health.v1.audit.AuditQualityRequest
-	(*AuditQualityResponse)(nil),   // 1: vrooli.quality_health.v1.audit.AuditQualityResponse
-	(*ListContractsRequest)(nil),   // 2: vrooli.quality_health.v1.audit.ListContractsRequest
-	(*ListContractsResponse)(nil),  // 3: vrooli.quality_health.v1.audit.ListContractsResponse
-	(*ExplainFindingRequest)(nil),  // 4: vrooli.quality_health.v1.audit.ExplainFindingRequest
-	(*ExplainFindingResponse)(nil), // 5: vrooli.quality_health.v1.audit.ExplainFindingResponse
-	(*FixConfigRequest)(nil),       // 6: vrooli.quality_health.v1.audit.FixConfigRequest
-	(*FixConfigResponse)(nil),      // 7: vrooli.quality_health.v1.audit.FixConfigResponse
-	(*QualitySurface)(nil),         // 8: vrooli.quality_health.v1.audit.QualitySurface
-	(*QualityContract)(nil),        // 9: vrooli.quality_health.v1.audit.QualityContract
-	(*ContractEvaluation)(nil),     // 10: vrooli.quality_health.v1.audit.ContractEvaluation
-	(*QualityFinding)(nil),         // 11: vrooli.quality_health.v1.audit.QualityFinding
-	(*CommandResult)(nil),          // 12: vrooli.quality_health.v1.audit.CommandResult
-	(*MaturitySummary)(nil),        // 13: vrooli.quality_health.v1.audit.MaturitySummary
-	(*AuditSummary)(nil),           // 14: vrooli.quality_health.v1.audit.AuditSummary
-	(*AutofixCandidate)(nil),       // 15: vrooli.quality_health.v1.audit.AutofixCandidate
-	(*v1.MaturityAssessment)(nil),  // 16: common.v1.MaturityAssessment
+	(*ObserveTestSyntaxRequest)(nil),  // 0: vrooli.quality_health.v1.audit.ObserveTestSyntaxRequest
+	(*ObserveTestSyntaxResponse)(nil), // 1: vrooli.quality_health.v1.audit.ObserveTestSyntaxResponse
+	(*TestSyntaxObservation)(nil),     // 2: vrooli.quality_health.v1.audit.TestSyntaxObservation
+	(*TestSyntaxCheck)(nil),           // 3: vrooli.quality_health.v1.audit.TestSyntaxCheck
+	(*TestSyntaxDiagnostic)(nil),      // 4: vrooli.quality_health.v1.audit.TestSyntaxDiagnostic
+	(*AuditQualityRequest)(nil),       // 5: vrooli.quality_health.v1.audit.AuditQualityRequest
+	(*AuditQualityResponse)(nil),      // 6: vrooli.quality_health.v1.audit.AuditQualityResponse
+	(*ListContractsRequest)(nil),      // 7: vrooli.quality_health.v1.audit.ListContractsRequest
+	(*ListContractsResponse)(nil),     // 8: vrooli.quality_health.v1.audit.ListContractsResponse
+	(*ExplainFindingRequest)(nil),     // 9: vrooli.quality_health.v1.audit.ExplainFindingRequest
+	(*ExplainFindingResponse)(nil),    // 10: vrooli.quality_health.v1.audit.ExplainFindingResponse
+	(*FixConfigRequest)(nil),          // 11: vrooli.quality_health.v1.audit.FixConfigRequest
+	(*FixConfigResponse)(nil),         // 12: vrooli.quality_health.v1.audit.FixConfigResponse
+	(*QualitySurface)(nil),            // 13: vrooli.quality_health.v1.audit.QualitySurface
+	(*QualityContract)(nil),           // 14: vrooli.quality_health.v1.audit.QualityContract
+	(*ContractEvaluation)(nil),        // 15: vrooli.quality_health.v1.audit.ContractEvaluation
+	(*QualityFinding)(nil),            // 16: vrooli.quality_health.v1.audit.QualityFinding
+	(*CommandResult)(nil),             // 17: vrooli.quality_health.v1.audit.CommandResult
+	(*MaturitySummary)(nil),           // 18: vrooli.quality_health.v1.audit.MaturitySummary
+	(*AuditSummary)(nil),              // 19: vrooli.quality_health.v1.audit.AuditSummary
+	(*AutofixCandidate)(nil),          // 20: vrooli.quality_health.v1.audit.AutofixCandidate
+	(*v1.MaturityAssessment)(nil),     // 21: common.v1.MaturityAssessment
 }
 var file_quality_health_v1_audit_audit_proto_depIdxs = []int32{
-	8,  // 0: vrooli.quality_health.v1.audit.AuditQualityResponse.surfaces:type_name -> vrooli.quality_health.v1.audit.QualitySurface
-	10, // 1: vrooli.quality_health.v1.audit.AuditQualityResponse.contracts:type_name -> vrooli.quality_health.v1.audit.ContractEvaluation
-	11, // 2: vrooli.quality_health.v1.audit.AuditQualityResponse.findings:type_name -> vrooli.quality_health.v1.audit.QualityFinding
-	12, // 3: vrooli.quality_health.v1.audit.AuditQualityResponse.command_results:type_name -> vrooli.quality_health.v1.audit.CommandResult
-	13, // 4: vrooli.quality_health.v1.audit.AuditQualityResponse.maturity:type_name -> vrooli.quality_health.v1.audit.MaturitySummary
-	14, // 5: vrooli.quality_health.v1.audit.AuditQualityResponse.counts:type_name -> vrooli.quality_health.v1.audit.AuditSummary
-	15, // 6: vrooli.quality_health.v1.audit.AuditQualityResponse.autofix_candidates:type_name -> vrooli.quality_health.v1.audit.AutofixCandidate
-	16, // 7: vrooli.quality_health.v1.audit.AuditQualityResponse.assessment:type_name -> common.v1.MaturityAssessment
-	9,  // 8: vrooli.quality_health.v1.audit.ListContractsResponse.contracts:type_name -> vrooli.quality_health.v1.audit.QualityContract
-	11, // 9: vrooli.quality_health.v1.audit.ExplainFindingResponse.finding:type_name -> vrooli.quality_health.v1.audit.QualityFinding
-	9,  // 10: vrooli.quality_health.v1.audit.ExplainFindingResponse.contract:type_name -> vrooli.quality_health.v1.audit.QualityContract
-	15, // 11: vrooli.quality_health.v1.audit.FixConfigResponse.candidates:type_name -> vrooli.quality_health.v1.audit.AutofixCandidate
-	0,  // 12: vrooli.quality_health.v1.audit.AuditService.AuditQuality:input_type -> vrooli.quality_health.v1.audit.AuditQualityRequest
-	2,  // 13: vrooli.quality_health.v1.audit.AuditService.ListContracts:input_type -> vrooli.quality_health.v1.audit.ListContractsRequest
-	4,  // 14: vrooli.quality_health.v1.audit.AuditService.ExplainFinding:input_type -> vrooli.quality_health.v1.audit.ExplainFindingRequest
-	6,  // 15: vrooli.quality_health.v1.audit.AuditService.PreviewFixConfig:input_type -> vrooli.quality_health.v1.audit.FixConfigRequest
-	6,  // 16: vrooli.quality_health.v1.audit.AuditService.ApplyFixConfig:input_type -> vrooli.quality_health.v1.audit.FixConfigRequest
-	1,  // 17: vrooli.quality_health.v1.audit.AuditService.AuditQuality:output_type -> vrooli.quality_health.v1.audit.AuditQualityResponse
-	3,  // 18: vrooli.quality_health.v1.audit.AuditService.ListContracts:output_type -> vrooli.quality_health.v1.audit.ListContractsResponse
-	5,  // 19: vrooli.quality_health.v1.audit.AuditService.ExplainFinding:output_type -> vrooli.quality_health.v1.audit.ExplainFindingResponse
-	7,  // 20: vrooli.quality_health.v1.audit.AuditService.PreviewFixConfig:output_type -> vrooli.quality_health.v1.audit.FixConfigResponse
-	7,  // 21: vrooli.quality_health.v1.audit.AuditService.ApplyFixConfig:output_type -> vrooli.quality_health.v1.audit.FixConfigResponse
-	17, // [17:22] is the sub-list for method output_type
-	12, // [12:17] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	2,  // 0: vrooli.quality_health.v1.audit.ObserveTestSyntaxResponse.observations:type_name -> vrooli.quality_health.v1.audit.TestSyntaxObservation
+	3,  // 1: vrooli.quality_health.v1.audit.TestSyntaxObservation.checks:type_name -> vrooli.quality_health.v1.audit.TestSyntaxCheck
+	4,  // 2: vrooli.quality_health.v1.audit.TestSyntaxObservation.diagnostics:type_name -> vrooli.quality_health.v1.audit.TestSyntaxDiagnostic
+	13, // 3: vrooli.quality_health.v1.audit.AuditQualityResponse.surfaces:type_name -> vrooli.quality_health.v1.audit.QualitySurface
+	15, // 4: vrooli.quality_health.v1.audit.AuditQualityResponse.contracts:type_name -> vrooli.quality_health.v1.audit.ContractEvaluation
+	16, // 5: vrooli.quality_health.v1.audit.AuditQualityResponse.findings:type_name -> vrooli.quality_health.v1.audit.QualityFinding
+	17, // 6: vrooli.quality_health.v1.audit.AuditQualityResponse.command_results:type_name -> vrooli.quality_health.v1.audit.CommandResult
+	18, // 7: vrooli.quality_health.v1.audit.AuditQualityResponse.maturity:type_name -> vrooli.quality_health.v1.audit.MaturitySummary
+	19, // 8: vrooli.quality_health.v1.audit.AuditQualityResponse.counts:type_name -> vrooli.quality_health.v1.audit.AuditSummary
+	20, // 9: vrooli.quality_health.v1.audit.AuditQualityResponse.autofix_candidates:type_name -> vrooli.quality_health.v1.audit.AutofixCandidate
+	21, // 10: vrooli.quality_health.v1.audit.AuditQualityResponse.assessment:type_name -> common.v1.MaturityAssessment
+	14, // 11: vrooli.quality_health.v1.audit.ListContractsResponse.contracts:type_name -> vrooli.quality_health.v1.audit.QualityContract
+	16, // 12: vrooli.quality_health.v1.audit.ExplainFindingResponse.finding:type_name -> vrooli.quality_health.v1.audit.QualityFinding
+	14, // 13: vrooli.quality_health.v1.audit.ExplainFindingResponse.contract:type_name -> vrooli.quality_health.v1.audit.QualityContract
+	20, // 14: vrooli.quality_health.v1.audit.FixConfigResponse.candidates:type_name -> vrooli.quality_health.v1.audit.AutofixCandidate
+	0,  // 15: vrooli.quality_health.v1.audit.AuditService.ObserveTestSyntax:input_type -> vrooli.quality_health.v1.audit.ObserveTestSyntaxRequest
+	5,  // 16: vrooli.quality_health.v1.audit.AuditService.AuditQuality:input_type -> vrooli.quality_health.v1.audit.AuditQualityRequest
+	7,  // 17: vrooli.quality_health.v1.audit.AuditService.ListContracts:input_type -> vrooli.quality_health.v1.audit.ListContractsRequest
+	9,  // 18: vrooli.quality_health.v1.audit.AuditService.ExplainFinding:input_type -> vrooli.quality_health.v1.audit.ExplainFindingRequest
+	11, // 19: vrooli.quality_health.v1.audit.AuditService.PreviewFixConfig:input_type -> vrooli.quality_health.v1.audit.FixConfigRequest
+	11, // 20: vrooli.quality_health.v1.audit.AuditService.ApplyFixConfig:input_type -> vrooli.quality_health.v1.audit.FixConfigRequest
+	1,  // 21: vrooli.quality_health.v1.audit.AuditService.ObserveTestSyntax:output_type -> vrooli.quality_health.v1.audit.ObserveTestSyntaxResponse
+	6,  // 22: vrooli.quality_health.v1.audit.AuditService.AuditQuality:output_type -> vrooli.quality_health.v1.audit.AuditQualityResponse
+	8,  // 23: vrooli.quality_health.v1.audit.AuditService.ListContracts:output_type -> vrooli.quality_health.v1.audit.ListContractsResponse
+	10, // 24: vrooli.quality_health.v1.audit.AuditService.ExplainFinding:output_type -> vrooli.quality_health.v1.audit.ExplainFindingResponse
+	12, // 25: vrooli.quality_health.v1.audit.AuditService.PreviewFixConfig:output_type -> vrooli.quality_health.v1.audit.FixConfigResponse
+	12, // 26: vrooli.quality_health.v1.audit.AuditService.ApplyFixConfig:output_type -> vrooli.quality_health.v1.audit.FixConfigResponse
+	21, // [21:27] is the sub-list for method output_type
+	15, // [15:21] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_quality_health_v1_audit_audit_proto_init() }
@@ -1773,7 +2247,7 @@ func file_quality_health_v1_audit_audit_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_quality_health_v1_audit_audit_proto_rawDesc), len(file_quality_health_v1_audit_audit_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

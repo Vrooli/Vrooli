@@ -76,6 +76,9 @@ message GetEntryRequest {
   string id = 1;
   string scope = 2;
   string request_key = 3;
+  // Resolve an imported entry by its immutable identity within the scope.
+  // Exactly one of id, request_key, or import_provenance must be supplied.
+  ImportProvenance import_provenance = 4;
 }
 message GetEntryResponse {
   Entry entry = 1;

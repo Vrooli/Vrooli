@@ -66,6 +66,12 @@ message SearchResult {
   double score = 7;
   vrooli.ui_health.v1.contracts.provenance.ComponentProvenance provenance = 8;
   vrooli.ui_health.v1.contracts.widget.WidgetDeclaration widget = 9;
+  string observed_route = 10;
+  string observed_link_text = 11;
+  string observed_page_title = 12;
+  string observed_at = 13;
+  bool reachable = 14;
+  int32 http_status = 15;
 }
 
 message SearchResponse {

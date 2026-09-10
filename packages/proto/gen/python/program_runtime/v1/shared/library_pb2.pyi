@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class LibraryProgram(_message.Message):
-    __slots__ = ("id", "name", "version", "source", "description", "origin", "created_at", "source_program_id", "promoted_by", "promotion_reason", "current", "called_binding_ids", "tier", "declared_inputs", "declared_outputs", "coverage", "validated_at", "kind", "scenario", "purpose", "rung", "owner_skill", "validation_error", "path", "score", "content_digest")
+    __slots__ = ("id", "name", "version", "source", "description", "origin", "created_at", "source_program_id", "promoted_by", "promotion_reason", "current", "called_binding_ids", "tier", "declared_inputs", "declared_outputs", "coverage", "validated_at", "kind", "scenario", "purpose", "rung", "owner_skill", "validation_error", "path", "score", "content_digest", "verbs", "memory_declared", "fixture_count", "live_fixture_count", "binding_count", "optional_binding_count", "source_missing", "output_schema_present", "learning_verbs", "learning_uses_memory", "learning_note_kinds", "learning_free_text_inputs_without_key")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -34,6 +34,18 @@ class LibraryProgram(_message.Message):
     PATH_FIELD_NUMBER: _ClassVar[int]
     SCORE_FIELD_NUMBER: _ClassVar[int]
     CONTENT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    VERBS_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_DECLARED_FIELD_NUMBER: _ClassVar[int]
+    FIXTURE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    LIVE_FIXTURE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    BINDING_COUNT_FIELD_NUMBER: _ClassVar[int]
+    OPTIONAL_BINDING_COUNT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_MISSING_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_SCHEMA_PRESENT_FIELD_NUMBER: _ClassVar[int]
+    LEARNING_VERBS_FIELD_NUMBER: _ClassVar[int]
+    LEARNING_USES_MEMORY_FIELD_NUMBER: _ClassVar[int]
+    LEARNING_NOTE_KINDS_FIELD_NUMBER: _ClassVar[int]
+    LEARNING_FREE_TEXT_INPUTS_WITHOUT_KEY_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     version: int
@@ -60,4 +72,16 @@ class LibraryProgram(_message.Message):
     path: str
     score: float
     content_digest: str
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., version: _Optional[int] = ..., source: _Optional[str] = ..., description: _Optional[str] = ..., origin: _Optional[str] = ..., created_at: _Optional[str] = ..., source_program_id: _Optional[str] = ..., promoted_by: _Optional[str] = ..., promotion_reason: _Optional[str] = ..., current: _Optional[bool] = ..., called_binding_ids: _Optional[_Iterable[str]] = ..., tier: _Optional[str] = ..., declared_inputs: _Optional[_Iterable[str]] = ..., declared_outputs: _Optional[_Iterable[str]] = ..., coverage: _Optional[str] = ..., validated_at: _Optional[str] = ..., kind: _Optional[str] = ..., scenario: _Optional[str] = ..., purpose: _Optional[str] = ..., rung: _Optional[str] = ..., owner_skill: _Optional[str] = ..., validation_error: _Optional[str] = ..., path: _Optional[str] = ..., score: _Optional[float] = ..., content_digest: _Optional[str] = ...) -> None: ...
+    verbs: _containers.RepeatedScalarFieldContainer[str]
+    memory_declared: bool
+    fixture_count: int
+    live_fixture_count: int
+    binding_count: int
+    optional_binding_count: int
+    source_missing: bool
+    output_schema_present: bool
+    learning_verbs: _containers.RepeatedScalarFieldContainer[str]
+    learning_uses_memory: bool
+    learning_note_kinds: _containers.RepeatedScalarFieldContainer[str]
+    learning_free_text_inputs_without_key: bool
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., version: _Optional[int] = ..., source: _Optional[str] = ..., description: _Optional[str] = ..., origin: _Optional[str] = ..., created_at: _Optional[str] = ..., source_program_id: _Optional[str] = ..., promoted_by: _Optional[str] = ..., promotion_reason: _Optional[str] = ..., current: _Optional[bool] = ..., called_binding_ids: _Optional[_Iterable[str]] = ..., tier: _Optional[str] = ..., declared_inputs: _Optional[_Iterable[str]] = ..., declared_outputs: _Optional[_Iterable[str]] = ..., coverage: _Optional[str] = ..., validated_at: _Optional[str] = ..., kind: _Optional[str] = ..., scenario: _Optional[str] = ..., purpose: _Optional[str] = ..., rung: _Optional[str] = ..., owner_skill: _Optional[str] = ..., validation_error: _Optional[str] = ..., path: _Optional[str] = ..., score: _Optional[float] = ..., content_digest: _Optional[str] = ..., verbs: _Optional[_Iterable[str]] = ..., memory_declared: _Optional[bool] = ..., fixture_count: _Optional[int] = ..., live_fixture_count: _Optional[int] = ..., binding_count: _Optional[int] = ..., optional_binding_count: _Optional[int] = ..., source_missing: _Optional[bool] = ..., output_schema_present: _Optional[bool] = ..., learning_verbs: _Optional[_Iterable[str]] = ..., learning_uses_memory: _Optional[bool] = ..., learning_note_kinds: _Optional[_Iterable[str]] = ..., learning_free_text_inputs_without_key: _Optional[bool] = ...) -> None: ...

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file program-runtime/v1/shared/library.proto.
  */
 export const file_program_runtime_v1_shared_library: GenFile = /*@__PURE__*/
-  fileDesc("Cidwcm9ncmFtLXJ1bnRpbWUvdjEvc2hhcmVkL2xpYnJhcnkucHJvdG8SIHZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuc2hhcmVkIocECg5MaWJyYXJ5UHJvZ3JhbRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg8KB3ZlcnNpb24YAyABKAMSDgoGc291cmNlGAQgASgJEhMKC2Rlc2NyaXB0aW9uGAUgASgJEg4KBm9yaWdpbhgGIAEoCRISCgpjcmVhdGVkX2F0GAcgASgJEhkKEXNvdXJjZV9wcm9ncmFtX2lkGAggASgJEhMKC3Byb21vdGVkX2J5GAkgASgJEhgKEHByb21vdGlvbl9yZWFzb24YCiABKAkSDwoHY3VycmVudBgLIAEoCBIaChJjYWxsZWRfYmluZGluZ19pZHMYDCADKAkSDAoEdGllchgNIAEoCRIXCg9kZWNsYXJlZF9pbnB1dHMYDiADKAkSGAoQZGVjbGFyZWRfb3V0cHV0cxgPIAMoCRIQCghjb3ZlcmFnZRgQIAEoCRIUCgx2YWxpZGF0ZWRfYXQYESABKAkSDAoEa2luZBgSIAEoCRIQCghzY2VuYXJpbxgTIAEoCRIPCgdwdXJwb3NlGBQgASgJEgwKBHJ1bmcYFSABKAkSEwoLb3duZXJfc2tpbGwYFiABKAkSGAoQdmFsaWRhdGlvbl9lcnJvchgXIAEoCRIMCgRwYXRoGBggASgJEg0KBXNjb3JlGBkgASgBEhYKDmNvbnRlbnRfZGlnZXN0GBogASgJQlRaUmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvZ3JhbS1ydW50aW1lL3YxL3NoYXJlZDtzaGFyZWRfdjFiBnByb3RvMw");
+  fileDesc("Cidwcm9ncmFtLXJ1bnRpbWUvdjEvc2hhcmVkL2xpYnJhcnkucHJvdG8SIHZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuc2hhcmVkItIGCg5MaWJyYXJ5UHJvZ3JhbRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg8KB3ZlcnNpb24YAyABKAMSDgoGc291cmNlGAQgASgJEhMKC2Rlc2NyaXB0aW9uGAUgASgJEg4KBm9yaWdpbhgGIAEoCRISCgpjcmVhdGVkX2F0GAcgASgJEhkKEXNvdXJjZV9wcm9ncmFtX2lkGAggASgJEhMKC3Byb21vdGVkX2J5GAkgASgJEhgKEHByb21vdGlvbl9yZWFzb24YCiABKAkSDwoHY3VycmVudBgLIAEoCBIaChJjYWxsZWRfYmluZGluZ19pZHMYDCADKAkSDAoEdGllchgNIAEoCRIXCg9kZWNsYXJlZF9pbnB1dHMYDiADKAkSGAoQZGVjbGFyZWRfb3V0cHV0cxgPIAMoCRIQCghjb3ZlcmFnZRgQIAEoCRIUCgx2YWxpZGF0ZWRfYXQYESABKAkSDAoEa2luZBgSIAEoCRIQCghzY2VuYXJpbxgTIAEoCRIPCgdwdXJwb3NlGBQgASgJEgwKBHJ1bmcYFSABKAkSEwoLb3duZXJfc2tpbGwYFiABKAkSGAoQdmFsaWRhdGlvbl9lcnJvchgXIAEoCRIMCgRwYXRoGBggASgJEg0KBXNjb3JlGBkgASgBEhYKDmNvbnRlbnRfZGlnZXN0GBogASgJEg0KBXZlcmJzGBsgAygJEhcKD21lbW9yeV9kZWNsYXJlZBgcIAEoCBIVCg1maXh0dXJlX2NvdW50GB0gASgFEhoKEmxpdmVfZml4dHVyZV9jb3VudBgeIAEoBRIVCg1iaW5kaW5nX2NvdW50GB8gASgFEh4KFm9wdGlvbmFsX2JpbmRpbmdfY291bnQYICABKAUSFgoOc291cmNlX21pc3NpbmcYISABKAgSHQoVb3V0cHV0X3NjaGVtYV9wcmVzZW50GCIgASgIEhYKDmxlYXJuaW5nX3ZlcmJzGCMgAygJEhwKFGxlYXJuaW5nX3VzZXNfbWVtb3J5GCQgASgIEhsKE2xlYXJuaW5nX25vdGVfa2luZHMYJSADKAkSLQolbGVhcm5pbmdfZnJlZV90ZXh0X2lucHV0c193aXRob3V0X2tleRgmIAEoCEJUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb2dyYW0tcnVudGltZS92MS9zaGFyZWQ7c2hhcmVkX3YxYgZwcm90bzM");
 
 /**
  * LibraryProgram is the frozen, versioned representation of a reusable
@@ -153,6 +153,66 @@ export type LibraryProgram = Message<"vrooli.program_runtime.v1.shared.LibraryPr
    * @generated from field: string content_digest = 26;
    */
   contentDigest: string;
+
+  /**
+   * @generated from field: repeated string verbs = 27;
+   */
+  verbs: string[];
+
+  /**
+   * @generated from field: bool memory_declared = 28;
+   */
+  memoryDeclared: boolean;
+
+  /**
+   * @generated from field: int32 fixture_count = 29;
+   */
+  fixtureCount: number;
+
+  /**
+   * @generated from field: int32 live_fixture_count = 30;
+   */
+  liveFixtureCount: number;
+
+  /**
+   * @generated from field: int32 binding_count = 31;
+   */
+  bindingCount: number;
+
+  /**
+   * @generated from field: int32 optional_binding_count = 32;
+   */
+  optionalBindingCount: number;
+
+  /**
+   * @generated from field: bool source_missing = 33;
+   */
+  sourceMissing: boolean;
+
+  /**
+   * @generated from field: bool output_schema_present = 34;
+   */
+  outputSchemaPresent: boolean;
+
+  /**
+   * @generated from field: repeated string learning_verbs = 35;
+   */
+  learningVerbs: string[];
+
+  /**
+   * @generated from field: bool learning_uses_memory = 36;
+   */
+  learningUsesMemory: boolean;
+
+  /**
+   * @generated from field: repeated string learning_note_kinds = 37;
+   */
+  learningNoteKinds: string[];
+
+  /**
+   * @generated from field: bool learning_free_text_inputs_without_key = 38;
+   */
+  learningFreeTextInputsWithoutKey: boolean;
 };
 
 /**

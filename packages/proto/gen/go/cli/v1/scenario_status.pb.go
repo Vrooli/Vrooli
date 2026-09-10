@@ -193,8 +193,10 @@ type ScenarioStatusItem struct {
 	// progress or last terminal outcome); absent when never started or the
 	// runtime registry is unavailable. Single-scenario status only.
 	StartOperation *ScenarioStartOperation `protobuf:"bytes,13,opt,name=start_operation,json=startOperation,proto3" json:"start_operation,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Authored build identity served by the managed runtime.
+	BuildIdentity string `protobuf:"bytes,14,opt,name=build_identity,json=buildIdentity,proto3" json:"build_identity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ScenarioStatusItem) Reset() {
@@ -316,6 +318,13 @@ func (x *ScenarioStatusItem) GetStartOperation() *ScenarioStartOperation {
 		return x.StartOperation
 	}
 	return nil
+}
+
+func (x *ScenarioStatusItem) GetBuildIdentity() string {
+	if x != nil {
+		return x.BuildIdentity
+	}
+	return ""
 }
 
 // ScenarioStartOperation is the reader view of one durable start/restart
@@ -1307,7 +1316,9 @@ type ScenarioRuntimeData struct {
 	// Detailed runtime port bindings.
 	ListPorts []*ScenarioPort `protobuf:"bytes,7,rep,name=list_ports,json=listPorts,proto3" json:"list_ports,omitempty"`
 	// Health probe error detail; empty on success.
-	HealthError   string `protobuf:"bytes,8,opt,name=health_error,json=healthError,proto3" json:"health_error,omitempty"`
+	HealthError string `protobuf:"bytes,8,opt,name=health_error,json=healthError,proto3" json:"health_error,omitempty"`
+	// Authored build identity served by the managed runtime.
+	BuildIdentity string `protobuf:"bytes,9,opt,name=build_identity,json=buildIdentity,proto3" json:"build_identity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1394,6 +1405,13 @@ func (x *ScenarioRuntimeData) GetListPorts() []*ScenarioPort {
 func (x *ScenarioRuntimeData) GetHealthError() string {
 	if x != nil {
 		return x.HealthError
+	}
+	return ""
+}
+
+func (x *ScenarioRuntimeData) GetBuildIdentity() string {
+	if x != nil {
+		return x.BuildIdentity
 	}
 	return ""
 }
@@ -2752,7 +2770,7 @@ const file_cli_v1_scenario_status_proto_rawDesc = "" +
 	"\x15ScenarioStatusSummary\x12'\n" +
 	"\x0ftotal_scenarios\x18\x01 \x01(\x05R\x0etotalScenarios\x12\x18\n" +
 	"\arunning\x18\x02 \x01(\x05R\arunning\x12\x18\n" +
-	"\astopped\x18\x03 \x01(\x05R\astopped\"\xe0\x04\n" +
+	"\astopped\x18\x03 \x01(\x05R\astopped\"\x87\x05\n" +
 	"\x12ScenarioStatusItem\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
@@ -2768,7 +2786,8 @@ const file_cli_v1_scenario_status_proto_rawDesc = "" +
 	" \x03(\v2\x1b.vrooli.cli.v1.ScenarioPortR\fportBindings\x12;\n" +
 	"\rhealth_status\x18\v \x01(\v2\x16.google.protobuf.ValueR\fhealthStatus\x12!\n" +
 	"\fhealth_error\x18\f \x01(\tR\vhealthError\x12N\n" +
-	"\x0fstart_operation\x18\r \x01(\v2%.vrooli.cli.v1.ScenarioStartOperationR\x0estartOperation\x1a8\n" +
+	"\x0fstart_operation\x18\r \x01(\v2%.vrooli.cli.v1.ScenarioStartOperationR\x0estartOperation\x12%\n" +
+	"\x0ebuild_identity\x18\x0e \x01(\tR\rbuildIdentity\x1a8\n" +
 	"\n" +
 	"PortsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
@@ -2857,7 +2876,7 @@ const file_cli_v1_scenario_status_proto_rawDesc = "" +
 	"\x18ScenarioGenerationDesign\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x18\n" +
-	"\aadapter\x18\x03 \x01(\tR\aadapter\"\xb1\x03\n" +
+	"\aadapter\x18\x03 \x01(\tR\aadapter\"\xd8\x03\n" +
 	"\x13ScenarioRuntimeData\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1c\n" +
 	"\tprocesses\x18\x02 \x01(\x05R\tprocesses\x12\x18\n" +
@@ -2868,7 +2887,8 @@ const file_cli_v1_scenario_status_proto_rawDesc = "" +
 	"\x0fprocess_records\x18\x06 \x03(\v2$.vrooli.cli.v1.ScenarioProcessRecordR\x0eprocessRecords\x12:\n" +
 	"\n" +
 	"list_ports\x18\a \x03(\v2\x1b.vrooli.cli.v1.ScenarioPortR\tlistPorts\x12!\n" +
-	"\fhealth_error\x18\b \x01(\tR\vhealthError\x1a8\n" +
+	"\fhealth_error\x18\b \x01(\tR\vhealthError\x12%\n" +
+	"\x0ebuild_identity\x18\t \x01(\tR\rbuildIdentity\x1a8\n" +
 	"\n" +
 	"PortsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +

@@ -93,7 +93,9 @@ type ServiceConfig struct {
 	LoadItemTitle        func(kind, name string) (string, error)
 	LoadReviewContract   func(kind, name string) (ReviewContract, error)
 	LoadExecutionContext func(ctx context.Context, executionID string) (*ExecutionContext, error)
-	PlanContentResolver  PlanContentResolver
+	// LoadExecutionEvidence supplies bounded owner observations for both automatic and manual reviews.
+	LoadExecutionEvidence func(ctx context.Context, executionID string) (json.RawMessage, error)
+	PlanContentResolver   PlanContentResolver
 	// OnRoundTerminal fires when a review round transitions to complete/failed.
 	// Used to flip the backlog item's status to review_pending.
 	OnRoundTerminal        RoundTerminalHandler
@@ -126,6 +128,7 @@ type Service struct {
 	loadItemTitle          func(kind, name string) (string, error)
 	loadReviewContract     func(kind, name string) (ReviewContract, error)
 	loadExecutionContext   func(ctx context.Context, executionID string) (*ExecutionContext, error)
+	loadExecutionEvidence  func(ctx context.Context, executionID string) (json.RawMessage, error)
 	planContentResolver    PlanContentResolver
 	onRoundTerminal        RoundTerminalHandler
 	roundTerminalObserver  RoundTerminalObserver
@@ -166,6 +169,7 @@ func NewService(cfg ServiceConfig) *Service {
 		loadItemTitle:          cfg.LoadItemTitle,
 		loadReviewContract:     cfg.LoadReviewContract,
 		loadExecutionContext:   cfg.LoadExecutionContext,
+		loadExecutionEvidence:  cfg.LoadExecutionEvidence,
 		planContentResolver:    cfg.PlanContentResolver,
 		onRoundTerminal:        cfg.OnRoundTerminal,
 		roundTerminalObserver:  cfg.RoundTerminalObserver,
@@ -247,6 +251,7 @@ type startReviewParams struct {
 	PlanContent            string              `json:"planContent"`
 	AcceptanceCriteria     any                 `json:"acceptanceCriteria"`
 	MachineEvidence        []EvidenceItem      `json:"machineEvidence,omitempty"`
+	ExecutionEvidence      json.RawMessage     `json:"executionEvidence,omitempty"`
 	ItemDir                string              `json:"itemDir"`
 	AffectedScenarios      []string            `json:"affectedScenarios"`
 	ChangedPathsByScenario map[string][]string `json:"changedPathsByScenario"`
@@ -274,6 +279,15 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 			return fmt.Errorf("load review plan content: %w", err)
 		}
 		params.PlanContent = content
+	}
+	if s.loadExecutionEvidence != nil {
+		evidence, err := s.loadExecutionEvidence(ctx, params.ExecutionID)
+		if err != nil {
+			// Preserve the missing producer explicitly; an unavailable owner must
+			// not turn into an empty success-shaped review snapshot.
+			evidence, _ = json.Marshal(map[string]any{"state": "unavailable", "executionId": params.ExecutionID, "reason": err.Error()})
+		}
+		params.ExecutionEvidence = evidence
 	}
 	return s.startReviewTransition(ctx, params)
 }

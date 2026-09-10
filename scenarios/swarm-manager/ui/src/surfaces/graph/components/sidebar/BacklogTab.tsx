@@ -1,5 +1,5 @@
 /** Backlog collection surface; BacklogCard remains scenario-owned content. */
-import { Profiler, memo, useCallback, useEffect, useMemo, useState } from "react";
+import { Profiler, memo, useCallback, useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
@@ -21,6 +21,7 @@ import { backlogService, autoFilerService } from "../../../../services";
 import { backlogDetailPath } from "../../../../app/routes/route-paths";
 import { nextActionDetailTab } from "../../../../lib/backlog-next-action";
 import { SidebarEmptyState } from "./SidebarEmptyState";
+import { shouldOpenBacklogRow } from "./backlog-row-interaction";
 import { useCommandPostItemActions, type StableItemCallbacks } from "../../../../hooks/useCommandPostItemActions";
 import type { BacklogItem, PendingQuestion } from "../../../../types";
 import type { BacklogNextAction } from "../../../../services/backlog";
@@ -47,6 +48,23 @@ function BacklogTabImpl({searchQuery,filters,sort,onItemClick,onClearSearch,sele
 }
 function BacklogRow({item,nextAction,attentionReasons,pendingQuestions,agentRunning,isStepperCompleted,callbacks,archivePending,dismissPending,statusChangePending,runningLabel,handleStepperCompleted,onDismissSuggestion,onItemClick}:{item:BacklogItem;nextAction?:BacklogNextAction;attentionReasons:AttentionReason[];pendingQuestions?:PendingQuestion[];agentRunning:boolean;isStepperCompleted:boolean;callbacks:StableItemCallbacks;archivePending:boolean;dismissPending:boolean;statusChangePending:boolean;runningLabel?:string;handleStepperCompleted:(key:string,item:BacklogItem,result:StepperCompletionResult)=>void;onDismissSuggestion:()=>void;onItemClick:(id:string)=>void}){
  const navigate=useNavigate();const key=`${item.kind}/${item.name}`;const nodeId=buildBacklogNodeId(item.kind,item.name);const itemActions=useMemo(()=>itemActionsFromNextAction(item,nextAction,{agentRunning}),[agentRunning,item,nextAction]);const handleNext=useCallback(()=>{if(nextAction?.id==="run")return callbacks.onRun();if(nextAction?.id==="archive")return callbacks.onArchive();if(nextAction?.id==="accept_suggestion")return callbacks.onStatusChange("backlog");if(nextAction?.id==="retry")return void backlogService.retry(item.kind,item.name).then(()=>fetchBacklogForRow());const tab=nextAction&&nextActionDetailTab(nextAction);navigate(backlogDetailPath(item.kind,item.name,tab?{tab}:undefined))},[callbacks,item.kind,item.name,navigate,nextAction]);const fetchBacklogForRow=()=>useBacklogStore.getState().fetchBacklog({force:true});
- return <button type="button" onClick={()=>onItemClick(nodeId)} className="group w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60" data-testid="sidebar-backlog-item"><BacklogCard item={item} nextAction={nextAction} itemActions={itemActions} attentionReasons={attentionReasons} pendingQuestions={pendingQuestions} isStepperCompleted={isStepperCompleted} onStepperCompleted={result=>handleStepperCompleted(key,item,result)} onRun={callbacks.onRun} onNextAction={handleNext} onArchive={callbacks.onArchive} onFollowUp={callbacks.onFollowUp} onAcceptSuggestion={()=>callbacks.onStatusChange("backlog")} onDismissSuggestion={onDismissSuggestion} onStatusChange={callbacks.onStatusChange} archivePending={archivePending} dismissPending={dismissPending} statusChangePending={statusChangePending} runningLabel={runningLabel}/></button>;
+ const isInteractiveTarget = (target: EventTarget | null): boolean => {
+   return !shouldOpenBacklogRow(target);
+ };
+ const handleClick = (event: MouseEvent<HTMLDivElement>) => {
+   // BacklogCard contains its own action controls. The previous outer
+   // <button> made the DOM invalid and caused browsers to re-parent those
+   // controls, which swallowed clicks on the card itself. Keep the row a
+   // non-button container and only open it when the click targets the row
+   // content rather than one of its controls.
+   if (shouldOpenBacklogRow(event.target)) onItemClick(nodeId);
+ };
+ const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+   if ((event.key === "Enter" || event.key === " ") && !isInteractiveTarget(event.target)) {
+     event.preventDefault();
+     onItemClick(nodeId);
+   }
+ };
+ return <div role="button" tabIndex={0} onClick={handleClick} onKeyDown={handleKeyDown} className="group w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 hover:bg-slate-800/60" data-testid="sidebar-backlog-item" aria-label={`Open ${item.title}`}><BacklogCard item={item} nextAction={nextAction} itemActions={itemActions} attentionReasons={attentionReasons} pendingQuestions={pendingQuestions} isStepperCompleted={isStepperCompleted} onStepperCompleted={result=>handleStepperCompleted(key,item,result)} onRun={callbacks.onRun} onNextAction={handleNext} onArchive={callbacks.onArchive} onFollowUp={callbacks.onFollowUp} onAcceptSuggestion={()=>callbacks.onStatusChange("backlog")} onDismissSuggestion={onDismissSuggestion} onStatusChange={callbacks.onStatusChange} archivePending={archivePending} dismissPending={dismissPending} statusChangePending={statusChangePending} runningLabel={runningLabel}/></div>;
 }
 export const BacklogTab=memo(function BacklogTab(props:BacklogTabProps){return <Profiler id="BacklogTab" onRender={onProfilerRender}><BacklogTabImpl {...props}/></Profiler>});

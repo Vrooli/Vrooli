@@ -10,7 +10,131 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file prompt-manager/v1/skills/skills.proto.
  */
 export const file_prompt_manager_v1_skills_skills: GenFile = /*@__PURE__*/
-  fileDesc("CiVwcm9tcHQtbWFuYWdlci92MS9za2lsbHMvc2tpbGxzLnByb3RvEh92cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzIkIKCFZhcmlhYmxlEgwKBG5hbWUYASABKAkSEwoLcGxhY2Vob2xkZXIYAiABKAkSEwoLb2NjdXJyZW5jZXMYAyABKAUi5QQKBVNraWxsEgoKAmlkGAEgASgJEgwKBGZpbGUYAiABKAkSDAoEbmFtZRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIPCgdjb250ZW50GAUgASgJEg0KBW1vZGVzGAYgAygJEgwKBHRhZ3MYByADKAkSDAoEaWNvbhgIIAEoCRIbCg50YXJnZXRfdG9vbF9pZBgJIAEoCUgAiAEBEhUKDWRlZmF1bHRfc2NvcGUYCiABKAkSGQoRdGFyZ2V0X2RpbWVuc2lvbnMYCyADKAkSHgoRcHJvZ3JhbW1hdGljX2hvbWUYDCABKAlIAYgBARINCgVkcmFmdBgNIAEoCBIOCgZmb2xkZXIYDiABKAkSEQoJc2tpbGxfZGlyGA8gASgJEhQKDGNvbnRlbnRfcGF0aBgQIAEoCRISCgpjcmVhdGVkX2F0GBEgASgJEhIKCnVwZGF0ZWRfYXQYEiABKAkSEAoIcmV2aXNpb24YEyABKAUSFAoMY29udGVudF9oYXNoGBQgASgJEhMKC3VzYWdlX2NvdW50GBUgASgFEhYKCWxhc3RfdXNlZBgWIAEoCUgCiAEBEiEKFGVmZmVjdGl2ZW5lc3NfcmF0aW5nGBcgASgFSAOIAQESPAoJdmFyaWFibGVzGBggAygLMikudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5WYXJpYWJsZUIRCg9fdGFyZ2V0X3Rvb2xfaWRCFAoSX3Byb2dyYW1tYXRpY19ob21lQgwKCl9sYXN0X3VzZWRCFwoVX2VmZmVjdGl2ZW5lc3NfcmF0aW5nImIKEUxpc3RTa2lsbHNSZXF1ZXN0Eg4KBmZvbGRlchgBIAEoCRILCgN0YWcYAiABKAkSDQoFbW9kZXMYAyADKAkSIQoZd2l0aG91dF9wcm9ncmFtbWF0aWNfaG9tZRgEIAEoCCJMChJMaXN0U2tpbGxzUmVzcG9uc2USNgoGc2tpbGxzGAEgAygLMiYudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5Ta2lsbCIdCg9HZXRTa2lsbFJlcXVlc3QSCgoCaWQYASABKAkiSQoQR2V0U2tpbGxSZXNwb25zZRI1CgVza2lsbBgBIAEoCzImLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuU2tpbGwihQMKEVJlYWRTa2lsbHNSZXF1ZXN0EhMKC2lkZW50aWZpZXJzGAEgAygJEg8KB3Jlc29sdmUYAiABKAkSGgoNYWxsb3dfbWlzc2luZxgDIAEoCEgAiAEBEg4KBm91dHB1dBgEIAEoCRIOCgZmb3JtYXQYBSABKAkSVAoJdmFyaWFibGVzGAYgAygLMkEudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5SZWFkU2tpbGxzUmVxdWVzdC5WYXJpYWJsZXNFbnRyeRISCgp3aXRoX3Njb3BlGAcgASgIEg0KBXNjb3BlGAggASgJEhUKDWV4cGVyaW1lbnRfaWQYCSABKAkSEgoKdmFyaWFudF9pZBgKIAEoCRIWCg52YXJpYW50X3BvbGljeRgLIAEoCRIOCgZzb3VyY2UYDCABKAkaMAoOVmFyaWFibGVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIQCg5fYWxsb3dfbWlzc2luZyIvCglSZWFkSXNzdWUSEgoKaWRlbnRpZmllchgBIAEoCRIOCgZyZWFzb24YAiABKAkiRwoNUmVhZENhbmRpZGF0ZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBGZpbGUYAyABKAkSDgoGZm9sZGVyGAQgASgJImcKDVJlYWRBbWJpZ3VvdXMSEgoKaWRlbnRpZmllchgBIAEoCRJCCgpjYW5kaWRhdGVzGAIgAygLMi4udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5SZWFkQ2FuZGlkYXRlIsIDChJSZWFkU2tpbGxzUmVzcG9uc2USNgoGc2tpbGxzGAEgAygLMiYudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5Ta2lsbBIQCghjb21iaW5lZBgCIAEoCRIVCg1jb21iaW5lZF9oYXNoGAMgASgJEhMKC3NraWxsX2NvdW50GAQgASgFEhQKDHRvdGFsX3Rva2VucxgFIAEoBRIOCgZmb3JtYXQYBiABKAkSOwoHbWlzc2luZxgHIAMoCzIqLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuUmVhZElzc3VlEkEKCWFtYmlndW91cxgIIAMoCzIuLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuUmVhZEFtYmlndW91cxIPCgdyZXNvbHZlGAkgASgJEg4KBm91dHB1dBgKIAEoCRI7CgtzY29wZV9za2lsbBgLIAEoCzImLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuU2tpbGwSGwoTc2VsZWN0ZWRfdmFyaWFudF9pZBgMIAEoCRIVCg1leHBlcmltZW50X2lkGA0gASgJIrYCChJDcmVhdGVTa2lsbFJlcXVlc3QSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIPCgdjb250ZW50GAQgASgJEg0KBW1vZGVzGAUgAygJEgwKBHRhZ3MYBiADKAkSDAoEaWNvbhgHIAEoCRIbCg50YXJnZXRfdG9vbF9pZBgIIAEoCUgAiAEBEhUKDWRlZmF1bHRfc2NvcGUYCSABKAkSGQoRdGFyZ2V0X2RpbWVuc2lvbnMYCiADKAkSHgoRcHJvZ3JhbW1hdGljX2hvbWUYCyABKAlIAYgBARINCgVkcmFmdBgMIAEoCBIOCgZmb2xkZXIYDSABKAlCEQoPX3RhcmdldF90b29sX2lkQhQKEl9wcm9ncmFtbWF0aWNfaG9tZSJMChNDcmVhdGVTa2lsbFJlc3BvbnNlEjUKBXNraWxsGAEgASgLMiYudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5Ta2lsbCK7BAoSVXBkYXRlU2tpbGxSZXF1ZXN0EgoKAmlkGAEgASgJEhEKBGZpbGUYAiABKAlIAIgBARIRCgRuYW1lGAMgASgJSAGIAQESGAoLZGVzY3JpcHRpb24YBCABKAlIAogBARIUCgdjb250ZW50GAUgASgJSAOIAQESDQoFbW9kZXMYBiADKAkSFQoNcmVwbGFjZV9tb2RlcxgHIAEoCBIMCgR0YWdzGAggAygJEhQKDHJlcGxhY2VfdGFncxgJIAEoCBIRCgRpY29uGAogASgJSASIAQESGwoOdGFyZ2V0X3Rvb2xfaWQYCyABKAlIBYgBARIaCg1kZWZhdWx0X3Njb3BlGAwgASgJSAaIAQESGQoRdGFyZ2V0X2RpbWVuc2lvbnMYDSADKAkSIQoZcmVwbGFjZV90YXJnZXRfZGltZW5zaW9ucxgOIAEoCBIeChFwcm9ncmFtbWF0aWNfaG9tZRgPIAEoCUgHiAEBEh8KF2NsZWFyX3Byb2dyYW1tYXRpY19ob21lGBAgASgIEhIKBWRyYWZ0GBEgASgISAiIAQESEwoGZm9sZGVyGBIgASgJSAmIAQFCBwoFX2ZpbGVCBwoFX25hbWVCDgoMX2Rlc2NyaXB0aW9uQgoKCF9jb250ZW50QgcKBV9pY29uQhEKD190YXJnZXRfdG9vbF9pZEIQCg5fZGVmYXVsdF9zY29wZUIUChJfcHJvZ3JhbW1hdGljX2hvbWVCCAoGX2RyYWZ0QgkKB19mb2xkZXIiTAoTVXBkYXRlU2tpbGxSZXNwb25zZRI1CgVza2lsbBgBIAEoCzImLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuU2tpbGwiIAoSRGVsZXRlU2tpbGxSZXF1ZXN0EgoKAmlkGAEgASgJIjIKE0RlbGV0ZVNraWxsUmVzcG9uc2USCgoCaWQYASABKAkSDwoHZGVsZXRlZBgCIAEoCCITChFTeW5jU2tpbGxzUmVxdWVzdCJwChJTeW5jU2tpbGxzUmVzcG9uc2USNgoGc2tpbGxzGAEgAygLMiYudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5Ta2lsbBIUCgxsYXN0X3VwZGF0ZWQYAiABKAkSDAoEaGFzaBgDIAEoCSJMChBSYXRlU2tpbGxSZXF1ZXN0EgoKAmlkGAEgASgJEg4KBnJhdGluZxgCIAEoBRISCgVub3RlcxgDIAEoCUgAiAEBQggKBl9ub3RlcyI/ChFSYXRlU2tpbGxSZXNwb25zZRIKCgJpZBgBIAEoCRIOCgZyYXRpbmcYAiABKAUSDgoGc3RhdHVzGAMgASgJIiUKF1JlY29yZFNraWxsVXNhZ2VSZXF1ZXN0EgoKAmlkGAEgASgJIl4KGFJlY29yZFNraWxsVXNhZ2VSZXNwb25zZRIKCgJpZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSEwoLdXNhZ2VfY291bnQYAyABKAUSEQoJbGFzdF91c2VkGAQgASgJImYKDFNraWxsVmVyc2lvbhIPCgd2ZXJzaW9uGAEgASgFEg8KB2NvbnRlbnQYAiABKAkSDAoEbmFtZRgDIAEoCRISCgp1cGRhdGVkX2F0GAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAkiJgoYTGlzdFNraWxsVmVyc2lvbnNSZXF1ZXN0EgoKAmlkGAEgASgJIn8KGUxpc3RTa2lsbFZlcnNpb25zUmVzcG9uc2USEAoIc2tpbGxfaWQYASABKAkSDwoHY3VycmVudBgCIAEoBRI/Cgh2ZXJzaW9ucxgDIAMoCzItLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuU2tpbGxWZXJzaW9uIjEKElJldmVydFNraWxsUmVxdWVzdBIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgFImYKE1JldmVydFNraWxsUmVzcG9uc2USEAoIc2tpbGxfaWQYASABKAkSEwoLcmV2ZXJ0ZWRfdG8YAiABKAUSEwoLbmV3X3ZlcnNpb24YAyABKAUSEwoLcmVzdG9yZWRfYXQYBCABKAkimgEKDFNraWxsVmFyaWFudBIKCgJpZBgBIAEoCRIQCghza2lsbF9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEg8KB2NvbnRlbnQYBSABKAkSEgoKY3JlYXRlZF9hdBgGIAEoCRISCgp1cGRhdGVkX2F0GAcgASgJEhAKCHJldmlzaW9uGAggASgFIiwKGExpc3RTa2lsbFZhcmlhbnRzUmVxdWVzdBIQCghza2lsbF9pZBgBIAEoCSJcChlMaXN0U2tpbGxWYXJpYW50c1Jlc3BvbnNlEj8KCHZhcmlhbnRzGAEgAygLMi0udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5Ta2lsbFZhcmlhbnQiPgoWR2V0U2tpbGxWYXJpYW50UmVxdWVzdBIQCghza2lsbF9pZBgBIAEoCRISCgp2YXJpYW50X2lkGAIgASgJIlkKF0dldFNraWxsVmFyaWFudFJlc3BvbnNlEj4KB3ZhcmlhbnQYASABKAsyLS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlNraWxsVmFyaWFudCJtChlDcmVhdGVTa2lsbFZhcmlhbnRSZXF1ZXN0EhAKCHNraWxsX2lkGAEgASgJEgoKAmlkGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSDwoHY29udGVudBgFIAEoCSJcChpDcmVhdGVTa2lsbFZhcmlhbnRSZXNwb25zZRI+Cgd2YXJpYW50GAEgASgLMi0udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5Ta2lsbFZhcmlhbnQiqQEKGVVwZGF0ZVNraWxsVmFyaWFudFJlcXVlc3QSEAoIc2tpbGxfaWQYASABKAkSEgoKdmFyaWFudF9pZBgCIAEoCRIRCgRuYW1lGAMgASgJSACIAQESGAoLZGVzY3JpcHRpb24YBCABKAlIAYgBARIUCgdjb250ZW50GAUgASgJSAKIAQFCBwoFX25hbWVCDgoMX2Rlc2NyaXB0aW9uQgoKCF9jb250ZW50IlwKGlVwZGF0ZVNraWxsVmFyaWFudFJlc3BvbnNlEj4KB3ZhcmlhbnQYASABKAsyLS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlNraWxsVmFyaWFudCJBChlEZWxldGVTa2lsbFZhcmlhbnRSZXF1ZXN0EhAKCHNraWxsX2lkGAEgASgJEhIKCnZhcmlhbnRfaWQYAiABKAkiUwoaRGVsZXRlU2tpbGxWYXJpYW50UmVzcG9uc2USEAoIc2tpbGxfaWQYASABKAkSEgoKdmFyaWFudF9pZBgCIAEoCRIPCgdkZWxldGVkGAMgASgIIqoBChJJbXBvcnRTa2lsbFJlcXVlc3QSEgoKc291cmNlX2RpchgBIAEoCRISCgpzb3VyY2VfdXJsGAIgASgJEg4KBmNvbW1pdBgDIAEoCRIPCgdsaWNlbnNlGAQgASgJEhAKCGNoZWNrc3VtGAUgASgJEhMKC2ltcG9ydGVkX2J5GAYgASgJEhgKEHVwc3RyZWFtX3ZlcnNpb24YByABKAkSCgoCaWQYCCABKAkifgoTSW1wb3J0U2tpbGxSZXNwb25zZRIKCgJpZBgBIAEoCRIMCgRwYWNrGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIQCghjaGVja3N1bRgEIAEoCRIWCg5yZXZpZXdfdmVyZGljdBgFIAEoCRITCgtpbXBvcnRlZF9hdBgGIAEoCSJLChpSZXZpZXdJbXBvcnRlZFNraWxsUmVxdWVzdBIKCgJpZBgBIAEoCRIQCghyZXZpZXdlchgCIAEoCRIPCgd2ZXJkaWN0GAMgASgJInEKG1Jldmlld0ltcG9ydGVkU2tpbGxSZXNwb25zZRIKCgJpZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDwoHdmVyZGljdBgDIAEoCRIQCghyZXZpZXdlchgEIAEoCRITCgtyZXZpZXdlZF9hdBgFIAEoCSJLCiNSZXBvcnRJbXBvcnRlZFNraWxsU3RhbGVuZXNzUmVxdWVzdBIKCgJpZBgBIAEoCRIYChB1cHN0cmVhbV92ZXJzaW9uGAIgASgJInQKJFJlcG9ydEltcG9ydGVkU2tpbGxTdGFsZW5lc3NSZXNwb25zZRIKCgJpZBgBIAEoCRIYChByZWNvcmRlZF92ZXJzaW9uGAIgASgJEhcKD2N1cnJlbnRfdmVyc2lvbhgDIAEoCRINCgVzdGFsZRgEIAEoCDLXEwoNU2tpbGxzU2VydmljZRJ1CgpMaXN0U2tpbGxzEjIudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5MaXN0U2tpbGxzUmVxdWVzdBozLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuTGlzdFNraWxsc1Jlc3BvbnNlEm8KCEdldFNraWxsEjAudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5HZXRTa2lsbFJlcXVlc3QaMS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLkdldFNraWxsUmVzcG9uc2USdQoKUmVhZFNraWxscxIyLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuUmVhZFNraWxsc1JlcXVlc3QaMy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlJlYWRTa2lsbHNSZXNwb25zZRJ4CgtDcmVhdGVTa2lsbBIzLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuQ3JlYXRlU2tpbGxSZXF1ZXN0GjQudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5DcmVhdGVTa2lsbFJlc3BvbnNlEngKC1VwZGF0ZVNraWxsEjMudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5VcGRhdGVTa2lsbFJlcXVlc3QaNC52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlVwZGF0ZVNraWxsUmVzcG9uc2USeAoLRGVsZXRlU2tpbGwSMy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLkRlbGV0ZVNraWxsUmVxdWVzdBo0LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuRGVsZXRlU2tpbGxSZXNwb25zZRJ1CgpTeW5jU2tpbGxzEjIudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5TeW5jU2tpbGxzUmVxdWVzdBozLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuU3luY1NraWxsc1Jlc3BvbnNlEnIKCVJhdGVTa2lsbBIxLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuUmF0ZVNraWxsUmVxdWVzdBoyLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuUmF0ZVNraWxsUmVzcG9uc2UShwEKEFJlY29yZFNraWxsVXNhZ2USOC52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlJlY29yZFNraWxsVXNhZ2VSZXF1ZXN0GjkudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5SZWNvcmRTa2lsbFVzYWdlUmVzcG9uc2USigEKEUxpc3RTa2lsbFZlcnNpb25zEjkudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5MaXN0U2tpbGxWZXJzaW9uc1JlcXVlc3QaOi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLkxpc3RTa2lsbFZlcnNpb25zUmVzcG9uc2USeAoLUmV2ZXJ0U2tpbGwSMy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlJldmVydFNraWxsUmVxdWVzdBo0LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuUmV2ZXJ0U2tpbGxSZXNwb25zZRKKAQoRTGlzdFNraWxsVmFyaWFudHMSOS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLkxpc3RTa2lsbFZhcmlhbnRzUmVxdWVzdBo6LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuTGlzdFNraWxsVmFyaWFudHNSZXNwb25zZRKEAQoPR2V0U2tpbGxWYXJpYW50EjcudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5HZXRTa2lsbFZhcmlhbnRSZXF1ZXN0GjgudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5HZXRTa2lsbFZhcmlhbnRSZXNwb25zZRKNAQoSQ3JlYXRlU2tpbGxWYXJpYW50EjoudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5DcmVhdGVTa2lsbFZhcmlhbnRSZXF1ZXN0GjsudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5DcmVhdGVTa2lsbFZhcmlhbnRSZXNwb25zZRKNAQoSVXBkYXRlU2tpbGxWYXJpYW50EjoudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5VcGRhdGVTa2lsbFZhcmlhbnRSZXF1ZXN0GjsudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5VcGRhdGVTa2lsbFZhcmlhbnRSZXNwb25zZRKNAQoSRGVsZXRlU2tpbGxWYXJpYW50EjoudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5EZWxldGVTa2lsbFZhcmlhbnRSZXF1ZXN0GjsudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5EZWxldGVTa2lsbFZhcmlhbnRSZXNwb25zZRJ4CgtJbXBvcnRTa2lsbBIzLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuSW1wb3J0U2tpbGxSZXF1ZXN0GjQudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5JbXBvcnRTa2lsbFJlc3BvbnNlEpABChNSZXZpZXdJbXBvcnRlZFNraWxsEjsudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5SZXZpZXdJbXBvcnRlZFNraWxsUmVxdWVzdBo8LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuUmV2aWV3SW1wb3J0ZWRTa2lsbFJlc3BvbnNlEqsBChxSZXBvcnRJbXBvcnRlZFNraWxsU3RhbGVuZXNzEkQudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5SZXBvcnRJbXBvcnRlZFNraWxsU3RhbGVuZXNzUmVxdWVzdBpFLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuUmVwb3J0SW1wb3J0ZWRTa2lsbFN0YWxlbmVzc1Jlc3BvbnNlQlNaUWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvbXB0LW1hbmFnZXIvdjEvc2tpbGxzO3NraWxsc192MWIGcHJvdG8z");
+  fileDesc("CiVwcm9tcHQtbWFuYWdlci92MS9za2lsbHMvc2tpbGxzLnByb3RvEh92cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzInkKGFJlZnJlc2hQcm9qZWN0aW9uUmVxdWVzdBIPCgdydW50aW1lGAEgASgJEg4KBnNraWxscxgCIAMoCRINCgVhcHBseRgDIAEoCBIXCg9leHBlY3RlZF9kaWdlc3QYBCABKAkSFAoMYWRvcHRfbGVnYWN5GAUgASgIIs4BCg1Qcm9qZWN0aW9uUm93Eg8KB3J1bnRpbWUYASABKAkSDQoFc2tpbGwYAiABKAkSDgoGc3RhdHVzGAMgASgJEhMKC3NvdXJjZV9oYXNoGAQgASgJEhYKDmluc3RhbGxlZF9oYXNoGAUgASgJEhUKDWJhc2VsaW5lX2hhc2gYBiABKAkSFAoMcmVjZWlwdF9oYXNoGAcgASgJEg0KBWVycm9yGAggASgJEhMKC2JhY2t1cF9wYXRoGAkgASgJEg8KB2FwcGxpZWQYCiABKAgiaQoZUmVmcmVzaFByb2plY3Rpb25SZXNwb25zZRIOCgZkaWdlc3QYASABKAkSPAoEcm93cxgCIAMoCzIuLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuUHJvamVjdGlvblJvdyJCCghWYXJpYWJsZRIMCgRuYW1lGAEgASgJEhMKC3BsYWNlaG9sZGVyGAIgASgJEhMKC29jY3VycmVuY2VzGAMgASgFIuUECgVTa2lsbBIKCgJpZBgBIAEoCRIMCgRmaWxlGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSDwoHY29udGVudBgFIAEoCRINCgVtb2RlcxgGIAMoCRIMCgR0YWdzGAcgAygJEgwKBGljb24YCCABKAkSGwoOdGFyZ2V0X3Rvb2xfaWQYCSABKAlIAIgBARIVCg1kZWZhdWx0X3Njb3BlGAogASgJEhkKEXRhcmdldF9kaW1lbnNpb25zGAsgAygJEh4KEXByb2dyYW1tYXRpY19ob21lGAwgASgJSAGIAQESDQoFZHJhZnQYDSABKAgSDgoGZm9sZGVyGA4gASgJEhEKCXNraWxsX2RpchgPIAEoCRIUCgxjb250ZW50X3BhdGgYECABKAkSEgoKY3JlYXRlZF9hdBgRIAEoCRISCgp1cGRhdGVkX2F0GBIgASgJEhAKCHJldmlzaW9uGBMgASgFEhQKDGNvbnRlbnRfaGFzaBgUIAEoCRITCgt1c2FnZV9jb3VudBgVIAEoBRIWCglsYXN0X3VzZWQYFiABKAlIAogBARIhChRlZmZlY3RpdmVuZXNzX3JhdGluZxgXIAEoBUgDiAEBEjwKCXZhcmlhYmxlcxgYIAMoCzIpLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuVmFyaWFibGVCEQoPX3RhcmdldF90b29sX2lkQhQKEl9wcm9ncmFtbWF0aWNfaG9tZUIMCgpfbGFzdF91c2VkQhcKFV9lZmZlY3RpdmVuZXNzX3JhdGluZyJiChFMaXN0U2tpbGxzUmVxdWVzdBIOCgZmb2xkZXIYASABKAkSCwoDdGFnGAIgASgJEg0KBW1vZGVzGAMgAygJEiEKGXdpdGhvdXRfcHJvZ3JhbW1hdGljX2hvbWUYBCABKAgiTAoSTGlzdFNraWxsc1Jlc3BvbnNlEjYKBnNraWxscxgBIAMoCzImLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuU2tpbGwiHQoPR2V0U2tpbGxSZXF1ZXN0EgoKAmlkGAEgASgJIkkKEEdldFNraWxsUmVzcG9uc2USNQoFc2tpbGwYASABKAsyJi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlNraWxsIoUDChFSZWFkU2tpbGxzUmVxdWVzdBITCgtpZGVudGlmaWVycxgBIAMoCRIPCgdyZXNvbHZlGAIgASgJEhoKDWFsbG93X21pc3NpbmcYAyABKAhIAIgBARIOCgZvdXRwdXQYBCABKAkSDgoGZm9ybWF0GAUgASgJElQKCXZhcmlhYmxlcxgGIAMoCzJBLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuUmVhZFNraWxsc1JlcXVlc3QuVmFyaWFibGVzRW50cnkSEgoKd2l0aF9zY29wZRgHIAEoCBINCgVzY29wZRgIIAEoCRIVCg1leHBlcmltZW50X2lkGAkgASgJEhIKCnZhcmlhbnRfaWQYCiABKAkSFgoOdmFyaWFudF9wb2xpY3kYCyABKAkSDgoGc291cmNlGAwgASgJGjAKDlZhcmlhYmxlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCEAoOX2FsbG93X21pc3NpbmciLwoJUmVhZElzc3VlEhIKCmlkZW50aWZpZXIYASABKAkSDgoGcmVhc29uGAIgASgJIkcKDVJlYWRDYW5kaWRhdGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRmaWxlGAMgASgJEg4KBmZvbGRlchgEIAEoCSJnCg1SZWFkQW1iaWd1b3VzEhIKCmlkZW50aWZpZXIYASABKAkSQgoKY2FuZGlkYXRlcxgCIAMoCzIuLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuUmVhZENhbmRpZGF0ZSLCAwoSUmVhZFNraWxsc1Jlc3BvbnNlEjYKBnNraWxscxgBIAMoCzImLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuU2tpbGwSEAoIY29tYmluZWQYAiABKAkSFQoNY29tYmluZWRfaGFzaBgDIAEoCRITCgtza2lsbF9jb3VudBgEIAEoBRIUCgx0b3RhbF90b2tlbnMYBSABKAUSDgoGZm9ybWF0GAYgASgJEjsKB21pc3NpbmcYByADKAsyKi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlJlYWRJc3N1ZRJBCglhbWJpZ3VvdXMYCCADKAsyLi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlJlYWRBbWJpZ3VvdXMSDwoHcmVzb2x2ZRgJIAEoCRIOCgZvdXRwdXQYCiABKAkSOwoLc2NvcGVfc2tpbGwYCyABKAsyJi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlNraWxsEhsKE3NlbGVjdGVkX3ZhcmlhbnRfaWQYDCABKAkSFQoNZXhwZXJpbWVudF9pZBgNIAEoCSK2AgoSQ3JlYXRlU2tpbGxSZXF1ZXN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDwoHY29udGVudBgEIAEoCRINCgVtb2RlcxgFIAMoCRIMCgR0YWdzGAYgAygJEgwKBGljb24YByABKAkSGwoOdGFyZ2V0X3Rvb2xfaWQYCCABKAlIAIgBARIVCg1kZWZhdWx0X3Njb3BlGAkgASgJEhkKEXRhcmdldF9kaW1lbnNpb25zGAogAygJEh4KEXByb2dyYW1tYXRpY19ob21lGAsgASgJSAGIAQESDQoFZHJhZnQYDCABKAgSDgoGZm9sZGVyGA0gASgJQhEKD190YXJnZXRfdG9vbF9pZEIUChJfcHJvZ3JhbW1hdGljX2hvbWUiTAoTQ3JlYXRlU2tpbGxSZXNwb25zZRI1CgVza2lsbBgBIAEoCzImLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuU2tpbGwiuwQKElVwZGF0ZVNraWxsUmVxdWVzdBIKCgJpZBgBIAEoCRIRCgRmaWxlGAIgASgJSACIAQESEQoEbmFtZRgDIAEoCUgBiAEBEhgKC2Rlc2NyaXB0aW9uGAQgASgJSAKIAQESFAoHY29udGVudBgFIAEoCUgDiAEBEg0KBW1vZGVzGAYgAygJEhUKDXJlcGxhY2VfbW9kZXMYByABKAgSDAoEdGFncxgIIAMoCRIUCgxyZXBsYWNlX3RhZ3MYCSABKAgSEQoEaWNvbhgKIAEoCUgEiAEBEhsKDnRhcmdldF90b29sX2lkGAsgASgJSAWIAQESGgoNZGVmYXVsdF9zY29wZRgMIAEoCUgGiAEBEhkKEXRhcmdldF9kaW1lbnNpb25zGA0gAygJEiEKGXJlcGxhY2VfdGFyZ2V0X2RpbWVuc2lvbnMYDiABKAgSHgoRcHJvZ3JhbW1hdGljX2hvbWUYDyABKAlIB4gBARIfChdjbGVhcl9wcm9ncmFtbWF0aWNfaG9tZRgQIAEoCBISCgVkcmFmdBgRIAEoCEgIiAEBEhMKBmZvbGRlchgSIAEoCUgJiAEBQgcKBV9maWxlQgcKBV9uYW1lQg4KDF9kZXNjcmlwdGlvbkIKCghfY29udGVudEIHCgVfaWNvbkIRCg9fdGFyZ2V0X3Rvb2xfaWRCEAoOX2RlZmF1bHRfc2NvcGVCFAoSX3Byb2dyYW1tYXRpY19ob21lQggKBl9kcmFmdEIJCgdfZm9sZGVyIkwKE1VwZGF0ZVNraWxsUmVzcG9uc2USNQoFc2tpbGwYASABKAsyJi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlNraWxsIiAKEkRlbGV0ZVNraWxsUmVxdWVzdBIKCgJpZBgBIAEoCSIyChNEZWxldGVTa2lsbFJlc3BvbnNlEgoKAmlkGAEgASgJEg8KB2RlbGV0ZWQYAiABKAgiEwoRU3luY1NraWxsc1JlcXVlc3QicAoSU3luY1NraWxsc1Jlc3BvbnNlEjYKBnNraWxscxgBIAMoCzImLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuU2tpbGwSFAoMbGFzdF91cGRhdGVkGAIgASgJEgwKBGhhc2gYAyABKAkiTAoQUmF0ZVNraWxsUmVxdWVzdBIKCgJpZBgBIAEoCRIOCgZyYXRpbmcYAiABKAUSEgoFbm90ZXMYAyABKAlIAIgBAUIICgZfbm90ZXMiPwoRUmF0ZVNraWxsUmVzcG9uc2USCgoCaWQYASABKAkSDgoGcmF0aW5nGAIgASgFEg4KBnN0YXR1cxgDIAEoCSIlChdSZWNvcmRTa2lsbFVzYWdlUmVxdWVzdBIKCgJpZBgBIAEoCSJeChhSZWNvcmRTa2lsbFVzYWdlUmVzcG9uc2USCgoCaWQYASABKAkSDgoGc3RhdHVzGAIgASgJEhMKC3VzYWdlX2NvdW50GAMgASgFEhEKCWxhc3RfdXNlZBgEIAEoCSJmCgxTa2lsbFZlcnNpb24SDwoHdmVyc2lvbhgBIAEoBRIPCgdjb250ZW50GAIgASgJEgwKBG5hbWUYAyABKAkSEgoKdXBkYXRlZF9hdBgEIAEoCRISCgpjcmVhdGVkX2J5GAUgASgJIiYKGExpc3RTa2lsbFZlcnNpb25zUmVxdWVzdBIKCgJpZBgBIAEoCSJ/ChlMaXN0U2tpbGxWZXJzaW9uc1Jlc3BvbnNlEhAKCHNraWxsX2lkGAEgASgJEg8KB2N1cnJlbnQYAiABKAUSPwoIdmVyc2lvbnMYAyADKAsyLS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlNraWxsVmVyc2lvbiIxChJSZXZlcnRTa2lsbFJlcXVlc3QSCgoCaWQYASABKAkSDwoHdmVyc2lvbhgCIAEoBSJmChNSZXZlcnRTa2lsbFJlc3BvbnNlEhAKCHNraWxsX2lkGAEgASgJEhMKC3JldmVydGVkX3RvGAIgASgFEhMKC25ld192ZXJzaW9uGAMgASgFEhMKC3Jlc3RvcmVkX2F0GAQgASgJIpoBCgxTa2lsbFZhcmlhbnQSCgoCaWQYASABKAkSEAoIc2tpbGxfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIPCgdjb250ZW50GAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSEgoKdXBkYXRlZF9hdBgHIAEoCRIQCghyZXZpc2lvbhgIIAEoBSIsChhMaXN0U2tpbGxWYXJpYW50c1JlcXVlc3QSEAoIc2tpbGxfaWQYASABKAkiXAoZTGlzdFNraWxsVmFyaWFudHNSZXNwb25zZRI/Cgh2YXJpYW50cxgBIAMoCzItLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuU2tpbGxWYXJpYW50Ij4KFkdldFNraWxsVmFyaWFudFJlcXVlc3QSEAoIc2tpbGxfaWQYASABKAkSEgoKdmFyaWFudF9pZBgCIAEoCSJZChdHZXRTa2lsbFZhcmlhbnRSZXNwb25zZRI+Cgd2YXJpYW50GAEgASgLMi0udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5Ta2lsbFZhcmlhbnQibQoZQ3JlYXRlU2tpbGxWYXJpYW50UmVxdWVzdBIQCghza2lsbF9pZBgBIAEoCRIKCgJpZBgCIAEoCRIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEg8KB2NvbnRlbnQYBSABKAkiXAoaQ3JlYXRlU2tpbGxWYXJpYW50UmVzcG9uc2USPgoHdmFyaWFudBgBIAEoCzItLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuU2tpbGxWYXJpYW50IqkBChlVcGRhdGVTa2lsbFZhcmlhbnRSZXF1ZXN0EhAKCHNraWxsX2lkGAEgASgJEhIKCnZhcmlhbnRfaWQYAiABKAkSEQoEbmFtZRgDIAEoCUgAiAEBEhgKC2Rlc2NyaXB0aW9uGAQgASgJSAGIAQESFAoHY29udGVudBgFIAEoCUgCiAEBQgcKBV9uYW1lQg4KDF9kZXNjcmlwdGlvbkIKCghfY29udGVudCJcChpVcGRhdGVTa2lsbFZhcmlhbnRSZXNwb25zZRI+Cgd2YXJpYW50GAEgASgLMi0udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5Ta2lsbFZhcmlhbnQiQQoZRGVsZXRlU2tpbGxWYXJpYW50UmVxdWVzdBIQCghza2lsbF9pZBgBIAEoCRISCgp2YXJpYW50X2lkGAIgASgJIlMKGkRlbGV0ZVNraWxsVmFyaWFudFJlc3BvbnNlEhAKCHNraWxsX2lkGAEgASgJEhIKCnZhcmlhbnRfaWQYAiABKAkSDwoHZGVsZXRlZBgDIAEoCCKqAQoSSW1wb3J0U2tpbGxSZXF1ZXN0EhIKCnNvdXJjZV9kaXIYASABKAkSEgoKc291cmNlX3VybBgCIAEoCRIOCgZjb21taXQYAyABKAkSDwoHbGljZW5zZRgEIAEoCRIQCghjaGVja3N1bRgFIAEoCRITCgtpbXBvcnRlZF9ieRgGIAEoCRIYChB1cHN0cmVhbV92ZXJzaW9uGAcgASgJEgoKAmlkGAggASgJIn4KE0ltcG9ydFNraWxsUmVzcG9uc2USCgoCaWQYASABKAkSDAoEcGFjaxgCIAEoCRIOCgZzdGF0dXMYAyABKAkSEAoIY2hlY2tzdW0YBCABKAkSFgoOcmV2aWV3X3ZlcmRpY3QYBSABKAkSEwoLaW1wb3J0ZWRfYXQYBiABKAkiSwoaUmV2aWV3SW1wb3J0ZWRTa2lsbFJlcXVlc3QSCgoCaWQYASABKAkSEAoIcmV2aWV3ZXIYAiABKAkSDwoHdmVyZGljdBgDIAEoCSJxChtSZXZpZXdJbXBvcnRlZFNraWxsUmVzcG9uc2USCgoCaWQYASABKAkSDgoGc3RhdHVzGAIgASgJEg8KB3ZlcmRpY3QYAyABKAkSEAoIcmV2aWV3ZXIYBCABKAkSEwoLcmV2aWV3ZWRfYXQYBSABKAkiSwojUmVwb3J0SW1wb3J0ZWRTa2lsbFN0YWxlbmVzc1JlcXVlc3QSCgoCaWQYASABKAkSGAoQdXBzdHJlYW1fdmVyc2lvbhgCIAEoCSJ0CiRSZXBvcnRJbXBvcnRlZFNraWxsU3RhbGVuZXNzUmVzcG9uc2USCgoCaWQYASABKAkSGAoQcmVjb3JkZWRfdmVyc2lvbhgCIAEoCRIXCg9jdXJyZW50X3ZlcnNpb24YAyABKAkSDQoFc3RhbGUYBCABKAgy5BQKDVNraWxsc1NlcnZpY2USigEKEVJlZnJlc2hQcm9qZWN0aW9uEjkudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5SZWZyZXNoUHJvamVjdGlvblJlcXVlc3QaOi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlJlZnJlc2hQcm9qZWN0aW9uUmVzcG9uc2USdQoKTGlzdFNraWxscxIyLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuTGlzdFNraWxsc1JlcXVlc3QaMy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLkxpc3RTa2lsbHNSZXNwb25zZRJvCghHZXRTa2lsbBIwLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuR2V0U2tpbGxSZXF1ZXN0GjEudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5HZXRTa2lsbFJlc3BvbnNlEnUKClJlYWRTa2lsbHMSMi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlJlYWRTa2lsbHNSZXF1ZXN0GjMudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5SZWFkU2tpbGxzUmVzcG9uc2USeAoLQ3JlYXRlU2tpbGwSMy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLkNyZWF0ZVNraWxsUmVxdWVzdBo0LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuQ3JlYXRlU2tpbGxSZXNwb25zZRJ4CgtVcGRhdGVTa2lsbBIzLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuVXBkYXRlU2tpbGxSZXF1ZXN0GjQudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5VcGRhdGVTa2lsbFJlc3BvbnNlEngKC0RlbGV0ZVNraWxsEjMudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5EZWxldGVTa2lsbFJlcXVlc3QaNC52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLkRlbGV0ZVNraWxsUmVzcG9uc2USdQoKU3luY1NraWxscxIyLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuU3luY1NraWxsc1JlcXVlc3QaMy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlN5bmNTa2lsbHNSZXNwb25zZRJyCglSYXRlU2tpbGwSMS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlJhdGVTa2lsbFJlcXVlc3QaMi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlJhdGVTa2lsbFJlc3BvbnNlEocBChBSZWNvcmRTa2lsbFVzYWdlEjgudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5SZWNvcmRTa2lsbFVzYWdlUmVxdWVzdBo5LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuUmVjb3JkU2tpbGxVc2FnZVJlc3BvbnNlEooBChFMaXN0U2tpbGxWZXJzaW9ucxI5LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuTGlzdFNraWxsVmVyc2lvbnNSZXF1ZXN0GjoudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5MaXN0U2tpbGxWZXJzaW9uc1Jlc3BvbnNlEngKC1JldmVydFNraWxsEjMudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5SZXZlcnRTa2lsbFJlcXVlc3QaNC52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlJldmVydFNraWxsUmVzcG9uc2USigEKEUxpc3RTa2lsbFZhcmlhbnRzEjkudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLnNraWxscy5MaXN0U2tpbGxWYXJpYW50c1JlcXVlc3QaOi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLkxpc3RTa2lsbFZhcmlhbnRzUmVzcG9uc2UShAEKD0dldFNraWxsVmFyaWFudBI3LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuR2V0U2tpbGxWYXJpYW50UmVxdWVzdBo4LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuR2V0U2tpbGxWYXJpYW50UmVzcG9uc2USjQEKEkNyZWF0ZVNraWxsVmFyaWFudBI6LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuQ3JlYXRlU2tpbGxWYXJpYW50UmVxdWVzdBo7LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuQ3JlYXRlU2tpbGxWYXJpYW50UmVzcG9uc2USjQEKElVwZGF0ZVNraWxsVmFyaWFudBI6LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuVXBkYXRlU2tpbGxWYXJpYW50UmVxdWVzdBo7LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuVXBkYXRlU2tpbGxWYXJpYW50UmVzcG9uc2USjQEKEkRlbGV0ZVNraWxsVmFyaWFudBI6LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuRGVsZXRlU2tpbGxWYXJpYW50UmVxdWVzdBo7LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuRGVsZXRlU2tpbGxWYXJpYW50UmVzcG9uc2USeAoLSW1wb3J0U2tpbGwSMy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLkltcG9ydFNraWxsUmVxdWVzdBo0LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuSW1wb3J0U2tpbGxSZXNwb25zZRKQAQoTUmV2aWV3SW1wb3J0ZWRTa2lsbBI7LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuUmV2aWV3SW1wb3J0ZWRTa2lsbFJlcXVlc3QaPC52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlJldmlld0ltcG9ydGVkU2tpbGxSZXNwb25zZRKrAQocUmVwb3J0SW1wb3J0ZWRTa2lsbFN0YWxlbmVzcxJELnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5za2lsbHMuUmVwb3J0SW1wb3J0ZWRTa2lsbFN0YWxlbmVzc1JlcXVlc3QaRS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuc2tpbGxzLlJlcG9ydEltcG9ydGVkU2tpbGxTdGFsZW5lc3NSZXNwb25zZUJTWlFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb21wdC1tYW5hZ2VyL3YxL3NraWxscztza2lsbHNfdjFiBnByb3RvMw");
+
+/**
+ * Empty runtime/skills select configured targets/the governed base pack.
+ * Preview is read-only. Apply requires the exact preview digest and policy.
+ *
+ * @generated from message vrooli.prompt_manager.v1.skills.RefreshProjectionRequest
+ */
+export type RefreshProjectionRequest = Message<"vrooli.prompt_manager.v1.skills.RefreshProjectionRequest"> & {
+  /**
+   * @generated from field: string runtime = 1;
+   */
+  runtime: string;
+
+  /**
+   * @generated from field: repeated string skills = 2;
+   */
+  skills: string[];
+
+  /**
+   * @generated from field: bool apply = 3;
+   */
+  apply: boolean;
+
+  /**
+   * @generated from field: string expected_digest = 4;
+   */
+  expectedDigest: string;
+
+  /**
+   * @generated from field: bool adopt_legacy = 5;
+   */
+  adoptLegacy: boolean;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.skills.RefreshProjectionRequest.
+ * Use `create(RefreshProjectionRequestSchema)` to create a new message.
+ */
+export const RefreshProjectionRequestSchema: GenMessage<RefreshProjectionRequest> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_skills_skills, 0);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.skills.ProjectionRow
+ */
+export type ProjectionRow = Message<"vrooli.prompt_manager.v1.skills.ProjectionRow"> & {
+  /**
+   * @generated from field: string runtime = 1;
+   */
+  runtime: string;
+
+  /**
+   * @generated from field: string skill = 2;
+   */
+  skill: string;
+
+  /**
+   * @generated from field: string status = 3;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string source_hash = 4;
+   */
+  sourceHash: string;
+
+  /**
+   * @generated from field: string installed_hash = 5;
+   */
+  installedHash: string;
+
+  /**
+   * @generated from field: string baseline_hash = 6;
+   */
+  baselineHash: string;
+
+  /**
+   * @generated from field: string receipt_hash = 7;
+   */
+  receiptHash: string;
+
+  /**
+   * @generated from field: string error = 8;
+   */
+  error: string;
+
+  /**
+   * @generated from field: string backup_path = 9;
+   */
+  backupPath: string;
+
+  /**
+   * @generated from field: bool applied = 10;
+   */
+  applied: boolean;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.skills.ProjectionRow.
+ * Use `create(ProjectionRowSchema)` to create a new message.
+ */
+export const ProjectionRowSchema: GenMessage<ProjectionRow> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_skills_skills, 1);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.skills.RefreshProjectionResponse
+ */
+export type RefreshProjectionResponse = Message<"vrooli.prompt_manager.v1.skills.RefreshProjectionResponse"> & {
+  /**
+   * @generated from field: string digest = 1;
+   */
+  digest: string;
+
+  /**
+   * @generated from field: repeated vrooli.prompt_manager.v1.skills.ProjectionRow rows = 2;
+   */
+  rows: ProjectionRow[];
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.skills.RefreshProjectionResponse.
+ * Use `create(RefreshProjectionResponseSchema)` to create a new message.
+ */
+export const RefreshProjectionResponseSchema: GenMessage<RefreshProjectionResponse> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_skills_skills, 2);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.Variable
@@ -37,7 +161,7 @@ export type Variable = Message<"vrooli.prompt_manager.v1.skills.Variable"> & {
  * Use `create(VariableSchema)` to create a new message.
  */
 export const VariableSchema: GenMessage<Variable> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 0);
+  messageDesc(file_prompt_manager_v1_skills_skills, 3);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.Skill
@@ -169,7 +293,7 @@ export type Skill = Message<"vrooli.prompt_manager.v1.skills.Skill"> & {
  * Use `create(SkillSchema)` to create a new message.
  */
 export const SkillSchema: GenMessage<Skill> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 1);
+  messageDesc(file_prompt_manager_v1_skills_skills, 4);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ListSkillsRequest
@@ -201,7 +325,7 @@ export type ListSkillsRequest = Message<"vrooli.prompt_manager.v1.skills.ListSki
  * Use `create(ListSkillsRequestSchema)` to create a new message.
  */
 export const ListSkillsRequestSchema: GenMessage<ListSkillsRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 2);
+  messageDesc(file_prompt_manager_v1_skills_skills, 5);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ListSkillsResponse
@@ -218,7 +342,7 @@ export type ListSkillsResponse = Message<"vrooli.prompt_manager.v1.skills.ListSk
  * Use `create(ListSkillsResponseSchema)` to create a new message.
  */
 export const ListSkillsResponseSchema: GenMessage<ListSkillsResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 3);
+  messageDesc(file_prompt_manager_v1_skills_skills, 6);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.GetSkillRequest
@@ -235,7 +359,7 @@ export type GetSkillRequest = Message<"vrooli.prompt_manager.v1.skills.GetSkillR
  * Use `create(GetSkillRequestSchema)` to create a new message.
  */
 export const GetSkillRequestSchema: GenMessage<GetSkillRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 4);
+  messageDesc(file_prompt_manager_v1_skills_skills, 7);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.GetSkillResponse
@@ -252,7 +376,7 @@ export type GetSkillResponse = Message<"vrooli.prompt_manager.v1.skills.GetSkill
  * Use `create(GetSkillResponseSchema)` to create a new message.
  */
 export const GetSkillResponseSchema: GenMessage<GetSkillResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 5);
+  messageDesc(file_prompt_manager_v1_skills_skills, 8);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ReadSkillsRequest
@@ -324,7 +448,7 @@ export type ReadSkillsRequest = Message<"vrooli.prompt_manager.v1.skills.ReadSki
  * Use `create(ReadSkillsRequestSchema)` to create a new message.
  */
 export const ReadSkillsRequestSchema: GenMessage<ReadSkillsRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 6);
+  messageDesc(file_prompt_manager_v1_skills_skills, 9);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ReadIssue
@@ -346,7 +470,7 @@ export type ReadIssue = Message<"vrooli.prompt_manager.v1.skills.ReadIssue"> & {
  * Use `create(ReadIssueSchema)` to create a new message.
  */
 export const ReadIssueSchema: GenMessage<ReadIssue> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 7);
+  messageDesc(file_prompt_manager_v1_skills_skills, 10);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ReadCandidate
@@ -378,7 +502,7 @@ export type ReadCandidate = Message<"vrooli.prompt_manager.v1.skills.ReadCandida
  * Use `create(ReadCandidateSchema)` to create a new message.
  */
 export const ReadCandidateSchema: GenMessage<ReadCandidate> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 8);
+  messageDesc(file_prompt_manager_v1_skills_skills, 11);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ReadAmbiguous
@@ -400,7 +524,7 @@ export type ReadAmbiguous = Message<"vrooli.prompt_manager.v1.skills.ReadAmbiguo
  * Use `create(ReadAmbiguousSchema)` to create a new message.
  */
 export const ReadAmbiguousSchema: GenMessage<ReadAmbiguous> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 9);
+  messageDesc(file_prompt_manager_v1_skills_skills, 12);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ReadSkillsResponse
@@ -477,7 +601,7 @@ export type ReadSkillsResponse = Message<"vrooli.prompt_manager.v1.skills.ReadSk
  * Use `create(ReadSkillsResponseSchema)` to create a new message.
  */
 export const ReadSkillsResponseSchema: GenMessage<ReadSkillsResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 10);
+  messageDesc(file_prompt_manager_v1_skills_skills, 13);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.CreateSkillRequest
@@ -554,7 +678,7 @@ export type CreateSkillRequest = Message<"vrooli.prompt_manager.v1.skills.Create
  * Use `create(CreateSkillRequestSchema)` to create a new message.
  */
 export const CreateSkillRequestSchema: GenMessage<CreateSkillRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 11);
+  messageDesc(file_prompt_manager_v1_skills_skills, 14);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.CreateSkillResponse
@@ -571,7 +695,7 @@ export type CreateSkillResponse = Message<"vrooli.prompt_manager.v1.skills.Creat
  * Use `create(CreateSkillResponseSchema)` to create a new message.
  */
 export const CreateSkillResponseSchema: GenMessage<CreateSkillResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 12);
+  messageDesc(file_prompt_manager_v1_skills_skills, 15);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.UpdateSkillRequest
@@ -673,7 +797,7 @@ export type UpdateSkillRequest = Message<"vrooli.prompt_manager.v1.skills.Update
  * Use `create(UpdateSkillRequestSchema)` to create a new message.
  */
 export const UpdateSkillRequestSchema: GenMessage<UpdateSkillRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 13);
+  messageDesc(file_prompt_manager_v1_skills_skills, 16);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.UpdateSkillResponse
@@ -690,7 +814,7 @@ export type UpdateSkillResponse = Message<"vrooli.prompt_manager.v1.skills.Updat
  * Use `create(UpdateSkillResponseSchema)` to create a new message.
  */
 export const UpdateSkillResponseSchema: GenMessage<UpdateSkillResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 14);
+  messageDesc(file_prompt_manager_v1_skills_skills, 17);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.DeleteSkillRequest
@@ -707,7 +831,7 @@ export type DeleteSkillRequest = Message<"vrooli.prompt_manager.v1.skills.Delete
  * Use `create(DeleteSkillRequestSchema)` to create a new message.
  */
 export const DeleteSkillRequestSchema: GenMessage<DeleteSkillRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 15);
+  messageDesc(file_prompt_manager_v1_skills_skills, 18);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.DeleteSkillResponse
@@ -729,7 +853,7 @@ export type DeleteSkillResponse = Message<"vrooli.prompt_manager.v1.skills.Delet
  * Use `create(DeleteSkillResponseSchema)` to create a new message.
  */
 export const DeleteSkillResponseSchema: GenMessage<DeleteSkillResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 16);
+  messageDesc(file_prompt_manager_v1_skills_skills, 19);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.SyncSkillsRequest
@@ -742,7 +866,7 @@ export type SyncSkillsRequest = Message<"vrooli.prompt_manager.v1.skills.SyncSki
  * Use `create(SyncSkillsRequestSchema)` to create a new message.
  */
 export const SyncSkillsRequestSchema: GenMessage<SyncSkillsRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 17);
+  messageDesc(file_prompt_manager_v1_skills_skills, 20);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.SyncSkillsResponse
@@ -769,7 +893,7 @@ export type SyncSkillsResponse = Message<"vrooli.prompt_manager.v1.skills.SyncSk
  * Use `create(SyncSkillsResponseSchema)` to create a new message.
  */
 export const SyncSkillsResponseSchema: GenMessage<SyncSkillsResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 18);
+  messageDesc(file_prompt_manager_v1_skills_skills, 21);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.RateSkillRequest
@@ -796,7 +920,7 @@ export type RateSkillRequest = Message<"vrooli.prompt_manager.v1.skills.RateSkil
  * Use `create(RateSkillRequestSchema)` to create a new message.
  */
 export const RateSkillRequestSchema: GenMessage<RateSkillRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 19);
+  messageDesc(file_prompt_manager_v1_skills_skills, 22);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.RateSkillResponse
@@ -823,7 +947,7 @@ export type RateSkillResponse = Message<"vrooli.prompt_manager.v1.skills.RateSki
  * Use `create(RateSkillResponseSchema)` to create a new message.
  */
 export const RateSkillResponseSchema: GenMessage<RateSkillResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 20);
+  messageDesc(file_prompt_manager_v1_skills_skills, 23);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.RecordSkillUsageRequest
@@ -840,7 +964,7 @@ export type RecordSkillUsageRequest = Message<"vrooli.prompt_manager.v1.skills.R
  * Use `create(RecordSkillUsageRequestSchema)` to create a new message.
  */
 export const RecordSkillUsageRequestSchema: GenMessage<RecordSkillUsageRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 21);
+  messageDesc(file_prompt_manager_v1_skills_skills, 24);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.RecordSkillUsageResponse
@@ -872,7 +996,7 @@ export type RecordSkillUsageResponse = Message<"vrooli.prompt_manager.v1.skills.
  * Use `create(RecordSkillUsageResponseSchema)` to create a new message.
  */
 export const RecordSkillUsageResponseSchema: GenMessage<RecordSkillUsageResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 22);
+  messageDesc(file_prompt_manager_v1_skills_skills, 25);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.SkillVersion
@@ -909,7 +1033,7 @@ export type SkillVersion = Message<"vrooli.prompt_manager.v1.skills.SkillVersion
  * Use `create(SkillVersionSchema)` to create a new message.
  */
 export const SkillVersionSchema: GenMessage<SkillVersion> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 23);
+  messageDesc(file_prompt_manager_v1_skills_skills, 26);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ListSkillVersionsRequest
@@ -926,7 +1050,7 @@ export type ListSkillVersionsRequest = Message<"vrooli.prompt_manager.v1.skills.
  * Use `create(ListSkillVersionsRequestSchema)` to create a new message.
  */
 export const ListSkillVersionsRequestSchema: GenMessage<ListSkillVersionsRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 24);
+  messageDesc(file_prompt_manager_v1_skills_skills, 27);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ListSkillVersionsResponse
@@ -953,7 +1077,7 @@ export type ListSkillVersionsResponse = Message<"vrooli.prompt_manager.v1.skills
  * Use `create(ListSkillVersionsResponseSchema)` to create a new message.
  */
 export const ListSkillVersionsResponseSchema: GenMessage<ListSkillVersionsResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 25);
+  messageDesc(file_prompt_manager_v1_skills_skills, 28);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.RevertSkillRequest
@@ -975,7 +1099,7 @@ export type RevertSkillRequest = Message<"vrooli.prompt_manager.v1.skills.Revert
  * Use `create(RevertSkillRequestSchema)` to create a new message.
  */
 export const RevertSkillRequestSchema: GenMessage<RevertSkillRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 26);
+  messageDesc(file_prompt_manager_v1_skills_skills, 29);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.RevertSkillResponse
@@ -1007,7 +1131,7 @@ export type RevertSkillResponse = Message<"vrooli.prompt_manager.v1.skills.Rever
  * Use `create(RevertSkillResponseSchema)` to create a new message.
  */
 export const RevertSkillResponseSchema: GenMessage<RevertSkillResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 27);
+  messageDesc(file_prompt_manager_v1_skills_skills, 30);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.SkillVariant
@@ -1059,7 +1183,7 @@ export type SkillVariant = Message<"vrooli.prompt_manager.v1.skills.SkillVariant
  * Use `create(SkillVariantSchema)` to create a new message.
  */
 export const SkillVariantSchema: GenMessage<SkillVariant> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 28);
+  messageDesc(file_prompt_manager_v1_skills_skills, 31);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ListSkillVariantsRequest
@@ -1076,7 +1200,7 @@ export type ListSkillVariantsRequest = Message<"vrooli.prompt_manager.v1.skills.
  * Use `create(ListSkillVariantsRequestSchema)` to create a new message.
  */
 export const ListSkillVariantsRequestSchema: GenMessage<ListSkillVariantsRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 29);
+  messageDesc(file_prompt_manager_v1_skills_skills, 32);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ListSkillVariantsResponse
@@ -1093,7 +1217,7 @@ export type ListSkillVariantsResponse = Message<"vrooli.prompt_manager.v1.skills
  * Use `create(ListSkillVariantsResponseSchema)` to create a new message.
  */
 export const ListSkillVariantsResponseSchema: GenMessage<ListSkillVariantsResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 30);
+  messageDesc(file_prompt_manager_v1_skills_skills, 33);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.GetSkillVariantRequest
@@ -1115,7 +1239,7 @@ export type GetSkillVariantRequest = Message<"vrooli.prompt_manager.v1.skills.Ge
  * Use `create(GetSkillVariantRequestSchema)` to create a new message.
  */
 export const GetSkillVariantRequestSchema: GenMessage<GetSkillVariantRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 31);
+  messageDesc(file_prompt_manager_v1_skills_skills, 34);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.GetSkillVariantResponse
@@ -1132,7 +1256,7 @@ export type GetSkillVariantResponse = Message<"vrooli.prompt_manager.v1.skills.G
  * Use `create(GetSkillVariantResponseSchema)` to create a new message.
  */
 export const GetSkillVariantResponseSchema: GenMessage<GetSkillVariantResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 32);
+  messageDesc(file_prompt_manager_v1_skills_skills, 35);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.CreateSkillVariantRequest
@@ -1169,7 +1293,7 @@ export type CreateSkillVariantRequest = Message<"vrooli.prompt_manager.v1.skills
  * Use `create(CreateSkillVariantRequestSchema)` to create a new message.
  */
 export const CreateSkillVariantRequestSchema: GenMessage<CreateSkillVariantRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 33);
+  messageDesc(file_prompt_manager_v1_skills_skills, 36);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.CreateSkillVariantResponse
@@ -1186,7 +1310,7 @@ export type CreateSkillVariantResponse = Message<"vrooli.prompt_manager.v1.skill
  * Use `create(CreateSkillVariantResponseSchema)` to create a new message.
  */
 export const CreateSkillVariantResponseSchema: GenMessage<CreateSkillVariantResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 34);
+  messageDesc(file_prompt_manager_v1_skills_skills, 37);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.UpdateSkillVariantRequest
@@ -1223,7 +1347,7 @@ export type UpdateSkillVariantRequest = Message<"vrooli.prompt_manager.v1.skills
  * Use `create(UpdateSkillVariantRequestSchema)` to create a new message.
  */
 export const UpdateSkillVariantRequestSchema: GenMessage<UpdateSkillVariantRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 35);
+  messageDesc(file_prompt_manager_v1_skills_skills, 38);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.UpdateSkillVariantResponse
@@ -1240,7 +1364,7 @@ export type UpdateSkillVariantResponse = Message<"vrooli.prompt_manager.v1.skill
  * Use `create(UpdateSkillVariantResponseSchema)` to create a new message.
  */
 export const UpdateSkillVariantResponseSchema: GenMessage<UpdateSkillVariantResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 36);
+  messageDesc(file_prompt_manager_v1_skills_skills, 39);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.DeleteSkillVariantRequest
@@ -1262,7 +1386,7 @@ export type DeleteSkillVariantRequest = Message<"vrooli.prompt_manager.v1.skills
  * Use `create(DeleteSkillVariantRequestSchema)` to create a new message.
  */
 export const DeleteSkillVariantRequestSchema: GenMessage<DeleteSkillVariantRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 37);
+  messageDesc(file_prompt_manager_v1_skills_skills, 40);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.DeleteSkillVariantResponse
@@ -1289,7 +1413,7 @@ export type DeleteSkillVariantResponse = Message<"vrooli.prompt_manager.v1.skill
  * Use `create(DeleteSkillVariantResponseSchema)` to create a new message.
  */
 export const DeleteSkillVariantResponseSchema: GenMessage<DeleteSkillVariantResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 38);
+  messageDesc(file_prompt_manager_v1_skills_skills, 41);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ImportSkillRequest
@@ -1341,7 +1465,7 @@ export type ImportSkillRequest = Message<"vrooli.prompt_manager.v1.skills.Import
  * Use `create(ImportSkillRequestSchema)` to create a new message.
  */
 export const ImportSkillRequestSchema: GenMessage<ImportSkillRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 39);
+  messageDesc(file_prompt_manager_v1_skills_skills, 42);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ImportSkillResponse
@@ -1383,7 +1507,7 @@ export type ImportSkillResponse = Message<"vrooli.prompt_manager.v1.skills.Impor
  * Use `create(ImportSkillResponseSchema)` to create a new message.
  */
 export const ImportSkillResponseSchema: GenMessage<ImportSkillResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 40);
+  messageDesc(file_prompt_manager_v1_skills_skills, 43);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ReviewImportedSkillRequest
@@ -1410,7 +1534,7 @@ export type ReviewImportedSkillRequest = Message<"vrooli.prompt_manager.v1.skill
  * Use `create(ReviewImportedSkillRequestSchema)` to create a new message.
  */
 export const ReviewImportedSkillRequestSchema: GenMessage<ReviewImportedSkillRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 41);
+  messageDesc(file_prompt_manager_v1_skills_skills, 44);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ReviewImportedSkillResponse
@@ -1447,7 +1571,7 @@ export type ReviewImportedSkillResponse = Message<"vrooli.prompt_manager.v1.skil
  * Use `create(ReviewImportedSkillResponseSchema)` to create a new message.
  */
 export const ReviewImportedSkillResponseSchema: GenMessage<ReviewImportedSkillResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 42);
+  messageDesc(file_prompt_manager_v1_skills_skills, 45);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ReportImportedSkillStalenessRequest
@@ -1469,7 +1593,7 @@ export type ReportImportedSkillStalenessRequest = Message<"vrooli.prompt_manager
  * Use `create(ReportImportedSkillStalenessRequestSchema)` to create a new message.
  */
 export const ReportImportedSkillStalenessRequestSchema: GenMessage<ReportImportedSkillStalenessRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 43);
+  messageDesc(file_prompt_manager_v1_skills_skills, 46);
 
 /**
  * @generated from message vrooli.prompt_manager.v1.skills.ReportImportedSkillStalenessResponse
@@ -1501,12 +1625,20 @@ export type ReportImportedSkillStalenessResponse = Message<"vrooli.prompt_manage
  * Use `create(ReportImportedSkillStalenessResponseSchema)` to create a new message.
  */
 export const ReportImportedSkillStalenessResponseSchema: GenMessage<ReportImportedSkillStalenessResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_skills_skills, 44);
+  messageDesc(file_prompt_manager_v1_skills_skills, 47);
 
 /**
  * @generated from service vrooli.prompt_manager.v1.skills.SkillsService
  */
 export const SkillsService: GenService<{
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.skills.SkillsService.RefreshProjection
+   */
+  refreshProjection: {
+    methodKind: "unary";
+    input: typeof RefreshProjectionRequestSchema;
+    output: typeof RefreshProjectionResponseSchema;
+  },
   /**
    * @generated from rpc vrooli.prompt_manager.v1.skills.SkillsService.ListSkills
    */

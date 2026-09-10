@@ -62,7 +62,7 @@ class ReportCredentialReceiptRequest(_message.Message):
     def __init__(self, receipt: _Optional[_Union[CredentialReceipt, _Mapping]] = ...) -> None: ...
 
 class CredentialReceipt(_message.Message):
-    __slots__ = ("grant_id", "node_id", "logical_id", "field", "generation", "accepted", "reason")
+    __slots__ = ("grant_id", "node_id", "logical_id", "field", "generation", "accepted", "reason", "operation")
     GRANT_ID_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     LOGICAL_ID_FIELD_NUMBER: _ClassVar[int]
@@ -70,6 +70,7 @@ class CredentialReceipt(_message.Message):
     GENERATION_FIELD_NUMBER: _ClassVar[int]
     ACCEPTED_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
     grant_id: str
     node_id: str
     logical_id: str
@@ -77,9 +78,22 @@ class CredentialReceipt(_message.Message):
     generation: int
     accepted: bool
     reason: str
-    def __init__(self, grant_id: _Optional[str] = ..., node_id: _Optional[str] = ..., logical_id: _Optional[str] = ..., field: _Optional[str] = ..., generation: _Optional[int] = ..., accepted: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
+    operation: str
+    def __init__(self, grant_id: _Optional[str] = ..., node_id: _Optional[str] = ..., logical_id: _Optional[str] = ..., field: _Optional[str] = ..., generation: _Optional[int] = ..., accepted: _Optional[bool] = ..., reason: _Optional[str] = ..., operation: _Optional[str] = ...) -> None: ...
 
 class ReportCredentialReceiptResponse(_message.Message):
+    __slots__ = ("accepted",)
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    accepted: bool
+    def __init__(self, accepted: _Optional[bool] = ...) -> None: ...
+
+class ReportArtifactReceiptRequest(_message.Message):
+    __slots__ = ("receipt",)
+    RECEIPT_FIELD_NUMBER: _ClassVar[int]
+    receipt: _shared_pb2.ArtifactReceipt
+    def __init__(self, receipt: _Optional[_Union[_shared_pb2.ArtifactReceipt, _Mapping]] = ...) -> None: ...
+
+class ReportArtifactReceiptResponse(_message.Message):
     __slots__ = ("accepted",)
     ACCEPTED_FIELD_NUMBER: _ClassVar[int]
     accepted: bool
@@ -88,8 +102,8 @@ class ReportCredentialReceiptResponse(_message.Message):
 class ReportScenarioResponseRequest(_message.Message):
     __slots__ = ("response",)
     RESPONSE_FIELD_NUMBER: _ClassVar[int]
-    response: _channel_pb2.ScenarioResponse
-    def __init__(self, response: _Optional[_Union[_channel_pb2.ScenarioResponse, _Mapping]] = ...) -> None: ...
+    response: _shared_pb2.ScenarioResponse
+    def __init__(self, response: _Optional[_Union[_shared_pb2.ScenarioResponse, _Mapping]] = ...) -> None: ...
 
 class ReportScenarioResponseResponse(_message.Message):
     __slots__ = ("accepted",)

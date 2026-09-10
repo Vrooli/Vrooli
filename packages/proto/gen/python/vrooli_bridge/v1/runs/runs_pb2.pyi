@@ -22,6 +22,8 @@ class RunStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_STATUS_PUSHED: _ClassVar[RunStatus]
     RUN_STATUS_ACKED: _ClassVar[RunStatus]
     RUN_STATUS_FAILED_DELIVERY: _ClassVar[RunStatus]
+    RUN_STATUS_CANCEL_REQUESTED: _ClassVar[RunStatus]
+    RUN_STATUS_UNCERTAIN: _ClassVar[RunStatus]
 RUN_STATUS_UNSPECIFIED: RunStatus
 RUN_STATUS_QUEUED: RunStatus
 RUN_STATUS_RUNNING: RunStatus
@@ -31,9 +33,11 @@ RUN_STATUS_ABORTED: RunStatus
 RUN_STATUS_PUSHED: RunStatus
 RUN_STATUS_ACKED: RunStatus
 RUN_STATUS_FAILED_DELIVERY: RunStatus
+RUN_STATUS_CANCEL_REQUESTED: RunStatus
+RUN_STATUS_UNCERTAIN: RunStatus
 
 class Run(_message.Message):
-    __slots__ = ("id", "node_id", "scenario", "verb", "args", "status", "exit_code", "timeout_seconds", "created_at", "started_at", "finished_at", "artifact_refs")
+    __slots__ = ("id", "node_id", "scenario", "verb", "args", "status", "exit_code", "timeout_seconds", "created_at", "started_at", "finished_at", "artifact_refs", "cancel_requested", "cancellation_confirmed", "status_reason")
     ID_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
@@ -46,6 +50,9 @@ class Run(_message.Message):
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     FINISHED_AT_FIELD_NUMBER: _ClassVar[int]
     ARTIFACT_REFS_FIELD_NUMBER: _ClassVar[int]
+    CANCEL_REQUESTED_FIELD_NUMBER: _ClassVar[int]
+    CANCELLATION_CONFIRMED_FIELD_NUMBER: _ClassVar[int]
+    STATUS_REASON_FIELD_NUMBER: _ClassVar[int]
     id: str
     node_id: str
     scenario: str
@@ -58,7 +65,10 @@ class Run(_message.Message):
     started_at: _timestamp_pb2.Timestamp
     finished_at: _timestamp_pb2.Timestamp
     artifact_refs: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., node_id: _Optional[str] = ..., scenario: _Optional[str] = ..., verb: _Optional[str] = ..., args: _Optional[_Iterable[str]] = ..., status: _Optional[_Union[RunStatus, str]] = ..., exit_code: _Optional[int] = ..., timeout_seconds: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., artifact_refs: _Optional[_Iterable[str]] = ...) -> None: ...
+    cancel_requested: bool
+    cancellation_confirmed: bool
+    status_reason: str
+    def __init__(self, id: _Optional[str] = ..., node_id: _Optional[str] = ..., scenario: _Optional[str] = ..., verb: _Optional[str] = ..., args: _Optional[_Iterable[str]] = ..., status: _Optional[_Union[RunStatus, str]] = ..., exit_code: _Optional[int] = ..., timeout_seconds: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., artifact_refs: _Optional[_Iterable[str]] = ..., cancel_requested: _Optional[bool] = ..., cancellation_confirmed: _Optional[bool] = ..., status_reason: _Optional[str] = ...) -> None: ...
 
 class GetRunRequest(_message.Message):
     __slots__ = ("id",)

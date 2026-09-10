@@ -503,6 +503,8 @@ func TestRecordAppliedChanges_AndGetPendingChanges(t *testing.T) {
 		ProjectRoot:       "/proj",
 		ChangeType:        "modified",
 		FileSize:          42,
+		ContentDigest:     "sha256:abc123",
+		EvidenceRevision:  "commit-7",
 		AgentManagerRunID: "run-abc",
 		RunOutcome:        "success",
 		ProvenanceState:   string(types.ProvenanceFileStateApplied),
@@ -521,7 +523,7 @@ func TestRecordAppliedChanges_AndGetPendingChanges(t *testing.T) {
 		t.Fatalf("expected 1 pending file, got %d", len(files))
 	}
 	got := files[0]
-	if got.RunOutcome != "success" || got.ConversationID != "conv-xyz" || got.CostUSD != 0.42 {
+	if got.RunOutcome != "success" || got.ConversationID != "conv-xyz" || got.CostUSD != 0.42 || got.ContentDigest != "sha256:abc123" || got.EvidenceRevision != "commit-7" {
 		t.Errorf("provenance fields not round-tripped: %+v", got)
 	}
 
@@ -534,6 +536,17 @@ func TestRecordAppliedChanges_AndGetPendingChanges(t *testing.T) {
 	}
 	if len(groups[0].Files) != 1 || groups[0].Files[0].State != types.ProvenanceFileStateApplied {
 		t.Errorf("file state mismatch: %v", groups[0].Files)
+	}
+	commitAt := time.Now().UTC()
+	if err := repo.MarkChangesCommitted(ctx, []uuid.UUID{c.ID}, "commit-abc", "historical provenance test"); err != nil {
+		t.Fatalf("MarkChangesCommitted: %v", err)
+	}
+	history, err := repo.GetPendingChangesByRun(ctx, "/proj")
+	if err != nil || len(history) != 1 || len(history[0].Files) != 1 {
+		t.Fatalf("committed provenance disappeared from historical read: err=%v groups=%+v", err, history)
+	}
+	if history[0].Files[0].CommitHash != "commit-abc" || history[0].Files[0].CommittedAt == nil || history[0].Files[0].CommittedAt.Before(commitAt) {
+		t.Fatalf("committed provenance fields missing: %+v", history[0].Files[0])
 	}
 }
 

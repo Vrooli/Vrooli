@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"test-genie/internal/execution"
@@ -29,6 +30,8 @@ type ContentIdentityResolver struct {
 	planner     execution.ExecutionPlanner
 }
 
+const buildInputResolveWorkers = 4
+
 // WithExecutionPlanner resolves effective phase descriptors and configuration
 // through the same owner used to start suite children.
 func (r *ContentIdentityResolver) WithExecutionPlanner(planner execution.ExecutionPlanner) *ContentIdentityResolver {
@@ -42,7 +45,12 @@ func (r *ContentIdentityResolver) WithExecutionPlanner(planner execution.Executi
 // a scenario or stamps a build manifest.
 func (r *ContentIdentityResolver) WithControlPlaneInputs() *ContentIdentityResolver {
 	r.buildInputs = func(ctx context.Context, scenario string) (*cliv1.ScenarioFreshnessInputs, error) {
-		ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
+		// Authoritative input expansion can walk a large scenario's declared
+		// build closure. Keep the resolver bounded, but allow that existing
+		// control-plane operation enough time to complete under a busy shared
+		// workspace; timing out here incorrectly turns valid evidence into an
+		// unresolved-input receipt.
+		ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "freshness", scenario, "--inputs", "--json")
 		cmd.Dir = r.repoRoot
@@ -127,6 +135,7 @@ func (r *ContentIdentityResolver) Resolve(ctx context.Context, intent *validatio
 			}
 		}
 		seen := map[string]bool{}
+		var targetNames []string
 		for _, target := range intent.GetTargets() {
 			if target.GetKind() != commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO || seen[target.GetId()] {
 				continue
@@ -136,10 +145,20 @@ func (r *ContentIdentityResolver) Resolve(ctx context.Context, intent *validatio
 				return nil, fmt.Errorf("invalid scenario input target %q", name)
 			}
 			seen[name] = true
-			inputs, err := r.buildInputs(ctx, name)
-			if err != nil {
-				return nil, err
-			}
+			targetNames = append(targetNames, name)
+		}
+		// Freshness input expansion is an owner read, but it can take several
+		// seconds per scenario because it crosses the lifecycle/build graph.
+		// Resolve a bounded number concurrently so a certification intent over
+		// the complete affected collection does not serialize into the client
+		// deadline. Results remain indexed by targetNames, preserving the
+		// deterministic manifest/toolchain order below.
+		inputsByTarget, err := r.resolveBuildInputs(ctx, targetNames)
+		if err != nil {
+			return nil, err
+		}
+		for index, name := range targetNames {
+			inputs := inputsByTarget[index]
 			root := treedigest.RootSpec{Name: "build-inputs/" + name, Path: r.repoRoot}
 			for _, input := range inputs.GetPaths() {
 				path := filepath.Clean(filepath.FromSlash(input))
@@ -171,6 +190,67 @@ func (r *ContentIdentityResolver) Resolve(ctx context.Context, intent *validatio
 		identity.Roots = append(identity.Roots, frozen)
 	}
 	return identity, nil
+}
+
+func (r *ContentIdentityResolver) resolveBuildInputs(ctx context.Context, targetNames []string) ([]*cliv1.ScenarioFreshnessInputs, error) {
+	if len(targetNames) == 0 {
+		return nil, nil
+	}
+	workerCount := buildInputResolveWorkers
+	if len(targetNames) < workerCount {
+		workerCount = len(targetNames)
+	}
+	inputCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	results := make([]*cliv1.ScenarioFreshnessInputs, len(targetNames))
+	jobs := make(chan int)
+	errs := make(chan error, 1)
+	var workers sync.WaitGroup
+	for worker := 0; worker < workerCount; worker++ {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			for {
+				select {
+				case <-inputCtx.Done():
+					return
+				case index, ok := <-jobs:
+					if !ok {
+						return
+					}
+					inputs, err := r.buildInputs(inputCtx, targetNames[index])
+					if err != nil {
+						select {
+						case errs <- fmt.Errorf("control-plane input resolution for %s: %w", targetNames[index], err):
+						default:
+						}
+						cancel()
+						return
+					}
+					results[index] = inputs
+				}
+			}
+		}()
+	}
+sendJobs:
+	for index := range targetNames {
+		select {
+		case jobs <- index:
+		case <-inputCtx.Done():
+			break sendJobs
+		}
+	}
+	close(jobs)
+	workers.Wait()
+	select {
+	case err := <-errs:
+		return nil, err
+	default:
+	}
+	if err := inputCtx.Err(); err != nil && ctx.Err() != nil {
+		return nil, err
+	}
+	return results, nil
 }
 
 func (r *ContentIdentityResolver) resolveRoot(input *validationv1.ContentInputRoot) (treedigest.RootSpec, error) {

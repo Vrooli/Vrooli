@@ -165,6 +165,9 @@ func newCopyE2E(t *testing.T) *copyE2E {
 	drv := forceCopyDriver(t, baseDir, starter)
 
 	sqliteDB := db.NewSQLite(t)
+	if err := repository.EnsureSchema(context.Background(), sqliteDB, clk); err != nil {
+		t.Fatalf("repository.EnsureSchema: %v", err)
+	}
 	repo := repository.NewSandboxRepository(sqliteDB, clk)
 	archiveRepo := repository.NewArchiveRepository(sqliteDB, clk)
 

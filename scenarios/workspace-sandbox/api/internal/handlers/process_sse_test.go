@@ -43,11 +43,11 @@ import (
 	"workspace-sandbox/internal/handlers"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/sse"
+	"workspace-sandbox/internal/testutil/assertx"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
 	"workspace-sandbox/internal/types"
 
-	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
@@ -126,8 +126,8 @@ func newSSEFixture(t *testing.T) *sseFixture {
 // streamURL builds the canonical /processes/{pid}/logs/stream URL
 // for this fixture's sandbox + PID, requesting stdout.
 func (f *sseFixture) streamURL() string {
-	return f.live.URL("/api/v1/sandboxes/" + f.id.String() +
-		"/processes/" + intToStr(f.pid) + "/logs/stream?stream=stdout")
+	return "/api/v1/sandboxes/" + f.id.String() +
+		"/processes/" + intToStr(f.pid) + "/logs/stream?stream=stdout"
 }
 
 // markExited writes the exit footer + closes the writer (so
@@ -269,7 +269,7 @@ func TestStreamProcessLogs_SlowExit(t *testing.T) {
 	}
 	resCh := make(chan result, 1)
 	go func() {
-		req, _ := http.NewRequest("GET", f.streamURL(), nil)
+		req, _ := http.NewRequest("GET", f.live.URL+f.streamURL(), nil)
 		resp, err := f.live.Client.Do(req)
 		if err != nil {
 			resCh <- result{err: err}
@@ -359,7 +359,7 @@ func TestStreamProcessLogs_FrameOrderingInvariant(t *testing.T) {
 
 			// Spec: every successful run ends with `end`, and `end`
 			// is preceded by `exit`.
-			apihttptest.AssertSSEFrameSequence(t, last2(frames), []apihttptest.FrameSpec{
+			assertx.AssertSSEFrameSequence(t, last2(frames), []assertx.FrameSpec{
 				{Event: "exit"},
 				{Event: "end"},
 			})
@@ -391,7 +391,7 @@ func TestStreamProcessLogs_MultiSubscriberFanout(t *testing.T) {
 	}
 	resCh := make(chan clientResult, 2)
 	startReq := func() {
-		req, _ := http.NewRequest("GET", f.streamURL(), nil)
+		req, _ := http.NewRequest("GET", f.live.URL+f.streamURL(), nil)
 		resp, err := f.live.Client.Do(req)
 		if err != nil {
 			resCh <- clientResult{err: err}
@@ -469,7 +469,7 @@ func TestStreamProcessLogs_ClientDisconnectMidStream(t *testing.T) {
 	}
 	resCh := make(chan clientResult, 1)
 	go func() {
-		req, err := http.NewRequestWithContext(ctx, "GET", f.streamURL(), nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", f.live.URL+f.streamURL(), nil)
 		if err != nil {
 			resCh <- clientResult{err: err}
 			return

@@ -39,7 +39,7 @@ COMPLETION_EVENT_KIND_DONE: CompletionEventKind
 COMPLETION_EVENT_KIND_ERROR: CompletionEventKind
 
 class Message(_message.Message):
-    __slots__ = ("id", "chat_id", "parent_message_id", "sibling_index", "role", "content", "model", "created_at", "updated_at", "search_attachments", "context_document_ids")
+    __slots__ = ("id", "chat_id", "parent_message_id", "sibling_index", "role", "content", "model", "created_at", "updated_at", "search_attachments", "context_document_ids", "brief_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     CHAT_ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -51,6 +51,7 @@ class Message(_message.Message):
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     SEARCH_ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_DOCUMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    BRIEF_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     chat_id: str
     parent_message_id: str
@@ -62,7 +63,8 @@ class Message(_message.Message):
     updated_at: str
     search_attachments: _containers.RepeatedCompositeFieldContainer[SearchAttachment]
     context_document_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., chat_id: _Optional[str] = ..., parent_message_id: _Optional[str] = ..., sibling_index: _Optional[int] = ..., role: _Optional[_Union[MessageRole, str]] = ..., content: _Optional[str] = ..., model: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., search_attachments: _Optional[_Iterable[_Union[SearchAttachment, _Mapping]]] = ..., context_document_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+    brief_id: str
+    def __init__(self, id: _Optional[str] = ..., chat_id: _Optional[str] = ..., parent_message_id: _Optional[str] = ..., sibling_index: _Optional[int] = ..., role: _Optional[_Union[MessageRole, str]] = ..., content: _Optional[str] = ..., model: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., search_attachments: _Optional[_Iterable[_Union[SearchAttachment, _Mapping]]] = ..., context_document_ids: _Optional[_Iterable[str]] = ..., brief_id: _Optional[str] = ...) -> None: ...
 
 class SearchAttachment(_message.Message):
     __slots__ = ("id", "query", "hits", "degraded", "reason", "latency_ms", "created_at")

@@ -209,6 +209,10 @@ message CreateCheckoutSessionRequest {
   string utm_campaign = 11;
   string referrer_kind = 12;
   string country_code = 13;
+  // LPBS business account receiving this purchase. When set, the caller must
+  // be an authenticated member of the account; email is never sufficient to
+  // select a commercial account.
+  string business_account_id = 14;
 }
 
 // CreateCheckoutSessionResponse returns the created checkout session.

@@ -471,4 +471,10 @@ message NativeExtension {
   repeated string platforms = 4;
   // Version 2 global activation; requires global-shortcut permission.
   string activation_shortcut = 5;
+  repeated HelperProvider helper_providers = 6;
+}
+
+message HelperProvider {
+  string owner = 1;
+  string capability = 2;
 }

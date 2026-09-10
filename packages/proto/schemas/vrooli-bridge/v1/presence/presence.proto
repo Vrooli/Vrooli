@@ -48,6 +48,10 @@ service PresenceService {
   // request carries metadata only; credential values never cross this RPC.
   rpc ReportCredentialReceipt(ReportCredentialReceiptRequest) returns (ReportCredentialReceiptResponse);
 
+  // ReportArtifactReceipt confirms or rejects target-node placement after the
+  // agent has pulled and atomically installed a directed artifact.
+  rpc ReportArtifactReceipt(ReportArtifactReceiptRequest) returns (ReportArtifactReceiptResponse);
+
   // ReportScenarioResponse returns the bounded response from a node-local
   // scenario API for a control-plane proxied request.
   rpc ReportScenarioResponse(ReportScenarioResponseRequest) returns (ReportScenarioResponseResponse);
@@ -100,14 +104,23 @@ message CredentialReceipt {
   int64 generation = 5;
   bool accepted = 6;
   string reason = 7;
+  string operation = 8;
 }
 
 message ReportCredentialReceiptResponse {
   bool accepted = 1;
 }
 
+message ReportArtifactReceiptRequest {
+  vrooli.vrooli_bridge.v1.shared.ArtifactReceipt receipt = 1;
+}
+
+message ReportArtifactReceiptResponse {
+  bool accepted = 1;
+}
+
 message ReportScenarioResponseRequest {
-  vrooli.vrooli_bridge.v1.channel.ScenarioResponse response = 1;
+  vrooli.vrooli_bridge.v1.shared.ScenarioResponse response = 1;
 }
 
 message ReportScenarioResponseResponse {

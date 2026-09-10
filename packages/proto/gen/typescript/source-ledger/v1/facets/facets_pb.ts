@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file source-ledger/v1/facets/facets.proto.
  */
 export const file_source_ledger_v1_facets_facets: GenFile = /*@__PURE__*/
-  fileDesc("CiRzb3VyY2UtbGVkZ2VyL3YxL2ZhY2V0cy9mYWNldHMucHJvdG8SHnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cyKEAQoFRmFjZXQSCgoCaWQYASABKAkSDQoFbGFiZWwYAiABKAkSGAoQcmV0ZW50aW9uX3BvbGljeRgDIAEoCRIQCghndWlkYW5jZRgEIAEoCRIbChNjb21wYWN0aW9uX2VsaWdpYmxlGAUgASgIEhcKD3Jlc2lkZW50X2J1ZGdldBgGIAEoBSI/CgtQaW5Qcm9wb3NhbBIKCgJpZBgBIAEoCRIRCgllbnRyeV9pZHMYAiADKAkSEQoJcmF0aW9uYWxlGAMgASgJIiIKEUxpc3RGYWNldHNSZXF1ZXN0Eg0KBXNjb3BlGAEgASgJIksKEkxpc3RGYWNldHNSZXNwb25zZRI1CgZmYWNldHMYASADKAsyJS52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuRmFjZXQiiAEKFVNldEZhY2V0UG9saWN5UmVxdWVzdBINCgVzY29wZRgBIAEoCRIQCghmYWNldF9pZBgCIAEoCRIYChByZXRlbnRpb25fcG9saWN5GAMgASgJEhsKE2NvbXBhY3Rpb25fZWxpZ2libGUYBCABKAgSFwoPcmVzaWRlbnRfYnVkZ2V0GAUgASgFIk4KFlNldEZhY2V0UG9saWN5UmVzcG9uc2USNAoFZmFjZXQYASABKAsyJS52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuRmFjZXQiRwoSQXNzaWduRmFjZXRSZXF1ZXN0EhAKCGVudHJ5X2lkGAEgASgJEhAKCGZhY2V0X2lkGAIgASgJEg0KBXNjb3BlGAMgASgJIhUKE0Fzc2lnbkZhY2V0UmVzcG9uc2UiQAoNU2V0UGluUmVxdWVzdBIQCghlbnRyeV9pZBgBIAEoCRIOCgZwaW5uZWQYAiABKAgSDQoFc2NvcGUYAyABKAkiEAoOU2V0UGluUmVzcG9uc2UiKAoXTGlzdFBpblByb3Bvc2Fsc1JlcXVlc3QSDQoFc2NvcGUYASABKAkiWgoYTGlzdFBpblByb3Bvc2Fsc1Jlc3BvbnNlEj4KCXByb3Bvc2FscxgBIAMoCzIrLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5QaW5Qcm9wb3NhbCJyCgxQaW5DYW5kaWRhdGUSEAoIZW50cnlfaWQYASABKAkSDAoEYm9keRgCIAEoCRIUCgxyZWNhbGxfY291bnQYAyABKAUSEgoKY3JlYXRlZF9hdBgEIAEoCRIYChBsYXN0X3JlY2FsbGVkX2F0GAUgASgJIjgKGExpc3RQaW5DYW5kaWRhdGVzUmVxdWVzdBINCgVsaW1pdBgBIAEoBRINCgVzY29wZRgCIAEoCSJdChlMaXN0UGluQ2FuZGlkYXRlc1Jlc3BvbnNlEkAKCmNhbmRpZGF0ZXMYASADKAsyLC52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuUGluQ2FuZGlkYXRlIk8KGVJlc29sdmVQaW5Qcm9wb3NhbFJlcXVlc3QSEwoLcHJvcG9zYWxfaWQYASABKAkSDgoGYWNjZXB0GAIgASgIEg0KBXNjb3BlGAMgASgJIhwKGlJlc29sdmVQaW5Qcm9wb3NhbFJlc3BvbnNlIlYKFU1hcmtTdXBlcnNlZGVkUmVxdWVzdBIQCghlbnRyeV9pZBgBIAEoCRIcChRyZXBsYWNlbWVudF9lbnRyeV9pZBgCIAEoCRINCgVzY29wZRgDIAEoCSIYChZNYXJrU3VwZXJzZWRlZFJlc3BvbnNlIjcKFFJlc29sdmVUaHJlYWRSZXF1ZXN0EhAKCGVudHJ5X2lkGAEgASgJEg0KBXNjb3BlGAIgASgJIhcKFVJlc29sdmVUaHJlYWRSZXNwb25zZTKGCQoNRmFjZXRzU2VydmljZRJzCgpMaXN0RmFjZXRzEjEudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuZmFjZXRzLkxpc3RGYWNldHNSZXF1ZXN0GjIudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuZmFjZXRzLkxpc3RGYWNldHNSZXNwb25zZRJ/Cg5TZXRGYWNldFBvbGljeRI1LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5TZXRGYWNldFBvbGljeVJlcXVlc3QaNi52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuU2V0RmFjZXRQb2xpY3lSZXNwb25zZRJ2CgtBc3NpZ25GYWNldBIyLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5Bc3NpZ25GYWNldFJlcXVlc3QaMy52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuQXNzaWduRmFjZXRSZXNwb25zZRJnCgZTZXRQaW4SLS52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuU2V0UGluUmVxdWVzdBouLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5TZXRQaW5SZXNwb25zZRKFAQoQTGlzdFBpblByb3Bvc2FscxI3LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5MaXN0UGluUHJvcG9zYWxzUmVxdWVzdBo4LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5MaXN0UGluUHJvcG9zYWxzUmVzcG9uc2USiAEKEUxpc3RQaW5DYW5kaWRhdGVzEjgudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuZmFjZXRzLkxpc3RQaW5DYW5kaWRhdGVzUmVxdWVzdBo5LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5MaXN0UGluQ2FuZGlkYXRlc1Jlc3BvbnNlEosBChJSZXNvbHZlUGluUHJvcG9zYWwSOS52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuUmVzb2x2ZVBpblByb3Bvc2FsUmVxdWVzdBo6LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5SZXNvbHZlUGluUHJvcG9zYWxSZXNwb25zZRJ/Cg5NYXJrU3VwZXJzZWRlZBI1LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5NYXJrU3VwZXJzZWRlZFJlcXVlc3QaNi52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuTWFya1N1cGVyc2VkZWRSZXNwb25zZRJ8Cg1SZXNvbHZlVGhyZWFkEjQudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuZmFjZXRzLlJlc29sdmVUaHJlYWRSZXF1ZXN0GjUudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuZmFjZXRzLlJlc29sdmVUaHJlYWRSZXNwb25zZUJSWlBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NvdXJjZS1sZWRnZXIvdjEvZmFjZXRzO2ZhY2V0c192MWIGcHJvdG8z");
+  fileDesc("CiRzb3VyY2UtbGVkZ2VyL3YxL2ZhY2V0cy9mYWNldHMucHJvdG8SHnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cyKEAQoFRmFjZXQSCgoCaWQYASABKAkSDQoFbGFiZWwYAiABKAkSGAoQcmV0ZW50aW9uX3BvbGljeRgDIAEoCRIQCghndWlkYW5jZRgEIAEoCRIbChNjb21wYWN0aW9uX2VsaWdpYmxlGAUgASgIEhcKD3Jlc2lkZW50X2J1ZGdldBgGIAEoBSI/CgtQaW5Qcm9wb3NhbBIKCgJpZBgBIAEoCRIRCgllbnRyeV9pZHMYAiADKAkSEQoJcmF0aW9uYWxlGAMgASgJIiIKEUxpc3RGYWNldHNSZXF1ZXN0Eg0KBXNjb3BlGAEgASgJIksKEkxpc3RGYWNldHNSZXNwb25zZRI1CgZmYWNldHMYASADKAsyJS52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuRmFjZXQiJwoWQ291bnRVbmFzc2lnbmVkUmVxdWVzdBINCgVzY29wZRgBIAEoCSI3ChdDb3VudFVuYXNzaWduZWRSZXNwb25zZRINCgVzY29wZRgBIAEoCRINCgVjb3VudBgCIAEoBSJZChJFbnN1cmVGYWNldFJlcXVlc3QSDQoFc2NvcGUYASABKAkSNAoFZmFjZXQYAiABKAsyJS52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuRmFjZXQiSwoTRW5zdXJlRmFjZXRSZXNwb25zZRI0CgVmYWNldBgBIAEoCzIlLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5GYWNldCI1ChJEZWxldGVGYWNldFJlcXVlc3QSDQoFc2NvcGUYASABKAkSEAoIZmFjZXRfaWQYAiABKAkiFQoTRGVsZXRlRmFjZXRSZXNwb25zZSKIAQoVU2V0RmFjZXRQb2xpY3lSZXF1ZXN0Eg0KBXNjb3BlGAEgASgJEhAKCGZhY2V0X2lkGAIgASgJEhgKEHJldGVudGlvbl9wb2xpY3kYAyABKAkSGwoTY29tcGFjdGlvbl9lbGlnaWJsZRgEIAEoCBIXCg9yZXNpZGVudF9idWRnZXQYBSABKAUiTgoWU2V0RmFjZXRQb2xpY3lSZXNwb25zZRI0CgVmYWNldBgBIAEoCzIlLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5GYWNldCJHChJBc3NpZ25GYWNldFJlcXVlc3QSEAoIZW50cnlfaWQYASABKAkSEAoIZmFjZXRfaWQYAiABKAkSDQoFc2NvcGUYAyABKAkiFQoTQXNzaWduRmFjZXRSZXNwb25zZSJACg1TZXRQaW5SZXF1ZXN0EhAKCGVudHJ5X2lkGAEgASgJEg4KBnBpbm5lZBgCIAEoCBINCgVzY29wZRgDIAEoCSIQCg5TZXRQaW5SZXNwb25zZSIoChdMaXN0UGluUHJvcG9zYWxzUmVxdWVzdBINCgVzY29wZRgBIAEoCSJaChhMaXN0UGluUHJvcG9zYWxzUmVzcG9uc2USPgoJcHJvcG9zYWxzGAEgAygLMisudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuZmFjZXRzLlBpblByb3Bvc2FsInIKDFBpbkNhbmRpZGF0ZRIQCghlbnRyeV9pZBgBIAEoCRIMCgRib2R5GAIgASgJEhQKDHJlY2FsbF9jb3VudBgDIAEoBRISCgpjcmVhdGVkX2F0GAQgASgJEhgKEGxhc3RfcmVjYWxsZWRfYXQYBSABKAkiOAoYTGlzdFBpbkNhbmRpZGF0ZXNSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEg0KBXNjb3BlGAIgASgJIl0KGUxpc3RQaW5DYW5kaWRhdGVzUmVzcG9uc2USQAoKY2FuZGlkYXRlcxgBIAMoCzIsLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5QaW5DYW5kaWRhdGUiTwoZUmVzb2x2ZVBpblByb3Bvc2FsUmVxdWVzdBITCgtwcm9wb3NhbF9pZBgBIAEoCRIOCgZhY2NlcHQYAiABKAgSDQoFc2NvcGUYAyABKAkiHAoaUmVzb2x2ZVBpblByb3Bvc2FsUmVzcG9uc2UiVgoVTWFya1N1cGVyc2VkZWRSZXF1ZXN0EhAKCGVudHJ5X2lkGAEgASgJEhwKFHJlcGxhY2VtZW50X2VudHJ5X2lkGAIgASgJEg0KBXNjb3BlGAMgASgJIhgKFk1hcmtTdXBlcnNlZGVkUmVzcG9uc2UiNwoUUmVzb2x2ZVRocmVhZFJlcXVlc3QSEAoIZW50cnlfaWQYASABKAkSDQoFc2NvcGUYAiABKAkiFwoVUmVzb2x2ZVRocmVhZFJlc3BvbnNlMvsLCg1GYWNldHNTZXJ2aWNlEnMKCkxpc3RGYWNldHMSMS52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuTGlzdEZhY2V0c1JlcXVlc3QaMi52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuTGlzdEZhY2V0c1Jlc3BvbnNlEoIBCg9Db3VudFVuYXNzaWduZWQSNi52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuQ291bnRVbmFzc2lnbmVkUmVxdWVzdBo3LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5Db3VudFVuYXNzaWduZWRSZXNwb25zZRJ2CgtFbnN1cmVGYWNldBIyLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5FbnN1cmVGYWNldFJlcXVlc3QaMy52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuRW5zdXJlRmFjZXRSZXNwb25zZRJ2CgtEZWxldGVGYWNldBIyLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5EZWxldGVGYWNldFJlcXVlc3QaMy52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuRGVsZXRlRmFjZXRSZXNwb25zZRJ/Cg5TZXRGYWNldFBvbGljeRI1LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5TZXRGYWNldFBvbGljeVJlcXVlc3QaNi52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuU2V0RmFjZXRQb2xpY3lSZXNwb25zZRJ2CgtBc3NpZ25GYWNldBIyLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5Bc3NpZ25GYWNldFJlcXVlc3QaMy52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuQXNzaWduRmFjZXRSZXNwb25zZRJnCgZTZXRQaW4SLS52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuU2V0UGluUmVxdWVzdBouLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5TZXRQaW5SZXNwb25zZRKFAQoQTGlzdFBpblByb3Bvc2FscxI3LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5MaXN0UGluUHJvcG9zYWxzUmVxdWVzdBo4LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5MaXN0UGluUHJvcG9zYWxzUmVzcG9uc2USiAEKEUxpc3RQaW5DYW5kaWRhdGVzEjgudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuZmFjZXRzLkxpc3RQaW5DYW5kaWRhdGVzUmVxdWVzdBo5LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5MaXN0UGluQ2FuZGlkYXRlc1Jlc3BvbnNlEosBChJSZXNvbHZlUGluUHJvcG9zYWwSOS52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuUmVzb2x2ZVBpblByb3Bvc2FsUmVxdWVzdBo6LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5SZXNvbHZlUGluUHJvcG9zYWxSZXNwb25zZRJ/Cg5NYXJrU3VwZXJzZWRlZBI1LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmZhY2V0cy5NYXJrU3VwZXJzZWRlZFJlcXVlc3QaNi52cm9vbGkuc291cmNlX2xlZGdlci52MS5mYWNldHMuTWFya1N1cGVyc2VkZWRSZXNwb25zZRJ8Cg1SZXNvbHZlVGhyZWFkEjQudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuZmFjZXRzLlJlc29sdmVUaHJlYWRSZXF1ZXN0GjUudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuZmFjZXRzLlJlc29sdmVUaHJlYWRSZXNwb25zZUJSWlBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NvdXJjZS1sZWRnZXIvdjEvZmFjZXRzO2ZhY2V0c192MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.Facet
@@ -116,6 +116,119 @@ export const ListFacetsResponseSchema: GenMessage<ListFacetsResponse> = /*@__PUR
   messageDesc(file_source_ledger_v1_facets_facets, 3);
 
 /**
+ * @generated from message vrooli.source_ledger.v1.facets.CountUnassignedRequest
+ */
+export type CountUnassignedRequest = Message<"vrooli.source_ledger.v1.facets.CountUnassignedRequest"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.facets.CountUnassignedRequest.
+ * Use `create(CountUnassignedRequestSchema)` to create a new message.
+ */
+export const CountUnassignedRequestSchema: GenMessage<CountUnassignedRequest> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_facets_facets, 4);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.facets.CountUnassignedResponse
+ */
+export type CountUnassignedResponse = Message<"vrooli.source_ledger.v1.facets.CountUnassignedResponse"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
+
+  /**
+   * @generated from field: int32 count = 2;
+   */
+  count: number;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.facets.CountUnassignedResponse.
+ * Use `create(CountUnassignedResponseSchema)` to create a new message.
+ */
+export const CountUnassignedResponseSchema: GenMessage<CountUnassignedResponse> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_facets_facets, 5);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.facets.EnsureFacetRequest
+ */
+export type EnsureFacetRequest = Message<"vrooli.source_ledger.v1.facets.EnsureFacetRequest"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
+
+  /**
+   * @generated from field: vrooli.source_ledger.v1.facets.Facet facet = 2;
+   */
+  facet?: Facet | undefined;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.facets.EnsureFacetRequest.
+ * Use `create(EnsureFacetRequestSchema)` to create a new message.
+ */
+export const EnsureFacetRequestSchema: GenMessage<EnsureFacetRequest> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_facets_facets, 6);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.facets.EnsureFacetResponse
+ */
+export type EnsureFacetResponse = Message<"vrooli.source_ledger.v1.facets.EnsureFacetResponse"> & {
+  /**
+   * @generated from field: vrooli.source_ledger.v1.facets.Facet facet = 1;
+   */
+  facet?: Facet | undefined;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.facets.EnsureFacetResponse.
+ * Use `create(EnsureFacetResponseSchema)` to create a new message.
+ */
+export const EnsureFacetResponseSchema: GenMessage<EnsureFacetResponse> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_facets_facets, 7);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.facets.DeleteFacetRequest
+ */
+export type DeleteFacetRequest = Message<"vrooli.source_ledger.v1.facets.DeleteFacetRequest"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
+
+  /**
+   * @generated from field: string facet_id = 2;
+   */
+  facetId: string;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.facets.DeleteFacetRequest.
+ * Use `create(DeleteFacetRequestSchema)` to create a new message.
+ */
+export const DeleteFacetRequestSchema: GenMessage<DeleteFacetRequest> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_facets_facets, 8);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.facets.DeleteFacetResponse
+ */
+export type DeleteFacetResponse = Message<"vrooli.source_ledger.v1.facets.DeleteFacetResponse"> & {
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.facets.DeleteFacetResponse.
+ * Use `create(DeleteFacetResponseSchema)` to create a new message.
+ */
+export const DeleteFacetResponseSchema: GenMessage<DeleteFacetResponse> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_facets_facets, 9);
+
+/**
  * @generated from message vrooli.source_ledger.v1.facets.SetFacetPolicyRequest
  */
 export type SetFacetPolicyRequest = Message<"vrooli.source_ledger.v1.facets.SetFacetPolicyRequest"> & {
@@ -150,7 +263,7 @@ export type SetFacetPolicyRequest = Message<"vrooli.source_ledger.v1.facets.SetF
  * Use `create(SetFacetPolicyRequestSchema)` to create a new message.
  */
 export const SetFacetPolicyRequestSchema: GenMessage<SetFacetPolicyRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 4);
+  messageDesc(file_source_ledger_v1_facets_facets, 10);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.SetFacetPolicyResponse
@@ -167,7 +280,7 @@ export type SetFacetPolicyResponse = Message<"vrooli.source_ledger.v1.facets.Set
  * Use `create(SetFacetPolicyResponseSchema)` to create a new message.
  */
 export const SetFacetPolicyResponseSchema: GenMessage<SetFacetPolicyResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 5);
+  messageDesc(file_source_ledger_v1_facets_facets, 11);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.AssignFacetRequest
@@ -194,7 +307,7 @@ export type AssignFacetRequest = Message<"vrooli.source_ledger.v1.facets.AssignF
  * Use `create(AssignFacetRequestSchema)` to create a new message.
  */
 export const AssignFacetRequestSchema: GenMessage<AssignFacetRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 6);
+  messageDesc(file_source_ledger_v1_facets_facets, 12);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.AssignFacetResponse
@@ -207,7 +320,7 @@ export type AssignFacetResponse = Message<"vrooli.source_ledger.v1.facets.Assign
  * Use `create(AssignFacetResponseSchema)` to create a new message.
  */
 export const AssignFacetResponseSchema: GenMessage<AssignFacetResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 7);
+  messageDesc(file_source_ledger_v1_facets_facets, 13);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.SetPinRequest
@@ -234,7 +347,7 @@ export type SetPinRequest = Message<"vrooli.source_ledger.v1.facets.SetPinReques
  * Use `create(SetPinRequestSchema)` to create a new message.
  */
 export const SetPinRequestSchema: GenMessage<SetPinRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 8);
+  messageDesc(file_source_ledger_v1_facets_facets, 14);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.SetPinResponse
@@ -247,7 +360,7 @@ export type SetPinResponse = Message<"vrooli.source_ledger.v1.facets.SetPinRespo
  * Use `create(SetPinResponseSchema)` to create a new message.
  */
 export const SetPinResponseSchema: GenMessage<SetPinResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 9);
+  messageDesc(file_source_ledger_v1_facets_facets, 15);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.ListPinProposalsRequest
@@ -264,7 +377,7 @@ export type ListPinProposalsRequest = Message<"vrooli.source_ledger.v1.facets.Li
  * Use `create(ListPinProposalsRequestSchema)` to create a new message.
  */
 export const ListPinProposalsRequestSchema: GenMessage<ListPinProposalsRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 10);
+  messageDesc(file_source_ledger_v1_facets_facets, 16);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.ListPinProposalsResponse
@@ -281,7 +394,7 @@ export type ListPinProposalsResponse = Message<"vrooli.source_ledger.v1.facets.L
  * Use `create(ListPinProposalsResponseSchema)` to create a new message.
  */
 export const ListPinProposalsResponseSchema: GenMessage<ListPinProposalsResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 11);
+  messageDesc(file_source_ledger_v1_facets_facets, 17);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.PinCandidate
@@ -318,7 +431,7 @@ export type PinCandidate = Message<"vrooli.source_ledger.v1.facets.PinCandidate"
  * Use `create(PinCandidateSchema)` to create a new message.
  */
 export const PinCandidateSchema: GenMessage<PinCandidate> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 12);
+  messageDesc(file_source_ledger_v1_facets_facets, 18);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.ListPinCandidatesRequest
@@ -340,7 +453,7 @@ export type ListPinCandidatesRequest = Message<"vrooli.source_ledger.v1.facets.L
  * Use `create(ListPinCandidatesRequestSchema)` to create a new message.
  */
 export const ListPinCandidatesRequestSchema: GenMessage<ListPinCandidatesRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 13);
+  messageDesc(file_source_ledger_v1_facets_facets, 19);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.ListPinCandidatesResponse
@@ -357,7 +470,7 @@ export type ListPinCandidatesResponse = Message<"vrooli.source_ledger.v1.facets.
  * Use `create(ListPinCandidatesResponseSchema)` to create a new message.
  */
 export const ListPinCandidatesResponseSchema: GenMessage<ListPinCandidatesResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 14);
+  messageDesc(file_source_ledger_v1_facets_facets, 20);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.ResolvePinProposalRequest
@@ -384,7 +497,7 @@ export type ResolvePinProposalRequest = Message<"vrooli.source_ledger.v1.facets.
  * Use `create(ResolvePinProposalRequestSchema)` to create a new message.
  */
 export const ResolvePinProposalRequestSchema: GenMessage<ResolvePinProposalRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 15);
+  messageDesc(file_source_ledger_v1_facets_facets, 21);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.ResolvePinProposalResponse
@@ -397,7 +510,7 @@ export type ResolvePinProposalResponse = Message<"vrooli.source_ledger.v1.facets
  * Use `create(ResolvePinProposalResponseSchema)` to create a new message.
  */
 export const ResolvePinProposalResponseSchema: GenMessage<ResolvePinProposalResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 16);
+  messageDesc(file_source_ledger_v1_facets_facets, 22);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.MarkSupersededRequest
@@ -424,7 +537,7 @@ export type MarkSupersededRequest = Message<"vrooli.source_ledger.v1.facets.Mark
  * Use `create(MarkSupersededRequestSchema)` to create a new message.
  */
 export const MarkSupersededRequestSchema: GenMessage<MarkSupersededRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 17);
+  messageDesc(file_source_ledger_v1_facets_facets, 23);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.MarkSupersededResponse
@@ -437,7 +550,7 @@ export type MarkSupersededResponse = Message<"vrooli.source_ledger.v1.facets.Mar
  * Use `create(MarkSupersededResponseSchema)` to create a new message.
  */
 export const MarkSupersededResponseSchema: GenMessage<MarkSupersededResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 18);
+  messageDesc(file_source_ledger_v1_facets_facets, 24);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.ResolveThreadRequest
@@ -459,7 +572,7 @@ export type ResolveThreadRequest = Message<"vrooli.source_ledger.v1.facets.Resol
  * Use `create(ResolveThreadRequestSchema)` to create a new message.
  */
 export const ResolveThreadRequestSchema: GenMessage<ResolveThreadRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 19);
+  messageDesc(file_source_ledger_v1_facets_facets, 25);
 
 /**
  * @generated from message vrooli.source_ledger.v1.facets.ResolveThreadResponse
@@ -472,7 +585,7 @@ export type ResolveThreadResponse = Message<"vrooli.source_ledger.v1.facets.Reso
  * Use `create(ResolveThreadResponseSchema)` to create a new message.
  */
 export const ResolveThreadResponseSchema: GenMessage<ResolveThreadResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_facets_facets, 20);
+  messageDesc(file_source_ledger_v1_facets_facets, 26);
 
 /**
  * @generated from service vrooli.source_ledger.v1.facets.FacetsService
@@ -485,6 +598,30 @@ export const FacetsService: GenService<{
     methodKind: "unary";
     input: typeof ListFacetsRequestSchema;
     output: typeof ListFacetsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.source_ledger.v1.facets.FacetsService.CountUnassigned
+   */
+  countUnassigned: {
+    methodKind: "unary";
+    input: typeof CountUnassignedRequestSchema;
+    output: typeof CountUnassignedResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.source_ledger.v1.facets.FacetsService.EnsureFacet
+   */
+  ensureFacet: {
+    methodKind: "unary";
+    input: typeof EnsureFacetRequestSchema;
+    output: typeof EnsureFacetResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.source_ledger.v1.facets.FacetsService.DeleteFacet
+   */
+  deleteFacet: {
+    methodKind: "unary";
+    input: typeof DeleteFacetRequestSchema;
+    output: typeof DeleteFacetResponseSchema;
   },
   /**
    * @generated from rpc vrooli.source_ledger.v1.facets.FacetsService.SetFacetPolicy

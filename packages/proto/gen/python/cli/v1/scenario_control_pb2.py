@@ -26,7 +26,7 @@ from cli.v1 import scenario_list_pb2 as cli_dot_v1_dot_scenario__list__pb2
 from cli.v1 import scenario_status_pb2 as cli_dot_v1_dot_scenario__status__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1d\x63li/v1/scenario_control.proto\x12\rvrooli.cli.v1\x1a\x1a\x63li/v1/scenario_list.proto\x1a\x1c\x63li/v1/scenario_status.proto\";\n\x14ListScenariosRequest\x12#\n\rinclude_ports\x18\x01 \x01(\x08R\x0cincludePorts\".\n\x18GetScenarioStatusRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\"K\n\x16GetScenarioLogsRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n\ntail_lines\x18\x02 \x01(\x05R\ttailLines\"S\n\x14StartScenarioRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\'\n\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\")\n\x13StopScenarioRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\"U\n\x16RestartScenarioRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\'\n\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\"*\n\x14SetupScenarioRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name2\xb8\x05\n\x1bScenarioControlPlaneService\x12Y\n\rListScenarios\x12#.vrooli.cli.v1.ListScenariosRequest\x1a#.vrooli.cli.v1.ScenarioListResponse\x12\x61\n\x11GetScenarioStatus\x12\'.vrooli.cli.v1.GetScenarioStatusRequest\x1a#.vrooli.cli.v1.ScenarioStatusSingle\x12]\n\x0fGetScenarioLogs\x12%.vrooli.cli.v1.GetScenarioLogsRequest\x1a#.vrooli.cli.v1.ScenarioLogsResponse\x12^\n\rStartScenario\x12#.vrooli.cli.v1.StartScenarioRequest\x1a(.vrooli.cli.v1.ScenarioLifecycleResponse\x12\\\n\x0cStopScenario\x12\".vrooli.cli.v1.StopScenarioRequest\x1a(.vrooli.cli.v1.ScenarioLifecycleResponse\x12\x62\n\x0fRestartScenario\x12%.vrooli.cli.v1.RestartScenarioRequest\x1a(.vrooli.cli.v1.ScenarioLifecycleResponse\x12Z\n\rSetupScenario\x12#.vrooli.cli.v1.SetupScenarioRequest\x1a$.vrooli.cli.v1.ScenarioSetupResponseB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1d\x63li/v1/scenario_control.proto\x12\rvrooli.cli.v1\x1a\x1a\x63li/v1/scenario_list.proto\x1a\x1c\x63li/v1/scenario_status.proto\";\n\x14ListScenariosRequest\x12#\n\rinclude_ports\x18\x01 \x01(\x08R\x0cincludePorts\".\n\x18GetScenarioStatusRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\"\xb3\x01\n\x16GetScenarioLogsRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n\ntail_lines\x18\x02 \x01(\x05R\ttailLines\x12\x12\n\x04step\x18\x03 \x01(\tR\x04step\x12\x18\n\x07runtime\x18\x04 \x01(\x08R\x07runtime\x12\x1c\n\tlifecycle\x18\x05 \x01(\x08R\tlifecycle\x12\x1a\n\x08previous\x18\x06 \x01(\x08R\x08previous\"\x9c\x02\n\x14StartScenarioRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\'\n\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\x12\x12\n\x04path\x18\x03 \x01(\tR\x04path\x12\x1f\n\x0b\x62\x65st_effort\x18\x04 \x01(\x08R\nbestEffort\x12\x1f\n\x0b\x63lean_stale\x18\x05 \x01(\x08R\ncleanStale\x12\x14\n\x05\x66orce\x18\x06 \x01(\x08R\x05\x66orce\x12\x34\n\x16\x61\x63\x63\x65pt_credential_loss\x18\x07 \x01(\x08R\x14\x61\x63\x63\x65ptCredentialLoss\x12%\n\x0e\x64\x65mand_managed\x18\x08 \x01(\x08R\rdemandManaged\")\n\x13StopScenarioRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\"\x9e\x02\n\x16RestartScenarioRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\'\n\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\x12\x12\n\x04path\x18\x03 \x01(\tR\x04path\x12\x1f\n\x0b\x62\x65st_effort\x18\x04 \x01(\x08R\nbestEffort\x12\x1f\n\x0b\x63lean_stale\x18\x05 \x01(\x08R\ncleanStale\x12\x14\n\x05\x66orce\x18\x06 \x01(\x08R\x05\x66orce\x12\x34\n\x16\x61\x63\x63\x65pt_credential_loss\x18\x07 \x01(\x08R\x14\x61\x63\x63\x65ptCredentialLoss\x12%\n\x0e\x64\x65mand_managed\x18\x08 \x01(\x08R\rdemandManaged\">\n\x14SetupScenarioRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path2\xb8\x05\n\x1bScenarioControlPlaneService\x12Y\n\rListScenarios\x12#.vrooli.cli.v1.ListScenariosRequest\x1a#.vrooli.cli.v1.ScenarioListResponse\x12\x61\n\x11GetScenarioStatus\x12\'.vrooli.cli.v1.GetScenarioStatusRequest\x1a#.vrooli.cli.v1.ScenarioStatusSingle\x12]\n\x0fGetScenarioLogs\x12%.vrooli.cli.v1.GetScenarioLogsRequest\x1a#.vrooli.cli.v1.ScenarioLogsResponse\x12^\n\rStartScenario\x12#.vrooli.cli.v1.StartScenarioRequest\x1a(.vrooli.cli.v1.ScenarioLifecycleResponse\x12\\\n\x0cStopScenario\x12\".vrooli.cli.v1.StopScenarioRequest\x1a(.vrooli.cli.v1.ScenarioLifecycleResponse\x12\x62\n\x0fRestartScenario\x12%.vrooli.cli.v1.RestartScenarioRequest\x1a(.vrooli.cli.v1.ScenarioLifecycleResponse\x12Z\n\rSetupScenario\x12#.vrooli.cli.v1.SetupScenarioRequest\x1a$.vrooli.cli.v1.ScenarioSetupResponseB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -38,16 +38,16 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_LISTSCENARIOSREQUEST']._serialized_end=165
   _globals['_GETSCENARIOSTATUSREQUEST']._serialized_start=167
   _globals['_GETSCENARIOSTATUSREQUEST']._serialized_end=213
-  _globals['_GETSCENARIOLOGSREQUEST']._serialized_start=215
-  _globals['_GETSCENARIOLOGSREQUEST']._serialized_end=290
-  _globals['_STARTSCENARIOREQUEST']._serialized_start=292
-  _globals['_STARTSCENARIOREQUEST']._serialized_end=375
-  _globals['_STOPSCENARIOREQUEST']._serialized_start=377
-  _globals['_STOPSCENARIOREQUEST']._serialized_end=418
-  _globals['_RESTARTSCENARIOREQUEST']._serialized_start=420
-  _globals['_RESTARTSCENARIOREQUEST']._serialized_end=505
-  _globals['_SETUPSCENARIOREQUEST']._serialized_start=507
-  _globals['_SETUPSCENARIOREQUEST']._serialized_end=549
-  _globals['_SCENARIOCONTROLPLANESERVICE']._serialized_start=552
-  _globals['_SCENARIOCONTROLPLANESERVICE']._serialized_end=1248
+  _globals['_GETSCENARIOLOGSREQUEST']._serialized_start=216
+  _globals['_GETSCENARIOLOGSREQUEST']._serialized_end=395
+  _globals['_STARTSCENARIOREQUEST']._serialized_start=398
+  _globals['_STARTSCENARIOREQUEST']._serialized_end=682
+  _globals['_STOPSCENARIOREQUEST']._serialized_start=684
+  _globals['_STOPSCENARIOREQUEST']._serialized_end=725
+  _globals['_RESTARTSCENARIOREQUEST']._serialized_start=728
+  _globals['_RESTARTSCENARIOREQUEST']._serialized_end=1014
+  _globals['_SETUPSCENARIOREQUEST']._serialized_start=1016
+  _globals['_SETUPSCENARIOREQUEST']._serialized_end=1078
+  _globals['_SCENARIOCONTROLPLANESERVICE']._serialized_start=1081
+  _globals['_SCENARIOCONTROLPLANESERVICE']._serialized_end=1777
 # @@protoc_insertion_point(module_scope)

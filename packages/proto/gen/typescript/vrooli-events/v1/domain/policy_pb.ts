@@ -4,7 +4,7 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { EventEnvelope } from "./envelope_pb";
+import type { EventEnvelope, WorkReferenceVisibility } from "./envelope_pb";
 import { file_vrooli_events_v1_domain_envelope } from "./envelope_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-events/v1/domain/policy.proto.
  */
 export const file_vrooli_events_v1_domain_policy: GenFile = /*@__PURE__*/
-  fileDesc("CiR2cm9vbGktZXZlbnRzL3YxL2RvbWFpbi9wb2xpY3kucHJvdG8SHnZyb29saS52cm9vbGlfZXZlbnRzLnYxLmRvbWFpbiKuAgoUUmVjZWlwdENhcHR1cmVQb2xpY3kSEQoJcG9saWN5X2lkGAEgASgJEg8KB2VuYWJsZWQYAiABKAgSSgoIc2VsZWN0b3IYAyABKAsyOC52cm9vbGkudnJvb2xpX2V2ZW50cy52MS5kb21haW4uUmVjZWlwdE9wZXJhdGlvblNlbGVjdG9yEhUKDXJlc3BvbnNlX3R5cGUYBCABKAkSIQoZcmVzcG9uc2VfcHJvamVjdGlvbl9wYXRocxgFIAMoCRIWCg5yZXRlbnRpb25fZGF5cxgGIAEoDRJDCgZhY2Nlc3MYByABKAsyMy52cm9vbGkudnJvb2xpX2V2ZW50cy52MS5kb21haW4uUmVjZWlwdEFjY2Vzc1BvbGljeRIPCgd2ZXJzaW9uGAggASgJImwKGFJlY2VpcHRPcGVyYXRpb25TZWxlY3RvchIXCg90YXJnZXRfc2NlbmFyaW8YASABKAkSEQoJb3BlcmF0aW9uGAIgASgJEhAKCHByb3RvY29sGAMgASgJEhIKCmV2ZW50X3R5cGUYBCABKAkiLgoTUmVjZWlwdEFjY2Vzc1BvbGljeRIXCg9yZWFkX3ByaW5jaXBhbHMYASADKAkigwIKElJlY2VpcHRRdWVyeUZpbHRlchISCgpldmVudF90eXBlGAEgASgJEhcKD3RhcmdldF9zY2VuYXJpbxgCIAEoCRIRCglvcGVyYXRpb24YAyABKAkSFAoMYWdlbnRfcnVuX2lkGAQgASgJEg8KB3Rhc2tfaWQYBSABKAkSHQoVd29ya2Zsb3dfZXhlY3V0aW9uX2lkGAYgASgJEhgKEHdvcmtmbG93X25vZGVfaWQYByABKAkSDwoHYXR0ZW1wdBgIIAEoDRIVCg12ZXJpZmllZF9vbmx5GAkgASgIEhIKCnBhZ2VfdG9rZW4YCiABKAkSEQoJcGFnZV9zaXplGAsgASgNImwKElJlY2VpcHRRdWVyeVJlc3VsdBI9CgZldmVudHMYASADKAsyLS52cm9vbGkudnJvb2xpX2V2ZW50cy52MS5kb21haW4uRXZlbnRFbnZlbG9wZRIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAlCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktZXZlbnRzL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_vrooli_events_v1_domain_envelope]);
+  fileDesc("CiR2cm9vbGktZXZlbnRzL3YxL2RvbWFpbi9wb2xpY3kucHJvdG8SHnZyb29saS52cm9vbGlfZXZlbnRzLnYxLmRvbWFpbiKLAwoUUmVjZWlwdENhcHR1cmVQb2xpY3kSEQoJcG9saWN5X2lkGAEgASgJEg8KB2VuYWJsZWQYAiABKAgSSgoIc2VsZWN0b3IYAyABKAsyOC52cm9vbGkudnJvb2xpX2V2ZW50cy52MS5kb21haW4uUmVjZWlwdE9wZXJhdGlvblNlbGVjdG9yEhUKDXJlc3BvbnNlX3R5cGUYBCABKAkSIQoZcmVzcG9uc2VfcHJvamVjdGlvbl9wYXRocxgFIAMoCRIWCg5yZXRlbnRpb25fZGF5cxgGIAEoDRJDCgZhY2Nlc3MYByABKAsyMy52cm9vbGkudnJvb2xpX2V2ZW50cy52MS5kb21haW4uUmVjZWlwdEFjY2Vzc1BvbGljeRIPCgd2ZXJzaW9uGAggASgJElsKGndvcmtfcmVmZXJlbmNlX3Byb2plY3Rpb25zGAkgAygLMjcudnJvb2xpLnZyb29saV9ldmVudHMudjEuZG9tYWluLldvcmtSZWZlcmVuY2VQcm9qZWN0aW9uIrgBChdXb3JrUmVmZXJlbmNlUHJvamVjdGlvbhIRCglraW5kX3BhdGgYASABKAkSDwoHaWRfcGF0aBgCIAEoCRIVCg1yZXZpc2lvbl9wYXRoGAMgASgJEhQKDHJlbGF0aW9uc2hpcBgEIAEoCRIVCg12ZXJpZmllZF9wYXRoGAUgASgJEhcKD3Zpc2liaWxpdHlfcGF0aBgGIAEoCRIcChRldmlkZW5jZV9kaWdlc3RfcGF0aBgHIAEoCSJsChhSZWNlaXB0T3BlcmF0aW9uU2VsZWN0b3ISFwoPdGFyZ2V0X3NjZW5hcmlvGAEgASgJEhEKCW9wZXJhdGlvbhgCIAEoCRIQCghwcm90b2NvbBgDIAEoCRISCgpldmVudF90eXBlGAQgASgJIi4KE1JlY2VpcHRBY2Nlc3NQb2xpY3kSFwoPcmVhZF9wcmluY2lwYWxzGAEgAygJIoYDChJSZWNlaXB0UXVlcnlGaWx0ZXISEgoKZXZlbnRfdHlwZRgBIAEoCRIXCg90YXJnZXRfc2NlbmFyaW8YAiABKAkSEQoJb3BlcmF0aW9uGAMgASgJEhQKDGFnZW50X3J1bl9pZBgEIAEoCRIPCgd0YXNrX2lkGAUgASgJEh0KFXdvcmtmbG93X2V4ZWN1dGlvbl9pZBgGIAEoCRIYChB3b3JrZmxvd19ub2RlX2lkGAcgASgJEg8KB2F0dGVtcHQYCCABKA0SFQoNdmVyaWZpZWRfb25seRgJIAEoCBISCgpwYWdlX3Rva2VuGAogASgJEhEKCXBhZ2Vfc2l6ZRgLIAEoDRIQCghldmVudF9pZBgMIAEoCRIRCgl3b3JrX2tpbmQYDSABKAkSDwoHd29ya19pZBgOIAEoCRJLCgp2aXNpYmlsaXR5GA8gASgOMjcudnJvb2xpLnZyb29saV9ldmVudHMudjEuZG9tYWluLldvcmtSZWZlcmVuY2VWaXNpYmlsaXR5ImwKElJlY2VpcHRRdWVyeVJlc3VsdBI9CgZldmVudHMYASADKAsyLS52cm9vbGkudnJvb2xpX2V2ZW50cy52MS5kb21haW4uRXZlbnRFbnZlbG9wZRIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAlCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktZXZlbnRzL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_vrooli_events_v1_domain_envelope]);
 
 /**
  * ReceiptCapturePolicy is the sole registry for automatic capture. A missing
@@ -61,6 +61,11 @@ export type ReceiptCapturePolicy = Message<"vrooli.vrooli_events.v1.domain.Recei
    * @generated from field: string version = 8;
    */
   version: string;
+
+  /**
+   * @generated from field: repeated vrooli.vrooli_events.v1.domain.WorkReferenceProjection work_reference_projections = 9;
+   */
+  workReferenceProjections: WorkReferenceProjection[];
 };
 
 /**
@@ -69,6 +74,57 @@ export type ReceiptCapturePolicy = Message<"vrooli.vrooli_events.v1.domain.Recei
  */
 export const ReceiptCapturePolicySchema: GenMessage<ReceiptCapturePolicy> = /*@__PURE__*/
   messageDesc(file_vrooli_events_v1_domain_policy, 0);
+
+/**
+ * WorkReferenceProjection declares how a typed response becomes a generic
+ * work-reference edge. Paths are explicit descriptor paths; no response field
+ * is inferred from names, timestamps, or search metadata.
+ *
+ * @generated from message vrooli.vrooli_events.v1.domain.WorkReferenceProjection
+ */
+export type WorkReferenceProjection = Message<"vrooli.vrooli_events.v1.domain.WorkReferenceProjection"> & {
+  /**
+   * @generated from field: string kind_path = 1;
+   */
+  kindPath: string;
+
+  /**
+   * @generated from field: string id_path = 2;
+   */
+  idPath: string;
+
+  /**
+   * @generated from field: string revision_path = 3;
+   */
+  revisionPath: string;
+
+  /**
+   * @generated from field: string relationship = 4;
+   */
+  relationship: string;
+
+  /**
+   * @generated from field: string verified_path = 5;
+   */
+  verifiedPath: string;
+
+  /**
+   * @generated from field: string visibility_path = 6;
+   */
+  visibilityPath: string;
+
+  /**
+   * @generated from field: string evidence_digest_path = 7;
+   */
+  evidenceDigestPath: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_events.v1.domain.WorkReferenceProjection.
+ * Use `create(WorkReferenceProjectionSchema)` to create a new message.
+ */
+export const WorkReferenceProjectionSchema: GenMessage<WorkReferenceProjection> = /*@__PURE__*/
+  messageDesc(file_vrooli_events_v1_domain_policy, 1);
 
 /**
  * @generated from message vrooli.vrooli_events.v1.domain.ReceiptOperationSelector
@@ -100,7 +156,7 @@ export type ReceiptOperationSelector = Message<"vrooli.vrooli_events.v1.domain.R
  * Use `create(ReceiptOperationSelectorSchema)` to create a new message.
  */
 export const ReceiptOperationSelectorSchema: GenMessage<ReceiptOperationSelector> = /*@__PURE__*/
-  messageDesc(file_vrooli_events_v1_domain_policy, 1);
+  messageDesc(file_vrooli_events_v1_domain_policy, 2);
 
 /**
  * @generated from message vrooli.vrooli_events.v1.domain.ReceiptAccessPolicy
@@ -117,7 +173,7 @@ export type ReceiptAccessPolicy = Message<"vrooli.vrooli_events.v1.domain.Receip
  * Use `create(ReceiptAccessPolicySchema)` to create a new message.
  */
 export const ReceiptAccessPolicySchema: GenMessage<ReceiptAccessPolicy> = /*@__PURE__*/
-  messageDesc(file_vrooli_events_v1_domain_policy, 2);
+  messageDesc(file_vrooli_events_v1_domain_policy, 3);
 
 /**
  * @generated from message vrooli.vrooli_events.v1.domain.ReceiptQueryFilter
@@ -177,6 +233,26 @@ export type ReceiptQueryFilter = Message<"vrooli.vrooli_events.v1.domain.Receipt
    * @generated from field: uint32 page_size = 11;
    */
   pageSize: number;
+
+  /**
+   * @generated from field: string event_id = 12;
+   */
+  eventId: string;
+
+  /**
+   * @generated from field: string work_kind = 13;
+   */
+  workKind: string;
+
+  /**
+   * @generated from field: string work_id = 14;
+   */
+  workId: string;
+
+  /**
+   * @generated from field: vrooli.vrooli_events.v1.domain.WorkReferenceVisibility visibility = 15;
+   */
+  visibility: WorkReferenceVisibility;
 };
 
 /**
@@ -184,7 +260,7 @@ export type ReceiptQueryFilter = Message<"vrooli.vrooli_events.v1.domain.Receipt
  * Use `create(ReceiptQueryFilterSchema)` to create a new message.
  */
 export const ReceiptQueryFilterSchema: GenMessage<ReceiptQueryFilter> = /*@__PURE__*/
-  messageDesc(file_vrooli_events_v1_domain_policy, 3);
+  messageDesc(file_vrooli_events_v1_domain_policy, 4);
 
 /**
  * @generated from message vrooli.vrooli_events.v1.domain.ReceiptQueryResult
@@ -206,5 +282,5 @@ export type ReceiptQueryResult = Message<"vrooli.vrooli_events.v1.domain.Receipt
  * Use `create(ReceiptQueryResultSchema)` to create a new message.
  */
 export const ReceiptQueryResultSchema: GenMessage<ReceiptQueryResult> = /*@__PURE__*/
-  messageDesc(file_vrooli_events_v1_domain_policy, 4);
+  messageDesc(file_vrooli_events_v1_domain_policy, 5);
 

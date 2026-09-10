@@ -2,15 +2,19 @@
 // @generated from file vrooli-bridge/v1/session/session.proto (package vrooli.vrooli_bridge.v1.session, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { SurfaceRef } from "../../../common/v1/surface_pb";
+import { file_common_v1_surface } from "../../../common/v1/surface_pb";
+import type { Action, ActResponse, ObserveResponse } from "../../../device-control/v1/desktop/desktop_pb";
+import { file_device_control_v1_desktop_desktop } from "../../../device-control/v1/desktop/desktop_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file vrooli-bridge/v1/session/session.proto.
  */
 export const file_vrooli_bridge_v1_session_session: GenFile = /*@__PURE__*/
-  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL3Nlc3Npb24vc2Vzc2lvbi5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2Vzc2lvbiKjAQoET3BlbhISCgpzZXNzaW9uX2lkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSFgoOcmVjZWl2ZV93aW5kb3cYAyABKA0SHAoUaWRsZV90aW1lb3V0X3NlY29uZHMYBCABKA0SHAoUbWF4X2xpZmV0aW1lX3NlY29uZHMYBSABKA0SDQoFc2hlbGwYBiABKAkSEwoLd29ya2luZ19kaXIYByABKAkiJgoERGF0YRIQCghzZXF1ZW5jZRgBIAEoBBIMCgRkYXRhGAIgASgMIicKBlJlc2l6ZRIPCgdjb2x1bW5zGAEgASgNEgwKBHJvd3MYAiABKA0iJQoFQ2xvc2USDAoEY29kZRgBIAEoCRIOCgZyZWFzb24YAiABKAkiYQoDQWNrEhAKCGFjY2VwdGVkGAEgASgIEhAKCHNlcXVlbmNlGAIgASgEEhgKEHdpbmRvd19hdmFpbGFibGUYAyABKA0SDAoEY29kZRgEIAEoCRIOCgZyZWFzb24YBSABKAkiKAoMV2luZG93VXBkYXRlEhgKEHdpbmRvd19hdmFpbGFibGUYASABKA0i8QIKBUZyYW1lEjUKBG9wZW4YASABKAsyJS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zZXNzaW9uLk9wZW5IABI1CgRkYXRhGAIgASgLMiUudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2Vzc2lvbi5EYXRhSAASOQoGcmVzaXplGAMgASgLMicudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2Vzc2lvbi5SZXNpemVIABI3CgVjbG9zZRgEIAEoCzImLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNlc3Npb24uQ2xvc2VIABIzCgNhY2sYBSABKAsyJC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zZXNzaW9uLkFja0gAEkYKDXdpbmRvd191cGRhdGUYBiABKAsyLS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zZXNzaW9uLldpbmRvd1VwZGF0ZUgAQgkKB3BheWxvYWRCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL3Nlc3Npb247c2Vzc2lvbl92MWIGcHJvdG8z");
+  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL3Nlc3Npb24vc2Vzc2lvbi5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2Vzc2lvbiKWAgoET3BlbhISCgpzZXNzaW9uX2lkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSFgoOcmVjZWl2ZV93aW5kb3cYAyABKA0SHAoUaWRsZV90aW1lb3V0X3NlY29uZHMYBCABKA0SHAoUbWF4X2xpZmV0aW1lX3NlY29uZHMYBSABKA0SDQoFc2hlbGwYBiABKAkSEwoLd29ya2luZ19kaXIYByABKAkSOQoHYmluZGluZxgIIAEoCzIoLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNlc3Npb24uQmluZGluZxIXCg9tYXhfZnJhbWVfYnl0ZXMYCSABKA0SHQoVbWF4X2ZyYW1lc19wZXJfc2Vjb25kGAogASgNIpYBCgdCaW5kaW5nEiYKB3N1cmZhY2UYASABKAsyFS5jb21tb24udjEuU3VyZmFjZVJlZhIRCgl0cmFuc3BvcnQYAiABKAkSEAoIb3duZXJfaWQYAyABKAkSEAoIbGVhc2VfaWQYBCABKAkSEwoLbGVhc2VfZXBvY2gYBSABKAQSFwoPcG9saWN5X3JldmlzaW9uGAYgASgJIjoKBERhdGESEAoIc2VxdWVuY2UYASABKAQSDAoEZGF0YRgCIAEoDBISCgpjb21tYW5kX2lkGAMgASgJIpACCg5EZXNrdG9wQ29tbWFuZBISCgpjb21tYW5kX2lkGAEgASgJEksKCW9wZXJhdGlvbhgCIAEoDjI4LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNlc3Npb24uRGVza3RvcENvbW1hbmRPcGVyYXRpb24SEgoKcHJvY2Vzc19pZBgDIAEoDRIWCg5hcHBsaWNhdGlvbl9pZBgEIAEoCRIcChRhcHBsaWNhdGlvbl9yZXZpc2lvbhgFIAEoCRIZChFnZW9tZXRyeV9yZXZpc2lvbhgGIAEoCRI4CgZhY3Rpb24YByABKAsyKC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5BY3Rpb24i0QEKDURlc2t0b3BSZXN1bHQSEgoKY29tbWFuZF9pZBgBIAEoCRIZChFyZW1vdGVfY29tbWFuZF9pZBgCIAEoCRJGCgtvYnNlcnZhdGlvbhgDIAEoCzIxLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLk9ic2VydmVSZXNwb25zZRI6CgNhY3QYBCABKAsyLS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5BY3RSZXNwb25zZRINCgVlcnJvchgFIAEoCSInCgZSZXNpemUSDwoHY29sdW1ucxgBIAEoDRIMCgRyb3dzGAIgASgNIiUKBUNsb3NlEgwKBGNvZGUYASABKAkSDgoGcmVhc29uGAIgASgJInUKA0FjaxIQCghhY2NlcHRlZBgBIAEoCBIQCghzZXF1ZW5jZRgCIAEoBBIYChB3aW5kb3dfYXZhaWxhYmxlGAMgASgNEgwKBGNvZGUYBCABKAkSDgoGcmVhc29uGAUgASgJEhIKCmNvbW1hbmRfaWQYBiABKAkiKAoMV2luZG93VXBkYXRlEhgKEHdpbmRvd19hdmFpbGFibGUYASABKA0ibAoIRXZpZGVuY2USEgoKY29tbWFuZF9pZBgBIAEoCRIZChFyZW1vdGVfY29tbWFuZF9pZBgCIAEoCRITCgtldmlkZW5jZV9pZBgDIAEoCRIMCgRraW5kGAQgASgJEg4KBmRpZ2VzdBgFIAEoCSI/CgZSZXZva2USEAoIbGVhc2VfaWQYASABKAkSEwoLbGVhc2VfZXBvY2gYAiABKAQSDgoGcmVhc29uGAMgASgJIusDCgVGcmFtZRI1CgRvcGVuGAEgASgLMiUudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2Vzc2lvbi5PcGVuSAASNQoEZGF0YRgCIAEoCzIlLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNlc3Npb24uRGF0YUgAEjkKBnJlc2l6ZRgDIAEoCzInLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNlc3Npb24uUmVzaXplSAASNwoFY2xvc2UYBCABKAsyJi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zZXNzaW9uLkNsb3NlSAASMwoDYWNrGAUgASgLMiQudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2Vzc2lvbi5BY2tIABJGCg13aW5kb3dfdXBkYXRlGAYgASgLMi0udnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2Vzc2lvbi5XaW5kb3dVcGRhdGVIABI9CghldmlkZW5jZRgHIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNlc3Npb24uRXZpZGVuY2VIABI5CgZyZXZva2UYCCABKAsyJy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zZXNzaW9uLlJldm9rZUgAQgkKB3BheWxvYWQqsgEKF0Rlc2t0b3BDb21tYW5kT3BlcmF0aW9uEikKJURFU0tUT1BfQ09NTUFORF9PUEVSQVRJT05fVU5TUEVDSUZJRUQQABIlCiFERVNLVE9QX0NPTU1BTkRfT1BFUkFUSU9OX09CU0VSVkUQARIhCh1ERVNLVE9QX0NPTU1BTkRfT1BFUkFUSU9OX0FDVBACEiIKHkRFU0tUT1BfQ09NTUFORF9PUEVSQVRJT05fU1RPUBADQlRaUmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9zZXNzaW9uO3Nlc3Npb25fdjFiBnByb3RvMw", [file_common_v1_surface, file_device_control_v1_desktop_desktop]);
 
 /**
  * Session is the transport-neutral wire contract for an interactive byte
@@ -54,6 +58,25 @@ export type Open = Message<"vrooli.vrooli_bridge.v1.session.Open"> & {
    * @generated from field: string working_dir = 7;
    */
   workingDir: string;
+
+  /**
+   * Optional for legacy terminal sessions. Remote desktop sessions must bind
+   * the transport to the exact target surface, owner, lease, and policy
+   * revision before the node receives any input.
+   *
+   * @generated from field: vrooli.vrooli_bridge.v1.session.Binding binding = 8;
+   */
+  binding?: Binding | undefined;
+
+  /**
+   * @generated from field: uint32 max_frame_bytes = 9;
+   */
+  maxFrameBytes: number;
+
+  /**
+   * @generated from field: uint32 max_frames_per_second = 10;
+   */
+  maxFramesPerSecond: number;
 };
 
 /**
@@ -62,6 +85,48 @@ export type Open = Message<"vrooli.vrooli_bridge.v1.session.Open"> & {
  */
 export const OpenSchema: GenMessage<Open> = /*@__PURE__*/
   messageDesc(file_vrooli_bridge_v1_session_session, 0);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.session.Binding
+ */
+export type Binding = Message<"vrooli.vrooli_bridge.v1.session.Binding"> & {
+  /**
+   * @generated from field: common.v1.SurfaceRef surface = 1;
+   */
+  surface?: SurfaceRef | undefined;
+
+  /**
+   * @generated from field: string transport = 2;
+   */
+  transport: string;
+
+  /**
+   * @generated from field: string owner_id = 3;
+   */
+  ownerId: string;
+
+  /**
+   * @generated from field: string lease_id = 4;
+   */
+  leaseId: string;
+
+  /**
+   * @generated from field: uint64 lease_epoch = 5;
+   */
+  leaseEpoch: bigint;
+
+  /**
+   * @generated from field: string policy_revision = 6;
+   */
+  policyRevision: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.session.Binding.
+ * Use `create(BindingSchema)` to create a new message.
+ */
+export const BindingSchema: GenMessage<Binding> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_session_session, 1);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.session.Data
@@ -76,6 +141,14 @@ export type Data = Message<"vrooli.vrooli_bridge.v1.session.Data"> & {
    * @generated from field: bytes data = 2;
    */
   data: Uint8Array;
+
+  /**
+   * Stable caller command identity. Retries must reuse this value; a new
+   * command id is required for a distinct external effect.
+   *
+   * @generated from field: string command_id = 3;
+   */
+  commandId: string;
 };
 
 /**
@@ -83,7 +156,96 @@ export type Data = Message<"vrooli.vrooli_bridge.v1.session.Data"> & {
  * Use `create(DataSchema)` to create a new message.
  */
 export const DataSchema: GenMessage<Data> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_session_session, 1);
+  messageDesc(file_vrooli_bridge_v1_session_session, 2);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.session.DesktopCommand
+ */
+export type DesktopCommand = Message<"vrooli.vrooli_bridge.v1.session.DesktopCommand"> & {
+  /**
+   * @generated from field: string command_id = 1;
+   */
+  commandId: string;
+
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.session.DesktopCommandOperation operation = 2;
+   */
+  operation: DesktopCommandOperation;
+
+  /**
+   * @generated from field: uint32 process_id = 3;
+   */
+  processId: number;
+
+  /**
+   * @generated from field: string application_id = 4;
+   */
+  applicationId: string;
+
+  /**
+   * @generated from field: string application_revision = 5;
+   */
+  applicationRevision: string;
+
+  /**
+   * @generated from field: string geometry_revision = 6;
+   */
+  geometryRevision: string;
+
+  /**
+   * @generated from field: vrooli.device_control.v1.desktop.Action action = 7;
+   */
+  action?: Action | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.session.DesktopCommand.
+ * Use `create(DesktopCommandSchema)` to create a new message.
+ */
+export const DesktopCommandSchema: GenMessage<DesktopCommand> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_session_session, 3);
+
+/**
+ * DesktopResult is also carried in Data.data. Observation pixels remain
+ * bounded by the negotiated session frame limit and are never written to the
+ * Bridge audit log; the separate Evidence frame carries only metadata and a
+ * digest linking the local and remote command identities.
+ *
+ * @generated from message vrooli.vrooli_bridge.v1.session.DesktopResult
+ */
+export type DesktopResult = Message<"vrooli.vrooli_bridge.v1.session.DesktopResult"> & {
+  /**
+   * @generated from field: string command_id = 1;
+   */
+  commandId: string;
+
+  /**
+   * @generated from field: string remote_command_id = 2;
+   */
+  remoteCommandId: string;
+
+  /**
+   * @generated from field: vrooli.device_control.v1.desktop.ObserveResponse observation = 3;
+   */
+  observation?: ObserveResponse | undefined;
+
+  /**
+   * @generated from field: vrooli.device_control.v1.desktop.ActResponse act = 4;
+   */
+  act?: ActResponse | undefined;
+
+  /**
+   * @generated from field: string error = 5;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.session.DesktopResult.
+ * Use `create(DesktopResultSchema)` to create a new message.
+ */
+export const DesktopResultSchema: GenMessage<DesktopResult> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_session_session, 4);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.session.Resize
@@ -105,7 +267,7 @@ export type Resize = Message<"vrooli.vrooli_bridge.v1.session.Resize"> & {
  * Use `create(ResizeSchema)` to create a new message.
  */
 export const ResizeSchema: GenMessage<Resize> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_session_session, 2);
+  messageDesc(file_vrooli_bridge_v1_session_session, 5);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.session.Close
@@ -127,7 +289,7 @@ export type Close = Message<"vrooli.vrooli_bridge.v1.session.Close"> & {
  * Use `create(CloseSchema)` to create a new message.
  */
 export const CloseSchema: GenMessage<Close> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_session_session, 3);
+  messageDesc(file_vrooli_bridge_v1_session_session, 6);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.session.Ack
@@ -157,6 +319,11 @@ export type Ack = Message<"vrooli.vrooli_bridge.v1.session.Ack"> & {
    * @generated from field: string reason = 5;
    */
   reason: string;
+
+  /**
+   * @generated from field: string command_id = 6;
+   */
+  commandId: string;
 };
 
 /**
@@ -164,7 +331,7 @@ export type Ack = Message<"vrooli.vrooli_bridge.v1.session.Ack"> & {
  * Use `create(AckSchema)` to create a new message.
  */
 export const AckSchema: GenMessage<Ack> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_session_session, 4);
+  messageDesc(file_vrooli_bridge_v1_session_session, 7);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.session.WindowUpdate
@@ -181,7 +348,71 @@ export type WindowUpdate = Message<"vrooli.vrooli_bridge.v1.session.WindowUpdate
  * Use `create(WindowUpdateSchema)` to create a new message.
  */
 export const WindowUpdateSchema: GenMessage<WindowUpdate> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_session_session, 5);
+  messageDesc(file_vrooli_bridge_v1_session_session, 8);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.session.Evidence
+ */
+export type Evidence = Message<"vrooli.vrooli_bridge.v1.session.Evidence"> & {
+  /**
+   * @generated from field: string command_id = 1;
+   */
+  commandId: string;
+
+  /**
+   * @generated from field: string remote_command_id = 2;
+   */
+  remoteCommandId: string;
+
+  /**
+   * @generated from field: string evidence_id = 3;
+   */
+  evidenceId: string;
+
+  /**
+   * @generated from field: string kind = 4;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string digest = 5;
+   */
+  digest: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.session.Evidence.
+ * Use `create(EvidenceSchema)` to create a new message.
+ */
+export const EvidenceSchema: GenMessage<Evidence> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_session_session, 9);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.session.Revoke
+ */
+export type Revoke = Message<"vrooli.vrooli_bridge.v1.session.Revoke"> & {
+  /**
+   * @generated from field: string lease_id = 1;
+   */
+  leaseId: string;
+
+  /**
+   * @generated from field: uint64 lease_epoch = 2;
+   */
+  leaseEpoch: bigint;
+
+  /**
+   * @generated from field: string reason = 3;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.session.Revoke.
+ * Use `create(RevokeSchema)` to create a new message.
+ */
+export const RevokeSchema: GenMessage<Revoke> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_session_session, 10);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.session.Frame
@@ -226,6 +457,18 @@ export type Frame = Message<"vrooli.vrooli_bridge.v1.session.Frame"> & {
      */
     value: WindowUpdate;
     case: "windowUpdate";
+  } | {
+    /**
+     * @generated from field: vrooli.vrooli_bridge.v1.session.Evidence evidence = 7;
+     */
+    value: Evidence;
+    case: "evidence";
+  } | {
+    /**
+     * @generated from field: vrooli.vrooli_bridge.v1.session.Revoke revoke = 8;
+     */
+    value: Revoke;
+    case: "revoke";
   } | { case: undefined; value?: undefined };
 };
 
@@ -234,5 +477,41 @@ export type Frame = Message<"vrooli.vrooli_bridge.v1.session.Frame"> & {
  * Use `create(FrameSchema)` to create a new message.
  */
 export const FrameSchema: GenMessage<Frame> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_session_session, 6);
+  messageDesc(file_vrooli_bridge_v1_session_session, 11);
+
+/**
+ * DesktopCommand is carried in Data.data for a session whose binding
+ * transport is "desktop". Keeping the byte-stream envelope preserves the
+ * existing session flow-control and replay rules while this typed payload
+ * gives the node adapter an explicit operation vocabulary.
+ *
+ * @generated from enum vrooli.vrooli_bridge.v1.session.DesktopCommandOperation
+ */
+export enum DesktopCommandOperation {
+  /**
+   * @generated from enum value: DESKTOP_COMMAND_OPERATION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: DESKTOP_COMMAND_OPERATION_OBSERVE = 1;
+   */
+  OBSERVE = 1,
+
+  /**
+   * @generated from enum value: DESKTOP_COMMAND_OPERATION_ACT = 2;
+   */
+  ACT = 2,
+
+  /**
+   * @generated from enum value: DESKTOP_COMMAND_OPERATION_STOP = 3;
+   */
+  STOP = 3,
+}
+
+/**
+ * Describes the enum vrooli.vrooli_bridge.v1.session.DesktopCommandOperation.
+ */
+export const DesktopCommandOperationSchema: GenEnum<DesktopCommandOperation> = /*@__PURE__*/
+  enumDesc(file_vrooli_bridge_v1_session_session, 0);
 

@@ -7,7 +7,9 @@ import { ApiError } from "../../lib/api-client";
 vi.mock("../../services", () => ({
   backlogService: {
     getRenderedPlan: vi.fn(),
+    get: vi.fn().mockResolvedValue({ name: "test-item" }),
   },
+  embeddedService: { getExternalUrl: vi.fn().mockResolvedValue("https://plan.test/base") },
 }));
 
 vi.mock("../../lib", async () => {
@@ -92,6 +94,18 @@ describe("PlanPanel", () => {
 
     expect(screen.getByText("plan-manager:test-plan")).toBeInTheDocument();
     expect(screen.getByLabelText("Open in plan-manager")).toBeInTheDocument();
+  });
+
+  it("opens the canonical plan at the discovered Plan Manager URL", async () => {
+    vi.mocked(backlogService.getRenderedPlan).mockResolvedValue(mockRenderedPlan);
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    try {
+      renderWithProviders(<PlanPanel backlogKind="execute" backlogName="test-item" />);
+      const button = await screen.findByLabelText("Open in plan-manager");
+      await waitFor(() => expect(button).toBeEnabled());
+      fireEvent.click(button);
+      expect(open).toHaveBeenCalledWith("https://plan.test/base/plans/plan-1", "_blank", "noopener,noreferrer");
+    } finally { open.mockRestore(); }
   });
 
   it("copies rendered plan content to clipboard", async () => {

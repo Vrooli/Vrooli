@@ -12,23 +12,324 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-
 //
 // @stability beta
 //
-// RepoService is the Connect-RPC landing surface for repo identity and
-// status. In Tier 1 it only exposes GetRepoStatus, focused on worktree-
-// awareness fields. Pre-existing REST `/api/v1/repo/status` continues to
-// serve legacy consumers; this Connect surface is the seed for future
-// incremental migration of other repo endpoints.
+// RepoService is the Connect-RPC landing surface for repository operations.
+// Typed callers must use this generated service. The remaining REST routes
+// are migration residue and are not an alternate writer contract; each must
+// either move here or be justified as a documented transport exception.
 //
-// Testing rule: NEVER invoke real git commands. All paths exercise the
-// worktree.Inspector seam with fakes from internal/worktree/mocks/.
+// Transport/domain tests use GitRunner and worktree.Inspector fakes.
+// Production-adapter contract tests may use isolated temporary repositories;
+// they must never target a live checkout or an external remote.
 // =============================================================================
 
 service RepoService {
+  rpc ListRepositories(ListRepositoriesRequest) returns (ListRepositoriesResponse);
+  rpc GetActiveRepository(GetActiveRepositoryRequest) returns (GetActiveRepositoryResponse);
+  rpc SetActiveRepository(SetActiveRepositoryRequest) returns (RepoMutationResponse);
+  rpc OpenRepository(OpenRepositoryRequest) returns (RepoMutationResponse);
+  rpc CloneRepository(CloneRepositoryRequest) returns (RepoMutationResponse);
+  rpc RemoveRepository(RemoveRepositoryRequest) returns (RemoveRepositoryResponse);
   rpc GetRepoStatus(GetRepoStatusRequest) returns (GetRepoStatusResponse);
+  rpc GetRepoDiff(GetRepoDiffRequest) returns (GetRepoDiffResponse);
+  rpc GetRepoGroups(GetRepoGroupsRequest) returns (GetRepoGroupsResponse);
+  rpc GetSyncStatus(GetSyncStatusRequest) returns (GetSyncStatusResponse);
+  rpc GetRepoHistory(GetRepoHistoryRequest) returns (GetRepoHistoryResponse);
+  rpc GetApprovedChanges(GetApprovedChangesRequest) returns (GetApprovedChangesResponse);
+  rpc GetProvenance(GetProvenanceRequest) returns (GetProvenanceResponse);
+  // GetBlame is the bounded typed provenance contract. Native line blame,
+  // file/change evidence, and maintenance context remain separate fields.
+  rpc GetBlame(GetBlameRequest) returns (GetBlameResponse);
+  rpc SearchProvenance(SearchProvenanceRequest) returns (SearchProvenanceResponse);
+  rpc GetFiles(GetFilesRequest) returns (GetFilesResponse);
+  rpc GetDirectoryContents(GetDirectoryContentsRequest) returns (GetDirectoryContentsResponse);
+  rpc GetRelatedFiles(GetRelatedFilesRequest) returns (GetRelatedFilesResponse);
+  rpc SearchContent(SearchContentRequest) returns (SearchContentResponse);
+  rpc DeletePath(DeletePathRequest) returns (DeletePathResponse);
+  rpc SaveFileContent(SaveFileContentRequest) returns (SaveFileContentResponse);
+  rpc DiscardFiles(DiscardFilesRequest) returns (DiscardFilesResponse);
+  rpc IgnorePath(IgnorePathRequest) returns (IgnorePathResponse);
+  rpc InspectPushSafety(InspectPushSafetyRequest) returns (PushSafetyReport);
+  rpc GetPushRecovery(GetPushRecoveryRequest) returns (PushRecoveryArtifact);
+  rpc PreparePushRecovery(PreparePushRecoveryRequest) returns (PushRecoveryArtifact);
+  rpc PushToRemote(PushToRemoteRequest) returns (PushToRemoteResponse);
+  rpc PullFromRemote(PullFromRemoteRequest) returns (PullFromRemoteResponse);
+  rpc RunUpstreamAction(RunUpstreamActionRequest) returns (RunUpstreamActionResponse);
+  rpc GetGroupingRules(GetGroupingRulesRequest) returns (GroupingRulesResponse);
+  rpc SaveGroupingRules(SaveGroupingRulesRequest) returns (GroupingRulesResponse);
+  rpc GetGitignoreHealth(GetGitignoreHealthRequest) returns (GitignoreHealthResponse);
+  rpc MoveGitignoreEntry(MoveGitignoreEntryRequest) returns (MoveGitignoreEntryResponse);
+  rpc GetTrackedBinaries(GetTrackedBinariesRequest) returns (TrackedBinariesResponse);
+  rpc UntrackBinary(UntrackBinaryRequest) returns (UntrackBinaryResponse);
+  rpc GetPrecommitConfig(GetPrecommitConfigRequest) returns (PrecommitConfigResponse);
+  rpc SavePrecommitConfig(SavePrecommitConfigRequest) returns (PrecommitConfigResponse);
+  rpc RunPrecommit(RunPrecommitRequest) returns (PrecommitRunResponse);
+  rpc StageFiles(StageFilesRequest) returns (StageFilesResponse);
+  rpc UnstageFiles(UnstageFilesRequest) returns (UnstageFilesResponse);
+  rpc CreateCommit(CreateCommitRequest) returns (CreateCommitResponse);
+  rpc ListCredentials(ListCredentialsRequest) returns (CredentialsListResponse);
+  rpc SaveCredential(SaveCredentialRequest) returns (CredentialSaveResponse);
+  rpc DeleteCredential(DeleteCredentialRequest) returns (CredentialDeleteResponse);
+  rpc TestCredential(TestCredentialRequest) returns (CredentialTestResponse);
+  rpc UpdateRemoteURL(UpdateRemoteURLRequest) returns (RemoteURLUpdateResponse);
+  rpc ListSSHKeys(ListSSHKeysRequest) returns (SSHListKeysResponse);
+  rpc GenerateSSHKey(GenerateSSHKeyRequest) returns (SSHGenerateKeyResponse);
+  rpc GetSSHPublicKey(GetSSHPublicKeyRequest) returns (SSHGetPublicKeyResponse);
+  rpc TestSSHConnection(TestSSHConnectionRequest) returns (SSHTestConnectionResponse);
+  rpc DeleteSSHKey(DeleteSSHKeyRequest) returns (SSHDeleteKeyResponse);
+}
+
+message RepoRecord {
+  int64 id = 1;
+  string path = 2;
+  string name = 3;
+  string remote_url = 4;
+  string added_at = 5;
+  string last_opened_at = 6;
+  bool favorite = 7;
+}
+
+message ListRepositoriesRequest {}
+
+message ListRepositoriesResponse {
+  repeated RepoRecord repos = 1;
+  int64 active_id = 2;
+  string timestamp = 3;
+}
+
+message GetActiveRepositoryRequest {}
+
+message GetActiveRepositoryResponse {
+  RepoRecord repo = 1;
+  string timestamp = 2;
+}
+
+message GetRepoHistoryRequest {
+  string repository_id = 1;
+  int32 limit = 2;
+  bool include_files = 3;
+  bool include_checks = 4;
+  string grep_pattern = 5;
+}
+
+message CommitCheckRun {
+  string kind = 1;
+  string status = 2;
+  string command = 3;
+  int32 exit_code = 4;
+  string summary = 5;
+  string stdout = 6;
+  string stderr = 7;
+  int64 duration_ms = 8;
+  string timestamp = 9;
+}
+
+message RepoHistoryEntry {
+  string hash = 1;
+  string author = 2;
+  string date = 3;
+  string subject = 4;
+  repeated string files = 5;
+  repeated CommitCheckRun checks = 6;
+}
+
+message GetRepoHistoryResponse {
+  string repo_dir = 1;
+  repeated string lines = 2;
+  repeated RepoHistoryEntry entries = 3;
+  int32 limit = 4;
+  string grep_pattern = 5;
+  string timestamp = 6;
+}
+
+message GetApprovedChangesRequest {
+  string repository_id = 1;
+  repeated string paths = 2;
+}
+
+message ApprovedChangeFile {
+  string relative_path = 1;
+  string status = 2;
+  string sandbox_id = 3;
+  string sandbox_owner = 4;
+  string change_type = 5;
+  string agent_manager_run_id = 6;
+}
+
+message GetApprovedChangesResponse {
+  bool available = 1;
+  int32 committable_files = 2;
+  string suggested_message = 3;
+  repeated ApprovedChangeFile files = 4;
+  string warning = 5;
+}
+
+message GetProvenanceRequest {
+  string repository_id = 1;
+}
+
+message ProvenanceFile {
+  string file_path = 1;
+  string relative_path = 2;
+  string change_type = 3;
+  string applied_at = 4;
+  string visibility = 5;
+}
+
+message ProvenanceRunGroup {
+  string run_id = 1;
+  string sandbox_id = 2;
+  string sandbox_owner = 3;
+  repeated ProvenanceFile files = 4;
+  string latest_applied_at = 5;
+}
+
+message GetProvenanceResponse {
+  bool available = 1;
+  repeated ProvenanceRunGroup run_groups = 2;
+  string warning = 3;
+}
+
+message GetBlameRequest {
+  string repository_id = 1;
+  repeated string paths = 2;
+  string revision = 3;
+  int32 start_line = 4;
+  int32 end_line = 5;
+  int32 max_paths = 6;
+  int32 max_lines = 7;
+  int32 max_bytes = 8;
+  bool enrich = 9;
+}
+
+message BlameLine {
+  int32 line = 1;
+  string content = 2;
+  string commit = 3;
+  string author = 4;
+  string author_time = 5;
+  string subject = 6;
+  int32 original_line = 7;
+  string original_path = 8;
+}
+
+message ProvenanceWorkReference {
+  string kind = 1;
+  string id = 2;
+  string revision = 3;
+  string relationship = 4;
+  bool verified = 5;
+  string visibility = 6;
+  string state = 7;
+  string unavailable_reason = 8;
+}
+
+message BlameEvidence {
+  string run_id = 1;
+  string sandbox_id = 2;
+  string application_receipt = 3;
+  string content_digest = 4;
+  string commit_id = 5;
+  string visibility = 6;
+  string commit_state = 7;
+  string run_outcome = 8;
+  string conversation_id = 9;
+  double cost_usd = 10;
+  string committed_at = 11;
+  repeated string unavailable = 12;
+  repeated ProvenanceWorkReference work_references = 13;
+}
+
+message BlameFile {
+  string path = 1;
+  string status = 2;
+  repeated BlameLine lines = 3;
+  string content_digest = 4;
+  string reason = 5;
+  string standing = 6;
+  repeated string downgrade_reasons = 7;
+  repeated BlameEvidence evidence = 8;
+}
+
+message ProvenanceChangeBundle {
+  string run_id = 1;
+  string sandbox_id = 2;
+  repeated string files = 3;
+  string run_outcome = 4;
+  string conversation_id = 5;
+  double cost_usd = 6;
+  repeated ProvenanceWorkReference work_references = 7;
+  repeated string gaps = 8;
+}
+
+message GetBlameResponse {
+  string revision = 1;
+  repeated BlameFile files = 2;
+  bool truncated = 3;
+  repeated string warnings = 4;
+  repeated ProvenanceChangeBundle change_bundles = 5;
+}
+
+message SearchProvenanceRequest {
+  int64 repository_id = 1;
+  string query = 2;
+  int32 limit = 3;
+  string scope = 4;
+}
+
+message ProvenanceSearchHit {
+  string id = 1;
+  string title = 2;
+  string snippet = 3;
+  double score = 4;
+  string run_id = 5;
+  string sandbox_id = 6;
+  string relative_path = 7;
+  string evidence_standing = 8;
+}
+
+message SearchProvenanceResponse {
+  bool available = 1;
+  repeated ProvenanceSearchHit results = 2;
+  string warning = 3;
+}
+
+message SetActiveRepositoryRequest {
+  int64 repository_id = 1;
+}
+
+message OpenRepositoryRequest {
+  string path = 1;
+}
+
+message CloneRepositoryRequest {
+  string url = 1;
+  string destination = 2;
+}
+
+message RepoMutationResponse {
+  RepoRecord repo = 1;
+  string timestamp = 2;
+}
+
+message RemoveRepositoryRequest {
+  int64 repository_id = 1;
+}
+
+message RemoveRepositoryResponse {
+  bool removed = 1;
+  string timestamp = 2;
 }
 
 message GetRepoStatusRequest {
+  // Registered repository id. When empty, the server resolves the active
+  // repository or the repository containing the request's working directory.
+  string repository_id = 1;
+
   // Absolute path on disk; may be a main or linked worktree of the repo.
-  string repo_path = 1 [(buf.validate.field).string.min_len = 1];
+  string repo_path = 2;
+
+  // Include the more expensive per-file log-frequency map.
+  bool include_hotspots = 3;
 }
 
 // WorktreeIdentity captures the Tier-1 passive-awareness fields about
@@ -60,4 +361,758 @@ message GetRepoStatusResponse {
 
   // Worktree identity fields (Tier 1 passive awareness).
   WorktreeIdentity worktree = 3;
+
+  BranchStatus branch_status = 4;
+  FilesStatus files = 5;
+  FileStats file_stats = 6;
+  map<string, int32> file_hotspots = 7;
+  map<string, StringList> scopes = 8;
+  StatusSummary summary = 9;
+  AuthorStatus author = 10;
+  string repo_dir = 11;
+  string timestamp = 12;
 }
+
+message BranchStatus {
+  string head = 1;
+  string upstream = 2;
+  int32 ahead = 3;
+  int32 behind = 4;
+  string oid = 5;
+}
+
+message FilesStatus {
+  repeated string staged = 1;
+  repeated string unstaged = 2;
+  repeated string untracked = 3;
+  repeated string conflicts = 4;
+  repeated string binary = 5;
+  repeated string ignored = 6;
+  map<string, string> statuses = 7;
+  map<string, string> renames = 8;
+}
+
+message FileStats {
+  map<string, DiffStats> staged = 1;
+  map<string, DiffStats> unstaged = 2;
+  map<string, DiffStats> untracked = 3;
+}
+
+message DiffStats {
+  int32 additions = 1;
+  int32 deletions = 2;
+  int32 files = 3;
+  int32 net_lines = 4;
+  int32 hunk_count = 5;
+  int32 largest_hunk = 6;
+  double density = 7;
+  bool is_binary = 8;
+  bool is_rename = 9;
+  string old_path = 10;
+  int32 comment_additions = 11;
+  int32 comment_deletions = 12;
+  bool is_new_file = 13;
+  bool is_deleted_file = 14;
+}
+
+message StringList {
+  repeated string values = 1;
+}
+
+message StatusSummary {
+  int32 staged = 1;
+  int32 unstaged = 2;
+  int32 untracked = 3;
+  int32 conflicts = 4;
+  int32 ignored = 5;
+}
+
+message AuthorStatus {
+  string name = 1;
+  string email = 2;
+}
+
+message GetRepoDiffRequest {
+  string repository_id = 1;
+  string repo_path = 2;
+  string path = 3;
+  bool staged = 4;
+  bool untracked = 5;
+  string base = 6;
+  string commit = 7;
+  string mode = 8;
+  bool any = 9;
+}
+
+message GetRepoDiffResponse {
+  string repo_dir = 1;
+  string path = 2;
+  bool staged = 3;
+  bool untracked = 4;
+  string base = 5;
+  bool has_diff = 6;
+  repeated DiffHunk hunks = 7;
+  DiffStats stats = 8;
+  string raw = 9;
+  string full_content = 10;
+  string content_hash = 11;
+  repeated AnnotatedLine annotated_lines = 12;
+  string mode = 13;
+  string timestamp = 14;
+}
+
+message DiffHunk {
+  int32 old_start = 1;
+  int32 old_count = 2;
+  int32 new_start = 3;
+  int32 new_count = 4;
+  string header = 5;
+  repeated string lines = 6;
+}
+
+message AnnotatedLine {
+  int32 number = 1;
+  string content = 2;
+  string change = 3;
+  int32 old_number = 4;
+}
+
+message GetRepoGroupsRequest {
+  string repository_id = 1;
+  string repo_path = 2;
+}
+
+message GetRepoGroupsResponse {
+  repeated ChangeGroup groups = 1;
+}
+
+message ChangeGroup {
+  string key = 1;
+  string kind = 2;
+  string id = 3;
+  string label = 4;
+  string root = 5;
+  string source = 6;
+  repeated string files = 7;
+}
+
+message GetSyncStatusRequest {
+  string repository_id = 1;
+  string repo_path = 2;
+  bool fetch = 3;
+  string remote = 4;
+}
+
+message GetSyncStatusResponse {
+  string branch = 1;
+  string upstream = 2;
+  string remote_url = 3;
+  int32 ahead = 4;
+  int32 behind = 5;
+  bool has_upstream = 6;
+  bool can_push = 7;
+  bool can_pull = 8;
+  bool needs_pull = 9;
+  bool needs_push = 10;
+  bool has_uncommitted_changes = 11;
+  repeated string safety_warnings = 12;
+  repeated string recommendations = 13;
+  bool fetched = 14;
+  string fetch_error = 15;
+  string timestamp = 16;
+}
+
+message GetFilesRequest {
+  string repository_id = 1;
+  string pattern = 2;
+  int32 limit = 3;
+  bool deep = 4;
+  int32 timeout_ms = 5;
+}
+
+message RepoFileInfo {
+  string path = 1;
+  string language = 2;
+  string status = 3;
+}
+
+message GetFilesResponse {
+  repeated RepoFileInfo files = 1;
+  bool truncated = 2;
+  bool cancelled = 3;
+  string search_mode = 4;
+  string timestamp = 5;
+}
+
+message GetDirectoryContentsRequest {
+  string repository_id = 1;
+  string path = 2;
+}
+
+message DirectoryEntry {
+  string name = 1;
+  string path = 2;
+  bool is_dir = 3;
+  string language = 4;
+  bool tracked = 5;
+}
+
+message GetDirectoryContentsResponse {
+  string path = 1;
+  repeated DirectoryEntry entries = 2;
+  string timestamp = 3;
+}
+
+message GetRelatedFilesRequest {
+  string repository_id = 1;
+  string path = 2;
+}
+
+message RelatedFile {
+  string path = 1;
+  string relation_type = 2;
+}
+
+message GetRelatedFilesResponse {
+  string path = 1;
+  repeated RelatedFile related = 2;
+  string timestamp = 3;
+}
+
+message SearchContentRequest {
+  string repository_id = 1;
+  string query = 2;
+  bool case_sensitive = 3;
+  bool whole_word = 4;
+  bool regex = 5;
+  string include = 6;
+  string exclude = 7;
+  int32 context_lines = 8;
+  int32 limit = 9;
+  int32 timeout_ms = 10;
+}
+
+message ContentMatch {
+  string path = 1;
+  int32 line_number = 2;
+  string content = 3;
+  string context_before = 4;
+  string context_after = 5;
+}
+
+message SearchContentResponse {
+  repeated ContentMatch matches = 1;
+  int32 total = 2;
+  bool truncated = 3;
+  bool cancelled = 4;
+  string query = 5;
+  string timestamp = 6;
+}
+
+message DeletePathRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string path = 3;
+}
+
+message DeletePathResponse {
+  bool success = 1;
+  string path = 2;
+  bool is_dir = 3;
+  string error = 4;
+  string timestamp = 5;
+}
+
+message SaveFileContentRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string path = 3;
+  string content = 4;
+  string expected_hash = 5;
+}
+
+message SaveFileContentResponse {
+  bool success = 1;
+  string path = 2;
+  string content_hash = 3;
+  int32 bytes_written = 4;
+  string timestamp = 5;
+}
+
+message DiscardFilesRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  repeated string paths = 3;
+  bool untracked = 4;
+}
+
+message DiscardFilesResponse {
+  bool success = 1;
+  repeated string discarded = 2;
+  repeated string failed = 3;
+  repeated string errors = 4;
+  string timestamp = 5;
+}
+
+message IgnorePathRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string path = 3;
+  string level = 4;
+  string group_dir = 5;
+}
+
+message IgnorePathResponse {
+  bool success = 1;
+  repeated string ignored = 2;
+  repeated string failed = 3;
+  repeated string errors = 4;
+  string gitignore_path = 5;
+  string timestamp = 6;
+}
+
+message PushToRemoteRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string remote = 3;
+  string branch = 4;
+  bool set_upstream = 5;
+}
+
+message PushToRemoteResponse {
+  bool success = 1;
+  string remote = 2;
+  string branch = 3;
+  bool pushed = 4;
+  bool up_to_date = 5;
+  bool verified = 6;
+  string verification_error = 7;
+  string error = 8;
+  string timestamp = 9;
+}
+
+message PullFromRemoteRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string remote = 3;
+  string branch = 4;
+}
+
+message PullFromRemoteResponse {
+  bool success = 1;
+  string remote = 2;
+  string branch = 3;
+  string error = 4;
+  bool has_conflicts = 5;
+  string timestamp = 6;
+}
+
+message RunUpstreamActionRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string action = 3;
+  string remote = 4;
+  string branch = 5;
+  string upstream = 6;
+}
+
+message RunUpstreamActionResponse {
+  bool success = 1;
+  string action = 2;
+  string remote = 3;
+  string branch = 4;
+  string upstream = 5;
+  string error = 6;
+  string timestamp = 7;
+}
+
+message GetGroupingRulesRequest {
+  string repository_id = 1;
+}
+
+message GroupingRule {
+  string id = 1;
+  string label = 2;
+  repeated string prefixes = 3;
+  string mode = 4;
+}
+
+message GroupingRulesResponse {
+  bool enabled = 1;
+  repeated GroupingRule rules = 2;
+}
+
+message SaveGroupingRulesRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  bool enabled = 3;
+  repeated GroupingRule rules = 4;
+}
+
+message GetGitignoreHealthRequest {
+  string repository_id = 1;
+}
+
+message GitignoreSuggestion {
+  int32 line = 1;
+  string pattern = 2;
+  string type = 3;
+  string group_label = 4;
+  string group_dir = 5;
+  string target_pattern = 6;
+  bool has_gitignore = 7;
+}
+
+message GitignoreHealthResponse {
+  int32 root_entry_count = 1;
+  repeated GitignoreSuggestion suggestions = 2;
+}
+
+message MoveGitignoreEntryRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  int32 line = 3;
+  string pattern = 4;
+  string group_dir = 5;
+  string target_pattern = 6;
+}
+
+message MoveGitignoreEntryResponse {
+  bool success = 1;
+  string removed_from = 2;
+  string added_to = 3;
+  string error = 4;
+}
+
+message GetTrackedBinariesRequest {
+  string repository_id = 1;
+}
+
+message TrackedBinary {
+  string path = 1;
+  int64 bytes = 2;
+  string format = 3;
+  string owner_dir = 4;
+  string ignore_pattern = 5;
+  bool already_ignored = 6;
+}
+
+message TrackedBinariesResponse {
+  repeated TrackedBinary binaries = 1;
+  int64 total_bytes = 2;
+  string history_warning = 3;
+}
+
+message UntrackBinaryRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string path = 3;
+  string owner_dir = 4;
+  string ignore_pattern = 5;
+}
+
+message UntrackBinaryResponse {
+  bool success = 1;
+  bool removed_from_index = 2;
+  string ignore_added_to = 3;
+  string error = 4;
+}
+
+message GetPrecommitConfigRequest {
+  string repository_id = 1;
+}
+
+message PrecommitHookState {
+  string status = 1;
+  string reason = 2;
+  string existing_kind = 3;
+  string existing_hook_preview = 4;
+  string path = 5;
+  string hooks_path = 6;
+  string installed_at = 7;
+}
+
+message PrecommitConfigResponse {
+  bool enabled = 1;
+  string command = 2;
+  string working_directory = 3;
+  int32 timeout_seconds = 4;
+  bool run_before_commit = 5;
+  bool allow_override = 6;
+  PrecommitRunResult last_result = 7;
+  PrecommitHookState hook = 8;
+}
+
+message SavePrecommitConfigRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  bool enabled = 3;
+  string command = 4;
+  string working_directory = 5;
+  int32 timeout_seconds = 6;
+  bool run_before_commit = 7;
+  bool allow_override = 8;
+}
+
+message RunPrecommitRequest {
+  string repository_id = 1;
+  string command = 2;
+  string working_directory = 3;
+  int32 timeout_seconds = 4;
+}
+
+message PrecommitRunResponse {
+  bool success = 1;
+  PrecommitRunResult result = 2;
+}
+
+message StageFilesRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  repeated string paths = 3;
+  string scope = 4;
+}
+
+message StageFilesResponse {
+  bool success = 1;
+  repeated string staged = 2;
+  repeated string unstaged = 3;
+  repeated string failed = 4;
+  repeated string errors = 5;
+  repeated string warnings = 6;
+  string timestamp = 7;
+}
+
+message UnstageFilesRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  repeated string paths = 3;
+  string scope = 4;
+}
+
+message UnstageFilesResponse {
+  bool success = 1;
+  repeated string unstaged = 2;
+  repeated string failed = 3;
+  repeated string errors = 4;
+  string timestamp = 5;
+}
+
+message CreateCommitRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string message = 3;
+  bool validate_conventional = 4;
+  bool amend = 5;
+  string author_name = 6;
+  string author_email = 7;
+  bool skip_precommit_once = 8;
+}
+
+message PrecommitRunResult {
+  string status = 1;
+  string command = 2;
+  int32 exit_code = 3;
+  string summary = 4;
+  string stdout = 5;
+  string stderr = 6;
+  int64 duration_ms = 7;
+  bool override_allowed = 8;
+  string timestamp = 9;
+}
+
+message CreateCommitResponse {
+  bool success = 1;
+  string hash = 2;
+  string message = 3;
+  bool amended = 4;
+  repeated string validation_errors = 5;
+  string error = 6;
+  PrecommitRunResult precommit = 7;
+  string timestamp = 8;
+}
+
+message Credential {
+  string id = 1;
+  string remote = 2;
+  string url = 3;
+  string type = 4;
+  string username = 5;
+  string token_masked = 6;
+  string ssh_key_path = 7;
+  bool is_configured = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+message ListCredentialsRequest {
+  string repository_id = 1;
+}
+
+message CredentialsListResponse {
+  repeated Credential credentials = 1;
+  string timestamp = 2;
+}
+
+message SaveCredentialRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string remote = 3;
+  string url = 4;
+  string username = 5;
+  string token = 6;
+  string ssh_key_path = 7;
+}
+
+message CredentialSaveResponse {
+  bool success = 1;
+  Credential credential = 2;
+  string error = 3;
+  string timestamp = 4;
+}
+
+message DeleteCredentialRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string id = 3;
+}
+
+message CredentialDeleteResponse {
+  bool success = 1;
+  string error = 2;
+  string timestamp = 3;
+}
+
+message TestCredentialRequest {
+  string repository_id = 1;
+  string remote = 2;
+  bool use_stored = 3;
+}
+
+message CredentialTestResponse {
+  bool success = 1;
+  bool reachable = 2;
+  bool authorized = 3;
+  string error = 4;
+  string timestamp = 5;
+}
+
+message UpdateRemoteURLRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string remote = 3;
+  string url = 4;
+}
+
+message RemoteURLUpdateResponse {
+  bool success = 1;
+  string old_url = 2;
+  string new_url = 3;
+  string error = 4;
+  string timestamp = 5;
+}
+
+message SSHKeyInfo {
+  string path = 1;
+  string filename = 2;
+  string type = 3;
+  int32 bits = 4;
+  string fingerprint = 5;
+  string comment = 6;
+  string created_at = 7;
+  bool has_public = 8;
+}
+
+message ListSSHKeysRequest {}
+
+message SSHListKeysResponse {
+  repeated SSHKeyInfo keys = 1;
+  string ssh_dir = 2;
+  string timestamp = 3;
+}
+
+message GenerateSSHKeyRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string type = 3;
+  int32 bits = 4;
+  string comment = 5;
+  string filename = 6;
+}
+
+message SSHGenerateKeyResponse {
+  bool success = 1;
+  SSHKeyInfo key = 2;
+  string public_key = 3;
+  string error = 4;
+  string timestamp = 5;
+}
+
+message GetSSHPublicKeyRequest {
+  string key_path = 1;
+}
+
+message SSHGetPublicKeyResponse {
+  bool success = 1;
+  string public_key = 2;
+  string fingerprint = 3;
+  string error = 4;
+  string timestamp = 5;
+}
+
+message TestSSHConnectionRequest {
+  string key_path = 1;
+}
+
+message SSHTestConnectionResponse {
+  bool success = 1;
+  string status = 2;
+  string message = 3;
+  string hint = 4;
+  string github_user = 5;
+  string fingerprint = 6;
+  int64 latency_ms = 7;
+  string timestamp = 8;
+}
+
+message DeleteSSHKeyRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string key_path = 3;
+}
+
+message SSHDeleteKeyResponse {
+  bool success = 1;
+  string message = 2;
+  string error = 3;
+  bool private_deleted = 4;
+  bool public_deleted = 5;
+  string timestamp = 6;
+}
+
+// Unknown never means safe. Complete covers file sizes, not all remote policies.
+message InspectPushSafetyRequest { string repository_id = 1; string remote = 2; string branch = 3; }
+message PushSafetyFile { string oid = 1; int64 bytes = 2; repeated string paths = 3; repeated string commits = 4; bool blocked = 5; }
+message PushSafetyReport {
+ bool complete = 1; string state = 2; string reason = 3;
+ string head = 4; string base = 5; string remote = 6; string branch = 7;
+ int64 limit = 8; repeated string commits = 9; repeated PushSafetyFile files = 10;
+ string fingerprint = 11; bool can_prepare = 12; string recovery_reason = 13;
+ // Advisory index snapshot, separate from immutable recovery approval.
+ bool staged_complete = 14; string staged_reason = 15; repeated PushSafetyFile staged_files = 16;
+}
+// Writes only owner-managed isolated artifacts. Never activates or publishes.
+message PreparePushRecoveryRequest {
+ string repository_id = 1; string intent_id = 2; string remote = 3; string branch = 4;
+ string fingerprint = 5;
+}
+message RecoveryCommitMapping { string original = 1; string replacement = 2; }
+message PushRecoveryArtifact {
+ string state = 1; string message = 2; string fingerprint = 3;
+ string head = 4; string base = 5; string candidate = 6;
+ string original_bundle = 7; string repaired_bundle = 8;
+ repeated RecoveryCommitMapping mappings = 9; repeated string paths = 10;
+ bool signatures_removed = 11;
+}
+
+message GetPushRecoveryRequest { string repository_id = 1; string fingerprint = 2; }

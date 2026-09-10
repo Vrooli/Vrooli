@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "swarm-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "6aa73d290677a7fd758d4357ed2c15325efa38f5a658eb886a8c64f2dbad80ee",
+  "manifest_hash": "59efddfe6d89ca26fb3b6e99fdc5622646cdf2b17a58657fdb0115af7725838a",
   "commands": [
     {
       "path": "agent-manager metrics-sandbox-adoption",
@@ -235,6 +235,41 @@
       "group": "captures",
       "command": "list",
       "binding": "."
+    },
+    {
+      "path": "development accept",
+      "group": "development",
+      "command": "accept",
+      "binding": "DevelopmentService.AcceptDevelopment",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "development approve",
+      "group": "development",
+      "command": "approve",
+      "binding": "DevelopmentService.ApproveDevelopment",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "development artifact",
+      "group": "development",
+      "command": "artifact",
+      "binding": "DevelopmentService.GetDevelopmentArtifact",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "development get",
+      "group": "development",
+      "command": "get",
+      "binding": "DevelopmentService.GetDevelopment",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "development revoke",
+      "group": "development",
+      "command": "revoke",
+      "binding": "DevelopmentService.RevokeDevelopment",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "evidence entity",
@@ -1028,6 +1063,13 @@
       "group": "transitions",
       "command": "list",
       "binding": "TransitionService.ListTransitions",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "transitions preview-development",
+      "group": "transitions",
+      "command": "preview-development",
+      "binding": "TransitionService.PreviewDevelopment",
       "observed_primitive": "proto_list"
     },
     {

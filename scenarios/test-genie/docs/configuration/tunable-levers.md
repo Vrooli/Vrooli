@@ -13,6 +13,7 @@ These are normally provided by the Vrooli lifecycle system:
 | `SCENARIO_DATA_DIR` | API runtime | lifecycle | Default root for embedded persistent state |
 | `SCENARIOS_ROOT` | API runtime | inferred from cwd | Root directory for scenario discovery |
 | `VROOLI_ROOT` | API + CLI | environment | Repo root for docs, scenario lookup, and path resolution |
+| `TEST_GENIE_DEPLOYMENT_MANAGER_READINESS_TOKEN` | API runtime | unset | Optional server-side bearer credential for the verified `test-genie` service subject with `deployment-manager:readiness-evidence`; without it, release readiness evidence remains unavailable. A `StartRun` request must also provide the exact `release_predecessor_run_id` to produce regression evidence. |
 
 ## High-value Test Genie levers
 

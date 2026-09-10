@@ -22,6 +22,7 @@ type hostVrooliScenarioRequest struct {
 	PortName             string `json:"port_name,omitempty"`
 	BestEffort           bool   `json:"best_effort,omitempty"`
 	CleanStale           bool   `json:"clean_stale,omitempty"`
+	DemandManaged        bool   `json:"demand_managed,omitempty"`
 	AcceptCredentialLoss bool   `json:"accept_credential_loss,omitempty"`
 	CustomPath           string `json:"custom_path,omitempty"`
 }
@@ -66,6 +67,9 @@ func (h *Handlers) HostVrooliScenario(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.CleanStale {
 		args = append(args, "--clean-stale")
+	}
+	if req.DemandManaged {
+		args = append(args, "--demand-managed")
 	}
 	if req.AcceptCredentialLoss {
 		args = append(args, "--accept-credential-loss")

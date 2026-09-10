@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "scenario": "trustworthy-testing-reference",
+  "input_digest": "sha256:1cc34a0d78474fd8372a462b0100bc70bba6bbfbd58489d969c2da3d27eed54b",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/trustworthy-testing-reference/v1/notes/attachments.proto",
+    "schemas/trustworthy-testing-reference/v1/notes/notes.proto",
+    "schemas/trustworthy-testing-reference/v1/shared/errors.proto",
+    "schemas/trustworthy-testing-reference/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/trustworthy-testing-reference/v1/notes/attachments.pb.go": "sha256:64aabd726f82fddbd4a5b8a6e7d9ee5049775097eca6212a95fa9414842eb6be",
+    "gen/go/trustworthy-testing-reference/v1/notes/notes.pb.go": "sha256:064c66348a63ff187c2f77ab0dd9f1ede016e8f792d0ec48c76b8d9dc2ef310c",
+    "gen/go/trustworthy-testing-reference/v1/notes/notes_v1connect/notes.connect.go": "sha256:2d033670f6bca1ff5317f8cd76e7062492e4aa2ffcf376af94d2f16211e304b7",
+    "gen/go/trustworthy-testing-reference/v1/shared/errors.pb.go": "sha256:bdb1b4f2e58eb6d3a8d6c13fa637ec387acf48bcea6be0a1323a36d9058dd094",
+    "gen/go/trustworthy-testing-reference/v1/shared/health.pb.go": "sha256:4eff5fcc7a26b25d13437347d52c9e0473382892b08a3a4ce164e4ee52c5138a",
+    "gen/python/trustworthy_testing_reference/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/trustworthy_testing_reference/v1/notes/attachments_pb2.py": "sha256:c04c431ae976ac5011e3a288d3875b18bf9c4bc3c7b4f3a15327810972dc1c60",
+    "gen/python/trustworthy_testing_reference/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/trustworthy_testing_reference/v1/notes/notes_pb2.py": "sha256:6ff5f222003edc0dc043dd602eb17e7ddfe1f935496d9cd641cbc33a7b0a8eb2",
+    "gen/python/trustworthy_testing_reference/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/trustworthy_testing_reference/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/trustworthy_testing_reference/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/trustworthy_testing_reference/v1/shared/errors_pb2.py": "sha256:3c109f0a876102ee7ed34b9099f8ac1bb1f06560ea048692fd6a97ca8cd3f9a9",
+    "gen/python/trustworthy_testing_reference/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/trustworthy_testing_reference/v1/shared/health_pb2.py": "sha256:8b8f721c03b88975bd1cc39868a37e7f69262cf101ddf4f57e55c2fc8063c55f",
+    "gen/python/trustworthy_testing_reference/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/trustworthy_testing_reference/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/trustworthy-testing-reference/v1/notes/attachments_pb.ts": "sha256:3497e65956237d9fc2f28d59dec62fb0cbec83848a1fc626afedc98078096cae",
+    "gen/typescript/trustworthy-testing-reference/v1/notes/notes_pb.ts": "sha256:b50727f2169ace32d364c8edab11fe9d4e955e0ff24ba03761834ed973cee689",
+    "gen/typescript/trustworthy-testing-reference/v1/shared/errors_pb.ts": "sha256:a586af8a8a34443d428a9f2530ac736cb2886a5738c0d80eea71d13fe87193d9",
+    "gen/typescript/trustworthy-testing-reference/v1/shared/health_pb.ts": "sha256:cb3281676421afab92116ee5e9126ec74c7dcd1a95e6184b1cb64d20909a382f"
+  }
+}

@@ -40,8 +40,20 @@ bounded `LoadAll`/`ScrollIDs` snapshot. It reads one `PagedSource` page, looks
 up only those source identities, stages changed vectors into a shadow
 generation, validates it, and promotes it atomically. Cancellation or any page,
 embed, store, or validation error rolls the candidate back. The active
-generation remains readable throughout the build. `RunChanges` applies bounded
-explicit upserts and source-level deletes through the same promotion contract.
+generation remains readable throughout the build. `RunChanges` applies an
+explicit change set of upserts and source-level deletes through the same
+promotion contract, paging it internally so one incremental run costs exactly
+one generation however many changes it carries.
+
+Generation retention is owned by the store. After every promotion the
+reconciler asks the store to keep the two newest retired generations (the
+previous serving generation for an operator rollback, plus one) and delete the
+rest; a retirement failure is reported on `StreamingResult.CleanupError` and
+never fails a run whose index is already live. The Qdrant store
+(`NewQdrantGenerationStore`) seeds each incremental candidate from the active
+collection server-side (`init_from`) rather than scrolling the corpus through
+the client, retires by collection name newest-first (generation IDs must sort
+chronologically), and never deletes the alias target or an in-flight candidate.
 
 `NewPagedSourceAdapter(Source)` exists only for intentionally small corpora. It
 materializes the legacy source once and serves stable pages; it is not the
@@ -410,3 +422,19 @@ build, the local recall gate is enough. The tuning loop is: golden suite in
 cross-scenario CLI-command corpus: `command_index.go` is the `Source` adapter +
 result projection, `service.go` is the search/reindex surface, `main.go` is the
 production wiring. It is the reference an adopting scenario should copy.
+
+## Generation ownership and retention
+
+Alias-backed Qdrant generations are owned by the adopting scenario. A
+`GenerationCatalog` stores owner, namespace, alias, content identity, lease,
+and lifecycle state beside the domain schema. The lifecycle owner exposes
+inspection, preview, and apply operations through `GenerationLifecycleOwner`.
+
+Cleanup is preview-first and approval-required. Active, candidate, and
+lease-held generations are protected; the configured rollback window is also
+protected. Expired or failed generations may be deleted only through Qdrant's
+collection API. Collections missing from the catalog are quarantined. Apply
+receipts are keyed by idempotency key, so a retry or process restart returns
+the same receipt instead of repeating the logical operation. Physical reclaim
+is reported separately because Qdrant's collection API does not provide
+filesystem allocation.

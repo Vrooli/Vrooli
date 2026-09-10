@@ -54,6 +54,22 @@ authorization check.
 
 ## Concepts and their roles
 
+### Contract-driven development target
+
+One approved item may authorize successive implementation decisions toward a
+reviewed scenario contract. Swarm remains the authority and work ledger; the
+agent uses scenario improvement judgment inside that engagement. New targets,
+effects, or budgets need amendment, not every in-scope repair. See
+[Contract-Driven Scenario Development](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
+
+New adaptive development uses ordinary plan acceptance and the plan-backed
+execution path. See [current implementation](ARCHITECTURE.md#plan-backed-execution)
+for ownership, continuation and qualification limits. The earlier development
+domain remains a [compatibility surface](ARCHITECTURE.md#retained-development-compatibility-surface)
+with its own authorization and evidence requirements; it does not add a second
+approval to an ordinary plan item. The transition catalog remains authoritative
+for executable actions. Whole-goal execution is a separate extension.
+
 | Concept | Why it exists | It owns | It does not own |
 | --- | --- | --- | --- |
 | **Capture** | Fast, low-commitment intake for an observation, request, bug, or idea. | Raw input, attachments, classification state. | A commitment to do work. |
@@ -148,7 +164,10 @@ events that power throughput, quality, and regression statistics.
 Plan execution has one registry-declared fallback of record:
 `phased-plan-drain`. It retains the per-phase review gate, creates fresh runs
 for bounded slices, invokes `phased-plan-slice-review` as a reachable child
-workflow, and parks at durable operator approval. Agent Manager resolves the
+workflow, and uses the item's approval policy at routine phase boundaries.
+For `adaptive-improvement`, independently reviewed routine boundaries continue
+under the original acceptance. An `operator-decision` reason always parks at
+durable operator approval. Agent Manager resolves the
 substrate from declared runner capabilities and profile preferences. Any
 weaker sandbox or substrate preference is surfaced as a run-level resolution
 event.

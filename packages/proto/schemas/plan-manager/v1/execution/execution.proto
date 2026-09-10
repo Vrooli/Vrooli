@@ -105,6 +105,7 @@ message Execution {
   string abandoned_at = 13;
   string abandoned_by = 14;
   repeated BoundaryExtension boundary_extensions = 15;
+  map<string, shared.OutcomeAssessment> phase_assessments = 16;
 }
 
 // Execution-owned checkpoint for a resolved GCT collection. Source paths are
@@ -220,12 +221,13 @@ message PhaseContext {
   // decisions/findings/bugs/records without reading every entry. Assembled from
   // the log domain through an internal seam.
   shared.LogSummary log_summary = 10;
-  // Execution-start "freshen inputs" status. The runner captures the
-  // regression-anchor's baseline snapshot fresh and recomputes reference
-  // staleness ONCE on first start/resume (delegated to the validation domain).
-  // inputs_freshened is true once the step has run; freshen_status is "captured"
-  // or "degraded"; freshen_detail carries the captured baseline / staleness
-  // summary or the honest degradation reason. Never blocks phase work.
+  // Optional execution-start "freshen inputs" status. Explicit certification
+  // may capture the regression-anchor's baseline snapshot and recompute
+  // reference staleness ONCE on first start/resume (delegated to validation).
+  // Ordinary completion does not require this step; when present,
+  // inputs_freshened is true once it has run, and freshen_detail carries the
+  // evidence summary or honest degradation reason. It never blocks ordinary
+  // phase work.
   bool inputs_freshened = 11;
   string freshen_status = 12;
   string freshen_detail = 13;
@@ -239,6 +241,7 @@ message PhaseContext {
   PhaseFeedbackCheckpoint feedback_checkpoint = 15;
   BaselineSetState baseline_set = 16;
   int32 scope_generation = 17;
+  shared.CompletionPolicy completion_policy = 18;
 }
 
 // PhaseFeedbackCheckpoint reports whether the current phase has durable feedback
@@ -466,6 +469,7 @@ message TransitionPhaseRequest {
   // This is an explicit audit trail for operator/degraded cases; normal agents
   // should satisfy the checkpoint by capturing feedback or a no-feedback note.
   FeedbackOverride feedback_override = 5;
+  shared.OutcomeAssessment assessment = 6;
 }
 
 message TransitionPhaseResponse {

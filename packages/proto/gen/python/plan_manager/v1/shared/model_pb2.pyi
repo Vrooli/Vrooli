@@ -775,8 +775,16 @@ class PlanDefinition(_message.Message):
     meaning: str
     def __init__(self, term: _Optional[str] = ..., meaning: _Optional[str] = ...) -> None: ...
 
+class CompletionPolicy(_message.Message):
+    __slots__ = ("mode", "reason")
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    mode: str
+    reason: str
+    def __init__(self, mode: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
 class Plan(_message.Message):
-    __slots__ = ("id", "slug", "title", "status", "content_hash", "created_at", "updated_at", "purpose", "scope", "constraints", "non_goals", "references", "regression_anchor", "definition_of_done", "phases", "supersedes", "superseded_by", "relevant_context", "problem_statement", "target_outcome", "assumptions", "technical_approach", "validation_strategy", "final_validation_commands", "risks_hazards", "prohibited_approaches", "work_posture", "work_posture_source", "work_posture_detail", "import_provenance", "preserved_legacy_sections", "change_boundary", "mirror", "workspace_id", "workspace_root", "decisions", "assumption_risks", "baseline_set", "definitions")
+    __slots__ = ("id", "slug", "title", "status", "content_hash", "created_at", "updated_at", "purpose", "scope", "constraints", "non_goals", "references", "regression_anchor", "definition_of_done", "phases", "supersedes", "superseded_by", "relevant_context", "problem_statement", "target_outcome", "assumptions", "technical_approach", "validation_strategy", "final_validation_commands", "risks_hazards", "prohibited_approaches", "work_posture", "work_posture_source", "work_posture_detail", "import_provenance", "preserved_legacy_sections", "change_boundary", "mirror", "workspace_id", "workspace_root", "decisions", "assumption_risks", "baseline_set", "definitions", "completion_policy")
     ID_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -816,6 +824,7 @@ class Plan(_message.Message):
     ASSUMPTION_RISKS_FIELD_NUMBER: _ClassVar[int]
     BASELINE_SET_FIELD_NUMBER: _ClassVar[int]
     DEFINITIONS_FIELD_NUMBER: _ClassVar[int]
+    COMPLETION_POLICY_FIELD_NUMBER: _ClassVar[int]
     id: str
     slug: str
     title: str
@@ -855,7 +864,8 @@ class Plan(_message.Message):
     assumption_risks: _containers.RepeatedCompositeFieldContainer[PlanAssumption]
     baseline_set: BaselineSetIntent
     definitions: _containers.RepeatedCompositeFieldContainer[PlanDefinition]
-    def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[_Union[PlanStatus, str]] = ..., content_hash: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., purpose: _Optional[str] = ..., scope: _Optional[str] = ..., constraints: _Optional[str] = ..., non_goals: _Optional[str] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., regression_anchor: _Optional[_Union[RegressionAnchor, _Mapping]] = ..., definition_of_done: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[Phase, _Mapping]]] = ..., supersedes: _Optional[_Iterable[str]] = ..., superseded_by: _Optional[_Iterable[str]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ..., problem_statement: _Optional[str] = ..., target_outcome: _Optional[str] = ..., assumptions: _Optional[str] = ..., technical_approach: _Optional[str] = ..., validation_strategy: _Optional[str] = ..., final_validation_commands: _Optional[_Iterable[str]] = ..., risks_hazards: _Optional[str] = ..., prohibited_approaches: _Optional[str] = ..., work_posture: _Optional[_Union[WorkPosture, str]] = ..., work_posture_source: _Optional[_Union[WorkPostureSource, str]] = ..., work_posture_detail: _Optional[str] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., preserved_legacy_sections: _Optional[_Iterable[_Union[LegacySection, _Mapping]]] = ..., change_boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ..., mirror: _Optional[_Union[RenderedPlanMirror, _Mapping]] = ..., workspace_id: _Optional[str] = ..., workspace_root: _Optional[str] = ..., decisions: _Optional[_Iterable[_Union[PlanDecision, _Mapping]]] = ..., assumption_risks: _Optional[_Iterable[_Union[PlanAssumption, _Mapping]]] = ..., baseline_set: _Optional[_Union[BaselineSetIntent, _Mapping]] = ..., definitions: _Optional[_Iterable[_Union[PlanDefinition, _Mapping]]] = ...) -> None: ...
+    completion_policy: CompletionPolicy
+    def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[_Union[PlanStatus, str]] = ..., content_hash: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., purpose: _Optional[str] = ..., scope: _Optional[str] = ..., constraints: _Optional[str] = ..., non_goals: _Optional[str] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., regression_anchor: _Optional[_Union[RegressionAnchor, _Mapping]] = ..., definition_of_done: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[Phase, _Mapping]]] = ..., supersedes: _Optional[_Iterable[str]] = ..., superseded_by: _Optional[_Iterable[str]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ..., problem_statement: _Optional[str] = ..., target_outcome: _Optional[str] = ..., assumptions: _Optional[str] = ..., technical_approach: _Optional[str] = ..., validation_strategy: _Optional[str] = ..., final_validation_commands: _Optional[_Iterable[str]] = ..., risks_hazards: _Optional[str] = ..., prohibited_approaches: _Optional[str] = ..., work_posture: _Optional[_Union[WorkPosture, str]] = ..., work_posture_source: _Optional[_Union[WorkPostureSource, str]] = ..., work_posture_detail: _Optional[str] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., preserved_legacy_sections: _Optional[_Iterable[_Union[LegacySection, _Mapping]]] = ..., change_boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ..., mirror: _Optional[_Union[RenderedPlanMirror, _Mapping]] = ..., workspace_id: _Optional[str] = ..., workspace_root: _Optional[str] = ..., decisions: _Optional[_Iterable[_Union[PlanDecision, _Mapping]]] = ..., assumption_risks: _Optional[_Iterable[_Union[PlanAssumption, _Mapping]]] = ..., baseline_set: _Optional[_Union[BaselineSetIntent, _Mapping]] = ..., definitions: _Optional[_Iterable[_Union[PlanDefinition, _Mapping]]] = ..., completion_policy: _Optional[_Union[CompletionPolicy, _Mapping]] = ...) -> None: ...
 
 class PlanEdge(_message.Message):
     __slots__ = ("from_plan_id", "to_plan_id", "kind")
@@ -887,8 +897,29 @@ class VelocityPoint(_message.Message):
     recorded_at: str
     def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., run_id: _Optional[str] = ..., wall_time_seconds: _Optional[int] = ..., tokens: _Optional[int] = ..., iterations: _Optional[int] = ..., completeness: _Optional[_Union[Completeness, str]] = ..., recorded_at: _Optional[str] = ...) -> None: ...
 
+class OutcomeAssessment(_message.Message):
+    __slots__ = ("summary", "evidence", "limitations", "unmet_outcomes", "scope_generation")
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    LIMITATIONS_FIELD_NUMBER: _ClassVar[int]
+    UNMET_OUTCOMES_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_GENERATION_FIELD_NUMBER: _ClassVar[int]
+    summary: str
+    evidence: _containers.RepeatedScalarFieldContainer[str]
+    limitations: _containers.RepeatedScalarFieldContainer[str]
+    unmet_outcomes: _containers.RepeatedScalarFieldContainer[str]
+    scope_generation: int
+    def __init__(self, summary: _Optional[str] = ..., evidence: _Optional[_Iterable[str]] = ..., limitations: _Optional[_Iterable[str]] = ..., unmet_outcomes: _Optional[_Iterable[str]] = ..., scope_generation: _Optional[int] = ...) -> None: ...
+
 class Handoff(_message.Message):
-    __slots__ = ("id", "execution_id", "plan_id", "completeness", "resume_phase_id", "log_summary", "log_entries", "last_validation", "staleness", "prose_handoff_ref", "assembled_at", "change_boundary")
+    __slots__ = ("id", "execution_id", "plan_id", "completeness", "resume_phase_id", "log_summary", "log_entries", "last_validation", "staleness", "prose_handoff_ref", "assembled_at", "change_boundary", "phase_assessments", "completion_policy")
+    class PhaseAssessmentsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: OutcomeAssessment
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[OutcomeAssessment, _Mapping]] = ...) -> None: ...
     ID_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -901,6 +932,8 @@ class Handoff(_message.Message):
     PROSE_HANDOFF_REF_FIELD_NUMBER: _ClassVar[int]
     ASSEMBLED_AT_FIELD_NUMBER: _ClassVar[int]
     CHANGE_BOUNDARY_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ASSESSMENTS_FIELD_NUMBER: _ClassVar[int]
+    COMPLETION_POLICY_FIELD_NUMBER: _ClassVar[int]
     id: str
     execution_id: str
     plan_id: str
@@ -913,4 +946,6 @@ class Handoff(_message.Message):
     prose_handoff_ref: str
     assembled_at: str
     change_boundary: ChangeBoundary
-    def __init__(self, id: _Optional[str] = ..., execution_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., completeness: _Optional[_Union[Completeness, str]] = ..., resume_phase_id: _Optional[str] = ..., log_summary: _Optional[_Union[LogSummary, _Mapping]] = ..., log_entries: _Optional[_Iterable[_Union[LogEntry, _Mapping]]] = ..., last_validation: _Optional[_Union[ValidationResult, _Mapping]] = ..., staleness: _Optional[_Union[StalenessTier, str]] = ..., prose_handoff_ref: _Optional[str] = ..., assembled_at: _Optional[str] = ..., change_boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ...) -> None: ...
+    phase_assessments: _containers.MessageMap[str, OutcomeAssessment]
+    completion_policy: CompletionPolicy
+    def __init__(self, id: _Optional[str] = ..., execution_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., completeness: _Optional[_Union[Completeness, str]] = ..., resume_phase_id: _Optional[str] = ..., log_summary: _Optional[_Union[LogSummary, _Mapping]] = ..., log_entries: _Optional[_Iterable[_Union[LogEntry, _Mapping]]] = ..., last_validation: _Optional[_Union[ValidationResult, _Mapping]] = ..., staleness: _Optional[_Union[StalenessTier, str]] = ..., prose_handoff_ref: _Optional[str] = ..., assembled_at: _Optional[str] = ..., change_boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ..., phase_assessments: _Optional[_Mapping[str, OutcomeAssessment]] = ..., completion_policy: _Optional[_Union[CompletionPolicy, _Mapping]] = ...) -> None: ...

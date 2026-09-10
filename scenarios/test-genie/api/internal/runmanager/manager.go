@@ -712,6 +712,22 @@ func admissionKey(req orchestrator.SuiteExecutionRequest) string {
 		"config=" + strings.TrimSpace(req.AdmissionConfigurationDigest),
 		fmt.Sprintf("gateQuality=%t", req.RequireGateQuality),
 	}
+	if identity := req.ReleaseIdentity; identity != nil {
+		targets := append([]string(nil), identity.Targets...)
+		sort.Strings(targets)
+		parts = append(parts,
+			"releaseProfile="+strings.TrimSpace(identity.ProfileID),
+			"releaseCommit="+strings.TrimSpace(identity.CandidateCommit),
+			"releaseArtifact="+strings.TrimSpace(identity.ArtifactDigest),
+			"releaseTargets="+strings.Join(targets, ","),
+			"releaseChannel="+strings.TrimSpace(identity.Channel),
+			fmt.Sprintf("releasePolicy=%d", identity.PolicyVersion),
+			"releaseCandidate="+strings.TrimSpace(identity.CandidateID),
+			"releaseDestination="+strings.TrimSpace(identity.DestinationRevisionID),
+			fmt.Sprintf("releaseEpoch=%d", identity.AuthorizationEpoch),
+			"releasePredecessor="+strings.TrimSpace(identity.PredecessorRunID),
+		)
+	}
 	return strings.Join(parts, "\x1f")
 }
 

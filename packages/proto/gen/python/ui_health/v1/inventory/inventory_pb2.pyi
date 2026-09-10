@@ -16,20 +16,32 @@ class ScanScenarioRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ...) -> None: ...
 
 class SurfaceRecord(_message.Message):
-    __slots__ = ("scenario", "slot", "kind", "display_name", "description", "file_path")
+    __slots__ = ("scenario", "slot", "kind", "display_name", "description", "file_path", "observed_route", "observed_link_text", "observed_page_title", "observed_at", "reachable", "http_status")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     SLOT_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     FILE_PATH_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_ROUTE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_LINK_TEXT_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_PAGE_TITLE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    REACHABLE_FIELD_NUMBER: _ClassVar[int]
+    HTTP_STATUS_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     slot: str
     kind: _search_pb2.SurfaceKind
     display_name: str
     description: str
     file_path: str
-    def __init__(self, scenario: _Optional[str] = ..., slot: _Optional[str] = ..., kind: _Optional[_Union[_search_pb2.SurfaceKind, str]] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., file_path: _Optional[str] = ...) -> None: ...
+    observed_route: str
+    observed_link_text: str
+    observed_page_title: str
+    observed_at: str
+    reachable: bool
+    http_status: int
+    def __init__(self, scenario: _Optional[str] = ..., slot: _Optional[str] = ..., kind: _Optional[_Union[_search_pb2.SurfaceKind, str]] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., file_path: _Optional[str] = ..., observed_route: _Optional[str] = ..., observed_link_text: _Optional[str] = ..., observed_page_title: _Optional[str] = ..., observed_at: _Optional[str] = ..., reachable: _Optional[bool] = ..., http_status: _Optional[int] = ...) -> None: ...
 
 class ScanScenarioResponse(_message.Message):
     __slots__ = ("scenario", "provenance", "widgets", "surfaces")

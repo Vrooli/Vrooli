@@ -2,7 +2,7 @@
   "schemaVersion": "agent-workflow/v1",
   "owner": "swarm-manager",
   "key": "swarm-manager/independent-review",
-  "version": "1.2.2",
+  "version": "1.2.4",
   "description": "Gather bounded independent evidence for one completed backlog execution. Swarm owns the immutable execution snapshot, review ledger, and operator gate.",
   "inputSchema": {
     "type": "object",
@@ -50,7 +50,11 @@
         "properties": {
           "outcome": {
             "type": "string",
-            "enum": ["accepted", "changes-requested", "inconclusive"],
+            "enum": [
+              "accepted",
+              "changes-requested",
+              "inconclusive"
+            ],
             "description": "Use accepted for ready or ready_with_notes, changes-requested for needs_work, and inconclusive for not_assessable."
           },
           "handoff": {
@@ -137,7 +141,52 @@
                     "trust",
                     "settlement"
                   ],
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "settlement": {
+                          "const": "settled"
+                        }
+                      },
+                      "required": [
+                        "settlement"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "settlement": {
+                          "const": "refuted"
+                        }
+                      },
+                      "required": [
+                        "settlement"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "settlement": {
+                          "const": "unavailable"
+                        },
+                        "unavailable_reason": {
+                          "type": "string",
+                          "pattern": "\\S"
+                        },
+                        "attempted_producer": {
+                          "type": "string",
+                          "pattern": "\\S"
+                        }
+                      },
+                      "required": [
+                        "settlement",
+                        "unavailable_reason",
+                        "attempted_producer"
+                      ]
+                    }
+                  ]
                 }
               },
               "criterion_verdicts": {
@@ -340,7 +389,11 @@
             "properties": {
               "outcome": {
                 "type": "string",
-                "enum": ["accepted", "changes-requested", "inconclusive"],
+                "enum": [
+                  "accepted",
+                  "changes-requested",
+                  "inconclusive"
+                ],
                 "description": "Use accepted for ready or ready_with_notes, changes-requested for needs_work, and inconclusive for not_assessable."
               },
               "handoff": {
@@ -427,7 +480,52 @@
                         "trust",
                         "settlement"
                       ],
-                      "additionalProperties": true
+                      "additionalProperties": true,
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "settlement": {
+                              "const": "settled"
+                            }
+                          },
+                          "required": [
+                            "settlement"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "settlement": {
+                              "const": "refuted"
+                            }
+                          },
+                          "required": [
+                            "settlement"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "settlement": {
+                              "const": "unavailable"
+                            },
+                            "unavailable_reason": {
+                              "type": "string",
+                              "pattern": "\\S"
+                            },
+                            "attempted_producer": {
+                              "type": "string",
+                              "pattern": "\\S"
+                            }
+                          },
+                          "required": [
+                            "settlement",
+                            "unavailable_reason",
+                            "attempted_producer"
+                          ]
+                        }
+                      ]
                     }
                   },
                   "criterion_verdicts": {
@@ -625,7 +723,7 @@
             "source": "workflow_input",
             "selector": "$.snapshot",
             "limit": 1,
-            "maxBytes": 65536,
+            "maxBytes": 1048576,
             "renderAs": "json",
             "missingPolicy": "error"
           }

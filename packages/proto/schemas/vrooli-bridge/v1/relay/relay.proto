@@ -9,6 +9,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridg
 // is still admitted by Bridge's typed dispatch policy before a frame is sent.
 service RelayService {
   rpc Call(RelayCallRequest) returns (RelayCallResponse);
+  // Reconcile a command after the response route was interrupted. This is a
+  // read-only lookup and must precede any fallback execution.
+  rpc Reconcile(RelayReconcileRequest) returns (RelayReconcileResponse);
 }
 
 enum RelayCallOutcome {
@@ -25,7 +28,8 @@ message RelayCallRequest {
   repeated string args = 4;
   int64 timeout_seconds = 5;
   uint64 max_response_bytes = 6;
-  reserved 7 to 15;
+  string command_id = 7;
+  reserved 8 to 15;
 }
 
 message RelayCallResponse {
@@ -35,5 +39,30 @@ message RelayCallResponse {
   string reason = 4;
   int32 exit_code = 5;
   uint64 total_bytes = 6;
-  reserved 7 to 15;
+  string command_id = 7;
+  string route = 8;
+  uint64 route_cost_units = 9;
+  uint64 route_latency_ms = 10;
+  reserved 11 to 15;
+}
+
+enum RelayReconcileState {
+  RELAY_RECONCILE_STATE_UNSPECIFIED = 0;
+  RELAY_RECONCILE_STATE_NOT_ADMITTED = 1;
+  RELAY_RECONCILE_STATE_SUBMITTED = 2;
+  RELAY_RECONCILE_STATE_COMPLETED = 3;
+  RELAY_RECONCILE_STATE_FAILED = 4;
+  RELAY_RECONCILE_STATE_OUTCOME_UNKNOWN = 5;
+}
+
+message RelayReconcileRequest {
+  string node_id = 1;
+  string command_id = 2;
+}
+
+message RelayReconcileResponse {
+  string command_id = 1;
+  RelayReconcileState state = 2;
+  RelayCallResponse response = 3;
+  string reason = 4;
 }

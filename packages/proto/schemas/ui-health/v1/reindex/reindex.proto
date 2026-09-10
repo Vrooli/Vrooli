@@ -54,6 +54,19 @@ message ReindexStatusResponse {
   // attempted to discover. Lets operators distinguish "dispatcher silently
   // returned zero surfaces" from "no scenarios were eligible".
   repeated ScenarioDispatchOutcome scenario_outcomes = 7;
+  repeated RouteObservation observations = 8;
+  repeated string orphan_surfaces = 9;
+  repeated string dead_routes = 10;
+}
+
+message RouteObservation {
+  string scenario = 1;
+  string route = 2;
+  string link_text = 3;
+  string page_title = 4;
+  string observed_at = 5;
+  bool reachable = 6;
+  int32 http_status = 7;
 }
 
 // ScenarioDispatchOutcome reports the result of a single scenario's discovery

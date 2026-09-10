@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "setup",
-  "input_digest": "sha256:165e850d56162c1380a664261102c9bfad29da5a09eef6073014f4907cea2182",
+  "input_digest": "sha256:c3281a5dfda810325c6487d03d71950dae5bd134632b99cefcaeb63dfc8fd9a7",
   "input_files": [
     "schemas/setup/v1/operator_input.proto",
     "schemas/setup/v1/selection.proto"
@@ -17,15 +17,15 @@
     }
   },
   "outputs": {
-    "gen/go/setup/v1/operator_input.pb.go": "sha256:efbec4061c81a596bcbd5fe1ac6150a6f46c3d9287f26f57f2fbed8ee71f1081",
-    "gen/go/setup/v1/selection.pb.go": "sha256:d92f46deae528147ac1f01a812ea061acd3d11cd3c0ffb83978ac8a9beca8792",
+    "gen/go/setup/v1/operator_input.pb.go": "sha256:a6cbbe7cd5c08d57d07ed52adebc4f2dcd0c4cbe1ab75940c63d11796e0a47a7",
+    "gen/go/setup/v1/selection.pb.go": "sha256:7793a809668031bd2c410c43c4d9bb8f1ef2acac50576a0d44c1c2a147f4c5b6",
     "gen/python/setup/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/setup/v1/operator_input_pb2.py": "sha256:19102062ba523c05ea54332eda82990ab25871d59bbff50cd5457a7204e1fe90",
-    "gen/python/setup/v1/operator_input_pb2.pyi": "sha256:201ba666446e0ef100e10fdde4a13718e8167dc8e12fc238cb27621cfd679d1c",
+    "gen/python/setup/v1/operator_input_pb2.py": "sha256:7672d78ddc13223ec1e432fa6e40d7bb793ad4caf3642592d144666af71282d8",
+    "gen/python/setup/v1/operator_input_pb2.pyi": "sha256:95c42e3d7a8f0c6ae443878735e963a64813194600b858714a76732d149b77b8",
     "gen/python/setup/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/setup/v1/selection_pb2.py": "sha256:5b7645cefded5b8eb0904060f46ae66a631386605424ad82ffcfccadebdd739e",
-    "gen/python/setup/v1/selection_pb2.pyi": "sha256:556e8d681fdeeec915b00fe98880d2ecea0d9d3f6de158d4b81912adec3e3be1",
-    "gen/typescript/setup/v1/operator_input_pb.ts": "sha256:ec63782f584d7fc81d87a41478fb47ecf37b4e41e5d6af27db2a06d502fcdda8",
-    "gen/typescript/setup/v1/selection_pb.ts": "sha256:23b978b60b3246ed77a843f016cb23785e984fb0d3960f0a7626b43d6f7a6654"
+    "gen/python/setup/v1/selection_pb2.py": "sha256:f963c3cd47a880fd0c64a80159923a7e49dc5df37c96d7c6e1e4dabb719355c7",
+    "gen/python/setup/v1/selection_pb2.pyi": "sha256:84eeb14e95994bf972ffe9f0c45b74cca0f4425c73d572c7c0419f9d47696973",
+    "gen/typescript/setup/v1/operator_input_pb.ts": "sha256:3380ab2b21baeebf5f54d14045731645fbc9843f021ac7c4867481fce6255fa7",
+    "gen/typescript/setup/v1/selection_pb.ts": "sha256:2398e5ec7db49a297392bfb8915406a55765de3738798e3ee6ee5947dc51318d"
   }
 }

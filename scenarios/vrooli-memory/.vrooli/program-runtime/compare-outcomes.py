@@ -30,7 +30,7 @@ def stable_id(kind, values):
 GROUPS = {
     "failure-recurrence": ["attempts", "failed", "unavailable", "unknown", "recurringFailureFingerprints", "repeatedFailures"],
     "completion-effort": ["tasks", "completedTasks", "unresolvedTasks", "leftCensoredTasks", "medianAttemptsToSuccess", "medianSecondsToSuccess"],
-    "advice-outcomes": ["appliedAdvice", "rejectedAdvice", "supportedAdvice", "contradictedAdvice", "unassessedAdvice", "recallUnavailable", "noMatch", "contradictionRate"],
+    "advice-outcomes": ["appliedAdvice", "rejectedAdvice", "supportedAdvice", "contradictedAdvice", "unassessedAdvice", "derivedAdvice", "explicitAdvice", "recallUnavailable", "recallNotRequested", "noMatch", "contradictionRate"],
     "first-action-latency": ["firstActionSamples", "medianSecondsToFirstAction"],
     "agent-round-trips": ["toolRoundTripSamples", "medianToolRoundTrips"],
     "visual-reasoning": ["visualReasoningSamples", "medianVisualReasoningCalls"],
@@ -75,7 +75,25 @@ def step_collect():
         meta = source.meta()
         count = source.count()
         cohorts = source.head(envelope["inputs"]["cohort_limit"])
-        measurement.update({"meta": meta, "cohorts": cohorts, "count": count})
+        advice = {"applied": 0, "rejected": 0, "supported": 0,
+                  "contradicted": 0, "unassessed": 0, "derived": 0,
+                  "explicit": 0}
+        if count:
+            for field, output_key in (("appliedAdvice", "applied"),
+                                      ("rejectedAdvice", "rejected"),
+                                      ("supportedAdvice", "supported"),
+                                      ("contradictedAdvice", "contradicted"),
+                                      ("unassessedAdvice", "unassessed"),
+                                      ("derivedAdvice", "derived"),
+                                      ("explicitAdvice", "explicit")):
+                # Proto3 omits zero-valued scalar fields. Project absent
+                # counters to zero before the bounded aggregate so a sparse
+                # cohort row cannot make the comparison fail.
+                advice[output_key] = int(source.map(
+                    lambda row, field=field: {"value": int(row.get(field, 0) or 0)}
+                ).agg("value", "sum"))
+        measurement.update({"meta": meta, "cohorts": cohorts, "count": count,
+                            "advice": advice})
         envelope["evidence"] = [str(ref)[:512] for ref in meta.get("evidenceRefs", [])[:10]]
         envelope["status"] = "ok"
     except Exception as exc:
@@ -106,12 +124,23 @@ def step_report():
             "reason": reason, "cohort_count": count, "returned_cohorts": len(cohorts),
             "cohorts_truncated": count is not None and count > len(cohorts),
         }
+        by_provenance = {"operator": 0, "test": 0, "agent": 0}
+        for cohort in cohorts:
+            provenance = str(cohort.get("provenance", ""))
+            if provenance in by_provenance:
+                by_provenance[provenance] += int(cohort.get("attempts", 0) or 0)
+        reliability["by_provenance"] = by_provenance
         for key in ("truncated", "scannedEntries", "eligibleAttempts", "excludedTestAttempts",
                     "legacyTaskRecords", "invalidRecords", "duplicateAttempts"):
             reliability[key] = meta.get(key, False if key == "truncated" else 0) if meta is not None else None
         reliability["source_reason"] = str(meta.get("reason", ""))[:240] if meta is not None else None
         reliability["interpretation"] = str(meta.get("interpretation", ""))[:1024] if meta is not None else None
         envelope["signals"]["reliability"] = reliability
+        envelope["signals"]["aggregate"] = {"advice": measurement.get("advice", {
+            "applied": 0, "rejected": 0, "supported": 0,
+            "contradicted": 0, "unassessed": 0, "derived": 0,
+            "explicit": 0,
+        })}
         rows = []
         for name, fields in GROUPS.items():
             reading = None
@@ -120,7 +149,7 @@ def step_report():
                            "eligible_attempts": meta.get("eligibleAttempts", 0), "cohorts": []}
                 for cohort in cohorts:
                     # Nonoptional proto scalars default to zero; optional fields retain absence.
-                    projected = {"operation": cohort.get("operation", ""), "context": cohort.get("contextKey", "")}
+                    projected = {"operation": cohort.get("operation", ""), "context": cohort.get("contextKey", ""), "provenance": cohort.get("provenance", "")}
                     projected.update({key: cohort.get(key, None if key in OPTIONAL else 0) for key in fields})
                     reading["cohorts"].append(projected)
             rows.append({"row": name, "reading": reading, "target": None, "in_band": None,

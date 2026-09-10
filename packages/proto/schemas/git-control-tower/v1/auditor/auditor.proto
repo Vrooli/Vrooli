@@ -1,0 +1,184 @@
+syntax = "proto3";
+
+package vrooli.git_control_tower.v1.auditor;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/auditor;auditor_v1";
+
+// AuditorService is the typed GCT boundary over scenario-auditor. Dry-run
+// previews remain advisory; applying a fix is a repository writer and carries
+// the same exact, single-use intent contract as the native RepoService.
+service AuditorService {
+  rpc StartCheck(StartCheckRequest) returns (StartCheckResponse);
+  rpc GetJobStatus(GetJobStatusRequest) returns (JobStatus);
+  rpc ListRules(ListRulesRequest) returns (RulesResponse);
+  rpc ListViolations(ListViolationsRequest) returns (ViolationsResponse);
+  rpc PreviewFix(FixRequest) returns (FixResponse);
+  rpc ApplyFix(ApplyFixRequest) returns (FixResponse);
+}
+
+message StartCheckRequest {
+  string repository_id = 1;
+  string scenario_name = 2;
+  string check_type = 3;
+}
+
+message GetJobStatusRequest {
+  string repository_id = 1;
+  string job_id = 2;
+}
+
+message ListRulesRequest {
+  string repository_id = 1;
+}
+
+message ListViolationsRequest {
+  string repository_id = 1;
+  string scenario_name = 2;
+}
+
+message StartCheckResponse {
+  string job_id = 1;
+  JobStatus status = 2;
+}
+
+message JobStatus {
+  string id = 1;
+  string scenario = 2;
+  string scan_type = 3;
+  string status = 4;
+  string started_at = 5;
+  string completed_at = 6;
+  double elapsed_seconds = 7;
+  int32 total_scenarios = 8;
+  int32 processed_scenarios = 9;
+  int32 processed_files = 10;
+  int32 total_files = 11;
+  string current_scenario = 12;
+  string current_file = 13;
+  string message = 14;
+  string error = 15;
+  CheckResult result = 16;
+}
+
+message CheckResult {
+  string check_id = 1;
+  string status = 2;
+  string scan_type = 3;
+  string started_at = 4;
+  string completed_at = 5;
+  double duration_seconds = 6;
+  int32 files_scanned = 7;
+  repeated Violation violations = 8;
+  repeated IntCount statistics = 9;
+  string message = 10;
+  string scenario_name = 11;
+  ViolationSummary summary = 12;
+}
+
+message Violation {
+  string id = 1;
+  string scenario_name = 2;
+  string type = 3;
+  string severity = 4;
+  string title = 5;
+  string description = 6;
+  string file_path = 7;
+  int32 line_number = 8;
+  string code_snippet = 9;
+  string recommendation = 10;
+  string standard = 11;
+  string discovered_at = 12;
+  string source = 13;
+  repeated KeyValue metadata = 14;
+}
+
+message ViolationSummary {
+  int32 total = 1;
+  repeated IntCount by_severity = 2;
+  repeated RuleCount by_rule = 3;
+  string highest_severity = 4;
+  repeated ViolationExcerpt top_violations = 5;
+  repeated string recommended_steps = 6;
+  string generated_at = 7;
+}
+
+message IntCount {
+  string key = 1;
+  int32 count = 2;
+}
+
+message RuleCount {
+  string rule_id = 1;
+  int32 count = 2;
+}
+
+message ViolationExcerpt {
+  string id = 1;
+  string severity = 2;
+  string rule_id = 3;
+  string title = 4;
+  string file_path = 5;
+}
+
+message KeyValue {
+  string key = 1;
+  string value = 2;
+}
+
+message Rule {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string category = 4;
+  string severity = 5;
+  bool enabled = 6;
+  string standard = 7;
+  repeated string targets = 8;
+}
+
+message RulesResponse {
+  repeated Rule rules = 1;
+  repeated KeyValue categories = 2;
+  int32 count = 3;
+  int32 total = 4;
+}
+
+message ViolationsResponse {
+  repeated Violation violations = 1;
+}
+
+message FixRequest {
+  string repository_id = 1;
+  repeated string scenario_names = 2;
+  repeated string rule_ids = 3;
+}
+
+message ApplyFixRequest {
+  string repository_id = 1;
+  repeated string scenario_names = 2;
+  repeated string rule_ids = 3;
+  string intent_id = 4;
+  string expected_revision = 5;
+  string subject_digest = 6;
+}
+
+message FixChange {
+  string type = 1;
+  string detail = 2;
+}
+
+message FixResult {
+  string scenario_name = 1;
+  string rule_id = 2;
+  bool fixed = 3;
+  string file_path = 4;
+  repeated FixChange changes = 5;
+  string error = 6;
+}
+
+message FixResponse {
+  repeated FixResult results = 1;
+  int32 count = 2;
+  repeated string unfixable_rules = 3;
+  repeated string errors = 4;
+}

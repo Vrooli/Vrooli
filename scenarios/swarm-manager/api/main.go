@@ -42,6 +42,7 @@ import (
 	"swarm-manager/internal/backlog"
 	capabilities "swarm-manager/internal/capabilities"
 	"swarm-manager/internal/captures"
+	"swarm-manager/internal/development"
 	durabilitysource "swarm-manager/internal/durability"
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/execution"
@@ -130,6 +131,7 @@ type Server struct {
 	fileRoots           *filerouting.RoutedRoots
 	promptClient        promptmanager.Client
 	eventDB             *database.RoutedDB
+	developmentSvc      *development.Service
 	emitter             *eventlog.Emitter
 	statsEngine         *stats.Engine
 	eventRepo           *eventlog.SQLiteRepository
@@ -471,6 +473,7 @@ func (s *Server) setupRoutes() {
 	}
 	s.registerReviewRoutes(scenarioRoot, execSvc)
 	s.wireWorkflowStartGuards(backlogHandler, execSvc)
+	s.registerDevelopmentRoutes(repoRootFromScenarioRoot(scenarioRoot))
 	s.configureTransitionRunner()
 	s.agentSessionSvc.SetTransitionRunner(s.transitionRegistry, s.transitionRunner)
 	planWorkshopService := s.registerPlanWorkshopRoutes(s.dataRoot)
@@ -500,7 +503,7 @@ func (s *Server) setupRoutes() {
 			evidence = s.statsEngine.GetStats().Agent.RecommendationAcceptanceByGate
 		}
 		return modes, evidence
-	}, s)
+	}, repoRootFromScenarioRoot(scenarioRoot), s)
 	s.registerWorkFeedRoutes()
 	s.registerQueueRoutes(scenarioRoot)
 
@@ -639,6 +642,7 @@ func (s *Server) registerAudioRoutes() {
 
 func (s *Server) registerHealthRoutes() {
 	healthHandler := health.New().Version("1.0.0").
+		BuildIdentity(os.Getenv("VROOLI_BUILD_IDENTITY")).
 		Check(health.CheckerFunc(func(_ context.Context) health.CheckResult {
 			return health.CheckResult{Name: "database", Connected: true}
 		}), health.Optional).
@@ -1072,7 +1076,7 @@ func (s *Server) configureTransitionRunner() {
 		s.transitionRegistry,
 		workflow,
 		transitionrun.NewFileStore(filepath.Join(s.dataRoot, "transition-runs")),
-		nil,
+		s.guardDevelopmentWorkShape,
 	)
 	if s.capturesHandler != nil {
 		s.capturesHandler.RegisterTransitionAdapter(runner)
@@ -1090,14 +1094,43 @@ func (s *Server) configureTransitionRunner() {
 		s.reviewSvc.RegisterTransitionAdapter(runner)
 		s.reviewSvc.SetTransitionRunner(runner)
 	}
+	if s.developmentSvc != nil {
+		owner := transitionrunner.NewDevelopmentInvoker(workflow)
+		coordinator := development.NewCoordinator(s.developmentSvc, owner)
+		transitionrunner.NewDevelopmentAdapter(s.developmentSvc, coordinator).Register(runner)
+	}
 	if s.executionSvc != nil {
 		s.executionSvc.RegisterTransitionAdapter(runner)
 		s.executionSvc.SetTransitionRunner(runner)
 	}
 	s.transitionRunner = runner
+	if s.developmentSvc != nil {
+		s.developmentSvc.SetLaunchBlockerProjection(func(ctx context.Context) []string {
+			return s.developmentLaunchBlockers(ctx)
+		})
+	}
 	s.transitionSweeper = transitionrunner.NewSweeper(runner)
 	applyActions, inputBuilders := runner.Counts()
 	slog.Info("transition runner adapters registered", "apply_actions", applyActions, "input_builders", inputBuilders)
+}
+
+func (s *Server) developmentLaunchBlockers(ctx context.Context) []string {
+	blockers := append([]string(nil), development.RuntimeBlockers()...)
+	if s.transitionRunner == nil {
+		return append(blockers, "Swarm transition runner is not configured; owner admission is disabled.")
+	}
+	if !s.transitionRunner.HasInput(transitionrunner.ContractDevelopmentTransition) || !s.transitionRunner.HasStart(transitionrunner.ContractDevelopmentTransition) {
+		blockers = append(blockers, "Contract-development admission is not registered with the transition runner.")
+	}
+	definition, ok := s.transitionRegistry.Get(transitionrunner.ContractDevelopmentTransition)
+	if !ok {
+		blockers = append(blockers, "Contract-development transition declaration is unavailable.")
+	} else if s.integrationStatus != nil {
+		if err := s.integrationStatus.Preflight(ctx, definition); err != nil {
+			blockers = append(blockers, fmt.Sprintf("Contract-development owner preflight is blocked: %v", err))
+		}
+	}
+	return blockers
 }
 
 func loadTransitionRegistry(scenarioRoot string) transitions.Registry {

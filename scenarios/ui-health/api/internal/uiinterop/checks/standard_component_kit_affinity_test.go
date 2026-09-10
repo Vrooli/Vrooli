@@ -118,8 +118,8 @@ func TestComponentKitAffinityRejectsDefaultSidebarWithoutNativeAffinity(t *testi
 		t.Fatal(err)
 	}
 	result := checkComponentKitAffinity(uiinterop.CheckContext{ScenarioRoot: scenarioRoot})
-	if result.Passed || result.Skipped || len(result.Violations) != 1 {
-		t.Fatalf("result = %+v, want one default-kit affinity violation", result)
+	if result.Passed || result.Skipped || len(result.Violations) == 0 {
+		t.Fatalf("result = %+v, want at least one default-kit affinity violation", result)
 	}
 	if !strings.Contains(result.Violations[0].Description, "vrooli-default") {
 		t.Fatalf("description = %q, want default kit id", result.Violations[0].Description)

@@ -38,6 +38,7 @@ service ComponentsService {
   rpc PublishComponentVersion(PublishComponentVersionRequest) returns (PublishComponentVersionResponse);
   rpc CreateComponentVersion(CreateComponentVersionRequest) returns (CreateComponentVersionResponse);
   rpc UpdateComponentManifest(UpdateComponentManifestRequest) returns (UpdateComponentManifestResponse);
+  rpc RetireComponent(RetireComponentRequest) returns (RetireComponentResponse);
   rpc GetComponentContent(GetComponentContentRequest) returns (GetComponentContentResponse);
   rpc UpdateComponentContent(UpdateComponentContentRequest) returns (UpdateComponentContentResponse);
   rpc ListComponentVersions(ListComponentVersionsRequest) returns (ListComponentVersionsResponse);
@@ -168,6 +169,9 @@ message Component {
   // and the registered design-kit vocabularies. This is capability, not taste;
   // design_styles remains the separately authored aesthetic-fit signal.
   ComponentKitCompatibility kit_compatibility = 27;
+
+  // Semantic kind from the canonical catalog; independent of legacy storage roots.
+  string catalog_kind = 28;
 }
 
 // ListComponentsRequest filters the registry view.
@@ -204,6 +208,9 @@ message ListComponentsRequest {
   // Optional exact asset kind filter. Unspecified retains the legacy view of
   // all catalog assets.
   AssetKind asset_kind = 8;
+
+  // Canonical semantic kinds, applied before limit. Empty string selects unclassified assets.
+  repeated string catalog_kinds = 9;
 }
 
 message ListComponentsResponse {
@@ -464,10 +471,39 @@ message UpdateComponentManifestRequest {
   bool clear_supplemental_justification = 10;
   bool clear_catalog_id = 11;
   repeated AssetDependency dependencies = 12;
+  // Retire major aliases while preserving exact historical release imports.
+  repeated string retired_major_aliases = 13;
+  bool clear_retired_major_aliases = 14;
+  // Explicit entry file for multi-file authored version directories.
+  string entry = 15;
+
 }
 
 message UpdateComponentManifestResponse {
   Component component = 1;
+}
+
+// Without apply, evaluate retirement eligibility without withdrawing the asset.
+message RetireComponentRequest {
+  string library_id = 1;
+  bool apply = 2;
+}
+
+// Operational errors remain in the response so preserved archive paths and a
+// committed withdrawal are visible even when completion bookkeeping fails.
+message RetireComponentResponse {
+  string library_id = 1;
+  string component_id = 2;
+  bool preflight_completed = 3;
+  bool ready = 4;
+  repeated string required_by = 5;
+  repeated string suggested_by = 6;
+  repeated string source_references = 7;
+  string snapshot_path = 8;
+  string source_archive_path = 9;
+  string catalog_archive_path = 10;
+  bool retired = 11;
+  string error = 12;
 }
 
 // GetComponentContentRequest reads the on-disk source file backing a

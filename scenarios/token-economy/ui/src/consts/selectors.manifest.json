@@ -53,22 +53,6 @@
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
     },
-    "layout.topBar": {
-      "testId": "layout-top-bar",
-      "selector": "[data-testid=\"layout-top-bar\"]"
-    },
-    "layout.sidebar": {
-      "testId": "layout-sidebar",
-      "selector": "[data-testid=\"layout-sidebar\"]"
-    },
-    "layout.bottomNav": {
-      "testId": "layout-bottom-nav",
-      "selector": "[data-testid=\"layout-bottom-nav\"]"
-    },
-    "layout.main": {
-      "testId": "layout-main",
-      "selector": "[data-testid=\"layout-main\"]"
-    },
     "theme.switcher": {
       "testId": "theme-switcher",
       "selector": "[data-testid=\"theme-switcher\"]"
@@ -203,32 +187,10 @@
     }
   },
   "dynamicSelectors": {
-    "layout.sidebarLink": {
-      "description": "Sidebar navigation link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
-      "testIdPattern": "layout-sidebar-link-${key}",
-      "params": [
-        {
-          "name": "key",
-          "type": "enum",
-          "values": [
-            "dashboard",
-            "tokens",
-            "holders",
-            "earning",
-            "grants",
-            "catalog",
-            "approvals",
-            "journal",
-            "settings"
-          ]
-        }
-      ]
-    },
-    "layout.bottomNavLink": {
-      "description": "Bottom-nav link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
-      "testIdPattern": "layout-bottom-nav-link-${key}",
+    "layout.navLink": {
+      "description": "App shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
       "params": [
         {
           "name": "key",
@@ -292,8 +254,8 @@
     }
   },
   "sources": {
-    "ui/src/consts/selectors.library.ts": "9b7f2725ef7095f53dbddbabfa7949498302a1b3fb8e54e858b5a0c66cad115c",
-    "ui/src/consts/selectors.ts": "623c5feac318cad3c657aacbd8c8f9f88f394f2b813e4a17b1d145186f18d0d1",
+    "ui/src/consts/selectors.library.ts": "0317e60f9b44f46ba791f33d24ad9c624fb630defca459a591a1ccf4482bcebc",
+    "ui/src/consts/selectors.ts": "957de2dfebc63403674b27a2d4eef78263b2884fe62258bc6bf844e3b7ffdf90",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

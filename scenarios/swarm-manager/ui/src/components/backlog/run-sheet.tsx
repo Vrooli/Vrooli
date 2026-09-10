@@ -9,6 +9,7 @@ import { defaultApiClient, isApiError } from "../../lib/api-client";
 import { API_ENDPOINTS } from "../../lib/api-endpoints";
 import { StalePlanPanel } from "./stale-plan-panel";
 import { extractMissingPaths, type MissingPath } from "./stale-plan-utils";
+import { ExecutionLimitsSummary } from "./execution-limits-summary";
 
 export interface RunSheetTarget {
   kind: BacklogKind;
@@ -41,6 +42,7 @@ export function RunSheet({ isOpen, onClose, target, targets, onSuccess }: RunShe
   const effectiveTargets = useMemo(() => targets?.length ? targets : target ? [target] : [], [target, targets]);
   const isBulk = effectiveTargets.length > 1;
   const [preflight, setPreflight] = useState<QueueResponse | null>(null);
+  const [previews, setPreviews] = useState<QueueResponse[]>([]);
   const [strategies, setStrategies] = useState<ExecutionStrategy[]>([]);
   const [strategy, setStrategy] = useState("");
   const [maxSlices, setMaxSlices] = useState(6);
@@ -52,20 +54,37 @@ export function RunSheet({ isOpen, onClose, target, targets, onSuccess }: RunShe
 
   useEffect(() => {
     if (!isOpen) return;
-    setError(null); setForce(false); setStalePlanFor(null); setPreflight(null); setLoading(true);
-    const first = effectiveTargets[0];
+    let active = true;
+    setError(null); setForce(false); setStalePlanFor(null); setPreflight(null); setPreviews([]); setStrategy(""); setMaxSlices(6); setLoading(true);
     void Promise.all([
       defaultApiClient.get<{ items: ExecutionStrategy[] }>(API_ENDPOINTS.executionStrategies),
-      first ? backlogService.queue(first.kind, first.name, { mode: "yolo", confirm: false }) : Promise.resolve(null),
-    ]).then(([strategyResponse, preview]) => {
+      Promise.all(effectiveTargets.map((item) => backlogService.queue(item.kind, item.name, { mode: "yolo", confirm: false }))),
+    ]).then(([strategyResponse, itemPreviews]) => {
+      if (!active) return;
+      const preview = itemPreviews[0] ?? null;
+      setPreviews(itemPreviews);
       setStrategies(strategyResponse.items ?? []);
-      setStrategy((current) => current || strategyResponse.items?.[0]?.id || "");
+      const savedStrategy = preview?.item?.executionStrategy;
+      // A saved strategy is part of the reviewed item. Do not replace it with
+      // the first catalog entry or a selection retained from another item.
+      if (savedStrategy && !strategyResponse.items?.some((entry) => entry.id === savedStrategy)) {
+        setError(`The item's execution approach “${savedStrategy}” is unavailable.`);
+      } else {
+        setStrategy(savedStrategy || strategyResponse.items?.[0]?.id || "");
+      }
       setPreflight(preview);
-    }).catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to load run options.")).finally(() => setLoading(false));
+      setMaxSlices(preview?.item?.executionLimits?.maxSlices ?? 6);
+    }).catch((cause) => {
+      if (active) setError(cause instanceof Error ? cause.message : "Unable to load run options.");
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
   }, [effectiveTargets, isOpen]);
 
-  const mayForce = Boolean(preflight?.blockingReasons.length) && preflight?.blockingReasons.every((reason) => reason.forceable);
-  const blocked = Boolean(preflight?.blockingReasons.length) && !force;
+  const blockingReasons = previews.flatMap((preview) => preview.blockingReasons);
+  const mayForce = blockingReasons.length > 0 && blockingReasons.every((reason) => reason.forceable);
+  const blocked = blockingReasons.length > 0 && !force;
   const title = isBulk ? `Run ${effectiveTargets.length} items` : target?.title ? `Run “${target.title}”` : "Run backlog item";
 
   const queue = async () => {
@@ -74,7 +93,7 @@ export function RunSheet({ isOpen, onClose, target, targets, onSuccess }: RunShe
     try {
       let last: QueueResponse | undefined;
       for (const item of effectiveTargets) {
-        last = await backlogService.queue(item.kind, item.name, { mode: "yolo", startedBy: "swarm-manager-ui", confirm: true, force, strategy, maxSlices });
+        last = await backlogService.queue(item.kind, item.name, { mode: "yolo", startedBy: "swarm-manager-ui", confirm: true, force, ...(!isBulk ? { strategy, maxSlices } : {}) });
       }
       if (last) onSuccess?.(last);
       onClose();
@@ -87,13 +106,14 @@ export function RunSheet({ isOpen, onClose, target, targets, onSuccess }: RunShe
     } finally { setSubmitting(false); }
   };
 
-  return <Drawer isOpen={isOpen} onClose={onClose} title={title} description="Review readiness, execution approach, and scope before work is queued." testId="run-sheet" footer={<div className="flex justify-end gap-2"><Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button><Button onClick={() => void queue()} disabled={loading || submitting || blocked || !strategy || effectiveTargets.length === 0}>{submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Queueing…</> : "Run"}</Button></div>}>
+  return <Drawer isOpen={isOpen} onClose={onClose} title={title} description="Review readiness, execution approach, and scope before work is queued." testId="run-sheet" footer={<div className="flex justify-end gap-2"><Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button><Button onClick={() => void queue()} disabled={loading || submitting || blocked || (!isBulk && !strategy) || previews.length !== effectiveTargets.length || effectiveTargets.length === 0}>{submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Queueing…</> : "Run"}</Button></div>}>
     <div className="space-y-5 p-4">
       {loading ? <div className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" />Checking readiness…</div> : null}
       {stalePlanFor ? <StalePlanPanel kind={stalePlanFor.kind} name={stalePlanFor.name} missingPaths={stalePlanFor.missingPaths} onReWorkshopped={onClose} onCancel={() => setStalePlanFor(null)} /> : null}
-      {preflight ? <section className="rounded-lg border border-white/10 bg-slate-950/40 p-3"><h3 className="text-sm font-semibold text-white">Preflight</h3>{preflight.blockingReasons.length ? <ul className="mt-2 space-y-1 text-sm text-amber-100">{preflight.blockingReasons.map((reason) => <li key={reason.message}>• {reason.message}{reason.forceable ? " (overridable)" : ""}</li>)}</ul> : <p className="mt-1 text-sm text-emerald-200">Ready to queue.</p>}{mayForce ? <label className="mt-3 flex items-start gap-2 text-sm text-amber-100"><input type="checkbox" checked={force} onChange={(event) => setForce(event.target.checked)} className="mt-1" />Override eligible preflight blockers for this run.</label> : null}</section> : null}
-      <section><h3 className="text-sm font-semibold text-white">Execution approach</h3><div className="mt-2 space-y-2">{strategies.map((entry) => <label key={entry.id} className={`block cursor-pointer rounded-lg border p-3 ${strategy === entry.id ? "border-cyan-400/50 bg-cyan-400/10" : "border-white/10 bg-slate-950/30"}`}><input className="sr-only" type="radio" checked={strategy === entry.id} onChange={() => setStrategy(entry.id)} /><span className="flex items-center justify-between gap-3"><span className="font-medium text-slate-100">{entry.display_name}</span><span className="text-xs text-cyan-200">≈ ${entry.cost_estimate.toFixed(2)}</span></span><span className="mt-1 block text-xs leading-5 text-slate-300">{entry.description}</span><span className="mt-1 block text-xs text-slate-500">{entry.when_to_use} {entry.cost_band}</span></label>)}</div></section>
-      <label className="block text-sm font-medium text-slate-100">Maximum slices <span className="ml-1 font-normal text-slate-400">({maxSlices})</span><input aria-label="Maximum slices" className="mt-3 block w-full accent-cyan-400" type="range" min="1" max="6" value={maxSlices} onChange={(event) => setMaxSlices(Number(event.target.value))} /></label>
+      {preflight ? <section className="rounded-lg border border-white/10 bg-slate-950/40 p-3"><h3 className="text-sm font-semibold text-white">Preflight</h3>{blockingReasons.length ? <ul className="mt-2 space-y-1 text-sm text-amber-100">{blockingReasons.map((reason) => <li key={reason.message}>• {reason.message}{reason.forceable ? " (overridable)" : ""}</li>)}</ul> : <p className="mt-1 text-sm text-emerald-200">Ready to queue.</p>}{mayForce ? <label className="mt-3 flex items-start gap-2 text-sm text-amber-100"><input type="checkbox" checked={force} onChange={(event) => setForce(event.target.checked)} className="mt-1" />Override eligible preflight blockers for this run.</label> : null}</section> : null}
+      {isBulk ? <p className="text-sm text-slate-300">Each item uses its saved execution approach and limits. Open an individual item to review or narrow its run.</p> : <><section><h3 className="text-sm font-semibold text-white">Execution approach</h3><div className="mt-2 space-y-2">{strategies.map((entry) => <label key={entry.id} className={`block cursor-pointer rounded-lg border p-3 ${strategy === entry.id ? "border-cyan-400/50 bg-cyan-400/10" : "border-white/10 bg-slate-950/30"}`}><input className="sr-only" type="radio" checked={strategy === entry.id} onChange={() => setStrategy(entry.id)} /><span className="flex items-center justify-between gap-3"><span className="font-medium text-slate-100">{entry.display_name}</span><span className="text-xs text-cyan-200">≈ ${entry.cost_estimate.toFixed(2)}</span></span><span className="mt-1 block text-xs leading-5 text-slate-300">{entry.description}</span><span className="mt-1 block text-xs text-slate-500">{entry.when_to_use} {entry.cost_band}</span></label>)}</div></section>
+      <label className="block text-sm font-medium text-slate-100">Maximum slices <span className="ml-1 font-normal text-slate-400">({maxSlices})</span><input aria-label="Maximum slices" className="mt-3 block w-full accent-cyan-400" type="range" min="1" max={preflight?.item?.executionLimits?.maxSlices ?? 6} value={maxSlices} onChange={(event) => setMaxSlices(Number(event.target.value))} /></label>
+      {preflight?.item?.executionLimits ? <ExecutionLimitsSummary limits={preflight.item.executionLimits} /> : null}</>}
       {error ? <div className="rounded-lg border border-rose-400/30 bg-rose-400/10 p-3 text-sm text-rose-100">{error}</div> : null}
       {blocked && !mayForce ? <div className="flex gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-100"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />Resolve the non-overridable blockers before running.</div> : null}
     </div>

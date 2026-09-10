@@ -6,6 +6,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledge
 service ClassificationRulesService {
   rpc ListRules(ListRulesRequest) returns (ListRulesResponse);
   rpc CreateRule(CreateRuleRequest) returns (CreateRuleResponse);
+  rpc DeleteRule(DeleteRuleRequest) returns (DeleteRuleResponse);
   rpc DryRunRule(DryRunRuleRequest) returns (DryRunRuleResponse);
   rpc EnableRule(EnableRuleRequest) returns (EnableRuleResponse);
   rpc RevertRule(RevertRuleRequest) returns (RevertRuleResponse);
@@ -23,6 +24,7 @@ message Rule {
   string source_path_glob = 7;
   string body_pattern = 8;
   bool enabled = 9;
+  string kind_glob = 10;
 }
 message ListRulesRequest {
   string scope = 1;
@@ -36,6 +38,11 @@ message CreateRuleRequest {
 message CreateRuleResponse {
   Rule rule = 1;
 }
+message DeleteRuleRequest {
+  string rule_id = 1;
+  string scope = 2;
+}
+message DeleteRuleResponse {}
 message DryRunRuleRequest {
   string rule_id = 1;
   string scope = 2;

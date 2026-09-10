@@ -188,6 +188,7 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
             | "needs_fixup"
             | "completed"
             | "failed"
+            | "cancelling"
             | "canceled",
           mode: execution.mode as "manual" | "yolo",
           runId: execution.runId,

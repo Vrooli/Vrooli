@@ -34,13 +34,14 @@ func TestDeclaredRegistryCoversEveryTargetTransition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadDir declared registry: %v", err)
 	}
-	if got, want := len(registry.Definitions()), 20; got != want {
+	if got, want := len(registry.Definitions()), 21; got != want {
 		t.Fatalf("registered transition count = %d, want %d", got, want)
 	}
 	for _, key := range []string{
 		"capture.classify", "plan.workshop.review", "plan.workshop.reconcile", "plan.author", "plan.repair", "plan.execute",
 		"work.review", "review.evidence_request", "goal.discover", "goal.plan", "milestone.review", "scenario.spec_sync",
 		"follow_up.dispatch", "goal.close_out",
+		"contract-development",
 		"session.meta_orchestration", "session.swarm_operations", "session.workflow_authoring",
 	} {
 		if _, ok := registry.Get(key); !ok {
@@ -61,15 +62,13 @@ func TestPhasedPlanSliceVerifiesTheCanonicalAuthoredProjection(t *testing.T) {
 		"jq -cS",
 		"del(.status,.content_hash,.updated_at,.work_posture",
 		"delete `status`, `baseline_scope`, and `last_validation` from every phase",
-		"freshen_status: baseline_required",
-		"exact `capture_argv`",
-		"Plan Manager reports `final_dod_required`",
-		"status says `execution_complete`",
-		"required terminal Definition-of-Done validation result is absent",
-		"plan-manager exec complete <plan_execution_id>",
-		"Plan Manager execution is already complete",
-		"Set `approvalRequired: true`",
-		"operator approval wait",
+		"current owner action for required validation",
+		"returned receipt identity and one producer wait",
+		"Complete a phase only when its acceptance holds",
+		"every required mandate outcome has applicable evidence",
+		"approvalReason: \"phase-boundary\"",
+		"approvalReason: \"operator-decision\"",
+		"An `operator-decision` always waits",
 	} {
 		if !strings.Contains(body, marker) {
 			t.Errorf("phased-plan slice contract is missing signed-rendering marker %q", marker)
@@ -133,9 +132,9 @@ func TestPhasedPlanSliceReviewDoesNotMakeApprovalCircular(t *testing.T) {
 	}
 	body := string(contents)
 	for _, marker := range []string{
-		"stops for operator approval",
-		"future workflow obligations",
-		"not evidence this pre-approval slice can already possess",
+		"the accepted strategy and workflow own the next approval or continuation action",
+		"Do not demand per-phase human approval for adaptive work",
+		"it does not mark the phase or product complete",
 		"parent workflow success and Swarm consumer application happen only after this review accepts",
 		"never require those future effects as evidence from the slice",
 	} {
@@ -284,7 +283,9 @@ func TestEveryDeclaredWorkflowIsReachableFromATransition(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := os.DirFS(filepath.Join("..", "..", "..", ".vrooli"))
-	if err := ValidateWorkflowReachability(registry, root, "agent-manager", nil); err != nil {
+	if err := ValidateWorkflowReachability(registry, root, "agent-manager", map[string]string{
+		"swarm-manager/readiness-review": "retained for the readiness-review owner until a transition catalog entry is adopted",
+	}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -404,5 +405,45 @@ func TestVerifyApplyActionsRequiresEverySelectedDispatcher(t *testing.T) {
 	}
 	if err := VerifyApplyActions(registry, map[string]struct{}{"apply_proposal": {}, "dispatch_follow_up": {}, "mark_goal_achieved": {}}, KindDeterministic); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A real independent review consumed 820,909 provider tokens after a 375,001
+// token implementation slice. The authored review envelope must admit that
+// workload while remaining finite; parent remaining authority still narrows it.
+func TestPhasedPlanSliceReviewCapacityAndParentPin(t *testing.T) {
+	read := func(name string) map[string]any {
+		t.Helper()
+		body, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "agent-manager", name+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var definition map[string]any
+		if err := json.Unmarshal(body, &definition); err != nil {
+			t.Fatal(err)
+		}
+		return definition
+	}
+	child := read("phased-plan-slice-review")
+	budget := child["budgets"].(map[string]any)
+	tokens := int(budget["maxTokens"].(float64))
+	if tokens < 820909 || tokens > 2000000 {
+		t.Fatalf("review envelope %d cannot admit the observed 820909-token review within the proposed 2m bound", tokens)
+	}
+	parent := read("phased-plan-drain")
+	found := false
+	for _, value := range parent["nodes"].([]any) {
+		node := value.(map[string]any)
+		nested, ok := node["childWorkflow"].(map[string]any)
+		if !ok || nested["workflowKey"] != child["key"] {
+			continue
+		}
+		found = true
+		if nested["version"] != child["version"] {
+			t.Fatalf("parent pins stale review version %v; authored review is %v", nested["version"], child["version"])
+		}
+	}
+	if !found {
+		t.Fatal("parent does not dispatch the declared independent review")
 	}
 }

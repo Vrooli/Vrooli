@@ -24,7 +24,7 @@ function AppContent() {
   return (
     <>
       <AppShell>
-        <main role="main" aria-label="Tidiness Manager Application">
+        <div aria-label="Tidiness Manager Application">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
@@ -34,7 +34,7 @@ function AppContent() {
             <Route path="/campaigns" element={<CampaignsView />} />
             <Route path="/settings" element={<SettingsView />} />
           </Routes>
-        </main>
+        </div>
       </AppShell>
       <KeyboardShortcuts onNavigate={navigate} />
     </>

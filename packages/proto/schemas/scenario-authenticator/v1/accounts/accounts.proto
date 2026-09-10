@@ -79,10 +79,20 @@ service AccountsService {
   // ListScopes returns the opaque scopes assigned to a principal.
   rpc ListScopes(ListScopesRequest) returns (ListScopesResponse);
 
+  // SetRoles replaces the coarse realm roles for a principal. Only an
+  // administrator may target another principal; the service prevents the
+  // last realm administrator from removing its own administrator role.
+  rpc SetRoles(SetRolesRequest) returns (Account);
+
   // LinkMachineAccount binds an operator's current local principal to an
   // account. The local exchange listener supplies the peer credential; this
   // RPC is also exposed to the signed-in CLI for explicit linking.
   rpc LinkMachineAccount(LinkMachineAccountRequest) returns (LinkMachineAccountResponse);
+
+  // RevokeMachineAccount removes the selected machine binding. The caller may
+  // revoke its own binding; an administrator may target another principal.
+  // The operation is idempotent when the binding is already absent.
+  rpc RevokeMachineAccount(RevokeMachineAccountRequest) returns (RevokeMachineAccountResponse);
 
   // ExchangeMachinePrincipal trades a verified local-socket peer credential
   // for a normal short-lived JWT. It is refused unless the socket listener has
@@ -125,6 +135,9 @@ message TokenPair {
   string refresh_token = 2;
   // Access-token expiry.
   google.protobuf.Timestamp access_token_expires_at = 3;
+  // Audience stamped into the access token. Empty is never returned for a
+  // successful token issuance.
+  string audience = 4;
 }
 
 message RegisterRequest {
@@ -133,6 +146,9 @@ message RegisterRequest {
   string username = 3;
   // Realm to create the account in. Empty resolves to the default realm.
   string realm = 4;
+  // Optional registered resource id. Empty preserves the default realm
+  // audience during the migration window.
+  string resource = 5;
 }
 
 message RegisterResponse {
@@ -145,11 +161,20 @@ message LoginRequest {
   string password = 2;
   // Realm to authenticate against. Empty resolves to the default realm.
   string realm = 3;
+  // Optional second-factor response for an MFA challenge returned by a prior
+  // password-valid login attempt.
+  string totp_code = 4;
+  string recovery_code = 5;
+  string mfa_challenge = 6;
+  // Optional registered resource id.
+  string resource = 7;
 }
 
 message LoginResponse {
   Account account = 1;
   TokenPair tokens = 2;
+  bool mfa_required = 3;
+  string mfa_challenge = 4;
 }
 
 message ChangePasswordRequest {
@@ -165,6 +190,9 @@ message ChangePasswordResponse {
 
 message RefreshRequest {
   string refresh_token = 1;
+  // Reserved for additive clients; the refresh family preserves the original
+  // registered resource audience and ignores this field when empty.
+  string resource = 2;
 }
 
 message RefreshResponse {
@@ -196,6 +224,7 @@ message ValidateResponse {
   google.protobuf.Timestamp expires_at = 6;
   // Explicitly present even when the principal has no scopes.
   repeated string scopes = 7;
+  string audience = 8;
 }
 
 message GrantScopeRequest {
@@ -225,6 +254,12 @@ message ListScopesResponse {
   repeated string scopes = 2;
 }
 
+message SetRolesRequest {
+  string access_token = 1;
+  string principal_id = 2;
+  repeated string roles = 3;
+}
+
 message LinkMachineAccountRequest {
   string access_token = 1;
   string machine_id = 2;
@@ -240,6 +275,17 @@ message LinkMachineAccountResponse {
   string realm = 4;
   bool is_default = 5;
   google.protobuf.Timestamp linked_at = 6;
+}
+
+message RevokeMachineAccountRequest {
+  string access_token = 1;
+  string machine_id = 2;
+  string local_principal = 3;
+  string principal_id = 4;
+}
+
+message RevokeMachineAccountResponse {
+  int64 revoked_count = 1;
 }
 
 message ExchangeMachinePrincipalRequest {

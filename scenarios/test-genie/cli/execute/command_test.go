@@ -98,6 +98,28 @@ func TestStartRunRequestCarriesRuntimeURLOverrides(t *testing.T) {
 	}
 }
 
+func TestStartRunRequestCarriesReleaseIdentity(t *testing.T) {
+	req := toStartRunRequest(Request{
+		ScenarioName:                 "demo",
+		ReleaseProfileID:             "profile-1",
+		ReleaseCandidateCommit:       "commit-1",
+		ReleaseArtifactDigest:        "sha256:artifact",
+		ReleaseTargets:               []string{"linux-x64", "windows-x64"},
+		ReleaseChannel:               "stable",
+		ReleasePolicyVersion:         4,
+		ReleaseCandidateID:           "candidate-1",
+		ReleaseDestinationRevisionID: "destination-1",
+		ReleaseAuthorizationEpoch:    7,
+		ReleasePredecessorRunID:      "run-before",
+	})
+	if req.GetReleaseProfileId() != "profile-1" || req.GetReleaseCandidateCommit() != "commit-1" || req.GetReleaseArtifactDigest() != "sha256:artifact" || req.GetReleaseChannel() != "stable" || req.GetReleasePolicyVersion() != 4 || req.GetReleaseCandidateId() != "candidate-1" || req.GetReleaseDestinationRevisionId() != "destination-1" || req.GetReleaseAuthorizationEpoch() != 7 || req.GetReleasePredecessorRunId() != "run-before" {
+		t.Fatalf("StartRun request lost release identity: %v", req)
+	}
+	if got := req.GetReleaseTargets(); len(got) != 2 || got[0] != "linux-x64" || got[1] != "windows-x64" {
+		t.Fatalf("release targets = %#v", got)
+	}
+}
+
 func TestParseArgsRejectsRelativeScenarioPath(t *testing.T) {
 	if _, err := ParseArgs([]string{"demo", "--scenario-path", "scenarios/demo"}); err == nil {
 		t.Fatal("expected relative --scenario-path to fail")

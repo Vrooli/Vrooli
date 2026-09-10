@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func (a *App) cmdBacklogList(args []string) error {
@@ -212,8 +214,8 @@ func (a *App) cmdBacklogCreate(args []string) error {
 		payload = injectJSONField(payload, "spawned_from", spawnSource)
 	}
 
-	var req CreateBacklogRequest
-	if err := decodeJSONStrict(payload, &req); err != nil {
+	var req apipb.CreateBacklogItemRequest
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(payload, &req); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
 
@@ -323,20 +325,20 @@ func (a *App) cmdBacklogUpdate(args []string) error {
 		return err
 	}
 
-	var update UpdateBacklogRequest
-	if err := decodeJSONStrict(payload, &update); err != nil {
+	var update apipb.UpdateBacklogItemRequest
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(payload, &update); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
-	if update.Empty() {
+	// Keep explicit nulls and empty lists: the server owns PATCH field presence.
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &fields); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+	if len(fields) == 0 {
 		return fmt.Errorf("at least one field must be provided")
 	}
 
-	requestBody, err := json.Marshal(update)
-	if err != nil {
-		return fmt.Errorf("marshal update payload: %w", err)
-	}
-
-	body, err := a.core.Request("PATCH", "/backlog/"+kind+"/"+name, nil, json.RawMessage(requestBody))
+	body, err := a.core.Request("PATCH", "/backlog/"+kind+"/"+name, nil, json.RawMessage(payload))
 	if err != nil {
 		return err
 	}

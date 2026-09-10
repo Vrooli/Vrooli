@@ -124,6 +124,14 @@ type Handler struct {
 	decisionCount          DecisionCountProvider
 	followUpDispatcher     FollowUpDispatcher
 	attemptDecisionRouter  attempt.Decider
+	developmentLookup      func(context.Context, string) (bool, error)
+}
+
+// SetDevelopmentLookup reads the retained work shape by indexed item key.
+// Backlog owns action precedence; development owns approval state. Lookup
+// failures must not silently reinterpret a development item as plan work.
+func (h *Handler) SetDevelopmentLookup(lookup func(context.Context, string) (bool, error)) {
+	h.developmentLookup = lookup
 }
 
 // ReviewEvidenceVerifier is the narrow review-domain mutation seam used by

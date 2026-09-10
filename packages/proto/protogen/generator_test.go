@@ -142,7 +142,7 @@ func TestScopedPublishLeavesUntouchedScenarioOutputsUnchanged(t *testing.T) {
 	}
 
 	generator := &Generator{cfg: Config{ProtoRoot: protoRoot, Logger: io.Discard}}
-	if err := generator.publish(stageGen, []string{"alpha"}, false); err != nil {
+	if err := generator.publish(stageGen, []string{"alpha"}, false, true); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := os.ReadFile(filepath.Join(targetGen, "go", "alpha", "binding.go")); err != nil || string(got) != "new" {
@@ -377,6 +377,9 @@ func TestConcurrentGeneratorsKeepPublishedArtifactsReadable(t *testing.T) {
 			return nil
 		}
 		if len(args) > 0 && args[0] == "build" {
+			if argumentAfter(args, "-o") == "" {
+				return nil
+			}
 			output := argumentAfter(args, "-o")
 			generation := sequence.Load()
 			set := &descriptorpb.FileDescriptorSet{File: []*descriptorpb.FileDescriptorProto{{Name: proto.String(fmt.Sprintf("demo/v1/%d.proto", generation)), Syntax: proto.String("proto3")}}}
@@ -456,6 +459,100 @@ func TestConcurrentGeneratorsKeepPublishedArtifactsReadable(t *testing.T) {
 		if err := <-writerErr; err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestGeneratePublishesSelectedArtifactAndRejectsSourceDrift(t *testing.T) {
+	root := t.TempDir()
+	protoRoot := filepath.Join(root, "packages", "proto")
+	schemaPath := filepath.Join(protoRoot, "schemas", "demo", "v1", "demo.proto")
+	if err := os.MkdirAll(filepath.Dir(schemaPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(schemaPath, []byte("syntax = \"proto3\";\npackage demo.v1;\nmessage Demo {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range []string{"buf.yaml", "buf.gen.yaml", "buf.lock"} {
+		if err := os.WriteFile(filepath.Join(protoRoot, file), []byte("version: v2\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, tool := range []string{"buf", "protoc-gen-go", "protoc-gen-connect-go", "protoc-gen-es", "protoc"} {
+		path := filepath.Join(root, "internal", "tools", tool, "tool.json")
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(`{"version":"test"}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var drift atomic.Bool
+	fakeTool := func(_ context.Context, _ string, name string, args ...string) error {
+		if len(args) == 0 {
+			return nil
+		}
+		switch args[0] {
+		case "build":
+			if output := argumentAfter(args, "-o"); output != "" {
+				return os.WriteFile(output, []byte("descriptor"), 0o644)
+			}
+			return nil
+		case "generate":
+			output := argumentAfter(args, "--output")
+			path := filepath.Join(output, "gen", "go", "demo", "demo.go")
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				return err
+			}
+			if err := os.WriteFile(path, []byte("package demo\n"), 0o644); err != nil {
+				return err
+			}
+			if drift.Load() {
+				return os.WriteFile(schemaPath, []byte("syntax = \"proto3\";\npackage demo.v1;\nmessage Demo { string changed = 1; }\n"), 0o644)
+			}
+			return nil
+		default:
+			_ = name
+			return nil
+		}
+	}
+	config := Config{
+		RepoRoot:         root,
+		ProtoRoot:        protoRoot,
+		LockPath:         filepath.Join(root, "generator.lock"),
+		StageParent:      filepath.Join(root, "packages"),
+		ArtifactRoot:     filepath.Join(t.TempDir(), "proto-artifacts"),
+		PublishArtifacts: true,
+		RunTool:          fakeTool,
+		Logger:           io.Discard,
+	}
+	generator, err := New(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := generator.Generate(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewArtifactStore(config.ArtifactRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selected, err := store.Resolve(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldID := selected.ArtifactID
+	selected.Close()
+	drift.Store(true)
+	if err := generator.Generate(context.Background()); err == nil || !strings.Contains(err.Error(), "source changed during generation") {
+		t.Fatalf("drifted generation error = %v, want source-drift rejection", err)
+	}
+	selected, err = store.Resolve(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer selected.Close()
+	if selected.ArtifactID != oldID {
+		t.Fatalf("selected artifact after source drift = %q, want %q", selected.ArtifactID, oldID)
 	}
 }
 
@@ -778,5 +875,51 @@ func TestPublishDirectoryStillPrunesWhenStageIsAuthoritative(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(target, "kept_pb.ts")); err != nil {
 		t.Fatalf("a staged output must remain: %v", err)
+	}
+}
+
+// A scoped run must never publish a partial descriptor image. The image is a whole-tree
+// artifact that program-runtime's binding registry resolves every scenario against, so
+// publishing a scoped build over it truncates the registry to the scoped packages and
+// silently empties every other scenario's bindings.
+func TestScopedPublishWithoutDescriptorLeavesTheCommittedImage(t *testing.T) {
+	root := t.TempDir()
+	protoRoot := filepath.Join(root, "packages", "proto")
+	targetGen := filepath.Join(protoRoot, "gen")
+	stageGen := filepath.Join(root, "stage", "gen")
+	committed := filepath.Join(targetGen, "descriptor", "image.binpb")
+	for _, path := range []string{
+		filepath.Join(targetGen, "go", "alpha", "binding.go"),
+		filepath.Join(targetGen, "manifests", "alpha.lock.json"),
+		committed,
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("whole-tree"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, path := range []string{
+		filepath.Join(stageGen, "go", "alpha", "binding.go"),
+		filepath.Join(stageGen, "manifests", "alpha.lock.json"),
+		filepath.Join(stageGen, "descriptor", "image.binpb"),
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("partial"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	generator := &Generator{cfg: Config{ProtoRoot: protoRoot, Logger: io.Discard}}
+	if err := generator.publish(stageGen, []string{"alpha"}, false, false); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(committed); err != nil || string(got) != "whole-tree" {
+		t.Fatalf("committed descriptor = %q, err=%v; want the whole-tree image left untouched", got, err)
+	}
+	if got, err := os.ReadFile(filepath.Join(targetGen, "go", "alpha", "binding.go")); err != nil || string(got) != "partial" {
+		t.Fatalf("scoped output = %q, err=%v; want the scoped code still published", got, err)
 	}
 }

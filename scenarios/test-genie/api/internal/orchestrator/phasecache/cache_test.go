@@ -266,6 +266,54 @@ func TestStoreRejectsNonVerdictStatuses(t *testing.T) {
 	}
 }
 
+func TestStoreRejectsProviderDependencyFailures(t *testing.T) {
+	store := New(t.TempDir())
+	dependencyFailure := phases.ExecutionResult{
+		Name:                 "unit",
+		Status:               "failed",
+		Classification:       phases.FailureClassTestFailure,
+		ClassificationSource: phases.ClassificationSourceProvider,
+		Findings: []*architecturev1.ArchitectureFinding{
+			{Code: "TEST_DEPENDENCY_MISSING", Severity: architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR},
+		},
+	}
+	if Reusable(dependencyFailure) {
+		t.Fatal("provider dependency failure must not be reusable")
+	}
+	if err := store.Save("pc:dependency-failure", "run-x", dependencyFailure); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := store.Load("pc:dependency-failure"); err != nil || ok {
+		t.Fatalf("provider dependency failure must not load: ok=%v err=%v", ok, err)
+	}
+}
+
+func TestReusableKeepsDeterministicTestFailures(t *testing.T) {
+	result := phases.ExecutionResult{
+		Name:                 "unit",
+		Status:               "failed",
+		Classification:       phases.FailureClassTestFailure,
+		ClassificationSource: phases.ClassificationSourceProvider,
+		Findings: []*architecturev1.ArchitectureFinding{
+			{Code: "ASSERTION_FAILED", Severity: architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR},
+		},
+	}
+	if !Reusable(result) {
+		t.Fatal("deterministic test failure should remain reusable")
+	}
+}
+
+func TestReusableRejectsMissingDependencyClassification(t *testing.T) {
+	result := phases.ExecutionResult{
+		Name:           "contracts",
+		Status:         "failed",
+		Classification: phases.FailureClassMissingDependency,
+	}
+	if Reusable(result) {
+		t.Fatal("missing-dependency classification must not be reusable")
+	}
+}
+
 func TestCacheableIsCaseAndSpaceInsensitive(t *testing.T) {
 	for _, status := range []string{"passed", "PASSED", " failed ", "Failed"} {
 		if !Cacheable(status) {

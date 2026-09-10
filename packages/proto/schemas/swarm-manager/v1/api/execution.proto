@@ -34,7 +34,7 @@ message CreateExecutionRequest {
   optional string strategy = 7;
   optional int32 max_slices = 8 [(buf.validate.field).int32 = {
     gte: 1
-    lte: 6
+    lte: 512
   }];
 }
 

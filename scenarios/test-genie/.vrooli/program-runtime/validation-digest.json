@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "test-genie.validation-digest",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Summarize a bounded page of durable validation receipts for reliability regulation without starting or mutating validation work.",
   "inputs": {
     "limit": {
@@ -62,7 +65,9 @@
         "invalid_input",
         "scenario_unreachable",
         "binding_error",
-        "kernel_runtime"
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "the bounded producer read"

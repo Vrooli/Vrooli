@@ -152,6 +152,13 @@ CREATE TABLE IF NOT EXISTS supervision_outcomes (
 
 CREATE INDEX IF NOT EXISTS idx_supervision_outcomes_policy
     ON supervision_outcomes(policy_version, created_at);
+-- Startup retention joins every saved evaluation input to its live outcome.
+-- Without this index the correlated lookup scans the outcome table per input
+-- while holding SQLite's writer, blocking workflow admission and accounting.
+CREATE INDEX IF NOT EXISTS idx_supervision_outcomes_decision
+    ON supervision_outcomes(decision_id);
+CREATE INDEX IF NOT EXISTS idx_supervision_outcomes_expiry
+    ON supervision_outcomes(expires_at, outcome_id);
 
 CREATE TABLE IF NOT EXISTS supervision_policy_control (
     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),

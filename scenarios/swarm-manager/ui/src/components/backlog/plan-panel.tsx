@@ -1,3 +1,4 @@
+import { ExecutionLimitsSummary } from "./execution-limits-summary";
 import { useCallback, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActionMutation } from "../../hooks/useActionMutation";
@@ -15,6 +16,7 @@ import { Button } from "../ui/button";
 import { ErrorState } from "../ui/error-state";
 import { selectors } from "../../consts/selectors";
 import { isApiError } from "../../lib/api-client";
+import { usePlanUrl } from "../../services/external-links";
 
 export interface PlanPanelProps {
   backlogKind: BacklogKind;
@@ -64,6 +66,7 @@ export function PlanPanel({
   });
 
   const markdown = data?.markdown ?? "";
+  const planUrl = usePlanUrl(data?.planRef?.planId || data?.planRef?.slug);
   const headings = extractHeadings(markdown);
   const planAbsent = isApiError(error) && error.code === "plan_ref_not_found";
   const label = "plan";
@@ -226,13 +229,14 @@ export function PlanPanel({
           {runReview.isPending ? "Starting…" : "Run plan review"}
         </Button>
 
-        {data?.planRef?.slug && (
+        {data?.planRef && (
           <Button
             variant="outline"
             size="icon"
             aria-label="Open in plan-manager"
-            title="Open in plan-manager"
-            onClick={() => window.open(`/plan-manager/plans/${data.planRef?.slug}`, "_blank", "noopener,noreferrer")}
+            title={planUrl ? "Open in plan-manager" : "Plan Manager URL is unavailable"}
+            disabled={!planUrl}
+            onClick={() => planUrl && window.open(planUrl, "_blank", "noopener,noreferrer")}
           >
             <ExternalLink className="h-3.5 w-3.5" />
           </Button>
@@ -262,6 +266,7 @@ export function PlanPanel({
       {actionMessage && <p className="border-b border-slate-800 px-4 py-2 text-xs text-slate-300" role="status">{actionMessage}</p>}
 
       <div className="flex-1 overflow-y-auto bg-transparent">
+        {itemQuery.data?.executionLimits ? <div className="px-4 pt-4"><ExecutionLimitsSummary limits={itemQuery.data.executionLimits} /></div> : null}
         <MarkdownRenderer content={markdown} className="px-4 py-4" />
       </div>
     </div>

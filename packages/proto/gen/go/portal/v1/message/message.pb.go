@@ -151,6 +151,7 @@ type Message struct {
 	UpdatedAt          string                 `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	SearchAttachments  []*SearchAttachment    `protobuf:"bytes,10,rep,name=search_attachments,json=searchAttachments,proto3" json:"search_attachments,omitempty"`
 	ContextDocumentIds []string               `protobuf:"bytes,11,rep,name=context_document_ids,json=contextDocumentIds,proto3" json:"context_document_ids,omitempty"`
+	BriefId            string                 `protobuf:"bytes,12,opt,name=brief_id,json=briefId,proto3" json:"brief_id,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -260,6 +261,13 @@ func (x *Message) GetContextDocumentIds() []string {
 		return x.ContextDocumentIds
 	}
 	return nil
+}
+
+func (x *Message) GetBriefId() string {
+	if x != nil {
+		return x.BriefId
+	}
+	return ""
 }
 
 type SearchAttachment struct {
@@ -1312,7 +1320,7 @@ var File_portal_v1_message_message_proto protoreflect.FileDescriptor
 
 const file_portal_v1_message_message_proto_rawDesc = "" +
 	"\n" +
-	"\x1fportal/v1/message/message.proto\x12\x18vrooli.portal.v1.message\x1a\x1dportal/v1/shared/common.proto\"\xb9\x03\n" +
+	"\x1fportal/v1/message/message.proto\x12\x18vrooli.portal.v1.message\x1a\x1dportal/v1/shared/common.proto\"\xd4\x03\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\achat_id\x18\x02 \x01(\tR\x06chatId\x12*\n" +
@@ -1327,7 +1335,8 @@ const file_portal_v1_message_message_proto_rawDesc = "" +
 	"updated_at\x18\t \x01(\tR\tupdatedAt\x12Y\n" +
 	"\x12search_attachments\x18\n" +
 	" \x03(\v2*.vrooli.portal.v1.message.SearchAttachmentR\x11searchAttachments\x120\n" +
-	"\x14context_document_ids\x18\v \x03(\tR\x12contextDocumentIds\"\xe2\x01\n" +
+	"\x14context_document_ids\x18\v \x03(\tR\x12contextDocumentIds\x12\x19\n" +
+	"\bbrief_id\x18\f \x01(\tR\abriefId\"\xe2\x01\n" +
 	"\x10SearchAttachment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x126\n" +

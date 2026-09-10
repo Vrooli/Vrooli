@@ -25,17 +25,18 @@ const (
 // matching policy means no receipt; projection paths are explicit descriptor
 // paths and are never inferred from a response body.
 type ReceiptCapturePolicy struct {
-	state                   protoimpl.MessageState    `protogen:"open.v1"`
-	PolicyId                string                    `protobuf:"bytes,1,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
-	Enabled                 bool                      `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	Selector                *ReceiptOperationSelector `protobuf:"bytes,3,opt,name=selector,proto3" json:"selector,omitempty"`
-	ResponseType            string                    `protobuf:"bytes,4,opt,name=response_type,json=responseType,proto3" json:"response_type,omitempty"`
-	ResponseProjectionPaths []string                  `protobuf:"bytes,5,rep,name=response_projection_paths,json=responseProjectionPaths,proto3" json:"response_projection_paths,omitempty"`
-	RetentionDays           uint32                    `protobuf:"varint,6,opt,name=retention_days,json=retentionDays,proto3" json:"retention_days,omitempty"`
-	Access                  *ReceiptAccessPolicy      `protobuf:"bytes,7,opt,name=access,proto3" json:"access,omitempty"`
-	Version                 string                    `protobuf:"bytes,8,opt,name=version,proto3" json:"version,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	state                    protoimpl.MessageState     `protogen:"open.v1"`
+	PolicyId                 string                     `protobuf:"bytes,1,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
+	Enabled                  bool                       `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Selector                 *ReceiptOperationSelector  `protobuf:"bytes,3,opt,name=selector,proto3" json:"selector,omitempty"`
+	ResponseType             string                     `protobuf:"bytes,4,opt,name=response_type,json=responseType,proto3" json:"response_type,omitempty"`
+	ResponseProjectionPaths  []string                   `protobuf:"bytes,5,rep,name=response_projection_paths,json=responseProjectionPaths,proto3" json:"response_projection_paths,omitempty"`
+	RetentionDays            uint32                     `protobuf:"varint,6,opt,name=retention_days,json=retentionDays,proto3" json:"retention_days,omitempty"`
+	Access                   *ReceiptAccessPolicy       `protobuf:"bytes,7,opt,name=access,proto3" json:"access,omitempty"`
+	Version                  string                     `protobuf:"bytes,8,opt,name=version,proto3" json:"version,omitempty"`
+	WorkReferenceProjections []*WorkReferenceProjection `protobuf:"bytes,9,rep,name=work_reference_projections,json=workReferenceProjections,proto3" json:"work_reference_projections,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *ReceiptCapturePolicy) Reset() {
@@ -124,6 +125,108 @@ func (x *ReceiptCapturePolicy) GetVersion() string {
 	return ""
 }
 
+func (x *ReceiptCapturePolicy) GetWorkReferenceProjections() []*WorkReferenceProjection {
+	if x != nil {
+		return x.WorkReferenceProjections
+	}
+	return nil
+}
+
+// WorkReferenceProjection declares how a typed response becomes a generic
+// work-reference edge. Paths are explicit descriptor paths; no response field
+// is inferred from names, timestamps, or search metadata.
+type WorkReferenceProjection struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	KindPath           string                 `protobuf:"bytes,1,opt,name=kind_path,json=kindPath,proto3" json:"kind_path,omitempty"`
+	IdPath             string                 `protobuf:"bytes,2,opt,name=id_path,json=idPath,proto3" json:"id_path,omitempty"`
+	RevisionPath       string                 `protobuf:"bytes,3,opt,name=revision_path,json=revisionPath,proto3" json:"revision_path,omitempty"`
+	Relationship       string                 `protobuf:"bytes,4,opt,name=relationship,proto3" json:"relationship,omitempty"`
+	VerifiedPath       string                 `protobuf:"bytes,5,opt,name=verified_path,json=verifiedPath,proto3" json:"verified_path,omitempty"`
+	VisibilityPath     string                 `protobuf:"bytes,6,opt,name=visibility_path,json=visibilityPath,proto3" json:"visibility_path,omitempty"`
+	EvidenceDigestPath string                 `protobuf:"bytes,7,opt,name=evidence_digest_path,json=evidenceDigestPath,proto3" json:"evidence_digest_path,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *WorkReferenceProjection) Reset() {
+	*x = WorkReferenceProjection{}
+	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkReferenceProjection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkReferenceProjection) ProtoMessage() {}
+
+func (x *WorkReferenceProjection) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkReferenceProjection.ProtoReflect.Descriptor instead.
+func (*WorkReferenceProjection) Descriptor() ([]byte, []int) {
+	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *WorkReferenceProjection) GetKindPath() string {
+	if x != nil {
+		return x.KindPath
+	}
+	return ""
+}
+
+func (x *WorkReferenceProjection) GetIdPath() string {
+	if x != nil {
+		return x.IdPath
+	}
+	return ""
+}
+
+func (x *WorkReferenceProjection) GetRevisionPath() string {
+	if x != nil {
+		return x.RevisionPath
+	}
+	return ""
+}
+
+func (x *WorkReferenceProjection) GetRelationship() string {
+	if x != nil {
+		return x.Relationship
+	}
+	return ""
+}
+
+func (x *WorkReferenceProjection) GetVerifiedPath() string {
+	if x != nil {
+		return x.VerifiedPath
+	}
+	return ""
+}
+
+func (x *WorkReferenceProjection) GetVisibilityPath() string {
+	if x != nil {
+		return x.VisibilityPath
+	}
+	return ""
+}
+
+func (x *WorkReferenceProjection) GetEvidenceDigestPath() string {
+	if x != nil {
+		return x.EvidenceDigestPath
+	}
+	return ""
+}
+
 type ReceiptOperationSelector struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	TargetScenario string                 `protobuf:"bytes,1,opt,name=target_scenario,json=targetScenario,proto3" json:"target_scenario,omitempty"`
@@ -136,7 +239,7 @@ type ReceiptOperationSelector struct {
 
 func (x *ReceiptOperationSelector) Reset() {
 	*x = ReceiptOperationSelector{}
-	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[1]
+	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -148,7 +251,7 @@ func (x *ReceiptOperationSelector) String() string {
 func (*ReceiptOperationSelector) ProtoMessage() {}
 
 func (x *ReceiptOperationSelector) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[1]
+	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -161,7 +264,7 @@ func (x *ReceiptOperationSelector) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReceiptOperationSelector.ProtoReflect.Descriptor instead.
 func (*ReceiptOperationSelector) Descriptor() ([]byte, []int) {
-	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{1}
+	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ReceiptOperationSelector) GetTargetScenario() string {
@@ -201,7 +304,7 @@ type ReceiptAccessPolicy struct {
 
 func (x *ReceiptAccessPolicy) Reset() {
 	*x = ReceiptAccessPolicy{}
-	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[2]
+	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -213,7 +316,7 @@ func (x *ReceiptAccessPolicy) String() string {
 func (*ReceiptAccessPolicy) ProtoMessage() {}
 
 func (x *ReceiptAccessPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[2]
+	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -226,7 +329,7 @@ func (x *ReceiptAccessPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReceiptAccessPolicy.ProtoReflect.Descriptor instead.
 func (*ReceiptAccessPolicy) Descriptor() ([]byte, []int) {
-	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{2}
+	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ReceiptAccessPolicy) GetReadPrincipals() []string {
@@ -237,25 +340,29 @@ func (x *ReceiptAccessPolicy) GetReadPrincipals() []string {
 }
 
 type ReceiptQueryFilter struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	EventType           string                 `protobuf:"bytes,1,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
-	TargetScenario      string                 `protobuf:"bytes,2,opt,name=target_scenario,json=targetScenario,proto3" json:"target_scenario,omitempty"`
-	Operation           string                 `protobuf:"bytes,3,opt,name=operation,proto3" json:"operation,omitempty"`
-	AgentRunId          string                 `protobuf:"bytes,4,opt,name=agent_run_id,json=agentRunId,proto3" json:"agent_run_id,omitempty"`
-	TaskId              string                 `protobuf:"bytes,5,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	WorkflowExecutionId string                 `protobuf:"bytes,6,opt,name=workflow_execution_id,json=workflowExecutionId,proto3" json:"workflow_execution_id,omitempty"`
-	WorkflowNodeId      string                 `protobuf:"bytes,7,opt,name=workflow_node_id,json=workflowNodeId,proto3" json:"workflow_node_id,omitempty"`
-	Attempt             uint32                 `protobuf:"varint,8,opt,name=attempt,proto3" json:"attempt,omitempty"`
-	VerifiedOnly        bool                   `protobuf:"varint,9,opt,name=verified_only,json=verifiedOnly,proto3" json:"verified_only,omitempty"`
-	PageToken           string                 `protobuf:"bytes,10,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	PageSize            uint32                 `protobuf:"varint,11,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	state               protoimpl.MessageState  `protogen:"open.v1"`
+	EventType           string                  `protobuf:"bytes,1,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	TargetScenario      string                  `protobuf:"bytes,2,opt,name=target_scenario,json=targetScenario,proto3" json:"target_scenario,omitempty"`
+	Operation           string                  `protobuf:"bytes,3,opt,name=operation,proto3" json:"operation,omitempty"`
+	AgentRunId          string                  `protobuf:"bytes,4,opt,name=agent_run_id,json=agentRunId,proto3" json:"agent_run_id,omitempty"`
+	TaskId              string                  `protobuf:"bytes,5,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	WorkflowExecutionId string                  `protobuf:"bytes,6,opt,name=workflow_execution_id,json=workflowExecutionId,proto3" json:"workflow_execution_id,omitempty"`
+	WorkflowNodeId      string                  `protobuf:"bytes,7,opt,name=workflow_node_id,json=workflowNodeId,proto3" json:"workflow_node_id,omitempty"`
+	Attempt             uint32                  `protobuf:"varint,8,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	VerifiedOnly        bool                    `protobuf:"varint,9,opt,name=verified_only,json=verifiedOnly,proto3" json:"verified_only,omitempty"`
+	PageToken           string                  `protobuf:"bytes,10,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	PageSize            uint32                  `protobuf:"varint,11,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	EventId             string                  `protobuf:"bytes,12,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	WorkKind            string                  `protobuf:"bytes,13,opt,name=work_kind,json=workKind,proto3" json:"work_kind,omitempty"`
+	WorkId              string                  `protobuf:"bytes,14,opt,name=work_id,json=workId,proto3" json:"work_id,omitempty"`
+	Visibility          WorkReferenceVisibility `protobuf:"varint,15,opt,name=visibility,proto3,enum=vrooli.vrooli_events.v1.domain.WorkReferenceVisibility" json:"visibility,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ReceiptQueryFilter) Reset() {
 	*x = ReceiptQueryFilter{}
-	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[3]
+	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -267,7 +374,7 @@ func (x *ReceiptQueryFilter) String() string {
 func (*ReceiptQueryFilter) ProtoMessage() {}
 
 func (x *ReceiptQueryFilter) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[3]
+	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -280,7 +387,7 @@ func (x *ReceiptQueryFilter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReceiptQueryFilter.ProtoReflect.Descriptor instead.
 func (*ReceiptQueryFilter) Descriptor() ([]byte, []int) {
-	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{3}
+	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ReceiptQueryFilter) GetEventType() string {
@@ -360,6 +467,34 @@ func (x *ReceiptQueryFilter) GetPageSize() uint32 {
 	return 0
 }
 
+func (x *ReceiptQueryFilter) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *ReceiptQueryFilter) GetWorkKind() string {
+	if x != nil {
+		return x.WorkKind
+	}
+	return ""
+}
+
+func (x *ReceiptQueryFilter) GetWorkId() string {
+	if x != nil {
+		return x.WorkId
+	}
+	return ""
+}
+
+func (x *ReceiptQueryFilter) GetVisibility() WorkReferenceVisibility {
+	if x != nil {
+		return x.Visibility
+	}
+	return WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_UNSPECIFIED
+}
+
 type ReceiptQueryResult struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Events        []*EventEnvelope       `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
@@ -370,7 +505,7 @@ type ReceiptQueryResult struct {
 
 func (x *ReceiptQueryResult) Reset() {
 	*x = ReceiptQueryResult{}
-	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[4]
+	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -382,7 +517,7 @@ func (x *ReceiptQueryResult) String() string {
 func (*ReceiptQueryResult) ProtoMessage() {}
 
 func (x *ReceiptQueryResult) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[4]
+	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -395,7 +530,7 @@ func (x *ReceiptQueryResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReceiptQueryResult.ProtoReflect.Descriptor instead.
 func (*ReceiptQueryResult) Descriptor() ([]byte, []int) {
-	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{4}
+	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ReceiptQueryResult) GetEvents() []*EventEnvelope {
@@ -416,7 +551,7 @@ var File_vrooli_events_v1_domain_policy_proto protoreflect.FileDescriptor
 
 const file_vrooli_events_v1_domain_policy_proto_rawDesc = "" +
 	"\n" +
-	"$vrooli-events/v1/domain/policy.proto\x12\x1evrooli.vrooli_events.v1.domain\x1a&vrooli-events/v1/domain/envelope.proto\"\x92\x03\n" +
+	"$vrooli-events/v1/domain/policy.proto\x12\x1evrooli.vrooli_events.v1.domain\x1a&vrooli-events/v1/domain/envelope.proto\"\x89\x04\n" +
 	"\x14ReceiptCapturePolicy\x12\x1b\n" +
 	"\tpolicy_id\x18\x01 \x01(\tR\bpolicyId\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\x12T\n" +
@@ -425,7 +560,16 @@ const file_vrooli_events_v1_domain_policy_proto_rawDesc = "" +
 	"\x19response_projection_paths\x18\x05 \x03(\tR\x17responseProjectionPaths\x12%\n" +
 	"\x0eretention_days\x18\x06 \x01(\rR\rretentionDays\x12K\n" +
 	"\x06access\x18\a \x01(\v23.vrooli.vrooli_events.v1.domain.ReceiptAccessPolicyR\x06access\x12\x18\n" +
-	"\aversion\x18\b \x01(\tR\aversion\"\x9c\x01\n" +
+	"\aversion\x18\b \x01(\tR\aversion\x12u\n" +
+	"\x1awork_reference_projections\x18\t \x03(\v27.vrooli.vrooli_events.v1.domain.WorkReferenceProjectionR\x18workReferenceProjections\"\x98\x02\n" +
+	"\x17WorkReferenceProjection\x12\x1b\n" +
+	"\tkind_path\x18\x01 \x01(\tR\bkindPath\x12\x17\n" +
+	"\aid_path\x18\x02 \x01(\tR\x06idPath\x12#\n" +
+	"\rrevision_path\x18\x03 \x01(\tR\frevisionPath\x12\"\n" +
+	"\frelationship\x18\x04 \x01(\tR\frelationship\x12#\n" +
+	"\rverified_path\x18\x05 \x01(\tR\fverifiedPath\x12'\n" +
+	"\x0fvisibility_path\x18\x06 \x01(\tR\x0evisibilityPath\x120\n" +
+	"\x14evidence_digest_path\x18\a \x01(\tR\x12evidenceDigestPath\"\x9c\x01\n" +
 	"\x18ReceiptOperationSelector\x12'\n" +
 	"\x0ftarget_scenario\x18\x01 \x01(\tR\x0etargetScenario\x12\x1c\n" +
 	"\toperation\x18\x02 \x01(\tR\toperation\x12\x1a\n" +
@@ -433,7 +577,7 @@ const file_vrooli_events_v1_domain_policy_proto_rawDesc = "" +
 	"\n" +
 	"event_type\x18\x04 \x01(\tR\teventType\">\n" +
 	"\x13ReceiptAccessPolicy\x12'\n" +
-	"\x0fread_principals\x18\x01 \x03(\tR\x0ereadPrincipals\"\x8e\x03\n" +
+	"\x0fread_principals\x18\x01 \x03(\tR\x0ereadPrincipals\"\xb8\x04\n" +
 	"\x12ReceiptQueryFilter\x12\x1d\n" +
 	"\n" +
 	"event_type\x18\x01 \x01(\tR\teventType\x12'\n" +
@@ -449,7 +593,13 @@ const file_vrooli_events_v1_domain_policy_proto_rawDesc = "" +
 	"\n" +
 	"page_token\x18\n" +
 	" \x01(\tR\tpageToken\x12\x1b\n" +
-	"\tpage_size\x18\v \x01(\rR\bpageSize\"\x83\x01\n" +
+	"\tpage_size\x18\v \x01(\rR\bpageSize\x12\x19\n" +
+	"\bevent_id\x18\f \x01(\tR\aeventId\x12\x1b\n" +
+	"\twork_kind\x18\r \x01(\tR\bworkKind\x12\x17\n" +
+	"\awork_id\x18\x0e \x01(\tR\x06workId\x12W\n" +
+	"\n" +
+	"visibility\x18\x0f \x01(\x0e27.vrooli.vrooli_events.v1.domain.WorkReferenceVisibilityR\n" +
+	"visibility\"\x83\x01\n" +
 	"\x12ReceiptQueryResult\x12E\n" +
 	"\x06events\x18\x01 \x03(\v2-.vrooli.vrooli_events.v1.domain.EventEnvelopeR\x06events\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageTokenBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3"
@@ -466,24 +616,28 @@ func file_vrooli_events_v1_domain_policy_proto_rawDescGZIP() []byte {
 	return file_vrooli_events_v1_domain_policy_proto_rawDescData
 }
 
-var file_vrooli_events_v1_domain_policy_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_vrooli_events_v1_domain_policy_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_vrooli_events_v1_domain_policy_proto_goTypes = []any{
 	(*ReceiptCapturePolicy)(nil),     // 0: vrooli.vrooli_events.v1.domain.ReceiptCapturePolicy
-	(*ReceiptOperationSelector)(nil), // 1: vrooli.vrooli_events.v1.domain.ReceiptOperationSelector
-	(*ReceiptAccessPolicy)(nil),      // 2: vrooli.vrooli_events.v1.domain.ReceiptAccessPolicy
-	(*ReceiptQueryFilter)(nil),       // 3: vrooli.vrooli_events.v1.domain.ReceiptQueryFilter
-	(*ReceiptQueryResult)(nil),       // 4: vrooli.vrooli_events.v1.domain.ReceiptQueryResult
-	(*EventEnvelope)(nil),            // 5: vrooli.vrooli_events.v1.domain.EventEnvelope
+	(*WorkReferenceProjection)(nil),  // 1: vrooli.vrooli_events.v1.domain.WorkReferenceProjection
+	(*ReceiptOperationSelector)(nil), // 2: vrooli.vrooli_events.v1.domain.ReceiptOperationSelector
+	(*ReceiptAccessPolicy)(nil),      // 3: vrooli.vrooli_events.v1.domain.ReceiptAccessPolicy
+	(*ReceiptQueryFilter)(nil),       // 4: vrooli.vrooli_events.v1.domain.ReceiptQueryFilter
+	(*ReceiptQueryResult)(nil),       // 5: vrooli.vrooli_events.v1.domain.ReceiptQueryResult
+	(WorkReferenceVisibility)(0),     // 6: vrooli.vrooli_events.v1.domain.WorkReferenceVisibility
+	(*EventEnvelope)(nil),            // 7: vrooli.vrooli_events.v1.domain.EventEnvelope
 }
 var file_vrooli_events_v1_domain_policy_proto_depIdxs = []int32{
-	1, // 0: vrooli.vrooli_events.v1.domain.ReceiptCapturePolicy.selector:type_name -> vrooli.vrooli_events.v1.domain.ReceiptOperationSelector
-	2, // 1: vrooli.vrooli_events.v1.domain.ReceiptCapturePolicy.access:type_name -> vrooli.vrooli_events.v1.domain.ReceiptAccessPolicy
-	5, // 2: vrooli.vrooli_events.v1.domain.ReceiptQueryResult.events:type_name -> vrooli.vrooli_events.v1.domain.EventEnvelope
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	2, // 0: vrooli.vrooli_events.v1.domain.ReceiptCapturePolicy.selector:type_name -> vrooli.vrooli_events.v1.domain.ReceiptOperationSelector
+	3, // 1: vrooli.vrooli_events.v1.domain.ReceiptCapturePolicy.access:type_name -> vrooli.vrooli_events.v1.domain.ReceiptAccessPolicy
+	1, // 2: vrooli.vrooli_events.v1.domain.ReceiptCapturePolicy.work_reference_projections:type_name -> vrooli.vrooli_events.v1.domain.WorkReferenceProjection
+	6, // 3: vrooli.vrooli_events.v1.domain.ReceiptQueryFilter.visibility:type_name -> vrooli.vrooli_events.v1.domain.WorkReferenceVisibility
+	7, // 4: vrooli.vrooli_events.v1.domain.ReceiptQueryResult.events:type_name -> vrooli.vrooli_events.v1.domain.EventEnvelope
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_events_v1_domain_policy_proto_init() }
@@ -498,7 +652,7 @@ func file_vrooli_events_v1_domain_policy_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_events_v1_domain_policy_proto_rawDesc), len(file_vrooli_events_v1_domain_policy_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

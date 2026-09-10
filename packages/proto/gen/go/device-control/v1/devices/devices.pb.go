@@ -9,6 +9,7 @@ package devices_v1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -286,31 +287,258 @@ func (x *ReconnectDeviceResponse) GetDevice() *Device {
 	return nil
 }
 
+type ExecuteVolumeRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Device             string                 `protobuf:"bytes,1,opt,name=device,proto3" json:"device,omitempty"`
+	Actor              string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
+	Goal               string                 `protobuf:"bytes,3,opt,name=goal,proto3" json:"goal,omitempty"`
+	Operation          string                 `protobuf:"bytes,4,opt,name=operation,proto3" json:"operation,omitempty"`
+	Value              *float64               `protobuf:"fixed64,5,opt,name=value,proto3,oneof" json:"value,omitempty"`
+	Direction          string                 `protobuf:"bytes,6,opt,name=direction,proto3" json:"direction,omitempty"`
+	VerificationPolicy string                 `protobuf:"bytes,7,opt,name=verification_policy,json=verificationPolicy,proto3" json:"verification_policy,omitempty"`
+	OperationId        string                 `protobuf:"bytes,8,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ExecuteVolumeRequest) Reset() {
+	*x = ExecuteVolumeRequest{}
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecuteVolumeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecuteVolumeRequest) ProtoMessage() {}
+
+func (x *ExecuteVolumeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecuteVolumeRequest.ProtoReflect.Descriptor instead.
+func (*ExecuteVolumeRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ExecuteVolumeRequest) GetDevice() string {
+	if x != nil {
+		return x.Device
+	}
+	return ""
+}
+
+func (x *ExecuteVolumeRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *ExecuteVolumeRequest) GetGoal() string {
+	if x != nil {
+		return x.Goal
+	}
+	return ""
+}
+
+func (x *ExecuteVolumeRequest) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
+func (x *ExecuteVolumeRequest) GetValue() float64 {
+	if x != nil && x.Value != nil {
+		return *x.Value
+	}
+	return 0
+}
+
+func (x *ExecuteVolumeRequest) GetDirection() string {
+	if x != nil {
+		return x.Direction
+	}
+	return ""
+}
+
+func (x *ExecuteVolumeRequest) GetVerificationPolicy() string {
+	if x != nil {
+		return x.VerificationPolicy
+	}
+	return ""
+}
+
+func (x *ExecuteVolumeRequest) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+type ExecuteVolumeResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Status            string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	OperationId       string                 `protobuf:"bytes,2,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	DeviceId          string                 `protobuf:"bytes,3,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	DeviceName        string                 `protobuf:"bytes,4,opt,name=device_name,json=deviceName,proto3" json:"device_name,omitempty"`
+	Plan              *structpb.Struct       `protobuf:"bytes,5,opt,name=plan,proto3" json:"plan,omitempty"`
+	Before            *structpb.Struct       `protobuf:"bytes,6,opt,name=before,proto3" json:"before,omitempty"`
+	After             *structpb.Struct       `protobuf:"bytes,7,opt,name=after,proto3" json:"after,omitempty"`
+	VerificationClass string                 `protobuf:"bytes,8,opt,name=verification_class,json=verificationClass,proto3" json:"verification_class,omitempty"`
+	Evidence          []string               `protobuf:"bytes,9,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	RecoveryAttempts  int32                  `protobuf:"varint,10,opt,name=recovery_attempts,json=recoveryAttempts,proto3" json:"recovery_attempts,omitempty"`
+	NextAction        string                 `protobuf:"bytes,11,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ExecuteVolumeResponse) Reset() {
+	*x = ExecuteVolumeResponse{}
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecuteVolumeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecuteVolumeResponse) ProtoMessage() {}
+
+func (x *ExecuteVolumeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecuteVolumeResponse.ProtoReflect.Descriptor instead.
+func (*ExecuteVolumeResponse) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ExecuteVolumeResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ExecuteVolumeResponse) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *ExecuteVolumeResponse) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *ExecuteVolumeResponse) GetDeviceName() string {
+	if x != nil {
+		return x.DeviceName
+	}
+	return ""
+}
+
+func (x *ExecuteVolumeResponse) GetPlan() *structpb.Struct {
+	if x != nil {
+		return x.Plan
+	}
+	return nil
+}
+
+func (x *ExecuteVolumeResponse) GetBefore() *structpb.Struct {
+	if x != nil {
+		return x.Before
+	}
+	return nil
+}
+
+func (x *ExecuteVolumeResponse) GetAfter() *structpb.Struct {
+	if x != nil {
+		return x.After
+	}
+	return nil
+}
+
+func (x *ExecuteVolumeResponse) GetVerificationClass() string {
+	if x != nil {
+		return x.VerificationClass
+	}
+	return ""
+}
+
+func (x *ExecuteVolumeResponse) GetEvidence() []string {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+func (x *ExecuteVolumeResponse) GetRecoveryAttempts() int32 {
+	if x != nil {
+		return x.RecoveryAttempts
+	}
+	return 0
+}
+
+func (x *ExecuteVolumeResponse) GetNextAction() string {
+	if x != nil {
+		return x.NextAction
+	}
+	return ""
+}
+
 type Device struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
-	StrategyId    string                 `protobuf:"bytes,4,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
-	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
-	HealthReason  string                 `protobuf:"bytes,6,opt,name=health_reason,json=healthReason,proto3" json:"health_reason,omitempty"`
-	HostNodeId    string                 `protobuf:"bytes,7,opt,name=host_node_id,json=hostNodeId,proto3" json:"host_node_id,omitempty"`
-	Capabilities  []*CapabilitySnapshot  `protobuf:"bytes,8,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
-	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
-	Serial        string                 `protobuf:"bytes,10,opt,name=serial,proto3" json:"serial,omitempty"`
-	Model         string                 `protobuf:"bytes,11,opt,name=model,proto3" json:"model,omitempty"`
-	OsVersion     string                 `protobuf:"bytes,12,opt,name=os_version,json=osVersion,proto3" json:"os_version,omitempty"`
-	Transport     string                 `protobuf:"bytes,13,opt,name=transport,proto3" json:"transport,omitempty"`
-	Health        string                 `protobuf:"bytes,14,opt,name=health,proto3" json:"health,omitempty"`
-	FirstSeenAt   string                 `protobuf:"bytes,15,opt,name=first_seen_at,json=firstSeenAt,proto3" json:"first_seen_at,omitempty"`
-	LastSeenAt    string                 `protobuf:"bytes,16,opt,name=last_seen_at,json=lastSeenAt,proto3" json:"last_seen_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Kind           string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	StrategyId     string                 `protobuf:"bytes,4,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
+	Status         string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	HealthReason   string                 `protobuf:"bytes,6,opt,name=health_reason,json=healthReason,proto3" json:"health_reason,omitempty"`
+	HostNodeId     string                 `protobuf:"bytes,7,opt,name=host_node_id,json=hostNodeId,proto3" json:"host_node_id,omitempty"`
+	Capabilities   []*CapabilitySnapshot  `protobuf:"bytes,8,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	ObservedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	Serial         string                 `protobuf:"bytes,10,opt,name=serial,proto3" json:"serial,omitempty"`
+	Model          string                 `protobuf:"bytes,11,opt,name=model,proto3" json:"model,omitempty"`
+	OsVersion      string                 `protobuf:"bytes,12,opt,name=os_version,json=osVersion,proto3" json:"os_version,omitempty"`
+	Transport      string                 `protobuf:"bytes,13,opt,name=transport,proto3" json:"transport,omitempty"`
+	Health         string                 `protobuf:"bytes,14,opt,name=health,proto3" json:"health,omitempty"`
+	FirstSeenAt    string                 `protobuf:"bytes,15,opt,name=first_seen_at,json=firstSeenAt,proto3" json:"first_seen_at,omitempty"`
+	LastSeenAt     string                 `protobuf:"bytes,16,opt,name=last_seen_at,json=lastSeenAt,proto3" json:"last_seen_at,omitempty"`
+	Transports     []*TransportProfile    `protobuf:"bytes,17,rep,name=transports,proto3" json:"transports,omitempty"`
+	IdentityKey    string                 `protobuf:"bytes,18,opt,name=identity_key,json=identityKey,proto3" json:"identity_key,omitempty"`
+	IdentityReason string                 `protobuf:"bytes,19,opt,name=identity_reason,json=identityReason,proto3" json:"identity_reason,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Device) Reset() {
 	*x = Device{}
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[6]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -322,7 +550,7 @@ func (x *Device) String() string {
 func (*Device) ProtoMessage() {}
 
 func (x *Device) ProtoReflect() protoreflect.Message {
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[6]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -335,7 +563,7 @@ func (x *Device) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Device.ProtoReflect.Descriptor instead.
 func (*Device) Descriptor() ([]byte, []int) {
-	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{6}
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Device) GetId() string {
@@ -450,6 +678,27 @@ func (x *Device) GetLastSeenAt() string {
 	return ""
 }
 
+func (x *Device) GetTransports() []*TransportProfile {
+	if x != nil {
+		return x.Transports
+	}
+	return nil
+}
+
+func (x *Device) GetIdentityKey() string {
+	if x != nil {
+		return x.IdentityKey
+	}
+	return ""
+}
+
+func (x *Device) GetIdentityReason() string {
+	if x != nil {
+		return x.IdentityReason
+	}
+	return ""
+}
+
 type CapabilitySnapshot struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -462,7 +711,7 @@ type CapabilitySnapshot struct {
 
 func (x *CapabilitySnapshot) Reset() {
 	*x = CapabilitySnapshot{}
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[7]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -474,7 +723,7 @@ func (x *CapabilitySnapshot) String() string {
 func (*CapabilitySnapshot) ProtoMessage() {}
 
 func (x *CapabilitySnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[7]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -487,7 +736,7 @@ func (x *CapabilitySnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilitySnapshot.ProtoReflect.Descriptor instead.
 func (*CapabilitySnapshot) Descriptor() ([]byte, []int) {
-	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{7}
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CapabilitySnapshot) GetName() string {
@@ -518,6 +767,114 @@ func (x *CapabilitySnapshot) GetNextAction() string {
 	return ""
 }
 
+type TransportProfile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StrategyId    string                 `protobuf:"bytes,1,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Role          string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
+	Endpoint      string                 `protobuf:"bytes,4,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	Health        string                 `protobuf:"bytes,5,opt,name=health,proto3" json:"health,omitempty"`
+	HealthReason  string                 `protobuf:"bytes,6,opt,name=health_reason,json=healthReason,proto3" json:"health_reason,omitempty"`
+	Capabilities  []*CapabilitySnapshot  `protobuf:"bytes,7,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	Operations    []string               `protobuf:"bytes,8,rep,name=operations,proto3" json:"operations,omitempty"`
+	Endpoints     []string               `protobuf:"bytes,9,rep,name=endpoints,proto3" json:"endpoints,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TransportProfile) Reset() {
+	*x = TransportProfile{}
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TransportProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransportProfile) ProtoMessage() {}
+
+func (x *TransportProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransportProfile.ProtoReflect.Descriptor instead.
+func (*TransportProfile) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *TransportProfile) GetStrategyId() string {
+	if x != nil {
+		return x.StrategyId
+	}
+	return ""
+}
+
+func (x *TransportProfile) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *TransportProfile) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *TransportProfile) GetEndpoint() string {
+	if x != nil {
+		return x.Endpoint
+	}
+	return ""
+}
+
+func (x *TransportProfile) GetHealth() string {
+	if x != nil {
+		return x.Health
+	}
+	return ""
+}
+
+func (x *TransportProfile) GetHealthReason() string {
+	if x != nil {
+		return x.HealthReason
+	}
+	return ""
+}
+
+func (x *TransportProfile) GetCapabilities() []*CapabilitySnapshot {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
+func (x *TransportProfile) GetOperations() []string {
+	if x != nil {
+		return x.Operations
+	}
+	return nil
+}
+
+func (x *TransportProfile) GetEndpoints() []string {
+	if x != nil {
+		return x.Endpoints
+	}
+	return nil
+}
+
 type OnboardingRung struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -531,7 +888,7 @@ type OnboardingRung struct {
 
 func (x *OnboardingRung) Reset() {
 	*x = OnboardingRung{}
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[8]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -543,7 +900,7 @@ func (x *OnboardingRung) String() string {
 func (*OnboardingRung) ProtoMessage() {}
 
 func (x *OnboardingRung) ProtoReflect() protoreflect.Message {
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[8]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -556,7 +913,7 @@ func (x *OnboardingRung) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OnboardingRung.ProtoReflect.Descriptor instead.
 func (*OnboardingRung) Descriptor() ([]byte, []int) {
-	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{8}
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *OnboardingRung) GetId() string {
@@ -598,7 +955,7 @@ var File_device_control_v1_devices_devices_proto protoreflect.FileDescriptor
 
 const file_device_control_v1_devices_devices_proto_rawDesc = "" +
 	"\n" +
-	"'device-control/v1/devices/devices.proto\x12 vrooli.device_control.v1.devices\x1a\x1fgoogle/protobuf/timestamp.proto\"\x14\n" +
+	"'device-control/v1/devices/devices.proto\x12 vrooli.device_control.v1.devices\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\"\x14\n" +
 	"\x12ListDevicesRequest\"Y\n" +
 	"\x13ListDevicesResponse\x12B\n" +
 	"\adevices\x18\x01 \x03(\v2(.vrooli.device_control.v1.devices.DeviceR\adevices\"*\n" +
@@ -610,7 +967,32 @@ const file_device_control_v1_devices_devices_proto_rawDesc = "" +
 	"\x16ReconnectDeviceRequest\x12\x1b\n" +
 	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\"[\n" +
 	"\x17ReconnectDeviceResponse\x12@\n" +
-	"\x06device\x18\x01 \x01(\v2(.vrooli.device_control.v1.devices.DeviceR\x06device\"\xa0\x04\n" +
+	"\x06device\x18\x01 \x01(\v2(.vrooli.device_control.v1.devices.DeviceR\x06device\"\x8d\x02\n" +
+	"\x14ExecuteVolumeRequest\x12\x16\n" +
+	"\x06device\x18\x01 \x01(\tR\x06device\x12\x14\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x12\n" +
+	"\x04goal\x18\x03 \x01(\tR\x04goal\x12\x1c\n" +
+	"\toperation\x18\x04 \x01(\tR\toperation\x12\x19\n" +
+	"\x05value\x18\x05 \x01(\x01H\x00R\x05value\x88\x01\x01\x12\x1c\n" +
+	"\tdirection\x18\x06 \x01(\tR\tdirection\x12/\n" +
+	"\x13verification_policy\x18\a \x01(\tR\x12verificationPolicy\x12!\n" +
+	"\foperation_id\x18\b \x01(\tR\voperationIdB\b\n" +
+	"\x06_value\"\xb6\x03\n" +
+	"\x15ExecuteVolumeResponse\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12!\n" +
+	"\foperation_id\x18\x02 \x01(\tR\voperationId\x12\x1b\n" +
+	"\tdevice_id\x18\x03 \x01(\tR\bdeviceId\x12\x1f\n" +
+	"\vdevice_name\x18\x04 \x01(\tR\n" +
+	"deviceName\x12+\n" +
+	"\x04plan\x18\x05 \x01(\v2\x17.google.protobuf.StructR\x04plan\x12/\n" +
+	"\x06before\x18\x06 \x01(\v2\x17.google.protobuf.StructR\x06before\x12-\n" +
+	"\x05after\x18\a \x01(\v2\x17.google.protobuf.StructR\x05after\x12-\n" +
+	"\x12verification_class\x18\b \x01(\tR\x11verificationClass\x12\x1a\n" +
+	"\bevidence\x18\t \x03(\tR\bevidence\x12+\n" +
+	"\x11recovery_attempts\x18\n" +
+	" \x01(\x05R\x10recoveryAttempts\x12\x1f\n" +
+	"\vnext_action\x18\v \x01(\tR\n" +
+	"nextAction\"\xc0\x05\n" +
 	"\x06Device\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -633,24 +1015,43 @@ const file_device_control_v1_devices_devices_proto_rawDesc = "" +
 	"\x06health\x18\x0e \x01(\tR\x06health\x12\"\n" +
 	"\rfirst_seen_at\x18\x0f \x01(\tR\vfirstSeenAt\x12 \n" +
 	"\flast_seen_at\x18\x10 \x01(\tR\n" +
-	"lastSeenAt\"\x85\x01\n" +
+	"lastSeenAt\x12R\n" +
+	"\n" +
+	"transports\x18\x11 \x03(\v22.vrooli.device_control.v1.devices.TransportProfileR\n" +
+	"transports\x12!\n" +
+	"\fidentity_key\x18\x12 \x01(\tR\videntityKey\x12'\n" +
+	"\x0fidentity_reason\x18\x13 \x01(\tR\x0eidentityReason\"\x85\x01\n" +
 	"\x12CapabilitySnapshot\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\"\n" +
 	"\fprerequisite\x18\x03 \x01(\tR\fprerequisite\x12\x1f\n" +
 	"\vnext_action\x18\x04 \x01(\tR\n" +
-	"nextAction\"\x93\x01\n" +
+	"nextAction\"\xcc\x02\n" +
+	"\x10TransportProfile\x12\x1f\n" +
+	"\vstrategy_id\x18\x01 \x01(\tR\n" +
+	"strategyId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\x12\x1a\n" +
+	"\bendpoint\x18\x04 \x01(\tR\bendpoint\x12\x16\n" +
+	"\x06health\x18\x05 \x01(\tR\x06health\x12#\n" +
+	"\rhealth_reason\x18\x06 \x01(\tR\fhealthReason\x12X\n" +
+	"\fcapabilities\x18\a \x03(\v24.vrooli.device_control.v1.devices.CapabilitySnapshotR\fcapabilities\x12\x1e\n" +
+	"\n" +
+	"operations\x18\b \x03(\tR\n" +
+	"operations\x12\x1c\n" +
+	"\tendpoints\x18\t \x03(\tR\tendpoints\"\x93\x01\n" +
 	"\x0eOnboardingRung\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\"\n" +
 	"\fprerequisite\x18\x02 \x01(\tR\fprerequisite\x12\x14\n" +
 	"\x05owner\x18\x03 \x01(\tR\x05owner\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12\x1f\n" +
 	"\vnext_action\x18\x05 \x01(\tR\n" +
-	"nextAction2\x97\x03\n" +
+	"nextAction2\x9a\x04\n" +
 	"\rDeviceService\x12z\n" +
 	"\vListDevices\x124.vrooli.device_control.v1.devices.ListDevicesRequest\x1a5.vrooli.device_control.v1.devices.ListDevicesResponse\x12\x80\x01\n" +
 	"\rConnectDevice\x126.vrooli.device_control.v1.devices.ConnectDeviceRequest\x1a7.vrooli.device_control.v1.devices.ConnectDeviceResponse\x12\x86\x01\n" +
-	"\x0fReconnectDevice\x128.vrooli.device_control.v1.devices.ReconnectDeviceRequest\x1a9.vrooli.device_control.v1.devices.ReconnectDeviceResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices;devices_v1b\x06proto3"
+	"\x0fReconnectDevice\x128.vrooli.device_control.v1.devices.ReconnectDeviceRequest\x1a9.vrooli.device_control.v1.devices.ReconnectDeviceResponse\x12\x80\x01\n" +
+	"\rExecuteVolume\x126.vrooli.device_control.v1.devices.ExecuteVolumeRequest\x1a7.vrooli.device_control.v1.devices.ExecuteVolumeResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices;devices_v1b\x06proto3"
 
 var (
 	file_device_control_v1_devices_devices_proto_rawDescOnce sync.Once
@@ -664,7 +1065,7 @@ func file_device_control_v1_devices_devices_proto_rawDescGZIP() []byte {
 	return file_device_control_v1_devices_devices_proto_rawDescData
 }
 
-var file_device_control_v1_devices_devices_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_device_control_v1_devices_devices_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_device_control_v1_devices_devices_proto_goTypes = []any{
 	(*ListDevicesRequest)(nil),      // 0: vrooli.device_control.v1.devices.ListDevicesRequest
 	(*ListDevicesResponse)(nil),     // 1: vrooli.device_control.v1.devices.ListDevicesResponse
@@ -672,28 +1073,39 @@ var file_device_control_v1_devices_devices_proto_goTypes = []any{
 	(*ConnectDeviceResponse)(nil),   // 3: vrooli.device_control.v1.devices.ConnectDeviceResponse
 	(*ReconnectDeviceRequest)(nil),  // 4: vrooli.device_control.v1.devices.ReconnectDeviceRequest
 	(*ReconnectDeviceResponse)(nil), // 5: vrooli.device_control.v1.devices.ReconnectDeviceResponse
-	(*Device)(nil),                  // 6: vrooli.device_control.v1.devices.Device
-	(*CapabilitySnapshot)(nil),      // 7: vrooli.device_control.v1.devices.CapabilitySnapshot
-	(*OnboardingRung)(nil),          // 8: vrooli.device_control.v1.devices.OnboardingRung
-	(*timestamppb.Timestamp)(nil),   // 9: google.protobuf.Timestamp
+	(*ExecuteVolumeRequest)(nil),    // 6: vrooli.device_control.v1.devices.ExecuteVolumeRequest
+	(*ExecuteVolumeResponse)(nil),   // 7: vrooli.device_control.v1.devices.ExecuteVolumeResponse
+	(*Device)(nil),                  // 8: vrooli.device_control.v1.devices.Device
+	(*CapabilitySnapshot)(nil),      // 9: vrooli.device_control.v1.devices.CapabilitySnapshot
+	(*TransportProfile)(nil),        // 10: vrooli.device_control.v1.devices.TransportProfile
+	(*OnboardingRung)(nil),          // 11: vrooli.device_control.v1.devices.OnboardingRung
+	(*structpb.Struct)(nil),         // 12: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),   // 13: google.protobuf.Timestamp
 }
 var file_device_control_v1_devices_devices_proto_depIdxs = []int32{
-	6, // 0: vrooli.device_control.v1.devices.ListDevicesResponse.devices:type_name -> vrooli.device_control.v1.devices.Device
-	8, // 1: vrooli.device_control.v1.devices.ConnectDeviceResponse.rungs:type_name -> vrooli.device_control.v1.devices.OnboardingRung
-	6, // 2: vrooli.device_control.v1.devices.ReconnectDeviceResponse.device:type_name -> vrooli.device_control.v1.devices.Device
-	7, // 3: vrooli.device_control.v1.devices.Device.capabilities:type_name -> vrooli.device_control.v1.devices.CapabilitySnapshot
-	9, // 4: vrooli.device_control.v1.devices.Device.observed_at:type_name -> google.protobuf.Timestamp
-	0, // 5: vrooli.device_control.v1.devices.DeviceService.ListDevices:input_type -> vrooli.device_control.v1.devices.ListDevicesRequest
-	2, // 6: vrooli.device_control.v1.devices.DeviceService.ConnectDevice:input_type -> vrooli.device_control.v1.devices.ConnectDeviceRequest
-	4, // 7: vrooli.device_control.v1.devices.DeviceService.ReconnectDevice:input_type -> vrooli.device_control.v1.devices.ReconnectDeviceRequest
-	1, // 8: vrooli.device_control.v1.devices.DeviceService.ListDevices:output_type -> vrooli.device_control.v1.devices.ListDevicesResponse
-	3, // 9: vrooli.device_control.v1.devices.DeviceService.ConnectDevice:output_type -> vrooli.device_control.v1.devices.ConnectDeviceResponse
-	5, // 10: vrooli.device_control.v1.devices.DeviceService.ReconnectDevice:output_type -> vrooli.device_control.v1.devices.ReconnectDeviceResponse
-	8, // [8:11] is the sub-list for method output_type
-	5, // [5:8] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	8,  // 0: vrooli.device_control.v1.devices.ListDevicesResponse.devices:type_name -> vrooli.device_control.v1.devices.Device
+	11, // 1: vrooli.device_control.v1.devices.ConnectDeviceResponse.rungs:type_name -> vrooli.device_control.v1.devices.OnboardingRung
+	8,  // 2: vrooli.device_control.v1.devices.ReconnectDeviceResponse.device:type_name -> vrooli.device_control.v1.devices.Device
+	12, // 3: vrooli.device_control.v1.devices.ExecuteVolumeResponse.plan:type_name -> google.protobuf.Struct
+	12, // 4: vrooli.device_control.v1.devices.ExecuteVolumeResponse.before:type_name -> google.protobuf.Struct
+	12, // 5: vrooli.device_control.v1.devices.ExecuteVolumeResponse.after:type_name -> google.protobuf.Struct
+	9,  // 6: vrooli.device_control.v1.devices.Device.capabilities:type_name -> vrooli.device_control.v1.devices.CapabilitySnapshot
+	13, // 7: vrooli.device_control.v1.devices.Device.observed_at:type_name -> google.protobuf.Timestamp
+	10, // 8: vrooli.device_control.v1.devices.Device.transports:type_name -> vrooli.device_control.v1.devices.TransportProfile
+	9,  // 9: vrooli.device_control.v1.devices.TransportProfile.capabilities:type_name -> vrooli.device_control.v1.devices.CapabilitySnapshot
+	0,  // 10: vrooli.device_control.v1.devices.DeviceService.ListDevices:input_type -> vrooli.device_control.v1.devices.ListDevicesRequest
+	2,  // 11: vrooli.device_control.v1.devices.DeviceService.ConnectDevice:input_type -> vrooli.device_control.v1.devices.ConnectDeviceRequest
+	4,  // 12: vrooli.device_control.v1.devices.DeviceService.ReconnectDevice:input_type -> vrooli.device_control.v1.devices.ReconnectDeviceRequest
+	6,  // 13: vrooli.device_control.v1.devices.DeviceService.ExecuteVolume:input_type -> vrooli.device_control.v1.devices.ExecuteVolumeRequest
+	1,  // 14: vrooli.device_control.v1.devices.DeviceService.ListDevices:output_type -> vrooli.device_control.v1.devices.ListDevicesResponse
+	3,  // 15: vrooli.device_control.v1.devices.DeviceService.ConnectDevice:output_type -> vrooli.device_control.v1.devices.ConnectDeviceResponse
+	5,  // 16: vrooli.device_control.v1.devices.DeviceService.ReconnectDevice:output_type -> vrooli.device_control.v1.devices.ReconnectDeviceResponse
+	7,  // 17: vrooli.device_control.v1.devices.DeviceService.ExecuteVolume:output_type -> vrooli.device_control.v1.devices.ExecuteVolumeResponse
+	14, // [14:18] is the sub-list for method output_type
+	10, // [10:14] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_device_control_v1_devices_devices_proto_init() }
@@ -701,13 +1113,14 @@ func file_device_control_v1_devices_devices_proto_init() {
 	if File_device_control_v1_devices_devices_proto != nil {
 		return
 	}
+	file_device_control_v1_devices_devices_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_device_control_v1_devices_devices_proto_rawDesc), len(file_device_control_v1_devices_devices_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -24,20 +24,127 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type WorkReferenceVisibility int32
+
+const (
+	WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_UNSPECIFIED WorkReferenceVisibility = 0
+	WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC      WorkReferenceVisibility = 1
+	WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PRIVATE     WorkReferenceVisibility = 2
+)
+
+// Enum value maps for WorkReferenceVisibility.
+var (
+	WorkReferenceVisibility_name = map[int32]string{
+		0: "WORK_REFERENCE_VISIBILITY_UNSPECIFIED",
+		1: "WORK_REFERENCE_VISIBILITY_PUBLIC",
+		2: "WORK_REFERENCE_VISIBILITY_PRIVATE",
+	}
+	WorkReferenceVisibility_value = map[string]int32{
+		"WORK_REFERENCE_VISIBILITY_UNSPECIFIED": 0,
+		"WORK_REFERENCE_VISIBILITY_PUBLIC":      1,
+		"WORK_REFERENCE_VISIBILITY_PRIVATE":     2,
+	}
+)
+
+func (x WorkReferenceVisibility) Enum() *WorkReferenceVisibility {
+	p := new(WorkReferenceVisibility)
+	*p = x
+	return p
+}
+
+func (x WorkReferenceVisibility) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WorkReferenceVisibility) Descriptor() protoreflect.EnumDescriptor {
+	return file_vrooli_events_v1_domain_envelope_proto_enumTypes[0].Descriptor()
+}
+
+func (WorkReferenceVisibility) Type() protoreflect.EnumType {
+	return &file_vrooli_events_v1_domain_envelope_proto_enumTypes[0]
+}
+
+func (x WorkReferenceVisibility) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WorkReferenceVisibility.Descriptor instead.
+func (WorkReferenceVisibility) EnumDescriptor() ([]byte, []int) {
+	return file_vrooli_events_v1_domain_envelope_proto_rawDescGZIP(), []int{0}
+}
+
+type WorkReferenceState int32
+
+const (
+	WorkReferenceState_WORK_REFERENCE_STATE_UNSPECIFIED         WorkReferenceState = 0
+	WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE              WorkReferenceState = 1
+	WorkReferenceState_WORK_REFERENCE_STATE_EXPIRED             WorkReferenceState = 2
+	WorkReferenceState_WORK_REFERENCE_STATE_UNAVAILABLE         WorkReferenceState = 3
+	WorkReferenceState_WORK_REFERENCE_STATE_PROJECTION_MISMATCH WorkReferenceState = 4
+)
+
+// Enum value maps for WorkReferenceState.
+var (
+	WorkReferenceState_name = map[int32]string{
+		0: "WORK_REFERENCE_STATE_UNSPECIFIED",
+		1: "WORK_REFERENCE_STATE_ACTIVE",
+		2: "WORK_REFERENCE_STATE_EXPIRED",
+		3: "WORK_REFERENCE_STATE_UNAVAILABLE",
+		4: "WORK_REFERENCE_STATE_PROJECTION_MISMATCH",
+	}
+	WorkReferenceState_value = map[string]int32{
+		"WORK_REFERENCE_STATE_UNSPECIFIED":         0,
+		"WORK_REFERENCE_STATE_ACTIVE":              1,
+		"WORK_REFERENCE_STATE_EXPIRED":             2,
+		"WORK_REFERENCE_STATE_UNAVAILABLE":         3,
+		"WORK_REFERENCE_STATE_PROJECTION_MISMATCH": 4,
+	}
+)
+
+func (x WorkReferenceState) Enum() *WorkReferenceState {
+	p := new(WorkReferenceState)
+	*p = x
+	return p
+}
+
+func (x WorkReferenceState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WorkReferenceState) Descriptor() protoreflect.EnumDescriptor {
+	return file_vrooli_events_v1_domain_envelope_proto_enumTypes[1].Descriptor()
+}
+
+func (WorkReferenceState) Type() protoreflect.EnumType {
+	return &file_vrooli_events_v1_domain_envelope_proto_enumTypes[1]
+}
+
+func (x WorkReferenceState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WorkReferenceState.Descriptor instead.
+func (WorkReferenceState) EnumDescriptor() ([]byte, []int) {
+	return file_vrooli_events_v1_domain_envelope_proto_rawDescGZIP(), []int{1}
+}
+
 // Canonical, typed audit observation contract. Event-specific facts are packed
 // in data; routing, attribution and correlation are never hidden in metadata.
 type EventEnvelope struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	EventType     string                 `protobuf:"bytes,2,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
-	OccurredAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
-	Source        *EventSource           `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
-	Target        *EventTarget           `protobuf:"bytes,5,opt,name=target,proto3" json:"target,omitempty"`
-	Correlation   *EventCorrelation      `protobuf:"bytes,6,opt,name=correlation,proto3" json:"correlation,omitempty"`
-	Attribution   *EventAttribution      `protobuf:"bytes,7,opt,name=attribution,proto3" json:"attribution,omitempty"`
-	Data          *anypb.Any             `protobuf:"bytes,8,opt,name=data,proto3" json:"data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	EventId     string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	EventType   string                 `protobuf:"bytes,2,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	OccurredAt  *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	Source      *EventSource           `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
+	Target      *EventTarget           `protobuf:"bytes,5,opt,name=target,proto3" json:"target,omitempty"`
+	Correlation *EventCorrelation      `protobuf:"bytes,6,opt,name=correlation,proto3" json:"correlation,omitempty"`
+	Attribution *EventAttribution      `protobuf:"bytes,7,opt,name=attribution,proto3" json:"attribution,omitempty"`
+	Data        *anypb.Any             `protobuf:"bytes,8,opt,name=data,proto3" json:"data,omitempty"`
+	// Producer-declared, normalized links to external work systems. These links
+	// are evidence edges; they never imply ownership or authorship by themselves.
+	WorkReferences []*WorkReference `protobuf:"bytes,9,rep,name=work_references,json=workReferences,proto3" json:"work_references,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *EventEnvelope) Reset() {
@@ -122,6 +229,13 @@ func (x *EventEnvelope) GetAttribution() *EventAttribution {
 func (x *EventEnvelope) GetData() *anypb.Any {
 	if x != nil {
 		return x.Data
+	}
+	return nil
+}
+
+func (x *EventEnvelope) GetWorkReferences() []*WorkReference {
+	if x != nil {
+		return x.WorkReferences
 	}
 	return nil
 }
@@ -382,6 +496,133 @@ func (x *EventAttribution) GetVerified() bool {
 	return false
 }
 
+// WorkReference is a producer-neutral relation to a work item. Producers may
+// use plan, issue, incident, experiment, task, or future kinds without adding
+// scenario-specific fields to the event contract.
+type WorkReference struct {
+	state             protoimpl.MessageState  `protogen:"open.v1"`
+	Kind              string                  `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Id                string                  `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Revision          string                  `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	Relationship      string                  `protobuf:"bytes,4,opt,name=relationship,proto3" json:"relationship,omitempty"`
+	SourceEventId     string                  `protobuf:"bytes,5,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
+	SourceRunId       string                  `protobuf:"bytes,6,opt,name=source_run_id,json=sourceRunId,proto3" json:"source_run_id,omitempty"`
+	Verified          bool                    `protobuf:"varint,7,opt,name=verified,proto3" json:"verified,omitempty"`
+	Visibility        WorkReferenceVisibility `protobuf:"varint,8,opt,name=visibility,proto3,enum=vrooli.vrooli_events.v1.domain.WorkReferenceVisibility" json:"visibility,omitempty"`
+	EvidenceDigest    string                  `protobuf:"bytes,9,opt,name=evidence_digest,json=evidenceDigest,proto3" json:"evidence_digest,omitempty"`
+	State             WorkReferenceState      `protobuf:"varint,10,opt,name=state,proto3,enum=vrooli.vrooli_events.v1.domain.WorkReferenceState" json:"state,omitempty"`
+	UnavailableReason string                  `protobuf:"bytes,11,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *WorkReference) Reset() {
+	*x = WorkReference{}
+	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkReference) ProtoMessage() {}
+
+func (x *WorkReference) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkReference.ProtoReflect.Descriptor instead.
+func (*WorkReference) Descriptor() ([]byte, []int) {
+	return file_vrooli_events_v1_domain_envelope_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *WorkReference) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *WorkReference) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *WorkReference) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+func (x *WorkReference) GetRelationship() string {
+	if x != nil {
+		return x.Relationship
+	}
+	return ""
+}
+
+func (x *WorkReference) GetSourceEventId() string {
+	if x != nil {
+		return x.SourceEventId
+	}
+	return ""
+}
+
+func (x *WorkReference) GetSourceRunId() string {
+	if x != nil {
+		return x.SourceRunId
+	}
+	return ""
+}
+
+func (x *WorkReference) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
+}
+
+func (x *WorkReference) GetVisibility() WorkReferenceVisibility {
+	if x != nil {
+		return x.Visibility
+	}
+	return WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_UNSPECIFIED
+}
+
+func (x *WorkReference) GetEvidenceDigest() string {
+	if x != nil {
+		return x.EvidenceDigest
+	}
+	return ""
+}
+
+func (x *WorkReference) GetState() WorkReferenceState {
+	if x != nil {
+		return x.State
+	}
+	return WorkReferenceState_WORK_REFERENCE_STATE_UNSPECIFIED
+}
+
+func (x *WorkReference) GetUnavailableReason() string {
+	if x != nil {
+		return x.UnavailableReason
+	}
+	return ""
+}
+
 type ReceiptData struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Outcome        string                 `protobuf:"bytes,1,opt,name=outcome,proto3" json:"outcome,omitempty"`
@@ -396,7 +637,7 @@ type ReceiptData struct {
 
 func (x *ReceiptData) Reset() {
 	*x = ReceiptData{}
-	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[5]
+	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -408,7 +649,7 @@ func (x *ReceiptData) String() string {
 func (*ReceiptData) ProtoMessage() {}
 
 func (x *ReceiptData) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[5]
+	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -421,7 +662,7 @@ func (x *ReceiptData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReceiptData.ProtoReflect.Descriptor instead.
 func (*ReceiptData) Descriptor() ([]byte, []int) {
-	return file_vrooli_events_v1_domain_envelope_proto_rawDescGZIP(), []int{5}
+	return file_vrooli_events_v1_domain_envelope_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ReceiptData) GetOutcome() string {
@@ -470,7 +711,7 @@ var File_vrooli_events_v1_domain_envelope_proto protoreflect.FileDescriptor
 
 const file_vrooli_events_v1_domain_envelope_proto_rawDesc = "" +
 	"\n" +
-	"&vrooli-events/v1/domain/envelope.proto\x12\x1evrooli.vrooli_events.v1.domain\x1a\x19google/protobuf/any.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\x03\n" +
+	"&vrooli-events/v1/domain/envelope.proto\x12\x1evrooli.vrooli_events.v1.domain\x1a\x19google/protobuf/any.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\x04\n" +
 	"\rEventEnvelope\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1d\n" +
 	"\n" +
@@ -481,7 +722,8 @@ const file_vrooli_events_v1_domain_envelope_proto_rawDesc = "" +
 	"\x06target\x18\x05 \x01(\v2+.vrooli.vrooli_events.v1.domain.EventTargetR\x06target\x12R\n" +
 	"\vcorrelation\x18\x06 \x01(\v20.vrooli.vrooli_events.v1.domain.EventCorrelationR\vcorrelation\x12R\n" +
 	"\vattribution\x18\a \x01(\v20.vrooli.vrooli_events.v1.domain.EventAttributionR\vattribution\x12(\n" +
-	"\x04data\x18\b \x01(\v2\x14.google.protobuf.AnyR\x04data\"H\n" +
+	"\x04data\x18\b \x01(\v2\x14.google.protobuf.AnyR\x04data\x12V\n" +
+	"\x0fwork_references\x18\t \x03(\v2-.vrooli.vrooli_events.v1.domain.WorkReferenceR\x0eworkReferences\"H\n" +
 	"\vEventSource\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1d\n" +
 	"\n" +
@@ -503,7 +745,22 @@ const file_vrooli_events_v1_domain_envelope_proto_rawDesc = "" +
 	"\fsubject_kind\x18\x01 \x01(\tR\vsubjectKind\x12\x1d\n" +
 	"\n" +
 	"subject_id\x18\x02 \x01(\tR\tsubjectId\x12\x1a\n" +
-	"\bverified\x18\x03 \x01(\bR\bverified\"\xf2\x01\n" +
+	"\bverified\x18\x03 \x01(\bR\bverified\"\xd6\x03\n" +
+	"\rWorkReference\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\tR\brevision\x12\"\n" +
+	"\frelationship\x18\x04 \x01(\tR\frelationship\x12&\n" +
+	"\x0fsource_event_id\x18\x05 \x01(\tR\rsourceEventId\x12\"\n" +
+	"\rsource_run_id\x18\x06 \x01(\tR\vsourceRunId\x12\x1a\n" +
+	"\bverified\x18\a \x01(\bR\bverified\x12W\n" +
+	"\n" +
+	"visibility\x18\b \x01(\x0e27.vrooli.vrooli_events.v1.domain.WorkReferenceVisibilityR\n" +
+	"visibility\x12'\n" +
+	"\x0fevidence_digest\x18\t \x01(\tR\x0eevidenceDigest\x12H\n" +
+	"\x05state\x18\n" +
+	" \x01(\x0e22.vrooli.vrooli_events.v1.domain.WorkReferenceStateR\x05state\x12-\n" +
+	"\x12unavailable_reason\x18\v \x01(\tR\x11unavailableReason\"\xf2\x01\n" +
 	"\vReceiptData\x12\x18\n" +
 	"\aoutcome\x18\x01 \x01(\tR\aoutcome\x12\x1f\n" +
 	"\vstatus_code\x18\x02 \x01(\rR\n" +
@@ -514,7 +771,17 @@ const file_vrooli_events_v1_domain_envelope_proto_rawDesc = "" +
 	"\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\x127\n" +
 	"\n" +
 	"projection\x18\x06 \x01(\v2\x17.google.protobuf.StructR\n" +
-	"projectionBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3"
+	"projection*\x91\x01\n" +
+	"\x17WorkReferenceVisibility\x12)\n" +
+	"%WORK_REFERENCE_VISIBILITY_UNSPECIFIED\x10\x00\x12$\n" +
+	" WORK_REFERENCE_VISIBILITY_PUBLIC\x10\x01\x12%\n" +
+	"!WORK_REFERENCE_VISIBILITY_PRIVATE\x10\x02*\xd1\x01\n" +
+	"\x12WorkReferenceState\x12$\n" +
+	" WORK_REFERENCE_STATE_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bWORK_REFERENCE_STATE_ACTIVE\x10\x01\x12 \n" +
+	"\x1cWORK_REFERENCE_STATE_EXPIRED\x10\x02\x12$\n" +
+	" WORK_REFERENCE_STATE_UNAVAILABLE\x10\x03\x12,\n" +
+	"(WORK_REFERENCE_STATE_PROJECTION_MISMATCH\x10\x04BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3"
 
 var (
 	file_vrooli_events_v1_domain_envelope_proto_rawDescOnce sync.Once
@@ -528,31 +795,38 @@ func file_vrooli_events_v1_domain_envelope_proto_rawDescGZIP() []byte {
 	return file_vrooli_events_v1_domain_envelope_proto_rawDescData
 }
 
-var file_vrooli_events_v1_domain_envelope_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_vrooli_events_v1_domain_envelope_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_vrooli_events_v1_domain_envelope_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_vrooli_events_v1_domain_envelope_proto_goTypes = []any{
-	(*EventEnvelope)(nil),         // 0: vrooli.vrooli_events.v1.domain.EventEnvelope
-	(*EventSource)(nil),           // 1: vrooli.vrooli_events.v1.domain.EventSource
-	(*EventTarget)(nil),           // 2: vrooli.vrooli_events.v1.domain.EventTarget
-	(*EventCorrelation)(nil),      // 3: vrooli.vrooli_events.v1.domain.EventCorrelation
-	(*EventAttribution)(nil),      // 4: vrooli.vrooli_events.v1.domain.EventAttribution
-	(*ReceiptData)(nil),           // 5: vrooli.vrooli_events.v1.domain.ReceiptData
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
-	(*anypb.Any)(nil),             // 7: google.protobuf.Any
-	(*structpb.Struct)(nil),       // 8: google.protobuf.Struct
+	(WorkReferenceVisibility)(0),  // 0: vrooli.vrooli_events.v1.domain.WorkReferenceVisibility
+	(WorkReferenceState)(0),       // 1: vrooli.vrooli_events.v1.domain.WorkReferenceState
+	(*EventEnvelope)(nil),         // 2: vrooli.vrooli_events.v1.domain.EventEnvelope
+	(*EventSource)(nil),           // 3: vrooli.vrooli_events.v1.domain.EventSource
+	(*EventTarget)(nil),           // 4: vrooli.vrooli_events.v1.domain.EventTarget
+	(*EventCorrelation)(nil),      // 5: vrooli.vrooli_events.v1.domain.EventCorrelation
+	(*EventAttribution)(nil),      // 6: vrooli.vrooli_events.v1.domain.EventAttribution
+	(*WorkReference)(nil),         // 7: vrooli.vrooli_events.v1.domain.WorkReference
+	(*ReceiptData)(nil),           // 8: vrooli.vrooli_events.v1.domain.ReceiptData
+	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
+	(*anypb.Any)(nil),             // 10: google.protobuf.Any
+	(*structpb.Struct)(nil),       // 11: google.protobuf.Struct
 }
 var file_vrooli_events_v1_domain_envelope_proto_depIdxs = []int32{
-	6, // 0: vrooli.vrooli_events.v1.domain.EventEnvelope.occurred_at:type_name -> google.protobuf.Timestamp
-	1, // 1: vrooli.vrooli_events.v1.domain.EventEnvelope.source:type_name -> vrooli.vrooli_events.v1.domain.EventSource
-	2, // 2: vrooli.vrooli_events.v1.domain.EventEnvelope.target:type_name -> vrooli.vrooli_events.v1.domain.EventTarget
-	3, // 3: vrooli.vrooli_events.v1.domain.EventEnvelope.correlation:type_name -> vrooli.vrooli_events.v1.domain.EventCorrelation
-	4, // 4: vrooli.vrooli_events.v1.domain.EventEnvelope.attribution:type_name -> vrooli.vrooli_events.v1.domain.EventAttribution
-	7, // 5: vrooli.vrooli_events.v1.domain.EventEnvelope.data:type_name -> google.protobuf.Any
-	8, // 6: vrooli.vrooli_events.v1.domain.ReceiptData.projection:type_name -> google.protobuf.Struct
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	9,  // 0: vrooli.vrooli_events.v1.domain.EventEnvelope.occurred_at:type_name -> google.protobuf.Timestamp
+	3,  // 1: vrooli.vrooli_events.v1.domain.EventEnvelope.source:type_name -> vrooli.vrooli_events.v1.domain.EventSource
+	4,  // 2: vrooli.vrooli_events.v1.domain.EventEnvelope.target:type_name -> vrooli.vrooli_events.v1.domain.EventTarget
+	5,  // 3: vrooli.vrooli_events.v1.domain.EventEnvelope.correlation:type_name -> vrooli.vrooli_events.v1.domain.EventCorrelation
+	6,  // 4: vrooli.vrooli_events.v1.domain.EventEnvelope.attribution:type_name -> vrooli.vrooli_events.v1.domain.EventAttribution
+	10, // 5: vrooli.vrooli_events.v1.domain.EventEnvelope.data:type_name -> google.protobuf.Any
+	7,  // 6: vrooli.vrooli_events.v1.domain.EventEnvelope.work_references:type_name -> vrooli.vrooli_events.v1.domain.WorkReference
+	0,  // 7: vrooli.vrooli_events.v1.domain.WorkReference.visibility:type_name -> vrooli.vrooli_events.v1.domain.WorkReferenceVisibility
+	1,  // 8: vrooli.vrooli_events.v1.domain.WorkReference.state:type_name -> vrooli.vrooli_events.v1.domain.WorkReferenceState
+	11, // 9: vrooli.vrooli_events.v1.domain.ReceiptData.projection:type_name -> google.protobuf.Struct
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_events_v1_domain_envelope_proto_init() }
@@ -565,13 +839,14 @@ func file_vrooli_events_v1_domain_envelope_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_events_v1_domain_envelope_proto_rawDesc), len(file_vrooli_events_v1_domain_envelope_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   6,
+			NumEnums:      2,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_vrooli_events_v1_domain_envelope_proto_goTypes,
 		DependencyIndexes: file_vrooli_events_v1_domain_envelope_proto_depIdxs,
+		EnumInfos:         file_vrooli_events_v1_domain_envelope_proto_enumTypes,
 		MessageInfos:      file_vrooli_events_v1_domain_envelope_proto_msgTypes,
 	}.Build()
 	File_vrooli_events_v1_domain_envelope_proto = out.File

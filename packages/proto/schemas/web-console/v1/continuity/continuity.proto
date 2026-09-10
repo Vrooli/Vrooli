@@ -30,6 +30,7 @@ message IntegrityResponse {
   int64 orphan_workspace_panes = 8;
   string generation = 9;
   string event_content_hash = 10;
+  int64 uncataloged_conversations = 11;
 }
 
 message ReconcileRequest {
@@ -101,6 +102,10 @@ message SearchRequest {
   string lifecycle_state = 4;
   int32 limit = 5;
   string cwd = 6;
+  string session_id = 7;
+  string agent_session_id = 8;
+  string title = 9;
+  string topic_summary = 10;
 }
 
 message SearchMatch {

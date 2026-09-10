@@ -13,8 +13,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-aut
 // @stability stable
 //
 // Wire contract for SessionsService: list a user's active sessions, revoke one
-// by id, and revoke all ("log out everywhere"). Sessions are Redis-backed hot
-// state.
+// by id, and revoke all ("log out everywhere"). Sessions use the configured
+// hot-state store; shared Redis is the multi-replica path.
 //
 // RevokeSession replaces the old REST `DELETE /api/v1/sessions/{id}` that
 // device-sync-hub called when un-pairing a device. It preserves that contract's
@@ -36,6 +36,12 @@ service SessionsService {
   // RevokeSession drops a single session by id. Idempotent: revoking a session
   // that does not exist (or is already gone) returns success.
   rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse);
+
+  // RevokeAuthorizedSession drops a session after verifying that the access
+  // token owns it or carries the realm administrator role. It is the
+  // user-facing administrative operation; RevokeSession remains a narrow
+  // compatibility contract for device un-pairing.
+  rpc RevokeAuthorizedSession(RevokeAuthorizedSessionRequest) returns (RevokeSessionResponse);
 
   // RevokeAllSessions drops every session for the access token's owner
   // ("log out everywhere") and returns how many were revoked.
@@ -68,6 +74,11 @@ message RevokeSessionRequest {
 }
 
 message RevokeSessionResponse {}
+
+message RevokeAuthorizedSessionRequest {
+  string access_token = 1;
+  string session_id = 2;
+}
 
 message RevokeAllSessionsRequest {
   // Access token identifying whose sessions to revoke.

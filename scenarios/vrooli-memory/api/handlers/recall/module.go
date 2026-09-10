@@ -13,7 +13,7 @@ import (
 )
 
 func Module(client *ledgerclient.Client, logger *log.Logger) module.Module {
-	path, h := recallconnect.NewRecallServiceHandler(NewConnectHandler(client.Recall, logger))
+	path, h := recallconnect.NewRecallServiceHandler(NewConnectHandler(client.Recall, logger, client.Journal))
 	return module.Module{Name: "recall", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h}) }, Endpoints: Endpoints}
 }
 

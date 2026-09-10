@@ -1,4 +1,4 @@
-from google.protobuf import struct_pb2 as _struct_pb2
+from device_control.v1.shared import flow_pb2 as _flow_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -14,12 +14,12 @@ class ValidateFlowRequest(_message.Message):
     BASELINE_ID_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_VERSION_FIELD_NUMBER: _ClassVar[int]
     REQUIRE_ASSERTION_FIELD_NUMBER: _ClassVar[int]
-    flow: Flow
+    flow: _flow_pb2.Flow
     strategy_id: str
     baseline_id: str
     expected_version: int
     require_assertion: bool
-    def __init__(self, flow: _Optional[_Union[Flow, _Mapping]] = ..., strategy_id: _Optional[str] = ..., baseline_id: _Optional[str] = ..., expected_version: _Optional[int] = ..., require_assertion: _Optional[bool] = ...) -> None: ...
+    def __init__(self, flow: _Optional[_Union[_flow_pb2.Flow, _Mapping]] = ..., strategy_id: _Optional[str] = ..., baseline_id: _Optional[str] = ..., expected_version: _Optional[int] = ..., require_assertion: _Optional[bool] = ...) -> None: ...
 
 class RunFlowRequest(_message.Message):
     __slots__ = ("flow", "device_id", "actor", "lease_token")
@@ -27,45 +27,11 @@ class RunFlowRequest(_message.Message):
     DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
     ACTOR_FIELD_NUMBER: _ClassVar[int]
     LEASE_TOKEN_FIELD_NUMBER: _ClassVar[int]
-    flow: Flow
+    flow: _flow_pb2.Flow
     device_id: str
     actor: str
     lease_token: str
-    def __init__(self, flow: _Optional[_Union[Flow, _Mapping]] = ..., device_id: _Optional[str] = ..., actor: _Optional[str] = ..., lease_token: _Optional[str] = ...) -> None: ...
-
-class Flow(_message.Message):
-    __slots__ = ("id", "name", "steps", "allow_unredacted_capture", "transport", "require_unlocked", "auth_profile_id")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    STEPS_FIELD_NUMBER: _ClassVar[int]
-    ALLOW_UNREDACTED_CAPTURE_FIELD_NUMBER: _ClassVar[int]
-    TRANSPORT_FIELD_NUMBER: _ClassVar[int]
-    REQUIRE_UNLOCKED_FIELD_NUMBER: _ClassVar[int]
-    AUTH_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    name: str
-    steps: _containers.RepeatedCompositeFieldContainer[Step]
-    allow_unredacted_capture: bool
-    transport: str
-    require_unlocked: bool
-    auth_profile_id: str
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., steps: _Optional[_Iterable[_Union[Step, _Mapping]]] = ..., allow_unredacted_capture: _Optional[bool] = ..., transport: _Optional[str] = ..., require_unlocked: _Optional[bool] = ..., auth_profile_id: _Optional[str] = ...) -> None: ...
-
-class Step(_message.Message):
-    __slots__ = ("id", "kind", "required_capabilities", "target", "timeout_ms", "arguments")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    KIND_FIELD_NUMBER: _ClassVar[int]
-    REQUIRED_CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
-    TARGET_FIELD_NUMBER: _ClassVar[int]
-    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
-    ARGUMENTS_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    kind: str
-    required_capabilities: _containers.RepeatedScalarFieldContainer[str]
-    target: str
-    timeout_ms: int
-    arguments: _struct_pb2.Struct
-    def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., required_capabilities: _Optional[_Iterable[str]] = ..., target: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., arguments: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    def __init__(self, flow: _Optional[_Union[_flow_pb2.Flow, _Mapping]] = ..., device_id: _Optional[str] = ..., actor: _Optional[str] = ..., lease_token: _Optional[str] = ...) -> None: ...
 
 class CapabilityGapReport(_message.Message):
     __slots__ = ("runnable", "gaps", "warnings")
@@ -78,7 +44,7 @@ class CapabilityGapReport(_message.Message):
     def __init__(self, runnable: _Optional[bool] = ..., gaps: _Optional[_Iterable[str]] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RunResult(_message.Message):
-    __slots__ = ("run_id", "disposition", "chapters", "resolutions", "evidence", "incomplete", "disconnect_reason", "disconnect_step")
+    __slots__ = ("run_id", "disposition", "chapters", "resolutions", "evidence", "incomplete", "disconnect_reason", "disconnect_step", "binding")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     DISPOSITION_FIELD_NUMBER: _ClassVar[int]
     CHAPTERS_FIELD_NUMBER: _ClassVar[int]
@@ -87,6 +53,7 @@ class RunResult(_message.Message):
     INCOMPLETE_FIELD_NUMBER: _ClassVar[int]
     DISCONNECT_REASON_FIELD_NUMBER: _ClassVar[int]
     DISCONNECT_STEP_FIELD_NUMBER: _ClassVar[int]
+    BINDING_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     disposition: str
     chapters: _containers.RepeatedCompositeFieldContainer[Chapter]
@@ -95,19 +62,42 @@ class RunResult(_message.Message):
     incomplete: bool
     disconnect_reason: str
     disconnect_step: str
-    def __init__(self, run_id: _Optional[str] = ..., disposition: _Optional[str] = ..., chapters: _Optional[_Iterable[_Union[Chapter, _Mapping]]] = ..., resolutions: _Optional[_Iterable[_Union[Resolution, _Mapping]]] = ..., evidence: _Optional[_Iterable[_Union[EvidenceReference, _Mapping]]] = ..., incomplete: _Optional[bool] = ..., disconnect_reason: _Optional[str] = ..., disconnect_step: _Optional[str] = ...) -> None: ...
+    binding: RunBinding
+    def __init__(self, run_id: _Optional[str] = ..., disposition: _Optional[str] = ..., chapters: _Optional[_Iterable[_Union[Chapter, _Mapping]]] = ..., resolutions: _Optional[_Iterable[_Union[Resolution, _Mapping]]] = ..., evidence: _Optional[_Iterable[_Union[EvidenceReference, _Mapping]]] = ..., incomplete: _Optional[bool] = ..., disconnect_reason: _Optional[str] = ..., disconnect_step: _Optional[str] = ..., binding: _Optional[_Union[RunBinding, _Mapping]] = ...) -> None: ...
+
+class RunBinding(_message.Message):
+    __slots__ = ("device_id", "transport", "lease_id", "lease_epoch", "application_id", "application_revision")
+    DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
+    TRANSPORT_FIELD_NUMBER: _ClassVar[int]
+    LEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    LEASE_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    APPLICATION_ID_FIELD_NUMBER: _ClassVar[int]
+    APPLICATION_REVISION_FIELD_NUMBER: _ClassVar[int]
+    device_id: str
+    transport: str
+    lease_id: str
+    lease_epoch: int
+    application_id: str
+    application_revision: str
+    def __init__(self, device_id: _Optional[str] = ..., transport: _Optional[str] = ..., lease_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., application_id: _Optional[str] = ..., application_revision: _Optional[str] = ...) -> None: ...
 
 class Chapter(_message.Message):
-    __slots__ = ("id", "title", "disposition", "message")
+    __slots__ = ("id", "title", "disposition", "message", "evidence_ids", "failure_class", "attempts")
     ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DISPOSITION_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_IDS_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_CLASS_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
     id: str
     title: str
     disposition: str
     message: str
-    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., disposition: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+    evidence_ids: _containers.RepeatedScalarFieldContainer[str]
+    failure_class: str
+    attempts: int
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., disposition: _Optional[str] = ..., message: _Optional[str] = ..., evidence_ids: _Optional[_Iterable[str]] = ..., failure_class: _Optional[str] = ..., attempts: _Optional[int] = ...) -> None: ...
 
 class Resolution(_message.Message):
     __slots__ = ("target", "rung", "confidence")
@@ -167,9 +157,9 @@ class SavedFlow(_message.Message):
     device_id: str
     context_key: str
     source_run_id: str
-    flow: Flow
+    flow: _flow_pb2.Flow
     created_at: str
-    def __init__(self, id: _Optional[str] = ..., version: _Optional[int] = ..., device_id: _Optional[str] = ..., context_key: _Optional[str] = ..., source_run_id: _Optional[str] = ..., flow: _Optional[_Union[Flow, _Mapping]] = ..., created_at: _Optional[str] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., version: _Optional[int] = ..., device_id: _Optional[str] = ..., context_key: _Optional[str] = ..., source_run_id: _Optional[str] = ..., flow: _Optional[_Union[_flow_pb2.Flow, _Mapping]] = ..., created_at: _Optional[str] = ...) -> None: ...
 
 class ListSavedFlowsRequest(_message.Message):
     __slots__ = ("device_id", "context_key")

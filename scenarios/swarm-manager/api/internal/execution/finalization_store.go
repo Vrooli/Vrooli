@@ -119,13 +119,23 @@ func (s *Service) applyFinalizationScope(executionID string, scope finalizationS
 	finalization.Warnings = append(finalization.Warnings, scope.warnings...)
 	finalization.Scenarios = make([]ScenarioFinalization, 0, len(scope.affectedScenarios))
 	for _, scenarioName := range scope.affectedScenarios {
-		finalization.Scenarios = append(finalization.Scenarios, ScenarioFinalization{
+		state := ScenarioFinalization{
 			ScenarioName: scenarioName,
 			ChangedPaths: append([]string(nil), scope.changedPathsByScenario[scenarioName]...),
 			Restart:      RestartResult{Status: FinalizationStatusPending},
 			Health:       HealthCheckResult{Status: FinalizationStatusPending},
 			Review:       ScenarioReviewStep{Status: FinalizationStatusPending},
-		})
+		}
+		if scenarioName == s.selfScenarioName {
+			reason := fmt.Sprintf("Restart, health and review checks for %s require external follow-up because finalization cannot restart its serving process.", scenarioName)
+			state.Restart.Status = FinalizationStatusSkipped
+			state.Health.Status = FinalizationStatusSkipped
+			state.Health.Details = reason
+			state.Review.Status = FinalizationStatusSkipped
+			state.Review.SkipReason = reason
+			finalization.Warnings = append(finalization.Warnings, newFinalizationWarning(finalizationWarningSelfRestartSkipped, scenarioName, reason, false))
+		}
+		finalization.Scenarios = append(finalization.Scenarios, state)
 	}
 	record.Finalization = finalization
 	record.UpdatedAt = nowRFC3339()

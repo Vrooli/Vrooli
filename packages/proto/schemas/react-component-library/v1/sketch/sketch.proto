@@ -186,6 +186,10 @@ message RegionVerdict {
   string availability_reason_code = 17;
   string build_hash = 18;
   string source_hash = 19;
+  // Authored implementation intent, separate from observed source and sketch selection.
+  string library_asset = 20;
+  string library_version = 21;
+  string local_component = 22;
 }
 
 message Coverage {
@@ -197,6 +201,13 @@ message Coverage {
   int32 unresolved = 6;
   int32 total = 7;
   string status = 8;
+  // Declared implementation references; these counts do not imply a built asset.
+  int32 library_backed = 9;
+  int32 local = 10;
+  // Unique proven source bindings, independent of library build/adoption status.
+  int32 resolved = 11;
+  // Proven custom implementations without a conflicting sketch asset selection.
+  int32 resolved_local = 12;
 }
 
 message VerifySketchRequest {

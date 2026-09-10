@@ -32,6 +32,8 @@ const (
 	updateFieldCreates            = "creates"
 	updateFieldSpawnedFrom        = "spawned_from"
 	updateFieldPlanRef            = "plan_ref"
+	updateFieldExecutionStrategy  = "execution_strategy"
+	updateFieldExecutionLimits    = "execution_limits"
 	updateFieldNote               = "note"
 )
 
@@ -154,6 +156,10 @@ func normalizeUpdateBacklogPatch(req *apipb.UpdateBacklogItemRequest, fields bac
 		trimmed := strings.TrimSpace(*req.Note)
 		req.Note = &trimmed
 	}
+	if fields.Has(updateFieldExecutionStrategy) && req.ExecutionStrategy != nil {
+		normalized := strings.ToLower(strings.TrimSpace(*req.ExecutionStrategy))
+		req.ExecutionStrategy = &normalized
+	}
 }
 
 func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, fields backlogUpdateFieldSet, kind BacklogKind, existingStatus BacklogStatus) string {
@@ -207,6 +213,16 @@ func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, field
 	if fields.Has(updateFieldPlanRef) {
 		ref := normalizePlanRef(planRefFromProto(req.PlanRef))
 		if err := validatePlanRef(ref, PlanRefRoleExecutionSpec); err != nil {
+			return err.Error()
+		}
+	}
+	if fields.Has(updateFieldExecutionStrategy) {
+		if _, err := normalizeExecutionStrategy(req.GetExecutionStrategy()); err != nil {
+			return err.Error()
+		}
+	}
+	if fields.Has(updateFieldExecutionLimits) {
+		if err := executionLimitsFromProto(req.ExecutionLimits).Validate(); err != nil {
 			return err.Error()
 		}
 	}
@@ -325,6 +341,13 @@ func applyUpdateBacklogPatch(item *BacklogItem, req *apipb.UpdateBacklogItemRequ
 	if fields.Has(updateFieldPlanRef) {
 		patch.PlanRef = normalizePlanRef(planRefFromProto(req.PlanRef))
 		patch.PlanRefSet = true
+	}
+	if fields.Has(updateFieldExecutionStrategy) {
+		v := req.GetExecutionStrategy()
+		patch.ExecutionStrategy = &v
+	}
+	if fields.Has(updateFieldExecutionLimits) {
+		patch.ExecutionLimits, patch.ExecutionLimitsSet = executionLimitsFromProto(req.ExecutionLimits), true
 	}
 	if fields.Has(updateFieldNote) {
 		v := req.GetNote()

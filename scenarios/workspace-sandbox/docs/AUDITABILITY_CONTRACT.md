@@ -25,6 +25,14 @@ The primary purpose of `workspace-sandbox` when used as the default execution pa
 - **`manualReview=true` (opt-in)**: no apply at run end; all changes persist as `state=pending-review`. The sandbox persists beyond run end until the operator approves or denies. Approval can come from any of three surfaces (git-control-tower AI Changes, agent-manager run-detail diff, workspace-sandbox sandbox-detail diff); the originating surface is recorded on the resulting state transition for audit.
 - Apply behavior is identical regardless of run outcome. `runOutcome` ∈ {`success`, `failure`, `cancelled`, `timeout`} is captured on the provenance record but does not gate apply.
 
+Regular binary additions, modifications and deletions carry Git binary patches
+with original and resulting blob identities. The same payload serves review,
+application and archival capture. Application verifies the original bytes;
+conflicting binary content fails without replacing it. `git apply` handles these
+payloads for both Git repositories and ordinary workspace directories. The
+`TestBinaryChangesApplyExactBytes` regression covers all three operations,
+scope-prefixed paths with spaces, executable modes and conflicting originals.
+
 ## Provenance schema additions
 
 - `runOutcome` ∈ {`success`, `failure`, `cancelled`, `timeout`} on `ProvenanceRunGroup` (run-level).
@@ -40,6 +48,13 @@ Workspace-sandbox owns state transitions; git-control-tower reads them.
 The historical `noLock`-implies-accept-all shortcut in `service.go` is removed by `fix/workspace-sandbox-lock-and-acceptance-semantics`.
 
 ## Pending-to-committed lifecycle
+
+Each `AppliedChange` also preserves an optional SHA-256 content digest and the
+revision known when the evidence was recorded. The digest is computed from the
+canonical file after apply when the file remains readable; deleted or
+unreadable files retain an explicit empty digest rather than a guessed value.
+Readers may use these fields for content-aware joins, but file path overlap or
+an applied timestamp alone never establishes line authorship.
 
 Git-control-tower auto-promotes a pending provenance record to committed when it detects a commit whose changed files overlap the pending record's file set.
 
@@ -66,7 +81,7 @@ with a real commit hash is never eligible for that deletion.
 | `agent-manager` UI | Run-detail diff view; approval surface for `pending-review` provenance |
 | `workspace-sandbox` service | Overlay creation, mutation tracking, acceptance evaluation, apply, teardown hooks, persistence beyond run end when `manualReview=true`, owns state transitions |
 | `workspace-sandbox` UI | Sandbox-detail diff view; approval surface |
-| `internal/scenario` + `internal/scenarioexec` + `internal/cli/vroolicli` | Sandbox-aware scenario restart; scope-narrowed redirect using `VROOLI_SANDBOX_*` env vars |
+| `internal/scenario` + `internal/lifecycle` + `internal/shell` + `internal/cli/vroolicli` | Sandbox-aware scenario restart; scope-narrowed redirect using `VROOLI_SANDBOX_*` env vars |
 | `packages/cli-core/cliutil/sandbox.go` + `cmd/sandbox-resolve` | Path resolution for arbitrary CLIs |
 | `test-genie` CLI | Sandbox-aware test execution |
 | `workspace-sandbox` `TeardownHooks` | Invokes Go-based `vrooli scenario heal-from-sandbox` on teardown |

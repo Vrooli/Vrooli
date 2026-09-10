@@ -64,8 +64,8 @@ type RunsServiceClient interface {
 	// block-once verb — clients never poll. Owner-gated.
 	WaitRun(context.Context, *connect.Request[runs.WaitRunRequest]) (*connect.Response[runs.WaitRunResponse], error)
 	// AbortRun requests cancellation of a non-terminal run. The control plane
-	// pushes an abort to the node and marks the run ABORTED. Idempotent on an
-	// already-terminal run. Owner-gated.
+	// pushes an abort to the node; the run remains CANCEL_REQUESTED or becomes
+	// UNCERTAIN until remote termination is proven. Owner-gated.
 	AbortRun(context.Context, *connect.Request[runs.AbortRunRequest]) (*connect.Response[runs.AbortRunResponse], error)
 	// StreamRunEvents replays the run's persisted events in order and then tails
 	// live events until the run is terminal or the client disconnects. This is
@@ -183,8 +183,8 @@ type RunsServiceHandler interface {
 	// block-once verb — clients never poll. Owner-gated.
 	WaitRun(context.Context, *connect.Request[runs.WaitRunRequest]) (*connect.Response[runs.WaitRunResponse], error)
 	// AbortRun requests cancellation of a non-terminal run. The control plane
-	// pushes an abort to the node and marks the run ABORTED. Idempotent on an
-	// already-terminal run. Owner-gated.
+	// pushes an abort to the node; the run remains CANCEL_REQUESTED or becomes
+	// UNCERTAIN until remote termination is proven. Owner-gated.
 	AbortRun(context.Context, *connect.Request[runs.AbortRunRequest]) (*connect.Response[runs.AbortRunResponse], error)
 	// StreamRunEvents replays the run's persisted events in order and then tails
 	// live events until the run is terminal or the client disconnects. This is

@@ -39,6 +39,9 @@ const (
 	// AttachedDeviceServiceListAttachedDevicesProcedure is the fully-qualified name of the
 	// AttachedDeviceService's ListAttachedDevices RPC.
 	AttachedDeviceServiceListAttachedDevicesProcedure = "/vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService/ListAttachedDevices"
+	// AttachedDeviceServiceGetAttachedDeviceProcedure is the fully-qualified name of the
+	// AttachedDeviceService's GetAttachedDevice RPC.
+	AttachedDeviceServiceGetAttachedDeviceProcedure = "/vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService/GetAttachedDevice"
 	// AttachedDeviceServiceRevokeAttachedDeviceProcedure is the fully-qualified name of the
 	// AttachedDeviceService's RevokeAttachedDevice RPC.
 	AttachedDeviceServiceRevokeAttachedDeviceProcedure = "/vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService/RevokeAttachedDevice"
@@ -49,6 +52,7 @@ const (
 type AttachedDeviceServiceClient interface {
 	PairAttachedDevice(context.Context, *connect.Request[attached_devices.PairAttachedDeviceRequest]) (*connect.Response[attached_devices.AttachedDeviceResponse], error)
 	ListAttachedDevices(context.Context, *connect.Request[attached_devices.ListAttachedDevicesRequest]) (*connect.Response[attached_devices.ListAttachedDevicesResponse], error)
+	GetAttachedDevice(context.Context, *connect.Request[attached_devices.GetAttachedDeviceRequest]) (*connect.Response[attached_devices.AttachedDeviceResponse], error)
 	RevokeAttachedDevice(context.Context, *connect.Request[attached_devices.RevokeAttachedDeviceRequest]) (*connect.Response[attached_devices.AttachedDeviceResponse], error)
 }
 
@@ -76,6 +80,12 @@ func NewAttachedDeviceServiceClient(httpClient connect.HTTPClient, baseURL strin
 			connect.WithSchema(attachedDeviceServiceMethods.ByName("ListAttachedDevices")),
 			connect.WithClientOptions(opts...),
 		),
+		getAttachedDevice: connect.NewClient[attached_devices.GetAttachedDeviceRequest, attached_devices.AttachedDeviceResponse](
+			httpClient,
+			baseURL+AttachedDeviceServiceGetAttachedDeviceProcedure,
+			connect.WithSchema(attachedDeviceServiceMethods.ByName("GetAttachedDevice")),
+			connect.WithClientOptions(opts...),
+		),
 		revokeAttachedDevice: connect.NewClient[attached_devices.RevokeAttachedDeviceRequest, attached_devices.AttachedDeviceResponse](
 			httpClient,
 			baseURL+AttachedDeviceServiceRevokeAttachedDeviceProcedure,
@@ -89,6 +99,7 @@ func NewAttachedDeviceServiceClient(httpClient connect.HTTPClient, baseURL strin
 type attachedDeviceServiceClient struct {
 	pairAttachedDevice   *connect.Client[attached_devices.PairAttachedDeviceRequest, attached_devices.AttachedDeviceResponse]
 	listAttachedDevices  *connect.Client[attached_devices.ListAttachedDevicesRequest, attached_devices.ListAttachedDevicesResponse]
+	getAttachedDevice    *connect.Client[attached_devices.GetAttachedDeviceRequest, attached_devices.AttachedDeviceResponse]
 	revokeAttachedDevice *connect.Client[attached_devices.RevokeAttachedDeviceRequest, attached_devices.AttachedDeviceResponse]
 }
 
@@ -104,6 +115,12 @@ func (c *attachedDeviceServiceClient) ListAttachedDevices(ctx context.Context, r
 	return c.listAttachedDevices.CallUnary(ctx, req)
 }
 
+// GetAttachedDevice calls
+// vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.GetAttachedDevice.
+func (c *attachedDeviceServiceClient) GetAttachedDevice(ctx context.Context, req *connect.Request[attached_devices.GetAttachedDeviceRequest]) (*connect.Response[attached_devices.AttachedDeviceResponse], error) {
+	return c.getAttachedDevice.CallUnary(ctx, req)
+}
+
 // RevokeAttachedDevice calls
 // vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.RevokeAttachedDevice.
 func (c *attachedDeviceServiceClient) RevokeAttachedDevice(ctx context.Context, req *connect.Request[attached_devices.RevokeAttachedDeviceRequest]) (*connect.Response[attached_devices.AttachedDeviceResponse], error) {
@@ -115,6 +132,7 @@ func (c *attachedDeviceServiceClient) RevokeAttachedDevice(ctx context.Context, 
 type AttachedDeviceServiceHandler interface {
 	PairAttachedDevice(context.Context, *connect.Request[attached_devices.PairAttachedDeviceRequest]) (*connect.Response[attached_devices.AttachedDeviceResponse], error)
 	ListAttachedDevices(context.Context, *connect.Request[attached_devices.ListAttachedDevicesRequest]) (*connect.Response[attached_devices.ListAttachedDevicesResponse], error)
+	GetAttachedDevice(context.Context, *connect.Request[attached_devices.GetAttachedDeviceRequest]) (*connect.Response[attached_devices.AttachedDeviceResponse], error)
 	RevokeAttachedDevice(context.Context, *connect.Request[attached_devices.RevokeAttachedDeviceRequest]) (*connect.Response[attached_devices.AttachedDeviceResponse], error)
 }
 
@@ -137,6 +155,12 @@ func NewAttachedDeviceServiceHandler(svc AttachedDeviceServiceHandler, opts ...c
 		connect.WithSchema(attachedDeviceServiceMethods.ByName("ListAttachedDevices")),
 		connect.WithHandlerOptions(opts...),
 	)
+	attachedDeviceServiceGetAttachedDeviceHandler := connect.NewUnaryHandler(
+		AttachedDeviceServiceGetAttachedDeviceProcedure,
+		svc.GetAttachedDevice,
+		connect.WithSchema(attachedDeviceServiceMethods.ByName("GetAttachedDevice")),
+		connect.WithHandlerOptions(opts...),
+	)
 	attachedDeviceServiceRevokeAttachedDeviceHandler := connect.NewUnaryHandler(
 		AttachedDeviceServiceRevokeAttachedDeviceProcedure,
 		svc.RevokeAttachedDevice,
@@ -149,6 +173,8 @@ func NewAttachedDeviceServiceHandler(svc AttachedDeviceServiceHandler, opts ...c
 			attachedDeviceServicePairAttachedDeviceHandler.ServeHTTP(w, r)
 		case AttachedDeviceServiceListAttachedDevicesProcedure:
 			attachedDeviceServiceListAttachedDevicesHandler.ServeHTTP(w, r)
+		case AttachedDeviceServiceGetAttachedDeviceProcedure:
+			attachedDeviceServiceGetAttachedDeviceHandler.ServeHTTP(w, r)
 		case AttachedDeviceServiceRevokeAttachedDeviceProcedure:
 			attachedDeviceServiceRevokeAttachedDeviceHandler.ServeHTTP(w, r)
 		default:
@@ -166,6 +192,10 @@ func (UnimplementedAttachedDeviceServiceHandler) PairAttachedDevice(context.Cont
 
 func (UnimplementedAttachedDeviceServiceHandler) ListAttachedDevices(context.Context, *connect.Request[attached_devices.ListAttachedDevicesRequest]) (*connect.Response[attached_devices.ListAttachedDevicesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.ListAttachedDevices is not implemented"))
+}
+
+func (UnimplementedAttachedDeviceServiceHandler) GetAttachedDevice(context.Context, *connect.Request[attached_devices.GetAttachedDeviceRequest]) (*connect.Response[attached_devices.AttachedDeviceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.GetAttachedDevice is not implemented"))
 }
 
 func (UnimplementedAttachedDeviceServiceHandler) RevokeAttachedDevice(context.Context, *connect.Request[attached_devices.RevokeAttachedDeviceRequest]) (*connect.Response[attached_devices.AttachedDeviceResponse], error) {

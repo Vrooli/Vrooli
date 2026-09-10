@@ -80,6 +80,9 @@ message RunL2Request {
   bool capture = 3;
   EvidencePolicy policy = 4;
   repeated ResearchQuestion questions = 5;
+  // parent_run_id groups a bounded child L2 attempt under its owning L3
+  // Agent Manager execution. It is optional for direct callers.
+  string parent_run_id = 6;
 }
 
 message RunL2Response {
@@ -218,6 +221,8 @@ message GetEvidenceReceiptResponse {
   string retention = 8;
   string failure_code = 9;
   string producer_execution_id = 10;
+  string final_url = 11;
+  repeated string redirect_urls = 12;
 }
 
 message GetEvidencePassageRequest { string passage_id = 1; }
@@ -297,6 +302,9 @@ message AnswerRequest {
   string finding_id = 8; // Explicitly selected relevant finding; otherwise query must match exactly.
   EvidencePolicy policy = 9;
   repeated ResearchQuestion questions = 10;
+  // parent_run_id preserves L3-to-L2 lineage when Answer is used as the child
+  // research operation.
+  string parent_run_id = 11;
 }
 message AnswerResponse {
   string status = 1; // ok, partial, unavailable
@@ -386,4 +394,6 @@ message EvidenceReceipt {
   string extraction_revision = 6;
   string retention = 7;
   string failure_code = 8;
+  string final_url = 9;
+  repeated string redirect_urls = 10;
 }

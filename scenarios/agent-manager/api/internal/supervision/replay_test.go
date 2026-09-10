@@ -60,6 +60,61 @@ func labelledDecision(t *testing.T, repo *Repository, store *PolicyStore, versio
 	return SupervisionOutcome{IdempotencyKey: uuid.NewString(), PolicyVersion: version, FamilyExecutionID: spec.FamilyExecutionId, WatchID: watch.WatchId, DecisionID: saved.LastDecision.DecisionId, ChildRunID: spec.Subjects[0].RunId, EvidenceIDs: []string{"event-proof"}, PredictedClass: "quiet", ObservedClass: observed, CompletionImpact: .1, CompletionImpactObserved: true, Supersedes: prior}
 }
 
+func TestPruneExpiredPreservesLargeLiveEvaluationHistory(t *testing.T) {
+	repo, db := testRepository(t)
+	store := NewPolicyStore(db, nil)
+	store.now = repo.now
+	ctx := t.Context()
+	if _, err := store.EnsureInitialActive(ctx, policyFixture("retention"), "test"); err != nil {
+		t.Fatal(err)
+	}
+	seed := labelledDecision(t, repo, store, "retention", "quiet")
+	// Match the production history that made the unindexed correlated cleanup
+	// monopolize SQLite's writer. Every input has a real persisted decision.
+	queries := []string{
+		`CREATE TEMP TABLE retention_fixture_ids AS WITH RECURSIVE ids(n) AS
+ (SELECT 1 UNION ALL SELECT n+1 FROM ids WHERE n<20001) SELECT n FROM ids`,
+		`INSERT INTO cohort_watch_decisions
+ (decision_id,watch_id,idempotency_key,disposition,decision_json,cursor_before,cursor_after,created_at)
+ SELECT 'retained-'||n,watch_id,'retained-'||n,disposition,decision_json,cursor_before,cursor_after,created_at
+ FROM cohort_watch_decisions CROSS JOIN retention_fixture_ids WHERE decision_id='` + seed.DecisionID + `'`,
+		`INSERT INTO supervision_evaluation_inputs (decision_id,input_json,created_at)
+ SELECT 'retained-'||n,'{}','2026-09-04T12:00:00Z' FROM retention_fixture_ids`,
+		`INSERT INTO supervision_outcomes
+ (outcome_id,idempotency_key,policy_version,family_execution_id,watch_id,decision_id,evidence_json,
+ predicted_class,observed_class,overridden,counterexample,safety_violation,completion_impact,created_at,expires_at)
+ SELECT 'retained-'||n,'retained-'||n,policy_version,family_execution_id,watch_id,'retained-'||n,'[]',
+ 'quiet','',0,0,0,0,'2026-09-04T12:00:00Z','2099-01-01T00:00:00Z'
+ FROM supervision_outcomes CROSS JOIN retention_fixture_ids WHERE decision_id='` + seed.DecisionID + `' AND n<=20000`,
+	}
+	for _, query := range queries {
+		if _, err := db.ExecContext(ctx, query); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Startup callers have a ten-second SQLite busy timeout. Retention of this
+	// modest history must finish comfortably inside that writer deadline.
+	pruneCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	deleted, err := store.PruneExpired(pruneCtx)
+	if err != nil {
+		t.Fatalf("retained history blocked bounded startup cleanup: %v", err)
+	}
+	if deleted != 0 {
+		t.Fatalf("live outcomes deleted: %d", deleted)
+	}
+	var retained, orphan int
+	if err := db.Get(&retained, `SELECT COUNT(*) FROM supervision_evaluation_inputs`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Get(&orphan, `SELECT COUNT(*) FROM supervision_evaluation_inputs WHERE decision_id='retained-20001'`); err != nil {
+		t.Fatal(err)
+	}
+	if retained != 20001 || orphan != 0 {
+		t.Fatalf("retained=%d orphan=%d; want 20001 live inputs and no orphan", retained, orphan)
+	}
+}
+
 func TestReplayRunsCandidateAndRolloutCannotBeClaimed(t *testing.T) {
 	repo, db := testRepository(t)
 	store := NewPolicyStore(db, nil)

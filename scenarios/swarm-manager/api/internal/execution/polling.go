@@ -24,6 +24,9 @@ func isInspectableStatus(status Status) bool {
 // ProcessActiveExecutions advances agent-manager-backed executions, drains
 // pending items when capacity opens, and drives post-run finalization work.
 func (s *Service) ProcessActiveExecutions(ctx context.Context) error {
+	if err := s.reconcilePendingCancellations(ctx); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	holdCandidates, candidates, err := s.refreshRunningLocked(ctx)
 	s.mu.Unlock()

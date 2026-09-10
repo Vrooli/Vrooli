@@ -375,3 +375,13 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api.HandleFunc("/metrics", metricsHandler).Methods("GET")
 	router.HandleFunc("/metrics", metricsHandler).Methods("GET") // Also at root for Prometheus
 }
+
+// Handler returns the route set used by focused handler tests. Production
+// startup wraps the same RegisterRoutes call with health, Connect, and
+// middleware setup in main.Server; exposing this narrow provider keeps the
+// live test harness on the real route handlers without duplicating routes.
+func (h *Handlers) Handler() http.Handler {
+	router := mux.NewRouter()
+	h.RegisterRoutes(router, metrics.Default())
+	return router
+}

@@ -37,6 +37,21 @@ const (
 	// AgentManagerServiceHealthProcedure is the fully-qualified name of the AgentManagerService's
 	// Health RPC.
 	AgentManagerServiceHealthProcedure = "/agent_manager.v1.AgentManagerService/Health"
+	// AgentManagerServiceStartInvestigationProcedure is the fully-qualified name of the
+	// AgentManagerService's StartInvestigation RPC.
+	AgentManagerServiceStartInvestigationProcedure = "/agent_manager.v1.AgentManagerService/StartInvestigation"
+	// AgentManagerServiceGetInvestigationProcedure is the fully-qualified name of the
+	// AgentManagerService's GetInvestigation RPC.
+	AgentManagerServiceGetInvestigationProcedure = "/agent_manager.v1.AgentManagerService/GetInvestigation"
+	// AgentManagerServiceListInvestigationsProcedure is the fully-qualified name of the
+	// AgentManagerService's ListInvestigations RPC.
+	AgentManagerServiceListInvestigationsProcedure = "/agent_manager.v1.AgentManagerService/ListInvestigations"
+	// AgentManagerServiceWaitInvestigationProcedure is the fully-qualified name of the
+	// AgentManagerService's WaitInvestigation RPC.
+	AgentManagerServiceWaitInvestigationProcedure = "/agent_manager.v1.AgentManagerService/WaitInvestigation"
+	// AgentManagerServiceCancelInvestigationProcedure is the fully-qualified name of the
+	// AgentManagerService's CancelInvestigation RPC.
+	AgentManagerServiceCancelInvestigationProcedure = "/agent_manager.v1.AgentManagerService/CancelInvestigation"
 	// AgentManagerServiceCreateCohortWatchProcedure is the fully-qualified name of the
 	// AgentManagerService's CreateCohortWatch RPC.
 	AgentManagerServiceCreateCohortWatchProcedure = "/agent_manager.v1.AgentManagerService/CreateCohortWatch"
@@ -295,6 +310,13 @@ const (
 type AgentManagerServiceClient interface {
 	// Health returns the service health status.
 	Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error)
+	// Caller-neutral finite investigation lifecycle. Diagnosis is separate
+	// from repair and is safe to reattach after a client disconnect.
+	StartInvestigation(context.Context, *connect.Request[api.StartInvestigationRequest]) (*connect.Response[api.StartInvestigationResponse], error)
+	GetInvestigation(context.Context, *connect.Request[api.GetInvestigationRequest]) (*connect.Response[api.InvestigationRecord], error)
+	ListInvestigations(context.Context, *connect.Request[api.ListInvestigationsRequest]) (*connect.Response[api.ListInvestigationsResponse], error)
+	WaitInvestigation(context.Context, *connect.Request[api.WaitInvestigationRequest]) (*connect.Response[api.WaitInvestigationResponse], error)
+	CancelInvestigation(context.Context, *connect.Request[api.CancelInvestigationRequest]) (*connect.Response[api.InvestigationRecord], error)
 	CreateCohortWatch(context.Context, *connect.Request[domain.CreateCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error)
 	GetCohortWatch(context.Context, *connect.Request[domain.GetCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error)
 	ListCohortWatches(context.Context, *connect.Request[domain.ListCohortWatchesRequest]) (*connect.Response[domain.ListCohortWatchesResponse], error)
@@ -464,6 +486,36 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+AgentManagerServiceHealthProcedure,
 			connect.WithSchema(agentManagerServiceMethods.ByName("Health")),
+			connect.WithClientOptions(opts...),
+		),
+		startInvestigation: connect.NewClient[api.StartInvestigationRequest, api.StartInvestigationResponse](
+			httpClient,
+			baseURL+AgentManagerServiceStartInvestigationProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("StartInvestigation")),
+			connect.WithClientOptions(opts...),
+		),
+		getInvestigation: connect.NewClient[api.GetInvestigationRequest, api.InvestigationRecord](
+			httpClient,
+			baseURL+AgentManagerServiceGetInvestigationProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetInvestigation")),
+			connect.WithClientOptions(opts...),
+		),
+		listInvestigations: connect.NewClient[api.ListInvestigationsRequest, api.ListInvestigationsResponse](
+			httpClient,
+			baseURL+AgentManagerServiceListInvestigationsProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ListInvestigations")),
+			connect.WithClientOptions(opts...),
+		),
+		waitInvestigation: connect.NewClient[api.WaitInvestigationRequest, api.WaitInvestigationResponse](
+			httpClient,
+			baseURL+AgentManagerServiceWaitInvestigationProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("WaitInvestigation")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelInvestigation: connect.NewClient[api.CancelInvestigationRequest, api.InvestigationRecord](
+			httpClient,
+			baseURL+AgentManagerServiceCancelInvestigationProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("CancelInvestigation")),
 			connect.WithClientOptions(opts...),
 		),
 		createCohortWatch: connect.NewClient[domain.CreateCohortWatchRequest, domain.CohortWatch](
@@ -976,6 +1028,11 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 // agentManagerServiceClient implements AgentManagerServiceClient.
 type agentManagerServiceClient struct {
 	health                           *connect.Client[api.HealthRequest, api.HealthResponse]
+	startInvestigation               *connect.Client[api.StartInvestigationRequest, api.StartInvestigationResponse]
+	getInvestigation                 *connect.Client[api.GetInvestigationRequest, api.InvestigationRecord]
+	listInvestigations               *connect.Client[api.ListInvestigationsRequest, api.ListInvestigationsResponse]
+	waitInvestigation                *connect.Client[api.WaitInvestigationRequest, api.WaitInvestigationResponse]
+	cancelInvestigation              *connect.Client[api.CancelInvestigationRequest, api.InvestigationRecord]
 	createCohortWatch                *connect.Client[domain.CreateCohortWatchRequest, domain.CohortWatch]
 	getCohortWatch                   *connect.Client[domain.GetCohortWatchRequest, domain.CohortWatch]
 	listCohortWatches                *connect.Client[domain.ListCohortWatchesRequest, domain.ListCohortWatchesResponse]
@@ -1065,6 +1122,31 @@ type agentManagerServiceClient struct {
 // Health calls agent_manager.v1.AgentManagerService.Health.
 func (c *agentManagerServiceClient) Health(ctx context.Context, req *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error) {
 	return c.health.CallUnary(ctx, req)
+}
+
+// StartInvestigation calls agent_manager.v1.AgentManagerService.StartInvestigation.
+func (c *agentManagerServiceClient) StartInvestigation(ctx context.Context, req *connect.Request[api.StartInvestigationRequest]) (*connect.Response[api.StartInvestigationResponse], error) {
+	return c.startInvestigation.CallUnary(ctx, req)
+}
+
+// GetInvestigation calls agent_manager.v1.AgentManagerService.GetInvestigation.
+func (c *agentManagerServiceClient) GetInvestigation(ctx context.Context, req *connect.Request[api.GetInvestigationRequest]) (*connect.Response[api.InvestigationRecord], error) {
+	return c.getInvestigation.CallUnary(ctx, req)
+}
+
+// ListInvestigations calls agent_manager.v1.AgentManagerService.ListInvestigations.
+func (c *agentManagerServiceClient) ListInvestigations(ctx context.Context, req *connect.Request[api.ListInvestigationsRequest]) (*connect.Response[api.ListInvestigationsResponse], error) {
+	return c.listInvestigations.CallUnary(ctx, req)
+}
+
+// WaitInvestigation calls agent_manager.v1.AgentManagerService.WaitInvestigation.
+func (c *agentManagerServiceClient) WaitInvestigation(ctx context.Context, req *connect.Request[api.WaitInvestigationRequest]) (*connect.Response[api.WaitInvestigationResponse], error) {
+	return c.waitInvestigation.CallUnary(ctx, req)
+}
+
+// CancelInvestigation calls agent_manager.v1.AgentManagerService.CancelInvestigation.
+func (c *agentManagerServiceClient) CancelInvestigation(ctx context.Context, req *connect.Request[api.CancelInvestigationRequest]) (*connect.Response[api.InvestigationRecord], error) {
+	return c.cancelInvestigation.CallUnary(ctx, req)
 }
 
 // CreateCohortWatch calls agent_manager.v1.AgentManagerService.CreateCohortWatch.
@@ -1497,6 +1579,13 @@ func (c *agentManagerServiceClient) PurgeData(ctx context.Context, req *connect.
 type AgentManagerServiceHandler interface {
 	// Health returns the service health status.
 	Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error)
+	// Caller-neutral finite investigation lifecycle. Diagnosis is separate
+	// from repair and is safe to reattach after a client disconnect.
+	StartInvestigation(context.Context, *connect.Request[api.StartInvestigationRequest]) (*connect.Response[api.StartInvestigationResponse], error)
+	GetInvestigation(context.Context, *connect.Request[api.GetInvestigationRequest]) (*connect.Response[api.InvestigationRecord], error)
+	ListInvestigations(context.Context, *connect.Request[api.ListInvestigationsRequest]) (*connect.Response[api.ListInvestigationsResponse], error)
+	WaitInvestigation(context.Context, *connect.Request[api.WaitInvestigationRequest]) (*connect.Response[api.WaitInvestigationResponse], error)
+	CancelInvestigation(context.Context, *connect.Request[api.CancelInvestigationRequest]) (*connect.Response[api.InvestigationRecord], error)
 	CreateCohortWatch(context.Context, *connect.Request[domain.CreateCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error)
 	GetCohortWatch(context.Context, *connect.Request[domain.GetCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error)
 	ListCohortWatches(context.Context, *connect.Request[domain.ListCohortWatchesRequest]) (*connect.Response[domain.ListCohortWatchesResponse], error)
@@ -1662,6 +1751,36 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		AgentManagerServiceHealthProcedure,
 		svc.Health,
 		connect.WithSchema(agentManagerServiceMethods.ByName("Health")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceStartInvestigationHandler := connect.NewUnaryHandler(
+		AgentManagerServiceStartInvestigationProcedure,
+		svc.StartInvestigation,
+		connect.WithSchema(agentManagerServiceMethods.ByName("StartInvestigation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceGetInvestigationHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetInvestigationProcedure,
+		svc.GetInvestigation,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetInvestigation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceListInvestigationsHandler := connect.NewUnaryHandler(
+		AgentManagerServiceListInvestigationsProcedure,
+		svc.ListInvestigations,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ListInvestigations")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceWaitInvestigationHandler := connect.NewUnaryHandler(
+		AgentManagerServiceWaitInvestigationProcedure,
+		svc.WaitInvestigation,
+		connect.WithSchema(agentManagerServiceMethods.ByName("WaitInvestigation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceCancelInvestigationHandler := connect.NewUnaryHandler(
+		AgentManagerServiceCancelInvestigationProcedure,
+		svc.CancelInvestigation,
+		connect.WithSchema(agentManagerServiceMethods.ByName("CancelInvestigation")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagerServiceCreateCohortWatchHandler := connect.NewUnaryHandler(
@@ -2172,6 +2291,16 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		switch r.URL.Path {
 		case AgentManagerServiceHealthProcedure:
 			agentManagerServiceHealthHandler.ServeHTTP(w, r)
+		case AgentManagerServiceStartInvestigationProcedure:
+			agentManagerServiceStartInvestigationHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetInvestigationProcedure:
+			agentManagerServiceGetInvestigationHandler.ServeHTTP(w, r)
+		case AgentManagerServiceListInvestigationsProcedure:
+			agentManagerServiceListInvestigationsHandler.ServeHTTP(w, r)
+		case AgentManagerServiceWaitInvestigationProcedure:
+			agentManagerServiceWaitInvestigationHandler.ServeHTTP(w, r)
+		case AgentManagerServiceCancelInvestigationProcedure:
+			agentManagerServiceCancelInvestigationHandler.ServeHTTP(w, r)
 		case AgentManagerServiceCreateCohortWatchProcedure:
 			agentManagerServiceCreateCohortWatchHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetCohortWatchProcedure:
@@ -2351,6 +2480,26 @@ type UnimplementedAgentManagerServiceHandler struct{}
 
 func (UnimplementedAgentManagerServiceHandler) Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.Health is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) StartInvestigation(context.Context, *connect.Request[api.StartInvestigationRequest]) (*connect.Response[api.StartInvestigationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.StartInvestigation is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetInvestigation(context.Context, *connect.Request[api.GetInvestigationRequest]) (*connect.Response[api.InvestigationRecord], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetInvestigation is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ListInvestigations(context.Context, *connect.Request[api.ListInvestigationsRequest]) (*connect.Response[api.ListInvestigationsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ListInvestigations is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) WaitInvestigation(context.Context, *connect.Request[api.WaitInvestigationRequest]) (*connect.Response[api.WaitInvestigationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.WaitInvestigation is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) CancelInvestigation(context.Context, *connect.Request[api.CancelInvestigationRequest]) (*connect.Response[api.InvestigationRecord], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.CancelInvestigation is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) CreateCohortWatch(context.Context, *connect.Request[domain.CreateCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error) {

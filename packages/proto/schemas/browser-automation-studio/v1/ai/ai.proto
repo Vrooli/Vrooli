@@ -77,6 +77,16 @@ message Viewport {
   }];
 }
 
+// WaitUntil controls the browser navigation readiness signal used by one-shot
+// AI captures. Callers may add an explicit selector and bounded settle delay
+// after this signal for applications whose content renders asynchronously.
+enum WaitUntil {
+  WAIT_UNTIL_UNSPECIFIED = 0;
+  WAIT_UNTIL_LOAD = 1;
+  WAIT_UNTIL_DOMCONTENTLOADED = 2;
+  WAIT_UNTIL_NETWORKIDLE = 3;
+}
+
 // Rectangle is an element bounding box in CSS pixels.
 message Rectangle {
   double x = 1;
@@ -168,6 +178,12 @@ message TakePreviewScreenshotRequest {
   string url = 1 [(buf.validate.field).string.min_len = 1];
   // Optional viewport hint; each dimension clamped to [200, 10000].
   Viewport viewport = 2;
+  // Optional CSS selector that must exist before the screenshot is taken.
+  string wait_for = 3;
+  // Navigation readiness signal. Unspecified defaults to load.
+  WaitUntil wait_until = 4;
+  // Fixed delay after wait_until and wait_for, bounded to 15 seconds.
+  int32 settle_ms = 5 [(buf.validate.field).int32 = {gte: 0, lte: 15000}];
 }
 
 message TakePreviewScreenshotResponse {
@@ -264,6 +280,16 @@ message AIAnalyzeElementsResponse {
 
 message GetDOMTreeRequest {
   string url = 1 [(buf.validate.field).string.min_len = 1];
+  // Optional CSS selector that must exist before the DOM snapshot is taken.
+  string wait_for = 2;
+  // Navigation readiness signal. Unspecified defaults to load.
+  WaitUntil wait_until = 3;
+  // Fixed delay after wait_until and wait_for, bounded to 15 seconds.
+  int32 settle_ms = 4 [(buf.validate.field).int32 = {gte: 0, lte: 15000}];
+  // Include computed style and geometry metadata on every element node.
+  bool computed = 5;
+  // Maximum number of element nodes to include; defaults to 4000.
+  int32 max_nodes = 6 [(buf.validate.field).int32 = {gte: 1, lte: 4000}];
 }
 
 message GetDOMTreeResponse {
@@ -367,6 +393,21 @@ message ListNavigatorsResponse {
 // StartNavigation
 // =============================================================================
 
+// Caller-defined, independently executed observation on the final page.
+message NavigationPostcondition {
+  string selector = 1;
+  // exists, text_equals, text_contains, count_equals (or BAS assertion enum spelling).
+  string mode = 2;
+  string expected = 3;
+}
+message NavigationExtraction {
+  string name = 1;
+  string selector = 2;
+  // Empty reads text; otherwise reads this DOM attribute.
+  string attribute = 3;
+  int32 limit = 4;
+}
+
 message StartNavigationRequest {
   // Required. Existing browser session id to navigate.
   string session_id = 1 [(buf.validate.field).string.min_len = 1];
@@ -384,6 +425,10 @@ message StartNavigationRequest {
   // Optional client source override; defaults to "api". Mirrors the
   // X-Client-Source header.
   string client_source = 7;
+  // explicit (default) or read_only. Enforced before every navigator action.
+  string effect_policy = 8;
+  repeated NavigationPostcondition postconditions = 9;
+  repeated NavigationExtraction extraction = 10;
 }
 
 message StartNavigationResponse {
@@ -401,6 +446,34 @@ message StartNavigationResponse {
 
 message GetNavigationStatusRequest {
   string navigation_id = 1 [(buf.validate.field).string.min_len = 1];
+  // wait_millis makes the call a server-side wait: 0 returns the current
+  // state immediately; otherwise the server blocks up to this long (capped
+  // at 300000) until the navigation reaches a terminal state (completed |
+  // failed | aborted | max_steps_reached | loop_detected | awaiting_human).
+  // Waiting is a server primitive, never a client poll loop.
+  int64 wait_millis = 2;
+}
+
+// NavigationStep is one recorded navigator action. The tracker keeps a
+// bounded history (200 most recent) so a finished navigation can be turned
+// into a saved workflow.
+message NavigationStep {
+  // 1-based step number as reported by the navigator.
+  int32 index = 1;
+  // Normalised action type: navigate | click | type | scroll | keypress |
+  // screenshot | find | read | evaluate | ...
+  string action_type = 2;
+  // CSS selector, element ref, or coordinate the action targeted.
+  string selector = 3;
+  // Text typed, key pressed, or other action payload.
+  string value = 4;
+  // URL navigated to, or the page URL at the time of the action when known.
+  string url = 5;
+  // Navigator reasoning / human-readable description of the step.
+  string description = 6;
+  bool success = 7;
+  string error = 8;
+  google.protobuf.Timestamp at = 9;
 }
 
 message GetNavigationStatusResponse {
@@ -414,6 +487,15 @@ message GetNavigationStatusResponse {
   int32 total_tokens = 5;
   google.protobuf.Timestamp started_at = 6;
   string navigator_type = 7;
+  // terminal is true when status is one of completed | failed | aborted |
+  // max_steps_reached | loop_detected | awaiting_human.
+  bool terminal = 8;
+  // steps is the bounded action history recorded by the tracker.
+  repeated NavigationStep steps = 9;
+  bool verified_success = 10;
+  // Bounded named arrays extracted from the final page without replay.
+  google.protobuf.Struct extracted_data = 11;
+  string verification_error = 12;
 }
 
 // =============================================================================

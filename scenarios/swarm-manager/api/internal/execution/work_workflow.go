@@ -188,10 +188,10 @@ func (s *Service) SetWorkflowStateReader(reader WorkflowStateReader) {
 // lock — taking it again self-deadlocks. They are pure reads of durable store
 // state, so the snapshot they produce needs no additional synchronization.
 func (s *Service) RegisterTransitionAdapter(registrar transitionrunner.Registrar) {
-	registrar.RegisterInput("work.correct", s.buildWorkTransitionInput)
-	registrar.RegisterInput("work.follow_up", s.buildWorkTransitionInput)
-	registrar.RegisterInput("scenario.spec_sync", s.buildSpecSyncTransitionInput)
-	registrar.RegisterInput("plan.execute", s.buildPlanExecuteTransitionInput)
+	registrar.RegisterInput("work.correct", s.guardPlanInput(s.buildWorkTransitionInput))
+	registrar.RegisterInput("work.follow_up", s.guardPlanInput(s.buildWorkTransitionInput))
+	registrar.RegisterInput("scenario.spec_sync", s.guardPlanInput(s.buildSpecSyncTransitionInput))
+	registrar.RegisterInput("plan.execute", s.guardPlanInput(s.buildPlanExecuteTransitionInput))
 	registrar.RegisterApply("apply_correction_outcome", s.applyWorkTransition)
 	registrar.RegisterApply("apply_follow_up", s.applyWorkTransition)
 	registrar.RegisterApply("apply_scenario_spec_sync", s.applySpecSyncTransition)
@@ -230,7 +230,9 @@ func (s *Service) buildPlanExecuteTransitionInput(ctx context.Context, execution
 	if err != nil {
 		return transitionrunner.Snapshot{}, err
 	}
-	return transitionrunner.SnapshotFrom(input, snapshot.EntityVersion, snapshot.FrontierDigest), nil
+	result := transitionrunner.SnapshotFrom(input, snapshot.EntityVersion, snapshot.FrontierDigest)
+	result.Grant, result.ApprovalDigest = record.WorkflowGrant, record.ApprovalDigest
+	return result, nil
 }
 
 func (s *Service) buildSpecSyncTransitionInput(_ context.Context, executionID string) (transitionrunner.Snapshot, error) {

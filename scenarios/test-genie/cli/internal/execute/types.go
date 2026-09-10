@@ -41,6 +41,19 @@ type Request struct {
 	// scenario should be treated as living for repo-relative validation.
 	LogicalRepoRoot        string `json:"logicalRepoRoot,omitempty"`
 	LogicalScenarioRelPath string `json:"logicalScenarioRelPath,omitempty"`
+
+	// Release attribution is optional. When supplied, the server reports
+	// candidate-bound readiness evidence after durable persistence.
+	ReleaseProfileID             string   `json:"releaseProfileId,omitempty"`
+	ReleaseCandidateCommit       string   `json:"releaseCandidateCommit,omitempty"`
+	ReleaseArtifactDigest        string   `json:"releaseArtifactDigest,omitempty"`
+	ReleaseTargets               []string `json:"releaseTargets,omitempty"`
+	ReleaseChannel               string   `json:"releaseChannel,omitempty"`
+	ReleasePolicyVersion         int32    `json:"releasePolicyVersion,omitempty"`
+	ReleaseCandidateID           string   `json:"releaseCandidateId,omitempty"`
+	ReleaseDestinationRevisionID string   `json:"releaseDestinationRevisionId,omitempty"`
+	ReleaseAuthorizationEpoch    uint64   `json:"releaseAuthorizationEpoch,omitempty"`
+	ReleasePredecessorRunID      string   `json:"releasePredecessorRunId,omitempty"`
 }
 
 // PlanPhase represents a selected phase before execution begins.

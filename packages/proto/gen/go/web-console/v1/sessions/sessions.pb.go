@@ -1415,8 +1415,10 @@ func (x *UnarchiveResponse) GetId() string {
 }
 
 type DeleteRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Explicit operator confirmation. The caller must send "DELETE:<id>".
+	Confirmation  string `protobuf:"bytes,2,opt,name=confirmation,proto3" json:"confirmation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1454,6 +1456,13 @@ func (*DeleteRequest) Descriptor() ([]byte, []int) {
 func (x *DeleteRequest) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *DeleteRequest) GetConfirmation() string {
+	if x != nil {
+		return x.Confirmation
 	}
 	return ""
 }
@@ -2697,9 +2706,10 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x10UnarchiveRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"#\n" +
 	"\x11UnarchiveResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x1f\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"C\n" +
 	"\rDeleteRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x10\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\"\n" +
+	"\fconfirmation\x18\x02 \x01(\tR\fconfirmation\"\x10\n" +
 	"\x0eDeleteResponse\"\x18\n" +
 	"\x16ListRecoverableRequest\"i\n" +
 	"\x17ListRecoverableResponse\x12N\n" +

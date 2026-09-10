@@ -60,6 +60,15 @@ const (
 	// DestinationsServiceExecuteDestinationPreparationProcedure is the fully-qualified name of the
 	// DestinationsService's ExecuteDestinationPreparation RPC.
 	DestinationsServiceExecuteDestinationPreparationProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/ExecuteDestinationPreparation"
+	// DestinationsServiceStartVolumeRecoveryProcedure is the fully-qualified name of the
+	// DestinationsService's StartVolumeRecovery RPC.
+	DestinationsServiceStartVolumeRecoveryProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/StartVolumeRecovery"
+	// DestinationsServiceGetVolumeRecoveryProcedure is the fully-qualified name of the
+	// DestinationsService's GetVolumeRecovery RPC.
+	DestinationsServiceGetVolumeRecoveryProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/GetVolumeRecovery"
+	// DestinationsServiceResumeVolumeRecoveryProcedure is the fully-qualified name of the
+	// DestinationsService's ResumeVolumeRecovery RPC.
+	DestinationsServiceResumeVolumeRecoveryProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/ResumeVolumeRecovery"
 )
 
 // DestinationsServiceClient is a client for the
@@ -74,6 +83,9 @@ type DestinationsServiceClient interface {
 	AnalyzeDestination(context.Context, *connect.Request[destinations.AnalyzeDestinationRequest]) (*connect.Response[destinations.AnalyzeDestinationResponse], error)
 	PlanDestinationPreparation(context.Context, *connect.Request[destinations.PlanDestinationPreparationRequest]) (*connect.Response[destinations.PlanDestinationPreparationResponse], error)
 	ExecuteDestinationPreparation(context.Context, *connect.Request[destinations.ExecuteDestinationPreparationRequest]) (*connect.Response[destinations.ExecuteDestinationPreparationResponse], error)
+	StartVolumeRecovery(context.Context, *connect.Request[destinations.StartVolumeRecoveryRequest]) (*connect.Response[destinations.StartVolumeRecoveryResponse], error)
+	GetVolumeRecovery(context.Context, *connect.Request[destinations.GetVolumeRecoveryRequest]) (*connect.Response[destinations.GetVolumeRecoveryResponse], error)
+	ResumeVolumeRecovery(context.Context, *connect.Request[destinations.ResumeVolumeRecoveryRequest]) (*connect.Response[destinations.ResumeVolumeRecoveryResponse], error)
 }
 
 // NewDestinationsServiceClient constructs a client for the
@@ -142,6 +154,24 @@ func NewDestinationsServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(destinationsServiceMethods.ByName("ExecuteDestinationPreparation")),
 			connect.WithClientOptions(opts...),
 		),
+		startVolumeRecovery: connect.NewClient[destinations.StartVolumeRecoveryRequest, destinations.StartVolumeRecoveryResponse](
+			httpClient,
+			baseURL+DestinationsServiceStartVolumeRecoveryProcedure,
+			connect.WithSchema(destinationsServiceMethods.ByName("StartVolumeRecovery")),
+			connect.WithClientOptions(opts...),
+		),
+		getVolumeRecovery: connect.NewClient[destinations.GetVolumeRecoveryRequest, destinations.GetVolumeRecoveryResponse](
+			httpClient,
+			baseURL+DestinationsServiceGetVolumeRecoveryProcedure,
+			connect.WithSchema(destinationsServiceMethods.ByName("GetVolumeRecovery")),
+			connect.WithClientOptions(opts...),
+		),
+		resumeVolumeRecovery: connect.NewClient[destinations.ResumeVolumeRecoveryRequest, destinations.ResumeVolumeRecoveryResponse](
+			httpClient,
+			baseURL+DestinationsServiceResumeVolumeRecoveryProcedure,
+			connect.WithSchema(destinationsServiceMethods.ByName("ResumeVolumeRecovery")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -156,6 +186,9 @@ type destinationsServiceClient struct {
 	analyzeDestination            *connect.Client[destinations.AnalyzeDestinationRequest, destinations.AnalyzeDestinationResponse]
 	planDestinationPreparation    *connect.Client[destinations.PlanDestinationPreparationRequest, destinations.PlanDestinationPreparationResponse]
 	executeDestinationPreparation *connect.Client[destinations.ExecuteDestinationPreparationRequest, destinations.ExecuteDestinationPreparationResponse]
+	startVolumeRecovery           *connect.Client[destinations.StartVolumeRecoveryRequest, destinations.StartVolumeRecoveryResponse]
+	getVolumeRecovery             *connect.Client[destinations.GetVolumeRecoveryRequest, destinations.GetVolumeRecoveryResponse]
+	resumeVolumeRecovery          *connect.Client[destinations.ResumeVolumeRecoveryRequest, destinations.ResumeVolumeRecoveryResponse]
 }
 
 // CreateDestination calls
@@ -212,6 +245,24 @@ func (c *destinationsServiceClient) ExecuteDestinationPreparation(ctx context.Co
 	return c.executeDestinationPreparation.CallUnary(ctx, req)
 }
 
+// StartVolumeRecovery calls
+// vrooli.data_backup_manager.v1.destinations.DestinationsService.StartVolumeRecovery.
+func (c *destinationsServiceClient) StartVolumeRecovery(ctx context.Context, req *connect.Request[destinations.StartVolumeRecoveryRequest]) (*connect.Response[destinations.StartVolumeRecoveryResponse], error) {
+	return c.startVolumeRecovery.CallUnary(ctx, req)
+}
+
+// GetVolumeRecovery calls
+// vrooli.data_backup_manager.v1.destinations.DestinationsService.GetVolumeRecovery.
+func (c *destinationsServiceClient) GetVolumeRecovery(ctx context.Context, req *connect.Request[destinations.GetVolumeRecoveryRequest]) (*connect.Response[destinations.GetVolumeRecoveryResponse], error) {
+	return c.getVolumeRecovery.CallUnary(ctx, req)
+}
+
+// ResumeVolumeRecovery calls
+// vrooli.data_backup_manager.v1.destinations.DestinationsService.ResumeVolumeRecovery.
+func (c *destinationsServiceClient) ResumeVolumeRecovery(ctx context.Context, req *connect.Request[destinations.ResumeVolumeRecoveryRequest]) (*connect.Response[destinations.ResumeVolumeRecoveryResponse], error) {
+	return c.resumeVolumeRecovery.CallUnary(ctx, req)
+}
+
 // DestinationsServiceHandler is an implementation of the
 // vrooli.data_backup_manager.v1.destinations.DestinationsService service.
 type DestinationsServiceHandler interface {
@@ -224,6 +275,9 @@ type DestinationsServiceHandler interface {
 	AnalyzeDestination(context.Context, *connect.Request[destinations.AnalyzeDestinationRequest]) (*connect.Response[destinations.AnalyzeDestinationResponse], error)
 	PlanDestinationPreparation(context.Context, *connect.Request[destinations.PlanDestinationPreparationRequest]) (*connect.Response[destinations.PlanDestinationPreparationResponse], error)
 	ExecuteDestinationPreparation(context.Context, *connect.Request[destinations.ExecuteDestinationPreparationRequest]) (*connect.Response[destinations.ExecuteDestinationPreparationResponse], error)
+	StartVolumeRecovery(context.Context, *connect.Request[destinations.StartVolumeRecoveryRequest]) (*connect.Response[destinations.StartVolumeRecoveryResponse], error)
+	GetVolumeRecovery(context.Context, *connect.Request[destinations.GetVolumeRecoveryRequest]) (*connect.Response[destinations.GetVolumeRecoveryResponse], error)
+	ResumeVolumeRecovery(context.Context, *connect.Request[destinations.ResumeVolumeRecoveryRequest]) (*connect.Response[destinations.ResumeVolumeRecoveryResponse], error)
 }
 
 // NewDestinationsServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -287,6 +341,24 @@ func NewDestinationsServiceHandler(svc DestinationsServiceHandler, opts ...conne
 		connect.WithSchema(destinationsServiceMethods.ByName("ExecuteDestinationPreparation")),
 		connect.WithHandlerOptions(opts...),
 	)
+	destinationsServiceStartVolumeRecoveryHandler := connect.NewUnaryHandler(
+		DestinationsServiceStartVolumeRecoveryProcedure,
+		svc.StartVolumeRecovery,
+		connect.WithSchema(destinationsServiceMethods.ByName("StartVolumeRecovery")),
+		connect.WithHandlerOptions(opts...),
+	)
+	destinationsServiceGetVolumeRecoveryHandler := connect.NewUnaryHandler(
+		DestinationsServiceGetVolumeRecoveryProcedure,
+		svc.GetVolumeRecovery,
+		connect.WithSchema(destinationsServiceMethods.ByName("GetVolumeRecovery")),
+		connect.WithHandlerOptions(opts...),
+	)
+	destinationsServiceResumeVolumeRecoveryHandler := connect.NewUnaryHandler(
+		DestinationsServiceResumeVolumeRecoveryProcedure,
+		svc.ResumeVolumeRecovery,
+		connect.WithSchema(destinationsServiceMethods.ByName("ResumeVolumeRecovery")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.data_backup_manager.v1.destinations.DestinationsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DestinationsServiceCreateDestinationProcedure:
@@ -307,6 +379,12 @@ func NewDestinationsServiceHandler(svc DestinationsServiceHandler, opts ...conne
 			destinationsServicePlanDestinationPreparationHandler.ServeHTTP(w, r)
 		case DestinationsServiceExecuteDestinationPreparationProcedure:
 			destinationsServiceExecuteDestinationPreparationHandler.ServeHTTP(w, r)
+		case DestinationsServiceStartVolumeRecoveryProcedure:
+			destinationsServiceStartVolumeRecoveryHandler.ServeHTTP(w, r)
+		case DestinationsServiceGetVolumeRecoveryProcedure:
+			destinationsServiceGetVolumeRecoveryHandler.ServeHTTP(w, r)
+		case DestinationsServiceResumeVolumeRecoveryProcedure:
+			destinationsServiceResumeVolumeRecoveryHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -350,4 +428,16 @@ func (UnimplementedDestinationsServiceHandler) PlanDestinationPreparation(contex
 
 func (UnimplementedDestinationsServiceHandler) ExecuteDestinationPreparation(context.Context, *connect.Request[destinations.ExecuteDestinationPreparationRequest]) (*connect.Response[destinations.ExecuteDestinationPreparationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation is not implemented"))
+}
+
+func (UnimplementedDestinationsServiceHandler) StartVolumeRecovery(context.Context, *connect.Request[destinations.StartVolumeRecoveryRequest]) (*connect.Response[destinations.StartVolumeRecoveryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.StartVolumeRecovery is not implemented"))
+}
+
+func (UnimplementedDestinationsServiceHandler) GetVolumeRecovery(context.Context, *connect.Request[destinations.GetVolumeRecoveryRequest]) (*connect.Response[destinations.GetVolumeRecoveryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.GetVolumeRecovery is not implemented"))
+}
+
+func (UnimplementedDestinationsServiceHandler) ResumeVolumeRecovery(context.Context, *connect.Request[destinations.ResumeVolumeRecoveryRequest]) (*connect.Response[destinations.ResumeVolumeRecoveryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.ResumeVolumeRecovery is not implemented"))
 }

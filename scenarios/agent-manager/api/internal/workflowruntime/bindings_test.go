@@ -24,3 +24,23 @@ Assess the treatment result:
 		t.Fatalf("RenderPrompt() did not embed structured treatment result: %q", got)
 	}
 }
+
+func TestRenderPromptPreservesFullPlanAndRejectsOversizedInput(t *testing.T) {
+	payload := strings.Repeat("contract and evidence\n", 8192) + "FINAL_REQUIRED_OUTCOME"
+	got, err := RenderPrompt("Review the complete snapshot:\n{{.snapshot}}", map[string]any{"snapshot": payload})
+	if err != nil || !strings.HasSuffix(got, "FINAL_REQUIRED_OUTCOME") || strings.Count(got, payload) != 1 {
+		t.Fatalf("a bounded full-plan review must retain its final requirement exactly once: bytes=%d err=%v", len(got), err)
+	}
+	if _, err := RenderPrompt("{{.snapshot}}", map[string]any{"snapshot": strings.Repeat("x", (2<<20)+1)}); err == nil {
+		t.Fatal("review input above the 2 MiB host ceiling must be rejected")
+	}
+}
+
+func TestIndependentReviewSkillEmbedsSnapshotExactlyOnce(t *testing.T) {
+	source := reconciledSkillTemplate(t, "swarm-manager-workflow-independent-review")
+	payload := "BOUND_CANONICAL_REVIEW_EVIDENCE"
+	got, err := RenderPrompt(source, map[string]any{"snapshot": payload, "entity": "bound execution"})
+	if err != nil || strings.Count(got, payload) != 1 {
+		t.Fatalf("the review must receive one copy of its immutable snapshot, got count=%d err=%v", strings.Count(got, payload), err)
+	}
+}

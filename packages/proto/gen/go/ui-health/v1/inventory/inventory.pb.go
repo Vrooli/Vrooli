@@ -74,15 +74,21 @@ func (x *ScanScenarioRequest) GetScenario() string {
 // counts as a surface (component, page, feature, hook, layout) for its
 // ecosystem.
 type SurfaceRecord struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Slot          string                 `protobuf:"bytes,2,opt,name=slot,proto3" json:"slot,omitempty"`
-	Kind          search.SurfaceKind     `protobuf:"varint,3,opt,name=kind,proto3,enum=vrooli.ui_health.v1.search.SurfaceKind" json:"kind,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Description   string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
-	FilePath      string                 `protobuf:"bytes,6,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Scenario          string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Slot              string                 `protobuf:"bytes,2,opt,name=slot,proto3" json:"slot,omitempty"`
+	Kind              search.SurfaceKind     `protobuf:"varint,3,opt,name=kind,proto3,enum=vrooli.ui_health.v1.search.SurfaceKind" json:"kind,omitempty"`
+	DisplayName       string                 `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Description       string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
+	FilePath          string                 `protobuf:"bytes,6,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
+	ObservedRoute     string                 `protobuf:"bytes,7,opt,name=observed_route,json=observedRoute,proto3" json:"observed_route,omitempty"`
+	ObservedLinkText  string                 `protobuf:"bytes,8,opt,name=observed_link_text,json=observedLinkText,proto3" json:"observed_link_text,omitempty"`
+	ObservedPageTitle string                 `protobuf:"bytes,9,opt,name=observed_page_title,json=observedPageTitle,proto3" json:"observed_page_title,omitempty"`
+	ObservedAt        string                 `protobuf:"bytes,10,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	Reachable         bool                   `protobuf:"varint,11,opt,name=reachable,proto3" json:"reachable,omitempty"`
+	HttpStatus        int32                  `protobuf:"varint,12,opt,name=http_status,json=httpStatus,proto3" json:"http_status,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SurfaceRecord) Reset() {
@@ -155,6 +161,48 @@ func (x *SurfaceRecord) GetFilePath() string {
 		return x.FilePath
 	}
 	return ""
+}
+
+func (x *SurfaceRecord) GetObservedRoute() string {
+	if x != nil {
+		return x.ObservedRoute
+	}
+	return ""
+}
+
+func (x *SurfaceRecord) GetObservedLinkText() string {
+	if x != nil {
+		return x.ObservedLinkText
+	}
+	return ""
+}
+
+func (x *SurfaceRecord) GetObservedPageTitle() string {
+	if x != nil {
+		return x.ObservedPageTitle
+	}
+	return ""
+}
+
+func (x *SurfaceRecord) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
+func (x *SurfaceRecord) GetReachable() bool {
+	if x != nil {
+		return x.Reachable
+	}
+	return false
+}
+
+func (x *SurfaceRecord) GetHttpStatus() int32 {
+	if x != nil {
+		return x.HttpStatus
+	}
+	return 0
 }
 
 type ScanScenarioResponse struct {
@@ -455,14 +503,23 @@ const file_ui_health_v1_inventory_inventory_proto_rawDesc = "" +
 	"\n" +
 	"&ui-health/v1/inventory/inventory.proto\x12\x1dvrooli.ui_health.v1.inventory\x1a2ui-health/v1/contracts/provenance/provenance.proto\x1a*ui-health/v1/contracts/widget/widget.proto\x1a ui-health/v1/search/search.proto\"1\n" +
 	"\x13ScanScenarioRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\"\xde\x01\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\"\xc3\x03\n" +
 	"\rSurfaceRecord\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04slot\x18\x02 \x01(\tR\x04slot\x12;\n" +
 	"\x04kind\x18\x03 \x01(\x0e2'.vrooli.ui_health.v1.search.SurfaceKindR\x04kind\x12!\n" +
 	"\fdisplay_name\x18\x04 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x05 \x01(\tR\vdescription\x12\x1b\n" +
-	"\tfile_path\x18\x06 \x01(\tR\bfilePath\"\xae\x02\n" +
+	"\tfile_path\x18\x06 \x01(\tR\bfilePath\x12%\n" +
+	"\x0eobserved_route\x18\a \x01(\tR\robservedRoute\x12,\n" +
+	"\x12observed_link_text\x18\b \x01(\tR\x10observedLinkText\x12.\n" +
+	"\x13observed_page_title\x18\t \x01(\tR\x11observedPageTitle\x12\x1f\n" +
+	"\vobserved_at\x18\n" +
+	" \x01(\tR\n" +
+	"observedAt\x12\x1c\n" +
+	"\treachable\x18\v \x01(\bR\treachable\x12\x1f\n" +
+	"\vhttp_status\x18\f \x01(\x05R\n" +
+	"httpStatus\"\xae\x02\n" +
 	"\x14ScanScenarioResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12]\n" +
 	"\n" +

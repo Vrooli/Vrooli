@@ -25,6 +25,16 @@ message Selection {
   string capacity_posture = 15;
   uint64 transient_headroom_reserve_bytes = 16;
   map<string, ResourceCapacitySelection> resource_capacity = 17;
+  // Presence is explicit for adapters that must distinguish an omitted field,
+  // an intentional value, and a reset-to-default request.
+  map<string, SelectionFieldPresence> field_presence = 18;
+}
+
+enum SelectionFieldPresence {
+  SELECTION_FIELD_PRESENCE_UNSPECIFIED = 0;
+  SELECTION_FIELD_PRESENCE_SET = 1;
+  SELECTION_FIELD_PRESENCE_CLEAR = 2;
+  SELECTION_FIELD_PRESENCE_RESET = 3;
 }
 
 message ResourceCapacitySelection {

@@ -103,7 +103,8 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 }
 
 // filterSelfScenario drops the running scenario from the affected set so
-// finalization never restarts its own process, recording a warning when it does.
+// finalization never restarts its own process. applyFinalizationScope durably
+// records the skipped steps and warning before this processing-only filter.
 func (s *Service) filterSelfScenario(executionID string, affected []string) []string {
 	if s.selfScenarioName == "" {
 		return affected
@@ -115,12 +116,6 @@ func (s *Service) filterSelfScenario(executionID string, affected []string) []st
 				"execution_id", executionID,
 				"scenario", s.selfScenarioName,
 			)
-			_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
-				finalizationWarningSelfRestartSkipped,
-				s.selfScenarioName,
-				fmt.Sprintf("Scenario %q was in scope but skipped because restarting it would kill this running process. If changes to %s require a restart, restart it manually after finalization completes.", s.selfScenarioName, s.selfScenarioName),
-				false,
-			))
 			continue
 		}
 		filtered = append(filtered, name)

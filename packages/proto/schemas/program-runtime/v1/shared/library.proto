@@ -36,4 +36,16 @@ message LibraryProgram {
   double score = 25;
   // SHA-256 of the declared contract bytes and sibling executable source.
   string content_digest = 26;
+  repeated string verbs = 27;
+  bool memory_declared = 28;
+  int32 fixture_count = 29;
+  int32 live_fixture_count = 30;
+  int32 binding_count = 31;
+  int32 optional_binding_count = 32;
+  bool source_missing = 33;
+  bool output_schema_present = 34;
+  repeated string learning_verbs = 35;
+  bool learning_uses_memory = 36;
+  repeated string learning_note_kinds = 37;
+  bool learning_free_text_inputs_without_key = 38;
 }

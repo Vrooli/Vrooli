@@ -69,6 +69,21 @@ func (r *serviceRecorder) Create(_ context.Context, record *SuiteExecutionRecord
 	return nil
 }
 
+type serviceReadinessReporter struct {
+	recorded bool
+	request  orchestrator.SuiteExecutionRequest
+	result   *orchestrator.SuiteExecutionResult
+	stored   *serviceRecorder
+}
+
+func (r *serviceReadinessReporter) Report(_ context.Context, request orchestrator.SuiteExecutionRequest, result *orchestrator.SuiteExecutionResult) error {
+	if len(r.stored.records) != 1 {
+		return errors.New("report happened before durable execution record")
+	}
+	r.recorded, r.request, r.result = true, request, result
+	return nil
+}
+
 func TestSuiteExecutionServicePersistsRunEvidence(t *testing.T) {
 	recorder := &serviceRecorder{}
 	service := NewSuiteExecutionService(serviceEngine{result: &orchestrator.SuiteExecutionResult{RunID: "run-1", ScenarioName: "demo", StartedAt: time.Now().Add(-time.Second), CompletedAt: time.Now(), Success: true}}, recorder)
@@ -78,6 +93,20 @@ func TestSuiteExecutionServicePersistsRunEvidence(t *testing.T) {
 	}
 	if result.ExecutionID.String() == "" || len(recorder.records) != 1 || recorder.records[0].RunID != "run-1" {
 		t.Fatalf("result=%+v records=%+v", result, recorder.records)
+	}
+}
+
+func TestSuiteExecutionServiceReportsReleaseEvidenceAfterPersistence(t *testing.T) {
+	recorder := &serviceRecorder{}
+	reporter := &serviceReadinessReporter{stored: recorder}
+	service := NewSuiteExecutionService(serviceEngine{result: &orchestrator.SuiteExecutionResult{RunID: "run-release", ScenarioName: "demo", Verdict: orchestrator.SuiteVerdictPass}}, recorder)
+	service.SetReadinessReporter(reporter)
+	request := orchestrator.SuiteExecutionRequest{ScenarioName: "demo", ReleaseIdentity: &orchestrator.ReleaseIdentity{ProfileID: "profile-1", CandidateCommit: "commit-1", ArtifactDigest: "sha256:artifact", Targets: []string{"linux"}, Channel: "stable", PolicyVersion: 2}}
+	if _, err := service.Execute(context.Background(), SuiteExecutionInput{Request: request}); err != nil {
+		t.Fatal(err)
+	}
+	if !reporter.recorded || reporter.request.ReleaseIdentity.ArtifactDigest != "sha256:artifact" || reporter.result.RunID != "run-release" {
+		t.Fatalf("readiness report = %#v", reporter)
 	}
 }
 

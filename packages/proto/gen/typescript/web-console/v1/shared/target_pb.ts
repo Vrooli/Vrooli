@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/shared/target.proto.
  */
 export const file_web_console_v1_shared_target: GenFile = /*@__PURE__*/
-  fileDesc("CiJ3ZWItY29uc29sZS92MS9zaGFyZWQvdGFyZ2V0LnByb3RvEhx2cm9vbGkud2ViX2NvbnNvbGUudjEuc2hhcmVkIoQBCg1SZWFkaW5lc3NGYWN0EgsKA2tleRgBIAEoCRINCgVsYWJlbBgCIAEoCRIOCgZwYXNzZWQYAyABKAgSDgoGZGV0YWlsGAQgASgJEg0KBXN0YXRlGAUgASgJEg8KB3ZlcnNpb24YBiABKAkSFwoPcmVjb3ZlcnlfYWN0aW9uGAcgASgJIpkDCgZUYXJnZXQSCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRINCgVsYWJlbBgDIAEoCRIKCgJvcxgEIAEoCRIMCgRhcmNoGAUgASgJEg8KB25vZGVfaWQYBiABKAkSEAoIcmV2aXNpb24YByABKAkSDgoGc3RhdHVzGAggASgJEg4KBm9ubGluZRgJIAEoCBIwCgxsYXN0X3NlZW5fYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEj4KCXJlYWRpbmVzcxgLIAMoCzIrLnZyb29saS53ZWJfY29uc29sZS52MS5zaGFyZWQuUmVhZGluZXNzRmFjdBIUCgxkaXNwYXRjaGFibGUYDCABKAgSFAoMZmFpbHVyZV9ydW5nGA0gASgJEjgKBXN0YXRlGA4gASgOMikudnJvb2xpLndlYl9jb25zb2xlLnYxLnNoYXJlZC5UYXJnZXRTdGF0ZRIXCg9yZWNvdmVyeV9hY3Rpb24YDyABKAkSGAoQc3Vydml2ZXNfcmVzdGFydBgQIAEoCCqhAQoLVGFyZ2V0U3RhdGUSHAoYVEFSR0VUX1NUQVRFX1VOU1BFQ0lGSUVEEAASHQoZVEFSR0VUX1NUQVRFX0RJU1BBVENIQUJMRRABEhgKFFRBUkdFVF9TVEFURV9PRkZMSU5FEAISHQoZVEFSR0VUX1NUQVRFX05FRURTX1VQREFURRADEhwKGFRBUkdFVF9TVEFURV9VTkFWQUlMQUJMRRAEQlBaTmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLWNvbnNvbGUvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("CiJ3ZWItY29uc29sZS92MS9zaGFyZWQvdGFyZ2V0LnByb3RvEhx2cm9vbGkud2ViX2NvbnNvbGUudjEuc2hhcmVkIoQBCg1SZWFkaW5lc3NGYWN0EgsKA2tleRgBIAEoCRINCgVsYWJlbBgCIAEoCRIOCgZwYXNzZWQYAyABKAgSDgoGZGV0YWlsGAQgASgJEg0KBXN0YXRlGAUgASgJEg8KB3ZlcnNpb24YBiABKAkSFwoPcmVjb3ZlcnlfYWN0aW9uGAcgASgJIvUBChJPcGVyYXRpb25SZWFkaW5lc3MSEQoJb3BlcmF0aW9uGAEgASgJEg0KBXJlYWR5GAIgASgIEg0KBXN0YXRlGAMgASgJEhMKC3JlYXNvbl9jb2RlGAQgASgJEg4KBmRldGFpbBgFIAEoCRIXCg9yZWNvdmVyeV9hY3Rpb24YBiABKAkSLwoLb2JzZXJ2ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZyZXNoX3VudGlsGAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZzb3VyY2UYCSABKAki6AMKBlRhcmdldBIKCgJpZBgBIAEoCRIMCgRraW5kGAIgASgJEg0KBWxhYmVsGAMgASgJEgoKAm9zGAQgASgJEgwKBGFyY2gYBSABKAkSDwoHbm9kZV9pZBgGIAEoCRIQCghyZXZpc2lvbhgHIAEoCRIOCgZzdGF0dXMYCCABKAkSDgoGb25saW5lGAkgASgIEjAKDGxhc3Rfc2Vlbl9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASPgoJcmVhZGluZXNzGAsgAygLMisudnJvb2xpLndlYl9jb25zb2xlLnYxLnNoYXJlZC5SZWFkaW5lc3NGYWN0EhQKDGRpc3BhdGNoYWJsZRgMIAEoCBIUCgxmYWlsdXJlX3J1bmcYDSABKAkSOAoFc3RhdGUYDiABKA4yKS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hhcmVkLlRhcmdldFN0YXRlEhcKD3JlY292ZXJ5X2FjdGlvbhgPIAEoCRIYChBzdXJ2aXZlc19yZXN0YXJ0GBAgASgIEk0KE29wZXJhdGlvbl9yZWFkaW5lc3MYESADKAsyMC52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hhcmVkLk9wZXJhdGlvblJlYWRpbmVzcyqhAQoLVGFyZ2V0U3RhdGUSHAoYVEFSR0VUX1NUQVRFX1VOU1BFQ0lGSUVEEAASHQoZVEFSR0VUX1NUQVRFX0RJU1BBVENIQUJMRRABEhgKFFRBUkdFVF9TVEFURV9PRkZMSU5FEAISHQoZVEFSR0VUX1NUQVRFX05FRURTX1VQREFURRADEhwKGFRBUkdFVF9TVEFURV9VTkFWQUlMQUJMRRAEQlBaTmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLWNvbnNvbGUvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.web_console.v1.shared.ReadinessFact
@@ -66,6 +66,69 @@ export type ReadinessFact = Message<"vrooli.web_console.v1.shared.ReadinessFact"
  */
 export const ReadinessFactSchema: GenMessage<ReadinessFact> = /*@__PURE__*/
   messageDesc(file_web_console_v1_shared_target, 0);
+
+/**
+ * OperationReadiness is the freshness-qualified result for one requested
+ * operation. A target may be ready for headless execution while visual
+ * validation is unavailable because no GUI session is present.
+ *
+ * @generated from message vrooli.web_console.v1.shared.OperationReadiness
+ */
+export type OperationReadiness = Message<"vrooli.web_console.v1.shared.OperationReadiness"> & {
+  /**
+   * @generated from field: string operation = 1;
+   */
+  operation: string;
+
+  /**
+   * @generated from field: bool ready = 2;
+   */
+  ready: boolean;
+
+  /**
+   * ready | missing | not_applicable | unknown
+   *
+   * @generated from field: string state = 3;
+   */
+  state: string;
+
+  /**
+   * @generated from field: string reason_code = 4;
+   */
+  reasonCode: string;
+
+  /**
+   * @generated from field: string detail = 5;
+   */
+  detail: string;
+
+  /**
+   * @generated from field: string recovery_action = 6;
+   */
+  recoveryAction: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp observed_at = 7;
+   */
+  observedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp fresh_until = 8;
+   */
+  freshUntil?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string source = 9;
+   */
+  source: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.shared.OperationReadiness.
+ * Use `create(OperationReadinessSchema)` to create a new message.
+ */
+export const OperationReadinessSchema: GenMessage<OperationReadiness> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_shared_target, 1);
 
 /**
  * Target is a safe projection of a local or Bridge-backed session location.
@@ -156,6 +219,11 @@ export type Target = Message<"vrooli.web_console.v1.shared.Target"> & {
    * @generated from field: bool survives_restart = 16;
    */
   survivesRestart: boolean;
+
+  /**
+   * @generated from field: repeated vrooli.web_console.v1.shared.OperationReadiness operation_readiness = 17;
+   */
+  operationReadiness: OperationReadiness[];
 };
 
 /**
@@ -163,7 +231,7 @@ export type Target = Message<"vrooli.web_console.v1.shared.Target"> & {
  * Use `create(TargetSchema)` to create a new message.
  */
 export const TargetSchema: GenMessage<Target> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_shared_target, 1);
+  messageDesc(file_web_console_v1_shared_target, 2);
 
 /**
  * TargetState describes whether a local or remote session location can accept

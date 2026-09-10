@@ -2,6 +2,9 @@
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "test-genie.iterate",
   "version": "1",
+  "helpers": {
+    "program": "1"
+  },
   "purpose": "Validate a code change efficiently: submit explicit required test phases or the owner's history-informed quick profile, reuse compatible evidence, and return one durable wait command. No full-suite default and no certification claim.",
   "inputs": {
     "scenario": {
@@ -70,7 +73,9 @@
     "errors": {
       "classes": [
         "invalid_input",
-        "admission_unavailable"
+        "admission_unavailable",
+        "remote_error",
+        "no_governed_binding"
       ]
     },
     "evidence": "Validation receipt ID"

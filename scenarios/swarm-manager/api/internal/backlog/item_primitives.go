@@ -2,6 +2,8 @@ package backlog
 
 import (
 	"strings"
+
+	"swarm-manager/internal/identity"
 )
 
 // ItemAttacher is the minimal milestone-side hook Service.Create uses
@@ -34,6 +36,9 @@ type ItemPatch struct {
 	SpawnedFrom        *string
 	PlanRef            *PlanRef
 	PlanRefSet         bool
+	ExecutionStrategy  *string
+	ExecutionLimits    *identity.ExecutionLimits
+	ExecutionLimitsSet bool
 	Note               *string
 }
 
@@ -45,8 +50,8 @@ type ItemPatch struct {
 func ApplyItemPatch(item *BacklogItem, patch ItemPatch) {
 	contractChanged := patch.Title != nil || patch.Description != nil ||
 		patch.AcceptanceAllow != nil || patch.AcceptanceDeny != nil ||
-		patch.AcceptanceCriteria != nil ||
-		patch.Creates != nil || patch.PlanRefSet
+		patch.AcceptanceCriteria != nil || patch.ExecutionStrategy != nil ||
+		patch.Creates != nil || patch.PlanRefSet || patch.ExecutionLimitsSet
 	if patch.Title != nil {
 		item.Title = strings.TrimSpace(*patch.Title)
 	}
@@ -92,6 +97,12 @@ func ApplyItemPatch(item *BacklogItem, patch ItemPatch) {
 		// acceptance. Keeping a historical acceptance here would authorize a
 		// different canonical plan under the old decision.
 		item.PlanAcceptance = nil
+	}
+	if patch.ExecutionStrategy != nil {
+		item.ExecutionStrategy = strings.ToLower(strings.TrimSpace(*patch.ExecutionStrategy))
+	}
+	if patch.ExecutionLimitsSet {
+		item.ExecutionLimits = patch.ExecutionLimits.Clone()
 	}
 	if patch.Note != nil {
 		item.Note = strings.TrimSpace(*patch.Note)

@@ -19,20 +19,40 @@ class GetScenarioStatusRequest(_message.Message):
     def __init__(self, name: _Optional[str] = ...) -> None: ...
 
 class GetScenarioLogsRequest(_message.Message):
-    __slots__ = ("name", "tail_lines")
+    __slots__ = ("name", "tail_lines", "step", "runtime", "lifecycle", "previous")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TAIL_LINES_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_FIELD_NUMBER: _ClassVar[int]
+    LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
+    PREVIOUS_FIELD_NUMBER: _ClassVar[int]
     name: str
     tail_lines: int
-    def __init__(self, name: _Optional[str] = ..., tail_lines: _Optional[int] = ...) -> None: ...
+    step: str
+    runtime: bool
+    lifecycle: bool
+    previous: bool
+    def __init__(self, name: _Optional[str] = ..., tail_lines: _Optional[int] = ..., step: _Optional[str] = ..., runtime: _Optional[bool] = ..., lifecycle: _Optional[bool] = ..., previous: _Optional[bool] = ...) -> None: ...
 
 class StartScenarioRequest(_message.Message):
-    __slots__ = ("name", "timeout_seconds")
+    __slots__ = ("name", "timeout_seconds", "path", "best_effort", "clean_stale", "force", "accept_credential_loss", "demand_managed")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    BEST_EFFORT_FIELD_NUMBER: _ClassVar[int]
+    CLEAN_STALE_FIELD_NUMBER: _ClassVar[int]
+    FORCE_FIELD_NUMBER: _ClassVar[int]
+    ACCEPT_CREDENTIAL_LOSS_FIELD_NUMBER: _ClassVar[int]
+    DEMAND_MANAGED_FIELD_NUMBER: _ClassVar[int]
     name: str
     timeout_seconds: int
-    def __init__(self, name: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+    path: str
+    best_effort: bool
+    clean_stale: bool
+    force: bool
+    accept_credential_loss: bool
+    demand_managed: bool
+    def __init__(self, name: _Optional[str] = ..., timeout_seconds: _Optional[int] = ..., path: _Optional[str] = ..., best_effort: _Optional[bool] = ..., clean_stale: _Optional[bool] = ..., force: _Optional[bool] = ..., accept_credential_loss: _Optional[bool] = ..., demand_managed: _Optional[bool] = ...) -> None: ...
 
 class StopScenarioRequest(_message.Message):
     __slots__ = ("name",)
@@ -41,15 +61,29 @@ class StopScenarioRequest(_message.Message):
     def __init__(self, name: _Optional[str] = ...) -> None: ...
 
 class RestartScenarioRequest(_message.Message):
-    __slots__ = ("name", "timeout_seconds")
+    __slots__ = ("name", "timeout_seconds", "path", "best_effort", "clean_stale", "force", "accept_credential_loss", "demand_managed")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    BEST_EFFORT_FIELD_NUMBER: _ClassVar[int]
+    CLEAN_STALE_FIELD_NUMBER: _ClassVar[int]
+    FORCE_FIELD_NUMBER: _ClassVar[int]
+    ACCEPT_CREDENTIAL_LOSS_FIELD_NUMBER: _ClassVar[int]
+    DEMAND_MANAGED_FIELD_NUMBER: _ClassVar[int]
     name: str
     timeout_seconds: int
-    def __init__(self, name: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+    path: str
+    best_effort: bool
+    clean_stale: bool
+    force: bool
+    accept_credential_loss: bool
+    demand_managed: bool
+    def __init__(self, name: _Optional[str] = ..., timeout_seconds: _Optional[int] = ..., path: _Optional[str] = ..., best_effort: _Optional[bool] = ..., clean_stale: _Optional[bool] = ..., force: _Optional[bool] = ..., accept_credential_loss: _Optional[bool] = ..., demand_managed: _Optional[bool] = ...) -> None: ...
 
 class SetupScenarioRequest(_message.Message):
-    __slots__ = ("name",)
+    __slots__ = ("name", "path")
     NAME_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
     name: str
-    def __init__(self, name: _Optional[str] = ...) -> None: ...
+    path: str
+    def __init__(self, name: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ui-health/v1/reindex/reindex.proto.
  */
 export const file_ui_health_v1_reindex_reindex: GenFile = /*@__PURE__*/
-  fileDesc("CiJ1aS1oZWFsdGgvdjEvcmVpbmRleC9yZWluZGV4LnByb3RvEht2cm9vbGkudWlfaGVhbHRoLnYxLnJlaW5kZXgiMwoOUmVpbmRleFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDwoHZHJ5X3J1bhgCIAEoCCJkCg9SZWluZGV4UmVzcG9uc2USDgoGam9iX2lkGAEgASgJEhcKD3BsYW5uZWRfdXBzZXJ0cxgCIAEoBRIXCg9wbGFubmVkX2RlbGV0ZXMYAyABKAUSDwoHZHJ5X3J1bhgEIAEoCCImChRSZWluZGV4U3RhdHVzUmVxdWVzdBIOCgZqb2JfaWQYASABKAkiygEKFVJlaW5kZXhTdGF0dXNSZXNwb25zZRIOCgZqb2JfaWQYASABKAkSDQoFc3RhdGUYAiABKAkSEQoJcHJvY2Vzc2VkGAMgASgFEg0KBXRvdGFsGAQgASgFEg0KBWVycm9yGAUgASgJEhAKCHdhcm5pbmdzGAYgAygJEk8KEXNjZW5hcmlvX291dGNvbWVzGAcgAygLMjQudnJvb2xpLnVpX2hlYWx0aC52MS5yZWluZGV4LlNjZW5hcmlvRGlzcGF0Y2hPdXRjb21lImcKF1NjZW5hcmlvRGlzcGF0Y2hPdXRjb21lEhAKCHNjZW5hcmlvGAEgASgJEhYKDnN1cmZhY2VzX2ZvdW5kGAIgASgFEg0KBWVycm9yGAMgASgJEhMKC3RlbXBsYXRlX2lkGAQgASgJIiYKFFJlaW5kZXhDYW5jZWxSZXF1ZXN0Eg4KBmpvYl9pZBgBIAEoCSI6ChVSZWluZGV4Q2FuY2VsUmVzcG9uc2USDgoGam9iX2lkGAEgASgJEhEKCWNhbmNlbGxlZBgCIAEoCDLmAgoOUmVpbmRleFNlcnZpY2USZAoHUmVpbmRleBIrLnZyb29saS51aV9oZWFsdGgudjEucmVpbmRleC5SZWluZGV4UmVxdWVzdBosLnZyb29saS51aV9oZWFsdGgudjEucmVpbmRleC5SZWluZGV4UmVzcG9uc2USdgoNUmVpbmRleFN0YXR1cxIxLnZyb29saS51aV9oZWFsdGgudjEucmVpbmRleC5SZWluZGV4U3RhdHVzUmVxdWVzdBoyLnZyb29saS51aV9oZWFsdGgudjEucmVpbmRleC5SZWluZGV4U3RhdHVzUmVzcG9uc2USdgoNUmVpbmRleENhbmNlbBIxLnZyb29saS51aV9oZWFsdGgudjEucmVpbmRleC5SZWluZGV4Q2FuY2VsUmVxdWVzdBoyLnZyb29saS51aV9oZWFsdGgudjEucmVpbmRleC5SZWluZGV4Q2FuY2VsUmVzcG9uc2VCUFpOZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby91aS1oZWFsdGgvdjEvcmVpbmRleDtyZWluZGV4X3YxYgZwcm90bzM");
+  fileDesc("CiJ1aS1oZWFsdGgvdjEvcmVpbmRleC9yZWluZGV4LnByb3RvEht2cm9vbGkudWlfaGVhbHRoLnYxLnJlaW5kZXgiMwoOUmVpbmRleFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDwoHZHJ5X3J1bhgCIAEoCCJkCg9SZWluZGV4UmVzcG9uc2USDgoGam9iX2lkGAEgASgJEhcKD3BsYW5uZWRfdXBzZXJ0cxgCIAEoBRIXCg9wbGFubmVkX2RlbGV0ZXMYAyABKAUSDwoHZHJ5X3J1bhgEIAEoCCImChRSZWluZGV4U3RhdHVzUmVxdWVzdBIOCgZqb2JfaWQYASABKAkivQIKFVJlaW5kZXhTdGF0dXNSZXNwb25zZRIOCgZqb2JfaWQYASABKAkSDQoFc3RhdGUYAiABKAkSEQoJcHJvY2Vzc2VkGAMgASgFEg0KBXRvdGFsGAQgASgFEg0KBWVycm9yGAUgASgJEhAKCHdhcm5pbmdzGAYgAygJEk8KEXNjZW5hcmlvX291dGNvbWVzGAcgAygLMjQudnJvb2xpLnVpX2hlYWx0aC52MS5yZWluZGV4LlNjZW5hcmlvRGlzcGF0Y2hPdXRjb21lEkMKDG9ic2VydmF0aW9ucxgIIAMoCzItLnZyb29saS51aV9oZWFsdGgudjEucmVpbmRleC5Sb3V0ZU9ic2VydmF0aW9uEhcKD29ycGhhbl9zdXJmYWNlcxgJIAMoCRITCgtkZWFkX3JvdXRlcxgKIAMoCSKXAQoQUm91dGVPYnNlcnZhdGlvbhIQCghzY2VuYXJpbxgBIAEoCRINCgVyb3V0ZRgCIAEoCRIRCglsaW5rX3RleHQYAyABKAkSEgoKcGFnZV90aXRsZRgEIAEoCRITCgtvYnNlcnZlZF9hdBgFIAEoCRIRCglyZWFjaGFibGUYBiABKAgSEwoLaHR0cF9zdGF0dXMYByABKAUiZwoXU2NlbmFyaW9EaXNwYXRjaE91dGNvbWUSEAoIc2NlbmFyaW8YASABKAkSFgoOc3VyZmFjZXNfZm91bmQYAiABKAUSDQoFZXJyb3IYAyABKAkSEwoLdGVtcGxhdGVfaWQYBCABKAkiJgoUUmVpbmRleENhbmNlbFJlcXVlc3QSDgoGam9iX2lkGAEgASgJIjoKFVJlaW5kZXhDYW5jZWxSZXNwb25zZRIOCgZqb2JfaWQYASABKAkSEQoJY2FuY2VsbGVkGAIgASgIMuYCCg5SZWluZGV4U2VydmljZRJkCgdSZWluZGV4EisudnJvb2xpLnVpX2hlYWx0aC52MS5yZWluZGV4LlJlaW5kZXhSZXF1ZXN0GiwudnJvb2xpLnVpX2hlYWx0aC52MS5yZWluZGV4LlJlaW5kZXhSZXNwb25zZRJ2Cg1SZWluZGV4U3RhdHVzEjEudnJvb2xpLnVpX2hlYWx0aC52MS5yZWluZGV4LlJlaW5kZXhTdGF0dXNSZXF1ZXN0GjIudnJvb2xpLnVpX2hlYWx0aC52MS5yZWluZGV4LlJlaW5kZXhTdGF0dXNSZXNwb25zZRJ2Cg1SZWluZGV4Q2FuY2VsEjEudnJvb2xpLnVpX2hlYWx0aC52MS5yZWluZGV4LlJlaW5kZXhDYW5jZWxSZXF1ZXN0GjIudnJvb2xpLnVpX2hlYWx0aC52MS5yZWluZGV4LlJlaW5kZXhDYW5jZWxSZXNwb25zZUJQWk5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3VpLWhlYWx0aC92MS9yZWluZGV4O3JlaW5kZXhfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.ui_health.v1.reindex.ReindexRequest
@@ -128,6 +128,21 @@ export type ReindexStatusResponse = Message<"vrooli.ui_health.v1.reindex.Reindex
    * @generated from field: repeated vrooli.ui_health.v1.reindex.ScenarioDispatchOutcome scenario_outcomes = 7;
    */
   scenarioOutcomes: ScenarioDispatchOutcome[];
+
+  /**
+   * @generated from field: repeated vrooli.ui_health.v1.reindex.RouteObservation observations = 8;
+   */
+  observations: RouteObservation[];
+
+  /**
+   * @generated from field: repeated string orphan_surfaces = 9;
+   */
+  orphanSurfaces: string[];
+
+  /**
+   * @generated from field: repeated string dead_routes = 10;
+   */
+  deadRoutes: string[];
 };
 
 /**
@@ -136,6 +151,53 @@ export type ReindexStatusResponse = Message<"vrooli.ui_health.v1.reindex.Reindex
  */
 export const ReindexStatusResponseSchema: GenMessage<ReindexStatusResponse> = /*@__PURE__*/
   messageDesc(file_ui_health_v1_reindex_reindex, 3);
+
+/**
+ * @generated from message vrooli.ui_health.v1.reindex.RouteObservation
+ */
+export type RouteObservation = Message<"vrooli.ui_health.v1.reindex.RouteObservation"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string route = 2;
+   */
+  route: string;
+
+  /**
+   * @generated from field: string link_text = 3;
+   */
+  linkText: string;
+
+  /**
+   * @generated from field: string page_title = 4;
+   */
+  pageTitle: string;
+
+  /**
+   * @generated from field: string observed_at = 5;
+   */
+  observedAt: string;
+
+  /**
+   * @generated from field: bool reachable = 6;
+   */
+  reachable: boolean;
+
+  /**
+   * @generated from field: int32 http_status = 7;
+   */
+  httpStatus: number;
+};
+
+/**
+ * Describes the message vrooli.ui_health.v1.reindex.RouteObservation.
+ * Use `create(RouteObservationSchema)` to create a new message.
+ */
+export const RouteObservationSchema: GenMessage<RouteObservation> = /*@__PURE__*/
+  messageDesc(file_ui_health_v1_reindex_reindex, 4);
 
 /**
  * ScenarioDispatchOutcome reports the result of a single scenario's discovery
@@ -175,7 +237,7 @@ export type ScenarioDispatchOutcome = Message<"vrooli.ui_health.v1.reindex.Scena
  * Use `create(ScenarioDispatchOutcomeSchema)` to create a new message.
  */
 export const ScenarioDispatchOutcomeSchema: GenMessage<ScenarioDispatchOutcome> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_reindex_reindex, 4);
+  messageDesc(file_ui_health_v1_reindex_reindex, 5);
 
 /**
  * @generated from message vrooli.ui_health.v1.reindex.ReindexCancelRequest
@@ -192,7 +254,7 @@ export type ReindexCancelRequest = Message<"vrooli.ui_health.v1.reindex.ReindexC
  * Use `create(ReindexCancelRequestSchema)` to create a new message.
  */
 export const ReindexCancelRequestSchema: GenMessage<ReindexCancelRequest> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_reindex_reindex, 5);
+  messageDesc(file_ui_health_v1_reindex_reindex, 6);
 
 /**
  * @generated from message vrooli.ui_health.v1.reindex.ReindexCancelResponse
@@ -214,7 +276,7 @@ export type ReindexCancelResponse = Message<"vrooli.ui_health.v1.reindex.Reindex
  * Use `create(ReindexCancelResponseSchema)` to create a new message.
  */
 export const ReindexCancelResponseSchema: GenMessage<ReindexCancelResponse> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_reindex_reindex, 6);
+  messageDesc(file_ui_health_v1_reindex_reindex, 7);
 
 /**
  * @generated from service vrooli.ui_health.v1.reindex.ReindexService

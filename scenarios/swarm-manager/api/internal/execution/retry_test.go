@@ -107,6 +107,29 @@ func TestRetry_NewAttemptFromFailed(t *testing.T) {
 	}
 }
 
+func TestRetryPreservesAdaptiveStrategyAndSliceAllowance(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "execute", "adaptive-retry", map[string]any{
+		"name": "adaptive-retry", "title": "Adaptive retry", "description": "same approved campaign",
+		"status": "failed", "execution_strategy": adaptiveImprovementStrategy,
+	})
+	parent := Record{ExecutionID: "adaptive-parent", BacklogKind: "execute", BacklogName: "adaptive-retry", Status: StatusFailed, Mode: ModeManual, ExecutionStrategy: adaptiveImprovementStrategy, MaxSlices: 3}
+	service, _ := followUpTestService(t, root, []Record{parent}, &stubAgentService{})
+	workflow := &stubPhasedPlanWorkflow{}
+	service.SetPhasedPlanWorkflow(workflow)
+	retried, err := service.Retry(t.Context(), RetryRequest{ExecutionID: parent.ExecutionID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if retried.ExecutionStrategy != parent.ExecutionStrategy || retried.MaxSlices != parent.MaxSlices {
+		t.Fatalf("retry changed selected strategy or allowance: parent=%+v retry=%+v", parent, retried)
+	}
+	constraints := workflow.invocation.Input.AsInterface().(map[string]any)["constraints"].(map[string]any)
+	if constraints["executionStrategy"] != adaptiveImprovementStrategy || constraints["maxSlices"] != float64(3) {
+		t.Fatalf("owner received a different execution contract: %+v", constraints)
+	}
+}
+
 func TestRetry_FromCompletedAllowed(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "idea", "retry-completed", map[string]any{

@@ -172,34 +172,146 @@ func (x *ReadinessFact) GetRecoveryAction() string {
 	return ""
 }
 
+// OperationReadiness is the freshness-qualified result for one requested
+// operation. A target may be ready for headless execution while visual
+// validation is unavailable because no GUI session is present.
+type OperationReadiness struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Operation      string                 `protobuf:"bytes,1,opt,name=operation,proto3" json:"operation,omitempty"`
+	Ready          bool                   `protobuf:"varint,2,opt,name=ready,proto3" json:"ready,omitempty"`
+	State          string                 `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"` // ready | missing | not_applicable | unknown
+	ReasonCode     string                 `protobuf:"bytes,4,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	Detail         string                 `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
+	RecoveryAction string                 `protobuf:"bytes,6,opt,name=recovery_action,json=recoveryAction,proto3" json:"recovery_action,omitempty"`
+	ObservedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	FreshUntil     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=fresh_until,json=freshUntil,proto3" json:"fresh_until,omitempty"`
+	Source         string                 `protobuf:"bytes,9,opt,name=source,proto3" json:"source,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *OperationReadiness) Reset() {
+	*x = OperationReadiness{}
+	mi := &file_web_console_v1_shared_target_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OperationReadiness) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OperationReadiness) ProtoMessage() {}
+
+func (x *OperationReadiness) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_shared_target_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OperationReadiness.ProtoReflect.Descriptor instead.
+func (*OperationReadiness) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_shared_target_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *OperationReadiness) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
+func (x *OperationReadiness) GetReady() bool {
+	if x != nil {
+		return x.Ready
+	}
+	return false
+}
+
+func (x *OperationReadiness) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *OperationReadiness) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+func (x *OperationReadiness) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *OperationReadiness) GetRecoveryAction() string {
+	if x != nil {
+		return x.RecoveryAction
+	}
+	return ""
+}
+
+func (x *OperationReadiness) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
+func (x *OperationReadiness) GetFreshUntil() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FreshUntil
+	}
+	return nil
+}
+
+func (x *OperationReadiness) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
 // Target is a safe projection of a local or Bridge-backed session location.
 // It intentionally contains no owner token, re-authentication proof, or
 // device-auth material.
 type Target struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Kind            string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"` // local | bridge-node | ssh | attached
-	Label           string                 `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
-	Os              string                 `protobuf:"bytes,4,opt,name=os,proto3" json:"os,omitempty"`
-	Arch            string                 `protobuf:"bytes,5,opt,name=arch,proto3" json:"arch,omitempty"`
-	NodeId          string                 `protobuf:"bytes,6,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	Revision        string                 `protobuf:"bytes,7,opt,name=revision,proto3" json:"revision,omitempty"`
-	Status          string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
-	Online          bool                   `protobuf:"varint,9,opt,name=online,proto3" json:"online,omitempty"`
-	LastSeenAt      *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_seen_at,json=lastSeenAt,proto3" json:"last_seen_at,omitempty"`
-	Readiness       []*ReadinessFact       `protobuf:"bytes,11,rep,name=readiness,proto3" json:"readiness,omitempty"`
-	Dispatchable    bool                   `protobuf:"varint,12,opt,name=dispatchable,proto3" json:"dispatchable,omitempty"`
-	FailureRung     string                 `protobuf:"bytes,13,opt,name=failure_rung,json=failureRung,proto3" json:"failure_rung,omitempty"`
-	State           TargetState            `protobuf:"varint,14,opt,name=state,proto3,enum=vrooli.web_console.v1.shared.TargetState" json:"state,omitempty"`
-	RecoveryAction  string                 `protobuf:"bytes,15,opt,name=recovery_action,json=recoveryAction,proto3" json:"recovery_action,omitempty"`
-	SurvivesRestart bool                   `protobuf:"varint,16,opt,name=survives_restart,json=survivesRestart,proto3" json:"survives_restart,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Kind               string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"` // local | bridge-node | ssh | attached
+	Label              string                 `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
+	Os                 string                 `protobuf:"bytes,4,opt,name=os,proto3" json:"os,omitempty"`
+	Arch               string                 `protobuf:"bytes,5,opt,name=arch,proto3" json:"arch,omitempty"`
+	NodeId             string                 `protobuf:"bytes,6,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Revision           string                 `protobuf:"bytes,7,opt,name=revision,proto3" json:"revision,omitempty"`
+	Status             string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
+	Online             bool                   `protobuf:"varint,9,opt,name=online,proto3" json:"online,omitempty"`
+	LastSeenAt         *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_seen_at,json=lastSeenAt,proto3" json:"last_seen_at,omitempty"`
+	Readiness          []*ReadinessFact       `protobuf:"bytes,11,rep,name=readiness,proto3" json:"readiness,omitempty"`
+	Dispatchable       bool                   `protobuf:"varint,12,opt,name=dispatchable,proto3" json:"dispatchable,omitempty"`
+	FailureRung        string                 `protobuf:"bytes,13,opt,name=failure_rung,json=failureRung,proto3" json:"failure_rung,omitempty"`
+	State              TargetState            `protobuf:"varint,14,opt,name=state,proto3,enum=vrooli.web_console.v1.shared.TargetState" json:"state,omitempty"`
+	RecoveryAction     string                 `protobuf:"bytes,15,opt,name=recovery_action,json=recoveryAction,proto3" json:"recovery_action,omitempty"`
+	SurvivesRestart    bool                   `protobuf:"varint,16,opt,name=survives_restart,json=survivesRestart,proto3" json:"survives_restart,omitempty"`
+	OperationReadiness []*OperationReadiness  `protobuf:"bytes,17,rep,name=operation_readiness,json=operationReadiness,proto3" json:"operation_readiness,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Target) Reset() {
 	*x = Target{}
-	mi := &file_web_console_v1_shared_target_proto_msgTypes[1]
+	mi := &file_web_console_v1_shared_target_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -211,7 +323,7 @@ func (x *Target) String() string {
 func (*Target) ProtoMessage() {}
 
 func (x *Target) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_shared_target_proto_msgTypes[1]
+	mi := &file_web_console_v1_shared_target_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -224,7 +336,7 @@ func (x *Target) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Target.ProtoReflect.Descriptor instead.
 func (*Target) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_shared_target_proto_rawDescGZIP(), []int{1}
+	return file_web_console_v1_shared_target_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Target) GetId() string {
@@ -339,6 +451,13 @@ func (x *Target) GetSurvivesRestart() bool {
 	return false
 }
 
+func (x *Target) GetOperationReadiness() []*OperationReadiness {
+	if x != nil {
+		return x.OperationReadiness
+	}
+	return nil
+}
+
 var File_web_console_v1_shared_target_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_shared_target_proto_rawDesc = "" +
@@ -351,7 +470,20 @@ const file_web_console_v1_shared_target_proto_rawDesc = "" +
 	"\x06detail\x18\x04 \x01(\tR\x06detail\x12\x14\n" +
 	"\x05state\x18\x05 \x01(\tR\x05state\x12\x18\n" +
 	"\aversion\x18\x06 \x01(\tR\aversion\x12'\n" +
-	"\x0frecovery_action\x18\a \x01(\tR\x0erecoveryAction\"\xb0\x04\n" +
+	"\x0frecovery_action\x18\a \x01(\tR\x0erecoveryAction\"\xd2\x02\n" +
+	"\x12OperationReadiness\x12\x1c\n" +
+	"\toperation\x18\x01 \x01(\tR\toperation\x12\x14\n" +
+	"\x05ready\x18\x02 \x01(\bR\x05ready\x12\x14\n" +
+	"\x05state\x18\x03 \x01(\tR\x05state\x12\x1f\n" +
+	"\vreason_code\x18\x04 \x01(\tR\n" +
+	"reasonCode\x12\x16\n" +
+	"\x06detail\x18\x05 \x01(\tR\x06detail\x12'\n" +
+	"\x0frecovery_action\x18\x06 \x01(\tR\x0erecoveryAction\x12;\n" +
+	"\vobserved_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt\x12;\n" +
+	"\vfresh_until\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"freshUntil\x12\x16\n" +
+	"\x06source\x18\t \x01(\tR\x06source\"\x93\x05\n" +
 	"\x06Target\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n" +
@@ -370,7 +502,8 @@ const file_web_console_v1_shared_target_proto_rawDesc = "" +
 	"\ffailure_rung\x18\r \x01(\tR\vfailureRung\x12?\n" +
 	"\x05state\x18\x0e \x01(\x0e2).vrooli.web_console.v1.shared.TargetStateR\x05state\x12'\n" +
 	"\x0frecovery_action\x18\x0f \x01(\tR\x0erecoveryAction\x12)\n" +
-	"\x10survives_restart\x18\x10 \x01(\bR\x0fsurvivesRestart*\xa1\x01\n" +
+	"\x10survives_restart\x18\x10 \x01(\bR\x0fsurvivesRestart\x12a\n" +
+	"\x13operation_readiness\x18\x11 \x03(\v20.vrooli.web_console.v1.shared.OperationReadinessR\x12operationReadiness*\xa1\x01\n" +
 	"\vTargetState\x12\x1c\n" +
 	"\x18TARGET_STATE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19TARGET_STATE_DISPATCHABLE\x10\x01\x12\x18\n" +
@@ -391,22 +524,26 @@ func file_web_console_v1_shared_target_proto_rawDescGZIP() []byte {
 }
 
 var file_web_console_v1_shared_target_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_web_console_v1_shared_target_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_web_console_v1_shared_target_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_web_console_v1_shared_target_proto_goTypes = []any{
 	(TargetState)(0),              // 0: vrooli.web_console.v1.shared.TargetState
 	(*ReadinessFact)(nil),         // 1: vrooli.web_console.v1.shared.ReadinessFact
-	(*Target)(nil),                // 2: vrooli.web_console.v1.shared.Target
-	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
+	(*OperationReadiness)(nil),    // 2: vrooli.web_console.v1.shared.OperationReadiness
+	(*Target)(nil),                // 3: vrooli.web_console.v1.shared.Target
+	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
 }
 var file_web_console_v1_shared_target_proto_depIdxs = []int32{
-	3, // 0: vrooli.web_console.v1.shared.Target.last_seen_at:type_name -> google.protobuf.Timestamp
-	1, // 1: vrooli.web_console.v1.shared.Target.readiness:type_name -> vrooli.web_console.v1.shared.ReadinessFact
-	0, // 2: vrooli.web_console.v1.shared.Target.state:type_name -> vrooli.web_console.v1.shared.TargetState
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 0: vrooli.web_console.v1.shared.OperationReadiness.observed_at:type_name -> google.protobuf.Timestamp
+	4, // 1: vrooli.web_console.v1.shared.OperationReadiness.fresh_until:type_name -> google.protobuf.Timestamp
+	4, // 2: vrooli.web_console.v1.shared.Target.last_seen_at:type_name -> google.protobuf.Timestamp
+	1, // 3: vrooli.web_console.v1.shared.Target.readiness:type_name -> vrooli.web_console.v1.shared.ReadinessFact
+	0, // 4: vrooli.web_console.v1.shared.Target.state:type_name -> vrooli.web_console.v1.shared.TargetState
+	2, // 5: vrooli.web_console.v1.shared.Target.operation_readiness:type_name -> vrooli.web_console.v1.shared.OperationReadiness
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_shared_target_proto_init() }
@@ -420,7 +557,7 @@ func file_web_console_v1_shared_target_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_shared_target_proto_rawDesc), len(file_web_console_v1_shared_target_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

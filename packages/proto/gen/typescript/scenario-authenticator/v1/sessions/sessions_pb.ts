@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file scenario-authenticator/v1/sessions/sessions.proto.
  */
 export const file_scenario_authenticator_v1_sessions_sessions: GenFile = /*@__PURE__*/
-  fileDesc("CjFzY2VuYXJpby1hdXRoZW50aWNhdG9yL3YxL3Nlc3Npb25zL3Nlc3Npb25zLnByb3RvEil2cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5zZXNzaW9ucyKuAQoHU2Vzc2lvbhIKCgJpZBgBIAEoCRIPCgd1c2VyX2lkGAIgASgJEhIKCmlwX2FkZHJlc3MYAyABKAkSEgoKdXNlcl9hZ2VudBgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIrChNMaXN0U2Vzc2lvbnNSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCSJcChRMaXN0U2Vzc2lvbnNSZXNwb25zZRJECghzZXNzaW9ucxgBIAMoCzIyLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLnNlc3Npb25zLlNlc3Npb24iKgoUUmV2b2tlU2Vzc2lvblJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCSIXChVSZXZva2VTZXNzaW9uUmVzcG9uc2UiMAoYUmV2b2tlQWxsU2Vzc2lvbnNSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCSIyChlSZXZva2VBbGxTZXNzaW9uc1Jlc3BvbnNlEhUKDXJldm9rZWRfY291bnQYASABKAMy2QMKD1Nlc3Npb25zU2VydmljZRKPAQoMTGlzdFNlc3Npb25zEj4udnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuc2Vzc2lvbnMuTGlzdFNlc3Npb25zUmVxdWVzdBo/LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLnNlc3Npb25zLkxpc3RTZXNzaW9uc1Jlc3BvbnNlEpIBCg1SZXZva2VTZXNzaW9uEj8udnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuc2Vzc2lvbnMuUmV2b2tlU2Vzc2lvblJlcXVlc3QaQC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5zZXNzaW9ucy5SZXZva2VTZXNzaW9uUmVzcG9uc2USngEKEVJldm9rZUFsbFNlc3Npb25zEkMudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuc2Vzc2lvbnMuUmV2b2tlQWxsU2Vzc2lvbnNSZXF1ZXN0GkQudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuc2Vzc2lvbnMuUmV2b2tlQWxsU2Vzc2lvbnNSZXNwb25zZUJfWl1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NjZW5hcmlvLWF1dGhlbnRpY2F0b3IvdjEvc2Vzc2lvbnM7c2Vzc2lvbnNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("CjFzY2VuYXJpby1hdXRoZW50aWNhdG9yL3YxL3Nlc3Npb25zL3Nlc3Npb25zLnByb3RvEil2cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5zZXNzaW9ucyKuAQoHU2Vzc2lvbhIKCgJpZBgBIAEoCRIPCgd1c2VyX2lkGAIgASgJEhIKCmlwX2FkZHJlc3MYAyABKAkSEgoKdXNlcl9hZ2VudBgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIrChNMaXN0U2Vzc2lvbnNSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCSJcChRMaXN0U2Vzc2lvbnNSZXNwb25zZRJECghzZXNzaW9ucxgBIAMoCzIyLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLnNlc3Npb25zLlNlc3Npb24iKgoUUmV2b2tlU2Vzc2lvblJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCSIXChVSZXZva2VTZXNzaW9uUmVzcG9uc2UiSgoeUmV2b2tlQXV0aG9yaXplZFNlc3Npb25SZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJIjAKGFJldm9rZUFsbFNlc3Npb25zUmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkiMgoZUmV2b2tlQWxsU2Vzc2lvbnNSZXNwb25zZRIVCg1yZXZva2VkX2NvdW50GAEgASgDMoIFCg9TZXNzaW9uc1NlcnZpY2USjwEKDExpc3RTZXNzaW9ucxI+LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLnNlc3Npb25zLkxpc3RTZXNzaW9uc1JlcXVlc3QaPy52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5zZXNzaW9ucy5MaXN0U2Vzc2lvbnNSZXNwb25zZRKSAQoNUmV2b2tlU2Vzc2lvbhI/LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLnNlc3Npb25zLlJldm9rZVNlc3Npb25SZXF1ZXN0GkAudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuc2Vzc2lvbnMuUmV2b2tlU2Vzc2lvblJlc3BvbnNlEqYBChdSZXZva2VBdXRob3JpemVkU2Vzc2lvbhJJLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLnNlc3Npb25zLlJldm9rZUF1dGhvcml6ZWRTZXNzaW9uUmVxdWVzdBpALnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLnNlc3Npb25zLlJldm9rZVNlc3Npb25SZXNwb25zZRKeAQoRUmV2b2tlQWxsU2Vzc2lvbnMSQy52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5zZXNzaW9ucy5SZXZva2VBbGxTZXNzaW9uc1JlcXVlc3QaRC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5zZXNzaW9ucy5SZXZva2VBbGxTZXNzaW9uc1Jlc3BvbnNlQl9aXWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc2NlbmFyaW8tYXV0aGVudGljYXRvci92MS9zZXNzaW9ucztzZXNzaW9uc192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * Session is the wire shape for a single active session. Never carries the JWT
@@ -128,6 +128,28 @@ export const RevokeSessionResponseSchema: GenMessage<RevokeSessionResponse> = /*
   messageDesc(file_scenario_authenticator_v1_sessions_sessions, 4);
 
 /**
+ * @generated from message vrooli.scenario_authenticator.v1.sessions.RevokeAuthorizedSessionRequest
+ */
+export type RevokeAuthorizedSessionRequest = Message<"vrooli.scenario_authenticator.v1.sessions.RevokeAuthorizedSessionRequest"> & {
+  /**
+   * @generated from field: string access_token = 1;
+   */
+  accessToken: string;
+
+  /**
+   * @generated from field: string session_id = 2;
+   */
+  sessionId: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.sessions.RevokeAuthorizedSessionRequest.
+ * Use `create(RevokeAuthorizedSessionRequestSchema)` to create a new message.
+ */
+export const RevokeAuthorizedSessionRequestSchema: GenMessage<RevokeAuthorizedSessionRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_sessions_sessions, 5);
+
+/**
  * @generated from message vrooli.scenario_authenticator.v1.sessions.RevokeAllSessionsRequest
  */
 export type RevokeAllSessionsRequest = Message<"vrooli.scenario_authenticator.v1.sessions.RevokeAllSessionsRequest"> & {
@@ -144,7 +166,7 @@ export type RevokeAllSessionsRequest = Message<"vrooli.scenario_authenticator.v1
  * Use `create(RevokeAllSessionsRequestSchema)` to create a new message.
  */
 export const RevokeAllSessionsRequestSchema: GenMessage<RevokeAllSessionsRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_sessions_sessions, 5);
+  messageDesc(file_scenario_authenticator_v1_sessions_sessions, 6);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.sessions.RevokeAllSessionsResponse
@@ -163,7 +185,7 @@ export type RevokeAllSessionsResponse = Message<"vrooli.scenario_authenticator.v
  * Use `create(RevokeAllSessionsResponseSchema)` to create a new message.
  */
 export const RevokeAllSessionsResponseSchema: GenMessage<RevokeAllSessionsResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_sessions_sessions, 6);
+  messageDesc(file_scenario_authenticator_v1_sessions_sessions, 7);
 
 /**
  * @generated from service vrooli.scenario_authenticator.v1.sessions.SessionsService
@@ -188,6 +210,19 @@ export const SessionsService: GenService<{
   revokeSession: {
     methodKind: "unary";
     input: typeof RevokeSessionRequestSchema;
+    output: typeof RevokeSessionResponseSchema;
+  },
+  /**
+   * RevokeAuthorizedSession drops a session after verifying that the access
+   * token owns it or carries the realm administrator role. It is the
+   * user-facing administrative operation; RevokeSession remains a narrow
+   * compatibility contract for device un-pairing.
+   *
+   * @generated from rpc vrooli.scenario_authenticator.v1.sessions.SessionsService.RevokeAuthorizedSession
+   */
+  revokeAuthorizedSession: {
+    methodKind: "unary";
+    input: typeof RevokeAuthorizedSessionRequestSchema;
     output: typeof RevokeSessionResponseSchema;
   },
   /**

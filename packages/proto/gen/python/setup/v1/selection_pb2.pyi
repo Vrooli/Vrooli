@@ -1,4 +1,5 @@
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
@@ -6,8 +7,19 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class SelectionFieldPresence(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SELECTION_FIELD_PRESENCE_UNSPECIFIED: _ClassVar[SelectionFieldPresence]
+    SELECTION_FIELD_PRESENCE_SET: _ClassVar[SelectionFieldPresence]
+    SELECTION_FIELD_PRESENCE_CLEAR: _ClassVar[SelectionFieldPresence]
+    SELECTION_FIELD_PRESENCE_RESET: _ClassVar[SelectionFieldPresence]
+SELECTION_FIELD_PRESENCE_UNSPECIFIED: SelectionFieldPresence
+SELECTION_FIELD_PRESENCE_SET: SelectionFieldPresence
+SELECTION_FIELD_PRESENCE_CLEAR: SelectionFieldPresence
+SELECTION_FIELD_PRESENCE_RESET: SelectionFieldPresence
+
 class Selection(_message.Message):
-    __slots__ = ("schema_version", "target", "scenarios", "optional_resources", "core_seed", "trusted_base", "host_tools", "host_safeguards", "credential_addresses", "trust_posture", "update_control", "session_mode", "operating_mode", "apply", "capacity_posture", "transient_headroom_reserve_bytes", "resource_capacity")
+    __slots__ = ("schema_version", "target", "scenarios", "optional_resources", "core_seed", "trusted_base", "host_tools", "host_safeguards", "credential_addresses", "trust_posture", "update_control", "session_mode", "operating_mode", "apply", "capacity_posture", "transient_headroom_reserve_bytes", "resource_capacity", "field_presence")
     class OperatingModeEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -22,6 +34,13 @@ class Selection(_message.Message):
         key: str
         value: ResourceCapacitySelection
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[ResourceCapacitySelection, _Mapping]] = ...) -> None: ...
+    class FieldPresenceEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: SelectionFieldPresence
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[SelectionFieldPresence, str]] = ...) -> None: ...
     SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
     TARGET_FIELD_NUMBER: _ClassVar[int]
     SCENARIOS_FIELD_NUMBER: _ClassVar[int]
@@ -39,6 +58,7 @@ class Selection(_message.Message):
     CAPACITY_POSTURE_FIELD_NUMBER: _ClassVar[int]
     TRANSIENT_HEADROOM_RESERVE_BYTES_FIELD_NUMBER: _ClassVar[int]
     RESOURCE_CAPACITY_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PRESENCE_FIELD_NUMBER: _ClassVar[int]
     schema_version: str
     target: str
     scenarios: _containers.RepeatedScalarFieldContainer[str]
@@ -56,7 +76,8 @@ class Selection(_message.Message):
     capacity_posture: str
     transient_headroom_reserve_bytes: int
     resource_capacity: _containers.MessageMap[str, ResourceCapacitySelection]
-    def __init__(self, schema_version: _Optional[str] = ..., target: _Optional[str] = ..., scenarios: _Optional[_Iterable[str]] = ..., optional_resources: _Optional[_Iterable[str]] = ..., core_seed: _Optional[_Iterable[str]] = ..., trusted_base: _Optional[_Iterable[str]] = ..., host_tools: _Optional[_Iterable[str]] = ..., host_safeguards: _Optional[_Iterable[str]] = ..., credential_addresses: _Optional[_Iterable[str]] = ..., trust_posture: _Optional[str] = ..., update_control: _Optional[str] = ..., session_mode: _Optional[str] = ..., operating_mode: _Optional[_Mapping[str, str]] = ..., apply: _Optional[bool] = ..., capacity_posture: _Optional[str] = ..., transient_headroom_reserve_bytes: _Optional[int] = ..., resource_capacity: _Optional[_Mapping[str, ResourceCapacitySelection]] = ...) -> None: ...
+    field_presence: _containers.ScalarMap[str, SelectionFieldPresence]
+    def __init__(self, schema_version: _Optional[str] = ..., target: _Optional[str] = ..., scenarios: _Optional[_Iterable[str]] = ..., optional_resources: _Optional[_Iterable[str]] = ..., core_seed: _Optional[_Iterable[str]] = ..., trusted_base: _Optional[_Iterable[str]] = ..., host_tools: _Optional[_Iterable[str]] = ..., host_safeguards: _Optional[_Iterable[str]] = ..., credential_addresses: _Optional[_Iterable[str]] = ..., trust_posture: _Optional[str] = ..., update_control: _Optional[str] = ..., session_mode: _Optional[str] = ..., operating_mode: _Optional[_Mapping[str, str]] = ..., apply: _Optional[bool] = ..., capacity_posture: _Optional[str] = ..., transient_headroom_reserve_bytes: _Optional[int] = ..., resource_capacity: _Optional[_Mapping[str, ResourceCapacitySelection]] = ..., field_presence: _Optional[_Mapping[str, SelectionFieldPresence]] = ...) -> None: ...
 
 class ResourceCapacitySelection(_message.Message):
     __slots__ = ("rung", "tunables", "gpu_index", "priority", "yield_when_idle", "idle_grace_seconds")

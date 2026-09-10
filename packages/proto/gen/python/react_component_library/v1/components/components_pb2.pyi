@@ -108,7 +108,7 @@ class VersionAdoptionMetric(_message.Message):
     def __init__(self, version: _Optional[str] = ..., current_count: _Optional[int] = ..., peak_count: _Optional[int] = ...) -> None: ...
 
 class Component(_message.Message):
-    __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version", "slot", "design_styles", "category", "asset_kind", "dependencies", "metrics", "catalog_domain", "catalog_domain_order", "catalog_rung", "catalog_rung_name", "transitive_dependent_count", "catalog_id", "kit_compatibility")
+    __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version", "slot", "design_styles", "category", "asset_kind", "dependencies", "metrics", "catalog_domain", "catalog_domain_order", "catalog_rung", "catalog_rung_name", "transitive_dependent_count", "catalog_id", "kit_compatibility", "catalog_kind")
     class HeadersEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -143,6 +143,7 @@ class Component(_message.Message):
     TRANSITIVE_DEPENDENT_COUNT_FIELD_NUMBER: _ClassVar[int]
     CATALOG_ID_FIELD_NUMBER: _ClassVar[int]
     KIT_COMPATIBILITY_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_KIND_FIELD_NUMBER: _ClassVar[int]
     id: str
     library_id: str
     display_name: str
@@ -170,10 +171,11 @@ class Component(_message.Message):
     transitive_dependent_count: int
     catalog_id: str
     kit_compatibility: ComponentKitCompatibility
-    def __init__(self, id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., version: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., headers: _Optional[_Mapping[str, str]] = ..., slug: _Optional[str] = ..., manifest_path: _Optional[str] = ..., draft_version: _Optional[str] = ..., latest_version: _Optional[str] = ..., slot: _Optional[str] = ..., design_styles: _Optional[_Iterable[_Union[ComponentDesignAffinity, _Mapping]]] = ..., category: _Optional[str] = ..., asset_kind: _Optional[_Union[AssetKind, str]] = ..., dependencies: _Optional[_Iterable[_Union[AssetDependency, _Mapping]]] = ..., metrics: _Optional[_Union[AssetMetrics, _Mapping]] = ..., catalog_domain: _Optional[str] = ..., catalog_domain_order: _Optional[int] = ..., catalog_rung: _Optional[int] = ..., catalog_rung_name: _Optional[str] = ..., transitive_dependent_count: _Optional[int] = ..., catalog_id: _Optional[str] = ..., kit_compatibility: _Optional[_Union[ComponentKitCompatibility, _Mapping]] = ...) -> None: ...
+    catalog_kind: str
+    def __init__(self, id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., version: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., headers: _Optional[_Mapping[str, str]] = ..., slug: _Optional[str] = ..., manifest_path: _Optional[str] = ..., draft_version: _Optional[str] = ..., latest_version: _Optional[str] = ..., slot: _Optional[str] = ..., design_styles: _Optional[_Iterable[_Union[ComponentDesignAffinity, _Mapping]]] = ..., category: _Optional[str] = ..., asset_kind: _Optional[_Union[AssetKind, str]] = ..., dependencies: _Optional[_Iterable[_Union[AssetDependency, _Mapping]]] = ..., metrics: _Optional[_Union[AssetMetrics, _Mapping]] = ..., catalog_domain: _Optional[str] = ..., catalog_domain_order: _Optional[int] = ..., catalog_rung: _Optional[int] = ..., catalog_rung_name: _Optional[str] = ..., transitive_dependent_count: _Optional[int] = ..., catalog_id: _Optional[str] = ..., kit_compatibility: _Optional[_Union[ComponentKitCompatibility, _Mapping]] = ..., catalog_kind: _Optional[str] = ...) -> None: ...
 
 class ListComponentsRequest(_message.Message):
-    __slots__ = ("match", "tag", "limit", "tags", "category", "style_id", "affinity", "asset_kind")
+    __slots__ = ("match", "tag", "limit", "tags", "category", "style_id", "affinity", "asset_kind", "catalog_kinds")
     MATCH_FIELD_NUMBER: _ClassVar[int]
     TAG_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
@@ -182,6 +184,7 @@ class ListComponentsRequest(_message.Message):
     STYLE_ID_FIELD_NUMBER: _ClassVar[int]
     AFFINITY_FIELD_NUMBER: _ClassVar[int]
     ASSET_KIND_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_KINDS_FIELD_NUMBER: _ClassVar[int]
     match: str
     tag: str
     limit: int
@@ -190,7 +193,8 @@ class ListComponentsRequest(_message.Message):
     style_id: str
     affinity: str
     asset_kind: AssetKind
-    def __init__(self, match: _Optional[str] = ..., tag: _Optional[str] = ..., limit: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., category: _Optional[str] = ..., style_id: _Optional[str] = ..., affinity: _Optional[str] = ..., asset_kind: _Optional[_Union[AssetKind, str]] = ...) -> None: ...
+    catalog_kinds: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, match: _Optional[str] = ..., tag: _Optional[str] = ..., limit: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., category: _Optional[str] = ..., style_id: _Optional[str] = ..., affinity: _Optional[str] = ..., asset_kind: _Optional[_Union[AssetKind, str]] = ..., catalog_kinds: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ListComponentsResponse(_message.Message):
     __slots__ = ("components",)
@@ -541,7 +545,7 @@ class PublishComponentVersionResponse(_message.Message):
     def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ..., version: _Optional[_Union[ComponentVersion, _Mapping]] = ..., source_path: _Optional[str] = ..., artifact_paths: _Optional[_Iterable[str]] = ..., preview_path: _Optional[str] = ...) -> None: ...
 
 class UpdateComponentManifestRequest(_message.Message):
-    __slots__ = ("component_id", "display_name", "description", "tags", "latest_version", "draft_version", "deprecated_versions", "catalog_id", "replaced_by", "clear_supplemental_justification", "clear_catalog_id", "dependencies")
+    __slots__ = ("component_id", "display_name", "description", "tags", "latest_version", "draft_version", "deprecated_versions", "catalog_id", "replaced_by", "clear_supplemental_justification", "clear_catalog_id", "dependencies", "retired_major_aliases", "clear_retired_major_aliases", "entry")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -554,6 +558,9 @@ class UpdateComponentManifestRequest(_message.Message):
     CLEAR_SUPPLEMENTAL_JUSTIFICATION_FIELD_NUMBER: _ClassVar[int]
     CLEAR_CATALOG_ID_FIELD_NUMBER: _ClassVar[int]
     DEPENDENCIES_FIELD_NUMBER: _ClassVar[int]
+    RETIRED_MAJOR_ALIASES_FIELD_NUMBER: _ClassVar[int]
+    CLEAR_RETIRED_MAJOR_ALIASES_FIELD_NUMBER: _ClassVar[int]
+    ENTRY_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     display_name: str
     description: str
@@ -566,13 +573,52 @@ class UpdateComponentManifestRequest(_message.Message):
     clear_supplemental_justification: bool
     clear_catalog_id: bool
     dependencies: _containers.RepeatedCompositeFieldContainer[AssetDependency]
-    def __init__(self, component_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., latest_version: _Optional[str] = ..., draft_version: _Optional[str] = ..., deprecated_versions: _Optional[_Iterable[str]] = ..., catalog_id: _Optional[str] = ..., replaced_by: _Optional[_Iterable[str]] = ..., clear_supplemental_justification: _Optional[bool] = ..., clear_catalog_id: _Optional[bool] = ..., dependencies: _Optional[_Iterable[_Union[AssetDependency, _Mapping]]] = ...) -> None: ...
+    retired_major_aliases: _containers.RepeatedScalarFieldContainer[str]
+    clear_retired_major_aliases: bool
+    entry: str
+    def __init__(self, component_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., latest_version: _Optional[str] = ..., draft_version: _Optional[str] = ..., deprecated_versions: _Optional[_Iterable[str]] = ..., catalog_id: _Optional[str] = ..., replaced_by: _Optional[_Iterable[str]] = ..., clear_supplemental_justification: _Optional[bool] = ..., clear_catalog_id: _Optional[bool] = ..., dependencies: _Optional[_Iterable[_Union[AssetDependency, _Mapping]]] = ..., retired_major_aliases: _Optional[_Iterable[str]] = ..., clear_retired_major_aliases: _Optional[bool] = ..., entry: _Optional[str] = ...) -> None: ...
 
 class UpdateComponentManifestResponse(_message.Message):
     __slots__ = ("component",)
     COMPONENT_FIELD_NUMBER: _ClassVar[int]
     component: Component
     def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ...) -> None: ...
+
+class RetireComponentRequest(_message.Message):
+    __slots__ = ("library_id", "apply")
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    library_id: str
+    apply: bool
+    def __init__(self, library_id: _Optional[str] = ..., apply: _Optional[bool] = ...) -> None: ...
+
+class RetireComponentResponse(_message.Message):
+    __slots__ = ("library_id", "component_id", "preflight_completed", "ready", "required_by", "suggested_by", "source_references", "snapshot_path", "source_archive_path", "catalog_archive_path", "retired", "error")
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    PREFLIGHT_COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    READY_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_BY_FIELD_NUMBER: _ClassVar[int]
+    SUGGESTED_BY_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_REFERENCES_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_PATH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_ARCHIVE_PATH_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_ARCHIVE_PATH_FIELD_NUMBER: _ClassVar[int]
+    RETIRED_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    library_id: str
+    component_id: str
+    preflight_completed: bool
+    ready: bool
+    required_by: _containers.RepeatedScalarFieldContainer[str]
+    suggested_by: _containers.RepeatedScalarFieldContainer[str]
+    source_references: _containers.RepeatedScalarFieldContainer[str]
+    snapshot_path: str
+    source_archive_path: str
+    catalog_archive_path: str
+    retired: bool
+    error: str
+    def __init__(self, library_id: _Optional[str] = ..., component_id: _Optional[str] = ..., preflight_completed: _Optional[bool] = ..., ready: _Optional[bool] = ..., required_by: _Optional[_Iterable[str]] = ..., suggested_by: _Optional[_Iterable[str]] = ..., source_references: _Optional[_Iterable[str]] = ..., snapshot_path: _Optional[str] = ..., source_archive_path: _Optional[str] = ..., catalog_archive_path: _Optional[str] = ..., retired: _Optional[bool] = ..., error: _Optional[str] = ...) -> None: ...
 
 class GetComponentContentRequest(_message.Message):
     __slots__ = ("id", "path")

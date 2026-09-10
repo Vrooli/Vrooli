@@ -21,11 +21,22 @@ message GetScenarioStatusRequest {
 message GetScenarioLogsRequest {
   string name = 1;
   int32 tail_lines = 2;
+  string step = 3;
+  bool runtime = 4;
+  bool lifecycle = 5;
+  bool previous = 6;
 }
 
 message StartScenarioRequest {
   string name = 1;
   int32 timeout_seconds = 2;
+  string path = 3;
+  bool best_effort = 4;
+  bool clean_stale = 5;
+  bool force = 6;
+  bool accept_credential_loss = 7;
+  // Caller must retain renewable demand while using this instance.
+  bool demand_managed = 8;
 }
 
 message StopScenarioRequest {
@@ -35,10 +46,18 @@ message StopScenarioRequest {
 message RestartScenarioRequest {
   string name = 1;
   int32 timeout_seconds = 2;
+  string path = 3;
+  bool best_effort = 4;
+  bool clean_stale = 5;
+  bool force = 6;
+  bool accept_credential_loss = 7;
+  // Caller must retain renewable demand while using this instance.
+  bool demand_managed = 8;
 }
 
 message SetupScenarioRequest {
   string name = 1;
+  string path = 2;
 }
 
 service ScenarioControlPlaneService {

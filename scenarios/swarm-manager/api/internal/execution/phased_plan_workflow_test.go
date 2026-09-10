@@ -165,14 +165,18 @@ func TestPhasedPlanEntityVersionIgnoresBacklogLifecycleMetadata(t *testing.T) {
 	}
 }
 
-func setupPhasedPlanExecution(t *testing.T, name string) (*Service, *stubPhasedPlanWorkflow, Record, string) {
+func setupPhasedPlanExecution(t *testing.T, name string, strategies ...string) (*Service, *stubPhasedPlanWorkflow, Record, string) {
 	t.Helper()
 	root := t.TempDir()
-	mustWriteBacklogItem(t, root, "execute", name, map[string]any{
+	payload := map[string]any{
 		"name": name, "title": "Phased plan", "description": "bounded work",
 		"status": "ready", "priority": 2, "tags": []string{},
 		"acceptance_allow": []string{"scenarios/swarm-manager/**"},
-	})
+	}
+	if len(strategies) > 0 {
+		payload["execution_strategy"] = strategies[0]
+	}
+	mustWriteBacklogItem(t, root, "execute", name, payload)
 	workflow := &stubPhasedPlanWorkflow{}
 	service := NewService(ServiceConfig{
 		DataRoot: root, StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
@@ -187,6 +191,21 @@ func setupPhasedPlanExecution(t *testing.T, name string) (*Service, *stubPhasedP
 		t.Fatalf("start: %v", err)
 	}
 	return service, workflow, started, root
+}
+
+func TestQueueBacklogUsesPersistedAdaptiveImprovementStrategy(t *testing.T) {
+	_, workflow, started, _ := setupPhasedPlanExecution(t, "adaptive-plan", adaptiveImprovementStrategy)
+	if started.ExecutionStrategy != adaptiveImprovementStrategy {
+		t.Fatalf("execution strategy = %q, want %q", started.ExecutionStrategy, adaptiveImprovementStrategy)
+	}
+	payload, ok := workflow.invocation.Input.AsInterface().(map[string]any)
+	if !ok {
+		t.Fatalf("workflow input is not an object: %#v", workflow.invocation.Input)
+	}
+	constraints, ok := payload["constraints"].(map[string]any)
+	if !ok || constraints["executionStrategy"] != adaptiveImprovementStrategy {
+		t.Fatalf("workflow input omitted adaptive strategy: %#v", payload)
+	}
 }
 
 func workflowCorrelationFor(t *testing.T, service *Service, record Record) transitionrun.Correlation {

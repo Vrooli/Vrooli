@@ -89,7 +89,7 @@ type Report struct {
 
 // Sweeper owns the freshness-gated ingest loop.
 type Sweeper struct {
-	cfg      Config
+	cfg      SweepConfig
 	ingestor Ingestor
 	digests  DigestStore
 	lister   Lister
@@ -116,7 +116,7 @@ func WithLister(l Lister) Option { return func(s *Sweeper) { s.lister = l } }
 func WithDigester(d Digester) Option { return func(s *Sweeper) { s.digester = d } }
 
 // New constructs a Sweeper with explicit seams.
-func New(cfg Config, ingestor Ingestor, digests DigestStore, opts ...Option) *Sweeper {
+func New(cfg SweepConfig, ingestor Ingestor, digests DigestStore, opts ...Option) *Sweeper {
 	s := &Sweeper{
 		cfg:      cfg,
 		ingestor: ingestor,

@@ -642,14 +642,16 @@ class AssetCheckStage(_message.Message):
     def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., seconds: _Optional[float] = ..., detail: _Optional[str] = ...) -> None: ...
 
 class CheckAssetRequest(_message.Message):
-    __slots__ = ("asset_id", "version", "run_tests")
+    __slots__ = ("asset_id", "version", "run_tests", "profile")
     ASSET_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     RUN_TESTS_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_FIELD_NUMBER: _ClassVar[int]
     asset_id: str
     version: str
     run_tests: bool
-    def __init__(self, asset_id: _Optional[str] = ..., version: _Optional[str] = ..., run_tests: _Optional[bool] = ...) -> None: ...
+    profile: str
+    def __init__(self, asset_id: _Optional[str] = ..., version: _Optional[str] = ..., run_tests: _Optional[bool] = ..., profile: _Optional[str] = ...) -> None: ...
 
 class CheckAssetResponse(_message.Message):
     __slots__ = ("asset_id", "verdict", "stages", "findings", "reused_report_id", "source_revision")

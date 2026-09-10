@@ -43,6 +43,9 @@ const (
 	SourceKind_SOURCE_KIND_QDRANT SourceKind = 5
 	// An object-storage bucket/prefix (S3/MinIO), captured by mirroring objects.
 	SourceKind_SOURCE_KIND_OBJECT_STORAGE SourceKind = 6
+	// Staged workspace with a versioned metadata manifest. Detects observed
+	// source drift; does not assert an atomic snapshot of concurrent writers.
+	SourceKind_SOURCE_KIND_WORKSPACE_CHECKPOINT SourceKind = 7
 )
 
 // Enum value maps for SourceKind.
@@ -55,15 +58,17 @@ var (
 		4: "SOURCE_KIND_REDIS",
 		5: "SOURCE_KIND_QDRANT",
 		6: "SOURCE_KIND_OBJECT_STORAGE",
+		7: "SOURCE_KIND_WORKSPACE_CHECKPOINT",
 	}
 	SourceKind_value = map[string]int32{
-		"SOURCE_KIND_UNSPECIFIED":    0,
-		"SOURCE_KIND_FILESYSTEM":     1,
-		"SOURCE_KIND_SQLITE":         2,
-		"SOURCE_KIND_POSTGRES":       3,
-		"SOURCE_KIND_REDIS":          4,
-		"SOURCE_KIND_QDRANT":         5,
-		"SOURCE_KIND_OBJECT_STORAGE": 6,
+		"SOURCE_KIND_UNSPECIFIED":          0,
+		"SOURCE_KIND_FILESYSTEM":           1,
+		"SOURCE_KIND_SQLITE":               2,
+		"SOURCE_KIND_POSTGRES":             3,
+		"SOURCE_KIND_REDIS":                4,
+		"SOURCE_KIND_QDRANT":               5,
+		"SOURCE_KIND_OBJECT_STORAGE":       6,
+		"SOURCE_KIND_WORKSPACE_CHECKPOINT": 7,
 	}
 )
 
@@ -98,7 +103,7 @@ var File_data_backup_manager_v1_sources_sources_proto protoreflect.FileDescripto
 
 const file_data_backup_manager_v1_sources_sources_proto_rawDesc = "" +
 	"\n" +
-	",data-backup-manager/v1/sources/sources.proto\x12%vrooli.data_backup_manager.v1.sources*\xc6\x01\n" +
+	",data-backup-manager/v1/sources/sources.proto\x12%vrooli.data_backup_manager.v1.sources*\xec\x01\n" +
 	"\n" +
 	"SourceKind\x12\x1b\n" +
 	"\x17SOURCE_KIND_UNSPECIFIED\x10\x00\x12\x1a\n" +
@@ -107,7 +112,8 @@ const file_data_backup_manager_v1_sources_sources_proto_rawDesc = "" +
 	"\x14SOURCE_KIND_POSTGRES\x10\x03\x12\x15\n" +
 	"\x11SOURCE_KIND_REDIS\x10\x04\x12\x16\n" +
 	"\x12SOURCE_KIND_QDRANT\x10\x05\x12\x1e\n" +
-	"\x1aSOURCE_KIND_OBJECT_STORAGE\x10\x06BZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/sources;sources_v1b\x06proto3"
+	"\x1aSOURCE_KIND_OBJECT_STORAGE\x10\x06\x12$\n" +
+	" SOURCE_KIND_WORKSPACE_CHECKPOINT\x10\aBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/sources;sources_v1b\x06proto3"
 
 var (
 	file_data_backup_manager_v1_sources_sources_proto_rawDescOnce sync.Once

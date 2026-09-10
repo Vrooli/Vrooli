@@ -6,7 +6,7 @@ import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2"
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import type { CompatibilityStatus, DeliveryAck, Heartbeat, RelayResponse, RunEvent, SessionFrame } from "../shared/shared_pb";
+import type { ArtifactReceipt, CompatibilityStatus, DeliveryAck, Heartbeat, RelayResponse, RunEvent, ScenarioResponse, SessionFrame } from "../shared/shared_pb";
 import { file_vrooli_bridge_v1_shared_shared } from "../shared/shared_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/channel/channel.proto.
  */
 export const file_vrooli_bridge_v1_channel_channel: GenFile = /*@__PURE__*/
-  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL2NoYW5uZWwvY2hhbm5lbC5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbCLKAQoJSGFuZHNoYWtlEhgKEHByb3RvY29sX3ZlcnNpb24YASABKA0SDwoHbm9kZV9pZBgCIAEoCRIVCg1hZ2VudF92ZXJzaW9uGAMgASgJEgoKAm9zGAQgASgJEgwKBGFyY2gYBSABKAkSFAoMY2FwYWJpbGl0aWVzGAYgAygJEhoKEnN1cHBvcnRzX3dlYnNvY2tldBgHIAEoCBIUCgxtYWNoaW5lX2FyY2gYCCABKAkSEwoLYmluYXJ5X2FyY2gYCSABKAlKBAgKEBAiuAEKDEhhbmRzaGFrZUFjaxIQCghhY2NlcHRlZBgBIAEoCBJKCg1jb21wYXRpYmlsaXR5GAIgASgOMjMudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLkNvbXBhdGliaWxpdHlTdGF0dXMSJgoeY29udHJvbF9wbGFuZV9wcm90b2NvbF92ZXJzaW9uGAMgASgNEhIKCnNlc3Npb25faWQYBCABKAkSDgoGcmVhc29uGAUgASgJIv0BCgdKb2JQdXNoEg4KBnJ1bl9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIMCgR2ZXJiGAMgASgJEgwKBGFyZ3MYBCADKAkSFwoPdGltZW91dF9zZWNvbmRzGAUgASgDEkAKB291dHB1dHMYBiADKAsyLy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkFydGlmYWN0T3V0cHV0ElMKFWNyZWRlbnRpYWxfaW5qZWN0aW9ucxgHIAMoCzI0LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQ3JlZGVudGlhbEluamVjdGlvbkoECAgQECJKChNDcmVkZW50aWFsSW5qZWN0aW9uEhIKCmxvZ2ljYWxfaWQYASABKAkSDQoFZmllbGQYAiABKAkSEAoIZW52X25hbWUYAyABKAkitgIKDkNsZWFudXBDb21tYW5kEkcKCW9wZXJhdGlvbhgBIAEoDjI0LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuUHJpdmlsZWdlZE9wZXJhdGlvbhINCgVvcF9pZBgCIAEoCRISCgptYWNoaW5lX2lkGAMgASgJEg8KB25vZGVfaWQYBCABKAkSDgoGdGFyZ2V0GAUgASgJEg0KBXNjb3BlGAYgASgJEg8KB3BsYW5faWQYByABKAkSEQoJcGxhbl9oYXNoGAggASgJEhkKEXNlYWxlZF9wYXNzcGhyYXNlGAkgASgMEhIKCmNhcGFiaWxpdHkYCiABKAwSGgoSb3BlcmF0b3JfY29uZmlybWVkGAsgASgIEhMKC29wZXJhdG9yX2lkGAwgASgJSgQIDRAgIqABCg5DcmVkZW50aWFsUHVzaBIQCghncmFudF9pZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEhIKCmxvZ2ljYWxfaWQYAyABKAkSDQoFZmllbGQYBCABKAkSEgoKZ2VuZXJhdGlvbhgFIAEoAxIRCglyZXRlbnRpb24YBiABKAkSFAoMc2VhbGVkX3ZhbHVlGAcgASgMEgsKA2FhZBgIIAEoDCI1Cg9DcmVkZW50aWFsUHVyZ2USDwoHbm9kZV9pZBgBIAEoCRIRCglhZGRyZXNzZXMYAiADKAkingEKD0NyZWRlbnRpYWxHcmFudBIQCghncmFudF9pZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEhIKCmxvZ2ljYWxfaWQYAyABKAkSDQoFZmllbGQYBCABKAkSDQoFY2xhc3MYBSABKAkSEQoJcmV0ZW50aW9uGAYgASgJEhIKCmdlbmVyYXRpb24YByABKAMSDwoHcmV2b2tlZBgIIAEoCCKPAQoRQ3JlZGVudGlhbFJlY2VpcHQSEAoIZ3JhbnRfaWQYASABKAkSDwoHbm9kZV9pZBgCIAEoCRISCgpsb2dpY2FsX2lkGAMgASgJEg0KBWZpZWxkGAQgASgJEhIKCmdlbmVyYXRpb24YBSABKAMSEAoIYWNjZXB0ZWQYBiABKAgSDgoGcmVhc29uGAcgASgJItABCg9TY2VuYXJpb1JlcXVlc3QSFgoOY29ycmVsYXRpb25faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDwoHc2VydmljZRgDIAEoCRIOCgZtZXRob2QYBCABKAkSDwoHcmVxdWVzdBgFIAEoDBIXCg90aW1lb3V0X3NlY29uZHMYBiABKAMSGgoSbWF4X3Jlc3BvbnNlX2J5dGVzGAcgASgEEhMKC2h0dHBfbWV0aG9kGAggASgJEhEKCWh0dHBfcGF0aBgJIAEoCUoECAoQECJ3ChBTY2VuYXJpb1Jlc3BvbnNlEhYKDmNvcnJlbGF0aW9uX2lkGAEgASgJEhAKCHJlc3BvbnNlGAIgASgMEg0KBWVycm9yGAMgASgJEhEKCXRpbWVkX291dBgEIAEoCBIRCgl0cnVuY2F0ZWQYBSABKAhKBAgGEBAiWgoOQXJ0aWZhY3RPdXRwdXQSDAoEbmFtZRgBIAEoCRISCgptZWRpYV90eXBlGAIgASgJEhMKC291dHB1dF9mbGFnGAMgASgJEhEKCW1heF9ieXRlcxgEIAEoAyJbChBQcm92aXNpb25Db21tYW5kEg0KBW9wX2lkGAEgASgJEhcKD3RhcmdldF9yZXZpc2lvbhgCIAEoCRIZChFyb2xsYmFja19yZXZpc2lvbhgDIAEoCUoECAQQECI6CgtDb250cm9sUGluZxIrCgdzZW50X2F0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIwCghBYm9ydEpvYhIOCgZydW5faWQYASABKAkSDgoGcmVhc29uGAIgASgJSgQIAxAQIpIBCgxSZWxheVJlcXVlc3QSFgoOY29ycmVsYXRpb25faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDwoHY29tbWFuZBgDIAEoCRIMCgRhcmdzGAQgAygJEhcKD3RpbWVvdXRfc2Vjb25kcxgFIAEoAxIaChJtYXhfcmVzcG9uc2VfYnl0ZXMYBiABKARKBAgHEBAiOwoLUmVsYXlDYW5jZWwSFgoOY29ycmVsYXRpb25faWQYASABKAkSDgoGcmVhc29uGAIgASgJSgQIAxAQIqQHCgtTZXJ2ZXJGcmFtZRIQCghmcmFtZV9pZBgGIAEoCRI8CgNhY2sYASABKAsyLS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkhhbmRzaGFrZUFja0gAEjcKA2pvYhgCIAEoCzIoLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuSm9iUHVzaEgAEkYKCXByb3Zpc2lvbhgDIAEoCzIxLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuUHJvdmlzaW9uQ29tbWFuZEgAEjwKBHBpbmcYBCABKAsyLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkNvbnRyb2xQaW5nSAASOgoFYWJvcnQYBSABKAsyKS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkFib3J0Sm9iSAASPwoHc2Vzc2lvbhgHIAEoCzIsLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5TZXNzaW9uRnJhbWVIABI+CgVyZWxheRgIIAEoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuUmVsYXlSZXF1ZXN0SAASRAoMcmVsYXlfY2FuY2VsGAkgASgLMiwudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5SZWxheUNhbmNlbEgAEkIKB2NsZWFudXAYCiABKAsyLy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkNsZWFudXBDb21tYW5kSAASSgoPY3JlZGVudGlhbF9wdXNoGAsgASgLMi8udnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5DcmVkZW50aWFsUHVzaEgAEkwKEGNyZWRlbnRpYWxfcHVyZ2UYDCABKAsyMC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkNyZWRlbnRpYWxQdXJnZUgAEkwKEGNyZWRlbnRpYWxfZ3JhbnQYDSABKAsyMC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkNyZWRlbnRpYWxHcmFudEgAEkwKEHNjZW5hcmlvX3JlcXVlc3QYDiABKAsyMC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLlNjZW5hcmlvUmVxdWVzdEgAQgkKB3BheWxvYWQiNQoRU2lnbmVkU2VydmVyRnJhbWUSDQoFZnJhbWUYASABKAwSEQoJc2lnbmF0dXJlGAIgASgMIscECglOb2RlRnJhbWUSPwoJaGFuZHNoYWtlGAEgASgLMioudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5IYW5kc2hha2VIABI+CgloZWFydGJlYXQYAiABKAsyKS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuSGVhcnRiZWF0SAASPQoJcnVuX2V2ZW50GAMgASgLMigudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLlJ1bkV2ZW50SAASQwoMZGVsaXZlcnlfYWNrGAQgASgLMisudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLkRlbGl2ZXJ5QWNrSAASPwoHc2Vzc2lvbhgFIAEoCzIsLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5TZXNzaW9uRnJhbWVIABJHCg5yZWxheV9yZXNwb25zZRgGIAEoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5SZWxheVJlc3BvbnNlSAASUAoSY3JlZGVudGlhbF9yZWNlaXB0GAcgASgLMjIudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5DcmVkZW50aWFsUmVjZWlwdEgAEk4KEXNjZW5hcmlvX3Jlc3BvbnNlGAggASgLMjEudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5TY2VuYXJpb1Jlc3BvbnNlSABCCQoHcGF5bG9hZCrJAwoTUHJpdmlsZWdlZE9wZXJhdGlvbhIkCiBQUklWSUxFR0VEX09QRVJBVElPTl9VTlNQRUNJRklFRBAAEiIKHlBSSVZJTEVHRURfT1BFUkFUSU9OX1BST1ZJU0lPThABEi8KK1BSSVZJTEVHRURfT1BFUkFUSU9OX0lOVkVOVE9SWV9JTlNUQUxMQVRJT04QAhInCiNQUklWSUxFR0VEX09QRVJBVElPTl9QTEFOX1VOSU5TVEFMTBADEi4KKlBSSVZJTEVHRURfT1BFUkFUSU9OX1BST1ZJU0lPTl9CUkVBS19HTEFTUxAEEjEKLVBSSVZJTEVHRURfT1BFUkFUSU9OX0lTU1VFX0NMRUFOVVBfQ0FQQUJJTElUWRAFEioKJlBSSVZJTEVHRURfT1BFUkFUSU9OX0FQUExZX0ZST1pFTl9QTEFOEAYSJgoiUFJJVklMRUdFRF9PUEVSQVRJT05fVkVSSUZZX1JFU1VMVBAHEisKJ1BSSVZJTEVHRURfT1BFUkFUSU9OX1JPVEFURV9CUkVBS19HTEFTUxAIEioKJlBSSVZJTEVHRURfT1BFUkFUSU9OX1JFU0VUX0JSRUFLX0dMQVNTEAlCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL2NoYW5uZWw7Y2hhbm5lbF92MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_vrooli_bridge_v1_shared_shared]);
+  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL2NoYW5uZWwvY2hhbm5lbC5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbCLKAQoJSGFuZHNoYWtlEhgKEHByb3RvY29sX3ZlcnNpb24YASABKA0SDwoHbm9kZV9pZBgCIAEoCRIVCg1hZ2VudF92ZXJzaW9uGAMgASgJEgoKAm9zGAQgASgJEgwKBGFyY2gYBSABKAkSFAoMY2FwYWJpbGl0aWVzGAYgAygJEhoKEnN1cHBvcnRzX3dlYnNvY2tldBgHIAEoCBIUCgxtYWNoaW5lX2FyY2gYCCABKAkSEwoLYmluYXJ5X2FyY2gYCSABKAlKBAgKEBAiuAEKDEhhbmRzaGFrZUFjaxIQCghhY2NlcHRlZBgBIAEoCBJKCg1jb21wYXRpYmlsaXR5GAIgASgOMjMudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLkNvbXBhdGliaWxpdHlTdGF0dXMSJgoeY29udHJvbF9wbGFuZV9wcm90b2NvbF92ZXJzaW9uGAMgASgNEhIKCnNlc3Npb25faWQYBCABKAkSDgoGcmVhc29uGAUgASgJIv0BCgdKb2JQdXNoEg4KBnJ1bl9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIMCgR2ZXJiGAMgASgJEgwKBGFyZ3MYBCADKAkSFwoPdGltZW91dF9zZWNvbmRzGAUgASgDEkAKB291dHB1dHMYBiADKAsyLy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkFydGlmYWN0T3V0cHV0ElMKFWNyZWRlbnRpYWxfaW5qZWN0aW9ucxgHIAMoCzI0LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQ3JlZGVudGlhbEluamVjdGlvbkoECAgQECJkChBBcnRpZmFjdERlbGl2ZXJ5EhcKD2Rpc3RyaWJ1dGlvbl9pZBgBIAEoCRIPCgdpdGVtX2lkGAIgASgJEgwKBG5hbWUYAyABKAkSGAoQZGVzdGluYXRpb25fcGF0aBgEIAEoCSJKChNDcmVkZW50aWFsSW5qZWN0aW9uEhIKCmxvZ2ljYWxfaWQYASABKAkSDQoFZmllbGQYAiABKAkSEAoIZW52X25hbWUYAyABKAkitgIKDkNsZWFudXBDb21tYW5kEkcKCW9wZXJhdGlvbhgBIAEoDjI0LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuUHJpdmlsZWdlZE9wZXJhdGlvbhINCgVvcF9pZBgCIAEoCRISCgptYWNoaW5lX2lkGAMgASgJEg8KB25vZGVfaWQYBCABKAkSDgoGdGFyZ2V0GAUgASgJEg0KBXNjb3BlGAYgASgJEg8KB3BsYW5faWQYByABKAkSEQoJcGxhbl9oYXNoGAggASgJEhkKEXNlYWxlZF9wYXNzcGhyYXNlGAkgASgMEhIKCmNhcGFiaWxpdHkYCiABKAwSGgoSb3BlcmF0b3JfY29uZmlybWVkGAsgASgIEhMKC29wZXJhdG9yX2lkGAwgASgJSgQIDRAgIqABCg5DcmVkZW50aWFsUHVzaBIQCghncmFudF9pZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEhIKCmxvZ2ljYWxfaWQYAyABKAkSDQoFZmllbGQYBCABKAkSEgoKZ2VuZXJhdGlvbhgFIAEoAxIRCglyZXRlbnRpb24YBiABKAkSFAoMc2VhbGVkX3ZhbHVlGAcgASgMEgsKA2FhZBgIIAEoDCJbCg9DcmVkZW50aWFsUHVyZ2USDwoHbm9kZV9pZBgBIAEoCRIRCglhZGRyZXNzZXMYAiADKAkSEAoIZ3JhbnRfaWQYAyABKAkSEgoKZ2VuZXJhdGlvbhgEIAEoAyKeAQoPQ3JlZGVudGlhbEdyYW50EhAKCGdyYW50X2lkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSEgoKbG9naWNhbF9pZBgDIAEoCRINCgVmaWVsZBgEIAEoCRINCgVjbGFzcxgFIAEoCRIRCglyZXRlbnRpb24YBiABKAkSEgoKZ2VuZXJhdGlvbhgHIAEoAxIPCgdyZXZva2VkGAggASgIIqIBChFDcmVkZW50aWFsUmVjZWlwdBIQCghncmFudF9pZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEhIKCmxvZ2ljYWxfaWQYAyABKAkSDQoFZmllbGQYBCABKAkSEgoKZ2VuZXJhdGlvbhgFIAEoAxIQCghhY2NlcHRlZBgGIAEoCBIOCgZyZWFzb24YByABKAkSEQoJb3BlcmF0aW9uGAggASgJItABCg9TY2VuYXJpb1JlcXVlc3QSFgoOY29ycmVsYXRpb25faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDwoHc2VydmljZRgDIAEoCRIOCgZtZXRob2QYBCABKAkSDwoHcmVxdWVzdBgFIAEoDBIXCg90aW1lb3V0X3NlY29uZHMYBiABKAMSGgoSbWF4X3Jlc3BvbnNlX2J5dGVzGAcgASgEEhMKC2h0dHBfbWV0aG9kGAggASgJEhEKCWh0dHBfcGF0aBgJIAEoCUoECAoQECJaCg5BcnRpZmFjdE91dHB1dBIMCgRuYW1lGAEgASgJEhIKCm1lZGlhX3R5cGUYAiABKAkSEwoLb3V0cHV0X2ZsYWcYAyABKAkSEQoJbWF4X2J5dGVzGAQgASgDIlsKEFByb3Zpc2lvbkNvbW1hbmQSDQoFb3BfaWQYASABKAkSFwoPdGFyZ2V0X3JldmlzaW9uGAIgASgJEhkKEXJvbGxiYWNrX3JldmlzaW9uGAMgASgJSgQIBBAQIjoKC0NvbnRyb2xQaW5nEisKB3NlbnRfYXQYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjAKCEFib3J0Sm9iEg4KBnJ1bl9pZBgBIAEoCRIOCgZyZWFzb24YAiABKAlKBAgDEBAikgEKDFJlbGF5UmVxdWVzdBIWCg5jb3JyZWxhdGlvbl9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIPCgdjb21tYW5kGAMgASgJEgwKBGFyZ3MYBCADKAkSFwoPdGltZW91dF9zZWNvbmRzGAUgASgDEhoKEm1heF9yZXNwb25zZV9ieXRlcxgGIAEoBEoECAcQECI7CgtSZWxheUNhbmNlbBIWCg5jb3JyZWxhdGlvbl9pZBgBIAEoCRIOCgZyZWFzb24YAiABKAlKBAgDEBAi9AcKC1NlcnZlckZyYW1lEhAKCGZyYW1lX2lkGAYgASgJEjwKA2FjaxgBIAEoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuSGFuZHNoYWtlQWNrSAASNwoDam9iGAIgASgLMigudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5Kb2JQdXNoSAASRgoJcHJvdmlzaW9uGAMgASgLMjEudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5Qcm92aXNpb25Db21tYW5kSAASPAoEcGluZxgEIAEoCzIsLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQ29udHJvbFBpbmdIABI6CgVhYm9ydBgFIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQWJvcnRKb2JIABI/CgdzZXNzaW9uGAcgASgLMiwudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLlNlc3Npb25GcmFtZUgAEj4KBXJlbGF5GAggASgLMi0udnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5SZWxheVJlcXVlc3RIABJECgxyZWxheV9jYW5jZWwYCSABKAsyLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLlJlbGF5Q2FuY2VsSAASQgoHY2xlYW51cBgKIAEoCzIvLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQ2xlYW51cENvbW1hbmRIABJKCg9jcmVkZW50aWFsX3B1c2gYCyABKAsyLy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkNyZWRlbnRpYWxQdXNoSAASTAoQY3JlZGVudGlhbF9wdXJnZRgMIAEoCzIwLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQ3JlZGVudGlhbFB1cmdlSAASTAoQY3JlZGVudGlhbF9ncmFudBgNIAEoCzIwLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQ3JlZGVudGlhbEdyYW50SAASTAoQc2NlbmFyaW9fcmVxdWVzdBgOIAEoCzIwLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuU2NlbmFyaW9SZXF1ZXN0SAASTgoRYXJ0aWZhY3RfZGVsaXZlcnkYDyABKAsyMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkFydGlmYWN0RGVsaXZlcnlIAEIJCgdwYXlsb2FkIjUKEVNpZ25lZFNlcnZlckZyYW1lEg0KBWZyYW1lGAEgASgMEhEKCXNpZ25hdHVyZRgCIAEoDCKTBQoJTm9kZUZyYW1lEj8KCWhhbmRzaGFrZRgBIAEoCzIqLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuSGFuZHNoYWtlSAASPgoJaGVhcnRiZWF0GAIgASgLMikudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLkhlYXJ0YmVhdEgAEj0KCXJ1bl9ldmVudBgDIAEoCzIoLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5SdW5FdmVudEgAEkMKDGRlbGl2ZXJ5X2FjaxgEIAEoCzIrLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5EZWxpdmVyeUFja0gAEj8KB3Nlc3Npb24YBSABKAsyLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuU2Vzc2lvbkZyYW1lSAASRwoOcmVsYXlfcmVzcG9uc2UYBiABKAsyLS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuUmVsYXlSZXNwb25zZUgAElAKEmNyZWRlbnRpYWxfcmVjZWlwdBgHIAEoCzIyLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQ3JlZGVudGlhbFJlY2VpcHRIABJNChFzY2VuYXJpb19yZXNwb25zZRgIIAEoCzIwLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5TY2VuYXJpb1Jlc3BvbnNlSAASSwoQYXJ0aWZhY3RfcmVjZWlwdBgJIAEoCzIvLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5BcnRpZmFjdFJlY2VpcHRIAEIJCgdwYXlsb2FkKskDChNQcml2aWxlZ2VkT3BlcmF0aW9uEiQKIFBSSVZJTEVHRURfT1BFUkFUSU9OX1VOU1BFQ0lGSUVEEAASIgoeUFJJVklMRUdFRF9PUEVSQVRJT05fUFJPVklTSU9OEAESLworUFJJVklMRUdFRF9PUEVSQVRJT05fSU5WRU5UT1JZX0lOU1RBTExBVElPThACEicKI1BSSVZJTEVHRURfT1BFUkFUSU9OX1BMQU5fVU5JTlNUQUxMEAMSLgoqUFJJVklMRUdFRF9PUEVSQVRJT05fUFJPVklTSU9OX0JSRUFLX0dMQVNTEAQSMQotUFJJVklMRUdFRF9PUEVSQVRJT05fSVNTVUVfQ0xFQU5VUF9DQVBBQklMSVRZEAUSKgomUFJJVklMRUdFRF9PUEVSQVRJT05fQVBQTFlfRlJPWkVOX1BMQU4QBhImCiJQUklWSUxFR0VEX09QRVJBVElPTl9WRVJJRllfUkVTVUxUEAcSKwonUFJJVklMRUdFRF9PUEVSQVRJT05fUk9UQVRFX0JSRUFLX0dMQVNTEAgSKgomUFJJVklMRUdFRF9PUEVSQVRJT05fUkVTRVRfQlJFQUtfR0xBU1MQCUJUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvY2hhbm5lbDtjaGFubmVsX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_vrooli_bridge_v1_shared_shared]);
 
 /**
  * Handshake is the first frame a node sends when it opens the channel. It
@@ -229,6 +229,53 @@ export const JobPushSchema: GenMessage<JobPush> = /*@__PURE__*/
   messageDesc(file_vrooli_bridge_v1_channel_channel, 2);
 
 /**
+ * ArtifactDelivery is a signed, node-facing placement instruction. The
+ * device-sync-hub item carries the bytes; the node agent, acting as the target
+ * hub device, downloads that item and atomically places it at destination_path.
+ * This keeps the generic hub contract free of filesystem semantics and keeps
+ * placement on the target node rather than in the control plane.
+ *
+ * @generated from message vrooli.vrooli_bridge.v1.channel.ArtifactDelivery
+ */
+export type ArtifactDelivery = Message<"vrooli.vrooli_bridge.v1.channel.ArtifactDelivery"> & {
+  /**
+   * Bridge's durable distribution id, used to correlate placement evidence.
+   *
+   * @generated from field: string distribution_id = 1;
+   */
+  distributionId: string;
+
+  /**
+   * UUID of the directed file item in device-sync-hub.
+   *
+   * @generated from field: string item_id = 2;
+   */
+  itemId: string;
+
+  /**
+   * Operator-visible filename used for diagnostics and fallback naming.
+   *
+   * @generated from field: string name = 3;
+   */
+  name: string;
+
+  /**
+   * Target-local path. The agent applies its local permission policy when it
+   * creates or replaces this path; it never executes the artifact.
+   *
+   * @generated from field: string destination_path = 4;
+   */
+  destinationPath: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.channel.ArtifactDelivery.
+ * Use `create(ArtifactDeliverySchema)` to create a new message.
+ */
+export const ArtifactDeliverySchema: GenMessage<ArtifactDelivery> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 3);
+
+/**
  * @generated from message vrooli.vrooli_bridge.v1.channel.CredentialInjection
  */
 export type CredentialInjection = Message<"vrooli.vrooli_bridge.v1.channel.CredentialInjection"> & {
@@ -253,7 +300,7 @@ export type CredentialInjection = Message<"vrooli.vrooli_bridge.v1.channel.Crede
  * Use `create(CredentialInjectionSchema)` to create a new message.
  */
 export const CredentialInjectionSchema: GenMessage<CredentialInjection> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 3);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 4);
 
 /**
  * CleanupCommand carries one typed request to the privileged helper.  The
@@ -330,7 +377,7 @@ export type CleanupCommand = Message<"vrooli.vrooli_bridge.v1.channel.CleanupCom
  * Use `create(CleanupCommandSchema)` to create a new message.
  */
 export const CleanupCommandSchema: GenMessage<CleanupCommand> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 4);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 5);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.channel.CredentialPush
@@ -382,7 +429,7 @@ export type CredentialPush = Message<"vrooli.vrooli_bridge.v1.channel.Credential
  * Use `create(CredentialPushSchema)` to create a new message.
  */
 export const CredentialPushSchema: GenMessage<CredentialPush> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 5);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 6);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.channel.CredentialPurge
@@ -397,6 +444,16 @@ export type CredentialPurge = Message<"vrooli.vrooli_bridge.v1.channel.Credentia
    * @generated from field: repeated string addresses = 2;
    */
   addresses: string[];
+
+  /**
+   * @generated from field: string grant_id = 3;
+   */
+  grantId: string;
+
+  /**
+   * @generated from field: int64 generation = 4;
+   */
+  generation: bigint;
 };
 
 /**
@@ -404,7 +461,7 @@ export type CredentialPurge = Message<"vrooli.vrooli_bridge.v1.channel.Credentia
  * Use `create(CredentialPurgeSchema)` to create a new message.
  */
 export const CredentialPurgeSchema: GenMessage<CredentialPurge> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 6);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 7);
 
 /**
  * CredentialGrant carries metadata-only local consent to a node. It never
@@ -460,7 +517,7 @@ export type CredentialGrant = Message<"vrooli.vrooli_bridge.v1.channel.Credentia
  * Use `create(CredentialGrantSchema)` to create a new message.
  */
 export const CredentialGrantSchema: GenMessage<CredentialGrant> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 7);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 8);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.channel.CredentialReceipt
@@ -500,6 +557,11 @@ export type CredentialReceipt = Message<"vrooli.vrooli_bridge.v1.channel.Credent
    * @generated from field: string reason = 7;
    */
   reason: string;
+
+  /**
+   * @generated from field: string operation = 8;
+   */
+  operation: string;
 };
 
 /**
@@ -507,7 +569,7 @@ export type CredentialReceipt = Message<"vrooli.vrooli_bridge.v1.channel.Credent
  * Use `create(CredentialReceiptSchema)` to create a new message.
  */
 export const CredentialReceiptSchema: GenMessage<CredentialReceipt> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 8);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 9);
 
 /**
  * ScenarioRequest is a bounded unary RPC request proxied from the control
@@ -572,45 +634,6 @@ export type ScenarioRequest = Message<"vrooli.vrooli_bridge.v1.channel.ScenarioR
  * Use `create(ScenarioRequestSchema)` to create a new message.
  */
 export const ScenarioRequestSchema: GenMessage<ScenarioRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 9);
-
-/**
- * ScenarioResponse is the bounded unary response to ScenarioRequest.
- *
- * @generated from message vrooli.vrooli_bridge.v1.channel.ScenarioResponse
- */
-export type ScenarioResponse = Message<"vrooli.vrooli_bridge.v1.channel.ScenarioResponse"> & {
-  /**
-   * @generated from field: string correlation_id = 1;
-   */
-  correlationId: string;
-
-  /**
-   * @generated from field: bytes response = 2;
-   */
-  response: Uint8Array;
-
-  /**
-   * @generated from field: string error = 3;
-   */
-  error: string;
-
-  /**
-   * @generated from field: bool timed_out = 4;
-   */
-  timedOut: boolean;
-
-  /**
-   * @generated from field: bool truncated = 5;
-   */
-  truncated: boolean;
-};
-
-/**
- * Describes the message vrooli.vrooli_bridge.v1.channel.ScenarioResponse.
- * Use `create(ScenarioResponseSchema)` to create a new message.
- */
-export const ScenarioResponseSchema: GenMessage<ScenarioResponse> = /*@__PURE__*/
   messageDesc(file_vrooli_bridge_v1_channel_channel, 10);
 
 /**
@@ -926,6 +949,12 @@ export type ServerFrame = Message<"vrooli.vrooli_bridge.v1.channel.ServerFrame">
      */
     value: ScenarioRequest;
     case: "scenarioRequest";
+  } | {
+    /**
+     * @generated from field: vrooli.vrooli_bridge.v1.channel.ArtifactDelivery artifact_delivery = 15;
+     */
+    value: ArtifactDelivery;
+    case: "artifactDelivery";
   } | { case: undefined; value?: undefined };
 };
 
@@ -1034,10 +1063,16 @@ export type NodeFrame = Message<"vrooli.vrooli_bridge.v1.channel.NodeFrame"> & {
     case: "credentialReceipt";
   } | {
     /**
-     * @generated from field: vrooli.vrooli_bridge.v1.channel.ScenarioResponse scenario_response = 8;
+     * @generated from field: vrooli.vrooli_bridge.v1.shared.ScenarioResponse scenario_response = 8;
      */
     value: ScenarioResponse;
     case: "scenarioResponse";
+  } | {
+    /**
+     * @generated from field: vrooli.vrooli_bridge.v1.shared.ArtifactReceipt artifact_receipt = 9;
+     */
+    value: ArtifactReceipt;
+    case: "artifactReceipt";
   } | { case: undefined; value?: undefined };
 };
 

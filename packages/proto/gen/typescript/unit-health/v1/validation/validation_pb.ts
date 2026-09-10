@@ -6,13 +6,15 @@ import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegen
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { MaturityAssessment } from "../../../common/v1/maturity_pb";
 import { file_common_v1_maturity } from "../../../common/v1/maturity_pb";
+import type { RequirementTraceabilityReport, TestQualityReport } from "./test_quality_pb";
+import { file_unit_health_v1_validation_test_quality } from "./test_quality_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file unit-health/v1/validation/validation.proto.
  */
 export const file_unit_health_v1_validation_validation: GenFile = /*@__PURE__*/
-  fileDesc("Cip1bml0LWhlYWx0aC92MS92YWxpZGF0aW9uL3ZhbGlkYXRpb24ucHJvdG8SIHZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uIpMBChdWYWxpZGF0ZVNjZW5hcmlvUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRwYXRoGAIgASgJEhIKCndvcmtzcGFjZXMYAyADKAkSGQoRaW5jbHVkZV9leGVjdXRpb24YBCABKAgSEQoJdXNlX2NhY2hlGAUgASgIEhYKDmZhc3RfdGVzdF9vbmx5GAYgASgIIuEJChhWYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhAKCHNjZW5hcmlvGAQgASgJEhMKC3RhcmdldF9raW5kGAUgASgJEhMKC3RhcmdldF9wYXRoGAYgASgJEhcKD2RlZ3JhZGVkX3JlYXNvbhgHIAEoCRI/CghzdXJmYWNlcxgIIAMoCzItLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlRlc3RTdXJmYWNlEkMKCndvcmtzcGFjZXMYCSADKAsyLy52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5UZXN0V29ya3NwYWNlEj0KBHBsYW4YCiABKAsyLy52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5FeGVjdXRpb25QbGFuEkgKD2NvbW1hbmRfcmVzdWx0cxgLIAMoCzIvLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLkNvbW1hbmRSZXN1bHQSQgoIY292ZXJhZ2UYDCADKAsyMC52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5Db3ZlcmFnZVRhcmdldBJFCghmaW5kaW5ncxgNIAMoCzIzLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlZhbGlkYXRpb25GaW5kaW5nEkEKC2RpYWdub3N0aWNzGA4gAygLMiwudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uRGlhZ25vc3RpYxJDCghtYXR1cml0eRgPIAEoCzIxLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLk1hdHVyaXR5U3VtbWFyeRJCCgZjb3VudHMYECABKAsyMi52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0aW9uQ291bnRzEhIKCm5leHRfc3RlcHMYESADKAkSMQoKYXNzZXNzbWVudBgSIAEoCzIdLmNvbW1vbi52MS5NYXR1cml0eUFzc2Vzc21lbnQSPQoJYXJ0aWZhY3RzGBMgAygLMioudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uQXJ0aWZhY3QSTAoRcHJvamVjdGlvbl9jaGVja3MYFCADKAsyMS52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5Qcm9qZWN0aW9uQ2hlY2sSUAoTc3VwcHJlc3NlZF9maW5kaW5ncxgVIAMoCzIzLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlZhbGlkYXRpb25GaW5kaW5nEhEKCWNhY2hlX2hpdBgWIAEoCBIZChFjYWNoZV9taXNzX3JlYXNvbhgXIAEoCRIkChxjYWNoZV9pbnZhbGlkYXRlZF9kaW1lbnNpb25zGBggAygJEiAKGGNhY2hlX3NhdmVkX3dhbGxfdGltZV9tcxgZIAEoAxIfChdjYWNoZV9zYXZlZF9jcHVfdGltZV9tcxgaIAEoAxIcChRjYWNoZV9yZXRhaW5lZF9ieXRlcxgbIAEoAyLdAQoPUHJvamVjdGlvbkNoZWNrEgoKAmlkGAEgASgJEhQKDHdvcmtzcGFjZV9pZBgCIAEoCRISCgpzdXJmYWNlX2lkGAMgASgJEgsKA2tleRgEIAEoCRINCgVvd25lchgFIAEoCRIRCglmaWxlX3BhdGgYBiABKAkSFAoMcG9saWN5X3ZhbHVlGAcgASgJEhQKDG5hdGl2ZV92YWx1ZRgIIAEoCRIOCgZzdGF0dXMYCSABKAkSEwoLcmVtZWRpYXRpb24YCiABKAkSFAoMZmluZGluZ19jb2RlGAsgASgJIjoKCEFydGlmYWN0Eg0KBWxhYmVsGAEgASgJEgwKBGtpbmQYAiABKAkSEQoJcmVmZXJlbmNlGAMgASgJIpwBCgtUZXN0U3VyZmFjZRIKCgJpZBgBIAEoCRIMCgRraW5kGAIgASgJEhAKCGxhbmd1YWdlGAMgASgJEhEKCWZyYW1ld29yaxgEIAEoCRIRCglyb290X3BhdGgYBSABKAkSFwoPcGFja2FnZV9tYW5hZ2VyGAYgASgJEg4KBnN0YXR1cxgHIAEoCRISCgpjb25maWRlbmNlGAggASgBIv8CCg1UZXN0V29ya3NwYWNlEgoKAmlkGAEgASgJEhAKCGxhbmd1YWdlGAIgASgJEhEKCXJvb3RfcGF0aBgDIAEoCRIRCglmcmFtZXdvcmsYBCABKAkSGwoTY2Fub25pY2FsX2ZyYW1ld29yaxgFIAEoCRIUCgx0ZXN0X2NvbW1hbmQYBiABKAkSGAoQY292ZXJhZ2VfY29tbWFuZBgHIAEoCRIXCg9wYWNrYWdlX21hbmFnZXIYCCABKAkSDgoGc3RhdHVzGAkgASgJEhcKD2RlZ3JhZGVkX3JlYXNvbhgKIAEoCRIWCg5ydW5uZXJfcHJvZmlsZRgLIAEoCRJDCglyZXNvdXJjZXMYDCABKAsyMC52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5SZXNvdXJjZUxpbWl0cxISCgphZGFwdGVyX2lkGA0gASgJEhcKD2FkYXB0ZXJfdmVyc2lvbhgOIAEoCRIRCgl0ZXN0X2tpbmQYDyABKAkiYgoNRXhlY3V0aW9uUGxhbhJCCghjb21tYW5kcxgBIAMoCzIwLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlBsYW5uZWRDb21tYW5kEg0KBW5vdGVzGAIgASgJIroECg5QbGFubmVkQ29tbWFuZBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIPCgdjb21tYW5kGAMgASgJEhkKEXdvcmtpbmdfZGlyZWN0b3J5GAQgASgJEhcKD3RpbWVvdXRfc2Vjb25kcxgFIAEoBRISCgpleGVjdXRhYmxlGAYgASgJEgwKBGFyZ3MYByADKAkSVgoLZW52aXJvbm1lbnQYCCADKAsyQS52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5QbGFubmVkQ29tbWFuZC5FbnZpcm9ubWVudEVudHJ5EkQKCWFydGlmYWN0cxgJIAMoCzIxLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLkNvbW1hbmRBcnRpZmFjdBJDCglyZXNvdXJjZXMYCiABKAsyMC52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5SZXNvdXJjZUxpbWl0cxIMCgRraW5kGAsgASgJEiEKGW5vX291dHB1dF90aW1lb3V0X3NlY29uZHMYDCABKAUSEQoJdGVzdF9raW5kGA0gASgJEkIKCGhlcm1ldGljGA4gASgLMjAudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uSGVybWV0aWNQb2xpY3kaMgoQRW52aXJvbm1lbnRFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIjwKD0NvbW1hbmRBcnRpZmFjdBINCgVsYWJlbBgBIAEoCRIMCgRraW5kGAIgASgJEgwKBHBhdGgYAyABKAkiTwoOUmVzb3VyY2VMaW1pdHMSEgoKY3B1X3dlaWdodBgBIAEoBRIUCgxtZW1vcnlfYnl0ZXMYAiABKAMSEwoLbWF4X3dvcmtlcnMYAyABKAUivgEKDkhlcm1ldGljUG9saWN5Eg8KB25ldHdvcmsYASABKAkSEgoKZmlsZXN5c3RlbRgCIAEoCRIWCg50ZW1wb3Jhcnlfcm9vdBgDIAEoCBIbChNyZXN0b3JlX2Vudmlyb25tZW50GAQgASgIEhoKEmRldGVjdF9jaGlsZF9sZWFrcxgFIAEoCBIbChNkZXRlY3Rfb3Blbl9oYW5kbGVzGAYgASgIEhkKEW9yZGVyX2luZGVwZW5kZW50GAcgASgIIqYCCg1Db21tYW5kUmVzdWx0EgwKBG5hbWUYASABKAkSDwoHY29tbWFuZBgCIAEoCRIZChF3b3JraW5nX2RpcmVjdG9yeRgDIAEoCRIOCgZzdGF0dXMYBCABKAkSEQoJZXhpdF9jb2RlGAUgASgFEhYKDnN0ZG91dF9leGNlcnB0GAYgASgJEhYKDnN0ZGVycl9leGNlcnB0GAcgASgJEhcKD3RpbWVvdXRfc2Vjb25kcxgIIAEoBRIWCg5mYWlsdXJlX3JlYXNvbhgJIAEoCRIVCg1mYWlsdXJlX2NsYXNzGAogASgJEhMKC2R1cmF0aW9uX21zGAsgASgDEhMKC2NwdV90aW1lX21zGAwgASgDEhYKDnBlYWtfcnNzX2J5dGVzGA0gASgDIr4BCg5Db3ZlcmFnZVRhcmdldBIKCgJpZBgBIAEoCRIQCghsYW5ndWFnZRgCIAEoCRISCgpzdXJmYWNlX2lkGAMgASgJEhEKCWZpbGVfcGF0aBgEIAEoCRIVCg1jb3ZlcmVkX2xpbmVzGAUgASgDEhMKC3RvdGFsX2xpbmVzGAYgASgDEhgKEGNvdmVyYWdlX3BlcmNlbnQYByABKAESEQoJdGhyZXNob2xkGAggASgBEg4KBnN0YXR1cxgJIAEoCSL1AgoRVmFsaWRhdGlvbkZpbmRpbmcSCgoCaWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSEgoKc3VyZmFjZV9pZBgDIAEoCRIUCgx3b3Jrc3BhY2VfaWQYBCABKAkSEAoIbGFuZ3VhZ2UYBSABKAkSEQoJZnJhbWV3b3JrGAYgASgJEgwKBGNvZGUYByABKAkSEAoIY2F0ZWdvcnkYCCABKAkSEAoIc2V2ZXJpdHkYCSABKAkSEQoJZmlsZV9wYXRoGAogASgJEg4KBnN5bWJvbBgLIAEoCRIPCgdtZXNzYWdlGAwgASgJEhAKCGV2aWRlbmNlGA0gASgJEhAKCGV4cGVjdGVkGA4gASgJEhAKCG9ic2VydmVkGA8gASgJEhYKDndoeV9pdF9tYXR0ZXJzGBAgASgJEhMKC3JlbWVkaWF0aW9uGBEgASgJEhYKDnNvdXJjZV9jb21tYW5kGBIgASgJEhIKCmNyZWF0ZWRfYXQYEyABKAkiZQoKRGlhZ25vc3RpYxIMCgRraW5kGAEgASgJEhQKDHdvcmtzcGFjZV9pZBgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEhAKCGV2aWRlbmNlGAQgASgJEhAKCHNldmVyaXR5GAUgASgJIkEKD01hdHVyaXR5U3VtbWFyeRIMCgRydW5nGAEgASgFEg0KBWxhYmVsGAIgASgJEhEKCXJhdGlvbmFsZRgDIAEoCSKgAQoQVmFsaWRhdGlvbkNvdW50cxIOCgZlcnJvcnMYASABKAUSEAoId2FybmluZ3MYAiABKAUSDQoFaW5mb3MYAyABKAUSEAoIc3VyZmFjZXMYBCABKAUSEgoKd29ya3NwYWNlcxgFIAEoBRIYChBjb3ZlcmFnZV90YXJnZXRzGAYgASgFEhsKE3N1cHByZXNzZWRfZmluZGluZ3MYByABKAUynwEKEVZhbGlkYXRpb25TZXJ2aWNlEokBChBWYWxpZGF0ZVNjZW5hcmlvEjkudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uVmFsaWRhdGVTY2VuYXJpb1JlcXVlc3QaOi52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2VCWFpWZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby91bml0LWhlYWx0aC92MS92YWxpZGF0aW9uO3ZhbGlkYXRpb25fdjFiBnByb3RvMw", [file_common_v1_maturity]);
+  fileDesc("Cip1bml0LWhlYWx0aC92MS92YWxpZGF0aW9uL3ZhbGlkYXRpb24ucHJvdG8SIHZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uIvUBChdWYWxpZGF0ZVNjZW5hcmlvUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRwYXRoGAIgASgJEhIKCndvcmtzcGFjZXMYAyADKAkSGQoRaW5jbHVkZV9leGVjdXRpb24YBCABKAgSEQoJdXNlX2NhY2hlGAUgASgIEhYKDmZhc3RfdGVzdF9vbmx5GAYgASgIEhoKEnJldmlld2VkX2NvaG9ydF9pZBgHIAEoCRIgChhyZXZpZXdlZF9zb3VyY2VfaWRlbnRpdHkYCCABKAkSIgoacmV2aWV3ZWRfb2JzZXJ2YXRpb25fY291bnQYCSABKA0izgsKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIOCgZydW5faWQYASABKAkSDgoGc3RhdHVzGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSEAoIc2NlbmFyaW8YBCABKAkSEwoLdGFyZ2V0X2tpbmQYBSABKAkSEwoLdGFyZ2V0X3BhdGgYBiABKAkSFwoPZGVncmFkZWRfcmVhc29uGAcgASgJEj8KCHN1cmZhY2VzGAggAygLMi0udnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uVGVzdFN1cmZhY2USQwoKd29ya3NwYWNlcxgJIAMoCzIvLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlRlc3RXb3Jrc3BhY2USPQoEcGxhbhgKIAEoCzIvLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLkV4ZWN1dGlvblBsYW4SSAoPY29tbWFuZF9yZXN1bHRzGAsgAygLMi8udnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uQ29tbWFuZFJlc3VsdBJCCghjb3ZlcmFnZRgMIAMoCzIwLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLkNvdmVyYWdlVGFyZ2V0EkUKCGZpbmRpbmdzGA0gAygLMjMudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uVmFsaWRhdGlvbkZpbmRpbmcSQQoLZGlhZ25vc3RpY3MYDiADKAsyLC52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5EaWFnbm9zdGljEkMKCG1hdHVyaXR5GA8gASgLMjEudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uTWF0dXJpdHlTdW1tYXJ5EkIKBmNvdW50cxgQIAEoCzIyLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlZhbGlkYXRpb25Db3VudHMSEgoKbmV4dF9zdGVwcxgRIAMoCRIxCgphc3Nlc3NtZW50GBIgASgLMh0uY29tbW9uLnYxLk1hdHVyaXR5QXNzZXNzbWVudBI9CglhcnRpZmFjdHMYEyADKAsyKi52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5BcnRpZmFjdBJMChFwcm9qZWN0aW9uX2NoZWNrcxgUIAMoCzIxLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlByb2plY3Rpb25DaGVjaxJQChNzdXBwcmVzc2VkX2ZpbmRpbmdzGBUgAygLMjMudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uVmFsaWRhdGlvbkZpbmRpbmcSEQoJY2FjaGVfaGl0GBYgASgIEhkKEWNhY2hlX21pc3NfcmVhc29uGBcgASgJEiQKHGNhY2hlX2ludmFsaWRhdGVkX2RpbWVuc2lvbnMYGCADKAkSIAoYY2FjaGVfc2F2ZWRfd2FsbF90aW1lX21zGBkgASgDEh8KF2NhY2hlX3NhdmVkX2NwdV90aW1lX21zGBogASgDEhwKFGNhY2hlX3JldGFpbmVkX2J5dGVzGBsgASgDEkkKDHRlc3RfcXVhbGl0eRgcIAEoCzIzLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlRlc3RRdWFsaXR5UmVwb3J0ElUKDHRyYWNlYWJpbGl0eRgdIAEoCzI/LnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlJlcXVpcmVtZW50VHJhY2VhYmlsaXR5UmVwb3J0EkkKD2V2aWRlbmNlX3N0YWdlcxgeIAEoCzIwLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLkV2aWRlbmNlU3RhZ2VzImcKFVJ1bkNhbGlicmF0aW9uUmVxdWVzdBIRCglwYXJ0aXRpb24YASABKAkSEgoKaG9sZG91dF9pZBgCIAEoCRIWCg5pbmNsdWRlX25hdGl2ZRgDIAEoCBIPCgdydWxlX2lkGAQgASgJIlYKC0ZhbWlseUNvdW50Eg4KBmZhbWlseRgBIAEoCRIRCglzcGVjaWZpZWQYAiABKA0SEwoLaW1wbGVtZW50ZWQYAyABKA0SDwoHcmV0aXJlZBgEIAEoDSLKAQoPQ29ycHVzSW52ZW50b3J5EhEKCXNwZWNpZmllZBgBIAEoDRITCgtpbXBsZW1lbnRlZBgCIAEoDRIPCgdyZXRpcmVkGAMgASgNEj8KCGZhbWlsaWVzGAQgAygLMi0udnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uRmFtaWx5Q291bnQSIgoac3BlY19jb2Rlc193aXRob3V0X2VtaXR0ZXIYBSABKA0SGQoRZGV2ZWxvcG1lbnRfZmxvb3IYBiABKAkiYAoLQ2FzZU91dGNvbWUSCgoCaWQYASABKAkSDwoHcnVsZV9pZBgCIAEoCRIPCgdtYXRjaGVkGAMgASgIEhMKC2RpZmZlcmVuY2VzGAQgAygJEg4KBnN0YXR1cxgFIAEoCSKDAgoRSG9sZG91dENvbXBhcmlzb24SDwoHcnVsZV9pZBgBIAEoCRISCgpob2xkb3V0X2lkGAIgASgJEhAKCGxhYmVsbGVkGAMgASgNEhAKCG9ic2VydmVkGAQgASgNEhcKD2ZhbHNlX3Bvc2l0aXZlcxgFIAEoDRIXCg9mYWxzZV9uZWdhdGl2ZXMYBiABKA0SDwoHdW5rbm93bhgHIAEoDRIPCgdmcF9yYXRlGAggASgBEg8KB2ZuX3JhdGUYCSABKAESDgoGYnVkZ2V0GAogASgBEhUKDXdpdGhpbl9idWRnZXQYCyABKAgSGQoRcHJvbW90aW9uX2FsbG93ZWQYDCABKAgilwIKFlJ1bkNhbGlicmF0aW9uUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEhEKCXBhcnRpdGlvbhgCIAEoCRJBCgZjb3JwdXMYAyABKAsyMS52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5Db3JwdXNJbnZlbnRvcnkSPAoFY2FzZXMYBCADKAsyLS52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5DYXNlT3V0Y29tZRJECgdob2xkb3V0GAUgAygLMjMudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uSG9sZG91dENvbXBhcmlzb24SEwoLbGltaXRhdGlvbnMYBiADKAkibAoTUmVhZFRlc3RCb2R5UmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIRCgl3b3Jrc3BhY2UYAiABKAkSDAoEZmlsZRgDIAEoCRIPCgd0ZXN0X2lkGAQgASgJEhEKCW1heF9ieXRlcxgFIAEoDSKUAQoUUmVhZFRlc3RCb2R5UmVzcG9uc2USFQoNdGVzdF9pZGVudGl0eRgBIAEoCRIUCgxib2R5X2V4Y2VycHQYAiABKAkSEgoKYm9keV9ieXRlcxgDIAEoDRISCgpyZWRhY3Rpb25zGAQgASgNEg8KB3JlZnVzZWQYBSABKAgSFgoOcmVmdXNhbF9yZWFzb24YBiABKAkihQEKF1J1bk11dGF0aW9uUGlsb3RSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEhEKCXdvcmtzcGFjZRgCIAEoCRIPCgdwYWNrYWdlGAMgASgJEhEKCW9wZXJhdG9ycxgEIAMoCRITCgttYXhfbXV0YW50cxgFIAEoDRIMCgRzZWVkGAYgASgJIoMBCg1NdXRhbnRSZWNlaXB0EgoKAmlkGAEgASgJEhAKCG9wZXJhdG9yGAIgASgJEgwKBGZpbGUYAyABKAkSDAoEbGluZRgEIAEoDRITCgtkaXNwb3NpdGlvbhgFIAEoCRIOCgZkZXRhaWwYBiABKAkSEwoLb3duaW5nX3Rlc3QYByABKAkiyAEKD011dGF0aW9uU3VtbWFyeRIRCglnZW5lcmF0ZWQYASABKA0SDgoGa2lsbGVkGAIgASgNEhAKCHN1cnZpdmVkGAMgASgNEg8KB2ludmFsaWQYBCABKA0SEgoKZXF1aXZhbGVudBgFIAEoDRIXCg9vdXRfb2ZfY29udHJhY3QYBiABKA0SHgoWaW5mcmFzdHJ1Y3R1cmVfZmFpbHVyZRgHIAEoDRIPCgd1bmtub3duGAggASgNEhEKCWtpbGxfcmF0ZRgJIAEoASLeAQoYUnVuTXV0YXRpb25QaWxvdFJlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCRIWCg53b3Jrc3BhY2VfcGF0aBgCIAEoCRJBCghyZWNlaXB0cxgDIAMoCzIvLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLk11dGFudFJlY2VpcHQSQgoHc3VtbWFyeRgEIAEoCzIxLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLk11dGF0aW9uU3VtbWFyeRITCgtsaW1pdGF0aW9ucxgFIAMoCSJxCg5FdmlkZW5jZVN0YWdlcxISCgpjb25maWd1cmVkGAEgASgJEhAKCGFuYWx5emVkGAIgASgJEhAKCGV4ZWN1dGVkGAMgASgJEhAKCHJldmlld2VkGAQgASgJEhUKDXNvdXJjZV9ydW5faWQYBSABKAki3QEKD1Byb2plY3Rpb25DaGVjaxIKCgJpZBgBIAEoCRIUCgx3b3Jrc3BhY2VfaWQYAiABKAkSEgoKc3VyZmFjZV9pZBgDIAEoCRILCgNrZXkYBCABKAkSDQoFb3duZXIYBSABKAkSEQoJZmlsZV9wYXRoGAYgASgJEhQKDHBvbGljeV92YWx1ZRgHIAEoCRIUCgxuYXRpdmVfdmFsdWUYCCABKAkSDgoGc3RhdHVzGAkgASgJEhMKC3JlbWVkaWF0aW9uGAogASgJEhQKDGZpbmRpbmdfY29kZRgLIAEoCSI6CghBcnRpZmFjdBINCgVsYWJlbBgBIAEoCRIMCgRraW5kGAIgASgJEhEKCXJlZmVyZW5jZRgDIAEoCSKcAQoLVGVzdFN1cmZhY2USCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIQCghsYW5ndWFnZRgDIAEoCRIRCglmcmFtZXdvcmsYBCABKAkSEQoJcm9vdF9wYXRoGAUgASgJEhcKD3BhY2thZ2VfbWFuYWdlchgGIAEoCRIOCgZzdGF0dXMYByABKAkSEgoKY29uZmlkZW5jZRgIIAEoASL/AgoNVGVzdFdvcmtzcGFjZRIKCgJpZBgBIAEoCRIQCghsYW5ndWFnZRgCIAEoCRIRCglyb290X3BhdGgYAyABKAkSEQoJZnJhbWV3b3JrGAQgASgJEhsKE2Nhbm9uaWNhbF9mcmFtZXdvcmsYBSABKAkSFAoMdGVzdF9jb21tYW5kGAYgASgJEhgKEGNvdmVyYWdlX2NvbW1hbmQYByABKAkSFwoPcGFja2FnZV9tYW5hZ2VyGAggASgJEg4KBnN0YXR1cxgJIAEoCRIXCg9kZWdyYWRlZF9yZWFzb24YCiABKAkSFgoOcnVubmVyX3Byb2ZpbGUYCyABKAkSQwoJcmVzb3VyY2VzGAwgASgLMjAudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uUmVzb3VyY2VMaW1pdHMSEgoKYWRhcHRlcl9pZBgNIAEoCRIXCg9hZGFwdGVyX3ZlcnNpb24YDiABKAkSEQoJdGVzdF9raW5kGA8gASgJImIKDUV4ZWN1dGlvblBsYW4SQgoIY29tbWFuZHMYASADKAsyMC52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5QbGFubmVkQ29tbWFuZBINCgVub3RlcxgCIAEoCSK6BAoOUGxhbm5lZENvbW1hbmQSFAoMd29ya3NwYWNlX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSDwoHY29tbWFuZBgDIAEoCRIZChF3b3JraW5nX2RpcmVjdG9yeRgEIAEoCRIXCg90aW1lb3V0X3NlY29uZHMYBSABKAUSEgoKZXhlY3V0YWJsZRgGIAEoCRIMCgRhcmdzGAcgAygJElYKC2Vudmlyb25tZW50GAggAygLMkEudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uUGxhbm5lZENvbW1hbmQuRW52aXJvbm1lbnRFbnRyeRJECglhcnRpZmFjdHMYCSADKAsyMS52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5Db21tYW5kQXJ0aWZhY3QSQwoJcmVzb3VyY2VzGAogASgLMjAudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uUmVzb3VyY2VMaW1pdHMSDAoEa2luZBgLIAEoCRIhChlub19vdXRwdXRfdGltZW91dF9zZWNvbmRzGAwgASgFEhEKCXRlc3Rfa2luZBgNIAEoCRJCCghoZXJtZXRpYxgOIAEoCzIwLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLkhlcm1ldGljUG9saWN5GjIKEEVudmlyb25tZW50RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASI8Cg9Db21tYW5kQXJ0aWZhY3QSDQoFbGFiZWwYASABKAkSDAoEa2luZBgCIAEoCRIMCgRwYXRoGAMgASgJIk8KDlJlc291cmNlTGltaXRzEhIKCmNwdV93ZWlnaHQYASABKAUSFAoMbWVtb3J5X2J5dGVzGAIgASgDEhMKC21heF93b3JrZXJzGAMgASgFIr4BCg5IZXJtZXRpY1BvbGljeRIPCgduZXR3b3JrGAEgASgJEhIKCmZpbGVzeXN0ZW0YAiABKAkSFgoOdGVtcG9yYXJ5X3Jvb3QYAyABKAgSGwoTcmVzdG9yZV9lbnZpcm9ubWVudBgEIAEoCBIaChJkZXRlY3RfY2hpbGRfbGVha3MYBSABKAgSGwoTZGV0ZWN0X29wZW5faGFuZGxlcxgGIAEoCBIZChFvcmRlcl9pbmRlcGVuZGVudBgHIAEoCCKmAgoNQ29tbWFuZFJlc3VsdBIMCgRuYW1lGAEgASgJEg8KB2NvbW1hbmQYAiABKAkSGQoRd29ya2luZ19kaXJlY3RvcnkYAyABKAkSDgoGc3RhdHVzGAQgASgJEhEKCWV4aXRfY29kZRgFIAEoBRIWCg5zdGRvdXRfZXhjZXJwdBgGIAEoCRIWCg5zdGRlcnJfZXhjZXJwdBgHIAEoCRIXCg90aW1lb3V0X3NlY29uZHMYCCABKAUSFgoOZmFpbHVyZV9yZWFzb24YCSABKAkSFQoNZmFpbHVyZV9jbGFzcxgKIAEoCRITCgtkdXJhdGlvbl9tcxgLIAEoAxITCgtjcHVfdGltZV9tcxgMIAEoAxIWCg5wZWFrX3Jzc19ieXRlcxgNIAEoAyK+AQoOQ292ZXJhZ2VUYXJnZXQSCgoCaWQYASABKAkSEAoIbGFuZ3VhZ2UYAiABKAkSEgoKc3VyZmFjZV9pZBgDIAEoCRIRCglmaWxlX3BhdGgYBCABKAkSFQoNY292ZXJlZF9saW5lcxgFIAEoAxITCgt0b3RhbF9saW5lcxgGIAEoAxIYChBjb3ZlcmFnZV9wZXJjZW50GAcgASgBEhEKCXRocmVzaG9sZBgIIAEoARIOCgZzdGF0dXMYCSABKAkixwMKEVZhbGlkYXRpb25GaW5kaW5nEgoKAmlkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEhIKCnN1cmZhY2VfaWQYAyABKAkSFAoMd29ya3NwYWNlX2lkGAQgASgJEhAKCGxhbmd1YWdlGAUgASgJEhEKCWZyYW1ld29yaxgGIAEoCRIMCgRjb2RlGAcgASgJEhAKCGNhdGVnb3J5GAggASgJEhAKCHNldmVyaXR5GAkgASgJEhEKCWZpbGVfcGF0aBgKIAEoCRIOCgZzeW1ib2wYCyABKAkSDwoHbWVzc2FnZRgMIAEoCRIQCghldmlkZW5jZRgNIAEoCRIQCghleHBlY3RlZBgOIAEoCRIQCghvYnNlcnZlZBgPIAEoCRIWCg53aHlfaXRfbWF0dGVycxgQIAEoCRITCgtyZW1lZGlhdGlvbhgRIAEoCRIWCg5zb3VyY2VfY29tbWFuZBgSIAEoCRISCgpjcmVhdGVkX2F0GBMgASgJElAKE3N1cHByZXNzaW9uX3JlYXNvbnMYFCADKAsyMy52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5TdXBwcmVzc2lvblJlYXNvbiJpChFTdXBwcmVzc2lvblJlYXNvbhIOCgZyZWFzb24YASABKAkSDQoFb3duZXIYAiABKAkSEAoIZXZpZGVuY2UYAyABKAkSEgoKZXhwaXJlc19hdBgEIAEoCRIPCgdyZXZpc2l0GAUgASgJIrQBCgpEaWFnbm9zdGljEgwKBGtpbmQYASABKAkSFAoMd29ya3NwYWNlX2lkGAIgASgJEg8KB21lc3NhZ2UYAyABKAkSEAoIZXZpZGVuY2UYBCABKAkSEAoIc2V2ZXJpdHkYBSABKAkSTQoLcmVsaWFiaWxpdHkYBiABKAsyOC52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5SZWxpYWJpbGl0eU9ic2VydmF0aW9uIo0CChZSZWxpYWJpbGl0eU9ic2VydmF0aW9uEg0KBXN0YXRlGAEgASgJEg0KBXNjb3BlGAIgASgJEhUKDWNvaG9ydF9kaWdlc3QYAyABKAkSFAoMc2FtcGxlX2NvdW50GAQgASgFEg4KBnBhc3NlZBgFIAEoBRIOCgZmYWlsZWQYBiABKAUSHwoXZXhjbHVkZWRfaW5mcmFzdHJ1Y3R1cmUYByABKAUSHQoVZXhjbHVkZWRfaW5jb21wYXRpYmxlGAggASgFEhEKBHNlZWQYCSABKAlIAIgBARIaCg1yZXRyeV9vcmRpbmFsGAogASgFSAGIAQFCBwoFX3NlZWRCEAoOX3JldHJ5X29yZGluYWwiQQoPTWF0dXJpdHlTdW1tYXJ5EgwKBHJ1bmcYASABKAUSDQoFbGFiZWwYAiABKAkSEQoJcmF0aW9uYWxlGAMgASgJIqABChBWYWxpZGF0aW9uQ291bnRzEg4KBmVycm9ycxgBIAEoBRIQCgh3YXJuaW5ncxgCIAEoBRINCgVpbmZvcxgDIAEoBRIQCghzdXJmYWNlcxgEIAEoBRISCgp3b3Jrc3BhY2VzGAUgASgFEhgKEGNvdmVyYWdlX3RhcmdldHMYBiABKAUSGwoTc3VwcHJlc3NlZF9maW5kaW5ncxgHIAEoBTKwBAoRVmFsaWRhdGlvblNlcnZpY2USiQEKEFZhbGlkYXRlU2NlbmFyaW8SOS52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVxdWVzdBo6LnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRKDAQoOUnVuQ2FsaWJyYXRpb24SNy52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5SdW5DYWxpYnJhdGlvblJlcXVlc3QaOC52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5SdW5DYWxpYnJhdGlvblJlc3BvbnNlEn0KDFJlYWRUZXN0Qm9keRI1LnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlJlYWRUZXN0Qm9keVJlcXVlc3QaNi52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5SZWFkVGVzdEJvZHlSZXNwb25zZRKJAQoQUnVuTXV0YXRpb25QaWxvdBI5LnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlJ1bk11dGF0aW9uUGlsb3RSZXF1ZXN0GjoudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uUnVuTXV0YXRpb25QaWxvdFJlc3BvbnNlQlhaVmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdW5pdC1oZWFsdGgvdjEvdmFsaWRhdGlvbjt2YWxpZGF0aW9uX3YxYgZwcm90bzM", [file_common_v1_maturity, file_unit_health_v1_validation_test_quality]);
 
 /**
  * ValidateScenarioRequest identifies the target to validate.
@@ -65,6 +67,25 @@ export type ValidateScenarioRequest = Message<"vrooli.unit_health.v1.validation.
    * @generated from field: bool fast_test_only = 6;
    */
   fastTestOnly: boolean;
+
+  /**
+   * Optional sampled-review cohort attached to this validation run. Review
+   * evidence is supplied only when the cohort has a source identity and at
+   * least one observed label.
+   *
+   * @generated from field: string reviewed_cohort_id = 7;
+   */
+  reviewedCohortId: string;
+
+  /**
+   * @generated from field: string reviewed_source_identity = 8;
+   */
+  reviewedSourceIdentity: string;
+
+  /**
+   * @generated from field: uint32 reviewed_observation_count = 9;
+   */
+  reviewedObservationCount: number;
 };
 
 /**
@@ -232,6 +253,23 @@ export type ValidateScenarioResponse = Message<"vrooli.unit_health.v1.validation
    * @generated from field: int64 cache_retained_bytes = 27;
    */
   cacheRetainedBytes: bigint;
+
+  /**
+   * Optional scoped test-quality analysis. Absent historical data is unknown.
+   *
+   * @generated from field: vrooli.unit_health.v1.validation.TestQualityReport test_quality = 28;
+   */
+  testQuality?: TestQualityReport | undefined;
+
+  /**
+   * @generated from field: vrooli.unit_health.v1.validation.RequirementTraceabilityReport traceability = 29;
+   */
+  traceability?: RequirementTraceabilityReport | undefined;
+
+  /**
+   * @generated from field: vrooli.unit_health.v1.validation.EvidenceStages evidence_stages = 30;
+   */
+  evidenceStages?: EvidenceStages | undefined;
 };
 
 /**
@@ -240,6 +278,589 @@ export type ValidateScenarioResponse = Message<"vrooli.unit_health.v1.validation
  */
 export const ValidateScenarioResponseSchema: GenMessage<ValidateScenarioResponse> = /*@__PURE__*/
   messageDesc(file_unit_health_v1_validation_validation, 1);
+
+/**
+ * RunCalibrationRequest selects a governed calibration read.
+ *
+ * @generated from message vrooli.unit_health.v1.validation.RunCalibrationRequest
+ */
+export type RunCalibrationRequest = Message<"vrooli.unit_health.v1.validation.RunCalibrationRequest"> & {
+  /**
+   * Corpus partition: development, reviewed-holdout, or inventory.
+   *
+   * @generated from field: string partition = 1;
+   */
+  partition: string;
+
+  /**
+   * Reviewed holdout identity. Required for the reviewed-holdout partition.
+   *
+   * @generated from field: string holdout_id = 2;
+   */
+  holdoutId: string;
+
+  /**
+   * Include native-profile observations when the selected corpus supports them.
+   *
+   * @generated from field: bool include_native = 3;
+   */
+  includeNative: boolean;
+
+  /**
+   * Restrict holdout comparison to one catalog rule.
+   *
+   * @generated from field: string rule_id = 4;
+   */
+  ruleId: string;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.RunCalibrationRequest.
+ * Use `create(RunCalibrationRequestSchema)` to create a new message.
+ */
+export const RunCalibrationRequestSchema: GenMessage<RunCalibrationRequest> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 2);
+
+/**
+ * FamilyCount is the bounded case count for one calibration family.
+ *
+ * @generated from message vrooli.unit_health.v1.validation.FamilyCount
+ */
+export type FamilyCount = Message<"vrooli.unit_health.v1.validation.FamilyCount"> & {
+  /**
+   * @generated from field: string family = 1;
+   */
+  family: string;
+
+  /**
+   * @generated from field: uint32 specified = 2;
+   */
+  specified: number;
+
+  /**
+   * @generated from field: uint32 implemented = 3;
+   */
+  implemented: number;
+
+  /**
+   * @generated from field: uint32 retired = 4;
+   */
+  retired: number;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.FamilyCount.
+ * Use `create(FamilyCountSchema)` to create a new message.
+ */
+export const FamilyCountSchema: GenMessage<FamilyCount> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 3);
+
+/**
+ * CorpusInventory describes the authored calibration surface.
+ *
+ * @generated from message vrooli.unit_health.v1.validation.CorpusInventory
+ */
+export type CorpusInventory = Message<"vrooli.unit_health.v1.validation.CorpusInventory"> & {
+  /**
+   * @generated from field: uint32 specified = 1;
+   */
+  specified: number;
+
+  /**
+   * @generated from field: uint32 implemented = 2;
+   */
+  implemented: number;
+
+  /**
+   * @generated from field: uint32 retired = 3;
+   */
+  retired: number;
+
+  /**
+   * @generated from field: repeated vrooli.unit_health.v1.validation.FamilyCount families = 4;
+   */
+  families: FamilyCount[];
+
+  /**
+   * @generated from field: uint32 spec_codes_without_emitter = 5;
+   */
+  specCodesWithoutEmitter: number;
+
+  /**
+   * @generated from field: string development_floor = 6;
+   */
+  developmentFloor: string;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.CorpusInventory.
+ * Use `create(CorpusInventorySchema)` to create a new message.
+ */
+export const CorpusInventorySchema: GenMessage<CorpusInventory> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 4);
+
+/**
+ * CaseOutcome is the bounded result for one calibration case.
+ *
+ * @generated from message vrooli.unit_health.v1.validation.CaseOutcome
+ */
+export type CaseOutcome = Message<"vrooli.unit_health.v1.validation.CaseOutcome"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string rule_id = 2;
+   */
+  ruleId: string;
+
+  /**
+   * @generated from field: bool matched = 3;
+   */
+  matched: boolean;
+
+  /**
+   * @generated from field: repeated string differences = 4;
+   */
+  differences: string[];
+
+  /**
+   * @generated from field: string status = 5;
+   */
+  status: string;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.CaseOutcome.
+ * Use `create(CaseOutcomeSchema)` to create a new message.
+ */
+export const CaseOutcomeSchema: GenMessage<CaseOutcome> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 5);
+
+/**
+ * HoldoutComparison contains independent-label agreement metrics.
+ *
+ * @generated from message vrooli.unit_health.v1.validation.HoldoutComparison
+ */
+export type HoldoutComparison = Message<"vrooli.unit_health.v1.validation.HoldoutComparison"> & {
+  /**
+   * @generated from field: string rule_id = 1;
+   */
+  ruleId: string;
+
+  /**
+   * @generated from field: string holdout_id = 2;
+   */
+  holdoutId: string;
+
+  /**
+   * @generated from field: uint32 labelled = 3;
+   */
+  labelled: number;
+
+  /**
+   * @generated from field: uint32 observed = 4;
+   */
+  observed: number;
+
+  /**
+   * @generated from field: uint32 false_positives = 5;
+   */
+  falsePositives: number;
+
+  /**
+   * @generated from field: uint32 false_negatives = 6;
+   */
+  falseNegatives: number;
+
+  /**
+   * @generated from field: uint32 unknown = 7;
+   */
+  unknown: number;
+
+  /**
+   * @generated from field: double fp_rate = 8;
+   */
+  fpRate: number;
+
+  /**
+   * @generated from field: double fn_rate = 9;
+   */
+  fnRate: number;
+
+  /**
+   * @generated from field: double budget = 10;
+   */
+  budget: number;
+
+  /**
+   * @generated from field: bool within_budget = 11;
+   */
+  withinBudget: boolean;
+
+  /**
+   * @generated from field: bool promotion_allowed = 12;
+   */
+  promotionAllowed: boolean;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.HoldoutComparison.
+ * Use `create(HoldoutComparisonSchema)` to create a new message.
+ */
+export const HoldoutComparisonSchema: GenMessage<HoldoutComparison> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 6);
+
+/**
+ * RunCalibrationResponse is a governed, non-promoting calibration report.
+ *
+ * @generated from message vrooli.unit_health.v1.validation.RunCalibrationResponse
+ */
+export type RunCalibrationResponse = Message<"vrooli.unit_health.v1.validation.RunCalibrationResponse"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string partition = 2;
+   */
+  partition: string;
+
+  /**
+   * @generated from field: vrooli.unit_health.v1.validation.CorpusInventory corpus = 3;
+   */
+  corpus?: CorpusInventory | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.unit_health.v1.validation.CaseOutcome cases = 4;
+   */
+  cases: CaseOutcome[];
+
+  /**
+   * @generated from field: repeated vrooli.unit_health.v1.validation.HoldoutComparison holdout = 5;
+   */
+  holdout: HoldoutComparison[];
+
+  /**
+   * @generated from field: repeated string limitations = 6;
+   */
+  limitations: string[];
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.RunCalibrationResponse.
+ * Use `create(RunCalibrationResponseSchema)` to create a new message.
+ */
+export const RunCalibrationResponseSchema: GenMessage<RunCalibrationResponse> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 7);
+
+/**
+ * ReadTestBodyRequest identifies one test body within a discovered workspace.
+ *
+ * @generated from message vrooli.unit_health.v1.validation.ReadTestBodyRequest
+ */
+export type ReadTestBodyRequest = Message<"vrooli.unit_health.v1.validation.ReadTestBodyRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string workspace = 2;
+   */
+  workspace: string;
+
+  /**
+   * @generated from field: string file = 3;
+   */
+  file: string;
+
+  /**
+   * @generated from field: string test_id = 4;
+   */
+  testId: string;
+
+  /**
+   * @generated from field: uint32 max_bytes = 5;
+   */
+  maxBytes: number;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.ReadTestBodyRequest.
+ * Use `create(ReadTestBodyRequestSchema)` to create a new message.
+ */
+export const ReadTestBodyRequestSchema: GenMessage<ReadTestBodyRequest> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 8);
+
+/**
+ * ReadTestBodyResponse is a bounded source excerpt. The full file never leaves
+ * the owner boundary and privacy-pattern files are refused.
+ *
+ * @generated from message vrooli.unit_health.v1.validation.ReadTestBodyResponse
+ */
+export type ReadTestBodyResponse = Message<"vrooli.unit_health.v1.validation.ReadTestBodyResponse"> & {
+  /**
+   * @generated from field: string test_identity = 1;
+   */
+  testIdentity: string;
+
+  /**
+   * @generated from field: string body_excerpt = 2;
+   */
+  bodyExcerpt: string;
+
+  /**
+   * @generated from field: uint32 body_bytes = 3;
+   */
+  bodyBytes: number;
+
+  /**
+   * @generated from field: uint32 redactions = 4;
+   */
+  redactions: number;
+
+  /**
+   * @generated from field: bool refused = 5;
+   */
+  refused: boolean;
+
+  /**
+   * @generated from field: string refusal_reason = 6;
+   */
+  refusalReason: string;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.ReadTestBodyResponse.
+ * Use `create(ReadTestBodyResponseSchema)` to create a new message.
+ */
+export const ReadTestBodyResponseSchema: GenMessage<ReadTestBodyResponse> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 9);
+
+/**
+ * @generated from message vrooli.unit_health.v1.validation.RunMutationPilotRequest
+ */
+export type RunMutationPilotRequest = Message<"vrooli.unit_health.v1.validation.RunMutationPilotRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string workspace = 2;
+   */
+  workspace: string;
+
+  /**
+   * @generated from field: string package = 3;
+   */
+  package: string;
+
+  /**
+   * @generated from field: repeated string operators = 4;
+   */
+  operators: string[];
+
+  /**
+   * @generated from field: uint32 max_mutants = 5;
+   */
+  maxMutants: number;
+
+  /**
+   * @generated from field: string seed = 6;
+   */
+  seed: string;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.RunMutationPilotRequest.
+ * Use `create(RunMutationPilotRequestSchema)` to create a new message.
+ */
+export const RunMutationPilotRequestSchema: GenMessage<RunMutationPilotRequest> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 10);
+
+/**
+ * @generated from message vrooli.unit_health.v1.validation.MutantReceipt
+ */
+export type MutantReceipt = Message<"vrooli.unit_health.v1.validation.MutantReceipt"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string operator = 2;
+   */
+  operator: string;
+
+  /**
+   * @generated from field: string file = 3;
+   */
+  file: string;
+
+  /**
+   * @generated from field: uint32 line = 4;
+   */
+  line: number;
+
+  /**
+   * @generated from field: string disposition = 5;
+   */
+  disposition: string;
+
+  /**
+   * @generated from field: string detail = 6;
+   */
+  detail: string;
+
+  /**
+   * @generated from field: string owning_test = 7;
+   */
+  owningTest: string;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.MutantReceipt.
+ * Use `create(MutantReceiptSchema)` to create a new message.
+ */
+export const MutantReceiptSchema: GenMessage<MutantReceipt> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 11);
+
+/**
+ * @generated from message vrooli.unit_health.v1.validation.MutationSummary
+ */
+export type MutationSummary = Message<"vrooli.unit_health.v1.validation.MutationSummary"> & {
+  /**
+   * @generated from field: uint32 generated = 1;
+   */
+  generated: number;
+
+  /**
+   * @generated from field: uint32 killed = 2;
+   */
+  killed: number;
+
+  /**
+   * @generated from field: uint32 survived = 3;
+   */
+  survived: number;
+
+  /**
+   * @generated from field: uint32 invalid = 4;
+   */
+  invalid: number;
+
+  /**
+   * @generated from field: uint32 equivalent = 5;
+   */
+  equivalent: number;
+
+  /**
+   * @generated from field: uint32 out_of_contract = 6;
+   */
+  outOfContract: number;
+
+  /**
+   * @generated from field: uint32 infrastructure_failure = 7;
+   */
+  infrastructureFailure: number;
+
+  /**
+   * @generated from field: uint32 unknown = 8;
+   */
+  unknown: number;
+
+  /**
+   * @generated from field: double kill_rate = 9;
+   */
+  killRate: number;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.MutationSummary.
+ * Use `create(MutationSummarySchema)` to create a new message.
+ */
+export const MutationSummarySchema: GenMessage<MutationSummary> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 12);
+
+/**
+ * @generated from message vrooli.unit_health.v1.validation.RunMutationPilotResponse
+ */
+export type RunMutationPilotResponse = Message<"vrooli.unit_health.v1.validation.RunMutationPilotResponse"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string workspace_path = 2;
+   */
+  workspacePath: string;
+
+  /**
+   * @generated from field: repeated vrooli.unit_health.v1.validation.MutantReceipt receipts = 3;
+   */
+  receipts: MutantReceipt[];
+
+  /**
+   * @generated from field: vrooli.unit_health.v1.validation.MutationSummary summary = 4;
+   */
+  summary?: MutationSummary | undefined;
+
+  /**
+   * @generated from field: repeated string limitations = 5;
+   */
+  limitations: string[];
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.RunMutationPilotResponse.
+ * Use `create(RunMutationPilotResponseSchema)` to create a new message.
+ */
+export const RunMutationPilotResponseSchema: GenMessage<RunMutationPilotResponse> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 13);
+
+/**
+ * Missing historical stages are unknown, not executed or reviewed evidence.
+ *
+ * @generated from message vrooli.unit_health.v1.validation.EvidenceStages
+ */
+export type EvidenceStages = Message<"vrooli.unit_health.v1.validation.EvidenceStages"> & {
+  /**
+   * @generated from field: string configured = 1;
+   */
+  configured: string;
+
+  /**
+   * @generated from field: string analyzed = 2;
+   */
+  analyzed: string;
+
+  /**
+   * @generated from field: string executed = 3;
+   */
+  executed: string;
+
+  /**
+   * @generated from field: string reviewed = 4;
+   */
+  reviewed: string;
+
+  /**
+   * @generated from field: string source_run_id = 5;
+   */
+  sourceRunId: string;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.EvidenceStages.
+ * Use `create(EvidenceStagesSchema)` to create a new message.
+ */
+export const EvidenceStagesSchema: GenMessage<EvidenceStages> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 14);
 
 /**
  * ProjectionCheck is one policy-vs-native comparison for unit-test
@@ -329,7 +950,7 @@ export type ProjectionCheck = Message<"vrooli.unit_health.v1.validation.Projecti
  * Use `create(ProjectionCheckSchema)` to create a new message.
  */
 export const ProjectionCheckSchema: GenMessage<ProjectionCheck> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 2);
+  messageDesc(file_unit_health_v1_validation_validation, 15);
 
 /**
  * Artifact is a labeled, typed reference into a validation run's outputs.
@@ -365,7 +986,7 @@ export type Artifact = Message<"vrooli.unit_health.v1.validation.Artifact"> & {
  * Use `create(ArtifactSchema)` to create a new message.
  */
 export const ArtifactSchema: GenMessage<Artifact> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 3);
+  messageDesc(file_unit_health_v1_validation_validation, 16);
 
 /**
  * TestSurface is a discovered scenario surface (api/cli/ui/worker/...) as
@@ -420,7 +1041,7 @@ export type TestSurface = Message<"vrooli.unit_health.v1.validation.TestSurface"
  * Use `create(TestSurfaceSchema)` to create a new message.
  */
 export const TestSurfaceSchema: GenMessage<TestSurface> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 4);
+  messageDesc(file_unit_health_v1_validation_validation, 17);
 
 /**
  * TestWorkspace is a testable unit (Go module, TypeScript/Vite UI, Python
@@ -510,7 +1131,7 @@ export type TestWorkspace = Message<"vrooli.unit_health.v1.validation.TestWorksp
  * Use `create(TestWorkspaceSchema)` to create a new message.
  */
 export const TestWorkspaceSchema: GenMessage<TestWorkspace> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 5);
+  messageDesc(file_unit_health_v1_validation_validation, 18);
 
 /**
  * ExecutionPlan is the bounded set of commands Unit Health would run.
@@ -534,7 +1155,7 @@ export type ExecutionPlan = Message<"vrooli.unit_health.v1.validation.ExecutionP
  * Use `create(ExecutionPlanSchema)` to create a new message.
  */
 export const ExecutionPlanSchema: GenMessage<ExecutionPlan> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 6);
+  messageDesc(file_unit_health_v1_validation_validation, 19);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.PlannedCommand
@@ -621,7 +1242,7 @@ export type PlannedCommand = Message<"vrooli.unit_health.v1.validation.PlannedCo
  * Use `create(PlannedCommandSchema)` to create a new message.
  */
 export const PlannedCommandSchema: GenMessage<PlannedCommand> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 7);
+  messageDesc(file_unit_health_v1_validation_validation, 20);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.CommandArtifact
@@ -648,7 +1269,7 @@ export type CommandArtifact = Message<"vrooli.unit_health.v1.validation.CommandA
  * Use `create(CommandArtifactSchema)` to create a new message.
  */
 export const CommandArtifactSchema: GenMessage<CommandArtifact> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 8);
+  messageDesc(file_unit_health_v1_validation_validation, 21);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.ResourceLimits
@@ -675,7 +1296,7 @@ export type ResourceLimits = Message<"vrooli.unit_health.v1.validation.ResourceL
  * Use `create(ResourceLimitsSchema)` to create a new message.
  */
 export const ResourceLimitsSchema: GenMessage<ResourceLimits> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 9);
+  messageDesc(file_unit_health_v1_validation_validation, 22);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.HermeticPolicy
@@ -722,7 +1343,7 @@ export type HermeticPolicy = Message<"vrooli.unit_health.v1.validation.HermeticP
  * Use `create(HermeticPolicySchema)` to create a new message.
  */
 export const HermeticPolicySchema: GenMessage<HermeticPolicy> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 10);
+  messageDesc(file_unit_health_v1_validation_validation, 23);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.CommandResult
@@ -802,7 +1423,7 @@ export type CommandResult = Message<"vrooli.unit_health.v1.validation.CommandRes
  * Use `create(CommandResultSchema)` to create a new message.
  */
 export const CommandResultSchema: GenMessage<CommandResult> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 11);
+  messageDesc(file_unit_health_v1_validation_validation, 24);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.CoverageTarget
@@ -859,7 +1480,7 @@ export type CoverageTarget = Message<"vrooli.unit_health.v1.validation.CoverageT
  * Use `create(CoverageTargetSchema)` to create a new message.
  */
 export const CoverageTargetSchema: GenMessage<CoverageTarget> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 12);
+  messageDesc(file_unit_health_v1_validation_validation, 25);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.ValidationFinding
@@ -961,6 +1582,13 @@ export type ValidationFinding = Message<"vrooli.unit_health.v1.validation.Valida
    * @generated from field: string created_at = 19;
    */
   createdAt: string;
+
+  /**
+   * Validated exceptions, separate from the original finding evidence.
+   *
+   * @generated from field: repeated vrooli.unit_health.v1.validation.SuppressionReason suppression_reasons = 20;
+   */
+  suppressionReasons: SuppressionReason[];
 };
 
 /**
@@ -968,7 +1596,44 @@ export type ValidationFinding = Message<"vrooli.unit_health.v1.validation.Valida
  * Use `create(ValidationFindingSchema)` to create a new message.
  */
 export const ValidationFindingSchema: GenMessage<ValidationFinding> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 13);
+  messageDesc(file_unit_health_v1_validation_validation, 26);
+
+/**
+ * @generated from message vrooli.unit_health.v1.validation.SuppressionReason
+ */
+export type SuppressionReason = Message<"vrooli.unit_health.v1.validation.SuppressionReason"> & {
+  /**
+   * @generated from field: string reason = 1;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string owner = 2;
+   */
+  owner: string;
+
+  /**
+   * @generated from field: string evidence = 3;
+   */
+  evidence: string;
+
+  /**
+   * @generated from field: string expires_at = 4;
+   */
+  expiresAt: string;
+
+  /**
+   * @generated from field: string revisit = 5;
+   */
+  revisit: string;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.SuppressionReason.
+ * Use `create(SuppressionReasonSchema)` to create a new message.
+ */
+export const SuppressionReasonSchema: GenMessage<SuppressionReason> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 27);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.Diagnostic
@@ -1000,6 +1665,11 @@ export type Diagnostic = Message<"vrooli.unit_health.v1.validation.Diagnostic"> 
    * @generated from field: string severity = 5;
    */
   severity: string;
+
+  /**
+   * @generated from field: vrooli.unit_health.v1.validation.ReliabilityObservation reliability = 6;
+   */
+  reliability?: ReliabilityObservation | undefined;
 };
 
 /**
@@ -1007,7 +1677,71 @@ export type Diagnostic = Message<"vrooli.unit_health.v1.validation.Diagnostic"> 
  * Use `create(DiagnosticSchema)` to create a new message.
  */
 export const DiagnosticSchema: GenMessage<Diagnostic> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 14);
+  messageDesc(file_unit_health_v1_validation_validation, 28);
+
+/**
+ * Explicitly command-scoped history; absence is unknown, never proof of stability.
+ *
+ * @generated from message vrooli.unit_health.v1.validation.ReliabilityObservation
+ */
+export type ReliabilityObservation = Message<"vrooli.unit_health.v1.validation.ReliabilityObservation"> & {
+  /**
+   * @generated from field: string state = 1;
+   */
+  state: string;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
+
+  /**
+   * @generated from field: string cohort_digest = 3;
+   */
+  cohortDigest: string;
+
+  /**
+   * @generated from field: int32 sample_count = 4;
+   */
+  sampleCount: number;
+
+  /**
+   * @generated from field: int32 passed = 5;
+   */
+  passed: number;
+
+  /**
+   * @generated from field: int32 failed = 6;
+   */
+  failed: number;
+
+  /**
+   * @generated from field: int32 excluded_infrastructure = 7;
+   */
+  excludedInfrastructure: number;
+
+  /**
+   * @generated from field: int32 excluded_incompatible = 8;
+   */
+  excludedIncompatible: number;
+
+  /**
+   * @generated from field: optional string seed = 9;
+   */
+  seed?: string | undefined;
+
+  /**
+   * @generated from field: optional int32 retry_ordinal = 10;
+   */
+  retryOrdinal?: number | undefined;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.ReliabilityObservation.
+ * Use `create(ReliabilityObservationSchema)` to create a new message.
+ */
+export const ReliabilityObservationSchema: GenMessage<ReliabilityObservation> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 29);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.MaturitySummary
@@ -1034,7 +1768,7 @@ export type MaturitySummary = Message<"vrooli.unit_health.v1.validation.Maturity
  * Use `create(MaturitySummarySchema)` to create a new message.
  */
 export const MaturitySummarySchema: GenMessage<MaturitySummary> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 15);
+  messageDesc(file_unit_health_v1_validation_validation, 30);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.ValidationCounts
@@ -1081,7 +1815,7 @@ export type ValidationCounts = Message<"vrooli.unit_health.v1.validation.Validat
  * Use `create(ValidationCountsSchema)` to create a new message.
  */
 export const ValidationCountsSchema: GenMessage<ValidationCounts> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 16);
+  messageDesc(file_unit_health_v1_validation_validation, 31);
 
 /**
  * ValidationService is Unit Health's test-maturity validation surface.
@@ -1100,6 +1834,37 @@ export const ValidationService: GenService<{
     methodKind: "unary";
     input: typeof ValidateScenarioRequestSchema;
     output: typeof ValidateScenarioResponseSchema;
+  },
+  /**
+   * RunCalibration compares the authored development corpus, or a reviewed
+   * holdout when explicitly requested, with adapter observations.
+   *
+   * @generated from rpc vrooli.unit_health.v1.validation.ValidationService.RunCalibration
+   */
+  runCalibration: {
+    methodKind: "unary";
+    input: typeof RunCalibrationRequestSchema;
+    output: typeof RunCalibrationResponseSchema;
+  },
+  /**
+   * Read one bounded, redacted test body for governed sampled review.
+   *
+   * @generated from rpc vrooli.unit_health.v1.validation.ValidationService.ReadTestBody
+   */
+  readTestBody: {
+    methodKind: "unary";
+    input: typeof ReadTestBodyRequestSchema;
+    output: typeof ReadTestBodyResponseSchema;
+  },
+  /**
+   * Run a bounded owner-side mutation pilot in disposable workspaces.
+   *
+   * @generated from rpc vrooli.unit_health.v1.validation.ValidationService.RunMutationPilot
+   */
+  runMutationPilot: {
+    methodKind: "unary";
+    input: typeof RunMutationPilotRequestSchema;
+    output: typeof RunMutationPilotResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_unit_health_v1_validation_validation, 0);

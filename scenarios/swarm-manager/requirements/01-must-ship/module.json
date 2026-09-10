@@ -40,11 +40,11 @@
     },
     {
       "id": "SWM-P0-002",
-      "title": "One evolving plan per item",
+      "title": "Explicit work shape",
       "status": "planned",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
-      "description": "Each backlog item shall carry exactly one evolving implementation plan that is authored and revised in place through workshop rounds",
+      "description": "Each backlog item shall declare plan-based or contract-development work; plan-based items shall retain one evolving implementation plan, and contract-development items shall retain a reviewed target contract without requiring a finite implementation plan",
       "validation": [
         {
           "type": "test",
@@ -52,6 +52,13 @@
           "phase": "unit",
           "status": "failing",
           "notes": "TestApplyPlanCandidateClearsAcceptanceAfterPlanManagerApply revises the item's single plan in place (candidate preview/apply against the one PlanRef). The exactly-one-plan-per-item uniqueness invariant is not separately asserted (audit 2026-07-23)."
+        },
+        {
+          "type": "test",
+          "ref": "api/routes_development_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "TestDevelopmentWorkShapeCannotFallThroughToPlanExecution preserves ordinary plan dispatch and refuses a retained contract item. Backlog creation and next-action projection remain incomplete."
         }
       ]
     },
@@ -74,11 +81,11 @@
     },
     {
       "id": "SWM-P0-004",
-      "title": "Explicit plan acceptance gate",
+      "title": "Revision-bound acceptance gate",
       "status": "planned",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
-      "description": "The system shall block execution queueing until the operator accepts the current plan revision, and shall clear acceptance whenever the plan changes",
+      "description": "The system shall block execution until the operator accepts the current plan or development-mandate revision, retain the reviewed target contents and grants, and require renewed approval for material target or authority amendments",
       "validation": [
         {
           "type": "test",
@@ -93,6 +100,13 @@
           "phase": "unit",
           "status": "failing",
           "notes": "TestResolveNextActionDecisionTable asserts the 'not been explicitly accepted' preflight reason maps to AcceptPlan. The execution-side queue block (execution/preflight.go planAcceptanceBlockingReason) has no direct execution-package test yet (audit 2026-07-23)."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/development/service_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Retained bytes, source drift, concurrent approval versions, amendments and verified-human decision checks. This does not qualify a launch adapter."
         }
       ]
     },
@@ -239,7 +253,7 @@
           "ref": "api/internal/goals/connect_service_test.go",
           "phase": "unit",
           "status": "failing",
-          "notes": "TestConnectService_GoalAndMilestoneLifecycle: create goal -\u003e create milestone -\u003e assign items over the Connect RPC surface."
+          "notes": "TestConnectService_GoalAndMilestoneLifecycle: create goal -> create milestone -> assign items over the Connect RPC surface."
         }
       ]
     },
@@ -271,7 +285,7 @@
         {
           "type": "manual",
           "status": "planned",
-          "notes": "No coverage yet: milestone review-on-completion (goals/workflow.go StartMilestoneReviewsForTerminalItem / allMilestoneItemsTerminal) is untested — no test exercises all-members-terminal -\u003e evaluate acceptance criteria against repository evidence -\u003e propose follow-up items. Only TestMilestoneWorkflowLaunchRejectsUnknownMilestone (a 404 guard) is adjacent (audit 2026-07-23)."
+          "notes": "No coverage yet: milestone review-on-completion (goals/workflow.go StartMilestoneReviewsForTerminalItem / allMilestoneItemsTerminal) is untested — no test exercises all-members-terminal -> evaluate acceptance criteria against repository evidence -> propose follow-up items. Only TestMilestoneWorkflowLaunchRejectsUnknownMilestone (a 404 guard) is adjacent (audit 2026-07-23)."
         }
       ]
     },
@@ -319,6 +333,86 @@
           "notes": "TestTransitionServiceDispatchesGenericStartAndApply and TestTransitionServiceDispatchesDeterministicTransition prove the catalog service dispatches workflow and deterministic transitions."
         }
       ]
+    },
+    {
+      "id": "SWM-P0-015",
+      "prd_ref": "OT-P0-015",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Contract-development implementation and qualification are pending; no passing outcome evidence is asserted."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/development/service_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Two repairs under one approval, repository reopen, ambiguous start reservation, unknown usage, cancellation and overrun accounting. Native/fallback execution-owner wiring and monetary/delegated usage remain pending."
+        }
+      ],
+      "title": "Contract-development continuity",
+      "description": "While a contract-development engagement runs, the system shall permit successive authorized repairs under one item and preserve aggregate incurred and reserved usage, checkpoints, cancellation and budget limits across continuations and restarts"
+    },
+    {
+      "id": "SWM-P0-016",
+      "prd_ref": "OT-P0-016",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Contract-development implementation and qualification are pending; no passing outcome evidence is asserted."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/development/service_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Owner receipt fixture tests reject missing, stale, failed, future and wrong target/source/run/product evidence. Production outcome resolvers remain pending."
+        }
+      ],
+      "title": "Evidence-bound contract acceptance",
+      "description": "When a contract-development engagement submits completion, the system shall resolve required outcome evidence against the approved target and refuse acceptance of missing, stale, failed or mismatched evidence regardless of harness completion"
+    },
+    {
+      "id": "SWM-P0-017",
+      "prd_ref": "OT-P0-017",
+      "criticality": "P0",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Contract-development implementation and qualification are pending; no passing outcome evidence is asserted."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/development/transport_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Typed approval, retained artifact reads and unauthenticated refusal."
+        },
+        {
+          "type": "test",
+          "ref": "cli/cmd_development_preview_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Read-only preview and explicit version-bound approval transport; no launch."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/backlog/development-contract-panel.test.tsx",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Review invalidation, bound approval, error visibility and no incidental start. Full next-action and acceptance-decision UI remain pending."
+        }
+      ],
+      "title": "Development review surface",
+      "description": "The system shall expose contract-development target snapshots, grants, budgets, goal message, progress, evidence and launch blockers through consistent API, CLI and board views before operator authorization"
     }
   ]
 }

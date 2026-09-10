@@ -4,6 +4,10 @@ from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from vrooli_bridge.v1.onboard import onboard_pb2 as _onboard_pb2
 from web_console.v1.shared import target_pb2 as _target_pb2
 from vrooli_bridge.v1.credentialgrant import credentialgrant_pb2 as _credentialgrant_pb2
+from vrooli_bridge.v1.machines import machines_pb2 as _machines_pb2
+from vrooli_onboarding.v1.operatorinputs import operatorinputs_pb2 as _operatorinputs_pb2
+from vrooli_onboarding.v1.readiness import readiness_pb2 as _readiness_pb2
+from vrooli_onboarding.v1.apply import apply_pb2 as _apply_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -33,32 +37,34 @@ class GetConfigurationRequest(_message.Message):
     def __init__(self, machine_id: _Optional[str] = ...) -> None: ...
 
 class GetConfigurationResponse(_message.Message):
-    __slots__ = ("questions_json", "readiness_json", "target_id", "machine_detail_json")
-    QUESTIONS_JSON_FIELD_NUMBER: _ClassVar[int]
-    READINESS_JSON_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("questions", "readiness", "target_id", "machine_detail")
+    QUESTIONS_FIELD_NUMBER: _ClassVar[int]
+    READINESS_FIELD_NUMBER: _ClassVar[int]
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
-    MACHINE_DETAIL_JSON_FIELD_NUMBER: _ClassVar[int]
-    questions_json: bytes
-    readiness_json: bytes
+    MACHINE_DETAIL_FIELD_NUMBER: _ClassVar[int]
+    questions: _operatorinputs_pb2.ListOperatorInputsResponse
+    readiness: _readiness_pb2.GetReadinessResponse
     target_id: str
-    machine_detail_json: bytes
-    def __init__(self, questions_json: _Optional[bytes] = ..., readiness_json: _Optional[bytes] = ..., target_id: _Optional[str] = ..., machine_detail_json: _Optional[bytes] = ...) -> None: ...
+    machine_detail: _machines_pb2.GetMachineResponse
+    def __init__(self, questions: _Optional[_Union[_operatorinputs_pb2.ListOperatorInputsResponse, _Mapping]] = ..., readiness: _Optional[_Union[_readiness_pb2.GetReadinessResponse, _Mapping]] = ..., target_id: _Optional[str] = ..., machine_detail: _Optional[_Union[_machines_pb2.GetMachineResponse, _Mapping]] = ...) -> None: ...
 
 class ResolveConfigurationRequest(_message.Message):
-    __slots__ = ("machine_id", "answers_json")
+    __slots__ = ("machine_id", "answers", "expected_revision")
     MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
-    ANSWERS_JSON_FIELD_NUMBER: _ClassVar[int]
+    ANSWERS_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
     machine_id: str
-    answers_json: bytes
-    def __init__(self, machine_id: _Optional[str] = ..., answers_json: _Optional[bytes] = ...) -> None: ...
+    answers: _containers.RepeatedCompositeFieldContainer[_operatorinputs_pb2.Answer]
+    expected_revision: str
+    def __init__(self, machine_id: _Optional[str] = ..., answers: _Optional[_Iterable[_Union[_operatorinputs_pb2.Answer, _Mapping]]] = ..., expected_revision: _Optional[str] = ...) -> None: ...
 
 class ResolveConfigurationResponse(_message.Message):
-    __slots__ = ("result_json", "target_id")
-    RESULT_JSON_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("result", "target_id")
+    RESULT_FIELD_NUMBER: _ClassVar[int]
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
-    result_json: bytes
+    result: _operatorinputs_pb2.ResolveOperatorInputsResponse
     target_id: str
-    def __init__(self, result_json: _Optional[bytes] = ..., target_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, result: _Optional[_Union[_operatorinputs_pb2.ResolveOperatorInputsResponse, _Mapping]] = ..., target_id: _Optional[str] = ...) -> None: ...
 
 class ListCredentialGrantsRequest(_message.Message):
     __slots__ = ("machine_id",)
@@ -73,12 +79,12 @@ class ReapplyConfigurationRequest(_message.Message):
     def __init__(self, machine_id: _Optional[str] = ...) -> None: ...
 
 class ReapplyConfigurationResponse(_message.Message):
-    __slots__ = ("result_json", "target_id")
-    RESULT_JSON_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("result", "target_id")
+    RESULT_FIELD_NUMBER: _ClassVar[int]
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
-    result_json: bytes
+    result: _apply_pb2.StartApplyResponse
     target_id: str
-    def __init__(self, result_json: _Optional[bytes] = ..., target_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, result: _Optional[_Union[_apply_pb2.StartApplyResponse, _Mapping]] = ..., target_id: _Optional[str] = ...) -> None: ...
 
 class GetConfigurationApplyStatusRequest(_message.Message):
     __slots__ = ("machine_id", "run_id")

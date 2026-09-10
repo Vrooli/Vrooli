@@ -11,7 +11,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class BacklogItem(_message.Message):
-    __slots__ = ("name", "title", "description", "status", "priority", "tags", "created", "updated", "kind", "depends_on", "milestone", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "archived_at", "suggested_skills", "creates", "created_by", "queue_position", "plan_ref", "finding_ref", "stale", "last_review", "plan_acceptance", "acceptance_criteria")
+    __slots__ = ("name", "title", "description", "status", "priority", "tags", "created", "updated", "kind", "depends_on", "milestone", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "archived_at", "suggested_skills", "creates", "created_by", "queue_position", "plan_ref", "finding_ref", "stale", "last_review", "plan_acceptance", "acceptance_criteria", "execution_strategy", "execution_limits")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -39,6 +39,8 @@ class BacklogItem(_message.Message):
     LAST_REVIEW_FIELD_NUMBER: _ClassVar[int]
     PLAN_ACCEPTANCE_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_CRITERIA_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_LIMITS_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
@@ -66,7 +68,29 @@ class BacklogItem(_message.Message):
     last_review: BacklogReviewRecord
     plan_acceptance: PlanAcceptance
     acceptance_criteria: _containers.RepeatedCompositeFieldContainer[_backlog_pb2.BacklogCriterion]
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., created: _Optional[str] = ..., updated: _Optional[str] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., milestone: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., archived_at: _Optional[str] = ..., suggested_skills: _Optional[_Iterable[str]] = ..., creates: _Optional[_Iterable[str]] = ..., created_by: _Optional[_Union[_agent_session_pb2.AgentSessionAttribution, _Mapping]] = ..., queue_position: _Optional[int] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ..., finding_ref: _Optional[str] = ..., stale: _Optional[bool] = ..., last_review: _Optional[_Union[BacklogReviewRecord, _Mapping]] = ..., plan_acceptance: _Optional[_Union[PlanAcceptance, _Mapping]] = ..., acceptance_criteria: _Optional[_Iterable[_Union[_backlog_pb2.BacklogCriterion, _Mapping]]] = ...) -> None: ...
+    execution_strategy: str
+    execution_limits: ExecutionLimits
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., created: _Optional[str] = ..., updated: _Optional[str] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., milestone: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., archived_at: _Optional[str] = ..., suggested_skills: _Optional[_Iterable[str]] = ..., creates: _Optional[_Iterable[str]] = ..., created_by: _Optional[_Union[_agent_session_pb2.AgentSessionAttribution, _Mapping]] = ..., queue_position: _Optional[int] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ..., finding_ref: _Optional[str] = ..., stale: _Optional[bool] = ..., last_review: _Optional[_Union[BacklogReviewRecord, _Mapping]] = ..., plan_acceptance: _Optional[_Union[PlanAcceptance, _Mapping]] = ..., acceptance_criteria: _Optional[_Iterable[_Union[_backlog_pb2.BacklogCriterion, _Mapping]]] = ..., execution_strategy: _Optional[str] = ..., execution_limits: _Optional[_Union[ExecutionLimits, _Mapping]] = ...) -> None: ...
+
+class ExecutionLimits(_message.Message):
+    __slots__ = ("max_slices", "max_tokens", "max_wall_seconds", "max_turns", "max_charge_micro_usd", "max_children", "max_node_attempts", "max_retries")
+    MAX_SLICES_FIELD_NUMBER: _ClassVar[int]
+    MAX_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    MAX_WALL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    MAX_TURNS_FIELD_NUMBER: _ClassVar[int]
+    MAX_CHARGE_MICRO_USD_FIELD_NUMBER: _ClassVar[int]
+    MAX_CHILDREN_FIELD_NUMBER: _ClassVar[int]
+    MAX_NODE_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    MAX_RETRIES_FIELD_NUMBER: _ClassVar[int]
+    max_slices: int
+    max_tokens: int
+    max_wall_seconds: int
+    max_turns: int
+    max_charge_micro_usd: int
+    max_children: int
+    max_node_attempts: int
+    max_retries: int
+    def __init__(self, max_slices: _Optional[int] = ..., max_tokens: _Optional[int] = ..., max_wall_seconds: _Optional[int] = ..., max_turns: _Optional[int] = ..., max_charge_micro_usd: _Optional[int] = ..., max_children: _Optional[int] = ..., max_node_attempts: _Optional[int] = ..., max_retries: _Optional[int] = ...) -> None: ...
 
 class PlanAcceptance(_message.Message):
     __slots__ = ("actor", "accepted_at", "plan_content_hash", "subject_version")

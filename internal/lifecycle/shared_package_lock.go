@@ -79,6 +79,16 @@ func acquireSharedPackageLockContext(ctx context.Context, home, packageName, pac
 		return nil, fmt.Errorf("create shared package lock dir: %w", err)
 	}
 	lockPath := sharedPackageLockPath(lockDir, canonicalRoot)
+	if packageName == "proto" {
+		// Proto generation and lifecycle setup share one cross-process lock. The
+		// generator uses this exact path, so an agent running an explicit refresh
+		// cannot rewrite the compatibility view while a scenario is building.
+		lockPath = filepath.Join(home, ".vrooli", "locks", "proto-generation.lock")
+		if err := os.MkdirAll(filepath.Dir(lockPath), tuning.PermDir); err != nil {
+			mu.Unlock()
+			return nil, fmt.Errorf("create Proto lock dir: %w", err)
+		}
+	}
 	file, err := os.OpenFile(lockPath, os.O_RDWR|os.O_CREATE, tuning.PermFile)
 	if err != nil {
 		mu.Unlock()

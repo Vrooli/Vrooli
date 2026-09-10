@@ -131,7 +131,7 @@ func Load(projectRoot string, env workspacepkg.Environment, runID, logPath strin
 // result under the digest from before the edit.
 func Save(env workspacepkg.Environment, runID string, phase phases.Definition, readiness map[string]providerreadiness.Outcome, result phases.ExecutionResult) {
 	identity, ok := Identity(env, phase, readiness)
-	if !ok || !phasecache.Cacheable(result.Status) {
+	if !ok || !phasecache.Reusable(result) {
 		return
 	}
 	// Recompute immediately after the phase. A source edit during execution is

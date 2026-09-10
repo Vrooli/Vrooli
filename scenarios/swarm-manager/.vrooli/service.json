@@ -1,9 +1,58 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "authentication": {
+    "version": 1,
+    "profile": "scenario_authenticator",
+    "default_mode": "local_multi_user",
+    "supported_modes": ["local_multi_user", "remote_vrooli"],
+    "human_sign_in": "required",
+    "provider": "scenario-authenticator",
+    "resource": "swarm-manager",
+    "audience": "scenario-authenticator:swarm-manager",
+    "offline": false,
+    "protected_routes": ["/api"],
+    "capabilities": [
+      {"id": "swarm-manager:read", "effect": "read", "agent_eligible": true},
+      {"id": "swarm-manager:write", "effect": "write", "agent_eligible": false},
+      {"id": "swarm-manager:destructive", "effect": "destructive", "agent_eligible": false}
+    ],
+    "requires_authenticator": true
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/swarm-manager/SKILL.md",
+      "programs": []
+    },
+    "improve": {
+      "source": "skills/swarm-manager-improve/SKILL.md",
+      "programs": []
+    },
+    "feature": [],
+    "learning": {
+      "scope": "swarm-manager-usage"
+    },
+    "waivers": {}
+  },
   "storage": {
-    "entries": {},
-    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+    "entries": {
+      "events-db": {
+        "rung": "owned", "class": "data", "subpath": "events.db", "kind": "file", "format": "sqlite", "regenerable": false, "sensitive": true,
+        "budget": {"max_bytes": "512MiB", "rationale": "Observed 2564096 bytes on 2026-09-08 before development approvals. This is a review threshold, not permission to prune authoritative events or approved snapshots."},
+        "rationale": "Authoritative event/evidence history and development approvals, snapshots and aggregate accounting; resolved through api-core/storage and routed database pools."
+      },
+      "events-db-wal": {
+        "rung": "owned", "class": "data", "subpath": "events.db-wal", "kind": "file", "regenerable": false, "sensitive": true,
+        "budget": {"max_bytes": "128MiB", "rationale": "Observed 0 bytes on 2026-09-08. A live SQLite WAL must not be pruned independently."},
+        "rationale": "Live SQLite write-ahead log; preserve with its database."
+      },
+      "events-db-shm": {
+        "rung": "owned", "class": "data", "subpath": "events.db-shm", "kind": "file", "regenerable": false, "sensitive": true,
+        "budget": {"max_bytes": "1MiB", "rationale": "Observed 32768 bytes on 2026-09-08. A live SQLite shared-memory sidecar must not be pruned independently."},
+        "rationale": "Live SQLite shared-memory sidecar; preserve with its database."
+      }
+    },
+    "rationale": "The event database and its live sidecars are declared here. Other existing file stores still require a separate storage-accountability adoption pass; this is not a complete inventory."
   },
   "generation": {
     "template": {
@@ -142,18 +191,26 @@
               ".vrooli/agent-manager/goal-discover.json",
               ".vrooli/agent-manager/goal-plan.json",
               ".vrooli/agent-manager/milestone-review.json",
-              ".vrooli/agent-manager/readiness-review.json"
+              ".vrooli/agent-manager/readiness-review.json",
+              ".vrooli/agent-manager/contract-development.json"
             ]
           }
         }
       },
-      "plan-manager": {
-        "enabled": true,
-        "required": true,
-        "startup_policy": "must_start",
-        "description": "Canonical plan authoring, rendering, and execution-plan validation",
-        "degraded_behavior": "Without plan-manager, swarm-manager preserves existing plans but disables plan creation and reconciliation."
-      },
+    "plan-manager": {
+      "enabled": true,
+      "required": true,
+      "startup_policy": "must_start",
+      "description": "Canonical plan authoring, rendering, and execution-plan validation",
+      "degraded_behavior": "Without plan-manager, swarm-manager preserves existing plans but disables plan creation and reconciliation."
+    },
+    "scenario-authenticator": {
+      "enabled": true,
+      "required": true,
+      "startup_policy": "must_start",
+      "description": "Verified human identity and scoped operator authority for protected Swarm decisions.",
+      "degraded_behavior": "Without scenario-authenticator, Swarm Manager keeps read surfaces available but refuses human-authorized development decisions."
+    },
       "knowledge-observatory": {
         "enabled": false,
         "required": false,
@@ -190,11 +247,11 @@
         "degraded_behavior": "Without prompt-manager, swarm-manager keeps direct work flows available but loses skill discovery and reusable prompt guidance."
       },
       "git-control-tower": {
-        "enabled": false,
-        "required": false,
-        "startup_policy": "try_start",
-        "description": "Post-execution code review and readiness validation",
-        "degraded_behavior": "Without git-control-tower, swarm-manager does not run post-execution review or readiness validation automatically."
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Required admission, regression evidence, and review provider for plan execution and work review",
+        "degraded_behavior": "Without git-control-tower, plan execution and review transitions remain parked until regression and readiness evidence can be obtained."
       },
       "audio-tools": {
         "enabled": true,

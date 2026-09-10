@@ -355,15 +355,25 @@ class WineInstallStatusResponse(_message.Message):
     def __init__(self, install_id: _Optional[str] = ..., status: _Optional[str] = ..., method: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., log: _Optional[_Iterable[str]] = ..., error_log: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class NativeExtension(_message.Message):
-    __slots__ = ("version", "module", "permissions", "platforms", "activation_shortcut")
+    __slots__ = ("version", "module", "permissions", "platforms", "activation_shortcut", "helper_providers")
     VERSION_FIELD_NUMBER: _ClassVar[int]
     MODULE_FIELD_NUMBER: _ClassVar[int]
     PERMISSIONS_FIELD_NUMBER: _ClassVar[int]
     PLATFORMS_FIELD_NUMBER: _ClassVar[int]
     ACTIVATION_SHORTCUT_FIELD_NUMBER: _ClassVar[int]
+    HELPER_PROVIDERS_FIELD_NUMBER: _ClassVar[int]
     version: int
     module: str
     permissions: _containers.RepeatedScalarFieldContainer[str]
     platforms: _containers.RepeatedScalarFieldContainer[str]
     activation_shortcut: str
-    def __init__(self, version: _Optional[int] = ..., module: _Optional[str] = ..., permissions: _Optional[_Iterable[str]] = ..., platforms: _Optional[_Iterable[str]] = ..., activation_shortcut: _Optional[str] = ...) -> None: ...
+    helper_providers: _containers.RepeatedCompositeFieldContainer[HelperProvider]
+    def __init__(self, version: _Optional[int] = ..., module: _Optional[str] = ..., permissions: _Optional[_Iterable[str]] = ..., platforms: _Optional[_Iterable[str]] = ..., activation_shortcut: _Optional[str] = ..., helper_providers: _Optional[_Iterable[_Union[HelperProvider, _Mapping]]] = ...) -> None: ...
+
+class HelperProvider(_message.Message):
+    __slots__ = ("owner", "capability")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    capability: str
+    def __init__(self, owner: _Optional[str] = ..., capability: _Optional[str] = ...) -> None: ...

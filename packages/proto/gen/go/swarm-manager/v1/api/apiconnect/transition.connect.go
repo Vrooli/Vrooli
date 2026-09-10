@@ -36,6 +36,9 @@ const (
 	// TransitionServiceListTransitionsProcedure is the fully-qualified name of the TransitionService's
 	// ListTransitions RPC.
 	TransitionServiceListTransitionsProcedure = "/vrooli.swarm_manager.v1.api.TransitionService/ListTransitions"
+	// TransitionServicePreviewDevelopmentProcedure is the fully-qualified name of the
+	// TransitionService's PreviewDevelopment RPC.
+	TransitionServicePreviewDevelopmentProcedure = "/vrooli.swarm_manager.v1.api.TransitionService/PreviewDevelopment"
 	// TransitionServiceStartTransitionProcedure is the fully-qualified name of the TransitionService's
 	// StartTransition RPC.
 	TransitionServiceStartTransitionProcedure = "/vrooli.swarm_manager.v1.api.TransitionService/StartTransition"
@@ -48,6 +51,8 @@ const (
 // service.
 type TransitionServiceClient interface {
 	ListTransitions(context.Context, *connect.Request[api.ListTransitionsRequest]) (*connect.Response[api.ListTransitionsResponse], error)
+	// Read-only preparation. This neither approves nor starts an engagement.
+	PreviewDevelopment(context.Context, *connect.Request[api.PreviewDevelopmentRequest]) (*connect.Response[api.PreviewDevelopmentResponse], error)
 	StartTransition(context.Context, *connect.Request[api.StartTransitionRequest]) (*connect.Response[api.StartTransitionResponse], error)
 	ApplyTransition(context.Context, *connect.Request[api.ApplyTransitionRequest]) (*connect.Response[api.ApplyTransitionResponse], error)
 }
@@ -70,6 +75,12 @@ func NewTransitionServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(transitionServiceMethods.ByName("ListTransitions")),
 			connect.WithClientOptions(opts...),
 		),
+		previewDevelopment: connect.NewClient[api.PreviewDevelopmentRequest, api.PreviewDevelopmentResponse](
+			httpClient,
+			baseURL+TransitionServicePreviewDevelopmentProcedure,
+			connect.WithSchema(transitionServiceMethods.ByName("PreviewDevelopment")),
+			connect.WithClientOptions(opts...),
+		),
 		startTransition: connect.NewClient[api.StartTransitionRequest, api.StartTransitionResponse](
 			httpClient,
 			baseURL+TransitionServiceStartTransitionProcedure,
@@ -87,14 +98,20 @@ func NewTransitionServiceClient(httpClient connect.HTTPClient, baseURL string, o
 
 // transitionServiceClient implements TransitionServiceClient.
 type transitionServiceClient struct {
-	listTransitions *connect.Client[api.ListTransitionsRequest, api.ListTransitionsResponse]
-	startTransition *connect.Client[api.StartTransitionRequest, api.StartTransitionResponse]
-	applyTransition *connect.Client[api.ApplyTransitionRequest, api.ApplyTransitionResponse]
+	listTransitions    *connect.Client[api.ListTransitionsRequest, api.ListTransitionsResponse]
+	previewDevelopment *connect.Client[api.PreviewDevelopmentRequest, api.PreviewDevelopmentResponse]
+	startTransition    *connect.Client[api.StartTransitionRequest, api.StartTransitionResponse]
+	applyTransition    *connect.Client[api.ApplyTransitionRequest, api.ApplyTransitionResponse]
 }
 
 // ListTransitions calls vrooli.swarm_manager.v1.api.TransitionService.ListTransitions.
 func (c *transitionServiceClient) ListTransitions(ctx context.Context, req *connect.Request[api.ListTransitionsRequest]) (*connect.Response[api.ListTransitionsResponse], error) {
 	return c.listTransitions.CallUnary(ctx, req)
+}
+
+// PreviewDevelopment calls vrooli.swarm_manager.v1.api.TransitionService.PreviewDevelopment.
+func (c *transitionServiceClient) PreviewDevelopment(ctx context.Context, req *connect.Request[api.PreviewDevelopmentRequest]) (*connect.Response[api.PreviewDevelopmentResponse], error) {
+	return c.previewDevelopment.CallUnary(ctx, req)
 }
 
 // StartTransition calls vrooli.swarm_manager.v1.api.TransitionService.StartTransition.
@@ -111,6 +128,8 @@ func (c *transitionServiceClient) ApplyTransition(ctx context.Context, req *conn
 // vrooli.swarm_manager.v1.api.TransitionService service.
 type TransitionServiceHandler interface {
 	ListTransitions(context.Context, *connect.Request[api.ListTransitionsRequest]) (*connect.Response[api.ListTransitionsResponse], error)
+	// Read-only preparation. This neither approves nor starts an engagement.
+	PreviewDevelopment(context.Context, *connect.Request[api.PreviewDevelopmentRequest]) (*connect.Response[api.PreviewDevelopmentResponse], error)
 	StartTransition(context.Context, *connect.Request[api.StartTransitionRequest]) (*connect.Response[api.StartTransitionResponse], error)
 	ApplyTransition(context.Context, *connect.Request[api.ApplyTransitionRequest]) (*connect.Response[api.ApplyTransitionResponse], error)
 }
@@ -126,6 +145,12 @@ func NewTransitionServiceHandler(svc TransitionServiceHandler, opts ...connect.H
 		TransitionServiceListTransitionsProcedure,
 		svc.ListTransitions,
 		connect.WithSchema(transitionServiceMethods.ByName("ListTransitions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	transitionServicePreviewDevelopmentHandler := connect.NewUnaryHandler(
+		TransitionServicePreviewDevelopmentProcedure,
+		svc.PreviewDevelopment,
+		connect.WithSchema(transitionServiceMethods.ByName("PreviewDevelopment")),
 		connect.WithHandlerOptions(opts...),
 	)
 	transitionServiceStartTransitionHandler := connect.NewUnaryHandler(
@@ -144,6 +169,8 @@ func NewTransitionServiceHandler(svc TransitionServiceHandler, opts ...connect.H
 		switch r.URL.Path {
 		case TransitionServiceListTransitionsProcedure:
 			transitionServiceListTransitionsHandler.ServeHTTP(w, r)
+		case TransitionServicePreviewDevelopmentProcedure:
+			transitionServicePreviewDevelopmentHandler.ServeHTTP(w, r)
 		case TransitionServiceStartTransitionProcedure:
 			transitionServiceStartTransitionHandler.ServeHTTP(w, r)
 		case TransitionServiceApplyTransitionProcedure:
@@ -159,6 +186,10 @@ type UnimplementedTransitionServiceHandler struct{}
 
 func (UnimplementedTransitionServiceHandler) ListTransitions(context.Context, *connect.Request[api.ListTransitionsRequest]) (*connect.Response[api.ListTransitionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.TransitionService.ListTransitions is not implemented"))
+}
+
+func (UnimplementedTransitionServiceHandler) PreviewDevelopment(context.Context, *connect.Request[api.PreviewDevelopmentRequest]) (*connect.Response[api.PreviewDevelopmentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.TransitionService.PreviewDevelopment is not implemented"))
 }
 
 func (UnimplementedTransitionServiceHandler) StartTransition(context.Context, *connect.Request[api.StartTransitionRequest]) (*connect.Response[api.StartTransitionResponse], error) {

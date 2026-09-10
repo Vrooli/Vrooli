@@ -12,6 +12,10 @@
   was verified by running the system. Line numbers reflect the working tree at time of writing and
   will drift — treat them as pointers, not as assertions.
 - **Open questions**: none. All settled (§8).
+- **Status**: Historical findings snapshot. B4 and B8 describe the pre-goal-workflow
+  capture path; current goal and plan workflows now emit typed proposals, and the
+  shared heartbeat contract below routes material implementation work through a
+  canonical `plan_ref` before an adaptive grant.
 
 ---
 

@@ -47,7 +47,7 @@ Each finding caps its capability at a rung; only `ERROR`/`BLOCKER` severities fa
 | `PACKAGE_MANAGER_MISMATCH` | framework_config | L3 | WARNING | No |
 | `TEST_HELPER_FROM_PRODUCTION` | test_architecture | L3 | ERROR | Yes |
 | `TEST_NOT_COLOCATED` / `TEST_UTIL_MISSING` / `MISSING_INJECTABLE_SEAM` | test_architecture | L2–L3 | WARNING | No |
-| `LOW_COVERAGE` / `COVERAGE_ABSENT` / `TEST_SKIPPED_OR_ONLY` / `TEST_NO_ASSERTION` / `TEST_RENDER_ONLY` / `TEST_MISSING_EDGE_CASES` | coverage_quality | L0–L2 | WARNING / INFO | No |
+| `LOW_COVERAGE` / `COVERAGE_ABSENT` / `TEST_SKIPPED_OR_ONLY` | coverage_quality | L0–L2 | WARNING / INFO | No |
 | `TEST_FLAKE_SUSPECTED` / `TEST_RUNTIME_GROWTH` / `TEST_UNTAGGED_REQUIREMENT` | stability_traceability | L2 | WARNING / INFO | No |
 
 ## The canonical fix

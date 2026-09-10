@@ -9,7 +9,6 @@ import (
 	context "context"
 	errors "errors"
 	releases "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/releases"
-	structpb "google.golang.org/protobuf/types/known/structpb"
 	http "net/http"
 	strings "strings"
 )
@@ -38,20 +37,46 @@ const (
 	ReleasesServiceListProcedure = "/vrooli.deployment_manager.v1.releases.ReleasesService/List"
 	// ReleasesServiceGetProcedure is the fully-qualified name of the ReleasesService's Get RPC.
 	ReleasesServiceGetProcedure = "/vrooli.deployment_manager.v1.releases.ReleasesService/Get"
+	// ReleasesServiceGetOperationProcedure is the fully-qualified name of the ReleasesService's
+	// GetOperation RPC.
+	ReleasesServiceGetOperationProcedure = "/vrooli.deployment_manager.v1.releases.ReleasesService/GetOperation"
+	// ReleasesServiceDossierProcedure is the fully-qualified name of the ReleasesService's Dossier RPC.
+	ReleasesServiceDossierProcedure = "/vrooli.deployment_manager.v1.releases.ReleasesService/Dossier"
 	// ReleasesServiceReverifyProcedure is the fully-qualified name of the ReleasesService's Reverify
 	// RPC.
 	ReleasesServiceReverifyProcedure = "/vrooli.deployment_manager.v1.releases.ReleasesService/Reverify"
+	// ReleasesServiceReconcileProcedure is the fully-qualified name of the ReleasesService's Reconcile
+	// RPC.
+	ReleasesServiceReconcileProcedure = "/vrooli.deployment_manager.v1.releases.ReleasesService/Reconcile"
+	// ReleasesServiceRecoverProcedure is the fully-qualified name of the ReleasesService's Recover RPC.
+	ReleasesServiceRecoverProcedure = "/vrooli.deployment_manager.v1.releases.ReleasesService/Recover"
 	// ReleasesServiceStartProcedure is the fully-qualified name of the ReleasesService's Start RPC.
 	ReleasesServiceStartProcedure = "/vrooli.deployment_manager.v1.releases.ReleasesService/Start"
+	// ReleasesServiceRegisterCandidateProcedure is the fully-qualified name of the ReleasesService's
+	// RegisterCandidate RPC.
+	ReleasesServiceRegisterCandidateProcedure = "/vrooli.deployment_manager.v1.releases.ReleasesService/RegisterCandidate"
+	// ReleasesServiceRegisterDestinationRevisionProcedure is the fully-qualified name of the
+	// ReleasesService's RegisterDestinationRevision RPC.
+	ReleasesServiceRegisterDestinationRevisionProcedure = "/vrooli.deployment_manager.v1.releases.ReleasesService/RegisterDestinationRevision"
+	// ReleasesServiceRecordClientUpdateReceiptProcedure is the fully-qualified name of the
+	// ReleasesService's RecordClientUpdateReceipt RPC.
+	ReleasesServiceRecordClientUpdateReceiptProcedure = "/vrooli.deployment_manager.v1.releases.ReleasesService/RecordClientUpdateReceipt"
 )
 
 // ReleasesServiceClient is a client for the vrooli.deployment_manager.v1.releases.ReleasesService
 // service.
 type ReleasesServiceClient interface {
-	List(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error)
-	Get(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error)
-	Reverify(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error)
-	Start(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error)
+	List(context.Context, *connect.Request[releases.ListReleasesRequest]) (*connect.Response[releases.ListReleasesResponse], error)
+	Get(context.Context, *connect.Request[releases.GetReleaseRequest]) (*connect.Response[releases.GetReleaseResponse], error)
+	GetOperation(context.Context, *connect.Request[releases.GetReleaseOperationRequest]) (*connect.Response[releases.GetReleaseOperationResponse], error)
+	Dossier(context.Context, *connect.Request[releases.GetReleaseDossierRequest]) (*connect.Response[releases.GetReleaseDossierResponse], error)
+	Reverify(context.Context, *connect.Request[releases.ReverifyReleaseRequest]) (*connect.Response[releases.ReverifyReleaseResponse], error)
+	Reconcile(context.Context, *connect.Request[releases.ReconcileReleaseRequest]) (*connect.Response[releases.ReconcileReleaseResponse], error)
+	Recover(context.Context, *connect.Request[releases.RecoverReleaseRequest]) (*connect.Response[releases.RecoverReleaseResponse], error)
+	Start(context.Context, *connect.Request[releases.StartReleaseRequest]) (*connect.Response[releases.StartReleaseResponse], error)
+	RegisterCandidate(context.Context, *connect.Request[releases.RegisterCandidateRequest]) (*connect.Response[releases.RegisterCandidateResponse], error)
+	RegisterDestinationRevision(context.Context, *connect.Request[releases.RegisterDestinationRevisionRequest]) (*connect.Response[releases.RegisterDestinationRevisionResponse], error)
+	RecordClientUpdateReceipt(context.Context, *connect.Request[releases.RecordClientUpdateReceiptRequest]) (*connect.Response[releases.RecordClientUpdateReceiptResponse], error)
 }
 
 // NewReleasesServiceClient constructs a client for the
@@ -66,28 +91,70 @@ func NewReleasesServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	releasesServiceMethods := releases.File_deployment_manager_v1_releases_releases_proto.Services().ByName("ReleasesService").Methods()
 	return &releasesServiceClient{
-		list: connect.NewClient[structpb.Value, structpb.Value](
+		list: connect.NewClient[releases.ListReleasesRequest, releases.ListReleasesResponse](
 			httpClient,
 			baseURL+ReleasesServiceListProcedure,
 			connect.WithSchema(releasesServiceMethods.ByName("List")),
 			connect.WithClientOptions(opts...),
 		),
-		get: connect.NewClient[structpb.Value, structpb.Value](
+		get: connect.NewClient[releases.GetReleaseRequest, releases.GetReleaseResponse](
 			httpClient,
 			baseURL+ReleasesServiceGetProcedure,
 			connect.WithSchema(releasesServiceMethods.ByName("Get")),
 			connect.WithClientOptions(opts...),
 		),
-		reverify: connect.NewClient[structpb.Value, structpb.Value](
+		getOperation: connect.NewClient[releases.GetReleaseOperationRequest, releases.GetReleaseOperationResponse](
+			httpClient,
+			baseURL+ReleasesServiceGetOperationProcedure,
+			connect.WithSchema(releasesServiceMethods.ByName("GetOperation")),
+			connect.WithClientOptions(opts...),
+		),
+		dossier: connect.NewClient[releases.GetReleaseDossierRequest, releases.GetReleaseDossierResponse](
+			httpClient,
+			baseURL+ReleasesServiceDossierProcedure,
+			connect.WithSchema(releasesServiceMethods.ByName("Dossier")),
+			connect.WithClientOptions(opts...),
+		),
+		reverify: connect.NewClient[releases.ReverifyReleaseRequest, releases.ReverifyReleaseResponse](
 			httpClient,
 			baseURL+ReleasesServiceReverifyProcedure,
 			connect.WithSchema(releasesServiceMethods.ByName("Reverify")),
 			connect.WithClientOptions(opts...),
 		),
-		start: connect.NewClient[structpb.Value, structpb.Value](
+		reconcile: connect.NewClient[releases.ReconcileReleaseRequest, releases.ReconcileReleaseResponse](
+			httpClient,
+			baseURL+ReleasesServiceReconcileProcedure,
+			connect.WithSchema(releasesServiceMethods.ByName("Reconcile")),
+			connect.WithClientOptions(opts...),
+		),
+		recover: connect.NewClient[releases.RecoverReleaseRequest, releases.RecoverReleaseResponse](
+			httpClient,
+			baseURL+ReleasesServiceRecoverProcedure,
+			connect.WithSchema(releasesServiceMethods.ByName("Recover")),
+			connect.WithClientOptions(opts...),
+		),
+		start: connect.NewClient[releases.StartReleaseRequest, releases.StartReleaseResponse](
 			httpClient,
 			baseURL+ReleasesServiceStartProcedure,
 			connect.WithSchema(releasesServiceMethods.ByName("Start")),
+			connect.WithClientOptions(opts...),
+		),
+		registerCandidate: connect.NewClient[releases.RegisterCandidateRequest, releases.RegisterCandidateResponse](
+			httpClient,
+			baseURL+ReleasesServiceRegisterCandidateProcedure,
+			connect.WithSchema(releasesServiceMethods.ByName("RegisterCandidate")),
+			connect.WithClientOptions(opts...),
+		),
+		registerDestinationRevision: connect.NewClient[releases.RegisterDestinationRevisionRequest, releases.RegisterDestinationRevisionResponse](
+			httpClient,
+			baseURL+ReleasesServiceRegisterDestinationRevisionProcedure,
+			connect.WithSchema(releasesServiceMethods.ByName("RegisterDestinationRevision")),
+			connect.WithClientOptions(opts...),
+		),
+		recordClientUpdateReceipt: connect.NewClient[releases.RecordClientUpdateReceiptRequest, releases.RecordClientUpdateReceiptResponse](
+			httpClient,
+			baseURL+ReleasesServiceRecordClientUpdateReceiptProcedure,
+			connect.WithSchema(releasesServiceMethods.ByName("RecordClientUpdateReceipt")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -95,39 +162,90 @@ func NewReleasesServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // releasesServiceClient implements ReleasesServiceClient.
 type releasesServiceClient struct {
-	list     *connect.Client[structpb.Value, structpb.Value]
-	get      *connect.Client[structpb.Value, structpb.Value]
-	reverify *connect.Client[structpb.Value, structpb.Value]
-	start    *connect.Client[structpb.Value, structpb.Value]
+	list                        *connect.Client[releases.ListReleasesRequest, releases.ListReleasesResponse]
+	get                         *connect.Client[releases.GetReleaseRequest, releases.GetReleaseResponse]
+	getOperation                *connect.Client[releases.GetReleaseOperationRequest, releases.GetReleaseOperationResponse]
+	dossier                     *connect.Client[releases.GetReleaseDossierRequest, releases.GetReleaseDossierResponse]
+	reverify                    *connect.Client[releases.ReverifyReleaseRequest, releases.ReverifyReleaseResponse]
+	reconcile                   *connect.Client[releases.ReconcileReleaseRequest, releases.ReconcileReleaseResponse]
+	recover                     *connect.Client[releases.RecoverReleaseRequest, releases.RecoverReleaseResponse]
+	start                       *connect.Client[releases.StartReleaseRequest, releases.StartReleaseResponse]
+	registerCandidate           *connect.Client[releases.RegisterCandidateRequest, releases.RegisterCandidateResponse]
+	registerDestinationRevision *connect.Client[releases.RegisterDestinationRevisionRequest, releases.RegisterDestinationRevisionResponse]
+	recordClientUpdateReceipt   *connect.Client[releases.RecordClientUpdateReceiptRequest, releases.RecordClientUpdateReceiptResponse]
 }
 
 // List calls vrooli.deployment_manager.v1.releases.ReleasesService.List.
-func (c *releasesServiceClient) List(ctx context.Context, req *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+func (c *releasesServiceClient) List(ctx context.Context, req *connect.Request[releases.ListReleasesRequest]) (*connect.Response[releases.ListReleasesResponse], error) {
 	return c.list.CallUnary(ctx, req)
 }
 
 // Get calls vrooli.deployment_manager.v1.releases.ReleasesService.Get.
-func (c *releasesServiceClient) Get(ctx context.Context, req *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+func (c *releasesServiceClient) Get(ctx context.Context, req *connect.Request[releases.GetReleaseRequest]) (*connect.Response[releases.GetReleaseResponse], error) {
 	return c.get.CallUnary(ctx, req)
 }
 
+// GetOperation calls vrooli.deployment_manager.v1.releases.ReleasesService.GetOperation.
+func (c *releasesServiceClient) GetOperation(ctx context.Context, req *connect.Request[releases.GetReleaseOperationRequest]) (*connect.Response[releases.GetReleaseOperationResponse], error) {
+	return c.getOperation.CallUnary(ctx, req)
+}
+
+// Dossier calls vrooli.deployment_manager.v1.releases.ReleasesService.Dossier.
+func (c *releasesServiceClient) Dossier(ctx context.Context, req *connect.Request[releases.GetReleaseDossierRequest]) (*connect.Response[releases.GetReleaseDossierResponse], error) {
+	return c.dossier.CallUnary(ctx, req)
+}
+
 // Reverify calls vrooli.deployment_manager.v1.releases.ReleasesService.Reverify.
-func (c *releasesServiceClient) Reverify(ctx context.Context, req *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+func (c *releasesServiceClient) Reverify(ctx context.Context, req *connect.Request[releases.ReverifyReleaseRequest]) (*connect.Response[releases.ReverifyReleaseResponse], error) {
 	return c.reverify.CallUnary(ctx, req)
 }
 
+// Reconcile calls vrooli.deployment_manager.v1.releases.ReleasesService.Reconcile.
+func (c *releasesServiceClient) Reconcile(ctx context.Context, req *connect.Request[releases.ReconcileReleaseRequest]) (*connect.Response[releases.ReconcileReleaseResponse], error) {
+	return c.reconcile.CallUnary(ctx, req)
+}
+
+// Recover calls vrooli.deployment_manager.v1.releases.ReleasesService.Recover.
+func (c *releasesServiceClient) Recover(ctx context.Context, req *connect.Request[releases.RecoverReleaseRequest]) (*connect.Response[releases.RecoverReleaseResponse], error) {
+	return c.recover.CallUnary(ctx, req)
+}
+
 // Start calls vrooli.deployment_manager.v1.releases.ReleasesService.Start.
-func (c *releasesServiceClient) Start(ctx context.Context, req *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+func (c *releasesServiceClient) Start(ctx context.Context, req *connect.Request[releases.StartReleaseRequest]) (*connect.Response[releases.StartReleaseResponse], error) {
 	return c.start.CallUnary(ctx, req)
+}
+
+// RegisterCandidate calls vrooli.deployment_manager.v1.releases.ReleasesService.RegisterCandidate.
+func (c *releasesServiceClient) RegisterCandidate(ctx context.Context, req *connect.Request[releases.RegisterCandidateRequest]) (*connect.Response[releases.RegisterCandidateResponse], error) {
+	return c.registerCandidate.CallUnary(ctx, req)
+}
+
+// RegisterDestinationRevision calls
+// vrooli.deployment_manager.v1.releases.ReleasesService.RegisterDestinationRevision.
+func (c *releasesServiceClient) RegisterDestinationRevision(ctx context.Context, req *connect.Request[releases.RegisterDestinationRevisionRequest]) (*connect.Response[releases.RegisterDestinationRevisionResponse], error) {
+	return c.registerDestinationRevision.CallUnary(ctx, req)
+}
+
+// RecordClientUpdateReceipt calls
+// vrooli.deployment_manager.v1.releases.ReleasesService.RecordClientUpdateReceipt.
+func (c *releasesServiceClient) RecordClientUpdateReceipt(ctx context.Context, req *connect.Request[releases.RecordClientUpdateReceiptRequest]) (*connect.Response[releases.RecordClientUpdateReceiptResponse], error) {
+	return c.recordClientUpdateReceipt.CallUnary(ctx, req)
 }
 
 // ReleasesServiceHandler is an implementation of the
 // vrooli.deployment_manager.v1.releases.ReleasesService service.
 type ReleasesServiceHandler interface {
-	List(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error)
-	Get(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error)
-	Reverify(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error)
-	Start(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error)
+	List(context.Context, *connect.Request[releases.ListReleasesRequest]) (*connect.Response[releases.ListReleasesResponse], error)
+	Get(context.Context, *connect.Request[releases.GetReleaseRequest]) (*connect.Response[releases.GetReleaseResponse], error)
+	GetOperation(context.Context, *connect.Request[releases.GetReleaseOperationRequest]) (*connect.Response[releases.GetReleaseOperationResponse], error)
+	Dossier(context.Context, *connect.Request[releases.GetReleaseDossierRequest]) (*connect.Response[releases.GetReleaseDossierResponse], error)
+	Reverify(context.Context, *connect.Request[releases.ReverifyReleaseRequest]) (*connect.Response[releases.ReverifyReleaseResponse], error)
+	Reconcile(context.Context, *connect.Request[releases.ReconcileReleaseRequest]) (*connect.Response[releases.ReconcileReleaseResponse], error)
+	Recover(context.Context, *connect.Request[releases.RecoverReleaseRequest]) (*connect.Response[releases.RecoverReleaseResponse], error)
+	Start(context.Context, *connect.Request[releases.StartReleaseRequest]) (*connect.Response[releases.StartReleaseResponse], error)
+	RegisterCandidate(context.Context, *connect.Request[releases.RegisterCandidateRequest]) (*connect.Response[releases.RegisterCandidateResponse], error)
+	RegisterDestinationRevision(context.Context, *connect.Request[releases.RegisterDestinationRevisionRequest]) (*connect.Response[releases.RegisterDestinationRevisionResponse], error)
+	RecordClientUpdateReceipt(context.Context, *connect.Request[releases.RecordClientUpdateReceiptRequest]) (*connect.Response[releases.RecordClientUpdateReceiptResponse], error)
 }
 
 // NewReleasesServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -149,10 +267,34 @@ func NewReleasesServiceHandler(svc ReleasesServiceHandler, opts ...connect.Handl
 		connect.WithSchema(releasesServiceMethods.ByName("Get")),
 		connect.WithHandlerOptions(opts...),
 	)
+	releasesServiceGetOperationHandler := connect.NewUnaryHandler(
+		ReleasesServiceGetOperationProcedure,
+		svc.GetOperation,
+		connect.WithSchema(releasesServiceMethods.ByName("GetOperation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	releasesServiceDossierHandler := connect.NewUnaryHandler(
+		ReleasesServiceDossierProcedure,
+		svc.Dossier,
+		connect.WithSchema(releasesServiceMethods.ByName("Dossier")),
+		connect.WithHandlerOptions(opts...),
+	)
 	releasesServiceReverifyHandler := connect.NewUnaryHandler(
 		ReleasesServiceReverifyProcedure,
 		svc.Reverify,
 		connect.WithSchema(releasesServiceMethods.ByName("Reverify")),
+		connect.WithHandlerOptions(opts...),
+	)
+	releasesServiceReconcileHandler := connect.NewUnaryHandler(
+		ReleasesServiceReconcileProcedure,
+		svc.Reconcile,
+		connect.WithSchema(releasesServiceMethods.ByName("Reconcile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	releasesServiceRecoverHandler := connect.NewUnaryHandler(
+		ReleasesServiceRecoverProcedure,
+		svc.Recover,
+		connect.WithSchema(releasesServiceMethods.ByName("Recover")),
 		connect.WithHandlerOptions(opts...),
 	)
 	releasesServiceStartHandler := connect.NewUnaryHandler(
@@ -161,16 +303,48 @@ func NewReleasesServiceHandler(svc ReleasesServiceHandler, opts ...connect.Handl
 		connect.WithSchema(releasesServiceMethods.ByName("Start")),
 		connect.WithHandlerOptions(opts...),
 	)
+	releasesServiceRegisterCandidateHandler := connect.NewUnaryHandler(
+		ReleasesServiceRegisterCandidateProcedure,
+		svc.RegisterCandidate,
+		connect.WithSchema(releasesServiceMethods.ByName("RegisterCandidate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	releasesServiceRegisterDestinationRevisionHandler := connect.NewUnaryHandler(
+		ReleasesServiceRegisterDestinationRevisionProcedure,
+		svc.RegisterDestinationRevision,
+		connect.WithSchema(releasesServiceMethods.ByName("RegisterDestinationRevision")),
+		connect.WithHandlerOptions(opts...),
+	)
+	releasesServiceRecordClientUpdateReceiptHandler := connect.NewUnaryHandler(
+		ReleasesServiceRecordClientUpdateReceiptProcedure,
+		svc.RecordClientUpdateReceipt,
+		connect.WithSchema(releasesServiceMethods.ByName("RecordClientUpdateReceipt")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.deployment_manager.v1.releases.ReleasesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ReleasesServiceListProcedure:
 			releasesServiceListHandler.ServeHTTP(w, r)
 		case ReleasesServiceGetProcedure:
 			releasesServiceGetHandler.ServeHTTP(w, r)
+		case ReleasesServiceGetOperationProcedure:
+			releasesServiceGetOperationHandler.ServeHTTP(w, r)
+		case ReleasesServiceDossierProcedure:
+			releasesServiceDossierHandler.ServeHTTP(w, r)
 		case ReleasesServiceReverifyProcedure:
 			releasesServiceReverifyHandler.ServeHTTP(w, r)
+		case ReleasesServiceReconcileProcedure:
+			releasesServiceReconcileHandler.ServeHTTP(w, r)
+		case ReleasesServiceRecoverProcedure:
+			releasesServiceRecoverHandler.ServeHTTP(w, r)
 		case ReleasesServiceStartProcedure:
 			releasesServiceStartHandler.ServeHTTP(w, r)
+		case ReleasesServiceRegisterCandidateProcedure:
+			releasesServiceRegisterCandidateHandler.ServeHTTP(w, r)
+		case ReleasesServiceRegisterDestinationRevisionProcedure:
+			releasesServiceRegisterDestinationRevisionHandler.ServeHTTP(w, r)
+		case ReleasesServiceRecordClientUpdateReceiptProcedure:
+			releasesServiceRecordClientUpdateReceiptHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -180,18 +354,46 @@ func NewReleasesServiceHandler(svc ReleasesServiceHandler, opts ...connect.Handl
 // UnimplementedReleasesServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedReleasesServiceHandler struct{}
 
-func (UnimplementedReleasesServiceHandler) List(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+func (UnimplementedReleasesServiceHandler) List(context.Context, *connect.Request[releases.ListReleasesRequest]) (*connect.Response[releases.ListReleasesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.deployment_manager.v1.releases.ReleasesService.List is not implemented"))
 }
 
-func (UnimplementedReleasesServiceHandler) Get(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+func (UnimplementedReleasesServiceHandler) Get(context.Context, *connect.Request[releases.GetReleaseRequest]) (*connect.Response[releases.GetReleaseResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.deployment_manager.v1.releases.ReleasesService.Get is not implemented"))
 }
 
-func (UnimplementedReleasesServiceHandler) Reverify(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+func (UnimplementedReleasesServiceHandler) GetOperation(context.Context, *connect.Request[releases.GetReleaseOperationRequest]) (*connect.Response[releases.GetReleaseOperationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.deployment_manager.v1.releases.ReleasesService.GetOperation is not implemented"))
+}
+
+func (UnimplementedReleasesServiceHandler) Dossier(context.Context, *connect.Request[releases.GetReleaseDossierRequest]) (*connect.Response[releases.GetReleaseDossierResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.deployment_manager.v1.releases.ReleasesService.Dossier is not implemented"))
+}
+
+func (UnimplementedReleasesServiceHandler) Reverify(context.Context, *connect.Request[releases.ReverifyReleaseRequest]) (*connect.Response[releases.ReverifyReleaseResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.deployment_manager.v1.releases.ReleasesService.Reverify is not implemented"))
 }
 
-func (UnimplementedReleasesServiceHandler) Start(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+func (UnimplementedReleasesServiceHandler) Reconcile(context.Context, *connect.Request[releases.ReconcileReleaseRequest]) (*connect.Response[releases.ReconcileReleaseResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.deployment_manager.v1.releases.ReleasesService.Reconcile is not implemented"))
+}
+
+func (UnimplementedReleasesServiceHandler) Recover(context.Context, *connect.Request[releases.RecoverReleaseRequest]) (*connect.Response[releases.RecoverReleaseResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.deployment_manager.v1.releases.ReleasesService.Recover is not implemented"))
+}
+
+func (UnimplementedReleasesServiceHandler) Start(context.Context, *connect.Request[releases.StartReleaseRequest]) (*connect.Response[releases.StartReleaseResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.deployment_manager.v1.releases.ReleasesService.Start is not implemented"))
+}
+
+func (UnimplementedReleasesServiceHandler) RegisterCandidate(context.Context, *connect.Request[releases.RegisterCandidateRequest]) (*connect.Response[releases.RegisterCandidateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.deployment_manager.v1.releases.ReleasesService.RegisterCandidate is not implemented"))
+}
+
+func (UnimplementedReleasesServiceHandler) RegisterDestinationRevision(context.Context, *connect.Request[releases.RegisterDestinationRevisionRequest]) (*connect.Response[releases.RegisterDestinationRevisionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.deployment_manager.v1.releases.ReleasesService.RegisterDestinationRevision is not implemented"))
+}
+
+func (UnimplementedReleasesServiceHandler) RecordClientUpdateReceipt(context.Context, *connect.Request[releases.RecordClientUpdateReceiptRequest]) (*connect.Response[releases.RecordClientUpdateReceiptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.deployment_manager.v1.releases.ReleasesService.RecordClientUpdateReceipt is not implemented"))
 }

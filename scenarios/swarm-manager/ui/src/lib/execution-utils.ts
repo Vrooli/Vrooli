@@ -14,7 +14,7 @@ export const EXECUTION_TAB_CONFIG: ExecutionTabConfig[] = [
   {
     id: "all",
     label: "All Runs",
-    statuses: ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"],
+    statuses: ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "cancelling", "canceled"],
     emptyTitle: "No executions yet",
     emptyDescription: "Queue a backlog item to create your first execution run.",
   },
@@ -28,7 +28,7 @@ export const EXECUTION_TAB_CONFIG: ExecutionTabConfig[] = [
   {
     id: "running",
     label: "Running",
-    statuses: ["starting", "running", "validating"],
+    statuses: ["starting", "running", "validating", "cancelling"],
     emptyTitle: "No running runs",
     emptyDescription: "When a run is active, it appears here with live status updates.",
   },
@@ -75,7 +75,7 @@ export const isExecutionInTab = (item: ExecutionRecord, tab: ExecutionTabId): bo
 };
 
 export const isExecutionActive = (item: ExecutionRecord): boolean =>
-  item.status === "pending" || item.status === "starting" || item.status === "running" || item.status === "needs_review" || item.status === "validating";
+  item.status === "pending" || item.status === "starting" || item.status === "running" || item.status === "needs_review" || item.status === "validating" || item.status === "cancelling";
 
 const parseDateFilter = (value: string): number | null => {
   if (!value) {

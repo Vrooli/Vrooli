@@ -36,8 +36,8 @@ def step_validate():
     scope = bounded_text(inputs.get("scope"), "scope", 128)
     seed = {k: bounded_text(inputs.get(k), k) for k in
             ("task_id", "operation", "context_key", "started_at", "task_started_at", "trigger", "approach", "provenance")}
-    if seed["provenance"] not in ("operator", "test"):
-        raise ValueError("provenance must be caller-declared operator or test")
+    if seed["provenance"] not in ("operator", "test", "agent"):
+        raise ValueError("provenance must be caller-declared operator, test, or agent")
     number = inputs.get("attempt_number")
     if type(number) is not int or not 1 <= number <= 2147483647:
         raise ValueError("attempt_number must be positive int32")
@@ -67,13 +67,14 @@ def step_collect():
         seen = set()
         for hit in hits.head(envelope["inputs"]["advice_limit"]):
             entry_id = hit.get("entryId")
-            text = hit.get("text")
-            if not isinstance(entry_id, str) or not entry_id or len(entry_id.encode("utf-8")) > 128 or not isinstance(text, str) or not text.strip() or hit.get("summary") or entry_id in seen:
+            text = hit.get("text") or hit.get("summary")
+            summary = hit.get("summary", "")
+            if not isinstance(entry_id, str) or not entry_id or len(entry_id.encode("utf-8")) > 128 or not isinstance(text, str) or not text.strip() or entry_id in seen:
                 signals["discarded_hits"] += 1
                 continue
             seen.add(entry_id)
             excerpt = text.encode("utf-8")[:512].decode("utf-8", errors="ignore")
-            candidates.append({"entry_id": entry_id, "text": excerpt, "text_truncated": excerpt != text})
+            candidates.append({"entry_id": entry_id, "text": excerpt, "summary": summary, "text_truncated": excerpt != text})
         signals["advice_candidates"] = candidates
         signals["recall_status"] = "matched" if candidates else "no_match"
         signals["decision_required"] = bool(candidates)

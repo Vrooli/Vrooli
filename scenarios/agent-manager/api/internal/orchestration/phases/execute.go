@@ -237,30 +237,39 @@ func executePolicySnapshot(ctx context.Context, in ExecuteWithModelFallbackInput
 			continue
 		}
 
-		applyPolicyCandidate(ctx, in.Deps, in.Run, candidate)
-		emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, candidate, eventlog.PolicyCandidateOutcomeAttempted, "", "")
-		attemptInput := in.ExecuteAgentInput
-		attemptInput.Runner = candidateRunner
-		out = ExecuteAgent(ctx, attemptInput)
+		for _, model := range candidateModels(candidate) {
+			attemptCandidate := candidate
+			attemptCandidate.Model = model
+			applyPolicyCandidate(ctx, in.Deps, in.Run, attemptCandidate)
+			emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, attemptCandidate, eventlog.PolicyCandidateOutcomeAttempted, "", "")
+			attemptInput := in.ExecuteAgentInput
+			attemptInput.Runner = candidateRunner
+			out = ExecuteAgent(ctx, attemptInput)
 
-		ce := classifyExecutionOutcome(candidateRunner, out.Result, out.ExecErr)
-		reportHealth(in.ModelHealth, in.Run, out.Result, candidate.Model, ce)
-		if ce == nil {
-			recordActualModel(in.Run, candidate.Model)
-			emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, candidate, eventlog.PolicyCandidateOutcomeSelected, "", "")
-			return out
-		}
+			ce := classifyExecutionOutcome(candidateRunner, out.Result, out.ExecErr)
+			reportHealth(in.ModelHealth, in.Run, out.Result, model, ce)
+			if ce == nil {
+				recordActualModel(in.Run, model)
+				emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, attemptCandidate, eventlog.PolicyCandidateOutcomeSelected, "", "")
+				return out
+			}
 
-		reason = modelFallbackReason(ce)
-		lastReason = reason
-		failureClass := "execution_failure"
-		if ce.IsModelUnavailable() {
-			failureClass = "model_unavailable"
+			reason = modelFallbackReason(ce)
+			lastReason = reason
+			failureClass := "execution_failure"
+			if ce.IsModelUnavailable() {
+				failureClass = "model_unavailable"
+			}
+			emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, attemptCandidate, eventlog.PolicyCandidateOutcomeFailed, reason, failureClass)
+			if !ce.IsModelUnavailable() {
+				recordActualModel(in.Run, model)
+				return out
+			}
 		}
-		emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, candidate, eventlog.PolicyCandidateOutcomeFailed, reason, failureClass)
-		if !ce.IsModelUnavailable() {
-			recordActualModel(in.Run, candidate.Model)
-			return out
+		// All models owned by this runner were unavailable. Continue to the
+		// next runner candidate rather than returning the first provider error.
+		if len(candidateModels(candidate)) > 0 {
+			lastCandidate.Model = candidateModels(candidate)[len(candidateModels(candidate))-1]
 		}
 	}
 
@@ -278,6 +287,30 @@ func executePolicySnapshot(ctx context.Context, in ExecuteWithModelFallbackInput
 		IsTransient: false,
 	}
 	return out
+}
+
+// candidateModels returns the primary resource-owned model followed by its
+// immutable fallback list. Resource policies are allowed to supply aliases
+// from a different billing lane (for example OpenRouter -> local Ollama), so
+// the executor must walk them before abandoning the runner candidate.
+func candidateModels(candidate domain.ExecutionCandidate) []string {
+	if candidate.SelectionType == domain.ModelSelectionTypeRunnerDefault {
+		return []string{""}
+	}
+	models := make([]string, 0, 1+len(candidate.Fallbacks))
+	seen := make(map[string]struct{}, 1+len(candidate.Fallbacks))
+	for _, model := range append([]string{candidate.Model}, candidate.Fallbacks...) {
+		model = strings.TrimSpace(model)
+		if model == "" {
+			continue
+		}
+		if _, ok := seen[model]; ok {
+			continue
+		}
+		seen[model] = struct{}{}
+		models = append(models, model)
+	}
+	return models
 }
 
 // toolRestrictionCandidateReason re-checks the selected runner after policy
@@ -316,7 +349,7 @@ func persistedPolicyCandidateIndex(run *domain.Run, snapshot *domain.ExecutionPo
 		}
 		switch candidate.SelectionType {
 		case domain.ModelSelectionTypeModel:
-			if candidate.Model == run.ResolvedConfig.Model {
+			if candidate.Model == run.ResolvedConfig.Model || containsString(candidate.Fallbacks, run.ResolvedConfig.Model) {
 				return index
 			}
 		case domain.ModelSelectionTypeRunnerDefault:
@@ -326,6 +359,19 @@ func persistedPolicyCandidateIndex(run *domain.Run, snapshot *domain.ExecutionPo
 		}
 	}
 	return start
+}
+
+func containsString(values []string, want string) bool {
+	want = strings.TrimSpace(want)
+	if want == "" {
+		return false
+	}
+	for _, value := range values {
+		if strings.TrimSpace(value) == want {
+			return true
+		}
+	}
+	return false
 }
 
 func invalidPolicyCandidateReason(candidate domain.ExecutionCandidate) string {

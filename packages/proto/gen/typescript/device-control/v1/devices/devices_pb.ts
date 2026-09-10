@@ -5,14 +5,14 @@
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import type { Message } from "@bufbuild/protobuf";
+import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file device-control/v1/devices/devices.proto.
  */
 export const file_device_control_v1_devices_devices: GenFile = /*@__PURE__*/
-  fileDesc("CidkZXZpY2UtY29udHJvbC92MS9kZXZpY2VzL2RldmljZXMucHJvdG8SIHZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzIhQKEkxpc3REZXZpY2VzUmVxdWVzdCJQChNMaXN0RGV2aWNlc1Jlc3BvbnNlEjkKB2RldmljZXMYASADKAsyKC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5EZXZpY2UiJAoUQ29ubmVjdERldmljZVJlcXVlc3QSDAoEa2luZBgBIAEoCSJzChVDb25uZWN0RGV2aWNlUmVzcG9uc2USPwoFcnVuZ3MYASADKAsyMC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5PbmJvYXJkaW5nUnVuZxIZChFmaXJzdF9uZXh0X2FjdGlvbhgCIAEoCSIrChZSZWNvbm5lY3REZXZpY2VSZXF1ZXN0EhEKCWRldmljZV9pZBgBIAEoCSJTChdSZWNvbm5lY3REZXZpY2VSZXNwb25zZRI4CgZkZXZpY2UYASABKAsyKC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5EZXZpY2UiggMKBkRldmljZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBGtpbmQYAyABKAkSEwoLc3RyYXRlZ3lfaWQYBCABKAkSDgoGc3RhdHVzGAUgASgJEhUKDWhlYWx0aF9yZWFzb24YBiABKAkSFAoMaG9zdF9ub2RlX2lkGAcgASgJEkoKDGNhcGFiaWxpdGllcxgIIAMoCzI0LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkNhcGFiaWxpdHlTbmFwc2hvdBIvCgtvYnNlcnZlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGc2VyaWFsGAogASgJEg0KBW1vZGVsGAsgASgJEhIKCm9zX3ZlcnNpb24YDCABKAkSEQoJdHJhbnNwb3J0GA0gASgJEg4KBmhlYWx0aBgOIAEoCRIVCg1maXJzdF9zZWVuX2F0GA8gASgJEhQKDGxhc3Rfc2Vlbl9hdBgQIAEoCSJdChJDYXBhYmlsaXR5U25hcHNob3QSDAoEbmFtZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSFAoMcHJlcmVxdWlzaXRlGAMgASgJEhMKC25leHRfYWN0aW9uGAQgASgJImYKDk9uYm9hcmRpbmdSdW5nEgoKAmlkGAEgASgJEhQKDHByZXJlcXVpc2l0ZRgCIAEoCRINCgVvd25lchgDIAEoCRIOCgZzdGF0dXMYBCABKAkSEwoLbmV4dF9hY3Rpb24YBSABKAkylwMKDURldmljZVNlcnZpY2USegoLTGlzdERldmljZXMSNC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5MaXN0RGV2aWNlc1JlcXVlc3QaNS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5MaXN0RGV2aWNlc1Jlc3BvbnNlEoABCg1Db25uZWN0RGV2aWNlEjYudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuQ29ubmVjdERldmljZVJlcXVlc3QaNy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5Db25uZWN0RGV2aWNlUmVzcG9uc2UShgEKD1JlY29ubmVjdERldmljZRI4LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLlJlY29ubmVjdERldmljZVJlcXVlc3QaOS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5SZWNvbm5lY3REZXZpY2VSZXNwb25zZUJVWlNnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2RldmljZS1jb250cm9sL3YxL2RldmljZXM7ZGV2aWNlc192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("CidkZXZpY2UtY29udHJvbC92MS9kZXZpY2VzL2RldmljZXMucHJvdG8SIHZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzIhQKEkxpc3REZXZpY2VzUmVxdWVzdCJQChNMaXN0RGV2aWNlc1Jlc3BvbnNlEjkKB2RldmljZXMYASADKAsyKC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5EZXZpY2UiJAoUQ29ubmVjdERldmljZVJlcXVlc3QSDAoEa2luZBgBIAEoCSJzChVDb25uZWN0RGV2aWNlUmVzcG9uc2USPwoFcnVuZ3MYASADKAsyMC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5PbmJvYXJkaW5nUnVuZxIZChFmaXJzdF9uZXh0X2FjdGlvbhgCIAEoCSIrChZSZWNvbm5lY3REZXZpY2VSZXF1ZXN0EhEKCWRldmljZV9pZBgBIAEoCSJTChdSZWNvbm5lY3REZXZpY2VSZXNwb25zZRI4CgZkZXZpY2UYASABKAsyKC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5EZXZpY2UiugEKFEV4ZWN1dGVWb2x1bWVSZXF1ZXN0Eg4KBmRldmljZRgBIAEoCRINCgVhY3RvchgCIAEoCRIMCgRnb2FsGAMgASgJEhEKCW9wZXJhdGlvbhgEIAEoCRISCgV2YWx1ZRgFIAEoAUgAiAEBEhEKCWRpcmVjdGlvbhgGIAEoCRIbChN2ZXJpZmljYXRpb25fcG9saWN5GAcgASgJEhQKDG9wZXJhdGlvbl9pZBgIIAEoCUIICgZfdmFsdWUiuwIKFUV4ZWN1dGVWb2x1bWVSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSFAoMb3BlcmF0aW9uX2lkGAIgASgJEhEKCWRldmljZV9pZBgDIAEoCRITCgtkZXZpY2VfbmFtZRgEIAEoCRIlCgRwbGFuGAUgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBInCgZiZWZvcmUYBiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EiYKBWFmdGVyGAcgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIaChJ2ZXJpZmljYXRpb25fY2xhc3MYCCABKAkSEAoIZXZpZGVuY2UYCSADKAkSGQoRcmVjb3ZlcnlfYXR0ZW1wdHMYCiABKAUSEwoLbmV4dF9hY3Rpb24YCyABKAki+QMKBkRldmljZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBGtpbmQYAyABKAkSEwoLc3RyYXRlZ3lfaWQYBCABKAkSDgoGc3RhdHVzGAUgASgJEhUKDWhlYWx0aF9yZWFzb24YBiABKAkSFAoMaG9zdF9ub2RlX2lkGAcgASgJEkoKDGNhcGFiaWxpdGllcxgIIAMoCzI0LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkNhcGFiaWxpdHlTbmFwc2hvdBIvCgtvYnNlcnZlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGc2VyaWFsGAogASgJEg0KBW1vZGVsGAsgASgJEhIKCm9zX3ZlcnNpb24YDCABKAkSEQoJdHJhbnNwb3J0GA0gASgJEg4KBmhlYWx0aBgOIAEoCRIVCg1maXJzdF9zZWVuX2F0GA8gASgJEhQKDGxhc3Rfc2Vlbl9hdBgQIAEoCRJGCgp0cmFuc3BvcnRzGBEgAygLMjIudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuVHJhbnNwb3J0UHJvZmlsZRIUCgxpZGVudGl0eV9rZXkYEiABKAkSFwoPaWRlbnRpdHlfcmVhc29uGBMgASgJIl0KEkNhcGFiaWxpdHlTbmFwc2hvdBIMCgRuYW1lGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIUCgxwcmVyZXF1aXNpdGUYAyABKAkSEwoLbmV4dF9hY3Rpb24YBCABKAki7wEKEFRyYW5zcG9ydFByb2ZpbGUSEwoLc3RyYXRlZ3lfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRyb2xlGAMgASgJEhAKCGVuZHBvaW50GAQgASgJEg4KBmhlYWx0aBgFIAEoCRIVCg1oZWFsdGhfcmVhc29uGAYgASgJEkoKDGNhcGFiaWxpdGllcxgHIAMoCzI0LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkNhcGFiaWxpdHlTbmFwc2hvdBISCgpvcGVyYXRpb25zGAggAygJEhEKCWVuZHBvaW50cxgJIAMoCSJmCg5PbmJvYXJkaW5nUnVuZxIKCgJpZBgBIAEoCRIUCgxwcmVyZXF1aXNpdGUYAiABKAkSDQoFb3duZXIYAyABKAkSDgoGc3RhdHVzGAQgASgJEhMKC25leHRfYWN0aW9uGAUgASgJMpoECg1EZXZpY2VTZXJ2aWNlEnoKC0xpc3REZXZpY2VzEjQudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuTGlzdERldmljZXNSZXF1ZXN0GjUudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuTGlzdERldmljZXNSZXNwb25zZRKAAQoNQ29ubmVjdERldmljZRI2LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkNvbm5lY3REZXZpY2VSZXF1ZXN0GjcudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuQ29ubmVjdERldmljZVJlc3BvbnNlEoYBCg9SZWNvbm5lY3REZXZpY2USOC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5SZWNvbm5lY3REZXZpY2VSZXF1ZXN0GjkudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuUmVjb25uZWN0RGV2aWNlUmVzcG9uc2USgAEKDUV4ZWN1dGVWb2x1bWUSNi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5FeGVjdXRlVm9sdW1lUmVxdWVzdBo3LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkV4ZWN1dGVWb2x1bWVSZXNwb25zZUJVWlNnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2RldmljZS1jb250cm9sL3YxL2RldmljZXM7ZGV2aWNlc192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_google_protobuf_struct]);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.ListDevicesRequest
@@ -118,6 +118,125 @@ export const ReconnectDeviceResponseSchema: GenMessage<ReconnectDeviceResponse> 
   messageDesc(file_device_control_v1_devices_devices, 5);
 
 /**
+ * @generated from message vrooli.device_control.v1.devices.ExecuteVolumeRequest
+ */
+export type ExecuteVolumeRequest = Message<"vrooli.device_control.v1.devices.ExecuteVolumeRequest"> & {
+  /**
+   * @generated from field: string device = 1;
+   */
+  device: string;
+
+  /**
+   * @generated from field: string actor = 2;
+   */
+  actor: string;
+
+  /**
+   * @generated from field: string goal = 3;
+   */
+  goal: string;
+
+  /**
+   * @generated from field: string operation = 4;
+   */
+  operation: string;
+
+  /**
+   * @generated from field: optional double value = 5;
+   */
+  value?: number | undefined;
+
+  /**
+   * @generated from field: string direction = 6;
+   */
+  direction: string;
+
+  /**
+   * @generated from field: string verification_policy = 7;
+   */
+  verificationPolicy: string;
+
+  /**
+   * @generated from field: string operation_id = 8;
+   */
+  operationId: string;
+};
+
+/**
+ * Describes the message vrooli.device_control.v1.devices.ExecuteVolumeRequest.
+ * Use `create(ExecuteVolumeRequestSchema)` to create a new message.
+ */
+export const ExecuteVolumeRequestSchema: GenMessage<ExecuteVolumeRequest> = /*@__PURE__*/
+  messageDesc(file_device_control_v1_devices_devices, 6);
+
+/**
+ * @generated from message vrooli.device_control.v1.devices.ExecuteVolumeResponse
+ */
+export type ExecuteVolumeResponse = Message<"vrooli.device_control.v1.devices.ExecuteVolumeResponse"> & {
+  /**
+   * @generated from field: string status = 1;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string operation_id = 2;
+   */
+  operationId: string;
+
+  /**
+   * @generated from field: string device_id = 3;
+   */
+  deviceId: string;
+
+  /**
+   * @generated from field: string device_name = 4;
+   */
+  deviceName: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct plan = 5;
+   */
+  plan?: JsonObject | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Struct before = 6;
+   */
+  before?: JsonObject | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Struct after = 7;
+   */
+  after?: JsonObject | undefined;
+
+  /**
+   * @generated from field: string verification_class = 8;
+   */
+  verificationClass: string;
+
+  /**
+   * @generated from field: repeated string evidence = 9;
+   */
+  evidence: string[];
+
+  /**
+   * @generated from field: int32 recovery_attempts = 10;
+   */
+  recoveryAttempts: number;
+
+  /**
+   * @generated from field: string next_action = 11;
+   */
+  nextAction: string;
+};
+
+/**
+ * Describes the message vrooli.device_control.v1.devices.ExecuteVolumeResponse.
+ * Use `create(ExecuteVolumeResponseSchema)` to create a new message.
+ */
+export const ExecuteVolumeResponseSchema: GenMessage<ExecuteVolumeResponse> = /*@__PURE__*/
+  messageDesc(file_device_control_v1_devices_devices, 7);
+
+/**
  * @generated from message vrooli.device_control.v1.devices.Device
  */
 export type Device = Message<"vrooli.device_control.v1.devices.Device"> & {
@@ -200,6 +319,21 @@ export type Device = Message<"vrooli.device_control.v1.devices.Device"> & {
    * @generated from field: string last_seen_at = 16;
    */
   lastSeenAt: string;
+
+  /**
+   * @generated from field: repeated vrooli.device_control.v1.devices.TransportProfile transports = 17;
+   */
+  transports: TransportProfile[];
+
+  /**
+   * @generated from field: string identity_key = 18;
+   */
+  identityKey: string;
+
+  /**
+   * @generated from field: string identity_reason = 19;
+   */
+  identityReason: string;
 };
 
 /**
@@ -207,7 +341,7 @@ export type Device = Message<"vrooli.device_control.v1.devices.Device"> & {
  * Use `create(DeviceSchema)` to create a new message.
  */
 export const DeviceSchema: GenMessage<Device> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 6);
+  messageDesc(file_device_control_v1_devices_devices, 8);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.CapabilitySnapshot
@@ -239,7 +373,64 @@ export type CapabilitySnapshot = Message<"vrooli.device_control.v1.devices.Capab
  * Use `create(CapabilitySnapshotSchema)` to create a new message.
  */
 export const CapabilitySnapshotSchema: GenMessage<CapabilitySnapshot> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 7);
+  messageDesc(file_device_control_v1_devices_devices, 9);
+
+/**
+ * @generated from message vrooli.device_control.v1.devices.TransportProfile
+ */
+export type TransportProfile = Message<"vrooli.device_control.v1.devices.TransportProfile"> & {
+  /**
+   * @generated from field: string strategy_id = 1;
+   */
+  strategyId: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string role = 3;
+   */
+  role: string;
+
+  /**
+   * @generated from field: string endpoint = 4;
+   */
+  endpoint: string;
+
+  /**
+   * @generated from field: string health = 5;
+   */
+  health: string;
+
+  /**
+   * @generated from field: string health_reason = 6;
+   */
+  healthReason: string;
+
+  /**
+   * @generated from field: repeated vrooli.device_control.v1.devices.CapabilitySnapshot capabilities = 7;
+   */
+  capabilities: CapabilitySnapshot[];
+
+  /**
+   * @generated from field: repeated string operations = 8;
+   */
+  operations: string[];
+
+  /**
+   * @generated from field: repeated string endpoints = 9;
+   */
+  endpoints: string[];
+};
+
+/**
+ * Describes the message vrooli.device_control.v1.devices.TransportProfile.
+ * Use `create(TransportProfileSchema)` to create a new message.
+ */
+export const TransportProfileSchema: GenMessage<TransportProfile> = /*@__PURE__*/
+  messageDesc(file_device_control_v1_devices_devices, 10);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.OnboardingRung
@@ -276,7 +467,7 @@ export type OnboardingRung = Message<"vrooli.device_control.v1.devices.Onboardin
  * Use `create(OnboardingRungSchema)` to create a new message.
  */
 export const OnboardingRungSchema: GenMessage<OnboardingRung> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 8);
+  messageDesc(file_device_control_v1_devices_devices, 11);
 
 /**
  * @generated from service vrooli.device_control.v1.devices.DeviceService
@@ -305,6 +496,14 @@ export const DeviceService: GenService<{
     methodKind: "unary";
     input: typeof ReconnectDeviceRequestSchema;
     output: typeof ReconnectDeviceResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.device_control.v1.devices.DeviceService.ExecuteVolume
+   */
+  executeVolume: {
+    methodKind: "unary";
+    input: typeof ExecuteVolumeRequestSchema;
+    output: typeof ExecuteVolumeResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_device_control_v1_devices_devices, 0);

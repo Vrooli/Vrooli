@@ -14,7 +14,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file agent-manager/v1/domain/workflow.proto.
  */
 export const file_agent_manager_v1_domain_workflow: GenFile = /*@__PURE__*/
-  fileDesc("CiZhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi93b3JrZmxvdy5wcm90bxIQYWdlbnRfbWFuYWdlci52MSLIAgoQV29ya2Zsb3dSZXZpc2lvbhIKCgJpZBgBIAEoCRINCgVvd25lchgCIAEoCRILCgNrZXkYAyABKAkSGAoQc2VtYW50aWNfdmVyc2lvbhgEIAEoCRIOCgZkaWdlc3QYBSABKAkSKwoKZGVmaW5pdGlvbhgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSEwoLc291cmNlX3BhdGgYByABKAkSEwoLc291cmNlX2hhc2gYCCABKAkSNQoRc291cmNlX3VwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBmFjdGl2ZRgKIAEoCBIuCgpjcmVhdGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgxwcm9tcHRfc3RhbGUYDCABKAgiUwoSV29ya2Zsb3dEaWFnbm9zdGljEgwKBGNvZGUYASABKAkSDAoEcGF0aBgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEhAKCHNldmVyaXR5GAQgASgJIl8KFldvcmtmbG93VGVybWluYWxSZWFzb24SDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEhEKCXJldHJ5YWJsZRgDIAEoCBITCgtidWRnZXRfbmFtZRgEIAEoCSKAAQoTV29ya2Zsb3dCdWRnZXRVc2FnZRINCgV0dXJucxgBIAEoBRIOCgZ0b2tlbnMYAiABKAUSEAoIY29zdF91c2QYAyABKAESFQoNbm9kZV9hdHRlbXB0cxgEIAEoBRIQCghjaGlsZHJlbhgFIAEoBRIPCgdyZXRyaWVzGAYgASgFIo0BCg1DaGFyZ2VSZWNlaXB0Eh0KEGFtb3VudF9taWNyb191c2QYASABKANIAIgBARIQCghjdXJyZW5jeRgCIAEoCRIWCg5tZXRlcmluZ19iYXNpcxgDIAEoCRIQCghtZWFzdXJlZBgEIAEoCBIMCgRub3RlGAUgASgJQhMKEV9hbW91bnRfbWljcm9fdXNkIoAHChFXb3JrZmxvd0V4ZWN1dGlvbhIKCgJpZBgBIAEoCRINCgVvd25lchgCIAEoCRIUCgx3b3JrZmxvd19rZXkYAyABKAkSGQoRZGVmaW5pdGlvbl9kaWdlc3QYBCABKAkSOQoGc3RhdHVzGAUgASgOMikuYWdlbnRfbWFuYWdlci52MS5Xb3JrZmxvd0V4ZWN1dGlvblN0YXR1cxIXCg9jdXJyZW50X25vZGVfaWQYBiABKAkSJQoFaW5wdXQYByABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSJgoGb3V0cHV0GAggASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEkEKD3Rlcm1pbmFsX3JlYXNvbhgJIAEoCzIoLmFnZW50X21hbmFnZXIudjEuV29ya2Zsb3dUZXJtaW5hbFJlYXNvbhI7CgxidWRnZXRfdXNhZ2UYCiABKAsyJS5hZ2VudF9tYW5hZ2VyLnYxLldvcmtmbG93QnVkZ2V0VXNhZ2USUAoPZWRnZV90cmF2ZXJzYWxzGAsgAygLMjcuYWdlbnRfbWFuYWdlci52MS5Xb3JrZmxvd0V4ZWN1dGlvbi5FZGdlVHJhdmVyc2Fsc0VudHJ5Eg8KB3ZlcnNpb24YDCABKAMSFwoPaWRlbXBvdGVuY3lfa2V5GA0gASgJEhsKE3BhcmVudF9leGVjdXRpb25faWQYDiABKAkSLgoKY3JlYXRlZF9hdBgPIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIZW5kZWRfYXQYESABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhkKEXBhcmVudF9hdHRlbXB0X2lkGBIgASgJEg0KBWRlcHRoGBMgASgFEjsKDG9ic2VydmF0aW9ucxgUIAEoCzIlLmFnZW50X21hbmFnZXIudjEuUmVjZWlwdE9ic2VydmF0aW9ucxI3Cg5jaGFyZ2VfcmVjZWlwdBgVIAEoCzIfLmFnZW50X21hbmFnZXIudjEuQ2hhcmdlUmVjZWlwdBo1ChNFZGdlVHJhdmVyc2Fsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEitQQKE1dvcmtmbG93Tm9kZUF0dGVtcHQSCgoCaWQYASABKAkSFAoMZXhlY3V0aW9uX2lkGAIgASgJEg8KB25vZGVfaWQYAyABKAkSDwoHb3JkaW5hbBgEIAEoBRIQCghzdHJhdGVneRgFIAEoCRIOCgZzdGF0dXMYBiABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAcgASgJEg4KBnJ1bl9pZBgIIAEoCRIXCg9jb252ZXJzYXRpb25faWQYCSABKAkSGQoRc291cmNlX2F0dGVtcHRfaWQYCiABKAkSEgoKZXJyb3JfY29kZRgLIAEoCRIPCgd2ZXJzaW9uGAwgASgDEi4KCmNyZWF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGNvbXBsZXRlZF9hdBgPIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGgoSY2hpbGRfZXhlY3V0aW9uX2lkGBAgASgJEhgKEHByb2ZpbGVfaWRlbnRpdHkYESABKAkSHQoVaW5wdXRfc25hcHNob3RfZGlnZXN0GBIgASgJEiEKGWlucHV0X3NuYXBzaG90X3NpemVfYnl0ZXMYEyABKAMSEgoKcmF3X291dHB1dBgUIAEoCRIYChB2YWxpZGF0aW9uX2Vycm9yGBUgASgJIuEBChRXb3JrZmxvd0pvdXJuYWxFbnRyeRIKCgJpZBgBIAEoCRIUCgxleGVjdXRpb25faWQYAiABKAkSEAoIc2VxdWVuY2UYAyABKAMSDAoEa2luZBgEIAEoCRIPCgdub2RlX2lkGAUgASgJEhIKCmF0dGVtcHRfaWQYBiABKAkSFgoOcGF5bG9hZF9kaWdlc3QYByABKAkSGgoScGF5bG9hZF9zaXplX2J5dGVzGAggASgDEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wKtsDChdXb3JrZmxvd0V4ZWN1dGlvblN0YXR1cxIpCiVXT1JLRkxPV19FWEVDVVRJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASJQohV09SS0ZMT1dfRVhFQ1VUSU9OX1NUQVRVU19QRU5ESU5HEAESJQohV09SS0ZMT1dfRVhFQ1VUSU9OX1NUQVRVU19SVU5OSU5HEAISJQohV09SS0ZMT1dfRVhFQ1VUSU9OX1NUQVRVU19XQUlUSU5HEAMSJwojV09SS0ZMT1dfRVhFQ1VUSU9OX1NUQVRVU19TVUNDRUVERUQQBBIlCiFXT1JLRkxPV19FWEVDVVRJT05fU1RBVFVTX0JMT0NLRUQQBRInCiNXT1JLRkxPV19FWEVDVVRJT05fU1RBVFVTX0FCU1RBSU5FRBAGEi4KKldPUktGTE9XX0VYRUNVVElPTl9TVEFUVVNfQlVER0VUX0VYSEFVU1RFRBAHEiQKIFdPUktGTE9XX0VYRUNVVElPTl9TVEFUVVNfRkFJTEVEEAgSJwojV09SS0ZMT1dfRVhFQ1VUSU9OX1NUQVRVU19DQU5DRUxMRUQQCRIoCiRXT1JLRkxPV19FWEVDVVRJT05fU1RBVFVTX0NBTkNFTExJTkcQCkJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FnZW50LW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_agent_manager_v1_domain_run, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("CiZhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi93b3JrZmxvdy5wcm90bxIQYWdlbnRfbWFuYWdlci52MSLIAgoQV29ya2Zsb3dSZXZpc2lvbhIKCgJpZBgBIAEoCRINCgVvd25lchgCIAEoCRILCgNrZXkYAyABKAkSGAoQc2VtYW50aWNfdmVyc2lvbhgEIAEoCRIOCgZkaWdlc3QYBSABKAkSKwoKZGVmaW5pdGlvbhgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSEwoLc291cmNlX3BhdGgYByABKAkSEwoLc291cmNlX2hhc2gYCCABKAkSNQoRc291cmNlX3VwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBmFjdGl2ZRgKIAEoCBIuCgpjcmVhdGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgxwcm9tcHRfc3RhbGUYDCABKAgiUwoSV29ya2Zsb3dEaWFnbm9zdGljEgwKBGNvZGUYASABKAkSDAoEcGF0aBgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEhAKCHNldmVyaXR5GAQgASgJIl8KFldvcmtmbG93VGVybWluYWxSZWFzb24SDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEhEKCXJldHJ5YWJsZRgDIAEoCBITCgtidWRnZXRfbmFtZRgEIAEoCSKdAQoTV29ya2Zsb3dCdWRnZXRVc2FnZRINCgV0dXJucxgBIAEoBRIOCgZ0b2tlbnMYAiABKAUSEAoIY29zdF91c2QYAyABKAESFQoNbm9kZV9hdHRlbXB0cxgEIAEoBRIQCghjaGlsZHJlbhgFIAEoBRIPCgdyZXRyaWVzGAYgASgFEhsKE2FjY291bnRpbmdfY29tcGxldGUYByABKAgiuwIKF1dvcmtmbG93RW5nYWdlbWVudEdyYW50EhEKCW1heF90dXJucxgBIAEoBRISCgptYXhfdG9rZW5zGAIgASgFEhwKFG1heF9jaGFyZ2VfbWljcm9fdXNkGAMgASgDEh0KFW1heF93YWxsX3RpbWVfc2Vjb25kcxgEIAEoBRIZChFtYXhfbm9kZV9hdHRlbXB0cxgFIAEoBRIUCgxtYXhfY2hpbGRyZW4YBiABKAUSFwoPbWF4X2NvbmN1cnJlbmN5GAcgASgFEhUKDW1heF9yZWN1cnNpb24YCCABKAUSGAoLbWF4X3JldHJpZXMYCSABKAVIAIgBARIYChBtYXhfd2FpdF9zZWNvbmRzGAogASgFEhcKD2FsbG93ZWRfZWZmZWN0cxgLIAMoCUIOCgxfbWF4X3JldHJpZXMijQEKDUNoYXJnZVJlY2VpcHQSHQoQYW1vdW50X21pY3JvX3VzZBgBIAEoA0gAiAEBEhAKCGN1cnJlbmN5GAIgASgJEhYKDm1ldGVyaW5nX2Jhc2lzGAMgASgJEhAKCG1lYXN1cmVkGAQgASgIEgwKBG5vdGUYBSABKAlCEwoRX2Ftb3VudF9taWNyb191c2Qi9AcKEVdvcmtmbG93RXhlY3V0aW9uEgoKAmlkGAEgASgJEg0KBW93bmVyGAIgASgJEhQKDHdvcmtmbG93X2tleRgDIAEoCRIZChFkZWZpbml0aW9uX2RpZ2VzdBgEIAEoCRI5CgZzdGF0dXMYBSABKA4yKS5hZ2VudF9tYW5hZ2VyLnYxLldvcmtmbG93RXhlY3V0aW9uU3RhdHVzEhcKD2N1cnJlbnRfbm9kZV9pZBgGIAEoCRIlCgVpbnB1dBgHIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRImCgZvdXRwdXQYCCABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSQQoPdGVybWluYWxfcmVhc29uGAkgASgLMiguYWdlbnRfbWFuYWdlci52MS5Xb3JrZmxvd1Rlcm1pbmFsUmVhc29uEjsKDGJ1ZGdldF91c2FnZRgKIAEoCzIlLmFnZW50X21hbmFnZXIudjEuV29ya2Zsb3dCdWRnZXRVc2FnZRJQCg9lZGdlX3RyYXZlcnNhbHMYCyADKAsyNy5hZ2VudF9tYW5hZ2VyLnYxLldvcmtmbG93RXhlY3V0aW9uLkVkZ2VUcmF2ZXJzYWxzRW50cnkSDwoHdmVyc2lvbhgMIAEoAxIXCg9pZGVtcG90ZW5jeV9rZXkYDSABKAkSGwoTcGFyZW50X2V4ZWN1dGlvbl9pZBgOIAEoCRIuCgpjcmVhdGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIsCghlbmRlZF9hdBgRIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGQoRcGFyZW50X2F0dGVtcHRfaWQYEiABKAkSDQoFZGVwdGgYEyABKAUSOwoMb2JzZXJ2YXRpb25zGBQgASgLMiUuYWdlbnRfbWFuYWdlci52MS5SZWNlaXB0T2JzZXJ2YXRpb25zEjcKDmNoYXJnZV9yZWNlaXB0GBUgASgLMh8uYWdlbnRfbWFuYWdlci52MS5DaGFyZ2VSZWNlaXB0EkMKEGVuZ2FnZW1lbnRfZ3JhbnQYFiABKAsyKS5hZ2VudF9tYW5hZ2VyLnYxLldvcmtmbG93RW5nYWdlbWVudEdyYW50EhcKD2FwcHJvdmFsX2RpZ2VzdBgXIAEoCRIUCgxncmFudF9kaWdlc3QYGCABKAkaNQoTRWRnZVRyYXZlcnNhbHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBIrUEChNXb3JrZmxvd05vZGVBdHRlbXB0EgoKAmlkGAEgASgJEhQKDGV4ZWN1dGlvbl9pZBgCIAEoCRIPCgdub2RlX2lkGAMgASgJEg8KB29yZGluYWwYBCABKAUSEAoIc3RyYXRlZ3kYBSABKAkSDgoGc3RhdHVzGAYgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgHIAEoCRIOCgZydW5faWQYCCABKAkSFwoPY29udmVyc2F0aW9uX2lkGAkgASgJEhkKEXNvdXJjZV9hdHRlbXB0X2lkGAogASgJEhIKCmVycm9yX2NvZGUYCyABKAkSDwoHdmVyc2lvbhgMIAEoAxIuCgpjcmVhdGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GA4gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxjb21wbGV0ZWRfYXQYDyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhoKEmNoaWxkX2V4ZWN1dGlvbl9pZBgQIAEoCRIYChBwcm9maWxlX2lkZW50aXR5GBEgASgJEh0KFWlucHV0X3NuYXBzaG90X2RpZ2VzdBgSIAEoCRIhChlpbnB1dF9zbmFwc2hvdF9zaXplX2J5dGVzGBMgASgDEhIKCnJhd19vdXRwdXQYFCABKAkSGAoQdmFsaWRhdGlvbl9lcnJvchgVIAEoCSLhAQoUV29ya2Zsb3dKb3VybmFsRW50cnkSCgoCaWQYASABKAkSFAoMZXhlY3V0aW9uX2lkGAIgASgJEhAKCHNlcXVlbmNlGAMgASgDEgwKBGtpbmQYBCABKAkSDwoHbm9kZV9pZBgFIAEoCRISCgphdHRlbXB0X2lkGAYgASgJEhYKDnBheWxvYWRfZGlnZXN0GAcgASgJEhoKEnBheWxvYWRfc2l6ZV9ieXRlcxgIIAEoAxIuCgpjcmVhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCrbAwoXV29ya2Zsb3dFeGVjdXRpb25TdGF0dXMSKQolV09SS0ZMT1dfRVhFQ1VUSU9OX1NUQVRVU19VTlNQRUNJRklFRBAAEiUKIVdPUktGTE9XX0VYRUNVVElPTl9TVEFUVVNfUEVORElORxABEiUKIVdPUktGTE9XX0VYRUNVVElPTl9TVEFUVVNfUlVOTklORxACEiUKIVdPUktGTE9XX0VYRUNVVElPTl9TVEFUVVNfV0FJVElORxADEicKI1dPUktGTE9XX0VYRUNVVElPTl9TVEFUVVNfU1VDQ0VFREVEEAQSJQohV09SS0ZMT1dfRVhFQ1VUSU9OX1NUQVRVU19CTE9DS0VEEAUSJwojV09SS0ZMT1dfRVhFQ1VUSU9OX1NUQVRVU19BQlNUQUlORUQQBhIuCipXT1JLRkxPV19FWEVDVVRJT05fU1RBVFVTX0JVREdFVF9FWEhBVVNURUQQBxIkCiBXT1JLRkxPV19FWEVDVVRJT05fU1RBVFVTX0ZBSUxFRBAIEicKI1dPUktGTE9XX0VYRUNVVElPTl9TVEFUVVNfQ0FOQ0VMTEVEEAkSKAokV09SS0ZMT1dfRVhFQ1VUSU9OX1NUQVRVU19DQU5DRUxMSU5HEApCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_agent_manager_v1_domain_run, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * WorkflowRevision is an immutable, digest-addressed catalog projection.
@@ -193,6 +193,13 @@ export type WorkflowBudgetUsage = Message<"agent_manager.v1.WorkflowBudgetUsage"
    * @generated from field: int32 retries = 6;
    */
   retries: number;
+
+  /**
+   * True only when every settled child has terminal token and charge accounting.
+   *
+   * @generated from field: bool accounting_complete = 7;
+   */
+  accountingComplete: boolean;
 };
 
 /**
@@ -201,6 +208,82 @@ export type WorkflowBudgetUsage = Message<"agent_manager.v1.WorkflowBudgetUsage"
  */
 export const WorkflowBudgetUsageSchema: GenMessage<WorkflowBudgetUsage> = /*@__PURE__*/
   messageDesc(file_agent_manager_v1_domain_workflow, 3);
+
+/**
+ * WorkflowEngagementGrant is an owner-issued aggregate allowance. Zero leaves
+ * that dimension at the workflow's declared limit. When present, token and
+ * wall-time limits are required and every supplied dimension can only narrow
+ * the pinned workflow revision.
+ *
+ * @generated from message agent_manager.v1.WorkflowEngagementGrant
+ */
+export type WorkflowEngagementGrant = Message<"agent_manager.v1.WorkflowEngagementGrant"> & {
+  /**
+   * @generated from field: int32 max_turns = 1;
+   */
+  maxTurns: number;
+
+  /**
+   * @generated from field: int32 max_tokens = 2;
+   */
+  maxTokens: number;
+
+  /**
+   * @generated from field: int64 max_charge_micro_usd = 3;
+   */
+  maxChargeMicroUsd: bigint;
+
+  /**
+   * @generated from field: int32 max_wall_time_seconds = 4;
+   */
+  maxWallTimeSeconds: number;
+
+  /**
+   * @generated from field: int32 max_node_attempts = 5;
+   */
+  maxNodeAttempts: number;
+
+  /**
+   * @generated from field: int32 max_children = 6;
+   */
+  maxChildren: number;
+
+  /**
+   * @generated from field: int32 max_concurrency = 7;
+   */
+  maxConcurrency: number;
+
+  /**
+   * @generated from field: int32 max_recursion = 8;
+   */
+  maxRecursion: number;
+
+  /**
+   * Omitted retains the declaration; an explicit zero forbids retries.
+   *
+   * @generated from field: optional int32 max_retries = 9;
+   */
+  maxRetries?: number | undefined;
+
+  /**
+   * @generated from field: int32 max_wait_seconds = 10;
+   */
+  maxWaitSeconds: number;
+
+  /**
+   * Immutable effect ceiling inherited by every workflow child.
+   *
+   * @generated from field: repeated string allowed_effects = 11;
+   */
+  allowedEffects: string[];
+};
+
+/**
+ * Describes the message agent_manager.v1.WorkflowEngagementGrant.
+ * Use `create(WorkflowEngagementGrantSchema)` to create a new message.
+ */
+export const WorkflowEngagementGrantSchema: GenMessage<WorkflowEngagementGrant> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_workflow, 4);
 
 /**
  * ChargeReceipt is the per-execution billing projection exposed to an
@@ -242,7 +325,7 @@ export type ChargeReceipt = Message<"agent_manager.v1.ChargeReceipt"> & {
  * Use `create(ChargeReceiptSchema)` to create a new message.
  */
 export const ChargeReceiptSchema: GenMessage<ChargeReceipt> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_workflow, 4);
+  messageDesc(file_agent_manager_v1_domain_workflow, 5);
 
 /**
  * @generated from message agent_manager.v1.WorkflowExecution
@@ -358,6 +441,27 @@ export type WorkflowExecution = Message<"agent_manager.v1.WorkflowExecution"> & 
    * @generated from field: agent_manager.v1.ChargeReceipt charge_receipt = 21;
    */
   chargeReceipt?: ChargeReceipt | undefined;
+
+  /**
+   * Immutable owner allowance retained for audit and restart reconciliation.
+   *
+   * @generated from field: agent_manager.v1.WorkflowEngagementGrant engagement_grant = 22;
+   */
+  engagementGrant?: WorkflowEngagementGrant | undefined;
+
+  /**
+   * Reviewed Swarm engagement identity, when supplied by an owning adapter.
+   *
+   * @generated from field: string approval_digest = 23;
+   */
+  approvalDigest: string;
+
+  /**
+   * Exact grant identity, kept separate from the workflow definition digest.
+   *
+   * @generated from field: string grant_digest = 24;
+   */
+  grantDigest: string;
 };
 
 /**
@@ -365,7 +469,7 @@ export type WorkflowExecution = Message<"agent_manager.v1.WorkflowExecution"> & 
  * Use `create(WorkflowExecutionSchema)` to create a new message.
  */
 export const WorkflowExecutionSchema: GenMessage<WorkflowExecution> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_workflow, 5);
+  messageDesc(file_agent_manager_v1_domain_workflow, 6);
 
 /**
  * WorkflowNodeAttempt is the durable, per-node execution identity. Prompt
@@ -490,7 +594,7 @@ export type WorkflowNodeAttempt = Message<"agent_manager.v1.WorkflowNodeAttempt"
  * Use `create(WorkflowNodeAttemptSchema)` to create a new message.
  */
 export const WorkflowNodeAttemptSchema: GenMessage<WorkflowNodeAttempt> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_workflow, 6);
+  messageDesc(file_agent_manager_v1_domain_workflow, 7);
 
 /**
  * WorkflowJournalEntry is a safe lifecycle-event projection. The durable
@@ -551,7 +655,7 @@ export type WorkflowJournalEntry = Message<"agent_manager.v1.WorkflowJournalEntr
  * Use `create(WorkflowJournalEntrySchema)` to create a new message.
  */
 export const WorkflowJournalEntrySchema: GenMessage<WorkflowJournalEntry> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_workflow, 7);
+  messageDesc(file_agent_manager_v1_domain_workflow, 8);
 
 /**
  * @generated from enum agent_manager.v1.WorkflowExecutionStatus

@@ -116,8 +116,13 @@ type CreateBacklogItemRequest struct {
 	PlanRef *shared.PlanRef `protobuf:"bytes,18,opt,name=plan_ref,json=planRef,proto3,oneof" json:"plan_ref,omitempty"`
 	// Typed, stable acceptance criteria present at item creation.
 	AcceptanceCriteria []*shared.BacklogCriterion `protobuf:"bytes,19,rep,name=acceptance_criteria,json=acceptanceCriteria,proto3" json:"acceptance_criteria,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Optional plan execution strategy. Empty uses the default phased-plan-drain
+	// strategy; adaptive-improvement executes the plan through the governed
+	// self-improvement campaign.
+	ExecutionStrategy *string                 `protobuf:"bytes,20,opt,name=execution_strategy,json=executionStrategy,proto3,oneof" json:"execution_strategy,omitempty"`
+	ExecutionLimits   *domain.ExecutionLimits `protobuf:"bytes,21,opt,name=execution_limits,json=executionLimits,proto3,oneof" json:"execution_limits,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *CreateBacklogItemRequest) Reset() {
@@ -262,6 +267,20 @@ func (x *CreateBacklogItemRequest) GetAcceptanceCriteria() []*shared.BacklogCrit
 	return nil
 }
 
+func (x *CreateBacklogItemRequest) GetExecutionStrategy() string {
+	if x != nil && x.ExecutionStrategy != nil {
+		return *x.ExecutionStrategy
+	}
+	return ""
+}
+
+func (x *CreateBacklogItemRequest) GetExecutionLimits() *domain.ExecutionLimits {
+	if x != nil {
+		return x.ExecutionLimits
+	}
+	return nil
+}
+
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
 //
 // PATCH semantics:
@@ -308,8 +327,11 @@ type UpdateBacklogItemRequest struct {
 	// Typed, stable acceptance criteria. Supplying this field replaces the
 	// complete criterion list; an empty list explicitly clears it.
 	AcceptanceCriteria []*shared.BacklogCriterion `protobuf:"bytes,17,rep,name=acceptance_criteria,json=acceptanceCriteria,proto3" json:"acceptance_criteria,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Plan execution strategy. Set to the empty string to clear it.
+	ExecutionStrategy *string                 `protobuf:"bytes,18,opt,name=execution_strategy,json=executionStrategy,proto3,oneof" json:"execution_strategy,omitempty"`
+	ExecutionLimits   *domain.ExecutionLimits `protobuf:"bytes,19,opt,name=execution_limits,json=executionLimits,proto3,oneof" json:"execution_limits,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *UpdateBacklogItemRequest) Reset() {
@@ -443,6 +465,20 @@ func (x *UpdateBacklogItemRequest) GetPlanRef() *shared.PlanRef {
 func (x *UpdateBacklogItemRequest) GetAcceptanceCriteria() []*shared.BacklogCriterion {
 	if x != nil {
 		return x.AcceptanceCriteria
+	}
+	return nil
+}
+
+func (x *UpdateBacklogItemRequest) GetExecutionStrategy() string {
+	if x != nil && x.ExecutionStrategy != nil {
+		return *x.ExecutionStrategy
+	}
+	return ""
+}
+
+func (x *UpdateBacklogItemRequest) GetExecutionLimits() *domain.ExecutionLimits {
+	if x != nil {
+		return x.ExecutionLimits
 	}
 	return nil
 }
@@ -3902,7 +3938,7 @@ var File_swarm_manager_v1_api_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/backlog.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\x1a'swarm-manager/v1/domain/execution.proto\x1a%swarm-manager/v1/shared/backlog.proto\x1a&swarm-manager/v1/shared/plan_ref.proto\"\xc8\x06\n" +
+	"\"swarm-manager/v1/api/backlog.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\x1a'swarm-manager/v1/domain/execution.proto\x1a%swarm-manager/v1/shared/backlog.proto\x1a&swarm-manager/v1/shared/plan_ref.proto\"\x89\b\n" +
 	"\x18CreateBacklogItemRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
@@ -3921,7 +3957,9 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x04note\x18\x10 \x01(\tH\x05R\x04note\x88\x01\x01\x12\x18\n" +
 	"\acreates\x18\x11 \x03(\tR\acreates\x12G\n" +
 	"\bplan_ref\x18\x12 \x01(\v2'.vrooli.swarm_manager.v1.shared.PlanRefH\x06R\aplanRef\x88\x01\x01\x12a\n" +
-	"\x13acceptance_criteria\x18\x13 \x03(\v20.vrooli.swarm_manager.v1.shared.BacklogCriterionR\x12acceptanceCriteriaB\x0e\n" +
+	"\x13acceptance_criteria\x18\x13 \x03(\v20.vrooli.swarm_manager.v1.shared.BacklogCriterionR\x12acceptanceCriteria\x122\n" +
+	"\x12execution_strategy\x18\x14 \x01(\tH\aR\x11executionStrategy\x88\x01\x01\x12_\n" +
+	"\x10execution_limits\x18\x15 \x01(\v2/.vrooli.swarm_manager.v1.domain.ExecutionLimitsH\bR\x0fexecutionLimits\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\v\n" +
 	"\t_priorityB\f\n" +
 	"\n" +
@@ -3929,8 +3967,10 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +
 	"\x05_noteB\v\n" +
-	"\t_plan_refJ\x04\b\a\x10\bJ\x04\b\n" +
-	"\x10\vJ\x04\b\f\x10\r\"\xa7\x06\n" +
+	"\t_plan_refB\x15\n" +
+	"\x13_execution_strategyB\x13\n" +
+	"\x11_execution_limitsJ\x04\b\a\x10\bJ\x04\b\n" +
+	"\x10\vJ\x04\b\f\x10\r\"\xe8\a\n" +
 	"\x18UpdateBacklogItemRequest\x12\"\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x05title\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12$\n" +
@@ -3948,7 +3988,10 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x04note\x18\x0e \x01(\tH\aR\x04note\x88\x01\x01\x12\x18\n" +
 	"\acreates\x18\x0f \x03(\tR\acreates\x12G\n" +
 	"\bplan_ref\x18\x10 \x01(\v2'.vrooli.swarm_manager.v1.shared.PlanRefH\bR\aplanRef\x88\x01\x01\x12a\n" +
-	"\x13acceptance_criteria\x18\x11 \x03(\v20.vrooli.swarm_manager.v1.shared.BacklogCriterionR\x12acceptanceCriteriaB\b\n" +
+	"\x13acceptance_criteria\x18\x11 \x03(\v20.vrooli.swarm_manager.v1.shared.BacklogCriterionR\x12acceptanceCriteria\x122\n" +
+	"\x12execution_strategy\x18\x12 \x01(\tH\tR\x11executionStrategy\x88\x01\x01\x12_\n" +
+	"\x10execution_limits\x18\x13 \x01(\v2/.vrooli.swarm_manager.v1.domain.ExecutionLimitsH\n" +
+	"R\x0fexecutionLimits\x88\x01\x01B\b\n" +
 	"\x06_titleB\x0e\n" +
 	"\f_descriptionB\t\n" +
 	"\a_statusB\v\n" +
@@ -3958,7 +4001,9 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +
 	"\x05_noteB\v\n" +
-	"\t_plan_refJ\x04\b\x06\x10\aJ\x04\b\n" +
+	"\t_plan_refB\x15\n" +
+	"\x13_execution_strategyB\x13\n" +
+	"\x11_execution_limitsJ\x04\b\x06\x10\aJ\x04\b\n" +
 	"\x10\v\"\xc4\x01\n" +
 	"\x11UpdateItemRequest\x12\x1b\n" +
 	"\x04kind\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04kind\x12\x1b\n" +
@@ -4100,7 +4145,7 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x04file\x18\x01 \x01(\v2+.vrooli.swarm_manager.v1.shared.BacklogFileH\x00R\x04file\x88\x01\x01\x12&\n" +
 	"\fdeleted_path\x18\x02 \x01(\tH\x01R\vdeletedPath\x88\x01\x01B\a\n" +
 	"\x05_fileB\x0f\n" +
-	"\r_deleted_path\"\x92\x03\n" +
+	"\r_deleted_path\"\x93\x03\n" +
 	"\x17QueueBacklogItemRequest\x12=\n" +
 	"\toperation\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\tgeneratorR\bimproverH\x00R\toperation\x88\x01\x01\x12,\n" +
 	"\x04mode\x18\x02 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloH\x01R\x04mode\x88\x01\x01\x12\"\n" +
@@ -4108,9 +4153,10 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"started_by\x18\x04 \x01(\tH\x02R\tstartedBy\x88\x01\x01\x12\x1d\n" +
 	"\aconfirm\x18\x05 \x01(\bH\x03R\aconfirm\x88\x01\x01\x12\x19\n" +
 	"\x05force\x18\x06 \x01(\bH\x04R\x05force\x88\x01\x01\x12\x1f\n" +
-	"\bstrategy\x18\a \x01(\tH\x05R\bstrategy\x88\x01\x01\x12-\n" +
+	"\bstrategy\x18\a \x01(\tH\x05R\bstrategy\x88\x01\x01\x12.\n" +
 	"\n" +
-	"max_slices\x18\b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x06(\x01H\x06R\tmaxSlices\x88\x01\x01B\f\n" +
+	"max_slices\x18\b \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x80\x04(\x01H\x06R\tmaxSlices\x88\x01\x01B\f\n" +
 	"\n" +
 	"_operationB\a\n" +
 	"\x05_modeB\r\n" +
@@ -4358,65 +4404,68 @@ var file_swarm_manager_v1_api_backlog_proto_goTypes = []any{
 	nil,                                        // 54: vrooli.swarm_manager.v1.api.ListBacklogItemsResponse.BlockingEntry
 	(*shared.PlanRef)(nil),                     // 55: vrooli.swarm_manager.v1.shared.PlanRef
 	(*shared.BacklogCriterion)(nil),            // 56: vrooli.swarm_manager.v1.shared.BacklogCriterion
-	(*domain.BacklogItem)(nil),                 // 57: vrooli.swarm_manager.v1.domain.BacklogItem
-	(*shared.BacklogFile)(nil),                 // 58: vrooli.swarm_manager.v1.shared.BacklogFile
-	(*domain.ClarificationThread)(nil),         // 59: vrooli.swarm_manager.v1.domain.ClarificationThread
-	(*domain.ReviewEvidenceRound)(nil),         // 60: vrooli.swarm_manager.v1.domain.ReviewEvidenceRound
+	(*domain.ExecutionLimits)(nil),             // 57: vrooli.swarm_manager.v1.domain.ExecutionLimits
+	(*domain.BacklogItem)(nil),                 // 58: vrooli.swarm_manager.v1.domain.BacklogItem
+	(*shared.BacklogFile)(nil),                 // 59: vrooli.swarm_manager.v1.shared.BacklogFile
+	(*domain.ClarificationThread)(nil),         // 60: vrooli.swarm_manager.v1.domain.ClarificationThread
+	(*domain.ReviewEvidenceRound)(nil),         // 61: vrooli.swarm_manager.v1.domain.ReviewEvidenceRound
 }
 var file_swarm_manager_v1_api_backlog_proto_depIdxs = []int32{
 	55, // 0: vrooli.swarm_manager.v1.api.CreateBacklogItemRequest.plan_ref:type_name -> vrooli.swarm_manager.v1.shared.PlanRef
 	56, // 1: vrooli.swarm_manager.v1.api.CreateBacklogItemRequest.acceptance_criteria:type_name -> vrooli.swarm_manager.v1.shared.BacklogCriterion
-	55, // 2: vrooli.swarm_manager.v1.api.UpdateBacklogItemRequest.plan_ref:type_name -> vrooli.swarm_manager.v1.shared.PlanRef
-	56, // 3: vrooli.swarm_manager.v1.api.UpdateBacklogItemRequest.acceptance_criteria:type_name -> vrooli.swarm_manager.v1.shared.BacklogCriterion
-	2,  // 4: vrooli.swarm_manager.v1.api.UpdateItemRequest.patch:type_name -> vrooli.swarm_manager.v1.api.UpdateBacklogItemRequest
-	57, // 5: vrooli.swarm_manager.v1.api.ListBacklogItemsResponse.items:type_name -> vrooli.swarm_manager.v1.domain.BacklogItem
-	54, // 6: vrooli.swarm_manager.v1.api.ListBacklogItemsResponse.blocking:type_name -> vrooli.swarm_manager.v1.api.ListBacklogItemsResponse.BlockingEntry
-	0,  // 7: vrooli.swarm_manager.v1.api.ListBacklogItemsRequest.archived:type_name -> vrooli.swarm_manager.v1.api.ArchivedFilter
-	11, // 8: vrooli.swarm_manager.v1.api.ReviewFollowUp.items:type_name -> vrooli.swarm_manager.v1.api.ReviewFollowUpItem
-	10, // 9: vrooli.swarm_manager.v1.api.DecideAttemptRequest.follow_up:type_name -> vrooli.swarm_manager.v1.api.ReviewFollowUp
-	57, // 10: vrooli.swarm_manager.v1.api.DecideAttemptResponse.item:type_name -> vrooli.swarm_manager.v1.domain.BacklogItem
-	57, // 11: vrooli.swarm_manager.v1.api.BacklogItemResponse.item:type_name -> vrooli.swarm_manager.v1.domain.BacklogItem
-	20, // 12: vrooli.swarm_manager.v1.api.AutoFilerStatusResponse.brake:type_name -> vrooli.swarm_manager.v1.api.AutoFilerBrakeState
-	57, // 13: vrooli.swarm_manager.v1.api.DismissAutoFilerSuggestionResponse.item:type_name -> vrooli.swarm_manager.v1.domain.BacklogItem
-	58, // 14: vrooli.swarm_manager.v1.api.BacklogFilesResponse.files:type_name -> vrooli.swarm_manager.v1.shared.BacklogFile
-	58, // 15: vrooli.swarm_manager.v1.api.BacklogFileResponse.file:type_name -> vrooli.swarm_manager.v1.shared.BacklogFile
-	58, // 16: vrooli.swarm_manager.v1.api.BacklogFileOperationResponse.file:type_name -> vrooli.swarm_manager.v1.shared.BacklogFile
-	57, // 17: vrooli.swarm_manager.v1.api.QueueBacklogItemResponse.item:type_name -> vrooli.swarm_manager.v1.domain.BacklogItem
-	4,  // 18: vrooli.swarm_manager.v1.api.QueueBacklogItemResponse.blocking_reasons:type_name -> vrooli.swarm_manager.v1.api.BlockingReason
-	4,  // 19: vrooli.swarm_manager.v1.api.BacklogResearchResponse.blocking_reasons:type_name -> vrooli.swarm_manager.v1.api.BlockingReason
-	34, // 20: vrooli.swarm_manager.v1.api.ImportBacklogResponse.changes:type_name -> vrooli.swarm_manager.v1.api.ImportChange
-	58, // 21: vrooli.swarm_manager.v1.api.WorkshopSaveResponse.file:type_name -> vrooli.swarm_manager.v1.shared.BacklogFile
-	37, // 22: vrooli.swarm_manager.v1.api.WorkshopSaveResponse.auto_advance:type_name -> vrooli.swarm_manager.v1.api.WorkshopAutoAdvance
-	59, // 23: vrooli.swarm_manager.v1.api.CreateClarificationResponse.thread:type_name -> vrooli.swarm_manager.v1.domain.ClarificationThread
-	59, // 24: vrooli.swarm_manager.v1.api.ContinueClarificationResponse.thread:type_name -> vrooli.swarm_manager.v1.domain.ClarificationThread
-	59, // 25: vrooli.swarm_manager.v1.api.GetClarificationResponse.thread:type_name -> vrooli.swarm_manager.v1.domain.ClarificationThread
-	60, // 26: vrooli.swarm_manager.v1.api.ListReviewRoundsResponse.rounds:type_name -> vrooli.swarm_manager.v1.domain.ReviewEvidenceRound
-	5,  // 27: vrooli.swarm_manager.v1.api.ListBacklogItemsResponse.BlockingEntry.value:type_name -> vrooli.swarm_manager.v1.api.ItemBlockingInfo
-	7,  // 28: vrooli.swarm_manager.v1.api.BacklogService.ListItems:input_type -> vrooli.swarm_manager.v1.api.ListBacklogItemsRequest
-	1,  // 29: vrooli.swarm_manager.v1.api.BacklogService.CreateItem:input_type -> vrooli.swarm_manager.v1.api.CreateBacklogItemRequest
-	17, // 30: vrooli.swarm_manager.v1.api.BacklogService.GetItem:input_type -> vrooli.swarm_manager.v1.api.GetBacklogItemRequest
-	3,  // 31: vrooli.swarm_manager.v1.api.BacklogService.UpdateItem:input_type -> vrooli.swarm_manager.v1.api.UpdateItemRequest
-	8,  // 32: vrooli.swarm_manager.v1.api.BacklogService.DeleteItem:input_type -> vrooli.swarm_manager.v1.api.DeleteBacklogItemRequest
-	12, // 33: vrooli.swarm_manager.v1.api.BacklogService.DecideAttempt:input_type -> vrooli.swarm_manager.v1.api.DecideAttemptRequest
-	14, // 34: vrooli.swarm_manager.v1.api.BacklogService.VerifyAttemptEvidence:input_type -> vrooli.swarm_manager.v1.api.VerifyAttemptEvidenceRequest
-	18, // 35: vrooli.swarm_manager.v1.api.AutoFilerService.GetStatus:input_type -> vrooli.swarm_manager.v1.api.AutoFilerStatusRequest
-	22, // 36: vrooli.swarm_manager.v1.api.AutoFilerService.DismissSuggestion:input_type -> vrooli.swarm_manager.v1.api.DismissAutoFilerSuggestionRequest
-	19, // 37: vrooli.swarm_manager.v1.api.AutoFilerService.RunNow:input_type -> vrooli.swarm_manager.v1.api.AutoFilerRunNowRequest
-	6,  // 38: vrooli.swarm_manager.v1.api.BacklogService.ListItems:output_type -> vrooli.swarm_manager.v1.api.ListBacklogItemsResponse
-	16, // 39: vrooli.swarm_manager.v1.api.BacklogService.CreateItem:output_type -> vrooli.swarm_manager.v1.api.BacklogItemResponse
-	16, // 40: vrooli.swarm_manager.v1.api.BacklogService.GetItem:output_type -> vrooli.swarm_manager.v1.api.BacklogItemResponse
-	16, // 41: vrooli.swarm_manager.v1.api.BacklogService.UpdateItem:output_type -> vrooli.swarm_manager.v1.api.BacklogItemResponse
-	9,  // 42: vrooli.swarm_manager.v1.api.BacklogService.DeleteItem:output_type -> vrooli.swarm_manager.v1.api.DeleteBacklogItemResponse
-	13, // 43: vrooli.swarm_manager.v1.api.BacklogService.DecideAttempt:output_type -> vrooli.swarm_manager.v1.api.DecideAttemptResponse
-	15, // 44: vrooli.swarm_manager.v1.api.BacklogService.VerifyAttemptEvidence:output_type -> vrooli.swarm_manager.v1.api.VerifyAttemptEvidenceResponse
-	21, // 45: vrooli.swarm_manager.v1.api.AutoFilerService.GetStatus:output_type -> vrooli.swarm_manager.v1.api.AutoFilerStatusResponse
-	23, // 46: vrooli.swarm_manager.v1.api.AutoFilerService.DismissSuggestion:output_type -> vrooli.swarm_manager.v1.api.DismissAutoFilerSuggestionResponse
-	21, // 47: vrooli.swarm_manager.v1.api.AutoFilerService.RunNow:output_type -> vrooli.swarm_manager.v1.api.AutoFilerStatusResponse
-	38, // [38:48] is the sub-list for method output_type
-	28, // [28:38] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	57, // 2: vrooli.swarm_manager.v1.api.CreateBacklogItemRequest.execution_limits:type_name -> vrooli.swarm_manager.v1.domain.ExecutionLimits
+	55, // 3: vrooli.swarm_manager.v1.api.UpdateBacklogItemRequest.plan_ref:type_name -> vrooli.swarm_manager.v1.shared.PlanRef
+	56, // 4: vrooli.swarm_manager.v1.api.UpdateBacklogItemRequest.acceptance_criteria:type_name -> vrooli.swarm_manager.v1.shared.BacklogCriterion
+	57, // 5: vrooli.swarm_manager.v1.api.UpdateBacklogItemRequest.execution_limits:type_name -> vrooli.swarm_manager.v1.domain.ExecutionLimits
+	2,  // 6: vrooli.swarm_manager.v1.api.UpdateItemRequest.patch:type_name -> vrooli.swarm_manager.v1.api.UpdateBacklogItemRequest
+	58, // 7: vrooli.swarm_manager.v1.api.ListBacklogItemsResponse.items:type_name -> vrooli.swarm_manager.v1.domain.BacklogItem
+	54, // 8: vrooli.swarm_manager.v1.api.ListBacklogItemsResponse.blocking:type_name -> vrooli.swarm_manager.v1.api.ListBacklogItemsResponse.BlockingEntry
+	0,  // 9: vrooli.swarm_manager.v1.api.ListBacklogItemsRequest.archived:type_name -> vrooli.swarm_manager.v1.api.ArchivedFilter
+	11, // 10: vrooli.swarm_manager.v1.api.ReviewFollowUp.items:type_name -> vrooli.swarm_manager.v1.api.ReviewFollowUpItem
+	10, // 11: vrooli.swarm_manager.v1.api.DecideAttemptRequest.follow_up:type_name -> vrooli.swarm_manager.v1.api.ReviewFollowUp
+	58, // 12: vrooli.swarm_manager.v1.api.DecideAttemptResponse.item:type_name -> vrooli.swarm_manager.v1.domain.BacklogItem
+	58, // 13: vrooli.swarm_manager.v1.api.BacklogItemResponse.item:type_name -> vrooli.swarm_manager.v1.domain.BacklogItem
+	20, // 14: vrooli.swarm_manager.v1.api.AutoFilerStatusResponse.brake:type_name -> vrooli.swarm_manager.v1.api.AutoFilerBrakeState
+	58, // 15: vrooli.swarm_manager.v1.api.DismissAutoFilerSuggestionResponse.item:type_name -> vrooli.swarm_manager.v1.domain.BacklogItem
+	59, // 16: vrooli.swarm_manager.v1.api.BacklogFilesResponse.files:type_name -> vrooli.swarm_manager.v1.shared.BacklogFile
+	59, // 17: vrooli.swarm_manager.v1.api.BacklogFileResponse.file:type_name -> vrooli.swarm_manager.v1.shared.BacklogFile
+	59, // 18: vrooli.swarm_manager.v1.api.BacklogFileOperationResponse.file:type_name -> vrooli.swarm_manager.v1.shared.BacklogFile
+	58, // 19: vrooli.swarm_manager.v1.api.QueueBacklogItemResponse.item:type_name -> vrooli.swarm_manager.v1.domain.BacklogItem
+	4,  // 20: vrooli.swarm_manager.v1.api.QueueBacklogItemResponse.blocking_reasons:type_name -> vrooli.swarm_manager.v1.api.BlockingReason
+	4,  // 21: vrooli.swarm_manager.v1.api.BacklogResearchResponse.blocking_reasons:type_name -> vrooli.swarm_manager.v1.api.BlockingReason
+	34, // 22: vrooli.swarm_manager.v1.api.ImportBacklogResponse.changes:type_name -> vrooli.swarm_manager.v1.api.ImportChange
+	59, // 23: vrooli.swarm_manager.v1.api.WorkshopSaveResponse.file:type_name -> vrooli.swarm_manager.v1.shared.BacklogFile
+	37, // 24: vrooli.swarm_manager.v1.api.WorkshopSaveResponse.auto_advance:type_name -> vrooli.swarm_manager.v1.api.WorkshopAutoAdvance
+	60, // 25: vrooli.swarm_manager.v1.api.CreateClarificationResponse.thread:type_name -> vrooli.swarm_manager.v1.domain.ClarificationThread
+	60, // 26: vrooli.swarm_manager.v1.api.ContinueClarificationResponse.thread:type_name -> vrooli.swarm_manager.v1.domain.ClarificationThread
+	60, // 27: vrooli.swarm_manager.v1.api.GetClarificationResponse.thread:type_name -> vrooli.swarm_manager.v1.domain.ClarificationThread
+	61, // 28: vrooli.swarm_manager.v1.api.ListReviewRoundsResponse.rounds:type_name -> vrooli.swarm_manager.v1.domain.ReviewEvidenceRound
+	5,  // 29: vrooli.swarm_manager.v1.api.ListBacklogItemsResponse.BlockingEntry.value:type_name -> vrooli.swarm_manager.v1.api.ItemBlockingInfo
+	7,  // 30: vrooli.swarm_manager.v1.api.BacklogService.ListItems:input_type -> vrooli.swarm_manager.v1.api.ListBacklogItemsRequest
+	1,  // 31: vrooli.swarm_manager.v1.api.BacklogService.CreateItem:input_type -> vrooli.swarm_manager.v1.api.CreateBacklogItemRequest
+	17, // 32: vrooli.swarm_manager.v1.api.BacklogService.GetItem:input_type -> vrooli.swarm_manager.v1.api.GetBacklogItemRequest
+	3,  // 33: vrooli.swarm_manager.v1.api.BacklogService.UpdateItem:input_type -> vrooli.swarm_manager.v1.api.UpdateItemRequest
+	8,  // 34: vrooli.swarm_manager.v1.api.BacklogService.DeleteItem:input_type -> vrooli.swarm_manager.v1.api.DeleteBacklogItemRequest
+	12, // 35: vrooli.swarm_manager.v1.api.BacklogService.DecideAttempt:input_type -> vrooli.swarm_manager.v1.api.DecideAttemptRequest
+	14, // 36: vrooli.swarm_manager.v1.api.BacklogService.VerifyAttemptEvidence:input_type -> vrooli.swarm_manager.v1.api.VerifyAttemptEvidenceRequest
+	18, // 37: vrooli.swarm_manager.v1.api.AutoFilerService.GetStatus:input_type -> vrooli.swarm_manager.v1.api.AutoFilerStatusRequest
+	22, // 38: vrooli.swarm_manager.v1.api.AutoFilerService.DismissSuggestion:input_type -> vrooli.swarm_manager.v1.api.DismissAutoFilerSuggestionRequest
+	19, // 39: vrooli.swarm_manager.v1.api.AutoFilerService.RunNow:input_type -> vrooli.swarm_manager.v1.api.AutoFilerRunNowRequest
+	6,  // 40: vrooli.swarm_manager.v1.api.BacklogService.ListItems:output_type -> vrooli.swarm_manager.v1.api.ListBacklogItemsResponse
+	16, // 41: vrooli.swarm_manager.v1.api.BacklogService.CreateItem:output_type -> vrooli.swarm_manager.v1.api.BacklogItemResponse
+	16, // 42: vrooli.swarm_manager.v1.api.BacklogService.GetItem:output_type -> vrooli.swarm_manager.v1.api.BacklogItemResponse
+	16, // 43: vrooli.swarm_manager.v1.api.BacklogService.UpdateItem:output_type -> vrooli.swarm_manager.v1.api.BacklogItemResponse
+	9,  // 44: vrooli.swarm_manager.v1.api.BacklogService.DeleteItem:output_type -> vrooli.swarm_manager.v1.api.DeleteBacklogItemResponse
+	13, // 45: vrooli.swarm_manager.v1.api.BacklogService.DecideAttempt:output_type -> vrooli.swarm_manager.v1.api.DecideAttemptResponse
+	15, // 46: vrooli.swarm_manager.v1.api.BacklogService.VerifyAttemptEvidence:output_type -> vrooli.swarm_manager.v1.api.VerifyAttemptEvidenceResponse
+	21, // 47: vrooli.swarm_manager.v1.api.AutoFilerService.GetStatus:output_type -> vrooli.swarm_manager.v1.api.AutoFilerStatusResponse
+	23, // 48: vrooli.swarm_manager.v1.api.AutoFilerService.DismissSuggestion:output_type -> vrooli.swarm_manager.v1.api.DismissAutoFilerSuggestionResponse
+	21, // 49: vrooli.swarm_manager.v1.api.AutoFilerService.RunNow:output_type -> vrooli.swarm_manager.v1.api.AutoFilerStatusResponse
+	40, // [40:50] is the sub-list for method output_type
+	30, // [30:40] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_backlog_proto_init() }

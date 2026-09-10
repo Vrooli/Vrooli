@@ -472,7 +472,7 @@ class SupervisionOutcomeRecord(_message.Message):
     def __init__(self, outcome_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., policy_version: _Optional[str] = ..., family_execution_id: _Optional[str] = ..., watch_id: _Optional[str] = ..., decision_id: _Optional[str] = ..., action_id: _Optional[str] = ..., child_run_id: _Optional[str] = ..., evidence_ids: _Optional[_Iterable[str]] = ..., predicted_class: _Optional[str] = ..., observed_class: _Optional[str] = ..., overridden: _Optional[bool] = ..., counterexample: _Optional[bool] = ..., safety_violation: _Optional[bool] = ..., completion_impact: _Optional[float] = ..., supersedes_outcome_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completion_impact_observed: _Optional[bool] = ...) -> None: ...
 
 class SupervisionReplayReport(_message.Message):
-    __slots__ = ("version", "sample_count", "false_positives", "false_negatives", "safety_violations", "completion_impact", "rollout_samples", "replay_passed", "rollout_passed", "incumbent_version", "heldout_families", "candidate_errors", "incumbent_errors", "comparison_passed", "selection")
+    __slots__ = ("version", "sample_count", "false_positives", "false_negatives", "safety_violations", "completion_impact", "rollout_samples", "replay_passed", "rollout_passed", "incumbent_version", "heldout_families", "candidate_errors", "incumbent_errors", "comparison_passed", "selection", "completion_impact_observed", "completion_impact_reason")
     VERSION_FIELD_NUMBER: _ClassVar[int]
     SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
     FALSE_POSITIVES_FIELD_NUMBER: _ClassVar[int]
@@ -488,6 +488,8 @@ class SupervisionReplayReport(_message.Message):
     INCUMBENT_ERRORS_FIELD_NUMBER: _ClassVar[int]
     COMPARISON_PASSED_FIELD_NUMBER: _ClassVar[int]
     SELECTION_FIELD_NUMBER: _ClassVar[int]
+    COMPLETION_IMPACT_OBSERVED_FIELD_NUMBER: _ClassVar[int]
+    COMPLETION_IMPACT_REASON_FIELD_NUMBER: _ClassVar[int]
     version: str
     sample_count: int
     false_positives: int
@@ -503,7 +505,9 @@ class SupervisionReplayReport(_message.Message):
     incumbent_errors: int
     comparison_passed: bool
     selection: str
-    def __init__(self, version: _Optional[str] = ..., sample_count: _Optional[int] = ..., false_positives: _Optional[int] = ..., false_negatives: _Optional[int] = ..., safety_violations: _Optional[int] = ..., completion_impact: _Optional[float] = ..., rollout_samples: _Optional[int] = ..., replay_passed: _Optional[bool] = ..., rollout_passed: _Optional[bool] = ..., incumbent_version: _Optional[str] = ..., heldout_families: _Optional[int] = ..., candidate_errors: _Optional[int] = ..., incumbent_errors: _Optional[int] = ..., comparison_passed: _Optional[bool] = ..., selection: _Optional[str] = ...) -> None: ...
+    completion_impact_observed: bool
+    completion_impact_reason: str
+    def __init__(self, version: _Optional[str] = ..., sample_count: _Optional[int] = ..., false_positives: _Optional[int] = ..., false_negatives: _Optional[int] = ..., safety_violations: _Optional[int] = ..., completion_impact: _Optional[float] = ..., rollout_samples: _Optional[int] = ..., replay_passed: _Optional[bool] = ..., rollout_passed: _Optional[bool] = ..., incumbent_version: _Optional[str] = ..., heldout_families: _Optional[int] = ..., candidate_errors: _Optional[int] = ..., incumbent_errors: _Optional[int] = ..., comparison_passed: _Optional[bool] = ..., selection: _Optional[str] = ..., completion_impact_observed: _Optional[bool] = ..., completion_impact_reason: _Optional[str] = ...) -> None: ...
 
 class GetSupervisionPolicyRequest(_message.Message):
     __slots__ = ("version",)

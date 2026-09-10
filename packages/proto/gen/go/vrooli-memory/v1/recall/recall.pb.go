@@ -22,17 +22,24 @@ const (
 )
 
 type RecallHit struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	EntryId       string                 `protobuf:"bytes,1,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
-	FacetId       string                 `protobuf:"bytes,2,opt,name=facet_id,json=facetId,proto3" json:"facet_id,omitempty"`
-	Text          string                 `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
-	Score         float64                `protobuf:"fixed64,4,opt,name=score,proto3" json:"score,omitempty"`
-	Depth         int32                  `protobuf:"varint,5,opt,name=depth,proto3" json:"depth,omitempty"`
-	NodeId        string                 `protobuf:"bytes,6,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	Summary       bool                   `protobuf:"varint,7,opt,name=summary,proto3" json:"summary,omitempty"`
-	Span          int32                  `protobuf:"varint,8,opt,name=span,proto3" json:"span,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	EntryId          string                 `protobuf:"bytes,1,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	FacetId          string                 `protobuf:"bytes,2,opt,name=facet_id,json=facetId,proto3" json:"facet_id,omitempty"`
+	Text             string                 `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
+	Score            float64                `protobuf:"fixed64,4,opt,name=score,proto3" json:"score,omitempty"`
+	Depth            int32                  `protobuf:"varint,5,opt,name=depth,proto3" json:"depth,omitempty"`
+	NodeId           string                 `protobuf:"bytes,6,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Summary          bool                   `protobuf:"varint,7,opt,name=summary,proto3" json:"summary,omitempty"`
+	Span             int32                  `protobuf:"varint,8,opt,name=span,proto3" json:"span,omitempty"`
+	Supported        int32                  `protobuf:"varint,9,opt,name=supported,proto3" json:"supported,omitempty"`
+	Contradicted     int32                  `protobuf:"varint,10,opt,name=contradicted,proto3" json:"contradicted,omitempty"`
+	CreatedAt        string                 `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	EvidenceReliable *bool                  `protobuf:"varint,12,opt,name=evidence_reliable,json=evidenceReliable,proto3,oneof" json:"evidence_reliable,omitempty"`
+	ContextKey       string                 `protobuf:"bytes,13,opt,name=context_key,json=contextKey,proto3" json:"context_key,omitempty"`
+	Operation        string                 `protobuf:"bytes,14,opt,name=operation,proto3" json:"operation,omitempty"`
+	Provenance       string                 `protobuf:"bytes,15,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RecallHit) Reset() {
@@ -119,6 +126,55 @@ func (x *RecallHit) GetSpan() int32 {
 		return x.Span
 	}
 	return 0
+}
+
+func (x *RecallHit) GetSupported() int32 {
+	if x != nil {
+		return x.Supported
+	}
+	return 0
+}
+
+func (x *RecallHit) GetContradicted() int32 {
+	if x != nil {
+		return x.Contradicted
+	}
+	return 0
+}
+
+func (x *RecallHit) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *RecallHit) GetEvidenceReliable() bool {
+	if x != nil && x.EvidenceReliable != nil {
+		return *x.EvidenceReliable
+	}
+	return false
+}
+
+func (x *RecallHit) GetContextKey() string {
+	if x != nil {
+		return x.ContextKey
+	}
+	return ""
+}
+
+func (x *RecallHit) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
+func (x *RecallHit) GetProvenance() string {
+	if x != nil {
+		return x.Provenance
+	}
+	return ""
 }
 
 type RecallRequest struct {
@@ -526,7 +582,7 @@ var File_vrooli_memory_v1_recall_recall_proto protoreflect.FileDescriptor
 
 const file_vrooli_memory_v1_recall_recall_proto_rawDesc = "" +
 	"\n" +
-	"$vrooli-memory/v1/recall/recall.proto\x12\x1evrooli.vrooli_memory.v1.recall\"\xc8\x01\n" +
+	"$vrooli-memory/v1/recall/recall.proto\x12\x1evrooli.vrooli_memory.v1.recall\"\xd0\x03\n" +
 	"\tRecallHit\x12\x19\n" +
 	"\bentry_id\x18\x01 \x01(\tR\aentryId\x12\x19\n" +
 	"\bfacet_id\x18\x02 \x01(\tR\afacetId\x12\x12\n" +
@@ -535,7 +591,20 @@ const file_vrooli_memory_v1_recall_recall_proto_rawDesc = "" +
 	"\x05depth\x18\x05 \x01(\x05R\x05depth\x12\x17\n" +
 	"\anode_id\x18\x06 \x01(\tR\x06nodeId\x12\x18\n" +
 	"\asummary\x18\a \x01(\bR\asummary\x12\x12\n" +
-	"\x04span\x18\b \x01(\x05R\x04span\"Q\n" +
+	"\x04span\x18\b \x01(\x05R\x04span\x12\x1c\n" +
+	"\tsupported\x18\t \x01(\x05R\tsupported\x12\"\n" +
+	"\fcontradicted\x18\n" +
+	" \x01(\x05R\fcontradicted\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\v \x01(\tR\tcreatedAt\x120\n" +
+	"\x11evidence_reliable\x18\f \x01(\bH\x00R\x10evidenceReliable\x88\x01\x01\x12\x1f\n" +
+	"\vcontext_key\x18\r \x01(\tR\n" +
+	"contextKey\x12\x1c\n" +
+	"\toperation\x18\x0e \x01(\tR\toperation\x12\x1e\n" +
+	"\n" +
+	"provenance\x18\x0f \x01(\tR\n" +
+	"provenanceB\x14\n" +
+	"\x12_evidence_reliable\"Q\n" +
 	"\rRecallRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x14\n" +
@@ -614,6 +683,7 @@ func file_vrooli_memory_v1_recall_recall_proto_init() {
 	if File_vrooli_memory_v1_recall_recall_proto != nil {
 		return
 	}
+	file_vrooli_memory_v1_recall_recall_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -43,6 +43,7 @@ type phasedPlanSnapshot struct {
 	EntityName        string
 	EntityVersion     string
 	MaxSlices         int
+	ExecutionStrategy string
 	WriteScope        []string
 	SliceApprovalMode string
 }
@@ -143,7 +144,7 @@ func buildPhasedPlanSnapshot(item backlogItem, record Record, planHandle, projec
 		PlanReference: planHandle, FrontierDigest: frontier, ExecutionID: record.ExecutionID,
 		ProjectRoot: filepath.Clean(projectRoot),
 		EntityKind:  item.Kind, EntityName: item.Name, EntityVersion: digestStrings(string(itemBytes)),
-		MaxSlices: firstPositive(record.MaxSlices, 6), WriteScope: append([]string(nil), item.AcceptanceAllow...), PlanExecutionID: record.PlanManagerExecutionID,
+		MaxSlices: firstPositive(record.MaxSlices, 6), ExecutionStrategy: firstNonEmpty(record.ExecutionStrategy, defaultExecutionStrategy), WriteScope: append([]string(nil), item.AcceptanceAllow...), PlanExecutionID: record.PlanManagerExecutionID,
 	}, nil
 }
 
@@ -237,7 +238,7 @@ func (snapshot phasedPlanSnapshot) input() (*structpb.Value, error) {
 			"executionId": snapshot.ExecutionID, "entityKind": snapshot.EntityKind,
 			"entityName": snapshot.EntityName, "entityVersion": snapshot.EntityVersion,
 		},
-		"constraints": map[string]any{"maxSlices": snapshot.MaxSlices, "writeScope": writeScope, "sliceApprovalMode": firstNonEmpty(snapshot.SliceApprovalMode, string(transitions.GateModeManual))},
+		"constraints": map[string]any{"maxSlices": snapshot.MaxSlices, "executionStrategy": firstNonEmpty(snapshot.ExecutionStrategy, defaultExecutionStrategy), "writeScope": writeScope, "sliceApprovalMode": firstNonEmpty(snapshot.SliceApprovalMode, string(transitions.GateModeManual))},
 	})
 }
 
@@ -400,6 +401,9 @@ func (s *Service) applyPlanExecuteTransition(ctx context.Context, executionID st
 		return err
 	}
 	record := records[idx]
+	if record.Cancellation != nil {
+		return fmt.Errorf("execution cancellation withdrew authority; terminal usage must reconcile without applying a late result")
+	}
 	if outcome.TransitionKey != "plan.execute" {
 		return fmt.Errorf("execution %q is not a plan execution transition", executionID)
 	}
@@ -412,6 +416,9 @@ func (s *Service) applyPlanExecuteTransition(ctx context.Context, executionID st
 	}
 	if err := s.finishPhasedPlanClaim(&record, outcome, result); err != nil {
 		return err
+	}
+	if record.WorkflowGrant != nil {
+		record.SettledUsage = outcome.Usage
 	}
 	record.UpdatedAt = nowRFC3339()
 	records[idx] = record

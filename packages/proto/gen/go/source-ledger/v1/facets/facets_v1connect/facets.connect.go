@@ -36,6 +36,15 @@ const (
 	// FacetsServiceListFacetsProcedure is the fully-qualified name of the FacetsService's ListFacets
 	// RPC.
 	FacetsServiceListFacetsProcedure = "/vrooli.source_ledger.v1.facets.FacetsService/ListFacets"
+	// FacetsServiceCountUnassignedProcedure is the fully-qualified name of the FacetsService's
+	// CountUnassigned RPC.
+	FacetsServiceCountUnassignedProcedure = "/vrooli.source_ledger.v1.facets.FacetsService/CountUnassigned"
+	// FacetsServiceEnsureFacetProcedure is the fully-qualified name of the FacetsService's EnsureFacet
+	// RPC.
+	FacetsServiceEnsureFacetProcedure = "/vrooli.source_ledger.v1.facets.FacetsService/EnsureFacet"
+	// FacetsServiceDeleteFacetProcedure is the fully-qualified name of the FacetsService's DeleteFacet
+	// RPC.
+	FacetsServiceDeleteFacetProcedure = "/vrooli.source_ledger.v1.facets.FacetsService/DeleteFacet"
 	// FacetsServiceSetFacetPolicyProcedure is the fully-qualified name of the FacetsService's
 	// SetFacetPolicy RPC.
 	FacetsServiceSetFacetPolicyProcedure = "/vrooli.source_ledger.v1.facets.FacetsService/SetFacetPolicy"
@@ -64,6 +73,9 @@ const (
 // FacetsServiceClient is a client for the vrooli.source_ledger.v1.facets.FacetsService service.
 type FacetsServiceClient interface {
 	ListFacets(context.Context, *connect.Request[facets.ListFacetsRequest]) (*connect.Response[facets.ListFacetsResponse], error)
+	CountUnassigned(context.Context, *connect.Request[facets.CountUnassignedRequest]) (*connect.Response[facets.CountUnassignedResponse], error)
+	EnsureFacet(context.Context, *connect.Request[facets.EnsureFacetRequest]) (*connect.Response[facets.EnsureFacetResponse], error)
+	DeleteFacet(context.Context, *connect.Request[facets.DeleteFacetRequest]) (*connect.Response[facets.DeleteFacetResponse], error)
 	SetFacetPolicy(context.Context, *connect.Request[facets.SetFacetPolicyRequest]) (*connect.Response[facets.SetFacetPolicyResponse], error)
 	AssignFacet(context.Context, *connect.Request[facets.AssignFacetRequest]) (*connect.Response[facets.AssignFacetResponse], error)
 	SetPin(context.Context, *connect.Request[facets.SetPinRequest]) (*connect.Response[facets.SetPinResponse], error)
@@ -89,6 +101,24 @@ func NewFacetsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			httpClient,
 			baseURL+FacetsServiceListFacetsProcedure,
 			connect.WithSchema(facetsServiceMethods.ByName("ListFacets")),
+			connect.WithClientOptions(opts...),
+		),
+		countUnassigned: connect.NewClient[facets.CountUnassignedRequest, facets.CountUnassignedResponse](
+			httpClient,
+			baseURL+FacetsServiceCountUnassignedProcedure,
+			connect.WithSchema(facetsServiceMethods.ByName("CountUnassigned")),
+			connect.WithClientOptions(opts...),
+		),
+		ensureFacet: connect.NewClient[facets.EnsureFacetRequest, facets.EnsureFacetResponse](
+			httpClient,
+			baseURL+FacetsServiceEnsureFacetProcedure,
+			connect.WithSchema(facetsServiceMethods.ByName("EnsureFacet")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteFacet: connect.NewClient[facets.DeleteFacetRequest, facets.DeleteFacetResponse](
+			httpClient,
+			baseURL+FacetsServiceDeleteFacetProcedure,
+			connect.WithSchema(facetsServiceMethods.ByName("DeleteFacet")),
 			connect.WithClientOptions(opts...),
 		),
 		setFacetPolicy: connect.NewClient[facets.SetFacetPolicyRequest, facets.SetFacetPolicyResponse](
@@ -145,6 +175,9 @@ func NewFacetsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 // facetsServiceClient implements FacetsServiceClient.
 type facetsServiceClient struct {
 	listFacets         *connect.Client[facets.ListFacetsRequest, facets.ListFacetsResponse]
+	countUnassigned    *connect.Client[facets.CountUnassignedRequest, facets.CountUnassignedResponse]
+	ensureFacet        *connect.Client[facets.EnsureFacetRequest, facets.EnsureFacetResponse]
+	deleteFacet        *connect.Client[facets.DeleteFacetRequest, facets.DeleteFacetResponse]
 	setFacetPolicy     *connect.Client[facets.SetFacetPolicyRequest, facets.SetFacetPolicyResponse]
 	assignFacet        *connect.Client[facets.AssignFacetRequest, facets.AssignFacetResponse]
 	setPin             *connect.Client[facets.SetPinRequest, facets.SetPinResponse]
@@ -158,6 +191,21 @@ type facetsServiceClient struct {
 // ListFacets calls vrooli.source_ledger.v1.facets.FacetsService.ListFacets.
 func (c *facetsServiceClient) ListFacets(ctx context.Context, req *connect.Request[facets.ListFacetsRequest]) (*connect.Response[facets.ListFacetsResponse], error) {
 	return c.listFacets.CallUnary(ctx, req)
+}
+
+// CountUnassigned calls vrooli.source_ledger.v1.facets.FacetsService.CountUnassigned.
+func (c *facetsServiceClient) CountUnassigned(ctx context.Context, req *connect.Request[facets.CountUnassignedRequest]) (*connect.Response[facets.CountUnassignedResponse], error) {
+	return c.countUnassigned.CallUnary(ctx, req)
+}
+
+// EnsureFacet calls vrooli.source_ledger.v1.facets.FacetsService.EnsureFacet.
+func (c *facetsServiceClient) EnsureFacet(ctx context.Context, req *connect.Request[facets.EnsureFacetRequest]) (*connect.Response[facets.EnsureFacetResponse], error) {
+	return c.ensureFacet.CallUnary(ctx, req)
+}
+
+// DeleteFacet calls vrooli.source_ledger.v1.facets.FacetsService.DeleteFacet.
+func (c *facetsServiceClient) DeleteFacet(ctx context.Context, req *connect.Request[facets.DeleteFacetRequest]) (*connect.Response[facets.DeleteFacetResponse], error) {
+	return c.deleteFacet.CallUnary(ctx, req)
 }
 
 // SetFacetPolicy calls vrooli.source_ledger.v1.facets.FacetsService.SetFacetPolicy.
@@ -204,6 +252,9 @@ func (c *facetsServiceClient) ResolveThread(ctx context.Context, req *connect.Re
 // service.
 type FacetsServiceHandler interface {
 	ListFacets(context.Context, *connect.Request[facets.ListFacetsRequest]) (*connect.Response[facets.ListFacetsResponse], error)
+	CountUnassigned(context.Context, *connect.Request[facets.CountUnassignedRequest]) (*connect.Response[facets.CountUnassignedResponse], error)
+	EnsureFacet(context.Context, *connect.Request[facets.EnsureFacetRequest]) (*connect.Response[facets.EnsureFacetResponse], error)
+	DeleteFacet(context.Context, *connect.Request[facets.DeleteFacetRequest]) (*connect.Response[facets.DeleteFacetResponse], error)
 	SetFacetPolicy(context.Context, *connect.Request[facets.SetFacetPolicyRequest]) (*connect.Response[facets.SetFacetPolicyResponse], error)
 	AssignFacet(context.Context, *connect.Request[facets.AssignFacetRequest]) (*connect.Response[facets.AssignFacetResponse], error)
 	SetPin(context.Context, *connect.Request[facets.SetPinRequest]) (*connect.Response[facets.SetPinResponse], error)
@@ -225,6 +276,24 @@ func NewFacetsServiceHandler(svc FacetsServiceHandler, opts ...connect.HandlerOp
 		FacetsServiceListFacetsProcedure,
 		svc.ListFacets,
 		connect.WithSchema(facetsServiceMethods.ByName("ListFacets")),
+		connect.WithHandlerOptions(opts...),
+	)
+	facetsServiceCountUnassignedHandler := connect.NewUnaryHandler(
+		FacetsServiceCountUnassignedProcedure,
+		svc.CountUnassigned,
+		connect.WithSchema(facetsServiceMethods.ByName("CountUnassigned")),
+		connect.WithHandlerOptions(opts...),
+	)
+	facetsServiceEnsureFacetHandler := connect.NewUnaryHandler(
+		FacetsServiceEnsureFacetProcedure,
+		svc.EnsureFacet,
+		connect.WithSchema(facetsServiceMethods.ByName("EnsureFacet")),
+		connect.WithHandlerOptions(opts...),
+	)
+	facetsServiceDeleteFacetHandler := connect.NewUnaryHandler(
+		FacetsServiceDeleteFacetProcedure,
+		svc.DeleteFacet,
+		connect.WithSchema(facetsServiceMethods.ByName("DeleteFacet")),
 		connect.WithHandlerOptions(opts...),
 	)
 	facetsServiceSetFacetPolicyHandler := connect.NewUnaryHandler(
@@ -279,6 +348,12 @@ func NewFacetsServiceHandler(svc FacetsServiceHandler, opts ...connect.HandlerOp
 		switch r.URL.Path {
 		case FacetsServiceListFacetsProcedure:
 			facetsServiceListFacetsHandler.ServeHTTP(w, r)
+		case FacetsServiceCountUnassignedProcedure:
+			facetsServiceCountUnassignedHandler.ServeHTTP(w, r)
+		case FacetsServiceEnsureFacetProcedure:
+			facetsServiceEnsureFacetHandler.ServeHTTP(w, r)
+		case FacetsServiceDeleteFacetProcedure:
+			facetsServiceDeleteFacetHandler.ServeHTTP(w, r)
 		case FacetsServiceSetFacetPolicyProcedure:
 			facetsServiceSetFacetPolicyHandler.ServeHTTP(w, r)
 		case FacetsServiceAssignFacetProcedure:
@@ -306,6 +381,18 @@ type UnimplementedFacetsServiceHandler struct{}
 
 func (UnimplementedFacetsServiceHandler) ListFacets(context.Context, *connect.Request[facets.ListFacetsRequest]) (*connect.Response[facets.ListFacetsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.source_ledger.v1.facets.FacetsService.ListFacets is not implemented"))
+}
+
+func (UnimplementedFacetsServiceHandler) CountUnassigned(context.Context, *connect.Request[facets.CountUnassignedRequest]) (*connect.Response[facets.CountUnassignedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.source_ledger.v1.facets.FacetsService.CountUnassigned is not implemented"))
+}
+
+func (UnimplementedFacetsServiceHandler) EnsureFacet(context.Context, *connect.Request[facets.EnsureFacetRequest]) (*connect.Response[facets.EnsureFacetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.source_ledger.v1.facets.FacetsService.EnsureFacet is not implemented"))
+}
+
+func (UnimplementedFacetsServiceHandler) DeleteFacet(context.Context, *connect.Request[facets.DeleteFacetRequest]) (*connect.Response[facets.DeleteFacetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.source_ledger.v1.facets.FacetsService.DeleteFacet is not implemented"))
 }
 
 func (UnimplementedFacetsServiceHandler) SetFacetPolicy(context.Context, *connect.Request[facets.SetFacetPolicyRequest]) (*connect.Response[facets.SetFacetPolicyResponse], error) {

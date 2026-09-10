@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
@@ -42,6 +43,7 @@ func TestReconcileWorkflowExecutionsRepairsTerminalCallbacksIdempotently(t *test
 		"wf-running":   {Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_RUNNING},
 	}}
 	service.SetWorkflowStateReader(reader)
+	clock := installReconcileClock(service)
 	seed := []Record{
 		{ExecutionID: "exec-succeeded", Status: StatusRunning, RunID: "run-succeeded", OpWorkflowID: "wf-succeeded", Mode: ModeManual},
 		{ExecutionID: "exec-failed", Status: StatusStarting, OpWorkflowID: "wf-failed", Mode: ModeManual},
@@ -85,6 +87,9 @@ func TestReconcileWorkflowExecutionsRepairsTerminalCallbacksIdempotently(t *test
 	}
 
 	callsAfterFirstSweep := len(reader.calls)
+	// One tick later the still-running workflow is due again and the record
+	// that just moved to needs_review is re-observed once under its new status.
+	clock.advance(2 * time.Second)
 	report, err = service.ReconcileWorkflowExecutions(context.Background())
 	if err != nil {
 		t.Fatalf("second reconcile: %v", err)
@@ -268,5 +273,129 @@ func TestReconcileStrandedRecordsReapsMissedOperations(t *testing.T) {
 	}
 	if starter.cancelReq.TargetKind != "plan-execution" || starter.cancelReq.TargetID != "test-plan-diverged-item" {
 		t.Fatalf("unexpected reap target %s/%s", starter.cancelReq.TargetKind, starter.cancelReq.TargetID)
+	}
+}
+
+type reconcileClock struct{ now time.Time }
+
+func (c *reconcileClock) advance(d time.Duration) { c.now = c.now.Add(d) }
+
+// installReconcileClock gives the service a deterministic reconcile tracker
+// clock so tests can step ticks without sleeping.
+func installReconcileClock(service *Service) *reconcileClock {
+	clock := &reconcileClock{now: time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)}
+	tracker := newReconcileTracker()
+	tracker.now = func() time.Time { return clock.now }
+	service.reconcileTracker = tracker
+	return clock
+}
+
+func newReconcileTestService(t *testing.T) *Service {
+	t.Helper()
+	root := t.TempDir()
+	return NewService(ServiceConfig{
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
+		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+	})
+}
+
+func TestReconcileWorkflowExecutionsDoesNotRetraceUnchangedNeedsReviewEveryTick(t *testing.T) {
+	service := newReconcileTestService(t)
+	reader := &workflowStateReaderStub{states: map[string]agentmanager.WorkflowExecutionState{
+		"wf-review": {Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_RUNNING},
+	}}
+	service.SetWorkflowStateReader(reader)
+	clock := installReconcileClock(service)
+	if err := service.store.Save([]Record{
+		{ExecutionID: "exec-review", Status: StatusNeedsReview, RunID: "run-review", OpWorkflowID: "wf-review", Mode: ModeManual},
+	}); err != nil {
+		t.Fatalf("save seed: %v", err)
+	}
+
+	if _, err := service.ReconcileWorkflowExecutions(context.Background()); err != nil {
+		t.Fatalf("first reconcile: %v", err)
+	}
+	if len(reader.calls) != 1 {
+		t.Fatalf("first sweep calls=%v, want exactly one trace", reader.calls)
+	}
+	for tick := 0; tick < 29; tick++ {
+		clock.advance(2 * time.Second)
+		if _, err := service.ReconcileWorkflowExecutions(context.Background()); err != nil {
+			t.Fatalf("tick %d reconcile: %v", tick, err)
+		}
+	}
+	if len(reader.calls) != 1 {
+		t.Fatalf("unchanged needs_review record was re-traced: calls=%v, want 1 within 60s", reader.calls)
+	}
+	clock.advance(2 * time.Second)
+	if _, err := service.ReconcileWorkflowExecutions(context.Background()); err != nil {
+		t.Fatalf("reconcile after 60s: %v", err)
+	}
+	if len(reader.calls) != 2 {
+		t.Fatalf("needs_review record must be re-checked once per 60s: calls=%v", reader.calls)
+	}
+}
+
+func TestReconcileWorkflowExecutionsBacksOffUnchangedRunningRecordsAndResetsOnChange(t *testing.T) {
+	service := newReconcileTestService(t)
+	reader := &workflowStateReaderStub{states: map[string]agentmanager.WorkflowExecutionState{
+		"wf-running": {Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_RUNNING, UpdatedAt: "t0"},
+	}}
+	service.SetWorkflowStateReader(reader)
+	clock := installReconcileClock(service)
+	if err := service.store.Save([]Record{
+		{ExecutionID: "exec-running", Status: StatusRunning, RunID: "run-running", OpWorkflowID: "wf-running", Mode: ModeManual},
+	}); err != nil {
+		t.Fatalf("save seed: %v", err)
+	}
+	sweep := func() {
+		t.Helper()
+		if _, err := service.ReconcileWorkflowExecutions(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Ticks every 2s for 30s: the interval doubles after each unchanged
+	// observation (2,4,8,16,32), so traces land at t=0,2,6,14,30 and the next
+	// one is due at t=62.
+	sweep()
+	for tick := 1; tick <= 15; tick++ {
+		clock.advance(2 * time.Second)
+		sweep()
+	}
+	if len(reader.calls) != 5 {
+		t.Fatalf("unchanged running record traced %d times in 30s of 2s ticks, want 5 (geometric backoff)", len(reader.calls))
+	}
+	// A state change (new UpdatedAt) resets the interval to the base tick.
+	reader.states["wf-running"] = agentmanager.WorkflowExecutionState{Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_RUNNING, UpdatedAt: "t1"}
+	clock.advance(32 * time.Second) // t=62: due again, observes the change
+	sweep()
+	clock.advance(2 * time.Second) // t=64: reset means due after one base tick
+	sweep()
+	if len(reader.calls) != 7 {
+		t.Fatalf("after a state change the record must be re-checked at the base interval: calls=%d, want 7", len(reader.calls))
+	}
+}
+
+func TestReconcileWorkflowExecutionsTracesEachWorkflowOncePerPass(t *testing.T) {
+	service := newReconcileTestService(t)
+	reader := &workflowStateReaderStub{states: map[string]agentmanager.WorkflowExecutionState{
+		"wf-shared": {Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_RUNNING},
+	}}
+	service.SetWorkflowStateReader(reader)
+	installReconcileClock(service)
+	if err := service.store.Save([]Record{
+		{ExecutionID: "exec-a", Status: StatusRunning, RunID: "run-a", OpWorkflowID: "wf-shared", Mode: ModeManual},
+		{ExecutionID: "exec-b", Status: StatusStarting, OpWorkflowID: "wf-shared", Mode: ModeManual},
+		{ExecutionID: "exec-c", Status: StatusNeedsReview, RunID: "run-c", OpWorkflowID: "wf-shared", Mode: ModeManual},
+	}); err != nil {
+		t.Fatalf("save seed: %v", err)
+	}
+	if _, err := service.ReconcileWorkflowExecutions(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(reader.calls) != 1 {
+		t.Fatalf("three records sharing one workflow issued %d traces in one pass, want 1", len(reader.calls))
 	}
 }

@@ -27,7 +27,8 @@
       ]
     },
     "signals": {
-      "rows": "Seven standard {row,reading,target,in_band,unavailable,reason} rows. No cross-cohort aggregation.",
+      "rows": "Seven standard {row,reading,target,in_band,unavailable,reason} rows with preserved cohorts.",
+      "aggregate": "Bounded all-cohort advice totals used by setpoint readers; individual cohort rows remain preserved and are not replaced.",
       "reliability": "Source reliable/reason, scan and sample truncation, counts, and interpretation; unknown on transport failure."
     },
     "errors": {

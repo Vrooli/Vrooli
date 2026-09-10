@@ -21,6 +21,58 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type SelectionFieldPresence int32
+
+const (
+	SelectionFieldPresence_SELECTION_FIELD_PRESENCE_UNSPECIFIED SelectionFieldPresence = 0
+	SelectionFieldPresence_SELECTION_FIELD_PRESENCE_SET         SelectionFieldPresence = 1
+	SelectionFieldPresence_SELECTION_FIELD_PRESENCE_CLEAR       SelectionFieldPresence = 2
+	SelectionFieldPresence_SELECTION_FIELD_PRESENCE_RESET       SelectionFieldPresence = 3
+)
+
+// Enum value maps for SelectionFieldPresence.
+var (
+	SelectionFieldPresence_name = map[int32]string{
+		0: "SELECTION_FIELD_PRESENCE_UNSPECIFIED",
+		1: "SELECTION_FIELD_PRESENCE_SET",
+		2: "SELECTION_FIELD_PRESENCE_CLEAR",
+		3: "SELECTION_FIELD_PRESENCE_RESET",
+	}
+	SelectionFieldPresence_value = map[string]int32{
+		"SELECTION_FIELD_PRESENCE_UNSPECIFIED": 0,
+		"SELECTION_FIELD_PRESENCE_SET":         1,
+		"SELECTION_FIELD_PRESENCE_CLEAR":       2,
+		"SELECTION_FIELD_PRESENCE_RESET":       3,
+	}
+)
+
+func (x SelectionFieldPresence) Enum() *SelectionFieldPresence {
+	p := new(SelectionFieldPresence)
+	*p = x
+	return p
+}
+
+func (x SelectionFieldPresence) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SelectionFieldPresence) Descriptor() protoreflect.EnumDescriptor {
+	return file_setup_v1_selection_proto_enumTypes[0].Descriptor()
+}
+
+func (SelectionFieldPresence) Type() protoreflect.EnumType {
+	return &file_setup_v1_selection_proto_enumTypes[0]
+}
+
+func (x SelectionFieldPresence) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SelectionFieldPresence.Descriptor instead.
+func (SelectionFieldPresence) EnumDescriptor() ([]byte, []int) {
+	return file_setup_v1_selection_proto_rawDescGZIP(), []int{0}
+}
+
 // Capability-shaped desired configuration. It intentionally does not expose
 // operator-state persistence details, allowing Bridge to hold a desired copy
 // while Onboarding remains the authority for local application.
@@ -43,8 +95,11 @@ type Selection struct {
 	CapacityPosture               string                                `protobuf:"bytes,15,opt,name=capacity_posture,json=capacityPosture,proto3" json:"capacity_posture,omitempty"`
 	TransientHeadroomReserveBytes uint64                                `protobuf:"varint,16,opt,name=transient_headroom_reserve_bytes,json=transientHeadroomReserveBytes,proto3" json:"transient_headroom_reserve_bytes,omitempty"`
 	ResourceCapacity              map[string]*ResourceCapacitySelection `protobuf:"bytes,17,rep,name=resource_capacity,json=resourceCapacity,proto3" json:"resource_capacity,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields                 protoimpl.UnknownFields
-	sizeCache                     protoimpl.SizeCache
+	// Presence is explicit for adapters that must distinguish an omitted field,
+	// an intentional value, and a reset-to-default request.
+	FieldPresence map[string]SelectionFieldPresence `protobuf:"bytes,18,rep,name=field_presence,json=fieldPresence,proto3" json:"field_presence,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=vrooli.setup.v1.SelectionFieldPresence"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Selection) Reset() {
@@ -196,6 +251,13 @@ func (x *Selection) GetResourceCapacity() map[string]*ResourceCapacitySelection 
 	return nil
 }
 
+func (x *Selection) GetFieldPresence() map[string]SelectionFieldPresence {
+	if x != nil {
+		return x.FieldPresence
+	}
+	return nil
+}
+
 type ResourceCapacitySelection struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Rung             string                 `protobuf:"bytes,1,opt,name=rung,proto3" json:"rung,omitempty"`
@@ -284,7 +346,7 @@ var File_setup_v1_selection_proto protoreflect.FileDescriptor
 
 const file_setup_v1_selection_proto_rawDesc = "" +
 	"\n" +
-	"\x18setup/v1/selection.proto\x12\x0fvrooli.setup.v1\"\xb3\a\n" +
+	"\x18setup/v1/selection.proto\x12\x0fvrooli.setup.v1\"\xf4\b\n" +
 	"\tSelection\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\x16\n" +
 	"\x06target\x18\x02 \x01(\tR\x06target\x12\x1c\n" +
@@ -304,13 +366,17 @@ const file_setup_v1_selection_proto_rawDesc = "" +
 	"\x05apply\x18\x0e \x01(\bR\x05apply\x12)\n" +
 	"\x10capacity_posture\x18\x0f \x01(\tR\x0fcapacityPosture\x12G\n" +
 	" transient_headroom_reserve_bytes\x18\x10 \x01(\x04R\x1dtransientHeadroomReserveBytes\x12]\n" +
-	"\x11resource_capacity\x18\x11 \x03(\v20.vrooli.setup.v1.Selection.ResourceCapacityEntryR\x10resourceCapacity\x1a@\n" +
+	"\x11resource_capacity\x18\x11 \x03(\v20.vrooli.setup.v1.Selection.ResourceCapacityEntryR\x10resourceCapacity\x12T\n" +
+	"\x0efield_presence\x18\x12 \x03(\v2-.vrooli.setup.v1.Selection.FieldPresenceEntryR\rfieldPresence\x1a@\n" +
 	"\x12OperatingModeEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1ao\n" +
 	"\x15ResourceCapacityEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12@\n" +
-	"\x05value\x18\x02 \x01(\v2*.vrooli.setup.v1.ResourceCapacitySelectionR\x05value:\x028\x01\"\xd1\x02\n" +
+	"\x05value\x18\x02 \x01(\v2*.vrooli.setup.v1.ResourceCapacitySelectionR\x05value:\x028\x01\x1ai\n" +
+	"\x12FieldPresenceEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12=\n" +
+	"\x05value\x18\x02 \x01(\x0e2'.vrooli.setup.v1.SelectionFieldPresenceR\x05value:\x028\x01\"\xd1\x02\n" +
 	"\x19ResourceCapacitySelection\x12\x12\n" +
 	"\x04rung\x18\x01 \x01(\tR\x04rung\x12T\n" +
 	"\btunables\x18\x02 \x03(\v28.vrooli.setup.v1.ResourceCapacitySelection.TunablesEntryR\btunables\x12\x1b\n" +
@@ -320,7 +386,12 @@ const file_setup_v1_selection_proto_rawDesc = "" +
 	"\x12idle_grace_seconds\x18\x06 \x01(\rR\x10idleGraceSeconds\x1a;\n" +
 	"\rTunablesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01BBZ@github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1;setup_v1b\x06proto3"
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*\xac\x01\n" +
+	"\x16SelectionFieldPresence\x12(\n" +
+	"$SELECTION_FIELD_PRESENCE_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cSELECTION_FIELD_PRESENCE_SET\x10\x01\x12\"\n" +
+	"\x1eSELECTION_FIELD_PRESENCE_CLEAR\x10\x02\x12\"\n" +
+	"\x1eSELECTION_FIELD_PRESENCE_RESET\x10\x03BBZ@github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1;setup_v1b\x06proto3"
 
 var (
 	file_setup_v1_selection_proto_rawDescOnce sync.Once
@@ -334,24 +405,29 @@ func file_setup_v1_selection_proto_rawDescGZIP() []byte {
 	return file_setup_v1_selection_proto_rawDescData
 }
 
-var file_setup_v1_selection_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_setup_v1_selection_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_setup_v1_selection_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_setup_v1_selection_proto_goTypes = []any{
-	(*Selection)(nil),                 // 0: vrooli.setup.v1.Selection
-	(*ResourceCapacitySelection)(nil), // 1: vrooli.setup.v1.ResourceCapacitySelection
-	nil,                               // 2: vrooli.setup.v1.Selection.OperatingModeEntry
-	nil,                               // 3: vrooli.setup.v1.Selection.ResourceCapacityEntry
-	nil,                               // 4: vrooli.setup.v1.ResourceCapacitySelection.TunablesEntry
+	(SelectionFieldPresence)(0),       // 0: vrooli.setup.v1.SelectionFieldPresence
+	(*Selection)(nil),                 // 1: vrooli.setup.v1.Selection
+	(*ResourceCapacitySelection)(nil), // 2: vrooli.setup.v1.ResourceCapacitySelection
+	nil,                               // 3: vrooli.setup.v1.Selection.OperatingModeEntry
+	nil,                               // 4: vrooli.setup.v1.Selection.ResourceCapacityEntry
+	nil,                               // 5: vrooli.setup.v1.Selection.FieldPresenceEntry
+	nil,                               // 6: vrooli.setup.v1.ResourceCapacitySelection.TunablesEntry
 }
 var file_setup_v1_selection_proto_depIdxs = []int32{
-	2, // 0: vrooli.setup.v1.Selection.operating_mode:type_name -> vrooli.setup.v1.Selection.OperatingModeEntry
-	3, // 1: vrooli.setup.v1.Selection.resource_capacity:type_name -> vrooli.setup.v1.Selection.ResourceCapacityEntry
-	4, // 2: vrooli.setup.v1.ResourceCapacitySelection.tunables:type_name -> vrooli.setup.v1.ResourceCapacitySelection.TunablesEntry
-	1, // 3: vrooli.setup.v1.Selection.ResourceCapacityEntry.value:type_name -> vrooli.setup.v1.ResourceCapacitySelection
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	3, // 0: vrooli.setup.v1.Selection.operating_mode:type_name -> vrooli.setup.v1.Selection.OperatingModeEntry
+	4, // 1: vrooli.setup.v1.Selection.resource_capacity:type_name -> vrooli.setup.v1.Selection.ResourceCapacityEntry
+	5, // 2: vrooli.setup.v1.Selection.field_presence:type_name -> vrooli.setup.v1.Selection.FieldPresenceEntry
+	6, // 3: vrooli.setup.v1.ResourceCapacitySelection.tunables:type_name -> vrooli.setup.v1.ResourceCapacitySelection.TunablesEntry
+	2, // 4: vrooli.setup.v1.Selection.ResourceCapacityEntry.value:type_name -> vrooli.setup.v1.ResourceCapacitySelection
+	0, // 5: vrooli.setup.v1.Selection.FieldPresenceEntry.value:type_name -> vrooli.setup.v1.SelectionFieldPresence
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_setup_v1_selection_proto_init() }
@@ -364,13 +440,14 @@ func file_setup_v1_selection_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_setup_v1_selection_proto_rawDesc), len(file_setup_v1_selection_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   5,
+			NumEnums:      1,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_setup_v1_selection_proto_goTypes,
 		DependencyIndexes: file_setup_v1_selection_proto_depIdxs,
+		EnumInfos:         file_setup_v1_selection_proto_enumTypes,
 		MessageInfos:      file_setup_v1_selection_proto_msgTypes,
 	}.Build()
 	File_setup_v1_selection_proto = out.File

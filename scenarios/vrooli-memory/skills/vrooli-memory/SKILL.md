@@ -31,8 +31,11 @@ Use vrooli-memory when a skill needs to remember what happened across sessions i
 ### 2. The decision tree
 
 For a registered learning operation, call its scenario program directly.
-Its `learning_task` declaration enables shared preparation and capture automatically.
-Do not add manual recall or a second learning record around that call.
+New programs use Program Runtime's nine `learn.*` verbs for task identity,
+step trees, recall, choice, typed notes, outcomes, inference, fragments, and
+delegation. The deprecated `learning_task` declaration is a migration shim;
+do not author new contracts with it or add a second manual record around a
+verb-based program.
 To select an operation dynamically, run `vrooli-memory.run-task` with `operation`
 and structured `inputs`. Only registered operations are eligible.
 
@@ -178,6 +181,14 @@ Tool/vision medians and reuse rate are per observed attempt, with separate sampl
 counts; do not compare them across different capture practices.
 
 Use `vrooli-memory learning measure --scope <scope>` to read the last seven days.
+
+Program learning receipts are attempt trees, not one flat note. The root and
+each child step carry bounded inputs, outcome evidence, and parent order. Recall
+returns summaries under the caller's line budget; zoom is reserved for a
+selected candidate. `choose` records the adopted option and reason, and the
+later outcome comparison marks advice as derived only when the enclosing
+outcome supports or contradicts it. Agent, test, and operator provenance stay
+explicit throughout capture and delivery.
 Optional `--from`/`--to` select a half-open completion window, at most 90 days;
 `--operation`/`--context-key` select exact cohorts. Compare fixed windows in the
 same context. The API returns recurrence counts, completed/unresolved task

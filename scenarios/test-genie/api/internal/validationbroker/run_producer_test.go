@@ -278,6 +278,37 @@ func TestRegressionBeforeReceiptOwnsGCTCaptureAndSkipsCurrentSuite(t *testing.T)
 	}
 }
 
+func TestRegressionBeforeReceiptRetainsDistinctEvidenceKindsWithSameID(t *testing.T) { // [REQ:TESTGENIE-VALIDATION-RECEIPT-P0]
+	providerID := "shared-provider-id"
+	gct := &fakeGCTEvidence{result: GCTEvidenceResult{
+		Passed: true,
+		Detail: "complete",
+		Evidence: []*validationv1.EvidenceReference{
+			{EvidenceId: providerID, Kind: "gct-baseline-collection", Owner: "git-control-tower"},
+			{EvidenceId: providerID, Kind: "gct-source-snapshot", Owner: "git-control-tower"},
+		},
+	}}
+	producer := NewRunProducer(&fakeSuiteRuns{}).WithGCTEvidence(gct)
+	service := NewService(NewRepository(testsqllite(t)), producer)
+	service.SetProducer(producer)
+	intent := validIntent("plan-manager", "gct-same-evidence-id")
+	intent.Purpose = validationv1.ValidationPurpose_VALIDATION_PURPOSE_REGRESSION_BEFORE
+	intent.EvidencePolicy = &validationv1.EvidencePolicy{RequireBehavioralBefore: true, RequireSourceSnapshot: true, RequiredEvidenceKinds: []string{"gct-baseline-collection", "gct-source-snapshot"}}
+	intent.CallerAttributes = map[string]string{"baseline_name": providerID}
+
+	response, err := service.CreateValidation(context.Background(), connect.NewRequest(&validationv1.CreateValidationRequest{Intent: intent}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := waitForTerminalReceipt(t, service, response.Msg.GetReceipt())
+	if receipt.GetState() != validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED || len(receipt.GetChildren()) != 2 || len(receipt.GetEvidence()) != 2 {
+		t.Fatalf("same-ID evidence receipt = %#v", receipt)
+	}
+	if receipt.GetEvidence()[0].GetKind() != "gct-baseline-collection" || receipt.GetEvidence()[1].GetKind() != "gct-source-snapshot" {
+		t.Fatalf("same-ID evidence kinds = %#v", receipt.GetEvidence())
+	}
+}
+
 func TestPhaseReceiptOwnsGCTDiffBeforeCurrentSuite(t *testing.T) { // [REQ:TESTGENIE-VALIDATION-RECEIPT-P0]
 	runs := &fakeSuiteRuns{wait: runmanager.LiveStatus{Status: sharedruns.StatusPassed}}
 	gct := &fakeGCTEvidence{result: GCTEvidenceResult{Passed: true, Detail: "clean", Evidence: []*validationv1.EvidenceReference{{EvidenceId: "diff-1", Kind: "gct-collection-diff", Owner: "git-control-tower"}}}}

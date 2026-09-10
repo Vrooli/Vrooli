@@ -240,8 +240,10 @@ type InspectDocumentRequest struct {
 	Offset         int32                  `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
 	Limit          int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	ExpectedSha256 string                 `protobuf:"bytes,4,opt,name=expected_sha256,json=expectedSha256,proto3" json:"expected_sha256,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Return a typed missing observation; other read errors still fail.
+	AllowMissing  bool `protobuf:"varint,5,opt,name=allow_missing,json=allowMissing,proto3" json:"allow_missing,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *InspectDocumentRequest) Reset() {
@@ -300,6 +302,13 @@ func (x *InspectDocumentRequest) GetExpectedSha256() string {
 		return x.ExpectedSha256
 	}
 	return ""
+}
+
+func (x *InspectDocumentRequest) GetAllowMissing() bool {
+	if x != nil {
+		return x.AllowMissing
+	}
+	return false
 }
 
 type DocumentReference struct {
@@ -382,6 +391,7 @@ type InspectDocumentResponse struct {
 	Metadata            *structpb.Struct       `protobuf:"bytes,8,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	References          []*DocumentReference   `protobuf:"bytes,9,rep,name=references,proto3" json:"references,omitempty"`
 	ReferencesTruncated bool                   `protobuf:"varint,10,opt,name=references_truncated,json=referencesTruncated,proto3" json:"references_truncated,omitempty"`
+	Missing             bool                   `protobuf:"varint,11,opt,name=missing,proto3" json:"missing,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -482,6 +492,13 @@ func (x *InspectDocumentResponse) GetReferences() []*DocumentReference {
 func (x *InspectDocumentResponse) GetReferencesTruncated() bool {
 	if x != nil {
 		return x.ReferencesTruncated
+	}
+	return false
+}
+
+func (x *InspectDocumentResponse) GetMissing() bool {
+	if x != nil {
+		return x.Missing
 	}
 	return false
 }
@@ -833,17 +850,18 @@ const file_knowledge_observatory_v1_knowledge_base_proto_rawDesc = "" +
 	"\x17SearchDocumentsResponse\x12?\n" +
 	"\aresults\x18\x01 \x03(\v2%.knowledge_observatory.v1.DocumentHitR\aresults\x12\x16\n" +
 	"\x06method\x18\x02 \x01(\tR\x06method\x12\x1a\n" +
-	"\breranker\x18\x03 \x01(\tR\breranker\"\x83\x01\n" +
+	"\breranker\x18\x03 \x01(\tR\breranker\"\xa8\x01\n" +
 	"\x16InspectDocumentRequest\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
 	"\x06offset\x18\x02 \x01(\x05R\x06offset\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12'\n" +
-	"\x0fexpected_sha256\x18\x04 \x01(\tR\x0eexpectedSha256\"k\n" +
+	"\x0fexpected_sha256\x18\x04 \x01(\tR\x0eexpectedSha256\x12#\n" +
+	"\rallow_missing\x18\x05 \x01(\bR\fallowMissing\"k\n" +
 	"\x11DocumentReference\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x16\n" +
 	"\x06exists\x18\x03 \x01(\bR\x06exists\x12\x12\n" +
-	"\x04kind\x18\x04 \x01(\tR\x04kind\"\x8a\x03\n" +
+	"\x04kind\x18\x04 \x01(\tR\x04kind\"\xa4\x03\n" +
 	"\x17InspectDocumentResponse\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
 	"\x06sha256\x18\x02 \x01(\tR\x06sha256\x12\x18\n" +
@@ -859,7 +877,8 @@ const file_knowledge_observatory_v1_knowledge_base_proto_rawDesc = "" +
 	"references\x18\t \x03(\v2+.knowledge_observatory.v1.DocumentReferenceR\n" +
 	"references\x121\n" +
 	"\x14references_truncated\x18\n" +
-	" \x01(\bR\x13referencesTruncated\"h\n" +
+	" \x01(\bR\x13referencesTruncated\x12\x18\n" +
+	"\amissing\x18\v \x01(\bR\amissing\"h\n" +
 	"\x16ReviewDocumentsRequest\x12\x14\n" +
 	"\x05paths\x18\x01 \x03(\tR\x05paths\x12\x1b\n" +
 	"\tbase_path\x18\x02 \x01(\tR\bbasePath\x12\x1b\n" +

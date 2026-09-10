@@ -103,12 +103,10 @@ func NewServer() (*Server, error) {
 	// pragmas applied by the DSN govern every transaction.
 	db.SetMaxOpenConns(1)
 
-	// Apply the embedded schema and run forward-only legacy migrations.
-	// EnsureSchema is the single startup entry point for DDL: it applies
-	// the idempotent CREATE TABLE statements, runs the driver_id rename
-	// and home_overlay_state column-add migrations, and stamps the
-	// schema_version row. Refuses to start if the persisted version
-	// drifts from repository.ExpectedSchemaVersion (Round 4 Phase 9).
+	// EnsureSchema owns startup DDL: apply the embedded schema, run legacy
+	// migrations, reconcile declared additive columns through api-core, and
+	// stamp the version. Existing data is preserved; a database newer than
+	// this binary is rejected before additive reconciliation.
 	if err := repository.EnsureSchema(context.Background(), db, clk); err != nil {
 		return nil, fmt.Errorf("failed to ensure schema: %w", err)
 	}

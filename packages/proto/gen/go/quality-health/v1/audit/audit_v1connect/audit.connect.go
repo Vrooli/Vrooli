@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// AuditServiceObserveTestSyntaxProcedure is the fully-qualified name of the AuditService's
+	// ObserveTestSyntax RPC.
+	AuditServiceObserveTestSyntaxProcedure = "/vrooli.quality_health.v1.audit.AuditService/ObserveTestSyntax"
 	// AuditServiceAuditQualityProcedure is the fully-qualified name of the AuditService's AuditQuality
 	// RPC.
 	AuditServiceAuditQualityProcedure = "/vrooli.quality_health.v1.audit.AuditService/AuditQuality"
@@ -52,6 +55,9 @@ const (
 
 // AuditServiceClient is a client for the vrooli.quality_health.v1.audit.AuditService service.
 type AuditServiceClient interface {
+	// ObserveTestSyntax returns reusable, source-bound native lint evidence.
+	// It does not execute the target's tests or claim behavioral adequacy.
+	ObserveTestSyntax(context.Context, *connect.Request[audit.ObserveTestSyntaxRequest]) (*connect.Response[audit.ObserveTestSyntaxResponse], error)
 	// AuditQuality runs the static quality audit for a scenario or path.
 	AuditQuality(context.Context, *connect.Request[audit.AuditQualityRequest]) (*connect.Response[audit.AuditQualityResponse], error)
 	// ListContracts returns the static quality contracts known to Quality Health.
@@ -75,6 +81,12 @@ func NewAuditServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 	baseURL = strings.TrimRight(baseURL, "/")
 	auditServiceMethods := audit.File_quality_health_v1_audit_audit_proto.Services().ByName("AuditService").Methods()
 	return &auditServiceClient{
+		observeTestSyntax: connect.NewClient[audit.ObserveTestSyntaxRequest, audit.ObserveTestSyntaxResponse](
+			httpClient,
+			baseURL+AuditServiceObserveTestSyntaxProcedure,
+			connect.WithSchema(auditServiceMethods.ByName("ObserveTestSyntax")),
+			connect.WithClientOptions(opts...),
+		),
 		auditQuality: connect.NewClient[audit.AuditQualityRequest, audit.AuditQualityResponse](
 			httpClient,
 			baseURL+AuditServiceAuditQualityProcedure,
@@ -110,11 +122,17 @@ func NewAuditServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // auditServiceClient implements AuditServiceClient.
 type auditServiceClient struct {
-	auditQuality     *connect.Client[audit.AuditQualityRequest, audit.AuditQualityResponse]
-	listContracts    *connect.Client[audit.ListContractsRequest, audit.ListContractsResponse]
-	explainFinding   *connect.Client[audit.ExplainFindingRequest, audit.ExplainFindingResponse]
-	previewFixConfig *connect.Client[audit.FixConfigRequest, audit.FixConfigResponse]
-	applyFixConfig   *connect.Client[audit.FixConfigRequest, audit.FixConfigResponse]
+	observeTestSyntax *connect.Client[audit.ObserveTestSyntaxRequest, audit.ObserveTestSyntaxResponse]
+	auditQuality      *connect.Client[audit.AuditQualityRequest, audit.AuditQualityResponse]
+	listContracts     *connect.Client[audit.ListContractsRequest, audit.ListContractsResponse]
+	explainFinding    *connect.Client[audit.ExplainFindingRequest, audit.ExplainFindingResponse]
+	previewFixConfig  *connect.Client[audit.FixConfigRequest, audit.FixConfigResponse]
+	applyFixConfig    *connect.Client[audit.FixConfigRequest, audit.FixConfigResponse]
+}
+
+// ObserveTestSyntax calls vrooli.quality_health.v1.audit.AuditService.ObserveTestSyntax.
+func (c *auditServiceClient) ObserveTestSyntax(ctx context.Context, req *connect.Request[audit.ObserveTestSyntaxRequest]) (*connect.Response[audit.ObserveTestSyntaxResponse], error) {
+	return c.observeTestSyntax.CallUnary(ctx, req)
 }
 
 // AuditQuality calls vrooli.quality_health.v1.audit.AuditService.AuditQuality.
@@ -145,6 +163,9 @@ func (c *auditServiceClient) ApplyFixConfig(ctx context.Context, req *connect.Re
 // AuditServiceHandler is an implementation of the vrooli.quality_health.v1.audit.AuditService
 // service.
 type AuditServiceHandler interface {
+	// ObserveTestSyntax returns reusable, source-bound native lint evidence.
+	// It does not execute the target's tests or claim behavioral adequacy.
+	ObserveTestSyntax(context.Context, *connect.Request[audit.ObserveTestSyntaxRequest]) (*connect.Response[audit.ObserveTestSyntaxResponse], error)
 	// AuditQuality runs the static quality audit for a scenario or path.
 	AuditQuality(context.Context, *connect.Request[audit.AuditQualityRequest]) (*connect.Response[audit.AuditQualityResponse], error)
 	// ListContracts returns the static quality contracts known to Quality Health.
@@ -164,6 +185,12 @@ type AuditServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAuditServiceHandler(svc AuditServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	auditServiceMethods := audit.File_quality_health_v1_audit_audit_proto.Services().ByName("AuditService").Methods()
+	auditServiceObserveTestSyntaxHandler := connect.NewUnaryHandler(
+		AuditServiceObserveTestSyntaxProcedure,
+		svc.ObserveTestSyntax,
+		connect.WithSchema(auditServiceMethods.ByName("ObserveTestSyntax")),
+		connect.WithHandlerOptions(opts...),
+	)
 	auditServiceAuditQualityHandler := connect.NewUnaryHandler(
 		AuditServiceAuditQualityProcedure,
 		svc.AuditQuality,
@@ -196,6 +223,8 @@ func NewAuditServiceHandler(svc AuditServiceHandler, opts ...connect.HandlerOpti
 	)
 	return "/vrooli.quality_health.v1.audit.AuditService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case AuditServiceObserveTestSyntaxProcedure:
+			auditServiceObserveTestSyntaxHandler.ServeHTTP(w, r)
 		case AuditServiceAuditQualityProcedure:
 			auditServiceAuditQualityHandler.ServeHTTP(w, r)
 		case AuditServiceListContractsProcedure:
@@ -214,6 +243,10 @@ func NewAuditServiceHandler(svc AuditServiceHandler, opts ...connect.HandlerOpti
 
 // UnimplementedAuditServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAuditServiceHandler struct{}
+
+func (UnimplementedAuditServiceHandler) ObserveTestSyntax(context.Context, *connect.Request[audit.ObserveTestSyntaxRequest]) (*connect.Response[audit.ObserveTestSyntaxResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.quality_health.v1.audit.AuditService.ObserveTestSyntax is not implemented"))
+}
 
 func (UnimplementedAuditServiceHandler) AuditQuality(context.Context, *connect.Request[audit.AuditQualityRequest]) (*connect.Response[audit.AuditQualityResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.quality_health.v1.audit.AuditService.AuditQuality is not implemented"))

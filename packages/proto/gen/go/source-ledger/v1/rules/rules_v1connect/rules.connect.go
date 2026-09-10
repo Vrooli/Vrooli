@@ -40,6 +40,9 @@ const (
 	// ClassificationRulesServiceCreateRuleProcedure is the fully-qualified name of the
 	// ClassificationRulesService's CreateRule RPC.
 	ClassificationRulesServiceCreateRuleProcedure = "/vrooli.source_ledger.v1.rules.ClassificationRulesService/CreateRule"
+	// ClassificationRulesServiceDeleteRuleProcedure is the fully-qualified name of the
+	// ClassificationRulesService's DeleteRule RPC.
+	ClassificationRulesServiceDeleteRuleProcedure = "/vrooli.source_ledger.v1.rules.ClassificationRulesService/DeleteRule"
 	// ClassificationRulesServiceDryRunRuleProcedure is the fully-qualified name of the
 	// ClassificationRulesService's DryRunRule RPC.
 	ClassificationRulesServiceDryRunRuleProcedure = "/vrooli.source_ledger.v1.rules.ClassificationRulesService/DryRunRule"
@@ -62,6 +65,7 @@ const (
 type ClassificationRulesServiceClient interface {
 	ListRules(context.Context, *connect.Request[rules.ListRulesRequest]) (*connect.Response[rules.ListRulesResponse], error)
 	CreateRule(context.Context, *connect.Request[rules.CreateRuleRequest]) (*connect.Response[rules.CreateRuleResponse], error)
+	DeleteRule(context.Context, *connect.Request[rules.DeleteRuleRequest]) (*connect.Response[rules.DeleteRuleResponse], error)
 	DryRunRule(context.Context, *connect.Request[rules.DryRunRuleRequest]) (*connect.Response[rules.DryRunRuleResponse], error)
 	EnableRule(context.Context, *connect.Request[rules.EnableRuleRequest]) (*connect.Response[rules.EnableRuleResponse], error)
 	RevertRule(context.Context, *connect.Request[rules.RevertRuleRequest]) (*connect.Response[rules.RevertRuleResponse], error)
@@ -91,6 +95,12 @@ func NewClassificationRulesServiceClient(httpClient connect.HTTPClient, baseURL 
 			httpClient,
 			baseURL+ClassificationRulesServiceCreateRuleProcedure,
 			connect.WithSchema(classificationRulesServiceMethods.ByName("CreateRule")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteRule: connect.NewClient[rules.DeleteRuleRequest, rules.DeleteRuleResponse](
+			httpClient,
+			baseURL+ClassificationRulesServiceDeleteRuleProcedure,
+			connect.WithSchema(classificationRulesServiceMethods.ByName("DeleteRule")),
 			connect.WithClientOptions(opts...),
 		),
 		dryRunRule: connect.NewClient[rules.DryRunRuleRequest, rules.DryRunRuleResponse](
@@ -130,6 +140,7 @@ func NewClassificationRulesServiceClient(httpClient connect.HTTPClient, baseURL 
 type classificationRulesServiceClient struct {
 	listRules           *connect.Client[rules.ListRulesRequest, rules.ListRulesResponse]
 	createRule          *connect.Client[rules.CreateRuleRequest, rules.CreateRuleResponse]
+	deleteRule          *connect.Client[rules.DeleteRuleRequest, rules.DeleteRuleResponse]
 	dryRunRule          *connect.Client[rules.DryRunRuleRequest, rules.DryRunRuleResponse]
 	enableRule          *connect.Client[rules.EnableRuleRequest, rules.EnableRuleResponse]
 	revertRule          *connect.Client[rules.RevertRuleRequest, rules.RevertRuleResponse]
@@ -145,6 +156,11 @@ func (c *classificationRulesServiceClient) ListRules(ctx context.Context, req *c
 // CreateRule calls vrooli.source_ledger.v1.rules.ClassificationRulesService.CreateRule.
 func (c *classificationRulesServiceClient) CreateRule(ctx context.Context, req *connect.Request[rules.CreateRuleRequest]) (*connect.Response[rules.CreateRuleResponse], error) {
 	return c.createRule.CallUnary(ctx, req)
+}
+
+// DeleteRule calls vrooli.source_ledger.v1.rules.ClassificationRulesService.DeleteRule.
+func (c *classificationRulesServiceClient) DeleteRule(ctx context.Context, req *connect.Request[rules.DeleteRuleRequest]) (*connect.Response[rules.DeleteRuleResponse], error) {
+	return c.deleteRule.CallUnary(ctx, req)
 }
 
 // DryRunRule calls vrooli.source_ledger.v1.rules.ClassificationRulesService.DryRunRule.
@@ -178,6 +194,7 @@ func (c *classificationRulesServiceClient) MeasureDistribution(ctx context.Conte
 type ClassificationRulesServiceHandler interface {
 	ListRules(context.Context, *connect.Request[rules.ListRulesRequest]) (*connect.Response[rules.ListRulesResponse], error)
 	CreateRule(context.Context, *connect.Request[rules.CreateRuleRequest]) (*connect.Response[rules.CreateRuleResponse], error)
+	DeleteRule(context.Context, *connect.Request[rules.DeleteRuleRequest]) (*connect.Response[rules.DeleteRuleResponse], error)
 	DryRunRule(context.Context, *connect.Request[rules.DryRunRuleRequest]) (*connect.Response[rules.DryRunRuleResponse], error)
 	EnableRule(context.Context, *connect.Request[rules.EnableRuleRequest]) (*connect.Response[rules.EnableRuleResponse], error)
 	RevertRule(context.Context, *connect.Request[rules.RevertRuleRequest]) (*connect.Response[rules.RevertRuleResponse], error)
@@ -202,6 +219,12 @@ func NewClassificationRulesServiceHandler(svc ClassificationRulesServiceHandler,
 		ClassificationRulesServiceCreateRuleProcedure,
 		svc.CreateRule,
 		connect.WithSchema(classificationRulesServiceMethods.ByName("CreateRule")),
+		connect.WithHandlerOptions(opts...),
+	)
+	classificationRulesServiceDeleteRuleHandler := connect.NewUnaryHandler(
+		ClassificationRulesServiceDeleteRuleProcedure,
+		svc.DeleteRule,
+		connect.WithSchema(classificationRulesServiceMethods.ByName("DeleteRule")),
 		connect.WithHandlerOptions(opts...),
 	)
 	classificationRulesServiceDryRunRuleHandler := connect.NewUnaryHandler(
@@ -240,6 +263,8 @@ func NewClassificationRulesServiceHandler(svc ClassificationRulesServiceHandler,
 			classificationRulesServiceListRulesHandler.ServeHTTP(w, r)
 		case ClassificationRulesServiceCreateRuleProcedure:
 			classificationRulesServiceCreateRuleHandler.ServeHTTP(w, r)
+		case ClassificationRulesServiceDeleteRuleProcedure:
+			classificationRulesServiceDeleteRuleHandler.ServeHTTP(w, r)
 		case ClassificationRulesServiceDryRunRuleProcedure:
 			classificationRulesServiceDryRunRuleHandler.ServeHTTP(w, r)
 		case ClassificationRulesServiceEnableRuleProcedure:
@@ -265,6 +290,10 @@ func (UnimplementedClassificationRulesServiceHandler) ListRules(context.Context,
 
 func (UnimplementedClassificationRulesServiceHandler) CreateRule(context.Context, *connect.Request[rules.CreateRuleRequest]) (*connect.Response[rules.CreateRuleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.source_ledger.v1.rules.ClassificationRulesService.CreateRule is not implemented"))
+}
+
+func (UnimplementedClassificationRulesServiceHandler) DeleteRule(context.Context, *connect.Request[rules.DeleteRuleRequest]) (*connect.Response[rules.DeleteRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.source_ledger.v1.rules.ClassificationRulesService.DeleteRule is not implemented"))
 }
 
 func (UnimplementedClassificationRulesServiceHandler) DryRunRule(context.Context, *connect.Request[rules.DryRunRuleRequest]) (*connect.Response[rules.DryRunRuleResponse], error) {

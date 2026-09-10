@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -21,6 +22,14 @@ type suiteExecutionRecorder interface {
 	Create(ctx context.Context, record *SuiteExecutionRecord) error
 }
 
+// ReadinessReporter publishes owner-owned terminal evidence after the local
+// execution record has been durably written. Reporting is advisory to the run
+// lifecycle: a transport outage leaves deployment-manager without evidence,
+// which its preparation path represents as unavailable.
+type ReadinessReporter interface {
+	Report(context.Context, orchestrator.SuiteExecutionRequest, *orchestrator.SuiteExecutionResult) error
+}
+
 // SuiteExecutionInput encapsulates a server-owned orchestration request.
 type SuiteExecutionInput struct {
 	Request orchestrator.SuiteExecutionRequest
@@ -28,9 +37,17 @@ type SuiteExecutionInput struct {
 
 // SuiteExecutionService coordinates the orchestrator and execution persistence.
 type SuiteExecutionService struct {
-	engine           suiteExecutionEngine
-	executions       suiteExecutionRecorder
-	collectRetention func(context.Context, string)
+	engine            suiteExecutionEngine
+	executions        suiteExecutionRecorder
+	collectRetention  func(context.Context, string)
+	readinessReporter ReadinessReporter
+}
+
+// SetReadinessReporter wires the optional deployment-manager evidence owner.
+func (s *SuiteExecutionService) SetReadinessReporter(reporter ReadinessReporter) {
+	if s != nil {
+		s.readinessReporter = reporter
+	}
 }
 
 func NewSuiteExecutionService(engine suiteExecutionEngine, executions suiteExecutionRecorder) *SuiteExecutionService {
@@ -110,6 +127,11 @@ func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInp
 
 	if err := s.executions.Create(ctx, record); err != nil {
 		return nil, err
+	}
+	if s.readinessReporter != nil && input.Request.ReleaseIdentity != nil {
+		if err := s.readinessReporter.Report(ctx, input.Request, result); err != nil {
+			log.Printf("[test-genie] deployment-manager readiness report unavailable for run %s: %v", result.RunID, err)
+		}
 	}
 	if s.collectRetention != nil && result.ScenarioName != "" {
 		go s.collectRetention(context.Background(), result.ScenarioName)

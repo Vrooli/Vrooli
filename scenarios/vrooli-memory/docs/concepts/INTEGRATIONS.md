@@ -169,3 +169,20 @@ Recorded rather than guessed:
 - [`DATA.md`](DATA.md) — storage ownership
 - [`../reference/configuration.md`](../reference/configuration.md) — environment and service manifest
 - [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md) — deployment readiness
+
+### Program Runtime learning evidence
+
+Program Runtime owns execution checkpoints and the immutable finish outbox. Memory
+owns attempt and observation semantics. Failed later-run `learn.feedback` delivery
+is included in the finishing run's outbox; delivery retries preserve the observation
+identity and never rerun the domain action. Cross-tree observations are accepted
+only for `learn.feedback` and still require an existing attempt in the same scope.
+
+Recall enriches learning notes with authoritative support and contradiction counts,
+origin context, operation, provenance, and creation time. Later observations replace
+an attempt's earlier verdict; repeated reads do not count as evidence. A bounded
+journal scan (at most 1,000 entries) that fails or truncates marks evidence unreliable.
+The runtime then ignores positive preference weights and untrusted demonstrations;
+it does not mistake missing evidence for a successful history. As histories exceed
+this bound, an owner-maintained evidence index is the next scaling step. Avoid notes
+remain conservative exclusions. Test evidence cannot promote live preferences.

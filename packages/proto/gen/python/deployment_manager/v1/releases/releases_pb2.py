@@ -22,10 +22,11 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
+from deployment_manager.v1.releases import contracts_pb2 as deployment__manager_dot_v1_dot_releases_dot_contracts__pb2
+from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n-deployment-manager/v1/releases/releases.proto\x12%vrooli.deployment_manager.v1.releases\x1a\x1cgoogle/protobuf/struct.proto2\xf5\x01\n\x0fReleasesService\x12\x36\n\x04List\x12\x16.google.protobuf.Value\x1a\x16.google.protobuf.Value\x12\x35\n\x03Get\x12\x16.google.protobuf.Value\x1a\x16.google.protobuf.Value\x12:\n\x08Reverify\x12\x16.google.protobuf.Value\x1a\x16.google.protobuf.Value\x12\x37\n\x05Start\x12\x16.google.protobuf.Value\x1a\x16.google.protobuf.ValueBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/releases;releasesv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n-deployment-manager/v1/releases/releases.proto\x12%vrooli.deployment_manager.v1.releases\x1a.deployment-manager/v1/releases/contracts.proto\x1a\x1b\x62uf/validate/validate.proto\"r\n\x18RegisterCandidateRequest\x12V\n\tcandidate\x18\x01 \x01(\x0b\x32\x30.vrooli.deployment_manager.v1.releases.CandidateB\x06\xbaH\x03\xc8\x01\x01R\tcandidate\"y\n\x19RegisterCandidateResponse\x12\\\n\tcandidate\x18\x01 \x01(\x0b\x32\x36.vrooli.deployment_manager.v1.releases.CandidateRecordB\x06\xbaH\x03\xc8\x01\x01R\tcandidate\"\x84\x01\n\"RegisterDestinationRevisionRequest\x12^\n\x08revision\x18\x01 \x01(\x0b\x32:.vrooli.deployment_manager.v1.releases.DestinationRevisionB\x06\xbaH\x03\xc8\x01\x01R\x08revision\"\x91\x01\n#RegisterDestinationRevisionResponse\x12j\n\x0b\x64\x65stination\x18\x01 \x01(\x0b\x32@.vrooli.deployment_manager.v1.releases.DestinationRevisionRecordB\x06\xbaH\x03\xc8\x01\x01R\x0b\x64\x65stination\"\xa8\x01\n RecordClientUpdateReceiptRequest\x12&\n\nrelease_id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\treleaseId\x12\\\n\x07receipt\x18\x02 \x01(\x0b\x32:.vrooli.deployment_manager.v1.releases.ClientUpdateReceiptB\x06\xbaH\x03\xc8\x01\x01R\x07receipt\"g\n!RecordClientUpdateReceiptResponse\x12&\n\nrelease_id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\treleaseId\x12\x1a\n\x08\x61\x63\x63\x65pted\x18\x02 \x01(\x08R\x08\x61\x63\x63\x65pted2\xdd\x0c\n\x0fReleasesService\x12\x7f\n\x04List\x12:.vrooli.deployment_manager.v1.releases.ListReleasesRequest\x1a;.vrooli.deployment_manager.v1.releases.ListReleasesResponse\x12z\n\x03Get\x12\x38.vrooli.deployment_manager.v1.releases.GetReleaseRequest\x1a\x39.vrooli.deployment_manager.v1.releases.GetReleaseResponse\x12\x95\x01\n\x0cGetOperation\x12\x41.vrooli.deployment_manager.v1.releases.GetReleaseOperationRequest\x1a\x42.vrooli.deployment_manager.v1.releases.GetReleaseOperationResponse\x12\x8c\x01\n\x07\x44ossier\x12?.vrooli.deployment_manager.v1.releases.GetReleaseDossierRequest\x1a@.vrooli.deployment_manager.v1.releases.GetReleaseDossierResponse\x12\x89\x01\n\x08Reverify\x12=.vrooli.deployment_manager.v1.releases.ReverifyReleaseRequest\x1a>.vrooli.deployment_manager.v1.releases.ReverifyReleaseResponse\x12\x8c\x01\n\tReconcile\x12>.vrooli.deployment_manager.v1.releases.ReconcileReleaseRequest\x1a?.vrooli.deployment_manager.v1.releases.ReconcileReleaseResponse\x12\x86\x01\n\x07Recover\x12<.vrooli.deployment_manager.v1.releases.RecoverReleaseRequest\x1a=.vrooli.deployment_manager.v1.releases.RecoverReleaseResponse\x12\x80\x01\n\x05Start\x12:.vrooli.deployment_manager.v1.releases.StartReleaseRequest\x1a;.vrooli.deployment_manager.v1.releases.StartReleaseResponse\x12\x96\x01\n\x11RegisterCandidate\x12?.vrooli.deployment_manager.v1.releases.RegisterCandidateRequest\x1a@.vrooli.deployment_manager.v1.releases.RegisterCandidateResponse\x12\xb4\x01\n\x1bRegisterDestinationRevision\x12I.vrooli.deployment_manager.v1.releases.RegisterDestinationRevisionRequest\x1aJ.vrooli.deployment_manager.v1.releases.RegisterDestinationRevisionResponse\x12\xae\x01\n\x19RecordClientUpdateReceipt\x12G.vrooli.deployment_manager.v1.releases.RecordClientUpdateReceiptRequest\x1aH.vrooli.deployment_manager.v1.releases.RecordClientUpdateReceiptResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/releases;releasesv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,6 +34,32 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'deployment_manager.v1.relea
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZXgithub.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/releases;releasesv1'
-  _globals['_RELEASESSERVICE']._serialized_start=119
-  _globals['_RELEASESSERVICE']._serialized_end=364
+  _globals['_REGISTERCANDIDATEREQUEST'].fields_by_name['candidate']._loaded_options = None
+  _globals['_REGISTERCANDIDATEREQUEST'].fields_by_name['candidate']._serialized_options = b'\272H\003\310\001\001'
+  _globals['_REGISTERCANDIDATERESPONSE'].fields_by_name['candidate']._loaded_options = None
+  _globals['_REGISTERCANDIDATERESPONSE'].fields_by_name['candidate']._serialized_options = b'\272H\003\310\001\001'
+  _globals['_REGISTERDESTINATIONREVISIONREQUEST'].fields_by_name['revision']._loaded_options = None
+  _globals['_REGISTERDESTINATIONREVISIONREQUEST'].fields_by_name['revision']._serialized_options = b'\272H\003\310\001\001'
+  _globals['_REGISTERDESTINATIONREVISIONRESPONSE'].fields_by_name['destination']._loaded_options = None
+  _globals['_REGISTERDESTINATIONREVISIONRESPONSE'].fields_by_name['destination']._serialized_options = b'\272H\003\310\001\001'
+  _globals['_RECORDCLIENTUPDATERECEIPTREQUEST'].fields_by_name['release_id']._loaded_options = None
+  _globals['_RECORDCLIENTUPDATERECEIPTREQUEST'].fields_by_name['release_id']._serialized_options = b'\272H\004r\002\020\001'
+  _globals['_RECORDCLIENTUPDATERECEIPTREQUEST'].fields_by_name['receipt']._loaded_options = None
+  _globals['_RECORDCLIENTUPDATERECEIPTREQUEST'].fields_by_name['receipt']._serialized_options = b'\272H\003\310\001\001'
+  _globals['_RECORDCLIENTUPDATERECEIPTRESPONSE'].fields_by_name['release_id']._loaded_options = None
+  _globals['_RECORDCLIENTUPDATERECEIPTRESPONSE'].fields_by_name['release_id']._serialized_options = b'\272H\004r\002\020\001'
+  _globals['_REGISTERCANDIDATEREQUEST']._serialized_start=165
+  _globals['_REGISTERCANDIDATEREQUEST']._serialized_end=279
+  _globals['_REGISTERCANDIDATERESPONSE']._serialized_start=281
+  _globals['_REGISTERCANDIDATERESPONSE']._serialized_end=402
+  _globals['_REGISTERDESTINATIONREVISIONREQUEST']._serialized_start=405
+  _globals['_REGISTERDESTINATIONREVISIONREQUEST']._serialized_end=537
+  _globals['_REGISTERDESTINATIONREVISIONRESPONSE']._serialized_start=540
+  _globals['_REGISTERDESTINATIONREVISIONRESPONSE']._serialized_end=685
+  _globals['_RECORDCLIENTUPDATERECEIPTREQUEST']._serialized_start=688
+  _globals['_RECORDCLIENTUPDATERECEIPTREQUEST']._serialized_end=856
+  _globals['_RECORDCLIENTUPDATERECEIPTRESPONSE']._serialized_start=858
+  _globals['_RECORDCLIENTUPDATERECEIPTRESPONSE']._serialized_end=961
+  _globals['_RELEASESSERVICE']._serialized_start=964
+  _globals['_RELEASESSERVICE']._serialized_end=2593
 # @@protoc_insertion_point(module_scope)

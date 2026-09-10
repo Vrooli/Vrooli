@@ -3,6 +3,7 @@ import { nextActionDetailTab } from "./backlog-next-action";
 
 describe("nextActionDetailTab", () => {
   it.each([
+    ["development_contract", "info"],
     ["plan_author", "prompt"],
     ["plan_accept", "prompt"],
     ["plan_repair", "prompt"],

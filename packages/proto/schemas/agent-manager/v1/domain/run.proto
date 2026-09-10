@@ -4,6 +4,7 @@ package agent_manager.v1;
 
 import "agent-manager/v1/domain/profile.proto";
 import "agent-manager/v1/domain/types.proto";
+import "vrooli-events/v1/domain/envelope.proto";
 import "buf/validate/validate.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
@@ -208,6 +209,10 @@ message Run {
 
   // Origin of label: harness, derived, generated, or manual.
   string label_source = 49;
+
+  // Producer-neutral work references associated with this run. Agent Manager
+  // stores and returns these as data; it does not interpret any work system.
+  repeated vrooli.vrooli_events.v1.domain.WorkReference work_references = 53;
 
   // Bounded subjects derived from recorded tool-call evidence.
   repeated string subject = 50;

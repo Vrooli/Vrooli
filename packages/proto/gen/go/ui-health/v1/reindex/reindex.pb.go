@@ -199,6 +199,9 @@ type ReindexStatusResponse struct {
 	// attempted to discover. Lets operators distinguish "dispatcher silently
 	// returned zero surfaces" from "no scenarios were eligible".
 	ScenarioOutcomes []*ScenarioDispatchOutcome `protobuf:"bytes,7,rep,name=scenario_outcomes,json=scenarioOutcomes,proto3" json:"scenario_outcomes,omitempty"`
+	Observations     []*RouteObservation        `protobuf:"bytes,8,rep,name=observations,proto3" json:"observations,omitempty"`
+	OrphanSurfaces   []string                   `protobuf:"bytes,9,rep,name=orphan_surfaces,json=orphanSurfaces,proto3" json:"orphan_surfaces,omitempty"`
+	DeadRoutes       []string                   `protobuf:"bytes,10,rep,name=dead_routes,json=deadRoutes,proto3" json:"dead_routes,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -282,6 +285,119 @@ func (x *ReindexStatusResponse) GetScenarioOutcomes() []*ScenarioDispatchOutcome
 	return nil
 }
 
+func (x *ReindexStatusResponse) GetObservations() []*RouteObservation {
+	if x != nil {
+		return x.Observations
+	}
+	return nil
+}
+
+func (x *ReindexStatusResponse) GetOrphanSurfaces() []string {
+	if x != nil {
+		return x.OrphanSurfaces
+	}
+	return nil
+}
+
+func (x *ReindexStatusResponse) GetDeadRoutes() []string {
+	if x != nil {
+		return x.DeadRoutes
+	}
+	return nil
+}
+
+type RouteObservation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Route         string                 `protobuf:"bytes,2,opt,name=route,proto3" json:"route,omitempty"`
+	LinkText      string                 `protobuf:"bytes,3,opt,name=link_text,json=linkText,proto3" json:"link_text,omitempty"`
+	PageTitle     string                 `protobuf:"bytes,4,opt,name=page_title,json=pageTitle,proto3" json:"page_title,omitempty"`
+	ObservedAt    string                 `protobuf:"bytes,5,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	Reachable     bool                   `protobuf:"varint,6,opt,name=reachable,proto3" json:"reachable,omitempty"`
+	HttpStatus    int32                  `protobuf:"varint,7,opt,name=http_status,json=httpStatus,proto3" json:"http_status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RouteObservation) Reset() {
+	*x = RouteObservation{}
+	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RouteObservation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RouteObservation) ProtoMessage() {}
+
+func (x *RouteObservation) ProtoReflect() protoreflect.Message {
+	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RouteObservation.ProtoReflect.Descriptor instead.
+func (*RouteObservation) Descriptor() ([]byte, []int) {
+	return file_ui_health_v1_reindex_reindex_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *RouteObservation) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *RouteObservation) GetRoute() string {
+	if x != nil {
+		return x.Route
+	}
+	return ""
+}
+
+func (x *RouteObservation) GetLinkText() string {
+	if x != nil {
+		return x.LinkText
+	}
+	return ""
+}
+
+func (x *RouteObservation) GetPageTitle() string {
+	if x != nil {
+		return x.PageTitle
+	}
+	return ""
+}
+
+func (x *RouteObservation) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
+func (x *RouteObservation) GetReachable() bool {
+	if x != nil {
+		return x.Reachable
+	}
+	return false
+}
+
+func (x *RouteObservation) GetHttpStatus() int32 {
+	if x != nil {
+		return x.HttpStatus
+	}
+	return 0
+}
+
 // ScenarioDispatchOutcome reports the result of a single scenario's discovery
 // pass. surfaces_found is the count returned by the framework dispatcher;
 // error is set when discovery itself failed (template_id missing, dispatcher
@@ -300,7 +416,7 @@ type ScenarioDispatchOutcome struct {
 
 func (x *ScenarioDispatchOutcome) Reset() {
 	*x = ScenarioDispatchOutcome{}
-	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[4]
+	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -312,7 +428,7 @@ func (x *ScenarioDispatchOutcome) String() string {
 func (*ScenarioDispatchOutcome) ProtoMessage() {}
 
 func (x *ScenarioDispatchOutcome) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[4]
+	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -325,7 +441,7 @@ func (x *ScenarioDispatchOutcome) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioDispatchOutcome.ProtoReflect.Descriptor instead.
 func (*ScenarioDispatchOutcome) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_reindex_reindex_proto_rawDescGZIP(), []int{4}
+	return file_ui_health_v1_reindex_reindex_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ScenarioDispatchOutcome) GetScenario() string {
@@ -365,7 +481,7 @@ type ReindexCancelRequest struct {
 
 func (x *ReindexCancelRequest) Reset() {
 	*x = ReindexCancelRequest{}
-	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[5]
+	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -377,7 +493,7 @@ func (x *ReindexCancelRequest) String() string {
 func (*ReindexCancelRequest) ProtoMessage() {}
 
 func (x *ReindexCancelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[5]
+	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -390,7 +506,7 @@ func (x *ReindexCancelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReindexCancelRequest.ProtoReflect.Descriptor instead.
 func (*ReindexCancelRequest) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_reindex_reindex_proto_rawDescGZIP(), []int{5}
+	return file_ui_health_v1_reindex_reindex_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ReindexCancelRequest) GetJobId() string {
@@ -410,7 +526,7 @@ type ReindexCancelResponse struct {
 
 func (x *ReindexCancelResponse) Reset() {
 	*x = ReindexCancelResponse{}
-	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[6]
+	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -422,7 +538,7 @@ func (x *ReindexCancelResponse) String() string {
 func (*ReindexCancelResponse) ProtoMessage() {}
 
 func (x *ReindexCancelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[6]
+	mi := &file_ui_health_v1_reindex_reindex_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -435,7 +551,7 @@ func (x *ReindexCancelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReindexCancelResponse.ProtoReflect.Descriptor instead.
 func (*ReindexCancelResponse) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_reindex_reindex_proto_rawDescGZIP(), []int{6}
+	return file_ui_health_v1_reindex_reindex_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ReindexCancelResponse) GetJobId() string {
@@ -466,7 +582,7 @@ const file_ui_health_v1_reindex_reindex_proto_rawDesc = "" +
 	"\x0fplanned_deletes\x18\x03 \x01(\x05R\x0eplannedDeletes\x12\x17\n" +
 	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"-\n" +
 	"\x14ReindexStatusRequest\x12\x15\n" +
-	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"\x8d\x02\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"\xaa\x03\n" +
 	"\x15ReindexStatusResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12\x1c\n" +
@@ -474,7 +590,23 @@ const file_ui_health_v1_reindex_reindex_proto_rawDesc = "" +
 	"\x05total\x18\x04 \x01(\x05R\x05total\x12\x14\n" +
 	"\x05error\x18\x05 \x01(\tR\x05error\x12\x1a\n" +
 	"\bwarnings\x18\x06 \x03(\tR\bwarnings\x12a\n" +
-	"\x11scenario_outcomes\x18\a \x03(\v24.vrooli.ui_health.v1.reindex.ScenarioDispatchOutcomeR\x10scenarioOutcomes\"\x93\x01\n" +
+	"\x11scenario_outcomes\x18\a \x03(\v24.vrooli.ui_health.v1.reindex.ScenarioDispatchOutcomeR\x10scenarioOutcomes\x12Q\n" +
+	"\fobservations\x18\b \x03(\v2-.vrooli.ui_health.v1.reindex.RouteObservationR\fobservations\x12'\n" +
+	"\x0forphan_surfaces\x18\t \x03(\tR\x0eorphanSurfaces\x12\x1f\n" +
+	"\vdead_routes\x18\n" +
+	" \x03(\tR\n" +
+	"deadRoutes\"\xe0\x01\n" +
+	"\x10RouteObservation\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x14\n" +
+	"\x05route\x18\x02 \x01(\tR\x05route\x12\x1b\n" +
+	"\tlink_text\x18\x03 \x01(\tR\blinkText\x12\x1d\n" +
+	"\n" +
+	"page_title\x18\x04 \x01(\tR\tpageTitle\x12\x1f\n" +
+	"\vobserved_at\x18\x05 \x01(\tR\n" +
+	"observedAt\x12\x1c\n" +
+	"\treachable\x18\x06 \x01(\bR\treachable\x12\x1f\n" +
+	"\vhttp_status\x18\a \x01(\x05R\n" +
+	"httpStatus\"\x93\x01\n" +
 	"\x17ScenarioDispatchOutcome\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12%\n" +
 	"\x0esurfaces_found\x18\x02 \x01(\x05R\rsurfacesFound\x12\x14\n" +
@@ -503,29 +635,31 @@ func file_ui_health_v1_reindex_reindex_proto_rawDescGZIP() []byte {
 	return file_ui_health_v1_reindex_reindex_proto_rawDescData
 }
 
-var file_ui_health_v1_reindex_reindex_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_ui_health_v1_reindex_reindex_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_ui_health_v1_reindex_reindex_proto_goTypes = []any{
 	(*ReindexRequest)(nil),          // 0: vrooli.ui_health.v1.reindex.ReindexRequest
 	(*ReindexResponse)(nil),         // 1: vrooli.ui_health.v1.reindex.ReindexResponse
 	(*ReindexStatusRequest)(nil),    // 2: vrooli.ui_health.v1.reindex.ReindexStatusRequest
 	(*ReindexStatusResponse)(nil),   // 3: vrooli.ui_health.v1.reindex.ReindexStatusResponse
-	(*ScenarioDispatchOutcome)(nil), // 4: vrooli.ui_health.v1.reindex.ScenarioDispatchOutcome
-	(*ReindexCancelRequest)(nil),    // 5: vrooli.ui_health.v1.reindex.ReindexCancelRequest
-	(*ReindexCancelResponse)(nil),   // 6: vrooli.ui_health.v1.reindex.ReindexCancelResponse
+	(*RouteObservation)(nil),        // 4: vrooli.ui_health.v1.reindex.RouteObservation
+	(*ScenarioDispatchOutcome)(nil), // 5: vrooli.ui_health.v1.reindex.ScenarioDispatchOutcome
+	(*ReindexCancelRequest)(nil),    // 6: vrooli.ui_health.v1.reindex.ReindexCancelRequest
+	(*ReindexCancelResponse)(nil),   // 7: vrooli.ui_health.v1.reindex.ReindexCancelResponse
 }
 var file_ui_health_v1_reindex_reindex_proto_depIdxs = []int32{
-	4, // 0: vrooli.ui_health.v1.reindex.ReindexStatusResponse.scenario_outcomes:type_name -> vrooli.ui_health.v1.reindex.ScenarioDispatchOutcome
-	0, // 1: vrooli.ui_health.v1.reindex.ReindexService.Reindex:input_type -> vrooli.ui_health.v1.reindex.ReindexRequest
-	2, // 2: vrooli.ui_health.v1.reindex.ReindexService.ReindexStatus:input_type -> vrooli.ui_health.v1.reindex.ReindexStatusRequest
-	5, // 3: vrooli.ui_health.v1.reindex.ReindexService.ReindexCancel:input_type -> vrooli.ui_health.v1.reindex.ReindexCancelRequest
-	1, // 4: vrooli.ui_health.v1.reindex.ReindexService.Reindex:output_type -> vrooli.ui_health.v1.reindex.ReindexResponse
-	3, // 5: vrooli.ui_health.v1.reindex.ReindexService.ReindexStatus:output_type -> vrooli.ui_health.v1.reindex.ReindexStatusResponse
-	6, // 6: vrooli.ui_health.v1.reindex.ReindexService.ReindexCancel:output_type -> vrooli.ui_health.v1.reindex.ReindexCancelResponse
-	4, // [4:7] is the sub-list for method output_type
-	1, // [1:4] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	5, // 0: vrooli.ui_health.v1.reindex.ReindexStatusResponse.scenario_outcomes:type_name -> vrooli.ui_health.v1.reindex.ScenarioDispatchOutcome
+	4, // 1: vrooli.ui_health.v1.reindex.ReindexStatusResponse.observations:type_name -> vrooli.ui_health.v1.reindex.RouteObservation
+	0, // 2: vrooli.ui_health.v1.reindex.ReindexService.Reindex:input_type -> vrooli.ui_health.v1.reindex.ReindexRequest
+	2, // 3: vrooli.ui_health.v1.reindex.ReindexService.ReindexStatus:input_type -> vrooli.ui_health.v1.reindex.ReindexStatusRequest
+	6, // 4: vrooli.ui_health.v1.reindex.ReindexService.ReindexCancel:input_type -> vrooli.ui_health.v1.reindex.ReindexCancelRequest
+	1, // 5: vrooli.ui_health.v1.reindex.ReindexService.Reindex:output_type -> vrooli.ui_health.v1.reindex.ReindexResponse
+	3, // 6: vrooli.ui_health.v1.reindex.ReindexService.ReindexStatus:output_type -> vrooli.ui_health.v1.reindex.ReindexStatusResponse
+	7, // 7: vrooli.ui_health.v1.reindex.ReindexService.ReindexCancel:output_type -> vrooli.ui_health.v1.reindex.ReindexCancelResponse
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_ui_health_v1_reindex_reindex_proto_init() }
@@ -539,7 +673,7 @@ func file_ui_health_v1_reindex_reindex_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ui_health_v1_reindex_reindex_proto_rawDesc), len(file_ui_health_v1_reindex_reindex_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

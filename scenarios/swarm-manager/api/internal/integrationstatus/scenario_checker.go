@@ -26,7 +26,16 @@ func (c ScenarioChecker) Check(ctx context.Context) (Status, error) {
 	now := c.now()
 	status := Status{Required: c.Required, CheckedAt: now, DegradedBehavior: c.DegradedBehavior}
 	baseURL, err := c.ResolveURL(ctx, c.Scenario)
-	if err != nil || strings.TrimSpace(baseURL) == "" {
+	if err != nil {
+		// A declared provider can be stopped or temporarily undiscoverable.
+		// Keep its resolver diagnosis so operators restore the actual owner
+		// instead of being directed to invent a URL configuration.
+		status.Configured = strings.TrimSpace(c.Scenario) != ""
+		status.Availability = Unavailable
+		status.Diagnostic = fmt.Sprintf("resolve scenario %q: %v", c.Scenario, err)
+		return status, nil
+	}
+	if strings.TrimSpace(baseURL) == "" {
 		status.Availability = Unconfigured
 		status.Diagnostic = "scenario URL is not configured"
 		return status, nil

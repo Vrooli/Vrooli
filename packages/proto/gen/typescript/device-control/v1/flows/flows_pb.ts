@@ -4,21 +4,22 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { JsonObject, Message } from "@bufbuild/protobuf";
+import type { Flow } from "../shared/flow_pb";
+import { file_device_control_v1_shared_flow } from "../shared/flow_pb";
+import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file device-control/v1/flows/flows.proto.
  */
 export const file_device_control_v1_flows_flows: GenFile = /*@__PURE__*/
-  fileDesc("CiNkZXZpY2UtY29udHJvbC92MS9mbG93cy9mbG93cy5wcm90bxIednJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzIqgBChNWYWxpZGF0ZUZsb3dSZXF1ZXN0EjIKBGZsb3cYASABKAsyJC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuRmxvdxITCgtzdHJhdGVneV9pZBgCIAEoCRITCgtiYXNlbGluZV9pZBgDIAEoCRIYChBleHBlY3RlZF92ZXJzaW9uGAQgASgFEhkKEXJlcXVpcmVfYXNzZXJ0aW9uGAUgASgIInsKDlJ1bkZsb3dSZXF1ZXN0EjIKBGZsb3cYASABKAsyJC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuRmxvdxIRCglkZXZpY2VfaWQYAiABKAkSDQoFYWN0b3IYAyABKAkSEwoLbGVhc2VfdG9rZW4YBCABKAkivQEKBEZsb3cSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIzCgVzdGVwcxgDIAMoCzIkLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5TdGVwEiAKGGFsbG93X3VucmVkYWN0ZWRfY2FwdHVyZRgEIAEoCBIRCgl0cmFuc3BvcnQYBSABKAkSGAoQcmVxdWlyZV91bmxvY2tlZBgGIAEoCBIXCg9hdXRoX3Byb2ZpbGVfaWQYByABKAkijwEKBFN0ZXASCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIdChVyZXF1aXJlZF9jYXBhYmlsaXRpZXMYAyADKAkSDgoGdGFyZ2V0GAQgASgJEhIKCnRpbWVvdXRfbXMYBSABKAMSKgoJYXJndW1lbnRzGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCJHChNDYXBhYmlsaXR5R2FwUmVwb3J0EhAKCHJ1bm5hYmxlGAEgASgIEgwKBGdhcHMYAiADKAkSEAoId2FybmluZ3MYAyADKAkiuQIKCVJ1blJlc3VsdBIOCgZydW5faWQYASABKAkSEwoLZGlzcG9zaXRpb24YAiABKAkSOQoIY2hhcHRlcnMYAyADKAsyJy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuQ2hhcHRlchI/CgtyZXNvbHV0aW9ucxgEIAMoCzIqLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5SZXNvbHV0aW9uEkMKCGV2aWRlbmNlGAUgAygLMjEudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLkV2aWRlbmNlUmVmZXJlbmNlEhIKCmluY29tcGxldGUYBiABKAgSGQoRZGlzY29ubmVjdF9yZWFzb24YByABKAkSFwoPZGlzY29ubmVjdF9zdGVwGAggASgJIkoKB0NoYXB0ZXISCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEwoLZGlzcG9zaXRpb24YAyABKAkSDwoHbWVzc2FnZRgEIAEoCSI+CgpSZXNvbHV0aW9uEg4KBnRhcmdldBgBIAEoCRIMCgRydW5nGAIgASgJEhIKCmNvbmZpZGVuY2UYAyABKAEi0AIKEUV2aWRlbmNlUmVmZXJlbmNlEgoKAmlkGAEgASgJEg4KBnNoYTI1NhgCIAEoCRISCgpzaXplX2J5dGVzGAMgASgDEhIKCmNyZWF0ZWRfYXQYBCABKAkSGgoScmVkYWN0aW9uX3ZlcmlmaWVkGAUgASgIEhgKEHJlY29yZGluZ19tZXRob2QYBiABKAkSFQoNZWZmZWN0aXZlX2ZwcxgHIAEoARIQCghwcm9kdWNlchgIIAEoCRIMCgRraW5kGAkgASgJEhUKDWFwcGxpZWRfcnVsZXMYCiADKAkSEQoJb3B0ZWRfb3V0GAsgASgIEhMKC2NsYWltX2NsYXNzGAwgASgJEhoKEm1pbmltdW1fdXNlZnVsX2ZwcxgNIAEoARITCgtkaXNwb3NpdGlvbhgOIAEoCRIaChJkaXNwb3NpdGlvbl9yZWFzb24YDyABKAkirwEKCVNhdmVkRmxvdxIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgFEhEKCWRldmljZV9pZBgDIAEoCRITCgtjb250ZXh0X2tleRgEIAEoCRIVCg1zb3VyY2VfcnVuX2lkGAUgASgJEjIKBGZsb3cYBiABKAsyJC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuRmxvdxISCgpjcmVhdGVkX2F0GAcgASgJIj8KFUxpc3RTYXZlZEZsb3dzUmVxdWVzdBIRCglkZXZpY2VfaWQYASABKAkSEwoLY29udGV4dF9rZXkYAiABKAkiUgoWTGlzdFNhdmVkRmxvd3NSZXNwb25zZRI4CgVmbG93cxgBIAMoCzIpLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5TYXZlZEZsb3ciMgoTR2V0U2F2ZWRGbG93UmVxdWVzdBIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgFIngKGFNhdmVWYWxpZGF0ZWRGbG93UmVxdWVzdBIOCgZydW5faWQYASABKAkSEQoJZGV2aWNlX2lkGAIgASgJEhMKC2NvbnRleHRfa2V5GAMgASgJEgoKAmlkGAQgASgJEhgKEGV4cGVjdGVkX3ZlcnNpb24YBSABKAUiaQoTUnVuU2F2ZWRGbG93UmVxdWVzdBIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgFEhEKCWRldmljZV9pZBgDIAEoCRITCgtjb250ZXh0X2tleRgEIAEoCRINCgVhY3RvchgFIAEoCTLIBQoLRmxvd1NlcnZpY2USeAoMVmFsaWRhdGVGbG93EjMudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLlZhbGlkYXRlRmxvd1JlcXVlc3QaMy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuQ2FwYWJpbGl0eUdhcFJlcG9ydBJkCgdSdW5GbG93Ei4udnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLlJ1bkZsb3dSZXF1ZXN0GikudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLlJ1blJlc3VsdBJ/Cg5MaXN0U2F2ZWRGbG93cxI1LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5MaXN0U2F2ZWRGbG93c1JlcXVlc3QaNi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuTGlzdFNhdmVkRmxvd3NSZXNwb25zZRJuCgxHZXRTYXZlZEZsb3cSMy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuR2V0U2F2ZWRGbG93UmVxdWVzdBopLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5TYXZlZEZsb3cSeAoRU2F2ZVZhbGlkYXRlZEZsb3cSOC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuU2F2ZVZhbGlkYXRlZEZsb3dSZXF1ZXN0GikudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLlNhdmVkRmxvdxJuCgxSdW5TYXZlZEZsb3cSMy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuUnVuU2F2ZWRGbG93UmVxdWVzdBopLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5SdW5SZXN1bHRCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kZXZpY2UtY29udHJvbC92MS9mbG93cztmbG93c192MWIGcHJvdG8z", [file_google_protobuf_struct]);
+  fileDesc("CiNkZXZpY2UtY29udHJvbC92MS9mbG93cy9mbG93cy5wcm90bxIednJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzIqkBChNWYWxpZGF0ZUZsb3dSZXF1ZXN0EjMKBGZsb3cYASABKAsyJS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuc2hhcmVkLkZsb3cSEwoLc3RyYXRlZ3lfaWQYAiABKAkSEwoLYmFzZWxpbmVfaWQYAyABKAkSGAoQZXhwZWN0ZWRfdmVyc2lvbhgEIAEoBRIZChFyZXF1aXJlX2Fzc2VydGlvbhgFIAEoCCJ8Cg5SdW5GbG93UmVxdWVzdBIzCgRmbG93GAEgASgLMiUudnJvb2xpLmRldmljZV9jb250cm9sLnYxLnNoYXJlZC5GbG93EhEKCWRldmljZV9pZBgCIAEoCRINCgVhY3RvchgDIAEoCRITCgtsZWFzZV90b2tlbhgEIAEoCSJHChNDYXBhYmlsaXR5R2FwUmVwb3J0EhAKCHJ1bm5hYmxlGAEgASgIEgwKBGdhcHMYAiADKAkSEAoId2FybmluZ3MYAyADKAki9gIKCVJ1blJlc3VsdBIOCgZydW5faWQYASABKAkSEwoLZGlzcG9zaXRpb24YAiABKAkSOQoIY2hhcHRlcnMYAyADKAsyJy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuQ2hhcHRlchI/CgtyZXNvbHV0aW9ucxgEIAMoCzIqLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5SZXNvbHV0aW9uEkMKCGV2aWRlbmNlGAUgAygLMjEudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLkV2aWRlbmNlUmVmZXJlbmNlEhIKCmluY29tcGxldGUYBiABKAgSGQoRZGlzY29ubmVjdF9yZWFzb24YByABKAkSFwoPZGlzY29ubmVjdF9zdGVwGAggASgJEjsKB2JpbmRpbmcYCSABKAsyKi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuUnVuQmluZGluZyKPAQoKUnVuQmluZGluZxIRCglkZXZpY2VfaWQYASABKAkSEQoJdHJhbnNwb3J0GAIgASgJEhAKCGxlYXNlX2lkGAMgASgJEhMKC2xlYXNlX2Vwb2NoGAQgASgEEhYKDmFwcGxpY2F0aW9uX2lkGAUgASgJEhwKFGFwcGxpY2F0aW9uX3JldmlzaW9uGAYgASgJIokBCgdDaGFwdGVyEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC2Rpc3Bvc2l0aW9uGAMgASgJEg8KB21lc3NhZ2UYBCABKAkSFAoMZXZpZGVuY2VfaWRzGAUgAygJEhUKDWZhaWx1cmVfY2xhc3MYBiABKAkSEAoIYXR0ZW1wdHMYByABKAUiPgoKUmVzb2x1dGlvbhIOCgZ0YXJnZXQYASABKAkSDAoEcnVuZxgCIAEoCRISCgpjb25maWRlbmNlGAMgASgBItACChFFdmlkZW5jZVJlZmVyZW5jZRIKCgJpZBgBIAEoCRIOCgZzaGEyNTYYAiABKAkSEgoKc2l6ZV9ieXRlcxgDIAEoAxISCgpjcmVhdGVkX2F0GAQgASgJEhoKEnJlZGFjdGlvbl92ZXJpZmllZBgFIAEoCBIYChByZWNvcmRpbmdfbWV0aG9kGAYgASgJEhUKDWVmZmVjdGl2ZV9mcHMYByABKAESEAoIcHJvZHVjZXIYCCABKAkSDAoEa2luZBgJIAEoCRIVCg1hcHBsaWVkX3J1bGVzGAogAygJEhEKCW9wdGVkX291dBgLIAEoCBITCgtjbGFpbV9jbGFzcxgMIAEoCRIaChJtaW5pbXVtX3VzZWZ1bF9mcHMYDSABKAESEwoLZGlzcG9zaXRpb24YDiABKAkSGgoSZGlzcG9zaXRpb25fcmVhc29uGA8gASgJIrABCglTYXZlZEZsb3cSCgoCaWQYASABKAkSDwoHdmVyc2lvbhgCIAEoBRIRCglkZXZpY2VfaWQYAyABKAkSEwoLY29udGV4dF9rZXkYBCABKAkSFQoNc291cmNlX3J1bl9pZBgFIAEoCRIzCgRmbG93GAYgASgLMiUudnJvb2xpLmRldmljZV9jb250cm9sLnYxLnNoYXJlZC5GbG93EhIKCmNyZWF0ZWRfYXQYByABKAkiPwoVTGlzdFNhdmVkRmxvd3NSZXF1ZXN0EhEKCWRldmljZV9pZBgBIAEoCRITCgtjb250ZXh0X2tleRgCIAEoCSJSChZMaXN0U2F2ZWRGbG93c1Jlc3BvbnNlEjgKBWZsb3dzGAEgAygLMikudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLlNhdmVkRmxvdyIyChNHZXRTYXZlZEZsb3dSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB3ZlcnNpb24YAiABKAUieAoYU2F2ZVZhbGlkYXRlZEZsb3dSZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCRIRCglkZXZpY2VfaWQYAiABKAkSEwoLY29udGV4dF9rZXkYAyABKAkSCgoCaWQYBCABKAkSGAoQZXhwZWN0ZWRfdmVyc2lvbhgFIAEoBSJpChNSdW5TYXZlZEZsb3dSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB3ZlcnNpb24YAiABKAUSEQoJZGV2aWNlX2lkGAMgASgJEhMKC2NvbnRleHRfa2V5GAQgASgJEg0KBWFjdG9yGAUgASgJMsgFCgtGbG93U2VydmljZRJ4CgxWYWxpZGF0ZUZsb3cSMy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuVmFsaWRhdGVGbG93UmVxdWVzdBozLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5DYXBhYmlsaXR5R2FwUmVwb3J0EmQKB1J1bkZsb3cSLi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuUnVuRmxvd1JlcXVlc3QaKS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuUnVuUmVzdWx0En8KDkxpc3RTYXZlZEZsb3dzEjUudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLkxpc3RTYXZlZEZsb3dzUmVxdWVzdBo2LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5MaXN0U2F2ZWRGbG93c1Jlc3BvbnNlEm4KDEdldFNhdmVkRmxvdxIzLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5HZXRTYXZlZEZsb3dSZXF1ZXN0GikudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLlNhdmVkRmxvdxJ4ChFTYXZlVmFsaWRhdGVkRmxvdxI4LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5TYXZlVmFsaWRhdGVkRmxvd1JlcXVlc3QaKS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuU2F2ZWRGbG93Em4KDFJ1blNhdmVkRmxvdxIzLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5SdW5TYXZlZEZsb3dSZXF1ZXN0GikudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLlJ1blJlc3VsdEJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2RldmljZS1jb250cm9sL3YxL2Zsb3dzO2Zsb3dzX3YxYgZwcm90bzM", [file_device_control_v1_shared_flow]);
 
 /**
  * @generated from message vrooli.device_control.v1.flows.ValidateFlowRequest
  */
 export type ValidateFlowRequest = Message<"vrooli.device_control.v1.flows.ValidateFlowRequest"> & {
   /**
-   * @generated from field: vrooli.device_control.v1.flows.Flow flow = 1;
+   * @generated from field: vrooli.device_control.v1.shared.Flow flow = 1;
    */
   flow?: Flow | undefined;
 
@@ -55,7 +56,7 @@ export const ValidateFlowRequestSchema: GenMessage<ValidateFlowRequest> = /*@__P
  */
 export type RunFlowRequest = Message<"vrooli.device_control.v1.flows.RunFlowRequest"> & {
   /**
-   * @generated from field: vrooli.device_control.v1.flows.Flow flow = 1;
+   * @generated from field: vrooli.device_control.v1.shared.Flow flow = 1;
    */
   flow?: Flow | undefined;
 
@@ -83,97 +84,6 @@ export const RunFlowRequestSchema: GenMessage<RunFlowRequest> = /*@__PURE__*/
   messageDesc(file_device_control_v1_flows_flows, 1);
 
 /**
- * @generated from message vrooli.device_control.v1.flows.Flow
- */
-export type Flow = Message<"vrooli.device_control.v1.flows.Flow"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: string name = 2;
-   */
-  name: string;
-
-  /**
-   * @generated from field: repeated vrooli.device_control.v1.flows.Step steps = 3;
-   */
-  steps: Step[];
-
-  /**
-   * @generated from field: bool allow_unredacted_capture = 4;
-   */
-  allowUnredactedCapture: boolean;
-
-  /**
-   * usb is the default; wireless must be explicitly requested after promotion.
-   *
-   * @generated from field: string transport = 5;
-   */
-  transport: string;
-
-  /**
-   * @generated from field: bool require_unlocked = 6;
-   */
-  requireUnlocked: boolean;
-
-  /**
-   * @generated from field: string auth_profile_id = 7;
-   */
-  authProfileId: string;
-};
-
-/**
- * Describes the message vrooli.device_control.v1.flows.Flow.
- * Use `create(FlowSchema)` to create a new message.
- */
-export const FlowSchema: GenMessage<Flow> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_flows_flows, 2);
-
-/**
- * @generated from message vrooli.device_control.v1.flows.Step
- */
-export type Step = Message<"vrooli.device_control.v1.flows.Step"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: string kind = 2;
-   */
-  kind: string;
-
-  /**
-   * @generated from field: repeated string required_capabilities = 3;
-   */
-  requiredCapabilities: string[];
-
-  /**
-   * @generated from field: string target = 4;
-   */
-  target: string;
-
-  /**
-   * @generated from field: int64 timeout_ms = 5;
-   */
-  timeoutMs: bigint;
-
-  /**
-   * @generated from field: google.protobuf.Struct arguments = 6;
-   */
-  arguments?: JsonObject | undefined;
-};
-
-/**
- * Describes the message vrooli.device_control.v1.flows.Step.
- * Use `create(StepSchema)` to create a new message.
- */
-export const StepSchema: GenMessage<Step> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_flows_flows, 3);
-
-/**
  * @generated from message vrooli.device_control.v1.flows.CapabilityGapReport
  */
 export type CapabilityGapReport = Message<"vrooli.device_control.v1.flows.CapabilityGapReport"> & {
@@ -198,7 +108,7 @@ export type CapabilityGapReport = Message<"vrooli.device_control.v1.flows.Capabi
  * Use `create(CapabilityGapReportSchema)` to create a new message.
  */
 export const CapabilityGapReportSchema: GenMessage<CapabilityGapReport> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_flows_flows, 4);
+  messageDesc(file_device_control_v1_flows_flows, 2);
 
 /**
  * @generated from message vrooli.device_control.v1.flows.RunResult
@@ -243,6 +153,11 @@ export type RunResult = Message<"vrooli.device_control.v1.flows.RunResult"> & {
    * @generated from field: string disconnect_step = 8;
    */
   disconnectStep: string;
+
+  /**
+   * @generated from field: vrooli.device_control.v1.flows.RunBinding binding = 9;
+   */
+  binding?: RunBinding | undefined;
 };
 
 /**
@@ -250,7 +165,49 @@ export type RunResult = Message<"vrooli.device_control.v1.flows.RunResult"> & {
  * Use `create(RunResultSchema)` to create a new message.
  */
 export const RunResultSchema: GenMessage<RunResult> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_flows_flows, 5);
+  messageDesc(file_device_control_v1_flows_flows, 3);
+
+/**
+ * @generated from message vrooli.device_control.v1.flows.RunBinding
+ */
+export type RunBinding = Message<"vrooli.device_control.v1.flows.RunBinding"> & {
+  /**
+   * @generated from field: string device_id = 1;
+   */
+  deviceId: string;
+
+  /**
+   * @generated from field: string transport = 2;
+   */
+  transport: string;
+
+  /**
+   * @generated from field: string lease_id = 3;
+   */
+  leaseId: string;
+
+  /**
+   * @generated from field: uint64 lease_epoch = 4;
+   */
+  leaseEpoch: bigint;
+
+  /**
+   * @generated from field: string application_id = 5;
+   */
+  applicationId: string;
+
+  /**
+   * @generated from field: string application_revision = 6;
+   */
+  applicationRevision: string;
+};
+
+/**
+ * Describes the message vrooli.device_control.v1.flows.RunBinding.
+ * Use `create(RunBindingSchema)` to create a new message.
+ */
+export const RunBindingSchema: GenMessage<RunBinding> = /*@__PURE__*/
+  messageDesc(file_device_control_v1_flows_flows, 4);
 
 /**
  * @generated from message vrooli.device_control.v1.flows.Chapter
@@ -275,6 +232,21 @@ export type Chapter = Message<"vrooli.device_control.v1.flows.Chapter"> & {
    * @generated from field: string message = 4;
    */
   message: string;
+
+  /**
+   * @generated from field: repeated string evidence_ids = 5;
+   */
+  evidenceIds: string[];
+
+  /**
+   * @generated from field: string failure_class = 6;
+   */
+  failureClass: string;
+
+  /**
+   * @generated from field: int32 attempts = 7;
+   */
+  attempts: number;
 };
 
 /**
@@ -282,7 +254,7 @@ export type Chapter = Message<"vrooli.device_control.v1.flows.Chapter"> & {
  * Use `create(ChapterSchema)` to create a new message.
  */
 export const ChapterSchema: GenMessage<Chapter> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_flows_flows, 6);
+  messageDesc(file_device_control_v1_flows_flows, 5);
 
 /**
  * @generated from message vrooli.device_control.v1.flows.Resolution
@@ -309,7 +281,7 @@ export type Resolution = Message<"vrooli.device_control.v1.flows.Resolution"> & 
  * Use `create(ResolutionSchema)` to create a new message.
  */
 export const ResolutionSchema: GenMessage<Resolution> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_flows_flows, 7);
+  messageDesc(file_device_control_v1_flows_flows, 6);
 
 /**
  * @generated from message vrooli.device_control.v1.flows.EvidenceReference
@@ -396,7 +368,7 @@ export type EvidenceReference = Message<"vrooli.device_control.v1.flows.Evidence
  * Use `create(EvidenceReferenceSchema)` to create a new message.
  */
 export const EvidenceReferenceSchema: GenMessage<EvidenceReference> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_flows_flows, 8);
+  messageDesc(file_device_control_v1_flows_flows, 7);
 
 /**
  * A saved revision is reusable only for the exact device and comparison context.
@@ -430,7 +402,7 @@ export type SavedFlow = Message<"vrooli.device_control.v1.flows.SavedFlow"> & {
   sourceRunId: string;
 
   /**
-   * @generated from field: vrooli.device_control.v1.flows.Flow flow = 6;
+   * @generated from field: vrooli.device_control.v1.shared.Flow flow = 6;
    */
   flow?: Flow | undefined;
 
@@ -445,7 +417,7 @@ export type SavedFlow = Message<"vrooli.device_control.v1.flows.SavedFlow"> & {
  * Use `create(SavedFlowSchema)` to create a new message.
  */
 export const SavedFlowSchema: GenMessage<SavedFlow> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_flows_flows, 9);
+  messageDesc(file_device_control_v1_flows_flows, 8);
 
 /**
  * @generated from message vrooli.device_control.v1.flows.ListSavedFlowsRequest
@@ -467,7 +439,7 @@ export type ListSavedFlowsRequest = Message<"vrooli.device_control.v1.flows.List
  * Use `create(ListSavedFlowsRequestSchema)` to create a new message.
  */
 export const ListSavedFlowsRequestSchema: GenMessage<ListSavedFlowsRequest> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_flows_flows, 10);
+  messageDesc(file_device_control_v1_flows_flows, 9);
 
 /**
  * @generated from message vrooli.device_control.v1.flows.ListSavedFlowsResponse
@@ -484,7 +456,7 @@ export type ListSavedFlowsResponse = Message<"vrooli.device_control.v1.flows.Lis
  * Use `create(ListSavedFlowsResponseSchema)` to create a new message.
  */
 export const ListSavedFlowsResponseSchema: GenMessage<ListSavedFlowsResponse> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_flows_flows, 11);
+  messageDesc(file_device_control_v1_flows_flows, 10);
 
 /**
  * @generated from message vrooli.device_control.v1.flows.GetSavedFlowRequest
@@ -506,7 +478,7 @@ export type GetSavedFlowRequest = Message<"vrooli.device_control.v1.flows.GetSav
  * Use `create(GetSavedFlowRequestSchema)` to create a new message.
  */
 export const GetSavedFlowRequestSchema: GenMessage<GetSavedFlowRequest> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_flows_flows, 12);
+  messageDesc(file_device_control_v1_flows_flows, 11);
 
 /**
  * @generated from message vrooli.device_control.v1.flows.SaveValidatedFlowRequest
@@ -545,7 +517,7 @@ export type SaveValidatedFlowRequest = Message<"vrooli.device_control.v1.flows.S
  * Use `create(SaveValidatedFlowRequestSchema)` to create a new message.
  */
 export const SaveValidatedFlowRequestSchema: GenMessage<SaveValidatedFlowRequest> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_flows_flows, 13);
+  messageDesc(file_device_control_v1_flows_flows, 12);
 
 /**
  * @generated from message vrooli.device_control.v1.flows.RunSavedFlowRequest
@@ -582,7 +554,7 @@ export type RunSavedFlowRequest = Message<"vrooli.device_control.v1.flows.RunSav
  * Use `create(RunSavedFlowRequestSchema)` to create a new message.
  */
 export const RunSavedFlowRequestSchema: GenMessage<RunSavedFlowRequest> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_flows_flows, 14);
+  messageDesc(file_device_control_v1_flows_flows, 13);
 
 /**
  * @generated from service vrooli.device_control.v1.flows.FlowService

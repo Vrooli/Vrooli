@@ -143,8 +143,11 @@ type TokenPair struct {
 	RefreshToken string `protobuf:"bytes,2,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	// Access-token expiry.
 	AccessTokenExpiresAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=access_token_expires_at,json=accessTokenExpiresAt,proto3" json:"access_token_expires_at,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Audience stamped into the access token. Empty is never returned for a
+	// successful token issuance.
+	Audience      string `protobuf:"bytes,4,opt,name=audience,proto3" json:"audience,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TokenPair) Reset() {
@@ -198,13 +201,23 @@ func (x *TokenPair) GetAccessTokenExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *TokenPair) GetAudience() string {
+	if x != nil {
+		return x.Audience
+	}
+	return ""
+}
+
 type RegisterRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Email    string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
 	Password string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 	Username string                 `protobuf:"bytes,3,opt,name=username,proto3" json:"username,omitempty"`
 	// Realm to create the account in. Empty resolves to the default realm.
-	Realm         string `protobuf:"bytes,4,opt,name=realm,proto3" json:"realm,omitempty"`
+	Realm string `protobuf:"bytes,4,opt,name=realm,proto3" json:"realm,omitempty"`
+	// Optional registered resource id. Empty preserves the default realm
+	// audience during the migration window.
+	Resource      string `protobuf:"bytes,5,opt,name=resource,proto3" json:"resource,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -267,6 +280,13 @@ func (x *RegisterRequest) GetRealm() string {
 	return ""
 }
 
+func (x *RegisterRequest) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
+}
+
 type RegisterResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Account       *Account               `protobuf:"bytes,1,opt,name=account,proto3" json:"account,omitempty"`
@@ -324,7 +344,14 @@ type LoginRequest struct {
 	Email    string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
 	Password string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 	// Realm to authenticate against. Empty resolves to the default realm.
-	Realm         string `protobuf:"bytes,3,opt,name=realm,proto3" json:"realm,omitempty"`
+	Realm string `protobuf:"bytes,3,opt,name=realm,proto3" json:"realm,omitempty"`
+	// Optional second-factor response for an MFA challenge returned by a prior
+	// password-valid login attempt.
+	TotpCode     string `protobuf:"bytes,4,opt,name=totp_code,json=totpCode,proto3" json:"totp_code,omitempty"`
+	RecoveryCode string `protobuf:"bytes,5,opt,name=recovery_code,json=recoveryCode,proto3" json:"recovery_code,omitempty"`
+	MfaChallenge string `protobuf:"bytes,6,opt,name=mfa_challenge,json=mfaChallenge,proto3" json:"mfa_challenge,omitempty"`
+	// Optional registered resource id.
+	Resource      string `protobuf:"bytes,7,opt,name=resource,proto3" json:"resource,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -380,10 +407,40 @@ func (x *LoginRequest) GetRealm() string {
 	return ""
 }
 
+func (x *LoginRequest) GetTotpCode() string {
+	if x != nil {
+		return x.TotpCode
+	}
+	return ""
+}
+
+func (x *LoginRequest) GetRecoveryCode() string {
+	if x != nil {
+		return x.RecoveryCode
+	}
+	return ""
+}
+
+func (x *LoginRequest) GetMfaChallenge() string {
+	if x != nil {
+		return x.MfaChallenge
+	}
+	return ""
+}
+
+func (x *LoginRequest) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
+}
+
 type LoginResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Account       *Account               `protobuf:"bytes,1,opt,name=account,proto3" json:"account,omitempty"`
 	Tokens        *TokenPair             `protobuf:"bytes,2,opt,name=tokens,proto3" json:"tokens,omitempty"`
+	MfaRequired   bool                   `protobuf:"varint,3,opt,name=mfa_required,json=mfaRequired,proto3" json:"mfa_required,omitempty"`
+	MfaChallenge  string                 `protobuf:"bytes,4,opt,name=mfa_challenge,json=mfaChallenge,proto3" json:"mfa_challenge,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -430,6 +487,20 @@ func (x *LoginResponse) GetTokens() *TokenPair {
 		return x.Tokens
 	}
 	return nil
+}
+
+func (x *LoginResponse) GetMfaRequired() bool {
+	if x != nil {
+		return x.MfaRequired
+	}
+	return false
+}
+
+func (x *LoginResponse) GetMfaChallenge() string {
+	if x != nil {
+		return x.MfaChallenge
+	}
+	return ""
 }
 
 type ChangePasswordRequest struct {
@@ -538,8 +609,11 @@ func (x *ChangePasswordResponse) GetRevokedSessions() int64 {
 }
 
 type RefreshRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RefreshToken  string                 `protobuf:"bytes,1,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	RefreshToken string                 `protobuf:"bytes,1,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	// Reserved for additive clients; the refresh family preserves the original
+	// registered resource audience and ignores this field when empty.
+	Resource      string `protobuf:"bytes,2,opt,name=resource,proto3" json:"resource,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -577,6 +651,13 @@ func (*RefreshRequest) Descriptor() ([]byte, []int) {
 func (x *RefreshRequest) GetRefreshToken() string {
 	if x != nil {
 		return x.RefreshToken
+	}
+	return ""
+}
+
+func (x *RefreshRequest) GetResource() string {
+	if x != nil {
+		return x.Resource
 	}
 	return ""
 }
@@ -765,6 +846,7 @@ type ValidateResponse struct {
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	// Explicitly present even when the principal has no scopes.
 	Scopes        []string `protobuf:"bytes,7,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	Audience      string   `protobuf:"bytes,8,opt,name=audience,proto3" json:"audience,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -846,6 +928,13 @@ func (x *ValidateResponse) GetScopes() []string {
 		return x.Scopes
 	}
 	return nil
+}
+
+func (x *ValidateResponse) GetAudience() string {
+	if x != nil {
+		return x.Audience
+	}
+	return ""
 }
 
 type GrantScopeRequest struct {
@@ -1124,6 +1213,66 @@ func (x *ListScopesResponse) GetScopes() []string {
 	return nil
 }
 
+type SetRolesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccessToken   string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
+	PrincipalId   string                 `protobuf:"bytes,2,opt,name=principal_id,json=principalId,proto3" json:"principal_id,omitempty"`
+	Roles         []string               `protobuf:"bytes,3,rep,name=roles,proto3" json:"roles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetRolesRequest) Reset() {
+	*x = SetRolesRequest{}
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetRolesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetRolesRequest) ProtoMessage() {}
+
+func (x *SetRolesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetRolesRequest.ProtoReflect.Descriptor instead.
+func (*SetRolesRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *SetRolesRequest) GetAccessToken() string {
+	if x != nil {
+		return x.AccessToken
+	}
+	return ""
+}
+
+func (x *SetRolesRequest) GetPrincipalId() string {
+	if x != nil {
+		return x.PrincipalId
+	}
+	return ""
+}
+
+func (x *SetRolesRequest) GetRoles() []string {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
 type LinkMachineAccountRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	AccessToken    string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
@@ -1137,7 +1286,7 @@ type LinkMachineAccountRequest struct {
 
 func (x *LinkMachineAccountRequest) Reset() {
 	*x = LinkMachineAccountRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[19]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1149,7 +1298,7 @@ func (x *LinkMachineAccountRequest) String() string {
 func (*LinkMachineAccountRequest) ProtoMessage() {}
 
 func (x *LinkMachineAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[19]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1162,7 +1311,7 @@ func (x *LinkMachineAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkMachineAccountRequest.ProtoReflect.Descriptor instead.
 func (*LinkMachineAccountRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{19}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *LinkMachineAccountRequest) GetAccessToken() string {
@@ -1214,7 +1363,7 @@ type LinkMachineAccountResponse struct {
 
 func (x *LinkMachineAccountResponse) Reset() {
 	*x = LinkMachineAccountResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[20]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1226,7 +1375,7 @@ func (x *LinkMachineAccountResponse) String() string {
 func (*LinkMachineAccountResponse) ProtoMessage() {}
 
 func (x *LinkMachineAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[20]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1239,7 +1388,7 @@ func (x *LinkMachineAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkMachineAccountResponse.ProtoReflect.Descriptor instead.
 func (*LinkMachineAccountResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{20}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *LinkMachineAccountResponse) GetMachineId() string {
@@ -1284,6 +1433,118 @@ func (x *LinkMachineAccountResponse) GetLinkedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type RevokeMachineAccountRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	AccessToken    string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
+	MachineId      string                 `protobuf:"bytes,2,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	LocalPrincipal string                 `protobuf:"bytes,3,opt,name=local_principal,json=localPrincipal,proto3" json:"local_principal,omitempty"`
+	PrincipalId    string                 `protobuf:"bytes,4,opt,name=principal_id,json=principalId,proto3" json:"principal_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RevokeMachineAccountRequest) Reset() {
+	*x = RevokeMachineAccountRequest{}
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeMachineAccountRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeMachineAccountRequest) ProtoMessage() {}
+
+func (x *RevokeMachineAccountRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeMachineAccountRequest.ProtoReflect.Descriptor instead.
+func (*RevokeMachineAccountRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *RevokeMachineAccountRequest) GetAccessToken() string {
+	if x != nil {
+		return x.AccessToken
+	}
+	return ""
+}
+
+func (x *RevokeMachineAccountRequest) GetMachineId() string {
+	if x != nil {
+		return x.MachineId
+	}
+	return ""
+}
+
+func (x *RevokeMachineAccountRequest) GetLocalPrincipal() string {
+	if x != nil {
+		return x.LocalPrincipal
+	}
+	return ""
+}
+
+func (x *RevokeMachineAccountRequest) GetPrincipalId() string {
+	if x != nil {
+		return x.PrincipalId
+	}
+	return ""
+}
+
+type RevokeMachineAccountResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RevokedCount  int64                  `protobuf:"varint,1,opt,name=revoked_count,json=revokedCount,proto3" json:"revoked_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeMachineAccountResponse) Reset() {
+	*x = RevokeMachineAccountResponse{}
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeMachineAccountResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeMachineAccountResponse) ProtoMessage() {}
+
+func (x *RevokeMachineAccountResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeMachineAccountResponse.ProtoReflect.Descriptor instead.
+func (*RevokeMachineAccountResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *RevokeMachineAccountResponse) GetRevokedCount() int64 {
+	if x != nil {
+		return x.RevokedCount
+	}
+	return 0
+}
+
 type ExchangeMachinePrincipalRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MachineId     string                 `protobuf:"bytes,1,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
@@ -1293,7 +1554,7 @@ type ExchangeMachinePrincipalRequest struct {
 
 func (x *ExchangeMachinePrincipalRequest) Reset() {
 	*x = ExchangeMachinePrincipalRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[21]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1305,7 +1566,7 @@ func (x *ExchangeMachinePrincipalRequest) String() string {
 func (*ExchangeMachinePrincipalRequest) ProtoMessage() {}
 
 func (x *ExchangeMachinePrincipalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[21]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1318,7 +1579,7 @@ func (x *ExchangeMachinePrincipalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExchangeMachinePrincipalRequest.ProtoReflect.Descriptor instead.
 func (*ExchangeMachinePrincipalRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{21}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ExchangeMachinePrincipalRequest) GetMachineId() string {
@@ -1338,7 +1599,7 @@ type IssueBreakGlassRequest struct {
 
 func (x *IssueBreakGlassRequest) Reset() {
 	*x = IssueBreakGlassRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[22]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1350,7 +1611,7 @@ func (x *IssueBreakGlassRequest) String() string {
 func (*IssueBreakGlassRequest) ProtoMessage() {}
 
 func (x *IssueBreakGlassRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[22]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1363,7 +1624,7 @@ func (x *IssueBreakGlassRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueBreakGlassRequest.ProtoReflect.Descriptor instead.
 func (*IssueBreakGlassRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{22}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *IssueBreakGlassRequest) GetAccessToken() string {
@@ -1390,7 +1651,7 @@ type IssueBreakGlassResponse struct {
 
 func (x *IssueBreakGlassResponse) Reset() {
 	*x = IssueBreakGlassResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[23]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1402,7 +1663,7 @@ func (x *IssueBreakGlassResponse) String() string {
 func (*IssueBreakGlassResponse) ProtoMessage() {}
 
 func (x *IssueBreakGlassResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[23]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1415,7 +1676,7 @@ func (x *IssueBreakGlassResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueBreakGlassResponse.ProtoReflect.Descriptor instead.
 func (*IssueBreakGlassResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{23}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *IssueBreakGlassResponse) GetCredential() string {
@@ -1446,41 +1707,50 @@ const file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc = "" +
 	"\x0eemail_verified\x18\x06 \x01(\bR\remailVerified\x129\n" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x16\n" +
-	"\x06scopes\x18\b \x03(\tR\x06scopes\"\xa6\x01\n" +
+	"\x06scopes\x18\b \x03(\tR\x06scopes\"\xc2\x01\n" +
 	"\tTokenPair\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12Q\n" +
-	"\x17access_token_expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x14accessTokenExpiresAt\"u\n" +
+	"\x17access_token_expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x14accessTokenExpiresAt\x12\x1a\n" +
+	"\baudience\x18\x04 \x01(\tR\baudience\"\x91\x01\n" +
 	"\x0fRegisterRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x1a\n" +
 	"\busername\x18\x03 \x01(\tR\busername\x12\x14\n" +
-	"\x05realm\x18\x04 \x01(\tR\x05realm\"\xae\x01\n" +
+	"\x05realm\x18\x04 \x01(\tR\x05realm\x12\x1a\n" +
+	"\bresource\x18\x05 \x01(\tR\bresource\"\xae\x01\n" +
 	"\x10RegisterResponse\x12L\n" +
 	"\aaccount\x18\x01 \x01(\v22.vrooli.scenario_authenticator.v1.accounts.AccountR\aaccount\x12L\n" +
-	"\x06tokens\x18\x02 \x01(\v24.vrooli.scenario_authenticator.v1.accounts.TokenPairR\x06tokens\"V\n" +
+	"\x06tokens\x18\x02 \x01(\v24.vrooli.scenario_authenticator.v1.accounts.TokenPairR\x06tokens\"\xd9\x01\n" +
 	"\fLoginRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x14\n" +
-	"\x05realm\x18\x03 \x01(\tR\x05realm\"\xab\x01\n" +
+	"\x05realm\x18\x03 \x01(\tR\x05realm\x12\x1b\n" +
+	"\ttotp_code\x18\x04 \x01(\tR\btotpCode\x12#\n" +
+	"\rrecovery_code\x18\x05 \x01(\tR\frecoveryCode\x12#\n" +
+	"\rmfa_challenge\x18\x06 \x01(\tR\fmfaChallenge\x12\x1a\n" +
+	"\bresource\x18\a \x01(\tR\bresource\"\xf3\x01\n" +
 	"\rLoginResponse\x12L\n" +
 	"\aaccount\x18\x01 \x01(\v22.vrooli.scenario_authenticator.v1.accounts.AccountR\aaccount\x12L\n" +
-	"\x06tokens\x18\x02 \x01(\v24.vrooli.scenario_authenticator.v1.accounts.TokenPairR\x06tokens\"\x88\x01\n" +
+	"\x06tokens\x18\x02 \x01(\v24.vrooli.scenario_authenticator.v1.accounts.TokenPairR\x06tokens\x12!\n" +
+	"\fmfa_required\x18\x03 \x01(\bR\vmfaRequired\x12#\n" +
+	"\rmfa_challenge\x18\x04 \x01(\tR\fmfaChallenge\"\x88\x01\n" +
 	"\x15ChangePasswordRequest\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12)\n" +
 	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\x12!\n" +
 	"\fnew_password\x18\x03 \x01(\tR\vnewPassword\"C\n" +
 	"\x16ChangePasswordResponse\x12)\n" +
-	"\x10revoked_sessions\x18\x01 \x01(\x03R\x0frevokedSessions\"5\n" +
+	"\x10revoked_sessions\x18\x01 \x01(\x03R\x0frevokedSessions\"Q\n" +
 	"\x0eRefreshRequest\x12#\n" +
-	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"_\n" +
+	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\x12\x1a\n" +
+	"\bresource\x18\x02 \x01(\tR\bresource\"_\n" +
 	"\x0fRefreshResponse\x12L\n" +
 	"\x06tokens\x18\x01 \x01(\v24.vrooli.scenario_authenticator.v1.accounts.TokenPairR\x06tokens\"2\n" +
 	"\rLogoutRequest\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\"\x10\n" +
 	"\x0eLogoutResponse\"4\n" +
 	"\x0fValidateRequest\x12!\n" +
-	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\"\xd6\x01\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\"\xf2\x01\n" +
 	"\x10ValidateResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x14\n" +
@@ -1489,7 +1759,8 @@ const file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc = "" +
 	"\x05realm\x18\x05 \x01(\tR\x05realm\x129\n" +
 	"\n" +
 	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x16\n" +
-	"\x06scopes\x18\a \x03(\tR\x06scopes\"o\n" +
+	"\x06scopes\x18\a \x03(\tR\x06scopes\x12\x1a\n" +
+	"\baudience\x18\b \x01(\tR\baudience\"o\n" +
 	"\x11GrantScopeRequest\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12!\n" +
 	"\fprincipal_id\x18\x02 \x01(\tR\vprincipalId\x12\x14\n" +
@@ -1506,7 +1777,11 @@ const file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc = "" +
 	"\x06scopes\x18\x02 \x03(\tR\x06scopes\"O\n" +
 	"\x12ListScopesResponse\x12!\n" +
 	"\fprincipal_id\x18\x01 \x01(\tR\vprincipalId\x12\x16\n" +
-	"\x06scopes\x18\x02 \x03(\tR\x06scopes\"\xbb\x01\n" +
+	"\x06scopes\x18\x02 \x03(\tR\x06scopes\"m\n" +
+	"\x0fSetRolesRequest\x12!\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12!\n" +
+	"\fprincipal_id\x18\x02 \x01(\tR\vprincipalId\x12\x14\n" +
+	"\x05roles\x18\x03 \x03(\tR\x05roles\"\xbb\x01\n" +
 	"\x19LinkMachineAccountRequest\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12\x1d\n" +
 	"\n" +
@@ -1524,7 +1799,15 @@ const file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc = "" +
 	"\x05realm\x18\x04 \x01(\tR\x05realm\x12\x1d\n" +
 	"\n" +
 	"is_default\x18\x05 \x01(\bR\tisDefault\x127\n" +
-	"\tlinked_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\blinkedAt\"@\n" +
+	"\tlinked_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\blinkedAt\"\xab\x01\n" +
+	"\x1bRevokeMachineAccountRequest\x12!\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12\x1d\n" +
+	"\n" +
+	"machine_id\x18\x02 \x01(\tR\tmachineId\x12'\n" +
+	"\x0flocal_principal\x18\x03 \x01(\tR\x0elocalPrincipal\x12!\n" +
+	"\fprincipal_id\x18\x04 \x01(\tR\vprincipalId\"C\n" +
+	"\x1cRevokeMachineAccountResponse\x12#\n" +
+	"\rrevoked_count\x18\x01 \x01(\x03R\frevokedCount\"@\n" +
 	"\x1fExchangeMachinePrincipalRequest\x12\x1d\n" +
 	"\n" +
 	"machine_id\x18\x01 \x01(\tR\tmachineId\"S\n" +
@@ -1536,7 +1819,7 @@ const file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc = "" +
 	"credential\x18\x01 \x01(\tR\n" +
 	"credential\x12\x1d\n" +
 	"\n" +
-	"expires_at\x18\x02 \x01(\x03R\texpiresAt2\xb1\r\n" +
+	"expires_at\x18\x02 \x01(\x03R\texpiresAt2\xd7\x0f\n" +
 	"\x0fAccountsService\x12\x83\x01\n" +
 	"\bRegister\x12:.vrooli.scenario_authenticator.v1.accounts.RegisterRequest\x1a;.vrooli.scenario_authenticator.v1.accounts.RegisterResponse\x12z\n" +
 	"\x05Login\x127.vrooli.scenario_authenticator.v1.accounts.LoginRequest\x1a8.vrooli.scenario_authenticator.v1.accounts.LoginResponse\x12\x95\x01\n" +
@@ -1548,8 +1831,10 @@ const file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc = "" +
 	"GrantScope\x12<.vrooli.scenario_authenticator.v1.accounts.GrantScopeRequest\x1a8.vrooli.scenario_authenticator.v1.accounts.ScopeResponse\x12\x86\x01\n" +
 	"\vRevokeScope\x12=.vrooli.scenario_authenticator.v1.accounts.RevokeScopeRequest\x1a8.vrooli.scenario_authenticator.v1.accounts.ScopeResponse\x12\x89\x01\n" +
 	"\n" +
-	"ListScopes\x12<.vrooli.scenario_authenticator.v1.accounts.ListScopesRequest\x1a=.vrooli.scenario_authenticator.v1.accounts.ListScopesResponse\x12\xa1\x01\n" +
-	"\x12LinkMachineAccount\x12D.vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest\x1aE.vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse\x12\xa0\x01\n" +
+	"ListScopes\x12<.vrooli.scenario_authenticator.v1.accounts.ListScopesRequest\x1a=.vrooli.scenario_authenticator.v1.accounts.ListScopesResponse\x12z\n" +
+	"\bSetRoles\x12:.vrooli.scenario_authenticator.v1.accounts.SetRolesRequest\x1a2.vrooli.scenario_authenticator.v1.accounts.Account\x12\xa1\x01\n" +
+	"\x12LinkMachineAccount\x12D.vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest\x1aE.vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse\x12\xa7\x01\n" +
+	"\x14RevokeMachineAccount\x12F.vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountRequest\x1aG.vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountResponse\x12\xa0\x01\n" +
 	"\x18ExchangeMachinePrincipal\x12J.vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest\x1a8.vrooli.scenario_authenticator.v1.accounts.LoginResponse\x12\x98\x01\n" +
 	"\x0fIssueBreakGlass\x12A.vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest\x1aB.vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts;accounts_v1b\x06proto3"
 
@@ -1565,7 +1850,7 @@ func file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP() []byte
 	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescData
 }
 
-var file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_scenario_authenticator_v1_accounts_accounts_proto_goTypes = []any{
 	(*Account)(nil),                         // 0: vrooli.scenario_authenticator.v1.accounts.Account
 	(*TokenPair)(nil),                       // 1: vrooli.scenario_authenticator.v1.accounts.TokenPair
@@ -1586,23 +1871,26 @@ var file_scenario_authenticator_v1_accounts_accounts_proto_goTypes = []any{
 	(*ListScopesRequest)(nil),               // 16: vrooli.scenario_authenticator.v1.accounts.ListScopesRequest
 	(*ScopeResponse)(nil),                   // 17: vrooli.scenario_authenticator.v1.accounts.ScopeResponse
 	(*ListScopesResponse)(nil),              // 18: vrooli.scenario_authenticator.v1.accounts.ListScopesResponse
-	(*LinkMachineAccountRequest)(nil),       // 19: vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest
-	(*LinkMachineAccountResponse)(nil),      // 20: vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse
-	(*ExchangeMachinePrincipalRequest)(nil), // 21: vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest
-	(*IssueBreakGlassRequest)(nil),          // 22: vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest
-	(*IssueBreakGlassResponse)(nil),         // 23: vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse
-	(*timestamppb.Timestamp)(nil),           // 24: google.protobuf.Timestamp
+	(*SetRolesRequest)(nil),                 // 19: vrooli.scenario_authenticator.v1.accounts.SetRolesRequest
+	(*LinkMachineAccountRequest)(nil),       // 20: vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest
+	(*LinkMachineAccountResponse)(nil),      // 21: vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse
+	(*RevokeMachineAccountRequest)(nil),     // 22: vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountRequest
+	(*RevokeMachineAccountResponse)(nil),    // 23: vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountResponse
+	(*ExchangeMachinePrincipalRequest)(nil), // 24: vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest
+	(*IssueBreakGlassRequest)(nil),          // 25: vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest
+	(*IssueBreakGlassResponse)(nil),         // 26: vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse
+	(*timestamppb.Timestamp)(nil),           // 27: google.protobuf.Timestamp
 }
 var file_scenario_authenticator_v1_accounts_accounts_proto_depIdxs = []int32{
-	24, // 0: vrooli.scenario_authenticator.v1.accounts.Account.created_at:type_name -> google.protobuf.Timestamp
-	24, // 1: vrooli.scenario_authenticator.v1.accounts.TokenPair.access_token_expires_at:type_name -> google.protobuf.Timestamp
+	27, // 0: vrooli.scenario_authenticator.v1.accounts.Account.created_at:type_name -> google.protobuf.Timestamp
+	27, // 1: vrooli.scenario_authenticator.v1.accounts.TokenPair.access_token_expires_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: vrooli.scenario_authenticator.v1.accounts.RegisterResponse.account:type_name -> vrooli.scenario_authenticator.v1.accounts.Account
 	1,  // 3: vrooli.scenario_authenticator.v1.accounts.RegisterResponse.tokens:type_name -> vrooli.scenario_authenticator.v1.accounts.TokenPair
 	0,  // 4: vrooli.scenario_authenticator.v1.accounts.LoginResponse.account:type_name -> vrooli.scenario_authenticator.v1.accounts.Account
 	1,  // 5: vrooli.scenario_authenticator.v1.accounts.LoginResponse.tokens:type_name -> vrooli.scenario_authenticator.v1.accounts.TokenPair
 	1,  // 6: vrooli.scenario_authenticator.v1.accounts.RefreshResponse.tokens:type_name -> vrooli.scenario_authenticator.v1.accounts.TokenPair
-	24, // 7: vrooli.scenario_authenticator.v1.accounts.ValidateResponse.expires_at:type_name -> google.protobuf.Timestamp
-	24, // 8: vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse.linked_at:type_name -> google.protobuf.Timestamp
+	27, // 7: vrooli.scenario_authenticator.v1.accounts.ValidateResponse.expires_at:type_name -> google.protobuf.Timestamp
+	27, // 8: vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse.linked_at:type_name -> google.protobuf.Timestamp
 	2,  // 9: vrooli.scenario_authenticator.v1.accounts.AccountsService.Register:input_type -> vrooli.scenario_authenticator.v1.accounts.RegisterRequest
 	4,  // 10: vrooli.scenario_authenticator.v1.accounts.AccountsService.Login:input_type -> vrooli.scenario_authenticator.v1.accounts.LoginRequest
 	6,  // 11: vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword:input_type -> vrooli.scenario_authenticator.v1.accounts.ChangePasswordRequest
@@ -1612,23 +1900,27 @@ var file_scenario_authenticator_v1_accounts_accounts_proto_depIdxs = []int32{
 	14, // 15: vrooli.scenario_authenticator.v1.accounts.AccountsService.GrantScope:input_type -> vrooli.scenario_authenticator.v1.accounts.GrantScopeRequest
 	15, // 16: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeScope:input_type -> vrooli.scenario_authenticator.v1.accounts.RevokeScopeRequest
 	16, // 17: vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes:input_type -> vrooli.scenario_authenticator.v1.accounts.ListScopesRequest
-	19, // 18: vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount:input_type -> vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest
-	21, // 19: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal:input_type -> vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest
-	22, // 20: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass:input_type -> vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest
-	3,  // 21: vrooli.scenario_authenticator.v1.accounts.AccountsService.Register:output_type -> vrooli.scenario_authenticator.v1.accounts.RegisterResponse
-	5,  // 22: vrooli.scenario_authenticator.v1.accounts.AccountsService.Login:output_type -> vrooli.scenario_authenticator.v1.accounts.LoginResponse
-	7,  // 23: vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword:output_type -> vrooli.scenario_authenticator.v1.accounts.ChangePasswordResponse
-	9,  // 24: vrooli.scenario_authenticator.v1.accounts.AccountsService.Refresh:output_type -> vrooli.scenario_authenticator.v1.accounts.RefreshResponse
-	11, // 25: vrooli.scenario_authenticator.v1.accounts.AccountsService.Logout:output_type -> vrooli.scenario_authenticator.v1.accounts.LogoutResponse
-	13, // 26: vrooli.scenario_authenticator.v1.accounts.AccountsService.Validate:output_type -> vrooli.scenario_authenticator.v1.accounts.ValidateResponse
-	17, // 27: vrooli.scenario_authenticator.v1.accounts.AccountsService.GrantScope:output_type -> vrooli.scenario_authenticator.v1.accounts.ScopeResponse
-	17, // 28: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeScope:output_type -> vrooli.scenario_authenticator.v1.accounts.ScopeResponse
-	18, // 29: vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes:output_type -> vrooli.scenario_authenticator.v1.accounts.ListScopesResponse
-	20, // 30: vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount:output_type -> vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse
-	5,  // 31: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal:output_type -> vrooli.scenario_authenticator.v1.accounts.LoginResponse
-	23, // 32: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass:output_type -> vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse
-	21, // [21:33] is the sub-list for method output_type
-	9,  // [9:21] is the sub-list for method input_type
+	19, // 18: vrooli.scenario_authenticator.v1.accounts.AccountsService.SetRoles:input_type -> vrooli.scenario_authenticator.v1.accounts.SetRolesRequest
+	20, // 19: vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount:input_type -> vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest
+	22, // 20: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeMachineAccount:input_type -> vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountRequest
+	24, // 21: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal:input_type -> vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest
+	25, // 22: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass:input_type -> vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest
+	3,  // 23: vrooli.scenario_authenticator.v1.accounts.AccountsService.Register:output_type -> vrooli.scenario_authenticator.v1.accounts.RegisterResponse
+	5,  // 24: vrooli.scenario_authenticator.v1.accounts.AccountsService.Login:output_type -> vrooli.scenario_authenticator.v1.accounts.LoginResponse
+	7,  // 25: vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword:output_type -> vrooli.scenario_authenticator.v1.accounts.ChangePasswordResponse
+	9,  // 26: vrooli.scenario_authenticator.v1.accounts.AccountsService.Refresh:output_type -> vrooli.scenario_authenticator.v1.accounts.RefreshResponse
+	11, // 27: vrooli.scenario_authenticator.v1.accounts.AccountsService.Logout:output_type -> vrooli.scenario_authenticator.v1.accounts.LogoutResponse
+	13, // 28: vrooli.scenario_authenticator.v1.accounts.AccountsService.Validate:output_type -> vrooli.scenario_authenticator.v1.accounts.ValidateResponse
+	17, // 29: vrooli.scenario_authenticator.v1.accounts.AccountsService.GrantScope:output_type -> vrooli.scenario_authenticator.v1.accounts.ScopeResponse
+	17, // 30: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeScope:output_type -> vrooli.scenario_authenticator.v1.accounts.ScopeResponse
+	18, // 31: vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes:output_type -> vrooli.scenario_authenticator.v1.accounts.ListScopesResponse
+	0,  // 32: vrooli.scenario_authenticator.v1.accounts.AccountsService.SetRoles:output_type -> vrooli.scenario_authenticator.v1.accounts.Account
+	21, // 33: vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount:output_type -> vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse
+	23, // 34: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeMachineAccount:output_type -> vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountResponse
+	5,  // 35: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal:output_type -> vrooli.scenario_authenticator.v1.accounts.LoginResponse
+	26, // 36: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass:output_type -> vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse
+	23, // [23:37] is the sub-list for method output_type
+	9,  // [9:23] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
 	9,  // [9:9] is the sub-list for extension extendee
 	0,  // [0:9] is the sub-list for field type_name
@@ -1645,7 +1937,7 @@ func file_scenario_authenticator_v1_accounts_accounts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc), len(file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   24,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

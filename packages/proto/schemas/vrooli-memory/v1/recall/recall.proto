@@ -17,6 +17,13 @@ message RecallHit {
   string node_id = 6;
   bool summary = 7;
   int32 span = 8;
+  int32 supported = 9;
+  int32 contradicted = 10;
+  string created_at = 11;
+  optional bool evidence_reliable = 12;
+  string context_key = 13;
+  string operation = 14;
+  string provenance = 15;
 }
 message RecallRequest {
   string query = 1;

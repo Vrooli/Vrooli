@@ -42,6 +42,9 @@ const (
 	// DeviceServiceReconnectDeviceProcedure is the fully-qualified name of the DeviceService's
 	// ReconnectDevice RPC.
 	DeviceServiceReconnectDeviceProcedure = "/vrooli.device_control.v1.devices.DeviceService/ReconnectDevice"
+	// DeviceServiceExecuteVolumeProcedure is the fully-qualified name of the DeviceService's
+	// ExecuteVolume RPC.
+	DeviceServiceExecuteVolumeProcedure = "/vrooli.device_control.v1.devices.DeviceService/ExecuteVolume"
 )
 
 // DeviceServiceClient is a client for the vrooli.device_control.v1.devices.DeviceService service.
@@ -49,6 +52,7 @@ type DeviceServiceClient interface {
 	ListDevices(context.Context, *connect.Request[devices.ListDevicesRequest]) (*connect.Response[devices.ListDevicesResponse], error)
 	ConnectDevice(context.Context, *connect.Request[devices.ConnectDeviceRequest]) (*connect.Response[devices.ConnectDeviceResponse], error)
 	ReconnectDevice(context.Context, *connect.Request[devices.ReconnectDeviceRequest]) (*connect.Response[devices.ReconnectDeviceResponse], error)
+	ExecuteVolume(context.Context, *connect.Request[devices.ExecuteVolumeRequest]) (*connect.Response[devices.ExecuteVolumeResponse], error)
 }
 
 // NewDeviceServiceClient constructs a client for the vrooli.device_control.v1.devices.DeviceService
@@ -80,6 +84,12 @@ func NewDeviceServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(deviceServiceMethods.ByName("ReconnectDevice")),
 			connect.WithClientOptions(opts...),
 		),
+		executeVolume: connect.NewClient[devices.ExecuteVolumeRequest, devices.ExecuteVolumeResponse](
+			httpClient,
+			baseURL+DeviceServiceExecuteVolumeProcedure,
+			connect.WithSchema(deviceServiceMethods.ByName("ExecuteVolume")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -88,6 +98,7 @@ type deviceServiceClient struct {
 	listDevices     *connect.Client[devices.ListDevicesRequest, devices.ListDevicesResponse]
 	connectDevice   *connect.Client[devices.ConnectDeviceRequest, devices.ConnectDeviceResponse]
 	reconnectDevice *connect.Client[devices.ReconnectDeviceRequest, devices.ReconnectDeviceResponse]
+	executeVolume   *connect.Client[devices.ExecuteVolumeRequest, devices.ExecuteVolumeResponse]
 }
 
 // ListDevices calls vrooli.device_control.v1.devices.DeviceService.ListDevices.
@@ -105,12 +116,18 @@ func (c *deviceServiceClient) ReconnectDevice(ctx context.Context, req *connect.
 	return c.reconnectDevice.CallUnary(ctx, req)
 }
 
+// ExecuteVolume calls vrooli.device_control.v1.devices.DeviceService.ExecuteVolume.
+func (c *deviceServiceClient) ExecuteVolume(ctx context.Context, req *connect.Request[devices.ExecuteVolumeRequest]) (*connect.Response[devices.ExecuteVolumeResponse], error) {
+	return c.executeVolume.CallUnary(ctx, req)
+}
+
 // DeviceServiceHandler is an implementation of the vrooli.device_control.v1.devices.DeviceService
 // service.
 type DeviceServiceHandler interface {
 	ListDevices(context.Context, *connect.Request[devices.ListDevicesRequest]) (*connect.Response[devices.ListDevicesResponse], error)
 	ConnectDevice(context.Context, *connect.Request[devices.ConnectDeviceRequest]) (*connect.Response[devices.ConnectDeviceResponse], error)
 	ReconnectDevice(context.Context, *connect.Request[devices.ReconnectDeviceRequest]) (*connect.Response[devices.ReconnectDeviceResponse], error)
+	ExecuteVolume(context.Context, *connect.Request[devices.ExecuteVolumeRequest]) (*connect.Response[devices.ExecuteVolumeResponse], error)
 }
 
 // NewDeviceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -138,6 +155,12 @@ func NewDeviceServiceHandler(svc DeviceServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(deviceServiceMethods.ByName("ReconnectDevice")),
 		connect.WithHandlerOptions(opts...),
 	)
+	deviceServiceExecuteVolumeHandler := connect.NewUnaryHandler(
+		DeviceServiceExecuteVolumeProcedure,
+		svc.ExecuteVolume,
+		connect.WithSchema(deviceServiceMethods.ByName("ExecuteVolume")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.device_control.v1.devices.DeviceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DeviceServiceListDevicesProcedure:
@@ -146,6 +169,8 @@ func NewDeviceServiceHandler(svc DeviceServiceHandler, opts ...connect.HandlerOp
 			deviceServiceConnectDeviceHandler.ServeHTTP(w, r)
 		case DeviceServiceReconnectDeviceProcedure:
 			deviceServiceReconnectDeviceHandler.ServeHTTP(w, r)
+		case DeviceServiceExecuteVolumeProcedure:
+			deviceServiceExecuteVolumeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -165,4 +190,8 @@ func (UnimplementedDeviceServiceHandler) ConnectDevice(context.Context, *connect
 
 func (UnimplementedDeviceServiceHandler) ReconnectDevice(context.Context, *connect.Request[devices.ReconnectDeviceRequest]) (*connect.Response[devices.ReconnectDeviceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.devices.DeviceService.ReconnectDevice is not implemented"))
+}
+
+func (UnimplementedDeviceServiceHandler) ExecuteVolume(context.Context, *connect.Request[devices.ExecuteVolumeRequest]) (*connect.Response[devices.ExecuteVolumeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.devices.DeviceService.ExecuteVolume is not implemented"))
 }

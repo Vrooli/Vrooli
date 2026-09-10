@@ -2,8 +2,10 @@ package execution
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 
 	"swarm-manager/internal/agentactivity"
@@ -27,11 +29,17 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		return Record{}, err
 	}
 	record := records[idx]
+	if record.Status == StatusCancelling {
+		return Record{}, apierr.Conflict("execution cancellation is pending terminal accounting")
+	}
 	if record.Status == StatusStarting || record.Status == StatusRunning || record.Status == StatusNeedsReview || record.Status == StatusCompleted {
 		return record, nil
 	}
 	if record.Status == StatusCanceled {
 		return Record{}, apierr.BadRequest("cannot start canceled execution")
+	}
+	if err := s.checkPlanWork(ctx, record.BacklogKind, record.BacklogName); err != nil {
+		return Record{}, err
 	}
 
 	// Concurrency gate. Backlog item processing always lives in the
@@ -96,6 +104,15 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	if err != nil {
 		return Record{}, apierr.BadRequest("%s", err.Error())
 	}
+	if record.ExecutionStrategy != firstNonEmpty(item.ExecutionStrategy, defaultExecutionStrategy) {
+		return Record{}, apierr.Conflict("execution strategy differs from the currently accepted item")
+	}
+	if record.ApprovalDigest != "" && (item.PlanAcceptance == nil || record.ApprovalDigest != digestStrings(item.PlanAcceptance.SubjectVersion, item.PlanAcceptance.PlanContentHash)) {
+		return Record{}, apierr.Conflict("execution was queued under a different accepted work contract")
+	}
+	if err := s.prepareExecutionGrantLocked(ctx, records, &record, item); err != nil {
+		return Record{}, err
+	}
 	if record.PlanManagerExecutionID == "" {
 		client, ok := s.planRenderer.(interface {
 			Resume(context.Context, *executionv1.ResumeRequest) (*executionv1.ResumeResponse, error)
@@ -126,7 +143,8 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	if err := s.store.Save(records); err != nil {
 		return Record{}, apierr.Internal("persist plan-execution record before start: %s", err.Error())
 	}
-	started, err := s.transitionRunner.StartWith(ctx, "plan.execute", record.ExecutionID, transitionrunner.PreparedInput{FirstRunNodeID: "slice", Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "process"}})
+	workflowKey, _ := s.workflowForStrategy(record.ExecutionStrategy)
+	started, err := s.transitionRunner.StartWith(ctx, "plan.execute", record.ExecutionID, transitionrunner.PreparedInput{FirstRunNodeID: "slice", WorkflowKeyOverride: workflowKey, Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "process"}})
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}
@@ -191,7 +209,8 @@ func (s *Service) reapOperationForRecord(ctx context.Context, record Record) {
 	}
 }
 
-// Cancel cancels a scheduled record before it starts.
+// Cancel withdraws execution authority. Workflow-owned plan execution remains
+// cancelling until the original owner supplies complete terminal accounting.
 func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -201,6 +220,22 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		return Record{}, err
 	}
 	record := records[idx]
+	if record.Cancellation != nil {
+		return s.cancelPlanExecutionLocked(ctx, records, idx)
+	}
+	if record.Status == StatusPending && s.transitionRunner != nil {
+		// Submission may have reached the owner while its acknowledgement was
+		// lost. Only a proven absent local intent permits immediate cancellation.
+		if _, intentErr := s.transitionRunner.GetDispatchIntent("plan.execute", record.ExecutionID); !errors.Is(intentErr, os.ErrNotExist) {
+			return s.cancelPlanExecutionLocked(ctx, records, idx)
+		}
+	}
+	if record.Status == StatusStarting || record.Status == StatusRunning || record.Status == StatusNeedsReview {
+		correlation, correlationErr := s.transitionCorrelation(record)
+		if record.WorkflowGrant != nil || (correlationErr == nil && correlation.TransitionKey == "plan.execute") {
+			return s.cancelPlanExecutionLocked(ctx, records, idx)
+		}
+	}
 
 	prevStatus := record.Status
 	switch record.Status {

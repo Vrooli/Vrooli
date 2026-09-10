@@ -35,6 +35,9 @@ service DestinationsService {
   rpc AnalyzeDestination(AnalyzeDestinationRequest) returns (AnalyzeDestinationResponse);
   rpc PlanDestinationPreparation(PlanDestinationPreparationRequest) returns (PlanDestinationPreparationResponse);
   rpc ExecuteDestinationPreparation(ExecuteDestinationPreparationRequest) returns (ExecuteDestinationPreparationResponse);
+  rpc StartVolumeRecovery(StartVolumeRecoveryRequest) returns (StartVolumeRecoveryResponse);
+  rpc GetVolumeRecovery(GetVolumeRecoveryRequest) returns (GetVolumeRecoveryResponse);
+  rpc ResumeVolumeRecovery(ResumeVolumeRecoveryRequest) returns (ResumeVolumeRecoveryResponse);
 }
 
 // BackendKind is the kopia repository backend.
@@ -127,6 +130,14 @@ message Destination {
   // the same bucket/prefix as location. Distinct from location so the operator
   // sees the human bundle root while the engine targets the repository folder.
   string repository_location = 13;
+  // Last read-only device identity observed when this filesystem destination
+  // was admitted. It is evidence for review; remediation always re-observes
+  // the device before acting. Empty for S3 and legacy rows.
+  DestinationDeviceIdentity device_identity = 14;
+  // Path to the bundle root relative to the observed volume mount. This is
+  // stable across unplug/replug; location remains the last observed absolute
+  // path for display and compatibility.
+  string relative_path = 15;
 }
 
 message CreateDestinationRequest {
@@ -255,6 +266,7 @@ message DestinationPreparationPlan {
   string confirmation_phrase = 10;
   bool supported = 11;
   string unsupported_reason = 12;
+  string relative_path = 13;
 }
 
 message PlanDestinationPreparationRequest {
@@ -308,4 +320,56 @@ message ExecuteDestinationPreparationResponse {
   string refusal_reason = 11;
   // Verdict of a check-filesystem action: "unknown" | "yes" | "no".
   string consistent = 12;
+}
+
+// StartVolumeRecovery creates a durable, identity-bound recovery journal. It
+// only persists a plan; host actions run through ResumeVolumeRecovery and are
+// independently confirmed there.
+message StartVolumeRecoveryRequest {
+  string location = 1 [(buf.validate.field).string.min_len = 1];
+  DestinationDeviceIdentity identity = 2;
+  repeated DestinationPreparationPlan plans = 3 [(buf.validate.field).repeated.min_items = 1];
+}
+
+message StartVolumeRecoveryResponse {
+  VolumeRecoveryJournal journal = 1;
+}
+
+message GetVolumeRecoveryRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetVolumeRecoveryResponse {
+  VolumeRecoveryJournal journal = 1;
+}
+
+message ResumeVolumeRecoveryRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  map<int32, string> confirmations = 2;
+  bool acknowledge_data_loss = 3;
+  optional bool dry_run = 4;
+}
+
+message ResumeVolumeRecoveryResponse {
+  VolumeRecoveryJournal journal = 1;
+}
+
+message VolumeRecoveryStep {
+  DestinationPreparationPlan plan = 1;
+  string status = 2;
+  int32 attempts = 3;
+  string detail = 4;
+}
+
+message VolumeRecoveryJournal {
+  string version = 1;
+  string id = 2;
+  string location = 3;
+  DestinationDeviceIdentity identity = 4;
+  repeated VolumeRecoveryStep steps = 5;
+  int32 current = 6;
+  string state = 7;
+  string last_error = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  string relative_path = 10;
 }

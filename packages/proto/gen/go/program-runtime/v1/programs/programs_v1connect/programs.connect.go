@@ -45,6 +45,9 @@ const (
 	// ProgramServiceListProgramsProcedure is the fully-qualified name of the ProgramService's
 	// ListPrograms RPC.
 	ProgramServiceListProgramsProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/ListPrograms"
+	// ProgramServicePortfolioStatsProcedure is the fully-qualified name of the ProgramService's
+	// PortfolioStats RPC.
+	ProgramServicePortfolioStatsProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/PortfolioStats"
 	// ProgramServiceMineFailuresProcedure is the fully-qualified name of the ProgramService's
 	// MineFailures RPC.
 	ProgramServiceMineFailuresProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/MineFailures"
@@ -63,6 +66,9 @@ const (
 	// ProgramServiceRunDiscoveryEvalProcedure is the fully-qualified name of the ProgramService's
 	// RunDiscoveryEval RPC.
 	ProgramServiceRunDiscoveryEvalProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/RunDiscoveryEval"
+	// ProgramServiceListLearningFindingsProcedure is the fully-qualified name of the ProgramService's
+	// ListLearningFindings RPC.
+	ProgramServiceListLearningFindingsProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/ListLearningFindings"
 )
 
 // ProgramServiceClient is a client for the vrooli.program_runtime.v1.programs.ProgramService
@@ -72,12 +78,14 @@ type ProgramServiceClient interface {
 	GetProgram(context.Context, *connect.Request[programs.GetProgramRequest]) (*connect.Response[programs.GetProgramResponse], error)
 	WaitForProgram(context.Context, *connect.Request[programs.WaitForProgramRequest]) (*connect.Response[programs.WaitForProgramResponse], error)
 	ListPrograms(context.Context, *connect.Request[programs.ListProgramsRequest]) (*connect.Response[programs.ListProgramsResponse], error)
+	PortfolioStats(context.Context, *connect.Request[programs.PortfolioStatsRequest]) (*connect.Response[programs.PortfolioStatsResponse], error)
 	MineFailures(context.Context, *connect.Request[programs.MineFailuresRequest]) (*connect.Response[programs.MineFailuresResponse], error)
 	MineRefusals(context.Context, *connect.Request[programs.MineRefusalsRequest]) (*connect.Response[programs.MineRefusalsResponse], error)
 	MineUnresolvedBindings(context.Context, *connect.Request[programs.MineUnresolvedBindingsRequest]) (*connect.Response[programs.MineUnresolvedBindingsResponse], error)
 	GovernanceShare(context.Context, *connect.Request[programs.GovernanceShareRequest]) (*connect.Response[programs.GovernanceShareResponse], error)
 	RunAuthoringEval(context.Context, *connect.Request[programs.RunAuthoringEvalRequest]) (*connect.Response[programs.RunAuthoringEvalResponse], error)
 	RunDiscoveryEval(context.Context, *connect.Request[programs.RunDiscoveryEvalRequest]) (*connect.Response[programs.RunDiscoveryEvalResponse], error)
+	ListLearningFindings(context.Context, *connect.Request[programs.ListLearningFindingsRequest]) (*connect.Response[programs.ListLearningFindingsResponse], error)
 }
 
 // NewProgramServiceClient constructs a client for the
@@ -116,6 +124,12 @@ func NewProgramServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(programServiceMethods.ByName("ListPrograms")),
 			connect.WithClientOptions(opts...),
 		),
+		portfolioStats: connect.NewClient[programs.PortfolioStatsRequest, programs.PortfolioStatsResponse](
+			httpClient,
+			baseURL+ProgramServicePortfolioStatsProcedure,
+			connect.WithSchema(programServiceMethods.ByName("PortfolioStats")),
+			connect.WithClientOptions(opts...),
+		),
 		mineFailures: connect.NewClient[programs.MineFailuresRequest, programs.MineFailuresResponse](
 			httpClient,
 			baseURL+ProgramServiceMineFailuresProcedure,
@@ -152,6 +166,12 @@ func NewProgramServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(programServiceMethods.ByName("RunDiscoveryEval")),
 			connect.WithClientOptions(opts...),
 		),
+		listLearningFindings: connect.NewClient[programs.ListLearningFindingsRequest, programs.ListLearningFindingsResponse](
+			httpClient,
+			baseURL+ProgramServiceListLearningFindingsProcedure,
+			connect.WithSchema(programServiceMethods.ByName("ListLearningFindings")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -161,12 +181,14 @@ type programServiceClient struct {
 	getProgram             *connect.Client[programs.GetProgramRequest, programs.GetProgramResponse]
 	waitForProgram         *connect.Client[programs.WaitForProgramRequest, programs.WaitForProgramResponse]
 	listPrograms           *connect.Client[programs.ListProgramsRequest, programs.ListProgramsResponse]
+	portfolioStats         *connect.Client[programs.PortfolioStatsRequest, programs.PortfolioStatsResponse]
 	mineFailures           *connect.Client[programs.MineFailuresRequest, programs.MineFailuresResponse]
 	mineRefusals           *connect.Client[programs.MineRefusalsRequest, programs.MineRefusalsResponse]
 	mineUnresolvedBindings *connect.Client[programs.MineUnresolvedBindingsRequest, programs.MineUnresolvedBindingsResponse]
 	governanceShare        *connect.Client[programs.GovernanceShareRequest, programs.GovernanceShareResponse]
 	runAuthoringEval       *connect.Client[programs.RunAuthoringEvalRequest, programs.RunAuthoringEvalResponse]
 	runDiscoveryEval       *connect.Client[programs.RunDiscoveryEvalRequest, programs.RunDiscoveryEvalResponse]
+	listLearningFindings   *connect.Client[programs.ListLearningFindingsRequest, programs.ListLearningFindingsResponse]
 }
 
 // SubmitProgram calls vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram.
@@ -187,6 +209,11 @@ func (c *programServiceClient) WaitForProgram(ctx context.Context, req *connect.
 // ListPrograms calls vrooli.program_runtime.v1.programs.ProgramService.ListPrograms.
 func (c *programServiceClient) ListPrograms(ctx context.Context, req *connect.Request[programs.ListProgramsRequest]) (*connect.Response[programs.ListProgramsResponse], error) {
 	return c.listPrograms.CallUnary(ctx, req)
+}
+
+// PortfolioStats calls vrooli.program_runtime.v1.programs.ProgramService.PortfolioStats.
+func (c *programServiceClient) PortfolioStats(ctx context.Context, req *connect.Request[programs.PortfolioStatsRequest]) (*connect.Response[programs.PortfolioStatsResponse], error) {
+	return c.portfolioStats.CallUnary(ctx, req)
 }
 
 // MineFailures calls vrooli.program_runtime.v1.programs.ProgramService.MineFailures.
@@ -220,6 +247,12 @@ func (c *programServiceClient) RunDiscoveryEval(ctx context.Context, req *connec
 	return c.runDiscoveryEval.CallUnary(ctx, req)
 }
 
+// ListLearningFindings calls
+// vrooli.program_runtime.v1.programs.ProgramService.ListLearningFindings.
+func (c *programServiceClient) ListLearningFindings(ctx context.Context, req *connect.Request[programs.ListLearningFindingsRequest]) (*connect.Response[programs.ListLearningFindingsResponse], error) {
+	return c.listLearningFindings.CallUnary(ctx, req)
+}
+
 // ProgramServiceHandler is an implementation of the
 // vrooli.program_runtime.v1.programs.ProgramService service.
 type ProgramServiceHandler interface {
@@ -227,12 +260,14 @@ type ProgramServiceHandler interface {
 	GetProgram(context.Context, *connect.Request[programs.GetProgramRequest]) (*connect.Response[programs.GetProgramResponse], error)
 	WaitForProgram(context.Context, *connect.Request[programs.WaitForProgramRequest]) (*connect.Response[programs.WaitForProgramResponse], error)
 	ListPrograms(context.Context, *connect.Request[programs.ListProgramsRequest]) (*connect.Response[programs.ListProgramsResponse], error)
+	PortfolioStats(context.Context, *connect.Request[programs.PortfolioStatsRequest]) (*connect.Response[programs.PortfolioStatsResponse], error)
 	MineFailures(context.Context, *connect.Request[programs.MineFailuresRequest]) (*connect.Response[programs.MineFailuresResponse], error)
 	MineRefusals(context.Context, *connect.Request[programs.MineRefusalsRequest]) (*connect.Response[programs.MineRefusalsResponse], error)
 	MineUnresolvedBindings(context.Context, *connect.Request[programs.MineUnresolvedBindingsRequest]) (*connect.Response[programs.MineUnresolvedBindingsResponse], error)
 	GovernanceShare(context.Context, *connect.Request[programs.GovernanceShareRequest]) (*connect.Response[programs.GovernanceShareResponse], error)
 	RunAuthoringEval(context.Context, *connect.Request[programs.RunAuthoringEvalRequest]) (*connect.Response[programs.RunAuthoringEvalResponse], error)
 	RunDiscoveryEval(context.Context, *connect.Request[programs.RunDiscoveryEvalRequest]) (*connect.Response[programs.RunDiscoveryEvalResponse], error)
+	ListLearningFindings(context.Context, *connect.Request[programs.ListLearningFindingsRequest]) (*connect.Response[programs.ListLearningFindingsResponse], error)
 }
 
 // NewProgramServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -264,6 +299,12 @@ func NewProgramServiceHandler(svc ProgramServiceHandler, opts ...connect.Handler
 		ProgramServiceListProgramsProcedure,
 		svc.ListPrograms,
 		connect.WithSchema(programServiceMethods.ByName("ListPrograms")),
+		connect.WithHandlerOptions(opts...),
+	)
+	programServicePortfolioStatsHandler := connect.NewUnaryHandler(
+		ProgramServicePortfolioStatsProcedure,
+		svc.PortfolioStats,
+		connect.WithSchema(programServiceMethods.ByName("PortfolioStats")),
 		connect.WithHandlerOptions(opts...),
 	)
 	programServiceMineFailuresHandler := connect.NewUnaryHandler(
@@ -302,6 +343,12 @@ func NewProgramServiceHandler(svc ProgramServiceHandler, opts ...connect.Handler
 		connect.WithSchema(programServiceMethods.ByName("RunDiscoveryEval")),
 		connect.WithHandlerOptions(opts...),
 	)
+	programServiceListLearningFindingsHandler := connect.NewUnaryHandler(
+		ProgramServiceListLearningFindingsProcedure,
+		svc.ListLearningFindings,
+		connect.WithSchema(programServiceMethods.ByName("ListLearningFindings")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.program_runtime.v1.programs.ProgramService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ProgramServiceSubmitProgramProcedure:
@@ -312,6 +359,8 @@ func NewProgramServiceHandler(svc ProgramServiceHandler, opts ...connect.Handler
 			programServiceWaitForProgramHandler.ServeHTTP(w, r)
 		case ProgramServiceListProgramsProcedure:
 			programServiceListProgramsHandler.ServeHTTP(w, r)
+		case ProgramServicePortfolioStatsProcedure:
+			programServicePortfolioStatsHandler.ServeHTTP(w, r)
 		case ProgramServiceMineFailuresProcedure:
 			programServiceMineFailuresHandler.ServeHTTP(w, r)
 		case ProgramServiceMineRefusalsProcedure:
@@ -324,6 +373,8 @@ func NewProgramServiceHandler(svc ProgramServiceHandler, opts ...connect.Handler
 			programServiceRunAuthoringEvalHandler.ServeHTTP(w, r)
 		case ProgramServiceRunDiscoveryEvalProcedure:
 			programServiceRunDiscoveryEvalHandler.ServeHTTP(w, r)
+		case ProgramServiceListLearningFindingsProcedure:
+			programServiceListLearningFindingsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -349,6 +400,10 @@ func (UnimplementedProgramServiceHandler) ListPrograms(context.Context, *connect
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.ListPrograms is not implemented"))
 }
 
+func (UnimplementedProgramServiceHandler) PortfolioStats(context.Context, *connect.Request[programs.PortfolioStatsRequest]) (*connect.Response[programs.PortfolioStatsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.PortfolioStats is not implemented"))
+}
+
 func (UnimplementedProgramServiceHandler) MineFailures(context.Context, *connect.Request[programs.MineFailuresRequest]) (*connect.Response[programs.MineFailuresResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.MineFailures is not implemented"))
 }
@@ -371,4 +426,8 @@ func (UnimplementedProgramServiceHandler) RunAuthoringEval(context.Context, *con
 
 func (UnimplementedProgramServiceHandler) RunDiscoveryEval(context.Context, *connect.Request[programs.RunDiscoveryEvalRequest]) (*connect.Response[programs.RunDiscoveryEvalResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.RunDiscoveryEval is not implemented"))
+}
+
+func (UnimplementedProgramServiceHandler) ListLearningFindings(context.Context, *connect.Request[programs.ListLearningFindingsRequest]) (*connect.Response[programs.ListLearningFindingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.ListLearningFindings is not implemented"))
 }

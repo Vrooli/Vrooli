@@ -6,6 +6,52 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class RefreshProjectionRequest(_message.Message):
+    __slots__ = ("runtime", "skills", "apply", "expected_digest", "adopt_legacy")
+    RUNTIME_FIELD_NUMBER: _ClassVar[int]
+    SKILLS_FIELD_NUMBER: _ClassVar[int]
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ADOPT_LEGACY_FIELD_NUMBER: _ClassVar[int]
+    runtime: str
+    skills: _containers.RepeatedScalarFieldContainer[str]
+    apply: bool
+    expected_digest: str
+    adopt_legacy: bool
+    def __init__(self, runtime: _Optional[str] = ..., skills: _Optional[_Iterable[str]] = ..., apply: _Optional[bool] = ..., expected_digest: _Optional[str] = ..., adopt_legacy: _Optional[bool] = ...) -> None: ...
+
+class ProjectionRow(_message.Message):
+    __slots__ = ("runtime", "skill", "status", "source_hash", "installed_hash", "baseline_hash", "receipt_hash", "error", "backup_path", "applied")
+    RUNTIME_FIELD_NUMBER: _ClassVar[int]
+    SKILL_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_HASH_FIELD_NUMBER: _ClassVar[int]
+    INSTALLED_HASH_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_HASH_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_HASH_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    BACKUP_PATH_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
+    runtime: str
+    skill: str
+    status: str
+    source_hash: str
+    installed_hash: str
+    baseline_hash: str
+    receipt_hash: str
+    error: str
+    backup_path: str
+    applied: bool
+    def __init__(self, runtime: _Optional[str] = ..., skill: _Optional[str] = ..., status: _Optional[str] = ..., source_hash: _Optional[str] = ..., installed_hash: _Optional[str] = ..., baseline_hash: _Optional[str] = ..., receipt_hash: _Optional[str] = ..., error: _Optional[str] = ..., backup_path: _Optional[str] = ..., applied: _Optional[bool] = ...) -> None: ...
+
+class RefreshProjectionResponse(_message.Message):
+    __slots__ = ("digest", "rows")
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ROWS_FIELD_NUMBER: _ClassVar[int]
+    digest: str
+    rows: _containers.RepeatedCompositeFieldContainer[ProjectionRow]
+    def __init__(self, digest: _Optional[str] = ..., rows: _Optional[_Iterable[_Union[ProjectionRow, _Mapping]]] = ...) -> None: ...
+
 class Variable(_message.Message):
     __slots__ = ("name", "placeholder", "occurrences")
     NAME_FIELD_NUMBER: _ClassVar[int]

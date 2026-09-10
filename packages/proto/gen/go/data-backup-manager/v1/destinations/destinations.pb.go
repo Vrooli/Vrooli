@@ -347,8 +347,16 @@ type Destination struct {
 	// the same bucket/prefix as location. Distinct from location so the operator
 	// sees the human bundle root while the engine targets the repository folder.
 	RepositoryLocation string `protobuf:"bytes,13,opt,name=repository_location,json=repositoryLocation,proto3" json:"repository_location,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Last read-only device identity observed when this filesystem destination
+	// was admitted. It is evidence for review; remediation always re-observes
+	// the device before acting. Empty for S3 and legacy rows.
+	DeviceIdentity *DestinationDeviceIdentity `protobuf:"bytes,14,opt,name=device_identity,json=deviceIdentity,proto3" json:"device_identity,omitempty"`
+	// Path to the bundle root relative to the observed volume mount. This is
+	// stable across unplug/replug; location remains the last observed absolute
+	// path for display and compatibility.
+	RelativePath  string `protobuf:"bytes,15,opt,name=relative_path,json=relativePath,proto3" json:"relative_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Destination) Reset() {
@@ -468,6 +476,20 @@ func (x *Destination) GetUpdatedAt() *timestamppb.Timestamp {
 func (x *Destination) GetRepositoryLocation() string {
 	if x != nil {
 		return x.RepositoryLocation
+	}
+	return ""
+}
+
+func (x *Destination) GetDeviceIdentity() *DestinationDeviceIdentity {
+	if x != nil {
+		return x.DeviceIdentity
+	}
+	return nil
+}
+
+func (x *Destination) GetRelativePath() string {
+	if x != nil {
+		return x.RelativePath
 	}
 	return ""
 }
@@ -1528,6 +1550,7 @@ type DestinationPreparationPlan struct {
 	ConfirmationPhrase   string                     `protobuf:"bytes,10,opt,name=confirmation_phrase,json=confirmationPhrase,proto3" json:"confirmation_phrase,omitempty"`
 	Supported            bool                       `protobuf:"varint,11,opt,name=supported,proto3" json:"supported,omitempty"`
 	UnsupportedReason    string                     `protobuf:"bytes,12,opt,name=unsupported_reason,json=unsupportedReason,proto3" json:"unsupported_reason,omitempty"`
+	RelativePath         string                     `protobuf:"bytes,13,opt,name=relative_path,json=relativePath,proto3" json:"relative_path,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -1642,6 +1665,13 @@ func (x *DestinationPreparationPlan) GetSupported() bool {
 func (x *DestinationPreparationPlan) GetUnsupportedReason() string {
 	if x != nil {
 		return x.UnsupportedReason
+	}
+	return ""
+}
+
+func (x *DestinationPreparationPlan) GetRelativePath() string {
+	if x != nil {
+		return x.RelativePath
 	}
 	return ""
 }
@@ -1989,11 +2019,502 @@ func (x *ExecuteDestinationPreparationResponse) GetConsistent() string {
 	return ""
 }
 
+// StartVolumeRecovery creates a durable, identity-bound recovery journal. It
+// only persists a plan; host actions run through ResumeVolumeRecovery and are
+// independently confirmed there.
+type StartVolumeRecoveryRequest struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Location      string                        `protobuf:"bytes,1,opt,name=location,proto3" json:"location,omitempty"`
+	Identity      *DestinationDeviceIdentity    `protobuf:"bytes,2,opt,name=identity,proto3" json:"identity,omitempty"`
+	Plans         []*DestinationPreparationPlan `protobuf:"bytes,3,rep,name=plans,proto3" json:"plans,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartVolumeRecoveryRequest) Reset() {
+	*x = StartVolumeRecoveryRequest{}
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartVolumeRecoveryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartVolumeRecoveryRequest) ProtoMessage() {}
+
+func (x *StartVolumeRecoveryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartVolumeRecoveryRequest.ProtoReflect.Descriptor instead.
+func (*StartVolumeRecoveryRequest) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *StartVolumeRecoveryRequest) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
+func (x *StartVolumeRecoveryRequest) GetIdentity() *DestinationDeviceIdentity {
+	if x != nil {
+		return x.Identity
+	}
+	return nil
+}
+
+func (x *StartVolumeRecoveryRequest) GetPlans() []*DestinationPreparationPlan {
+	if x != nil {
+		return x.Plans
+	}
+	return nil
+}
+
+type StartVolumeRecoveryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Journal       *VolumeRecoveryJournal `protobuf:"bytes,1,opt,name=journal,proto3" json:"journal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartVolumeRecoveryResponse) Reset() {
+	*x = StartVolumeRecoveryResponse{}
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartVolumeRecoveryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartVolumeRecoveryResponse) ProtoMessage() {}
+
+func (x *StartVolumeRecoveryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartVolumeRecoveryResponse.ProtoReflect.Descriptor instead.
+func (*StartVolumeRecoveryResponse) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *StartVolumeRecoveryResponse) GetJournal() *VolumeRecoveryJournal {
+	if x != nil {
+		return x.Journal
+	}
+	return nil
+}
+
+type GetVolumeRecoveryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetVolumeRecoveryRequest) Reset() {
+	*x = GetVolumeRecoveryRequest{}
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetVolumeRecoveryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetVolumeRecoveryRequest) ProtoMessage() {}
+
+func (x *GetVolumeRecoveryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetVolumeRecoveryRequest.ProtoReflect.Descriptor instead.
+func (*GetVolumeRecoveryRequest) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *GetVolumeRecoveryRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type GetVolumeRecoveryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Journal       *VolumeRecoveryJournal `protobuf:"bytes,1,opt,name=journal,proto3" json:"journal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetVolumeRecoveryResponse) Reset() {
+	*x = GetVolumeRecoveryResponse{}
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetVolumeRecoveryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetVolumeRecoveryResponse) ProtoMessage() {}
+
+func (x *GetVolumeRecoveryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetVolumeRecoveryResponse.ProtoReflect.Descriptor instead.
+func (*GetVolumeRecoveryResponse) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *GetVolumeRecoveryResponse) GetJournal() *VolumeRecoveryJournal {
+	if x != nil {
+		return x.Journal
+	}
+	return nil
+}
+
+type ResumeVolumeRecoveryRequest struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Id                  string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Confirmations       map[int32]string       `protobuf:"bytes,2,rep,name=confirmations,proto3" json:"confirmations,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	AcknowledgeDataLoss bool                   `protobuf:"varint,3,opt,name=acknowledge_data_loss,json=acknowledgeDataLoss,proto3" json:"acknowledge_data_loss,omitempty"`
+	DryRun              *bool                  `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3,oneof" json:"dry_run,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *ResumeVolumeRecoveryRequest) Reset() {
+	*x = ResumeVolumeRecoveryRequest{}
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeVolumeRecoveryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeVolumeRecoveryRequest) ProtoMessage() {}
+
+func (x *ResumeVolumeRecoveryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeVolumeRecoveryRequest.ProtoReflect.Descriptor instead.
+func (*ResumeVolumeRecoveryRequest) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *ResumeVolumeRecoveryRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ResumeVolumeRecoveryRequest) GetConfirmations() map[int32]string {
+	if x != nil {
+		return x.Confirmations
+	}
+	return nil
+}
+
+func (x *ResumeVolumeRecoveryRequest) GetAcknowledgeDataLoss() bool {
+	if x != nil {
+		return x.AcknowledgeDataLoss
+	}
+	return false
+}
+
+func (x *ResumeVolumeRecoveryRequest) GetDryRun() bool {
+	if x != nil && x.DryRun != nil {
+		return *x.DryRun
+	}
+	return false
+}
+
+type ResumeVolumeRecoveryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Journal       *VolumeRecoveryJournal `protobuf:"bytes,1,opt,name=journal,proto3" json:"journal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResumeVolumeRecoveryResponse) Reset() {
+	*x = ResumeVolumeRecoveryResponse{}
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeVolumeRecoveryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeVolumeRecoveryResponse) ProtoMessage() {}
+
+func (x *ResumeVolumeRecoveryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeVolumeRecoveryResponse.ProtoReflect.Descriptor instead.
+func (*ResumeVolumeRecoveryResponse) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *ResumeVolumeRecoveryResponse) GetJournal() *VolumeRecoveryJournal {
+	if x != nil {
+		return x.Journal
+	}
+	return nil
+}
+
+type VolumeRecoveryStep struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Plan          *DestinationPreparationPlan `protobuf:"bytes,1,opt,name=plan,proto3" json:"plan,omitempty"`
+	Status        string                      `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Attempts      int32                       `protobuf:"varint,3,opt,name=attempts,proto3" json:"attempts,omitempty"`
+	Detail        string                      `protobuf:"bytes,4,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VolumeRecoveryStep) Reset() {
+	*x = VolumeRecoveryStep{}
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VolumeRecoveryStep) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VolumeRecoveryStep) ProtoMessage() {}
+
+func (x *VolumeRecoveryStep) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VolumeRecoveryStep.ProtoReflect.Descriptor instead.
+func (*VolumeRecoveryStep) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *VolumeRecoveryStep) GetPlan() *DestinationPreparationPlan {
+	if x != nil {
+		return x.Plan
+	}
+	return nil
+}
+
+func (x *VolumeRecoveryStep) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *VolumeRecoveryStep) GetAttempts() int32 {
+	if x != nil {
+		return x.Attempts
+	}
+	return 0
+}
+
+func (x *VolumeRecoveryStep) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+type VolumeRecoveryJournal struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Version       string                     `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	Id            string                     `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Location      string                     `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
+	Identity      *DestinationDeviceIdentity `protobuf:"bytes,4,opt,name=identity,proto3" json:"identity,omitempty"`
+	Steps         []*VolumeRecoveryStep      `protobuf:"bytes,5,rep,name=steps,proto3" json:"steps,omitempty"`
+	Current       int32                      `protobuf:"varint,6,opt,name=current,proto3" json:"current,omitempty"`
+	State         string                     `protobuf:"bytes,7,opt,name=state,proto3" json:"state,omitempty"`
+	LastError     string                     `protobuf:"bytes,8,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp     `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	RelativePath  string                     `protobuf:"bytes,10,opt,name=relative_path,json=relativePath,proto3" json:"relative_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VolumeRecoveryJournal) Reset() {
+	*x = VolumeRecoveryJournal{}
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VolumeRecoveryJournal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VolumeRecoveryJournal) ProtoMessage() {}
+
+func (x *VolumeRecoveryJournal) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VolumeRecoveryJournal.ProtoReflect.Descriptor instead.
+func (*VolumeRecoveryJournal) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *VolumeRecoveryJournal) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *VolumeRecoveryJournal) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *VolumeRecoveryJournal) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
+func (x *VolumeRecoveryJournal) GetIdentity() *DestinationDeviceIdentity {
+	if x != nil {
+		return x.Identity
+	}
+	return nil
+}
+
+func (x *VolumeRecoveryJournal) GetSteps() []*VolumeRecoveryStep {
+	if x != nil {
+		return x.Steps
+	}
+	return nil
+}
+
+func (x *VolumeRecoveryJournal) GetCurrent() int32 {
+	if x != nil {
+		return x.Current
+	}
+	return 0
+}
+
+func (x *VolumeRecoveryJournal) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *VolumeRecoveryJournal) GetLastError() string {
+	if x != nil {
+		return x.LastError
+	}
+	return ""
+}
+
+func (x *VolumeRecoveryJournal) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *VolumeRecoveryJournal) GetRelativePath() string {
+	if x != nil {
+		return x.RelativePath
+	}
+	return ""
+}
+
 var File_data_backup_manager_v1_destinations_destinations_proto protoreflect.FileDescriptor
 
 const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\n" +
-	"6data-backup-manager/v1/destinations/destinations.proto\x12*vrooli.data_backup_manager.v1.destinations\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8f\x05\n" +
+	"6data-backup-manager/v1/destinations/destinations.proto\x12*vrooli.data_backup_manager.v1.destinations\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa4\x06\n" +
 	"\vDestination\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12Z\n" +
@@ -2014,7 +2535,9 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12/\n" +
-	"\x13repository_location\x18\r \x01(\tR\x12repositoryLocation\"\xc0\x02\n" +
+	"\x13repository_location\x18\r \x01(\tR\x12repositoryLocation\x12n\n" +
+	"\x0fdevice_identity\x18\x0e \x01(\v2E.vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentityR\x0edeviceIdentity\x12#\n" +
+	"\rrelative_path\x18\x0f \x01(\tR\frelativePath\"\xc0\x02\n" +
 	"\x18CreateDestinationRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12f\n" +
 	"\fbackend_kind\x18\x02 \x01(\x0e27.vrooli.data_backup_manager.v1.destinations.BackendKindB\n" +
@@ -2102,7 +2625,7 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\x10retention_copies\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x0fretentionCopies\x126\n" +
 	"\x17cross_platform_required\x18\x05 \x01(\bR\x15crossPlatformRequired\"|\n" +
 	"\x1aAnalyzeDestinationResponse\x12^\n" +
-	"\x06report\x18\x01 \x01(\v2F.vrooli.data_backup_manager.v1.destinations.DestinationReadinessReportR\x06report\"\xcc\x04\n" +
+	"\x06report\x18\x01 \x01(\v2F.vrooli.data_backup_manager.v1.destinations.DestinationReadinessReportR\x06report\"\xf1\x04\n" +
 	"\x1aDestinationPreparationPlan\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12U\n" +
 	"\x06action\x18\x02 \x01(\x0e2=.vrooli.data_backup_manager.v1.destinations.PreparationActionR\x06action\x12\x1a\n" +
@@ -2117,7 +2640,8 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\x13confirmation_phrase\x18\n" +
 	" \x01(\tR\x12confirmationPhrase\x12\x1c\n" +
 	"\tsupported\x18\v \x01(\bR\tsupported\x12-\n" +
-	"\x12unsupported_reason\x18\f \x01(\tR\x11unsupportedReason\"\x9a\x03\n" +
+	"\x12unsupported_reason\x18\f \x01(\tR\x11unsupportedReason\x12#\n" +
+	"\rrelative_path\x18\r \x01(\tR\frelativePath\"\x9a\x03\n" +
 	"!PlanDestinationPreparationRequest\x12#\n" +
 	"\blocation\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\blocation\x12a\n" +
 	"\x06action\x18\x02 \x01(\x0e2=.vrooli.data_backup_manager.v1.destinations.PreparationActionB\n" +
@@ -2150,7 +2674,48 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\x0erefusal_reason\x18\v \x01(\tR\rrefusalReason\x12\x1e\n" +
 	"\n" +
 	"consistent\x18\f \x01(\tR\n" +
-	"consistent*]\n" +
+	"consistent\"\x8c\x02\n" +
+	"\x1aStartVolumeRecoveryRequest\x12#\n" +
+	"\blocation\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\blocation\x12a\n" +
+	"\bidentity\x18\x02 \x01(\v2E.vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentityR\bidentity\x12f\n" +
+	"\x05plans\x18\x03 \x03(\v2F.vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlanB\b\xbaH\x05\x92\x01\x02\b\x01R\x05plans\"z\n" +
+	"\x1bStartVolumeRecoveryResponse\x12[\n" +
+	"\ajournal\x18\x01 \x01(\v2A.vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournalR\ajournal\"3\n" +
+	"\x18GetVolumeRecoveryRequest\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"x\n" +
+	"\x19GetVolumeRecoveryResponse\x12[\n" +
+	"\ajournal\x18\x01 \x01(\v2A.vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournalR\ajournal\"\xd9\x02\n" +
+	"\x1bResumeVolumeRecoveryRequest\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x80\x01\n" +
+	"\rconfirmations\x18\x02 \x03(\v2Z.vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest.ConfirmationsEntryR\rconfirmations\x122\n" +
+	"\x15acknowledge_data_loss\x18\x03 \x01(\bR\x13acknowledgeDataLoss\x12\x1c\n" +
+	"\adry_run\x18\x04 \x01(\bH\x00R\x06dryRun\x88\x01\x01\x1a@\n" +
+	"\x12ConfirmationsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\x05R\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\n" +
+	"\n" +
+	"\b_dry_run\"{\n" +
+	"\x1cResumeVolumeRecoveryResponse\x12[\n" +
+	"\ajournal\x18\x01 \x01(\v2A.vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournalR\ajournal\"\xbc\x01\n" +
+	"\x12VolumeRecoveryStep\x12Z\n" +
+	"\x04plan\x18\x01 \x01(\v2F.vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlanR\x04plan\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1a\n" +
+	"\battempts\x18\x03 \x01(\x05R\battempts\x12\x16\n" +
+	"\x06detail\x18\x04 \x01(\tR\x06detail\"\xc5\x03\n" +
+	"\x15VolumeRecoveryJournal\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\tR\aversion\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1a\n" +
+	"\blocation\x18\x03 \x01(\tR\blocation\x12a\n" +
+	"\bidentity\x18\x04 \x01(\v2E.vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentityR\bidentity\x12T\n" +
+	"\x05steps\x18\x05 \x03(\v2>.vrooli.data_backup_manager.v1.destinations.VolumeRecoveryStepR\x05steps\x12\x18\n" +
+	"\acurrent\x18\x06 \x01(\x05R\acurrent\x12\x14\n" +
+	"\x05state\x18\a \x01(\tR\x05state\x12\x1d\n" +
+	"\n" +
+	"last_error\x18\b \x01(\tR\tlastError\x129\n" +
+	"\n" +
+	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12#\n" +
+	"\rrelative_path\x18\n" +
+	" \x01(\tR\frelativePath*]\n" +
 	"\vBackendKind\x12\x1c\n" +
 	"\x18BACKEND_KIND_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17BACKEND_KIND_FILESYSTEM\x10\x01\x12\x13\n" +
@@ -2180,7 +2745,7 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\x1aPREPARATION_ACTION_UNMOUNT\x10\x05\x12'\n" +
 	"#PREPARATION_ACTION_CHECK_FILESYSTEM\x10\x06\x12(\n" +
 	"$PREPARATION_ACTION_REPAIR_FILESYSTEM\x10\a\x12'\n" +
-	"#PREPARATION_ACTION_MOUNT_READ_WRITE\x10\b2\x8c\f\n" +
+	"#PREPARATION_ACTION_MOUNT_READ_WRITE\x10\b2\x84\x10\n" +
 	"\x13DestinationsService\x12\xa0\x01\n" +
 	"\x11CreateDestination\x12D.vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest\x1aE.vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse\x12\x97\x01\n" +
 	"\x0eGetDestination\x12A.vrooli.data_backup_manager.v1.destinations.GetDestinationRequest\x1aB.vrooli.data_backup_manager.v1.destinations.GetDestinationResponse\x12\x9d\x01\n" +
@@ -2190,7 +2755,10 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\x13GetDestinationUsage\x12F.vrooli.data_backup_manager.v1.destinations.GetDestinationUsageRequest\x1aG.vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse\x12\xa3\x01\n" +
 	"\x12AnalyzeDestination\x12E.vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationRequest\x1aF.vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse\x12\xbb\x01\n" +
 	"\x1aPlanDestinationPreparation\x12M.vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest\x1aN.vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse\x12\xc4\x01\n" +
-	"\x1dExecuteDestinationPreparation\x12P.vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest\x1aQ.vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponseBdZbgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations;destinations_v1b\x06proto3"
+	"\x1dExecuteDestinationPreparation\x12P.vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest\x1aQ.vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse\x12\xa6\x01\n" +
+	"\x13StartVolumeRecovery\x12F.vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryRequest\x1aG.vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryResponse\x12\xa0\x01\n" +
+	"\x11GetVolumeRecovery\x12D.vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryRequest\x1aE.vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryResponse\x12\xa9\x01\n" +
+	"\x14ResumeVolumeRecovery\x12G.vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest\x1aH.vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryResponseBdZbgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations;destinations_v1b\x06proto3"
 
 var (
 	file_data_backup_manager_v1_destinations_destinations_proto_rawDescOnce sync.Once
@@ -2205,7 +2773,7 @@ func file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP() [
 }
 
 var file_data_backup_manager_v1_destinations_destinations_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_data_backup_manager_v1_destinations_destinations_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_data_backup_manager_v1_destinations_destinations_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
 var file_data_backup_manager_v1_destinations_destinations_proto_goTypes = []any{
 	(BackendKind)(0),                              // 0: vrooli.data_backup_manager.v1.destinations.BackendKind
 	(CapPolicy)(0),                                // 1: vrooli.data_backup_manager.v1.destinations.CapPolicy
@@ -2235,60 +2803,86 @@ var file_data_backup_manager_v1_destinations_destinations_proto_goTypes = []any{
 	(*PlanDestinationPreparationResponse)(nil),    // 25: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse
 	(*ExecuteDestinationPreparationRequest)(nil),  // 26: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest
 	(*ExecuteDestinationPreparationResponse)(nil), // 27: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse
-	(*timestamppb.Timestamp)(nil),                 // 28: google.protobuf.Timestamp
+	(*StartVolumeRecoveryRequest)(nil),            // 28: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryRequest
+	(*StartVolumeRecoveryResponse)(nil),           // 29: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryResponse
+	(*GetVolumeRecoveryRequest)(nil),              // 30: vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryRequest
+	(*GetVolumeRecoveryResponse)(nil),             // 31: vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryResponse
+	(*ResumeVolumeRecoveryRequest)(nil),           // 32: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest
+	(*ResumeVolumeRecoveryResponse)(nil),          // 33: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryResponse
+	(*VolumeRecoveryStep)(nil),                    // 34: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryStep
+	(*VolumeRecoveryJournal)(nil),                 // 35: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal
+	nil,                                           // 36: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest.ConfirmationsEntry
+	(*timestamppb.Timestamp)(nil),                 // 37: google.protobuf.Timestamp
 }
 var file_data_backup_manager_v1_destinations_destinations_proto_depIdxs = []int32{
 	0,  // 0: vrooli.data_backup_manager.v1.destinations.Destination.backend_kind:type_name -> vrooli.data_backup_manager.v1.destinations.BackendKind
 	1,  // 1: vrooli.data_backup_manager.v1.destinations.Destination.cap_policy:type_name -> vrooli.data_backup_manager.v1.destinations.CapPolicy
 	2,  // 2: vrooli.data_backup_manager.v1.destinations.Destination.usage_state:type_name -> vrooli.data_backup_manager.v1.destinations.UsageState
-	28, // 3: vrooli.data_backup_manager.v1.destinations.Destination.created_at:type_name -> google.protobuf.Timestamp
-	28, // 4: vrooli.data_backup_manager.v1.destinations.Destination.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 5: vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest.backend_kind:type_name -> vrooli.data_backup_manager.v1.destinations.BackendKind
-	1,  // 6: vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest.cap_policy:type_name -> vrooli.data_backup_manager.v1.destinations.CapPolicy
-	5,  // 7: vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse.destination:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
-	5,  // 8: vrooli.data_backup_manager.v1.destinations.GetDestinationResponse.destination:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
-	5,  // 9: vrooli.data_backup_manager.v1.destinations.ListDestinationsResponse.destinations:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
-	1,  // 10: vrooli.data_backup_manager.v1.destinations.UpdateDestinationRequest.cap_policy:type_name -> vrooli.data_backup_manager.v1.destinations.CapPolicy
-	5,  // 11: vrooli.data_backup_manager.v1.destinations.UpdateDestinationResponse.destination:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
-	2,  // 12: vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse.usage_state:type_name -> vrooli.data_backup_manager.v1.destinations.UsageState
-	1,  // 13: vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse.cap_policy:type_name -> vrooli.data_backup_manager.v1.destinations.CapPolicy
-	3,  // 14: vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck.severity:type_name -> vrooli.data_backup_manager.v1.destinations.ReadinessSeverity
-	3,  // 15: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.overall_severity:type_name -> vrooli.data_backup_manager.v1.destinations.ReadinessSeverity
-	18, // 16: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
-	19, // 17: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.checks:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck
-	28, // 18: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.observed_at:type_name -> google.protobuf.Timestamp
-	20, // 19: vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse.report:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
-	4,  // 20: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
-	18, // 21: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
-	4,  // 22: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
-	18, // 23: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest.expected_identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
-	23, // 24: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
-	23, // 25: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
-	4,  // 26: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
-	20, // 27: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse.post_action_report:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
-	6,  // 28: vrooli.data_backup_manager.v1.destinations.DestinationsService.CreateDestination:input_type -> vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest
-	8,  // 29: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestination:input_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationRequest
-	10, // 30: vrooli.data_backup_manager.v1.destinations.DestinationsService.ListDestinations:input_type -> vrooli.data_backup_manager.v1.destinations.ListDestinationsRequest
-	12, // 31: vrooli.data_backup_manager.v1.destinations.DestinationsService.UpdateDestination:input_type -> vrooli.data_backup_manager.v1.destinations.UpdateDestinationRequest
-	14, // 32: vrooli.data_backup_manager.v1.destinations.DestinationsService.DeleteDestination:input_type -> vrooli.data_backup_manager.v1.destinations.DeleteDestinationRequest
-	16, // 33: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestinationUsage:input_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationUsageRequest
-	21, // 34: vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination:input_type -> vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationRequest
-	24, // 35: vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation:input_type -> vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest
-	26, // 36: vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation:input_type -> vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest
-	7,  // 37: vrooli.data_backup_manager.v1.destinations.DestinationsService.CreateDestination:output_type -> vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse
-	9,  // 38: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestination:output_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationResponse
-	11, // 39: vrooli.data_backup_manager.v1.destinations.DestinationsService.ListDestinations:output_type -> vrooli.data_backup_manager.v1.destinations.ListDestinationsResponse
-	13, // 40: vrooli.data_backup_manager.v1.destinations.DestinationsService.UpdateDestination:output_type -> vrooli.data_backup_manager.v1.destinations.UpdateDestinationResponse
-	15, // 41: vrooli.data_backup_manager.v1.destinations.DestinationsService.DeleteDestination:output_type -> vrooli.data_backup_manager.v1.destinations.DeleteDestinationResponse
-	17, // 42: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestinationUsage:output_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse
-	22, // 43: vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination:output_type -> vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse
-	25, // 44: vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation:output_type -> vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse
-	27, // 45: vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation:output_type -> vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse
-	37, // [37:46] is the sub-list for method output_type
-	28, // [28:37] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	37, // 3: vrooli.data_backup_manager.v1.destinations.Destination.created_at:type_name -> google.protobuf.Timestamp
+	37, // 4: vrooli.data_backup_manager.v1.destinations.Destination.updated_at:type_name -> google.protobuf.Timestamp
+	18, // 5: vrooli.data_backup_manager.v1.destinations.Destination.device_identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	0,  // 6: vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest.backend_kind:type_name -> vrooli.data_backup_manager.v1.destinations.BackendKind
+	1,  // 7: vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest.cap_policy:type_name -> vrooli.data_backup_manager.v1.destinations.CapPolicy
+	5,  // 8: vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse.destination:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
+	5,  // 9: vrooli.data_backup_manager.v1.destinations.GetDestinationResponse.destination:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
+	5,  // 10: vrooli.data_backup_manager.v1.destinations.ListDestinationsResponse.destinations:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
+	1,  // 11: vrooli.data_backup_manager.v1.destinations.UpdateDestinationRequest.cap_policy:type_name -> vrooli.data_backup_manager.v1.destinations.CapPolicy
+	5,  // 12: vrooli.data_backup_manager.v1.destinations.UpdateDestinationResponse.destination:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
+	2,  // 13: vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse.usage_state:type_name -> vrooli.data_backup_manager.v1.destinations.UsageState
+	1,  // 14: vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse.cap_policy:type_name -> vrooli.data_backup_manager.v1.destinations.CapPolicy
+	3,  // 15: vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck.severity:type_name -> vrooli.data_backup_manager.v1.destinations.ReadinessSeverity
+	3,  // 16: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.overall_severity:type_name -> vrooli.data_backup_manager.v1.destinations.ReadinessSeverity
+	18, // 17: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	19, // 18: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.checks:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck
+	37, // 19: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.observed_at:type_name -> google.protobuf.Timestamp
+	20, // 20: vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse.report:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
+	4,  // 21: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
+	18, // 22: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	4,  // 23: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
+	18, // 24: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest.expected_identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	23, // 25: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
+	23, // 26: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
+	4,  // 27: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
+	20, // 28: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse.post_action_report:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
+	18, // 29: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryRequest.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	23, // 30: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryRequest.plans:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
+	35, // 31: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryResponse.journal:type_name -> vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal
+	35, // 32: vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryResponse.journal:type_name -> vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal
+	36, // 33: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest.confirmations:type_name -> vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest.ConfirmationsEntry
+	35, // 34: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryResponse.journal:type_name -> vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal
+	23, // 35: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryStep.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
+	18, // 36: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	34, // 37: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal.steps:type_name -> vrooli.data_backup_manager.v1.destinations.VolumeRecoveryStep
+	37, // 38: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal.updated_at:type_name -> google.protobuf.Timestamp
+	6,  // 39: vrooli.data_backup_manager.v1.destinations.DestinationsService.CreateDestination:input_type -> vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest
+	8,  // 40: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestination:input_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationRequest
+	10, // 41: vrooli.data_backup_manager.v1.destinations.DestinationsService.ListDestinations:input_type -> vrooli.data_backup_manager.v1.destinations.ListDestinationsRequest
+	12, // 42: vrooli.data_backup_manager.v1.destinations.DestinationsService.UpdateDestination:input_type -> vrooli.data_backup_manager.v1.destinations.UpdateDestinationRequest
+	14, // 43: vrooli.data_backup_manager.v1.destinations.DestinationsService.DeleteDestination:input_type -> vrooli.data_backup_manager.v1.destinations.DeleteDestinationRequest
+	16, // 44: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestinationUsage:input_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationUsageRequest
+	21, // 45: vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination:input_type -> vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationRequest
+	24, // 46: vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation:input_type -> vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest
+	26, // 47: vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation:input_type -> vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest
+	28, // 48: vrooli.data_backup_manager.v1.destinations.DestinationsService.StartVolumeRecovery:input_type -> vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryRequest
+	30, // 49: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetVolumeRecovery:input_type -> vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryRequest
+	32, // 50: vrooli.data_backup_manager.v1.destinations.DestinationsService.ResumeVolumeRecovery:input_type -> vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest
+	7,  // 51: vrooli.data_backup_manager.v1.destinations.DestinationsService.CreateDestination:output_type -> vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse
+	9,  // 52: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestination:output_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationResponse
+	11, // 53: vrooli.data_backup_manager.v1.destinations.DestinationsService.ListDestinations:output_type -> vrooli.data_backup_manager.v1.destinations.ListDestinationsResponse
+	13, // 54: vrooli.data_backup_manager.v1.destinations.DestinationsService.UpdateDestination:output_type -> vrooli.data_backup_manager.v1.destinations.UpdateDestinationResponse
+	15, // 55: vrooli.data_backup_manager.v1.destinations.DestinationsService.DeleteDestination:output_type -> vrooli.data_backup_manager.v1.destinations.DeleteDestinationResponse
+	17, // 56: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestinationUsage:output_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse
+	22, // 57: vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination:output_type -> vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse
+	25, // 58: vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation:output_type -> vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse
+	27, // 59: vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation:output_type -> vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse
+	29, // 60: vrooli.data_backup_manager.v1.destinations.DestinationsService.StartVolumeRecovery:output_type -> vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryResponse
+	31, // 61: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetVolumeRecovery:output_type -> vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryResponse
+	33, // 62: vrooli.data_backup_manager.v1.destinations.DestinationsService.ResumeVolumeRecovery:output_type -> vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryResponse
+	51, // [51:63] is the sub-list for method output_type
+	39, // [39:51] is the sub-list for method input_type
+	39, // [39:39] is the sub-list for extension type_name
+	39, // [39:39] is the sub-list for extension extendee
+	0,  // [0:39] is the sub-list for field type_name
 }
 
 func init() { file_data_backup_manager_v1_destinations_destinations_proto_init() }
@@ -2297,13 +2891,14 @@ func file_data_backup_manager_v1_destinations_destinations_proto_init() {
 		return
 	}
 	file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[21].OneofWrappers = []any{}
+	file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[27].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_data_backup_manager_v1_destinations_destinations_proto_rawDesc), len(file_data_backup_manager_v1_destinations_destinations_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   23,
+			NumMessages:   32,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

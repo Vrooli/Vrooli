@@ -269,3 +269,63 @@ func TestFinalization_Finish_NoReviewAgent_WritesReviewPending(t *testing.T) {
 		t.Fatalf("backlog status = %q, want %q (no review agent → human-decidable)", got, backlogStatusReviewPending)
 	}
 }
+
+func TestFinalization_SelfChecksRemainUnassessedWithoutCodingFixup(t *testing.T) {
+	svc := newTestPollingService(t)
+	svc.selfScenarioName = "swarm-manager"
+	svc.policyProvider = &stubPolicyProvider{}
+	specPath := seedBacklogSpec(t, svc, "execute", "self-change", "in_progress")
+	item := backlogItem{Name: "self-change", Kind: "execute", Status: "in_progress", AcceptanceAllow: []string{"scenarios/swarm-manager/**"}}
+	body, err := json.Marshal(item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(specPath, body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.store.Save([]Record{{ExecutionID: "exec-self", BacklogKind: "execute", BacklogName: "self-change", Status: StatusValidating}}); err != nil {
+		t.Fatal(err)
+	}
+	// No lifecycle or health transport is configured: self-checks must be
+	// explicitly deferred, without attempting to restart the serving process.
+	if err := svc.processFinalization(context.Background(), "exec-self"); err != nil {
+		t.Fatal(err)
+	}
+	records, err := svc.store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := records[0]
+	if rec.Status != StatusCompleted || rec.Finalization.AggregateClassification != FinalizationAggregateNotAssessable {
+		t.Fatalf("deferred self-checks must finish for review without a coding fixup or ready verdict: %+v", rec)
+	}
+	if len(rec.Finalization.Scenarios) != 1 {
+		t.Fatalf("self must remain in the evidence inventory: %+v", rec.Finalization)
+	}
+	state := rec.Finalization.Scenarios[0]
+	if state.Restart.Status != FinalizationStatusSkipped || state.Restart.Attempts != 0 || state.Restart.LastError != "" || state.Health.Status != FinalizationStatusSkipped || state.Review.Status != FinalizationStatusSkipped || state.Review.Result != nil || state.Review.SkipReason == "" {
+		t.Fatalf("deferred checks must be explicit without fabricated attempts, errors or results: %+v", state)
+	}
+	if got := loadSpecStatus(t, specPath); got != backlogStatusReviewPending {
+		t.Fatalf("deferred checks require an operator review decision, got %q", got)
+	}
+	classification, summary, actionable := summarizeFinalization(*rec.Finalization, true)
+	if actionable || classification != FinalizationAggregateNotAssessable || summary == "" {
+		t.Fatalf("self deferral alone must not request automated coding: %s %q %v", classification, summary, actionable)
+	}
+	// A self deferral must not hide a genuine regression or another scenario's
+	// failed restart. Both remain actionable in the same aggregate.
+	for _, regression := range []bool{false, true} {
+		fin := *rec.Finalization
+		fin.Scenarios = append([]ScenarioFinalization(nil), fin.Scenarios...)
+		if regression {
+			fin.Scenarios[0].BaselineDiff = regressionDiff("swarm-manager")
+		} else {
+			fin.Scenarios = append(fin.Scenarios, ScenarioFinalization{ScenarioName: "other", Restart: RestartResult{Status: FinalizationStatusFailed}})
+		}
+		classification, _, actionable := summarizeFinalization(fin, true)
+		if !actionable || classification != FinalizationAggregateNeedsWork {
+			t.Fatalf("real failure must remain actionable alongside self deferral: regression=%v classification=%s actionable=%v", regression, classification, actionable)
+		}
+	}
+}

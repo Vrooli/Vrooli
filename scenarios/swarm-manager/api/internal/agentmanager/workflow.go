@@ -16,6 +16,9 @@ import (
 type WorkflowStart struct {
 	ExecutionID      string
 	RunID            string
+	WorkflowDigest   string
+	ApprovalDigest   string
+	GrantDigest      string
 	DefinitionDigest string
 	Status           domainpb.WorkflowExecutionStatus
 }
@@ -113,7 +116,22 @@ func (s *AgentService) GetWorkflowExecutionState(ctx context.Context, executionI
 	return readWorkflowExecutionState(ctx, s.client, executionID)
 }
 
+// readWorkflowExecutionState serves the lifecycle projection through a short
+// process-wide cache keyed by (agent-manager base URL, execution id). The
+// execution reconciler, the activity refresh-on-read path, and operator polls
+// all ask the same question about the same workflows within seconds of each
+// other; one trace read per workflow per window answers all of them.
 func readWorkflowExecutionState(ctx context.Context, client *HTTPClient, executionID string) (WorkflowExecutionState, error) {
+	baseURL, err := client.baseURLResolver(ctx)
+	if err != nil {
+		return WorkflowExecutionState{}, err
+	}
+	return workflowStates.get(baseURL+"|"+executionID, func() (WorkflowExecutionState, error) {
+		return fetchWorkflowExecutionState(ctx, client, executionID)
+	})
+}
+
+func fetchWorkflowExecutionState(ctx context.Context, client *HTTPClient, executionID string) (WorkflowExecutionState, error) {
 	trace, err := client.GetWorkflowExecutionTrace(ctx, executionID)
 	if err != nil {
 		return WorkflowExecutionState{}, err

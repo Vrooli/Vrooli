@@ -43,6 +43,8 @@ const (
 	// `bas-accessibility-snapshot/v1`. Failure to capture degrades
 	// gracefully (the artifact is absent, the capture still succeeds).
 	CaptureType_CAPTURE_TYPE_ACCESSIBILITY CaptureType = 7
+	// Normalized computed DOM-tree JSON snapshot captured in the same session.
+	CaptureType_CAPTURE_TYPE_DOM_TREE CaptureType = 8
 )
 
 // Enum value maps for CaptureType.
@@ -56,6 +58,7 @@ var (
 		5: "CAPTURE_TYPE_DOM",
 		6: "CAPTURE_TYPE_PERFORMANCE",
 		7: "CAPTURE_TYPE_ACCESSIBILITY",
+		8: "CAPTURE_TYPE_DOM_TREE",
 	}
 	CaptureType_value = map[string]int32{
 		"CAPTURE_TYPE_UNSPECIFIED":   0,
@@ -66,6 +69,7 @@ var (
 		"CAPTURE_TYPE_DOM":           5,
 		"CAPTURE_TYPE_PERFORMANCE":   6,
 		"CAPTURE_TYPE_ACCESSIBILITY": 7,
+		"CAPTURE_TYPE_DOM_TREE":      8,
 	}
 )
 
@@ -383,8 +387,14 @@ type CaptureRequest struct {
 	// set, BAS captures that element as the primary screenshot while keeping
 	// the rest of the evidence in the same browser session.
 	ScreenshotSelector string `protobuf:"bytes,13,opt,name=screenshot_selector,json=screenshotSelector,proto3" json:"screenshot_selector,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// When true, the DOM artifact is a normalized computed-style tree rather
+	// than raw outerHTML. It is captured after the same readiness condition and
+	// navigation as the screenshot.
+	InlineDomTree bool `protobuf:"varint,14,opt,name=inline_dom_tree,json=inlineDomTree,proto3" json:"inline_dom_tree,omitempty"`
+	// Document direction applied after navigation and before artifacts.
+	Direction     string `protobuf:"bytes,15,opt,name=direction,proto3" json:"direction,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CaptureRequest) Reset() {
@@ -508,6 +518,20 @@ func (x *CaptureRequest) GetScreenshotSelector() string {
 	return ""
 }
 
+func (x *CaptureRequest) GetInlineDomTree() bool {
+	if x != nil {
+		return x.InlineDomTree
+	}
+	return false
+}
+
+func (x *CaptureRequest) GetDirection() string {
+	if x != nil {
+		return x.Direction
+	}
+	return ""
+}
+
 type CaptureArtifact struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Type  CaptureType            `protobuf:"varint,1,opt,name=type,proto3,enum=browser_automation_studio.v1.capture.CaptureType" json:"type,omitempty"`
@@ -627,6 +651,9 @@ type CaptureResponse struct {
 	// needing the snapshot must treat empty as a failed capture).
 	// Size-capped server-side (2 MiB); truncation is silent.
 	AccessibilityJson string `protobuf:"bytes,7,opt,name=accessibility_json,json=accessibilityJson,proto3" json:"accessibility_json,omitempty"`
+	// Normalized computed DOM-tree JSON, populated when inline_dom_tree is set.
+	// The same tree is also written as the durable DOM_TREE artifact.
+	DomTreeJson string `protobuf:"bytes,9,opt,name=dom_tree_json,json=domTreeJson,proto3" json:"dom_tree_json,omitempty"`
 	// Readiness decision and outcome for this capture. This makes it explicit
 	// whether capture used a caller wait, a declared profile surface, or normal
 	// generic navigation fallback.
@@ -710,6 +737,13 @@ func (x *CaptureResponse) GetDomHtml() string {
 func (x *CaptureResponse) GetAccessibilityJson() string {
 	if x != nil {
 		return x.AccessibilityJson
+	}
+	return ""
+}
+
+func (x *CaptureResponse) GetDomTreeJson() string {
+	if x != nil {
+		return x.DomTreeJson
 	}
 	return ""
 }
@@ -863,7 +897,7 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\vnetworkidle\x18\x02 \x01(\bH\x00R\vnetworkidle\x12\x1f\n" +
 	"\n" +
 	"timeout_ms\x18\x03 \x01(\x05H\x00R\ttimeoutMsB\x06\n" +
-	"\x04spec\"\xb4\x05\n" +
+	"\x04spec\"\xfa\x05\n" +
 	"\x0eCaptureRequest\x12\x19\n" +
 	"\x03url\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\x12M\n" +
 	"\bcaptures\x18\x02 \x03(\x0e21.browser_automation_studio.v1.capture.CaptureTypeR\bcaptures\x12P\n" +
@@ -881,7 +915,9 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	" \x01(\bR\x13inlineComputedStyle\x12U\n" +
 	"\x0fbrowser_profile\x18\v \x01(\v2,.browser_automation_studio.v1.BrowserProfileR\x0ebrowserProfile\x12+\n" +
 	"\x11interaction_state\x18\f \x01(\tR\x10interactionState\x12/\n" +
-	"\x13screenshot_selector\x18\r \x01(\tR\x12screenshotSelector\"\xe1\x02\n" +
+	"\x13screenshot_selector\x18\r \x01(\tR\x12screenshotSelector\x12&\n" +
+	"\x0finline_dom_tree\x18\x0e \x01(\bR\rinlineDomTree\x12\x1c\n" +
+	"\tdirection\x18\x0f \x01(\tR\tdirection\"\xe1\x02\n" +
 	"\x0fCaptureArtifact\x12E\n" +
 	"\x04type\x18\x01 \x01(\x0e21.browser_automation_studio.v1.capture.CaptureTypeR\x04type\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1d\n" +
@@ -892,7 +928,7 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\treference\x18\x06 \x01(\tR\treference\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x87\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xab\x03\n" +
 	"\x0fCaptureResponse\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x17\n" +
 	"\aout_dir\x18\x02 \x01(\tR\x06outDir\x12S\n" +
@@ -901,7 +937,8 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"durationMs\x12\x17\n" +
 	"\adry_run\x18\x05 \x01(\bR\x06dryRun\x12\x19\n" +
 	"\bdom_html\x18\x06 \x01(\tR\adomHtml\x12-\n" +
-	"\x12accessibility_json\x18\a \x01(\tR\x11accessibilityJson\x12_\n" +
+	"\x12accessibility_json\x18\a \x01(\tR\x11accessibilityJson\x12\"\n" +
+	"\rdom_tree_json\x18\t \x01(\tR\vdomTreeJson\x12_\n" +
 	"\treadiness\x18\b \x01(\v2A.browser_automation_studio.v1.capture.CaptureReadinessDiagnosticsR\treadiness\"\xc1\x03\n" +
 	"\x1bCaptureReadinessDiagnostics\x12-\n" +
 	"\x12requested_strategy\x18\x01 \x01(\tR\x11requestedStrategy\x12+\n" +
@@ -915,7 +952,7 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\x14required_surface_ids\x18\b \x03(\tR\x12requiredSurfaceIds\x124\n" +
 	"\x16navigation_duration_ms\x18\t \x01(\x03R\x14navigationDurationMs\x12;\n" +
 	"\x1areadiness_wait_duration_ms\x18\n" +
-	" \x01(\x03R\x17readinessWaitDurationMs*\xed\x01\n" +
+	" \x01(\x03R\x17readinessWaitDurationMs*\x88\x02\n" +
 	"\vCaptureType\x12\x1c\n" +
 	"\x18CAPTURE_TYPE_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17CAPTURE_TYPE_SCREENSHOT\x10\x01\x12\x1d\n" +
@@ -924,7 +961,8 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\x12CAPTURE_TYPE_VIDEO\x10\x04\x12\x14\n" +
 	"\x10CAPTURE_TYPE_DOM\x10\x05\x12\x1c\n" +
 	"\x18CAPTURE_TYPE_PERFORMANCE\x10\x06\x12\x1e\n" +
-	"\x1aCAPTURE_TYPE_ACCESSIBILITY\x10\a*\x90\x01\n" +
+	"\x1aCAPTURE_TYPE_ACCESSIBILITY\x10\a\x12\x19\n" +
+	"\x15CAPTURE_TYPE_DOM_TREE\x10\b*\x90\x01\n" +
 	"\x10DimensionsPreset\x12!\n" +
 	"\x1dDIMENSIONS_PRESET_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18DIMENSIONS_PRESET_MOBILE\x10\x01\x12\x1c\n" +

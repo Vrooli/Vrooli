@@ -40,8 +40,8 @@ func (a *App) cmdBacklogProcessPreflight(args []string) error {
 	fmt.Printf("  Item: %s/%s\n", response.Item.Kind, response.Item.Name)
 	if response.Preflight.ResolvedTargetScenarioID != "" {
 		fmt.Printf("  Target Scenario: %s\n", response.Preflight.ResolvedTargetScenarioID)
+		fmt.Printf("  Target Exists: %t\n", response.Preflight.TargetScenarioExists)
 	}
-	fmt.Printf("  Target Exists: %t\n", response.Preflight.TargetScenarioExists)
 	if response.Preflight.SuggestedOperation != "" {
 		fmt.Printf("  Suggested Operation: %s\n", response.Preflight.SuggestedOperation)
 	}

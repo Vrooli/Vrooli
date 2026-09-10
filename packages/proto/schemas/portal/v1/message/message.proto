@@ -51,6 +51,7 @@ message Message {
   string updated_at = 9;
   repeated SearchAttachment search_attachments = 10;
   repeated string context_document_ids = 11;
+  string brief_id = 12;
 }
 
 message SearchAttachment {

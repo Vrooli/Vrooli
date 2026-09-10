@@ -33,7 +33,7 @@ class ReindexStatusRequest(_message.Message):
     def __init__(self, job_id: _Optional[str] = ...) -> None: ...
 
 class ReindexStatusResponse(_message.Message):
-    __slots__ = ("job_id", "state", "processed", "total", "error", "warnings", "scenario_outcomes")
+    __slots__ = ("job_id", "state", "processed", "total", "error", "warnings", "scenario_outcomes", "observations", "orphan_surfaces", "dead_routes")
     JOB_ID_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
     PROCESSED_FIELD_NUMBER: _ClassVar[int]
@@ -41,6 +41,9 @@ class ReindexStatusResponse(_message.Message):
     ERROR_FIELD_NUMBER: _ClassVar[int]
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_OUTCOMES_FIELD_NUMBER: _ClassVar[int]
+    OBSERVATIONS_FIELD_NUMBER: _ClassVar[int]
+    ORPHAN_SURFACES_FIELD_NUMBER: _ClassVar[int]
+    DEAD_ROUTES_FIELD_NUMBER: _ClassVar[int]
     job_id: str
     state: str
     processed: int
@@ -48,7 +51,28 @@ class ReindexStatusResponse(_message.Message):
     error: str
     warnings: _containers.RepeatedScalarFieldContainer[str]
     scenario_outcomes: _containers.RepeatedCompositeFieldContainer[ScenarioDispatchOutcome]
-    def __init__(self, job_id: _Optional[str] = ..., state: _Optional[str] = ..., processed: _Optional[int] = ..., total: _Optional[int] = ..., error: _Optional[str] = ..., warnings: _Optional[_Iterable[str]] = ..., scenario_outcomes: _Optional[_Iterable[_Union[ScenarioDispatchOutcome, _Mapping]]] = ...) -> None: ...
+    observations: _containers.RepeatedCompositeFieldContainer[RouteObservation]
+    orphan_surfaces: _containers.RepeatedScalarFieldContainer[str]
+    dead_routes: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, job_id: _Optional[str] = ..., state: _Optional[str] = ..., processed: _Optional[int] = ..., total: _Optional[int] = ..., error: _Optional[str] = ..., warnings: _Optional[_Iterable[str]] = ..., scenario_outcomes: _Optional[_Iterable[_Union[ScenarioDispatchOutcome, _Mapping]]] = ..., observations: _Optional[_Iterable[_Union[RouteObservation, _Mapping]]] = ..., orphan_surfaces: _Optional[_Iterable[str]] = ..., dead_routes: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class RouteObservation(_message.Message):
+    __slots__ = ("scenario", "route", "link_text", "page_title", "observed_at", "reachable", "http_status")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    ROUTE_FIELD_NUMBER: _ClassVar[int]
+    LINK_TEXT_FIELD_NUMBER: _ClassVar[int]
+    PAGE_TITLE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    REACHABLE_FIELD_NUMBER: _ClassVar[int]
+    HTTP_STATUS_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    route: str
+    link_text: str
+    page_title: str
+    observed_at: str
+    reachable: bool
+    http_status: int
+    def __init__(self, scenario: _Optional[str] = ..., route: _Optional[str] = ..., link_text: _Optional[str] = ..., page_title: _Optional[str] = ..., observed_at: _Optional[str] = ..., reachable: _Optional[bool] = ..., http_status: _Optional[int] = ...) -> None: ...
 
 class ScenarioDispatchOutcome(_message.Message):
     __slots__ = ("scenario", "surfaces_found", "error", "template_id")

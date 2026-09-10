@@ -7,21 +7,23 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class AdviceUse(_message.Message):
-    __slots__ = ("entry_id", "decision", "decision_change", "verdict", "evidence_refs")
+    __slots__ = ("entry_id", "decision", "decision_change", "verdict", "evidence_refs", "derived")
     ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
     DECISION_FIELD_NUMBER: _ClassVar[int]
     DECISION_CHANGE_FIELD_NUMBER: _ClassVar[int]
     VERDICT_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_REFS_FIELD_NUMBER: _ClassVar[int]
+    DERIVED_FIELD_NUMBER: _ClassVar[int]
     entry_id: str
     decision: str
     decision_change: str
     verdict: str
     evidence_refs: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, entry_id: _Optional[str] = ..., decision: _Optional[str] = ..., decision_change: _Optional[str] = ..., verdict: _Optional[str] = ..., evidence_refs: _Optional[_Iterable[str]] = ...) -> None: ...
+    derived: bool
+    def __init__(self, entry_id: _Optional[str] = ..., decision: _Optional[str] = ..., decision_change: _Optional[str] = ..., verdict: _Optional[str] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., derived: _Optional[bool] = ...) -> None: ...
 
 class Attempt(_message.Message):
-    __slots__ = ("attempt_id", "task_id", "operation", "context_key", "started_at", "finished_at", "outcome", "failure_fingerprint", "evidence_refs", "advice", "recall_status", "provenance", "trigger", "approach", "task_started_at", "attempt_number", "first_action_at", "tool_round_trips", "visual_reasoning_calls", "reused_workflow")
+    __slots__ = ("attempt_id", "task_id", "operation", "context_key", "started_at", "finished_at", "outcome", "failure_fingerprint", "evidence_refs", "advice", "recall_status", "provenance", "trigger", "approach", "task_started_at", "attempt_number", "first_action_at", "tool_round_trips", "visual_reasoning_calls", "reused_workflow", "parent_attempt_id", "step_name")
     ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
@@ -42,6 +44,8 @@ class Attempt(_message.Message):
     TOOL_ROUND_TRIPS_FIELD_NUMBER: _ClassVar[int]
     VISUAL_REASONING_CALLS_FIELD_NUMBER: _ClassVar[int]
     REUSED_WORKFLOW_FIELD_NUMBER: _ClassVar[int]
+    PARENT_ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
+    STEP_NAME_FIELD_NUMBER: _ClassVar[int]
     attempt_id: str
     task_id: str
     operation: str
@@ -62,7 +66,9 @@ class Attempt(_message.Message):
     tool_round_trips: int
     visual_reasoning_calls: int
     reused_workflow: bool
-    def __init__(self, attempt_id: _Optional[str] = ..., task_id: _Optional[str] = ..., operation: _Optional[str] = ..., context_key: _Optional[str] = ..., started_at: _Optional[str] = ..., finished_at: _Optional[str] = ..., outcome: _Optional[str] = ..., failure_fingerprint: _Optional[str] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., advice: _Optional[_Iterable[_Union[AdviceUse, _Mapping]]] = ..., recall_status: _Optional[str] = ..., provenance: _Optional[str] = ..., trigger: _Optional[str] = ..., approach: _Optional[str] = ..., task_started_at: _Optional[str] = ..., attempt_number: _Optional[int] = ..., first_action_at: _Optional[str] = ..., tool_round_trips: _Optional[int] = ..., visual_reasoning_calls: _Optional[int] = ..., reused_workflow: _Optional[bool] = ...) -> None: ...
+    parent_attempt_id: str
+    step_name: str
+    def __init__(self, attempt_id: _Optional[str] = ..., task_id: _Optional[str] = ..., operation: _Optional[str] = ..., context_key: _Optional[str] = ..., started_at: _Optional[str] = ..., finished_at: _Optional[str] = ..., outcome: _Optional[str] = ..., failure_fingerprint: _Optional[str] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., advice: _Optional[_Iterable[_Union[AdviceUse, _Mapping]]] = ..., recall_status: _Optional[str] = ..., provenance: _Optional[str] = ..., trigger: _Optional[str] = ..., approach: _Optional[str] = ..., task_started_at: _Optional[str] = ..., attempt_number: _Optional[int] = ..., first_action_at: _Optional[str] = ..., tool_round_trips: _Optional[int] = ..., visual_reasoning_calls: _Optional[int] = ..., reused_workflow: _Optional[bool] = ..., parent_attempt_id: _Optional[str] = ..., step_name: _Optional[str] = ...) -> None: ...
 
 class RecordAttemptRequest(_message.Message):
     __slots__ = ("scope", "attempt")
@@ -130,7 +136,7 @@ class MeasureLearningRequest(_message.Message):
     def __init__(self, scope: _Optional[str] = ..., to: _Optional[str] = ..., operation: _Optional[str] = ..., context_key: _Optional[str] = ..., **kwargs) -> None: ...
 
 class Cohort(_message.Message):
-    __slots__ = ("operation", "context_key", "attempts", "tasks", "verified_successes", "failed", "unavailable", "unknown", "recurring_failure_fingerprints", "repeated_failures", "applied_advice", "rejected_advice", "supported_advice", "contradicted_advice", "unassessed_advice", "contradiction_rate", "completed_tasks", "unresolved_tasks", "median_attempts_to_success", "median_seconds_to_success", "left_censored_tasks", "no_match", "recall_unavailable", "median_seconds_to_first_action", "median_tool_round_trips", "median_visual_reasoning_calls", "workflow_reuse_rate", "first_action_samples", "tool_round_trip_samples", "visual_reasoning_samples", "reuse_samples", "supported_feedback", "contradicted_feedback", "unresolved_feedback")
+    __slots__ = ("operation", "context_key", "attempts", "tasks", "verified_successes", "failed", "unavailable", "unknown", "recurring_failure_fingerprints", "repeated_failures", "applied_advice", "rejected_advice", "supported_advice", "contradicted_advice", "unassessed_advice", "contradiction_rate", "completed_tasks", "unresolved_tasks", "median_attempts_to_success", "median_seconds_to_success", "left_censored_tasks", "no_match", "recall_unavailable", "median_seconds_to_first_action", "median_tool_round_trips", "median_visual_reasoning_calls", "workflow_reuse_rate", "first_action_samples", "tool_round_trip_samples", "visual_reasoning_samples", "reuse_samples", "supported_feedback", "contradicted_feedback", "unresolved_feedback", "recall_not_requested", "derived_advice", "explicit_advice", "provenance")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_KEY_FIELD_NUMBER: _ClassVar[int]
     ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
@@ -165,6 +171,10 @@ class Cohort(_message.Message):
     SUPPORTED_FEEDBACK_FIELD_NUMBER: _ClassVar[int]
     CONTRADICTED_FEEDBACK_FIELD_NUMBER: _ClassVar[int]
     UNRESOLVED_FEEDBACK_FIELD_NUMBER: _ClassVar[int]
+    RECALL_NOT_REQUESTED_FIELD_NUMBER: _ClassVar[int]
+    DERIVED_ADVICE_FIELD_NUMBER: _ClassVar[int]
+    EXPLICIT_ADVICE_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
     operation: str
     context_key: str
     attempts: int
@@ -199,7 +209,11 @@ class Cohort(_message.Message):
     supported_feedback: int
     contradicted_feedback: int
     unresolved_feedback: int
-    def __init__(self, operation: _Optional[str] = ..., context_key: _Optional[str] = ..., attempts: _Optional[int] = ..., tasks: _Optional[int] = ..., verified_successes: _Optional[int] = ..., failed: _Optional[int] = ..., unavailable: _Optional[int] = ..., unknown: _Optional[int] = ..., recurring_failure_fingerprints: _Optional[int] = ..., repeated_failures: _Optional[int] = ..., applied_advice: _Optional[int] = ..., rejected_advice: _Optional[int] = ..., supported_advice: _Optional[int] = ..., contradicted_advice: _Optional[int] = ..., unassessed_advice: _Optional[int] = ..., contradiction_rate: _Optional[float] = ..., completed_tasks: _Optional[int] = ..., unresolved_tasks: _Optional[int] = ..., median_attempts_to_success: _Optional[float] = ..., median_seconds_to_success: _Optional[float] = ..., left_censored_tasks: _Optional[int] = ..., no_match: _Optional[int] = ..., recall_unavailable: _Optional[int] = ..., median_seconds_to_first_action: _Optional[float] = ..., median_tool_round_trips: _Optional[float] = ..., median_visual_reasoning_calls: _Optional[float] = ..., workflow_reuse_rate: _Optional[float] = ..., first_action_samples: _Optional[int] = ..., tool_round_trip_samples: _Optional[int] = ..., visual_reasoning_samples: _Optional[int] = ..., reuse_samples: _Optional[int] = ..., supported_feedback: _Optional[int] = ..., contradicted_feedback: _Optional[int] = ..., unresolved_feedback: _Optional[int] = ...) -> None: ...
+    recall_not_requested: int
+    derived_advice: int
+    explicit_advice: int
+    provenance: str
+    def __init__(self, operation: _Optional[str] = ..., context_key: _Optional[str] = ..., attempts: _Optional[int] = ..., tasks: _Optional[int] = ..., verified_successes: _Optional[int] = ..., failed: _Optional[int] = ..., unavailable: _Optional[int] = ..., unknown: _Optional[int] = ..., recurring_failure_fingerprints: _Optional[int] = ..., repeated_failures: _Optional[int] = ..., applied_advice: _Optional[int] = ..., rejected_advice: _Optional[int] = ..., supported_advice: _Optional[int] = ..., contradicted_advice: _Optional[int] = ..., unassessed_advice: _Optional[int] = ..., contradiction_rate: _Optional[float] = ..., completed_tasks: _Optional[int] = ..., unresolved_tasks: _Optional[int] = ..., median_attempts_to_success: _Optional[float] = ..., median_seconds_to_success: _Optional[float] = ..., left_censored_tasks: _Optional[int] = ..., no_match: _Optional[int] = ..., recall_unavailable: _Optional[int] = ..., median_seconds_to_first_action: _Optional[float] = ..., median_tool_round_trips: _Optional[float] = ..., median_visual_reasoning_calls: _Optional[float] = ..., workflow_reuse_rate: _Optional[float] = ..., first_action_samples: _Optional[int] = ..., tool_round_trip_samples: _Optional[int] = ..., visual_reasoning_samples: _Optional[int] = ..., reuse_samples: _Optional[int] = ..., supported_feedback: _Optional[int] = ..., contradicted_feedback: _Optional[int] = ..., unresolved_feedback: _Optional[int] = ..., recall_not_requested: _Optional[int] = ..., derived_advice: _Optional[int] = ..., explicit_advice: _Optional[int] = ..., provenance: _Optional[str] = ...) -> None: ...
 
 class MeasureLearningResponse(_message.Message):
     __slots__ = ("scope", "to", "cohorts", "scanned_entries", "eligible_attempts", "excluded_test_attempts", "legacy_task_records", "invalid_records", "duplicate_attempts", "truncated", "reliable", "reason", "evidence_refs", "interpretation")

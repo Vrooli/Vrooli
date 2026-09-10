@@ -41,8 +41,30 @@ class ReadinessFact(_message.Message):
     recovery_action: str
     def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., passed: _Optional[bool] = ..., detail: _Optional[str] = ..., state: _Optional[str] = ..., version: _Optional[str] = ..., recovery_action: _Optional[str] = ...) -> None: ...
 
+class OperationReadiness(_message.Message):
+    __slots__ = ("operation", "ready", "state", "reason_code", "detail", "recovery_action", "observed_at", "fresh_until", "source")
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    READY_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    REASON_CODE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_ACTION_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    FRESH_UNTIL_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    operation: str
+    ready: bool
+    state: str
+    reason_code: str
+    detail: str
+    recovery_action: str
+    observed_at: _timestamp_pb2.Timestamp
+    fresh_until: _timestamp_pb2.Timestamp
+    source: str
+    def __init__(self, operation: _Optional[str] = ..., ready: _Optional[bool] = ..., state: _Optional[str] = ..., reason_code: _Optional[str] = ..., detail: _Optional[str] = ..., recovery_action: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., fresh_until: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source: _Optional[str] = ...) -> None: ...
+
 class Target(_message.Message):
-    __slots__ = ("id", "kind", "label", "os", "arch", "node_id", "revision", "status", "online", "last_seen_at", "readiness", "dispatchable", "failure_rung", "state", "recovery_action", "survives_restart")
+    __slots__ = ("id", "kind", "label", "os", "arch", "node_id", "revision", "status", "online", "last_seen_at", "readiness", "dispatchable", "failure_rung", "state", "recovery_action", "survives_restart", "operation_readiness")
     ID_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
@@ -59,6 +81,7 @@ class Target(_message.Message):
     STATE_FIELD_NUMBER: _ClassVar[int]
     RECOVERY_ACTION_FIELD_NUMBER: _ClassVar[int]
     SURVIVES_RESTART_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_READINESS_FIELD_NUMBER: _ClassVar[int]
     id: str
     kind: str
     label: str
@@ -75,4 +98,5 @@ class Target(_message.Message):
     state: TargetState
     recovery_action: str
     survives_restart: bool
-    def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., label: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., node_id: _Optional[str] = ..., revision: _Optional[str] = ..., status: _Optional[str] = ..., online: _Optional[bool] = ..., last_seen_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., readiness: _Optional[_Iterable[_Union[ReadinessFact, _Mapping]]] = ..., dispatchable: _Optional[bool] = ..., failure_rung: _Optional[str] = ..., state: _Optional[_Union[TargetState, str]] = ..., recovery_action: _Optional[str] = ..., survives_restart: _Optional[bool] = ...) -> None: ...
+    operation_readiness: _containers.RepeatedCompositeFieldContainer[OperationReadiness]
+    def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., label: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., node_id: _Optional[str] = ..., revision: _Optional[str] = ..., status: _Optional[str] = ..., online: _Optional[bool] = ..., last_seen_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., readiness: _Optional[_Iterable[_Union[ReadinessFact, _Mapping]]] = ..., dispatchable: _Optional[bool] = ..., failure_rung: _Optional[str] = ..., state: _Optional[_Union[TargetState, str]] = ..., recovery_action: _Optional[str] = ..., survives_restart: _Optional[bool] = ..., operation_readiness: _Optional[_Iterable[_Union[OperationReadiness, _Mapping]]] = ...) -> None: ...

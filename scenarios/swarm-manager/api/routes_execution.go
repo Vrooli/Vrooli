@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/autofiler"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/evidence"
@@ -17,6 +19,7 @@ import (
 	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
+	"swarm-manager/internal/workflowcontract"
 )
 
 func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *execution.Service {
@@ -244,6 +247,21 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 		},
 	}
 	if execSvc != nil {
+		workflowEvidence := agentmanager.NewWorkflowService()
+		cfg.LoadExecutionEvidence = func(ctx context.Context, executionID string) (json.RawMessage, error) {
+			record, err := execSvc.Get(ctx, executionID)
+			if err != nil {
+				return nil, err
+			}
+			correlation, err := execSvc.CorrelationForExecution(ctx, executionID)
+			if err != nil {
+				return nil, fmt.Errorf("execution %s workflow correlation: %w", executionID, err)
+			}
+			if record.WorkflowGrant == nil {
+				return nil, fmt.Errorf("execution %s has no saved workflow grant", executionID)
+			}
+			return workflowEvidence.ReviewWorkflowSnapshot(ctx, correlation.ExecutionID, executionID, record.ApprovalDigest, workflowcontract.GrantDigest(record.WorkflowGrant))
+		}
 		cfg.LoadExecutionContext = func(ctx context.Context, executionID string) (*review.ExecutionContext, error) {
 			record, err := execSvc.Get(ctx, executionID)
 			if err != nil {

@@ -22,8 +22,7 @@ const (
 )
 
 // BehaviorMode is Portal's dependency-driven behavior ladder.
-// FULL is carried for forward compatibility with the plan-3 short-circuit
-// gate, but v0 policy must never emit it.
+// FULL enables the precision-gated context brief path.
 type BehaviorMode int32
 
 const (
@@ -141,6 +140,7 @@ const (
 	AgentHarness_AGENT_HARNESS_CODEX       AgentHarness = 2
 	AgentHarness_AGENT_HARNESS_OPENCODE    AgentHarness = 3
 	AgentHarness_AGENT_HARNESS_GROK        AgentHarness = 4
+	AgentHarness_AGENT_HARNESS_ANTIGRAVITY AgentHarness = 5
 )
 
 // Enum value maps for AgentHarness.
@@ -151,6 +151,7 @@ var (
 		2: "AGENT_HARNESS_CODEX",
 		3: "AGENT_HARNESS_OPENCODE",
 		4: "AGENT_HARNESS_GROK",
+		5: "AGENT_HARNESS_ANTIGRAVITY",
 	}
 	AgentHarness_value = map[string]int32{
 		"AGENT_HARNESS_UNSPECIFIED": 0,
@@ -158,6 +159,7 @@ var (
 		"AGENT_HARNESS_CODEX":       2,
 		"AGENT_HARNESS_OPENCODE":    3,
 		"AGENT_HARNESS_GROK":        4,
+		"AGENT_HARNESS_ANTIGRAVITY": 5,
 	}
 )
 
@@ -362,13 +364,14 @@ const file_portal_v1_shared_common_proto_rawDesc = "" +
 	"\x19INTEGRATION_STATE_UNKNOWN\x10\x01\x12\x1f\n" +
 	"\x1bINTEGRATION_STATE_AVAILABLE\x10\x02\x12\x1e\n" +
 	"\x1aINTEGRATION_STATE_DEGRADED\x10\x03\x12!\n" +
-	"\x1dINTEGRATION_STATE_UNAVAILABLE\x10\x04*\x99\x01\n" +
+	"\x1dINTEGRATION_STATE_UNAVAILABLE\x10\x04*\xb8\x01\n" +
 	"\fAgentHarness\x12\x1d\n" +
 	"\x19AGENT_HARNESS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19AGENT_HARNESS_CLAUDE_CODE\x10\x01\x12\x17\n" +
 	"\x13AGENT_HARNESS_CODEX\x10\x02\x12\x1a\n" +
 	"\x16AGENT_HARNESS_OPENCODE\x10\x03\x12\x16\n" +
-	"\x12AGENT_HARNESS_GROK\x10\x04*M\n" +
+	"\x12AGENT_HARNESS_GROK\x10\x04\x12\x1d\n" +
+	"\x19AGENT_HARNESS_ANTIGRAVITY\x10\x05*M\n" +
 	"\bChatMode\x12\x19\n" +
 	"\x15CHAT_MODE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rCHAT_MODE_LLM\x10\x01\x12\x13\n" +

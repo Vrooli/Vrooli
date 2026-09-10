@@ -167,6 +167,7 @@ See [docs/phases/business/requirements-sync.md](docs/phases/business/requirement
 |----------|-------------|---------|
 | `PORT` | API server port | `8200` |
 | `TEST_GENIE_SQLITE_PATH` | Embedded SQLite database path | `${SCENARIO_DATA_DIR}/test-genie.db` |
+| `TEST_GENIE_DEPLOYMENT_MANAGER_READINESS_TOKEN` | Server-side service credential used to report candidate-bound terminal suite evidence to Deployment Manager; a run reports `test-regression-proof` only when its request also supplies `release_predecessor_run_id` | unset; readiness reporting disabled |
 | `SCENARIO_DATA_DIR` | Scenario-local persistent data root | Lifecycle-managed |
 
 ## Development

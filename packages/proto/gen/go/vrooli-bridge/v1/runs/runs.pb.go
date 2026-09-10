@@ -23,15 +23,15 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// RunStatus is a run's lifecycle state. QUEUED/RUNNING are non-terminal;
-// PASSED/FAILED/ABORTED are terminal. WaitRun returns once the run reaches a
-// terminal status (or its wait deadline elapses).
+// RunStatus is a run's lifecycle state. QUEUED/RUNNING/CANCEL_REQUESTED/
+// UNCERTAIN are non-terminal; PASSED/FAILED/ABORTED are terminal. WaitRun
+// returns once the run reaches a terminal status (or its wait deadline elapses).
 type RunStatus int32
 
 const (
 	RunStatus_RUN_STATUS_UNSPECIFIED RunStatus = 0
-	// The run record exists and the JobPush has been delivered, but the node has
-	// not yet reported it started.
+	// The run record exists and is waiting for a delivery slot; the node has not
+	// yet reported it started.
 	RunStatus_RUN_STATUS_QUEUED RunStatus = 1
 	// The node reported the job is executing.
 	RunStatus_RUN_STATUS_RUNNING RunStatus = 2
@@ -44,31 +44,39 @@ const (
 	RunStatus_RUN_STATUS_PUSHED          RunStatus = 6
 	RunStatus_RUN_STATUS_ACKED           RunStatus = 7
 	RunStatus_RUN_STATUS_FAILED_DELIVERY RunStatus = 8
+	// The operator requested cancellation; remote termination is not confirmed.
+	RunStatus_RUN_STATUS_CANCEL_REQUESTED RunStatus = 9
+	// Delivery or termination evidence is insufficient for a safe conclusion.
+	RunStatus_RUN_STATUS_UNCERTAIN RunStatus = 10
 )
 
 // Enum value maps for RunStatus.
 var (
 	RunStatus_name = map[int32]string{
-		0: "RUN_STATUS_UNSPECIFIED",
-		1: "RUN_STATUS_QUEUED",
-		2: "RUN_STATUS_RUNNING",
-		3: "RUN_STATUS_PASSED",
-		4: "RUN_STATUS_FAILED",
-		5: "RUN_STATUS_ABORTED",
-		6: "RUN_STATUS_PUSHED",
-		7: "RUN_STATUS_ACKED",
-		8: "RUN_STATUS_FAILED_DELIVERY",
+		0:  "RUN_STATUS_UNSPECIFIED",
+		1:  "RUN_STATUS_QUEUED",
+		2:  "RUN_STATUS_RUNNING",
+		3:  "RUN_STATUS_PASSED",
+		4:  "RUN_STATUS_FAILED",
+		5:  "RUN_STATUS_ABORTED",
+		6:  "RUN_STATUS_PUSHED",
+		7:  "RUN_STATUS_ACKED",
+		8:  "RUN_STATUS_FAILED_DELIVERY",
+		9:  "RUN_STATUS_CANCEL_REQUESTED",
+		10: "RUN_STATUS_UNCERTAIN",
 	}
 	RunStatus_value = map[string]int32{
-		"RUN_STATUS_UNSPECIFIED":     0,
-		"RUN_STATUS_QUEUED":          1,
-		"RUN_STATUS_RUNNING":         2,
-		"RUN_STATUS_PASSED":          3,
-		"RUN_STATUS_FAILED":          4,
-		"RUN_STATUS_ABORTED":         5,
-		"RUN_STATUS_PUSHED":          6,
-		"RUN_STATUS_ACKED":           7,
-		"RUN_STATUS_FAILED_DELIVERY": 8,
+		"RUN_STATUS_UNSPECIFIED":      0,
+		"RUN_STATUS_QUEUED":           1,
+		"RUN_STATUS_RUNNING":          2,
+		"RUN_STATUS_PASSED":           3,
+		"RUN_STATUS_FAILED":           4,
+		"RUN_STATUS_ABORTED":          5,
+		"RUN_STATUS_PUSHED":           6,
+		"RUN_STATUS_ACKED":            7,
+		"RUN_STATUS_FAILED_DELIVERY":  8,
+		"RUN_STATUS_CANCEL_REQUESTED": 9,
+		"RUN_STATUS_UNCERTAIN":        10,
 	}
 )
 
@@ -127,9 +135,14 @@ type Run struct {
 	FinishedAt *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
 	// device-sync-hub references to artifacts the run produced. The bytes never
 	// transit the control-plane store (DATA.md) — only the refs.
-	ArtifactRefs  []string `protobuf:"bytes,12,rep,name=artifact_refs,json=artifactRefs,proto3" json:"artifact_refs,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ArtifactRefs []string `protobuf:"bytes,12,rep,name=artifact_refs,json=artifactRefs,proto3" json:"artifact_refs,omitempty"`
+	// Cancellation and uncertainty are explicit so an operator never mistakes
+	// a lost cancel/termination receipt for confirmed process termination.
+	CancelRequested       bool   `protobuf:"varint,13,opt,name=cancel_requested,json=cancelRequested,proto3" json:"cancel_requested,omitempty"`
+	CancellationConfirmed bool   `protobuf:"varint,14,opt,name=cancellation_confirmed,json=cancellationConfirmed,proto3" json:"cancellation_confirmed,omitempty"`
+	StatusReason          string `protobuf:"bytes,15,opt,name=status_reason,json=statusReason,proto3" json:"status_reason,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *Run) Reset() {
@@ -244,6 +257,27 @@ func (x *Run) GetArtifactRefs() []string {
 		return x.ArtifactRefs
 	}
 	return nil
+}
+
+func (x *Run) GetCancelRequested() bool {
+	if x != nil {
+		return x.CancelRequested
+	}
+	return false
+}
+
+func (x *Run) GetCancellationConfirmed() bool {
+	if x != nil {
+		return x.CancellationConfirmed
+	}
+	return false
+}
+
+func (x *Run) GetStatusReason() string {
+	if x != nil {
+		return x.StatusReason
+	}
+	return ""
 }
 
 type GetRunRequest struct {
@@ -831,7 +865,7 @@ var File_vrooli_bridge_v1_runs_runs_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_runs_runs_proto_rawDesc = "" +
 	"\n" +
-	" vrooli-bridge/v1/runs/runs.proto\x12\x1cvrooli.vrooli_bridge.v1.runs\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$vrooli-bridge/v1/shared/shared.proto\"\xd1\x03\n" +
+	" vrooli-bridge/v1/runs/runs.proto\x12\x1cvrooli.vrooli_bridge.v1.runs\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$vrooli-bridge/v1/shared/shared.proto\"\xd8\x04\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x1a\n" +
@@ -848,7 +882,10 @@ const file_vrooli_bridge_v1_runs_runs_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12;\n" +
 	"\vfinished_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"finishedAt\x12#\n" +
-	"\rartifact_refs\x18\f \x03(\tR\fartifactRefs\"\x1f\n" +
+	"\rartifact_refs\x18\f \x03(\tR\fartifactRefs\x12)\n" +
+	"\x10cancel_requested\x18\r \x01(\bR\x0fcancelRequested\x125\n" +
+	"\x16cancellation_confirmed\x18\x0e \x01(\bR\x15cancellationConfirmed\x12#\n" +
+	"\rstatus_reason\x18\x0f \x01(\tR\fstatusReason\"\x1f\n" +
 	"\rGetRunRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x87\x01\n" +
 	"\x0eGetRunResponse\x123\n" +
@@ -877,7 +914,7 @@ const file_vrooli_bridge_v1_runs_runs_proto_rawDesc = "" +
 	"\x15ReportRunEventRequest\x12>\n" +
 	"\x05event\x18\x01 \x01(\v2(.vrooli.vrooli_bridge.v1.shared.RunEventR\x05event\"4\n" +
 	"\x16ReportRunEventResponse\x12\x1a\n" +
-	"\baccepted\x18\x01 \x01(\bR\baccepted*\xe9\x01\n" +
+	"\baccepted\x18\x01 \x01(\bR\baccepted*\xa4\x02\n" +
 	"\tRunStatus\x12\x1a\n" +
 	"\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11RUN_STATUS_QUEUED\x10\x01\x12\x16\n" +
@@ -887,7 +924,10 @@ const file_vrooli_bridge_v1_runs_runs_proto_rawDesc = "" +
 	"\x12RUN_STATUS_ABORTED\x10\x05\x12\x15\n" +
 	"\x11RUN_STATUS_PUSHED\x10\x06\x12\x14\n" +
 	"\x10RUN_STATUS_ACKED\x10\a\x12\x1e\n" +
-	"\x1aRUN_STATUS_FAILED_DELIVERY\x10\b2\xa7\x05\n" +
+	"\x1aRUN_STATUS_FAILED_DELIVERY\x10\b\x12\x1f\n" +
+	"\x1bRUN_STATUS_CANCEL_REQUESTED\x10\t\x12\x18\n" +
+	"\x14RUN_STATUS_UNCERTAIN\x10\n" +
+	"2\xa7\x05\n" +
 	"\vRunsService\x12c\n" +
 	"\x06GetRun\x12+.vrooli.vrooli_bridge.v1.runs.GetRunRequest\x1a,.vrooli.vrooli_bridge.v1.runs.GetRunResponse\x12i\n" +
 	"\bListRuns\x12-.vrooli.vrooli_bridge.v1.runs.ListRunsRequest\x1a..vrooli.vrooli_bridge.v1.runs.ListRunsResponse\x12f\n" +

@@ -1261,6 +1261,8 @@ type AppliedChange struct {
 	ProjectRoot       string     `json:"projectRoot" db:"project_root"`
 	ChangeType        string     `json:"changeType" db:"change_type"`
 	FileSize          int64      `json:"fileSize" db:"file_size"`
+	ContentDigest     string     `json:"contentDigest,omitempty" db:"content_digest"`
+	EvidenceRevision  string     `json:"evidenceRevision,omitempty" db:"evidence_revision"`
 	AgentManagerRunID string     `json:"agentManagerRunId,omitempty" db:"agent_manager_run_id"`
 	AppliedAt         time.Time  `json:"appliedAt" db:"applied_at"`
 	CommittedAt       *time.Time `json:"committedAt,omitempty" db:"committed_at"`
@@ -1420,10 +1422,19 @@ type ProvenanceRunGroup struct {
 // action), or "denied" (operator declined or auto-deny on TTL expiry).
 // Empty for legacy records.
 type ProvenanceFile struct {
-	FilePath     string    `json:"filePath"`
-	RelativePath string    `json:"relativePath"`
-	ChangeType   string    `json:"changeType"`
-	AppliedAt    time.Time `json:"appliedAt"`
+	FilePath         string     `json:"filePath"`
+	RelativePath     string     `json:"relativePath"`
+	ChangeType       string     `json:"changeType"`
+	ContentDigest    string     `json:"contentDigest,omitempty"`
+	EvidenceRevision string     `json:"evidenceRevision,omitempty"`
+	AppliedAt        time.Time  `json:"appliedAt"`
+	CommittedAt      *time.Time `json:"committedAt,omitempty"`
+	CommitHash       string     `json:"commitHash,omitempty"`
+	CommitMessage    string     `json:"commitMessage,omitempty"`
+	RunOutcome       string     `json:"runOutcome,omitempty"`
+	ConversationID   string     `json:"conversationId,omitempty"`
+	CostUSD          float64    `json:"costUsd,omitempty"`
+	Unavailable      []string   `json:"unavailable,omitempty"`
 
 	// State ∈ {applied, pending-review, denied}; empty on legacy rows.
 	State ProvenanceFileState `json:"state,omitempty"`

@@ -14,7 +14,7 @@ func (s *Service) HasActiveForBacklog(ctx context.Context, kind, name string) bo
 			continue
 		}
 		switch record.Status {
-		case StatusPending, StatusStarting, StatusRunning, StatusNeedsReview, StatusValidating:
+		case StatusPending, StatusStarting, StatusRunning, StatusNeedsReview, StatusValidating, StatusCancelling:
 			return true
 		}
 	}

@@ -199,12 +199,33 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 	return nil
 }
 
-// DeleteBefore removes at most limit rows older than cutoff. Selecting rowids
-// inside the DELETE keeps each transaction bounded on large SQLite databases.
+// DeleteBefore removes at most limit rows older than cutoff. Select candidates
+// before opening a write transaction: LIMIT bounds rows returned, not the cost
+// of scanning history, and SQLite reserves its writer before a DELETE's scan.
+// Recheck eligibility by stable event identity in the short write transaction.
 func (s *SQLiteStore) DeleteBefore(ctx context.Context, cutoff time.Time, limit int) (int, error) {
 	if limit <= 0 {
 		return 0, fmt.Errorf("event retention batch limit must be positive")
 	}
+	var ids []string
+	if err := s.db.SelectContext(ctx, &ids, `SELECT events.id FROM run_events events
+		JOIN invocation_read_model_watermarks watermark ON watermark.run_id = events.run_id
+		LEFT JOIN runs run ON run.id = events.run_id
+		WHERE events.timestamp < ?
+		  AND watermark.projection_complete = 1
+		  AND COALESCE(run.execution_mode, '') <> 'imported'
+		ORDER BY events.timestamp ASC LIMIT ?`, sqliteTime(cutoff), limit); err != nil {
+		return 0, dbError("select_expired_events", err)
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	args := make([]any, 0, len(ids)+1)
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	args = append(args, sqliteTime(cutoff))
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
 	conn, err := s.db.Conn(ctx)
 	if err != nil {
 		return 0, dbError("event_retention_connection", err)
@@ -215,15 +236,12 @@ func (s *SQLiteStore) DeleteBefore(ctx context.Context, cutoff time.Time, limit 
 		return 0, dbError("begin_event_retention", err)
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(ctx, `DELETE FROM run_events WHERE rowid IN (
-		SELECT events.rowid FROM run_events events
-		JOIN invocation_read_model_watermarks watermark ON watermark.run_id = events.run_id
-		LEFT JOIN runs run ON run.id = events.run_id
-		WHERE events.timestamp < ?
-		  AND watermark.projection_complete = 1
-		  AND COALESCE(run.execution_mode, '') <> 'imported'
-		ORDER BY events.timestamp ASC LIMIT ?
-	)`, sqliteTime(cutoff), limit)
+	result, err := tx.ExecContext(ctx, `DELETE FROM run_events WHERE id IN (`+placeholders+`)
+		AND timestamp < ?
+		AND EXISTS (SELECT 1 FROM invocation_read_model_watermarks watermark
+		  WHERE watermark.run_id = run_events.run_id AND watermark.projection_complete = 1)
+		AND NOT EXISTS (SELECT 1 FROM runs run
+		  WHERE run.id = run_events.run_id AND run.execution_mode = 'imported')`, args...)
 	if err != nil {
 		return 0, dbError("delete_expired_events", err)
 	}

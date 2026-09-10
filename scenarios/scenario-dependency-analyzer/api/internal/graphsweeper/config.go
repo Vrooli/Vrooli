@@ -13,10 +13,10 @@ import (
 	"time"
 )
 
-// Config is the sweeper's tunable control surface. Defaults are conservative and
+// SweepConfig is the sweeper's tunable control surface. Defaults are conservative and
 // derived from the Phase 0 cold/warm fleet-build measurements (see
 // docs/perf/2026-06-22-sda-graph-ingest.md).
-type Config struct {
+type SweepConfig struct {
 	Enabled          bool
 	Interval         time.Duration
 	StartJitter      time.Duration
@@ -29,8 +29,8 @@ type Config struct {
 }
 
 // Defaults returns the conservative baseline configuration.
-func Defaults() Config {
-	return Config{
+func Defaults() SweepConfig {
+	return SweepConfig{
 		Enabled:          true,
 		Interval:         30 * time.Minute,
 		StartJitter:      90 * time.Second,
@@ -41,8 +41,8 @@ func Defaults() Config {
 	}
 }
 
-// LoadConfig builds a Config from SDA_GRAPH_SWEEP_* env knobs over the defaults.
-func LoadConfig(repoRoot, scenariosRoot string) Config {
+// LoadConfig builds a SweepConfig from SDA_GRAPH_SWEEP_* env knobs over the defaults.
+func LoadConfig(repoRoot, scenariosRoot string) SweepConfig {
 	cfg := Defaults()
 	cfg.RepoRoot = repoRoot
 	cfg.ScenariosRoot = scenariosRoot

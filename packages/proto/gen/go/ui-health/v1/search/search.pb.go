@@ -200,18 +200,24 @@ func (x *SearchRequest) GetMode() Mode {
 // at index time so the API does not have to re-scan source files on every
 // query.
 type SearchResult struct {
-	state         protoimpl.MessageState          `protogen:"open.v1"`
-	Scenario      string                          `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Slot          string                          `protobuf:"bytes,2,opt,name=slot,proto3" json:"slot,omitempty"`
-	Kind          SurfaceKind                     `protobuf:"varint,3,opt,name=kind,proto3,enum=vrooli.ui_health.v1.search.SurfaceKind" json:"kind,omitempty"`
-	DisplayName   string                          `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Description   string                          `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
-	FilePath      string                          `protobuf:"bytes,6,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
-	Score         float64                         `protobuf:"fixed64,7,opt,name=score,proto3" json:"score,omitempty"`
-	Provenance    *provenance.ComponentProvenance `protobuf:"bytes,8,opt,name=provenance,proto3" json:"provenance,omitempty"`
-	Widget        *widget.WidgetDeclaration       `protobuf:"bytes,9,opt,name=widget,proto3" json:"widget,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState          `protogen:"open.v1"`
+	Scenario          string                          `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Slot              string                          `protobuf:"bytes,2,opt,name=slot,proto3" json:"slot,omitempty"`
+	Kind              SurfaceKind                     `protobuf:"varint,3,opt,name=kind,proto3,enum=vrooli.ui_health.v1.search.SurfaceKind" json:"kind,omitempty"`
+	DisplayName       string                          `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Description       string                          `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
+	FilePath          string                          `protobuf:"bytes,6,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
+	Score             float64                         `protobuf:"fixed64,7,opt,name=score,proto3" json:"score,omitempty"`
+	Provenance        *provenance.ComponentProvenance `protobuf:"bytes,8,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	Widget            *widget.WidgetDeclaration       `protobuf:"bytes,9,opt,name=widget,proto3" json:"widget,omitempty"`
+	ObservedRoute     string                          `protobuf:"bytes,10,opt,name=observed_route,json=observedRoute,proto3" json:"observed_route,omitempty"`
+	ObservedLinkText  string                          `protobuf:"bytes,11,opt,name=observed_link_text,json=observedLinkText,proto3" json:"observed_link_text,omitempty"`
+	ObservedPageTitle string                          `protobuf:"bytes,12,opt,name=observed_page_title,json=observedPageTitle,proto3" json:"observed_page_title,omitempty"`
+	ObservedAt        string                          `protobuf:"bytes,13,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	Reachable         bool                            `protobuf:"varint,14,opt,name=reachable,proto3" json:"reachable,omitempty"`
+	HttpStatus        int32                           `protobuf:"varint,15,opt,name=http_status,json=httpStatus,proto3" json:"http_status,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SearchResult) Reset() {
@@ -305,6 +311,48 @@ func (x *SearchResult) GetWidget() *widget.WidgetDeclaration {
 		return x.Widget
 	}
 	return nil
+}
+
+func (x *SearchResult) GetObservedRoute() string {
+	if x != nil {
+		return x.ObservedRoute
+	}
+	return ""
+}
+
+func (x *SearchResult) GetObservedLinkText() string {
+	if x != nil {
+		return x.ObservedLinkText
+	}
+	return ""
+}
+
+func (x *SearchResult) GetObservedPageTitle() string {
+	if x != nil {
+		return x.ObservedPageTitle
+	}
+	return ""
+}
+
+func (x *SearchResult) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
+func (x *SearchResult) GetReachable() bool {
+	if x != nil {
+		return x.Reachable
+	}
+	return false
+}
+
+func (x *SearchResult) GetHttpStatus() int32 {
+	if x != nil {
+		return x.HttpStatus
+	}
+	return 0
 }
 
 type SearchResponse struct {
@@ -511,7 +559,7 @@ const file_ui_health_v1_search_search_proto_rawDesc = "" +
 	"\rSearchRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x124\n" +
-	"\x04mode\x18\x03 \x01(\x0e2 .vrooli.ui_health.v1.search.ModeR\x04mode\"\xa3\x03\n" +
+	"\x04mode\x18\x03 \x01(\x0e2 .vrooli.ui_health.v1.search.ModeR\x04mode\"\x88\x05\n" +
 	"\fSearchResult\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04slot\x18\x02 \x01(\tR\x04slot\x12;\n" +
@@ -523,7 +571,16 @@ const file_ui_health_v1_search_search_proto_rawDesc = "" +
 	"\n" +
 	"provenance\x18\b \x01(\v2=.vrooli.ui_health.v1.contracts.provenance.ComponentProvenanceR\n" +
 	"provenance\x12O\n" +
-	"\x06widget\x18\t \x01(\v27.vrooli.ui_health.v1.contracts.widget.WidgetDeclarationR\x06widget\"\xb8\x01\n" +
+	"\x06widget\x18\t \x01(\v27.vrooli.ui_health.v1.contracts.widget.WidgetDeclarationR\x06widget\x12%\n" +
+	"\x0eobserved_route\x18\n" +
+	" \x01(\tR\robservedRoute\x12,\n" +
+	"\x12observed_link_text\x18\v \x01(\tR\x10observedLinkText\x12.\n" +
+	"\x13observed_page_title\x18\f \x01(\tR\x11observedPageTitle\x12\x1f\n" +
+	"\vobserved_at\x18\r \x01(\tR\n" +
+	"observedAt\x12\x1c\n" +
+	"\treachable\x18\x0e \x01(\bR\treachable\x12\x1f\n" +
+	"\vhttp_status\x18\x0f \x01(\x05R\n" +
+	"httpStatus\"\xb8\x01\n" +
 	"\x0eSearchResponse\x12B\n" +
 	"\aresults\x18\x01 \x03(\v2(.vrooli.ui_health.v1.search.SearchResultR\aresults\x12=\n" +
 	"\tmode_used\x18\x02 \x01(\x0e2 .vrooli.ui_health.v1.search.ModeR\bmodeUsed\x12#\n" +

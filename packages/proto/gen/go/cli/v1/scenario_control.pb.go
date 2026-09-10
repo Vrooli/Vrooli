@@ -116,6 +116,10 @@ type GetScenarioLogsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	TailLines     int32                  `protobuf:"varint,2,opt,name=tail_lines,json=tailLines,proto3" json:"tail_lines,omitempty"`
+	Step          string                 `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
+	Runtime       bool                   `protobuf:"varint,4,opt,name=runtime,proto3" json:"runtime,omitempty"`
+	Lifecycle     bool                   `protobuf:"varint,5,opt,name=lifecycle,proto3" json:"lifecycle,omitempty"`
+	Previous      bool                   `protobuf:"varint,6,opt,name=previous,proto3" json:"previous,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -164,12 +168,47 @@ func (x *GetScenarioLogsRequest) GetTailLines() int32 {
 	return 0
 }
 
+func (x *GetScenarioLogsRequest) GetStep() string {
+	if x != nil {
+		return x.Step
+	}
+	return ""
+}
+
+func (x *GetScenarioLogsRequest) GetRuntime() bool {
+	if x != nil {
+		return x.Runtime
+	}
+	return false
+}
+
+func (x *GetScenarioLogsRequest) GetLifecycle() bool {
+	if x != nil {
+		return x.Lifecycle
+	}
+	return false
+}
+
+func (x *GetScenarioLogsRequest) GetPrevious() bool {
+	if x != nil {
+		return x.Previous
+	}
+	return false
+}
+
 type StartScenarioRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	TimeoutSeconds int32                  `protobuf:"varint,2,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Name                 string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	TimeoutSeconds       int32                  `protobuf:"varint,2,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	Path                 string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	BestEffort           bool                   `protobuf:"varint,4,opt,name=best_effort,json=bestEffort,proto3" json:"best_effort,omitempty"`
+	CleanStale           bool                   `protobuf:"varint,5,opt,name=clean_stale,json=cleanStale,proto3" json:"clean_stale,omitempty"`
+	Force                bool                   `protobuf:"varint,6,opt,name=force,proto3" json:"force,omitempty"`
+	AcceptCredentialLoss bool                   `protobuf:"varint,7,opt,name=accept_credential_loss,json=acceptCredentialLoss,proto3" json:"accept_credential_loss,omitempty"`
+	// Caller must retain renewable demand while using this instance.
+	DemandManaged bool `protobuf:"varint,8,opt,name=demand_managed,json=demandManaged,proto3" json:"demand_managed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartScenarioRequest) Reset() {
@@ -214,6 +253,48 @@ func (x *StartScenarioRequest) GetTimeoutSeconds() int32 {
 		return x.TimeoutSeconds
 	}
 	return 0
+}
+
+func (x *StartScenarioRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *StartScenarioRequest) GetBestEffort() bool {
+	if x != nil {
+		return x.BestEffort
+	}
+	return false
+}
+
+func (x *StartScenarioRequest) GetCleanStale() bool {
+	if x != nil {
+		return x.CleanStale
+	}
+	return false
+}
+
+func (x *StartScenarioRequest) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
+}
+
+func (x *StartScenarioRequest) GetAcceptCredentialLoss() bool {
+	if x != nil {
+		return x.AcceptCredentialLoss
+	}
+	return false
+}
+
+func (x *StartScenarioRequest) GetDemandManaged() bool {
+	if x != nil {
+		return x.DemandManaged
+	}
+	return false
 }
 
 type StopScenarioRequest struct {
@@ -261,11 +342,18 @@ func (x *StopScenarioRequest) GetName() string {
 }
 
 type RestartScenarioRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	TimeoutSeconds int32                  `protobuf:"varint,2,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Name                 string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	TimeoutSeconds       int32                  `protobuf:"varint,2,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	Path                 string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	BestEffort           bool                   `protobuf:"varint,4,opt,name=best_effort,json=bestEffort,proto3" json:"best_effort,omitempty"`
+	CleanStale           bool                   `protobuf:"varint,5,opt,name=clean_stale,json=cleanStale,proto3" json:"clean_stale,omitempty"`
+	Force                bool                   `protobuf:"varint,6,opt,name=force,proto3" json:"force,omitempty"`
+	AcceptCredentialLoss bool                   `protobuf:"varint,7,opt,name=accept_credential_loss,json=acceptCredentialLoss,proto3" json:"accept_credential_loss,omitempty"`
+	// Caller must retain renewable demand while using this instance.
+	DemandManaged bool `protobuf:"varint,8,opt,name=demand_managed,json=demandManaged,proto3" json:"demand_managed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RestartScenarioRequest) Reset() {
@@ -312,9 +400,52 @@ func (x *RestartScenarioRequest) GetTimeoutSeconds() int32 {
 	return 0
 }
 
+func (x *RestartScenarioRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *RestartScenarioRequest) GetBestEffort() bool {
+	if x != nil {
+		return x.BestEffort
+	}
+	return false
+}
+
+func (x *RestartScenarioRequest) GetCleanStale() bool {
+	if x != nil {
+		return x.CleanStale
+	}
+	return false
+}
+
+func (x *RestartScenarioRequest) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
+}
+
+func (x *RestartScenarioRequest) GetAcceptCredentialLoss() bool {
+	if x != nil {
+		return x.AcceptCredentialLoss
+	}
+	return false
+}
+
+func (x *RestartScenarioRequest) GetDemandManaged() bool {
+	if x != nil {
+		return x.DemandManaged
+	}
+	return false
+}
+
 type SetupScenarioRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -356,6 +487,13 @@ func (x *SetupScenarioRequest) GetName() string {
 	return ""
 }
 
+func (x *SetupScenarioRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
 var File_cli_v1_scenario_control_proto protoreflect.FileDescriptor
 
 const file_cli_v1_scenario_control_proto_rawDesc = "" +
@@ -364,21 +502,42 @@ const file_cli_v1_scenario_control_proto_rawDesc = "" +
 	"\x14ListScenariosRequest\x12#\n" +
 	"\rinclude_ports\x18\x01 \x01(\bR\fincludePorts\".\n" +
 	"\x18GetScenarioStatusRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"K\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"\xb3\x01\n" +
 	"\x16GetScenarioLogsRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
-	"tail_lines\x18\x02 \x01(\x05R\ttailLines\"S\n" +
+	"tail_lines\x18\x02 \x01(\x05R\ttailLines\x12\x12\n" +
+	"\x04step\x18\x03 \x01(\tR\x04step\x12\x18\n" +
+	"\aruntime\x18\x04 \x01(\bR\aruntime\x12\x1c\n" +
+	"\tlifecycle\x18\x05 \x01(\bR\tlifecycle\x12\x1a\n" +
+	"\bprevious\x18\x06 \x01(\bR\bprevious\"\x9c\x02\n" +
 	"\x14StartScenarioRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12'\n" +
-	"\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\")\n" +
+	"\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\x12\x1f\n" +
+	"\vbest_effort\x18\x04 \x01(\bR\n" +
+	"bestEffort\x12\x1f\n" +
+	"\vclean_stale\x18\x05 \x01(\bR\n" +
+	"cleanStale\x12\x14\n" +
+	"\x05force\x18\x06 \x01(\bR\x05force\x124\n" +
+	"\x16accept_credential_loss\x18\a \x01(\bR\x14acceptCredentialLoss\x12%\n" +
+	"\x0edemand_managed\x18\b \x01(\bR\rdemandManaged\")\n" +
 	"\x13StopScenarioRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"U\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"\x9e\x02\n" +
 	"\x16RestartScenarioRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12'\n" +
-	"\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\"*\n" +
+	"\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\x12\x1f\n" +
+	"\vbest_effort\x18\x04 \x01(\bR\n" +
+	"bestEffort\x12\x1f\n" +
+	"\vclean_stale\x18\x05 \x01(\bR\n" +
+	"cleanStale\x12\x14\n" +
+	"\x05force\x18\x06 \x01(\bR\x05force\x124\n" +
+	"\x16accept_credential_loss\x18\a \x01(\bR\x14acceptCredentialLoss\x12%\n" +
+	"\x0edemand_managed\x18\b \x01(\bR\rdemandManaged\">\n" +
 	"\x14SetupScenarioRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name2\xb8\x05\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path2\xb8\x05\n" +
 	"\x1bScenarioControlPlaneService\x12Y\n" +
 	"\rListScenarios\x12#.vrooli.cli.v1.ListScenariosRequest\x1a#.vrooli.cli.v1.ScenarioListResponse\x12a\n" +
 	"\x11GetScenarioStatus\x12'.vrooli.cli.v1.GetScenarioStatusRequest\x1a#.vrooli.cli.v1.ScenarioStatusSingle\x12]\n" +

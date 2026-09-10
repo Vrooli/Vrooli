@@ -9,10 +9,10 @@ import (
 
 var (
 	configOnce   sync.Once
-	cachedConfig appconfig.Config
+	cachedConfig appconfig.RuntimeConfig
 )
 
-func loadConfig() appconfig.Config {
+func loadConfig() appconfig.RuntimeConfig {
 	configOnce.Do(func() {
 		cachedConfig = appconfig.Load()
 	})
@@ -20,7 +20,7 @@ func loadConfig() appconfig.Config {
 }
 
 // ensureRuntime makes sure a runtime exists (used when Run hasn't set one yet).
-func ensureRuntime(cfg appconfig.Config, dbConn *sql.DB) *Runtime {
+func ensureRuntime(cfg appconfig.RuntimeConfig, dbConn *sql.DB) *Runtime {
 	if rt := currentRuntime(); rt != nil {
 		if dbConn != nil && (rt.DB() == nil || rt.DB() != dbConn) {
 			rt = NewRuntime(cfg, dbConn)

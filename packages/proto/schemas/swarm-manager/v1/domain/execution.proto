@@ -32,6 +32,7 @@ message ExecutionRecord {
       "needs_fixup",
       "completed",
       "failed",
+      "cancelling",
       "canceled"
     ]
   }];

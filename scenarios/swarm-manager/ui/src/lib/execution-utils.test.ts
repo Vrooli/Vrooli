@@ -73,6 +73,17 @@ describe("execution-utils", () => {
   });
 
   describe("action helpers", () => {
+    it("keeps cancellation visible and active until terminal accounting", () => {
+      const pendingCancellation: ExecutionRecord = { ...baseRecord, status: "cancelling" };
+      expect(isExecutionActive(pendingCancellation)).toBe(true);
+      expect(isExecutionInTab(pendingCancellation, "all")).toBe(true);
+      expect(isExecutionInTab(pendingCancellation, "running")).toBe(true);
+      expect(isExecutionInTab(pendingCancellation, "failed")).toBe(false);
+      expect(canStartExecution("cancelling")).toBe(false);
+      expect(canRetryExecution("cancelling")).toBe(false);
+      expect(canFollowUpExecution("cancelling")).toBe(false);
+    });
+
     it("returns true for active executions", () => {
       expect(isExecutionActive(baseRecord)).toBe(true);
     });

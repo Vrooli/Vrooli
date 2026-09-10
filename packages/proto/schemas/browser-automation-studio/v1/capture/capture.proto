@@ -49,6 +49,8 @@ enum CaptureType {
   // `bas-accessibility-snapshot/v1`. Failure to capture degrades
   // gracefully (the artifact is absent, the capture still succeeds).
   CAPTURE_TYPE_ACCESSIBILITY = 7;
+  // Normalized computed DOM-tree JSON snapshot captured in the same session.
+  CAPTURE_TYPE_DOM_TREE = 8;
 }
 
 // DimensionsPreset names common viewport sizes so callers do not have to
@@ -162,6 +164,14 @@ message CaptureRequest {
   // set, BAS captures that element as the primary screenshot while keeping
   // the rest of the evidence in the same browser session.
   string screenshot_selector = 13;
+
+  // When true, the DOM artifact is a normalized computed-style tree rather
+  // than raw outerHTML. It is captured after the same readiness condition and
+  // navigation as the screenshot.
+  bool inline_dom_tree = 14;
+
+  // Document direction applied after navigation and before artifacts.
+  string direction = 15;
 }
 
 message CaptureArtifact {
@@ -209,6 +219,10 @@ message CaptureResponse {
   // needing the snapshot must treat empty as a failed capture).
   // Size-capped server-side (2 MiB); truncation is silent.
   string accessibility_json = 7;
+
+  // Normalized computed DOM-tree JSON, populated when inline_dom_tree is set.
+  // The same tree is also written as the durable DOM_TREE artifact.
+  string dom_tree_json = 9;
 
   // Readiness decision and outcome for this capture. This makes it explicit
   // whether capture used a caller wait, a declared profile surface, or normal

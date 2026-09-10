@@ -6,10 +6,7 @@ iteration, not certification. A returned receipt is not a passing test result.
 """
 import json
 import re
-try:
-    inputs
-except NameError:
-    inputs = {}
+inputs = program.inputs()
 envelope = {"program": "test-genie.iterate", "version": "1", "status": "failed", "phase": "validate",
             "signals": {"outcome": "unknown"}, "errors": [], "evidence": []}
 try:

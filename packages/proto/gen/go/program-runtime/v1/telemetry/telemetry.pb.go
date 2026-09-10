@@ -118,6 +118,13 @@ type ProgramEvent struct {
 	ShapeSessions      int64                  `protobuf:"varint,17,opt,name=shape_sessions,json=shapeSessions,proto3" json:"shape_sessions,omitempty"`
 	DominantScenario   string                 `protobuf:"bytes,18,opt,name=dominant_scenario,json=dominantScenario,proto3" json:"dominant_scenario,omitempty"`
 	CoveringContractId string                 `protobuf:"bytes,19,opt,name=covering_contract_id,json=coveringContractId,proto3" json:"covering_contract_id,omitempty"`
+	// Copied from the durable Program row; session identity is reclaimed.
+	ProgramName        string `protobuf:"bytes,20,opt,name=program_name,json=programName,proto3" json:"program_name,omitempty"`
+	ProgramDigest      string `protobuf:"bytes,21,opt,name=program_digest,json=programDigest,proto3" json:"program_digest,omitempty"`
+	CallerRunId        string `protobuf:"bytes,22,opt,name=caller_run_id,json=callerRunId,proto3" json:"caller_run_id,omitempty"`
+	CallerAgentProfile string `protobuf:"bytes,23,opt,name=caller_agent_profile,json=callerAgentProfile,proto3" json:"caller_agent_profile,omitempty"`
+	CallerSkillId      string `protobuf:"bytes,24,opt,name=caller_skill_id,json=callerSkillId,proto3" json:"caller_skill_id,omitempty"`
+	CallerHarness      string `protobuf:"bytes,25,opt,name=caller_harness,json=callerHarness,proto3" json:"caller_harness,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -285,6 +292,48 @@ func (x *ProgramEvent) GetCoveringContractId() string {
 	return ""
 }
 
+func (x *ProgramEvent) GetProgramName() string {
+	if x != nil {
+		return x.ProgramName
+	}
+	return ""
+}
+
+func (x *ProgramEvent) GetProgramDigest() string {
+	if x != nil {
+		return x.ProgramDigest
+	}
+	return ""
+}
+
+func (x *ProgramEvent) GetCallerRunId() string {
+	if x != nil {
+		return x.CallerRunId
+	}
+	return ""
+}
+
+func (x *ProgramEvent) GetCallerAgentProfile() string {
+	if x != nil {
+		return x.CallerAgentProfile
+	}
+	return ""
+}
+
+func (x *ProgramEvent) GetCallerSkillId() string {
+	if x != nil {
+		return x.CallerSkillId
+	}
+	return ""
+}
+
+func (x *ProgramEvent) GetCallerHarness() string {
+	if x != nil {
+		return x.CallerHarness
+	}
+	return ""
+}
+
 type ListEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -385,7 +434,7 @@ var File_program_runtime_v1_telemetry_telemetry_proto protoreflect.FileDescripto
 
 const file_program_runtime_v1_telemetry_telemetry_proto_rawDesc = "" +
 	"\n" +
-	",program-runtime/v1/telemetry/telemetry.proto\x12#vrooli.program_runtime.v1.telemetry\"\xc8\x05\n" +
+	",program-runtime/v1/telemetry/telemetry.proto\x12#vrooli.program_runtime.v1.telemetry\"\xb7\a\n" +
 	"\fProgramEvent\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1f\n" +
 	"\voccurred_at\x18\x02 \x01(\tR\n" +
@@ -412,7 +461,13 @@ const file_program_runtime_v1_telemetry_telemetry_proto_rawDesc = "" +
 	"\x11shape_occurrences\x18\x10 \x01(\x03R\x10shapeOccurrences\x12%\n" +
 	"\x0eshape_sessions\x18\x11 \x01(\x03R\rshapeSessions\x12+\n" +
 	"\x11dominant_scenario\x18\x12 \x01(\tR\x10dominantScenario\x120\n" +
-	"\x14covering_contract_id\x18\x13 \x01(\tR\x12coveringContractId\"v\n" +
+	"\x14covering_contract_id\x18\x13 \x01(\tR\x12coveringContractId\x12!\n" +
+	"\fprogram_name\x18\x14 \x01(\tR\vprogramName\x12%\n" +
+	"\x0eprogram_digest\x18\x15 \x01(\tR\rprogramDigest\x12\"\n" +
+	"\rcaller_run_id\x18\x16 \x01(\tR\vcallerRunId\x120\n" +
+	"\x14caller_agent_profile\x18\x17 \x01(\tR\x12callerAgentProfile\x12&\n" +
+	"\x0fcaller_skill_id\x18\x18 \x01(\tR\rcallerSkillId\x12%\n" +
+	"\x0ecaller_harness\x18\x19 \x01(\tR\rcallerHarness\"v\n" +
 	"\x11ListEventsRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12B\n" +

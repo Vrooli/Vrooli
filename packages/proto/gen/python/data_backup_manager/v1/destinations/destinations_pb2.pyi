@@ -75,7 +75,7 @@ PREPARATION_ACTION_REPAIR_FILESYSTEM: PreparationAction
 PREPARATION_ACTION_MOUNT_READ_WRITE: PreparationAction
 
 class Destination(_message.Message):
-    __slots__ = ("id", "name", "backend_kind", "location", "cap_bytes", "cap_policy", "encryption_algorithm", "secret_ref", "usage_bytes", "usage_state", "created_at", "updated_at", "repository_location")
+    __slots__ = ("id", "name", "backend_kind", "location", "cap_bytes", "cap_policy", "encryption_algorithm", "secret_ref", "usage_bytes", "usage_state", "created_at", "updated_at", "repository_location", "device_identity", "relative_path")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     BACKEND_KIND_FIELD_NUMBER: _ClassVar[int]
@@ -89,6 +89,8 @@ class Destination(_message.Message):
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     REPOSITORY_LOCATION_FIELD_NUMBER: _ClassVar[int]
+    DEVICE_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    RELATIVE_PATH_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     backend_kind: BackendKind
@@ -102,7 +104,9 @@ class Destination(_message.Message):
     created_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
     repository_location: str
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., backend_kind: _Optional[_Union[BackendKind, str]] = ..., location: _Optional[str] = ..., cap_bytes: _Optional[int] = ..., cap_policy: _Optional[_Union[CapPolicy, str]] = ..., encryption_algorithm: _Optional[str] = ..., secret_ref: _Optional[str] = ..., usage_bytes: _Optional[int] = ..., usage_state: _Optional[_Union[UsageState, str]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., repository_location: _Optional[str] = ...) -> None: ...
+    device_identity: DestinationDeviceIdentity
+    relative_path: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., backend_kind: _Optional[_Union[BackendKind, str]] = ..., location: _Optional[str] = ..., cap_bytes: _Optional[int] = ..., cap_policy: _Optional[_Union[CapPolicy, str]] = ..., encryption_algorithm: _Optional[str] = ..., secret_ref: _Optional[str] = ..., usage_bytes: _Optional[int] = ..., usage_state: _Optional[_Union[UsageState, str]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., repository_location: _Optional[str] = ..., device_identity: _Optional[_Union[DestinationDeviceIdentity, _Mapping]] = ..., relative_path: _Optional[str] = ...) -> None: ...
 
 class CreateDestinationRequest(_message.Message):
     __slots__ = ("name", "backend_kind", "location", "cap_bytes", "cap_policy")
@@ -279,7 +283,7 @@ class AnalyzeDestinationResponse(_message.Message):
     def __init__(self, report: _Optional[_Union[DestinationReadinessReport, _Mapping]] = ...) -> None: ...
 
 class DestinationPreparationPlan(_message.Message):
-    __slots__ = ("id", "action", "location", "target_path", "identity", "desired_label", "desired_filesystem", "requires_confirmation", "destructive", "confirmation_phrase", "supported", "unsupported_reason")
+    __slots__ = ("id", "action", "location", "target_path", "identity", "desired_label", "desired_filesystem", "requires_confirmation", "destructive", "confirmation_phrase", "supported", "unsupported_reason", "relative_path")
     ID_FIELD_NUMBER: _ClassVar[int]
     ACTION_FIELD_NUMBER: _ClassVar[int]
     LOCATION_FIELD_NUMBER: _ClassVar[int]
@@ -292,6 +296,7 @@ class DestinationPreparationPlan(_message.Message):
     CONFIRMATION_PHRASE_FIELD_NUMBER: _ClassVar[int]
     SUPPORTED_FIELD_NUMBER: _ClassVar[int]
     UNSUPPORTED_REASON_FIELD_NUMBER: _ClassVar[int]
+    RELATIVE_PATH_FIELD_NUMBER: _ClassVar[int]
     id: str
     action: PreparationAction
     location: str
@@ -304,7 +309,8 @@ class DestinationPreparationPlan(_message.Message):
     confirmation_phrase: str
     supported: bool
     unsupported_reason: str
-    def __init__(self, id: _Optional[str] = ..., action: _Optional[_Union[PreparationAction, str]] = ..., location: _Optional[str] = ..., target_path: _Optional[str] = ..., identity: _Optional[_Union[DestinationDeviceIdentity, _Mapping]] = ..., desired_label: _Optional[str] = ..., desired_filesystem: _Optional[str] = ..., requires_confirmation: _Optional[bool] = ..., destructive: _Optional[bool] = ..., confirmation_phrase: _Optional[str] = ..., supported: _Optional[bool] = ..., unsupported_reason: _Optional[str] = ...) -> None: ...
+    relative_path: str
+    def __init__(self, id: _Optional[str] = ..., action: _Optional[_Union[PreparationAction, str]] = ..., location: _Optional[str] = ..., target_path: _Optional[str] = ..., identity: _Optional[_Union[DestinationDeviceIdentity, _Mapping]] = ..., desired_label: _Optional[str] = ..., desired_filesystem: _Optional[str] = ..., requires_confirmation: _Optional[bool] = ..., destructive: _Optional[bool] = ..., confirmation_phrase: _Optional[str] = ..., supported: _Optional[bool] = ..., unsupported_reason: _Optional[str] = ..., relative_path: _Optional[str] = ...) -> None: ...
 
 class PlanDestinationPreparationRequest(_message.Message):
     __slots__ = ("location", "action", "desired_subdir", "desired_label", "desired_filesystem", "expected_identity")
@@ -367,3 +373,92 @@ class ExecuteDestinationPreparationResponse(_message.Message):
     refusal_reason: str
     consistent: str
     def __init__(self, dry_run: _Optional[bool] = ..., action: _Optional[_Union[PreparationAction, str]] = ..., location: _Optional[str] = ..., post_action_report: _Optional[_Union[DestinationReadinessReport, _Mapping]] = ..., status: _Optional[str] = ..., changed: _Optional[bool] = ..., backend: _Optional[str] = ..., command: _Optional[_Iterable[str]] = ..., detail: _Optional[str] = ..., operator_command: _Optional[str] = ..., refusal_reason: _Optional[str] = ..., consistent: _Optional[str] = ...) -> None: ...
+
+class StartVolumeRecoveryRequest(_message.Message):
+    __slots__ = ("location", "identity", "plans")
+    LOCATION_FIELD_NUMBER: _ClassVar[int]
+    IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    PLANS_FIELD_NUMBER: _ClassVar[int]
+    location: str
+    identity: DestinationDeviceIdentity
+    plans: _containers.RepeatedCompositeFieldContainer[DestinationPreparationPlan]
+    def __init__(self, location: _Optional[str] = ..., identity: _Optional[_Union[DestinationDeviceIdentity, _Mapping]] = ..., plans: _Optional[_Iterable[_Union[DestinationPreparationPlan, _Mapping]]] = ...) -> None: ...
+
+class StartVolumeRecoveryResponse(_message.Message):
+    __slots__ = ("journal",)
+    JOURNAL_FIELD_NUMBER: _ClassVar[int]
+    journal: VolumeRecoveryJournal
+    def __init__(self, journal: _Optional[_Union[VolumeRecoveryJournal, _Mapping]] = ...) -> None: ...
+
+class GetVolumeRecoveryRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class GetVolumeRecoveryResponse(_message.Message):
+    __slots__ = ("journal",)
+    JOURNAL_FIELD_NUMBER: _ClassVar[int]
+    journal: VolumeRecoveryJournal
+    def __init__(self, journal: _Optional[_Union[VolumeRecoveryJournal, _Mapping]] = ...) -> None: ...
+
+class ResumeVolumeRecoveryRequest(_message.Message):
+    __slots__ = ("id", "confirmations", "acknowledge_data_loss", "dry_run")
+    class ConfirmationsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: int
+        value: str
+        def __init__(self, key: _Optional[int] = ..., value: _Optional[str] = ...) -> None: ...
+    ID_FIELD_NUMBER: _ClassVar[int]
+    CONFIRMATIONS_FIELD_NUMBER: _ClassVar[int]
+    ACKNOWLEDGE_DATA_LOSS_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    confirmations: _containers.ScalarMap[int, str]
+    acknowledge_data_loss: bool
+    dry_run: bool
+    def __init__(self, id: _Optional[str] = ..., confirmations: _Optional[_Mapping[int, str]] = ..., acknowledge_data_loss: _Optional[bool] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+
+class ResumeVolumeRecoveryResponse(_message.Message):
+    __slots__ = ("journal",)
+    JOURNAL_FIELD_NUMBER: _ClassVar[int]
+    journal: VolumeRecoveryJournal
+    def __init__(self, journal: _Optional[_Union[VolumeRecoveryJournal, _Mapping]] = ...) -> None: ...
+
+class VolumeRecoveryStep(_message.Message):
+    __slots__ = ("plan", "status", "attempts", "detail")
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    plan: DestinationPreparationPlan
+    status: str
+    attempts: int
+    detail: str
+    def __init__(self, plan: _Optional[_Union[DestinationPreparationPlan, _Mapping]] = ..., status: _Optional[str] = ..., attempts: _Optional[int] = ..., detail: _Optional[str] = ...) -> None: ...
+
+class VolumeRecoveryJournal(_message.Message):
+    __slots__ = ("version", "id", "location", "identity", "steps", "current", "state", "last_error", "updated_at", "relative_path")
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    LOCATION_FIELD_NUMBER: _ClassVar[int]
+    IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    STEPS_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    LAST_ERROR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    RELATIVE_PATH_FIELD_NUMBER: _ClassVar[int]
+    version: str
+    id: str
+    location: str
+    identity: DestinationDeviceIdentity
+    steps: _containers.RepeatedCompositeFieldContainer[VolumeRecoveryStep]
+    current: int
+    state: str
+    last_error: str
+    updated_at: _timestamp_pb2.Timestamp
+    relative_path: str
+    def __init__(self, version: _Optional[str] = ..., id: _Optional[str] = ..., location: _Optional[str] = ..., identity: _Optional[_Union[DestinationDeviceIdentity, _Mapping]] = ..., steps: _Optional[_Iterable[_Union[VolumeRecoveryStep, _Mapping]]] = ..., current: _Optional[int] = ..., state: _Optional[str] = ..., last_error: _Optional[str] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., relative_path: _Optional[str] = ...) -> None: ...

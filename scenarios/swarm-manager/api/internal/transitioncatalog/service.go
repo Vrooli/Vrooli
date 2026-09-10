@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"swarm-manager/internal/development"
 	"swarm-manager/internal/stats"
 	"swarm-manager/internal/transitionrun"
 	"swarm-manager/internal/transitions"
@@ -36,10 +37,11 @@ type DeterministicDispatcher interface {
 type GateProjection func() (map[string]string, map[string]stats.KindRate)
 
 type Service struct {
-	registry       transitions.Registry
-	runner         Runner
-	deterministic  DeterministicDispatcher
-	gateProjection GateProjection
+	registry            transitions.Registry
+	runner              Runner
+	deterministic       DeterministicDispatcher
+	gateProjection      GateProjection
+	developmentReviewer *development.Reviewer
 }
 
 func NewService(registry transitions.Registry, runner Runner, deterministic ...DeterministicDispatcher) *Service {
@@ -55,8 +57,10 @@ func RegisterRoutes(router *mux.Router, registry transitions.Registry, runner Ru
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
 }
 
-func RegisterRoutesWithGateProjection(router *mux.Router, registry transitions.Registry, runner Runner, projection GateProjection, deterministic ...DeterministicDispatcher) {
-	path, handler := apiconnect.NewTransitionServiceHandler(NewServiceWithGateProjection(registry, runner, projection, deterministic...))
+func RegisterRoutesWithGateProjection(router *mux.Router, registry transitions.Registry, runner Runner, projection GateProjection, repoRoot string, deterministic ...DeterministicDispatcher) {
+	svc := NewServiceWithGateProjection(registry, runner, projection, deterministic...)
+	svc.developmentReviewer = &development.Reviewer{RepoRoot: repoRoot}
+	path, handler := apiconnect.NewTransitionServiceHandler(svc)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
 }
 

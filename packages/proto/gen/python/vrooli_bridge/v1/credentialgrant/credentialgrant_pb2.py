@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n6vrooli-bridge/v1/credentialgrant/credentialgrant.proto\x12\'vrooli.vrooli_bridge.v1.credentialgrant\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf1\x03\n\x0f\x43redentialGrant\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n\x07node_id\x18\x02 \x01(\tR\x06nodeId\x12\x1d\n\nlogical_id\x18\x03 \x01(\tR\tlogicalId\x12\x14\n\x05\x66ield\x18\x04 \x01(\tR\x05\x66ield\x12\x14\n\x05\x63lass\x18\x05 \x01(\tR\x05\x63lass\x12\x1c\n\tretention\x18\x06 \x01(\tR\tretention\x12\x1e\n\ngeneration\x18\x07 \x01(\x03R\ngeneration\x12)\n\x10\x61\x63ked_generation\x18\x08 \x01(\x03R\x0f\x61\x63kedGeneration\x12\x39\n\ngranted_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tgrantedAt\x12\x39\n\nrevoked_at\x18\n \x01(\x0b\x32\x1a.google.protobuf.TimestampR\trevokedAt\x12\x39\n\nreceipt_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampR\treceiptAt\x12)\n\x10receipt_accepted\x18\x0c \x01(\x08R\x0freceiptAccepted\x12%\n\x0ereceipt_reason\x18\r \x01(\tR\rreceiptReason\"\xb6\x01\n\x12\x43reateGrantRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x1d\n\nlogical_id\x18\x02 \x01(\tR\tlogicalId\x12\x14\n\x05\x66ield\x18\x03 \x01(\tR\x05\x66ield\x12\x14\n\x05\x63lass\x18\x04 \x01(\tR\x05\x63lass\x12\x1c\n\tretention\x18\x05 \x01(\tR\tretention\x12\x1e\n\ngeneration\x18\x06 \x01(\x03R\ngeneration\"\xad\x01\n\x13\x41nswerSecretRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x1d\n\nlogical_id\x18\x02 \x01(\tR\tlogicalId\x12\x14\n\x05\x66ield\x18\x03 \x01(\tR\x05\x66ield\x12\x14\n\x05\x63lass\x18\x04 \x01(\tR\x05\x63lass\x12\x1c\n\tretention\x18\x05 \x01(\tR\tretention\x12\x14\n\x05value\x18\x06 \x01(\tR\x05value\",\n\x11ListGrantsRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\"f\n\x12ListGrantsResponse\x12P\n\x06grants\x18\x01 \x03(\x0b\x32\x38.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantR\x06grants\"$\n\x12RevokeGrantRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"0\n\x15SyncNodeGrantsRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\"K\n\x14RotateAddressRequest\x12\x1d\n\nlogical_id\x18\x01 \x01(\tR\tlogicalId\x12\x14\n\x05\x66ield\x18\x02 \x01(\tR\x05\x66ield\"\xb9\x01\n\x10RotationResponse\x12\x1d\n\nlogical_id\x18\x01 \x01(\tR\tlogicalId\x12\x14\n\x05\x66ield\x18\x02 \x01(\tR\x05\x66ield\x12\x1e\n\ngeneration\x18\x03 \x01(\x03R\ngeneration\x12P\n\x06grants\x18\x04 \x03(\x0b\x32\x38.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantR\x06grants2\xd3\x06\n\x16\x43redentialGrantService\x12\x84\x01\n\x0b\x43reateGrant\x12;.vrooli.vrooli_bridge.v1.credentialgrant.CreateGrantRequest\x1a\x38.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant\x12\x86\x01\n\x0c\x41nswerSecret\x12<.vrooli.vrooli_bridge.v1.credentialgrant.AnswerSecretRequest\x1a\x38.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant\x12\x85\x01\n\nListGrants\x12:.vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsRequest\x1a;.vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse\x12\x84\x01\n\x0bRevokeGrant\x12;.vrooli.vrooli_bridge.v1.credentialgrant.RevokeGrantRequest\x1a\x38.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant\x12\x89\x01\n\rRotateAddress\x12=.vrooli.vrooli_bridge.v1.credentialgrant.RotateAddressRequest\x1a\x39.vrooli.vrooli_bridge.v1.credentialgrant.RotationResponse\x12\x8d\x01\n\x0eSyncNodeGrants\x12>.vrooli.vrooli_bridge.v1.credentialgrant.SyncNodeGrantsRequest\x1a;.vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponseBdZbgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant;credentialgrant_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n6vrooli-bridge/v1/credentialgrant/credentialgrant.proto\x12\'vrooli.vrooli_bridge.v1.credentialgrant\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc0\x05\n\x0f\x43redentialGrant\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n\x07node_id\x18\x02 \x01(\tR\x06nodeId\x12\x1d\n\nlogical_id\x18\x03 \x01(\tR\tlogicalId\x12\x14\n\x05\x66ield\x18\x04 \x01(\tR\x05\x66ield\x12\x14\n\x05\x63lass\x18\x05 \x01(\tR\x05\x63lass\x12\x1c\n\tretention\x18\x06 \x01(\tR\tretention\x12\x1e\n\ngeneration\x18\x07 \x01(\x03R\ngeneration\x12)\n\x10\x61\x63ked_generation\x18\x08 \x01(\x03R\x0f\x61\x63kedGeneration\x12\x39\n\ngranted_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tgrantedAt\x12\x39\n\nrevoked_at\x18\n \x01(\x0b\x32\x1a.google.protobuf.TimestampR\trevokedAt\x12\x39\n\nreceipt_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampR\treceiptAt\x12)\n\x10receipt_accepted\x18\x0c \x01(\x08R\x0freceiptAccepted\x12%\n\x0ereceipt_reason\x18\r \x01(\tR\rreceiptReason\x12\x1f\n\x0bpurge_state\x18\x0e \x01(\tR\npurgeState\x12\x44\n\x10purge_receipt_at\x18\x0f \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0epurgeReceiptAt\x12\x34\n\x16purge_receipt_accepted\x18\x10 \x01(\x08R\x14purgeReceiptAccepted\x12\x30\n\x14purge_receipt_reason\x18\x11 \x01(\tR\x12purgeReceiptReason\"\xb6\x01\n\x12\x43reateGrantRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x1d\n\nlogical_id\x18\x02 \x01(\tR\tlogicalId\x12\x14\n\x05\x66ield\x18\x03 \x01(\tR\x05\x66ield\x12\x14\n\x05\x63lass\x18\x04 \x01(\tR\x05\x63lass\x12\x1c\n\tretention\x18\x05 \x01(\tR\tretention\x12\x1e\n\ngeneration\x18\x06 \x01(\x03R\ngeneration\"\xad\x01\n\x13\x41nswerSecretRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x1d\n\nlogical_id\x18\x02 \x01(\tR\tlogicalId\x12\x14\n\x05\x66ield\x18\x03 \x01(\tR\x05\x66ield\x12\x14\n\x05\x63lass\x18\x04 \x01(\tR\x05\x63lass\x12\x1c\n\tretention\x18\x05 \x01(\tR\tretention\x12\x14\n\x05value\x18\x06 \x01(\tR\x05value\",\n\x11ListGrantsRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\"f\n\x12ListGrantsResponse\x12P\n\x06grants\x18\x01 \x03(\x0b\x32\x38.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantR\x06grants\"$\n\x12RevokeGrantRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"0\n\x15SyncNodeGrantsRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\"K\n\x14RotateAddressRequest\x12\x1d\n\nlogical_id\x18\x01 \x01(\tR\tlogicalId\x12\x14\n\x05\x66ield\x18\x02 \x01(\tR\x05\x66ield\"\xe0\x01\n\x10RotationResponse\x12\x1d\n\nlogical_id\x18\x01 \x01(\tR\tlogicalId\x12\x14\n\x05\x66ield\x18\x02 \x01(\tR\x05\x66ield\x12\x1e\n\ngeneration\x18\x03 \x01(\x03R\ngeneration\x12P\n\x06grants\x18\x04 \x03(\x0b\x32\x38.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantR\x06grants\x12%\n\x0erotation_scope\x18\x05 \x01(\tR\rrotationScope2\xd3\x06\n\x16\x43redentialGrantService\x12\x84\x01\n\x0b\x43reateGrant\x12;.vrooli.vrooli_bridge.v1.credentialgrant.CreateGrantRequest\x1a\x38.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant\x12\x86\x01\n\x0c\x41nswerSecret\x12<.vrooli.vrooli_bridge.v1.credentialgrant.AnswerSecretRequest\x1a\x38.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant\x12\x85\x01\n\nListGrants\x12:.vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsRequest\x1a;.vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse\x12\x84\x01\n\x0bRevokeGrant\x12;.vrooli.vrooli_bridge.v1.credentialgrant.RevokeGrantRequest\x1a\x38.vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant\x12\x89\x01\n\rRotateAddress\x12=.vrooli.vrooli_bridge.v1.credentialgrant.RotateAddressRequest\x1a\x39.vrooli.vrooli_bridge.v1.credentialgrant.RotationResponse\x12\x8d\x01\n\x0eSyncNodeGrants\x12>.vrooli.vrooli_bridge.v1.credentialgrant.SyncNodeGrantsRequest\x1a;.vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponseBdZbgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant;credentialgrant_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,23 +34,23 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Zbgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant;credentialgrant_v1'
   _globals['_CREDENTIALGRANT']._serialized_start=133
-  _globals['_CREDENTIALGRANT']._serialized_end=630
-  _globals['_CREATEGRANTREQUEST']._serialized_start=633
-  _globals['_CREATEGRANTREQUEST']._serialized_end=815
-  _globals['_ANSWERSECRETREQUEST']._serialized_start=818
-  _globals['_ANSWERSECRETREQUEST']._serialized_end=991
-  _globals['_LISTGRANTSREQUEST']._serialized_start=993
-  _globals['_LISTGRANTSREQUEST']._serialized_end=1037
-  _globals['_LISTGRANTSRESPONSE']._serialized_start=1039
-  _globals['_LISTGRANTSRESPONSE']._serialized_end=1141
-  _globals['_REVOKEGRANTREQUEST']._serialized_start=1143
-  _globals['_REVOKEGRANTREQUEST']._serialized_end=1179
-  _globals['_SYNCNODEGRANTSREQUEST']._serialized_start=1181
-  _globals['_SYNCNODEGRANTSREQUEST']._serialized_end=1229
-  _globals['_ROTATEADDRESSREQUEST']._serialized_start=1231
-  _globals['_ROTATEADDRESSREQUEST']._serialized_end=1306
-  _globals['_ROTATIONRESPONSE']._serialized_start=1309
-  _globals['_ROTATIONRESPONSE']._serialized_end=1494
-  _globals['_CREDENTIALGRANTSERVICE']._serialized_start=1497
-  _globals['_CREDENTIALGRANTSERVICE']._serialized_end=2348
+  _globals['_CREDENTIALGRANT']._serialized_end=837
+  _globals['_CREATEGRANTREQUEST']._serialized_start=840
+  _globals['_CREATEGRANTREQUEST']._serialized_end=1022
+  _globals['_ANSWERSECRETREQUEST']._serialized_start=1025
+  _globals['_ANSWERSECRETREQUEST']._serialized_end=1198
+  _globals['_LISTGRANTSREQUEST']._serialized_start=1200
+  _globals['_LISTGRANTSREQUEST']._serialized_end=1244
+  _globals['_LISTGRANTSRESPONSE']._serialized_start=1246
+  _globals['_LISTGRANTSRESPONSE']._serialized_end=1348
+  _globals['_REVOKEGRANTREQUEST']._serialized_start=1350
+  _globals['_REVOKEGRANTREQUEST']._serialized_end=1386
+  _globals['_SYNCNODEGRANTSREQUEST']._serialized_start=1388
+  _globals['_SYNCNODEGRANTSREQUEST']._serialized_end=1436
+  _globals['_ROTATEADDRESSREQUEST']._serialized_start=1438
+  _globals['_ROTATEADDRESSREQUEST']._serialized_end=1513
+  _globals['_ROTATIONRESPONSE']._serialized_start=1516
+  _globals['_ROTATIONRESPONSE']._serialized_end=1740
+  _globals['_CREDENTIALGRANTSERVICE']._serialized_start=1743
+  _globals['_CREDENTIALGRANTSERVICE']._serialized_end=2594
 # @@protoc_insertion_point(module_scope)

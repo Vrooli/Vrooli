@@ -50,18 +50,20 @@ class Brief(_message.Message):
     def __init__(self, query: _Optional[str] = ..., level: _Optional[str] = ..., summary: _Optional[str] = ..., citations: _Optional[_Iterable[_Union[Citation, _Mapping]]] = ...) -> None: ...
 
 class RunL2Request(_message.Message):
-    __slots__ = ("query", "top_n", "capture", "policy", "questions")
+    __slots__ = ("query", "top_n", "capture", "policy", "questions", "parent_run_id")
     QUERY_FIELD_NUMBER: _ClassVar[int]
     TOP_N_FIELD_NUMBER: _ClassVar[int]
     CAPTURE_FIELD_NUMBER: _ClassVar[int]
     POLICY_FIELD_NUMBER: _ClassVar[int]
     QUESTIONS_FIELD_NUMBER: _ClassVar[int]
+    PARENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
     query: str
     top_n: int
     capture: bool
     policy: EvidencePolicy
     questions: _containers.RepeatedCompositeFieldContainer[ResearchQuestion]
-    def __init__(self, query: _Optional[str] = ..., top_n: _Optional[int] = ..., capture: _Optional[bool] = ..., policy: _Optional[_Union[EvidencePolicy, _Mapping]] = ..., questions: _Optional[_Iterable[_Union[ResearchQuestion, _Mapping]]] = ...) -> None: ...
+    parent_run_id: str
+    def __init__(self, query: _Optional[str] = ..., top_n: _Optional[int] = ..., capture: _Optional[bool] = ..., policy: _Optional[_Union[EvidencePolicy, _Mapping]] = ..., questions: _Optional[_Iterable[_Union[ResearchQuestion, _Mapping]]] = ..., parent_run_id: _Optional[str] = ...) -> None: ...
 
 class RunL2Response(_message.Message):
     __slots__ = ("brief", "synthesis", "abstained", "captured_finding_ids", "degraded_engines", "abstain_reason", "excerpts", "evidence_receipt_ids", "fetch_failures", "assessments", "coverage")
@@ -214,7 +216,7 @@ class GetEvidenceReceiptRequest(_message.Message):
     def __init__(self, receipt_id: _Optional[str] = ...) -> None: ...
 
 class GetEvidenceReceiptResponse(_message.Message):
-    __slots__ = ("receipt_id", "observation_id", "original_url", "retrieved_at", "content_sha256", "artifact_id", "extraction_revision", "retention", "failure_code", "producer_execution_id")
+    __slots__ = ("receipt_id", "observation_id", "original_url", "retrieved_at", "content_sha256", "artifact_id", "extraction_revision", "retention", "failure_code", "producer_execution_id", "final_url", "redirect_urls")
     RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
     OBSERVATION_ID_FIELD_NUMBER: _ClassVar[int]
     ORIGINAL_URL_FIELD_NUMBER: _ClassVar[int]
@@ -225,6 +227,8 @@ class GetEvidenceReceiptResponse(_message.Message):
     RETENTION_FIELD_NUMBER: _ClassVar[int]
     FAILURE_CODE_FIELD_NUMBER: _ClassVar[int]
     PRODUCER_EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    FINAL_URL_FIELD_NUMBER: _ClassVar[int]
+    REDIRECT_URLS_FIELD_NUMBER: _ClassVar[int]
     receipt_id: str
     observation_id: str
     original_url: str
@@ -235,7 +239,9 @@ class GetEvidenceReceiptResponse(_message.Message):
     retention: str
     failure_code: str
     producer_execution_id: str
-    def __init__(self, receipt_id: _Optional[str] = ..., observation_id: _Optional[str] = ..., original_url: _Optional[str] = ..., retrieved_at: _Optional[str] = ..., content_sha256: _Optional[str] = ..., artifact_id: _Optional[str] = ..., extraction_revision: _Optional[str] = ..., retention: _Optional[str] = ..., failure_code: _Optional[str] = ..., producer_execution_id: _Optional[str] = ...) -> None: ...
+    final_url: str
+    redirect_urls: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, receipt_id: _Optional[str] = ..., observation_id: _Optional[str] = ..., original_url: _Optional[str] = ..., retrieved_at: _Optional[str] = ..., content_sha256: _Optional[str] = ..., artifact_id: _Optional[str] = ..., extraction_revision: _Optional[str] = ..., retention: _Optional[str] = ..., failure_code: _Optional[str] = ..., producer_execution_id: _Optional[str] = ..., final_url: _Optional[str] = ..., redirect_urls: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class GetEvidencePassageRequest(_message.Message):
     __slots__ = ("passage_id",)
@@ -396,7 +402,7 @@ class SuspendMethodResponse(_message.Message):
     def __init__(self, revision_hash: _Optional[str] = ...) -> None: ...
 
 class AnswerRequest(_message.Message):
-    __slots__ = ("query", "effort", "max_age_seconds", "source_domains", "minimum_sources", "top_n", "capture", "finding_id", "policy", "questions")
+    __slots__ = ("query", "effort", "max_age_seconds", "source_domains", "minimum_sources", "top_n", "capture", "finding_id", "policy", "questions", "parent_run_id")
     QUERY_FIELD_NUMBER: _ClassVar[int]
     EFFORT_FIELD_NUMBER: _ClassVar[int]
     MAX_AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
@@ -407,6 +413,7 @@ class AnswerRequest(_message.Message):
     FINDING_ID_FIELD_NUMBER: _ClassVar[int]
     POLICY_FIELD_NUMBER: _ClassVar[int]
     QUESTIONS_FIELD_NUMBER: _ClassVar[int]
+    PARENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
     query: str
     effort: str
     max_age_seconds: int
@@ -417,7 +424,8 @@ class AnswerRequest(_message.Message):
     finding_id: str
     policy: EvidencePolicy
     questions: _containers.RepeatedCompositeFieldContainer[ResearchQuestion]
-    def __init__(self, query: _Optional[str] = ..., effort: _Optional[str] = ..., max_age_seconds: _Optional[int] = ..., source_domains: _Optional[_Iterable[str]] = ..., minimum_sources: _Optional[int] = ..., top_n: _Optional[int] = ..., capture: _Optional[bool] = ..., finding_id: _Optional[str] = ..., policy: _Optional[_Union[EvidencePolicy, _Mapping]] = ..., questions: _Optional[_Iterable[_Union[ResearchQuestion, _Mapping]]] = ...) -> None: ...
+    parent_run_id: str
+    def __init__(self, query: _Optional[str] = ..., effort: _Optional[str] = ..., max_age_seconds: _Optional[int] = ..., source_domains: _Optional[_Iterable[str]] = ..., minimum_sources: _Optional[int] = ..., top_n: _Optional[int] = ..., capture: _Optional[bool] = ..., finding_id: _Optional[str] = ..., policy: _Optional[_Union[EvidencePolicy, _Mapping]] = ..., questions: _Optional[_Iterable[_Union[ResearchQuestion, _Mapping]]] = ..., parent_run_id: _Optional[str] = ...) -> None: ...
 
 class AnswerResponse(_message.Message):
     __slots__ = ("status", "answer_kind", "brief", "results", "finding_ids", "abstained", "reason", "checked_at", "live_calls", "cached", "gaps", "captured_finding_ids", "assessments", "coverage")
@@ -538,7 +546,7 @@ class QuestionCoverage(_message.Message):
     def __init__(self, question_id: _Optional[str] = ..., status: _Optional[str] = ..., claim_ids: _Optional[_Iterable[str]] = ..., unresolved_reason: _Optional[str] = ...) -> None: ...
 
 class EvidenceReceipt(_message.Message):
-    __slots__ = ("receipt_id", "observation_id", "url", "retrieved_at", "content_hash", "extraction_revision", "retention", "failure_code")
+    __slots__ = ("receipt_id", "observation_id", "url", "retrieved_at", "content_hash", "extraction_revision", "retention", "failure_code", "final_url", "redirect_urls")
     RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
     OBSERVATION_ID_FIELD_NUMBER: _ClassVar[int]
     URL_FIELD_NUMBER: _ClassVar[int]
@@ -547,6 +555,8 @@ class EvidenceReceipt(_message.Message):
     EXTRACTION_REVISION_FIELD_NUMBER: _ClassVar[int]
     RETENTION_FIELD_NUMBER: _ClassVar[int]
     FAILURE_CODE_FIELD_NUMBER: _ClassVar[int]
+    FINAL_URL_FIELD_NUMBER: _ClassVar[int]
+    REDIRECT_URLS_FIELD_NUMBER: _ClassVar[int]
     receipt_id: str
     observation_id: str
     url: str
@@ -555,4 +565,6 @@ class EvidenceReceipt(_message.Message):
     extraction_revision: str
     retention: str
     failure_code: str
-    def __init__(self, receipt_id: _Optional[str] = ..., observation_id: _Optional[str] = ..., url: _Optional[str] = ..., retrieved_at: _Optional[str] = ..., content_hash: _Optional[str] = ..., extraction_revision: _Optional[str] = ..., retention: _Optional[str] = ..., failure_code: _Optional[str] = ...) -> None: ...
+    final_url: str
+    redirect_urls: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, receipt_id: _Optional[str] = ..., observation_id: _Optional[str] = ..., url: _Optional[str] = ..., retrieved_at: _Optional[str] = ..., content_hash: _Optional[str] = ..., extraction_revision: _Optional[str] = ..., retention: _Optional[str] = ..., failure_code: _Optional[str] = ..., final_url: _Optional[str] = ..., redirect_urls: _Optional[_Iterable[str]] = ...) -> None: ...

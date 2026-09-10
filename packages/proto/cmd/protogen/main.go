@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/packages/proto/protogen"
 )
@@ -22,7 +24,7 @@ func main() {
 
 func run(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: protogen <generate|verify|descriptor|lint|format|breaking|clean|refresh-vendor>")
+		return fmt.Errorf("usage: protogen <generate|verify|descriptor|artifact|lint|format|breaking|clean|refresh-vendor>")
 	}
 	workingDir, err := os.Getwd()
 	if err != nil {
@@ -49,6 +51,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 		config.Scenarios = scenarios
 		config.Changed = *changed
 		config.Logger = stdout
+		config.PublishArtifacts = true
 		generator, err := protogen.New(config)
 		if err != nil {
 			return err
@@ -58,6 +61,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 		config := protogen.DefaultConfig(repoRoot)
 		config.ProtoRoot = protoRoot
 		config.Logger = stdout
+		config.PublishArtifacts = true
 		generator, err := protogen.New(config)
 		if err != nil {
 			return err
@@ -71,6 +75,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 			return err
 		}
 		return generator.Descriptor(context.Background())
+	case "artifact":
+		return runArtifactCommand(args[1:], stdout, stderr)
 	case "lint":
 		return runBuf(context.Background(), protoRoot, "lint")
 	case "format":
@@ -101,6 +107,64 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runBuf(context.Background(), protoRoot, "export", "buf.build/bufbuild/protovalidate", "-o", filepath.Join(protoRoot, "vendor", "protovalidate"))
 	default:
 		return fmt.Errorf("unknown protogen command %q", command)
+	}
+}
+
+func runArtifactCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: protogen artifact <status|promote|rollback|cleanup>")
+	}
+	fs := flag.NewFlagSet("artifact "+args[0], flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	root := fs.String("root", "", "runtime artifact root (defaults to ~/.vrooli/artifacts/proto)")
+	artifactID := fs.String("artifact", "", "validated artifact id")
+	jsonOutput := fs.Bool("json", false, "write machine-readable JSON")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	artifactRoot := *root
+	if strings.TrimSpace(artifactRoot) == "" {
+		artifactRoot = protogen.DefaultArtifactRoot("")
+	}
+	store, err := protogen.NewArtifactStore(artifactRoot)
+	if err != nil {
+		return err
+	}
+	switch args[0] {
+	case "status":
+		status, err := store.Status(context.Background())
+		if err != nil {
+			return err
+		}
+		if *jsonOutput {
+			return json.NewEncoder(stdout).Encode(status)
+		}
+		fmt.Fprintf(stdout, "root=%s\nactive=%s valid=%t\nlast_known_good=%s valid=%t\nsnapshots=%d leases=%d\n", status.Root, status.Active.Artifact, status.Active.Valid, status.LastKnownGood.Artifact, status.LastKnownGood.Valid, len(status.Snapshots), len(status.Leases))
+		if status.Active.Error != "" {
+			fmt.Fprintf(stdout, "active_error=%s\n", status.Active.Error)
+		}
+		if status.LastKnownGood.Error != "" {
+			fmt.Fprintf(stdout, "last_known_good_error=%s\n", status.LastKnownGood.Error)
+		}
+		return nil
+	case "promote", "rollback":
+		if strings.TrimSpace(*artifactID) == "" {
+			return fmt.Errorf("artifact %s requires --artifact", args[0])
+		}
+		if err := store.Promote(context.Background(), *artifactID); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "artifact=%s operation=%s status=promoted\n", *artifactID, args[0])
+		return nil
+	case "cleanup":
+		removed, err := store.Collect(context.Background(), time.Now())
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "removed=%d\n", removed)
+		return nil
+	default:
+		return fmt.Errorf("unknown artifact command %q", args[0])
 	}
 }
 

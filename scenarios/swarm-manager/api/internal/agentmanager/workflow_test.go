@@ -16,6 +16,41 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func TestWorkflowStartInspectionUsesOnlyReadOnlyExactOwnerLookup(t *testing.T) {
+	input, _ := structpb.NewValue(map[string]any{"consumer": map[string]any{"entityVersion": "v1"}})
+	x := &domainpb.WorkflowExecution{Id: "original", Owner: "swarm-manager", WorkflowKey: "swarm-manager/phased-plan-drain", IdempotencyKey: "original-start-key", Input: input}
+	reads := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("lookup attempted mutation %s", r.Method)
+			http.Error(w, "mutation refused", http.StatusMethodNotAllowed)
+			return
+		}
+		reads++
+		switch r.URL.Path {
+		case "/api/v1/workflow-executions":
+			if r.URL.Query().Get("idempotency_key") != x.IdempotencyKey {
+				t.Error("lookup changed the retained start key")
+			}
+			writeWorkflowProto(t, w, &apipb.ListWorkflowExecutionsResponse{Executions: []*domainpb.WorkflowExecution{x}}, http.StatusOK)
+		case "/api/v1/workflow-executions/original/result":
+			if r.URL.Query().Get("explicitly_authorized") != "true" {
+				t.Error("input binding read omitted owner authorization")
+			}
+			writeWorkflowProto(t, w, &apipb.WorkflowExecutionResponse{Execution: x}, http.StatusOK)
+		default:
+			t.Errorf("unexpected lookup endpoint %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	service := NewWorkflowServiceWithClient(NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client()))
+	got, err := service.InspectWorkflowStart(t.Context(), x.WorkflowKey, x.IdempotencyKey)
+	if err != nil || !proto.Equal(got, x) || reads != 2 {
+		t.Fatalf("lookup=%+v reads=%d err=%v", got, reads, err)
+	}
+}
+
 // [REQ:SWM-P1-006] live execution progress read from workflow trace (slice count, node, cost)
 func TestWorkflowServiceProgressReadsLiveTrace(t *testing.T) {
 	now := timestamppb.New(time.Now().UTC())
@@ -69,7 +104,7 @@ func TestWorkflowExecutionStateReadsTerminalEvidenceFromAuthorizedResult(t *test
 func TestWorkflowServiceCommandResultHandshake(t *testing.T) {
 	input, _ := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "idea", "name": "search", "version": "sha256:v"}, "snapshot": map[string]any{}, "operatorNote": "focus"})
 	output, _ := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "no_questions", "note": "ready", "readiness": map[string]any{"problem_clarity": 3}}})
-	execution := &domainpb.WorkflowExecution{Id: "11111111-1111-1111-1111-111111111111", DefinitionDigest: "sha256:def", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: input, Output: output}
+	execution := &domainpb.WorkflowExecution{Id: "11111111-1111-1111-1111-111111111111", DefinitionDigest: "sha256:def", ApprovalDigest: "sha256:approval", GrantDigest: "sha256:grant", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: input, Output: output}
 	attempt := &domainpb.WorkflowNodeAttempt{NodeId: "review", RunId: "22222222-2222-2222-2222-222222222222", ProfileIdentity: "profile:swarm-manager/deep-work"}
 	var calls []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -77,7 +112,7 @@ func TestWorkflowServiceCommandResultHandshake(t *testing.T) {
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/workflow-executions":
 			body, _ := io.ReadAll(r.Body)
-			if !strings.Contains(string(body), `"workflowKey":"swarm-manager/plan-workshop-review"`) || !strings.Contains(string(body), `"idempotencyKey":"stable-key"`) {
+			if !strings.Contains(string(body), `"workflowKey":"swarm-manager/plan-workshop-review"`) || !strings.Contains(string(body), `"definitionDigest":"sha256:def"`) || !strings.Contains(string(body), `"approvalDigest":"sha256:approval"`) || !strings.Contains(string(body), `"grantDigest":"sha256:grant"`) || !strings.Contains(string(body), `"idempotencyKey":"stable-key"`) || !strings.Contains(string(body), `"maxTokens":200`) {
 				t.Fatalf("unexpected start body: %s", body)
 			}
 			// Agent Manager starts workflow execution asynchronously and therefore
@@ -100,12 +135,15 @@ func TestWorkflowServiceCommandResultHandshake(t *testing.T) {
 	defer server.Close()
 	client := NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
 	service := NewWorkflowServiceWithClient(client)
-	start, err := service.StartWorkflow(context.Background(), Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/plan-workshop-review", Input: input, IdempotencyKey: "stable-key", FirstRunNodeID: "review"})
+	start, err := service.StartWorkflow(context.Background(), Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/plan-workshop-review", WorkflowDigest: "sha256:def", ApprovalDigest: "sha256:approval", GrantDigest: "sha256:grant", Input: input, IdempotencyKey: "stable-key", FirstRunNodeID: "review", EngagementGrant: &domainpb.WorkflowEngagementGrant{MaxTokens: 200, MaxWallTimeSeconds: 30}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if start.ExecutionID != execution.Id || start.RunID != attempt.RunId {
 		t.Fatalf("start = %#v", start)
+	}
+	if start.WorkflowDigest != execution.DefinitionDigest || start.ApprovalDigest != execution.ApprovalDigest || start.GrantDigest != execution.GrantDigest {
+		t.Fatalf("start binding = %#v", start)
 	}
 	completion, err := service.CollectWorkflow(context.Background(), execution.Id)
 	if err != nil {

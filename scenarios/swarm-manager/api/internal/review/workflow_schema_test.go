@@ -3,6 +3,7 @@ package review
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -39,6 +40,26 @@ func TestReviewWorkflowSchemasEnforceEvidenceGaps(t *testing.T) {
 				t.Fatal("unavailable evidence without attempted_producer was accepted")
 			}
 		})
+	}
+}
+
+func TestIndependentReviewSchemaRequiresUnavailableEvidenceDetails(t *testing.T) {
+	schema := compileWorkflowOutputSchema(t, filepath.Join("..", "..", "..", ".vrooli", "agent-manager", "independent-review.json"))
+	for _, field := range []string{"attempted_producer", "unavailable_reason"} {
+		for _, value := range []any{nil, "", "   "} {
+			t.Run(fmt.Sprintf("%s/%v", field, value), func(t *testing.T) {
+				result := independentReviewResult("test-genie")
+				evidence := result["result"].(map[string]any)["handoff"].(map[string]any)["evidence"].([]any)[0].(map[string]any)
+				if value == nil {
+					delete(evidence, field)
+				} else {
+					evidence[field] = value
+				}
+				if err := schema.Validate(result); err == nil {
+					t.Fatal("unavailable evidence lacking usable producer/reason passed the workflow schema")
+				}
+			})
+		}
 	}
 }
 

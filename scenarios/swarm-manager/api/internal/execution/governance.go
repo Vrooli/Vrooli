@@ -6,14 +6,14 @@ import (
 	"swarm-manager/internal/agentactivity"
 )
 
-// countActiveExecutions counts records that are starting or running (under
+// countActiveExecutions includes cancellation awaiting terminal accounting (under
 // the mutex). Execution.Records only ever represent backlog item processing,
 // which lives in the Execute lane — see countActiveByLane for the multi-
 // lane equivalent backed by agentactivity records.
 func countActiveExecutions(records []Record) int {
 	count := 0
 	for _, r := range records {
-		if r.Status == StatusStarting || r.Status == StatusRunning {
+		if r.Status == StatusStarting || r.Status == StatusRunning || r.Status == StatusCancelling {
 			count++
 		}
 	}

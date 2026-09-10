@@ -24,6 +24,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/packagegov"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/packages/proto/protogen"
 )
 
 const (
@@ -31,6 +32,13 @@ const (
 )
 
 const sharedPackageProvisioningDisabledEnv = "VROOLI_DISABLE_SHARED_PACKAGE_PROVISIONING"
+
+const (
+	protoArtifactSelection = "@vrooli/proto-types"
+	protoArtifactRootEnv   = "VROOLI_PROTO_ARTIFACT_ROOT"
+	protoSelectedIDEnv     = "VROOLI_PROTO_SELECTED_ARTIFACT"
+	protoLockHeldEnv       = "VROOLI_PROTO_LOCK_HELD"
+)
 
 // SharedPackageProvisioningError identifies the package and declared command
 // responsible for a provisioning failure. Keeping this error typed lets the
@@ -40,6 +48,7 @@ type SharedPackageProvisioningError struct {
 	PackageName string
 	Command     string
 	Reason      string
+	Code        string
 	Err         error
 }
 
@@ -48,6 +57,9 @@ func (e *SharedPackageProvisioningError) Error() string {
 		return ""
 	}
 	message := fmt.Sprintf("shared package %q provisioning command %q %s", e.PackageName, e.Command, e.Reason)
+	if e.Code != "" {
+		message = fmt.Sprintf("shared package %q provisioning command %q code=%q %s", e.PackageName, e.Command, e.Code, e.Reason)
+	}
 	if e.Err != nil {
 		message += ": " + e.Err.Error()
 	}
@@ -223,6 +235,41 @@ func (r *Runner) provisionSharedPackages(ctx context.Context, item scenario.Scen
 	return nil
 }
 
+// acquireProtoSetupLock holds the generator/lifecycle Proto lock across the
+// whole setup phase, including the consumer build. Without the phase-sized
+// lease, one scenario could switch the legacy compatibility view after a
+// second scenario had resolved it but before the first build finished.
+func (r *Runner) acquireProtoSetupLock(ctx context.Context, item scenario.Scenario, env map[string]string, logWriter io.Writer) (func(), error) {
+	for _, name := range orderedComponentNames(item.Manifest.Components) {
+		component := item.Manifest.Components[name]
+		spec, ok := BuilderRegistry()[component.Build.Kind]
+		if !ok || !spec.FollowsWorkspaceFileDeps {
+			continue
+		}
+		dir := component.Build.Dir
+		if strings.TrimSpace(dir) == "" {
+			dir = "."
+		}
+		dependencies, err := sharedPackageDependencies(r.Root, filepath.Join(item.Path, dir, "package.json"))
+		if err != nil {
+			return nil, err
+		}
+		for _, dependency := range dependencies {
+			if !dependencyUsesProtoArtifact(dependency) || strings.TrimSpace(r.Home) == "" {
+				continue
+			}
+			release, err := acquireSharedPackageLockContext(ctx, r.Home, "proto", dependency.Root, logWriter)
+			if err != nil {
+				return nil, &SharedPackageProvisioningError{PackageName: dependency.Name, Command: "proto shared lock", Reason: "could not acquire", Err: err}
+			}
+			env[protoLockHeldEnv] = "true"
+			env[protoArtifactRootEnv] = protogen.DefaultArtifactRoot(r.Home)
+			return release, nil
+		}
+	}
+	return func() {}, nil
+}
+
 func provisioningDisabled(env map[string]string) bool {
 	value := strings.TrimSpace(env[sharedPackageProvisioningDisabledEnv])
 	if value == "" {
@@ -314,6 +361,9 @@ func provisionSharedPackage(dependency sharedPackageDependency, stdout, logWrite
 }
 
 func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdout, logWriter io.Writer, options sharedPackageProvisionOptions) error {
+	if dependencyUsesProtoArtifact(dependency) && strings.TrimSpace(options.Scenario) != "" {
+		return provisionSelectedProtoArtifact(dependency, options, logWriter)
+	}
 	commands := append([]packagegov.CommandSpec{}, dependency.Generation...)
 	commands = append(commands, dependency.Build...)
 	if len(commands) == 0 {
@@ -337,6 +387,13 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 			}
 		}
 		defer release()
+		if dependency.Name == "proto" && strings.TrimSpace(options.Scenario) == "" {
+			baseEnv := options.Env
+			if baseEnv == nil {
+				baseEnv = os.Environ()
+			}
+			options.Env = append(append([]string(nil), baseEnv...), protoLockHeldEnv+"=true")
+		}
 	}
 
 	for _, command := range commands {
@@ -386,6 +443,55 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 		}
 	}
 	return nil
+}
+
+func dependencyUsesProtoArtifact(dependency sharedPackageDependency) bool {
+	if dependency.Name == "proto" {
+		return true
+	}
+	for _, command := range append(append([]packagegov.CommandSpec{}, dependency.Generation...), dependency.Build...) {
+		if strings.EqualFold(strings.TrimSpace(command.ArtifactSelection), protoArtifactSelection) {
+			return true
+		}
+	}
+	return false
+}
+
+func provisionSelectedProtoArtifact(dependency sharedPackageDependency, options sharedPackageProvisionOptions, logWriter io.Writer) error {
+	if strings.TrimSpace(options.Home) == "" {
+		return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: "resolve selected Proto artifact", Code: "missing-last-good", Reason: "runtime home is unavailable"}
+	}
+	root := strings.TrimSpace(environmentValue(options.Env, protoArtifactRootEnv))
+	if root == "" {
+		root = strings.TrimSpace(os.Getenv(protoArtifactRootEnv))
+	}
+	if root == "" {
+		root = protogen.DefaultArtifactRoot(options.Home)
+	}
+	store, err := protogen.NewArtifactStore(root)
+	if err != nil {
+		return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: "resolve selected Proto artifact", Code: "active-record-corrupt", Reason: "invalid artifact root", Err: err}
+	}
+	snapshot, err := store.Resolve(options.Context)
+	if err != nil {
+		return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: "resolve selected Proto artifact", Code: protogen.ArtifactErrorCode(err), Reason: "no valid active or last-known-good snapshot; run an explicit Proto refresh", Err: err}
+	}
+	defer snapshot.Close()
+	if err := store.MaterializeCompatibilityView(options.Context, snapshot, filepath.Join(dependency.Root, "gen")); err != nil {
+		return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: "materialize selected Proto artifact", Code: "publication-failed", Reason: "compatibility view could not be installed", Err: err}
+	}
+	_, _ = fmt.Fprintf(logWriter, "proto-artifact event=selected artifact_id=%q source_digest=%q selection=%q degraded=%t root=%q compatibility_root=%q\n", snapshot.ArtifactID, snapshot.Metadata.SourceDigest, snapshot.Selection, snapshot.Degraded, root, filepath.Join(dependency.Root, "gen"))
+	return nil
+}
+
+func environmentValue(env []string, key string) string {
+	prefix := key + "="
+	for _, value := range env {
+		if strings.HasPrefix(value, prefix) {
+			return strings.TrimPrefix(value, prefix)
+		}
+	}
+	return ""
 }
 
 func commandStatus(err error) string {
@@ -617,10 +723,18 @@ func sharedPackageArtifactSelectionDigest(home, packageName string) (string, err
 		return "missing-runtime-home", nil
 	}
 	artifactRoot := os.Getenv("VROOLI_RCL_ARTIFACT_ROOT")
+	selectionName := "current.json"
+	if packageName == protoArtifactSelection || packageName == "proto" {
+		artifactRoot = os.Getenv(protoArtifactRootEnv)
+		if strings.TrimSpace(artifactRoot) == "" {
+			artifactRoot = protogen.DefaultArtifactRoot(home)
+		}
+		selectionName = "active.json"
+	}
 	if strings.TrimSpace(artifactRoot) == "" {
 		artifactRoot = filepath.Join(home, ".vrooli", "artifacts", "react-component-library")
 	}
-	selectionPath := filepath.Join(artifactRoot, "current.json")
+	selectionPath := filepath.Join(artifactRoot, selectionName)
 	data, err := os.ReadFile(selectionPath)
 	if errors.Is(err, os.ErrNotExist) {
 		return "missing-selection", nil

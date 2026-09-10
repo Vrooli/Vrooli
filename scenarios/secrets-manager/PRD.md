@@ -35,17 +35,17 @@ receiving process and is never described as model-isolated.
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Encrypted vault custody | Create, search, update, trash, restore, and reveal supported password-manager items with metadata-only ordinary reads.
-- [ ] OT-P0-002 | Security finding detection | Preserve the existing security scanning contract while the password-manager boundary is added.
-- [ ] OT-P0-003 | Tier-aware deployment manifest | Preserve deployment manifest generation without returning secret values.
-- [ ] OT-P0-004 | Guided operator journeys | Provide a usable first-use dashboard with visible lock, reveal, access, and recovery boundaries.
+- [x] OT-P0-001 | Encrypted vault custody | Create, search, update, trash, restore, and reveal supported password-manager items with metadata-only ordinary reads.
+- [x] OT-P0-002 | Security finding detection | Preserve the existing security scanning contract while the password-manager boundary is added.
+- [x] OT-P0-003 | Tier-aware deployment manifest | Preserve deployment manifest generation without returning secret values.
+- [x] OT-P0-004 | Guided operator journeys | Provide a usable first-use dashboard with visible lock, reveal, access, and recovery boundaries.
 
 ### 🟠 P1 – Should have post-launch
 
-- [ ] OT-P1-001 | Guided secret provisioning | Preserve the existing authorized provisioning flow and connect it to the authority boundary.
-- [ ] OT-P1-002 | Operator dashboard | Provide API-backed vault, access, activity, recovery, and settings views.
-- [ ] OT-P1-003 | Validation history persistence | Keep activity and audit history durable and metadata-only.
-- [ ] OT-P1-004 | Automation-friendly command normalization | Preserve the existing CLI/API command contract.
+- [x] OT-P1-001 | Guided secret provisioning | Preserve the existing authorized provisioning flow and connect it to the authority boundary.
+- [x] OT-P1-002 | Operator dashboard | Provide API-backed vault, access, activity, recovery, and settings views.
+- [x] OT-P1-003 | Validation history persistence | Keep activity and audit history durable and metadata-only.
+- [x] OT-P1-004 | Automation-friendly command normalization | Preserve the existing CLI/API command contract.
 - [ ] OT-P1-005 | Reproducible lifecycle and tests | Use scenario lifecycle commands and the Test Genie suite as the release gate.
 
 ### 🟢 P2 – Future / expansion

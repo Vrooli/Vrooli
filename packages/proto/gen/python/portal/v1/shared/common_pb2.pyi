@@ -29,6 +29,7 @@ class AgentHarness(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     AGENT_HARNESS_CODEX: _ClassVar[AgentHarness]
     AGENT_HARNESS_OPENCODE: _ClassVar[AgentHarness]
     AGENT_HARNESS_GROK: _ClassVar[AgentHarness]
+    AGENT_HARNESS_ANTIGRAVITY: _ClassVar[AgentHarness]
 
 class ChatMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -49,6 +50,7 @@ AGENT_HARNESS_CLAUDE_CODE: AgentHarness
 AGENT_HARNESS_CODEX: AgentHarness
 AGENT_HARNESS_OPENCODE: AgentHarness
 AGENT_HARNESS_GROK: AgentHarness
+AGENT_HARNESS_ANTIGRAVITY: AgentHarness
 CHAT_MODE_UNSPECIFIED: ChatMode
 CHAT_MODE_LLM: ChatMode
 CHAT_MODE_AGENT: ChatMode

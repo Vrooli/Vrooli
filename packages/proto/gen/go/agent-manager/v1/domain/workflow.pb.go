@@ -370,15 +370,17 @@ func (x *WorkflowTerminalReason) GetBudgetName() string {
 }
 
 type WorkflowBudgetUsage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Turns         int32                  `protobuf:"varint,1,opt,name=turns,proto3" json:"turns,omitempty"`
-	Tokens        int32                  `protobuf:"varint,2,opt,name=tokens,proto3" json:"tokens,omitempty"`
-	CostUsd       float64                `protobuf:"fixed64,3,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
-	NodeAttempts  int32                  `protobuf:"varint,4,opt,name=node_attempts,json=nodeAttempts,proto3" json:"node_attempts,omitempty"`
-	Children      int32                  `protobuf:"varint,5,opt,name=children,proto3" json:"children,omitempty"`
-	Retries       int32                  `protobuf:"varint,6,opt,name=retries,proto3" json:"retries,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Turns        int32                  `protobuf:"varint,1,opt,name=turns,proto3" json:"turns,omitempty"`
+	Tokens       int32                  `protobuf:"varint,2,opt,name=tokens,proto3" json:"tokens,omitempty"`
+	CostUsd      float64                `protobuf:"fixed64,3,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
+	NodeAttempts int32                  `protobuf:"varint,4,opt,name=node_attempts,json=nodeAttempts,proto3" json:"node_attempts,omitempty"`
+	Children     int32                  `protobuf:"varint,5,opt,name=children,proto3" json:"children,omitempty"`
+	Retries      int32                  `protobuf:"varint,6,opt,name=retries,proto3" json:"retries,omitempty"`
+	// True only when every settled child has terminal token and charge accounting.
+	AccountingComplete bool `protobuf:"varint,7,opt,name=accounting_complete,json=accountingComplete,proto3" json:"accounting_complete,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *WorkflowBudgetUsage) Reset() {
@@ -453,6 +455,143 @@ func (x *WorkflowBudgetUsage) GetRetries() int32 {
 	return 0
 }
 
+func (x *WorkflowBudgetUsage) GetAccountingComplete() bool {
+	if x != nil {
+		return x.AccountingComplete
+	}
+	return false
+}
+
+// WorkflowEngagementGrant is an owner-issued aggregate allowance. Zero leaves
+// that dimension at the workflow's declared limit. When present, token and
+// wall-time limits are required and every supplied dimension can only narrow
+// the pinned workflow revision.
+type WorkflowEngagementGrant struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	MaxTurns           int32                  `protobuf:"varint,1,opt,name=max_turns,json=maxTurns,proto3" json:"max_turns,omitempty"`
+	MaxTokens          int32                  `protobuf:"varint,2,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	MaxChargeMicroUsd  int64                  `protobuf:"varint,3,opt,name=max_charge_micro_usd,json=maxChargeMicroUsd,proto3" json:"max_charge_micro_usd,omitempty"`
+	MaxWallTimeSeconds int32                  `protobuf:"varint,4,opt,name=max_wall_time_seconds,json=maxWallTimeSeconds,proto3" json:"max_wall_time_seconds,omitempty"`
+	MaxNodeAttempts    int32                  `protobuf:"varint,5,opt,name=max_node_attempts,json=maxNodeAttempts,proto3" json:"max_node_attempts,omitempty"`
+	MaxChildren        int32                  `protobuf:"varint,6,opt,name=max_children,json=maxChildren,proto3" json:"max_children,omitempty"`
+	MaxConcurrency     int32                  `protobuf:"varint,7,opt,name=max_concurrency,json=maxConcurrency,proto3" json:"max_concurrency,omitempty"`
+	MaxRecursion       int32                  `protobuf:"varint,8,opt,name=max_recursion,json=maxRecursion,proto3" json:"max_recursion,omitempty"`
+	// Omitted retains the declaration; an explicit zero forbids retries.
+	MaxRetries     *int32 `protobuf:"varint,9,opt,name=max_retries,json=maxRetries,proto3,oneof" json:"max_retries,omitempty"`
+	MaxWaitSeconds int32  `protobuf:"varint,10,opt,name=max_wait_seconds,json=maxWaitSeconds,proto3" json:"max_wait_seconds,omitempty"`
+	// Immutable effect ceiling inherited by every workflow child.
+	AllowedEffects []string `protobuf:"bytes,11,rep,name=allowed_effects,json=allowedEffects,proto3" json:"allowed_effects,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *WorkflowEngagementGrant) Reset() {
+	*x = WorkflowEngagementGrant{}
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowEngagementGrant) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowEngagementGrant) ProtoMessage() {}
+
+func (x *WorkflowEngagementGrant) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowEngagementGrant.ProtoReflect.Descriptor instead.
+func (*WorkflowEngagementGrant) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *WorkflowEngagementGrant) GetMaxTurns() int32 {
+	if x != nil {
+		return x.MaxTurns
+	}
+	return 0
+}
+
+func (x *WorkflowEngagementGrant) GetMaxTokens() int32 {
+	if x != nil {
+		return x.MaxTokens
+	}
+	return 0
+}
+
+func (x *WorkflowEngagementGrant) GetMaxChargeMicroUsd() int64 {
+	if x != nil {
+		return x.MaxChargeMicroUsd
+	}
+	return 0
+}
+
+func (x *WorkflowEngagementGrant) GetMaxWallTimeSeconds() int32 {
+	if x != nil {
+		return x.MaxWallTimeSeconds
+	}
+	return 0
+}
+
+func (x *WorkflowEngagementGrant) GetMaxNodeAttempts() int32 {
+	if x != nil {
+		return x.MaxNodeAttempts
+	}
+	return 0
+}
+
+func (x *WorkflowEngagementGrant) GetMaxChildren() int32 {
+	if x != nil {
+		return x.MaxChildren
+	}
+	return 0
+}
+
+func (x *WorkflowEngagementGrant) GetMaxConcurrency() int32 {
+	if x != nil {
+		return x.MaxConcurrency
+	}
+	return 0
+}
+
+func (x *WorkflowEngagementGrant) GetMaxRecursion() int32 {
+	if x != nil {
+		return x.MaxRecursion
+	}
+	return 0
+}
+
+func (x *WorkflowEngagementGrant) GetMaxRetries() int32 {
+	if x != nil && x.MaxRetries != nil {
+		return *x.MaxRetries
+	}
+	return 0
+}
+
+func (x *WorkflowEngagementGrant) GetMaxWaitSeconds() int32 {
+	if x != nil {
+		return x.MaxWaitSeconds
+	}
+	return 0
+}
+
+func (x *WorkflowEngagementGrant) GetAllowedEffects() []string {
+	if x != nil {
+		return x.AllowedEffects
+	}
+	return nil
+}
+
 // ChargeReceipt is the per-execution billing projection exposed to an
 // authorized result consumer. An absent amount with measured=false is an
 // explicit statement that this execution could not be attributed to a
@@ -470,7 +609,7 @@ type ChargeReceipt struct {
 
 func (x *ChargeReceipt) Reset() {
 	*x = ChargeReceipt{}
-	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -482,7 +621,7 @@ func (x *ChargeReceipt) String() string {
 func (*ChargeReceipt) ProtoMessage() {}
 
 func (x *ChargeReceipt) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -495,7 +634,7 @@ func (x *ChargeReceipt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChargeReceipt.ProtoReflect.Descriptor instead.
 func (*ChargeReceipt) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{4}
+	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ChargeReceipt) GetAmountMicroUsd() int64 {
@@ -560,13 +699,19 @@ type WorkflowExecution struct {
 	// Present on terminal executions, including an explicit unmeasured marker
 	// when the child billing basis cannot be attributed to this execution.
 	ChargeReceipt *ChargeReceipt `protobuf:"bytes,21,opt,name=charge_receipt,json=chargeReceipt,proto3" json:"charge_receipt,omitempty"`
+	// Immutable owner allowance retained for audit and restart reconciliation.
+	EngagementGrant *WorkflowEngagementGrant `protobuf:"bytes,22,opt,name=engagement_grant,json=engagementGrant,proto3" json:"engagement_grant,omitempty"`
+	// Reviewed Swarm engagement identity, when supplied by an owning adapter.
+	ApprovalDigest string `protobuf:"bytes,23,opt,name=approval_digest,json=approvalDigest,proto3" json:"approval_digest,omitempty"`
+	// Exact grant identity, kept separate from the workflow definition digest.
+	GrantDigest   string `protobuf:"bytes,24,opt,name=grant_digest,json=grantDigest,proto3" json:"grant_digest,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WorkflowExecution) Reset() {
 	*x = WorkflowExecution{}
-	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -578,7 +723,7 @@ func (x *WorkflowExecution) String() string {
 func (*WorkflowExecution) ProtoMessage() {}
 
 func (x *WorkflowExecution) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -591,7 +736,7 @@ func (x *WorkflowExecution) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowExecution.ProtoReflect.Descriptor instead.
 func (*WorkflowExecution) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{5}
+	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *WorkflowExecution) GetId() string {
@@ -741,6 +886,27 @@ func (x *WorkflowExecution) GetChargeReceipt() *ChargeReceipt {
 	return nil
 }
 
+func (x *WorkflowExecution) GetEngagementGrant() *WorkflowEngagementGrant {
+	if x != nil {
+		return x.EngagementGrant
+	}
+	return nil
+}
+
+func (x *WorkflowExecution) GetApprovalDigest() string {
+	if x != nil {
+		return x.ApprovalDigest
+	}
+	return ""
+}
+
+func (x *WorkflowExecution) GetGrantDigest() string {
+	if x != nil {
+		return x.GrantDigest
+	}
+	return ""
+}
+
 // WorkflowNodeAttempt is the durable, per-node execution identity. Prompt
 // snapshots are deliberately excluded from this operator-facing contract.
 type WorkflowNodeAttempt struct {
@@ -775,7 +941,7 @@ type WorkflowNodeAttempt struct {
 
 func (x *WorkflowNodeAttempt) Reset() {
 	*x = WorkflowNodeAttempt{}
-	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -787,7 +953,7 @@ func (x *WorkflowNodeAttempt) String() string {
 func (*WorkflowNodeAttempt) ProtoMessage() {}
 
 func (x *WorkflowNodeAttempt) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -800,7 +966,7 @@ func (x *WorkflowNodeAttempt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowNodeAttempt.ProtoReflect.Descriptor instead.
 func (*WorkflowNodeAttempt) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{6}
+	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *WorkflowNodeAttempt) GetId() string {
@@ -970,7 +1136,7 @@ type WorkflowJournalEntry struct {
 
 func (x *WorkflowJournalEntry) Reset() {
 	*x = WorkflowJournalEntry{}
-	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[7]
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -982,7 +1148,7 @@ func (x *WorkflowJournalEntry) String() string {
 func (*WorkflowJournalEntry) ProtoMessage() {}
 
 func (x *WorkflowJournalEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[7]
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -995,7 +1161,7 @@ func (x *WorkflowJournalEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowJournalEntry.ProtoReflect.Descriptor instead.
 func (*WorkflowJournalEntry) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{7}
+	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *WorkflowJournalEntry) GetId() string {
@@ -1095,21 +1261,39 @@ const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
 	"\tretryable\x18\x03 \x01(\bR\tretryable\x12\x1f\n" +
 	"\vbudget_name\x18\x04 \x01(\tR\n" +
-	"budgetName\"\xb9\x01\n" +
+	"budgetName\"\xea\x01\n" +
 	"\x13WorkflowBudgetUsage\x12\x14\n" +
 	"\x05turns\x18\x01 \x01(\x05R\x05turns\x12\x16\n" +
 	"\x06tokens\x18\x02 \x01(\x05R\x06tokens\x12\x19\n" +
 	"\bcost_usd\x18\x03 \x01(\x01R\acostUsd\x12#\n" +
 	"\rnode_attempts\x18\x04 \x01(\x05R\fnodeAttempts\x12\x1a\n" +
 	"\bchildren\x18\x05 \x01(\x05R\bchildren\x12\x18\n" +
-	"\aretries\x18\x06 \x01(\x05R\aretries\"\xc6\x01\n" +
+	"\aretries\x18\x06 \x01(\x05R\aretries\x12/\n" +
+	"\x13accounting_complete\x18\a \x01(\bR\x12accountingComplete\"\xdf\x03\n" +
+	"\x17WorkflowEngagementGrant\x12\x1b\n" +
+	"\tmax_turns\x18\x01 \x01(\x05R\bmaxTurns\x12\x1d\n" +
+	"\n" +
+	"max_tokens\x18\x02 \x01(\x05R\tmaxTokens\x12/\n" +
+	"\x14max_charge_micro_usd\x18\x03 \x01(\x03R\x11maxChargeMicroUsd\x121\n" +
+	"\x15max_wall_time_seconds\x18\x04 \x01(\x05R\x12maxWallTimeSeconds\x12*\n" +
+	"\x11max_node_attempts\x18\x05 \x01(\x05R\x0fmaxNodeAttempts\x12!\n" +
+	"\fmax_children\x18\x06 \x01(\x05R\vmaxChildren\x12'\n" +
+	"\x0fmax_concurrency\x18\a \x01(\x05R\x0emaxConcurrency\x12#\n" +
+	"\rmax_recursion\x18\b \x01(\x05R\fmaxRecursion\x12$\n" +
+	"\vmax_retries\x18\t \x01(\x05H\x00R\n" +
+	"maxRetries\x88\x01\x01\x12(\n" +
+	"\x10max_wait_seconds\x18\n" +
+	" \x01(\x05R\x0emaxWaitSeconds\x12'\n" +
+	"\x0fallowed_effects\x18\v \x03(\tR\x0eallowedEffectsB\x0e\n" +
+	"\f_max_retries\"\xc6\x01\n" +
 	"\rChargeReceipt\x12-\n" +
 	"\x10amount_micro_usd\x18\x01 \x01(\x03H\x00R\x0eamountMicroUsd\x88\x01\x01\x12\x1a\n" +
 	"\bcurrency\x18\x02 \x01(\tR\bcurrency\x12%\n" +
 	"\x0emetering_basis\x18\x03 \x01(\tR\rmeteringBasis\x12\x1a\n" +
 	"\bmeasured\x18\x04 \x01(\bR\bmeasured\x12\x12\n" +
 	"\x04note\x18\x05 \x01(\tR\x04noteB\x13\n" +
-	"\x11_amount_micro_usd\"\x89\t\n" +
+	"\x11_amount_micro_usd\"\xab\n" +
+	"\n" +
 	"\x11WorkflowExecution\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12!\n" +
@@ -1134,7 +1318,10 @@ const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"\x11parent_attempt_id\x18\x12 \x01(\tR\x0fparentAttemptId\x12\x14\n" +
 	"\x05depth\x18\x13 \x01(\x05R\x05depth\x12I\n" +
 	"\fobservations\x18\x14 \x01(\v2%.agent_manager.v1.ReceiptObservationsR\fobservations\x12F\n" +
-	"\x0echarge_receipt\x18\x15 \x01(\v2\x1f.agent_manager.v1.ChargeReceiptR\rchargeReceipt\x1aA\n" +
+	"\x0echarge_receipt\x18\x15 \x01(\v2\x1f.agent_manager.v1.ChargeReceiptR\rchargeReceipt\x12T\n" +
+	"\x10engagement_grant\x18\x16 \x01(\v2).agent_manager.v1.WorkflowEngagementGrantR\x0fengagementGrant\x12'\n" +
+	"\x0fapproval_digest\x18\x17 \x01(\tR\x0eapprovalDigest\x12!\n" +
+	"\fgrant_digest\x18\x18 \x01(\tR\vgrantDigest\x1aA\n" +
 	"\x13EdgeTraversalsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xc4\x06\n" +
@@ -1204,47 +1391,49 @@ func file_agent_manager_v1_domain_workflow_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_manager_v1_domain_workflow_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_agent_manager_v1_domain_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_agent_manager_v1_domain_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_agent_manager_v1_domain_workflow_proto_goTypes = []any{
-	(WorkflowExecutionStatus)(0),   // 0: agent_manager.v1.WorkflowExecutionStatus
-	(*WorkflowRevision)(nil),       // 1: agent_manager.v1.WorkflowRevision
-	(*WorkflowDiagnostic)(nil),     // 2: agent_manager.v1.WorkflowDiagnostic
-	(*WorkflowTerminalReason)(nil), // 3: agent_manager.v1.WorkflowTerminalReason
-	(*WorkflowBudgetUsage)(nil),    // 4: agent_manager.v1.WorkflowBudgetUsage
-	(*ChargeReceipt)(nil),          // 5: agent_manager.v1.ChargeReceipt
-	(*WorkflowExecution)(nil),      // 6: agent_manager.v1.WorkflowExecution
-	(*WorkflowNodeAttempt)(nil),    // 7: agent_manager.v1.WorkflowNodeAttempt
-	(*WorkflowJournalEntry)(nil),   // 8: agent_manager.v1.WorkflowJournalEntry
-	nil,                            // 9: agent_manager.v1.WorkflowExecution.EdgeTraversalsEntry
-	(*structpb.Struct)(nil),        // 10: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),  // 11: google.protobuf.Timestamp
-	(*structpb.Value)(nil),         // 12: google.protobuf.Value
-	(*ReceiptObservations)(nil),    // 13: agent_manager.v1.ReceiptObservations
+	(WorkflowExecutionStatus)(0),    // 0: agent_manager.v1.WorkflowExecutionStatus
+	(*WorkflowRevision)(nil),        // 1: agent_manager.v1.WorkflowRevision
+	(*WorkflowDiagnostic)(nil),      // 2: agent_manager.v1.WorkflowDiagnostic
+	(*WorkflowTerminalReason)(nil),  // 3: agent_manager.v1.WorkflowTerminalReason
+	(*WorkflowBudgetUsage)(nil),     // 4: agent_manager.v1.WorkflowBudgetUsage
+	(*WorkflowEngagementGrant)(nil), // 5: agent_manager.v1.WorkflowEngagementGrant
+	(*ChargeReceipt)(nil),           // 6: agent_manager.v1.ChargeReceipt
+	(*WorkflowExecution)(nil),       // 7: agent_manager.v1.WorkflowExecution
+	(*WorkflowNodeAttempt)(nil),     // 8: agent_manager.v1.WorkflowNodeAttempt
+	(*WorkflowJournalEntry)(nil),    // 9: agent_manager.v1.WorkflowJournalEntry
+	nil,                             // 10: agent_manager.v1.WorkflowExecution.EdgeTraversalsEntry
+	(*structpb.Struct)(nil),         // 11: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),   // 12: google.protobuf.Timestamp
+	(*structpb.Value)(nil),          // 13: google.protobuf.Value
+	(*ReceiptObservations)(nil),     // 14: agent_manager.v1.ReceiptObservations
 }
 var file_agent_manager_v1_domain_workflow_proto_depIdxs = []int32{
-	10, // 0: agent_manager.v1.WorkflowRevision.definition:type_name -> google.protobuf.Struct
-	11, // 1: agent_manager.v1.WorkflowRevision.source_updated_at:type_name -> google.protobuf.Timestamp
-	11, // 2: agent_manager.v1.WorkflowRevision.created_at:type_name -> google.protobuf.Timestamp
+	11, // 0: agent_manager.v1.WorkflowRevision.definition:type_name -> google.protobuf.Struct
+	12, // 1: agent_manager.v1.WorkflowRevision.source_updated_at:type_name -> google.protobuf.Timestamp
+	12, // 2: agent_manager.v1.WorkflowRevision.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 3: agent_manager.v1.WorkflowExecution.status:type_name -> agent_manager.v1.WorkflowExecutionStatus
-	12, // 4: agent_manager.v1.WorkflowExecution.input:type_name -> google.protobuf.Value
-	12, // 5: agent_manager.v1.WorkflowExecution.output:type_name -> google.protobuf.Value
+	13, // 4: agent_manager.v1.WorkflowExecution.input:type_name -> google.protobuf.Value
+	13, // 5: agent_manager.v1.WorkflowExecution.output:type_name -> google.protobuf.Value
 	3,  // 6: agent_manager.v1.WorkflowExecution.terminal_reason:type_name -> agent_manager.v1.WorkflowTerminalReason
 	4,  // 7: agent_manager.v1.WorkflowExecution.budget_usage:type_name -> agent_manager.v1.WorkflowBudgetUsage
-	9,  // 8: agent_manager.v1.WorkflowExecution.edge_traversals:type_name -> agent_manager.v1.WorkflowExecution.EdgeTraversalsEntry
-	11, // 9: agent_manager.v1.WorkflowExecution.created_at:type_name -> google.protobuf.Timestamp
-	11, // 10: agent_manager.v1.WorkflowExecution.updated_at:type_name -> google.protobuf.Timestamp
-	11, // 11: agent_manager.v1.WorkflowExecution.ended_at:type_name -> google.protobuf.Timestamp
-	13, // 12: agent_manager.v1.WorkflowExecution.observations:type_name -> agent_manager.v1.ReceiptObservations
-	5,  // 13: agent_manager.v1.WorkflowExecution.charge_receipt:type_name -> agent_manager.v1.ChargeReceipt
-	11, // 14: agent_manager.v1.WorkflowNodeAttempt.created_at:type_name -> google.protobuf.Timestamp
-	11, // 15: agent_manager.v1.WorkflowNodeAttempt.updated_at:type_name -> google.protobuf.Timestamp
-	11, // 16: agent_manager.v1.WorkflowNodeAttempt.completed_at:type_name -> google.protobuf.Timestamp
-	11, // 17: agent_manager.v1.WorkflowJournalEntry.created_at:type_name -> google.protobuf.Timestamp
-	18, // [18:18] is the sub-list for method output_type
-	18, // [18:18] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	10, // 8: agent_manager.v1.WorkflowExecution.edge_traversals:type_name -> agent_manager.v1.WorkflowExecution.EdgeTraversalsEntry
+	12, // 9: agent_manager.v1.WorkflowExecution.created_at:type_name -> google.protobuf.Timestamp
+	12, // 10: agent_manager.v1.WorkflowExecution.updated_at:type_name -> google.protobuf.Timestamp
+	12, // 11: agent_manager.v1.WorkflowExecution.ended_at:type_name -> google.protobuf.Timestamp
+	14, // 12: agent_manager.v1.WorkflowExecution.observations:type_name -> agent_manager.v1.ReceiptObservations
+	6,  // 13: agent_manager.v1.WorkflowExecution.charge_receipt:type_name -> agent_manager.v1.ChargeReceipt
+	5,  // 14: agent_manager.v1.WorkflowExecution.engagement_grant:type_name -> agent_manager.v1.WorkflowEngagementGrant
+	12, // 15: agent_manager.v1.WorkflowNodeAttempt.created_at:type_name -> google.protobuf.Timestamp
+	12, // 16: agent_manager.v1.WorkflowNodeAttempt.updated_at:type_name -> google.protobuf.Timestamp
+	12, // 17: agent_manager.v1.WorkflowNodeAttempt.completed_at:type_name -> google.protobuf.Timestamp
+	12, // 18: agent_manager.v1.WorkflowJournalEntry.created_at:type_name -> google.protobuf.Timestamp
+	19, // [19:19] is the sub-list for method output_type
+	19, // [19:19] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_workflow_proto_init() }
@@ -1254,13 +1443,14 @@ func file_agent_manager_v1_domain_workflow_proto_init() {
 	}
 	file_agent_manager_v1_domain_run_proto_init()
 	file_agent_manager_v1_domain_workflow_proto_msgTypes[4].OneofWrappers = []any{}
+	file_agent_manager_v1_domain_workflow_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_workflow_proto_rawDesc), len(file_agent_manager_v1_domain_workflow_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

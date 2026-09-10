@@ -458,15 +458,19 @@ type CreateCheckoutSessionRequest struct {
 	// Arbitrary metadata to associate with the session.
 	// Key: Metadata identifier (e.g., "utm_source", "referral_code")
 	// Value: JSON-compatible value for tracking and analytics
-	Metadata      map[string]*v1.JsonValue `protobuf:"bytes,7,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	VisitorId     string                   `protobuf:"bytes,8,opt,name=visitor_id,json=visitorId,proto3" json:"visitor_id,omitempty"`
-	UtmSource     string                   `protobuf:"bytes,9,opt,name=utm_source,json=utmSource,proto3" json:"utm_source,omitempty"`
-	UtmMedium     string                   `protobuf:"bytes,10,opt,name=utm_medium,json=utmMedium,proto3" json:"utm_medium,omitempty"`
-	UtmCampaign   string                   `protobuf:"bytes,11,opt,name=utm_campaign,json=utmCampaign,proto3" json:"utm_campaign,omitempty"`
-	ReferrerKind  string                   `protobuf:"bytes,12,opt,name=referrer_kind,json=referrerKind,proto3" json:"referrer_kind,omitempty"`
-	CountryCode   string                   `protobuf:"bytes,13,opt,name=country_code,json=countryCode,proto3" json:"country_code,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Metadata     map[string]*v1.JsonValue `protobuf:"bytes,7,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	VisitorId    string                   `protobuf:"bytes,8,opt,name=visitor_id,json=visitorId,proto3" json:"visitor_id,omitempty"`
+	UtmSource    string                   `protobuf:"bytes,9,opt,name=utm_source,json=utmSource,proto3" json:"utm_source,omitempty"`
+	UtmMedium    string                   `protobuf:"bytes,10,opt,name=utm_medium,json=utmMedium,proto3" json:"utm_medium,omitempty"`
+	UtmCampaign  string                   `protobuf:"bytes,11,opt,name=utm_campaign,json=utmCampaign,proto3" json:"utm_campaign,omitempty"`
+	ReferrerKind string                   `protobuf:"bytes,12,opt,name=referrer_kind,json=referrerKind,proto3" json:"referrer_kind,omitempty"`
+	CountryCode  string                   `protobuf:"bytes,13,opt,name=country_code,json=countryCode,proto3" json:"country_code,omitempty"`
+	// LPBS business account receiving this purchase. When set, the caller must
+	// be an authenticated member of the account; email is never sufficient to
+	// select a commercial account.
+	BusinessAccountId string `protobuf:"bytes,14,opt,name=business_account_id,json=businessAccountId,proto3" json:"business_account_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *CreateCheckoutSessionRequest) Reset() {
@@ -579,6 +583,13 @@ func (x *CreateCheckoutSessionRequest) GetReferrerKind() string {
 func (x *CreateCheckoutSessionRequest) GetCountryCode() string {
 	if x != nil {
 		return x.CountryCode
+	}
+	return ""
+}
+
+func (x *CreateCheckoutSessionRequest) GetBusinessAccountId() string {
+	if x != nil {
+		return x.BusinessAccountId
 	}
 	return ""
 }
@@ -1100,7 +1111,7 @@ const file_landing_page_business_suite_v1_billing_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\x14\n" +
 	"\x12_stripe_product_idB\x12\n" +
 	"\x10_subscription_idB\x0e\n" +
-	"\f_schedule_idJ\x04\b\x10\x10\x11R\x10metadata_untyped\"\x8b\x05\n" +
+	"\f_schedule_idJ\x04\b\x10\x10\x11R\x10metadata_untyped\"\xbb\x05\n" +
 	"\x1cCreateCheckoutSessionRequest\x12\x19\n" +
 	"\bprice_id\x18\x01 \x01(\tR\apriceId\x12%\n" +
 	"\x0ecustomer_email\x18\x02 \x01(\tR\rcustomerEmail\x12\x1f\n" +
@@ -1119,7 +1130,8 @@ const file_landing_page_business_suite_v1_billing_proto_rawDesc = "" +
 	" \x01(\tR\tutmMedium\x12!\n" +
 	"\futm_campaign\x18\v \x01(\tR\vutmCampaign\x12#\n" +
 	"\rreferrer_kind\x18\f \x01(\tR\freferrerKind\x12!\n" +
-	"\fcountry_code\x18\r \x01(\tR\vcountryCode\x1aQ\n" +
+	"\fcountry_code\x18\r \x01(\tR\vcountryCode\x12.\n" +
+	"\x13business_account_id\x18\x0e \x01(\tR\x11businessAccountId\x1aQ\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x06\x10\aR\x10metadata_untyped\"j\n" +

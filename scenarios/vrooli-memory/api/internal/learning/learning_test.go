@@ -40,13 +40,18 @@ func TestOutcomeMetricsKeepUnresolvedAndUnknownVisible(t *testing.T) {
 	a := attempt("a", "task", 1, "failed")
 	a.RecallStatus = "matched"
 	a.Advice = []*pb.AdviceUse{{EntryId: "prior", Decision: "applied", DecisionChange: "used recommended route", Verdict: "contradicted", EvidenceRefs: []string{"run:failed"}}}
-	es := []*source.Entry{entry(t, a), entry(t, attempt("b", "task", 2, "verified_success")), entry(t, attempt("c", "other", 1, "failed")), entry(t, attempt("d", "down", 1, "unavailable"))}
+	quiet := attempt("e", "other", 2, "unknown")
+	quiet.RecallStatus = "not_requested"
+	es := []*source.Entry{entry(t, a), entry(t, attempt("b", "task", 2, "verified_success")), entry(t, attempt("c", "other", 1, "failed")), entry(t, attempt("d", "down", 1, "unavailable")), entry(t, quiet)}
 	r := measure(es)
 	if !r.Reliable || len(r.Cohorts) != 1 {
 		t.Fatalf("%+v", r)
 	}
 	c := r.Cohorts[0]
-	if c.Attempts != 4 || c.CompletedTasks != 1 || c.UnresolvedTasks != 2 || c.RecurringFailureFingerprints != 1 || c.RepeatedFailures != 1 || c.Unavailable != 1 || c.GetMedianAttemptsToSuccess() != 2 || c.GetMedianSecondsToSuccess() != 120 || c.ContradictionRate == nil || *c.ContradictionRate != 1 {
+	if c.RecallNotRequested != 1 || c.RecallUnavailable != 0 {
+		t.Fatalf("not_requested must be counted apart from unavailable: %+v", c)
+	}
+	if c.Attempts != 5 || c.CompletedTasks != 1 || c.UnresolvedTasks != 2 || c.RecurringFailureFingerprints != 1 || c.RepeatedFailures != 1 || c.Unavailable != 1 || c.GetMedianAttemptsToSuccess() != 2 || c.GetMedianSecondsToSuccess() != 120 || c.ContradictionRate == nil || *c.ContradictionRate != 1 {
 		t.Fatalf("%+v", c)
 	}
 }
@@ -164,6 +169,24 @@ func TestValidationRejectsUnattributableClaims(t *testing.T) {
 	}
 }
 
+func TestAgentProvenanceIsAcceptedAndSeparatedInMeasures(t *testing.T) {
+	agent := attempt("agent-attempt", "agent-task", 1, "verified_success")
+	agent.Provenance = "agent"
+	if err := Validate(agent); err != nil {
+		t.Fatalf("agent attempt rejected: %v", err)
+	}
+	operator := attempt("operator-attempt", "agent-task", 1, "verified_success")
+	result := Measure([]*source.Entry{entry(t, agent), entry(t, operator)}, "agent-memory", start.Add(-time.Hour), start.Add(24*time.Hour), "", "", false)
+	if len(result.Cohorts) != 2 {
+		t.Fatalf("cohorts = %#v, want separate provenance cohorts", result.Cohorts)
+	}
+	for _, cohort := range result.Cohorts {
+		if cohort.Provenance != "agent" && cohort.Provenance != "operator" {
+			t.Fatalf("cohort provenance = %q", cohort.Provenance)
+		}
+	}
+}
+
 func TestObservationRoundTripAndUnknownNeedsNoEvidence(t *testing.T) {
 	o := &pb.Observation{ObservationId: "observation-1", AttemptId: "attempt-1", Disposition: "supported", EvidenceRefs: []string{"receipt:r1"}, MethodRevision: "method:v2", Provenance: "operator", ObservedAt: "2026-09-01T00:00:00Z"}
 	body, err := EncodeObservation(o)
@@ -195,7 +218,7 @@ func TestMeasureProjectsLatestFeedbackWithoutChangingAttempt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result := measure([]*source.Entry{entry(t, a), &source.Entry{Id: o.ObservationId, Kind: "attempt-observation", Body: body, CreatedAt: timestamppb.New(start.Add(2 * time.Hour))}})
+	result := measure([]*source.Entry{entry(t, a), {Id: o.ObservationId, Kind: "attempt-observation", Body: body, CreatedAt: timestamppb.New(start.Add(2 * time.Hour))}})
 	if len(result.Cohorts) != 1 || result.Cohorts[0].SupportedFeedback != 1 || result.Cohorts[0].Unknown != 1 {
 		t.Fatalf("feedback was not projected alongside original attempt: %+v", result.Cohorts)
 	}

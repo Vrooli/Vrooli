@@ -24,6 +24,7 @@ const STATUS_COLORS: Record<string, string> = {
   needs_fixup: "bg-amber-500/20 text-amber-300",
   completed: "bg-green-500/20 text-green-300",
   failed: "bg-red-500/20 text-red-300",
+  cancelling: "bg-amber-500/20 text-amber-300",
   canceled: "bg-slate-700/40 text-slate-500",
 };
 

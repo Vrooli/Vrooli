@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// SkillsServiceRefreshProjectionProcedure is the fully-qualified name of the SkillsService's
+	// RefreshProjection RPC.
+	SkillsServiceRefreshProjectionProcedure = "/vrooli.prompt_manager.v1.skills.SkillsService/RefreshProjection"
 	// SkillsServiceListSkillsProcedure is the fully-qualified name of the SkillsService's ListSkills
 	// RPC.
 	SkillsServiceListSkillsProcedure = "/vrooli.prompt_manager.v1.skills.SkillsService/ListSkills"
@@ -92,6 +95,7 @@ const (
 
 // SkillsServiceClient is a client for the vrooli.prompt_manager.v1.skills.SkillsService service.
 type SkillsServiceClient interface {
+	RefreshProjection(context.Context, *connect.Request[skills.RefreshProjectionRequest]) (*connect.Response[skills.RefreshProjectionResponse], error)
 	ListSkills(context.Context, *connect.Request[skills.ListSkillsRequest]) (*connect.Response[skills.ListSkillsResponse], error)
 	GetSkill(context.Context, *connect.Request[skills.GetSkillRequest]) (*connect.Response[skills.GetSkillResponse], error)
 	ReadSkills(context.Context, *connect.Request[skills.ReadSkillsRequest]) (*connect.Response[skills.ReadSkillsResponse], error)
@@ -124,6 +128,12 @@ func NewSkillsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 	baseURL = strings.TrimRight(baseURL, "/")
 	skillsServiceMethods := skills.File_prompt_manager_v1_skills_skills_proto.Services().ByName("SkillsService").Methods()
 	return &skillsServiceClient{
+		refreshProjection: connect.NewClient[skills.RefreshProjectionRequest, skills.RefreshProjectionResponse](
+			httpClient,
+			baseURL+SkillsServiceRefreshProjectionProcedure,
+			connect.WithSchema(skillsServiceMethods.ByName("RefreshProjection")),
+			connect.WithClientOptions(opts...),
+		),
 		listSkills: connect.NewClient[skills.ListSkillsRequest, skills.ListSkillsResponse](
 			httpClient,
 			baseURL+SkillsServiceListSkillsProcedure,
@@ -243,6 +253,7 @@ func NewSkillsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // skillsServiceClient implements SkillsServiceClient.
 type skillsServiceClient struct {
+	refreshProjection            *connect.Client[skills.RefreshProjectionRequest, skills.RefreshProjectionResponse]
 	listSkills                   *connect.Client[skills.ListSkillsRequest, skills.ListSkillsResponse]
 	getSkill                     *connect.Client[skills.GetSkillRequest, skills.GetSkillResponse]
 	readSkills                   *connect.Client[skills.ReadSkillsRequest, skills.ReadSkillsResponse]
@@ -262,6 +273,11 @@ type skillsServiceClient struct {
 	importSkill                  *connect.Client[skills.ImportSkillRequest, skills.ImportSkillResponse]
 	reviewImportedSkill          *connect.Client[skills.ReviewImportedSkillRequest, skills.ReviewImportedSkillResponse]
 	reportImportedSkillStaleness *connect.Client[skills.ReportImportedSkillStalenessRequest, skills.ReportImportedSkillStalenessResponse]
+}
+
+// RefreshProjection calls vrooli.prompt_manager.v1.skills.SkillsService.RefreshProjection.
+func (c *skillsServiceClient) RefreshProjection(ctx context.Context, req *connect.Request[skills.RefreshProjectionRequest]) (*connect.Response[skills.RefreshProjectionResponse], error) {
+	return c.refreshProjection.CallUnary(ctx, req)
 }
 
 // ListSkills calls vrooli.prompt_manager.v1.skills.SkillsService.ListSkills.
@@ -363,6 +379,7 @@ func (c *skillsServiceClient) ReportImportedSkillStaleness(ctx context.Context, 
 // SkillsServiceHandler is an implementation of the vrooli.prompt_manager.v1.skills.SkillsService
 // service.
 type SkillsServiceHandler interface {
+	RefreshProjection(context.Context, *connect.Request[skills.RefreshProjectionRequest]) (*connect.Response[skills.RefreshProjectionResponse], error)
 	ListSkills(context.Context, *connect.Request[skills.ListSkillsRequest]) (*connect.Response[skills.ListSkillsResponse], error)
 	GetSkill(context.Context, *connect.Request[skills.GetSkillRequest]) (*connect.Response[skills.GetSkillResponse], error)
 	ReadSkills(context.Context, *connect.Request[skills.ReadSkillsRequest]) (*connect.Response[skills.ReadSkillsResponse], error)
@@ -391,6 +408,12 @@ type SkillsServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewSkillsServiceHandler(svc SkillsServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	skillsServiceMethods := skills.File_prompt_manager_v1_skills_skills_proto.Services().ByName("SkillsService").Methods()
+	skillsServiceRefreshProjectionHandler := connect.NewUnaryHandler(
+		SkillsServiceRefreshProjectionProcedure,
+		svc.RefreshProjection,
+		connect.WithSchema(skillsServiceMethods.ByName("RefreshProjection")),
+		connect.WithHandlerOptions(opts...),
+	)
 	skillsServiceListSkillsHandler := connect.NewUnaryHandler(
 		SkillsServiceListSkillsProcedure,
 		svc.ListSkills,
@@ -507,6 +530,8 @@ func NewSkillsServiceHandler(svc SkillsServiceHandler, opts ...connect.HandlerOp
 	)
 	return "/vrooli.prompt_manager.v1.skills.SkillsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case SkillsServiceRefreshProjectionProcedure:
+			skillsServiceRefreshProjectionHandler.ServeHTTP(w, r)
 		case SkillsServiceListSkillsProcedure:
 			skillsServiceListSkillsHandler.ServeHTTP(w, r)
 		case SkillsServiceGetSkillProcedure:
@@ -553,6 +578,10 @@ func NewSkillsServiceHandler(svc SkillsServiceHandler, opts ...connect.HandlerOp
 
 // UnimplementedSkillsServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedSkillsServiceHandler struct{}
+
+func (UnimplementedSkillsServiceHandler) RefreshProjection(context.Context, *connect.Request[skills.RefreshProjectionRequest]) (*connect.Response[skills.RefreshProjectionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.skills.SkillsService.RefreshProjection is not implemented"))
+}
 
 func (UnimplementedSkillsServiceHandler) ListSkills(context.Context, *connect.Request[skills.ListSkillsRequest]) (*connect.Response[skills.ListSkillsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.skills.SkillsService.ListSkills is not implemented"))

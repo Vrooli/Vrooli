@@ -100,6 +100,22 @@ func TestScenarioStatusSinglePassesName(t *testing.T) {
 	}
 }
 
+func TestScenarioStatusSingleDecodesHealthStatus(t *testing.T) {
+	runner := &stubRunner{responses: []stubResponse{{output: []byte(`{
+		"success": true,
+		"scenario": {"name": "tunnel-manager", "status": "running", "health_status": "healthy"}
+	}`)}}}
+	client := New(WithRunner(runner))
+
+	resp, err := client.ScenarioStatus(context.Background(), "tunnel-manager")
+	if err != nil {
+		t.Fatalf("ScenarioStatus: %v", err)
+	}
+	if got := resp.GetScenario().GetHealthStatus().GetStringValue(); got != "healthy" {
+		t.Fatalf("health_status = %q, want healthy", got)
+	}
+}
+
 func TestScenarioStatusSingleRequiresName(t *testing.T) {
 	client := New(WithRunner(&stubRunner{}))
 	if _, err := client.ScenarioStatus(context.Background(), ""); err == nil {

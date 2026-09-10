@@ -68,7 +68,22 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 			CollectionReservationMemberCount: int(req.Msg.GetCollectionReservationMemberCount()),
 			RetainForEvidence:                req.Msg.GetRetainForEvidence(),
 			RetentionReason:                  strings.TrimSpace(req.Msg.GetRetentionReason()),
+			ReleaseIdentity: &orchestrator.ReleaseIdentity{
+				ProfileID:             strings.TrimSpace(req.Msg.GetReleaseProfileId()),
+				CandidateCommit:       strings.TrimSpace(req.Msg.GetReleaseCandidateCommit()),
+				ArtifactDigest:        strings.TrimSpace(req.Msg.GetReleaseArtifactDigest()),
+				Targets:               append([]string(nil), req.Msg.GetReleaseTargets()...),
+				Channel:               strings.TrimSpace(req.Msg.GetReleaseChannel()),
+				PolicyVersion:         int(req.Msg.GetReleasePolicyVersion()),
+				CandidateID:           strings.TrimSpace(req.Msg.GetReleaseCandidateId()),
+				DestinationRevisionID: strings.TrimSpace(req.Msg.GetReleaseDestinationRevisionId()),
+				AuthorizationEpoch:    req.Msg.GetReleaseAuthorizationEpoch(),
+				PredecessorRunID:      strings.TrimSpace(req.Msg.GetReleasePredecessorRunId()),
+			},
 		},
+	}
+	if input.Request.ReleaseIdentity.ProfileID == "" && input.Request.ReleaseIdentity.CandidateCommit == "" && input.Request.ReleaseIdentity.ArtifactDigest == "" && len(input.Request.ReleaseIdentity.Targets) == 0 && input.Request.ReleaseIdentity.Channel == "" {
+		input.Request.ReleaseIdentity = nil
 	}
 	caller := strings.TrimSpace(req.Header().Get(cliutil.HeaderCaller))
 	releasePreview, err := s.runManager.TryAcquirePreviewFor(caller)

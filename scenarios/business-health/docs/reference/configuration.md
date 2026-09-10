@@ -9,6 +9,14 @@ running a binary by hand or when a scenario adds a new variable.
 
 ## Environment variables
 
+During a release qualification run, the optional
+`BUSINESS_HEALTH_DEPLOYMENT_MANAGER_READINESS_*` variables configure the
+authenticated owner callback for `requirements-cover-sale`. When
+`BUSINESS_HEALTH_DEPLOYMENT_MANAGER_READINESS_TOKEN` is set, provide the exact
+scenario, profile, candidate commit, artifact digest, targets, channel, and
+policy version; release-bound candidate, destination revision, and
+authorization epoch values must be supplied together.
+
 ### Required at runtime (set by the lifecycle)
 
 | Variable | Range / format | Purpose |

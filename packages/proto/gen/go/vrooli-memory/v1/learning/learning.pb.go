@@ -24,12 +24,14 @@ const (
 type AdviceUse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	EntryId string                 `protobuf:"bytes,1,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
-	// applied or rejected; a retrieved hit with no decision is not an advice use.
+	// applied, rejected, or unassessed. Unassessed records exposure only:
+	// decision_change and evidence_refs must be empty and verdict must be unknown.
 	Decision       string `protobuf:"bytes,2,opt,name=decision,proto3" json:"decision,omitempty"`
 	DecisionChange string `protobuf:"bytes,3,opt,name=decision_change,json=decisionChange,proto3" json:"decision_change,omitempty"`
 	// supported, contradicted, or unknown; support is observational, not causal.
 	Verdict       string   `protobuf:"bytes,4,opt,name=verdict,proto3" json:"verdict,omitempty"`
 	EvidenceRefs  []string `protobuf:"bytes,5,rep,name=evidence_refs,json=evidenceRefs,proto3" json:"evidence_refs,omitempty"`
+	Derived       *bool    `protobuf:"varint,6,opt,name=derived,proto3,oneof" json:"derived,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -99,6 +101,13 @@ func (x *AdviceUse) GetEvidenceRefs() []string {
 	return nil
 }
 
+func (x *AdviceUse) GetDerived() bool {
+	if x != nil && x.Derived != nil {
+		return *x.Derived
+	}
+	return false
+}
+
 type Attempt struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	AttemptId string                 `protobuf:"bytes,1,opt,name=attempt_id,json=attemptId,proto3" json:"attempt_id,omitempty"`
@@ -113,9 +122,9 @@ type Attempt struct {
 	FailureFingerprint string       `protobuf:"bytes,8,opt,name=failure_fingerprint,json=failureFingerprint,proto3" json:"failure_fingerprint,omitempty"`
 	EvidenceRefs       []string     `protobuf:"bytes,9,rep,name=evidence_refs,json=evidenceRefs,proto3" json:"evidence_refs,omitempty"`
 	Advice             []*AdviceUse `protobuf:"bytes,10,rep,name=advice,proto3" json:"advice,omitempty"`
-	// matched, no_match, or unavailable.
+	// matched, no_match, unavailable, or not_requested (the attempt never asked memory).
 	RecallStatus string `protobuf:"bytes,11,opt,name=recall_status,json=recallStatus,proto3" json:"recall_status,omitempty"`
-	// operator or test. This is caller-declared, not authenticated provenance.
+	// operator, test, or agent. This is caller-declared, not authenticated provenance.
 	Provenance    string `protobuf:"bytes,12,opt,name=provenance,proto3" json:"provenance,omitempty"`
 	Trigger       string `protobuf:"bytes,13,opt,name=trigger,proto3" json:"trigger,omitempty"`
 	Approach      string `protobuf:"bytes,14,opt,name=approach,proto3" json:"approach,omitempty"`
@@ -124,9 +133,11 @@ type Attempt struct {
 	// Observed first useful action; omitted when no action or timing is unknown.
 	FirstActionAt *string `protobuf:"bytes,17,opt,name=first_action_at,json=firstActionAt,proto3,oneof" json:"first_action_at,omitempty"`
 	// Caller-observed counts; absence is unknown, never an observed zero.
-	ToolRoundTrips       *int32 `protobuf:"varint,18,opt,name=tool_round_trips,json=toolRoundTrips,proto3,oneof" json:"tool_round_trips,omitempty"`
-	VisualReasoningCalls *int32 `protobuf:"varint,19,opt,name=visual_reasoning_calls,json=visualReasoningCalls,proto3,oneof" json:"visual_reasoning_calls,omitempty"`
-	ReusedWorkflow       *bool  `protobuf:"varint,20,opt,name=reused_workflow,json=reusedWorkflow,proto3,oneof" json:"reused_workflow,omitempty"`
+	ToolRoundTrips       *int32  `protobuf:"varint,18,opt,name=tool_round_trips,json=toolRoundTrips,proto3,oneof" json:"tool_round_trips,omitempty"`
+	VisualReasoningCalls *int32  `protobuf:"varint,19,opt,name=visual_reasoning_calls,json=visualReasoningCalls,proto3,oneof" json:"visual_reasoning_calls,omitempty"`
+	ReusedWorkflow       *bool   `protobuf:"varint,20,opt,name=reused_workflow,json=reusedWorkflow,proto3,oneof" json:"reused_workflow,omitempty"`
+	ParentAttemptId      *string `protobuf:"bytes,21,opt,name=parent_attempt_id,json=parentAttemptId,proto3,oneof" json:"parent_attempt_id,omitempty"`
+	StepName             *string `protobuf:"bytes,22,opt,name=step_name,json=stepName,proto3,oneof" json:"step_name,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -301,6 +312,20 @@ func (x *Attempt) GetReusedWorkflow() bool {
 	return false
 }
 
+func (x *Attempt) GetParentAttemptId() string {
+	if x != nil && x.ParentAttemptId != nil {
+		return *x.ParentAttemptId
+	}
+	return ""
+}
+
+func (x *Attempt) GetStepName() string {
+	if x != nil && x.StepName != nil {
+		return *x.StepName
+	}
+	return ""
+}
+
 type RecordAttemptRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -414,7 +439,7 @@ type Observation struct {
 	EvidenceRefs   []string `protobuf:"bytes,4,rep,name=evidence_refs,json=evidenceRefs,proto3" json:"evidence_refs,omitempty"`
 	MethodRevision string   `protobuf:"bytes,5,opt,name=method_revision,json=methodRevision,proto3" json:"method_revision,omitempty"`
 	Correction     string   `protobuf:"bytes,6,opt,name=correction,proto3" json:"correction,omitempty"`
-	// operator or test; caller-declared and retained separately from actor metadata.
+	// operator, test, or agent; caller-declared and retained separately from actor metadata.
 	Provenance    string `protobuf:"bytes,7,opt,name=provenance,proto3" json:"provenance,omitempty"`
 	ObservedAt    string `protobuf:"bytes,8,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -725,8 +750,16 @@ type Cohort struct {
 	SupportedFeedback          int32    `protobuf:"varint,32,opt,name=supported_feedback,json=supportedFeedback,proto3" json:"supported_feedback,omitempty"`
 	ContradictedFeedback       int32    `protobuf:"varint,33,opt,name=contradicted_feedback,json=contradictedFeedback,proto3" json:"contradicted_feedback,omitempty"`
 	UnresolvedFeedback         int32    `protobuf:"varint,34,opt,name=unresolved_feedback,json=unresolvedFeedback,proto3" json:"unresolved_feedback,omitempty"`
-	unknownFields              protoimpl.UnknownFields
-	sizeCache                  protoimpl.SizeCache
+	// Attempts that never asked memory; distinct from recall_unavailable (memory asked and failed).
+	RecallNotRequested int32 `protobuf:"varint,35,opt,name=recall_not_requested,json=recallNotRequested,proto3" json:"recall_not_requested,omitempty"`
+	DerivedAdvice      int32 `protobuf:"varint,36,opt,name=derived_advice,json=derivedAdvice,proto3" json:"derived_advice,omitempty"`
+	ExplicitAdvice     int32 `protobuf:"varint,37,opt,name=explicit_advice,json=explicitAdvice,proto3" json:"explicit_advice,omitempty"`
+	// Cohort identity dimension; test attempts remain excluded from measures.
+	// Tag 35 is taken by recall_not_requested; both were added locally in the
+	// same uncommitted change and collided.
+	Provenance    string `protobuf:"bytes,38,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Cohort) Reset() {
@@ -997,6 +1030,34 @@ func (x *Cohort) GetUnresolvedFeedback() int32 {
 	return 0
 }
 
+func (x *Cohort) GetRecallNotRequested() int32 {
+	if x != nil {
+		return x.RecallNotRequested
+	}
+	return 0
+}
+
+func (x *Cohort) GetDerivedAdvice() int32 {
+	if x != nil {
+		return x.DerivedAdvice
+	}
+	return 0
+}
+
+func (x *Cohort) GetExplicitAdvice() int32 {
+	if x != nil {
+		return x.ExplicitAdvice
+	}
+	return 0
+}
+
+func (x *Cohort) GetProvenance() string {
+	if x != nil {
+		return x.Provenance
+	}
+	return ""
+}
+
 type MeasureLearningResponse struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	Scope                string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -1158,13 +1219,16 @@ var File_vrooli_memory_v1_learning_learning_proto protoreflect.FileDescriptor
 
 const file_vrooli_memory_v1_learning_learning_proto_rawDesc = "" +
 	"\n" +
-	"(vrooli-memory/v1/learning/learning.proto\x12 vrooli.vrooli_memory.v1.learning\"\xaa\x01\n" +
+	"(vrooli-memory/v1/learning/learning.proto\x12 vrooli.vrooli_memory.v1.learning\"\xd5\x01\n" +
 	"\tAdviceUse\x12\x19\n" +
 	"\bentry_id\x18\x01 \x01(\tR\aentryId\x12\x1a\n" +
 	"\bdecision\x18\x02 \x01(\tR\bdecision\x12'\n" +
 	"\x0fdecision_change\x18\x03 \x01(\tR\x0edecisionChange\x12\x18\n" +
 	"\averdict\x18\x04 \x01(\tR\averdict\x12#\n" +
-	"\revidence_refs\x18\x05 \x03(\tR\fevidenceRefs\"\xdc\x06\n" +
+	"\revidence_refs\x18\x05 \x03(\tR\fevidenceRefs\x12\x1d\n" +
+	"\aderived\x18\x06 \x01(\bH\x00R\aderived\x88\x01\x01B\n" +
+	"\n" +
+	"\b_derived\"\xd3\a\n" +
 	"\aAttempt\x12\x1d\n" +
 	"\n" +
 	"attempt_id\x18\x01 \x01(\tR\tattemptId\x12\x17\n" +
@@ -1192,11 +1256,16 @@ const file_vrooli_memory_v1_learning_learning_proto_rawDesc = "" +
 	"\x0ffirst_action_at\x18\x11 \x01(\tH\x00R\rfirstActionAt\x88\x01\x01\x12-\n" +
 	"\x10tool_round_trips\x18\x12 \x01(\x05H\x01R\x0etoolRoundTrips\x88\x01\x01\x129\n" +
 	"\x16visual_reasoning_calls\x18\x13 \x01(\x05H\x02R\x14visualReasoningCalls\x88\x01\x01\x12,\n" +
-	"\x0freused_workflow\x18\x14 \x01(\bH\x03R\x0ereusedWorkflow\x88\x01\x01B\x12\n" +
+	"\x0freused_workflow\x18\x14 \x01(\bH\x03R\x0ereusedWorkflow\x88\x01\x01\x12/\n" +
+	"\x11parent_attempt_id\x18\x15 \x01(\tH\x04R\x0fparentAttemptId\x88\x01\x01\x12 \n" +
+	"\tstep_name\x18\x16 \x01(\tH\x05R\bstepName\x88\x01\x01B\x12\n" +
 	"\x10_first_action_atB\x13\n" +
 	"\x11_tool_round_tripsB\x19\n" +
 	"\x17_visual_reasoning_callsB\x12\n" +
-	"\x10_reused_workflow\"q\n" +
+	"\x10_reused_workflowB\x14\n" +
+	"\x12_parent_attempt_idB\f\n" +
+	"\n" +
+	"_step_name\"q\n" +
 	"\x14RecordAttemptRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12C\n" +
 	"\aattempt\x18\x02 \x01(\v2).vrooli.vrooli_memory.v1.learning.AttemptR\aattempt\"N\n" +
@@ -1230,7 +1299,7 @@ const file_vrooli_memory_v1_learning_learning_proto_rawDesc = "" +
 	"\x02to\x18\x03 \x01(\tR\x02to\x12\x1c\n" +
 	"\toperation\x18\x04 \x01(\tR\toperation\x12\x1f\n" +
 	"\vcontext_key\x18\x05 \x01(\tR\n" +
-	"contextKey\"\xf8\r\n" +
+	"contextKey\"\x9a\x0f\n" +
 	"\x06Cohort\x12\x1c\n" +
 	"\toperation\x18\x01 \x01(\tR\toperation\x12\x1f\n" +
 	"\vcontext_key\x18\x02 \x01(\tR\n" +
@@ -1267,7 +1336,13 @@ const file_vrooli_memory_v1_learning_learning_proto_rawDesc = "" +
 	"\rreuse_samples\x18\x1f \x01(\x05R\freuseSamples\x12-\n" +
 	"\x12supported_feedback\x18  \x01(\x05R\x11supportedFeedback\x123\n" +
 	"\x15contradicted_feedback\x18! \x01(\x05R\x14contradictedFeedback\x12/\n" +
-	"\x13unresolved_feedback\x18\" \x01(\x05R\x12unresolvedFeedbackB\x15\n" +
+	"\x13unresolved_feedback\x18\" \x01(\x05R\x12unresolvedFeedback\x120\n" +
+	"\x14recall_not_requested\x18# \x01(\x05R\x12recallNotRequested\x12%\n" +
+	"\x0ederived_advice\x18$ \x01(\x05R\rderivedAdvice\x12'\n" +
+	"\x0fexplicit_advice\x18% \x01(\x05R\x0eexplicitAdvice\x12\x1e\n" +
+	"\n" +
+	"provenance\x18& \x01(\tR\n" +
+	"provenanceB\x15\n" +
 	"\x13_contradiction_rateB\x1d\n" +
 	"\x1b_median_attempts_to_successB\x1c\n" +
 	"\x1a_median_seconds_to_successB!\n" +
@@ -1345,6 +1420,7 @@ func file_vrooli_memory_v1_learning_learning_proto_init() {
 	if File_vrooli_memory_v1_learning_learning_proto != nil {
 		return
 	}
+	file_vrooli_memory_v1_learning_learning_proto_msgTypes[0].OneofWrappers = []any{}
 	file_vrooli_memory_v1_learning_learning_proto_msgTypes[1].OneofWrappers = []any{}
 	file_vrooli_memory_v1_learning_learning_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}

@@ -9,6 +9,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridg
 service AttachedDeviceService {
   rpc PairAttachedDevice(PairAttachedDeviceRequest) returns (AttachedDeviceResponse);
   rpc ListAttachedDevices(ListAttachedDevicesRequest) returns (ListAttachedDevicesResponse);
+  rpc GetAttachedDevice(GetAttachedDeviceRequest) returns (AttachedDeviceResponse);
   rpc RevokeAttachedDevice(RevokeAttachedDeviceRequest) returns (AttachedDeviceResponse);
 }
 
@@ -24,6 +25,9 @@ message PairAttachedDeviceRequest {
 message ListAttachedDevicesRequest {}
 message ListAttachedDevicesResponse {
   repeated AttachedDevice devices = 1;
+}
+message GetAttachedDeviceRequest {
+  string id = 1;
 }
 message RevokeAttachedDeviceRequest {
   string id = 1;
@@ -45,4 +49,7 @@ message AttachedDevice {
   string health_reason = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp revoked_at = 12;
+  // Every transport observed for this physical device. The legacy transport
+  // field remains populated with the primary transport for older consumers.
+  repeated string transports = 13;
 }

@@ -276,6 +276,21 @@ message StartRunRequest {
   // ordinary executions remain subject to normal retention.
   bool retain_for_evidence = 19;
   string retention_reason = 20;
+  // Optional candidate identity for owner-reported deployment-manager
+  // readiness evidence. Runs without this complete release identity remain
+  // valid Test Genie runs but cannot be attributed to a release review.
+  string release_profile_id = 21;
+  string release_candidate_commit = 22;
+  string release_artifact_digest = 23;
+  repeated string release_targets = 24;
+  string release_channel = 25;
+  int32 release_policy_version = 26;
+  string release_candidate_id = 27;
+  string release_destination_revision_id = 28;
+  uint64 release_authorization_epoch = 29;
+  // Optional predecessor run used to produce owner-owned regression evidence.
+  // An omitted predecessor leaves test-regression-proof unavailable.
+  string release_predecessor_run_id = 30;
 }
 
 message StartRunResponse {

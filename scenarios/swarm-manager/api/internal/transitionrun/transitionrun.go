@@ -3,6 +3,8 @@
 package transitionrun
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +14,7 @@ import (
 	"strings"
 
 	"swarm-manager/internal/storage"
+	"swarm-manager/internal/workflowcontract"
 )
 
 const (
@@ -47,6 +50,27 @@ type Correlation struct {
 	LastApplyError             string          `json:"last_apply_error,omitempty"`
 	AppliedTime                string          `json:"applied_time,omitempty"`
 	DeclaredOutcomes           []string        `json:"declared_outcomes"`
+}
+
+// DispatchIntent records the original owner lookup before its start RPC. An
+// absent lookup response cannot erase this possibly submitted reservation.
+type DispatchIntent struct {
+	State          string                  `json:"state"`
+	LastError      string                  `json:"last_error,omitempty"`
+	Correlation    Correlation             `json:"correlation"`
+	Owner          string                  `json:"owner"`
+	IdempotencyKey string                  `json:"idempotency_key"`
+	InputDigest    string                  `json:"input_digest"`
+	ApprovalDigest string                  `json:"approval_digest,omitempty"`
+	GrantDigest    string                  `json:"grant_digest,omitempty"`
+	Grant          *workflowcontract.Grant `json:"grant,omitempty"`
+	CreatedAt      string                  `json:"created_at"`
+}
+
+type DispatchStore interface {
+	PutDispatch(DispatchIntent) error
+	GetDispatch(transitionKey, subjectRef string) (DispatchIntent, error)
+	ListUnresolvedDispatches() ([]DispatchIntent, error)
 }
 
 // Attempt preserves enough workflow provenance for an operator to correlate a
@@ -178,6 +202,61 @@ func (s *FileStore) FindBySubject(transitionKey, subjectRef string) (Correlation
 type FileStore struct{ root string }
 
 func NewFileStore(root string) *FileStore { return &FileStore{root: root} }
+
+func (s *FileStore) dispatchPath(transitionKey, subjectRef string) string {
+	sum := sha256.Sum256([]byte(transitionKey + "\n" + subjectRef))
+	return filepath.Join(s.root, "dispatch", hex.EncodeToString(sum[:])+".json")
+}
+
+func (s *FileStore) PutDispatch(intent DispatchIntent) error {
+	if intent.Correlation.TransitionKey == "" || intent.Correlation.SubjectRef == "" || intent.IdempotencyKey == "" || intent.InputDigest == "" || intent.Owner == "" || intent.CreatedAt == "" {
+		return errors.New("dispatch intent requires immutable subject, owner, input and idempotency identities")
+	}
+	path := s.dispatchPath(intent.Correlation.TransitionKey, intent.Correlation.SubjectRef)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return storage.WriteJSONAtomic(path, intent)
+}
+
+func (s *FileStore) GetDispatch(transitionKey, subjectRef string) (DispatchIntent, error) {
+	var intent DispatchIntent
+	exists, err := storage.ReadJSON(s.dispatchPath(transitionKey, subjectRef), &intent)
+	if err != nil {
+		return intent, err
+	}
+	if !exists {
+		return intent, os.ErrNotExist
+	}
+	if intent.Correlation.TransitionKey != transitionKey || intent.Correlation.SubjectRef != subjectRef || intent.IdempotencyKey == "" || intent.InputDigest == "" {
+		return DispatchIntent{}, errors.New("stored dispatch intent identity is invalid")
+	}
+	return intent, nil
+}
+
+func (s *FileStore) ListUnresolvedDispatches() ([]DispatchIntent, error) {
+	entries, err := os.ReadDir(filepath.Join(s.root, "dispatch"))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var intents []DispatchIntent
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		var intent DispatchIntent
+		if _, err := storage.ReadJSON(filepath.Join(s.root, "dispatch", entry.Name()), &intent); err != nil {
+			return nil, err
+		}
+		if intent.Correlation.ExecutionID == "" {
+			intents = append(intents, intent)
+		}
+	}
+	return intents, nil
+}
 func (s *FileStore) path(id string) (string, error) {
 	if strings.TrimSpace(id) == "" || filepath.Base(id) != id {
 		return "", fmt.Errorf("invalid correlation execution id %q", id)

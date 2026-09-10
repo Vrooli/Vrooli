@@ -10,7 +10,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class CredentialGrant(_message.Message):
-    __slots__ = ("id", "node_id", "logical_id", "field", "retention", "generation", "acked_generation", "granted_at", "revoked_at", "receipt_at", "receipt_accepted", "receipt_reason")
+    __slots__ = ("id", "node_id", "logical_id", "field", "retention", "generation", "acked_generation", "granted_at", "revoked_at", "receipt_at", "receipt_accepted", "receipt_reason", "purge_state", "purge_receipt_at", "purge_receipt_accepted", "purge_receipt_reason")
     ID_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     LOGICAL_ID_FIELD_NUMBER: _ClassVar[int]
@@ -24,6 +24,10 @@ class CredentialGrant(_message.Message):
     RECEIPT_AT_FIELD_NUMBER: _ClassVar[int]
     RECEIPT_ACCEPTED_FIELD_NUMBER: _ClassVar[int]
     RECEIPT_REASON_FIELD_NUMBER: _ClassVar[int]
+    PURGE_STATE_FIELD_NUMBER: _ClassVar[int]
+    PURGE_RECEIPT_AT_FIELD_NUMBER: _ClassVar[int]
+    PURGE_RECEIPT_ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    PURGE_RECEIPT_REASON_FIELD_NUMBER: _ClassVar[int]
     id: str
     node_id: str
     logical_id: str
@@ -36,7 +40,11 @@ class CredentialGrant(_message.Message):
     receipt_at: _timestamp_pb2.Timestamp
     receipt_accepted: bool
     receipt_reason: str
-    def __init__(self, id: _Optional[str] = ..., node_id: _Optional[str] = ..., logical_id: _Optional[str] = ..., field: _Optional[str] = ..., retention: _Optional[str] = ..., generation: _Optional[int] = ..., acked_generation: _Optional[int] = ..., granted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revoked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., receipt_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., receipt_accepted: _Optional[bool] = ..., receipt_reason: _Optional[str] = ..., **kwargs) -> None: ...
+    purge_state: str
+    purge_receipt_at: _timestamp_pb2.Timestamp
+    purge_receipt_accepted: bool
+    purge_receipt_reason: str
+    def __init__(self, id: _Optional[str] = ..., node_id: _Optional[str] = ..., logical_id: _Optional[str] = ..., field: _Optional[str] = ..., retention: _Optional[str] = ..., generation: _Optional[int] = ..., acked_generation: _Optional[int] = ..., granted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revoked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., receipt_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., receipt_accepted: _Optional[bool] = ..., receipt_reason: _Optional[str] = ..., purge_state: _Optional[str] = ..., purge_receipt_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., purge_receipt_accepted: _Optional[bool] = ..., purge_receipt_reason: _Optional[str] = ..., **kwargs) -> None: ...
 
 class CreateGrantRequest(_message.Message):
     __slots__ = ("node_id", "logical_id", "field", "retention", "generation")
@@ -101,13 +109,15 @@ class RotateAddressRequest(_message.Message):
     def __init__(self, logical_id: _Optional[str] = ..., field: _Optional[str] = ...) -> None: ...
 
 class RotationResponse(_message.Message):
-    __slots__ = ("logical_id", "field", "generation", "grants")
+    __slots__ = ("logical_id", "field", "generation", "grants", "rotation_scope")
     LOGICAL_ID_FIELD_NUMBER: _ClassVar[int]
     FIELD_FIELD_NUMBER: _ClassVar[int]
     GENERATION_FIELD_NUMBER: _ClassVar[int]
     GRANTS_FIELD_NUMBER: _ClassVar[int]
+    ROTATION_SCOPE_FIELD_NUMBER: _ClassVar[int]
     logical_id: str
     field: str
     generation: int
     grants: _containers.RepeatedCompositeFieldContainer[CredentialGrant]
-    def __init__(self, logical_id: _Optional[str] = ..., field: _Optional[str] = ..., generation: _Optional[int] = ..., grants: _Optional[_Iterable[_Union[CredentialGrant, _Mapping]]] = ...) -> None: ...
+    rotation_scope: str
+    def __init__(self, logical_id: _Optional[str] = ..., field: _Optional[str] = ..., generation: _Optional[int] = ..., grants: _Optional[_Iterable[_Union[CredentialGrant, _Mapping]]] = ..., rotation_scope: _Optional[str] = ...) -> None: ...

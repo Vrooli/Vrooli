@@ -8,6 +8,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/quality-heal
 
 // AuditService is Quality Health's static-quality contract surface.
 service AuditService {
+  // ObserveTestSyntax returns reusable, source-bound native lint evidence.
+  // It does not execute the target's tests or claim behavioral adequacy.
+  rpc ObserveTestSyntax(ObserveTestSyntaxRequest) returns (ObserveTestSyntaxResponse);
   // AuditQuality runs the static quality audit for a scenario or path.
   rpc AuditQuality(AuditQualityRequest) returns (AuditQualityResponse);
 
@@ -22,6 +25,56 @@ service AuditService {
 
   // ApplyFixConfig applies deterministic config edits for supported rules.
   rpc ApplyFixConfig(FixConfigRequest) returns (FixConfigResponse);
+}
+
+message ObserveTestSyntaxRequest {
+  // Absolute workspace root; files must remain within this root after symlinks.
+  string root_path = 1;
+  // One to 100 root-relative test source paths, at most 8 MiB total.
+  repeated string files = 2;
+}
+
+message ObserveTestSyntaxResponse {
+  string schema_version = 1;
+  repeated TestSyntaxObservation observations = 2;
+  // Nonempty when the owner could not provide an observation; never a pass.
+  string unavailable_reason = 3;
+}
+
+message TestSyntaxObservation {
+  string schema_version = 1;
+  string file = 2;
+  string source_digest = 3;
+  string profile = 4;
+  string plugin_version = 5;
+  string eslint_version = 6;
+  string parser_version = 7;
+  string status = 8;
+  string reason = 9;
+  repeated TestSyntaxCheck checks = 10;
+  repeated TestSyntaxDiagnostic diagnostics = 11;
+  repeated string limitations = 12;
+  // SHA-256 of the exact selected native rule configuration used by the owner.
+  string config_digest = 13;
+}
+
+message TestSyntaxCheck {
+  string rule = 1;
+  // checked_clean is scoped to this syntax rule, file and supported profile.
+  string status = 2;
+  string reason = 3;
+}
+
+message TestSyntaxDiagnostic {
+  string native_rule_id = 1;
+  string canonical_rule = 2;
+  string message_id = 3;
+  string message = 4;
+  int32 line = 5;
+  int32 column = 6;
+  int32 end_line = 7;
+  int32 end_column = 8;
+  int32 native_severity = 9;
 }
 
 // AuditQualityRequest identifies the target to audit.

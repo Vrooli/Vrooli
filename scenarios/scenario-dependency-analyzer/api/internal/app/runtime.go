@@ -27,7 +27,7 @@ var (
 
 // Runtime encapsulates shared state for the analyzer process.
 type Runtime struct {
-	cfg       appconfig.Config
+	cfg       appconfig.RuntimeConfig
 	db        *sql.DB
 	store     *store.Store
 	analyzer  *Analyzer
@@ -35,7 +35,7 @@ type Runtime struct {
 }
 
 // NewRuntime constructs a runtime from configuration and database handle.
-func NewRuntime(cfg appconfig.Config, dbConn *sql.DB) *Runtime {
+func NewRuntime(cfg appconfig.RuntimeConfig, dbConn *sql.DB) *Runtime {
 	var backingStore *store.Store
 	if dbConn != nil {
 		backingStore = store.New(dbConn)
@@ -70,7 +70,7 @@ func (rt *Runtime) Store() *store.Store { return rt.store }
 func (rt *Runtime) DB() *sql.DB { return rt.db }
 
 // Config exposes the runtime configuration.
-func (rt *Runtime) Config() appconfig.Config { return rt.cfg }
+func (rt *Runtime) Config() appconfig.RuntimeConfig { return rt.cfg }
 
 // Workspace exposes the scenarios workspace rooted at cfg.ScenariosDir.
 func (rt *Runtime) Workspace() *scenarioWorkspace { return rt.workspace }

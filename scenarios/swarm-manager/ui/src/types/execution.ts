@@ -10,7 +10,7 @@ import type { ProtoMessage } from "./shared";
 
 export type ExecutionBacklogKind = BacklogKind | "spec-sync";
 
-export type ExecutionStatus = "pending" | "starting" | "running" | "needs_review" | "validating" | "needs_fixup" | "completed" | "failed" | "canceled";
+export type ExecutionStatus = "pending" | "starting" | "running" | "needs_review" | "validating" | "needs_fixup" | "completed" | "failed" | "cancelling" | "canceled";
 
 export type ExecutionMode = "manual" | "yolo";
 

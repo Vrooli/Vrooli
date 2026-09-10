@@ -33,6 +33,7 @@ type mutableFakeBacklog struct{ items []backlog.BacklogItem }
 func (f *mutableFakeBacklog) LoadAll(_ []backlog.BacklogKind) ([]backlog.BacklogItem, error) {
 	return f.items, nil
 }
+
 func (f *mutableFakeBacklog) SaveItem(item backlog.BacklogItem) error {
 	for i := range f.items {
 		if f.items[i].Kind == item.Kind && f.items[i].Name == item.Name {
@@ -551,5 +552,53 @@ func TestService_ZeroDerivedUrgencyIsResolvedWithoutWarningFallback(t *testing.T
 	}
 	if loaded.Priority != 9 {
 		t.Fatalf("stored priority = %d, want authored 9", loaded.Priority)
+	}
+}
+
+// countingRankReader records how many rank reads a projection issues.
+type countingRankReader struct {
+	ranks map[string]int
+	calls int
+}
+
+func (c *countingRankReader) ReleaseRank(name string) (int, error) {
+	c.calls++
+	return c.ranks[name], nil
+}
+
+func TestService_GoalPriorityIsResolvedOncePerGoalNotPerRef(t *testing.T) {
+	svc := newTestService(t, []backlog.BacklogItem{
+		item("execute", "a", "ready", nil),
+		item("execute", "b", "ready", nil, "execute/a"),
+		item("execute", "c", "ready", nil, "execute/b"),
+		item("execute", "d", "ready", nil),
+	})
+	reader := &countingRankReader{ranks: map[string]int{"web-console": 2}}
+	svc.SetDeliverableRankReader(reader)
+	if _, err := svc.Create(CreateRequest{Name: "release-goal", Priority: 9, ServesDeliverable: "web-console", Targets: []string{"execute/c"}}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// A second active goal with no refs must not cost a rank read at all.
+	if _, err := svc.Create(CreateRequest{Name: "empty-goal", Priority: 5, ServesDeliverable: "web-console"}); err != nil {
+		t.Fatalf("create empty goal: %v", err)
+	}
+
+	priorities, err := svc.ItemGoalPriorities()
+	if err != nil {
+		t.Fatalf("priorities: %v", err)
+	}
+	if len(priorities) != 3 {
+		t.Fatalf("closure = %v, want a, b, c", priorities)
+	}
+	if reader.calls != 1 {
+		t.Fatalf("ItemGoalPriorities issued %d rank reads for 3 closure refs, want 1", reader.calls)
+	}
+
+	reader.calls = 0
+	if _, err := svc.ReadyGoalItems(); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	if reader.calls != 1 {
+		t.Fatalf("ReadyGoalItems issued %d rank reads, want 1", reader.calls)
 	}
 }

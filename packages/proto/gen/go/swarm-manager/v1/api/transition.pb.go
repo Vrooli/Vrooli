@@ -8,6 +8,7 @@ package api
 
 import (
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -22,6 +23,508 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type DevelopmentOutcome struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Criterion      string                 `protobuf:"bytes,2,opt,name=criterion,proto3" json:"criterion,omitempty"`
+	EvidenceSource string                 `protobuf:"bytes,3,opt,name=evidence_source,json=evidenceSource,proto3" json:"evidence_source,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *DevelopmentOutcome) Reset() {
+	*x = DevelopmentOutcome{}
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DevelopmentOutcome) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DevelopmentOutcome) ProtoMessage() {}
+
+func (x *DevelopmentOutcome) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DevelopmentOutcome.ProtoReflect.Descriptor instead.
+func (*DevelopmentOutcome) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *DevelopmentOutcome) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DevelopmentOutcome) GetCriterion() string {
+	if x != nil {
+		return x.Criterion
+	}
+	return ""
+}
+
+func (x *DevelopmentOutcome) GetEvidenceSource() string {
+	if x != nil {
+		return x.EvidenceSource
+	}
+	return ""
+}
+
+type PreviewDevelopmentRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Scenario        string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	WorkItem        string                 `protobuf:"bytes,2,opt,name=work_item,json=workItem,proto3" json:"work_item,omitempty"`
+	Objective       string                 `protobuf:"bytes,3,opt,name=objective,proto3" json:"objective,omitempty"`
+	ArtifactPaths   []string               `protobuf:"bytes,4,rep,name=artifact_paths,json=artifactPaths,proto3" json:"artifact_paths,omitempty"`
+	Outcomes        []*DevelopmentOutcome  `protobuf:"bytes,5,rep,name=outcomes,proto3" json:"outcomes,omitempty"`
+	AcceptanceAllow []string               `protobuf:"bytes,6,rep,name=acceptance_allow,json=acceptanceAllow,proto3" json:"acceptance_allow,omitempty"`
+	AcceptanceDeny  []string               `protobuf:"bytes,7,rep,name=acceptance_deny,json=acceptanceDeny,proto3" json:"acceptance_deny,omitempty"`
+	AllowedEffects  []string               `protobuf:"bytes,8,rep,name=allowed_effects,json=allowedEffects,proto3" json:"allowed_effects,omitempty"`
+	MaxTokens       int64                  `protobuf:"varint,9,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	MaxWallSeconds  int64                  `protobuf:"varint,10,opt,name=max_wall_seconds,json=maxWallSeconds,proto3" json:"max_wall_seconds,omitempty"`
+	Guidance        *DevelopmentGuidance   `protobuf:"bytes,11,opt,name=guidance,proto3" json:"guidance,omitempty"`
+	// metered-cancellation (default for new reviews) | hard-ceiling.
+	// This is reviewed authority, never a remembered guidance preference.
+	BudgetPolicy string `protobuf:"bytes,12,opt,name=budget_policy,json=budgetPolicy,proto3" json:"budget_policy,omitempty"`
+	// Canonical Plan Manager work package that this adaptive strategy executes.
+	// A development approval without this reference is incomplete.
+	PlanRef *shared.PlanRef `protobuf:"bytes,13,opt,name=plan_ref,json=planRef,proto3,oneof" json:"plan_ref,omitempty"`
+	// adaptive-improvement. Phased plan execution uses the ordinary plan
+	// execution request and does not create a development engagement.
+	ExecutionStrategy string `protobuf:"bytes,14,opt,name=execution_strategy,json=executionStrategy,proto3" json:"execution_strategy,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *PreviewDevelopmentRequest) Reset() {
+	*x = PreviewDevelopmentRequest{}
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewDevelopmentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewDevelopmentRequest) ProtoMessage() {}
+
+func (x *PreviewDevelopmentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewDevelopmentRequest.ProtoReflect.Descriptor instead.
+func (*PreviewDevelopmentRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *PreviewDevelopmentRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *PreviewDevelopmentRequest) GetWorkItem() string {
+	if x != nil {
+		return x.WorkItem
+	}
+	return ""
+}
+
+func (x *PreviewDevelopmentRequest) GetObjective() string {
+	if x != nil {
+		return x.Objective
+	}
+	return ""
+}
+
+func (x *PreviewDevelopmentRequest) GetArtifactPaths() []string {
+	if x != nil {
+		return x.ArtifactPaths
+	}
+	return nil
+}
+
+func (x *PreviewDevelopmentRequest) GetOutcomes() []*DevelopmentOutcome {
+	if x != nil {
+		return x.Outcomes
+	}
+	return nil
+}
+
+func (x *PreviewDevelopmentRequest) GetAcceptanceAllow() []string {
+	if x != nil {
+		return x.AcceptanceAllow
+	}
+	return nil
+}
+
+func (x *PreviewDevelopmentRequest) GetAcceptanceDeny() []string {
+	if x != nil {
+		return x.AcceptanceDeny
+	}
+	return nil
+}
+
+func (x *PreviewDevelopmentRequest) GetAllowedEffects() []string {
+	if x != nil {
+		return x.AllowedEffects
+	}
+	return nil
+}
+
+func (x *PreviewDevelopmentRequest) GetMaxTokens() int64 {
+	if x != nil {
+		return x.MaxTokens
+	}
+	return 0
+}
+
+func (x *PreviewDevelopmentRequest) GetMaxWallSeconds() int64 {
+	if x != nil {
+		return x.MaxWallSeconds
+	}
+	return 0
+}
+
+func (x *PreviewDevelopmentRequest) GetGuidance() *DevelopmentGuidance {
+	if x != nil {
+		return x.Guidance
+	}
+	return nil
+}
+
+func (x *PreviewDevelopmentRequest) GetBudgetPolicy() string {
+	if x != nil {
+		return x.BudgetPolicy
+	}
+	return ""
+}
+
+func (x *PreviewDevelopmentRequest) GetPlanRef() *shared.PlanRef {
+	if x != nil {
+		return x.PlanRef
+	}
+	return nil
+}
+
+func (x *PreviewDevelopmentRequest) GetExecutionStrategy() string {
+	if x != nil {
+		return x.ExecutionStrategy
+	}
+	return ""
+}
+
+// Reviewed execution guidance. These preferences never expand acceptance_allow,
+// override acceptance_deny, authorize effects, or replace an owner-enforced limit.
+type DevelopmentGuidance struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// focused | balanced | thorough; reasoning guidance, not an invented model setting.
+	Effort string `protobuf:"bytes,1,opt,name=effort,proto3" json:"effort,omitempty"`
+	// unknown | prototype | established | fragile; operator assessment, not evidence.
+	StartingState string `protobuf:"bytes,2,opt,name=starting_state,json=startingState,proto3" json:"starting_state,omitempty"`
+	// targeted | balanced | certification; required outcome checks always remain required.
+	Validation string `protobuf:"bytes,3,opt,name=validation,proto3" json:"validation,omitempty"`
+	// Authorizes intent-serving repair only inside the explicitly reviewed change paths.
+	RepairRelatedCode      bool   `protobuf:"varint,4,opt,name=repair_related_code,json=repairRelatedCode,proto3" json:"repair_related_code,omitempty"`
+	AdditionalInstructions string `protobuf:"bytes,5,opt,name=additional_instructions,json=additionalInstructions,proto3" json:"additional_instructions,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *DevelopmentGuidance) Reset() {
+	*x = DevelopmentGuidance{}
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DevelopmentGuidance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DevelopmentGuidance) ProtoMessage() {}
+
+func (x *DevelopmentGuidance) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DevelopmentGuidance.ProtoReflect.Descriptor instead.
+func (*DevelopmentGuidance) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *DevelopmentGuidance) GetEffort() string {
+	if x != nil {
+		return x.Effort
+	}
+	return ""
+}
+
+func (x *DevelopmentGuidance) GetStartingState() string {
+	if x != nil {
+		return x.StartingState
+	}
+	return ""
+}
+
+func (x *DevelopmentGuidance) GetValidation() string {
+	if x != nil {
+		return x.Validation
+	}
+	return ""
+}
+
+func (x *DevelopmentGuidance) GetRepairRelatedCode() bool {
+	if x != nil {
+		return x.RepairRelatedCode
+	}
+	return false
+}
+
+func (x *DevelopmentGuidance) GetAdditionalInstructions() string {
+	if x != nil {
+		return x.AdditionalInstructions
+	}
+	return ""
+}
+
+type DevelopmentArtifact struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Sha256        string                 `protobuf:"bytes,2,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	SizeBytes     int64                  `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DevelopmentArtifact) Reset() {
+	*x = DevelopmentArtifact{}
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DevelopmentArtifact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DevelopmentArtifact) ProtoMessage() {}
+
+func (x *DevelopmentArtifact) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DevelopmentArtifact.ProtoReflect.Descriptor instead.
+func (*DevelopmentArtifact) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *DevelopmentArtifact) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *DevelopmentArtifact) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+func (x *DevelopmentArtifact) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+type DevelopmentReviewFinding struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	Detail        string                 `protobuf:"bytes,2,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DevelopmentReviewFinding) Reset() {
+	*x = DevelopmentReviewFinding{}
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DevelopmentReviewFinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DevelopmentReviewFinding) ProtoMessage() {}
+
+func (x *DevelopmentReviewFinding) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DevelopmentReviewFinding.ProtoReflect.Descriptor instead.
+func (*DevelopmentReviewFinding) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *DevelopmentReviewFinding) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *DevelopmentReviewFinding) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+type PreviewDevelopmentResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Fingerprints the proposal and observed source bytes, not an approval receipt.
+	ProposalDigest string                      `protobuf:"bytes,1,opt,name=proposal_digest,json=proposalDigest,proto3" json:"proposal_digest,omitempty"`
+	GoalMessage    string                      `protobuf:"bytes,2,opt,name=goal_message,json=goalMessage,proto3" json:"goal_message,omitempty"`
+	Artifacts      []*DevelopmentArtifact      `protobuf:"bytes,3,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	Findings       []*DevelopmentReviewFinding `protobuf:"bytes,4,rep,name=findings,proto3" json:"findings,omitempty"`
+	ReviewComplete bool                        `protobuf:"varint,5,opt,name=review_complete,json=reviewComplete,proto3" json:"review_complete,omitempty"`
+	// False until admission, accounting and evidence-bound completion are qualified.
+	LaunchReady    bool     `protobuf:"varint,6,opt,name=launch_ready,json=launchReady,proto3" json:"launch_ready,omitempty"`
+	LaunchBlockers []string `protobuf:"bytes,7,rep,name=launch_blockers,json=launchBlockers,proto3" json:"launch_blockers,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PreviewDevelopmentResponse) Reset() {
+	*x = PreviewDevelopmentResponse{}
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewDevelopmentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewDevelopmentResponse) ProtoMessage() {}
+
+func (x *PreviewDevelopmentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewDevelopmentResponse.ProtoReflect.Descriptor instead.
+func (*PreviewDevelopmentResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *PreviewDevelopmentResponse) GetProposalDigest() string {
+	if x != nil {
+		return x.ProposalDigest
+	}
+	return ""
+}
+
+func (x *PreviewDevelopmentResponse) GetGoalMessage() string {
+	if x != nil {
+		return x.GoalMessage
+	}
+	return ""
+}
+
+func (x *PreviewDevelopmentResponse) GetArtifacts() []*DevelopmentArtifact {
+	if x != nil {
+		return x.Artifacts
+	}
+	return nil
+}
+
+func (x *PreviewDevelopmentResponse) GetFindings() []*DevelopmentReviewFinding {
+	if x != nil {
+		return x.Findings
+	}
+	return nil
+}
+
+func (x *PreviewDevelopmentResponse) GetReviewComplete() bool {
+	if x != nil {
+		return x.ReviewComplete
+	}
+	return false
+}
+
+func (x *PreviewDevelopmentResponse) GetLaunchReady() bool {
+	if x != nil {
+		return x.LaunchReady
+	}
+	return false
+}
+
+func (x *PreviewDevelopmentResponse) GetLaunchBlockers() []string {
+	if x != nil {
+		return x.LaunchBlockers
+	}
+	return nil
+}
+
 type ListTransitionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -30,7 +533,7 @@ type ListTransitionsRequest struct {
 
 func (x *ListTransitionsRequest) Reset() {
 	*x = ListTransitionsRequest{}
-	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[0]
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +545,7 @@ func (x *ListTransitionsRequest) String() string {
 func (*ListTransitionsRequest) ProtoMessage() {}
 
 func (x *ListTransitionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[0]
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +558,7 @@ func (x *ListTransitionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTransitionsRequest.ProtoReflect.Descriptor instead.
 func (*ListTransitionsRequest) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{0}
+	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{6}
 }
 
 type ListTransitionsResponse struct {
@@ -67,7 +570,7 @@ type ListTransitionsResponse struct {
 
 func (x *ListTransitionsResponse) Reset() {
 	*x = ListTransitionsResponse{}
-	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -79,7 +582,7 @@ func (x *ListTransitionsResponse) String() string {
 func (*ListTransitionsResponse) ProtoMessage() {}
 
 func (x *ListTransitionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -92,7 +595,7 @@ func (x *ListTransitionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTransitionsResponse.ProtoReflect.Descriptor instead.
 func (*ListTransitionsResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{1}
+	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListTransitionsResponse) GetTransitions() []*domain.Transition {
@@ -113,7 +616,7 @@ type StartTransitionRequest struct {
 
 func (x *StartTransitionRequest) Reset() {
 	*x = StartTransitionRequest{}
-	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -125,7 +628,7 @@ func (x *StartTransitionRequest) String() string {
 func (*StartTransitionRequest) ProtoMessage() {}
 
 func (x *StartTransitionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -138,7 +641,7 @@ func (x *StartTransitionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartTransitionRequest.ProtoReflect.Descriptor instead.
 func (*StartTransitionRequest) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{2}
+	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *StartTransitionRequest) GetTransitionKey() string {
@@ -175,7 +678,7 @@ type SubjectReference struct {
 
 func (x *SubjectReference) Reset() {
 	*x = SubjectReference{}
-	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[3]
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -187,7 +690,7 @@ func (x *SubjectReference) String() string {
 func (*SubjectReference) ProtoMessage() {}
 
 func (x *SubjectReference) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[3]
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -200,7 +703,7 @@ func (x *SubjectReference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubjectReference.ProtoReflect.Descriptor instead.
 func (*SubjectReference) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{3}
+	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SubjectReference) GetSubject() string {
@@ -231,7 +734,7 @@ type StartTransitionResponse struct {
 
 func (x *StartTransitionResponse) Reset() {
 	*x = StartTransitionResponse{}
-	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[4]
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -243,7 +746,7 @@ func (x *StartTransitionResponse) String() string {
 func (*StartTransitionResponse) ProtoMessage() {}
 
 func (x *StartTransitionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[4]
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -256,7 +759,7 @@ func (x *StartTransitionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartTransitionResponse.ProtoReflect.Descriptor instead.
 func (*StartTransitionResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{4}
+	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *StartTransitionResponse) GetExecutionId() string {
@@ -311,7 +814,7 @@ type ApplyTransitionRequest struct {
 
 func (x *ApplyTransitionRequest) Reset() {
 	*x = ApplyTransitionRequest{}
-	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[5]
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -323,7 +826,7 @@ func (x *ApplyTransitionRequest) String() string {
 func (*ApplyTransitionRequest) ProtoMessage() {}
 
 func (x *ApplyTransitionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[5]
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -336,7 +839,7 @@ func (x *ApplyTransitionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyTransitionRequest.ProtoReflect.Descriptor instead.
 func (*ApplyTransitionRequest) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{5}
+	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ApplyTransitionRequest) GetTransitionKey() string {
@@ -370,7 +873,7 @@ type ApplyTransitionResponse struct {
 
 func (x *ApplyTransitionResponse) Reset() {
 	*x = ApplyTransitionResponse{}
-	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[6]
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -382,7 +885,7 @@ func (x *ApplyTransitionResponse) String() string {
 func (*ApplyTransitionResponse) ProtoMessage() {}
 
 func (x *ApplyTransitionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[6]
+	mi := &file_swarm_manager_v1_api_transition_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -395,7 +898,7 @@ func (x *ApplyTransitionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyTransitionResponse.ProtoReflect.Descriptor instead.
 func (*ApplyTransitionResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{6}
+	return file_swarm_manager_v1_api_transition_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ApplyTransitionResponse) GetExecutionId() string {
@@ -465,7 +968,53 @@ var File_swarm_manager_v1_api_transition_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_transition_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/api/transition.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a(swarm-manager/v1/domain/transition.proto\"\x18\n" +
+	"%swarm-manager/v1/api/transition.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a(swarm-manager/v1/domain/transition.proto\x1a&swarm-manager/v1/shared/plan_ref.proto\"k\n" +
+	"\x12DevelopmentOutcome\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
+	"\tcriterion\x18\x02 \x01(\tR\tcriterion\x12'\n" +
+	"\x0fevidence_source\x18\x03 \x01(\tR\x0eevidenceSource\"\xa4\x05\n" +
+	"\x19PreviewDevelopmentRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1b\n" +
+	"\twork_item\x18\x02 \x01(\tR\bworkItem\x12\x1c\n" +
+	"\tobjective\x18\x03 \x01(\tR\tobjective\x12%\n" +
+	"\x0eartifact_paths\x18\x04 \x03(\tR\rartifactPaths\x12K\n" +
+	"\boutcomes\x18\x05 \x03(\v2/.vrooli.swarm_manager.v1.api.DevelopmentOutcomeR\boutcomes\x12)\n" +
+	"\x10acceptance_allow\x18\x06 \x03(\tR\x0facceptanceAllow\x12'\n" +
+	"\x0facceptance_deny\x18\a \x03(\tR\x0eacceptanceDeny\x12'\n" +
+	"\x0fallowed_effects\x18\b \x03(\tR\x0eallowedEffects\x12\x1d\n" +
+	"\n" +
+	"max_tokens\x18\t \x01(\x03R\tmaxTokens\x12(\n" +
+	"\x10max_wall_seconds\x18\n" +
+	" \x01(\x03R\x0emaxWallSeconds\x12L\n" +
+	"\bguidance\x18\v \x01(\v20.vrooli.swarm_manager.v1.api.DevelopmentGuidanceR\bguidance\x12#\n" +
+	"\rbudget_policy\x18\f \x01(\tR\fbudgetPolicy\x12G\n" +
+	"\bplan_ref\x18\r \x01(\v2'.vrooli.swarm_manager.v1.shared.PlanRefH\x00R\aplanRef\x88\x01\x01\x12-\n" +
+	"\x12execution_strategy\x18\x0e \x01(\tR\x11executionStrategyB\v\n" +
+	"\t_plan_ref\"\xdd\x01\n" +
+	"\x13DevelopmentGuidance\x12\x16\n" +
+	"\x06effort\x18\x01 \x01(\tR\x06effort\x12%\n" +
+	"\x0estarting_state\x18\x02 \x01(\tR\rstartingState\x12\x1e\n" +
+	"\n" +
+	"validation\x18\x03 \x01(\tR\n" +
+	"validation\x12.\n" +
+	"\x13repair_related_code\x18\x04 \x01(\bR\x11repairRelatedCode\x127\n" +
+	"\x17additional_instructions\x18\x05 \x01(\tR\x16additionalInstructions\"`\n" +
+	"\x13DevelopmentArtifact\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
+	"\x06sha256\x18\x02 \x01(\tR\x06sha256\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x03 \x01(\x03R\tsizeBytes\"F\n" +
+	"\x18DevelopmentReviewFinding\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x16\n" +
+	"\x06detail\x18\x02 \x01(\tR\x06detail\"\x80\x03\n" +
+	"\x1aPreviewDevelopmentResponse\x12'\n" +
+	"\x0fproposal_digest\x18\x01 \x01(\tR\x0eproposalDigest\x12!\n" +
+	"\fgoal_message\x18\x02 \x01(\tR\vgoalMessage\x12N\n" +
+	"\tartifacts\x18\x03 \x03(\v20.vrooli.swarm_manager.v1.api.DevelopmentArtifactR\tartifacts\x12Q\n" +
+	"\bfindings\x18\x04 \x03(\v25.vrooli.swarm_manager.v1.api.DevelopmentReviewFindingR\bfindings\x12'\n" +
+	"\x0freview_complete\x18\x05 \x01(\bR\x0ereviewComplete\x12!\n" +
+	"\flaunch_ready\x18\x06 \x01(\bR\vlaunchReady\x12'\n" +
+	"\x0flaunch_blockers\x18\a \x03(\tR\x0elaunchBlockers\"\x18\n" +
 	"\x16ListTransitionsRequest\"g\n" +
 	"\x17ListTransitionsResponse\x12L\n" +
 	"\vtransitions\x18\x01 \x03(\v2*.vrooli.swarm_manager.v1.domain.TransitionR\vtransitions\"\xc4\x02\n" +
@@ -502,9 +1051,10 @@ const file_swarm_manager_v1_api_transition_proto_rawDesc = "" +
 	"\x11definition_digest\x18\a \x01(\tR\x10definitionDigest\x12%\n" +
 	"\x0eentity_version\x18\b \x01(\tR\rentityVersion\x12\x1f\n" +
 	"\vapply_state\x18\t \x01(\tR\n" +
-	"applyState2\x8d\x03\n" +
+	"applyState2\x95\x04\n" +
 	"\x11TransitionService\x12|\n" +
-	"\x0fListTransitions\x123.vrooli.swarm_manager.v1.api.ListTransitionsRequest\x1a4.vrooli.swarm_manager.v1.api.ListTransitionsResponse\x12|\n" +
+	"\x0fListTransitions\x123.vrooli.swarm_manager.v1.api.ListTransitionsRequest\x1a4.vrooli.swarm_manager.v1.api.ListTransitionsResponse\x12\x85\x01\n" +
+	"\x12PreviewDevelopment\x126.vrooli.swarm_manager.v1.api.PreviewDevelopmentRequest\x1a7.vrooli.swarm_manager.v1.api.PreviewDevelopmentResponse\x12|\n" +
 	"\x0fStartTransition\x123.vrooli.swarm_manager.v1.api.StartTransitionRequest\x1a4.vrooli.swarm_manager.v1.api.StartTransitionResponse\x12|\n" +
 	"\x0fApplyTransition\x123.vrooli.swarm_manager.v1.api.ApplyTransitionRequest\x1a4.vrooli.swarm_manager.v1.api.ApplyTransitionResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
@@ -520,33 +1070,47 @@ func file_swarm_manager_v1_api_transition_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_transition_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_transition_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_swarm_manager_v1_api_transition_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_swarm_manager_v1_api_transition_proto_goTypes = []any{
-	(*ListTransitionsRequest)(nil),  // 0: vrooli.swarm_manager.v1.api.ListTransitionsRequest
-	(*ListTransitionsResponse)(nil), // 1: vrooli.swarm_manager.v1.api.ListTransitionsResponse
-	(*StartTransitionRequest)(nil),  // 2: vrooli.swarm_manager.v1.api.StartTransitionRequest
-	(*SubjectReference)(nil),        // 3: vrooli.swarm_manager.v1.api.SubjectReference
-	(*StartTransitionResponse)(nil), // 4: vrooli.swarm_manager.v1.api.StartTransitionResponse
-	(*ApplyTransitionRequest)(nil),  // 5: vrooli.swarm_manager.v1.api.ApplyTransitionRequest
-	(*ApplyTransitionResponse)(nil), // 6: vrooli.swarm_manager.v1.api.ApplyTransitionResponse
-	nil,                             // 7: vrooli.swarm_manager.v1.api.StartTransitionRequest.OperatorInputsEntry
-	(*domain.Transition)(nil),       // 8: vrooli.swarm_manager.v1.domain.Transition
+	(*DevelopmentOutcome)(nil),         // 0: vrooli.swarm_manager.v1.api.DevelopmentOutcome
+	(*PreviewDevelopmentRequest)(nil),  // 1: vrooli.swarm_manager.v1.api.PreviewDevelopmentRequest
+	(*DevelopmentGuidance)(nil),        // 2: vrooli.swarm_manager.v1.api.DevelopmentGuidance
+	(*DevelopmentArtifact)(nil),        // 3: vrooli.swarm_manager.v1.api.DevelopmentArtifact
+	(*DevelopmentReviewFinding)(nil),   // 4: vrooli.swarm_manager.v1.api.DevelopmentReviewFinding
+	(*PreviewDevelopmentResponse)(nil), // 5: vrooli.swarm_manager.v1.api.PreviewDevelopmentResponse
+	(*ListTransitionsRequest)(nil),     // 6: vrooli.swarm_manager.v1.api.ListTransitionsRequest
+	(*ListTransitionsResponse)(nil),    // 7: vrooli.swarm_manager.v1.api.ListTransitionsResponse
+	(*StartTransitionRequest)(nil),     // 8: vrooli.swarm_manager.v1.api.StartTransitionRequest
+	(*SubjectReference)(nil),           // 9: vrooli.swarm_manager.v1.api.SubjectReference
+	(*StartTransitionResponse)(nil),    // 10: vrooli.swarm_manager.v1.api.StartTransitionResponse
+	(*ApplyTransitionRequest)(nil),     // 11: vrooli.swarm_manager.v1.api.ApplyTransitionRequest
+	(*ApplyTransitionResponse)(nil),    // 12: vrooli.swarm_manager.v1.api.ApplyTransitionResponse
+	nil,                                // 13: vrooli.swarm_manager.v1.api.StartTransitionRequest.OperatorInputsEntry
+	(*shared.PlanRef)(nil),             // 14: vrooli.swarm_manager.v1.shared.PlanRef
+	(*domain.Transition)(nil),          // 15: vrooli.swarm_manager.v1.domain.Transition
 }
 var file_swarm_manager_v1_api_transition_proto_depIdxs = []int32{
-	8, // 0: vrooli.swarm_manager.v1.api.ListTransitionsResponse.transitions:type_name -> vrooli.swarm_manager.v1.domain.Transition
-	3, // 1: vrooli.swarm_manager.v1.api.StartTransitionRequest.subject_ref:type_name -> vrooli.swarm_manager.v1.api.SubjectReference
-	7, // 2: vrooli.swarm_manager.v1.api.StartTransitionRequest.operator_inputs:type_name -> vrooli.swarm_manager.v1.api.StartTransitionRequest.OperatorInputsEntry
-	0, // 3: vrooli.swarm_manager.v1.api.TransitionService.ListTransitions:input_type -> vrooli.swarm_manager.v1.api.ListTransitionsRequest
-	2, // 4: vrooli.swarm_manager.v1.api.TransitionService.StartTransition:input_type -> vrooli.swarm_manager.v1.api.StartTransitionRequest
-	5, // 5: vrooli.swarm_manager.v1.api.TransitionService.ApplyTransition:input_type -> vrooli.swarm_manager.v1.api.ApplyTransitionRequest
-	1, // 6: vrooli.swarm_manager.v1.api.TransitionService.ListTransitions:output_type -> vrooli.swarm_manager.v1.api.ListTransitionsResponse
-	4, // 7: vrooli.swarm_manager.v1.api.TransitionService.StartTransition:output_type -> vrooli.swarm_manager.v1.api.StartTransitionResponse
-	6, // 8: vrooli.swarm_manager.v1.api.TransitionService.ApplyTransition:output_type -> vrooli.swarm_manager.v1.api.ApplyTransitionResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	0,  // 0: vrooli.swarm_manager.v1.api.PreviewDevelopmentRequest.outcomes:type_name -> vrooli.swarm_manager.v1.api.DevelopmentOutcome
+	2,  // 1: vrooli.swarm_manager.v1.api.PreviewDevelopmentRequest.guidance:type_name -> vrooli.swarm_manager.v1.api.DevelopmentGuidance
+	14, // 2: vrooli.swarm_manager.v1.api.PreviewDevelopmentRequest.plan_ref:type_name -> vrooli.swarm_manager.v1.shared.PlanRef
+	3,  // 3: vrooli.swarm_manager.v1.api.PreviewDevelopmentResponse.artifacts:type_name -> vrooli.swarm_manager.v1.api.DevelopmentArtifact
+	4,  // 4: vrooli.swarm_manager.v1.api.PreviewDevelopmentResponse.findings:type_name -> vrooli.swarm_manager.v1.api.DevelopmentReviewFinding
+	15, // 5: vrooli.swarm_manager.v1.api.ListTransitionsResponse.transitions:type_name -> vrooli.swarm_manager.v1.domain.Transition
+	9,  // 6: vrooli.swarm_manager.v1.api.StartTransitionRequest.subject_ref:type_name -> vrooli.swarm_manager.v1.api.SubjectReference
+	13, // 7: vrooli.swarm_manager.v1.api.StartTransitionRequest.operator_inputs:type_name -> vrooli.swarm_manager.v1.api.StartTransitionRequest.OperatorInputsEntry
+	6,  // 8: vrooli.swarm_manager.v1.api.TransitionService.ListTransitions:input_type -> vrooli.swarm_manager.v1.api.ListTransitionsRequest
+	1,  // 9: vrooli.swarm_manager.v1.api.TransitionService.PreviewDevelopment:input_type -> vrooli.swarm_manager.v1.api.PreviewDevelopmentRequest
+	8,  // 10: vrooli.swarm_manager.v1.api.TransitionService.StartTransition:input_type -> vrooli.swarm_manager.v1.api.StartTransitionRequest
+	11, // 11: vrooli.swarm_manager.v1.api.TransitionService.ApplyTransition:input_type -> vrooli.swarm_manager.v1.api.ApplyTransitionRequest
+	7,  // 12: vrooli.swarm_manager.v1.api.TransitionService.ListTransitions:output_type -> vrooli.swarm_manager.v1.api.ListTransitionsResponse
+	5,  // 13: vrooli.swarm_manager.v1.api.TransitionService.PreviewDevelopment:output_type -> vrooli.swarm_manager.v1.api.PreviewDevelopmentResponse
+	10, // 14: vrooli.swarm_manager.v1.api.TransitionService.StartTransition:output_type -> vrooli.swarm_manager.v1.api.StartTransitionResponse
+	12, // 15: vrooli.swarm_manager.v1.api.TransitionService.ApplyTransition:output_type -> vrooli.swarm_manager.v1.api.ApplyTransitionResponse
+	12, // [12:16] is the sub-list for method output_type
+	8,  // [8:12] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_transition_proto_init() }
@@ -554,13 +1118,14 @@ func file_swarm_manager_v1_api_transition_proto_init() {
 	if File_swarm_manager_v1_api_transition_proto != nil {
 		return
 	}
+	file_swarm_manager_v1_api_transition_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_transition_proto_rawDesc), len(file_swarm_manager_v1_api_transition_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

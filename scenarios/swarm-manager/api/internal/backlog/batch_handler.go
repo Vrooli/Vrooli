@@ -106,8 +106,9 @@ type batchCreateItem struct {
 	Creates         []string `json:"creates,omitempty"`
 	// SpawnedFrom stamps provenance the way single-create already does, so
 	// batch-landed items (e.g. plan imports) carry where they came from.
-	SpawnedFrom string   `json:"spawned_from,omitempty"`
-	PlanRef     *PlanRef `json:"plan_ref,omitempty"`
+	SpawnedFrom       string   `json:"spawned_from,omitempty"`
+	PlanRef           *PlanRef `json:"plan_ref,omitempty"`
+	ExecutionStrategy string   `json:"execution_strategy,omitempty"`
 }
 
 // batchCreateMilestone describes milestone metadata supplied with a batch import.
@@ -473,25 +474,30 @@ func (h *Handler) validateSingleBatchItem(
 	if err := validatePlanRef(planRef, PlanRefRoleExecutionSpec); err != nil {
 		return validatedItem{}, apierr.BadRequest("item[%d]: %s", i, err.Error())
 	}
+	executionStrategy, err := normalizeExecutionStrategy(raw.ExecutionStrategy)
+	if err != nil {
+		return validatedItem{}, apierr.BadRequest("item[%d]: %s", i, err.Error())
+	}
 
 	item := BacklogItem{
-		Name:            name,
-		Title:           raw.Title,
-		Description:     strings.TrimSpace(raw.Description),
-		Status:          StatusBacklog,
-		Priority:        priority,
-		Tags:            tags,
-		Created:         now,
-		Updated:         now,
-		Kind:            kind,
-		DependsOn:       dependsOn,
-		Milestone:       strings.TrimSpace(raw.Milestone),
-		Effort:          effort,
-		AcceptanceAllow: raw.AcceptanceAllow,
-		AcceptanceDeny:  raw.AcceptanceDeny,
-		Creates:         raw.Creates,
-		SpawnedFrom:     strings.TrimSpace(raw.SpawnedFrom),
-		PlanRef:         planRef,
+		Name:              name,
+		Title:             raw.Title,
+		Description:       strings.TrimSpace(raw.Description),
+		Status:            StatusBacklog,
+		Priority:          priority,
+		Tags:              tags,
+		Created:           now,
+		Updated:           now,
+		Kind:              kind,
+		DependsOn:         dependsOn,
+		Milestone:         strings.TrimSpace(raw.Milestone),
+		Effort:            effort,
+		AcceptanceAllow:   raw.AcceptanceAllow,
+		AcceptanceDeny:    raw.AcceptanceDeny,
+		Creates:           raw.Creates,
+		SpawnedFrom:       strings.TrimSpace(raw.SpawnedFrom),
+		PlanRef:           planRef,
+		ExecutionStrategy: executionStrategy,
 	}
 
 	return validatedItem{item: item, kind: kind}, nil

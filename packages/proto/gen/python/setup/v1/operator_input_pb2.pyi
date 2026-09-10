@@ -62,7 +62,7 @@ class Candidate(_message.Message):
     def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., label: _Optional[str] = ..., location: _Optional[str] = ..., stable_identity: _Optional[str] = ..., device_identity: _Optional[str] = ..., writable: _Optional[bool] = ..., status: _Optional[str] = ..., risk: _Optional[str] = ..., remediation: _Optional[str] = ..., metadata: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class OperatorInputRequest(_message.Message):
-    __slots__ = ("id", "kind", "contract_version", "owner", "capability_id", "action_id", "input_id", "title", "description", "default_value", "options", "candidates", "remediation", "unblocks", "validation", "required", "target")
+    __slots__ = ("id", "kind", "contract_version", "owner", "capability_id", "action_id", "input_id", "title", "description", "default_value", "options", "candidates", "remediation", "unblocks", "validation", "required", "target", "declinable", "decision", "credential_logical_id", "credential_field", "provider", "requirement_group", "consumer_refs", "companion_settings", "acquisition_ref", "verification_ref", "recovery_ref", "help_ref", "evidence_policy")
     ID_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     CONTRACT_VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -80,6 +80,19 @@ class OperatorInputRequest(_message.Message):
     VALIDATION_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_FIELD_NUMBER: _ClassVar[int]
     TARGET_FIELD_NUMBER: _ClassVar[int]
+    DECLINABLE_FIELD_NUMBER: _ClassVar[int]
+    DECISION_FIELD_NUMBER: _ClassVar[int]
+    CREDENTIAL_LOGICAL_ID_FIELD_NUMBER: _ClassVar[int]
+    CREDENTIAL_FIELD_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    REQUIREMENT_GROUP_FIELD_NUMBER: _ClassVar[int]
+    CONSUMER_REFS_FIELD_NUMBER: _ClassVar[int]
+    COMPANION_SETTINGS_FIELD_NUMBER: _ClassVar[int]
+    ACQUISITION_REF_FIELD_NUMBER: _ClassVar[int]
+    VERIFICATION_REF_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_REF_FIELD_NUMBER: _ClassVar[int]
+    HELP_REF_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_POLICY_FIELD_NUMBER: _ClassVar[int]
     id: str
     kind: OperatorInputKind
     contract_version: str
@@ -97,4 +110,17 @@ class OperatorInputRequest(_message.Message):
     validation: str
     required: bool
     target: str
-    def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[OperatorInputKind, str]] = ..., contract_version: _Optional[str] = ..., owner: _Optional[str] = ..., capability_id: _Optional[str] = ..., action_id: _Optional[str] = ..., input_id: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., default_value: _Optional[str] = ..., options: _Optional[_Iterable[str]] = ..., candidates: _Optional[_Iterable[_Union[Candidate, _Mapping]]] = ..., remediation: _Optional[str] = ..., unblocks: _Optional[_Iterable[str]] = ..., validation: _Optional[str] = ..., required: _Optional[bool] = ..., target: _Optional[str] = ...) -> None: ...
+    declinable: bool
+    decision: str
+    credential_logical_id: str
+    credential_field: str
+    provider: str
+    requirement_group: str
+    consumer_refs: _containers.RepeatedScalarFieldContainer[str]
+    companion_settings: _containers.RepeatedScalarFieldContainer[str]
+    acquisition_ref: str
+    verification_ref: str
+    recovery_ref: str
+    help_ref: str
+    evidence_policy: str
+    def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[OperatorInputKind, str]] = ..., contract_version: _Optional[str] = ..., owner: _Optional[str] = ..., capability_id: _Optional[str] = ..., action_id: _Optional[str] = ..., input_id: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., default_value: _Optional[str] = ..., options: _Optional[_Iterable[str]] = ..., candidates: _Optional[_Iterable[_Union[Candidate, _Mapping]]] = ..., remediation: _Optional[str] = ..., unblocks: _Optional[_Iterable[str]] = ..., validation: _Optional[str] = ..., required: _Optional[bool] = ..., target: _Optional[str] = ..., declinable: _Optional[bool] = ..., decision: _Optional[str] = ..., credential_logical_id: _Optional[str] = ..., credential_field: _Optional[str] = ..., provider: _Optional[str] = ..., requirement_group: _Optional[str] = ..., consumer_refs: _Optional[_Iterable[str]] = ..., companion_settings: _Optional[_Iterable[str]] = ..., acquisition_ref: _Optional[str] = ..., verification_ref: _Optional[str] = ..., recovery_ref: _Optional[str] = ..., help_ref: _Optional[str] = ..., evidence_policy: _Optional[str] = ...) -> None: ...

@@ -2,6 +2,8 @@ package execution
 
 import (
 	"encoding/json"
+	"swarm-manager/internal/identity"
+	"swarm-manager/internal/workflowcontract"
 	"time"
 )
 
@@ -32,9 +34,10 @@ import (
 type Status string
 
 const (
-	StatusPending  Status = "pending"
-	StatusStarting Status = "starting"
-	StatusRunning  Status = "running"
+	StatusPending    Status = "pending"
+	StatusStarting   Status = "starting"
+	StatusRunning    Status = "running"
+	StatusCancelling Status = "cancelling"
 	// StatusNeedsReview is the run-level state "agent flagged this for a
 	// human before continuing." Different from the backlog `in_review` /
 	// `review_pending` statuses, which describe the item's lifecycle.
@@ -129,12 +132,17 @@ type Record struct {
 	// execution history from the workflow. Empty for records whose run was not
 	// launched as an operation (e.g. spec-sync-archive, which stays a direct
 	// spawn through slice B).
-	OpWorkflowID            string `json:"op_workflow_id,omitempty"`
-	OpExecutionID           string `json:"op_execution_id,omitempty"`
-	PlanManagerExecutionID  string `json:"plan_manager_execution_id,omitempty"`
-	PlanManagerReconciledAt string `json:"plan_manager_reconciled_at,omitempty"`
-	ExecutionStrategy       string `json:"execution_strategy,omitempty"`
-	MaxSlices               int    `json:"max_slices,omitempty"`
+	OpWorkflowID            string                    `json:"op_workflow_id,omitempty"`
+	OpExecutionID           string                    `json:"op_execution_id,omitempty"`
+	PlanManagerExecutionID  string                    `json:"plan_manager_execution_id,omitempty"`
+	PlanManagerReconciledAt string                    `json:"plan_manager_reconciled_at,omitempty"`
+	ExecutionStrategy       string                    `json:"execution_strategy,omitempty"`
+	MaxSlices               int                       `json:"max_slices,omitempty"`
+	ExecutionLimits         *identity.ExecutionLimits `json:"execution_limits,omitempty"`
+	ApprovalDigest          string                    `json:"approval_digest,omitempty"`
+	WorkflowGrant           *workflowcontract.Grant   `json:"workflow_grant,omitempty"`
+	SettledUsage            *workflowcontract.Usage   `json:"settled_usage,omitempty"`
+	Cancellation            *CancellationStanding     `json:"cancellation,omitempty"`
 	// PreExecBaselines maps an affected scenario name to the GCT baseline
 	// captured for it just before execution started. Finalization diffs each
 	// of these against the post-execution working tree to separate regressions
@@ -160,6 +168,17 @@ type Record struct {
 	AcceptedPreviousStatus Status `json:"accepted_previous_status,omitempty"`
 	CreatedAt              string `json:"created_at"`
 	UpdatedAt              string `json:"updated_at"`
+}
+
+// CancellationStanding separates local authority withdrawal, transport
+// acknowledgement, terminal accounting and consumer cleanup. All survive restart.
+type CancellationStanding struct {
+	RequestID      string `json:"request_id"`
+	RequestedAt    string `json:"requested_at"`
+	AcknowledgedAt string `json:"acknowledged_at,omitempty"`
+	SettledAt      string `json:"settled_at,omitempty"`
+	ReconciledAt   string `json:"reconciled_at,omitempty"`
+	LastError      string `json:"last_error,omitempty"`
 }
 
 // WorkflowAttemptProvenance is the bounded run-attempt trace retained at the

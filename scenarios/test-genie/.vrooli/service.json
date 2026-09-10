@@ -206,6 +206,15 @@
         },
         "degraded_behavior": "Core test execution continues when agent-manager is unavailable; evidence-bound remediation returns a clear unavailable error.",
         "startup_policy": "try_start"
+      },
+      "deployment-manager": {
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Test Genie reports candidate-bound terminal suite evidence through Deployment Manager's typed readiness service; it does not import Deployment Manager implementation code.",
+        "purpose": "Owner of release readiness review state",
+        "degraded_behavior": "Test execution remains available; release readiness records remain unavailable until Deployment Manager and its server-side readiness credential are configured.",
+        "startup_policy": "try_start"
       }
     }
   },

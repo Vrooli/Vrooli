@@ -37,6 +37,12 @@ class ListAttachedDevicesResponse(_message.Message):
     devices: _containers.RepeatedCompositeFieldContainer[AttachedDevice]
     def __init__(self, devices: _Optional[_Iterable[_Union[AttachedDevice, _Mapping]]] = ...) -> None: ...
 
+class GetAttachedDeviceRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
 class RevokeAttachedDeviceRequest(_message.Message):
     __slots__ = ("id",)
     ID_FIELD_NUMBER: _ClassVar[int]
@@ -50,7 +56,7 @@ class AttachedDeviceResponse(_message.Message):
     def __init__(self, device: _Optional[_Union[AttachedDevice, _Mapping]] = ...) -> None: ...
 
 class AttachedDevice(_message.Message):
-    __slots__ = ("id", "name", "host_node_id", "kind", "transport", "serial", "os_version", "trust_state", "reachability", "health_reason", "created_at", "revoked_at")
+    __slots__ = ("id", "name", "host_node_id", "kind", "transport", "serial", "os_version", "trust_state", "reachability", "health_reason", "created_at", "revoked_at", "transports")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     HOST_NODE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -63,6 +69,7 @@ class AttachedDevice(_message.Message):
     HEALTH_REASON_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     REVOKED_AT_FIELD_NUMBER: _ClassVar[int]
+    TRANSPORTS_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     host_node_id: str
@@ -75,4 +82,5 @@ class AttachedDevice(_message.Message):
     health_reason: str
     created_at: _timestamp_pb2.Timestamp
     revoked_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., host_node_id: _Optional[str] = ..., kind: _Optional[str] = ..., transport: _Optional[str] = ..., serial: _Optional[str] = ..., os_version: _Optional[str] = ..., trust_state: _Optional[str] = ..., reachability: _Optional[str] = ..., health_reason: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revoked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    transports: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., host_node_id: _Optional[str] = ..., kind: _Optional[str] = ..., transport: _Optional[str] = ..., serial: _Optional[str] = ..., os_version: _Optional[str] = ..., trust_state: _Optional[str] = ..., reachability: _Optional[str] = ..., health_reason: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revoked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., transports: _Optional[_Iterable[str]] = ...) -> None: ...

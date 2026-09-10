@@ -24,6 +24,26 @@ GoodExample:
 BadExample:
 
 	export function AppShell() { return <nav><a href="/">Home</a></nav>; }
+
+<test-case id="library-mount" should-fail="false">
+<description>A declared library shell owns the application frame.</description>
+<input>
+[ui/manifest.json]
+{"shell":{"archetype":"navigated-console","asset":"AppShell","entry":"ui/src/layout/AppShell.tsx","export":"AppShell"}}
+[ui/src/layout/AppShell.tsx]
+export {AppShell} from '@vrooli/react-component-library/AppShell/2'
+</input>
+</test-case>
+<test-case id="local-fork" should-fail="true">
+<description>A local navigation fork is rejected and names the remedy.</description>
+<input>
+[ui/manifest.json]
+{"shell":{"archetype":"navigated-console","asset":"AppShell","entry":"ui/src/layout/AppShell.tsx","export":"AppShell"}}
+[ui/src/layout/AppShell.tsx]
+export function AppShell(){return <nav><a href="/">Home</a></nav>}
+</input>
+<expected-message>does not render AppShell</expected-message>
+</test-case>
 */
 package checks
 
@@ -62,8 +82,9 @@ type shellFinding struct {
 	Reason  string `json:"reason"`
 }
 type shellAnalysis struct {
-	Mounted  bool           `json:"mounted"`
-	Findings []shellFinding `json:"findings"`
+	Mounted        bool           `json:"mounted"`
+	Findings       []shellFinding `json:"findings"`
+	EntryReachable *bool          `json:"entryReachable"`
 }
 
 var shellArchetypes = map[string]string{
@@ -121,6 +142,9 @@ func checkShellOwnership(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	}
 	if !analysis.Mounted && ejected[shell.Entry] == "" {
 		fail(shell.Entry, 1, shell.Export, "declared entry does not render "+shell.Asset+" from @vrooli/react-component-library")
+	}
+	if analysis.EntryReachable != nil && !*analysis.EntryReachable && ejected[shell.Entry] == "" {
+		fail(shell.Entry, 1, shell.Export, "declared shell entry is not reachable from the browser entry; wire it into the served application graph")
 	}
 	if result.Passed && len(ejected) > 0 {
 		reasons := map[string]bool{}
@@ -219,6 +243,9 @@ func analyzeShellOwnership(ctx uiinterop.CheckContext, shell shellDeclaration) (
 		Typescript string           `json:"typescript"`
 		Files      []source         `json:"files"`
 	}{Shell: shell, Typescript: typescript, Files: []source{}}
+	if len(ctx.Sources) == 0 {
+		ctx.Sources = uiinterop.WalkUISource(ctx.ScenarioRoot, "ui")
+	}
 	for _, file := range ctx.Sources {
 		if safeShellEjectionPath(file.RelPath) {
 			input.Files = append(input.Files, source{file.RelPath, file.Content})

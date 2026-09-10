@@ -25,8 +25,25 @@ func summarizeFinalization(finalization Finalization, gateRegressions bool) (cla
 	}
 
 	hasReadyWithNotes := false
+	hasDeferredChecks := false
 	summaries := make([]string, 0, len(finalization.Scenarios))
 	for _, scenario := range finalization.Scenarios {
+		// A known regression stays actionable even when other checks could
+		// not run (including the deliberate self-restart deferral).
+		if gateRegressions && scenario.BaselineDiff != nil && scenario.BaselineDiff.HasNewRegressions() {
+			hasActionableFailure = true
+			surfaces := strings.Join(scenario.BaselineDiff.RegressedSurfaces, ", ")
+			if surfaces == "" {
+				surfaces = "tests"
+			}
+			summaries = append(summaries, fmt.Sprintf("%s introduced %d regression(s) [%s]",
+				scenario.ScenarioName, len(scenario.BaselineDiff.Regressions), surfaces))
+		}
+		if selfChecksDeferred(scenario, finalization.Warnings) {
+			hasDeferredChecks = true
+			summaries = append(summaries, fmt.Sprintf("%s checks deferred: external restart, health and review required", scenario.ScenarioName))
+			continue
+		}
 		if scenario.Restart.Status != "" && scenario.Restart.Status != FinalizationStatusCompleted {
 			hasActionableFailure = true
 			summaries = append(summaries, fmt.Sprintf("%s restart failed", scenario.ScenarioName))
@@ -60,27 +77,14 @@ func summarizeFinalization(finalization Finalization, gateRegressions bool) (cla
 				summaries = append(summaries, fmt.Sprintf("%s needs follow-up: %s", scenario.ScenarioName, scenario.Review.Result.Summary))
 			}
 		}
-
-		// Baseline regression gate (plan P6 §200-201): a change that turned a
-		// previously-passing surface red is a regression attributable to this
-		// item, so hand it back even when the absolute review came back ready.
-		// Only the genuine "regression" verdict gates — new-failure /
-		// pre-existing / not-comparable are not this change's fault.
-		if gateRegressions && scenario.BaselineDiff != nil && scenario.BaselineDiff.HasNewRegressions() {
-			hasActionableFailure = true
-			surfaces := strings.Join(scenario.BaselineDiff.RegressedSurfaces, ", ")
-			if surfaces == "" {
-				surfaces = "tests"
-			}
-			summaries = append(summaries, fmt.Sprintf("%s introduced %d regression(s) [%s]",
-				scenario.ScenarioName, len(scenario.BaselineDiff.Regressions), surfaces))
-		}
 	}
 
 	classification = FinalizationAggregateReady
 	switch {
 	case hasActionableFailure:
 		classification = FinalizationAggregateNeedsWork
+	case hasDeferredChecks:
+		classification = FinalizationAggregateNotAssessable
 	case hasReadyWithNotes:
 		classification = FinalizationAggregateReadyWithNotes
 	}
@@ -90,6 +94,18 @@ func summarizeFinalization(finalization Finalization, gateRegressions bool) (cla
 	}
 	summary = strings.Join(summaries, "; ")
 	return classification, summary, hasActionableFailure
+}
+
+func selfChecksDeferred(scenario ScenarioFinalization, warnings []FinalizationWarning) bool {
+	if scenario.Restart.Status != FinalizationStatusSkipped || scenario.Health.Status != FinalizationStatusSkipped || scenario.Review.Status != FinalizationStatusSkipped {
+		return false
+	}
+	for _, warning := range warnings {
+		if warning.Code == finalizationWarningSelfRestartSkipped && warning.ScenarioName == scenario.ScenarioName {
+			return true
+		}
+	}
+	return false
 }
 
 func newFinalizationWarning(code, scenarioName, message string, retryable bool) FinalizationWarning {

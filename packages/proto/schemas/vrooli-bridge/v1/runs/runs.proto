@@ -37,14 +37,14 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridg
 //   - Agent: agent/internal/exec reports RunEvents via the generated client.
 // =============================================================================
 
-// RunStatus is a run's lifecycle state. QUEUED/RUNNING are non-terminal;
-// PASSED/FAILED/ABORTED are terminal. WaitRun returns once the run reaches a
-// terminal status (or its wait deadline elapses).
+// RunStatus is a run's lifecycle state. QUEUED/RUNNING/CANCEL_REQUESTED/
+// UNCERTAIN are non-terminal; PASSED/FAILED/ABORTED are terminal. WaitRun
+// returns once the run reaches a terminal status (or its wait deadline elapses).
 enum RunStatus {
   RUN_STATUS_UNSPECIFIED = 0;
 
-  // The run record exists and the JobPush has been delivered, but the node has
-  // not yet reported it started.
+  // The run record exists and is waiting for a delivery slot; the node has not
+  // yet reported it started.
   RUN_STATUS_QUEUED = 1;
 
   // The node reported the job is executing.
@@ -61,6 +61,10 @@ enum RunStatus {
   RUN_STATUS_PUSHED = 6;
   RUN_STATUS_ACKED = 7;
   RUN_STATUS_FAILED_DELIVERY = 8;
+  // The operator requested cancellation; remote termination is not confirmed.
+  RUN_STATUS_CANCEL_REQUESTED = 9;
+  // Delivery or termination evidence is insufficient for a safe conclusion.
+  RUN_STATUS_UNCERTAIN = 10;
 }
 
 // Run is the durable, server-owned record of one dispatched job. Durable fields
@@ -98,6 +102,12 @@ message Run {
   // device-sync-hub references to artifacts the run produced. The bytes never
   // transit the control-plane store (DATA.md) — only the refs.
   repeated string artifact_refs = 12;
+
+  // Cancellation and uncertainty are explicit so an operator never mistakes
+  // a lost cancel/termination receipt for confirmed process termination.
+  bool cancel_requested = 13;
+  bool cancellation_confirmed = 14;
+  string status_reason = 15;
 }
 
 service RunsService {
@@ -117,8 +127,8 @@ service RunsService {
   rpc WaitRun(WaitRunRequest) returns (WaitRunResponse);
 
   // AbortRun requests cancellation of a non-terminal run. The control plane
-  // pushes an abort to the node and marks the run ABORTED. Idempotent on an
-  // already-terminal run. Owner-gated.
+  // pushes an abort to the node; the run remains CANCEL_REQUESTED or becomes
+  // UNCERTAIN until remote termination is proven. Owner-gated.
   rpc AbortRun(AbortRunRequest) returns (AbortRunResponse);
 
   // StreamRunEvents replays the run's persisted events in order and then tails

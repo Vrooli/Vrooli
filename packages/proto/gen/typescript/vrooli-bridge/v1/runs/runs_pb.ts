@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/runs/runs.proto.
  */
 export const file_vrooli_bridge_v1_runs_runs: GenFile = /*@__PURE__*/
-  fileDesc("CiB2cm9vbGktYnJpZGdlL3YxL3J1bnMvcnVucy5wcm90bxIcdnJvb2xpLnZyb29saV9icmlkZ2UudjEucnVucyLdAgoDUnVuEgoKAmlkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSEAoIc2NlbmFyaW8YAyABKAkSDAoEdmVyYhgEIAEoCRIMCgRhcmdzGAUgAygJEjcKBnN0YXR1cxgGIAEoDjInLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJ1bnMuUnVuU3RhdHVzEhEKCWV4aXRfY29kZRgHIAEoBRIXCg90aW1lb3V0X3NlY29uZHMYCCABKAMSLgoKY3JlYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKc3RhcnRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLZmluaXNoZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKDWFydGlmYWN0X3JlZnMYDCADKAkiGwoNR2V0UnVuUmVxdWVzdBIKCgJpZBgBIAEoCSJ6Cg5HZXRSdW5SZXNwb25zZRIuCgNydW4YASABKAsyIS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5ydW5zLlJ1bhI4CgZldmVudHMYAiADKAsyKC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuUnVuRXZlbnQiMQoPTGlzdFJ1bnNSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSDQoFbGltaXQYAiABKAUiQwoQTGlzdFJ1bnNSZXNwb25zZRIvCgRydW5zGAEgAygLMiEudnJvb2xpLnZyb29saV9icmlkZ2UudjEucnVucy5SdW4iNQoOV2FpdFJ1blJlcXVlc3QSCgoCaWQYASABKAkSFwoPdGltZW91dF9zZWNvbmRzGAIgASgDIlQKD1dhaXRSdW5SZXNwb25zZRIuCgNydW4YASABKAsyIS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5ydW5zLlJ1bhIRCgl0aW1lZF9vdXQYAiABKAgiLQoPQWJvcnRSdW5SZXF1ZXN0EgoKAmlkGAEgASgJEg4KBnJlYXNvbhgCIAEoCSJCChBBYm9ydFJ1blJlc3BvbnNlEi4KA3J1bhgBIAEoCzIhLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJ1bnMuUnVuIiQKFlN0cmVhbVJ1bkV2ZW50c1JlcXVlc3QSCgoCaWQYASABKAkiSgoPUnVuRXZlbnRNZXNzYWdlEjcKBWV2ZW50GAEgASgLMigudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLlJ1bkV2ZW50IlAKFVJlcG9ydFJ1bkV2ZW50UmVxdWVzdBI3CgVldmVudBgBIAEoCzIoLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5SdW5FdmVudCIqChZSZXBvcnRSdW5FdmVudFJlc3BvbnNlEhAKCGFjY2VwdGVkGAEgASgIKukBCglSdW5TdGF0dXMSGgoWUlVOX1NUQVRVU19VTlNQRUNJRklFRBAAEhUKEVJVTl9TVEFUVVNfUVVFVUVEEAESFgoSUlVOX1NUQVRVU19SVU5OSU5HEAISFQoRUlVOX1NUQVRVU19QQVNTRUQQAxIVChFSVU5fU1RBVFVTX0ZBSUxFRBAEEhYKElJVTl9TVEFUVVNfQUJPUlRFRBAFEhUKEVJVTl9TVEFUVVNfUFVTSEVEEAYSFAoQUlVOX1NUQVRVU19BQ0tFRBAHEh4KGlJVTl9TVEFUVVNfRkFJTEVEX0RFTElWRVJZEAgypwUKC1J1bnNTZXJ2aWNlEmMKBkdldFJ1bhIrLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJ1bnMuR2V0UnVuUmVxdWVzdBosLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJ1bnMuR2V0UnVuUmVzcG9uc2USaQoITGlzdFJ1bnMSLS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5ydW5zLkxpc3RSdW5zUmVxdWVzdBouLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJ1bnMuTGlzdFJ1bnNSZXNwb25zZRJmCgdXYWl0UnVuEiwudnJvb2xpLnZyb29saV9icmlkZ2UudjEucnVucy5XYWl0UnVuUmVxdWVzdBotLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJ1bnMuV2FpdFJ1blJlc3BvbnNlEmkKCEFib3J0UnVuEi0udnJvb2xpLnZyb29saV9icmlkZ2UudjEucnVucy5BYm9ydFJ1blJlcXVlc3QaLi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5ydW5zLkFib3J0UnVuUmVzcG9uc2USeAoPU3RyZWFtUnVuRXZlbnRzEjQudnJvb2xpLnZyb29saV9icmlkZ2UudjEucnVucy5TdHJlYW1SdW5FdmVudHNSZXF1ZXN0Gi0udnJvb2xpLnZyb29saV9icmlkZ2UudjEucnVucy5SdW5FdmVudE1lc3NhZ2UwARJ7Cg5SZXBvcnRSdW5FdmVudBIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJ1bnMuUmVwb3J0UnVuRXZlbnRSZXF1ZXN0GjQudnJvb2xpLnZyb29saV9icmlkZ2UudjEucnVucy5SZXBvcnRSdW5FdmVudFJlc3BvbnNlQk5aTGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9ydW5zO3J1bnNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_vrooli_bridge_v1_shared_shared]);
+  fileDesc("CiB2cm9vbGktYnJpZGdlL3YxL3J1bnMvcnVucy5wcm90bxIcdnJvb2xpLnZyb29saV9icmlkZ2UudjEucnVucyKuAwoDUnVuEgoKAmlkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSEAoIc2NlbmFyaW8YAyABKAkSDAoEdmVyYhgEIAEoCRIMCgRhcmdzGAUgAygJEjcKBnN0YXR1cxgGIAEoDjInLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJ1bnMuUnVuU3RhdHVzEhEKCWV4aXRfY29kZRgHIAEoBRIXCg90aW1lb3V0X3NlY29uZHMYCCABKAMSLgoKY3JlYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKc3RhcnRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLZmluaXNoZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKDWFydGlmYWN0X3JlZnMYDCADKAkSGAoQY2FuY2VsX3JlcXVlc3RlZBgNIAEoCBIeChZjYW5jZWxsYXRpb25fY29uZmlybWVkGA4gASgIEhUKDXN0YXR1c19yZWFzb24YDyABKAkiGwoNR2V0UnVuUmVxdWVzdBIKCgJpZBgBIAEoCSJ6Cg5HZXRSdW5SZXNwb25zZRIuCgNydW4YASABKAsyIS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5ydW5zLlJ1bhI4CgZldmVudHMYAiADKAsyKC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuUnVuRXZlbnQiMQoPTGlzdFJ1bnNSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSDQoFbGltaXQYAiABKAUiQwoQTGlzdFJ1bnNSZXNwb25zZRIvCgRydW5zGAEgAygLMiEudnJvb2xpLnZyb29saV9icmlkZ2UudjEucnVucy5SdW4iNQoOV2FpdFJ1blJlcXVlc3QSCgoCaWQYASABKAkSFwoPdGltZW91dF9zZWNvbmRzGAIgASgDIlQKD1dhaXRSdW5SZXNwb25zZRIuCgNydW4YASABKAsyIS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5ydW5zLlJ1bhIRCgl0aW1lZF9vdXQYAiABKAgiLQoPQWJvcnRSdW5SZXF1ZXN0EgoKAmlkGAEgASgJEg4KBnJlYXNvbhgCIAEoCSJCChBBYm9ydFJ1blJlc3BvbnNlEi4KA3J1bhgBIAEoCzIhLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJ1bnMuUnVuIiQKFlN0cmVhbVJ1bkV2ZW50c1JlcXVlc3QSCgoCaWQYASABKAkiSgoPUnVuRXZlbnRNZXNzYWdlEjcKBWV2ZW50GAEgASgLMigudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLlJ1bkV2ZW50IlAKFVJlcG9ydFJ1bkV2ZW50UmVxdWVzdBI3CgVldmVudBgBIAEoCzIoLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5SdW5FdmVudCIqChZSZXBvcnRSdW5FdmVudFJlc3BvbnNlEhAKCGFjY2VwdGVkGAEgASgIKqQCCglSdW5TdGF0dXMSGgoWUlVOX1NUQVRVU19VTlNQRUNJRklFRBAAEhUKEVJVTl9TVEFUVVNfUVVFVUVEEAESFgoSUlVOX1NUQVRVU19SVU5OSU5HEAISFQoRUlVOX1NUQVRVU19QQVNTRUQQAxIVChFSVU5fU1RBVFVTX0ZBSUxFRBAEEhYKElJVTl9TVEFUVVNfQUJPUlRFRBAFEhUKEVJVTl9TVEFUVVNfUFVTSEVEEAYSFAoQUlVOX1NUQVRVU19BQ0tFRBAHEh4KGlJVTl9TVEFUVVNfRkFJTEVEX0RFTElWRVJZEAgSHwobUlVOX1NUQVRVU19DQU5DRUxfUkVRVUVTVEVEEAkSGAoUUlVOX1NUQVRVU19VTkNFUlRBSU4QCjKnBQoLUnVuc1NlcnZpY2USYwoGR2V0UnVuEisudnJvb2xpLnZyb29saV9icmlkZ2UudjEucnVucy5HZXRSdW5SZXF1ZXN0GiwudnJvb2xpLnZyb29saV9icmlkZ2UudjEucnVucy5HZXRSdW5SZXNwb25zZRJpCghMaXN0UnVucxItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJ1bnMuTGlzdFJ1bnNSZXF1ZXN0Gi4udnJvb2xpLnZyb29saV9icmlkZ2UudjEucnVucy5MaXN0UnVuc1Jlc3BvbnNlEmYKB1dhaXRSdW4SLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5ydW5zLldhaXRSdW5SZXF1ZXN0Gi0udnJvb2xpLnZyb29saV9icmlkZ2UudjEucnVucy5XYWl0UnVuUmVzcG9uc2USaQoIQWJvcnRSdW4SLS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5ydW5zLkFib3J0UnVuUmVxdWVzdBouLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJ1bnMuQWJvcnRSdW5SZXNwb25zZRJ4Cg9TdHJlYW1SdW5FdmVudHMSNC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5ydW5zLlN0cmVhbVJ1bkV2ZW50c1JlcXVlc3QaLS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5ydW5zLlJ1bkV2ZW50TWVzc2FnZTABEnsKDlJlcG9ydFJ1bkV2ZW50EjMudnJvb2xpLnZyb29saV9icmlkZ2UudjEucnVucy5SZXBvcnRSdW5FdmVudFJlcXVlc3QaNC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5ydW5zLlJlcG9ydFJ1bkV2ZW50UmVzcG9uc2VCTlpMZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL3J1bnM7cnVuc192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_vrooli_bridge_v1_shared_shared]);
 
 /**
  * Run is the durable, server-owned record of one dispatched job. Durable fields
@@ -103,6 +103,24 @@ export type Run = Message<"vrooli.vrooli_bridge.v1.runs.Run"> & {
    * @generated from field: repeated string artifact_refs = 12;
    */
   artifactRefs: string[];
+
+  /**
+   * Cancellation and uncertainty are explicit so an operator never mistakes
+   * a lost cancel/termination receipt for confirmed process termination.
+   *
+   * @generated from field: bool cancel_requested = 13;
+   */
+  cancelRequested: boolean;
+
+  /**
+   * @generated from field: bool cancellation_confirmed = 14;
+   */
+  cancellationConfirmed: boolean;
+
+  /**
+   * @generated from field: string status_reason = 15;
+   */
+  statusReason: string;
 };
 
 /**
@@ -364,9 +382,9 @@ export const ReportRunEventResponseSchema: GenMessage<ReportRunEventResponse> = 
   messageDesc(file_vrooli_bridge_v1_runs_runs, 12);
 
 /**
- * RunStatus is a run's lifecycle state. QUEUED/RUNNING are non-terminal;
- * PASSED/FAILED/ABORTED are terminal. WaitRun returns once the run reaches a
- * terminal status (or its wait deadline elapses).
+ * RunStatus is a run's lifecycle state. QUEUED/RUNNING/CANCEL_REQUESTED/
+ * UNCERTAIN are non-terminal; PASSED/FAILED/ABORTED are terminal. WaitRun
+ * returns once the run reaches a terminal status (or its wait deadline elapses).
  *
  * @generated from enum vrooli.vrooli_bridge.v1.runs.RunStatus
  */
@@ -377,8 +395,8 @@ export enum RunStatus {
   UNSPECIFIED = 0,
 
   /**
-   * The run record exists and the JobPush has been delivered, but the node has
-   * not yet reported it started.
+   * The run record exists and is waiting for a delivery slot; the node has not
+   * yet reported it started.
    *
    * @generated from enum value: RUN_STATUS_QUEUED = 1;
    */
@@ -426,6 +444,20 @@ export enum RunStatus {
    * @generated from enum value: RUN_STATUS_FAILED_DELIVERY = 8;
    */
   FAILED_DELIVERY = 8,
+
+  /**
+   * The operator requested cancellation; remote termination is not confirmed.
+   *
+   * @generated from enum value: RUN_STATUS_CANCEL_REQUESTED = 9;
+   */
+  CANCEL_REQUESTED = 9,
+
+  /**
+   * Delivery or termination evidence is insufficient for a safe conclusion.
+   *
+   * @generated from enum value: RUN_STATUS_UNCERTAIN = 10;
+   */
+  UNCERTAIN = 10,
 }
 
 /**
@@ -476,8 +508,8 @@ export const RunsService: GenService<{
   },
   /**
    * AbortRun requests cancellation of a non-terminal run. The control plane
-   * pushes an abort to the node and marks the run ABORTED. Idempotent on an
-   * already-terminal run. Owner-gated.
+   * pushes an abort to the node; the run remains CANCEL_REQUESTED or becomes
+   * UNCERTAIN until remote termination is proven. Owner-gated.
    *
    * @generated from rpc vrooli.vrooli_bridge.v1.runs.RunsService.AbortRun
    */

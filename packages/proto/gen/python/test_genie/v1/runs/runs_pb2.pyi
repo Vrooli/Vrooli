@@ -175,7 +175,7 @@ class AdmissionSaturation(_message.Message):
     def __init__(self, limit_kind: _Optional[_Union[AdmissionLimitKind, str]] = ..., occupancy: _Optional[int] = ..., configured_limit: _Optional[int] = ..., fifo_position: _Optional[int] = ..., retry_after_seconds: _Optional[int] = ...) -> None: ...
 
 class StartRunRequest(_message.Message):
-    __slots__ = ("target", "preset", "phases", "skip", "fail_fast", "diagnostics_preset", "ui_url", "api_url", "scenario_path", "logical_repo_root", "logical_scenario_rel_path", "suite_request_id", "capture_profile", "require_gate_quality", "target_ref", "collection_reservation_id", "collection_reservation_member_count", "retain_for_evidence", "retention_reason")
+    __slots__ = ("target", "preset", "phases", "skip", "fail_fast", "diagnostics_preset", "ui_url", "api_url", "scenario_path", "logical_repo_root", "logical_scenario_rel_path", "suite_request_id", "capture_profile", "require_gate_quality", "target_ref", "collection_reservation_id", "collection_reservation_member_count", "retain_for_evidence", "retention_reason", "release_profile_id", "release_candidate_commit", "release_artifact_digest", "release_targets", "release_channel", "release_policy_version", "release_candidate_id", "release_destination_revision_id", "release_authorization_epoch", "release_predecessor_run_id")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     PRESET_FIELD_NUMBER: _ClassVar[int]
     PHASES_FIELD_NUMBER: _ClassVar[int]
@@ -195,6 +195,16 @@ class StartRunRequest(_message.Message):
     COLLECTION_RESERVATION_MEMBER_COUNT_FIELD_NUMBER: _ClassVar[int]
     RETAIN_FOR_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     RETENTION_REASON_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_CANDIDATE_COMMIT_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_ARTIFACT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_TARGETS_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_CHANNEL_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_POLICY_VERSION_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_DESTINATION_REVISION_ID_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_AUTHORIZATION_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_PREDECESSOR_RUN_ID_FIELD_NUMBER: _ClassVar[int]
     target: str
     preset: str
     phases: _containers.RepeatedScalarFieldContainer[str]
@@ -214,7 +224,17 @@ class StartRunRequest(_message.Message):
     collection_reservation_member_count: int
     retain_for_evidence: bool
     retention_reason: str
-    def __init__(self, target: _Optional[str] = ..., preset: _Optional[str] = ..., phases: _Optional[_Iterable[str]] = ..., skip: _Optional[_Iterable[str]] = ..., fail_fast: _Optional[bool] = ..., diagnostics_preset: _Optional[str] = ..., ui_url: _Optional[str] = ..., api_url: _Optional[str] = ..., scenario_path: _Optional[str] = ..., logical_repo_root: _Optional[str] = ..., logical_scenario_rel_path: _Optional[str] = ..., suite_request_id: _Optional[str] = ..., capture_profile: _Optional[str] = ..., require_gate_quality: _Optional[bool] = ..., target_ref: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., collection_reservation_id: _Optional[str] = ..., collection_reservation_member_count: _Optional[int] = ..., retain_for_evidence: _Optional[bool] = ..., retention_reason: _Optional[str] = ...) -> None: ...
+    release_profile_id: str
+    release_candidate_commit: str
+    release_artifact_digest: str
+    release_targets: _containers.RepeatedScalarFieldContainer[str]
+    release_channel: str
+    release_policy_version: int
+    release_candidate_id: str
+    release_destination_revision_id: str
+    release_authorization_epoch: int
+    release_predecessor_run_id: str
+    def __init__(self, target: _Optional[str] = ..., preset: _Optional[str] = ..., phases: _Optional[_Iterable[str]] = ..., skip: _Optional[_Iterable[str]] = ..., fail_fast: _Optional[bool] = ..., diagnostics_preset: _Optional[str] = ..., ui_url: _Optional[str] = ..., api_url: _Optional[str] = ..., scenario_path: _Optional[str] = ..., logical_repo_root: _Optional[str] = ..., logical_scenario_rel_path: _Optional[str] = ..., suite_request_id: _Optional[str] = ..., capture_profile: _Optional[str] = ..., require_gate_quality: _Optional[bool] = ..., target_ref: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., collection_reservation_id: _Optional[str] = ..., collection_reservation_member_count: _Optional[int] = ..., retain_for_evidence: _Optional[bool] = ..., retention_reason: _Optional[str] = ..., release_profile_id: _Optional[str] = ..., release_candidate_commit: _Optional[str] = ..., release_artifact_digest: _Optional[str] = ..., release_targets: _Optional[_Iterable[str]] = ..., release_channel: _Optional[str] = ..., release_policy_version: _Optional[int] = ..., release_candidate_id: _Optional[str] = ..., release_destination_revision_id: _Optional[str] = ..., release_authorization_epoch: _Optional[int] = ..., release_predecessor_run_id: _Optional[str] = ...) -> None: ...
 
 class StartRunResponse(_message.Message):
     __slots__ = ("run_id", "target", "estimated_total_seconds", "eta_known", "coalesced", "target_ref")

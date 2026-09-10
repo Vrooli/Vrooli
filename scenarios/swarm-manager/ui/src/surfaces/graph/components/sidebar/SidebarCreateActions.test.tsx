@@ -10,6 +10,7 @@ import {
   useCaptureStore,
 } from "../../../../stores";
 import { BacklogTab } from "./BacklogTab";
+import { shouldOpenBacklogRow } from "./backlog-row-interaction";
 import { CapturesTab } from "./CapturesTab";
 import { Sidebar } from "./Sidebar";
 
@@ -43,6 +44,15 @@ describe("sidebar create affordances", () => {
       captures: [],
       status: "success",
     });
+  });
+
+  it("opens a backlog row from its content without hijacking nested actions", () => {
+    const row = document.createElement("div");
+    const action = document.createElement("button");
+    row.append(action);
+
+    expect(shouldOpenBacklogRow(row)).toBe(true);
+    expect(shouldOpenBacklogRow(action)).toBe(false);
   });
 
   it("wires the backlog empty-state action to the shared create handler", () => {

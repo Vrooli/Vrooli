@@ -12,7 +12,227 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file quality-health/v1/audit/audit.proto.
  */
 export const file_quality_health_v1_audit_audit: GenFile = /*@__PURE__*/
-  fileDesc("CiNxdWFsaXR5LWhlYWx0aC92MS9hdWRpdC9hdWRpdC5wcm90bxIednJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0IrABChNBdWRpdFF1YWxpdHlSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSEAoIcnVsZV9pZHMYAyADKAkSEAoIc3VyZmFjZXMYBiADKAkSIQoZaW5jbHVkZV9jb21tYW5kX2V4ZWN1dGlvbhgEIAEoCBIfChdpbmNsdWRlX2F1dG9maXhfcHJldmlldxgFIAEoCBIRCgl1c2VfY2FjaGUYByABKAgixQUKFEF1ZGl0UXVhbGl0eVJlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDwoHc3VtbWFyeRgDIAEoCRIQCghzY2VuYXJpbxgEIAEoCRITCgt0YXJnZXRfa2luZBgFIAEoCRITCgt0YXJnZXRfcGF0aBgGIAEoCRJACghzdXJmYWNlcxgHIAMoCzIuLnZyb29saS5xdWFsaXR5X2hlYWx0aC52MS5hdWRpdC5RdWFsaXR5U3VyZmFjZRJFCgljb250cmFjdHMYCCADKAsyMi52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuQ29udHJhY3RFdmFsdWF0aW9uEkAKCGZpbmRpbmdzGAkgAygLMi4udnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LlF1YWxpdHlGaW5kaW5nEkYKD2NvbW1hbmRfcmVzdWx0cxgKIAMoCzItLnZyb29saS5xdWFsaXR5X2hlYWx0aC52MS5hdWRpdC5Db21tYW5kUmVzdWx0EkEKCG1hdHVyaXR5GAsgASgLMi8udnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0Lk1hdHVyaXR5U3VtbWFyeRI8CgZjb3VudHMYDCABKAsyLC52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuQXVkaXRTdW1tYXJ5EhIKCm5leHRfc3RlcHMYDSADKAkSFwoPZGVncmFkZWRfcmVhc29uGA4gASgJEkwKEmF1dG9maXhfY2FuZGlkYXRlcxgPIAMoCzIwLnZyb29saS5xdWFsaXR5X2hlYWx0aC52MS5hdWRpdC5BdXRvZml4Q2FuZGlkYXRlEjEKCmFzc2Vzc21lbnQYECABKAsyHS5jb21tb24udjEuTWF0dXJpdHlBc3Nlc3NtZW50ImMKFExpc3RDb250cmFjdHNSZXF1ZXN0EhAKCGxhbmd1YWdlGAEgASgJEhEKCWZyYW1ld29yaxgCIAEoCRIUCgxzdXJmYWNlX2tpbmQYAyABKAkSEAoIcnVsZV9pZHMYBCADKAkiWwoVTGlzdENvbnRyYWN0c1Jlc3BvbnNlEkIKCWNvbnRyYWN0cxgBIAMoCzIvLnZyb29saS5xdWFsaXR5X2hlYWx0aC52MS5hdWRpdC5RdWFsaXR5Q29udHJhY3QiTgoVRXhwbGFpbkZpbmRpbmdSZXF1ZXN0EhIKCmZpbmRpbmdfaWQYASABKAkSDwoHcnVsZV9pZBgCIAEoCRIQCghzY2VuYXJpbxgDIAEoCSLdAQoWRXhwbGFpbkZpbmRpbmdSZXNwb25zZRI/CgdmaW5kaW5nGAEgASgLMi4udnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LlF1YWxpdHlGaW5kaW5nEkEKCGNvbnRyYWN0GAIgASgLMi8udnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LlF1YWxpdHlDb250cmFjdBIWCg53aHlfaXRfbWF0dGVycxgDIAEoCRITCgtyZW1lZGlhdGlvbhgEIAEoCRISCgpuZXh0X3N0ZXBzGAUgAygJIlMKEEZpeENvbmZpZ1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEcGF0aBgCIAEoCRIQCghydWxlX2lkcxgDIAMoCRINCgVhcHBseRgEIAEoCCKOAQoRRml4Q29uZmlnUmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSDwoHYXBwbGllZBgCIAEoCBJECgpjYW5kaWRhdGVzGAMgAygLMjAudnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LkF1dG9maXhDYW5kaWRhdGUSEAoIbWVzc2FnZXMYBCADKAkinwEKDlF1YWxpdHlTdXJmYWNlEgoKAmlkGAEgASgJEgwKBGtpbmQYAiABKAkSEAoIbGFuZ3VhZ2UYAyABKAkSEQoJZnJhbWV3b3JrGAQgASgJEhEKCXJvb3RfcGF0aBgFIAEoCRIXCg9wYWNrYWdlX21hbmFnZXIYBiABKAkSDgoGc3RhdHVzGAcgASgJEhIKCmNvbmZpZGVuY2UYCCABKAEijQIKD1F1YWxpdHlDb250cmFjdBIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIQCghjYXRlZ29yeRgDIAEoCRIQCghzZXZlcml0eRgEIAEoCRIQCghsYW5ndWFnZRgFIAEoCRIRCglmcmFtZXdvcmsYBiABKAkSFAoMc3VyZmFjZV9raW5kGAcgASgJEhAKCHJ1bGVfaWRzGAggAygJEhMKC2Rlc2NyaXB0aW9uGAkgASgJEhYKDndoeV9pdF9tYXR0ZXJzGAogASgJEhMKC3JlbWVkaWF0aW9uGAsgASgJEhkKEWF1dG9maXhfYXZhaWxhYmxlGAwgASgIEhEKCWZpeF9jbGFzcxgNIAEoCSJfChJDb250cmFjdEV2YWx1YXRpb24SEwoLY29udHJhY3RfaWQYASABKAkSEgoKc3VyZmFjZV9pZBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSEAoIcnVsZV9pZHMYBCADKAki0QMKDlF1YWxpdHlGaW5kaW5nEgoKAmlkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEhMKC3RhcmdldF9raW5kGAMgASgJEhIKCnN1cmZhY2VfaWQYBCABKAkSFAoMc3VyZmFjZV9raW5kGAUgASgJEhAKCGxhbmd1YWdlGAYgASgJEhEKCWZyYW1ld29yaxgHIAEoCRIPCgdydWxlX2lkGAggASgJEhAKCGNhdGVnb3J5GAkgASgJEhAKCHNldmVyaXR5GAogASgJEhEKCWZpbGVfcGF0aBgLIAEoCRIOCgZzeW1ib2wYDCABKAkSDwoHbWVzc2FnZRgNIAEoCRIQCghldmlkZW5jZRgOIAEoCRIQCghleHBlY3RlZBgPIAEoCRIQCghvYnNlcnZlZBgQIAEoCRIWCg53aHlfaXRfbWF0dGVycxgRIAEoCRITCgtyZW1lZGlhdGlvbhgSIAEoCRIZChFhdXRvZml4X2F2YWlsYWJsZRgTIAEoCBIXCg9hdXRvZml4X2NvbW1hbmQYFCABKAkSFgoOc291cmNlX2NvbW1hbmQYFSABKAkSEgoKY3JlYXRlZF9hdBgWIAEoCRIRCglmaXhfY2xhc3MYFyABKAkizQEKDUNvbW1hbmRSZXN1bHQSDAoEbmFtZRgBIAEoCRIPCgdjb21tYW5kGAIgASgJEhkKEXdvcmtpbmdfZGlyZWN0b3J5GAMgASgJEg4KBnN0YXR1cxgEIAEoCRIRCglleGl0X2NvZGUYBSABKAUSFgoOc3Rkb3V0X2V4Y2VycHQYBiABKAkSFgoOc3RkZXJyX2V4Y2VycHQYByABKAkSFwoPdGltZW91dF9zZWNvbmRzGAggASgFEhYKDmZhaWx1cmVfcmVhc29uGAkgASgJIkEKD01hdHVyaXR5U3VtbWFyeRIMCgRydW5nGAEgASgFEg0KBWxhYmVsGAIgASgJEhEKCXJhdGlvbmFsZRgDIAEoCSJ/CgxBdWRpdFN1bW1hcnkSDgoGZXJyb3JzGAEgASgFEhAKCHdhcm5pbmdzGAIgASgFEg0KBWluZm9zGAMgASgFEhAKCHN1cmZhY2VzGAQgASgFEhEKCWNvbnRyYWN0cxgFIAEoBRIZChFhdXRvZml4YWJsZV9jb3VudBgGIAEoBSJ7ChBBdXRvZml4Q2FuZGlkYXRlEg8KB3J1bGVfaWQYASABKAkSEQoJZmlsZV9wYXRoGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEg4KBmJlZm9yZRgEIAEoCRINCgVhZnRlchgFIAEoCRIPCgdhcHBsaWVkGAYgASgIMvgECgxBdWRpdFNlcnZpY2USeQoMQXVkaXRRdWFsaXR5EjMudnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LkF1ZGl0UXVhbGl0eVJlcXVlc3QaNC52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuQXVkaXRRdWFsaXR5UmVzcG9uc2USfAoNTGlzdENvbnRyYWN0cxI0LnZyb29saS5xdWFsaXR5X2hlYWx0aC52MS5hdWRpdC5MaXN0Q29udHJhY3RzUmVxdWVzdBo1LnZyb29saS5xdWFsaXR5X2hlYWx0aC52MS5hdWRpdC5MaXN0Q29udHJhY3RzUmVzcG9uc2USfwoORXhwbGFpbkZpbmRpbmcSNS52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuRXhwbGFpbkZpbmRpbmdSZXF1ZXN0GjYudnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LkV4cGxhaW5GaW5kaW5nUmVzcG9uc2USdwoQUHJldmlld0ZpeENvbmZpZxIwLnZyb29saS5xdWFsaXR5X2hlYWx0aC52MS5hdWRpdC5GaXhDb25maWdSZXF1ZXN0GjEudnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LkZpeENvbmZpZ1Jlc3BvbnNlEnUKDkFwcGx5Rml4Q29uZmlnEjAudnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LkZpeENvbmZpZ1JlcXVlc3QaMS52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuRml4Q29uZmlnUmVzcG9uc2VCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9xdWFsaXR5LWhlYWx0aC92MS9hdWRpdDthdWRpdF92MWIGcHJvdG8z", [file_common_v1_maturity]);
+  fileDesc("CiNxdWFsaXR5LWhlYWx0aC92MS9hdWRpdC9hdWRpdC5wcm90bxIednJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0IjwKGE9ic2VydmVUZXN0U3ludGF4UmVxdWVzdBIRCglyb290X3BhdGgYASABKAkSDQoFZmlsZXMYAiADKAkinAEKGU9ic2VydmVUZXN0U3ludGF4UmVzcG9uc2USFgoOc2NoZW1hX3ZlcnNpb24YASABKAkSSwoMb2JzZXJ2YXRpb25zGAIgAygLMjUudnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LlRlc3RTeW50YXhPYnNlcnZhdGlvbhIaChJ1bmF2YWlsYWJsZV9yZWFzb24YAyABKAkihQMKFVRlc3RTeW50YXhPYnNlcnZhdGlvbhIWCg5zY2hlbWFfdmVyc2lvbhgBIAEoCRIMCgRmaWxlGAIgASgJEhUKDXNvdXJjZV9kaWdlc3QYAyABKAkSDwoHcHJvZmlsZRgEIAEoCRIWCg5wbHVnaW5fdmVyc2lvbhgFIAEoCRIWCg5lc2xpbnRfdmVyc2lvbhgGIAEoCRIWCg5wYXJzZXJfdmVyc2lvbhgHIAEoCRIOCgZzdGF0dXMYCCABKAkSDgoGcmVhc29uGAkgASgJEj8KBmNoZWNrcxgKIAMoCzIvLnZyb29saS5xdWFsaXR5X2hlYWx0aC52MS5hdWRpdC5UZXN0U3ludGF4Q2hlY2sSSQoLZGlhZ25vc3RpY3MYCyADKAsyNC52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuVGVzdFN5bnRheERpYWdub3N0aWMSEwoLbGltaXRhdGlvbnMYDCADKAkSFQoNY29uZmlnX2RpZ2VzdBgNIAEoCSI/Cg9UZXN0U3ludGF4Q2hlY2sSDAoEcnVsZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDgoGcmVhc29uGAMgASgJIsgBChRUZXN0U3ludGF4RGlhZ25vc3RpYxIWCg5uYXRpdmVfcnVsZV9pZBgBIAEoCRIWCg5jYW5vbmljYWxfcnVsZRgCIAEoCRISCgptZXNzYWdlX2lkGAMgASgJEg8KB21lc3NhZ2UYBCABKAkSDAoEbGluZRgFIAEoBRIOCgZjb2x1bW4YBiABKAUSEAoIZW5kX2xpbmUYByABKAUSEgoKZW5kX2NvbHVtbhgIIAEoBRIXCg9uYXRpdmVfc2V2ZXJpdHkYCSABKAUisAEKE0F1ZGl0UXVhbGl0eVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEcGF0aBgCIAEoCRIQCghydWxlX2lkcxgDIAMoCRIQCghzdXJmYWNlcxgGIAMoCRIhChlpbmNsdWRlX2NvbW1hbmRfZXhlY3V0aW9uGAQgASgIEh8KF2luY2x1ZGVfYXV0b2ZpeF9wcmV2aWV3GAUgASgIEhEKCXVzZV9jYWNoZRgHIAEoCCLFBQoUQXVkaXRRdWFsaXR5UmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhAKCHNjZW5hcmlvGAQgASgJEhMKC3RhcmdldF9raW5kGAUgASgJEhMKC3RhcmdldF9wYXRoGAYgASgJEkAKCHN1cmZhY2VzGAcgAygLMi4udnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LlF1YWxpdHlTdXJmYWNlEkUKCWNvbnRyYWN0cxgIIAMoCzIyLnZyb29saS5xdWFsaXR5X2hlYWx0aC52MS5hdWRpdC5Db250cmFjdEV2YWx1YXRpb24SQAoIZmluZGluZ3MYCSADKAsyLi52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuUXVhbGl0eUZpbmRpbmcSRgoPY29tbWFuZF9yZXN1bHRzGAogAygLMi0udnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LkNvbW1hbmRSZXN1bHQSQQoIbWF0dXJpdHkYCyABKAsyLy52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuTWF0dXJpdHlTdW1tYXJ5EjwKBmNvdW50cxgMIAEoCzIsLnZyb29saS5xdWFsaXR5X2hlYWx0aC52MS5hdWRpdC5BdWRpdFN1bW1hcnkSEgoKbmV4dF9zdGVwcxgNIAMoCRIXCg9kZWdyYWRlZF9yZWFzb24YDiABKAkSTAoSYXV0b2ZpeF9jYW5kaWRhdGVzGA8gAygLMjAudnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LkF1dG9maXhDYW5kaWRhdGUSMQoKYXNzZXNzbWVudBgQIAEoCzIdLmNvbW1vbi52MS5NYXR1cml0eUFzc2Vzc21lbnQiYwoUTGlzdENvbnRyYWN0c1JlcXVlc3QSEAoIbGFuZ3VhZ2UYASABKAkSEQoJZnJhbWV3b3JrGAIgASgJEhQKDHN1cmZhY2Vfa2luZBgDIAEoCRIQCghydWxlX2lkcxgEIAMoCSJbChVMaXN0Q29udHJhY3RzUmVzcG9uc2USQgoJY29udHJhY3RzGAEgAygLMi8udnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LlF1YWxpdHlDb250cmFjdCJOChVFeHBsYWluRmluZGluZ1JlcXVlc3QSEgoKZmluZGluZ19pZBgBIAEoCRIPCgdydWxlX2lkGAIgASgJEhAKCHNjZW5hcmlvGAMgASgJIt0BChZFeHBsYWluRmluZGluZ1Jlc3BvbnNlEj8KB2ZpbmRpbmcYASABKAsyLi52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuUXVhbGl0eUZpbmRpbmcSQQoIY29udHJhY3QYAiABKAsyLy52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuUXVhbGl0eUNvbnRyYWN0EhYKDndoeV9pdF9tYXR0ZXJzGAMgASgJEhMKC3JlbWVkaWF0aW9uGAQgASgJEhIKCm5leHRfc3RlcHMYBSADKAkiUwoQRml4Q29uZmlnUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRwYXRoGAIgASgJEhAKCHJ1bGVfaWRzGAMgAygJEg0KBWFwcGx5GAQgASgIIo4BChFGaXhDb25maWdSZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRIPCgdhcHBsaWVkGAIgASgIEkQKCmNhbmRpZGF0ZXMYAyADKAsyMC52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuQXV0b2ZpeENhbmRpZGF0ZRIQCghtZXNzYWdlcxgEIAMoCSKfAQoOUXVhbGl0eVN1cmZhY2USCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIQCghsYW5ndWFnZRgDIAEoCRIRCglmcmFtZXdvcmsYBCABKAkSEQoJcm9vdF9wYXRoGAUgASgJEhcKD3BhY2thZ2VfbWFuYWdlchgGIAEoCRIOCgZzdGF0dXMYByABKAkSEgoKY29uZmlkZW5jZRgIIAEoASKNAgoPUXVhbGl0eUNvbnRyYWN0EgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEhAKCGNhdGVnb3J5GAMgASgJEhAKCHNldmVyaXR5GAQgASgJEhAKCGxhbmd1YWdlGAUgASgJEhEKCWZyYW1ld29yaxgGIAEoCRIUCgxzdXJmYWNlX2tpbmQYByABKAkSEAoIcnVsZV9pZHMYCCADKAkSEwoLZGVzY3JpcHRpb24YCSABKAkSFgoOd2h5X2l0X21hdHRlcnMYCiABKAkSEwoLcmVtZWRpYXRpb24YCyABKAkSGQoRYXV0b2ZpeF9hdmFpbGFibGUYDCABKAgSEQoJZml4X2NsYXNzGA0gASgJIl8KEkNvbnRyYWN0RXZhbHVhdGlvbhITCgtjb250cmFjdF9pZBgBIAEoCRISCgpzdXJmYWNlX2lkGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIQCghydWxlX2lkcxgEIAMoCSLRAwoOUXVhbGl0eUZpbmRpbmcSCgoCaWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSEwoLdGFyZ2V0X2tpbmQYAyABKAkSEgoKc3VyZmFjZV9pZBgEIAEoCRIUCgxzdXJmYWNlX2tpbmQYBSABKAkSEAoIbGFuZ3VhZ2UYBiABKAkSEQoJZnJhbWV3b3JrGAcgASgJEg8KB3J1bGVfaWQYCCABKAkSEAoIY2F0ZWdvcnkYCSABKAkSEAoIc2V2ZXJpdHkYCiABKAkSEQoJZmlsZV9wYXRoGAsgASgJEg4KBnN5bWJvbBgMIAEoCRIPCgdtZXNzYWdlGA0gASgJEhAKCGV2aWRlbmNlGA4gASgJEhAKCGV4cGVjdGVkGA8gASgJEhAKCG9ic2VydmVkGBAgASgJEhYKDndoeV9pdF9tYXR0ZXJzGBEgASgJEhMKC3JlbWVkaWF0aW9uGBIgASgJEhkKEWF1dG9maXhfYXZhaWxhYmxlGBMgASgIEhcKD2F1dG9maXhfY29tbWFuZBgUIAEoCRIWCg5zb3VyY2VfY29tbWFuZBgVIAEoCRISCgpjcmVhdGVkX2F0GBYgASgJEhEKCWZpeF9jbGFzcxgXIAEoCSLNAQoNQ29tbWFuZFJlc3VsdBIMCgRuYW1lGAEgASgJEg8KB2NvbW1hbmQYAiABKAkSGQoRd29ya2luZ19kaXJlY3RvcnkYAyABKAkSDgoGc3RhdHVzGAQgASgJEhEKCWV4aXRfY29kZRgFIAEoBRIWCg5zdGRvdXRfZXhjZXJwdBgGIAEoCRIWCg5zdGRlcnJfZXhjZXJwdBgHIAEoCRIXCg90aW1lb3V0X3NlY29uZHMYCCABKAUSFgoOZmFpbHVyZV9yZWFzb24YCSABKAkiQQoPTWF0dXJpdHlTdW1tYXJ5EgwKBHJ1bmcYASABKAUSDQoFbGFiZWwYAiABKAkSEQoJcmF0aW9uYWxlGAMgASgJIn8KDEF1ZGl0U3VtbWFyeRIOCgZlcnJvcnMYASABKAUSEAoId2FybmluZ3MYAiABKAUSDQoFaW5mb3MYAyABKAUSEAoIc3VyZmFjZXMYBCABKAUSEQoJY29udHJhY3RzGAUgASgFEhkKEWF1dG9maXhhYmxlX2NvdW50GAYgASgFInsKEEF1dG9maXhDYW5kaWRhdGUSDwoHcnVsZV9pZBgBIAEoCRIRCglmaWxlX3BhdGgYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDgoGYmVmb3JlGAQgASgJEg0KBWFmdGVyGAUgASgJEg8KB2FwcGxpZWQYBiABKAgygwYKDEF1ZGl0U2VydmljZRKIAQoRT2JzZXJ2ZVRlc3RTeW50YXgSOC52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuT2JzZXJ2ZVRlc3RTeW50YXhSZXF1ZXN0GjkudnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0Lk9ic2VydmVUZXN0U3ludGF4UmVzcG9uc2USeQoMQXVkaXRRdWFsaXR5EjMudnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LkF1ZGl0UXVhbGl0eVJlcXVlc3QaNC52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuQXVkaXRRdWFsaXR5UmVzcG9uc2USfAoNTGlzdENvbnRyYWN0cxI0LnZyb29saS5xdWFsaXR5X2hlYWx0aC52MS5hdWRpdC5MaXN0Q29udHJhY3RzUmVxdWVzdBo1LnZyb29saS5xdWFsaXR5X2hlYWx0aC52MS5hdWRpdC5MaXN0Q29udHJhY3RzUmVzcG9uc2USfwoORXhwbGFpbkZpbmRpbmcSNS52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuRXhwbGFpbkZpbmRpbmdSZXF1ZXN0GjYudnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LkV4cGxhaW5GaW5kaW5nUmVzcG9uc2USdwoQUHJldmlld0ZpeENvbmZpZxIwLnZyb29saS5xdWFsaXR5X2hlYWx0aC52MS5hdWRpdC5GaXhDb25maWdSZXF1ZXN0GjEudnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LkZpeENvbmZpZ1Jlc3BvbnNlEnUKDkFwcGx5Rml4Q29uZmlnEjAudnJvb2xpLnF1YWxpdHlfaGVhbHRoLnYxLmF1ZGl0LkZpeENvbmZpZ1JlcXVlc3QaMS52cm9vbGkucXVhbGl0eV9oZWFsdGgudjEuYXVkaXQuRml4Q29uZmlnUmVzcG9uc2VCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9xdWFsaXR5LWhlYWx0aC92MS9hdWRpdDthdWRpdF92MWIGcHJvdG8z", [file_common_v1_maturity]);
+
+/**
+ * @generated from message vrooli.quality_health.v1.audit.ObserveTestSyntaxRequest
+ */
+export type ObserveTestSyntaxRequest = Message<"vrooli.quality_health.v1.audit.ObserveTestSyntaxRequest"> & {
+  /**
+   * Absolute workspace root; files must remain within this root after symlinks.
+   *
+   * @generated from field: string root_path = 1;
+   */
+  rootPath: string;
+
+  /**
+   * One to 100 root-relative test source paths, at most 8 MiB total.
+   *
+   * @generated from field: repeated string files = 2;
+   */
+  files: string[];
+};
+
+/**
+ * Describes the message vrooli.quality_health.v1.audit.ObserveTestSyntaxRequest.
+ * Use `create(ObserveTestSyntaxRequestSchema)` to create a new message.
+ */
+export const ObserveTestSyntaxRequestSchema: GenMessage<ObserveTestSyntaxRequest> = /*@__PURE__*/
+  messageDesc(file_quality_health_v1_audit_audit, 0);
+
+/**
+ * @generated from message vrooli.quality_health.v1.audit.ObserveTestSyntaxResponse
+ */
+export type ObserveTestSyntaxResponse = Message<"vrooli.quality_health.v1.audit.ObserveTestSyntaxResponse"> & {
+  /**
+   * @generated from field: string schema_version = 1;
+   */
+  schemaVersion: string;
+
+  /**
+   * @generated from field: repeated vrooli.quality_health.v1.audit.TestSyntaxObservation observations = 2;
+   */
+  observations: TestSyntaxObservation[];
+
+  /**
+   * Nonempty when the owner could not provide an observation; never a pass.
+   *
+   * @generated from field: string unavailable_reason = 3;
+   */
+  unavailableReason: string;
+};
+
+/**
+ * Describes the message vrooli.quality_health.v1.audit.ObserveTestSyntaxResponse.
+ * Use `create(ObserveTestSyntaxResponseSchema)` to create a new message.
+ */
+export const ObserveTestSyntaxResponseSchema: GenMessage<ObserveTestSyntaxResponse> = /*@__PURE__*/
+  messageDesc(file_quality_health_v1_audit_audit, 1);
+
+/**
+ * @generated from message vrooli.quality_health.v1.audit.TestSyntaxObservation
+ */
+export type TestSyntaxObservation = Message<"vrooli.quality_health.v1.audit.TestSyntaxObservation"> & {
+  /**
+   * @generated from field: string schema_version = 1;
+   */
+  schemaVersion: string;
+
+  /**
+   * @generated from field: string file = 2;
+   */
+  file: string;
+
+  /**
+   * @generated from field: string source_digest = 3;
+   */
+  sourceDigest: string;
+
+  /**
+   * @generated from field: string profile = 4;
+   */
+  profile: string;
+
+  /**
+   * @generated from field: string plugin_version = 5;
+   */
+  pluginVersion: string;
+
+  /**
+   * @generated from field: string eslint_version = 6;
+   */
+  eslintVersion: string;
+
+  /**
+   * @generated from field: string parser_version = 7;
+   */
+  parserVersion: string;
+
+  /**
+   * @generated from field: string status = 8;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string reason = 9;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: repeated vrooli.quality_health.v1.audit.TestSyntaxCheck checks = 10;
+   */
+  checks: TestSyntaxCheck[];
+
+  /**
+   * @generated from field: repeated vrooli.quality_health.v1.audit.TestSyntaxDiagnostic diagnostics = 11;
+   */
+  diagnostics: TestSyntaxDiagnostic[];
+
+  /**
+   * @generated from field: repeated string limitations = 12;
+   */
+  limitations: string[];
+
+  /**
+   * SHA-256 of the exact selected native rule configuration used by the owner.
+   *
+   * @generated from field: string config_digest = 13;
+   */
+  configDigest: string;
+};
+
+/**
+ * Describes the message vrooli.quality_health.v1.audit.TestSyntaxObservation.
+ * Use `create(TestSyntaxObservationSchema)` to create a new message.
+ */
+export const TestSyntaxObservationSchema: GenMessage<TestSyntaxObservation> = /*@__PURE__*/
+  messageDesc(file_quality_health_v1_audit_audit, 2);
+
+/**
+ * @generated from message vrooli.quality_health.v1.audit.TestSyntaxCheck
+ */
+export type TestSyntaxCheck = Message<"vrooli.quality_health.v1.audit.TestSyntaxCheck"> & {
+  /**
+   * @generated from field: string rule = 1;
+   */
+  rule: string;
+
+  /**
+   * checked_clean is scoped to this syntax rule, file and supported profile.
+   *
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string reason = 3;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.quality_health.v1.audit.TestSyntaxCheck.
+ * Use `create(TestSyntaxCheckSchema)` to create a new message.
+ */
+export const TestSyntaxCheckSchema: GenMessage<TestSyntaxCheck> = /*@__PURE__*/
+  messageDesc(file_quality_health_v1_audit_audit, 3);
+
+/**
+ * @generated from message vrooli.quality_health.v1.audit.TestSyntaxDiagnostic
+ */
+export type TestSyntaxDiagnostic = Message<"vrooli.quality_health.v1.audit.TestSyntaxDiagnostic"> & {
+  /**
+   * @generated from field: string native_rule_id = 1;
+   */
+  nativeRuleId: string;
+
+  /**
+   * @generated from field: string canonical_rule = 2;
+   */
+  canonicalRule: string;
+
+  /**
+   * @generated from field: string message_id = 3;
+   */
+  messageId: string;
+
+  /**
+   * @generated from field: string message = 4;
+   */
+  message: string;
+
+  /**
+   * @generated from field: int32 line = 5;
+   */
+  line: number;
+
+  /**
+   * @generated from field: int32 column = 6;
+   */
+  column: number;
+
+  /**
+   * @generated from field: int32 end_line = 7;
+   */
+  endLine: number;
+
+  /**
+   * @generated from field: int32 end_column = 8;
+   */
+  endColumn: number;
+
+  /**
+   * @generated from field: int32 native_severity = 9;
+   */
+  nativeSeverity: number;
+};
+
+/**
+ * Describes the message vrooli.quality_health.v1.audit.TestSyntaxDiagnostic.
+ * Use `create(TestSyntaxDiagnosticSchema)` to create a new message.
+ */
+export const TestSyntaxDiagnosticSchema: GenMessage<TestSyntaxDiagnostic> = /*@__PURE__*/
+  messageDesc(file_quality_health_v1_audit_audit, 4);
 
 /**
  * AuditQualityRequest identifies the target to audit.
@@ -75,7 +295,7 @@ export type AuditQualityRequest = Message<"vrooli.quality_health.v1.audit.AuditQ
  * Use `create(AuditQualityRequestSchema)` to create a new message.
  */
 export const AuditQualityRequestSchema: GenMessage<AuditQualityRequest> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 0);
+  messageDesc(file_quality_health_v1_audit_audit, 5);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.AuditQualityResponse
@@ -173,7 +393,7 @@ export type AuditQualityResponse = Message<"vrooli.quality_health.v1.audit.Audit
  * Use `create(AuditQualityResponseSchema)` to create a new message.
  */
 export const AuditQualityResponseSchema: GenMessage<AuditQualityResponse> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 1);
+  messageDesc(file_quality_health_v1_audit_audit, 6);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.ListContractsRequest
@@ -205,7 +425,7 @@ export type ListContractsRequest = Message<"vrooli.quality_health.v1.audit.ListC
  * Use `create(ListContractsRequestSchema)` to create a new message.
  */
 export const ListContractsRequestSchema: GenMessage<ListContractsRequest> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 2);
+  messageDesc(file_quality_health_v1_audit_audit, 7);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.ListContractsResponse
@@ -222,7 +442,7 @@ export type ListContractsResponse = Message<"vrooli.quality_health.v1.audit.List
  * Use `create(ListContractsResponseSchema)` to create a new message.
  */
 export const ListContractsResponseSchema: GenMessage<ListContractsResponse> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 3);
+  messageDesc(file_quality_health_v1_audit_audit, 8);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.ExplainFindingRequest
@@ -249,7 +469,7 @@ export type ExplainFindingRequest = Message<"vrooli.quality_health.v1.audit.Expl
  * Use `create(ExplainFindingRequestSchema)` to create a new message.
  */
 export const ExplainFindingRequestSchema: GenMessage<ExplainFindingRequest> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 4);
+  messageDesc(file_quality_health_v1_audit_audit, 9);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.ExplainFindingResponse
@@ -286,7 +506,7 @@ export type ExplainFindingResponse = Message<"vrooli.quality_health.v1.audit.Exp
  * Use `create(ExplainFindingResponseSchema)` to create a new message.
  */
 export const ExplainFindingResponseSchema: GenMessage<ExplainFindingResponse> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 5);
+  messageDesc(file_quality_health_v1_audit_audit, 10);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.FixConfigRequest
@@ -318,7 +538,7 @@ export type FixConfigRequest = Message<"vrooli.quality_health.v1.audit.FixConfig
  * Use `create(FixConfigRequestSchema)` to create a new message.
  */
 export const FixConfigRequestSchema: GenMessage<FixConfigRequest> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 6);
+  messageDesc(file_quality_health_v1_audit_audit, 11);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.FixConfigResponse
@@ -350,7 +570,7 @@ export type FixConfigResponse = Message<"vrooli.quality_health.v1.audit.FixConfi
  * Use `create(FixConfigResponseSchema)` to create a new message.
  */
 export const FixConfigResponseSchema: GenMessage<FixConfigResponse> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 7);
+  messageDesc(file_quality_health_v1_audit_audit, 12);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.QualitySurface
@@ -402,7 +622,7 @@ export type QualitySurface = Message<"vrooli.quality_health.v1.audit.QualitySurf
  * Use `create(QualitySurfaceSchema)` to create a new message.
  */
 export const QualitySurfaceSchema: GenMessage<QualitySurface> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 8);
+  messageDesc(file_quality_health_v1_audit_audit, 13);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.QualityContract
@@ -479,7 +699,7 @@ export type QualityContract = Message<"vrooli.quality_health.v1.audit.QualityCon
  * Use `create(QualityContractSchema)` to create a new message.
  */
 export const QualityContractSchema: GenMessage<QualityContract> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 9);
+  messageDesc(file_quality_health_v1_audit_audit, 14);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.ContractEvaluation
@@ -511,7 +731,7 @@ export type ContractEvaluation = Message<"vrooli.quality_health.v1.audit.Contrac
  * Use `create(ContractEvaluationSchema)` to create a new message.
  */
 export const ContractEvaluationSchema: GenMessage<ContractEvaluation> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 10);
+  messageDesc(file_quality_health_v1_audit_audit, 15);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.QualityFinding
@@ -638,7 +858,7 @@ export type QualityFinding = Message<"vrooli.quality_health.v1.audit.QualityFind
  * Use `create(QualityFindingSchema)` to create a new message.
  */
 export const QualityFindingSchema: GenMessage<QualityFinding> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 11);
+  messageDesc(file_quality_health_v1_audit_audit, 16);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.CommandResult
@@ -695,7 +915,7 @@ export type CommandResult = Message<"vrooli.quality_health.v1.audit.CommandResul
  * Use `create(CommandResultSchema)` to create a new message.
  */
 export const CommandResultSchema: GenMessage<CommandResult> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 12);
+  messageDesc(file_quality_health_v1_audit_audit, 17);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.MaturitySummary
@@ -722,7 +942,7 @@ export type MaturitySummary = Message<"vrooli.quality_health.v1.audit.MaturitySu
  * Use `create(MaturitySummarySchema)` to create a new message.
  */
 export const MaturitySummarySchema: GenMessage<MaturitySummary> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 13);
+  messageDesc(file_quality_health_v1_audit_audit, 18);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.AuditSummary
@@ -764,7 +984,7 @@ export type AuditSummary = Message<"vrooli.quality_health.v1.audit.AuditSummary"
  * Use `create(AuditSummarySchema)` to create a new message.
  */
 export const AuditSummarySchema: GenMessage<AuditSummary> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 14);
+  messageDesc(file_quality_health_v1_audit_audit, 19);
 
 /**
  * @generated from message vrooli.quality_health.v1.audit.AutofixCandidate
@@ -806,7 +1026,7 @@ export type AutofixCandidate = Message<"vrooli.quality_health.v1.audit.AutofixCa
  * Use `create(AutofixCandidateSchema)` to create a new message.
  */
 export const AutofixCandidateSchema: GenMessage<AutofixCandidate> = /*@__PURE__*/
-  messageDesc(file_quality_health_v1_audit_audit, 15);
+  messageDesc(file_quality_health_v1_audit_audit, 20);
 
 /**
  * AuditService is Quality Health's static-quality contract surface.
@@ -814,6 +1034,17 @@ export const AutofixCandidateSchema: GenMessage<AutofixCandidate> = /*@__PURE__*
  * @generated from service vrooli.quality_health.v1.audit.AuditService
  */
 export const AuditService: GenService<{
+  /**
+   * ObserveTestSyntax returns reusable, source-bound native lint evidence.
+   * It does not execute the target's tests or claim behavioral adequacy.
+   *
+   * @generated from rpc vrooli.quality_health.v1.audit.AuditService.ObserveTestSyntax
+   */
+  observeTestSyntax: {
+    methodKind: "unary";
+    input: typeof ObserveTestSyntaxRequestSchema;
+    output: typeof ObserveTestSyntaxResponseSchema;
+  },
   /**
    * AuditQuality runs the static quality audit for a scenario or path.
    *

@@ -2,9 +2,11 @@ package event_test
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -15,7 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
-	_ "modernc.org/sqlite" // SQLite driver for tests
+	"modernc.org/sqlite"
 )
 
 // setupTestDB creates a fresh SQLite database for testing the SQLiteStore.
@@ -623,6 +625,117 @@ func TestSQLiteStore_DeleteBeforeIsBounded(t *testing.T) {
 	var generation int64
 	if err := db.Get(&generation, `SELECT generation FROM event_retention_state WHERE singleton=1`); err != nil || generation != 3 {
 		t.Fatalf("retention generation = %d, %v", generation, err)
+	}
+}
+
+func TestSQLiteStore_RetentionSelectionDoesNotBlockWrites(t *testing.T) {
+	selecting, release := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	functionName := "retention_gate_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+	if err := sqlite.RegisterScalarFunction(functionName, 1, func(_ *sqlite.FunctionContext, args []driver.Value) (driver.Value, error) {
+		once.Do(func() { close(selecting); <-release })
+		return args[0], nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	db.SetMaxOpenConns(2)
+	ensureProjectionWatermarksTable(t, db)
+	store := event.NewSQLiteStore(db, newTestLogger())
+	runID := uuid.New()
+	old := time.Now().Add(-48 * time.Hour)
+	evt := domain.NewLogEvent(runID, "info", "expired")
+	evt.Timestamp = old
+	if err := store.Append(t.Context(), runID, evt); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO invocation_read_model_watermarks (run_id,last_event_id,last_event_at,classifier_version,projection_complete,projected_at) VALUES (?, 'event', ?, 'test', 1, ?)`, runID.String(), old, old); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`ALTER TABLE invocation_read_model_watermarks RENAME TO test_watermarks;
+CREATE VIEW invocation_read_model_watermarks AS SELECT run_id, ` + functionName + `(projection_complete) AS projection_complete FROM test_watermarks`); err != nil {
+		t.Fatal(err)
+	}
+	finished := make(chan error, 1)
+	go func() { _, err := store.DeleteBefore(t.Context(), time.Now().Add(-24*time.Hour), 1); finished <- err }()
+	select {
+	case <-selecting:
+	case <-time.After(2 * time.Second):
+		close(release)
+		t.Fatal("retention did not begin selecting candidates")
+	}
+	writerCtx, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
+	_, writeErr := db.ExecContext(writerCtx, `INSERT INTO runs(id) VALUES (?)`, uuid.NewString())
+	cancel()
+	close(release)
+	retentionErr := <-finished
+	if writeErr != nil {
+		t.Fatalf("ordinary writes blocked by retention candidate selection: %v", writeErr)
+	}
+	if retentionErr != nil {
+		t.Fatalf("retention: %v", retentionErr)
+	}
+}
+
+type retentionSelectionDB struct {
+	*sqlx.DB
+	afterSelection func()
+}
+
+func (db *retentionSelectionDB) SelectContext(ctx context.Context, dest any, query string, args ...any) error {
+	if err := db.DB.SelectContext(ctx, dest, query, args...); err != nil {
+		return err
+	}
+	db.afterSelection()
+	return nil
+}
+
+func TestSQLiteStore_RetentionRechecksCandidateEligibility(t *testing.T) {
+	for _, change := range []string{
+		`UPDATE test_watermarks SET projection_complete=0`,
+		`UPDATE runs SET execution_mode='imported'`,
+		`UPDATE run_events SET timestamp='2099-01-01T00:00:00Z'`,
+	} {
+		t.Run(change, func(t *testing.T) {
+			db, cleanup := setupTestDB(t)
+			defer cleanup()
+			ensureProjectionWatermarksTable(t, db)
+			store := event.NewSQLiteStore(db, newTestLogger())
+			runID := uuid.New()
+			old := time.Now().Add(-48 * time.Hour)
+			evt := domain.NewLogEvent(runID, "info", "expired")
+			evt.Timestamp = old
+			if err := store.Append(t.Context(), runID, evt); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(`INSERT INTO runs(id) VALUES (?)`, runID.String()); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(`INSERT INTO invocation_read_model_watermarks (run_id,last_event_id,last_event_at,classifier_version,projection_complete,projected_at) VALUES (?, 'event', ?, 'test', 1, ?)`, runID.String(), old, old); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(`ALTER TABLE invocation_read_model_watermarks RENAME TO test_watermarks;
+CREATE VIEW invocation_read_model_watermarks AS SELECT * FROM test_watermarks`); err != nil {
+				t.Fatal(err)
+			}
+			observed := event.NewSQLiteStore(&retentionSelectionDB{DB: db, afterSelection: func() {
+				if _, err := db.Exec(change); err != nil {
+					t.Fatal(err)
+				}
+			}}, newTestLogger())
+			deleted, err := observed.DeleteBefore(t.Context(), time.Now().Add(-24*time.Hour), 1)
+			if err != nil || deleted != 0 {
+				t.Fatalf("newly ineligible event deleted: %d, %v", deleted, err)
+			}
+			if count, err := store.Count(t.Context(), runID); err != nil || count != 1 {
+				t.Fatalf("retained count: %d, %v", count, err)
+			}
+			var generation int
+			if err := db.Get(&generation, `SELECT generation FROM event_retention_state WHERE singleton=1`); err != nil || generation != 1 {
+				t.Fatalf("empty retention advanced generation: %d, %v", generation, err)
+			}
+		})
 	}
 }
 

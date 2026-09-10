@@ -23,6 +23,9 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 	if err != nil {
 		return nil, err
 	}
+	if sandbox.Status == types.StatusDeleted {
+		return s.recoverArchivedTurnProvenance(ctx, sandbox, req)
+	}
 	if err := types.CanCheckpointTurn(sandbox.Status); err != nil {
 		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
 	}

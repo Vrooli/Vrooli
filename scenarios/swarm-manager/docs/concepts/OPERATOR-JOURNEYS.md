@@ -28,6 +28,15 @@ levels:
 At both levels the system keeps one invariant: **the next recommended action
 is always explicit, and it is never something the server would refuse to do.**
 
+For command selection, read the scenario-owned
+[Swarm Manager usage skill](../../skills/swarm-manager/SKILL.md). For
+evidence-backed control-plane changes, read the
+[Swarm Manager improve skill](../../skills/swarm-manager-improve/SKILL.md),
+then hand authorized successive repairs to
+`scenario-improvement-campaign`. These roles keep operational judgment and
+improvement selection beside the scenario while durable state and authority
+remain in the control plane.
+
 ## Scenario health and governed remediation
 
 The **Scenarios** catalog is the operator's entry point for service health; it

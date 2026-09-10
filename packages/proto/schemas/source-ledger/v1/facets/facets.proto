@@ -4,6 +4,9 @@ package vrooli.source_ledger.v1.facets;
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/facets;facets_v1";
 service FacetsService {
   rpc ListFacets(ListFacetsRequest) returns (ListFacetsResponse);
+  rpc CountUnassigned(CountUnassignedRequest) returns (CountUnassignedResponse);
+  rpc EnsureFacet(EnsureFacetRequest) returns (EnsureFacetResponse);
+  rpc DeleteFacet(DeleteFacetRequest) returns (DeleteFacetResponse);
   rpc SetFacetPolicy(SetFacetPolicyRequest) returns (SetFacetPolicyResponse);
   rpc AssignFacet(AssignFacetRequest) returns (AssignFacetResponse);
   rpc SetPin(SetPinRequest) returns (SetPinResponse);
@@ -32,6 +35,25 @@ message ListFacetsRequest {
 message ListFacetsResponse {
   repeated Facet facets = 1;
 }
+message CountUnassignedRequest {
+  string scope = 1;
+}
+message CountUnassignedResponse {
+  string scope = 1;
+  int32 count = 2;
+}
+message EnsureFacetRequest {
+  string scope = 1;
+  Facet facet = 2;
+}
+message EnsureFacetResponse {
+  Facet facet = 1;
+}
+message DeleteFacetRequest {
+  string scope = 1;
+  string facet_id = 2;
+}
+message DeleteFacetResponse {}
 message SetFacetPolicyRequest {
   string scope = 1;
   string facet_id = 2;

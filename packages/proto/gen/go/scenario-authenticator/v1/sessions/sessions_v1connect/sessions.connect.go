@@ -39,6 +39,9 @@ const (
 	// SessionsServiceRevokeSessionProcedure is the fully-qualified name of the SessionsService's
 	// RevokeSession RPC.
 	SessionsServiceRevokeSessionProcedure = "/vrooli.scenario_authenticator.v1.sessions.SessionsService/RevokeSession"
+	// SessionsServiceRevokeAuthorizedSessionProcedure is the fully-qualified name of the
+	// SessionsService's RevokeAuthorizedSession RPC.
+	SessionsServiceRevokeAuthorizedSessionProcedure = "/vrooli.scenario_authenticator.v1.sessions.SessionsService/RevokeAuthorizedSession"
 	// SessionsServiceRevokeAllSessionsProcedure is the fully-qualified name of the SessionsService's
 	// RevokeAllSessions RPC.
 	SessionsServiceRevokeAllSessionsProcedure = "/vrooli.scenario_authenticator.v1.sessions.SessionsService/RevokeAllSessions"
@@ -52,6 +55,11 @@ type SessionsServiceClient interface {
 	// RevokeSession drops a single session by id. Idempotent: revoking a session
 	// that does not exist (or is already gone) returns success.
 	RevokeSession(context.Context, *connect.Request[sessions.RevokeSessionRequest]) (*connect.Response[sessions.RevokeSessionResponse], error)
+	// RevokeAuthorizedSession drops a session after verifying that the access
+	// token owns it or carries the realm administrator role. It is the
+	// user-facing administrative operation; RevokeSession remains a narrow
+	// compatibility contract for device un-pairing.
+	RevokeAuthorizedSession(context.Context, *connect.Request[sessions.RevokeAuthorizedSessionRequest]) (*connect.Response[sessions.RevokeSessionResponse], error)
 	// RevokeAllSessions drops every session for the access token's owner
 	// ("log out everywhere") and returns how many were revoked.
 	RevokeAllSessions(context.Context, *connect.Request[sessions.RevokeAllSessionsRequest]) (*connect.Response[sessions.RevokeAllSessionsResponse], error)
@@ -81,6 +89,12 @@ func NewSessionsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(sessionsServiceMethods.ByName("RevokeSession")),
 			connect.WithClientOptions(opts...),
 		),
+		revokeAuthorizedSession: connect.NewClient[sessions.RevokeAuthorizedSessionRequest, sessions.RevokeSessionResponse](
+			httpClient,
+			baseURL+SessionsServiceRevokeAuthorizedSessionProcedure,
+			connect.WithSchema(sessionsServiceMethods.ByName("RevokeAuthorizedSession")),
+			connect.WithClientOptions(opts...),
+		),
 		revokeAllSessions: connect.NewClient[sessions.RevokeAllSessionsRequest, sessions.RevokeAllSessionsResponse](
 			httpClient,
 			baseURL+SessionsServiceRevokeAllSessionsProcedure,
@@ -92,9 +106,10 @@ func NewSessionsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // sessionsServiceClient implements SessionsServiceClient.
 type sessionsServiceClient struct {
-	listSessions      *connect.Client[sessions.ListSessionsRequest, sessions.ListSessionsResponse]
-	revokeSession     *connect.Client[sessions.RevokeSessionRequest, sessions.RevokeSessionResponse]
-	revokeAllSessions *connect.Client[sessions.RevokeAllSessionsRequest, sessions.RevokeAllSessionsResponse]
+	listSessions            *connect.Client[sessions.ListSessionsRequest, sessions.ListSessionsResponse]
+	revokeSession           *connect.Client[sessions.RevokeSessionRequest, sessions.RevokeSessionResponse]
+	revokeAuthorizedSession *connect.Client[sessions.RevokeAuthorizedSessionRequest, sessions.RevokeSessionResponse]
+	revokeAllSessions       *connect.Client[sessions.RevokeAllSessionsRequest, sessions.RevokeAllSessionsResponse]
 }
 
 // ListSessions calls vrooli.scenario_authenticator.v1.sessions.SessionsService.ListSessions.
@@ -105,6 +120,12 @@ func (c *sessionsServiceClient) ListSessions(ctx context.Context, req *connect.R
 // RevokeSession calls vrooli.scenario_authenticator.v1.sessions.SessionsService.RevokeSession.
 func (c *sessionsServiceClient) RevokeSession(ctx context.Context, req *connect.Request[sessions.RevokeSessionRequest]) (*connect.Response[sessions.RevokeSessionResponse], error) {
 	return c.revokeSession.CallUnary(ctx, req)
+}
+
+// RevokeAuthorizedSession calls
+// vrooli.scenario_authenticator.v1.sessions.SessionsService.RevokeAuthorizedSession.
+func (c *sessionsServiceClient) RevokeAuthorizedSession(ctx context.Context, req *connect.Request[sessions.RevokeAuthorizedSessionRequest]) (*connect.Response[sessions.RevokeSessionResponse], error) {
+	return c.revokeAuthorizedSession.CallUnary(ctx, req)
 }
 
 // RevokeAllSessions calls
@@ -121,6 +142,11 @@ type SessionsServiceHandler interface {
 	// RevokeSession drops a single session by id. Idempotent: revoking a session
 	// that does not exist (or is already gone) returns success.
 	RevokeSession(context.Context, *connect.Request[sessions.RevokeSessionRequest]) (*connect.Response[sessions.RevokeSessionResponse], error)
+	// RevokeAuthorizedSession drops a session after verifying that the access
+	// token owns it or carries the realm administrator role. It is the
+	// user-facing administrative operation; RevokeSession remains a narrow
+	// compatibility contract for device un-pairing.
+	RevokeAuthorizedSession(context.Context, *connect.Request[sessions.RevokeAuthorizedSessionRequest]) (*connect.Response[sessions.RevokeSessionResponse], error)
 	// RevokeAllSessions drops every session for the access token's owner
 	// ("log out everywhere") and returns how many were revoked.
 	RevokeAllSessions(context.Context, *connect.Request[sessions.RevokeAllSessionsRequest]) (*connect.Response[sessions.RevokeAllSessionsResponse], error)
@@ -145,6 +171,12 @@ func NewSessionsServiceHandler(svc SessionsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(sessionsServiceMethods.ByName("RevokeSession")),
 		connect.WithHandlerOptions(opts...),
 	)
+	sessionsServiceRevokeAuthorizedSessionHandler := connect.NewUnaryHandler(
+		SessionsServiceRevokeAuthorizedSessionProcedure,
+		svc.RevokeAuthorizedSession,
+		connect.WithSchema(sessionsServiceMethods.ByName("RevokeAuthorizedSession")),
+		connect.WithHandlerOptions(opts...),
+	)
 	sessionsServiceRevokeAllSessionsHandler := connect.NewUnaryHandler(
 		SessionsServiceRevokeAllSessionsProcedure,
 		svc.RevokeAllSessions,
@@ -157,6 +189,8 @@ func NewSessionsServiceHandler(svc SessionsServiceHandler, opts ...connect.Handl
 			sessionsServiceListSessionsHandler.ServeHTTP(w, r)
 		case SessionsServiceRevokeSessionProcedure:
 			sessionsServiceRevokeSessionHandler.ServeHTTP(w, r)
+		case SessionsServiceRevokeAuthorizedSessionProcedure:
+			sessionsServiceRevokeAuthorizedSessionHandler.ServeHTTP(w, r)
 		case SessionsServiceRevokeAllSessionsProcedure:
 			sessionsServiceRevokeAllSessionsHandler.ServeHTTP(w, r)
 		default:
@@ -174,6 +208,10 @@ func (UnimplementedSessionsServiceHandler) ListSessions(context.Context, *connec
 
 func (UnimplementedSessionsServiceHandler) RevokeSession(context.Context, *connect.Request[sessions.RevokeSessionRequest]) (*connect.Response[sessions.RevokeSessionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.sessions.SessionsService.RevokeSession is not implemented"))
+}
+
+func (UnimplementedSessionsServiceHandler) RevokeAuthorizedSession(context.Context, *connect.Request[sessions.RevokeAuthorizedSessionRequest]) (*connect.Response[sessions.RevokeSessionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.sessions.SessionsService.RevokeAuthorizedSession is not implemented"))
 }
 
 func (UnimplementedSessionsServiceHandler) RevokeAllSessions(context.Context, *connect.Request[sessions.RevokeAllSessionsRequest]) (*connect.Response[sessions.RevokeAllSessionsResponse], error) {

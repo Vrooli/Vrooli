@@ -66,6 +66,9 @@ func newArchiveTestEnv(t *testing.T) *archiveTestEnv {
 	t.Setenv("VROOLI_STORAGE_ROOT", tmp)
 
 	sqliteDB := db.NewSQLite(t)
+	if err := repository.EnsureSchema(context.Background(), sqliteDB, schedule.System()); err != nil {
+		t.Fatalf("ensure workspace schema: %v", err)
+	}
 	repo := repository.NewSandboxRepository(sqliteDB, schedule.System())
 	archiveRepo := repository.NewArchiveRepository(sqliteDB, schedule.System())
 
@@ -751,6 +754,9 @@ func TestSnapshot_NoArchiveSeam_Bypassed(t *testing.T) {
 	t.Setenv("VROOLI_STORAGE_ROOT", tmp)
 
 	sqliteDB := db.NewSQLite(t)
+	if err := repository.EnsureSchema(context.Background(), sqliteDB, schedule.System()); err != nil {
+		t.Fatalf("ensure workspace schema: %v", err)
+	}
 	repo := repository.NewSandboxRepository(sqliteDB, schedule.System())
 	drv := mocks.NewFakeDriver()
 	clk := schedule.System()

@@ -297,6 +297,7 @@ message CheckAssetRequest {
 	string asset_id = 1;
 	string version = 2;
 	bool run_tests = 3;
+	string profile = 4;
 }
 message CheckAssetResponse {
 	string asset_id = 1;

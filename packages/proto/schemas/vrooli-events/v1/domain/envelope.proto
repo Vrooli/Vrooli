@@ -19,6 +19,9 @@ message EventEnvelope {
   EventCorrelation correlation = 6;
   EventAttribution attribution = 7;
   google.protobuf.Any data = 8;
+  // Producer-declared, normalized links to external work systems. These links
+  // are evidence edges; they never imply ownership or authorship by themselves.
+  repeated WorkReference work_references = 9;
 }
 
 message EventSource {
@@ -45,6 +48,37 @@ message EventAttribution {
   string subject_kind = 1;
   string subject_id = 2;
   bool verified = 3;
+}
+
+// WorkReference is a producer-neutral relation to a work item. Producers may
+// use plan, issue, incident, experiment, task, or future kinds without adding
+// scenario-specific fields to the event contract.
+message WorkReference {
+  string kind = 1;
+  string id = 2;
+  string revision = 3;
+  string relationship = 4;
+  string source_event_id = 5;
+  string source_run_id = 6;
+  bool verified = 7;
+  WorkReferenceVisibility visibility = 8;
+  string evidence_digest = 9;
+  WorkReferenceState state = 10;
+  string unavailable_reason = 11;
+}
+
+enum WorkReferenceVisibility {
+  WORK_REFERENCE_VISIBILITY_UNSPECIFIED = 0;
+  WORK_REFERENCE_VISIBILITY_PUBLIC = 1;
+  WORK_REFERENCE_VISIBILITY_PRIVATE = 2;
+}
+
+enum WorkReferenceState {
+  WORK_REFERENCE_STATE_UNSPECIFIED = 0;
+  WORK_REFERENCE_STATE_ACTIVE = 1;
+  WORK_REFERENCE_STATE_EXPIRED = 2;
+  WORK_REFERENCE_STATE_UNAVAILABLE = 3;
+  WORK_REFERENCE_STATE_PROJECTION_MISMATCH = 4;
 }
 
 message ReceiptData {

@@ -73,6 +73,64 @@ func (RelayCallOutcome) EnumDescriptor() ([]byte, []int) {
 	return file_vrooli_bridge_v1_relay_relay_proto_rawDescGZIP(), []int{0}
 }
 
+type RelayReconcileState int32
+
+const (
+	RelayReconcileState_RELAY_RECONCILE_STATE_UNSPECIFIED     RelayReconcileState = 0
+	RelayReconcileState_RELAY_RECONCILE_STATE_NOT_ADMITTED    RelayReconcileState = 1
+	RelayReconcileState_RELAY_RECONCILE_STATE_SUBMITTED       RelayReconcileState = 2
+	RelayReconcileState_RELAY_RECONCILE_STATE_COMPLETED       RelayReconcileState = 3
+	RelayReconcileState_RELAY_RECONCILE_STATE_FAILED          RelayReconcileState = 4
+	RelayReconcileState_RELAY_RECONCILE_STATE_OUTCOME_UNKNOWN RelayReconcileState = 5
+)
+
+// Enum value maps for RelayReconcileState.
+var (
+	RelayReconcileState_name = map[int32]string{
+		0: "RELAY_RECONCILE_STATE_UNSPECIFIED",
+		1: "RELAY_RECONCILE_STATE_NOT_ADMITTED",
+		2: "RELAY_RECONCILE_STATE_SUBMITTED",
+		3: "RELAY_RECONCILE_STATE_COMPLETED",
+		4: "RELAY_RECONCILE_STATE_FAILED",
+		5: "RELAY_RECONCILE_STATE_OUTCOME_UNKNOWN",
+	}
+	RelayReconcileState_value = map[string]int32{
+		"RELAY_RECONCILE_STATE_UNSPECIFIED":     0,
+		"RELAY_RECONCILE_STATE_NOT_ADMITTED":    1,
+		"RELAY_RECONCILE_STATE_SUBMITTED":       2,
+		"RELAY_RECONCILE_STATE_COMPLETED":       3,
+		"RELAY_RECONCILE_STATE_FAILED":          4,
+		"RELAY_RECONCILE_STATE_OUTCOME_UNKNOWN": 5,
+	}
+)
+
+func (x RelayReconcileState) Enum() *RelayReconcileState {
+	p := new(RelayReconcileState)
+	*p = x
+	return p
+}
+
+func (x RelayReconcileState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RelayReconcileState) Descriptor() protoreflect.EnumDescriptor {
+	return file_vrooli_bridge_v1_relay_relay_proto_enumTypes[1].Descriptor()
+}
+
+func (RelayReconcileState) Type() protoreflect.EnumType {
+	return &file_vrooli_bridge_v1_relay_relay_proto_enumTypes[1]
+}
+
+func (x RelayReconcileState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RelayReconcileState.Descriptor instead.
+func (RelayReconcileState) EnumDescriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_relay_relay_proto_rawDescGZIP(), []int{1}
+}
+
 type RelayCallRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	NodeId           string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
@@ -81,6 +139,7 @@ type RelayCallRequest struct {
 	Args             []string               `protobuf:"bytes,4,rep,name=args,proto3" json:"args,omitempty"`
 	TimeoutSeconds   int64                  `protobuf:"varint,5,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
 	MaxResponseBytes uint64                 `protobuf:"varint,6,opt,name=max_response_bytes,json=maxResponseBytes,proto3" json:"max_response_bytes,omitempty"`
+	CommandId        string                 `protobuf:"bytes,7,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -157,16 +216,27 @@ func (x *RelayCallRequest) GetMaxResponseBytes() uint64 {
 	return 0
 }
 
+func (x *RelayCallRequest) GetCommandId() string {
+	if x != nil {
+		return x.CommandId
+	}
+	return ""
+}
+
 type RelayCallResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CorrelationId string                 `protobuf:"bytes,1,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"`
-	Outcome       RelayCallOutcome       `protobuf:"varint,2,opt,name=outcome,proto3,enum=vrooli.vrooli_bridge.v1.relay.RelayCallOutcome" json:"outcome,omitempty"`
-	Data          []byte                 `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
-	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
-	ExitCode      int32                  `protobuf:"varint,5,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
-	TotalBytes    uint64                 `protobuf:"varint,6,opt,name=total_bytes,json=totalBytes,proto3" json:"total_bytes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	CorrelationId  string                 `protobuf:"bytes,1,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"`
+	Outcome        RelayCallOutcome       `protobuf:"varint,2,opt,name=outcome,proto3,enum=vrooli.vrooli_bridge.v1.relay.RelayCallOutcome" json:"outcome,omitempty"`
+	Data           []byte                 `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
+	Reason         string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	ExitCode       int32                  `protobuf:"varint,5,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	TotalBytes     uint64                 `protobuf:"varint,6,opt,name=total_bytes,json=totalBytes,proto3" json:"total_bytes,omitempty"`
+	CommandId      string                 `protobuf:"bytes,7,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
+	Route          string                 `protobuf:"bytes,8,opt,name=route,proto3" json:"route,omitempty"`
+	RouteCostUnits uint64                 `protobuf:"varint,9,opt,name=route_cost_units,json=routeCostUnits,proto3" json:"route_cost_units,omitempty"`
+	RouteLatencyMs uint64                 `protobuf:"varint,10,opt,name=route_latency_ms,json=routeLatencyMs,proto3" json:"route_latency_ms,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RelayCallResponse) Reset() {
@@ -241,18 +311,168 @@ func (x *RelayCallResponse) GetTotalBytes() uint64 {
 	return 0
 }
 
+func (x *RelayCallResponse) GetCommandId() string {
+	if x != nil {
+		return x.CommandId
+	}
+	return ""
+}
+
+func (x *RelayCallResponse) GetRoute() string {
+	if x != nil {
+		return x.Route
+	}
+	return ""
+}
+
+func (x *RelayCallResponse) GetRouteCostUnits() uint64 {
+	if x != nil {
+		return x.RouteCostUnits
+	}
+	return 0
+}
+
+func (x *RelayCallResponse) GetRouteLatencyMs() uint64 {
+	if x != nil {
+		return x.RouteLatencyMs
+	}
+	return 0
+}
+
+type RelayReconcileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	CommandId     string                 `protobuf:"bytes,2,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RelayReconcileRequest) Reset() {
+	*x = RelayReconcileRequest{}
+	mi := &file_vrooli_bridge_v1_relay_relay_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RelayReconcileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RelayReconcileRequest) ProtoMessage() {}
+
+func (x *RelayReconcileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_relay_relay_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RelayReconcileRequest.ProtoReflect.Descriptor instead.
+func (*RelayReconcileRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_relay_relay_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RelayReconcileRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *RelayReconcileRequest) GetCommandId() string {
+	if x != nil {
+		return x.CommandId
+	}
+	return ""
+}
+
+type RelayReconcileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CommandId     string                 `protobuf:"bytes,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
+	State         RelayReconcileState    `protobuf:"varint,2,opt,name=state,proto3,enum=vrooli.vrooli_bridge.v1.relay.RelayReconcileState" json:"state,omitempty"`
+	Response      *RelayCallResponse     `protobuf:"bytes,3,opt,name=response,proto3" json:"response,omitempty"`
+	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RelayReconcileResponse) Reset() {
+	*x = RelayReconcileResponse{}
+	mi := &file_vrooli_bridge_v1_relay_relay_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RelayReconcileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RelayReconcileResponse) ProtoMessage() {}
+
+func (x *RelayReconcileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_relay_relay_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RelayReconcileResponse.ProtoReflect.Descriptor instead.
+func (*RelayReconcileResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_relay_relay_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *RelayReconcileResponse) GetCommandId() string {
+	if x != nil {
+		return x.CommandId
+	}
+	return ""
+}
+
+func (x *RelayReconcileResponse) GetState() RelayReconcileState {
+	if x != nil {
+		return x.State
+	}
+	return RelayReconcileState_RELAY_RECONCILE_STATE_UNSPECIFIED
+}
+
+func (x *RelayReconcileResponse) GetResponse() *RelayCallResponse {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+func (x *RelayReconcileResponse) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 var File_vrooli_bridge_v1_relay_relay_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_relay_relay_proto_rawDesc = "" +
 	"\n" +
-	"\"vrooli-bridge/v1/relay/relay.proto\x12\x1dvrooli.vrooli_bridge.v1.relay\"\xd2\x01\n" +
+	"\"vrooli-bridge/v1/relay/relay.proto\x12\x1dvrooli.vrooli_bridge.v1.relay\"\xf1\x01\n" +
 	"\x10RelayCallRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x18\n" +
 	"\acommand\x18\x03 \x01(\tR\acommand\x12\x12\n" +
 	"\x04args\x18\x04 \x03(\tR\x04args\x12'\n" +
 	"\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\x12,\n" +
-	"\x12max_response_bytes\x18\x06 \x01(\x04R\x10maxResponseBytesJ\x04\b\a\x10\x10\"\xf5\x01\n" +
+	"\x12max_response_bytes\x18\x06 \x01(\x04R\x10maxResponseBytes\x12\x1d\n" +
+	"\n" +
+	"command_id\x18\a \x01(\tR\tcommandIdJ\x04\b\b\x10\x10\"\xfe\x02\n" +
 	"\x11RelayCallResponse\x12%\n" +
 	"\x0ecorrelation_id\x18\x01 \x01(\tR\rcorrelationId\x12I\n" +
 	"\aoutcome\x18\x02 \x01(\x0e2/.vrooli.vrooli_bridge.v1.relay.RelayCallOutcomeR\aoutcome\x12\x12\n" +
@@ -260,14 +480,38 @@ const file_vrooli_bridge_v1_relay_relay_proto_rawDesc = "" +
 	"\x06reason\x18\x04 \x01(\tR\x06reason\x12\x1b\n" +
 	"\texit_code\x18\x05 \x01(\x05R\bexitCode\x12\x1f\n" +
 	"\vtotal_bytes\x18\x06 \x01(\x04R\n" +
-	"totalBytesJ\x04\b\a\x10\x10*\x9a\x01\n" +
+	"totalBytes\x12\x1d\n" +
+	"\n" +
+	"command_id\x18\a \x01(\tR\tcommandId\x12\x14\n" +
+	"\x05route\x18\b \x01(\tR\x05route\x12(\n" +
+	"\x10route_cost_units\x18\t \x01(\x04R\x0erouteCostUnits\x12(\n" +
+	"\x10route_latency_ms\x18\n" +
+	" \x01(\x04R\x0erouteLatencyMsJ\x04\b\v\x10\x10\"O\n" +
+	"\x15RelayReconcileRequest\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1d\n" +
+	"\n" +
+	"command_id\x18\x02 \x01(\tR\tcommandId\"\xe7\x01\n" +
+	"\x16RelayReconcileResponse\x12\x1d\n" +
+	"\n" +
+	"command_id\x18\x01 \x01(\tR\tcommandId\x12H\n" +
+	"\x05state\x18\x02 \x01(\x0e22.vrooli.vrooli_bridge.v1.relay.RelayReconcileStateR\x05state\x12L\n" +
+	"\bresponse\x18\x03 \x01(\v20.vrooli.vrooli_bridge.v1.relay.RelayCallResponseR\bresponse\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason*\x9a\x01\n" +
 	"\x10RelayCallOutcome\x12\"\n" +
 	"\x1eRELAY_CALL_OUTCOME_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cRELAY_CALL_OUTCOME_COMPLETED\x10\x01\x12\x1d\n" +
 	"\x19RELAY_CALL_OUTCOME_FAILED\x10\x02\x12!\n" +
-	"\x1dRELAY_CALL_OUTCOME_TERMINATED\x10\x032y\n" +
+	"\x1dRELAY_CALL_OUTCOME_TERMINATED\x10\x03*\xfb\x01\n" +
+	"\x13RelayReconcileState\x12%\n" +
+	"!RELAY_RECONCILE_STATE_UNSPECIFIED\x10\x00\x12&\n" +
+	"\"RELAY_RECONCILE_STATE_NOT_ADMITTED\x10\x01\x12#\n" +
+	"\x1fRELAY_RECONCILE_STATE_SUBMITTED\x10\x02\x12#\n" +
+	"\x1fRELAY_RECONCILE_STATE_COMPLETED\x10\x03\x12 \n" +
+	"\x1cRELAY_RECONCILE_STATE_FAILED\x10\x04\x12)\n" +
+	"%RELAY_RECONCILE_STATE_OUTCOME_UNKNOWN\x10\x052\xf3\x01\n" +
 	"\fRelayService\x12i\n" +
-	"\x04Call\x12/.vrooli.vrooli_bridge.v1.relay.RelayCallRequest\x1a0.vrooli.vrooli_bridge.v1.relay.RelayCallResponseBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay;relayv1b\x06proto3"
+	"\x04Call\x12/.vrooli.vrooli_bridge.v1.relay.RelayCallRequest\x1a0.vrooli.vrooli_bridge.v1.relay.RelayCallResponse\x12x\n" +
+	"\tReconcile\x124.vrooli.vrooli_bridge.v1.relay.RelayReconcileRequest\x1a5.vrooli.vrooli_bridge.v1.relay.RelayReconcileResponseBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay;relayv1b\x06proto3"
 
 var (
 	file_vrooli_bridge_v1_relay_relay_proto_rawDescOnce sync.Once
@@ -281,22 +525,29 @@ func file_vrooli_bridge_v1_relay_relay_proto_rawDescGZIP() []byte {
 	return file_vrooli_bridge_v1_relay_relay_proto_rawDescData
 }
 
-var file_vrooli_bridge_v1_relay_relay_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_vrooli_bridge_v1_relay_relay_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_vrooli_bridge_v1_relay_relay_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_vrooli_bridge_v1_relay_relay_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_vrooli_bridge_v1_relay_relay_proto_goTypes = []any{
-	(RelayCallOutcome)(0),     // 0: vrooli.vrooli_bridge.v1.relay.RelayCallOutcome
-	(*RelayCallRequest)(nil),  // 1: vrooli.vrooli_bridge.v1.relay.RelayCallRequest
-	(*RelayCallResponse)(nil), // 2: vrooli.vrooli_bridge.v1.relay.RelayCallResponse
+	(RelayCallOutcome)(0),          // 0: vrooli.vrooli_bridge.v1.relay.RelayCallOutcome
+	(RelayReconcileState)(0),       // 1: vrooli.vrooli_bridge.v1.relay.RelayReconcileState
+	(*RelayCallRequest)(nil),       // 2: vrooli.vrooli_bridge.v1.relay.RelayCallRequest
+	(*RelayCallResponse)(nil),      // 3: vrooli.vrooli_bridge.v1.relay.RelayCallResponse
+	(*RelayReconcileRequest)(nil),  // 4: vrooli.vrooli_bridge.v1.relay.RelayReconcileRequest
+	(*RelayReconcileResponse)(nil), // 5: vrooli.vrooli_bridge.v1.relay.RelayReconcileResponse
 }
 var file_vrooli_bridge_v1_relay_relay_proto_depIdxs = []int32{
 	0, // 0: vrooli.vrooli_bridge.v1.relay.RelayCallResponse.outcome:type_name -> vrooli.vrooli_bridge.v1.relay.RelayCallOutcome
-	1, // 1: vrooli.vrooli_bridge.v1.relay.RelayService.Call:input_type -> vrooli.vrooli_bridge.v1.relay.RelayCallRequest
-	2, // 2: vrooli.vrooli_bridge.v1.relay.RelayService.Call:output_type -> vrooli.vrooli_bridge.v1.relay.RelayCallResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	1, // 1: vrooli.vrooli_bridge.v1.relay.RelayReconcileResponse.state:type_name -> vrooli.vrooli_bridge.v1.relay.RelayReconcileState
+	3, // 2: vrooli.vrooli_bridge.v1.relay.RelayReconcileResponse.response:type_name -> vrooli.vrooli_bridge.v1.relay.RelayCallResponse
+	2, // 3: vrooli.vrooli_bridge.v1.relay.RelayService.Call:input_type -> vrooli.vrooli_bridge.v1.relay.RelayCallRequest
+	4, // 4: vrooli.vrooli_bridge.v1.relay.RelayService.Reconcile:input_type -> vrooli.vrooli_bridge.v1.relay.RelayReconcileRequest
+	3, // 5: vrooli.vrooli_bridge.v1.relay.RelayService.Call:output_type -> vrooli.vrooli_bridge.v1.relay.RelayCallResponse
+	5, // 6: vrooli.vrooli_bridge.v1.relay.RelayService.Reconcile:output_type -> vrooli.vrooli_bridge.v1.relay.RelayReconcileResponse
+	5, // [5:7] is the sub-list for method output_type
+	3, // [3:5] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_relay_relay_proto_init() }
@@ -309,8 +560,8 @@ func file_vrooli_bridge_v1_relay_relay_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_relay_relay_proto_rawDesc), len(file_vrooli_bridge_v1_relay_relay_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   2,
+			NumEnums:      2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

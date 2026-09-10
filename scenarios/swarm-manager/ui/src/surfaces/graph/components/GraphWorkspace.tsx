@@ -15,10 +15,6 @@ import { SpatialGroup } from "@vrooli/iframe-bridge/react";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { defaultQueryOptions } from "../../../lib";
-import { applyTheme, watchSystemTheme } from "../../../lib/theme-utils";
-import { settingsService } from "../../../services";
 import { useAgentSessionStore } from "../../../stores";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphSettingsStore } from "../stores/graph-settings-store";
@@ -72,22 +68,6 @@ export function GraphWorkspace() {
   const focusNodeId = useGraphDataStore((s) => s.focusNodeId);
 
   const showNavControls = useGraphSettingsStore((s) => s.settingsByLens[s.activeLens].showNavControls);
-
-
-  const { data: settings } = useQuery({
-    queryKey: ["settings"],
-    queryFn: () => settingsService.get(),
-    ...defaultQueryOptions,
-  });
-
-  useEffect(() => {
-    const theme = settings?.theme ?? "dark";
-    applyTheme(theme);
-    if (theme === "system") {
-      return watchSystemTheme(() => applyTheme("system"));
-    }
-    return undefined;
-  }, [settings?.theme]);
 
   useGraphKeyboardShortcuts({
     onLensChange: handleLensChange,

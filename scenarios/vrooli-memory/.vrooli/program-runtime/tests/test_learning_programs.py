@@ -22,6 +22,15 @@ class Handle:
     def count(self):
         return len(self.rows)
 
+    def map(self, transform):
+        return Handle([transform(row) for row in self.rows], self.metadata)
+
+    def agg(self, key, operation):
+        values = [row[key] for row in self.rows]
+        if operation != "sum":
+            raise ValueError("test handle only supports sum")
+        return sum(values)
+
     def meta(self):
         return copy.deepcopy(self.metadata)
 
@@ -78,8 +87,30 @@ class Memory:
         return self.write("observe", body)
 
 
+class ProgramFixture:
+    """Minimal program helper projection used by the offline script harness."""
+    def __init__(self, namespace):
+        self.namespace = namespace
+
+    def inputs(self):
+        return self.namespace["inputs"]
+
+    def fail(self, status, klass, detail, where):
+        envelope = self.namespace.get("envelope")
+        if isinstance(envelope, dict):
+            envelope["status"] = status
+            envelope.setdefault("errors", []).append({"class": str(klass), "detail": str(detail)[:240], "where": str(where)})
+        return "report"
+
+    def classify(self, exc):
+        if isinstance(exc, (NameError, AttributeError)):
+            return ("failed", "kernel_runtime")
+        return ("unavailable", "scenario_unreachable") if "unavailable" in str(exc) else ("failed", "binding_error")
+
+
 def run(name, values, memory=None, bind=True):
     namespace = {"inputs": copy.deepcopy(values)}
+    namespace["program"] = ProgramFixture(namespace)
     if bind:
         namespace["vrooli_memory"] = memory or Memory()
     stream = io.StringIO()
@@ -128,7 +159,8 @@ class PrepareTests(unittest.TestCase):
         self.assertEqual(signals["attempt"]["advice"], [])
         self.assertNotIn("recall_status", signals["attempt"])
         self.assertTrue(signals["decision_required"])
-        self.assertEqual(signals["discarded_hits"], 2)
+        self.assertEqual(signals["discarded_hits"], 1)
+        self.assertEqual(signals["advice_candidates"][1]["summary"], True)
         self.assertEqual(mem.calls[0][1]["scope"], "learning-test")
         self.assertEqual(len(mem.calls), 1)
 
@@ -161,6 +193,12 @@ class PrepareTests(unittest.TestCase):
 
 
 class FinishTests(unittest.TestCase):
+    def test_agent_provenance_is_accepted_and_other_values_are_rejected(self):
+        result = run("finish-attempt", {"scope": "learning-test", "attempt": attempt(provenance="agent"), "observations": [observation(provenance="agent")]})
+        self.assertEqual(result["status"], "ok")
+        bad = attempt(provenance="service")
+        self.assertEqual(run("finish-attempt", {"scope": "learning-test", "attempt": bad})["status"], "failed")
+
     def test_unassessed_exposure_is_valid_but_cannot_claim_adoption(self):
         value = attempt()
         value.update(recall_status="matched", advice=[{
@@ -228,7 +266,7 @@ class FinishTests(unittest.TestCase):
         self.assertEqual(len(mem.stored), 1)
 
     def test_validate_all_observations_before_any_write(self):
-        for bad in (observation(attempt_id="other"), observation(provenance="agent"), observation(evidence_refs=[])):
+        for bad in (observation(attempt_id="other"), observation(provenance="service"), observation(evidence_refs=[])):
             mem = Memory()
             result = run("finish-attempt", {"scope": "learning-test", "attempt": attempt(), "observations": [observation(), bad]}, mem)
             self.assertEqual(result["errors"][0]["class"], "invalid_input")
@@ -272,8 +310,10 @@ class CompareTests(unittest.TestCase):
 
     def test_seven_rows_multiple_cohorts_zero_and_unknown(self):
         mem = Memory()
-        mem.cohorts = [{"operation": "inspect", "contextKey": "a", "attempts": 1},
-                       {"operation": "inspect", "contextKey": "b", "attempts": 1, "medianToolRoundTrips": 0.0}]
+        mem.cohorts = [{"operation": "inspect", "contextKey": "a", "attempts": 1,
+                        "appliedAdvice": 2},
+                       {"operation": "inspect", "contextKey": "b", "attempts": 1,
+                        "medianToolRoundTrips": 0.0, "rejectedAdvice": 1}]
         result = run("compare-outcomes", {"scope": "test", "from": "2026-01-01T00:00:00Z", "to": "2026-01-02T00:00:00Z", "operation": "inspect", "context_key": ""}, mem)
         self.assertEqual(result["status"], "ok")
         rows = {row["row"]: row for row in result["signals"]["rows"]}
@@ -283,6 +323,8 @@ class CompareTests(unittest.TestCase):
         self.assertIsNone(cohorts[0]["medianToolRoundTrips"])
         self.assertEqual(cohorts[1]["medianToolRoundTrips"], 0.0)
         self.assertEqual([c["context"] for c in cohorts], ["a", "b"])
+        self.assertEqual(result["signals"]["aggregate"]["advice"]["applied"], 2)
+        self.assertEqual(result["signals"]["aggregate"]["advice"]["rejected"], 1)
         self.assertEqual(mem.calls[0][1]["rows"], "cohorts")
         self.assertEqual(mem.calls[0][1]["operation"], "inspect")
 
@@ -330,8 +372,10 @@ class CompareTests(unittest.TestCase):
 class RuntimeWrapperTests(unittest.TestCase):
     def invoke(self, name, values, tasks):
         stream = io.StringIO()
+        namespace = {"inputs": values, "tasks": tasks}
+        namespace["program"] = ProgramFixture(namespace)
         with contextlib.redirect_stdout(stream):
-            exec(compile((ROOT / (name + ".py")).read_text(), name, "exec"), {"inputs": values, "tasks": tasks})
+            exec(compile((ROOT / (name + ".py")).read_text(), name, "exec"), namespace)
         return json.loads(stream.getvalue())
 
     def test_repeat_task_uses_scoped_advice_with_equal_outcome_and_less_work(self):
@@ -426,3 +470,19 @@ class ContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_later_feedback_is_delivered_idempotently_with_the_finish_outbox():
+    """[REQ:LV-08] Later-run feedback survives disconnect without repeating domain work."""
+    memory = Memory()
+    values = {"scope": "learning-test", "attempt": attempt(attempt_id="current"),
+              "observations": [observation(attempt_id="earlier", method_revision="learn.feedback")]}
+    memory.fail_call = 2
+    memory.commit_before_failure = True
+    failed = run("finish-attempt", values, memory)
+    assert failed["status"] == "partial"
+    memory.fail_call = None
+    retried = run("finish-attempt", failed["signals"]["retry_inputs"], memory)
+    assert retried["status"] == "ok"
+    assert retried["signals"]["observations"][0]["existing"] is True
+    assert len(memory.stored) == 2

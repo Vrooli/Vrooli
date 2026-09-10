@@ -1,3 +1,4 @@
+import { LayoutDashboard, Coins, Network, BookOpen, ShieldCheck, ScrollText, Settings, type LucideIcon } from "lucide-react";
 import { strings } from "../consts/strings";
 
 /**
@@ -24,16 +25,17 @@ export interface NavItem {
   end?: boolean;
   /** Translation key path. */
   labelKey: (typeof strings.layout.nav)[keyof typeof strings.layout.nav];
+  icon: LucideIcon;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "tokens", path: "/tokens", labelKey: strings.layout.nav.tokens },
-  { key: "holders", path: "/holders", labelKey: strings.layout.nav.holders },
-  { key: "earning", path: "/earning", labelKey: strings.layout.nav.earning },
-  { key: "grants", path: "/grants", labelKey: strings.layout.nav.grants },
-  { key: "catalog", path: "/catalog", labelKey: strings.layout.nav.catalog },
-  { key: "approvals", path: "/approvals", labelKey: strings.layout.nav.approvals },
-  { key: "journal", path: "/journal", labelKey: strings.layout.nav.journal },
-  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
+  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard, icon: LayoutDashboard },
+  { key: "tokens", path: "/tokens", labelKey: strings.layout.nav.tokens, icon: Coins },
+  { key: "holders", path: "/holders", labelKey: strings.layout.nav.holders, icon: Network },
+  { key: "earning", path: "/earning", labelKey: strings.layout.nav.earning, icon: Coins },
+  { key: "grants", path: "/grants", labelKey: strings.layout.nav.grants, icon: Coins },
+  { key: "catalog", path: "/catalog", labelKey: strings.layout.nav.catalog, icon: BookOpen },
+  { key: "approvals", path: "/approvals", labelKey: strings.layout.nav.approvals, icon: ShieldCheck },
+  { key: "journal", path: "/journal", labelKey: strings.layout.nav.journal, icon: ScrollText },
+  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: Settings },
 ];

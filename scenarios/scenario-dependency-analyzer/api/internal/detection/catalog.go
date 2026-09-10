@@ -15,7 +15,7 @@ import (
 
 // catalogManager handles thread-safe catalog loading and caching
 type catalogManager struct {
-	cfg            appconfig.Config
+	cfg            appconfig.RuntimeConfig
 	mu             sync.RWMutex
 	loaded         bool
 	knownScenarios map[string]struct{}
@@ -23,7 +23,7 @@ type catalogManager struct {
 }
 
 // newCatalogManager creates a new catalog manager with the given configuration
-func newCatalogManager(cfg appconfig.Config) *catalogManager {
+func newCatalogManager(cfg appconfig.RuntimeConfig) *catalogManager {
 	return &catalogManager{
 		cfg: cfg,
 	}

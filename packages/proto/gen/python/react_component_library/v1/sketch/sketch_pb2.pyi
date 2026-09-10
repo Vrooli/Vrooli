@@ -221,7 +221,7 @@ class Finding(_message.Message):
     def __init__(self, catalog_id: _Optional[str] = ..., scope: _Optional[str] = ..., blocking: _Optional[bool] = ..., owner: _Optional[str] = ..., severity_class: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
 class RegionVerdict(_message.Message):
-    __slots__ = ("region", "verdict", "join_rule", "proven", "file_path", "observed_state", "reason", "finding", "selected_asset", "selected_version", "observed_asset", "observed_version", "reason_code", "evidence_quality", "candidates", "availability_state", "availability_reason_code", "build_hash", "source_hash")
+    __slots__ = ("region", "verdict", "join_rule", "proven", "file_path", "observed_state", "reason", "finding", "selected_asset", "selected_version", "observed_asset", "observed_version", "reason_code", "evidence_quality", "candidates", "availability_state", "availability_reason_code", "build_hash", "source_hash", "library_asset", "library_version", "local_component")
     REGION_FIELD_NUMBER: _ClassVar[int]
     VERDICT_FIELD_NUMBER: _ClassVar[int]
     JOIN_RULE_FIELD_NUMBER: _ClassVar[int]
@@ -241,6 +241,9 @@ class RegionVerdict(_message.Message):
     AVAILABILITY_REASON_CODE_FIELD_NUMBER: _ClassVar[int]
     BUILD_HASH_FIELD_NUMBER: _ClassVar[int]
     SOURCE_HASH_FIELD_NUMBER: _ClassVar[int]
+    LIBRARY_ASSET_FIELD_NUMBER: _ClassVar[int]
+    LIBRARY_VERSION_FIELD_NUMBER: _ClassVar[int]
+    LOCAL_COMPONENT_FIELD_NUMBER: _ClassVar[int]
     region: str
     verdict: str
     join_rule: str
@@ -260,10 +263,13 @@ class RegionVerdict(_message.Message):
     availability_reason_code: str
     build_hash: str
     source_hash: str
-    def __init__(self, region: _Optional[str] = ..., verdict: _Optional[str] = ..., join_rule: _Optional[str] = ..., proven: _Optional[bool] = ..., file_path: _Optional[str] = ..., observed_state: _Optional[str] = ..., reason: _Optional[str] = ..., finding: _Optional[_Union[Finding, _Mapping]] = ..., selected_asset: _Optional[str] = ..., selected_version: _Optional[str] = ..., observed_asset: _Optional[str] = ..., observed_version: _Optional[str] = ..., reason_code: _Optional[str] = ..., evidence_quality: _Optional[str] = ..., candidates: _Optional[_Iterable[str]] = ..., availability_state: _Optional[str] = ..., availability_reason_code: _Optional[str] = ..., build_hash: _Optional[str] = ..., source_hash: _Optional[str] = ...) -> None: ...
+    library_asset: str
+    library_version: str
+    local_component: str
+    def __init__(self, region: _Optional[str] = ..., verdict: _Optional[str] = ..., join_rule: _Optional[str] = ..., proven: _Optional[bool] = ..., file_path: _Optional[str] = ..., observed_state: _Optional[str] = ..., reason: _Optional[str] = ..., finding: _Optional[_Union[Finding, _Mapping]] = ..., selected_asset: _Optional[str] = ..., selected_version: _Optional[str] = ..., observed_asset: _Optional[str] = ..., observed_version: _Optional[str] = ..., reason_code: _Optional[str] = ..., evidence_quality: _Optional[str] = ..., candidates: _Optional[_Iterable[str]] = ..., availability_state: _Optional[str] = ..., availability_reason_code: _Optional[str] = ..., build_hash: _Optional[str] = ..., source_hash: _Optional[str] = ..., library_asset: _Optional[str] = ..., library_version: _Optional[str] = ..., local_component: _Optional[str] = ...) -> None: ...
 
 class Coverage(_message.Message):
-    __slots__ = ("built", "declared", "invented", "built_percent", "missing", "unresolved", "total", "status")
+    __slots__ = ("built", "declared", "invented", "built_percent", "missing", "unresolved", "total", "status", "library_backed", "local", "resolved", "resolved_local")
     BUILT_FIELD_NUMBER: _ClassVar[int]
     DECLARED_FIELD_NUMBER: _ClassVar[int]
     INVENTED_FIELD_NUMBER: _ClassVar[int]
@@ -272,6 +278,10 @@ class Coverage(_message.Message):
     UNRESOLVED_FIELD_NUMBER: _ClassVar[int]
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
+    LIBRARY_BACKED_FIELD_NUMBER: _ClassVar[int]
+    LOCAL_FIELD_NUMBER: _ClassVar[int]
+    RESOLVED_FIELD_NUMBER: _ClassVar[int]
+    RESOLVED_LOCAL_FIELD_NUMBER: _ClassVar[int]
     built: int
     declared: int
     invented: int
@@ -280,7 +290,11 @@ class Coverage(_message.Message):
     unresolved: int
     total: int
     status: str
-    def __init__(self, built: _Optional[int] = ..., declared: _Optional[int] = ..., invented: _Optional[int] = ..., built_percent: _Optional[float] = ..., missing: _Optional[int] = ..., unresolved: _Optional[int] = ..., total: _Optional[int] = ..., status: _Optional[str] = ...) -> None: ...
+    library_backed: int
+    local: int
+    resolved: int
+    resolved_local: int
+    def __init__(self, built: _Optional[int] = ..., declared: _Optional[int] = ..., invented: _Optional[int] = ..., built_percent: _Optional[float] = ..., missing: _Optional[int] = ..., unresolved: _Optional[int] = ..., total: _Optional[int] = ..., status: _Optional[str] = ..., library_backed: _Optional[int] = ..., local: _Optional[int] = ..., resolved: _Optional[int] = ..., resolved_local: _Optional[int] = ...) -> None: ...
 
 class VerifySketchRequest(_message.Message):
     __slots__ = ("target",)

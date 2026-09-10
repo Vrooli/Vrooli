@@ -6,13 +6,281 @@ import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegen
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Transition } from "../domain/transition_pb";
 import { file_swarm_manager_v1_domain_transition } from "../domain/transition_pb";
+import type { PlanRef } from "../shared/plan_ref_pb";
+import { file_swarm_manager_v1_shared_plan_ref } from "../shared/plan_ref_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file swarm-manager/v1/api/transition.proto.
  */
 export const file_swarm_manager_v1_api_transition: GenFile = /*@__PURE__*/
-  fileDesc("CiVzd2FybS1tYW5hZ2VyL3YxL2FwaS90cmFuc2l0aW9uLnByb3RvEht2cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkiGAoWTGlzdFRyYW5zaXRpb25zUmVxdWVzdCJaChdMaXN0VHJhbnNpdGlvbnNSZXNwb25zZRI/Cgt0cmFuc2l0aW9ucxgBIAMoCzIqLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5UcmFuc2l0aW9uIo0CChZTdGFydFRyYW5zaXRpb25SZXF1ZXN0EhYKDnRyYW5zaXRpb25fa2V5GAEgASgJEkIKC3N1YmplY3RfcmVmGAIgASgLMi0udnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLlN1YmplY3RSZWZlcmVuY2USYAoPb3BlcmF0b3JfaW5wdXRzGAMgAygLMkcudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLlN0YXJ0VHJhbnNpdGlvblJlcXVlc3QuT3BlcmF0b3JJbnB1dHNFbnRyeRo1ChNPcGVyYXRvcklucHV0c0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiMgoQU3ViamVjdFJlZmVyZW5jZRIPCgdzdWJqZWN0GAEgASgJEg0KBXZhbHVlGAIgASgJIp8BChdTdGFydFRyYW5zaXRpb25SZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSGQoRZGVmaW5pdGlvbl9kaWdlc3QYAiABKAkSFgoOZW50aXR5X3ZlcnNpb24YAyABKAkSEwoLYXBwbHlfc3RhdGUYBCABKAkSDwoHb3V0Y29tZRgFIAEoCRIVCg10ZXJtaW5hbF9jb2RlGAYgASgJIkYKFkFwcGx5VHJhbnNpdGlvblJlcXVlc3QSFgoOdHJhbnNpdGlvbl9rZXkYASABKAkSFAoMZXhlY3V0aW9uX2lkGAIgASgJIuIBChdBcHBseVRyYW5zaXRpb25SZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSFgoOdHJhbnNpdGlvbl9rZXkYAiABKAkSEwoLc3ViamVjdF9yZWYYAyABKAkSDwoHb3V0Y29tZRgEIAEoCRIVCg10ZXJtaW5hbF9jb2RlGAUgASgJEhQKDGFwcGxpZWRfdGltZRgGIAEoCRIZChFkZWZpbml0aW9uX2RpZ2VzdBgHIAEoCRIWCg5lbnRpdHlfdmVyc2lvbhgIIAEoCRITCgthcHBseV9zdGF0ZRgJIAEoCTKNAwoRVHJhbnNpdGlvblNlcnZpY2USfAoPTGlzdFRyYW5zaXRpb25zEjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLkxpc3RUcmFuc2l0aW9uc1JlcXVlc3QaNC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuTGlzdFRyYW5zaXRpb25zUmVzcG9uc2USfAoPU3RhcnRUcmFuc2l0aW9uEjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLlN0YXJ0VHJhbnNpdGlvblJlcXVlc3QaNC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuU3RhcnRUcmFuc2l0aW9uUmVzcG9uc2USfAoPQXBwbHlUcmFuc2l0aW9uEjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLkFwcGx5VHJhbnNpdGlvblJlcXVlc3QaNC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuQXBwbHlUcmFuc2l0aW9uUmVzcG9uc2VCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_swarm_manager_v1_domain_transition]);
+  fileDesc("CiVzd2FybS1tYW5hZ2VyL3YxL2FwaS90cmFuc2l0aW9uLnByb3RvEht2cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkiTAoSRGV2ZWxvcG1lbnRPdXRjb21lEgoKAmlkGAEgASgJEhEKCWNyaXRlcmlvbhgCIAEoCRIXCg9ldmlkZW5jZV9zb3VyY2UYAyABKAki7AMKGVByZXZpZXdEZXZlbG9wbWVudFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSEQoJd29ya19pdGVtGAIgASgJEhEKCW9iamVjdGl2ZRgDIAEoCRIWCg5hcnRpZmFjdF9wYXRocxgEIAMoCRJBCghvdXRjb21lcxgFIAMoCzIvLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5EZXZlbG9wbWVudE91dGNvbWUSGAoQYWNjZXB0YW5jZV9hbGxvdxgGIAMoCRIXCg9hY2NlcHRhbmNlX2RlbnkYByADKAkSFwoPYWxsb3dlZF9lZmZlY3RzGAggAygJEhIKCm1heF90b2tlbnMYCSABKAMSGAoQbWF4X3dhbGxfc2Vjb25kcxgKIAEoAxJCCghndWlkYW5jZRgLIAEoCzIwLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5EZXZlbG9wbWVudEd1aWRhbmNlEhUKDWJ1ZGdldF9wb2xpY3kYDCABKAkSPgoIcGxhbl9yZWYYDSABKAsyJy52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5zaGFyZWQuUGxhblJlZkgAiAEBEhoKEmV4ZWN1dGlvbl9zdHJhdGVneRgOIAEoCUILCglfcGxhbl9yZWYijwEKE0RldmVsb3BtZW50R3VpZGFuY2USDgoGZWZmb3J0GAEgASgJEhYKDnN0YXJ0aW5nX3N0YXRlGAIgASgJEhIKCnZhbGlkYXRpb24YAyABKAkSGwoTcmVwYWlyX3JlbGF0ZWRfY29kZRgEIAEoCBIfChdhZGRpdGlvbmFsX2luc3RydWN0aW9ucxgFIAEoCSJHChNEZXZlbG9wbWVudEFydGlmYWN0EgwKBHBhdGgYASABKAkSDgoGc2hhMjU2GAIgASgJEhIKCnNpemVfYnl0ZXMYAyABKAMiOAoYRGV2ZWxvcG1lbnRSZXZpZXdGaW5kaW5nEgwKBGNvZGUYASABKAkSDgoGZGV0YWlsGAIgASgJIqECChpQcmV2aWV3RGV2ZWxvcG1lbnRSZXNwb25zZRIXCg9wcm9wb3NhbF9kaWdlc3QYASABKAkSFAoMZ29hbF9tZXNzYWdlGAIgASgJEkMKCWFydGlmYWN0cxgDIAMoCzIwLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5EZXZlbG9wbWVudEFydGlmYWN0EkcKCGZpbmRpbmdzGAQgAygLMjUudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLkRldmVsb3BtZW50UmV2aWV3RmluZGluZxIXCg9yZXZpZXdfY29tcGxldGUYBSABKAgSFAoMbGF1bmNoX3JlYWR5GAYgASgIEhcKD2xhdW5jaF9ibG9ja2VycxgHIAMoCSIYChZMaXN0VHJhbnNpdGlvbnNSZXF1ZXN0IloKF0xpc3RUcmFuc2l0aW9uc1Jlc3BvbnNlEj8KC3RyYW5zaXRpb25zGAEgAygLMioudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLlRyYW5zaXRpb24ijQIKFlN0YXJ0VHJhbnNpdGlvblJlcXVlc3QSFgoOdHJhbnNpdGlvbl9rZXkYASABKAkSQgoLc3ViamVjdF9yZWYYAiABKAsyLS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuU3ViamVjdFJlZmVyZW5jZRJgCg9vcGVyYXRvcl9pbnB1dHMYAyADKAsyRy52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuU3RhcnRUcmFuc2l0aW9uUmVxdWVzdC5PcGVyYXRvcklucHV0c0VudHJ5GjUKE09wZXJhdG9ySW5wdXRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASIyChBTdWJqZWN0UmVmZXJlbmNlEg8KB3N1YmplY3QYASABKAkSDQoFdmFsdWUYAiABKAkinwEKF1N0YXJ0VHJhbnNpdGlvblJlc3BvbnNlEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRIZChFkZWZpbml0aW9uX2RpZ2VzdBgCIAEoCRIWCg5lbnRpdHlfdmVyc2lvbhgDIAEoCRITCgthcHBseV9zdGF0ZRgEIAEoCRIPCgdvdXRjb21lGAUgASgJEhUKDXRlcm1pbmFsX2NvZGUYBiABKAkiRgoWQXBwbHlUcmFuc2l0aW9uUmVxdWVzdBIWCg50cmFuc2l0aW9uX2tleRgBIAEoCRIUCgxleGVjdXRpb25faWQYAiABKAki4gEKF0FwcGx5VHJhbnNpdGlvblJlc3BvbnNlEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRIWCg50cmFuc2l0aW9uX2tleRgCIAEoCRITCgtzdWJqZWN0X3JlZhgDIAEoCRIPCgdvdXRjb21lGAQgASgJEhUKDXRlcm1pbmFsX2NvZGUYBSABKAkSFAoMYXBwbGllZF90aW1lGAYgASgJEhkKEWRlZmluaXRpb25fZGlnZXN0GAcgASgJEhYKDmVudGl0eV92ZXJzaW9uGAggASgJEhMKC2FwcGx5X3N0YXRlGAkgASgJMpUEChFUcmFuc2l0aW9uU2VydmljZRJ8Cg9MaXN0VHJhbnNpdGlvbnMSMy52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuTGlzdFRyYW5zaXRpb25zUmVxdWVzdBo0LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5MaXN0VHJhbnNpdGlvbnNSZXNwb25zZRKFAQoSUHJldmlld0RldmVsb3BtZW50EjYudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLlByZXZpZXdEZXZlbG9wbWVudFJlcXVlc3QaNy52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuUHJldmlld0RldmVsb3BtZW50UmVzcG9uc2USfAoPU3RhcnRUcmFuc2l0aW9uEjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLlN0YXJ0VHJhbnNpdGlvblJlcXVlc3QaNC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuU3RhcnRUcmFuc2l0aW9uUmVzcG9uc2USfAoPQXBwbHlUcmFuc2l0aW9uEjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLkFwcGx5VHJhbnNpdGlvblJlcXVlc3QaNC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuQXBwbHlUcmFuc2l0aW9uUmVzcG9uc2VCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_swarm_manager_v1_domain_transition, file_swarm_manager_v1_shared_plan_ref]);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.api.DevelopmentOutcome
+ */
+export type DevelopmentOutcome = Message<"vrooli.swarm_manager.v1.api.DevelopmentOutcome"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string criterion = 2;
+   */
+  criterion: string;
+
+  /**
+   * @generated from field: string evidence_source = 3;
+   */
+  evidenceSource: string;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.DevelopmentOutcome.
+ * Use `create(DevelopmentOutcomeSchema)` to create a new message.
+ */
+export const DevelopmentOutcomeSchema: GenMessage<DevelopmentOutcome> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_transition, 0);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.api.PreviewDevelopmentRequest
+ */
+export type PreviewDevelopmentRequest = Message<"vrooli.swarm_manager.v1.api.PreviewDevelopmentRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string work_item = 2;
+   */
+  workItem: string;
+
+  /**
+   * @generated from field: string objective = 3;
+   */
+  objective: string;
+
+  /**
+   * @generated from field: repeated string artifact_paths = 4;
+   */
+  artifactPaths: string[];
+
+  /**
+   * @generated from field: repeated vrooli.swarm_manager.v1.api.DevelopmentOutcome outcomes = 5;
+   */
+  outcomes: DevelopmentOutcome[];
+
+  /**
+   * @generated from field: repeated string acceptance_allow = 6;
+   */
+  acceptanceAllow: string[];
+
+  /**
+   * @generated from field: repeated string acceptance_deny = 7;
+   */
+  acceptanceDeny: string[];
+
+  /**
+   * @generated from field: repeated string allowed_effects = 8;
+   */
+  allowedEffects: string[];
+
+  /**
+   * @generated from field: int64 max_tokens = 9;
+   */
+  maxTokens: bigint;
+
+  /**
+   * @generated from field: int64 max_wall_seconds = 10;
+   */
+  maxWallSeconds: bigint;
+
+  /**
+   * @generated from field: vrooli.swarm_manager.v1.api.DevelopmentGuidance guidance = 11;
+   */
+  guidance?: DevelopmentGuidance | undefined;
+
+  /**
+   * metered-cancellation (default for new reviews) | hard-ceiling.
+   * This is reviewed authority, never a remembered guidance preference.
+   *
+   * @generated from field: string budget_policy = 12;
+   */
+  budgetPolicy: string;
+
+  /**
+   * Canonical Plan Manager work package that this adaptive strategy executes.
+   * A development approval without this reference is incomplete.
+   *
+   * @generated from field: optional vrooli.swarm_manager.v1.shared.PlanRef plan_ref = 13;
+   */
+  planRef?: PlanRef | undefined;
+
+  /**
+   * adaptive-improvement. Phased plan execution uses the ordinary plan
+   * execution request and does not create a development engagement.
+   *
+   * @generated from field: string execution_strategy = 14;
+   */
+  executionStrategy: string;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.PreviewDevelopmentRequest.
+ * Use `create(PreviewDevelopmentRequestSchema)` to create a new message.
+ */
+export const PreviewDevelopmentRequestSchema: GenMessage<PreviewDevelopmentRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_transition, 1);
+
+/**
+ * Reviewed execution guidance. These preferences never expand acceptance_allow,
+ * override acceptance_deny, authorize effects, or replace an owner-enforced limit.
+ *
+ * @generated from message vrooli.swarm_manager.v1.api.DevelopmentGuidance
+ */
+export type DevelopmentGuidance = Message<"vrooli.swarm_manager.v1.api.DevelopmentGuidance"> & {
+  /**
+   * focused | balanced | thorough; reasoning guidance, not an invented model setting.
+   *
+   * @generated from field: string effort = 1;
+   */
+  effort: string;
+
+  /**
+   * unknown | prototype | established | fragile; operator assessment, not evidence.
+   *
+   * @generated from field: string starting_state = 2;
+   */
+  startingState: string;
+
+  /**
+   * targeted | balanced | certification; required outcome checks always remain required.
+   *
+   * @generated from field: string validation = 3;
+   */
+  validation: string;
+
+  /**
+   * Authorizes intent-serving repair only inside the explicitly reviewed change paths.
+   *
+   * @generated from field: bool repair_related_code = 4;
+   */
+  repairRelatedCode: boolean;
+
+  /**
+   * @generated from field: string additional_instructions = 5;
+   */
+  additionalInstructions: string;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.DevelopmentGuidance.
+ * Use `create(DevelopmentGuidanceSchema)` to create a new message.
+ */
+export const DevelopmentGuidanceSchema: GenMessage<DevelopmentGuidance> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_transition, 2);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.api.DevelopmentArtifact
+ */
+export type DevelopmentArtifact = Message<"vrooli.swarm_manager.v1.api.DevelopmentArtifact"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string sha256 = 2;
+   */
+  sha256: string;
+
+  /**
+   * @generated from field: int64 size_bytes = 3;
+   */
+  sizeBytes: bigint;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.DevelopmentArtifact.
+ * Use `create(DevelopmentArtifactSchema)` to create a new message.
+ */
+export const DevelopmentArtifactSchema: GenMessage<DevelopmentArtifact> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_transition, 3);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.api.DevelopmentReviewFinding
+ */
+export type DevelopmentReviewFinding = Message<"vrooli.swarm_manager.v1.api.DevelopmentReviewFinding"> & {
+  /**
+   * @generated from field: string code = 1;
+   */
+  code: string;
+
+  /**
+   * @generated from field: string detail = 2;
+   */
+  detail: string;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.DevelopmentReviewFinding.
+ * Use `create(DevelopmentReviewFindingSchema)` to create a new message.
+ */
+export const DevelopmentReviewFindingSchema: GenMessage<DevelopmentReviewFinding> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_transition, 4);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.api.PreviewDevelopmentResponse
+ */
+export type PreviewDevelopmentResponse = Message<"vrooli.swarm_manager.v1.api.PreviewDevelopmentResponse"> & {
+  /**
+   * Fingerprints the proposal and observed source bytes, not an approval receipt.
+   *
+   * @generated from field: string proposal_digest = 1;
+   */
+  proposalDigest: string;
+
+  /**
+   * @generated from field: string goal_message = 2;
+   */
+  goalMessage: string;
+
+  /**
+   * @generated from field: repeated vrooli.swarm_manager.v1.api.DevelopmentArtifact artifacts = 3;
+   */
+  artifacts: DevelopmentArtifact[];
+
+  /**
+   * @generated from field: repeated vrooli.swarm_manager.v1.api.DevelopmentReviewFinding findings = 4;
+   */
+  findings: DevelopmentReviewFinding[];
+
+  /**
+   * @generated from field: bool review_complete = 5;
+   */
+  reviewComplete: boolean;
+
+  /**
+   * False until admission, accounting and evidence-bound completion are qualified.
+   *
+   * @generated from field: bool launch_ready = 6;
+   */
+  launchReady: boolean;
+
+  /**
+   * @generated from field: repeated string launch_blockers = 7;
+   */
+  launchBlockers: string[];
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.PreviewDevelopmentResponse.
+ * Use `create(PreviewDevelopmentResponseSchema)` to create a new message.
+ */
+export const PreviewDevelopmentResponseSchema: GenMessage<PreviewDevelopmentResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_transition, 5);
 
 /**
  * @generated from message vrooli.swarm_manager.v1.api.ListTransitionsRequest
@@ -25,7 +293,7 @@ export type ListTransitionsRequest = Message<"vrooli.swarm_manager.v1.api.ListTr
  * Use `create(ListTransitionsRequestSchema)` to create a new message.
  */
 export const ListTransitionsRequestSchema: GenMessage<ListTransitionsRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_transition, 0);
+  messageDesc(file_swarm_manager_v1_api_transition, 6);
 
 /**
  * @generated from message vrooli.swarm_manager.v1.api.ListTransitionsResponse
@@ -42,7 +310,7 @@ export type ListTransitionsResponse = Message<"vrooli.swarm_manager.v1.api.ListT
  * Use `create(ListTransitionsResponseSchema)` to create a new message.
  */
 export const ListTransitionsResponseSchema: GenMessage<ListTransitionsResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_transition, 1);
+  messageDesc(file_swarm_manager_v1_api_transition, 7);
 
 /**
  * @generated from message vrooli.swarm_manager.v1.api.StartTransitionRequest
@@ -69,7 +337,7 @@ export type StartTransitionRequest = Message<"vrooli.swarm_manager.v1.api.StartT
  * Use `create(StartTransitionRequestSchema)` to create a new message.
  */
 export const StartTransitionRequestSchema: GenMessage<StartTransitionRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_transition, 2);
+  messageDesc(file_swarm_manager_v1_api_transition, 8);
 
 /**
  * SubjectReference keeps the registry subject discriminator adjacent to the
@@ -95,7 +363,7 @@ export type SubjectReference = Message<"vrooli.swarm_manager.v1.api.SubjectRefer
  * Use `create(SubjectReferenceSchema)` to create a new message.
  */
 export const SubjectReferenceSchema: GenMessage<SubjectReference> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_transition, 3);
+  messageDesc(file_swarm_manager_v1_api_transition, 9);
 
 /**
  * @generated from message vrooli.swarm_manager.v1.api.StartTransitionResponse
@@ -137,7 +405,7 @@ export type StartTransitionResponse = Message<"vrooli.swarm_manager.v1.api.Start
  * Use `create(StartTransitionResponseSchema)` to create a new message.
  */
 export const StartTransitionResponseSchema: GenMessage<StartTransitionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_transition, 4);
+  messageDesc(file_swarm_manager_v1_api_transition, 10);
 
 /**
  * @generated from message vrooli.swarm_manager.v1.api.ApplyTransitionRequest
@@ -159,7 +427,7 @@ export type ApplyTransitionRequest = Message<"vrooli.swarm_manager.v1.api.ApplyT
  * Use `create(ApplyTransitionRequestSchema)` to create a new message.
  */
 export const ApplyTransitionRequestSchema: GenMessage<ApplyTransitionRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_transition, 5);
+  messageDesc(file_swarm_manager_v1_api_transition, 11);
 
 /**
  * @generated from message vrooli.swarm_manager.v1.api.ApplyTransitionResponse
@@ -216,7 +484,7 @@ export type ApplyTransitionResponse = Message<"vrooli.swarm_manager.v1.api.Apply
  * Use `create(ApplyTransitionResponseSchema)` to create a new message.
  */
 export const ApplyTransitionResponseSchema: GenMessage<ApplyTransitionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_transition, 6);
+  messageDesc(file_swarm_manager_v1_api_transition, 12);
 
 /**
  * @generated from service vrooli.swarm_manager.v1.api.TransitionService
@@ -229,6 +497,16 @@ export const TransitionService: GenService<{
     methodKind: "unary";
     input: typeof ListTransitionsRequestSchema;
     output: typeof ListTransitionsResponseSchema;
+  },
+  /**
+   * Read-only preparation. This neither approves nor starts an engagement.
+   *
+   * @generated from rpc vrooli.swarm_manager.v1.api.TransitionService.PreviewDevelopment
+   */
+  previewDevelopment: {
+    methodKind: "unary";
+    input: typeof PreviewDevelopmentRequestSchema;
+    output: typeof PreviewDevelopmentResponseSchema;
   },
   /**
    * @generated from rpc vrooli.swarm_manager.v1.api.TransitionService.StartTransition

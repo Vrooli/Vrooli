@@ -2,13 +2,12 @@ package execution
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"swarm-manager/internal/identity"
 )
 
 // PreflightSpec is the caller-supplied form of a backlog item's spec. It
@@ -28,6 +27,8 @@ type PreflightSpec struct {
 	Creates            []string
 	ArchivedAt         *string
 	PlanRef            *PlanRefSpec
+	ExecutionStrategy  string
+	ExecutionLimits    *identity.ExecutionLimits
 	PlanAcceptance     *PlanAcceptanceSpec
 }
 
@@ -75,6 +76,8 @@ func (spec PreflightSpec) toBacklogItem() backlogItem {
 		Creates:            spec.Creates,
 		ArchivedAt:         spec.ArchivedAt,
 		Tags:               []string{},
+		ExecutionStrategy:  strings.ToLower(strings.TrimSpace(spec.ExecutionStrategy)),
+		ExecutionLimits:    spec.ExecutionLimits.Clone(),
 	}
 	if spec.PlanRef != nil {
 		item.PlanRef = &planRef{Provider: spec.PlanRef.Provider, PlanID: spec.PlanRef.PlanID, Slug: spec.PlanRef.Slug, Role: spec.PlanRef.Role}
@@ -92,6 +95,13 @@ func (spec PreflightSpec) toBacklogItem() backlogItem {
 
 func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem, checkQueueable bool) ProcessPreflight {
 	targetScenarioID, archivedRevival := resolveTargetScenario(item)
+	planBacked := hasExecutionPlanRef(item)
+	// A plan-backed item can span several scenarios and its name identifies
+	// the work, not a scenario to generate. Preserve an explicit revival
+	// source, but never infer a new scenario from a canonical plan's item name.
+	if planBacked && strings.TrimSpace(item.SourceScenarioName) == "" {
+		targetScenarioID = ""
+	}
 	targetScenarioExists := false
 	if strings.TrimSpace(targetScenarioID) != "" {
 		targetScenarioExists = scenarioExists(filepath.Join(s.scenariosRootDir(), targetScenarioID))
@@ -107,9 +117,21 @@ func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem,
 		SuggestedOperation:       "generator",
 		SuggestedSteerProfileID:  "rapid-mvp",
 	}
+	if strategy := strings.TrimSpace(item.ExecutionStrategy); strategy != "" {
+		if strategy != defaultExecutionStrategy && strategy != adaptiveImprovementStrategy {
+			appendPreflightBlocker(&preflight, "execution_strategy_invalid", fmt.Sprintf("execution strategy is not declared: %s", strategy), false)
+		}
+	}
+	if err := item.ExecutionLimits.Validate(); err != nil {
+		appendPreflightBlocker(&preflight, "execution_limits_invalid", err.Error(), false)
+	}
 	if targetScenarioExists {
 		preflight.SuggestedOperation = "improver"
 		preflight.SuggestedSteerProfileID = "production-ready"
+	}
+	if planBacked {
+		preflight.SuggestedOperation = "plan.execute"
+		preflight.SuggestedSteerProfileID = ""
 	}
 
 	isArchived := item.ArchivedAt != nil
@@ -187,23 +209,15 @@ func (s *Service) planAcceptanceBlockingReason(ctx context.Context, item backlog
 }
 
 func executionPlanAcceptanceSubjectVersion(item backlogItem) string {
-	payload := struct {
-		Kind            string   `json:"kind"`
-		Name            string   `json:"name"`
-		Title           string   `json:"title"`
-		Description     string   `json:"description"`
-		AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
-		AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
-		Creates         []string `json:"creates,omitempty"`
-		PlanRef         *planRef `json:"plan_ref,omitempty"`
-	}{
+	contract := identity.PlanAcceptanceContract{
 		Kind: item.Kind, Name: item.Name, Title: item.Title, Description: item.Description,
 		AcceptanceAllow: item.AcceptanceAllow, AcceptanceDeny: item.AcceptanceDeny,
-		Creates: item.Creates, PlanRef: item.PlanRef,
+		Creates: item.Creates, ExecutionStrategy: item.ExecutionStrategy, ExecutionLimits: item.ExecutionLimits,
 	}
-	raw, _ := json.Marshal(payload)
-	sum := sha256.Sum256(raw)
-	return "sha256:" + hex.EncodeToString(sum[:])
+	if item.PlanRef != nil {
+		contract.PlanRef = &identity.PlanAcceptanceReference{Provider: item.PlanRef.Provider, PlanID: item.PlanRef.PlanID, Slug: item.PlanRef.Slug, Role: item.PlanRef.Role}
+	}
+	return contract.Digest()
 }
 
 func hasExecutionPlanRef(item backlogItem) bool {

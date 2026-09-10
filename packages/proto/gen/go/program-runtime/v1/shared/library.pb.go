@@ -53,9 +53,21 @@ type LibraryProgram struct {
 	Path            string   `protobuf:"bytes,24,opt,name=path,proto3" json:"path,omitempty"`
 	Score           float64  `protobuf:"fixed64,25,opt,name=score,proto3" json:"score,omitempty"`
 	// SHA-256 of the declared contract bytes and sibling executable source.
-	ContentDigest string `protobuf:"bytes,26,opt,name=content_digest,json=contentDigest,proto3" json:"content_digest,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ContentDigest                    string   `protobuf:"bytes,26,opt,name=content_digest,json=contentDigest,proto3" json:"content_digest,omitempty"`
+	Verbs                            []string `protobuf:"bytes,27,rep,name=verbs,proto3" json:"verbs,omitempty"`
+	MemoryDeclared                   bool     `protobuf:"varint,28,opt,name=memory_declared,json=memoryDeclared,proto3" json:"memory_declared,omitempty"`
+	FixtureCount                     int32    `protobuf:"varint,29,opt,name=fixture_count,json=fixtureCount,proto3" json:"fixture_count,omitempty"`
+	LiveFixtureCount                 int32    `protobuf:"varint,30,opt,name=live_fixture_count,json=liveFixtureCount,proto3" json:"live_fixture_count,omitempty"`
+	BindingCount                     int32    `protobuf:"varint,31,opt,name=binding_count,json=bindingCount,proto3" json:"binding_count,omitempty"`
+	OptionalBindingCount             int32    `protobuf:"varint,32,opt,name=optional_binding_count,json=optionalBindingCount,proto3" json:"optional_binding_count,omitempty"`
+	SourceMissing                    bool     `protobuf:"varint,33,opt,name=source_missing,json=sourceMissing,proto3" json:"source_missing,omitempty"`
+	OutputSchemaPresent              bool     `protobuf:"varint,34,opt,name=output_schema_present,json=outputSchemaPresent,proto3" json:"output_schema_present,omitempty"`
+	LearningVerbs                    []string `protobuf:"bytes,35,rep,name=learning_verbs,json=learningVerbs,proto3" json:"learning_verbs,omitempty"`
+	LearningUsesMemory               bool     `protobuf:"varint,36,opt,name=learning_uses_memory,json=learningUsesMemory,proto3" json:"learning_uses_memory,omitempty"`
+	LearningNoteKinds                []string `protobuf:"bytes,37,rep,name=learning_note_kinds,json=learningNoteKinds,proto3" json:"learning_note_kinds,omitempty"`
+	LearningFreeTextInputsWithoutKey bool     `protobuf:"varint,38,opt,name=learning_free_text_inputs_without_key,json=learningFreeTextInputsWithoutKey,proto3" json:"learning_free_text_inputs_without_key,omitempty"`
+	unknownFields                    protoimpl.UnknownFields
+	sizeCache                        protoimpl.SizeCache
 }
 
 func (x *LibraryProgram) Reset() {
@@ -270,11 +282,96 @@ func (x *LibraryProgram) GetContentDigest() string {
 	return ""
 }
 
+func (x *LibraryProgram) GetVerbs() []string {
+	if x != nil {
+		return x.Verbs
+	}
+	return nil
+}
+
+func (x *LibraryProgram) GetMemoryDeclared() bool {
+	if x != nil {
+		return x.MemoryDeclared
+	}
+	return false
+}
+
+func (x *LibraryProgram) GetFixtureCount() int32 {
+	if x != nil {
+		return x.FixtureCount
+	}
+	return 0
+}
+
+func (x *LibraryProgram) GetLiveFixtureCount() int32 {
+	if x != nil {
+		return x.LiveFixtureCount
+	}
+	return 0
+}
+
+func (x *LibraryProgram) GetBindingCount() int32 {
+	if x != nil {
+		return x.BindingCount
+	}
+	return 0
+}
+
+func (x *LibraryProgram) GetOptionalBindingCount() int32 {
+	if x != nil {
+		return x.OptionalBindingCount
+	}
+	return 0
+}
+
+func (x *LibraryProgram) GetSourceMissing() bool {
+	if x != nil {
+		return x.SourceMissing
+	}
+	return false
+}
+
+func (x *LibraryProgram) GetOutputSchemaPresent() bool {
+	if x != nil {
+		return x.OutputSchemaPresent
+	}
+	return false
+}
+
+func (x *LibraryProgram) GetLearningVerbs() []string {
+	if x != nil {
+		return x.LearningVerbs
+	}
+	return nil
+}
+
+func (x *LibraryProgram) GetLearningUsesMemory() bool {
+	if x != nil {
+		return x.LearningUsesMemory
+	}
+	return false
+}
+
+func (x *LibraryProgram) GetLearningNoteKinds() []string {
+	if x != nil {
+		return x.LearningNoteKinds
+	}
+	return nil
+}
+
+func (x *LibraryProgram) GetLearningFreeTextInputsWithoutKey() bool {
+	if x != nil {
+		return x.LearningFreeTextInputsWithoutKey
+	}
+	return false
+}
+
 var File_program_runtime_v1_shared_library_proto protoreflect.FileDescriptor
 
 const file_program_runtime_v1_shared_library_proto_rawDesc = "" +
 	"\n" +
-	"'program-runtime/v1/shared/library.proto\x12 vrooli.program_runtime.v1.shared\"\xa1\x06\n" +
+	"'program-runtime/v1/shared/library.proto\x12 vrooli.program_runtime.v1.shared\"\xc3\n" +
+	"\n" +
 	"\x0eLibraryProgram\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
@@ -305,7 +402,19 @@ const file_program_runtime_v1_shared_library_proto_rawDesc = "" +
 	"\x10validation_error\x18\x17 \x01(\tR\x0fvalidationError\x12\x12\n" +
 	"\x04path\x18\x18 \x01(\tR\x04path\x12\x14\n" +
 	"\x05score\x18\x19 \x01(\x01R\x05score\x12%\n" +
-	"\x0econtent_digest\x18\x1a \x01(\tR\rcontentDigestBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared;shared_v1b\x06proto3"
+	"\x0econtent_digest\x18\x1a \x01(\tR\rcontentDigest\x12\x14\n" +
+	"\x05verbs\x18\x1b \x03(\tR\x05verbs\x12'\n" +
+	"\x0fmemory_declared\x18\x1c \x01(\bR\x0ememoryDeclared\x12#\n" +
+	"\rfixture_count\x18\x1d \x01(\x05R\ffixtureCount\x12,\n" +
+	"\x12live_fixture_count\x18\x1e \x01(\x05R\x10liveFixtureCount\x12#\n" +
+	"\rbinding_count\x18\x1f \x01(\x05R\fbindingCount\x124\n" +
+	"\x16optional_binding_count\x18  \x01(\x05R\x14optionalBindingCount\x12%\n" +
+	"\x0esource_missing\x18! \x01(\bR\rsourceMissing\x122\n" +
+	"\x15output_schema_present\x18\" \x01(\bR\x13outputSchemaPresent\x12%\n" +
+	"\x0elearning_verbs\x18# \x03(\tR\rlearningVerbs\x120\n" +
+	"\x14learning_uses_memory\x18$ \x01(\bR\x12learningUsesMemory\x12.\n" +
+	"\x13learning_note_kinds\x18% \x03(\tR\x11learningNoteKinds\x12O\n" +
+	"%learning_free_text_inputs_without_key\x18& \x01(\bR learningFreeTextInputsWithoutKeyBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared;shared_v1b\x06proto3"
 
 var (
 	file_program_runtime_v1_shared_library_proto_rawDescOnce sync.Once

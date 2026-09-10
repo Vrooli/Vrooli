@@ -6,6 +6,12 @@ Central command center for managing the Vrooli scenario ecosystem - orchestratin
 
 Swarm Manager is the **staging and review layer** between agent teams and scenario execution. Agent teams in [prompt-manager](../prompt-manager/README.md) analyze codebases and produce plans (fixes, ideas, refactors), but instead of executing directly, they deposit those plans as backlog items here. This gives operators a single place to:
 
+The scenario-owned [usage skill](skills/swarm-manager/SKILL.md) is the operational
+entry point for this loop, and [improve skill](skills/swarm-manager-improve/SKILL.md)
+selects evidence-backed control-plane repairs. The shared
+`scenario-improvement-campaign` skill owns successive authorized repairs; target
+scenarios retain product and provider authority.
+
 - **Review** all agent-generated plans before anything executes
 - **Refine** plans using the built-in workshop loop and prompt catalog
 - **Control Execution**: Run approved work in manual, scheduled, or YOLO mode
@@ -124,6 +130,7 @@ execute/
 - **agent-manager** - Spawning agents for automated work
 - **swarm-manager** - Scenario initialization and improvement
 - **prompt-manager** - Prompt skill resolution, preview, simulate, and versioning
+- **scenario-authenticator** - Verified human identity and scoped authority for protected Swarm decisions
 
 ### Optional Scenarios (P1)
 - knowledge-observatory, visited-tracker, scenario-completeness-scoring
@@ -135,8 +142,40 @@ execute/
 |----------|---------|
 | `API_PORT` | Go API server port |
 | `UI_PORT` | React UI port |
+| `SWARM_MANAGER_API_TOKEN` | Optional secret-aware CLI bearer token for verified operator requests |
+
+Swarm Manager runs in `local_multi_user` mode by default and requires
+Scenario Authenticator. Human development decisions need a verified account
+token carrying `swarm-manager:write`; account and capability management remain
+owned by Scenario Authenticator.
+
+For a protected decision, obtain the operator token through Scenario
+Authenticator, ensure the authenticated principal has `swarm-manager:write`,
+and provide the token through the CLI environment or its secure configuration.
+Do not place credentials in request files, prompts, or command arguments.
 
 ## CLI Commands
+
+Development review is available as a non-launching API/CLI preparation step:
+
+```bash
+swarm-manager transitions preview-development --file scenarios/audio-tools/docs/internal/local-dictation-proposal.json --json
+```
+
+This returns target fingerprints, a draft goal and explicit launch blockers;
+it grants no authority and does not create or queue work. See the
+[implementation boundary](docs/concepts/ARCHITECTURE.md#implemented-non-launching-development-review).
+
+Existing backlog items can also be reviewed through the **Development contract**
+panel in their details, or through `swarm-manager development get --item
+<kind/name> --json`. Typed `approve`, `revoke` and `accept` commands take a
+`--file` request containing the expected aggregate version; `approve` additionally
+requires the reviewed proposal digest. `artifact --item <kind/name> --digest
+<approved-digest> --path <path>` reads retained bytes rather than live source.
+These commands never launch work. Decisions require configured verified-human
+authentication and `swarm-manager:write` authority. Runtime continuation and
+production outcome resolvers remain unqualified; see the
+[retained-development implementation](docs/concepts/ARCHITECTURE.md#implemented-retained-development-decisions-and-accounting-core).
 
 ```bash
 swarm-manager backlog list [--kinds idea,research,fix,execute]

@@ -43,6 +43,7 @@ type stubPhasedPlanWorkflow struct {
 	collectCalls int
 	approveCalls int
 	cancelCalls  int
+	cancelHook   func(string) error
 	progress     agentmanager.WorkflowProgress
 	progressErr  error
 }
@@ -81,7 +82,7 @@ func (s *stubPhasedPlanWorkflow) StartWorkflow(_ context.Context, invocation age
 		return agentmanager.WorkflowStart{}, s.startErr
 	}
 	if s.start.ExecutionID == "" && s.start.DefinitionDigest == "" && s.start.RunID == "" {
-		return agentmanager.WorkflowStart{ExecutionID: "wfx-1", RunID: "run-1", DefinitionDigest: "sha256:def"}, nil
+		return agentmanager.WorkflowStart{ExecutionID: "wfx-1", RunID: "run-1", DefinitionDigest: "sha256:def", ApprovalDigest: invocation.ApprovalDigest, GrantDigest: invocation.GrantDigest}, nil
 	}
 	return s.start, nil
 }
@@ -110,8 +111,12 @@ func TestWorkflowProgressReadsAgentManagerTraceWithoutPersistingIt(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.transitionCorrelation(stored); err != nil {
-		t.Fatalf("live progress lost execution correlation: %v", err)
+	if stored.OpExecutionID != "" {
+		t.Fatalf("ordinary workflow must not duplicate the runner-owned correlation: %+v", stored)
+	}
+	correlation, err := service.CorrelationForExecution(context.Background(), stored.ExecutionID)
+	if err != nil || correlation.ExecutionID != "wfx-1" {
+		t.Fatalf("live progress/review lost runner-owned execution correlation: %+v err=%v", correlation, err)
 	}
 }
 
@@ -120,8 +125,11 @@ func (s *stubPhasedPlanWorkflow) SignalWorkflow(context.Context, string, string,
 	return nil
 }
 
-func (s *stubPhasedPlanWorkflow) CancelWorkflow(context.Context, string, string, string) error {
+func (s *stubPhasedPlanWorkflow) CancelWorkflow(_ context.Context, _ string, key string, _ string) error {
 	s.cancelCalls++
+	if s.cancelHook != nil {
+		return s.cancelHook(key)
+	}
 	return nil
 }
 
@@ -693,11 +701,11 @@ func TestCancel_StartingExecution(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cancel error: %v", err)
 	}
-	if canceled.Status != StatusCanceled {
-		t.Fatalf("expected canceled, got %s", canceled.Status)
+	if canceled.Status != StatusCancelling {
+		t.Fatalf("expected cancelling until terminal accounting, got %s", canceled.Status)
 	}
-	if state := transitionApplyStateFor(t, service, workflowCorrelationFor(t, service, canceled).ExecutionID); state != transitionrun.ApplyStateComplete {
-		t.Fatalf("workflow cancellation must close the consumer apply boundary, got %q", state)
+	if state := transitionApplyStateFor(t, service, workflowCorrelationFor(t, service, canceled).ExecutionID); state == transitionrun.ApplyStateComplete {
+		t.Fatalf("workflow cancellation must retain unresolved accounting, got %q", state)
 	}
 	if stopper.stopCalls != 0 {
 		t.Fatalf("workflow-owned cancellation must not stop a child run directly, got %d", stopper.stopCalls)
@@ -800,8 +808,8 @@ func TestCancel_NeedsReviewExecution(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cancel error: %v", err)
 	}
-	if canceled.Status != StatusCanceled {
-		t.Fatalf("expected canceled, got %s", canceled.Status)
+	if canceled.Status != StatusCancelling {
+		t.Fatalf("expected cancelling until terminal accounting, got %s", canceled.Status)
 	}
 }
 

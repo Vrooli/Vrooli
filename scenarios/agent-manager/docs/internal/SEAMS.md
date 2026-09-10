@@ -607,6 +607,7 @@ type Collector interface {
 
 **Implementations:**
 - `SQLiteStore` - SQLite-backed event storage with streaming support (implemented, `adapters/event/sqlite.go`). Appends use an immediate SQLite transaction before sequence allocation so concurrent writers for the same run cannot race on `MAX(sequence)`.
+- Event retention selects expired candidates through the event owner's timestamp index before acquiring SQLite's writer. The short deletion transaction rechecks each stable event ID, cutoff, completed projection and non-imported execution mode; only actual deletions advance the retention generation. A row limit alone does not bound a scan inside a write transaction.
 - `orchestration.appendAndBroadcastEvents` - shared durable delivery helper. It appends first, then broadcasts the persisted event with assigned ID/sequence. Durable event paths must go through this helper or a sink that delegates to it; broadcasting an event that failed to append is a contract violation.
 - `orchestration.runEventSink` / `broadcastingEventSink` - runner-facing event sink creation. The sink chooses append-and-broadcast when both store and broadcaster exist, append-only when only the store exists, and no-op when event storage is absent.
 
@@ -1034,7 +1035,8 @@ type Collector interface {
 **Implementations:**
 - SQLite-backed implementations in `database/` package (`repository.go`, `repository_run.go`, `repository_stats.go`, `repository_pricing.go`, `repository_support.go`)
 - Single embedded SQLite database file at the scenario `api-core/storage` data path
-- Schema auto-initialized on connection via `database/schema.sql`
+- Schema initialization composes the embedded providers owned by each domain through `api-core/database.EnsureSchemas`.
+- Supervision owns the outcome decision and expiry indexes used by `PolicyStore.PruneExpired`. Startup cleanup removes dependent promotion/replay references and orphaned evaluation inputs atomically. The decision lookup must remain indexed: an unindexed correlated scan of retained inputs monopolized SQLite's writer and blocked unrelated run creation and pricing writes.
 
 ---
 

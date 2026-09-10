@@ -194,6 +194,50 @@ func (x *ListAttachedDevicesResponse) GetDevices() []*AttachedDevice {
 	return nil
 }
 
+type GetAttachedDeviceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAttachedDeviceRequest) Reset() {
+	*x = GetAttachedDeviceRequest{}
+	mi := &file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAttachedDeviceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAttachedDeviceRequest) ProtoMessage() {}
+
+func (x *GetAttachedDeviceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAttachedDeviceRequest.ProtoReflect.Descriptor instead.
+func (*GetAttachedDeviceRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_attached_devices_attached_devices_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetAttachedDeviceRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
 type RevokeAttachedDeviceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -203,7 +247,7 @@ type RevokeAttachedDeviceRequest struct {
 
 func (x *RevokeAttachedDeviceRequest) Reset() {
 	*x = RevokeAttachedDeviceRequest{}
-	mi := &file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes[3]
+	mi := &file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -215,7 +259,7 @@ func (x *RevokeAttachedDeviceRequest) String() string {
 func (*RevokeAttachedDeviceRequest) ProtoMessage() {}
 
 func (x *RevokeAttachedDeviceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes[3]
+	mi := &file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -228,7 +272,7 @@ func (x *RevokeAttachedDeviceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeAttachedDeviceRequest.ProtoReflect.Descriptor instead.
 func (*RevokeAttachedDeviceRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_attached_devices_attached_devices_proto_rawDescGZIP(), []int{3}
+	return file_vrooli_bridge_v1_attached_devices_attached_devices_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RevokeAttachedDeviceRequest) GetId() string {
@@ -247,7 +291,7 @@ type AttachedDeviceResponse struct {
 
 func (x *AttachedDeviceResponse) Reset() {
 	*x = AttachedDeviceResponse{}
-	mi := &file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes[4]
+	mi := &file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -259,7 +303,7 @@ func (x *AttachedDeviceResponse) String() string {
 func (*AttachedDeviceResponse) ProtoMessage() {}
 
 func (x *AttachedDeviceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes[4]
+	mi := &file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -272,7 +316,7 @@ func (x *AttachedDeviceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachedDeviceResponse.ProtoReflect.Descriptor instead.
 func (*AttachedDeviceResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_attached_devices_attached_devices_proto_rawDescGZIP(), []int{4}
+	return file_vrooli_bridge_v1_attached_devices_attached_devices_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *AttachedDeviceResponse) GetDevice() *AttachedDevice {
@@ -283,26 +327,29 @@ func (x *AttachedDeviceResponse) GetDevice() *AttachedDevice {
 }
 
 type AttachedDevice struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	HostNodeId    string                 `protobuf:"bytes,3,opt,name=host_node_id,json=hostNodeId,proto3" json:"host_node_id,omitempty"`
-	Kind          string                 `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
-	Transport     string                 `protobuf:"bytes,5,opt,name=transport,proto3" json:"transport,omitempty"`
-	Serial        string                 `protobuf:"bytes,6,opt,name=serial,proto3" json:"serial,omitempty"`
-	OsVersion     string                 `protobuf:"bytes,7,opt,name=os_version,json=osVersion,proto3" json:"os_version,omitempty"`
-	TrustState    string                 `protobuf:"bytes,8,opt,name=trust_state,json=trustState,proto3" json:"trust_state,omitempty"`
-	Reachability  string                 `protobuf:"bytes,9,opt,name=reachability,proto3" json:"reachability,omitempty"`
-	HealthReason  string                 `protobuf:"bytes,10,opt,name=health_reason,json=healthReason,proto3" json:"health_reason,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	RevokedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Id           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name         string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	HostNodeId   string                 `protobuf:"bytes,3,opt,name=host_node_id,json=hostNodeId,proto3" json:"host_node_id,omitempty"`
+	Kind         string                 `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
+	Transport    string                 `protobuf:"bytes,5,opt,name=transport,proto3" json:"transport,omitempty"`
+	Serial       string                 `protobuf:"bytes,6,opt,name=serial,proto3" json:"serial,omitempty"`
+	OsVersion    string                 `protobuf:"bytes,7,opt,name=os_version,json=osVersion,proto3" json:"os_version,omitempty"`
+	TrustState   string                 `protobuf:"bytes,8,opt,name=trust_state,json=trustState,proto3" json:"trust_state,omitempty"`
+	Reachability string                 `protobuf:"bytes,9,opt,name=reachability,proto3" json:"reachability,omitempty"`
+	HealthReason string                 `protobuf:"bytes,10,opt,name=health_reason,json=healthReason,proto3" json:"health_reason,omitempty"`
+	CreatedAt    *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	RevokedAt    *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
+	// Every transport observed for this physical device. The legacy transport
+	// field remains populated with the primary transport for older consumers.
+	Transports    []string `protobuf:"bytes,13,rep,name=transports,proto3" json:"transports,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AttachedDevice) Reset() {
 	*x = AttachedDevice{}
-	mi := &file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes[5]
+	mi := &file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -314,7 +361,7 @@ func (x *AttachedDevice) String() string {
 func (*AttachedDevice) ProtoMessage() {}
 
 func (x *AttachedDevice) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes[5]
+	mi := &file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -327,7 +374,7 @@ func (x *AttachedDevice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachedDevice.ProtoReflect.Descriptor instead.
 func (*AttachedDevice) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_attached_devices_attached_devices_proto_rawDescGZIP(), []int{5}
+	return file_vrooli_bridge_v1_attached_devices_attached_devices_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AttachedDevice) GetId() string {
@@ -414,6 +461,13 @@ func (x *AttachedDevice) GetRevokedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *AttachedDevice) GetTransports() []string {
+	if x != nil {
+		return x.Transports
+	}
+	return nil
+}
+
 var File_vrooli_bridge_v1_attached_devices_attached_devices_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_attached_devices_attached_devices_proto_rawDesc = "" +
@@ -431,11 +485,13 @@ const file_vrooli_bridge_v1_attached_devices_attached_devices_proto_rawDesc = ""
 	"\x10host_node_online\x18\a \x01(\bR\x0ehostNodeOnline\"\x1c\n" +
 	"\x1aListAttachedDevicesRequest\"q\n" +
 	"\x1bListAttachedDevicesResponse\x12R\n" +
-	"\adevices\x18\x01 \x03(\v28.vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceR\adevices\"-\n" +
+	"\adevices\x18\x01 \x03(\v28.vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceR\adevices\"*\n" +
+	"\x18GetAttachedDeviceRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"-\n" +
 	"\x1bRevokeAttachedDeviceRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"j\n" +
 	"\x16AttachedDeviceResponse\x12P\n" +
-	"\x06device\x18\x01 \x01(\v28.vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceR\x06device\"\x9f\x03\n" +
+	"\x06device\x18\x01 \x01(\v28.vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceR\x06device\"\xbf\x03\n" +
 	"\x0eAttachedDevice\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -454,10 +510,14 @@ const file_vrooli_bridge_v1_attached_devices_attached_devices_proto_rawDesc = ""
 	"\n" +
 	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"revoked_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\trevokedAt2\xfc\x03\n" +
+	"revoked_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\trevokedAt\x12\x1e\n" +
+	"\n" +
+	"transports\x18\r \x03(\tR\n" +
+	"transports2\x98\x05\n" +
 	"\x15AttachedDeviceService\x12\x9b\x01\n" +
 	"\x12PairAttachedDevice\x12C.vrooli.vrooli_bridge.v1.attached_devices.PairAttachedDeviceRequest\x1a@.vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceResponse\x12\xa2\x01\n" +
-	"\x13ListAttachedDevices\x12D.vrooli.vrooli_bridge.v1.attached_devices.ListAttachedDevicesRequest\x1aE.vrooli.vrooli_bridge.v1.attached_devices.ListAttachedDevicesResponse\x12\x9f\x01\n" +
+	"\x13ListAttachedDevices\x12D.vrooli.vrooli_bridge.v1.attached_devices.ListAttachedDevicesRequest\x1aE.vrooli.vrooli_bridge.v1.attached_devices.ListAttachedDevicesResponse\x12\x99\x01\n" +
+	"\x11GetAttachedDevice\x12B.vrooli.vrooli_bridge.v1.attached_devices.GetAttachedDeviceRequest\x1a@.vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceResponse\x12\x9f\x01\n" +
 	"\x14RevokeAttachedDevice\x12E.vrooli.vrooli_bridge.v1.attached_devices.RevokeAttachedDeviceRequest\x1a@.vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceResponseBfZdgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/attached_devices;attached_devices_v1b\x06proto3"
 
 var (
@@ -472,29 +532,32 @@ func file_vrooli_bridge_v1_attached_devices_attached_devices_proto_rawDescGZIP()
 	return file_vrooli_bridge_v1_attached_devices_attached_devices_proto_rawDescData
 }
 
-var file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_vrooli_bridge_v1_attached_devices_attached_devices_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_vrooli_bridge_v1_attached_devices_attached_devices_proto_goTypes = []any{
 	(*PairAttachedDeviceRequest)(nil),   // 0: vrooli.vrooli_bridge.v1.attached_devices.PairAttachedDeviceRequest
 	(*ListAttachedDevicesRequest)(nil),  // 1: vrooli.vrooli_bridge.v1.attached_devices.ListAttachedDevicesRequest
 	(*ListAttachedDevicesResponse)(nil), // 2: vrooli.vrooli_bridge.v1.attached_devices.ListAttachedDevicesResponse
-	(*RevokeAttachedDeviceRequest)(nil), // 3: vrooli.vrooli_bridge.v1.attached_devices.RevokeAttachedDeviceRequest
-	(*AttachedDeviceResponse)(nil),      // 4: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceResponse
-	(*AttachedDevice)(nil),              // 5: vrooli.vrooli_bridge.v1.attached_devices.AttachedDevice
-	(*timestamppb.Timestamp)(nil),       // 6: google.protobuf.Timestamp
+	(*GetAttachedDeviceRequest)(nil),    // 3: vrooli.vrooli_bridge.v1.attached_devices.GetAttachedDeviceRequest
+	(*RevokeAttachedDeviceRequest)(nil), // 4: vrooli.vrooli_bridge.v1.attached_devices.RevokeAttachedDeviceRequest
+	(*AttachedDeviceResponse)(nil),      // 5: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceResponse
+	(*AttachedDevice)(nil),              // 6: vrooli.vrooli_bridge.v1.attached_devices.AttachedDevice
+	(*timestamppb.Timestamp)(nil),       // 7: google.protobuf.Timestamp
 }
 var file_vrooli_bridge_v1_attached_devices_attached_devices_proto_depIdxs = []int32{
-	5, // 0: vrooli.vrooli_bridge.v1.attached_devices.ListAttachedDevicesResponse.devices:type_name -> vrooli.vrooli_bridge.v1.attached_devices.AttachedDevice
-	5, // 1: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceResponse.device:type_name -> vrooli.vrooli_bridge.v1.attached_devices.AttachedDevice
-	6, // 2: vrooli.vrooli_bridge.v1.attached_devices.AttachedDevice.created_at:type_name -> google.protobuf.Timestamp
-	6, // 3: vrooli.vrooli_bridge.v1.attached_devices.AttachedDevice.revoked_at:type_name -> google.protobuf.Timestamp
+	6, // 0: vrooli.vrooli_bridge.v1.attached_devices.ListAttachedDevicesResponse.devices:type_name -> vrooli.vrooli_bridge.v1.attached_devices.AttachedDevice
+	6, // 1: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceResponse.device:type_name -> vrooli.vrooli_bridge.v1.attached_devices.AttachedDevice
+	7, // 2: vrooli.vrooli_bridge.v1.attached_devices.AttachedDevice.created_at:type_name -> google.protobuf.Timestamp
+	7, // 3: vrooli.vrooli_bridge.v1.attached_devices.AttachedDevice.revoked_at:type_name -> google.protobuf.Timestamp
 	0, // 4: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.PairAttachedDevice:input_type -> vrooli.vrooli_bridge.v1.attached_devices.PairAttachedDeviceRequest
 	1, // 5: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.ListAttachedDevices:input_type -> vrooli.vrooli_bridge.v1.attached_devices.ListAttachedDevicesRequest
-	3, // 6: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.RevokeAttachedDevice:input_type -> vrooli.vrooli_bridge.v1.attached_devices.RevokeAttachedDeviceRequest
-	4, // 7: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.PairAttachedDevice:output_type -> vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceResponse
-	2, // 8: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.ListAttachedDevices:output_type -> vrooli.vrooli_bridge.v1.attached_devices.ListAttachedDevicesResponse
-	4, // 9: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.RevokeAttachedDevice:output_type -> vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceResponse
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
+	3, // 6: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.GetAttachedDevice:input_type -> vrooli.vrooli_bridge.v1.attached_devices.GetAttachedDeviceRequest
+	4, // 7: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.RevokeAttachedDevice:input_type -> vrooli.vrooli_bridge.v1.attached_devices.RevokeAttachedDeviceRequest
+	5, // 8: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.PairAttachedDevice:output_type -> vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceResponse
+	2, // 9: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.ListAttachedDevices:output_type -> vrooli.vrooli_bridge.v1.attached_devices.ListAttachedDevicesResponse
+	5, // 10: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.GetAttachedDevice:output_type -> vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceResponse
+	5, // 11: vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService.RevokeAttachedDevice:output_type -> vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceResponse
+	8, // [8:12] is the sub-list for method output_type
+	4, // [4:8] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
 	4, // [4:4] is the sub-list for extension extendee
 	0, // [0:4] is the sub-list for field type_name
@@ -511,7 +574,7 @@ func file_vrooli_bridge_v1_attached_devices_attached_devices_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_attached_devices_attached_devices_proto_rawDesc), len(file_vrooli_bridge_v1_attached_devices_attached_devices_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
